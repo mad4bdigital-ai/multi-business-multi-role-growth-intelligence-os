@@ -162,6 +162,11 @@ import {
   assertSheetExistsInSpreadsheet as assertSheetExistsInSpreadsheetBase
 } from "./googleSheets.js";
 import {
+  loadSiteRuntimeInventoryRegistry as loadSiteRuntimeInventoryRegistryCore,
+  loadSiteSettingsInventoryRegistry as loadSiteSettingsInventoryRegistryCore,
+  loadPluginInventoryRegistry as loadPluginInventoryRegistryCore
+} from "./siteInventoryRegistry.js";
+import {
   getEndpointExecutionSnapshot as getEndpointExecutionSnapshotCore,
   getPlaceholderResolutionSources as getPlaceholderResolutionSourcesCore,
   isDelegatedTransportTarget as isDelegatedTransportTargetCore,
@@ -959,50 +964,6 @@ const HOSTING_ACCOUNT_REGISTRY_COLUMNS = [
   "ssh_runtime_notes"
 ];
 
-
-const SITE_RUNTIME_INVENTORY_REGISTRY_COLUMNS = [
-  "target_key",
-  "brand_name",
-  "brand_domain",
-  "base_url",
-  "site_type",
-  "supported_cpts",
-  "supported_taxonomies",
-  "generated_endpoint_support",
-  "runtime_validation_status",
-  "last_runtime_validated_at",
-  "active_status"
-];
-
-const SITE_SETTINGS_INVENTORY_REGISTRY_COLUMNS = [
-  "target_key",
-  "brand_name",
-  "brand_domain",
-  "base_url",
-  "site_type",
-  "permalink_structure",
-  "timezone_string",
-  "site_language",
-  "active_theme",
-  "settings_validation_status",
-  "last_settings_validated_at",
-  "active_status"
-];
-
-const PLUGIN_INVENTORY_REGISTRY_COLUMNS = [
-  "target_key",
-  "brand_name",
-  "brand_domain",
-  "base_url",
-  "site_type",
-  "active_plugins",
-  "plugin_versions_json",
-  "plugin_owned_tables",
-  "plugin_owned_entities",
-  "plugin_validation_status",
-  "last_plugin_validated_at",
-  "active_status"
-];
 
 // Canonical governance note:
 // Task Routes and Workflow Registry are live authority surfaces.
@@ -3261,109 +3222,9 @@ async function ensureSiteMigrationRouteWorkflowRows() {
   });
 }
 
-async function loadSiteRuntimeInventoryRegistry(sheets) {
-  const values = await fetchRange(
-    sheets,
-    `'${SITE_RUNTIME_INVENTORY_REGISTRY_SHEET}'!A1:Z2000`
-  );
-  if (!values.length) throw registryError("Site Runtime Inventory Registry");
-  const headers = values[0];
-  const map = headerMap(headers, SITE_RUNTIME_INVENTORY_REGISTRY_SHEET);
-  for (const col of SITE_RUNTIME_INVENTORY_REGISTRY_COLUMNS) {
-    if (!Object.prototype.hasOwnProperty.call(map, col)) {
-      const err = new Error(
-        `${SITE_RUNTIME_INVENTORY_REGISTRY_SHEET} missing required column: ${col}`
-      );
-      err.code = "registry_schema_mismatch";
-      err.status = 500;
-      throw err;
-    }
-  }
-
-  return values.slice(1).map(row => ({
-    target_key: getCell(row, map, "target_key"),
-    brand_name: getCell(row, map, "brand_name"),
-    brand_domain: getCell(row, map, "brand_domain"),
-    base_url: getCell(row, map, "base_url"),
-    site_type: getCell(row, map, "site_type"),
-    supported_cpts: getCell(row, map, "supported_cpts"),
-    supported_taxonomies: getCell(row, map, "supported_taxonomies"),
-    generated_endpoint_support: getCell(row, map, "generated_endpoint_support"),
-    runtime_validation_status: getCell(row, map, "runtime_validation_status"),
-    last_runtime_validated_at: getCell(row, map, "last_runtime_validated_at"),
-    active_status: getCell(row, map, "active_status")
-  })).filter(r => r.target_key || r.brand_domain || r.base_url);
-}
-
-async function loadSiteSettingsInventoryRegistry(sheets) {
-  const values = await fetchRange(
-    sheets,
-    `'${SITE_SETTINGS_INVENTORY_REGISTRY_SHEET}'!A1:Z2000`
-  );
-  if (!values.length) throw registryError("Site Settings Inventory Registry");
-  const headers = values[0];
-  const map = headerMap(headers, SITE_SETTINGS_INVENTORY_REGISTRY_SHEET);
-  for (const col of SITE_SETTINGS_INVENTORY_REGISTRY_COLUMNS) {
-    if (!Object.prototype.hasOwnProperty.call(map, col)) {
-      const err = new Error(
-        `${SITE_SETTINGS_INVENTORY_REGISTRY_SHEET} missing required column: ${col}`
-      );
-      err.code = "registry_schema_mismatch";
-      err.status = 500;
-      throw err;
-    }
-  }
-
-  return values.slice(1).map(row => ({
-    target_key: getCell(row, map, "target_key"),
-    brand_name: getCell(row, map, "brand_name"),
-    brand_domain: getCell(row, map, "brand_domain"),
-    base_url: getCell(row, map, "base_url"),
-    site_type: getCell(row, map, "site_type"),
-    permalink_structure: getCell(row, map, "permalink_structure"),
-    timezone_string: getCell(row, map, "timezone_string"),
-    site_language: getCell(row, map, "site_language"),
-    active_theme: getCell(row, map, "active_theme"),
-    settings_validation_status: getCell(row, map, "settings_validation_status"),
-    last_settings_validated_at: getCell(row, map, "last_settings_validated_at"),
-    active_status: getCell(row, map, "active_status")
-  })).filter(r => r.target_key || r.brand_domain || r.base_url);
-}
-
-async function loadPluginInventoryRegistry(sheets) {
-  const values = await fetchRange(
-    sheets,
-    `'${PLUGIN_INVENTORY_REGISTRY_SHEET}'!A1:Z2000`
-  );
-  if (!values.length) throw registryError("Plugin Inventory Registry");
-  const headers = values[0];
-  const map = headerMap(headers, PLUGIN_INVENTORY_REGISTRY_SHEET);
-  for (const col of PLUGIN_INVENTORY_REGISTRY_COLUMNS) {
-    if (!Object.prototype.hasOwnProperty.call(map, col)) {
-      const err = new Error(
-        `${PLUGIN_INVENTORY_REGISTRY_SHEET} missing required column: ${col}`
-      );
-      err.code = "registry_schema_mismatch";
-      err.status = 500;
-      throw err;
-    }
-  }
-
-  return values.slice(1).map(row => ({
-    target_key: getCell(row, map, "target_key"),
-    brand_name: getCell(row, map, "brand_name"),
-    brand_domain: getCell(row, map, "brand_domain"),
-    base_url: getCell(row, map, "base_url"),
-    site_type: getCell(row, map, "site_type"),
-    active_plugins: getCell(row, map, "active_plugins"),
-    plugin_versions_json: getCell(row, map, "plugin_versions_json"),
-    plugin_owned_tables: getCell(row, map, "plugin_owned_tables"),
-    plugin_owned_entities: getCell(row, map, "plugin_owned_entities"),
-    plugin_validation_status: getCell(row, map, "plugin_validation_status"),
-    last_plugin_validated_at: getCell(row, map, "last_plugin_validated_at"),
-    active_status: getCell(row, map, "active_status")
-  })).filter(r => r.target_key || r.brand_domain || r.base_url);
-}
+async function loadSiteRuntimeInventoryRegistry(s) { return loadSiteRuntimeInventoryRegistryCore(s); }
+async function loadSiteSettingsInventoryRegistry(s) { return loadSiteSettingsInventoryRegistryCore(s); }
+async function loadPluginInventoryRegistry(s) { return loadPluginInventoryRegistryCore(s); }
 
 async function loadTaskRoutesRegistry(sheets, options = {}) {
   return loadTaskRoutesRegistryCore(sheets, options, {
