@@ -12,44 +12,6 @@ export function requireEnv(name) {
   return value;
 }
 
-export function requireGithubToken() {
-  if (!GITHUB_TOKEN) {
-    const err = new Error("Missing required environment variable: GITHUB_TOKEN");
-    err.code = "missing_github_token";
-    err.status = 500;
-    throw err;
-  }
-  return GITHUB_TOKEN;
-}
-
-export function assertNonEmptyString(value, fieldName) {
-  const normalized = String(value || "").trim();
-  if (!normalized) {
-    const err = new Error(`${fieldName} is required.`);
-    err.code = "invalid_request";
-    err.status = 400;
-    throw err;
-  }
-  return normalized;
-}
-
-export function parseBoundedInteger(value, fieldName, min, max) {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
-    const err = new Error(
-      `${fieldName} must be an integer between ${min} and ${max}.`
-    );
-    err.code = "invalid_request";
-    err.status = 400;
-    throw err;
-  }
-  return parsed;
-}
-
-export function decodeBase64ToBuffer(value) {
-  return Buffer.from(String(value || "").replace(/\s+/g, ""), "base64");
-}
-
 export function jsonParseSafe(value, fallback) {
   try {
     return value ? JSON.parse(value) : fallback;
