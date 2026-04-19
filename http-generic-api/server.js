@@ -2293,10 +2293,6 @@ function isDelegatedHttpExecuteWrapper(payload = {}) {
   );
 }
 
-function isWordPressAction(parentActionKey = "") {
-  return String(parentActionKey || "").trim() === "wordpress_api";
-}
-
 function promoteDelegatedExecutionPayload(payload = {}) {
   if (!isDelegatedHttpExecuteWrapper(payload)) {
     return payload;

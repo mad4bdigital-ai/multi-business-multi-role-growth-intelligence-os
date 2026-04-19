@@ -18,6 +18,7 @@ import {
   listWordpressEntriesByType,
   mapWordpressSourceEntryToMutationPayload,
   normalizeWordpressCollectionSlug,
+  normalizeWordpressPhaseAType,
   nowIsoSafe,
   recordWordpressMutationWritebackEvidence,
   resolveWordpressCollectionSlug,
@@ -453,13 +454,6 @@ export function buildWordpressGeneratedCandidateEvidence(args = {}) {
     generated_candidate_confidence: "high",
     materialized_registry_row_exists: materializedRegistryRowExists
   };
-}
-
-export function normalizeWordpressPhaseAType(value = "") {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "_");
 }
 
 export function classifyWordpressPhaseAScope(postType = "") {
