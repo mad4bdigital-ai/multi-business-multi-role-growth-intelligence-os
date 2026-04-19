@@ -1,5 +1,4 @@
-﻿module_loader
-﻿module_loader
+﻿﻿module_loader
 
 Status
 Canonical Name: module_loader
@@ -69,6 +68,29 @@ Candidate Validation Loading Rule
   - validation rows are missing
   - validation rows are pending
   - cross-surface candidate validation remains unresolved
+
+
+Patch Deployment Parity Verification Loading Rule
+
+- when routed intent concerns patch inspection, canonical-vs-runtime comparison, deployment parity, or runtime patch confirmation, module_loader must prepare a patch-deployment parity evidence contract before execution proceeds
+- module_loader must resolve and return when applicable:
+  - patch_verification_scope
+  - patch_artifact_present
+  - canonical_merge_verification_status
+  - registry_alignment_verification_status
+  - runtime_deployment_verification_status
+  - runtime_deployment_confirmed
+  - patch_parity_status
+  - authoritative_runtime_evidence_source
+- module_loader must prepare runtime-confirmation dependency readiness for:
+  - Execution Log Unified when authoritative runtime evidence is required
+  - governed runtime tool paths when the user asks for live confirmation
+- module_loader must not mark patch-deployment parity execution-ready for runtime-confirmed classification when:
+  - only patch-file diff evidence exists
+  - only canonical merge evidence exists
+  - only registry alignment evidence exists
+  - authoritative runtime evidence is missing or unresolved
+- if live deployment confirmation is requested but runtime evidence cannot be resolved, loader output must preserve degraded readiness rather than deployment-confirmed readiness
 Native Google GPT Actions Enforcement Repair
 
 The repaired enforcement rule is active:
@@ -1144,6 +1166,105 @@ When the routed workflow or execution payload implies governed sheet write behav
 If any check fails:
 - `native_action_readiness` must not be ready
 - `load_status` must be degraded or blocked
+
+---
+
+WordPress CPT Schema Preflight Context Loading Rule
+
+When the routed execution, workflow, endpoint, or intent implies `wordpress_cpt_schema_preflight`, module_loader must prepare a preflight-asset-ready context before downstream execution proceeds.
+
+module_loader must resolve and prepare when applicable:
+- `brand_core_registry_sheet`
+- `json_asset_registry_sheet`
+- `site_runtime_inventory_registry_sheet`
+- `execution_policy_registry_sheet`
+- `execution_bindings_sheet`
+- `task_routes_sheet`
+- `workflow_registry_sheet`
+
+module_loader must resolve the following execution variables when available:
+- `brand_playbook_asset_key`
+- `brand_playbook_sheet_gid`
+- `playbook_coverage_status`
+- `playbook_backfill_required`
+- `fallback_template_mode`
+- `cpt_schema_asset_key`
+- `source_resolution_block`
+- `field_contract_block`
+- `taxonomy_contract_block`
+- `formatter_hints_block`
+- `playbook_inference_block`
+- `readiness_result_block`
+
+module_loader must return:
+- `brand_playbook_resolution_status`
+- `brand_playbook_source_mode`
+- `brand_playbook_asset_key`
+- `brand_playbook_sheet_gid`
+- `playbook_coverage_status`
+- `playbook_backfill_required`
+- `fallback_template_mode`
+- `json_asset_shape_version = wordpress_cpt_schema_preflight_asset_v1`
+
+If structural runtime/config authority is unresolved:
+- `load_status` must be `degraded` or `blocked`
+- `executable_readiness` must not be `ready`
+
+If playbook coverage is missing but structural authority is complete:
+- `load_status` may remain `recovered` or `degraded` by policy
+- `executable_readiness` may remain ready for safe mutation-preflight continuation
+- `playbook_backfill_required` must remain explicit in returned loader context
+
+Brand Playbook Workbook Resolution Rule
+
+For `wordpress_cpt_schema_preflight`, module_loader must resolve the onboarding-produced Brand Playbook workbook Google Sheet from Brand Core assets only.
+
+Allowed playbook source contract:
+- source class = `brand_playbook_workbook_sheet`
+- source home = `Brand Core assets`
+- resolution chain = `brand_core_registry > brand_playbook_workbook_asset`
+
+Disallowed source substitutions:
+- ad hoc docs
+- ad hoc JSON files
+- fixed brand child sheet bindings
+- non-brand-driven playbook reuse across brands
+
+Playbook Authority Scope Rule
+
+module_loader must classify Brand Playbook workbook usage as `hint_only_non_structural`.
+
+The playbook may enrich:
+- `formatter_hints_block`
+- `playbook_inference_block`
+- field usage guidance
+- taxonomy style guidance
+
+The playbook must not define or override:
+- authoritative field contract structure
+- authoritative taxonomy contract structure
+- runtime assignability
+
+Playbook Coverage Gap Routing Rule
+
+If `playbook_coverage_status = missing_for_cpt`, module_loader must prepare route-compatible fallback context for:
+- `route.wordpress_cpt_playbook_gap_backfill.global.v1`
+- `workflow.wordpress_cpt_playbook_gap_backfill_workflow`
+
+Returned context must preserve:
+- runtime structural authority
+- explicit coverage gap classification
+- onboarding backfill requirement
+
+Execution Log Unified Duplicate Exemption Load Rule
+
+When write-target validation includes `Execution Log Unified`, module_loader must load and expose the semantic duplicate exemption policy state for that sink.
+
+module_loader must return:
+- `execution_log_semantic_duplicate_exempt`
+- `execution_log_duplicate_append_mode`
+
+If the sink is `Execution Log Unified`, semantic duplicate append blocking must not be treated as a required readiness guard.
 
 Runtime Authority Validation Pipeline Loading Rule
 
