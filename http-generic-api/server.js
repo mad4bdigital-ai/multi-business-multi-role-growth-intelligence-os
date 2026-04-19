@@ -119,6 +119,26 @@ import {
   enforceSupportedAuthMode as enforceSupportedAuthModeCore
 } from "./authCredentialResolution.js";
 import {
+  normalizePath as normalizePathCore,
+  pathTemplateToRegex as pathTemplateToRegexCore,
+  ensureMethodAndPathMatchEndpoint as ensureMethodAndPathMatchEndpointCore
+} from "./httpRequestUtils.js";
+import {
+  TERMINAL_JOB_STATUSES,
+  ACTIVE_JOB_STATUSES,
+  nowIso as nowIsoCore,
+  normalizeJobId as normalizeJobIdCore,
+  normalizeJobStatus as normalizeJobStatusCore,
+  normalizeWebhookUrl as normalizeWebhookUrlCore,
+  normalizeMaxAttempts as normalizeMaxAttemptsCore,
+  nextRetryDelayMs as nextRetryDelayMsCore,
+  buildJobId as buildJobIdCore,
+  resolveRequestedBy as resolveRequestedByCore,
+  makeIdempotencyLookupKey as makeIdempotencyLookupKeyCore,
+  buildExecutionPayloadFromJobRequest as buildExecutionPayloadFromJobRequestCore,
+  validateAsyncJobRequest as validateAsyncJobRequestCore
+} from "./jobUtils.js";
+import {
   assertHostingerTargetTier,
   isDelegatedHttpExecuteWrapper,
   normalizeExecutionPayload,
@@ -202,8 +222,7 @@ import {
   EXECUTION_LOG_UNIFIED_SHEET, JSON_ASSET_REGISTRY_SHEET, BRAND_CORE_REGISTRY_SHEET,
   EXECUTION_LOG_UNIFIED_SPREADSHEET_ID, JSON_ASSET_REGISTRY_SPREADSHEET_ID,
   OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID, RAW_BODY_MAX_BYTES, MAX_TIMEOUT_SECONDS,
-  PORT as port, SERVICE_VERSION, DEFAULT_JOB_MAX_ATTEMPTS,
-  JOB_WEBHOOK_TIMEOUT_MS, JOB_RETRY_DELAYS_MS
+  PORT as port, SERVICE_VERSION, JOB_WEBHOOK_TIMEOUT_MS
 } from "./config.js";
 
 import {
@@ -701,37 +720,7 @@ function matchesHostingerSshTarget(rowObj, input = {}) {
   return false;
 }
 
-function toUpper(value) {
-  return String(value || "").trim().toUpperCase();
-}
-
-function normalizeMethod(method) {
-  const m = toUpper(method);
-  const allowed = ["GET", "POST", "PUT", "PATCH", "DELETE"];
-  if (!allowed.includes(m)) {
-    const err = new Error(`Method not allowed: ${m}`);
-    err.code = "method_not_allowed";
-    err.status = 403;
-    throw err;
-  }
-  return m;
-}
-
-function normalizePath(path) {
-  if (!path || typeof path !== "string" || !path.startsWith("/")) {
-    const err = new Error("path must be a relative path starting with '/'.");
-    err.code = "path_not_allowed";
-    err.status = 400;
-    throw err;
-  }
-  if (/^https?:\/\//i.test(path)) {
-    const err = new Error("Full URLs are not allowed.");
-    err.code = "path_not_allowed";
-    err.status = 403;
-    throw err;
-  }
-  return path;
-}
+function normalizePath(path) { return normalizePathCore(path); }
 
 function normalizeProviderDomain(providerDomain) {
   if (!providerDomain || typeof providerDomain !== "string") {
@@ -3126,94 +3115,8 @@ function isGoogleApiHost(d) { return isGoogleApiHostCore(d); }
 function getAdditionalStaticAuthHeaders(a, c) { return getAdditionalStaticAuthHeadersCore(a, c); }
 function enforceSupportedAuthMode(p, m) { return enforceSupportedAuthModeCore(p, m); }
 
-function applyPathParams(pathTemplate, pathParams = {}) {
-  return String(pathTemplate || "").replace(/\{([^}]+)\}/g, (_, key) => {
-    const value = pathParams[key];
-    if (value === undefined || value === null || value === "") {
-      const err = new Error(`Missing required path param: ${key}`);
-      err.code = "invalid_request";
-      err.status = 400;
-      throw err;
-    }
-    return encodeURIComponent(String(value));
-  });
-}
-
-function pathTemplateToRegex(pathTemplate) {
-  const escaped = String(pathTemplate)
-    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    .replace(/\\\{[^}]+\\\}/g, "[^/]+");
-  return new RegExp(`^${escaped}$`);
-}
-
-function ensureMethodAndPathMatchEndpoint(
-  endpoint,
-  requestedMethod,
-  requestedPath,
-  pathParams = {}
-) {
-  const endpointMethod = normalizeMethod(endpoint.method);
-  const endpointPath = normalizePath(endpoint.endpoint_path_or_function);
-
-  let expandedPath = "";
-  let pathExpansionError = null;
-
-  try {
-    expandedPath = normalizePath(
-      applyPathParams(endpointPath, pathParams)
-    );
-  } catch (err) {
-    pathExpansionError = err;
-  }
-
-  if (requestedMethod) {
-    const normalizedRequestedMethod = normalizeMethod(requestedMethod);
-    if (normalizedRequestedMethod !== endpointMethod) {
-      const err = new Error(
-        `Method does not match endpoint definition for ${endpoint.endpoint_key}.`
-      );
-      err.code = "method_mismatch";
-      err.status = 400;
-      throw err;
-    }
-  }
-
-  if (requestedPath) {
-    const normalizedRequestedPath = normalizePath(requestedPath);
-
-    const exact =
-      normalizedRequestedPath === endpointPath ||
-      (!!expandedPath && normalizedRequestedPath === expandedPath);
-
-    const regexMatch =
-      pathTemplateToRegex(endpointPath).test(normalizedRequestedPath);
-
-    if (!exact && !regexMatch) {
-      const err = new Error(
-        `Path does not match endpoint definition for ${endpoint.endpoint_key}.`
-      );
-      err.code = "path_mismatch";
-      err.status = 400;
-      throw err;
-    }
-
-    return {
-      method: endpointMethod,
-      path: normalizedRequestedPath,
-      templatePath: endpointPath
-    };
-  }
-
-  if (pathExpansionError) {
-    throw pathExpansionError;
-  }
-
-  return {
-    method: endpointMethod,
-    path: expandedPath,
-    templatePath: endpointPath
-  };
-}
+function pathTemplateToRegex(t) { return pathTemplateToRegexCore(t); }
+function ensureMethodAndPathMatchEndpoint(e, m, p, pp) { return ensureMethodAndPathMatchEndpointCore(e, m, p, pp); }
 
 async function fetchSchemaContract(drive, fileId) {
   if (!fileId) {
@@ -3361,262 +3264,18 @@ function ensureWritePermissions(brand, method) {
 }
 
 
-const TERMINAL_JOB_STATUSES = new Set([
-  "succeeded",
-  "failed",
-  "cancelled"
-]);
-const ACTIVE_JOB_STATUSES = new Set([
-  "queued",
-  "running",
-  "retrying"
-]);
+function nowIso() { return nowIsoCore(); }
+function normalizeJobId(v) { return normalizeJobIdCore(v); }
+function normalizeJobStatus(v) { return normalizeJobStatusCore(v); }
+function normalizeWebhookUrl(v) { return normalizeWebhookUrlCore(v); }
+function normalizeMaxAttempts(v) { return normalizeMaxAttemptsCore(v); }
+function nextRetryDelayMs(n) { return nextRetryDelayMsCore(n); }
+function buildJobId() { return buildJobIdCore(); }
+function resolveRequestedBy(req) { return resolveRequestedByCore(req); }
+function makeIdempotencyLookupKey(r, k) { return makeIdempotencyLookupKeyCore(r, k); }
+function buildExecutionPayloadFromJobRequest(b) { return buildExecutionPayloadFromJobRequestCore(b); }
 
-function nowIso() {
-  return new Date().toISOString();
-}
-
-function normalizeJobId(value = "") {
-  return String(value || "").trim();
-}
-
-function normalizeJobStatus(value = "") {
-  return String(value || "").trim().toLowerCase();
-}
-
-function normalizeWebhookUrl(value = "") {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-
-  try {
-    const parsed = new URL(raw);
-    if (!["http:", "https:"].includes(parsed.protocol)) return "";
-    return parsed.toString();
-  } catch {
-    return "";
-  }
-}
-
-function normalizeMaxAttempts(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n < 1) return DEFAULT_JOB_MAX_ATTEMPTS;
-  return Math.min(Math.floor(n), 10);
-}
-
-function nextRetryDelayMs(attemptCount) {
-  const idx = Math.max(0, Number(attemptCount || 1) - 1);
-  if (idx < JOB_RETRY_DELAYS_MS.length) return JOB_RETRY_DELAYS_MS[idx];
-  return JOB_RETRY_DELAYS_MS[JOB_RETRY_DELAYS_MS.length - 1];
-}
-
-function buildJobId() {
-  return `job_${crypto.randomUUID().replace(/-/g, "")}`;
-}
-
-function resolveRequestedBy(req) {
-  const byHeader =
-    req.header("X-Requested-By") ||
-    req.header("X-Requester-Id") ||
-    "";
-
-  return String(byHeader || req.ip || "unknown").trim();
-}
-
-function makeIdempotencyLookupKey(requestedBy, idempotencyKey) {
-  const key = String(idempotencyKey || "").trim();
-  if (!key) return "";
-  return `${String(requestedBy || "").trim()}::${key}`;
-}
-
-function buildExecutionPayloadFromJobRequest(body = {}) {
-  const nested =
-    body.request_payload &&
-    typeof body.request_payload === "object" &&
-    !Array.isArray(body.request_payload)
-      ? { ...body.request_payload }
-      : null;
-
-  const topLevelPayload = { ...(body || {}) };
-  delete topLevelPayload.request_payload;
-  delete topLevelPayload.job_type;
-  delete topLevelPayload.max_attempts;
-  delete topLevelPayload.webhook_url;
-  delete topLevelPayload.callback_secret;
-  delete topLevelPayload.idempotency_key;
-
-  return nested || topLevelPayload;
-}
-
-function validateAsyncJobRequest(payload = {}) {
-  const errors = [];
-  const allowedMethods = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
-
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return ["request payload must be an object."];
-  }
-
-  if (!String(payload.parent_action_key || "").trim()) {
-    errors.push("parent_action_key is required.");
-  }
-
-  if (!String(payload.endpoint_key || "").trim()) {
-    errors.push("endpoint_key is required.");
-  }
-
-  if (payload.target_key !== undefined && typeof payload.target_key !== "string") {
-    errors.push("target_key must be a string when provided.");
-  }
-
-  if (payload.brand !== undefined && typeof payload.brand !== "string") {
-    errors.push("brand must be a string when provided.");
-  }
-
-  if (payload.brand_domain !== undefined && typeof payload.brand_domain !== "string") {
-    errors.push("brand_domain must be a string when provided.");
-  }
-
-  if (payload.provider_domain !== undefined && typeof payload.provider_domain !== "string") {
-    errors.push("provider_domain must be a string when provided.");
-  }
-
-  if (payload.parent_action_key !== undefined && typeof payload.parent_action_key !== "string") {
-    errors.push("parent_action_key must be a string when provided.");
-  }
-
-  if (payload.endpoint_key !== undefined && typeof payload.endpoint_key !== "string") {
-    errors.push("endpoint_key must be a string when provided.");
-  }
-
-  if (payload.method !== undefined) {
-    if (typeof payload.method !== "string") {
-      errors.push("method must be a string when provided.");
-    } else {
-      const normalizedMethod = String(payload.method).trim().toUpperCase();
-      if (!allowedMethods.has(normalizedMethod)) {
-        errors.push("method must be one of GET, POST, PUT, PATCH, DELETE.");
-      }
-    }
-  }
-
-  if (payload.path !== undefined) {
-    if (typeof payload.path !== "string") {
-      errors.push("path must be a string when provided.");
-    } else {
-      const trimmedPath = String(payload.path).trim();
-      if (!trimmedPath.startsWith("/")) {
-        errors.push("path must start with '/'.");
-      }
-      if (/^https?:\/\//i.test(trimmedPath)) {
-        errors.push("path must be a relative path, not a full URL.");
-      }
-    }
-  }
-
-  if (
-    payload.path_params !== undefined &&
-    (
-      !payload.path_params ||
-      typeof payload.path_params !== "object" ||
-      Array.isArray(payload.path_params)
-    )
-  ) {
-    errors.push("path_params must be an object when provided.");
-  }
-
-  if (
-    payload.query !== undefined &&
-    (
-      !payload.query ||
-      typeof payload.query !== "object" ||
-      Array.isArray(payload.query)
-    )
-  ) {
-    errors.push("query must be an object when provided.");
-  }
-
-  if (
-    payload.headers !== undefined &&
-    (
-      !payload.headers ||
-      typeof payload.headers !== "object" ||
-      Array.isArray(payload.headers)
-    )
-  ) {
-    errors.push("headers must be an object when provided.");
-  }
-
-  if (payload.headers && typeof payload.headers === "object" && !Array.isArray(payload.headers)) {
-    for (const [key, value] of Object.entries(payload.headers)) {
-      if (typeof value !== "string") {
-        errors.push(`headers.${key} must be a string.`);
-      }
-      if (String(key).toLowerCase() === "authorization") {
-        errors.push("headers.Authorization must not be supplied by caller.");
-      }
-    }
-  }
-
-  if (
-    payload.readback !== undefined &&
-    (
-      !payload.readback ||
-      typeof payload.readback !== "object" ||
-      Array.isArray(payload.readback)
-    )
-  ) {
-    errors.push("readback must be an object when provided.");
-  }
-
-  if (payload.readback && typeof payload.readback === "object" && !Array.isArray(payload.readback)) {
-    if (
-      payload.readback.required !== undefined &&
-      typeof payload.readback.required !== "boolean"
-    ) {
-      errors.push("readback.required must be a boolean when provided.");
-    }
-
-    if (payload.readback.mode !== undefined) {
-      const allowedModes = new Set(["none", "echo", "location_followup"]);
-      if (typeof payload.readback.mode !== "string") {
-        errors.push("readback.mode must be a string when provided.");
-      } else if (!allowedModes.has(String(payload.readback.mode).trim())) {
-        errors.push("readback.mode must be one of none, echo, location_followup.");
-      }
-    }
-  }
-
-  if (
-    payload.expect_json !== undefined &&
-    typeof payload.expect_json !== "boolean"
-  ) {
-    errors.push("expect_json must be a boolean when provided.");
-  }
-
-  if (
-    payload.force_refresh !== undefined &&
-    typeof payload.force_refresh !== "boolean"
-  ) {
-    errors.push("force_refresh must be a boolean when provided.");
-  }
-
-  if (payload.timeout_seconds !== undefined) {
-    if (
-      typeof payload.timeout_seconds !== "number" ||
-      !Number.isInteger(payload.timeout_seconds)
-    ) {
-      errors.push("timeout_seconds must be an integer when provided.");
-    } else {
-      if (payload.timeout_seconds < 1) {
-        errors.push("timeout_seconds must be at least 1.");
-      }
-      if (payload.timeout_seconds > MAX_TIMEOUT_SECONDS) {
-        errors.push(`timeout_seconds must be <= ${MAX_TIMEOUT_SECONDS}.`);
-      }
-    }
-  }
-
-  return errors;
-}
+function validateAsyncJobRequest(p) { return validateAsyncJobRequestCore(p); }
 
 
 
