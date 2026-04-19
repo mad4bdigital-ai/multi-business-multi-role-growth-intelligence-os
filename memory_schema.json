@@ -88,7 +88,8 @@
     "authoritative_asset_home_state",
     "legacy_json_mirror_state",
     "publish_preparation_extension_state",
-    "variable_contract_state"
+    "variable_contract_state",
+    "patch_deployment_parity_state"
   ],
   "properties": {
     "version": {
@@ -710,6 +711,91 @@
         "required_variable_contracts": [],
         "runtime_binding_profile": "",
         "variable_contract_surface_id": ""
+      }
+    },
+    "patch_deployment_parity_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "patch_verification_scope",
+        "runtime_deployment_confirmed",
+        "patch_parity_status",
+        "canonical_merge_verification_status",
+        "registry_alignment_verification_status",
+        "runtime_deployment_verification_status",
+        "authoritative_runtime_evidence_source"
+      ],
+      "properties": {
+        "patch_verification_scope": {
+          "type": "string",
+          "enum": [
+            "",
+            "patch_file_diff",
+            "canonical_merge_verification",
+            "registry_alignment_verification",
+            "runtime_deployment_verification"
+          ],
+          "default": ""
+        },
+        "runtime_deployment_confirmed": {
+          "type": "boolean",
+          "default": false
+        },
+        "patch_parity_status": {
+          "type": "string",
+          "enum": [
+            "",
+            "file_verified_only",
+            "canonical_verified_only",
+            "registry_aligned_only",
+            "runtime_confirmed",
+            "degraded_missing_runtime_confirmation"
+          ],
+          "default": ""
+        },
+        "canonical_merge_verification_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "registry_alignment_verification_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "runtime_deployment_verification_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "authoritative_runtime_evidence_source": {
+          "type": "string",
+          "default": "surface.operations_log_unified_sheet"
+        }
+      },
+      "default": {
+        "patch_verification_scope": "",
+        "runtime_deployment_confirmed": false,
+        "patch_parity_status": "",
+        "canonical_merge_verification_status": "pending",
+        "registry_alignment_verification_status": "pending",
+        "runtime_deployment_verification_status": "pending",
+        "authoritative_runtime_evidence_source": "surface.operations_log_unified_sheet"
       }
     },
     "schema_repair_state": {
@@ -7844,6 +7930,62 @@
         }
       }
     },
+    "wordpressPreflightState": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "brand_playbook_asset_key": {
+          "type": "string",
+          "default": ""
+        },
+        "brand_playbook_sheet_gid": {
+          "type": "string",
+          "default": ""
+        },
+        "playbook_coverage_status": {
+          "type": "string",
+          "default": "",
+          "enum": [
+            "",
+            "covered",
+            "missing_for_cpt",
+            "missing_asset",
+            "not_applicable"
+          ]
+        },
+        "playbook_backfill_required": {
+          "type": "boolean",
+          "default": false
+        },
+        "fallback_template_mode": {
+          "type": "string",
+          "default": "",
+          "enum": [
+            "",
+            "runtime_contract_only",
+            "runtime_plus_sample_hint",
+            "runtime_plus_playbook_hint"
+          ]
+        },
+        "last_cpt_schema_asset_key": {
+          "type": "string",
+          "default": ""
+        },
+        "last_cpt_slug": {
+          "type": "string",
+          "default": ""
+        },
+        "last_rest_base": {
+          "type": "string",
+          "default": ""
+        },
+        "last_readiness_state": {
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
     "operationsContext": {
       "type": "object",
       "additionalProperties": false,
@@ -7963,6 +8105,62 @@
             "suppressed",
             "blocked"
           ]
+        },
+        "wordpress_preflight": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "properties": {
+            "brand_playbook_asset_key": {
+              "type": "string",
+              "default": ""
+            },
+            "brand_playbook_sheet_gid": {
+              "type": "string",
+              "default": ""
+            },
+            "playbook_coverage_status": {
+              "type": "string",
+              "default": "",
+              "enum": [
+                "",
+                "covered",
+                "missing_for_cpt",
+                "missing_asset",
+                "not_applicable"
+              ]
+            },
+            "playbook_backfill_required": {
+              "type": "boolean",
+              "default": false
+            },
+            "fallback_template_mode": {
+              "type": "string",
+              "default": "",
+              "enum": [
+                "",
+                "runtime_contract_only",
+                "runtime_plus_sample_hint",
+                "runtime_plus_playbook_hint"
+              ]
+            },
+            "cpt_schema_asset_key": {
+              "type": "string",
+              "default": ""
+            },
+            "last_cpt_slug": {
+              "type": "string",
+              "default": ""
+            },
+            "last_rest_base": {
+              "type": "string",
+              "default": ""
+            },
+            "last_readiness_state": {
+              "type": "string",
+              "default": ""
+            }
+          }
         },
         "trigger_key_state": {
           "type": "string",
