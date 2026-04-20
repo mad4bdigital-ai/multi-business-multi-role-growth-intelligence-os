@@ -37,6 +37,33 @@ export const jobQueue = new Queue(QUEUE_NAME, {
   }
 });
 
+export function getRedisRuntimeStatus() {
+  const status = String(redis?.status || "").trim().toLowerCase();
+  return {
+    url: REDIS_URL,
+    status: status || "unknown",
+    connected: status === "ready"
+  };
+}
+
+export async function getWaitingCountSafe() {
+  try {
+    return {
+      ok: true,
+      count: await jobQueue.getWaitingCount()
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      count: null,
+      error: {
+        code: err?.code || "queue_unavailable",
+        message: err?.message || String(err)
+      }
+    };
+  }
+}
+
 // ---- job state in Redis ----
 
 export async function getJobFromRedis(jobId) {

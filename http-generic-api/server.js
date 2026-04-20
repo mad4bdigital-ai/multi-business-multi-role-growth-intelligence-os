@@ -5,7 +5,8 @@ import { promises as fs } from "fs";
 import {
   redis, jobQueue, createWorker, closeQueue,
   getJobFromRedis, setJobInRedis, getAllJobsFromRedis,
-  getIdempotencyEntry, setIdempotencyEntry, deleteIdempotencyEntry, hasIdempotencyEntry
+  getIdempotencyEntry, setIdempotencyEntry, deleteIdempotencyEntry, hasIdempotencyEntry,
+  getRedisRuntimeStatus, getWaitingCountSafe
 } from "./queue.js";
 
 import {
@@ -3036,15 +3037,28 @@ app.get("/health", async (_req, res) => {
     }
   }
 
+  const queueHealth = await getWaitingCountSafe();
+  const redisHealth = getRedisRuntimeStatus();
+  const dependencyStatus = redisHealth.connected && queueHealth.ok ? "healthy" : "degraded";
+
   res.json({
     ok: true,
     service: "http_generic_api_connector",
-    status: "healthy",
+    status: dependencyStatus,
     version: SERVICE_VERSION,
     jobs: {
       total: jobRepository.size(),
-      queued_buffer_size: await jobQueue.getWaitingCount(),
+      queued_buffer_size: queueHealth.count,
       statuses: counts
+    },
+    dependencies: {
+      redis: redisHealth,
+      queue: queueHealth.ok
+        ? { connected: true }
+        : {
+            connected: false,
+            error: queueHealth.error
+          }
     },
     timestamp: new Date().toISOString()
   });
