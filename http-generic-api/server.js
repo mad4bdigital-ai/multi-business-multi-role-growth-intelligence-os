@@ -246,7 +246,7 @@ import {
   EXECUTION_LOG_UNIFIED_SHEET, JSON_ASSET_REGISTRY_SHEET, BRAND_CORE_REGISTRY_SHEET,
   EXECUTION_LOG_UNIFIED_SPREADSHEET_ID, JSON_ASSET_REGISTRY_SPREADSHEET_ID,
   OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID, RAW_BODY_MAX_BYTES, MAX_TIMEOUT_SECONDS,
-  PORT as port, SERVICE_VERSION
+  PORT as port, SERVICE_VERSION, QUEUE_WORKER_ENABLED
 } from "./config.js";
 
 import {
@@ -3078,7 +3078,10 @@ app.get("/health", async (_req, res) => {
         : {
             connected: false,
             error: queueHealth.error
-          }
+          },
+      worker: {
+        enabled: QUEUE_WORKER_ENABLED
+      }
     },
     timestamp: new Date().toISOString()
   });
@@ -4674,11 +4677,15 @@ process.on("SIGTERM", async () => {
 });
 
 // BullMQ worker — processes jobs concurrently across all instances.
-createWorker(async (bullJob) => {
-  const job = bullJob.data;
-  jobRepository.set(job);
-  await executeSingleQueuedJob(job);
-});
+if (QUEUE_WORKER_ENABLED) {
+  createWorker(async (bullJob) => {
+    const job = bullJob.data;
+    jobRepository.set(job);
+    await executeSingleQueuedJob(job);
+  });
+} else {
+  console.log("QUEUE_WORKER_DISABLED: skipping BullMQ worker startup for this instance.");
+}
 
 app.listen(port, () => {
   console.log(`http_generic_api_connector listening on port ${port}`);
