@@ -62,14 +62,12 @@ jobs:
         run: |
           # Detect if any function name that exists in an extracted module is also defined inline in server.js.
           # This catches the class of drift where a module is added but server.js is not updated.
-          MODULES="normalization mutationGovernance governedChangeControl jobRunner jobUtils auth"
+          MODULES="normalization mutationGovernance governedChangeControl jobRunner jobUtils executionRouting auth"
           FAIL=0
           for mod in $MODULES; do
             if [ ! -f "${mod}.js" ]; then continue; fi
-            # Extract exported function names from the module
             EXPORTS=$(grep "^export function\|^export async function" "${mod}.js" | sed 's/export \(async \)\?function //;s/(.*//')
             for fn in $EXPORTS; do
-              # Check if server.js redefines that function inline (not just references it)
               if grep -qE "^(async )?function ${fn}\b" server.js; then
                 echo "DRIFT: '${fn}' is exported from ${mod}.js but also defined inline in server.js"
                 FAIL=1
@@ -77,20 +75,44 @@ jobs:
             done
           done
           if [ "$FAIL" -eq 1 ]; then
-            echo "Inline redefinition drift detected — run extraction cleanup"
+            echo "Inline redefinition drift detected - run extraction cleanup"
             exit 1
           fi
-          echo "No inline redefinition drift detected ✓"
+          echo "No inline redefinition drift detected"
+      - name: Check legacy execution snapshot isolation
+        working-directory: http-generic-api
+        run: |
+          set +e
+          MATCHES=$(grep -RInE 'from ["'\'']\./execution(\.js)?["'\'']|import\(["'\'']\./execution(\.js)?["'\'']\)|require\(["'\'']\./execution(\.js)?["'\'']\)' . \
+            --include='*.js' --include='*.mjs' \
+            --exclude='execution.js' \
+            --exclude='validate-architecture.mjs' \
+            --exclude='extract-modules.js' \
+            --exclude='fix-all-truncated.mjs' \
+            --exclude='fix-crlf.mjs' \
+            --exclude='fix-extractions.mjs')
+          STATUS=$?
+          set -e
+          if [ "$STATUS" -eq 0 ]; then
+            echo "DRIFT: execution.js is marked snapshot_archived but is imported by runtime code:"
+            echo "$MATCHES"
+            exit 1
+          fi
+          if [ "$STATUS" -gt 1 ]; then
+            echo "Failed to scan for execution.js imports"
+            exit "$STATUS"
+          fi
+          echo "Legacy execution snapshot remains isolated"
       - name: Check server.js line count
         working-directory: http-generic-api
         run: |
           LINES=$(wc -l < server.js)
           echo "server.js: ${LINES} lines"
           if [ "$LINES" -gt 6000 ]; then
-            echo "DRIFT: server.js exceeds 6000-line threshold (${LINES} lines) — decomposition may have regressed"
+            echo "DRIFT: server.js exceeds 6000-line threshold (${LINES} lines) - decomposition may have regressed"
             exit 1
           fi
-          echo "server.js size within threshold ✓"
+          echo "server.js size within threshold"
       - name: Check wordpress barrel export floor
         working-directory: http-generic-api
         run: |
@@ -100,4 +122,4 @@ jobs:
             echo "DRIFT: wordpress/index.js exports dropped below 545 floor"
             exit 1
           fi
-          echo "WordPress barrel export count within floor ✓"
+          echo "WordPress barrel export count within floor"
