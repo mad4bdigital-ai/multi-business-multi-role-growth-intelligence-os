@@ -3621,6 +3621,8 @@ app.post("/http-execute", requireBackendApiKey, async (req, res) => {
   let action = null;
   let endpoint = null;
   let brand = null;
+  let sameServiceNativeTarget = false;
+  let resolvedMethodPath = null;
   const sync_execution_started_at = nowIso();
   let execution_trace_id =
     String(req.body?.execution_trace_id || "").trim() || createExecutionTraceId();
