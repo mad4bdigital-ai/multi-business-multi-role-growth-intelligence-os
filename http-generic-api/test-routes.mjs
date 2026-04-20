@@ -42,8 +42,7 @@ async function waitForServer(baseUrl, timeoutMs = 15000) {
 }
 
 async function main() {
-  if (String(process.env.CI || "").trim().toLowerCase() === "true" &&
-      String(process.env.FORCE_ROUTE_RUNTIME_TESTS || "").trim().toLowerCase() !== "true") {
+  if (String(process.env.FORCE_ROUTE_RUNTIME_TESTS || "").trim().toLowerCase() !== "true") {
     section("route-level runtime");
     skip("runtime spawn-based route checks", "skipped by default in CI; set FORCE_ROUTE_RUNTIME_TESTS=true to enable");
     console.log(`\n${"-".repeat(50)}`);
