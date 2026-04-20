@@ -18,7 +18,7 @@ jobs:
       - name: Check all JS modules
         working-directory: http-generic-api
         run: |
-          for f in *.js wordpress/*.js; do
+          for f in *.js *.mjs wordpress/*.js; do
             node --check "$f" || { echo "SYNTAX ERROR: $f"; exit 1; }
           done
 

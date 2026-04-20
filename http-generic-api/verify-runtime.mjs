@@ -12,7 +12,7 @@
  */
 
 const BASE_URL = (process.env.RUNTIME_BASE_URL || "").replace(/\/$/, "");
-const API_KEY  = process.env.BACKEND_API_KEY || "";
+const API_KEY = process.env.BACKEND_API_KEY || "";
 const EXPECT_QUEUE_AVAILABLE =
   String(process.env.EXPECT_QUEUE_AVAILABLE || "TRUE").trim().toUpperCase() === "TRUE";
 const EXPECT_WORKER_ENABLED =
@@ -30,23 +30,23 @@ let skipped = 0;
 const evidence = [];
 
 function section(name) {
-  console.log(`\n── ${name}`);
+  console.log(`\n== ${name}`);
 }
 
 function assert(label, condition, detail = "") {
   if (condition) {
-    console.log(`  ✓ ${label}`);
+    console.log(`  [PASS] ${label}`);
     passed++;
     evidence.push({ label, result: "pass" });
   } else {
-    console.error(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
+    console.error(`  [FAIL] ${label}${detail ? ` - ${detail}` : ""}`);
     failed++;
     evidence.push({ label, result: "fail", detail });
   }
 }
 
 function skip(label, reason = "") {
-  console.log(`  - ${label}${reason ? ` (skipped: ${reason})` : ""}`);
+  console.log(`  [SKIP] ${label}${reason ? ` (${reason})` : ""}`);
   skipped++;
   evidence.push({ label, result: "skip", detail: reason });
 }
@@ -55,10 +55,18 @@ async function get(path, opts = {}) {
   const headers = { "Content-Type": "application/json" };
   if (API_KEY) headers.Authorization = `Bearer ${API_KEY}`;
   try {
-    const res = await fetch(`${BASE_URL}${path}`, { headers, signal: AbortSignal.timeout(10000), ...opts });
+    const res = await fetch(`${BASE_URL}${path}`, {
+      headers,
+      signal: AbortSignal.timeout(10000),
+      ...opts
+    });
     const text = await res.text();
     let body;
-    try { body = JSON.parse(text); } catch { body = { _raw: text }; }
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = { _raw: text };
+    }
     return { ok: res.ok, status: res.status, body };
   } catch (err) {
     return { ok: false, status: 0, body: null, error: err?.message || String(err) };
@@ -77,18 +85,21 @@ async function post(path, payload) {
     });
     const text = await res.text();
     let body;
-    try { body = JSON.parse(text); } catch { body = { _raw: text }; }
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = { _raw: text };
+    }
     return { ok: res.ok, status: res.status, body };
   } catch (err) {
     return { ok: false, status: 0, body: null, error: err?.message || String(err) };
   }
 }
 
-// ─── Layer 3: Runtime deployed ───────────────────────────────────────────────
-section("Layer 3 — Runtime health");
+section("Layer 3 - Runtime health");
 
 const health = await get("/health");
-assert("GET /health returns 200", health.status === 200, `got ${health.status} — ${health.error || ""}`);
+assert("GET /health returns 200", health.status === 200, `got ${health.status} - ${health.error || ""}`);
 assert("health body has ok: true", health.body?.ok === true, JSON.stringify(health.body));
 
 const healthStatus = String(health.body?.status || "").trim().toLowerCase();
@@ -97,20 +108,34 @@ const redisConnected = health.body?.dependencies?.redis?.connected;
 const queueConnected = health.body?.dependencies?.queue?.connected;
 
 if (EXPECT_QUEUE_AVAILABLE) {
-  assert("health status is healthy when queue is expected", healthStatus === "healthy",
-    `got ${healthStatus || "missing"}`);
-  assert("redis dependency connected when queue is expected", redisConnected === true,
-    JSON.stringify(health.body?.dependencies?.redis || {}));
-  assert("queue dependency connected when queue is expected", queueConnected === true,
-    JSON.stringify(health.body?.dependencies?.queue || {}));
+  assert(
+    "health status is healthy when queue is expected",
+    healthStatus === "healthy",
+    `got ${healthStatus || "missing"}`
+  );
+  assert(
+    "redis dependency connected when queue is expected",
+    redisConnected === true,
+    JSON.stringify(health.body?.dependencies?.redis || {})
+  );
+  assert(
+    "queue dependency connected when queue is expected",
+    queueConnected === true,
+    JSON.stringify(health.body?.dependencies?.queue || {})
+  );
 } else {
-  assert("health status is healthy or degraded when queue is not expected",
+  assert(
+    "health status is healthy or degraded when queue is not expected",
     healthStatus === "healthy" || healthStatus === "degraded",
-    `got ${healthStatus || "missing"}`);
+    `got ${healthStatus || "missing"}`
+  );
 }
 
-assert("worker enabled flag matches expected deployment role", workerEnabled === EXPECT_WORKER_ENABLED,
-  `expected ${EXPECT_WORKER_ENABLED}, got ${workerEnabled}`);
+assert(
+  "worker enabled flag matches expected deployment role",
+  workerEnabled === EXPECT_WORKER_ENABLED,
+  `expected ${EXPECT_WORKER_ENABLED}, got ${workerEnabled}`
+);
 
 const serviceVersion = health.body?.version || health.body?.service_version || health.body?.SERVICE_VERSION;
 if (serviceVersion) {
@@ -120,57 +145,70 @@ if (serviceVersion) {
   skip("SERVICE_VERSION in health response", "version field not returned by this deployment");
 }
 
-// ─── Layer 3: API authentication ─────────────────────────────────────────────
-section("Layer 3 — API authentication");
+section("Layer 3 - API authentication");
 
 if (API_KEY) {
   const authed = await get("/health");
-  assert("authenticated request accepted", authed.status !== 401 && authed.status !== 403,
-    `got ${authed.status}`);
+  assert(
+    "authenticated request accepted",
+    authed.status !== 401 && authed.status !== 403,
+    `got ${authed.status}`
+  );
 
   const unauthedRes = await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(5000) });
   const requiresAuth = unauthedRes.status === 401 || unauthedRes.status === 403;
   if (requiresAuth) {
     assert("unauthenticated request blocked", requiresAuth);
   } else {
-    skip("unauthenticated request check", "health endpoint is public — acceptable");
+    skip("unauthenticated request check", "health endpoint is public");
   }
 } else {
   skip("authentication checks", "BACKEND_API_KEY not set");
 }
 
-// ─── Layer 4: Governed execution — dry-run migration ─────────────────────────
-section("Layer 4 — Governed execution: dry-run site migration");
+section("Layer 4 - Governed execution: dry-run site migration");
 
 const dryRunPayload = {
   transport: "wordpress_connector",
   migration: { apply: false, publish_status: "draft", post_types: ["post"] },
-  source: { provider_domain: "https://source.example.com", username: "verify_test", app_password: "verify_test" },
-  destination: { provider_domain: "https://dest.example.com", username: "verify_test", app_password: "verify_test", target_key: "verify_test_key" }
+  source: {
+    provider_domain: "https://source.example.com",
+    username: "verify_test",
+    app_password: "verify_test"
+  },
+  destination: {
+    provider_domain: "https://dest.example.com",
+    username: "verify_test",
+    app_password: "verify_test",
+    target_key: "verify_test_key"
+  }
 };
 
-const dryRun = await post("/site-migrations", dryRunPayload);
-const dryRunAccepted = dryRun.status === 200 || dryRun.status === 202 || dryRun.status === 400;
-assert("POST /site-migrations does not 500 (no ReferenceError)", dryRun.status !== 500,
-  `got ${dryRun.status} — ${JSON.stringify(dryRun.body).slice(0, 120)}`);
-assert("POST /site-migrations responds (not unreachable)", dryRun.status > 0,
-  dryRun.error || "");
+const dryRun = await post("/site-migrate", dryRunPayload);
+assert(
+  "POST /site-migrate does not 500",
+  dryRun.status !== 500,
+  `got ${dryRun.status} - ${JSON.stringify(dryRun.body).slice(0, 120)}`
+);
+assert("POST /site-migrate responds", dryRun.status > 0, dryRun.error || "");
 
 if (dryRun.status === 200 || dryRun.status === 202) {
   const isJobResponse = dryRun.body?.job_id || dryRun.body?.status;
   const isDryRunResult = dryRun.body?.execution_mode === "plan_only" || dryRun.body?.apply === false;
-  assert("response is a job or dry-run result", !!(isJobResponse || isDryRunResult),
-    JSON.stringify(dryRun.body).slice(0, 120));
+  assert(
+    "response is a job or dry-run result",
+    !!(isJobResponse || isDryRunResult),
+    JSON.stringify(dryRun.body).slice(0, 120)
+  );
 } else if (dryRun.status === 400) {
-  const errorCode = dryRun.body?.error?.code || "";
+  const errorCode = String(dryRun.body?.error?.code || "");
   const isLogicError = !errorCode.includes("reference") && !errorCode.includes("undefined");
-  assert("400 response is a logic error (not a crash)", isLogicError, `error code: ${errorCode}`);
+  assert("400 response is a logic error", isLogicError, `error code: ${errorCode}`);
 } else {
   skip("dry-run result shape check", `unexpected status ${dryRun.status}`);
 }
 
-// ─── Layer 4: Local dispatch — github blob (auth error expected) ──────────────
-section("Layer 4 — Local dispatch: github_git_blob_chunk_read");
+section("Layer 4 - Local dispatch: github_git_blob_chunk_read");
 
 const dispatchPayload = {
   endpoint_key: "github_git_blob_chunk_read",
@@ -182,22 +220,27 @@ const dispatchPayload = {
 };
 
 const dispatch = await post("/http-execute", dispatchPayload);
-assert("POST /http-execute responds (not unreachable)", dispatch.status > 0, dispatch.error || "");
-assert("github dispatch does not 500 with ReferenceError", dispatch.status !== 500 ||
-  !String(JSON.stringify(dispatch.body)).toLowerCase().includes("referenceerror"),
-  JSON.stringify(dispatch.body).slice(0, 120));
+assert("POST /http-execute responds", dispatch.status > 0, dispatch.error || "");
+assert(
+  "github dispatch does not 500 with ReferenceError",
+  dispatch.status !== 500 || !String(JSON.stringify(dispatch.body)).toLowerCase().includes("referenceerror"),
+  JSON.stringify(dispatch.body).slice(0, 120)
+);
 
-if (dispatch.status === 200 || dispatch.status === 404 || dispatch.status === 401 || dispatch.status === 502) {
-  assert("github dispatch returns structured error or result", typeof dispatch.body === "object",
-    String(dispatch.body?._raw || "").slice(0, 80));
+if ([200, 404, 401, 502].includes(dispatch.status)) {
+  assert(
+    "github dispatch returns structured error or result",
+    typeof dispatch.body === "object",
+    String(dispatch.body?._raw || "").slice(0, 80)
+  );
 } else {
   skip("github dispatch result shape", `status ${dispatch.status}`);
 }
 
-// ─── Layer 4: Job queue — enqueue and status ──────────────────────────────────
-section("Layer 4 — Async job queue");
+section("Layer 4 - Async job queue");
 
 const jobPayload = {
+  job_type: "site_migration",
   transport: "wordpress_connector",
   migration: { apply: false, publish_status: "draft" },
   source: { provider_domain: "https://source.example.com" },
@@ -206,53 +249,56 @@ const jobPayload = {
 };
 
 const jobCreate = await post("/jobs", jobPayload);
-assert("POST /jobs responds (not unreachable)", jobCreate.status > 0, jobCreate.error || "");
-assert("POST /jobs does not 500", jobCreate.status !== 500,
-  JSON.stringify(jobCreate.body).slice(0, 120));
+assert("POST /jobs responds", jobCreate.status > 0, jobCreate.error || "");
+assert("POST /jobs does not 500", jobCreate.status !== 500, JSON.stringify(jobCreate.body).slice(0, 120));
 
 if (!EXPECT_QUEUE_AVAILABLE && jobCreate.status === 503) {
   const errorCode = String(jobCreate.body?.error?.code || "").trim().toLowerCase();
-  assert("POST /jobs returns truthful queue unavailable status",
+  assert(
+    "POST /jobs returns truthful queue unavailable status",
     errorCode === "queue_unavailable" || errorCode.includes("queue"),
-    JSON.stringify(jobCreate.body).slice(0, 120));
+    JSON.stringify(jobCreate.body).slice(0, 120)
+  );
 } else if (jobCreate.status === 200 || jobCreate.status === 202) {
   const jobId = jobCreate.body?.job_id;
   assert("job_id present in response", !!jobId, JSON.stringify(jobCreate.body).slice(0, 80));
 
   if (jobId) {
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(resolve => setTimeout(resolve, 1500));
     const jobStatus = await get(`/jobs/${jobId}`);
     assert("GET /jobs/:id returns 200", jobStatus.status === 200, `got ${jobStatus.status}`);
     const status = jobStatus.body?.status;
     const validStatuses = ["queued", "running", "succeeded", "failed", "retrying"];
-    assert(`job status is a known value (got: ${status})`,
-      validStatuses.includes(status), `got ${status}`);
+    assert(
+      `job status is a known value (got: ${status})`,
+      validStatuses.includes(status),
+      `got ${status}`
+    );
   }
 } else if (jobCreate.status === 400) {
-  skip("job queue checks", "POST /jobs returned 400 — payload may not match async job contract");
+  skip("job queue checks", "POST /jobs returned 400");
 } else {
   skip("job queue checks", `unexpected status ${jobCreate.status}`);
 }
 
-// ─── Summary ──────────────────────────────────────────────────────────────────
 const timestamp = new Date().toISOString();
-console.log(`\n${"─".repeat(50)}`);
+console.log(`\n${"-".repeat(50)}`);
 console.log(`Runtime: ${BASE_URL}`);
 console.log(`Checked: ${timestamp}`);
 console.log(`Results: ${passed} passed, ${failed} failed, ${skipped} skipped`);
 
-console.log("\n── Evidence log");
-for (const e of evidence) {
-  const icon = e.result === "pass" ? "✓" : e.result === "skip" ? "-" : "✗";
-  console.log(`  ${icon} [${e.result.toUpperCase()}] ${e.label}${e.detail ? ` — ${e.detail}` : ""}`);
+console.log("\n== Evidence log");
+for (const item of evidence) {
+  const icon = item.result === "pass" ? "[PASS]" : item.result === "skip" ? "[SKIP]" : "[FAIL]";
+  console.log(`  ${icon} ${item.label}${item.detail ? ` - ${item.detail}` : ""}`);
 }
 
 if (failed === 0) {
-  console.log("\nRUNTIME VERIFICATION PASS ✓");
+  console.log("\nRUNTIME VERIFICATION PASS");
   console.log("Deployment claims are supported by live runtime evidence.");
   process.exit(0);
-} else {
-  console.error(`\nRUNTIME VERIFICATION FAILED — ${failed} check(s) indicate drift or outage`);
-  console.error("Do not mark this deployment complete until all failures are resolved.");
-  process.exit(1);
 }
+
+console.error(`\nRUNTIME VERIFICATION FAILED - ${failed} check(s) indicate drift or outage`);
+console.error("Do not mark this deployment complete until all failures are resolved.");
+process.exit(1);
