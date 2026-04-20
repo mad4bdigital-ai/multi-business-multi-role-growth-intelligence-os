@@ -1926,50 +1926,41 @@ const HIGH_RISK_GOVERNED_SHEETS = new Set([
   EXECUTION_LOG_UNIFIED_SHEET
 ]);
 
-async function loadLiveGovernedChangeControlPolicies() {
-  return loadLiveGovernedChangeControlPoliciesCore({
-    EXECUTION_POLICY_SHEET,
-    REGISTRY_SPREADSHEET_ID,
-    fetchRange,
-    getCell,
-    getGoogleClientsForSpreadsheet,
-    headerMap,
-    toValuesApiRange
-  });
-}
+const loadLiveGovernedChangeControlPolicies = async () => loadLiveGovernedChangeControlPoliciesCore({
+  EXECUTION_POLICY_SHEET,
+  REGISTRY_SPREADSHEET_ID,
+  fetchRange,
+  getCell,
+  getGoogleClientsForSpreadsheet,
+  headerMap,
+  toValuesApiRange
+});
 
-function governedPolicyValue(policies = [], key = "", fallback = "") {
-  return governedPolicyValueCore(policies, key, fallback);
-}
+const governedPolicyValue = (policies = [], key = "", fallback = "") =>
+  governedPolicyValueCore(policies, key, fallback);
 
-function governedPolicyEnabled(policies = [], key = "", fallback = false) {
-  return governedPolicyEnabledCore(policies, key, fallback);
-}
+const governedPolicyEnabled = (policies = [], key = "", fallback = false) =>
+  governedPolicyEnabledCore(policies, key, fallback);
 
-async function readRelevantExistingRowWindow(
+const readRelevantExistingRowWindow = async (
   spreadsheetId,
   sheetName,
   scanRangeA1 = "A:Z"
-) {
-  return readRelevantExistingRowWindowCore(
-    spreadsheetId,
-    sheetName,
-    scanRangeA1,
-    {
-      getGoogleClientsForSpreadsheet,
-      headerMap,
-      toValuesApiRange
-    }
-  );
-}
+) => readRelevantExistingRowWindowCore(
+  spreadsheetId,
+  sheetName,
+  scanRangeA1,
+  {
+    getGoogleClientsForSpreadsheet,
+    headerMap,
+    toValuesApiRange
+  }
+);
 
-function normalizeSemanticValue(value) {
-  return normalizeSemanticValueCore(value);
-}
+const normalizeSemanticValue = value => normalizeSemanticValueCore(value);
 
-function findSemanticDuplicateRows(header = [], rows = [], rowObject = {}) {
-  return findSemanticDuplicateRowsCore(header, rows, rowObject);
-}
+const findSemanticDuplicateRows = (header = [], rows = [], rowObject = {}) =>
+  findSemanticDuplicateRowsCore(header, rows, rowObject);
 
 async function updateSheetRowGoverned(
   sheets,
@@ -2538,14 +2529,14 @@ function policyList(policies, group, key) {
   return policyListCore(policies, group, key, { boolFromSheet });
 }
 
-async function mintGoogleAccessTokenForEndpoint(args) { return mintGoogleAccessTokenForEndpointCore(args); }
-function requirePolicyTrue(p, g, k, m) { return requirePolicyTrueCore(p, g, k, m); }
-function requirePolicySet(p, g, k) { return requirePolicySetCore(p, g, k); }
-function getRequiredHttpExecutionPolicyKeys(p) { return getRequiredHttpExecutionPolicyKeysCore(p); }
-function buildMissingRequiredPolicyError(p, m) { return buildMissingRequiredPolicyErrorCore(p, m); }
-function resilienceAppliesToParentAction(p, k) { return resilienceAppliesToParentActionCore(p, k); }
-function shouldRetryProviderResponse(p, s, t) { return shouldRetryProviderResponseCore(p, s, t); }
-function buildProviderRetryMutations(p, k) { return buildProviderRetryMutationsCore(p, k); }
+const mintGoogleAccessTokenForEndpoint = args => mintGoogleAccessTokenForEndpointCore(args);
+const requirePolicyTrue = (p, g, k, m) => requirePolicyTrueCore(p, g, k, m);
+const requirePolicySet = (p, g, k) => requirePolicySetCore(p, g, k);
+const getRequiredHttpExecutionPolicyKeys = p => getRequiredHttpExecutionPolicyKeysCore(p);
+const buildMissingRequiredPolicyError = (p, m) => buildMissingRequiredPolicyErrorCore(p, m);
+const resilienceAppliesToParentAction = (p, k) => resilienceAppliesToParentActionCore(p, k);
+const shouldRetryProviderResponse = (p, s, t) => shouldRetryProviderResponseCore(p, s, t);
+const buildProviderRetryMutations = (p, k) => buildProviderRetryMutationsCore(p, k);
 
 async function executeUpstreamAttempt({
   requestUrl,
@@ -2753,16 +2744,16 @@ function ensureWritePermissions(brand, method) {
 }
 
 
-function nowIso() { return nowIsoCore(); }
-function normalizeJobStatus(v) { return normalizeJobStatusCore(v); }
-function normalizeWebhookUrl(v) { return normalizeWebhookUrlCore(v); }
-function normalizeMaxAttempts(v) { return normalizeMaxAttemptsCore(v); }
-function buildJobId() { return buildJobIdCore(); }
-function resolveRequestedBy(req) { return resolveRequestedByCore(req); }
-function makeIdempotencyLookupKey(r, k) { return makeIdempotencyLookupKeyCore(r, k); }
-function buildExecutionPayloadFromJobRequest(b) { return buildExecutionPayloadFromJobRequestCore(b); }
+const nowIso = () => nowIsoCore();
+const normalizeJobStatus = v => normalizeJobStatusCore(v);
+const normalizeWebhookUrl = v => normalizeWebhookUrlCore(v);
+const normalizeMaxAttempts = v => normalizeMaxAttemptsCore(v);
+const buildJobId = () => buildJobIdCore();
+const resolveRequestedBy = req => resolveRequestedByCore(req);
+const makeIdempotencyLookupKey = (r, k) => makeIdempotencyLookupKeyCore(r, k);
+const buildExecutionPayloadFromJobRequest = b => buildExecutionPayloadFromJobRequestCore(b);
 
-function validateAsyncJobRequest(p) { return validateAsyncJobRequestCore(p); }
+const validateAsyncJobRequest = p => validateAsyncJobRequestCore(p);
 
 
 
