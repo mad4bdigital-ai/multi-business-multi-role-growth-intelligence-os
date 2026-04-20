@@ -12,7 +12,7 @@ const _debug = (...args) => {
 
 // --- retryMutation private helpers ---
 
-function retryMutationEnabled(policies = []) {
+export function retryMutationEnabled(policies = []) {
   return String(
     policyValue(policies, "HTTP Execution Resilience", "Retry Mutation Enabled", "FALSE")
   ).trim().toUpperCase() === "TRUE";

@@ -145,7 +145,8 @@ import {
   buildMissingRequiredPolicyError as buildMissingRequiredPolicyErrorCore,
   resilienceAppliesToParentAction as resilienceAppliesToParentActionCore,
   shouldRetryProviderResponse as shouldRetryProviderResponseCore,
-  buildProviderRetryMutations as buildProviderRetryMutationsCore
+  buildProviderRetryMutations as buildProviderRetryMutationsCore,
+  retryMutationEnabled as retryMutationEnabledCore
 } from "./auth.js";
 import {
   assertHostingerTargetTier,
@@ -2561,6 +2562,7 @@ const buildMissingRequiredPolicyError = (p, m) => buildMissingRequiredPolicyErro
 const resilienceAppliesToParentAction = (p, k) => resilienceAppliesToParentActionCore(p, k);
 const shouldRetryProviderResponse = (p, s, t) => shouldRetryProviderResponseCore(p, s, t);
 const buildProviderRetryMutations = (p, k) => buildProviderRetryMutationsCore(p, k);
+const retryMutationEnabled = p => retryMutationEnabledCore(p);
 
 async function executeUpstreamAttempt({
   requestUrl,
