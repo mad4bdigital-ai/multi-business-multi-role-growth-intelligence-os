@@ -4,6 +4,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 let passed = 0;
 let failed = 0;
@@ -44,11 +45,12 @@ async function main() {
   const port = 18180;
   const baseUrl = `http://127.0.0.1:${port}`;
   const apiKey = "route_test_key";
+  const runtimeCwd = fileURLToPath(new URL(".", import.meta.url));
   let child;
 
   try {
     child = spawn(process.execPath, ["server.js"], {
-      cwd: new URL(".", import.meta.url),
+      cwd: runtimeCwd,
       env: {
         ...process.env,
         PORT: String(port),
@@ -70,13 +72,30 @@ async function main() {
     throw err;
   }
 
+  let stdout = "";
   let stderr = "";
+  child.stdout.on("data", chunk => {
+    stdout += String(chunk || "");
+  });
   child.stderr.on("data", chunk => {
     stderr += String(chunk || "");
   });
 
   try {
-    await waitForServer(baseUrl);
+    await Promise.race([
+      waitForServer(baseUrl),
+      new Promise((_, reject) => {
+        child.once("exit", code => {
+          reject(
+            new Error(
+              `Runtime exited before becoming healthy (code ${code}).` +
+              `${stderr.trim() ? ` stderr: ${stderr.trim()}` : ""}` +
+              `${stdout.trim() ? ` stdout: ${stdout.trim()}` : ""}`
+            )
+          );
+        });
+      })
+    ]);
 
     section("health route");
 
@@ -138,8 +157,15 @@ async function main() {
     assert("POST /site-migrate returns 503 when queue unavailable", migrateRes.status === 503, `got ${migrateRes.status}`);
     assert("POST /site-migrate returns queue_unavailable code", migrateBody?.error?.code === "queue_unavailable", JSON.stringify(migrateBody));
   } finally {
-    child.kill("SIGTERM");
-    await new Promise(resolve => child.once("exit", resolve));
+    if (!child.killed) {
+      child.kill("SIGTERM");
+    }
+    if (child.exitCode === null && child.signalCode === null) {
+      await new Promise(resolve => child.once("exit", resolve));
+    }
+    if (stdout.trim()) {
+      console.log(`\nCaptured stdout:\n${stdout.trim()}`);
+    }
     if (stderr.trim()) {
       console.log(`\nCaptured stderr:\n${stderr.trim()}`);
     }
