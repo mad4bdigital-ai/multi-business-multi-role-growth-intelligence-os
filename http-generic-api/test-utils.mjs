@@ -1,5 +1,6 @@
 /**
- * Unit tests for utils.js, normalization.js, and wordpress-cpt-preflight.js
+ * Unit tests for utils.js, normalization.js, wordpress-cpt-preflight.js,
+ * mutationGovernance.js, and governedChangeControl.js
  * Run: node test-utils.mjs
  */
 import {
@@ -24,6 +25,16 @@ import {
   inferWordpressInventoryAssetType,
   buildWordpressJsonAssetContext
 } from "./wordpress-cpt-preflight.js";
+import {
+  classifyGovernedMutationIntent,
+  summarizeDuplicateCandidates,
+  isExecutionLogUnifiedAppendExempt,
+  buildGovernedMutationExemptionContext
+} from "./mutationGovernance.js";
+import {
+  normalizeSemanticValue,
+  findSemanticDuplicateRows
+} from "./governedChangeControl.js";
 
 let passed = 0;
 let failed = 0;
@@ -237,6 +248,117 @@ assert("inferred_asset_type is wordpress_runtime_response", ctxNonPreflight.infe
 assert("asset_key uses endpoint+trace", ctxNonPreflight.asset_key === "wp_list_posts__trace_xyz");
 assert("mapping_status is captured_unreduced", ctxNonPreflight.mapping_status === "captured_unreduced");
 assert("validation_status is pending", ctxNonPreflight.validation_status === "pending");
+
+// ─── mutationGovernance — classifyGovernedMutationIntent ────────────────────
+section("mutationGovernance — classifyGovernedMutationIntent");
+
+assert("append with no duplicates → append_new",
+  classifyGovernedMutationIntent({ mutationType: "append", duplicateCandidates: [] }) === "append_new");
+assert("append with duplicates → blocked_duplicate",
+  classifyGovernedMutationIntent({ mutationType: "append", duplicateCandidates: [{ rowNumber: 5, score: 2 }] }) === "blocked_duplicate");
+assert("update with targetRowNumber → update_existing",
+  classifyGovernedMutationIntent({ mutationType: "update", targetRowNumber: 3 }) === "update_existing");
+assert("update with renameOnly → rename_existing",
+  classifyGovernedMutationIntent({ mutationType: "update", renameOnly: true }) === "rename_existing");
+assert("update with mergeCandidate → merge_existing",
+  classifyGovernedMutationIntent({ mutationType: "update", mergeCandidate: true }) === "merge_existing");
+assert("update with no target → blocked_policy_unconfirmed",
+  classifyGovernedMutationIntent({ mutationType: "update" }) === "blocked_policy_unconfirmed");
+
+section("mutationGovernance — summarizeDuplicateCandidates");
+
+const dupes = [
+  { rowNumber: 2, score: 3, row: [] },
+  { rowNumber: 5, score: 1, row: [] },
+  { rowNumber: 7, score: 2, row: [] },
+  { rowNumber: 9, score: 4, row: [] },
+  { rowNumber: 11, score: 2, row: [] },
+  { rowNumber: 13, score: 5, row: [] }
+];
+const summary = summarizeDuplicateCandidates(dupes);
+assert("summary capped at 5 items", summary.length === 5);
+assert("summary item has rowNumber", typeof summary[0].rowNumber === "number");
+assert("summary item has score", typeof summary[0].score === "number");
+assert("summary item has no row data", !("row" in summary[0]));
+
+section("mutationGovernance — isExecutionLogUnifiedAppendExempt");
+
+assert("exempt when sheetName matches and mutationType is append",
+  isExecutionLogUnifiedAppendExempt(
+    { sheetName: "Execution Log Unified", mutationType: "append" },
+    { executionLogUnifiedSheetName: "Execution Log Unified" }
+  ) === true);
+assert("not exempt when sheetName differs",
+  isExecutionLogUnifiedAppendExempt(
+    { sheetName: "Other Sheet", mutationType: "append" },
+    { executionLogUnifiedSheetName: "Execution Log Unified" }
+  ) === false);
+assert("not exempt when mutationType is update",
+  isExecutionLogUnifiedAppendExempt(
+    { sheetName: "Execution Log Unified", mutationType: "update" },
+    { executionLogUnifiedSheetName: "Execution Log Unified" }
+  ) === false);
+assert("defaults mutationType to append when omitted",
+  isExecutionLogUnifiedAppendExempt(
+    { sheetName: "Execution Log Unified" },
+    { executionLogUnifiedSheetName: "Execution Log Unified" }
+  ) === true);
+
+section("mutationGovernance — buildGovernedMutationExemptionContext");
+
+const exemptCtx = buildGovernedMutationExemptionContext(
+  { sheetName: "Execution Log Unified", mutationType: "append" },
+  { executionLogUnifiedSheetName: "Execution Log Unified" }
+);
+assert("exemptCtx.sink_exemption_applied true", exemptCtx.sink_exemption_applied === true);
+assert("exemptCtx.sink_exemption_class is execution_log_unified_append",
+  exemptCtx.sink_exemption_class === "execution_log_unified_append");
+
+const nonExemptCtx = buildGovernedMutationExemptionContext(
+  { sheetName: "Registry Sheet", mutationType: "append" },
+  { executionLogUnifiedSheetName: "Execution Log Unified" }
+);
+assert("non-exempt ctx has sink_exemption_applied false or absent",
+  !nonExemptCtx.sink_exemption_applied);
+
+// ─── governedChangeControl — semantic duplicate detection ────────────────────
+section("governedChangeControl — normalizeSemanticValue");
+
+assert("lowercases value", normalizeSemanticValue("Hello World") === "hello world");
+assert("trims whitespace", normalizeSemanticValue("  abc  ") === "abc");
+assert("collapses internal spaces", normalizeSemanticValue("a  b   c") === "a b c");
+assert("handles null", normalizeSemanticValue(null) === "");
+assert("handles number", normalizeSemanticValue(42) === "42");
+
+section("governedChangeControl — findSemanticDuplicateRows");
+
+const header = ["job_id", "status", "brand"];
+const rows = [
+  ["job_001", "succeeded", "brandA"],
+  ["job_002", "failed", "brandB"],
+  ["job_003", "succeeded", "brandA"]
+];
+
+const noDupes = findSemanticDuplicateRows(header, rows, { job_id: "job_999" });
+assert("no match returns empty array", noDupes.length === 0);
+
+const exactMatch = findSemanticDuplicateRows(header, rows, { job_id: "job_001" });
+assert("exact match returns one result", exactMatch.length === 1);
+assert("match has correct rowNumber", exactMatch[0].rowNumber === 2);
+assert("match has score >= 1", exactMatch[0].score >= 1);
+
+const multiFieldMatch = findSemanticDuplicateRows(header, rows, { status: "succeeded", brand: "brandA" });
+assert("multi-field match returns 2 candidates", multiFieldMatch.length === 2);
+assert("highest score is first", multiFieldMatch[0].score >= multiFieldMatch[1].score);
+
+const caseInsensitive = findSemanticDuplicateRows(header, rows, { brand: "BRANDA" });
+assert("matching is case-insensitive", caseInsensitive.length >= 1);
+
+const emptyRows = findSemanticDuplicateRows(header, [], { job_id: "job_001" });
+assert("empty rows returns empty array", emptyRows.length === 0);
+
+const emptyHeader = findSemanticDuplicateRows([], rows, { job_id: "job_001" });
+assert("empty header returns empty array", emptyHeader.length === 0);
 
 // ─── Summary ────────────────────────────────────────────────────────────────
 console.log(`\n${"─".repeat(50)}`);

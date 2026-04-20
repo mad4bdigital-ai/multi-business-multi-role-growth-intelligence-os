@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test-utils.mjs && node wordpress/test-integration.mjs"
+    "test": "node test-utils.mjs && node wordpress/test-integration.mjs",
+    "validate": "node validate-architecture.mjs"
   },
   "engines": {
     "node": ">=20"
