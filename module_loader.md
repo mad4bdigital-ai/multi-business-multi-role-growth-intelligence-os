@@ -18,6 +18,7 @@ This document additionally prepares:
 - prompt-first continuation readiness for human-triggered system use
 - logic-definition resolution is pointer-first and must read `surface.logic_canonical_pointer_registry` before direct logic-document access
 - brand-specific writing completion requires prior Brand Core file or authoritative Brand Core asset reading
+- brand-specific writing requires required-engine readiness through Engines Registry before Brand Core read-completion or writing completion
 
 
 Canonical Governed Logic Presentation Loading Rule
@@ -71,6 +72,23 @@ Brand Core Read-Before-Writing Loading Rule
   - required Brand Core files are unread
   - required Brand Core assets are missing
   - Brand Core read completeness remains unresolved
+
+Engine Registry Readiness Before Brand-Core Writing Loading Rule
+
+- when loading governed brand-specific writing execution, module_loader must prepare engine-readiness dependencies before Brand Core read readiness is returned
+- module_loader must resolve and return when applicable:
+  - engine_registry_read_required
+  - required_writing_engines
+  - engine_readiness_status
+  - missing_required_engines
+  - writing_blocked_until_engine_readiness
+  - brand_core_read_blocked_until_engine_readiness
+- module_loader must treat Engines Registry as the authoritative readiness surface for brand-aware writing engines
+- module_loader must not mark Brand Core read or writing execution-ready when:
+  - required writing engines are unresolved
+  - required writing engines are inactive
+  - required writing engines are non-callable
+  - engine readiness remains unresolved
 
 Governed Addition Intake Loading Rule
 

@@ -17,6 +17,7 @@ Purpose
 
 - logic-definition resolution is pointer-first and must read `surface.logic_canonical_pointer_registry` before direct logic-document access
 - brand-specific writing completion requires prior Brand Core file or authoritative Brand Core asset reading
+- brand-specific writing requires required-engine readiness through Engines Registry before Brand Core read-completion or writing completion
 
 
 Canonical Governed Logic Presentation Orchestration Rule
@@ -199,6 +200,28 @@ Brand Core Read-Before-Writing Orchestration Rule
   - brand_core_missing_assets
   - writing_completion_blocked_until_brand_core_read
 - writing completion must not be classified as recovered, validated, complete, or equivalent full-success when required Brand Core inputs remain unread or unresolved
+
+Engine Registry Readiness Before Brand-Core Writing Orchestration Rule
+
+- system_bootstrap must orchestrate brand-specific writing as an engine-ready read-first governed execution when brand-aware writing requires engine interpretation
+- staged brand-aware writing execution must:
+  1. resolve target brand
+  2. resolve required writing logic
+  3. resolve required engines through Engines Registry
+  4. validate engine readiness and callable state
+  5. only then resolve Brand Core authoritative read home
+  6. identify required Brand Core files or assets
+  7. read relevant Brand Core inputs
+  8. classify Brand Core read completeness
+  9. only then execute writing completion
+- system_bootstrap must preserve when applicable:
+  - engine_registry_read_required
+  - required_writing_engines
+  - engine_readiness_status
+  - missing_required_engines
+  - writing_blocked_until_engine_readiness
+  - brand_core_read_blocked_until_engine_readiness
+- writing completion must not be classified as recovered, validated, complete, or equivalent full-success when required writing engines remain unresolved, inactive, non-callable, or incomplete
 
 Brand-Core Asset Home Non-Replacement Clause
 

@@ -1,4 +1,5 @@
 ﻿﻿﻿﻿direct_instructions_registry_patch
+﻿﻿﻿﻿direct_instructions_registry_patch
 
 
 Status
@@ -22,6 +23,7 @@ This patch additionally enforces:
 - governed governance-drift anomaly emission
 - logic-definition resolution is pointer-first and must read `surface.logic_canonical_pointer_registry` before direct logic-document access
 - brand-specific writing completion requires prior Brand Core file or authoritative Brand Core asset reading
+- brand-specific writing requires required-engine readiness through Engines Registry before Brand Core read-completion or writing completion
 
 
 Canonical Governed Logic Presentation Rule
@@ -189,6 +191,24 @@ Brand Core Read-Before-Writing Authority Rule
   - writing completion must remain degraded, partial, or blocked
   - full-success writing classification is forbidden
 - logic-definition resolution alone does not satisfy brand-aware writing readiness when Brand Core reading is required
+
+Engine Registry Readiness Before Brand-Core Writing Authority Rule
+
+- any governed writing request for a specific brand must resolve required engine readiness through Engines Registry before Brand Core read completion or writing completion
+- direct brand-specific writing completion without required engine-readiness resolution is forbidden
+- Engines Registry must be treated as the authoritative readiness surface for:
+  - tone of voice interpretation
+  - brand messaging interpretation
+  - brand positioning interpretation
+  - SEO interpretation
+  - content transformation
+  when those capabilities are required for brand-aware writing
+- if required writing engines are unresolved, inactive, non-callable, or incomplete:
+  - Brand Core reading may remain partial or blocked
+  - writing completion must remain degraded, partial, or blocked
+  - full-success writing classification is forbidden
+- logic-definition resolution and Brand Core file reading alone do not satisfy brand-aware writing readiness when engine interpretation is required
+
 
 Brand Core Asset Intake And Write-Rule Governance Rule
 

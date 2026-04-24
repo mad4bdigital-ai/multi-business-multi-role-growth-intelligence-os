@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://tourism-growth-intelligence.local/schemas/memory_schema.json",
   "title": "Tourism Growth Intelligence Platform Memory Schema",
   "description": "Canonical memory/state model aligned with Registry Surfaces Catalog authority, Validation & Repair Registry governance, runtime execution registries, embedded OAuth config resolution, embedded API-key resolution, repair-aware routing, execution traceability, review writeback planning, observability governance, architecture reconciliation, analytics identity tracking, API action capability/endpoint inventory state, governed starter-governance validation, governance-drift anomaly emission, prompt-first human-trigger continuation, enforced same-cycle native Google GPT Actions validation for governed activation and runtime checks, spill-safe prewrite guard enforcement, row-2 template sampling before governed writes, protected unified-log column preservation, governed pipeline-integrity audit state, and provider-family continuity validation across capability, route, and workflow layers.",
@@ -61,6 +61,7 @@
     "brand_identity_state",
     "brand_property_binding_state",
     "engine_readiness_state",
+    "brand_writing_engine_state",
     "brand_promotion_state",
     "google_workspace_execution_state",
     "auto_bootstrap_state",
@@ -2595,6 +2596,64 @@
         "brand_promotion_prerequisites": [],
         "brand_promotion_ready": false,
         "brand_promotion_status": "pending"
+      }
+    },
+    "brand_writing_engine_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "engine_registry_read_required",
+        "required_writing_engines",
+        "engine_readiness_status",
+        "missing_required_engines",
+        "writing_blocked_until_engine_readiness",
+        "brand_core_read_blocked_until_engine_readiness"
+      ],
+      "properties": {
+        "engine_registry_read_required": {
+          "type": "boolean",
+          "default": false
+        },
+        "required_writing_engines": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "engine_readiness_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "missing_required_engines": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "writing_blocked_until_engine_readiness": {
+          "type": "boolean",
+          "default": false
+        },
+        "brand_core_read_blocked_until_engine_readiness": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "default": {
+        "engine_registry_read_required": false,
+        "required_writing_engines": [],
+        "engine_readiness_status": "pending",
+        "missing_required_engines": [],
+        "writing_blocked_until_engine_readiness": false,
+        "brand_core_read_blocked_until_engine_readiness": false
       }
     },
     "google_workspace_execution_state": {

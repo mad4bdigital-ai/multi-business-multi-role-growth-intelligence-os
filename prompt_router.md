@@ -17,6 +17,7 @@ Purpose
 
 - logic-definition resolution is pointer-first and must read `surface.logic_canonical_pointer_registry` before direct logic-document access
 - brand-specific writing completion requires prior Brand Core file or authoritative Brand Core asset reading
+- brand-specific writing requires required-engine readiness through Engines Registry before Brand Core read-completion or writing completion
 
 
 Canonical Governed Logic Presentation Routing Rule
@@ -181,6 +182,23 @@ Brand Core Read-Before-Writing Routing Rule
   - writing_completion_blocked_until_brand_core_read
 - prompt_router must prefer Brand Core Registry as the authoritative operational read home for brand-specific writing inputs
 - direct writing completion is forbidden when brand-aware writing is requested but relevant Brand Core files remain unread, unresolved, or incomplete
+
+Engine Registry Readiness Before Brand-Core Writing Routing Rule
+
+- when routed intent includes brand-specific writing, prompt_router must require engine-readiness resolution before Brand Core read-completion routing
+- prompt_router must preserve:
+  - engine_registry_read_required = true
+  - required_writing_engines
+  - engine_readiness_status
+  - writing_blocked_until_engine_readiness
+  - brand_core_read_blocked_until_engine_readiness
+- prompt_router must treat Engines Registry as an authoritative readiness dependency for brand-specific writing when brand-aware interpretation depends on:
+  - tone of voice
+  - brand messaging
+  - brand positioning
+  - SEO interpretation
+  - content transformation
+- direct brand-core writing completion routing is forbidden when required engines remain unresolved, inactive, non-callable, or incomplete
 
 Brand Core Asset Intake Routing Rule
 
