@@ -1,3 +1,9 @@
+export const READ_POLICIES = {
+  CACHED_NORMAL: "cached_normal",
+  VALIDATION_BYPASS: "validation_bypass_cache",
+  FORCED_REFRESH: "forced_refresh"
+};
+
 function defaultBoolFromSheet(value) {
   if (value === true || value === false) return value;
   const normalized = String(value ?? "").trim().toLowerCase();

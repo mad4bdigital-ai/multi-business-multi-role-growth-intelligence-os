@@ -612,3 +612,44 @@ export function buildWordpressCptSchemaPreflightPayload(args = {}) {
     )
   };
 }
+
+export function matchesHostingerSshTarget(rowObj, input = {}) {
+  if ((rowObj.hosting_provider || "").trim().toLowerCase() !== "hostinger") {
+    return false;
+  }
+
+  const targetKey = String(input.target_key || "").trim();
+  const hostingAccountKey = String(input.hosting_account_key || "").trim();
+  const accountIdentifier = String(input.account_identifier || "").trim();
+  const siteUrl = String(input.site_url || "").trim().toLowerCase();
+
+  if (hostingAccountKey && rowObj.hosting_account_key === hostingAccountKey) {
+    return true;
+  }
+
+  if (accountIdentifier && rowObj.account_identifier === accountIdentifier) {
+    return true;
+  }
+
+  const resolverTargetKeys = jsonParseSafe(rowObj.resolver_target_keys_json, []);
+  if (
+    targetKey &&
+    Array.isArray(resolverTargetKeys) &&
+    resolverTargetKeys.includes(targetKey)
+  ) {
+    return true;
+  }
+
+  const brandSites = jsonParseSafe(rowObj.brand_sites_json, []);
+  if (
+    siteUrl &&
+    Array.isArray(brandSites) &&
+    brandSites.some(
+      x => String(x?.site || "").trim().toLowerCase() === siteUrl
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}

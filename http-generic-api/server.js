@@ -4,13 +4,47 @@ import crypto from "node:crypto";
 import { promises as fs } from "fs";
 import {
   redis, jobQueue, createWorker, closeQueue,
-  getJobFromRedis, setJobInRedis, getAllJobsFromRedis,
-  getIdempotencyEntry, setIdempotencyEntry, deleteIdempotencyEntry, hasIdempotencyEntry,
+  getJobFromRedis, getAllJobsFromRedis,
   getRedisRuntimeStatus, getWaitingCountSafe
 } from "./queue.js";
 
 import {
-  extractJsonAssetPayloadBody
+  jobRepository,
+  resolveJob,
+  failAsyncSubmission
+} from "./runtimeState.js";
+
+import {
+  requireEnv,
+  debugEnabled,
+  debugLog,
+  backendApiKeyEnabled,
+  requireBackendApiKey
+} from "./runtimeGuards.js";
+
+import {
+  requireMcpToken,
+  requireMcpAcceptHeader,
+  mcpInitialize,
+  mcpToolsList,
+  mcpToolsCall
+} from "./mcpRuntime.js";
+
+import {
+  extractJsonAssetPayloadBody,
+  jsonParseSafe,
+  boolFromSheet,
+  asBool,
+  rowToObject,
+  matchesHostingerSshTarget,
+  normalizePath,
+  normalizeProviderDomain,
+  safeNormalizeProviderDomain,
+  normalizeEndpointProviderDomain,
+  isVariablePlaceholder,
+  sanitizeCallerHeaders,
+  buildUrl,
+  appendQuery
 } from "./utils.js";
 import {
   buildWordpressJsonAssetContext,
@@ -602,288 +636,7 @@ app.use(express.json({ limit: JSON_BODY_LIMIT }));
 
 
 
-// In-memory job store (per-worker). Writes through to Redis on every mutation.
-const inMemoryJobs = new Map();
-
-const jobRepository = {
-  get(jobId) {
-    return inMemoryJobs.get(String(jobId || "").trim()) || null;
-  },
-  set(job) {
-    const id = String(job?.job_id || "").trim();
-    if (!id) return null;
-    inMemoryJobs.set(id, job);
-    setJobInRedis(job);
-    return inMemoryJobs.get(id);
-  },
-  delete(jobId) {
-    const id = String(jobId || "").trim();
-    if (!id) return;
-    inMemoryJobs.delete(id);
-  },
-  values() {
-    return [...inMemoryJobs.values()];
-  },
-  size() {
-    return inMemoryJobs.size;
-  }
-};
-
-const {
-  getJob,
-  updateJob,
-  enqueueJob,
-  executeSingleQueuedJob
-} = configureJobRunner({
-  jobRepository,
-  executeSiteMigrationJob,
-  performUniversalServerWriteback,
-  logRetryWriteback
-});
-
-// Idempotency — fully async, backed by Redis.
-const idempotencyRepository = {
-  async get(key) {
-    return getIdempotencyEntry(key);
-  },
-  async set(key, jobId) {
-    return setIdempotencyEntry(key, jobId);
-  },
-  async delete(key) {
-    return deleteIdempotencyEntry(key);
-  },
-  async has(key) {
-    return hasIdempotencyEntry(key);
-  }
-};
-
-// Resolve a job by ID: in-memory first, then Redis fallback (cross-instance).
-async function resolveJob(jobId) {
-  return jobRepository.get(jobId) || await getJobFromRedis(jobId);
-}
-
-async function failAsyncSubmission(job, idempotencyLookupKey, enqueueResult) {
-  if (job?.job_id) {
-    jobRepository.delete(job.job_id);
-  }
-  if (idempotencyLookupKey) {
-    await idempotencyRepository.delete(idempotencyLookupKey);
-  }
-
-  return {
-    ok: false,
-    error: {
-      code: enqueueResult?.error?.code || "queue_unavailable",
-      message: "Async job queue is unavailable.",
-      details: {
-        queue_error: enqueueResult?.error || null
-      }
-    }
-  };
-}
-
-function requireEnv(name) {
-  const value = process.env[name];
-  if (!value) {
-    const err = new Error(`Missing required environment variable: ${name}`);
-    err.code = "missing_env";
-    err.status = 500;
-    throw err;
-  }
-  return value;
-}
-
-function backendApiKeyEnabled() {
-  return !!String(process.env.BACKEND_API_KEY || "").trim();
-}
-
-function requireBackendApiKey(req, res, next) {
-  const expected = process.env.BACKEND_API_KEY;
-  if (!backendApiKeyEnabled()) return next();
-
-  const auth = req.header("Authorization") || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  if (token !== expected) {
-    return res.status(401).json({
-      ok: false,
-      error: { code: "unauthorized", message: "Invalid backend API key." }
-    });
-  }
-  next();
-}
-
-function debugEnabled() {
-  return String(process.env.EXECUTION_DEBUG || "").trim().toLowerCase() === "true";
-}
-
-function debugLog(...args) {
-  if (debugEnabled()) console.log(...args);
-}
-
-function jsonParseSafe(value, fallback) {
-  try {
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function boolFromSheet(value) {
-  return String(value || "").trim().toUpperCase() === "TRUE";
-}
-
-function asBool(value) {
-  return String(value || "").trim().toUpperCase() === "TRUE";
-}
-
-function rowToObject(header, row) {
-  const out = {};
-  for (let i = 0; i < header.length; i += 1) {
-    out[header[i]] = row[i] ?? "";
-  }
-  return out;
-}
-
-function matchesHostingerSshTarget(rowObj, input = {}) {
-  if ((rowObj.hosting_provider || "").trim().toLowerCase() !== "hostinger") {
-    return false;
-  }
-
-  const targetKey = String(input.target_key || "").trim();
-  const hostingAccountKey = String(input.hosting_account_key || "").trim();
-  const accountIdentifier = String(input.account_identifier || "").trim();
-  const siteUrl = String(input.site_url || "").trim().toLowerCase();
-
-  if (hostingAccountKey && rowObj.hosting_account_key === hostingAccountKey) {
-    return true;
-  }
-
-  if (accountIdentifier && rowObj.account_identifier === accountIdentifier) {
-    return true;
-  }
-
-  const resolverTargetKeys = jsonParseSafe(rowObj.resolver_target_keys_json, []);
-  if (
-    targetKey &&
-    Array.isArray(resolverTargetKeys) &&
-    resolverTargetKeys.includes(targetKey)
-  ) {
-    return true;
-  }
-
-  const brandSites = jsonParseSafe(rowObj.brand_sites_json, []);
-  if (
-    siteUrl &&
-    Array.isArray(brandSites) &&
-    brandSites.some(
-      x => String(x?.site || "").trim().toLowerCase() === siteUrl
-    )
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-function normalizePath(path) { return normalizePathCore(path); }
-
-function normalizeProviderDomain(providerDomain) {
-  if (!providerDomain || typeof providerDomain !== "string") {
-    const err = new Error("provider_domain is required.");
-    err.code = "invalid_request";
-    err.status = 400;
-    throw err;
-  }
-
-  let url;
-  try {
-    url = new URL(providerDomain);
-  } catch {
-    const err = new Error("provider_domain must be a valid absolute URL.");
-    err.code = "invalid_request";
-    err.status = 400;
-    throw err;
-  }
-
-  if (!["https:", "http:"].includes(url.protocol)) {
-    const err = new Error("provider_domain must use http or https.");
-    err.code = "invalid_request";
-    err.status = 400;
-    throw err;
-  }
-
-  url.hash = "";
-  return url.toString().replace(/\/+$/, "");
-}
-
-function safeNormalizeProviderDomain(value) {
-  try {
-    return value ? normalizeProviderDomain(value) : "";
-  } catch {
-    return "";
-  }
-}
-
-function normalizeEndpointProviderDomain(value) {
-  const v = String(value || "").trim();
-  if (!v) return "";
-  if (/^https?:\/\//i.test(v)) return normalizeProviderDomain(v);
-  return normalizeProviderDomain(`https://${v}`);
-}
-
-function isVariablePlaceholder(value, policies = []) {
-  const v = String(value || "").trim();
-  const dynamicPlaceholder = String(
-    policyValue(
-      policies,
-      "HTTP Execution Governance",
-      "Dynamic Provider Domain Placeholder",
-      "target_resolved"
-    )
-  ).trim();
-
-  return /^\{[^}]+\}$/.test(v) || v === dynamicPlaceholder;
-}
-
-function sanitizeCallerHeaders(headers = {}) {
-  const forbidden = ["proxy-authorization", "host"];
-  const clean = {};
-  for (const [key, value] of Object.entries(headers || {})) {
-    const lower = String(key).toLowerCase();
-    if (forbidden.includes(lower)) {
-      const err = new Error(`Forbidden header: ${key}`);
-      err.code = "forbidden_header";
-      err.status = 403;
-      throw err;
-    }
-    if (lower === "authorization") {
-      continue;
-    }
-    clean[key] = value;
-  }
-  return clean;
-}
-
-function buildUrl(providerDomain, path) {
-  const normalizedPath = normalizePath(path);
-  const base = new URL(providerDomain);
-  const basePath = base.pathname.replace(/\/+$/, "");
-  const relativePath = normalizedPath.replace(/^\/+/, "");
-  const joinedPath = `${basePath}/${relativePath}`.replace(/\/+/g, "/");
-  base.pathname = joinedPath;
-  base.search = "";
-  return base.toString();
-}
-
-function appendQuery(url, query) {
-  const u = new URL(url);
-  for (const [key, value] of Object.entries(query || {})) {
-    if (value !== undefined && value !== null) {
-      u.searchParams.set(key, String(value));
-    }
-  }
-  return u.toString();
-}
+// Code moved to runtimeState.js, runtimeGuards.js, and utils.js
 
 const EXECUTION_RESULT_CLASSIFICATIONS = new Set([
   "resolved_sync",
@@ -3091,6 +2844,11 @@ app.get("/health", async (_req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// --- MCP Protocol Endpoints (PR-4) ---
+app.post("/mcp/initialize", requireMcpToken, requireMcpAcceptHeader, mcpInitialize);
+app.get("/mcp/tools/list", requireMcpToken, requireMcpAcceptHeader, mcpToolsList);
+app.post("/mcp/tools/call", requireMcpToken, requireMcpAcceptHeader, mcpToolsCall);
 
 app.post("/hostinger/ssh-runtime-read", requireBackendApiKey, async (req, res) => {
   try {
