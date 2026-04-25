@@ -96,7 +96,12 @@ Last updated: 2026-04-19 (v2.2.0-server-decomposed)
 
 | Item | Priority | Notes |
 |------|----------|-------|
-| `inferWordpressInventoryAssetType` in server.js | Low | Used locally in server.js; evaluate if it belongs in shared.js |
+| None | | |
+
+---
+
+## Resolved Post-v2.2.0 Items
+- [x] `inferWordpressInventoryAssetType` evaluated. Instead of `shared.js`, it (along with its preflight payload logic) was extracted to a dedicated top-level module `wordpress-cpt-preflight.js` alongside `utils.js`.
 
 ---
 

@@ -5,6 +5,5 @@ export {
   validateSiteMigrationPayload,
   validateSiteMigrationRouteWorkflowReadiness,
   executeSiteMigrationJob,
-  inferWordpressInventoryAssetType,
   firstPopulated
 } from "../wordpress/index.js";
