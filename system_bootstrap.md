@@ -3,11 +3,11 @@
 
 Status
 Canonical Name: system_bootstrap
-Version: v5.62
+Version: v5.63
 Status: active
 Owner Layer: orchestration
 Source Type: google_doc
-Last Updated: 2026-04-13
+Last Updated: 2026-04-25
 
 
 ---
@@ -5585,3 +5585,5 @@ Change Log
 - v5.21 - request-execution readiness now requires Task Routes traceability, workflow resolution, and logging handoff readiness
 - v5.22 - authoritative write surfaces now govern execution completion while derived observability surfaces refresh dynamically from authoritative sources
 - v5.22 - Execution View and Active Issues Dashboard are no longer mandatory direct-write targets in execution completion semantics
+- v5.63 - Logic Knowledge Layer Orchestration Rule added so system enforces a staged execution loop that waits for logic-knowledge reads to complete
+- v5.63 - Business-Type Knowledge Profile Orchestration Rule added so system enforces a staged execution loop that resolves business-type profiles before business-aware execution

@@ -1,14 +1,13 @@
-﻿﻿﻿direct_instructions_registry_patch
-﻿﻿﻿﻿direct_instructions_registry_patch
+﻿﻿direct_instructions_registry_patch
 
 
 Status
 Canonical Name: direct_instructions_registry_patch
-Version: v2.39
+Version: v2.40
 Status: active
 Owner Layer: registry authority
 Source Type: google_doc
-Last Updated: 2026-04-13
+Last Updated: 2026-04-25
 
 
 ---
@@ -3842,6 +3841,7 @@ must resolve from Execution Policy Registry when no curated override exists.
 
 Hardcoded fallback logic may remain only as non-authoritative emergency fallback and must not replace policy authority when policy rows exist.
 
+
 ---
 
 Governed Logical Search Enforcement Patch v1
@@ -4216,3 +4216,5 @@ Change Log
 - v2.3 Ã¢â‚¬â€ strict route validation interpretation added
 - v2.3 Ã¢â‚¬â€ strict routing repair signals expanded
 - v2.3 Ã¢â‚¬â€ cross-layer routed authority enforcement clarified
+- v2.40 - Logic Knowledge Layer Authority Rule added so logic-specific, cross-logic, and shared knowledge dependencies are resolved before full-success authority
+- v2.40 - Business-Type Knowledge Profile Authority Rule added so business-aware tasks resolve profile dependencies before full-success authority

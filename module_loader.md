@@ -1,12 +1,12 @@
-﻿﻿﻿module_loader
+﻿﻿module_loader
 
 Status
 Canonical Name: module_loader
-Version: v2.42
+Version: v2.43
 Status: active
 Owner Layer: execution
 Source Type: google_doc
-Last Updated: 2026-04-13
+Last Updated: 2026-04-25
 
 ---
 
@@ -3704,3 +3704,5 @@ Change Log
 - v2.2 Ã¢â‚¬â€ blocked loading conditions added
 - v2.2 Ã¢â‚¬â€ load_status and binding_status added
 - v2.2 Ã¢â‚¬â€ ungoverned target preparation prohibition clarified
+- v2.43 - Logic Knowledge Layer Loading Rule added so loader prepares required logic-specific, cross-logic, and shared knowledge dependencies before returning execution-ready context
+- v2.43 - Business-Type Knowledge Profile Loading Rule added so loader prepares required business-type profile dependencies before execution-ready context

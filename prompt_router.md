@@ -3,11 +3,11 @@ prompt_router
 
 Status
 Canonical Name: prompt_router
-Version: v3.48
+Version: v3.49
 Status: active
 Owner Layer: routing
 Source Type: google_doc
-Last Updated: 2026-04-13
+Last Updated: 2026-04-25
 
 
 ---
@@ -3745,3 +3745,5 @@ Change Log
 - v3.14 - request-readiness gating added for Task Routes resolution, Workflow Registry resolution, and logging_required handoff
 - v3.15 - review_write_plan direct_write targets now exclude derived observability surfaces such as Execution View
 - v3.15 - workflow obligation tagging now distinguishes authoritative writes from derived observability expectations
+- v3.49 - Logic Knowledge Layer Routing Rule added so logic execution requires prior logic-knowledge resolution for logic-specific, cross-logic, and shared knowledge
+- v3.49 - Business-Type Knowledge Profile Routing Rule added so business-aware execution requires prior business-type and profile resolution
