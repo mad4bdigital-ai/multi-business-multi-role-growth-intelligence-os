@@ -1,7 +1,7 @@
 import { google } from "googleapis";
 import { REGISTRY_SPREADSHEET_ID } from "./config.js";
 import { headerMap } from "./sheetHelpers.js";
-import { READ_POLICIES } from "./registryResolution.js";
+import { READ_POLICIES } from "./registryReadPolicies.js";
 
 function requireEnv(name) {
   const value = process.env[name];

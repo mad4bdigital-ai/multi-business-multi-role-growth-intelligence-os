@@ -1,8 +1,5 @@
-export const READ_POLICIES = {
-  CACHED_NORMAL: "cached_normal",
-  VALIDATION_BYPASS: "validation_bypass_cache",
-  FORCED_REFRESH: "forced_refresh"
-};
+import { READ_POLICIES } from "./registryReadPolicies.js";
+export { READ_POLICIES };
 
 function defaultBoolFromSheet(value) {
   if (value === true || value === false) return value;
