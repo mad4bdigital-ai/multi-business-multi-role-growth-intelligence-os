@@ -58,7 +58,7 @@ export const DEFAULT_JOB_MAX_ATTEMPTS = Math.max(
   Number(process.env.JOB_MAX_ATTEMPTS || 3)
 );
 export const QUEUE_WORKER_ENABLED =
-  String(process.env.QUEUE_WORKER_ENABLED || "TRUE").trim().toUpperCase() === "TRUE";
+  String(process.env.QUEUE_WORKER_ENABLED || "FALSE").trim().toUpperCase() === "TRUE";
 export const JOB_WEBHOOK_TIMEOUT_MS = Math.max(
   1000,
   Number(process.env.JOB_WEBHOOK_TIMEOUT_MS || 10000)

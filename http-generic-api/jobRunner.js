@@ -307,6 +307,10 @@ export function configureJobRunner(
       attempt_count: job.attempt_count, next_retry_at: job.next_retry_at
     });
     const retryData = { ...job, status: "queued", next_retry_at: "" };
+    if (!queueApi) {
+      console.error("RETRY_ENQUEUE_FAILED:", { job_id: job.job_id, err: "queue_disabled" });
+      return;
+    }
     queueApi.add("execute", retryData, { delay: delayMs, attempts: 1 })
       .catch(err => console.error("RETRY_ENQUEUE_FAILED:", { job_id: job.job_id, err: err?.message }));
   }
