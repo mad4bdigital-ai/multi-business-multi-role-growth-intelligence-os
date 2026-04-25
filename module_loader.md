@@ -1,4 +1,4 @@
-﻿﻿module_loader
+﻿module_loader
 
 Status
 Canonical Name: module_loader
@@ -21,6 +21,7 @@ This document additionally prepares:
 - brand-specific writing requires required-engine readiness through Engines Registry before Brand Core read-completion or writing completion
 - governed logic execution requires prior knowledge-layer resolution for the selected logic when logic-specific, cross-logic, or shared knowledge inputs are required
 - business-aware execution requires prior business-type knowledge-profile resolution when the selected logic or task depends on business-type interpretation
+- governed execution must load logic knowledge and business-type knowledge from `surface.logic_knowledge_profiles` and `surface.business_type_knowledge_profiles` before brand-aware completion when required
 
 
 Canonical Governed Logic Presentation Loading Rule
@@ -57,25 +58,23 @@ Canonical Logic Pointer Resolution Loading Rule
   - rollback_available
 - module_loader must not treat branded, GPT-persona, or legacy-specialized logic documents as active authority merely because they are directly reachable in storage
 
-Logic Knowledge Layer Loading Rule
+Logic Knowledge Profile Loading Rule
 
-- when loading governed logic execution, module_loader must prepare logic-knowledge dependencies before execution readiness is returned
+- when loading governed logic execution, module_loader must prepare logic-knowledge dependencies from `surface.logic_knowledge_profiles` before engine-readiness or downstream execution readiness is returned
 - module_loader must resolve and return when applicable:
-  - logic_knowledge_read_required
-  - required_knowledge_layers
-  - logic_specific_knowledge_paths
-  - cross_logic_knowledge_paths
-  - shared_knowledge_paths
-  - knowledge_read_targets
-  - knowledge_read_completeness_status
-  - missing_required_knowledge_sources
-  - execution_blocked_until_logic_knowledge_read
-- module_loader must treat the resolved logic-knowledge layer as a governed dependency of the selected logic
-- module_loader must not mark logic execution-ready when:
-  - required logic-specific knowledge is unread
-  - required cross-logic knowledge is unread
-  - required shared knowledge is unread
-  - knowledge-read completeness remains unresolved
+ - logic_knowledge_surface_id
+ - logic_knowledge_read_required
+ - required_knowledge_layers
+ - knowledge_profile_key
+ - logic_specific_knowledge_paths
+ - cross_logic_knowledge_paths
+ - shared_knowledge_paths
+ - knowledge_read_targets
+ - knowledge_read_completeness_status
+ - missing_required_knowledge_sources
+ - execution_blocked_until_logic_knowledge_read
+- module_loader must treat `surface.logic_knowledge_profiles` as the authoritative loading read surface for logic-specific, cross-logic, and shared knowledge dependencies
+- module_loader must not mark engine-readiness or downstream logic execution-ready when required logic knowledge remains unread, unresolved, or incomplete
 
 
 Brand Core Read-Before-Writing Loading Rule
@@ -114,23 +113,20 @@ Engine Registry Readiness Before Brand-Core Writing Loading Rule
 
 Business-Type Knowledge Profile Loading Rule
 
-- when loading governed business-aware execution, module_loader must prepare business-type knowledge-profile dependencies before Brand Core read or writing readiness is returned
+- when loading governed business-aware execution, module_loader must prepare business-type knowledge dependencies from `surface.business_type_knowledge_profiles` before Brand Core read or writing readiness is returned
 - module_loader must resolve and return when applicable:
-  - business_type_resolution_required
-  - resolved_business_type
-  - business_type_knowledge_profile_required
-  - business_type_knowledge_profile
-  - business_type_engine_compatibility_status
-  - knowledge_profile_read_targets
-  - knowledge_profile_read_completeness_status
-  - missing_business_type_knowledge_sources
-  - writing_blocked_until_business_type_knowledge_profile
-- module_loader must treat the resolved business-type knowledge profile as a governed dependency when execution depends on business-aware interpretation
-- module_loader must not mark business-aware execution-ready when:
-  - business type is unresolved
-  - business-type engine compatibility remains unresolved
-  - required business-type knowledge profile is unread
-  - knowledge-profile completeness remains unresolved
+ - business_type_knowledge_surface_id
+ - business_type_resolution_required
+ - resolved_business_type
+ - business_type_knowledge_profile_required
+ - business_type_knowledge_profile
+ - business_type_engine_compatibility_status
+ - knowledge_profile_read_targets
+ - knowledge_profile_read_completeness_status
+ - missing_business_type_knowledge_sources
+ - writing_blocked_until_business_type_knowledge_profile
+- module_loader must treat `surface.business_type_knowledge_profiles` as the authoritative loading read surface for business-type-compatible knowledge dependencies
+- module_loader must not mark Brand Core read or writing execution-ready when required business-type knowledge remains unread, unresolved, or incomplete
 
 Governed Addition Intake Loading Rule
 

@@ -1,4 +1,4 @@
-﻿﻿direct_instructions_registry_patch
+﻿direct_instructions_registry_patch
 
 
 Status
@@ -25,6 +25,7 @@ This patch additionally enforces:
 - brand-specific writing requires required-engine readiness through Engines Registry before Brand Core read-completion or writing completion
 - governed logic execution requires prior knowledge-layer resolution for the selected logic when logic-specific, cross-logic, or shared knowledge inputs are required
 - business-aware execution requires prior business-type knowledge-profile resolution when the selected logic or task depends on business-type interpretation
+- governed execution must resolve logic knowledge and business-type knowledge through `surface.logic_knowledge_profiles` and `surface.business_type_knowledge_profiles` before brand-aware completion when required
 
 
 Canonical Governed Logic Presentation Rule
@@ -61,11 +62,15 @@ Canonical Logic Pointer Authority Rule
   - active_pointer
 - any future logic-definition resolution path that bypasses `surface.logic_canonical_pointer_registry` must be treated as non-compliant governance behavior
 
-Logic Knowledge Layer Authority Rule
+Logic Knowledge Profile Authority Rule
 
-- any request to execute governed logic must resolve required logic-specific, cross-logic, and shared knowledge layers before returning full-success execution authority
-- direct bypassing of knowledge read requirements when policy marks them as required is forbidden
-- registry-based resolution must treat logic-knowledge paths as authoritative inputs for the selected logic
+- any governed request that depends on a selected logic must resolve required logic knowledge through `surface.logic_knowledge_profiles` before engine-readiness completion or final execution completion
+- direct execution completion without reading required logic-specific, cross-logic, or shared knowledge is forbidden when those knowledge layers are required by the selected logic
+- `surface.logic_knowledge_profiles` must be treated as the authoritative read surface for logic-knowledge dependencies
+- if required logic knowledge remains unread, unresolved, or incomplete:
+ - execution must remain degraded, partial, or blocked
+ - full-success execution classification is forbidden
+- logic-document resolution alone does not satisfy governed logic readiness when logic knowledge is required
 
 
 Governed Workflow and Task Addition Authority Rule
@@ -218,9 +223,13 @@ Engine Registry Readiness Before Brand-Core Writing Authority Rule
 
 Business-Type Knowledge Profile Authority Rule
 
-- any request to execute business-aware tasks must resolve the business-type and business-type knowledge profile before returning full-success execution authority
-- direct bypassing of business-type knowledge profile reading when execution relies on business context is forbidden
-- Engines Registry remains the authoritative surface for validating business-type engine compatibility before the knowledge profile is consumed
+- any governed business-aware execution must resolve business-type knowledge through `surface.business_type_knowledge_profiles` before Brand Core read completion or final execution completion
+- direct business-aware completion without business-type knowledge-profile resolution is forbidden
+- `surface.business_type_knowledge_profiles` must be treated as the authoritative read surface for business-type-compatible knowledge dependencies
+- if business type, business-type knowledge profile, or business-type knowledge completeness remains unresolved, unread, or incomplete:
+ - execution must remain degraded, partial, or blocked
+ - full-success execution classification is forbidden
+- logic resolution, engine readiness, and Brand Core reading alone do not satisfy business-aware readiness when business-type knowledge profiling is required
 
 
 Brand Core Asset Intake And Write-Rule Governance Rule

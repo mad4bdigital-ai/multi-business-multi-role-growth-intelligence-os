@@ -20,6 +20,7 @@ Purpose
 - brand-specific writing requires required-engine readiness through Engines Registry before Brand Core read-completion or writing completion
 - governed logic execution requires prior knowledge-layer resolution for the selected logic when logic-specific, cross-logic, or shared knowledge inputs are required
 - business-aware execution requires prior business-type knowledge-profile resolution when the selected logic or task depends on business-type interpretation
+- governed execution must resolve logic knowledge and business-type knowledge through `surface.logic_knowledge_profiles` and `surface.business_type_knowledge_profiles` before brand-aware completion when required
 
 
 Canonical Governed Logic Presentation Routing Rule
@@ -50,20 +51,20 @@ Canonical Logic Pointer Resolution Routing Rule
   - active_pointer
 - prompt_router must treat legacy file reachability as non-authoritative when pointer-layer state conflicts with direct legacy access
 
-Logic Knowledge Layer Routing Rule
+Logic Knowledge Profile Routing Rule
 
-- when routing any request that depends on a governed logic definition, prompt_router must require logic-knowledge resolution before execution-completion routing
+- when routing any request that depends on a governed logic definition, prompt_router must resolve logic-knowledge routing through `surface.logic_knowledge_profiles` before engine-readiness completion or downstream execution-completion routing
 - prompt_router must preserve:
-  - logic_knowledge_read_required = true
-  - required_knowledge_layers
-  - logic_specific_knowledge_paths
-  - cross_logic_knowledge_paths
-  - shared_knowledge_paths
-  - knowledge_read_completeness_status
-  - missing_required_knowledge_sources
-  - execution_blocked_until_logic_knowledge_read
-- prompt_router must treat logic-specific knowledge, cross-logic knowledge, and shared knowledge as governed read dependencies when the selected logic requires them
-- direct execution-completion routing is forbidden when required logic knowledge remains unread, unresolved, or incomplete
+ - logic_knowledge_surface_id = surface.logic_knowledge_profiles
+ - logic_knowledge_read_required = true
+ - required_knowledge_layers
+ - knowledge_profile_key
+ - knowledge_read_targets
+ - knowledge_read_completeness_status
+ - missing_required_knowledge_sources
+ - execution_blocked_until_logic_knowledge_read
+- prompt_router must treat `surface.logic_knowledge_profiles` as the authoritative routing read surface for logic-specific, cross-logic, and shared knowledge dependencies of the selected logic
+- direct downstream execution routing is forbidden when required logic knowledge remains unread, unresolved, or incomplete
 
 Governed Addition Intake Routing Rule
 
@@ -219,17 +220,19 @@ Engine Registry Readiness Before Brand-Core Writing Routing Rule
 
 Business-Type Knowledge Profile Routing Rule
 
-- when routed intent depends on brand-aware or business-aware execution, prompt_router must resolve business type and business-type knowledge profile before Brand Core read-completion or writing completion routing
+- when routed intent depends on business-aware or brand-aware execution, prompt_router must resolve business-type knowledge routing through `surface.business_type_knowledge_profiles` before Brand Core read-completion or final execution-completion routing
 - prompt_router must preserve:
-  - business_type_resolution_required = true
-  - resolved_business_type
-  - business_type_knowledge_profile_required = true
-  - business_type_knowledge_profile
-  - business_type_engine_compatibility_status
-  - knowledge_profile_resolution_status
-  - writing_blocked_until_business_type_knowledge_profile
-- prompt_router must treat Engines Registry as the authoritative readiness dependency for resolving business-type-compatible knowledge profiles when execution depends on business-aware interpretation
-- direct business-aware completion routing is forbidden when business type, business-type engine compatibility, or business-type knowledge profile remains unresolved or incomplete
+ - business_type_knowledge_surface_id = surface.business_type_knowledge_profiles
+ - business_type_resolution_required = true
+ - resolved_business_type
+ - business_type_knowledge_profile_required = true
+ - business_type_knowledge_profile
+ - knowledge_profile_read_targets
+ - knowledge_profile_read_completeness_status
+ - missing_business_type_knowledge_sources
+ - writing_blocked_until_business_type_knowledge_profile
+- prompt_router must treat `surface.business_type_knowledge_profiles` as the authoritative routing read surface for business-type-compatible knowledge dependencies
+- direct business-aware completion routing is forbidden when business type, business-type knowledge profile, or business-type knowledge completeness remains unresolved
 
 Brand Core Asset Intake Routing Rule
 

@@ -272,8 +272,10 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "logic_knowledge_surface_id",
         "logic_knowledge_read_required",
         "required_knowledge_layers",
+        "knowledge_profile_key",
         "logic_specific_knowledge_paths",
         "cross_logic_knowledge_paths",
         "shared_knowledge_paths",
@@ -283,6 +285,10 @@
         "execution_blocked_until_logic_knowledge_read"
       ],
       "properties": {
+        "logic_knowledge_surface_id": {
+          "type": "string",
+          "default": "surface.logic_knowledge_profiles"
+        },
         "logic_knowledge_read_required": {
           "type": "boolean",
           "default": false
@@ -293,6 +299,10 @@
             "type": "string"
           },
           "default": []
+        },
+        "knowledge_profile_key": {
+          "type": "string",
+          "default": ""
         },
         "logic_specific_knowledge_paths": {
           "type": "array",
@@ -345,8 +355,10 @@
         }
       },
       "default": {
+        "logic_knowledge_surface_id": "surface.logic_knowledge_profiles",
         "logic_knowledge_read_required": false,
         "required_knowledge_layers": [],
+        "knowledge_profile_key": "",
         "logic_specific_knowledge_paths": [],
         "cross_logic_knowledge_paths": [],
         "shared_knowledge_paths": [],
@@ -2320,7 +2332,7 @@
         "Each governed surface must declare schema_ref, schema_version, header_signature, expected_column_count, and binding_mode; validation must verify schema_validation_status, header_match_status, and schema_drift_detected; schema drift must trigger degraded or blocked execution and repair mapping when required.",
         "Growth scores must be derived from authoritative execution records, metrics summaries, or governed review feedback sources.",
         "Growth-loop triggers must remain Registry-governed and passive rows or passive scores must not auto-execute.",
-        "brand_tracking_bindings must reflect Brand Registryâ€“authoritative fields for gsc_property, ga_property_id, and gtm_container_id and must not be fabricated outside governed discovery or writeback paths.",
+        "brand_tracking_bindings must reflect Brand Registry\u00e2\u20ac\u201cauthoritative fields for gsc_property, ga_property_id, and gtm_container_id and must not be fabricated outside governed discovery or writeback paths.",
         "analytics_discovery_state must record GA Admin discovery outcomes without overwriting authoritative Brand Registry rows unless a governed writeback or repair path applies.",
         "measurement_health_state and revenue_signal_state are operational memory for measurement and reporting loops; they must not override registry authority or route selection.",
         "autopilot_trace_state must record full-funnel autopilot inputs and scores with explicit source attribution (GSC, GA Data API, GTM) when populated.",
@@ -2750,17 +2762,21 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "business_type_knowledge_surface_id",
         "business_type_resolution_required",
         "resolved_business_type",
         "business_type_knowledge_profile_required",
         "business_type_knowledge_profile",
-        "business_type_engine_compatibility_status",
         "knowledge_profile_read_targets",
         "knowledge_profile_read_completeness_status",
         "missing_business_type_knowledge_sources",
         "writing_blocked_until_business_type_knowledge_profile"
       ],
       "properties": {
+        "business_type_knowledge_surface_id": {
+          "type": "string",
+          "default": "surface.business_type_knowledge_profiles"
+        },
         "business_type_resolution_required": {
           "type": "boolean",
           "default": false
@@ -2776,16 +2792,6 @@
         "business_type_knowledge_profile": {
           "type": "string",
           "default": ""
-        },
-        "business_type_engine_compatibility_status": {
-          "type": "string",
-          "enum": [
-            "pending",
-            "validated",
-            "degraded",
-            "blocked"
-          ],
-          "default": "pending"
         },
         "knowledge_profile_read_targets": {
           "type": "array",
@@ -2817,11 +2823,11 @@
         }
       },
       "default": {
+        "business_type_knowledge_surface_id": "surface.business_type_knowledge_profiles",
         "business_type_resolution_required": false,
         "resolved_business_type": "",
         "business_type_knowledge_profile_required": false,
         "business_type_knowledge_profile": "",
-        "business_type_engine_compatibility_status": "pending",
         "knowledge_profile_read_targets": [],
         "knowledge_profile_read_completeness_status": "pending",
         "missing_business_type_knowledge_sources": [],
@@ -3245,15 +3251,33 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "intake_required": { "type": "boolean", "default": false },
+        "intake_required": {
+          "type": "boolean",
+          "default": false
+        },
         "intake_status": {
           "type": "string",
-          "enum": ["pending", "validated", "accepted", "rejected", "blocked"],
+          "enum": [
+            "pending",
+            "validated",
+            "accepted",
+            "rejected",
+            "blocked"
+          ],
           "default": "pending"
         },
-        "intake_id": { "type": "string", "default": "" },
-        "asset_class": { "type": "string", "default": "" },
-        "mirror_policy": { "type": "string", "default": "" }
+        "intake_id": {
+          "type": "string",
+          "default": ""
+        },
+        "asset_class": {
+          "type": "string",
+          "default": ""
+        },
+        "mirror_policy": {
+          "type": "string",
+          "default": ""
+        }
       },
       "default": {
         "intake_required": false,
@@ -3267,14 +3291,28 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "write_rules_required": { "type": "boolean", "default": false },
-        "write_target": { "type": "string", "default": "" },
+        "write_rules_required": {
+          "type": "boolean",
+          "default": false
+        },
+        "write_target": {
+          "type": "string",
+          "default": ""
+        },
         "write_target_status": {
           "type": "string",
-          "enum": ["pending", "validated", "degraded", "blocked"],
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
           "default": "pending"
         },
-        "derived_json_artifact_exception": { "type": "boolean", "default": false }
+        "derived_json_artifact_exception": {
+          "type": "boolean",
+          "default": false
+        }
       },
       "default": {
         "write_rules_required": false,
@@ -3345,11 +3383,22 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "authoritative_home": { "type": "string", "default": "" },
-        "primary_read_home": { "type": "string", "default": "" },
+        "authoritative_home": {
+          "type": "string",
+          "default": ""
+        },
+        "primary_read_home": {
+          "type": "string",
+          "default": ""
+        },
         "read_precedence_status": {
           "type": "string",
-          "enum": ["pending", "validated", "degraded", "blocked"],
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
           "default": "pending"
         }
       },
@@ -3363,9 +3412,18 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "legacy_mirror_present": { "type": "boolean", "default": false },
-        "legacy_mirror_deprioritized": { "type": "boolean", "default": false },
-        "legacy_mirror_authoritative": { "type": "boolean", "default": false }
+        "legacy_mirror_present": {
+          "type": "boolean",
+          "default": false
+        },
+        "legacy_mirror_deprioritized": {
+          "type": "boolean",
+          "default": false
+        },
+        "legacy_mirror_authoritative": {
+          "type": "boolean",
+          "default": false
+        }
       },
       "default": {
         "legacy_mirror_present": false,
@@ -3377,15 +3435,33 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "extension_proposed": { "type": "boolean", "default": false },
-        "extension_intake_required": { "type": "boolean", "default": false },
-        "extension_commit_control_required": { "type": "boolean", "default": false },
+        "extension_proposed": {
+          "type": "boolean",
+          "default": false
+        },
+        "extension_intake_required": {
+          "type": "boolean",
+          "default": false
+        },
+        "extension_commit_control_required": {
+          "type": "boolean",
+          "default": false
+        },
         "extension_commit_status": {
           "type": "string",
-          "enum": ["pending", "validated", "degraded", "blocked", "committed"],
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked",
+            "committed"
+          ],
           "default": "pending"
         },
-        "workbook_extension_name": { "type": "string", "default": "" }
+        "workbook_extension_name": {
+          "type": "string",
+          "default": ""
+        }
       },
       "default": {
         "extension_proposed": false,
@@ -5698,9 +5774,9 @@
           "default": "",
           "enum": [
             "",
-            "ðŸ”´ Very early",
-            "ðŸŸ¡ Good",
-            "ðŸŸ¢ Full"
+            "\u00f0\u0178\u201d\u00b4 Very early",
+            "\u00f0\u0178\u0178\u00a1 Good",
+            "\u00f0\u0178\u0178\u00a2 Full"
           ]
         },
         "default_execution_mode": {
@@ -5859,9 +5935,9 @@
           "default": "",
           "enum": [
             "",
-            "ðŸ”´ Very early",
-            "ðŸŸ¡ Good",
-            "ðŸŸ¢ Full"
+            "\u00f0\u0178\u201d\u00b4 Very early",
+            "\u00f0\u0178\u0178\u00a1 Good",
+            "\u00f0\u0178\u0178\u00a2 Full"
           ]
         },
         "last_maturity_review": {
@@ -6089,9 +6165,9 @@
           "enum": [
             null,
             "",
-            "ðŸ”´ Very early",
-            "ðŸŸ¡ Good",
-            "ðŸŸ¢ Full"
+            "\u00f0\u0178\u201d\u00b4 Very early",
+            "\u00f0\u0178\u0178\u00a1 Good",
+            "\u00f0\u0178\u0178\u00a2 Full"
           ]
         },
         "default_execution_mode": {

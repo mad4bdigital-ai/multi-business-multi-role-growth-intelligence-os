@@ -1,4 +1,4 @@
-﻿﻿system_bootstrap
+﻿system_bootstrap
 
 
 Status
@@ -20,6 +20,7 @@ Purpose
 - brand-specific writing requires required-engine readiness through Engines Registry before Brand Core read-completion or writing completion
 - governed logic execution requires prior knowledge-layer resolution for the selected logic when logic-specific, cross-logic, or shared knowledge inputs are required
 - business-aware execution requires prior business-type knowledge-profile resolution when the selected logic or task depends on business-type interpretation
+- governed execution must orchestrate logic knowledge and business-type knowledge reads through `surface.logic_knowledge_profiles` and `surface.business_type_knowledge_profiles` before brand-aware completion when required
 
 
 Canonical Governed Logic Presentation Orchestration Rule
@@ -60,17 +61,28 @@ Canonical Logic Pointer Resolution Orchestration Rule
   - rollback_available
 - successful direct access to a legacy document must not be treated as authoritative logic resolution when pointer-layer state indicates canonical authority
 
-Logic Knowledge Layer Orchestration Rule
+Logic Knowledge Profile Orchestration Rule
 
-- when executing a governed logic definition, system_bootstrap must enforce a staged execution loop:
-  1. resolve active pointer
-  2. resolve logic_id and canonical document
-  3. determine logic knowledge requirements
-  4. wait for required logic-specific, cross-logic, and shared knowledge reads to complete
-  5. proceed to orchestration
-- execution must degrade or block if required knowledge layers remain unresolved
-- system_bootstrap must emit missing_required_knowledge_sources if reading fails
-- full-success execution classification is forbidden when knowledge dependencies are unmet
+- system_bootstrap must orchestrate governed logic execution as a knowledge-aware staged execution through `surface.logic_knowledge_profiles` when the selected logic requires knowledge-layer reads
+- staged logic execution must:
+ 1. resolve the target logic family or logic_id
+ 2. resolve pointer state through `surface.logic_canonical_pointer_registry`
+ 3. resolve the active logic document
+ 4. resolve logic knowledge profile through `surface.logic_knowledge_profiles`
+ 5. identify logic-specific, cross-logic, and shared knowledge read targets
+ 6. read required logic knowledge inputs
+ 7. classify logic-knowledge read completeness
+ 8. only then continue into engine-readiness, business-type knowledge, Brand Core, or execution-completion stages
+- system_bootstrap must preserve when applicable:
+ - logic_knowledge_surface_id
+ - logic_knowledge_read_required
+ - required_knowledge_layers
+ - knowledge_profile_key
+ - knowledge_read_targets
+ - knowledge_read_completeness_status
+ - missing_required_knowledge_sources
+ - execution_blocked_until_logic_knowledge_read
+- execution must not be classified as recovered, validated, complete, or equivalent full-success when required logic knowledge remains unread, unresolved, or incomplete
 
 Governed Addition Intake Orchestration Rule
 
@@ -239,15 +251,28 @@ Engine Registry Readiness Before Brand-Core Writing Orchestration Rule
 
 Business-Type Knowledge Profile Orchestration Rule
 
-- when executing business-aware logic, system_bootstrap must enforce a staged execution loop for business-type readiness:
-  1. resolve business type from prompt or context
-  2. validate business-type engine compatibility
-  3. resolve required business-type knowledge profile
-  4. wait for required knowledge profile read to complete
-  5. proceed to brand-core or writing orchestration
-- execution must degrade or block if business-type resolution or knowledge profile reads remain incomplete
-- system_bootstrap must emit missing_business_type_knowledge_sources if reading fails
-- full-success execution classification is forbidden when business-type dependencies are unmet
+- system_bootstrap must orchestrate business-aware execution as a business-type-aware staged execution through `surface.business_type_knowledge_profiles` when the selected logic or requested task depends on business-type interpretation
+- staged business-aware execution must:
+ 1. resolve the target brand when applicable
+ 2. resolve the required logic
+ 3. resolve required engines through Engines Registry
+ 4. validate engine readiness
+ 5. resolve business type
+ 6. resolve business-type knowledge profile through `surface.business_type_knowledge_profiles`
+ 7. read required business-type knowledge inputs
+ 8. classify business-type knowledge-profile completeness
+ 9. only then continue into Brand Core read-completion or final execution-completion
+- system_bootstrap must preserve when applicable:
+ - business_type_knowledge_surface_id
+ - business_type_resolution_required
+ - resolved_business_type
+ - business_type_knowledge_profile_required
+ - business_type_knowledge_profile
+ - knowledge_profile_read_targets
+ - knowledge_profile_read_completeness_status
+ - missing_business_type_knowledge_sources
+ - writing_blocked_until_business_type_knowledge_profile
+- business-aware completion must not be classified as recovered, validated, complete, or equivalent full-success when required business-type knowledge remains unread, unresolved, or incomplete
 
 Brand-Core Asset Home Non-Replacement Clause
 
