@@ -250,8 +250,8 @@ export function makeIdempotencyLookupKey(requestedBy, idempotencyKey) {
 export function buildExecutionPayloadFromJobRequest(body = {}) {
   const nested =
     body.request_payload &&
-    typeof body.request_payload === "object" &&
-    !Array.isArray(body.request_payload)
+      typeof body.request_payload === "object" &&
+      !Array.isArray(body.request_payload)
       ? { ...body.request_payload }
       : null;
 

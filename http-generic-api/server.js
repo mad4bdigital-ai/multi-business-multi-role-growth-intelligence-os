@@ -810,7 +810,7 @@ function toJsonAssetRegistryRow(args = {}) {
   const endpoint = args.endpoint_key ?? "unknown_endpoint";
   const wordpressAssetContext =
     String(args.parent_action_key || "").trim() === "wordpress_api" ||
-    String(args.asset_type || "").trim() === "wordpress_cpt_schema_preflight"
+      String(args.asset_type || "").trim() === "wordpress_cpt_schema_preflight"
       ? buildWordpressJsonAssetContext(args)
       : null;
   const isWordpressPreflightAsset =
@@ -819,8 +819,8 @@ function toJsonAssetRegistryRow(args = {}) {
     wordpressAssetContext
       ? wordpressAssetContext.inferred_asset_type
       : args.job_id
-      ? "raw_queue_response_body"
-      : "raw_sync_response_body";
+        ? "raw_queue_response_body"
+        : "raw_sync_response_body";
   const asset_type = String(args.asset_type || inferred_asset_type).trim();
   const oversized = !!args.oversized;
   const payloadBody = wordpressAssetContext
@@ -846,29 +846,29 @@ function toJsonAssetRegistryRow(args = {}) {
     mapping_version: isWordpressPreflightAsset
       ? wordpressAssetContext?.mapping_version
       : oversized
-      ? "response_body_artifact_v2"
-      : "response_body_embedded_v2",
+        ? "response_body_artifact_v2"
+        : "response_body_embedded_v2",
     storage_format: "json",
     google_drive_link: oversized ? args.google_drive_link : "",
     source_mode: wordpressAssetContext?.source_mode || "server_writeback_artifact",
     source_asset_ref: isWordpressPreflightAsset
       ? wordpressAssetContext?.source_asset_ref
       : oversized
-      ? args.drive_file_id
-      : "",
+        ? args.drive_file_id
+        : "",
     json_payload: embeddedPayload,
     transport_status: isWordpressPreflightAsset
       ? wordpressAssetContext?.transport_status
       : oversized
-      ? "captured_external"
-      : "captured_embedded",
+        ? "captured_external"
+        : "captured_embedded",
     validation_status: wordpressAssetContext?.validation_status || "pending",
     last_validated_at: args.captured_at,
     notes: isWordpressPreflightAsset
       ? `Governed wordpress_cpt_schema_preflight asset captured for execution_trace_id=${args.execution_trace_id}; authoritative_home=${assetHome.authoritative_home}`
       : oversized
-      ? `Oversized derived JSON artifact captured for execution_trace_id=${args.execution_trace_id}; authoritative_home=${assetHome.authoritative_home}`
-      : `Embedded derived JSON artifact captured for execution_trace_id=${args.execution_trace_id}; authoritative_home=${assetHome.authoritative_home}`,
+        ? `Oversized derived JSON artifact captured for execution_trace_id=${args.execution_trace_id}; authoritative_home=${assetHome.authoritative_home}`
+        : `Embedded derived JSON artifact captured for execution_trace_id=${args.execution_trace_id}; authoritative_home=${assetHome.authoritative_home}`,
     active_status: "TRUE"
   };
 }

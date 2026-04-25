@@ -13,7 +13,7 @@ export function createJobRepository({ setJobInRedis, getJobFromRedis, debugLog }
     async getWithFallback(id) {
       const normalizedId = String(id || "").trim();
       if (!normalizedId) return null;
-      
+
       const local = inMemoryJobs.get(normalizedId);
       if (local) return local;
 
