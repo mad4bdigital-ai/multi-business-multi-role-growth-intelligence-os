@@ -1,4 +1,4 @@
-import { backendApiKeyEnabled } from "./runtimeGuards.js";
+import { isBackendApiKeyEnabled } from "./runtimeGuards.js";
 
 // Ensure the token is strictly via URL (?token=...)
 export function requireMcpToken(req, res, next) {
@@ -10,7 +10,7 @@ export function requireMcpToken(req, res, next) {
     });
   }
 
-  if (!backendApiKeyEnabled()) return next();
+  if (!isBackendApiKeyEnabled(process.env)) return next();
   const expected = process.env.BACKEND_API_KEY;
   const token = req.query.token;
 
