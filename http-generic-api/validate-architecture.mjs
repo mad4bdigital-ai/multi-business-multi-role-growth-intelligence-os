@@ -89,6 +89,7 @@ const REQUIRED_MODULES = [
   "executionRouting.js",
   "executionResolution.js",
   "executionPreparation.js",
+  "executionDispatch.js",
   "driveFileLoader.js",
   "sheetHelpers.js",
   "googleSheets.js",
@@ -240,6 +241,17 @@ const REQUIRED_EXECUTION_PREPARATION_EXPORTS = [
 
 for (const name of REQUIRED_EXECUTION_PREPARATION_EXPORTS) {
   assert(`executionPreparation exports ${name}`, name in executionPreparationModule);
+}
+
+section("Required executionDispatch exports");
+
+const executionDispatchModule = await import("./executionDispatch.js");
+const REQUIRED_EXECUTION_DISPATCH_EXPORTS = [
+  "dispatchPreparedExecution"
+];
+
+for (const name of REQUIRED_EXECUTION_DISPATCH_EXPORTS) {
+  assert(`executionDispatch exports ${name}`, name in executionDispatchModule);
 }
 
 section("Required auth exports");
