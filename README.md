@@ -135,6 +135,7 @@ Primary documents:
 Operations and validation:
 - [`canonical_validation_checklist.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/canonical_validation_checklist.md>)
 - [`runtime_boundary_map.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/runtime_boundary_map.md>)
+- [`runtime_registry_refactor_plan.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/runtime_registry_refactor_plan.md>)
 - [`governed_mutation_playbook.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/governed_mutation_playbook.md>)
 - [`connector_contracts.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/connector_contracts.md>)
 - [`deployment_parity_checklist.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/deployment_parity_checklist.md>)
