@@ -87,6 +87,7 @@ const REQUIRED_MODULES = [
   "jobUtils.js",
   "jobRunner.js",
   "executionRouting.js",
+  "executionResolution.js",
   "driveFileLoader.js",
   "sheetHelpers.js",
   "googleSheets.js",
@@ -216,6 +217,17 @@ const REQUIRED_EXECUTION_ROUTING_EXPORTS = [
 
 for (const name of REQUIRED_EXECUTION_ROUTING_EXPORTS) {
   assert(`executionRouting exports ${name}`, name in executionRoutingModule);
+}
+
+section("Required executionResolution exports");
+
+const executionResolutionModule = await import("./executionResolution.js");
+const REQUIRED_EXECUTION_RESOLUTION_EXPORTS = [
+  "resolveExecutionRequest"
+];
+
+for (const name of REQUIRED_EXECUTION_RESOLUTION_EXPORTS) {
+  assert(`executionResolution exports ${name}`, name in executionResolutionModule);
 }
 
 section("Required auth exports");
