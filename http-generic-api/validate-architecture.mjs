@@ -90,6 +90,7 @@ const REQUIRED_MODULES = [
   "executionResolution.js",
   "executionPreparation.js",
   "executionDispatch.js",
+  "executionAsync.js",
   "driveFileLoader.js",
   "sheetHelpers.js",
   "googleSheets.js",
@@ -252,6 +253,20 @@ const REQUIRED_EXECUTION_DISPATCH_EXPORTS = [
 
 for (const name of REQUIRED_EXECUTION_DISPATCH_EXPORTS) {
   assert(`executionDispatch exports ${name}`, name in executionDispatchModule);
+}
+
+section("Required executionAsync exports");
+
+const executionAsyncModule = await import("./executionAsync.js");
+const REQUIRED_EXECUTION_ASYNC_EXPORTS = [
+  "submitSiteMigrationJob",
+  "submitGenericExecutionJob",
+  "getExecutionJob",
+  "pollExecutionJobResult"
+];
+
+for (const name of REQUIRED_EXECUTION_ASYNC_EXPORTS) {
+  assert(`executionAsync exports ${name}`, name in executionAsyncModule);
 }
 
 section("Required auth exports");
