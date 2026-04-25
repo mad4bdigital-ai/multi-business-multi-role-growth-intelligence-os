@@ -427,6 +427,15 @@ for (const rel of ROUTE_FILES) {
   }
 }
 
+section("registryResolution.js facade guard");
+
+const registryResolutionLines = readFileSync(repoPath("registryResolution.js"), "utf8").split("\n").length;
+assert(
+  "registryResolution.js is under 350 lines",
+  registryResolutionLines < 350,
+  `got ${registryResolutionLines} lines`
+);
+
 section("server.js size guard");
 
 const serverLines = readFileSync(repoPath("server.js"), "utf8").split("\n").length;
