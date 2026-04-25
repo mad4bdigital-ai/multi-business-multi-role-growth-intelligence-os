@@ -297,7 +297,6 @@ import {
   validateSiteMigrationPayload,
   validateSiteMigrationRouteWorkflowReadiness,
   executeSiteMigrationJob,
-  inferWordpressInventoryAssetType,
   firstPopulated
 } from "./domainAdapters/wordpressAdapter.js";
 import {
