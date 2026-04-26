@@ -210,6 +210,10 @@ The runtime exposes a backend-protected GitHub write helper for HTTP clients:
 
 `POST /github/apply-file-updates`
 
+For AI-agent workflows that should not write directly to `main`, prefer:
+
+`POST /github/validated-apply-file-updates`
+
 Required environment:
 - `BACKEND_API_KEY`
 - `GITHUB_TOKEN`
@@ -232,6 +236,8 @@ Example payload:
 ```
 
 Files are applied in one commit through GitHub's Git Trees API. Use `content_base64` instead of `content` when sending pre-encoded content.
+
+The validated route requires `base_branch` and a different `branch`. It creates the branch when missing, applies the file updates as one commit on that branch, opens a draft pull request by default, and lets GitHub Actions act as the validation gate before merge.
 
 ## Immediate next implementation focus
 

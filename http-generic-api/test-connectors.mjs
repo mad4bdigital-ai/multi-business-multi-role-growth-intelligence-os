@@ -274,6 +274,176 @@ assert("github fetch sends bearer auth header", fetchCalls[0]?.init?.headers?.Au
 
 {
   fetchCalls.length = 0;
+  let agentBranchCreated = false;
+  globalThis.fetch = async (url, init = {}) => {
+    fetchCalls.push({ url: String(url), init });
+    const method = String(init.method || "GET");
+    const urlString = String(url);
+
+    if (method === "GET" && urlString.includes("/git/ref/heads/agent-branch") && !agentBranchCreated) {
+      return {
+        ok: false,
+        status: 404,
+        async text() {
+          return JSON.stringify({ message: "Not Found" });
+        }
+      };
+    }
+
+    if (method === "GET" && urlString.includes("/git/ref/heads/agent-branch") && agentBranchCreated) {
+      return {
+        ok: true,
+        status: 200,
+        async text() {
+          return JSON.stringify({
+            ref: "refs/heads/agent-branch",
+            object: {
+              sha: "base_commit_sha"
+            }
+          });
+        }
+      };
+    }
+
+    if (method === "GET" && urlString.includes("/git/ref/heads/main")) {
+      return {
+        ok: true,
+        status: 200,
+        async text() {
+          return JSON.stringify({
+            ref: "refs/heads/main",
+            object: {
+              sha: "base_commit_sha"
+            }
+          });
+        }
+      };
+    }
+
+    if (method === "POST" && urlString.endsWith("/git/refs")) {
+      agentBranchCreated = true;
+      return {
+        ok: true,
+        status: 201,
+        async text() {
+          return JSON.stringify({
+            ref: "refs/heads/agent-branch",
+            object: {
+              sha: "base_commit_sha"
+            }
+          });
+        }
+      };
+    }
+
+    if (method === "GET" && urlString.includes("/git/commits/base_commit_sha")) {
+      return {
+        ok: true,
+        status: 200,
+        async text() {
+          return JSON.stringify({
+            sha: "base_commit_sha",
+            tree: {
+              sha: "base_tree_sha"
+            }
+          });
+        }
+      };
+    }
+
+    if (method === "POST" && urlString.endsWith("/git/trees")) {
+      return {
+        ok: true,
+        status: 201,
+        async text() {
+          return JSON.stringify({ sha: "new_tree_sha" });
+        }
+      };
+    }
+
+    if (method === "POST" && urlString.endsWith("/git/commits")) {
+      return {
+        ok: true,
+        status: 201,
+        async text() {
+          return JSON.stringify({
+            sha: "commit_sha",
+            html_url: "https://github.com/octo/repo/commit/commit_sha"
+          });
+        }
+      };
+    }
+
+    if (method === "PATCH" && urlString.includes("/git/refs/heads/agent-branch")) {
+      return {
+        ok: true,
+        status: 200,
+        async text() {
+          return JSON.stringify({
+            ref: "refs/heads/agent-branch",
+            object: {
+              sha: "commit_sha"
+            }
+          });
+        }
+      };
+    }
+
+    if (method === "POST" && urlString.endsWith("/pulls")) {
+      return {
+        ok: true,
+        status: 201,
+        async text() {
+          return JSON.stringify({
+            number: 42,
+            html_url: "https://github.com/octo/repo/pull/42",
+            draft: true,
+            head: {
+              ref: "agent-branch"
+            },
+            base: {
+              ref: "main"
+            }
+          });
+        }
+      };
+    }
+
+    return {
+      ok: false,
+      status: 500,
+      async text() {
+        return JSON.stringify({ message: `Unexpected mock request: ${method} ${urlString}` });
+      }
+    };
+  };
+
+  const { githubValidatedApplyFileUpdates } = await importGithubModule("validated-apply-file-updates");
+  const result = await githubValidatedApplyFileUpdates({
+    input: {
+      owner: "octo",
+      repo: "repo",
+      base_branch: "main",
+      branch: "agent-branch",
+      message: "Validated update",
+      files: [
+        {
+          path: "README.md",
+          content: "hello"
+        }
+      ]
+    }
+  });
+
+  assert("github validated apply succeeds", result.ok === true, JSON.stringify(result));
+  assert("github validated apply creates branch", result.branch_result?.created === true, JSON.stringify(result));
+  assert("github validated apply keeps updates off base branch", result.branch === "agent-branch" && result.base_branch === "main", JSON.stringify(result));
+  assert("github validated apply creates pull request", result.pull_request?.number === 42, JSON.stringify(result));
+  assert("github validated apply exposes ci gate", result.validation_gate === "github_actions_on_pull_request", JSON.stringify(result));
+}
+
+{
+  fetchCalls.length = 0;
   globalThis.fetch = async (url, init = {}) => {
     fetchCalls.push({ url: String(url), init });
     return {

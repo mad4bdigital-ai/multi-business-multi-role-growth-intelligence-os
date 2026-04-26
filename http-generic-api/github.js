@@ -429,6 +429,202 @@ export async function githubApplyFileUpdates({ input = {} }) {
   };
 }
 
+export async function fetchGitHubBranchRef({ owner, repo, branch }) {
+  const normalizedOwner = assertGithubParam(owner, "owner");
+  const normalizedRepo = assertGithubParam(repo, "repo");
+  const normalizedBranch = assertGithubParam(branch, "branch");
+
+  const upstream = await proxyGitHubJson({
+    method: "GET",
+    pathname:
+      `/repos/${encodeURIComponent(normalizedOwner)}` +
+      `/${encodeURIComponent(normalizedRepo)}` +
+      `/git/ref/heads/${encodeURIComponent(normalizedBranch)}`
+  });
+
+  if (!upstream.ok) {
+    if (upstream.status === 404) return null;
+    const err = new Error(
+      upstream.payload?.message ||
+      `GitHub branch ref fetch failed with status ${upstream.status}.`
+    );
+    err.code = "github_ref_fetch_failed";
+    err.status = upstream.status || 502;
+    err.details = upstream.payload || null;
+    throw err;
+  }
+
+  return upstream.payload;
+}
+
+export async function githubCreateBranchReference({ input = {} }) {
+  const owner = assertGithubParam(input.owner, "owner");
+  const repo = assertGithubParam(input.repo, "repo");
+  const branch = assertGithubParam(input.branch, "branch");
+  const baseBranch = assertGithubParam(input.base_branch || input.baseBranch || "main", "base_branch");
+
+  const existing = await fetchGitHubBranchRef({ owner, repo, branch });
+  if (existing) {
+    return {
+      ok: true,
+      created: false,
+      owner,
+      repo,
+      branch,
+      ref: existing.ref || `refs/heads/${branch}`,
+      sha: existing.object?.sha || ""
+    };
+  }
+
+  const baseRef = await fetchGitHubBranchRef({ owner, repo, branch: baseBranch });
+  const baseSha = String(baseRef?.object?.sha || "").trim();
+  if (!baseSha) {
+    const err = new Error(`Base branch did not resolve to a commit SHA: ${baseBranch}`);
+    err.code = "github_base_branch_missing_sha";
+    err.status = 502;
+    throw err;
+  }
+
+  const upstream = await proxyGitHubJson({
+    method: "POST",
+    pathname:
+      `/repos/${encodeURIComponent(owner)}` +
+      `/${encodeURIComponent(repo)}` +
+      `/git/refs`,
+    body: {
+      ref: `refs/heads/${branch}`,
+      sha: baseSha
+    }
+  });
+
+  if (!upstream.ok) {
+    const err = new Error(
+      upstream.payload?.message ||
+      `GitHub branch creation failed with status ${upstream.status}.`
+    );
+    err.code = "github_branch_create_failed";
+    err.status = upstream.status || 502;
+    err.details = upstream.payload || null;
+    throw err;
+  }
+
+  return {
+    ok: true,
+    created: true,
+    owner,
+    repo,
+    branch,
+    base_branch: baseBranch,
+    ref: upstream.payload?.ref || `refs/heads/${branch}`,
+    sha: upstream.payload?.object?.sha || baseSha
+  };
+}
+
+export async function githubCreatePullRequest({ input = {} }) {
+  const owner = assertGithubParam(input.owner, "owner");
+  const repo = assertGithubParam(input.repo, "repo");
+  const head = assertGithubParam(input.head, "head");
+  const base = assertGithubParam(input.base || input.base_branch || "main", "base");
+  const title = assertGithubParam(input.title, "title");
+
+  const upstream = await proxyGitHubJson({
+    method: "POST",
+    pathname:
+      `/repos/${encodeURIComponent(owner)}` +
+      `/${encodeURIComponent(repo)}` +
+      `/pulls`,
+    body: {
+      title,
+      head,
+      base,
+      body: String(input.body || ""),
+      draft: input.draft !== false
+    }
+  });
+
+  if (!upstream.ok) {
+    const err = new Error(
+      upstream.payload?.message ||
+      `GitHub pull request creation failed with status ${upstream.status}.`
+    );
+    err.code = "github_pull_request_create_failed";
+    err.status = upstream.status || 502;
+    err.details = upstream.payload || null;
+    throw err;
+  }
+
+  return {
+    ok: true,
+    number: upstream.payload?.number || null,
+    html_url: upstream.payload?.html_url || "",
+    head: upstream.payload?.head?.ref || head,
+    base: upstream.payload?.base?.ref || base,
+    draft: upstream.payload?.draft === true
+  };
+}
+
+export async function githubValidatedApplyFileUpdates({ input = {} }) {
+  const owner = assertGithubParam(input.owner, "owner");
+  const repo = assertGithubParam(input.repo, "repo");
+  const baseBranch = assertGithubParam(input.base_branch || input.baseBranch || "main", "base_branch");
+  const branch = assertGithubParam(input.branch, "branch");
+
+  if (branch === baseBranch && input.allow_direct_base !== true) {
+    const err = new Error("validated apply requires a branch different from base_branch.");
+    err.code = "direct_base_branch_blocked";
+    err.status = 400;
+    throw err;
+  }
+
+  const branchResult = await githubCreateBranchReference({
+    input: {
+      owner,
+      repo,
+      branch,
+      base_branch: baseBranch
+    }
+  });
+
+  const applyResult = await githubApplyFileUpdates({
+    input: {
+      ...input,
+      owner,
+      repo,
+      branch
+    }
+  });
+
+  const pullRequest =
+    input.create_pr === false
+      ? null
+      : await githubCreatePullRequest({
+          input: {
+            owner,
+            repo,
+            head: input.head || branch,
+            base: baseBranch,
+            title: input.title || input.message,
+            body:
+              input.body ||
+              `Automated governed file update.\n\nCommit: ${applyResult.final_commit_sha}`,
+            draft: input.draft !== false
+          }
+        });
+
+  return {
+    ok: true,
+    mode: "validated_branch_pr",
+    owner,
+    repo,
+    base_branch: baseBranch,
+    branch,
+    branch_result: branchResult,
+    apply_result: applyResult,
+    pull_request: pullRequest,
+    validation_gate: "github_actions_on_pull_request"
+  };
+}
+
 export async function githubGitBlobChunkRead({ input = {} }) {
   const owner = assertGithubParam(input.owner, "owner");
   const repo = assertGithubParam(input.repo, "repo");
