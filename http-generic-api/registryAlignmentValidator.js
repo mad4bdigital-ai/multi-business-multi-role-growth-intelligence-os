@@ -1,3 +1,51 @@
+import { validateEndpointRowConsistency } from "./registryExecutionEligibility.js";
+
+function headerMap(headerRow = []) {
+  const map = {};
+  headerRow.forEach((value, index) => {
+    const key = String(value || "").trim();
+    if (key && !Object.prototype.hasOwnProperty.call(map, key)) {
+      map[key] = index;
+    }
+  });
+  return map;
+}
+
+function rowObjectFromHeader(header = [], row = []) {
+  const map = headerMap(header);
+  const out = {};
+  for (const [key, index] of Object.entries(map)) {
+    out[key] = row[index] ?? "";
+  }
+  return out;
+}
+
+function findAuditRange(alignmentAudit = {}, sheetName = "") {
+  const prefix = `${sheetName}!`;
+  const key = Object.keys(alignmentAudit).find(candidate => candidate.startsWith(prefix));
+  return key ? alignmentAudit[key] : [];
+}
+
+export function detectRepurposedRegistryRows(endpointRows = []) {
+  if (!Array.isArray(endpointRows) || endpointRows.length < 2) return [];
+  const header = endpointRows[0] || [];
+  return endpointRows
+    .slice(1)
+    .map((row, index) => {
+      const rowObject = rowObjectFromHeader(header, row);
+      const consistency = validateEndpointRowConsistency(rowObject, {
+        parent_action_key: rowObject.parent_action_key,
+        endpoint_key: rowObject.endpoint_key
+      });
+      return {
+        rowNumber: index + 2,
+        rowObject,
+        consistency
+      };
+    })
+    .filter(result => !result.consistency.valid);
+}
+
 export function validateRegistryAlignment(alignmentAudit = {}) {
   const mismatches = [];
 
@@ -5,6 +53,7 @@ export function validateRegistryAlignment(alignmentAudit = {}) {
   const chains = alignmentAudit["Execution Chains Registry!A1:J20"] || [];
   const nodes = alignmentAudit["Knowledge Graph Node Registry!A1:J20"] || [];
   const relations = alignmentAudit["Relationship Graph Registry!A1:J20"] || [];
+  const endpointRegistry = findAuditRange(alignmentAudit, "API Actions Endpoint Registry");
 
   const workflowKeys = new Set();
   const nodeIds = new Set();
@@ -73,6 +122,16 @@ export function validateRegistryAlignment(alignmentAudit = {}) {
         value: toNodeId
       });
     }
+  }
+
+  for (const drift of detectRepurposedRegistryRows(endpointRegistry)) {
+    mismatches.push({
+      type: "endpoint_binding_mismatch",
+      source: "API Actions Endpoint Registry",
+      row_key: drift.rowObject.endpoint_id || drift.rowObject.endpoint_key || `row_${drift.rowNumber}`,
+      value: `${drift.rowObject.parent_action_key || ""}/${drift.rowObject.endpoint_key || ""}`,
+      mismatches: drift.consistency.mismatches
+    });
   }
 
   return {

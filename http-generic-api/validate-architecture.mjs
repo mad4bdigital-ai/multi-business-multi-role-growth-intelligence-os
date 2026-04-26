@@ -113,6 +113,7 @@ const REQUIRED_MODULES = [
   "governedActivationRunner.js",
   "registryAlignmentValidator.js",
   "registryValidationAsyncSolver.js",
+  "starterAuthoritySurfaces.js",
   "wordpress/index.js",
   "wordpress/shared.js",
   "wordpress/phaseA.js"

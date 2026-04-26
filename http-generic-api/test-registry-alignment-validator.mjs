@@ -1,4 +1,7 @@
-import { validateRegistryAlignment } from "./registryAlignmentValidator.js";
+import {
+  detectRepurposedRegistryRows,
+  validateRegistryAlignment
+} from "./registryAlignmentValidator.js";
 
 let passed = 0;
 let failed = 0;
@@ -68,6 +71,55 @@ function assert(label, condition, detail = "") {
   });
 
   assert("accepts aligned references", result.valid === true, JSON.stringify(result));
+}
+
+{
+  const endpointRows = [
+    [
+      "endpoint_id",
+      "parent_action_key",
+      "endpoint_key",
+      "endpoint_operation",
+      "route_target",
+      "openai_action_name",
+      "provider_domain",
+      "method",
+      "endpoint_path_or_function"
+    ],
+    [
+      "bad-google-row",
+      "google_sheets_api",
+      "getSheetValues",
+      "getDocument",
+      "google_docs_api",
+      "getDocument",
+      "docs.googleapis.com",
+      "GET",
+      "/v1/documents/{documentId}"
+    ]
+  ];
+
+  const drift = detectRepurposedRegistryRows(endpointRows);
+  assert(
+    "detects repurposed endpoint registry rows",
+    drift.length === 1 && drift[0].consistency.mismatches.length >= 1,
+    JSON.stringify(drift)
+  );
+
+  const result = validateRegistryAlignment({
+    "Workflow Registry!A1:AZ20": [[]],
+    "Knowledge Graph Node Registry!A1:J20": [[]],
+    "Execution Chains Registry!A1:J20": [[]],
+    "Relationship Graph Registry!A1:J20": [[]],
+    "API Actions Endpoint Registry!A1:BA20": endpointRows
+  });
+
+  assert(
+    "alignment audit reports endpoint binding mismatch",
+    result.valid === false &&
+      result.mismatches.some(item => item.type === "endpoint_binding_mismatch"),
+    JSON.stringify(result)
+  );
 }
 
 console.log(`Results: ${passed} passed, ${failed} failed`);
