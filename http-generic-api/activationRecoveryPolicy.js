@@ -1,46 +1,28 @@
-export function buildActivationRecoveryPolicy(classification = {}) {
-  const status = String(classification.activation_status || "").trim();
-  const reason = String(classification.reason_code || "").trim();
+const MAX_RETRIES = 5;
+const BASE_BACKOFF_SECONDS = 60;
+const MAX_BACKOFF_SECONDS = 900; // 15 minutes max wait
 
-  if (status === "active") {
-    return { retryable: false, recommended_action: "none", retry_after_seconds: null };
-  }
+/**
+ * Computes a bounded exponential backoff policy for 429 limits.
+ * @param {number} currentRetryCount - The number of times this job has already been retried.
+ * @returns {Object} The recovery policy envelope.
+ */
+export function getRecoveryPolicy(currentRetryCount = 0) {
+    if (currentRetryCount >= MAX_RETRIES) {
+        return {
+            retryable: false,
+            recommended_action: "manual_intervention_required",
+            reason: "exhausted_max_retries"
+        };
+    }
 
-  if (status === "validation_rate_limited") {
+    // Bounded exponential backoff
+    let backoffSeconds = BASE_BACKOFF_SECONDS * Math.pow(2, currentRetryCount);
+    backoffSeconds = Math.min(backoffSeconds, MAX_BACKOFF_SECONDS);
+
     return {
-      retryable: true,
-      recommended_action: "retry_after_backoff",
-      retry_after_seconds: 300
+        retryable: true,
+        recommended_action: "retry_after_backoff",
+        retry_after_seconds: backoffSeconds
     };
-  }
-
-  if (status === "authorization_gated") {
-    return {
-      retryable: false,
-      recommended_action: "repair_credentials",
-      retry_after_seconds: null
-    };
-  }
-
-  if (reason === "missing_registry_resolved_endpoint_binding") {
-    return {
-      retryable: false,
-      recommended_action: "repair_binding",
-      retry_after_seconds: null
-    };
-  }
-
-  if (reason === "missing_required_path_params") {
-    return {
-      retryable: false,
-      recommended_action: "supply_missing_params",
-      retry_after_seconds: null
-    };
-  }
-
-  return {
-    retryable: false,
-    recommended_action: status === "validating" ? "continue_validation" : "re_read_bootstrap",
-    retry_after_seconds: null
-  };
 }
