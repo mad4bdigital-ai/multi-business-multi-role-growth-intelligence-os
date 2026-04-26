@@ -178,6 +178,12 @@ To verify generated roots are current without rewriting them:
 node build-canonicals.mjs --check
 ```
 
+To validate the canonical source structure itself:
+
+```powershell
+node validate-canonical-sources.mjs
+```
+
 Do not edit generated root canonical files directly unless the same change is also applied to the matching source file under `canonicals/`.
 
 ## Working rules for contributors and agents
