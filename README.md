@@ -164,6 +164,16 @@ Operations and validation:
 Agent-facing guide:
 - [`AI_Agent_Knowledge_Guide.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/AI_Agent_Knowledge_Guide.md>)
 
+## Canonical editing workflow
+
+The four root canonical markdown files are generated outputs with a `Domain Index` at the top. Edit the source files under [`canonicals/`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/canonicals/>) and rebuild the roots:
+
+```powershell
+node build-canonicals.mjs
+```
+
+Do not edit generated root canonical files directly unless the same change is also applied to the matching source file under `canonicals/`.
+
 ## Working rules for contributors and agents
 
 - Read canonicals before proposing major runtime changes.

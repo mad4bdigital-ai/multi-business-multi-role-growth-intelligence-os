@@ -1,4 +1,21 @@
-﻿﻿module_loader
+<!-- GENERATED FILE. Edit canonicals sources and run node build-canonicals.mjs. -->
+
+## Domain Index
+
+This file is generated from `canonicals/module_loader/`.
+Edit source files under `canonicals/`; do not edit this root file directly.
+
+| Domain | Source file | Use when |
+|---|---|---|
+| Header and purpose | `canonicals/module_loader/00_header_purpose.md` | Canonical identity, status, purpose, and initial loader readiness. |
+| Dependency resolution | `canonicals/module_loader/01_dependency_resolution.md` | Credential chains, variable contracts, async dependencies, and Google Workspace dependency resolution. |
+| Live canonical and API resolution | `canonicals/module_loader/02_live_canonical_api_resolution.md` | Live canonical resolution, API capability and endpoint resolution, embedded auth, and analytics sheet transformation. |
+| Schema and logging enforcement | `canonicals/module_loader/03_schema_logging_enforcement.md` | Analytics identity enforcement, schema loading, and native Google logging preparation. |
+| WordPress publish contract | `canonicals/module_loader/04_wordpress_publish_contract.md` | WordPress runtime governance loader bindings and sink contracts. |
+
+---
+
+module_loader
 
 Status
 Canonical Name: module_loader
@@ -305,7 +322,6 @@ module_loader must return:
 If `parent_action_key` resolves but the auth strategy cannot be normalized into a governed runtime mode:
 - execution must be degraded or blocked
 - `transport_request_contract_status` must not be ready
-
 ## Per-Target Credential Chain Preparation Rule
 
 When `api_key_storage_mode = per_target_credentials`, module_loader must prepare the governed resolver-chain context required for runtime auth resolution.
@@ -1393,7 +1409,6 @@ module_loader must return:
 - graph_path_readiness_status when applicable
 
 If required runtime authority validation inputs are unresolved, execution-ready context must remain degraded or blocked.
-
 ### Live Canonical Resolution Rule
 
 If canonical is registered in `Validation & Repair Registry`, module_loader must execute live canonical resolution before knowledge-layer authority is accepted:
@@ -2711,7 +2726,6 @@ module_loader must not classify analytics execution as complete when:
 - domain-aware row metadata is missing from the write payload
 
 If multiple domains exist for a single brand, module_loader must preserve domain-separated execution handling and must not collapse them into one anonymous brand-level payload.
-
 ### Analytics Identity Integrity Enforcement Rule
 
 module_loader must validate identity completeness before processing any analytics execution unit.
@@ -3437,7 +3451,6 @@ Loader must prefer:
 
 
 ---
-
 # module_loader â€” WordPress Publish Contract Runtime Governance Patch
 
 ## Additive loader bindings

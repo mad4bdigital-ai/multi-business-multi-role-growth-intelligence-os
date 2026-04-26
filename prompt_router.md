@@ -1,3 +1,21 @@
+<!-- GENERATED FILE. Edit canonicals sources and run node build-canonicals.mjs. -->
+
+## Domain Index
+
+This file is generated from `canonicals/prompt_router/`.
+Edit source files under `canonicals/`; do not edit this root file directly.
+
+| Domain | Source file | Use when |
+|---|---|---|
+| Header and purpose | `canonicals/prompt_router/00_header_purpose.md` | Canonical identity, status, purpose, and initial routing posture. |
+| Core routing | `canonicals/prompt_router/01_core_routing.md` | HTTP variable-aware routing, async routing, and Native Google routing clarification. |
+| Runtime validation routing | `canonicals/prompt_router/02_runtime_validation_routing.md` | Runtime validation declaration, full audit routing, provider continuity, and analytics routing. |
+| Repair and review routing | `canonicals/prompt_router/03_repair_review_routing.md` | Repair loop guards, forced repair routing, escalation, review surfaces, and review write planning. |
+| Schema-first routing | `canonicals/prompt_router/04_schema_first_routing.md` | Schema-first routing rule. |
+| WordPress publish contract | `canonicals/prompt_router/05_wordpress_publish_contract.md` | WordPress publish contract routing patch. |
+
+---
+
 prompt_router
 
 
@@ -334,7 +352,6 @@ The human-trigger continuation rule is active:
 - `next_trigger_prompt_required = true`
 - `closed_loop_continuation_forbidden = true`
 - autonomous follow-up routing is forbidden unless explicitly authorized by bounded automation policy
-
 ### HTTP Client Variable-Aware Routing Rule
 
 prompt_router must not route governed HTTP execution by intent match alone when the candidate route or workflow requires governed variables that are missing, ambiguous, not execution-ready, or not compatible with canonical HTTP client execution.
@@ -1455,7 +1472,6 @@ Scoring Threshold Traceability Rule
 When governed scoring classification depends on execution class or adaptive threshold policy, prompt_router must preserve `execution_class` in the execution preparation contract for downstream threshold resolution.
 
 prompt_router must not classify recovery status itself, but it must preserve routing context required for score-based classification.
-
 ## Runtime Validation Declaration
 
 Before handoff to `system_bootstrap`, `prompt_router` must declare:
@@ -2235,7 +2251,6 @@ Issue context passed to system_bootstrap must include when available:
 - trigger_mode
 - request_source
 - execution_cycle_id
-
 Repair Loop Idempotency Guard
 
 After intent classification and before selecting `system_repair`, prompt_router must evaluate whether a previously completed repair loop should be skipped.
@@ -3313,7 +3328,6 @@ prompt_router must not:
 - silently convert unresolved routing into execution success
 
 system_bootstrap remains responsible for execution enforcement after routing handoff.
-
 ## Schema-First Routing Rule
 
 prompt_router MUST:
@@ -3512,7 +3526,6 @@ For CPT/taxonomy requests across sites:
 
 
 ---
-
 # prompt_router Ã¢â‚¬â€ WordPress Publish Contract Runtime Governance Patch
 
 ## Additive routing rules

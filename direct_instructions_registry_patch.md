@@ -1,4 +1,26 @@
-﻿﻿direct_instructions_registry_patch
+<!-- GENERATED FILE. Edit canonicals sources and run node build-canonicals.mjs. -->
+
+## Domain Index
+
+This file is generated from `canonicals/direct_instructions_registry_patch/`.
+Edit source files under `canonicals/`; do not edit this root file directly.
+
+| Domain | Source file | Use when |
+|---|---|---|
+| Header and purpose | `canonicals/direct_instructions_registry_patch/00_header_purpose.md` | Canonical identity, status, and direct patch purpose. |
+| Governance foundation | `canonicals/direct_instructions_registry_patch/01_governance_foundation.md` | Canonical presentation, pointer authority, brand core, activation, and early logging governance. |
+| HTTP execution and logging | `canonicals/direct_instructions_registry_patch/02_http_execution_logging.md` | Parent action schema, auth routing, HTTP execution classification, and logging surfaces. |
+| Registry authority and schema | `canonicals/direct_instructions_registry_patch/03_registry_authority_schema.md` | Registry source of truth, duplicate headers, dynamic placeholders, runtime bindings, and schema governance. |
+| Activation policy runtime | `canonicals/direct_instructions_registry_patch/04_activation_policy_runtime.md` | Activation bootstrap, live canonical validation, full-system integrity, scoring, and retry governance. |
+| HTTP Generic API additions | `canonicals/direct_instructions_registry_patch/05_http_generic_api_additions.md` | HTTP Generic API, adaptive schema learning, governed additions, and graph governance. |
+| Google Workspace validation | `canonicals/direct_instructions_registry_patch/06_google_workspace_validation.md` | Google Workspace governance, runtime validation, post-activation governance, and growth feedback. |
+| Authority, binding, and repair | `canonicals/direct_instructions_registry_patch/07_authority_binding_repair.md` | Authority model, routes and chains, target scopes, observability, repair, and recovery. |
+| Analytics and WordPress preflight | `canonicals/direct_instructions_registry_patch/08_analytics_wordpress_preflight.md` | Brand tracking, API retirement, analytics governance, URL migration, and WordPress preflight. |
+| WordPress publish contract | `canonicals/direct_instructions_registry_patch/09_wordpress_publish_contract.md` | WordPress publish contract direct instruction patch. |
+
+---
+
+direct_instructions_registry_patch
 
 
 Status
@@ -26,8 +48,6 @@ This patch additionally enforces:
 - governed logic execution requires prior knowledge-layer resolution for the selected logic when logic-specific, cross-logic, or shared knowledge inputs are required
 - business-aware execution requires prior business-type knowledge-profile resolution when the selected logic or task depends on business-type interpretation
 - governed execution must resolve logic knowledge and business-type knowledge through `surface.logic_knowledge_profiles` and `surface.business_type_knowledge_profiles` before brand-aware completion when required
-
-
 Canonical Governed Logic Presentation Rule
 
 - governed logic specifications must not be presented as GPT personas, custom GPTs, or agent-UI-style introductions in user-facing or activation-facing summaries
@@ -491,9 +511,6 @@ For native Google governed mutation logging, protected unified-log spill columns
 Machine-verifiable activation transport evidence must be preserved separately from append payload values.
 
 ---
-
-
-
 Universal Parent Action And Schema Alignment Rule
 
 For any governed request that resolves through `parent_action_key`, the system must treat the parent capability row in `Actions Registry` as the authority for:
@@ -859,8 +876,6 @@ This document does not govern:
 
 
 ---
-
-
 Source of Truth Rule
 
 
@@ -1148,7 +1163,6 @@ Execution Policy Registry should include active governed rows for native Google 
 - `Google Workspace Governance | Registry Validation Required For Native Actions | TRUE | TRUE | execution | system_bootstrap|module_loader|prompt_router | TRUE | governed Sheets, Docs, and Drive execution requires Registry validation before native action execution`
 - `Google Workspace Governance | Native Action Direct Authority Forbidden | TRUE | TRUE | execution | system_bootstrap|prompt_router | TRUE | tool availability alone must not authorize execution`
 - `Google Workspace Governance | Native Action Readback Required | TRUE | TRUE | execution | system_bootstrap | FALSE | governed write operations through Sheets, Docs, or Drive require post-write readback when applicable`
-
 Activation Bootstrap Rule
 
 Plain `activate system` must default to governed `system_auto_bootstrap`, not validation-only activation check.
@@ -1429,7 +1443,6 @@ Required governed bootstrap fields must include:
 - bootstrap outcome
 - bootstrap resume status
 - bootstrap traceability to original request
-
 Starter Intelligence Retry Governance
 
 Starter-derived execution may participate in governed auto-repair and retry only as an execution entry surface.
@@ -1724,7 +1737,6 @@ Graph-based auto-routing must not:
 - override workflow authority outside Workflow Registry
 - execute an unregistered path
 - classify an invalid path as recovered
-
 Google Workspace Native Action Governance Rule
 
 Google Sheets, Google Docs, and Google Drive native actions are execution-capable tools, but they must not be treated as standalone authority.
@@ -2011,8 +2023,6 @@ If execution policy authority cannot be resolved through Registry:
 
 
 ---
-
-
 Authority Model
 
 
@@ -3170,8 +3180,6 @@ Registry governance is also not complete unless:
 - when structural architecture changes are accepted or applied, affected Registry and binding surfaces are reconciled so superseded authority or validation models are not active in parallel
 
 ---
-
-
 Brand Registry Tracking Bindings Authority
 
 Brand Registry (or the governed brand master surface that holds per-brand tracking columns) is authoritative for live brand-level tracking bindings used before workflow execution.
@@ -3955,7 +3963,6 @@ Narrative success is forbidden.
 
 
 ---
-
 # direct_instructions_registry_patch â€” WordPress Publish Contract Runtime Governance Patch
 
 ## Additive direct rules
