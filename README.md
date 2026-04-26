@@ -184,6 +184,13 @@ To validate the canonical source structure itself:
 node validate-canonical-sources.mjs
 ```
 
+To find the right canonical source file by domain keyword:
+
+```powershell
+node find-canonical-domain.mjs repair
+node find-canonical-domain.mjs prompt_router repair
+```
+
 Do not edit generated root canonical files directly. The authoritative canonical body lives in the matching source files under `canonicals/`.
 
 ## Working rules for contributors and agents

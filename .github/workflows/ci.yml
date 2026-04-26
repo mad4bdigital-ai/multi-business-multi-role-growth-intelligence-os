@@ -19,6 +19,8 @@ jobs:
         run: node validate-canonical-sources.mjs
       - name: Check canonical generated output
         run: node build-canonicals.mjs --check
+      - name: Check canonical domain finder
+        run: node --check find-canonical-domain.mjs
       - name: Check all JS modules
         working-directory: http-generic-api
         run: |
