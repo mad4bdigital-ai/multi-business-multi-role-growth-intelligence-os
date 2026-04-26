@@ -1398,10 +1398,11 @@ export async function executeUpstreamAttempt({
   };
 }
 
-export function resolveBrand(rows, requestPayload = {}) {
+export function resolveBrand(rows, requestPayload = {}, deps = {}) {
   const requestedProviderDomain = requestPayload.provider_domain
     ? safeNormalizeProviderDomain(requestPayload.provider_domain)
     : "";
+  const allowedTransport = String(deps.allowedTransportKey || deps.allowedTransport || "http_generic_api").trim();
 
   const targetKey = String(requestPayload.target_key || "").trim().toLowerCase();
   const brandName = String(requestPayload.brand || "").trim().toLowerCase();
@@ -1456,8 +1457,8 @@ export function resolveBrand(rows, requestPayload = {}) {
     throw err;
   }
 
-  if (row.transport_action_key && row.transport_action_key !== "http_generic_api") {
-    const err = new Error(`Unsupported transport_action_key: ${row.transport_action_key}`);
+  if (row.transport_action_key && row.transport_action_key !== allowedTransport) {
+    const err = new Error(`Unsupported transport_action_key: ${row.transport_action_key}; expected ${allowedTransport}`);
     err.code = "unsupported_transport";
     err.status = 403;
     throw err;
@@ -1849,11 +1850,12 @@ export function requireTransportIfDelegated(policies, action, endpoint) {
     }
 
     const normalizedPrimaryExecutor = String(action.primary_executor || "").trim().toLowerCase();
-    const isTransportExecutor = String(action.action_key || "").trim() === "http_generic_api";
+    const transportExecutorKey = String(action.action_key || "").trim();
+    const isTransportExecutor = transportExecutorKey === allowedTransport;
 
     if (!isTransportExecutor && normalizedPrimaryExecutor !== "http_client_backend") {
       const err = new Error(
-        `Delegated endpoint requires http_client_backend as parent executor: ${action.action_key}`
+        `Delegated endpoint requires allowed transport executor ${allowedTransport} or http_client_backend as parent executor: ${action.action_key}`
       );
       err.code = "transport_executor_mismatch";
       err.status = 403;

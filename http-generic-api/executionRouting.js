@@ -45,7 +45,18 @@ export function resolveHttpExecutionContext(input = {}, deps = {}) {
     JSON.stringify(getEndpointExecutionSnapshot(endpoint))
   );
 
-  const brand = resolveBrand(brandRows, requestPayload);
+  const resolvedAllowedTransport = String(
+    allowedTransport ||
+      policyValue(
+        policies,
+        "HTTP Execution Governance",
+        "Allowed Transport",
+        "http_generic_api"
+      )
+  ).trim();
+  const brand = resolveBrand(brandRows, requestPayload, {
+    allowedTransportKey: resolvedAllowedTransport
+  });
 
   debugLog(
     "PRE_GUARD_ACTION_RUNTIME:",
@@ -69,16 +80,6 @@ export function resolveHttpExecutionContext(input = {}, deps = {}) {
     "POST_GUARD_ENDPOINT_ELIGIBILITY:",
     JSON.stringify(endpointEligibility)
   );
-
-  const resolvedAllowedTransport = String(
-    allowedTransport ||
-      policyValue(
-        policies,
-        "HTTP Execution Governance",
-        "Allowed Transport",
-        "http_generic_api"
-      )
-  ).trim();
 
   const endpointExecutionMode = String(endpoint.execution_mode || "").trim().toLowerCase();
   const endpointTransportActionKey = String(endpoint.transport_action_key || "").trim();

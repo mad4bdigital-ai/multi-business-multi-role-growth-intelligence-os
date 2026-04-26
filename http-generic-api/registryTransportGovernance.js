@@ -98,11 +98,12 @@ export function requireTransportIfDelegated(policies, action, endpoint, deps = {
     }
 
     const normalizedPrimaryExecutor = String(action.primary_executor || "").trim().toLowerCase();
-    const isTransportExecutor = String(action.action_key || "").trim() === "http_generic_api";
+    const transportExecutorKey = String(action.action_key || "").trim();
+    const isTransportExecutor = transportExecutorKey === allowedTransport;
 
     if (!isTransportExecutor && normalizedPrimaryExecutor !== "http_client_backend") {
       const err = new Error(
-        `Delegated endpoint requires http_client_backend as parent executor: ${action.action_key}`
+        `Delegated endpoint requires allowed transport executor ${allowedTransport} or http_client_backend as parent executor: ${action.action_key}`
       );
       err.code = "transport_executor_mismatch";
       err.status = 403;

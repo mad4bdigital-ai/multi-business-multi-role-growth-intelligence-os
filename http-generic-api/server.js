@@ -2066,12 +2066,13 @@ async function executeUpstreamAttempt({
 
 // Brand resolution must use the normalized execution payload,
 // not raw req.body, so all routing/governance uses one canonical request shape.
-function resolveBrand(rows, requestPayload = {}) {
+function resolveBrand(rows, requestPayload = {}, deps = {}) {
   return resolveBrandCore(rows, requestPayload, {
     boolFromSheet,
     jsonParseSafe,
     normalizeProviderDomain,
-    safeNormalizeProviderDomain
+    safeNormalizeProviderDomain,
+    ...deps
   });
 }
 

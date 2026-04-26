@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test-utils.mjs && node test-job-runner.mjs && node test-execution-routing.mjs && node test-connectors.mjs && node test-routes.mjs && node test-activation-bootstrap-cache.mjs && node wordpress/test-integration.mjs",
+    "test": "node test-utils.mjs && node test-job-runner.mjs && node test-execution-routing.mjs && node test-connectors.mjs && node test-routes.mjs && node test-activation-bootstrap-cache.mjs && node test-transport-governance.mjs && node wordpress/test-integration.mjs",
     "validate": "node validate-architecture.mjs",
     "verify": "node verify-runtime.mjs"
   },

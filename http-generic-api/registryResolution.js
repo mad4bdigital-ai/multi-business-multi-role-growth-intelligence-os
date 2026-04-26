@@ -49,6 +49,10 @@ function getJsonParseSafe(deps = {}) {
   return deps.jsonParseSafe || defaultJsonParseSafe;
 }
 
+function getAllowedTransport(deps = {}) {
+  return String(deps.allowedTransportKey || deps.allowedTransport || "http_generic_api").trim();
+}
+
 function getDebugLog(deps = {}) {
   return deps.debugLog || (() => {});
 }
@@ -78,6 +82,7 @@ export function getEndpointExecutionSnapshot(endpoint = {}, deps = {}) {
 export function resolveBrand(rows, requestPayload = {}, deps = {}) {
   const boolFromSheet = getBoolFromSheet(deps);
   const jsonParseSafe = getJsonParseSafe(deps);
+  const allowedTransport = getAllowedTransport(deps);
   const normalizeProviderDomain = deps.normalizeProviderDomain || (value => String(value || "").trim());
   const safeNormalizeProviderDomain = deps.safeNormalizeProviderDomain || (value => String(value || "").trim());
   const requestedProviderDomain = requestPayload.provider_domain
@@ -140,8 +145,8 @@ export function resolveBrand(rows, requestPayload = {}, deps = {}) {
     throw err;
   }
 
-  if (row.transport_action_key && row.transport_action_key !== "http_generic_api") {
-    const err = new Error(`Unsupported transport_action_key: ${row.transport_action_key}`);
+  if (row.transport_action_key && row.transport_action_key !== allowedTransport) {
+    const err = new Error(`Unsupported transport_action_key: ${row.transport_action_key}; expected ${allowedTransport}`);
     err.code = "unsupported_transport";
     err.status = 403;
     throw err;
