@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const ROOT = process.cwd();
+const CHECK_ONLY = process.argv.includes('--check');
 
 const CANONICALS = [
   {
@@ -144,6 +145,17 @@ async function buildCanonical(config) {
   ].join('\n');
 
   const normalizedOutput = normalizeOutputNewlines(output.endsWith('\n') ? output : `${output}\n`);
+  if (CHECK_ONLY) {
+    const outputPath = path.join(ROOT, config.output);
+    const existingOutput = normalizeOutputNewlines(await fs.readFile(outputPath, 'utf8'));
+    if (existingOutput !== normalizedOutput) {
+      throw new Error(`${config.output} is out of date. Run node build-canonicals.mjs and commit the generated output.`);
+    }
+
+    console.log(`Checked ${config.output} from ${files.length} source files.`);
+    return;
+  }
+
   await fs.writeFile(path.join(ROOT, config.output), normalizedOutput, 'utf8');
   console.log(`Built ${config.output} from ${files.length} source files.`);
 }

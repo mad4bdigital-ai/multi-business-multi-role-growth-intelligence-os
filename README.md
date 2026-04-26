@@ -172,6 +172,12 @@ The four root canonical markdown files are generated outputs with a `Domain Inde
 node build-canonicals.mjs
 ```
 
+To verify generated roots are current without rewriting them:
+
+```powershell
+node build-canonicals.mjs --check
+```
+
 Do not edit generated root canonical files directly unless the same change is also applied to the matching source file under `canonicals/`.
 
 ## Working rules for contributors and agents
