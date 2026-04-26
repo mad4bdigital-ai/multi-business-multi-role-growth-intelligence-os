@@ -4,6 +4,8 @@
 **النطاق:** `system_bootstrap.md`, `direct_instructions_registry_patch.md`, `module_loader.md`, `prompt_router.md`
 **الهدف:** تحويل الملفات الأربعة الضخمة إلى مصادر منظمة داخل `canonicals/`، ثم إعادة بناء ملفات الجذر تلقائيا عبر `build-canonicals.mjs`.
 
+**تحديث التنفيذ:** تم اعتماد ملفات الجذر كـ lightweight generated indexes فقط، وليست concat كامل للمصادر. النصوص الكاملة والسلطة التحريرية تعيش داخل `canonicals/**`.
+
 ---
 
 ## 1. الملخص التنفيذي
@@ -24,7 +26,7 @@
 2. تقسيم كل ملف root إلى sub-files صغيرة ذات أسماء domain-aware.
 3. إنشاء `build-canonicals.mjs` لإعادة دمج المصادر إلى ملفات الجذر.
 4. إضافة `## Domain Index` أعلى كل ملف root لتوجيه الـ agents إلى الملف الفرعي المناسب.
-5. اعتبار ملفات الجذر build outputs، والكتابة اليدوية تكون داخل `canonicals/` فقط.
+5. اعتبار ملفات الجذر lightweight generated indexes، والكتابة اليدوية تكون داخل `canonicals/` فقط.
 
 ---
 

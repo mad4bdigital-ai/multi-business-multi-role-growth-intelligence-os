@@ -4,6 +4,7 @@ import { CANONICALS } from './canonical-manifest.mjs';
 
 const ROOT = process.cwd();
 const GENERATED_MARKER = '<!-- GENERATED FILE. Edit canonicals sources and run node build-canonicals.mjs. -->';
+const MAX_ROOT_BYTES = 12 * 1024;
 
 function rel(...parts) {
   return path.join(ROOT, ...parts);
@@ -34,6 +35,11 @@ async function listMarkdownFiles(sourceDir) {
 async function validateRootOutput(config) {
   const outputPath = rel(config.output);
   const content = await fs.readFile(outputPath, 'utf8');
+  const byteLength = Buffer.byteLength(content, 'utf8');
+
+  if (byteLength > MAX_ROOT_BYTES) {
+    throw new Error(`${config.output} is ${byteLength} bytes; root canonical files must stay lightweight indexes.`);
+  }
 
   if (!content.startsWith(GENERATED_MARKER)) {
     throw new Error(`${config.output} is missing generated-file marker.`);

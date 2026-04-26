@@ -166,7 +166,7 @@ Agent-facing guide:
 
 ## Canonical editing workflow
 
-The four root canonical markdown files are generated outputs with a `Domain Index` at the top. Edit the source files under [`canonicals/`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/canonicals/>) and rebuild the roots:
+The four root canonical markdown files are lightweight generated indexes with a `Domain Index` at the top. Edit the source files under [`canonicals/`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/canonicals/>) and rebuild the roots:
 
 ```powershell
 node build-canonicals.mjs
@@ -184,7 +184,7 @@ To validate the canonical source structure itself:
 node validate-canonical-sources.mjs
 ```
 
-Do not edit generated root canonical files directly unless the same change is also applied to the matching source file under `canonicals/`.
+Do not edit generated root canonical files directly. The authoritative canonical body lives in the matching source files under `canonicals/`.
 
 ## Working rules for contributors and agents
 

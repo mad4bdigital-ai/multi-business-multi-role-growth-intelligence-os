@@ -8,7 +8,7 @@
 - [ ] `direct_instructions_registry_patch.md` is treated as hard enforcement authority
 - [ ] `module_loader.md` is treated as execution-readiness/loading authority
 - [ ] `prompt_router.md` is treated as routing authority
-- [ ] Root canonical markdown files are treated as generated outputs, with source edits made under `canonicals/`
+- [ ] Root canonical markdown files are treated as lightweight generated indexes, with source edits made under `canonicals/`
 - [ ] `node build-canonicals.mjs --check` passes before canonical changes are considered complete
 - [ ] `README.md` does not contradict canonical behavior
 

@@ -23,7 +23,7 @@ Agents should treat these files as the primary knowledge sources, in this order:
 
 ### Canonical source workflow
 
-The four root canonical markdown files are generated outputs:
+The four root canonical markdown files are lightweight generated indexes:
 - `system_bootstrap.md`
 - `direct_instructions_registry_patch.md`
 - `module_loader.md`
@@ -41,7 +41,7 @@ Before completing canonical edits, verify generated roots are current:
 node build-canonicals.mjs --check
 ```
 
-Do not edit generated root canonical files directly unless the same change is also applied to the matching `canonicals/` source file.
+Do not edit generated root canonical files directly. The authoritative canonical body lives in the matching `canonicals/` source file.
 
 ## 2. Core execution model
 The architecture is governed, registry-driven, and validation-first.

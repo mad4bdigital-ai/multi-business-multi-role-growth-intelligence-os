@@ -17,8 +17,9 @@ function renderDomainIndex(config) {
   return [
     '## Domain Index',
     '',
-    `This file is generated from \`${config.sourceDir}/\`.`,
+    `This lightweight root file is generated from \`${config.sourceDir}/\`.`,
     'Edit source files under `canonicals/`; do not edit this root file directly.',
+    'Open the source file listed below for the relevant domain instead of loading this whole canonical family.',
     '',
     '| Domain | Source file | Use when |',
     '|---|---|---|',
@@ -75,12 +76,16 @@ async function readSourceFiles(config) {
 }
 
 async function buildCanonical(config) {
-  const { files, parts } = await readSourceFiles(config);
+  const { files } = await readSourceFiles(config);
   const output = [
     '<!-- GENERATED FILE. Edit canonicals sources and run node build-canonicals.mjs. -->',
     '',
     renderDomainIndex(config),
-    parts.join(''),
+    '## Source Authority',
+    '',
+    `The authoritative body for this canonical is split across \`${config.sourceDir}/\`.`,
+    `This root exists only as a small index and compatibility pointer for \`${config.output}\`.`,
+    '',
   ].join('\n');
 
   const normalizedOutput = normalizeOutputNewlines(output.endsWith('\n') ? output : `${output}\n`);
