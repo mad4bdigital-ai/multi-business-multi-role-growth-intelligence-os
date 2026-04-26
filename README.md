@@ -55,7 +55,7 @@ These documents are the real architecture spine of the project.
 
 ### Memory schema layer
 
-`memory_schema.json` is the persistent state contract root. It has been decomposed into 11 domain sub-schemas under `schemas/`, each referenced via JSON Schema `$ref`:
+`memory_schema.json` is the persistent state contract root. It has been decomposed into 12 domain sub-schemas under `schemas/`, each referenced via JSON Schema `$ref`:
 
 | Sub-schema | Domain |
 |---|---|
@@ -65,13 +65,14 @@ These documents are the real architecture spine of the project.
 | `execution` | Runtime validation, activation, Google Workspace |
 | `analytics` | Measurement, revenue signals, tracking bindings |
 | `governance` | Schema state, drift detection, variable contracts |
+| `logic_knowledge` | Logic pointers, logic knowledge, business-type knowledge |
 | `repair_audit` | Repair memory, audit state, anomaly clusters |
 | `routing_transport` | Routing context, HTTP transport, surface roles |
 | `graph_addition` | Graph intelligence, governed addition pipeline |
 | `operations` | System context, monitoring, writeback rules |
 | `wordpress_api` | WordPress state, API inventory, credential resolution |
 
-The root schema enforces `additionalProperties: false` and all 92 required fields. All 169 `$ref` values resolve with zero broken references.
+The root schema enforces `additionalProperties: false` and all 92 required fields. The root is now about 41 KB after moving large domain blocks into `schemas/`. Validate schema references with `node validate-memory-schema.mjs`.
 
 ### Registry-centered authority layer
 
@@ -123,7 +124,7 @@ Current state:
 - `http-generic-api/server.js` is decomposed — reduced from ~29,000 lines to ~4,636 lines; authority-based modules extracted
 - `http-generic-api/wordpress/` — 16 phase modules (A–P), shared.js, index.js barrel (545 exports)
 - `http-generic-api/normalization.js` — canonical normalization layer successfully implementing all A-H domains (Execution Intent, Policy State, Endpoint Identity, Route/Workflow State, Surface Classification, Mutation Intent, Execution Result, Sink Write Contract)
-- `memory_schema.json` decomposed into 11 domain sub-schemas in `schemas/` (112 KB root + 276 KB sub-schemas; 83 `$defs`, 169 `$ref` all resolving)
+- `memory_schema.json` decomposed into 12 domain sub-schemas in `schemas/` (about 41 KB root; schema refs validated by `validate-memory-schema.mjs`)
 - `http-generic-api/mutationGovernance.js`, `governedChangeControl.js`, `governedSheetWrites.js` — centralized mutation and writeback governance
 - `http-generic-api/registryResolution.js`, `routeWorkflowGovernance.js`, `registryMutations.js` — registry-backed routing and execution control
 - `http-generic-api/executionRouting.js` — isolated HTTP execution context resolution with dependency-injected guard chain
@@ -209,8 +210,9 @@ All 9 upgrade phases are complete. The project is in a production-ready, fully g
 
 For ongoing operations:
 - run `npm test` after every code change (168 tests across 6 suites)
-- run `npm run validate` to check architecture invariants (104 checks)
+- run `npm run validate` to check architecture invariants
+- run `node validate-memory-schema.mjs` after memory schema changes
 - run `npm run verify` (with `RUNTIME_BASE_URL`) after every deployment — see [`runtime_confirmation_procedure.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/runtime_confirmation_procedure.md>)
-- CI runs automatically on every push/PR (syntax → tests → architecture drift → export floor)
+- CI runs automatically on every push/PR (canonical checks → memory schema refs → syntax → tests → architecture drift → export floor)
 
 This repository should be approached as a governed operating model with executable runtime modules, not as a conventional app-first project.

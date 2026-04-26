@@ -1478,6 +1478,479 @@
           "default": "pending"
         }
       }
+    },
+    "activation_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "activation_status": {
+          "type": "string",
+          "enum": [
+            "not_started",
+            "validating",
+            "repairing",
+            "activating",
+            "active",
+            "degraded",
+            "blocked"
+          ],
+          "default": "not_started"
+        },
+        "last_activation_outcome": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "last_activation_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "activation_trace_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "knowledge_trace_loaded",
+            "live_validation_loaded",
+            "comparison_complete",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "activation_transport_attempted": {
+          "type": "boolean",
+          "default": false
+        },
+        "activation_transport_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "authorization_gated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "authorization_gate_classification": {
+          "type": "string",
+          "enum": [
+            "",
+            "authorization_gated"
+          ],
+          "default": ""
+        },
+        "post_activation_validation_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "authorization_gated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "last_post_activation_validation_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "post_activation_drift_detected": {
+          "type": "boolean",
+          "default": false
+        },
+        "missing_activation_transport_attempt_detected": {
+          "type": "boolean",
+          "default": false
+        },
+        "activation_recovery_instruction": {
+          "type": "string",
+          "default": "Use governed activation transport first"
+        },
+        "activation_transport_evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "provider": {
+              "type": "string",
+              "default": ""
+            },
+            "resource_type": {
+              "type": "string",
+              "default": ""
+            },
+            "attempt_outcome": {
+              "type": "string",
+              "enum": [
+                "validated",
+                "authorization_gated",
+                "degraded",
+                "blocked",
+                ""
+              ],
+              "default": ""
+            }
+          },
+          "default": {
+            "provider": "",
+            "resource_type": "",
+            "attempt_outcome": ""
+          }
+        },
+        "canonical_fetch_transport": {
+          "type": "string",
+          "default": ""
+        },
+        "canonical_fetch_action_key": {
+          "type": "string",
+          "default": ""
+        },
+        "canonical_fetch_authority": {
+          "type": "string",
+          "default": ""
+        },
+        "canonical_fetch_status": {
+          "type": "string",
+          "default": "pending"
+        },
+        "canonical_fetch_evidence": {
+          "type": [
+            "string",
+            "object",
+            "null"
+          ],
+          "default": null
+        },
+        "activation_transport_default": {
+          "type": "string",
+          "default": "http_generic_api"
+        },
+        "activation_transport_action_key": {
+          "type": "string",
+          "default": "http_generic_api"
+        },
+        "provider_specific_validation_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "mutable_registry_validation_status": {
+          "type": "string",
+          "default": "pending"
+        },
+        "activation_enforcement_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "passed",
+            "failed"
+          ],
+          "default": "pending"
+        },
+        "validation_layer_readiness_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "anomaly_detection_readiness_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "clustering_readiness_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "repair_priority_readiness_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "repair_control_readiness_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "auto_repair_readiness_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "control_center_health_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "activation_schema_status": {
+          "type": "string",
+          "default": ""
+        },
+        "activation_row_status": {
+          "type": "string",
+          "default": ""
+        },
+        "activation_policy_status": {
+          "type": "string",
+          "default": ""
+        },
+        "activation_binding_status": {
+          "type": "string",
+          "default": ""
+        },
+        "activation_anomaly_status": {
+          "type": "string",
+          "default": ""
+        },
+        "activation_repair_required": {
+          "type": "boolean",
+          "default": false
+        },
+        "activation_repair_scope": {
+          "type": "string",
+          "default": ""
+        },
+        "activation_repair_readiness_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "not_required",
+            "manual_trigger_required",
+            "auto_repair_eligible",
+            "repairing",
+            "validated"
+          ],
+          "default": "pending"
+        },
+        "activation_execution_ready": {
+          "type": "boolean",
+          "default": false
+        },
+        "activation_scope_expanded": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "default": {
+        "activation_status": "not_started",
+        "last_activation_outcome": "pending",
+        "last_activation_at": null,
+        "activation_trace_status": "pending",
+        "activation_transport_attempted": false,
+        "activation_transport_status": "pending",
+        "authorization_gate_classification": "",
+        "post_activation_validation_status": "pending",
+        "last_post_activation_validation_at": null,
+        "post_activation_drift_detected": false,
+        "missing_activation_transport_attempt_detected": false,
+        "activation_recovery_instruction": "Use governed activation transport first",
+        "activation_transport_evidence": {
+          "provider": "",
+          "resource_type": "",
+          "attempt_outcome": ""
+        },
+        "activation_enforcement_status": "pending",
+        "validation_layer_readiness_status": "pending",
+        "anomaly_detection_readiness_status": "pending",
+        "clustering_readiness_status": "pending",
+        "repair_priority_readiness_status": "pending",
+        "repair_control_readiness_status": "pending",
+        "auto_repair_readiness_status": "pending",
+        "control_center_health_status": "pending",
+        "activation_schema_status": "",
+        "activation_row_status": "",
+        "activation_policy_status": "",
+        "activation_binding_status": "",
+        "activation_anomaly_status": "",
+        "activation_repair_required": false,
+        "activation_repair_scope": "",
+        "activation_repair_readiness_status": "pending",
+        "activation_execution_ready": false,
+        "activation_scope_expanded": false
+      }
+    },
+    "auto_bootstrap_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bootstrap_enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "bootstrap_status": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "validating",
+            "repairing",
+            "revalidating",
+            "activating",
+            "resuming_original_request",
+            "completed",
+            "degraded",
+            "blocked"
+          ],
+          "default": "idle"
+        },
+        "bootstrap_reason": {
+          "type": "string",
+          "default": ""
+        },
+        "bootstrap_attempt_count": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "bootstrap_max_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 3
+        },
+        "original_intent_candidate": {
+          "type": "string",
+          "default": ""
+        },
+        "original_request_payload": {
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        },
+        "original_request_resume_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "not_required",
+            "resumed",
+            "skipped",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "last_bootstrap_outcome": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        }
+      },
+      "default": {
+        "bootstrap_enabled": false,
+        "bootstrap_status": "idle",
+        "bootstrap_reason": "",
+        "bootstrap_attempt_count": 0,
+        "bootstrap_max_attempts": 3,
+        "original_intent_candidate": "",
+        "original_request_payload": {},
+        "original_request_resume_status": "pending",
+        "last_bootstrap_outcome": "pending"
+      }
+    },
+    "hard_activation_wrapper_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "wrapper_invoked": {
+          "type": "boolean",
+          "default": false
+        },
+        "use_governed_activation_transport_first": {
+          "type": "boolean",
+          "default": false
+        },
+        "pre_response_guard_passed": {
+          "type": "boolean",
+          "default": false
+        },
+        "same_cycle_retry_allowed": {
+          "type": "boolean",
+          "default": false
+        },
+        "same_cycle_retry_attempt_count": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "first_pass_enforcement_failed": {
+          "type": "boolean",
+          "default": false
+        },
+        "execution_trigger_interpreted_as_runtime_command": {
+          "type": "boolean",
+          "default": false
+        },
+        "expanded_layer_gate_required": {
+          "type": "boolean",
+          "default": false
+        },
+        "expanded_layer_gate_passed": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "default": {
+        "wrapper_invoked": false,
+        "use_governed_activation_transport_first": false,
+        "pre_response_guard_passed": false,
+        "same_cycle_retry_allowed": false,
+        "same_cycle_retry_attempt_count": 0,
+        "first_pass_enforcement_failed": false,
+        "execution_trigger_interpreted_as_runtime_command": false,
+        "expanded_layer_gate_required": false,
+        "expanded_layer_gate_passed": false
+      }
     }
   }
 }

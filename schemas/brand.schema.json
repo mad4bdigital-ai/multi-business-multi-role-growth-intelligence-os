@@ -718,6 +718,156 @@
           "default": "pending"
         }
       }
+    },
+    "brand_core_read_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "brand_core_read_required",
+        "brand_core_authoritative_home",
+        "brand_core_read_targets",
+        "brand_core_read_completeness_status",
+        "brand_core_missing_assets",
+        "writing_completion_blocked_until_brand_core_read"
+      ],
+      "properties": {
+        "brand_core_read_required": {
+          "type": "boolean",
+          "default": false
+        },
+        "brand_core_authoritative_home": {
+          "type": "string",
+          "default": "Brand Core Registry"
+        },
+        "brand_core_read_targets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "brand_core_read_completeness_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "brand_core_missing_assets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "writing_completion_blocked_until_brand_core_read": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "default": {
+        "brand_core_read_required": false,
+        "brand_core_authoritative_home": "Brand Core Registry",
+        "brand_core_read_targets": [],
+        "brand_core_read_completeness_status": "pending",
+        "brand_core_missing_assets": [],
+        "writing_completion_blocked_until_brand_core_read": false
+      }
+    },
+    "starter_intelligence_state": {
+      "$ref": "./schemas/analytics.schema.json#/$defs/starterIntelligenceState",
+      "default": {
+        "last_used_starter": "",
+        "starter_usage_history": [],
+        "starter_success_scores": {},
+        "starter_prediction_history": [],
+        "goal_detection_history": [],
+        "predicted_next_best_starter": "",
+        "predicted_next_best_route": "",
+        "predicted_goal_best_starter": "",
+        "predicted_goal_best_route": "",
+        "predicted_goal_family": "",
+        "prediction_confidence": 0,
+        "execution_gating_history": [],
+        "starter_governance_status": "unclassified",
+        "override_required": false,
+        "override_source": "",
+        "insertion_validated_at": null,
+        "starter_policy_coverage_status": "unknown",
+        "starter_policy_missing_component": [],
+        "starter_policy_execution_ready": false,
+        "starter_policy_authority_source": "",
+        "starter_policy_repair_triggered": false,
+        "starter_policy_repair_scope": "",
+        "starter_policy_repair_status": "not_required",
+        "starter_policy_missing_component_set": [],
+        "policy_gap_detected": false,
+        "binding_gap_detected": false,
+        "system_binding_pipeline_status": "unknown",
+        "policy_gap_repair_eligible": false,
+        "anomaly_baseline_class": ""
+      }
+    },
+    "brand_writing_engine_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "engine_registry_read_required",
+        "required_writing_engines",
+        "engine_readiness_status",
+        "missing_required_engines",
+        "writing_blocked_until_engine_readiness",
+        "brand_core_read_blocked_until_engine_readiness"
+      ],
+      "properties": {
+        "engine_registry_read_required": {
+          "type": "boolean",
+          "default": false
+        },
+        "required_writing_engines": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "engine_readiness_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "missing_required_engines": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "writing_blocked_until_engine_readiness": {
+          "type": "boolean",
+          "default": false
+        },
+        "brand_core_read_blocked_until_engine_readiness": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "default": {
+        "engine_registry_read_required": false,
+        "required_writing_engines": [],
+        "engine_readiness_status": "pending",
+        "missing_required_engines": [],
+        "writing_blocked_until_engine_readiness": false,
+        "brand_core_read_blocked_until_engine_readiness": false
+      }
     }
   }
 }

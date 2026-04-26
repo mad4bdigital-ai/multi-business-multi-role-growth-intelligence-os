@@ -80,7 +80,9 @@ Use it for:
 
 Domain sub-schemas live in `schemas/` and are referenced via `$ref` from the root.
 Sub-schemas: `shared`, `business_identity`, `brand`, `execution`, `analytics`,
-`governance`, `repair_audit`, `routing_transport`, `graph_addition`, `operations`, `wordpress_api`.
+`governance`, `logic_knowledge`, `repair_audit`, `routing_transport`, `graph_addition`, `operations`, `wordpress_api`.
+
+After memory schema changes, run `node validate-memory-schema.mjs`.
 
 ### `direct_instructions_registry_patch.md`
 Hard enforcement patch layer.
@@ -217,7 +219,7 @@ Prioritize:
 3. module boundary cleanup
 4. policy normalization
 5. test coverage
-6. monolith decomposition by authority boundary ✓ (schema layer complete — `memory_schema.json` → 11 domain sub-schemas in `schemas/`)
+6. monolith decomposition by authority boundary ✓ (schema layer complete — `memory_schema.json` → 12 domain sub-schemas in `schemas/`)
 
 ## 12. Current documentation status
 
@@ -230,15 +232,16 @@ All previously suggested docs now exist:
 - `runtime_confirmation_procedure.md` ✓
 
 Schema layer:
-- `memory_schema.json` — root schema (112 KB, 123 properties, 92 required)
-- `schemas/` — 11 domain sub-schemas (276 KB total, 83 `$defs`, 169 `$ref` all resolving)
+- `memory_schema.json` — root schema (~41 KB, 123 properties, 92 required)
+- `schemas/` — 12 domain sub-schemas, including `logic_knowledge.schema.json`
   - `shared`, `business_identity`, `brand`, `execution`, `analytics`, `governance`,
-    `repair_audit`, `routing_transport`, `graph_addition`, `operations`, `wordpress_api`
+    `logic_knowledge`, `repair_audit`, `routing_transport`, `graph_addition`, `operations`, `wordpress_api`
 
 Test and validation baselines (as of 2026-04-26):
 - 168 automated tests across 6 suites (`npm test`)
-- 138 architecture checks (`npm run validate`)
-- CI enforces canonical generated-output checks, syntax, tests, drift detection, export floors on every push
+- architecture checks via `npm run validate`
+- memory schema `$ref` checks via `node validate-memory-schema.mjs`
+- CI enforces canonical generated-output checks, memory schema reference checks, syntax, tests, drift detection, export floors on every push
 
 ## 13. Short operational summary
 If you are an AI agent working in this repo:

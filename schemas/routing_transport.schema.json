@@ -304,6 +304,424 @@
           "$ref": "./shared.schema.json#/$defs/stringList"
         }
       }
+    },
+    "http_transport_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "transport_module": {
+          "type": "string",
+          "default": "http_generic_api"
+        },
+        "runtime_capability_class": {
+          "type": "string",
+          "enum": [
+            "",
+            "native_runtime",
+            "external_action_only",
+            "pending_binding",
+            "http_transport_executor"
+          ],
+          "default": ""
+        },
+        "runtime_callable": {
+          "type": "boolean",
+          "default": false
+        },
+        "primary_executor": {
+          "type": "string",
+          "enum": [
+            "",
+            "native_gpt",
+            "external_connector",
+            "http_client_backend"
+          ],
+          "default": ""
+        },
+        "endpoint_role": {
+          "type": "string",
+          "enum": [
+            "",
+            "primary",
+            "fallback",
+            "inventory_only",
+            "transport_delegate"
+          ],
+          "default": ""
+        },
+        "execution_mode": {
+          "type": "string",
+          "enum": [
+            "",
+            "native_direct",
+            "http_delegated",
+            "external_direct",
+            "fallback_only"
+          ],
+          "default": ""
+        },
+        "transport_required": {
+          "type": "boolean",
+          "default": false
+        },
+        "resolved_transport_action_key": {
+          "type": "string",
+          "default": ""
+        },
+        "execution_guardrail_code": {
+          "type": "string",
+          "default": ""
+        },
+        "resolved_provider_domain_mode": {
+          "type": "string",
+          "enum": [
+            "",
+            "fixed_domain",
+            "placeholder_runtime_resolved",
+            "brand_bound_domain"
+          ],
+          "default": ""
+        },
+        "placeholder_resolution_source": {
+          "type": "string",
+          "enum": [
+            "",
+            "provider_domain",
+            "brand_domain",
+            "target_key",
+            "brand"
+          ],
+          "default": ""
+        },
+        "duplicate_header_detected": {
+          "type": "boolean",
+          "default": false
+        },
+        "duplicate_header_surface": {
+          "type": "string",
+          "default": ""
+        },
+        "provider_domain_resolution_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "variable_provider_domain_detected": {
+          "type": "boolean",
+          "default": false
+        },
+        "parent_action_validation_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "endpoint_validation_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "schema_binding_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "openapi_contract_validation_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "schema_drift_detected": {
+          "type": "boolean",
+          "default": false
+        },
+        "schema_drift_type": {
+          "type": "string",
+          "enum": [
+            "additive",
+            "missing_required",
+            "renamed",
+            "type_mismatch",
+            "enum_mismatch",
+            "structure_mismatch"
+          ],
+          "default": ""
+        },
+        "schema_drift_scope": {
+          "type": "string",
+          "enum": [
+            "request",
+            "response"
+          ],
+          "default": ""
+        },
+        "schema_learning_candidate_emitted": {
+          "type": "boolean",
+          "default": false
+        },
+        "auth_resolution_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "resolved_auth_mode": {
+          "type": "string",
+          "enum": [
+            "",
+            "none",
+            "basic_auth",
+            "bearer_token",
+            "api_key_query",
+            "api_key_header",
+            "oauth_gpt_action",
+            "custom_headers"
+          ],
+          "default": ""
+        },
+        "credential_resolution_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "request_schema_alignment_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "response_schema_alignment_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "transport_request_contract_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "variable_contract_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "required_variables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "resolved_variables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "missing_variables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "invalid_variables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "clarification_required_variables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "variable_source_map": {
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        },
+        "runtime_variable_bindings": {
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        },
+        "variable_contract_surface_id": {
+          "type": "string",
+          "default": ""
+        },
+        "path_validation_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "method_validation_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "execution_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "executed",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "schema_file_read": {
+          "type": "boolean",
+          "default": false
+        },
+        "required_params_resolved": {
+          "type": "boolean",
+          "default": false
+        },
+        "provider_retry_applicable": {
+          "type": "boolean",
+          "default": false
+        },
+        "resilience_applied": {
+          "type": "boolean",
+          "default": false
+        },
+        "retry_attempt_index": {
+          "type": "integer",
+          "default": 0
+        },
+        "retry_mutation": {
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        },
+        "effective_request_url": {
+          "type": "string",
+          "default": ""
+        },
+        "final_query": {
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        }
+      },
+      "default": {
+        "transport_module": "http_generic_api",
+        "runtime_capability_class": "",
+        "runtime_callable": false,
+        "primary_executor": "",
+        "endpoint_role": "",
+        "execution_mode": "",
+        "transport_required": false,
+        "resolved_transport_action_key": "",
+        "execution_guardrail_code": "",
+        "resolved_provider_domain_mode": "",
+        "placeholder_resolution_source": "",
+        "duplicate_header_detected": false,
+        "duplicate_header_surface": "",
+        "provider_domain_resolution_status": "pending",
+        "variable_provider_domain_detected": false,
+        "parent_action_validation_status": "pending",
+        "endpoint_validation_status": "pending",
+        "schema_binding_status": "pending",
+        "openapi_contract_validation_status": "pending",
+        "schema_drift_detected": false,
+        "schema_drift_type": "",
+        "schema_drift_scope": "",
+        "schema_learning_candidate_emitted": false,
+        "auth_resolution_status": "pending",
+        "path_validation_status": "pending",
+        "method_validation_status": "pending",
+        "execution_status": "pending",
+        "resolved_auth_mode": "",
+        "credential_resolution_status": "pending",
+        "request_schema_alignment_status": "pending",
+        "response_schema_alignment_status": "pending",
+        "transport_request_contract_status": "pending",
+        "variable_contract_status": "pending",
+        "required_variables": [],
+        "resolved_variables": [],
+        "missing_variables": [],
+        "invalid_variables": [],
+        "clarification_required_variables": [],
+        "variable_source_map": {},
+        "runtime_variable_bindings": {},
+        "variable_contract_surface_id": "",
+        "schema_file_read": false,
+        "required_params_resolved": false,
+        "provider_retry_applicable": false,
+        "resilience_applied": false,
+        "retry_attempt_index": 0,
+        "retry_mutation": {},
+        "effective_request_url": "",
+        "final_query": {}
+      }
     }
   }
 }

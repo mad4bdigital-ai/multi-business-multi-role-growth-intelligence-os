@@ -1460,6 +1460,185 @@
           "default": "degraded"
         }
       }
+    },
+    "anomaly_cluster_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "anomaly_detection_executed": {
+          "type": "boolean",
+          "default": false
+        },
+        "clustering_enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "clustering_executed": {
+          "type": "boolean",
+          "default": false
+        },
+        "cluster_triggered": {
+          "type": "boolean",
+          "default": false
+        },
+        "cluster_id": {
+          "type": "string",
+          "default": ""
+        },
+        "cluster_type": {
+          "type": "string",
+          "default": ""
+        },
+        "cluster_severity": {
+          "type": "string",
+          "default": ""
+        },
+        "starter_anomaly_type": {
+          "type": "string",
+          "default": ""
+        },
+        "starter_anomaly_severity": {
+          "type": "string",
+          "default": ""
+        },
+        "cluster_frequency_band": {
+          "type": "string",
+          "enum": [
+            "",
+            "single",
+            "repeat_pair",
+            "recurring"
+          ],
+          "default": ""
+        },
+        "cluster_confidence": {
+          "type": "string",
+          "default": ""
+        },
+        "cluster_last_seen_at": {
+          "type": "string",
+          "default": ""
+        },
+        "cluster_repair_recommended": {
+          "type": "boolean",
+          "default": false
+        },
+        "cluster_notes": {
+          "type": "string",
+          "default": ""
+        },
+        "cluster_source_mode": {
+          "type": "string",
+          "enum": [
+            "",
+            "local_import_stage",
+            "direct_sheet",
+            "mixed"
+          ],
+          "default": ""
+        },
+        "cluster_writeback_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        }
+      },
+      "default": {
+        "anomaly_detection_executed": false,
+        "clustering_enabled": false,
+        "clustering_executed": false,
+        "cluster_triggered": false,
+        "cluster_id": "",
+        "cluster_type": "",
+        "cluster_severity": "",
+        "starter_anomaly_type": "",
+        "starter_anomaly_severity": "",
+        "cluster_frequency_band": "",
+        "cluster_confidence": "",
+        "cluster_last_seen_at": "",
+        "cluster_repair_recommended": false,
+        "cluster_notes": "",
+        "cluster_source_mode": "",
+        "cluster_writeback_status": "pending"
+      }
+    },
+    "cluster_auto_repair_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "auto_repair_enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "auto_repair_triggered": {
+          "type": "boolean",
+          "default": false
+        },
+        "repair_mapping_resolved": {
+          "type": "boolean",
+          "default": false
+        },
+        "repair_handler": {
+          "type": "string",
+          "default": ""
+        },
+        "priority_uplift_applied": {
+          "type": "boolean",
+          "default": false
+        },
+        "priority_uplift_source": {
+          "type": "string",
+          "enum": [
+            "",
+            "severity_only",
+            "cluster_frequency",
+            "cluster_confidence",
+            "cluster_repair_recommended",
+            "mixed"
+          ],
+          "default": ""
+        },
+        "cluster_dispatch_band": {
+          "type": "string",
+          "default": ""
+        },
+        "repair_execution_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "post_repair_readback_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        }
+      },
+      "default": {
+        "auto_repair_enabled": false,
+        "auto_repair_triggered": false,
+        "repair_mapping_resolved": false,
+        "repair_handler": "",
+        "priority_uplift_applied": false,
+        "priority_uplift_source": "",
+        "cluster_dispatch_band": "",
+        "repair_execution_status": "pending",
+        "post_repair_readback_status": "pending"
+      }
     }
   }
 }

@@ -176,6 +176,371 @@
           }
         }
       }
+    },
+    "governance_rules": {
+      "type": "array",
+      "default": [
+        "Repair intelligence is a derived layer and must not override core routing, authority, validation, or repair outcome semantics.",
+        "repair_intelligence must read from structured repair_memory outputs and must not mutate repair_memory retrospectively.",
+        "Escalation and recommendation outputs are advisory unless explicitly consumed by a separate approved automation layer.",
+        "repair_intelligence scores must remain deterministic and bounded to preserve review compatibility.",
+        "Repair-memory writes must remain scope-aware and must not leak repair state across unrelated brands, workbooks, or sessions.",
+        "repair_memory must preserve execution_mode, repair_severity, repair_trigger_source, validation_state, fallback_used, and degraded-state continuity when emitted by system_bootstrap.",
+        "Degraded-state tracking must remain explicit until cleared by a later recovered execution or governed reset.",
+        "Repair history entries must preserve enough scope and timing context to support post-repair auditability and recurrence analysis.",
+        "Monitoring surface state must remain explicit and must not be inferred from workbook existence alone.",
+        "monitoring_context must reflect Registry-resolved bindings and downstream validation outcomes without bypassing system_bootstrap classification.",
+        "Execution mode must be read from workflow_context.execution_mode unless repair lifecycle is active, in which case repair_memory.execution_mode may override temporarily.",
+        "No audit or validation may be marked as valid unless audit_context.validation_mode = real_time and audit_context.dependencies_read is non-empty.",
+        "routing_context is the canonical persisted memory surface for strict prompt_router handoff and must not be reconstructed later from partial workflow state.",
+        "execution_context is the canonical persisted memory surface for strict system_bootstrap and module_loader intake enforcement outcomes.",
+        "HTTP execution memory must preserve provider_domain-first execution state, variable provider_domain detection, parent_action_key authority validation, endpoint_key validation, and YAML/OpenAPI schema-binding validation when schema-bound API execution applies.",
+        "Executable routing must not be considered valid in memory unless routing_context.source = prompt_router and routing_context.route_source = registry_task_routes.",
+        "Degraded or blocked routing and intake states must remain explicit in memory until replaced by a later governed execution update.",
+        "route_id, matched_row_id, target_module, and target_workflow must remain traceable across routing_context, execution_context, repair_memory, and execution logging when present.",
+        "Authoritative records must be written to canonical source surfaces, and derived observability surfaces must not become shadow authorities.",
+        "Derived observability failures must degrade observability trust without overwriting authoritative write truth when authoritative sources are intact.",
+        "When governed activation or runtime validation requires Google Workspace live checks, at least one real governed HTTP transport call must occur through available agent execution actions/native tools in the same execution cycle; otherwise classification must remain degraded with reason missing_required_activation_transport_attempt.",
+        "Aggregated, monitoring, and observability surfaces must be computed dynamically from authoritative sources whenever possible.",
+        "Authoritative execution and governance surfaces must resolve through Registry Surfaces Catalog, and validation-state authority must resolve through Validation & Repair Registry before dependency execution continues.",
+        "All execution surfaces must resolve through Registry Surfaces Catalog using worksheet_gid as authoritative binding identity; worksheet_gid must exist, be valid, and match actual sheet binding; sheet_name and tab_name must not be used for execution resolution; validation failure must block execution or enter repair-aware mode.",
+        "Each governed surface must declare schema_ref, schema_version, header_signature, expected_column_count, and binding_mode; validation must verify schema_validation_status, header_match_status, and schema_drift_detected; schema drift must trigger degraded or blocked execution and repair mapping when required.",
+        "Growth scores must be derived from authoritative execution records, metrics summaries, or governed review feedback sources.",
+        "Growth-loop triggers must remain Registry-governed and passive rows or passive scores must not auto-execute.",
+        "brand_tracking_bindings must reflect Brand Registryâ€“authoritative fields for gsc_property, ga_property_id, and gtm_container_id and must not be fabricated outside governed discovery or writeback paths.",
+        "analytics_discovery_state must record GA Admin discovery outcomes without overwriting authoritative Brand Registry rows unless a governed writeback or repair path applies.",
+        "measurement_health_state and revenue_signal_state are operational memory for measurement and reporting loops; they must not override registry authority or route selection.",
+        "autopilot_trace_state must record full-funnel autopilot inputs and scores with explicit source attribution (GSC, GA Data API, GTM) when populated.",
+        "architecture_reconciliation state must remain explicit after structural changes and Recovered classification must not be assumed while required reconciliation remains incomplete.",
+        "analytics_identity must preserve brand-domain validation state for domain-bound analytics execution and must not be treated as optional when domain governance applies.",
+        "analytics_issue_tracking must persist analytics identity defect detection, issue creation status, deduplication keys, and resolution lifecycle state per execution cycle.",
+        "api_action_inventory must preserve split validation state for capability-level authority (Actions Registry) and endpoint-level execution readiness (API Actions Endpoint Registry).",
+        "Graph intelligence must resolve through Knowledge Graph Node Registry and Relationship Graph Registry as governed surfaces and must not override Task Routes or Workflow Registry authority.",
+        "Recovered classification is forbidden when required execution-critical graph nodes or relationships are missing or invalid.",
+        "Graph-based prediction and graph-based auto-routing remain advisory optimization layers until a selected governed path passes full validation and execution-readiness gating.",
+        "Governed addition must remain candidate-first, Registry-governed, validation-aware, and graph-aware when affected scopes include execution or intelligence surfaces.",
+        "Google Sheets, Google Docs, and Google Drive native execution must not bypass Registry Surfaces Catalog, Validation & Repair Registry, Task Routes, or Workflow Registry when governed system resources are affected.",
+        "Recovered classification is forbidden unless required authoritative runtime bindings, direct-write targets, post-write readback checks, and layout validations succeed on Registry-resolved target surfaces.",
+        "auto_bootstrap_state must preserve bootstrap reason, attempt count, activation gating, and original-request resume traceability across degraded and repaired execution cycles.",
+        "original requests resumed after bootstrap must remain traceable to the pre-bootstrap request and must not be treated as independent ungoverned execution.",
+        "activation_state must remain explicit until a later governed execution updates it to active, degraded, or blocked.",
+        "system_activation_check must preserve knowledge-layer canonical traceability first, then live Google Drive and Google Sheets validation, and must not classify activation as recovered or active from traceability-only copies when live governed validation is possible.",
+        "First-turn activation may preserve knowledge-layer traceability before live activation transport authorization is available; when governed native connection attempts are auto-triggered and authorization is not yet available, the state must be classified as authorization_gated rather than missing Registry authority.",
+        "First-turn activation must not be classified as authorization_gated unless a real governed activation transport attempt occurred in the same execution cycle; skipped attempts must remain explicit as missing_required_activation_transport_attempt.",
+        "Activation success must not be treated as indefinite execution authority; governed execution after activation requires current-request runtime revalidation.",
+        "Post-activation live validation drift must remain explicit and must degrade or block execution according to governed policy when critical authority or binding compatibility changes.",
+        "Optimization, enhancement, or improvement requests after activation must not proceed from active state alone and require governed revalidation of route, workflow, dependency, and write-target readiness."
+      ],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "governance_drift_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "last_detection_status",
+        "last_detection_source",
+        "last_anomaly_type",
+        "last_rule_id",
+        "last_repair_action",
+        "last_emission_status",
+        "last_emitted_record_id",
+        "cluster_state"
+      ],
+      "properties": {
+        "last_detection_status": {
+          "type": "string",
+          "default": "none"
+        },
+        "last_detection_source": {
+          "type": "string",
+          "default": ""
+        },
+        "last_anomaly_type": {
+          "type": "string",
+          "default": ""
+        },
+        "last_rule_id": {
+          "type": "string",
+          "default": ""
+        },
+        "last_repair_action": {
+          "type": "string",
+          "default": ""
+        },
+        "last_emission_status": {
+          "type": "string",
+          "default": "not_emitted"
+        },
+        "last_emitted_record_id": {
+          "type": "string",
+          "default": ""
+        },
+        "cluster_state": {
+          "type": "string",
+          "default": "single"
+        }
+      },
+      "default": {}
+    },
+    "variable_contract_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "variable_contract_status",
+        "required_variables",
+        "resolved_variables",
+        "missing_variables",
+        "invalid_variables",
+        "variable_source_map",
+        "runtime_variable_bindings",
+        "clarification_required_variables",
+        "required_variable_profiles",
+        "input_contract_profiles",
+        "required_variable_contracts",
+        "runtime_binding_profile",
+        "variable_contract_surface_id"
+      ],
+      "properties": {
+        "variable_contract_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "required_variables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "resolved_variables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "missing_variables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "invalid_variables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "clarification_required_variables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "variable_source_map": {
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        },
+        "runtime_variable_bindings": {
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        },
+        "required_variable_profiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "input_contract_profiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "required_variable_contracts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "runtime_binding_profile": {
+          "type": "string",
+          "default": ""
+        },
+        "variable_contract_surface_id": {
+          "type": "string",
+          "default": ""
+        }
+      },
+      "default": {
+        "variable_contract_status": "pending",
+        "required_variables": [],
+        "resolved_variables": [],
+        "missing_variables": [],
+        "invalid_variables": [],
+        "clarification_required_variables": [],
+        "variable_source_map": {},
+        "runtime_variable_bindings": {},
+        "required_variable_profiles": [],
+        "input_contract_profiles": [],
+        "required_variable_contracts": [],
+        "runtime_binding_profile": "",
+        "variable_contract_surface_id": ""
+      }
+    },
+    "patch_deployment_parity_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "patch_verification_scope",
+        "runtime_deployment_confirmed",
+        "patch_parity_status",
+        "canonical_merge_verification_status",
+        "registry_alignment_verification_status",
+        "runtime_deployment_verification_status",
+        "authoritative_runtime_evidence_source"
+      ],
+      "properties": {
+        "patch_verification_scope": {
+          "type": "string",
+          "enum": [
+            "",
+            "patch_file_diff",
+            "canonical_merge_verification",
+            "registry_alignment_verification",
+            "runtime_deployment_verification"
+          ],
+          "default": ""
+        },
+        "runtime_deployment_confirmed": {
+          "type": "boolean",
+          "default": false
+        },
+        "patch_parity_status": {
+          "type": "string",
+          "enum": [
+            "",
+            "file_verified_only",
+            "canonical_verified_only",
+            "registry_aligned_only",
+            "runtime_confirmed",
+            "degraded_missing_runtime_confirmation"
+          ],
+          "default": ""
+        },
+        "canonical_merge_verification_status": {
+          "$ref": "./schemas/shared.schema.json#/$defs/standardLifecycleStatus"
+        },
+        "registry_alignment_verification_status": {
+          "$ref": "./schemas/shared.schema.json#/$defs/standardLifecycleStatus"
+        },
+        "runtime_deployment_verification_status": {
+          "$ref": "./schemas/shared.schema.json#/$defs/standardLifecycleStatus"
+        },
+        "authoritative_runtime_evidence_source": {
+          "type": "string",
+          "default": "surface.operations_log_unified_sheet"
+        }
+      },
+      "default": {
+        "patch_verification_scope": "",
+        "runtime_deployment_confirmed": false,
+        "patch_parity_status": "",
+        "canonical_merge_verification_status": "pending",
+        "registry_alignment_verification_status": "pending",
+        "runtime_deployment_verification_status": "pending",
+        "authoritative_runtime_evidence_source": "surface.operations_log_unified_sheet"
+      }
+    },
+    "governed_registry_generation_events": {
+      "type": "array",
+      "description": "Preserved events for generation-aware governed registry resolution, including resolver-backed WordPress CPT and taxonomy endpoint candidates.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "timestamp",
+          "domain",
+          "object_kind",
+          "slug",
+          "candidate_endpoint_key",
+          "candidate_path",
+          "generation_basis",
+          "confidence",
+          "materialized_registry_row_exists"
+        ],
+        "properties": {
+          "timestamp": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "object_kind": {
+            "type": "string",
+            "enum": [
+              "post_type",
+              "taxonomy",
+              "unknown"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "candidate_endpoint_key": {
+            "type": "string"
+          },
+          "candidate_path": {
+            "type": "string"
+          },
+          "generation_basis": {
+            "type": "string",
+            "enum": [
+              "live_index",
+              "openapi_source",
+              "template_path_rule",
+              "materialized_row"
+            ]
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "materialized_registry_row_exists": {
+            "type": "boolean"
+          },
+          "selected": {
+            "type": "boolean"
+          },
+          "rejected_candidates": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      }
     }
   }
 }

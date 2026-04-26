@@ -5,6 +5,7 @@
 
 - [ ] `system_bootstrap.md` is treated as primary orchestration authority
 - [ ] `memory_schema.json` is treated as the persistent state contract (root; domain sub-schemas in `schemas/`)
+- [ ] Memory schema edits keep large domain blocks in `schemas/` and validate with `node validate-memory-schema.mjs`
 - [ ] `direct_instructions_registry_patch.md` is treated as hard enforcement authority
 - [ ] `module_loader.md` is treated as execution-readiness/loading authority
 - [ ] `prompt_router.md` is treated as routing authority
@@ -61,7 +62,8 @@
 - [ ] `governed_mutation_playbook.md` matches runtime mutation behavior
 - [ ] Agent-facing guidance remains aligned with canonicals
 - [ ] New documentation follows canonicals rather than inventing new policy semantics
-- [ ] `schemas/` sub-schema files match the `$defs` declared in `memory_schema.json` (no orphaned or missing `$ref`)
+- [ ] `schemas/` sub-schema files match the `$defs` referenced by `memory_schema.json` (no orphaned or missing `$ref`)
+- [ ] `logic_knowledge.schema.json` remains the domain home for logic pointer, logic knowledge, business-type knowledge, and logical search state
 
 ## 8. Testing and drift detection validation
 
@@ -71,7 +73,7 @@
 - [ ] Job runner enqueue/failure paths are covered in `test-job-runner.mjs`
 - [ ] Canonical/runtime drift checks are possible and documented
 - [ ] File-level validation and runtime-level validation are explicitly distinguished
-- [ ] Architecture drift is detected in CI: canonical generated-output check, inline redefinition check (6 modules), line count guard, export floor
+- [ ] Architecture drift is detected in CI: canonical generated-output check, memory schema reference check, inline redefinition check (6 modules), line count guard, export floor
 - [ ] 168 automated tests across 6 suites pass before any deployment is considered ready
 
 ## 9. Upgrade readiness gates
@@ -85,5 +87,5 @@
 
 As of 2026-04-20, no unresolved missing upgrade artifacts. Previously flagged items:
 
-- `project_upgrade_programmatic_validation_matrix.md` — superseded by `validate-architecture.mjs` (104 checks in CI)
+- `project_upgrade_programmatic_validation_matrix.md` — superseded by `validate-architecture.mjs` and schema/canonical validators in CI
 - `project_upgrade_execution_board_9_5_plus.md` — all 9 phases complete; ongoing work tracked via git commit history and deployment parity checklist

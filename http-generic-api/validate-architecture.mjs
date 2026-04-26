@@ -147,6 +147,18 @@ for (const rel of REQUIRED_CANONICAL_WORKFLOW_FILES) {
   assert(`${rel} exists`, existsSync(docPath(rel)));
 }
 
+section("Memory schema workflow files");
+
+const REQUIRED_MEMORY_SCHEMA_WORKFLOW_FILES = [
+  "validate-memory-schema.mjs",
+  "memory-schema-manifest.mjs",
+  "schemas/logic_knowledge.schema.json"
+];
+
+for (const rel of REQUIRED_MEMORY_SCHEMA_WORKFLOW_FILES) {
+  assert(`${rel} exists`, existsSync(docPath(rel)));
+}
+
 section("WordPress barrel export count");
 
 const wpModule = await import("./wordpress/index.js");

@@ -1,0 +1,404 @@
+{
+  "$id": "https://growth-os.com/schemas/logic_knowledge.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Logic Knowledge Models",
+  "description": "Models representing logical concepts, pointers, and search states.",
+  "type": "object",
+  "$defs": {
+    "logic_knowledge_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logic_knowledge_surface_id",
+        "logic_knowledge_read_required",
+        "required_knowledge_layers",
+        "knowledge_profile_key",
+        "logic_specific_knowledge_paths",
+        "cross_logic_knowledge_paths",
+        "shared_knowledge_paths",
+        "knowledge_read_targets",
+        "knowledge_read_completeness_status",
+        "missing_required_knowledge_sources",
+        "execution_blocked_until_logic_knowledge_read"
+      ],
+      "properties": {
+        "logic_knowledge_surface_id": {
+          "type": "string",
+          "default": "surface.logic_knowledge_profiles"
+        },
+        "logic_knowledge_read_required": {
+          "type": "boolean",
+          "default": false
+        },
+        "required_knowledge_layers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "knowledge_profile_key": {
+          "type": "string",
+          "default": ""
+        },
+        "logic_specific_knowledge_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "cross_logic_knowledge_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "shared_knowledge_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "knowledge_read_targets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "knowledge_read_completeness_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "missing_required_knowledge_sources": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "execution_blocked_until_logic_knowledge_read": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "default": {
+        "logic_knowledge_surface_id": "surface.logic_knowledge_profiles",
+        "logic_knowledge_read_required": false,
+        "required_knowledge_layers": [],
+        "knowledge_profile_key": "",
+        "logic_specific_knowledge_paths": [],
+        "cross_logic_knowledge_paths": [],
+        "shared_knowledge_paths": [],
+        "knowledge_read_targets": [],
+        "knowledge_read_completeness_status": "pending",
+        "missing_required_knowledge_sources": [],
+        "execution_blocked_until_logic_knowledge_read": false
+      }
+    },
+    "business_type_knowledge_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "business_type_knowledge_surface_id",
+        "business_type_resolution_required",
+        "resolved_business_type",
+        "business_type_knowledge_profile_required",
+        "business_type_knowledge_profile",
+        "knowledge_profile_read_targets",
+        "knowledge_profile_read_completeness_status",
+        "missing_business_type_knowledge_sources",
+        "writing_blocked_until_business_type_knowledge_profile"
+      ],
+      "properties": {
+        "business_type_knowledge_surface_id": {
+          "type": "string",
+          "default": "surface.business_type_knowledge_profiles"
+        },
+        "business_type_resolution_required": {
+          "type": "boolean",
+          "default": false
+        },
+        "resolved_business_type": {
+          "type": "string",
+          "default": ""
+        },
+        "business_type_knowledge_profile_required": {
+          "type": "boolean",
+          "default": false
+        },
+        "business_type_knowledge_profile": {
+          "type": "string",
+          "default": ""
+        },
+        "knowledge_profile_read_targets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "knowledge_profile_read_completeness_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "missing_business_type_knowledge_sources": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "writing_blocked_until_business_type_knowledge_profile": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "default": {
+        "business_type_knowledge_surface_id": "surface.business_type_knowledge_profiles",
+        "business_type_resolution_required": false,
+        "resolved_business_type": "",
+        "business_type_knowledge_profile_required": false,
+        "business_type_knowledge_profile": "",
+        "knowledge_profile_read_targets": [],
+        "knowledge_profile_read_completeness_status": "pending",
+        "missing_business_type_knowledge_sources": [],
+        "writing_blocked_until_business_type_knowledge_profile": false
+      }
+    },
+    "logical_search_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "last_domain": {
+          "type": "string"
+        },
+        "last_confidence": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "last_selected_candidate_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_selected_candidate_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fallback_used": {
+          "type": "boolean"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "timestamp": {
+                "type": "string"
+              },
+              "domain": {
+                "type": "string"
+              },
+              "normalized_query": {
+                "type": "object"
+              },
+              "selected_candidate_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "selected_candidate_key": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "selection_confidence": {
+                "type": "string",
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              },
+              "selection_basis": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "rejected_candidates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "fallback_used": {
+                "type": "boolean"
+              },
+              "governance_gate_results": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              }
+            },
+            "required": [
+              "timestamp",
+              "domain",
+              "selection_confidence",
+              "fallback_used"
+            ]
+          }
+        },
+        "wordpress_dynamic_entity_support": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "template_paths_governed_only": {
+              "type": "boolean"
+            },
+            "supported_templates": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "last_entity_type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "last_entity_slug": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "logic_pointer_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logic_id",
+        "logic_pointer_surface_id",
+        "logic_pointer_resolution_status",
+        "resolved_logic_doc_id",
+        "resolved_logic_doc_mode",
+        "canonical_status",
+        "active_pointer",
+        "legacy_doc_retained",
+        "rollback_available"
+      ],
+      "properties": {
+        "logic_id": {
+          "type": "string",
+          "default": ""
+        },
+        "logic_pointer_surface_id": {
+          "type": "string",
+          "default": "surface.logic_canonical_pointer_registry"
+        },
+        "logic_pointer_resolution_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "resolved_logic_doc_id": {
+          "type": "string",
+          "default": ""
+        },
+        "resolved_logic_doc_mode": {
+          "type": "string",
+          "enum": [
+            "",
+            "canonical",
+            "legacy",
+            "legacy_recovery"
+          ],
+          "default": ""
+        },
+        "canonical_status": {
+          "type": "string",
+          "enum": [
+            "",
+            "canonical_active",
+            "pending_cross_check",
+            "legacy_recovery"
+          ],
+          "default": ""
+        },
+        "active_pointer": {
+          "type": "string",
+          "enum": [
+            "",
+            "canonical_active",
+            "canonical_pending_cross_check",
+            "legacy_recovery"
+          ],
+          "default": ""
+        },
+        "legacy_doc_retained": {
+          "type": "boolean",
+          "default": true
+        },
+        "rollback_available": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "default": {
+        "logic_id": "",
+        "logic_pointer_surface_id": "surface.logic_canonical_pointer_registry",
+        "logic_pointer_resolution_status": "pending",
+        "resolved_logic_doc_id": "",
+        "resolved_logic_doc_mode": "",
+        "canonical_status": "",
+        "active_pointer": "",
+        "legacy_doc_retained": true,
+        "rollback_available": true
+      }
+    }
+  }
+}
