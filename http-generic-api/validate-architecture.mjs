@@ -401,9 +401,14 @@ assert("github.js exports fetchGitHubBranchRef", "fetchGitHubBranchRef" in ghMod
 assert("github.js exports githubCreateBranchReference", "githubCreateBranchReference" in ghModule);
 assert("github.js exports githubCreatePullRequest", "githubCreatePullRequest" in ghModule);
 assert("github.js exports githubValidatedApplyFileUpdates", "githubValidatedApplyFileUpdates" in ghModule);
+assert("github.js exports generateAgentBranchName", "generateAgentBranchName" in ghModule);
+assert("github.js exports githubGetPRStatus", "githubGetPRStatus" in ghModule);
+assert("github.js exports githubMergePR", "githubMergePR" in ghModule);
+assert("github.js exports githubPreviewFileUpdates", "githubPreviewFileUpdates" in ghModule);
+assert("github.js exports githubCommentOnPR", "githubCommentOnPR" in ghModule);
 assert(
   "github.js exports no unexpected symbols",
-  Object.keys(ghModule).length === 9,
+  Object.keys(ghModule).length === 14,
   `got ${Object.keys(ghModule).length} exports: ${Object.keys(ghModule).join(", ")}`
 );
 

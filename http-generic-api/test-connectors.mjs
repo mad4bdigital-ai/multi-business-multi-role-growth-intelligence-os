@@ -116,10 +116,147 @@ assert(
   assert("hostinger runtime read normalizes booleans", result.ssh_available === true && result.wp_cli_available === false, JSON.stringify(result));
 }
 
-section("github.js — githubGitBlobChunkRead");
-
 process.env.GITHUB_TOKEN = "test_token";
 const fetchCalls = [];
+
+section("github.js — generateAgentBranchName");
+
+{
+  const { generateAgentBranchName } = await importGithubModule("branch-name");
+  const name1 = generateAgentBranchName({ prefix: "agent", task_slug: "Fix Governance Rules" });
+  assert(
+    "branch name starts with prefix/date",
+    /^agent\/\d{4}-\d{2}-\d{2}\/fix-governance-rules\/[a-z0-9]+$/.test(name1),
+    name1
+  );
+  const name2 = generateAgentBranchName({ prefix: "fix" });
+  assert("branch name with no slug omits slug segment", /^fix\/\d{4}-\d{2}-\d{2}\/[a-z0-9]+$/.test(name2), name2);
+  const name3 = generateAgentBranchName();
+  assert("branch name uses agent prefix by default", name3.startsWith("agent/"), name3);
+}
+
+section("github.js — githubPreviewFileUpdates (dry-run + policy)");
+
+{
+  fetchCalls.length = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    fetchCalls.push({ url: String(url), init });
+    return {
+      ok: true,
+      status: 200,
+      async text() {
+        return JSON.stringify({ type: "file", size: 100, sha: "existing_sha", encoding: "base64", content: Buffer.from("old").toString("base64") });
+      }
+    };
+  };
+
+  const { githubPreviewFileUpdates } = await importGithubModule("preview-file-updates");
+
+  const denied_result = await githubPreviewFileUpdates({
+    input: {
+      owner: "octo",
+      repo: "repo",
+      branch: "main",
+      files: [
+        { path: ".env", content: "SECRET=x" },
+        { path: "README.md", content: "hello" }
+      ]
+    }
+  });
+
+  assert("preview dry_run flag is true", denied_result.dry_run === true, JSON.stringify(denied_result));
+  assert("preview blocks .env path", denied_result.files_denied?.some(d => d.path === ".env"), JSON.stringify(denied_result));
+  assert("preview allows README.md", denied_result.files_preview?.some(p => p.path === "README.md"), JSON.stringify(denied_result));
+  assert("preview would_commit false when denials exist", denied_result.would_commit === false, JSON.stringify(denied_result));
+  assert("preview summary.denied count is 1", denied_result.summary?.denied === 1, JSON.stringify(denied_result));
+}
+
+section("github.js — githubGetPRStatus (validation guards)");
+
+{
+  fetchCalls.length = 0;
+  const { githubGetPRStatus } = await importGithubModule("pr-status");
+
+  let threw = false;
+  try {
+    await githubGetPRStatus({ input: { owner: "octo", repo: "repo" } });
+  } catch (e) {
+    threw = true;
+    assert("missing pull_number throws invalid_request", e.code === "invalid_request", e.code);
+  }
+  assert("githubGetPRStatus requires pull_number", threw);
+}
+
+section("github.js — githubMergePR (draft and CI guards)");
+
+{
+  fetchCalls.length = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    fetchCalls.push({ url: String(url), init });
+    const urlStr = String(url);
+    if (urlStr.includes("/pulls/")) {
+      return {
+        ok: true,
+        status: 200,
+        async text() {
+          return JSON.stringify({ number: 7, state: "open", draft: true, merged: false, mergeable: true, head: { sha: "abc" } });
+        }
+      };
+    }
+    return { ok: true, status: 200, async text() { return JSON.stringify({ check_runs: [] }); } };
+  };
+
+  const { githubMergePR } = await importGithubModule("merge-pr-draft");
+  let draftThrew = false;
+  try {
+    await githubMergePR({ input: { owner: "octo", repo: "repo", pull_number: 7 } });
+  } catch (e) {
+    draftThrew = true;
+    assert("merge blocks draft PR", e.code === "pr_is_draft", e.code);
+  }
+  assert("githubMergePR throws on draft", draftThrew);
+}
+
+{
+  fetchCalls.length = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    fetchCalls.push({ url: String(url), init });
+    const urlStr = String(url);
+    if (urlStr.includes("/pulls/") && !urlStr.includes("/check-runs")) {
+      return {
+        ok: true,
+        status: 200,
+        async text() {
+          return JSON.stringify({ number: 8, state: "open", draft: false, merged: false, mergeable: true, head: { sha: "def" } });
+        }
+      };
+    }
+    if (urlStr.includes("/check-runs")) {
+      return {
+        ok: true,
+        status: 200,
+        async text() {
+          return JSON.stringify({ check_runs: [{ name: "ci", status: "completed", conclusion: "failure", html_url: "" }] });
+        }
+      };
+    }
+    return { ok: false, status: 500, async text() { return "{}"; } };
+  };
+
+  const { githubMergePR: mergePR2 } = await importGithubModule("merge-pr-ci");
+  let ciThrew = false;
+  try {
+    await mergePR2({ input: { owner: "octo", repo: "repo", pull_number: 8 } });
+  } catch (e) {
+    ciThrew = true;
+    assert("merge blocks failing CI", e.code === "ci_not_passing", e.code);
+  }
+  assert("githubMergePR throws on failing CI", ciThrew);
+}
+
+section("github.js — githubGitBlobChunkRead");
+
+fetchCalls.length = 0;
 globalThis.fetch = async (url, init = {}) => {
   fetchCalls.push({ url: String(url), init });
   return {

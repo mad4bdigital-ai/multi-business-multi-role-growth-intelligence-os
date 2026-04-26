@@ -1,5 +1,47 @@
 import { GITHUB_API_BASE_URL, GITHUB_TOKEN, GITHUB_BLOB_CHUNK_MAX_LENGTH } from "./config.js";
 
+// ── File policy ────────────────────────────────────────────────────────────
+const DEFAULT_FILE_DENYLIST = [
+  ".env",
+  ".env.local",
+  ".env.production",
+  ".env.staging",
+  ".env.test",
+  ".github/workflows/",
+  "node_modules/",
+  "secrets/",
+  ".git/"
+];
+
+function isDeniedPath(filePath, extraDenylist = []) {
+  const norm = String(filePath || "").replace(/\\/g, "/");
+  const patterns = [...DEFAULT_FILE_DENYLIST, ...extraDenylist];
+  return patterns.some(pattern => {
+    if (pattern.endsWith("/")) {
+      return norm.startsWith(pattern) || norm.includes("/" + pattern);
+    }
+    const base = norm.split("/").pop();
+    return base === pattern || norm === pattern;
+  });
+}
+
+function newRequestId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+function deriveCheckRunsSummary(checkRuns) {
+  if (!checkRuns.length) return "no_checks";
+  const failing = checkRuns.filter(
+    c =>
+      c.status === "completed" &&
+      !["success", "neutral", "skipped"].includes(c.conclusion)
+  );
+  const pending = checkRuns.filter(c => c.status !== "completed");
+  if (failing.length > 0) return "failing";
+  if (pending.length > 0) return "pending";
+  return "passing";
+}
+
 function requireGithubToken() {
   if (!GITHUB_TOKEN) {
     const err = new Error("Missing required environment variable: GITHUB_TOKEN");
@@ -622,6 +664,275 @@ export async function githubValidatedApplyFileUpdates({ input = {} }) {
     apply_result: applyResult,
     pull_request: pullRequest,
     validation_gate: "github_actions_on_pull_request"
+  };
+}
+
+export function generateAgentBranchName({ prefix = "agent", task_slug = "" } = {}) {
+  const date = new Date().toISOString().slice(0, 10);
+  const id = Math.random().toString(36).slice(2, 8);
+  const slug = String(task_slug || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  return [prefix, date, slug, id].filter(Boolean).join("/");
+}
+
+export async function githubGetPRStatus({ input = {} }) {
+  const owner = assertGithubParam(input.owner, "owner");
+  const repo = assertGithubParam(input.repo, "repo");
+  const pullNumber = String(input.pull_number || "").trim();
+  if (!pullNumber || isNaN(Number(pullNumber))) {
+    const err = new Error("pull_number is required and must be a number.");
+    err.code = "invalid_request";
+    err.status = 400;
+    throw err;
+  }
+
+  const prUpstream = await proxyGitHubJson({
+    method: "GET",
+    pathname:
+      `/repos/${encodeURIComponent(owner)}` +
+      `/${encodeURIComponent(repo)}` +
+      `/pulls/${encodeURIComponent(pullNumber)}`
+  });
+
+  if (!prUpstream.ok) {
+    const err = new Error(
+      prUpstream.payload?.message ||
+      `GitHub PR fetch failed with status ${prUpstream.status}.`
+    );
+    err.code = prUpstream.status === 404 ? "pr_not_found" : "github_pr_fetch_failed";
+    err.status = prUpstream.status || 502;
+    throw err;
+  }
+
+  const pr = prUpstream.payload;
+  const headSha = String(pr?.head?.sha || "").trim();
+
+  const checksUpstream = headSha
+    ? await proxyGitHubJson({
+        method: "GET",
+        pathname:
+          `/repos/${encodeURIComponent(owner)}` +
+          `/${encodeURIComponent(repo)}` +
+          `/commits/${encodeURIComponent(headSha)}/check-runs`
+      })
+    : { ok: false, payload: null };
+
+  const checkRuns = checksUpstream.ok
+    ? checksUpstream.payload?.check_runs || []
+    : [];
+
+  return {
+    ok: true,
+    number: pr.number,
+    state: pr.state,
+    draft: pr.draft === true,
+    merged: pr.merged === true,
+    mergeable: pr.mergeable,
+    mergeable_state: pr.mergeable_state,
+    head_sha: headSha,
+    html_url: pr.html_url || "",
+    title: pr.title || "",
+    ci_status: deriveCheckRunsSummary(checkRuns),
+    checks: checkRuns.map(c => ({
+      name: c.name,
+      status: c.status,
+      conclusion: c.conclusion,
+      html_url: c.html_url || ""
+    }))
+  };
+}
+
+export async function githubMergePR({ input = {} }) {
+  const owner = assertGithubParam(input.owner, "owner");
+  const repo = assertGithubParam(input.repo, "repo");
+  const pullNumber = String(input.pull_number || "").trim();
+  if (!pullNumber || isNaN(Number(pullNumber))) {
+    const err = new Error("pull_number is required and must be a number.");
+    err.code = "invalid_request";
+    err.status = 400;
+    throw err;
+  }
+
+  const requireCiPass = input.require_ci_pass !== false;
+  const status = await githubGetPRStatus({ input: { owner, repo, pull_number: pullNumber } });
+
+  if (status.merged) {
+    return { ok: true, merged: true, already_merged: true, pull_number: Number(pullNumber), ci_status: status.ci_status };
+  }
+  if (status.state !== "open") {
+    const err = new Error(`PR is not open (state: ${status.state}).`);
+    err.code = "pr_not_open";
+    err.status = 409;
+    throw err;
+  }
+  if (status.draft) {
+    const err = new Error("PR is in draft state. Convert to ready before merging.");
+    err.code = "pr_is_draft";
+    err.status = 409;
+    throw err;
+  }
+  if (requireCiPass && status.ci_status !== "passing" && status.ci_status !== "no_checks") {
+    const err = new Error(`CI is not passing (ci_status: ${status.ci_status}). Merge blocked.`);
+    err.code = "ci_not_passing";
+    err.status = 409;
+    err.ci_status = status.ci_status;
+    throw err;
+  }
+
+  const mergeMethod = ["merge", "squash", "rebase"].includes(input.merge_method)
+    ? input.merge_method
+    : "squash";
+
+  const mergeUpstream = await proxyGitHubJson({
+    method: "PUT",
+    pathname:
+      `/repos/${encodeURIComponent(owner)}` +
+      `/${encodeURIComponent(repo)}` +
+      `/pulls/${encodeURIComponent(pullNumber)}/merge`,
+    body: {
+      merge_method: mergeMethod,
+      ...(input.commit_title ? { commit_title: input.commit_title } : {}),
+      ...(input.commit_message ? { commit_message: input.commit_message } : {})
+    }
+  });
+
+  if (!mergeUpstream.ok) {
+    const err = new Error(
+      mergeUpstream.payload?.message ||
+      `GitHub merge failed with status ${mergeUpstream.status}.`
+    );
+    err.code = "github_merge_failed";
+    err.status = mergeUpstream.status || 502;
+    err.details = mergeUpstream.payload || null;
+    throw err;
+  }
+
+  return {
+    ok: true,
+    merged: true,
+    already_merged: false,
+    pull_number: Number(pullNumber),
+    merge_method: mergeMethod,
+    sha: mergeUpstream.payload?.sha || "",
+    message: mergeUpstream.payload?.message || "",
+    ci_status: status.ci_status
+  };
+}
+
+export async function githubPreviewFileUpdates({ input = {} }) {
+  const owner = assertGithubParam(input.owner, "owner");
+  const repo = assertGithubParam(input.repo, "repo");
+  const branch = String(input.branch || "main").trim();
+  const files = Array.isArray(input.files) ? input.files : [];
+  const extraDenylist = Array.isArray(input.denylist) ? input.denylist : [];
+
+  if (!files.length) {
+    const err = new Error("files must be a non-empty array.");
+    err.code = "invalid_request";
+    err.status = 400;
+    throw err;
+  }
+
+  const denied = [];
+  const previews = [];
+
+  for (const file of files) {
+    const path = String(file.path || "").trim();
+    if (!path) continue;
+
+    if (isDeniedPath(path, extraDenylist)) {
+      denied.push({ path, reason: "path_policy_violation" });
+      continue;
+    }
+
+    const newContent =
+      file.content_base64 !== undefined
+        ? decodeGithubBase64ToBuffer(file.content_base64).toString("utf8")
+        : String(file.content ?? "");
+    const newSizeBytes = Buffer.byteLength(newContent, "utf8");
+
+    let action = "create";
+    let currentSizeBytes = null;
+    let currentSha = null;
+    try {
+      const current = await fetchGitHubContentFile({ owner, repo, path, branch });
+      if (current) {
+        action = "update";
+        currentSizeBytes = current.size || null;
+        currentSha = current.sha || null;
+      }
+    } catch {
+      // file does not exist — will be created
+    }
+
+    previews.push({
+      path,
+      action,
+      current_size_bytes: currentSizeBytes,
+      new_size_bytes: newSizeBytes,
+      size_delta_bytes: currentSizeBytes !== null ? newSizeBytes - currentSizeBytes : null,
+      current_sha: currentSha
+    });
+  }
+
+  return {
+    ok: true,
+    dry_run: true,
+    owner,
+    repo,
+    branch,
+    would_commit: denied.length === 0,
+    files_preview: previews,
+    files_denied: denied,
+    summary: {
+      total: files.length,
+      would_create: previews.filter(p => p.action === "create").length,
+      would_update: previews.filter(p => p.action === "update").length,
+      denied: denied.length
+    }
+  };
+}
+
+export async function githubCommentOnPR({ input = {} }) {
+  const owner = assertGithubParam(input.owner, "owner");
+  const repo = assertGithubParam(input.repo, "repo");
+  const pullNumber = String(input.pull_number || "").trim();
+  if (!pullNumber || isNaN(Number(pullNumber))) {
+    const err = new Error("pull_number is required and must be a number.");
+    err.code = "invalid_request";
+    err.status = 400;
+    throw err;
+  }
+  const body = assertGithubParam(input.body, "body");
+
+  const upstream = await proxyGitHubJson({
+    method: "POST",
+    pathname:
+      `/repos/${encodeURIComponent(owner)}` +
+      `/${encodeURIComponent(repo)}` +
+      `/issues/${encodeURIComponent(pullNumber)}/comments`,
+    body: { body }
+  });
+
+  if (!upstream.ok) {
+    const err = new Error(
+      upstream.payload?.message ||
+      `GitHub comment creation failed with status ${upstream.status}.`
+    );
+    err.code = "github_comment_create_failed";
+    err.status = upstream.status || 502;
+    err.details = upstream.payload || null;
+    throw err;
+  }
+
+  return {
+    ok: true,
+    comment_id: upstream.payload?.id || null,
+    html_url: upstream.payload?.html_url || "",
+    pull_number: Number(pullNumber)
   };
 }
 

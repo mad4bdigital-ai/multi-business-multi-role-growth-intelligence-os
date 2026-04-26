@@ -238,7 +238,7 @@ Schema layer:
     `logic_knowledge`, `repair_audit`, `routing_transport`, `graph_addition`, `operations`, `wordpress_api`
 
 Test and validation baselines (as of 2026-04-26):
-- 168 automated tests across 6 suites (`npm test` from `http-generic-api/`)
+- 200 automated tests across 8 suites (`npm test` from `http-generic-api/`)
 - architecture checks via `npm run validate` from `http-generic-api/`
 - memory schema `$ref` checks via `node validate-memory-schema.mjs`
 - CI enforces canonical generated-output checks, memory schema reference checks, syntax, tests, drift detection, export floors on every push

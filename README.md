@@ -131,7 +131,7 @@ Current state:
 - `http-generic-api/auth.js` - Google OAuth scope resolution, policy enforcement, and resilience helpers; fully wired
 - `http-generic-api/driveFileLoader.js` - schema and OAuth config loader with `supportsAllDrives: true` for shared-drive artifact reads
 - governed sink handling for `Execution Log Unified` and `JSON Asset Registry` is stable
-- 168 automated tests passing across 6 suites: utility, job runner, execution routing, connectors, WordPress, and route-level
+- 200 automated tests passing across 8 suites: utility, job runner, execution routing, connectors, routes, activation bootstrap cache, transport governance, and WordPress
 - `/health` reports degraded dependency truth for Redis/BullMQ instead of assuming queue connectivity
 - async job submission returns `503` when the queue backend cannot accept work (safely rejects to prevent job loss)
 - runtime instances can run in API-only mode with `QUEUE_WORKER_ENABLED=FALSE`, or connect to Memorystore/Upstash/Hostinger Redis for background workers
@@ -244,7 +244,7 @@ The validated route requires `base_branch` and a different `branch`. It creates 
 All 9 upgrade phases are complete. The project is in a production-ready, fully governed state.
 
 For ongoing operations:
-- from `http-generic-api/`, run `npm test` after every code change (168 tests across 6 suites)
+- from `http-generic-api/`, run `npm test` after every code change (200 tests across 8 suites)
 - from `http-generic-api/`, run `npm run validate` to check architecture invariants
 - run `node validate-memory-schema.mjs` after memory schema changes
 - from `http-generic-api/`, run `npm run verify` (with `RUNTIME_BASE_URL`) after every deployment - see [`runtime_confirmation_procedure.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/runtime_confirmation_procedure.md>)

@@ -75,7 +75,7 @@
 - [ ] Canonical/runtime drift checks are possible and documented
 - [ ] File-level validation and runtime-level validation are explicitly distinguished
 - [ ] Architecture drift is detected in CI: canonical generated-output check, memory schema reference check, inline redefinition check (6 modules), line count guard, export floor
-- [ ] 168 automated tests across 6 suites pass before any deployment is considered ready
+- [ ] 200 automated tests across 8 suites pass before any deployment is considered ready
 
 ## 9. Upgrade readiness gates
 
