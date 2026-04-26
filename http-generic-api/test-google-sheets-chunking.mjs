@@ -64,12 +64,42 @@ function makeFakeSheets(responsesByRange = {}) {
     JSON.stringify(fakeSheets.calls)
   );
   assert(
-    "caps same-cycle chunk reads",
+    "honors explicit total chunk cap",
     fakeSheets.calls.length === 3 &&
       !fakeSheets.calls.includes("'Workflow Registry'!A1:AL2000"),
     JSON.stringify(fakeSheets.calls)
   );
   assert("returns header plus chunk rows", values.length === 3, JSON.stringify(values));
+}
+
+{
+  const fakeSheets = makeFakeSheets({
+    "'Workflow Registry'!A1:AL1": [["Workflow ID", "active"]],
+    "'Workflow Registry'!A2:AL51": [["wf_1", "TRUE"]],
+    "'Workflow Registry'!A102:AL151": [["wf_3", "TRUE"]]
+  });
+
+  const values = await fetchChunkedTable(fakeSheets, {
+    spreadsheetId: "registry",
+    sheetName: "Workflow Registry",
+    columnStart: "A",
+    columnEnd: "AL",
+    dataEndRow: 151,
+    chunkDelayMs: 1,
+    cycleDelayMs: 1,
+    maxChunkReadsPerCycle: 2
+  });
+
+  assert(
+    "does not stop at an empty middle chunk by default",
+    values.some(row => row[0] === "wf_3"),
+    JSON.stringify({ calls: fakeSheets.calls, values })
+  );
+  assert(
+    "covers the declared range when maxChunkReads is omitted",
+    fakeSheets.calls.includes("'Workflow Registry'!A102:AL151"),
+    JSON.stringify(fakeSheets.calls)
+  );
 }
 
 console.log(`Results: ${passed} passed, ${failed} failed`);

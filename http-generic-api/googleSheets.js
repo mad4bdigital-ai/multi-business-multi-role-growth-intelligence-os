@@ -19,8 +19,9 @@ let globalClientsPromise = null;
 
 const CACHE_TTL_MS = 60 * 1000; // 60 seconds
 const DEFAULT_CHUNK_ROW_COUNT = 50;
-const DEFAULT_MAX_CHUNK_READS = 10;
+const DEFAULT_MAX_CHUNK_READS_PER_CYCLE = 10;
 const DEFAULT_CHUNK_DELAY_MS = 150;
+const DEFAULT_CYCLE_DELAY_MS = 400;
 
 const cache = {
   ranges: new Map(),
@@ -114,7 +115,8 @@ function tableCacheKey({
   dataStartRow,
   dataEndRow,
   chunkRowCount,
-  maxChunkReads
+  maxChunkReads,
+  maxChunkReadsPerCycle
 }) {
   return [
     "chunked-table",
@@ -124,7 +126,8 @@ function tableCacheKey({
     `h${headerRow}`,
     `${dataStartRow}-${dataEndRow}`,
     `c${chunkRowCount}`,
-    `m${maxChunkReads}`
+    `m${maxChunkReads}`,
+    `cycle${maxChunkReadsPerCycle}`
   ].join(":");
 }
 
@@ -233,9 +236,11 @@ export async function fetchChunkedTable(
     dataStartRow = 2,
     dataEndRow = 2000,
     chunkRowCount = DEFAULT_CHUNK_ROW_COUNT,
-    maxChunkReads = DEFAULT_MAX_CHUNK_READS,
+    maxChunkReads,
+    maxChunkReadsPerCycle = DEFAULT_MAX_CHUNK_READS_PER_CYCLE,
     chunkDelayMs = DEFAULT_CHUNK_DELAY_MS,
-    stopAfterEmptyChunk = true
+    cycleDelayMs = DEFAULT_CYCLE_DELAY_MS,
+    stopAfterEmptyChunk = false
   } = {},
   readPolicy = READ_POLICIES.CACHED_NORMAL
 ) {
@@ -254,8 +259,19 @@ export async function fetchChunkedTable(
   const normalizedDataStartRow = normalizePositiveInt(dataStartRow, normalizedHeaderRow + 1);
   const normalizedDataEndRow = normalizePositiveInt(dataEndRow, normalizedDataStartRow);
   const normalizedChunkRows = normalizePositiveInt(chunkRowCount, DEFAULT_CHUNK_ROW_COUNT);
-  const normalizedMaxReads = normalizePositiveInt(maxChunkReads, DEFAULT_MAX_CHUNK_READS);
+  const totalChunkCount = Math.ceil(
+    Math.max(0, normalizedDataEndRow - normalizedDataStartRow + 1) / normalizedChunkRows
+  );
+  const normalizedMaxReads = Math.min(
+    normalizePositiveInt(maxChunkReads, totalChunkCount),
+    totalChunkCount
+  );
+  const normalizedMaxReadsPerCycle = normalizePositiveInt(
+    maxChunkReadsPerCycle,
+    DEFAULT_MAX_CHUNK_READS_PER_CYCLE
+  );
   const normalizedDelayMs = normalizePositiveInt(chunkDelayMs, DEFAULT_CHUNK_DELAY_MS);
+  const normalizedCycleDelayMs = normalizePositiveInt(cycleDelayMs, DEFAULT_CYCLE_DELAY_MS);
 
   const cacheKey = tableCacheKey({
     spreadsheetId: normalizedSpreadsheetId,
@@ -266,7 +282,8 @@ export async function fetchChunkedTable(
     dataStartRow: normalizedDataStartRow,
     dataEndRow: normalizedDataEndRow,
     chunkRowCount: normalizedChunkRows,
-    maxChunkReads: normalizedMaxReads
+    maxChunkReads: normalizedMaxReads,
+    maxChunkReadsPerCycle: normalizedMaxReadsPerCycle
   });
   const cached = getFromCache(cache.ranges, cacheKey, readPolicy);
   if (cached) return cached;
@@ -301,6 +318,14 @@ export async function fetchChunkedTable(
     chunkReads++;
     if (!chunk.length && stopAfterEmptyChunk) break;
     rows.push(...chunk);
+    if (
+      chunkReads < normalizedMaxReads &&
+      normalizedMaxReadsPerCycle > 0 &&
+      chunkReads % normalizedMaxReadsPerCycle === 0 &&
+      normalizedCycleDelayMs > 0
+    ) {
+      await sleep(normalizedCycleDelayMs);
+    }
   }
 
   setInCache(cache.ranges, cacheKey, rows);

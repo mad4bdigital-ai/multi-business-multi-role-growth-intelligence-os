@@ -16,6 +16,7 @@ export const DEFAULT_SHEETS_ACCESS_POLICY = {
   chunkRowCount: 50,
   maxChunkReadsPerCycle: 10,
   chunkDelayMs: 150,
+  cycleDelayMs: 400,
   allowlistedSheetRoles: ["authority", "operational", "review", "blocked"],
   writeMode: "exact_cell_or_bounded_row"
 };
