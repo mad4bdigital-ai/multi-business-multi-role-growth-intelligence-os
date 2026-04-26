@@ -15,15 +15,22 @@ function getDebugLog(deps = {}) {
 }
 
 const ENDPOINT_ALIASES = {
+  getSpreadsheet: ["getSpreadsheet"],
   getSheetValues: ["getSheetValues"],
   appendSheetValues: ["appendSheetValues"],
   clearSheetValues: ["clearSheetValues"],
   getDocument: ["getDocument"],
   createDocument: ["createDocument"],
-  updateDocument: ["updateDocument"]
+  updateDocument: ["updateDocument"],
+  listDriveFiles: ["listDriveFiles"]
 };
 
 const GOOGLE_WORKSPACE_ENDPOINT_GUARDS = {
+  getSpreadsheet: {
+    providerDomains: ["sheets.googleapis.com"],
+    method: "GET",
+    pathIncludes: ["/v4/spreadsheets/"]
+  },
   getSheetValues: {
     providerDomains: ["sheets.googleapis.com"],
     method: "GET",
@@ -56,6 +63,11 @@ const GOOGLE_WORKSPACE_ENDPOINT_GUARDS = {
     method: "POST",
     pathIncludes: ["/v1/documents/"],
     pathEndsWith: ":batchUpdate"
+  },
+  listDriveFiles: {
+    providerDomains: ["www.googleapis.com", "drive.googleapis.com"],
+    method: "GET",
+    pathIncludes: ["/drive/v3/files"]
   }
 };
 
@@ -142,10 +154,13 @@ export function validateEndpointRowConsistency(row = {}, expected = {}) {
   const guard = GOOGLE_WORKSPACE_ENDPOINT_GUARDS[endpointKey];
   if (guard) {
     const providerDomain = stripUrlPrefix(row.provider_domain);
-    if (
-      providerDomain &&
-      !guard.providerDomains.map(stripUrlPrefix).includes(providerDomain)
-    ) {
+    if (!providerDomain) {
+      mismatches.push({
+        field: "provider_domain",
+        expected: guard.providerDomains.join("|"),
+        actual: ""
+      });
+    } else if (!guard.providerDomains.map(stripUrlPrefix).includes(providerDomain)) {
       mismatches.push({
         field: "provider_domain",
         expected: guard.providerDomains.join("|"),
@@ -154,7 +169,13 @@ export function validateEndpointRowConsistency(row = {}, expected = {}) {
     }
 
     const method = normalizeText(row.method).toUpperCase();
-    if (method && method !== guard.method) {
+    if (!method) {
+      mismatches.push({
+        field: "method",
+        expected: guard.method,
+        actual: ""
+      });
+    } else if (method !== guard.method) {
       mismatches.push({
         field: "method",
         expected: guard.method,
@@ -163,6 +184,13 @@ export function validateEndpointRowConsistency(row = {}, expected = {}) {
     }
 
     const path = normalizeLower(row.endpoint_path_or_function || row.path);
+    if (!path) {
+      mismatches.push({
+        field: "endpoint_path_or_function",
+        expected: "google_workspace_endpoint_path",
+        actual: ""
+      });
+    }
     for (const fragment of guard.pathIncludes || []) {
       if (path && !path.includes(fragment.toLowerCase())) {
         mismatches.push({

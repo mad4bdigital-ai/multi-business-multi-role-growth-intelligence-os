@@ -241,6 +241,97 @@ section("resolveEndpoint blocks Google Workspace binding drift");
   );
 }
 
+{
+  let error = null;
+  try {
+    resolveEndpoint(
+      [
+        {
+          endpoint_id: "incomplete_google_row",
+          parent_action_key: "google_sheets_api",
+          endpoint_key: "getSheetValues",
+          endpoint_operation: "getSheetValues",
+          route_target: "google_sheets_api",
+          openai_action_name: "getSheetValues",
+          status: "active",
+          execution_readiness: "ready"
+        }
+      ],
+      "google_sheets_api",
+      "getSheetValues"
+    );
+  } catch (err) {
+    error = err;
+  }
+
+  assert(
+    "incomplete Sheets endpoint binding is rejected before execution",
+    error?.code === "endpoint_binding_mismatch",
+    JSON.stringify(error?.details || error)
+  );
+}
+
+{
+  const endpoint = resolveEndpoint(
+    [
+      {
+        endpoint_id: "good_drive_row",
+        parent_action_key: "google_drive_api",
+        endpoint_key: "listDriveFiles",
+        endpoint_operation: "listDriveFiles",
+        route_target: "google_drive_api",
+        openai_action_name: "listDriveFiles",
+        provider_domain: "www.googleapis.com",
+        method: "GET",
+        endpoint_path_or_function: "/drive/v3/files",
+        status: "active",
+        execution_readiness: "ready"
+      }
+    ],
+    "google_drive_api",
+    "listDriveFiles"
+  );
+
+  assert(
+    "consistent Drive list endpoint resolves",
+    endpoint.endpoint_id === "good_drive_row",
+    JSON.stringify(endpoint)
+  );
+}
+
+{
+  let error = null;
+  try {
+    resolveEndpoint(
+      [
+        {
+          endpoint_id: "bad_drive_row",
+          parent_action_key: "google_drive_api",
+          endpoint_key: "listDriveFiles",
+          endpoint_operation: "listDriveFiles",
+          route_target: "google_drive_api",
+          openai_action_name: "listDriveFiles",
+          provider_domain: "docs.googleapis.com",
+          method: "GET",
+          endpoint_path_or_function: "/v1/documents/{documentId}",
+          status: "active",
+          execution_readiness: "ready"
+        }
+      ],
+      "google_drive_api",
+      "listDriveFiles"
+    );
+  } catch (err) {
+    error = err;
+  }
+
+  assert(
+    "Drive list endpoint rejects Docs binding",
+    error?.code === "endpoint_binding_mismatch",
+    JSON.stringify(error?.details || error)
+  );
+}
+
 console.log(`\n${"-".repeat(50)}`);
 console.log(`Results: ${passed} passed, ${failed} failed`);
 if (failed === 0) {
