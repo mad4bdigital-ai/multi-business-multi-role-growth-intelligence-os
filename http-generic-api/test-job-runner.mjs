@@ -102,6 +102,39 @@ section("jobRunner — enqueueJob");
   assert("enqueueJob preserves queue error message", result?.error?.message === "Redis unavailable", JSON.stringify(result));
 }
 
+section("jobRunner — solver with null sheetsClient fails fast (no retries)");
+
+{
+  const solverJob0 = {
+    job_id: "job_solver_0",
+    job_type: "registry_validation_async_solver",
+    status: "queued",
+    attempt_count: 0,
+    max_attempts: 3,
+    request_payload: { job_type: "registry_validation_async_solver", validation_context: { activation_id: "act_000", pending_reads: [], completed_stages: [] } },
+    parent_action_key: "registry_validation_solver",
+    endpoint_key: "resume_validation",
+    target_key: "", route_id: "", target_module: "", target_workflow: "", brand_name: "", execution_trace_id: ""
+  };
+
+  const runner0 = configureJobRunner(
+    {
+      jobRepository: createJobRepository(solverJob0),
+      async executeSiteMigrationJob() { return { success: false, statusCode: 500, payload: { ok: false } }; },
+      async performUniversalServerWriteback() {},
+      async logRetryWriteback() {}
+    },
+    {
+      queueApi: { async add() { return { id: "bull_0" }; } }
+      // No resumeValidationJob → uses base; no sheetsClient → null
+    }
+  );
+
+  await runner0.executeSingleQueuedJob(solverJob0);
+  assert("null sheetsClient → job failed (not retrying)", solverJob0.status === "failed", solverJob0.status);
+  assert("null sheetsClient → error code is actionable", solverJob0.error_payload?.error?.code === "solver_sheets_client_not_configured", JSON.stringify(solverJob0.error_payload?.error?.code));
+}
+
 section("jobRunner — solver dispatch → alignment pass → active");
 
 {
@@ -137,6 +170,7 @@ section("jobRunner — solver dispatch → alignment pass → active");
     },
     {
       queueApi: { async add() { return { id: "bull_2" }; } },
+      sheetsClient: {},
       resumeValidationJob: async (jobPayload) => {
         capturedPayload = jobPayload;
         return {
@@ -191,6 +225,7 @@ section("jobRunner — solver alignment failure → degraded");
     },
     {
       queueApi: { async add() { return { id: "bull_3" }; } },
+      sheetsClient: {},
       resumeValidationJob: async () => ({
         status: "degraded",
         runtime_classification: { activation_status: "degraded", reason_code: "executable_binding_mismatch" },
@@ -251,6 +286,7 @@ section("jobRunner — solver Sheets 429 → retry with resumable context preser
     },
     {
       queueApi: { async add(name, job, opts) { retryAdds.push({ name, job, opts }); return { id: "bull_4" }; } },
+      sheetsClient: {},
       resumeValidationJob: async () => {
         const err = new Error("Sheets rate limited");
         err.code = 429;

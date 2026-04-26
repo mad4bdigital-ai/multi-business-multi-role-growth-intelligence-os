@@ -79,6 +79,8 @@ export function buildWebhookPayload(job) {
 
 export function shouldRetryJobFailure(statusCode, payload) {
   const code = String(payload?.error?.code || "").trim().toLowerCase();
+  // Misconfiguration errors cannot self-heal through retries.
+  if (code === "solver_sheets_client_not_configured") return false;
   if (statusCode === 429) return true;
   if (statusCode >= 500) return true;
   if (code.includes("timeout")) return true;
@@ -330,6 +332,13 @@ export function configureJobRunner(
     const jobType = String(job?.job_type || "http_execute").trim();
     if (jobType === "site_migration") return await executeSiteMigrationJob(job);
     if (jobType === SOLVER_JOB_TYPE) {
+      if (!sheetsClient) {
+        return {
+          success: false,
+          statusCode: 500,
+          payload: { ok: false, error: { code: "solver_sheets_client_not_configured", message: "No Sheets client is configured for this worker. Solver jobs cannot run until a sheetsClient dep is provided to configureJobRunner." } }
+        };
+      }
       try {
         const result = await resumeValidationJob(job.request_payload, sheetsClient);
         return { success: true, statusCode: 200, payload: result };
