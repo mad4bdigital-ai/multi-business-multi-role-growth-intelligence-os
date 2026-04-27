@@ -1789,3 +1789,40 @@ Brand-Core Asset Home Non-Replacement Clause
   - workbook assets
 
 ---
+
+### Surface Addition Validation And Completion Lock
+
+Runtime validation for governed additions must not classify an addition as complete when any of the following remain unresolved:
+- branch contract completeness
+- dependency gate outcome
+- writeback verification
+- readback verification
+- promotion-state assignment
+- scoring refresh when required
+- scoring-summary sink resolution when required
+- verification-loop coupling when required
+
+Runtime validation must degrade or block when:
+- `selected_branch_required_variables` are incomplete
+- scoring state is stale or missing and promotion depends on it
+- scoring writeback verification is missing
+- template lifecycle state is missing where template governance is active
+- template supersession state is ambiguous
+- template health state is stale or missing
+- template impact state is unknown after template change
+- template lineage state is stale or incomplete where dependency tracing is required
+
+Addition validation must preserve:
+- `branch_contract_status`
+- `dependency_gate_status`
+- `promotion_state`
+- `scoring_refresh_status`
+- `scoring_writeback_status`
+- `framework_health_status`
+- `template_lifecycle_status`
+- `template_health_status`
+- `template_impact_status`
+- `template_lineage_status`
+
+Completion lock rule:
+- no governed addition or governed template may be marked fully recovered or canonicalized while required review, readback, health, or lineage states remain unresolved

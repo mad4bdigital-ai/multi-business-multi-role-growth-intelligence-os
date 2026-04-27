@@ -1121,3 +1121,55 @@ Scoring Threshold Traceability Rule
 When governed scoring classification depends on execution class or adaptive threshold policy, prompt_router must preserve `execution_class` in the execution preparation contract for downstream threshold resolution.
 
 prompt_router must not classify recovery status itself, but it must preserve routing context required for score-based classification.
+
+### Surface Addition Auto-Branch Routing Rule
+
+After governed addition classification, prompt_router must support deterministic branch routing for the universal addition control plane.
+
+Resolved addition families must route as follows:
+- `registry_surface_addition`
+- `workbook_sheet_addition`
+- `external_workbook_surface_addition`
+  -> `wf_surface_addition_registry_branch`
+
+- `route_addition`
+- `workflow_addition`
+- `execution_chain_addition`
+  -> `wf_surface_addition_execution_branch`
+
+- `graph_node_addition`
+- `graph_relationship_addition`
+- `decision_signal_addition`
+- `growth_loop_addition`
+  -> `wf_surface_addition_intelligence_branch`
+
+- `policy_addition`
+- `repair_mapping_addition`
+- `autopilot_rule_addition`
+- `governance_rule_addition`
+  -> `wf_surface_addition_governance_branch`
+
+- `brand_core_asset_addition`
+- `derived_artifact_addition`
+- `workbook_reference_addition`
+- `governed_asset_addition`
+  -> `wf_surface_addition_asset_branch`
+
+If branch classification is ambiguous or conflicting:
+- prompt_router must not guess
+- prompt_router must route to:
+  - `route.surface_addition_intake_manual_review.global.v1`
+  - `wf_surface_addition_intake_manual_review`
+
+### Addition Review Routing Extension
+
+prompt_router must also support governed routing for:
+- scoring refresh
+- scoring writeback review
+- verification-loop review
+- framework-health review
+- template lifecycle review
+- template supersession review
+- template health review
+- template impact review
+- template lineage review

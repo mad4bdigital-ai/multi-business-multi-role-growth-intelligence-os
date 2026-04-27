@@ -1155,3 +1155,33 @@ Registry governance is also not complete unless:
 - when structural architecture changes are accepted or applied, affected Registry and binding surfaces are reconciled so superseded authority or validation models are not active in parallel
 
 ---
+
+### Branch Contract Template Authority Model
+
+Each governed branch-contract template must be interpretable through explicit template authority semantics.
+
+Strict template authority rules:
+- exactly one active canonical template version may exist per effective branch-template scope
+- superseded templates must remain non-canonical
+- deprecated templates must remain non-active for new governed use
+- retained deprecated templates may remain traceable but not authoritative for fresh promotion
+- lifecycle and version state must remain explicit
+
+If active template authority is ambiguous:
+- dependent addition execution must degrade or block
+- template supersession review must remain available
+- template health must not be classified green
+
+### Scoring Summary Sink Authority
+
+If scoring-summary writeback is used for governed addition promotion:
+- the scoring-summary sink must resolve through governed authority
+- writeback verification and readback verification must remain explicit
+- unresolved scoring-summary sink authority must block reliance on that summary for promotion-ready classification
+
+### Template Impact And Lineage Authority
+
+If a template state change can affect governed additions:
+- affected dependency traceability must remain explicit
+- unknown dependent scope must not be silently ignored
+- impact and lineage review must remain available before dependent green classification is allowed

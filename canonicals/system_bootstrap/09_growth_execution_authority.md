@@ -349,3 +349,53 @@ For strict-mode enforcement, outputs must also include:
 - findings_write_status
 - stage_report_write_status
 - authoritative_write_targets_completed
+
+### Addition Promotion, Scoring, And Health Authority
+
+Governed additions must preserve explicit promotion-state authority.
+
+Supported governed addition promotion states:
+- `proposed`
+- `candidate`
+- `validated_candidate`
+- `governed_active`
+- `proof_tested`
+- `promotion_ready`
+- `canonicalized`
+
+Governed addition scoring authority:
+- `route.surface_addition_scoring_refresh.global.v1`
+- `wf_surface_addition_scoring_refresh`
+- `CH-030 Surface Addition Scoring Refresh Chain`
+
+Scoring-refresh authority must preserve:
+- `addition_promotion_score`
+- `proof_confidence`
+- score freshness state
+- scoring writeback verification state
+
+Scoring-summary writeback authority:
+- `wf_surface_addition_scoring_summary_writeback`
+- `CH-035 Surface Addition Scoring Summary Writeback Chain`
+
+Scoring writeback review authority:
+- `route.surface_addition_scoring_writeback_review.global.v1`
+- `wf_surface_addition_scoring_writeback_review`
+- `CH-032 Surface Addition Scoring Writeback Review Chain`
+
+Closed-loop verification authority:
+- `route.surface_addition_verification_loop_review.global.v1`
+- `wf_surface_addition_verification_loop_review`
+- `CH-033 Surface Addition Verification Loop Review Chain`
+
+Framework-health authority:
+- `route.surface_addition_framework_health_review.global.v1`
+- `wf_surface_addition_framework_health_review`
+- `CH-034 Surface Addition Framework Health Review Chain`
+
+Framework-health reasoning must cover:
+- template conformance
+- score freshness
+- scoring writeback verification
+- promotion confidence support
+- verification-loop coupling completeness

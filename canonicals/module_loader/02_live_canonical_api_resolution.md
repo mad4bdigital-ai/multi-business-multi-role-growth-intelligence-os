@@ -1322,3 +1322,23 @@ module_loader must not classify analytics execution as complete when:
 - domain-aware row metadata is missing from the write payload
 
 If multiple domains exist for a single brand, module_loader must preserve domain-separated execution handling and must not collapse them into one anonymous brand-level payload.
+
+### Template Lifecycle And Impact Resolution Rule
+
+When governed branch-contract templates are active, module_loader must resolve live template-governance context before dependent addition execution is treated as promotion-ready.
+
+module_loader must preserve when applicable:
+- `template_lifecycle_state`
+- `template_version_state`
+- `template_supersession_state`
+- `template_health_state`
+- `template_impact_state`
+- `template_lineage_state`
+
+If template state change is detected and downstream impact is unknown:
+- promotion readiness must not be marked valid
+- framework-health readiness must not be marked green
+- dependency-impact review must remain available
+
+If template lineage is required but incomplete:
+- dependent addition readiness must degrade or block based on execution criticality

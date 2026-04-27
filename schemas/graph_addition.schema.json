@@ -564,6 +564,77 @@
         }
       },
       "default": {}
+    },
+    "additionScoringState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "addition_promotion_score": { "type": "number" },
+        "proof_confidence": { "type": "string" },
+        "score_freshness_status": { "type": "string" },
+        "scoring_refresh_status": { "type": "string" },
+        "scoring_writeback_status": { "type": "string" }
+      }
+    },
+    "additionFrameworkHealthState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "framework_health_status": { "type": "string" },
+        "template_conformance_status": { "type": "string" },
+        "score_freshness_status": { "type": "string" },
+        "verification_loop_status": { "type": "string" }
+      }
+    },
+    "templateContractState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "template_contract_active": { "type": "boolean" },
+        "template_contract_status": { "type": "string" },
+        "template_mismatch_detected": { "type": "boolean" }
+      }
+    },
+    "templateLifecycleState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "template_lifecycle_status": { "type": "string" },
+        "template_version": { "type": "string" },
+        "template_canonical": { "type": "boolean" },
+        "template_superseded": { "type": "boolean" },
+        "template_deprecated": { "type": "boolean" }
+      }
+    },
+    "templateHealthState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "template_health_status": { "type": "string" },
+        "active_version_unique": { "type": "boolean" },
+        "no_open_supersession_gap": { "type": "boolean" },
+        "no_open_deprecation_gap": { "type": "boolean" }
+      }
+    },
+    "templateImpactState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "template_impact_status": { "type": "string" },
+        "affected_additions_count": { "type": "integer" },
+        "affected_promotions_count": { "type": "integer" },
+        "governance_dependency_risk": { "type": "string" }
+      }
+    },
+    "templateLineageState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "template_lineage_status": { "type": "string" },
+        "dependent_routes_traced": { "type": "boolean" },
+        "dependent_workflows_traced": { "type": "boolean" },
+        "dependent_chains_traced": { "type": "boolean" }
+      }
     }
   }
 }

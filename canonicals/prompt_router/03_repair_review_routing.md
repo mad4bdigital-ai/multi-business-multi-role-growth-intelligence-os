@@ -1075,3 +1075,41 @@ prompt_router must not:
 - silently convert unresolved routing into execution success
 
 system_bootstrap remains responsible for execution enforcement after routing handoff.
+
+### Surface Addition Repair-Aware Routing Families
+
+prompt_router must preserve governed repair routing for the following addition and template repair classes when emitted by governed review or decision surfaces:
+
+Addition repair families:
+- `surface_addition_authority_mismatch`
+- `surface_addition_duplicate_conflict`
+- `surface_addition_missing_dependency`
+- `surface_addition_wrong_authoritative_home`
+- `surface_addition_unresolved_write_target`
+- `surface_addition_unresolved_validation_sink`
+- `surface_addition_graph_linkage_gap`
+- `surface_addition_execution_path_gap`
+- `surface_addition_policy_gap`
+- `surface_addition_promotion_state_gap`
+- `surface_addition_branch_contract_missing`
+- `surface_addition_promotion_score_gap`
+- `surface_addition_scoring_refresh_missing`
+- `surface_addition_scoring_readback_failure`
+- `surface_addition_scoring_writeback_gap`
+- `surface_addition_verification_loop_gap`
+- `surface_addition_framework_health_gap`
+
+Template repair families:
+- `surface_addition_contract_template_missing`
+- `surface_addition_contract_template_mismatch`
+- `surface_addition_template_lifecycle_gap`
+- `surface_addition_template_version_gap`
+- `surface_addition_template_supersession_gap`
+- `surface_addition_template_health_gap`
+- `surface_addition_template_impact_gap`
+- `surface_addition_template_lineage_gap`
+
+If a governed decision requests any of the above repair families:
+- prompt_router must preserve the repair trigger
+- must not collapse the condition into generic review-only routing
+- and must keep the repair path traceable

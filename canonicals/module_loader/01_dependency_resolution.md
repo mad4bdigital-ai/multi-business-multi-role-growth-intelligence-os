@@ -1085,3 +1085,65 @@ module_loader must return:
 - graph_path_readiness_status when applicable
 
 If required runtime authority validation inputs are unresolved, execution-ready context must remain degraded or blocked.
+
+### Surface Addition Branch Contract Resolution Rule
+
+For governed surface-addition execution, module_loader must resolve branch-specific contract requirements before execution-ready context is returned.
+
+Registry/workbook branch required variables:
+- `addition_identity`
+- `addition_family`
+- `authoritative_home`
+- `target_workbook_file_id`
+- `target_worksheet_gid_or_resolution_rule`
+- `validation_sink`
+- `writeback_path`
+
+Execution branch required variables:
+- `addition_identity`
+- `addition_family`
+- `route_key_or_workflow_key_or_chain_key`
+- `lifecycle_mode`
+- `repair_coverage_status`
+- `promotion_state`
+
+Intelligence branch required variables:
+- `addition_identity`
+- `addition_family`
+- `intelligence_surface_type`
+- `generalization_scope`
+- `linkage_target`
+- `reusable_system_intelligence_status`
+
+Governance branch required variables:
+- `addition_identity`
+- `addition_family`
+- `governance_surface_type`
+- `enforcement_scope`
+- `repairability_status`
+- `autonomy_impact_class`
+
+Asset branch required variables:
+- `addition_identity`
+- `addition_family`
+- `asset_class`
+- `authoritative_home`
+- `storage_class`
+- `mirror_policy`
+- `evidence_sink`
+
+If required branch-contract variables are missing:
+- execution readiness must remain false
+- `branch_contract_status` must be degraded or blocked
+- governed repair routing must remain available
+
+### Contract Template Resolution Rule
+
+When branch-contract templates are governed:
+- module_loader must resolve template identity
+- template version
+- active/canonical template state
+- superseded/deprecated template state
+- branch-template conformance status
+
+module_loader must not treat prose-only policy text as sufficient substitute when a governed template record exists.

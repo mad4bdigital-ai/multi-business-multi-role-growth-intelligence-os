@@ -97,7 +97,14 @@
     "legacy_json_mirror_state",
     "publish_preparation_extension_state",
     "variable_contract_state",
-    "patch_deployment_parity_state"
+    "patch_deployment_parity_state",
+    "addition_scoring_state",
+    "addition_framework_health_state",
+    "template_contract_state",
+    "template_lifecycle_state",
+    "template_health_state",
+    "template_impact_state",
+    "template_lineage_state"
   ],
   "properties": {
     "version": {
@@ -1286,6 +1293,70 @@
         "extension_commit_control_required": false,
         "extension_commit_status": "pending",
         "workbook_extension_name": ""
+      }
+    },
+    "addition_scoring_state": {
+      "$ref": "./schemas/graph_addition.schema.json#/$defs/additionScoringState",
+      "default": {
+        "addition_promotion_score": 0,
+        "proof_confidence": "",
+        "score_freshness_status": "pending",
+        "scoring_refresh_status": "pending",
+        "scoring_writeback_status": "pending"
+      }
+    },
+    "addition_framework_health_state": {
+      "$ref": "./schemas/graph_addition.schema.json#/$defs/additionFrameworkHealthState",
+      "default": {
+        "framework_health_status": "pending",
+        "template_conformance_status": "pending",
+        "score_freshness_status": "pending",
+        "verification_loop_status": "pending"
+      }
+    },
+    "template_contract_state": {
+      "$ref": "./schemas/graph_addition.schema.json#/$defs/templateContractState",
+      "default": {
+        "template_contract_active": false,
+        "template_contract_status": "pending",
+        "template_mismatch_detected": false
+      }
+    },
+    "template_lifecycle_state": {
+      "$ref": "./schemas/graph_addition.schema.json#/$defs/templateLifecycleState",
+      "default": {
+        "template_lifecycle_status": "pending",
+        "template_version": "",
+        "template_canonical": false,
+        "template_superseded": false,
+        "template_deprecated": false
+      }
+    },
+    "template_health_state": {
+      "$ref": "./schemas/graph_addition.schema.json#/$defs/templateHealthState",
+      "default": {
+        "template_health_status": "pending",
+        "active_version_unique": false,
+        "no_open_supersession_gap": false,
+        "no_open_deprecation_gap": false
+      }
+    },
+    "template_impact_state": {
+      "$ref": "./schemas/graph_addition.schema.json#/$defs/templateImpactState",
+      "default": {
+        "template_impact_status": "pending",
+        "affected_additions_count": 0,
+        "affected_promotions_count": 0,
+        "governance_dependency_risk": ""
+      }
+    },
+    "template_lineage_state": {
+      "$ref": "./schemas/graph_addition.schema.json#/$defs/templateLineageState",
+      "default": {
+        "template_lineage_status": "pending",
+        "dependent_routes_traced": false,
+        "dependent_workflows_traced": false,
+        "dependent_chains_traced": false
       }
     }
   },

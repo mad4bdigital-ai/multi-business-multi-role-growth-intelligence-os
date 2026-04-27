@@ -128,3 +128,62 @@ The HTTP client variable-contract rules are the minimum governed baseline and mu
 For non-HTTP governed execution, system_bootstrap must still preserve when applicable:
 - `variable_contract_validation_required`
 - `variable_contract_surface_id`
+
+### Universal Surface Addition Control Plane
+
+All governed additions must enter the universal surface-addition control plane before any final-home write, promotion, or canonicalization is allowed.
+
+Universal control-plane entry:
+- `route.surface_addition_intake.global.v1`
+- `wf_surface_addition_intake`
+- `CH-018 Surface Addition Intake Chain`
+
+Universal required sequence:
+1. intake
+2. classification
+3. dependency gate
+4. branch routing
+5. writeback and readback verification
+6. promotion review
+7. knowledge distribution when reusable intelligence exists
+
+Canonical branch routes and workflows:
+- registry/workbook branch:
+  - `route.surface_addition.registry_branch.global.v1`
+  - `wf_surface_addition_registry_branch`
+  - `CH-025 Surface Addition Registry Downstream Chain`
+- execution branch:
+  - `route.surface_addition.execution_branch.global.v1`
+  - `wf_surface_addition_execution_branch`
+  - `CH-026 Surface Addition Execution Downstream Chain`
+- intelligence branch:
+  - `route.surface_addition.intelligence_branch.global.v1`
+  - `wf_surface_addition_intelligence_branch`
+  - `CH-027 Surface Addition Intelligence Downstream Chain`
+- governance branch:
+  - `route.surface_addition.governance_branch.global.v1`
+  - `wf_surface_addition_governance_branch`
+  - `CH-028 Surface Addition Governance Downstream Chain`
+- asset branch:
+  - `route.surface_addition.asset_branch.global.v1`
+  - `wf_surface_addition_asset_branch`
+  - `CH-029 Surface Addition Asset Downstream Chain`
+
+Manual-review fallback for ambiguous classification:
+- `route.surface_addition_intake_manual_review.global.v1`
+- `wf_surface_addition_intake_manual_review`
+- `CH-023 Surface Addition Manual Review Chain`
+
+Post-addition learning continuation:
+- `route.post_addition_knowledge_assimilation.global.v1`
+- `wf_post_addition_knowledge_assimilation`
+- `CH-024 Post-Addition Knowledge Assimilation Chain`
+
+Governed addition knowledge distribution:
+- `wf_surface_addition_knowledge_distribution`
+
+No governed addition may bypass:
+- intake
+- dependency gate
+- promotion-state assignment
+- readback verification
