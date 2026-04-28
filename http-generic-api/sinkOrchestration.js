@@ -232,7 +232,28 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
     performance_impact_row: false,
     log_source: authoritativeRawExecutionLogSurfaceId,
     artifact_pointer: artifactPointer,
-    artifact_json_asset_id: artifactJsonAssetId
+    artifact_json_asset_id: artifactJsonAssetId,
+
+    // governed logic evidence
+    used_logic_id: input.used_logic_id ?? input.logic_id ?? "",
+    used_logic_name: input.used_logic_name ?? input.logic_name ?? "",
+    resolved_logic_doc_id: input.resolved_logic_doc_id ?? "",
+    resolved_logic_mode: input.resolved_logic_mode ?? "",
+    logic_pointer_resolution_status: input.logic_pointer_resolution_status ?? "",
+    logic_knowledge_status: input.logic_knowledge_status ?? "",
+    logic_rollback_status: input.logic_rollback_status ?? "",
+    logic_association_status: input.logic_association_status ?? "unknown",
+
+    // governed engine evidence
+    used_engine_names:
+      input.used_engine_names ??
+      input.engine_chain ??
+      input.engine_names ??
+      "",
+    used_engine_registry_refs: input.used_engine_registry_refs ?? "",
+    used_engine_file_ids: input.used_engine_file_ids ?? "",
+    engine_resolution_status: input.engine_resolution_status ?? "",
+    engine_association_status: input.engine_association_status ?? "unknown"
   };
 
   let governedSinkSheetTitles = {

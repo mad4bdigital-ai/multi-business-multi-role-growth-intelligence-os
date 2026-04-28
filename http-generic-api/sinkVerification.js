@@ -51,7 +51,9 @@ export async function verifyAppendReadback(args = {}, deps = {}) {
     expectedStatus,
     expectedEntryType,
     expectedArtifactJsonAssetId = "",
-    expectedRawWriteback = {}
+    expectedRawWriteback = {},
+    expectedLogicEvidence = {},
+    expectedEngineEvidence = {}
   } = args;
   const {
     getGoogleClientsForSpreadsheet,
@@ -62,7 +64,7 @@ export async function verifyAppendReadback(args = {}, deps = {}) {
   const { sheets } = await getGoogleClientsForSpreadsheet(spreadsheetId);
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: String(spreadsheetId || "").trim(),
-    range: toValuesApiRange(sheetName, "A:AQ")
+    range: toValuesApiRange(sheetName, "A:BD")
   });
 
   const values = response.data.values || [];
@@ -88,6 +90,19 @@ export async function verifyAppendReadback(args = {}, deps = {}) {
   const logSourceWritebackIdx = map["log_source_writeback"];
   const monitoredRowWritebackIdx = map["monitored_row_writeback"];
   const performanceImpactRowWritebackIdx = map["performance_impact_row_writeback"];
+  const usedLogicIdIdx = map["used_logic_id"];
+  const usedLogicNameIdx = map["used_logic_name"];
+  const resolvedLogicDocIdIdx = map["resolved_logic_doc_id"];
+  const resolvedLogicModeIdx = map["resolved_logic_mode"];
+  const logicPointerResolutionStatusIdx = map["logic_pointer_resolution_status"];
+  const logicKnowledgeStatusIdx = map["logic_knowledge_status"];
+  const logicRollbackStatusIdx = map["logic_rollback_status"];
+  const logicAssociationStatusIdx = map["logic_association_status"];
+  const usedEngineNamesIdx = map["used_engine_names"];
+  const usedEngineRegistryRefsIdx = map["used_engine_registry_refs"];
+  const usedEngineFileIdsIdx = map["used_engine_file_ids"];
+  const engineResolutionStatusIdx = map["engine_resolution_status"];
+  const engineAssociationStatusIdx = map["engine_association_status"];
 
   if (
     startIdx === undefined ||
@@ -122,6 +137,34 @@ export async function verifyAppendReadback(args = {}, deps = {}) {
     const logSourceWriteback = String(row[logSourceWritebackIdx] || "").trim();
     const monitoredRowWriteback = String(row[monitoredRowWritebackIdx] || "").trim();
     const performanceImpactRowWriteback = String(row[performanceImpactRowWritebackIdx] || "").trim();
+    const usedLogicId =
+      usedLogicIdIdx === undefined ? "" : String(row[usedLogicIdIdx] || "").trim();
+    const usedLogicName =
+      usedLogicNameIdx === undefined ? "" : String(row[usedLogicNameIdx] || "").trim();
+    const resolvedLogicDocId =
+      resolvedLogicDocIdIdx === undefined ? "" : String(row[resolvedLogicDocIdIdx] || "").trim();
+    const resolvedLogicMode =
+      resolvedLogicModeIdx === undefined ? "" : String(row[resolvedLogicModeIdx] || "").trim();
+    const logicPointerResolutionStatus =
+      logicPointerResolutionStatusIdx === undefined
+        ? ""
+        : String(row[logicPointerResolutionStatusIdx] || "").trim();
+    const logicKnowledgeStatus =
+      logicKnowledgeStatusIdx === undefined ? "" : String(row[logicKnowledgeStatusIdx] || "").trim();
+    const logicRollbackStatus =
+      logicRollbackStatusIdx === undefined ? "" : String(row[logicRollbackStatusIdx] || "").trim();
+    const logicAssociationStatus =
+      logicAssociationStatusIdx === undefined ? "" : String(row[logicAssociationStatusIdx] || "").trim();
+    const usedEngineNames =
+      usedEngineNamesIdx === undefined ? "" : String(row[usedEngineNamesIdx] || "").trim();
+    const usedEngineRegistryRefs =
+      usedEngineRegistryRefsIdx === undefined ? "" : String(row[usedEngineRegistryRefsIdx] || "").trim();
+    const usedEngineFileIds =
+      usedEngineFileIdsIdx === undefined ? "" : String(row[usedEngineFileIdsIdx] || "").trim();
+    const engineResolutionStatus =
+      engineResolutionStatusIdx === undefined ? "" : String(row[engineResolutionStatusIdx] || "").trim();
+    const engineAssociationStatus =
+      engineAssociationStatusIdx === undefined ? "" : String(row[engineAssociationStatusIdx] || "").trim();
 
     return (
       start === String(expectedStartTime || "").trim() &&
@@ -134,7 +177,20 @@ export async function verifyAppendReadback(args = {}, deps = {}) {
       executionTraceIdWriteback === String(expectedRawWriteback.execution_trace_id_writeback || "").trim() &&
       logSourceWriteback === String(expectedRawWriteback.log_source_writeback || "").trim() &&
       monitoredRowWriteback === String(expectedRawWriteback.monitored_row_writeback || "").trim() &&
-      performanceImpactRowWriteback === String(expectedRawWriteback.performance_impact_row_writeback || "").trim()
+      performanceImpactRowWriteback === String(expectedRawWriteback.performance_impact_row_writeback || "").trim() &&
+      usedLogicId === String(expectedLogicEvidence.used_logic_id || "").trim() &&
+      usedLogicName === String(expectedLogicEvidence.used_logic_name || "").trim() &&
+      resolvedLogicDocId === String(expectedLogicEvidence.resolved_logic_doc_id || "").trim() &&
+      resolvedLogicMode === String(expectedLogicEvidence.resolved_logic_mode || "").trim() &&
+      logicPointerResolutionStatus === String(expectedLogicEvidence.logic_pointer_resolution_status || "").trim() &&
+      logicKnowledgeStatus === String(expectedLogicEvidence.logic_knowledge_status || "").trim() &&
+      logicRollbackStatus === String(expectedLogicEvidence.logic_rollback_status || "").trim() &&
+      logicAssociationStatus === String(expectedLogicEvidence.logic_association_status || "").trim() &&
+      usedEngineNames === String(expectedEngineEvidence.used_engine_names || "").trim() &&
+      usedEngineRegistryRefs === String(expectedEngineEvidence.used_engine_registry_refs || "").trim() &&
+      usedEngineFileIds === String(expectedEngineEvidence.used_engine_file_ids || "").trim() &&
+      engineResolutionStatus === String(expectedEngineEvidence.engine_resolution_status || "").trim() &&
+      engineAssociationStatus === String(expectedEngineEvidence.engine_association_status || "").trim()
     );
   });
 
@@ -305,7 +361,7 @@ export async function writeExecutionLogUnifiedRow(row, deps = {}) {
     rowObject: row,
     header: live.header,
     safeColumns: plan.safeColumns,
-    scanRangeA1: "A:AQ"
+    scanRangeA1: "A:BD"
   });
 
   await verifyAppendReadbackImpl({
@@ -323,6 +379,23 @@ export async function writeExecutionLogUnifiedRow(row, deps = {}) {
       log_source_writeback: row.log_source_writeback,
       monitored_row_writeback: row.monitored_row_writeback,
       performance_impact_row_writeback: row.performance_impact_row_writeback
+    },
+    expectedLogicEvidence: {
+      used_logic_id: row.used_logic_id,
+      used_logic_name: row.used_logic_name,
+      resolved_logic_doc_id: row.resolved_logic_doc_id,
+      resolved_logic_mode: row.resolved_logic_mode,
+      logic_pointer_resolution_status: row.logic_pointer_resolution_status,
+      logic_knowledge_status: row.logic_knowledge_status,
+      logic_rollback_status: row.logic_rollback_status,
+      logic_association_status: row.logic_association_status
+    },
+    expectedEngineEvidence: {
+      used_engine_names: row.used_engine_names,
+      used_engine_registry_refs: row.used_engine_registry_refs,
+      used_engine_file_ids: row.used_engine_file_ids,
+      engine_resolution_status: row.engine_resolution_status,
+      engine_association_status: row.engine_association_status
     }
   });
 

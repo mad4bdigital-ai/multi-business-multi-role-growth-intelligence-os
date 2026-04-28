@@ -171,6 +171,37 @@ export function buildArtifactFileName(input = {}) {
   return `${brand}__${endpoint}__${ts}__${input.execution_trace_id}.json`;
 }
 
+function normalizeAssociationStatus(value = "") {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "associated") return "associated";
+  if (normalized === "not_associated") return "not_associated";
+  return "unknown";
+}
+
+function normalizeResolvedLogicMode(value = "") {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (
+    normalized === "canonical" ||
+    normalized === "legacy" ||
+    normalized === "blocked" ||
+    normalized === "degraded" ||
+    normalized === "validating"
+  ) {
+    return normalized;
+  }
+  return "";
+}
+
+function normalizeEvidenceList(value = "") {
+  if (Array.isArray(value)) {
+    return value
+      .map(v => String(v || "").trim())
+      .filter(Boolean)
+      .join("|");
+  }
+  return String(value || "").trim();
+}
+
 export function toExecutionLogUnifiedRow(w) {
   const start = new Date(w.started_at);
   const end = w.completed_at ? new Date(w.completed_at) : undefined;
@@ -221,7 +252,32 @@ export function toExecutionLogUnifiedRow(w) {
     performance_impact_row_writeback:
       w.performance_impact_row === undefined || w.performance_impact_row === null
         ? ""
-        : (w.performance_impact_row ? "TRUE" : "FALSE")
+        : (w.performance_impact_row ? "TRUE" : "FALSE"),
+
+    // governed logic evidence
+    used_logic_id: String(w.used_logic_id || "").trim(),
+    used_logic_name: String(w.used_logic_name || "").trim(),
+    resolved_logic_doc_id: String(w.resolved_logic_doc_id || "").trim(),
+    resolved_logic_mode: normalizeResolvedLogicMode(w.resolved_logic_mode),
+    logic_pointer_resolution_status: String(w.logic_pointer_resolution_status || "").trim(),
+    logic_knowledge_status: String(w.logic_knowledge_status || "").trim(),
+    logic_rollback_status: String(w.logic_rollback_status || "").trim(),
+    logic_association_status: normalizeAssociationStatus(w.logic_association_status),
+
+    // governed engine evidence
+    used_engine_names: normalizeEvidenceList(w.used_engine_names),
+    used_engine_registry_refs: normalizeEvidenceList(w.used_engine_registry_refs),
+    used_engine_file_ids: normalizeEvidenceList(w.used_engine_file_ids),
+    engine_resolution_status: String(w.engine_resolution_status || "").trim(),
+    engine_association_status: normalizeAssociationStatus(w.engine_association_status),
+
+    // preserved retired shadow columns
+    retired_shadow_target_module: "",
+    retired_shadow_target_workflow: "",
+    retired_shadow_execution_trace_id: "",
+    retired_shadow_log_source: "",
+    retired_shadow_monitored_row: "",
+    retired_shadow_performance_impact_row: ""
   };
 }
 

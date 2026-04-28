@@ -431,7 +431,26 @@ const EXECUTION_LOG_UNIFIED_COLUMNS = [
   "execution_trace_id_writeback",
   "log_source_writeback",
   "monitored_row_writeback",
-  "performance_impact_row_writeback"
+  "performance_impact_row_writeback",
+  "used_logic_id",
+  "used_logic_name",
+  "resolved_logic_doc_id",
+  "resolved_logic_mode",
+  "logic_pointer_resolution_status",
+  "logic_knowledge_status",
+  "logic_rollback_status",
+  "logic_association_status",
+  "used_engine_names",
+  "used_engine_registry_refs",
+  "used_engine_file_ids",
+  "engine_resolution_status",
+  "engine_association_status",
+  "retired_shadow_target_module",
+  "retired_shadow_target_workflow",
+  "retired_shadow_execution_trace_id",
+  "retired_shadow_log_source",
+  "retired_shadow_monitored_row",
+  "retired_shadow_performance_impact_row"
 ];
 
 const JSON_ASSET_REGISTRY_COLUMNS = [
@@ -616,7 +635,7 @@ function toValuesApiRange(sheetName, a1Tail) {
   return `${String(sheetName || "").trim()}!${a1Tail}`;
 }
 
-const EXECUTION_LOG_UNIFIED_RANGE = toValuesApiRange(EXECUTION_LOG_UNIFIED_SHEET, "A1:AQ10");
+const EXECUTION_LOG_UNIFIED_RANGE = toValuesApiRange(EXECUTION_LOG_UNIFIED_SHEET, "A1:BD10");
 const JSON_ASSET_REGISTRY_RANGE = toValuesApiRange(JSON_ASSET_REGISTRY_SHEET, "A1:AZ10");
 const HOSTING_ACCOUNT_REGISTRY_RANGE = toValuesApiRange(
   HOSTING_ACCOUNT_REGISTRY_SHEET,
@@ -700,6 +719,37 @@ function mapExecutionStatus(jobStatus) {
     default:
       return "unknown";
   }
+}
+
+function normalizeAssociationStatus(value = "") {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "associated") return "associated";
+  if (normalized === "not_associated") return "not_associated";
+  return "unknown";
+}
+
+function normalizeResolvedLogicMode(value = "") {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (
+    normalized === "canonical" ||
+    normalized === "legacy" ||
+    normalized === "blocked" ||
+    normalized === "degraded" ||
+    normalized === "validating"
+  ) {
+    return normalized;
+  }
+  return "";
+}
+
+function normalizeEvidenceList(value = "") {
+  if (Array.isArray(value)) {
+    return value
+      .map(v => String(v || "").trim())
+      .filter(Boolean)
+      .join("|");
+  }
+  return String(value || "").trim();
 }
 
 function classifyExecutionResult(args = {}) {
@@ -797,7 +847,32 @@ function toExecutionLogUnifiedRow(w) {
     performance_impact_row_writeback:
       w.performance_impact_row === undefined || w.performance_impact_row === null
         ? ""
-        : (w.performance_impact_row ? "TRUE" : "FALSE")
+        : (w.performance_impact_row ? "TRUE" : "FALSE"),
+
+    // governed logic evidence
+    used_logic_id: String(w.used_logic_id || "").trim(),
+    used_logic_name: String(w.used_logic_name || "").trim(),
+    resolved_logic_doc_id: String(w.resolved_logic_doc_id || "").trim(),
+    resolved_logic_mode: normalizeResolvedLogicMode(w.resolved_logic_mode),
+    logic_pointer_resolution_status: String(w.logic_pointer_resolution_status || "").trim(),
+    logic_knowledge_status: String(w.logic_knowledge_status || "").trim(),
+    logic_rollback_status: String(w.logic_rollback_status || "").trim(),
+    logic_association_status: normalizeAssociationStatus(w.logic_association_status),
+
+    // governed engine evidence
+    used_engine_names: normalizeEvidenceList(w.used_engine_names),
+    used_engine_registry_refs: normalizeEvidenceList(w.used_engine_registry_refs),
+    used_engine_file_ids: normalizeEvidenceList(w.used_engine_file_ids),
+    engine_resolution_status: String(w.engine_resolution_status || "").trim(),
+    engine_association_status: normalizeAssociationStatus(w.engine_association_status),
+
+    // preserved retired shadow columns
+    retired_shadow_target_module: "",
+    retired_shadow_target_workflow: "",
+    retired_shadow_execution_trace_id: "",
+    retired_shadow_log_source: "",
+    retired_shadow_monitored_row: "",
+    retired_shadow_performance_impact_row: ""
   };
 }
 

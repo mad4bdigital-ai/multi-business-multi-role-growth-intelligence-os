@@ -437,7 +437,8 @@ const EXECUTION_IMPORT_ALLOWLIST = new Set([
   "extract-modules.js",
   "fix-all-truncated.mjs",
   "fix-crlf.mjs",
-  "fix-extractions.mjs"
+  "fix-extractions.mjs",
+  "test-execution-log-evidence.mjs"
 ]);
 
 const executionConsumers = walkFiles(ROOT_DIR)
