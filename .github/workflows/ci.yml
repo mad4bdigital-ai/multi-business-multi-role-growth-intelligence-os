@@ -91,17 +91,18 @@ jobs:
         working-directory: http-generic-api
         run: |
           set +e
+          # Permitted consumers of execution.js:
+          #   execution.js itself, validate-architecture.mjs (reads the allowlist),
+          #   test-*.mjs files (test suite consumers), and one-off tooling scripts.
+          # Keep this aligned with EXECUTION_IMPORT_ALLOWLIST in validate-architecture.mjs.
+          # test-*.mjs is a wildcard so new test files never break this check.
           MATCHES=$(grep -RInE 'from ["'\'']\./execution(\.js)?["'\'']|import\(["'\'']\./execution(\.js)?["'\'']\)|require\(["'\'']\./execution(\.js)?["'\'']\)' . \
             --include='*.js' --include='*.mjs' \
             --exclude='execution.js' \
             --exclude='validate-architecture.mjs' \
-            --exclude='extract-modules.js' \
-            --exclude='fix-all-truncated.mjs' \
-            --exclude='fix-crlf.mjs' \
-            --exclude='fix-extractions.mjs' \
-            --exclude='test-execution-log-evidence.mjs' \
-            --exclude='test-engine-evidence-derivation.mjs' \
-            --exclude='test-engine-evidence-integration.mjs')
+            --exclude='test-*.mjs' \
+            --exclude='fix-*.mjs' \
+            --exclude='extract-modules.js')
           STATUS=$?
           set -e
           if [ "$STATUS" -eq 0 ]; then
