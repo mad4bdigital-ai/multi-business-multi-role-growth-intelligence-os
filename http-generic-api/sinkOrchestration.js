@@ -283,7 +283,16 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
     decision_trigger: input.decision_trigger ?? "",
     score_before: input.score_before ?? "",
     score_after: input.score_after ?? "",
-    performance_delta: input.performance_delta ?? ""
+    performance_delta: input.performance_delta ?? "",
+
+    // execution state evidence
+    route_status: input.route_status ?? "",
+    route_source: input.route_source ?? "",
+    matched_row_id: input.matched_row_id ?? "",
+    intake_validation_status: input.intake_validation_status ?? "",
+    execution_ready_status: input.execution_ready_status ?? "",
+    failure_reason: input.failure_reason ?? "",
+    recovery_action: input.recovery_action ?? ""
   };
 
   let governedSinkSheetTitles = {

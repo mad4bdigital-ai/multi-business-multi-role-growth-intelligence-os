@@ -770,6 +770,41 @@ function computePerformanceDelta(scoreBefore = "", scoreAfter = "") {
   return "not_scored";
 }
 
+function buildExecutionStateEvidence(args = {}) {
+  const {
+    routeStatus = "",
+    routeSource = "",
+    matchedRowId = "",
+    intakeValidationStatus = "",
+    executionReadyStatus = "",
+    failureReason = "",
+    recoveryAction = "",
+    isDirectValidation = false
+  } = args;
+
+  if (isDirectValidation) {
+    return {
+      route_status: String(routeStatus || "direct_validation").trim(),
+      route_source: String(routeSource || "system_bootstrap").trim(),
+      matched_row_id: String(matchedRowId || "not_applicable").trim(),
+      intake_validation_status: String(intakeValidationStatus || "validated").trim(),
+      execution_ready_status: String(executionReadyStatus || "ready").trim(),
+      failure_reason: String(failureReason || "no_failure").trim(),
+      recovery_action: String(recoveryAction || "no_recovery_action").trim()
+    };
+  }
+
+  return {
+    route_status: String(routeStatus || "not_applicable").trim(),
+    route_source: String(routeSource || "not_applicable").trim(),
+    matched_row_id: String(matchedRowId || "not_applicable").trim(),
+    intake_validation_status: String(intakeValidationStatus || "not_applicable").trim(),
+    execution_ready_status: String(executionReadyStatus || "not_applicable").trim(),
+    failure_reason: String(failureReason || "no_failure").trim(),
+    recovery_action: String(recoveryAction || "no_recovery_action").trim()
+  };
+}
+
 function buildExecutionContextEvidence(args = {}) {
   const {
     userInput = "",
@@ -986,13 +1021,13 @@ function toExecutionLogUnifiedRow(w) {
     "Recovery Score": "",
     "Recovery Notes": "",
     route_id: w.route_id ?? "",
-    route_status: "",
-    route_source: "",
-    matched_row_id: "",
-    intake_validation_status: "",
-    execution_ready_status: "",
-    failure_reason: w.error_code ?? "",
-    recovery_action: "",
+    route_status: String(w.route_status || "").trim(),
+    route_source: String(w.route_source || "").trim(),
+    matched_row_id: String(w.matched_row_id || "").trim(),
+    intake_validation_status: String(w.intake_validation_status || "").trim(),
+    execution_ready_status: String(w.execution_ready_status || "").trim(),
+    failure_reason: String(w.failure_reason || w.error_code || "").trim(),
+    recovery_action: String(w.recovery_action || "").trim(),
 
     artifact_json_asset_id: w.artifact_json_asset_id ?? "",
 
@@ -1503,6 +1538,16 @@ async function logValidationRunWriteback(input = {}) {
     scoreAfter: input.score_after,
     isDirectValidation: true
   });
+  const executionStateEvidence = buildExecutionStateEvidence({
+    routeStatus: input.route_status,
+    routeSource: input.route_source,
+    matchedRowId: input.matched_row_id,
+    intakeValidationStatus: input.intake_validation_status,
+    executionReadyStatus: input.execution_ready_status,
+    failureReason: input.failure_reason,
+    recoveryAction: input.recovery_action,
+    isDirectValidation: true
+  });
   return await performUniversalServerWriteback({
     mode: "validation",
     job_id: undefined,
@@ -1539,7 +1584,10 @@ async function logValidationRunWriteback(input = {}) {
     ...derivedEngineEvidence,
 
     // execution context evidence
-    ...executionContextEvidence
+    ...executionContextEvidence,
+
+    // execution state evidence
+    ...executionStateEvidence
   });
 }
 
@@ -1578,6 +1626,16 @@ async function logPartialHarvestWriteback(input = {}) {
     scoreAfter: input.score_after,
     isDirectValidation: false
   });
+  const executionStateEvidence = buildExecutionStateEvidence({
+    routeStatus: input.route_status,
+    routeSource: input.route_source,
+    matchedRowId: input.matched_row_id,
+    intakeValidationStatus: input.intake_validation_status,
+    executionReadyStatus: input.execution_ready_status,
+    failureReason: input.failure_reason,
+    recoveryAction: input.recovery_action,
+    isDirectValidation: false
+  });
   return await performUniversalServerWriteback({
     mode: "partial_harvest",
     job_id: input.job_id,
@@ -1614,7 +1672,10 @@ async function logPartialHarvestWriteback(input = {}) {
     ...derivedEngineEvidence,
 
     // execution context evidence
-    ...executionContextEvidence
+    ...executionContextEvidence,
+
+    // execution state evidence
+    ...executionStateEvidence
   });
 }
 
@@ -1653,6 +1714,16 @@ async function logRetryWriteback(input = {}) {
     scoreAfter: input.score_after,
     isDirectValidation: false
   });
+  const executionStateEvidence = buildExecutionStateEvidence({
+    routeStatus: input.route_status,
+    routeSource: input.route_source,
+    matchedRowId: input.matched_row_id,
+    intakeValidationStatus: input.intake_validation_status,
+    executionReadyStatus: input.execution_ready_status,
+    failureReason: input.failure_reason,
+    recoveryAction: input.recovery_action,
+    isDirectValidation: false
+  });
   return await performUniversalServerWriteback({
     mode: "async",
     job_id: input.job_id,
@@ -1689,7 +1760,10 @@ async function logRetryWriteback(input = {}) {
     ...derivedEngineEvidence,
 
     // execution context evidence
-    ...executionContextEvidence
+    ...executionContextEvidence,
+
+    // execution state evidence
+    ...executionStateEvidence
   });
 }
 
