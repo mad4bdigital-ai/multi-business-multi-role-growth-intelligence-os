@@ -9,17 +9,13 @@ export function buildGovernanceRoutes(deps) {
     ensureSiteMigrationRouteWorkflowRows,
     requireEnv,
     getRegistry,
-    getSheetValues
+    assertSheetExistsInSpreadsheet,
+    readLiveSheetShape,
+    fetchChunkedTable,
+    getGoogleClientsForSpreadsheet
   } = deps;
 
   const router = Router();
-
-  function normalizeSheetRows(value) {
-    if (Array.isArray(value)) return value;
-    if (Array.isArray(value?.values)) return value.values;
-    if (Array.isArray(value?.data?.values)) return value.data.values;
-    return [];
-  }
 
   function buildRowObject(headers = [], values = []) {
     const row = {};
@@ -31,80 +27,6 @@ export function buildGovernanceRoutes(deps) {
 
   function rowHasAnyValue(values = []) {
     return Array.isArray(values) && values.some((cell) => String(cell ?? "").trim().length > 0);
-  }
-
-  function quoteSheetName(sheetName = "") {
-    const normalized = String(sheetName || "").trim();
-    const escaped = normalized.replace(/'/g, "''");
-    return `'${escaped}'`;
-  }
-
-  function buildExecutionLogRangeCandidates(sheetName = "", cells = "A1:AZ1") {
-    const normalized = String(sheetName || "").trim();
-    const quoted = quoteSheetName(normalized);
-    const compact = normalized.replace(/\s+/g, " ").trim();
-    return Array.from(
-      new Set(
-        [
-          `${normalized}!${cells}`,
-          `${quoted}!${cells}`,
-          `${compact}!${cells}`,
-          `${quoteSheetName(compact)}!${cells}`
-        ].filter(Boolean)
-      )
-    );
-  }
-
-  async function inspectSheetValuesAttempts(getSheetValuesFn, spreadsheetId, candidateRanges = []) {
-    const attempts = [];
-    for (const range of candidateRanges) {
-      try {
-        const result = await getSheetValuesFn(spreadsheetId, range);
-        const values =
-          Array.isArray(result) ? result :
-          Array.isArray(result?.values) ? result.values :
-          Array.isArray(result?.data?.values) ? result.data.values :
-          [];
-        attempts.push({
-          range,
-          ok: true,
-          row_count: Array.isArray(values) ? values.length : 0,
-          first_row_preview: Array.isArray(values?.[0]) ? values[0].slice(0, 8) : []
-        });
-      } catch (err) {
-        attempts.push({
-          range,
-          ok: false,
-          status: err?.status || null,
-          code: err?.code || null,
-          message: err?.message || String(err)
-        });
-      }
-    }
-    return attempts;
-  }
-
-  async function getSheetValuesByCandidateRanges(getSheetValuesFn, spreadsheetId, candidateRanges = []) {
-    const attempts = [];
-    for (const range of candidateRanges) {
-      try {
-        const result = await getSheetValuesFn(spreadsheetId, range);
-        attempts.push({ range, ok: true });
-        return { ok: true, range, result, attempts };
-      } catch (err) {
-        attempts.push({
-          range,
-          ok: false,
-          code: err?.code || null,
-          message: err?.message || String(err)
-        });
-      }
-    }
-    const last = attempts[attempts.length - 1] || null;
-    const error = new Error(last?.message || "All candidate ranges failed.");
-    error.code = last?.code || "execution_log_range_candidates_failed";
-    error.details = { attempts };
-    throw error;
   }
 
   function resolveExecutionLogSpreadsheetId(registry = {}) {
@@ -130,22 +52,18 @@ export function buildGovernanceRoutes(deps) {
       const registry = await getRegistry();
       const spreadsheetId = resolveExecutionLogSpreadsheetId(registry);
       const sheetName = resolveExecutionLogSheetName(registry);
+      const { sheets } = await getGoogleClientsForSpreadsheet(spreadsheetId);
 
       const gid = "1200939177";
-      const headerRangeCandidates = buildExecutionLogRangeCandidates(sheetName, "A1:AZ1");
-      const tailRangeCandidates = buildExecutionLogRangeCandidates(sheetName, "A2:AZ200");
+      await assertSheetExistsInSpreadsheet(spreadsheetId, sheetName);
 
-      const [headerRead, tailRead] = await Promise.all([
-        getSheetValuesByCandidateRanges(getSheetValues, spreadsheetId, headerRangeCandidates),
-        getSheetValuesByCandidateRanges(getSheetValues, spreadsheetId, tailRangeCandidates)
-      ]);
+      const shape = await readLiveSheetShape(
+        spreadsheetId,
+        sheetName,
+        `'${sheetName.replace(/'/g, "''")}'!A1:AZ2`
+      );
 
-      const headerRowsRaw = headerRead.result;
-      const tailRowsRaw = tailRead.result;
-
-      const headerRows = normalizeSheetRows(headerRowsRaw);
-      const tailRows = normalizeSheetRows(tailRowsRaw);
-      const headers = Array.isArray(headerRows?.[0]) ? headerRows[0] : [];
+      const headers = Array.isArray(shape?.header) ? shape.header : [];
 
       if (!headers.length) {
         return res.status(404).json({
@@ -157,7 +75,25 @@ export function buildGovernanceRoutes(deps) {
         });
       }
 
-      const nonEmptyTailRows = tailRows.filter((values) => rowHasAnyValue(values));
+      const tableRows = await fetchChunkedTable(
+        sheets,
+        {
+          spreadsheetId,
+          sheetName,
+          columnStart: "A",
+          columnEnd: "AZ",
+          headerRow: 1,
+          dataStartRow: 2,
+          dataEndRow: 200,
+          chunkRowCount: 50,
+          maxChunkReads: 4,
+          maxChunkReadsPerCycle: 4,
+          stopAfterEmptyChunk: false
+        }
+      );
+
+      const dataRows = Array.isArray(tableRows) ? tableRows.slice(1) : [];
+      const nonEmptyTailRows = dataRows.filter((values) => rowHasAnyValue(values));
       const latestValues = nonEmptyTailRows.length
         ? nonEmptyTailRows[nonEmptyTailRows.length - 1]
         : null;
@@ -179,12 +115,8 @@ export function buildGovernanceRoutes(deps) {
         surface: "Execution Log Unified",
         spreadsheet_id: spreadsheetId,
         sheet_name: sheetName,
-        header_range_used: headerRead.range,
-        tail_range_used: tailRead.range,
-        header_range_attempts: headerRead.attempts,
-        tail_range_attempts: tailRead.attempts,
         gid,
-        bounded_tail_window: "A2:AZ200",
+        bounded_tail_window: "A2:AZ200 via fetchChunkedTable",
         row_index_1_based: null,
         row
       });
@@ -200,8 +132,7 @@ export function buildGovernanceRoutes(deps) {
             execution_log_unified_sheet_name:
               process.env.EXECUTION_LOG_UNIFIED_SHEET_NAME || null,
             registry_spreadsheet_id:
-              process.env.REGISTRY_SPREADSHEET_ID || null,
-            attempts: err?.details?.attempts || []
+              process.env.REGISTRY_SPREADSHEET_ID || null
           }
         }
       });
@@ -213,21 +144,57 @@ export function buildGovernanceRoutes(deps) {
       const registry = await getRegistry();
       const spreadsheetId = resolveExecutionLogSpreadsheetId(registry);
       const sheetName = resolveExecutionLogSheetName(registry);
+      const { sheets } = await getGoogleClientsForSpreadsheet(spreadsheetId);
 
-      const headerRangeCandidates = buildExecutionLogRangeCandidates(sheetName, "A1:AZ1");
-      const tailRangeCandidates = buildExecutionLogRangeCandidates(sheetName, "A2:AZ20");
+      let availableSheets = [];
+      let sheetExists = false;
+      let shape = null;
+      let sampleRows = [];
+      let error = null;
 
-      const [headerAttempts, tailAttempts] = await Promise.all([
-        inspectSheetValuesAttempts(getSheetValues, spreadsheetId, headerRangeCandidates),
-        inspectSheetValuesAttempts(getSheetValues, spreadsheetId, tailRangeCandidates)
-      ]);
+      try {
+        availableSheets = await assertSheetExistsInSpreadsheet(spreadsheetId, sheetName);
+        sheetExists = true;
+        shape = await readLiveSheetShape(
+          spreadsheetId,
+          sheetName,
+          `'${sheetName.replace(/'/g, "''")}'!A1:AZ2`
+        );
+        sampleRows = await fetchChunkedTable(
+          sheets,
+          {
+            spreadsheetId,
+            sheetName,
+            columnStart: "A",
+            columnEnd: "AZ",
+            headerRow: 1,
+            dataStartRow: 2,
+            dataEndRow: 20,
+            chunkRowCount: 20,
+            maxChunkReads: 1,
+            maxChunkReadsPerCycle: 1,
+            stopAfterEmptyChunk: false
+          }
+        );
+      } catch (err) {
+        error = {
+          code: err?.code || null,
+          status: err?.status || null,
+          message: err?.message || String(err),
+          available_sheets: err?.available_sheets || availableSheets
+        };
+      }
 
       return res.status(200).json({
         ok: true,
         spreadsheet_id: spreadsheetId,
         sheet_name: sheetName,
-        header_attempts: headerAttempts,
-        tail_attempts: tailAttempts
+        sheet_exists: sheetExists,
+        available_sheets: availableSheets,
+        shape,
+        sample_row_count: Array.isArray(sampleRows) ? sampleRows.length : 0,
+        first_two_rows: Array.isArray(sampleRows) ? sampleRows.slice(0, 2) : [],
+        error
       });
     } catch (err) {
       return res.status(err?.status || 500).json({

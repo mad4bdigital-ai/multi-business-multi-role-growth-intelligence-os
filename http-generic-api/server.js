@@ -3120,6 +3120,10 @@ registerRoutes(app, {
   requireEnv,
   getRegistry,
   getSheetValues,
+  assertSheetExistsInSpreadsheet,
+  readLiveSheetShape,
+  fetchChunkedTable,
+  getGoogleClientsForSpreadsheet,
   // --- jobs + execute (via facade) ---
   executionFacade,
   resolveRequestedBy
