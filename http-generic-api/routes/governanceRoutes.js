@@ -39,6 +39,28 @@ export function buildGovernanceRoutes(deps) {
     return `'${escaped}'`;
   }
 
+  function buildExecutionLogRangeCandidates(sheetName = "", cells = "A1:AZ1") {
+    const normalized = String(sheetName || "").trim();
+    const quoted = quoteSheetName(normalized);
+    return [
+      `${quoted}!${cells}`,
+      `${normalized}!${cells}`
+    ].filter(Boolean);
+  }
+
+  async function getSheetValuesByCandidateRanges(spreadsheetId, candidateRanges = []) {
+    let lastError = null;
+    for (const range of candidateRanges) {
+      try {
+        const result = await getSheetValues(spreadsheetId, range);
+        return { result, range };
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError || new Error("All candidate ranges failed.");
+  }
+
   function resolveExecutionLogSpreadsheetId(registry = {}) {
     return (
       process.env.EXECUTION_LOG_UNIFIED_SPREADSHEET_ID ||
@@ -62,16 +84,18 @@ export function buildGovernanceRoutes(deps) {
       const registry = await getRegistry();
       const spreadsheetId = resolveExecutionLogSpreadsheetId(registry);
       const sheetName = resolveExecutionLogSheetName(registry);
-      const quotedSheetName = quoteSheetName(sheetName);
 
       const gid = "1200939177";
-      const headerRange = `${quotedSheetName}!A1:AZ1`;
-      const tailWindowRange = `${quotedSheetName}!A2:AZ200`;
+      const headerRangeCandidates = buildExecutionLogRangeCandidates(sheetName, "A1:AZ1");
+      const tailRangeCandidates = buildExecutionLogRangeCandidates(sheetName, "A2:AZ200");
 
-      const [headerRowsRaw, tailRowsRaw] = await Promise.all([
-        getSheetValues(spreadsheetId, headerRange),
-        getSheetValues(spreadsheetId, tailWindowRange)
+      const [headerRead, tailRead] = await Promise.all([
+        getSheetValuesByCandidateRanges(spreadsheetId, headerRangeCandidates),
+        getSheetValuesByCandidateRanges(spreadsheetId, tailRangeCandidates)
       ]);
+
+      const headerRowsRaw = headerRead.result;
+      const tailRowsRaw = tailRead.result;
 
       const headerRows = normalizeSheetRows(headerRowsRaw);
       const tailRows = normalizeSheetRows(tailRowsRaw);
@@ -109,6 +133,8 @@ export function buildGovernanceRoutes(deps) {
         surface: "Execution Log Unified",
         spreadsheet_id: spreadsheetId,
         sheet_name: sheetName,
+        header_range_used: headerRead.range,
+        tail_range_used: tailRead.range,
         gid,
         bounded_tail_window: "A2:AZ200",
         row_index_1_based: null,
@@ -123,6 +149,8 @@ export function buildGovernanceRoutes(deps) {
           details: {
             execution_log_unified_spreadsheet_id:
               process.env.EXECUTION_LOG_UNIFIED_SPREADSHEET_ID || null,
+            execution_log_unified_sheet_name:
+              process.env.EXECUTION_LOG_UNIFIED_SHEET_NAME || null,
             registry_spreadsheet_id:
               process.env.REGISTRY_SPREADSHEET_ID || null
           }

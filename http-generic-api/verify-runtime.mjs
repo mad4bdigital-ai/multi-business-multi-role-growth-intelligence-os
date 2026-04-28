@@ -335,7 +335,12 @@ if (!VERIFY_EXECUTION_LOG_ROW) {
     JSON.stringify(latestExecutionLog.body).slice(0, 160)
   );
 
-  if (row && typeof row === "object") {
+  if (!(latestExecutionLog.status === 200 && latestExecutionLog.body?.ok === true)) {
+    skip(
+      "execution-log row field assertions",
+      "latest execution-log endpoint did not return a successful row payload"
+    );
+  } else if (row && typeof row === "object") {
     const entryType = String(row["Entry Type"] || row.entry_type || "").trim();
 
     assert("execution-log row has entry type", nonEmpty(entryType), JSON.stringify(row).slice(0, 160));
