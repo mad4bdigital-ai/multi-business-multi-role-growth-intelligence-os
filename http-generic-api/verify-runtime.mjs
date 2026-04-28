@@ -17,6 +17,11 @@ const EXPECT_QUEUE_AVAILABLE =
   String(process.env.EXPECT_QUEUE_AVAILABLE || "TRUE").trim().toUpperCase() === "TRUE";
 const EXPECT_WORKER_ENABLED =
   String(process.env.EXPECT_WORKER_ENABLED || "TRUE").trim().toUpperCase() === "TRUE";
+const VERIFY_EXECUTION_LOG_ROW =
+  String(process.env.VERIFY_EXECUTION_LOG_ROW || "FALSE").trim().toUpperCase() === "TRUE";
+const EXECUTION_LOG_VERIFY_PATH =
+  String(process.env.EXECUTION_LOG_VERIFY_PATH || "/governance/execution-log-latest").trim() ||
+  "/governance/execution-log-latest";
 
 if (!BASE_URL) {
   console.error("ERROR: RUNTIME_BASE_URL environment variable is required.");
@@ -49,6 +54,15 @@ function skip(label, reason = "") {
   console.log(`  [SKIP] ${label}${reason ? ` (${reason})` : ""}`);
   skipped++;
   evidence.push({ label, result: "skip", detail: reason });
+}
+
+function nonEmpty(value) {
+  return String(value ?? "").trim().length > 0;
+}
+
+function isAllowedSentinel(value, allowed = []) {
+  const normalized = String(value ?? "").trim();
+  return allowed.includes(normalized);
 }
 
 async function get(path, opts = {}) {
@@ -279,6 +293,167 @@ if (!EXPECT_QUEUE_AVAILABLE && jobCreate.status === 503) {
   skip("job queue checks", "POST /jobs returned 400");
 } else {
   skip("job queue checks", `unexpected status ${jobCreate.status}`);
+}
+
+section("Layer 5 - Execution Log Unified parity");
+
+if (!VERIFY_EXECUTION_LOG_ROW) {
+  skip(
+    "execution-log parity checks",
+    "VERIFY_EXECUTION_LOG_ROW is FALSE"
+  );
+} else {
+  const latestExecutionLog = await get(EXECUTION_LOG_VERIFY_PATH);
+
+  assert(
+    `GET ${EXECUTION_LOG_VERIFY_PATH} responds`,
+    latestExecutionLog.status > 0,
+    latestExecutionLog.error || ""
+  );
+
+  assert(
+    `GET ${EXECUTION_LOG_VERIFY_PATH} returns 200`,
+    latestExecutionLog.status === 200,
+    `got ${latestExecutionLog.status}`
+  );
+
+  const row =
+    latestExecutionLog.body?.row ||
+    latestExecutionLog.body?.latest_row ||
+    latestExecutionLog.body?.data ||
+    latestExecutionLog.body;
+
+  assert(
+    "execution-log latest row payload exists",
+    !!row && typeof row === "object",
+    JSON.stringify(latestExecutionLog.body).slice(0, 160)
+  );
+
+  if (row && typeof row === "object") {
+    const entryType = String(row["Entry Type"] || row.entry_type || "").trim();
+
+    assert("execution-log row has entry type", nonEmpty(entryType), JSON.stringify(row).slice(0, 160));
+
+    // Context block
+    assert(
+      "execution-log row has User Input",
+      nonEmpty(row["User Input"] || row.user_input),
+      JSON.stringify(row).slice(0, 160)
+    );
+    assert(
+      "execution-log row has Matched Aliases",
+      nonEmpty(row["Matched Aliases"] || row.matched_aliases),
+      JSON.stringify(row).slice(0, 160)
+    );
+    assert(
+      "execution-log row has Route Key(s)",
+      nonEmpty(row["Route Key(s)"] || row.route_keys),
+      JSON.stringify(row).slice(0, 160)
+    );
+    assert(
+      "execution-log row has Selected Workflows",
+      nonEmpty(row["Selected Workflows"] || row.selected_workflows),
+      JSON.stringify(row).slice(0, 160)
+    );
+    assert(
+      "execution-log row has Engine Chain",
+      nonEmpty(row["Engine Chain"] || row.engine_chain),
+      JSON.stringify(row).slice(0, 160)
+    );
+    assert(
+      "execution-log row has Execution Mode",
+      nonEmpty(row["Execution Mode"] || row.execution_mode),
+      JSON.stringify(row).slice(0, 160)
+    );
+    assert(
+      "execution-log row has Decision Trigger",
+      nonEmpty(row["Decision Trigger"] || row.decision_trigger),
+      JSON.stringify(row).slice(0, 160)
+    );
+    assert(
+      "execution-log row has Score Before",
+      nonEmpty(row["Score Before"] || row.score_before),
+      JSON.stringify(row).slice(0, 160)
+    );
+    assert(
+      "execution-log row has Score After",
+      nonEmpty(row["Score After"] || row.score_after),
+      JSON.stringify(row).slice(0, 160)
+    );
+    assert(
+      "execution-log row has Performance Delta",
+      nonEmpty(row["Performance Delta"] || row.performance_delta),
+      JSON.stringify(row).slice(0, 160)
+    );
+
+    // State block
+    assert(
+      "execution-log row has route_status",
+      nonEmpty(row.route_status),
+      JSON.stringify(row).slice(0, 160)
+    );
+    assert(
+      "execution-log row has route_source",
+      nonEmpty(row.route_source),
+      JSON.stringify(row).slice(0, 160)
+    );
+    assert(
+      "execution-log row has matched_row_id",
+      nonEmpty(row.matched_row_id),
+      JSON.stringify(row).slice(0, 160)
+    );
+    assert(
+      "execution-log row has intake_validation_status",
+      nonEmpty(row.intake_validation_status),
+      JSON.stringify(row).slice(0, 160)
+    );
+    assert(
+      "execution-log row has execution_ready_status",
+      nonEmpty(row.execution_ready_status),
+      JSON.stringify(row).slice(0, 160)
+    );
+    assert(
+      "execution-log row has failure_reason",
+      nonEmpty(row.failure_reason),
+      JSON.stringify(row).slice(0, 160)
+    );
+    assert(
+      "execution-log row has recovery_action",
+      nonEmpty(row.recovery_action),
+      JSON.stringify(row).slice(0, 160)
+    );
+
+    // Sentinel policy for validation rows
+    if (entryType === "validation_run") {
+      assert(
+        "validation row uses governed state sentinels",
+        isAllowedSentinel(row.route_status, ["direct_validation"]) &&
+          isAllowedSentinel(row.route_source, ["system_bootstrap"]) &&
+          isAllowedSentinel(row.matched_row_id, ["not_applicable"]) &&
+          isAllowedSentinel(row.intake_validation_status, ["validated"]) &&
+          isAllowedSentinel(row.execution_ready_status, ["ready"]) &&
+          isAllowedSentinel(row.failure_reason, ["no_failure"]) &&
+          isAllowedSentinel(row.recovery_action, ["no_recovery_action"]),
+        JSON.stringify(row).slice(0, 200)
+      );
+    }
+
+    // Logic block when associated
+    const logicAssociationStatus = String(row.logic_association_status || "").trim();
+    if (logicAssociationStatus === "associated") {
+      assert("associated logic row has used_logic_id", nonEmpty(row.used_logic_id), JSON.stringify(row).slice(0, 160));
+      assert("associated logic row has resolved_logic_doc_id", nonEmpty(row.resolved_logic_doc_id), JSON.stringify(row).slice(0, 160));
+      assert("associated logic row has resolved_logic_mode", nonEmpty(row.resolved_logic_mode), JSON.stringify(row).slice(0, 160));
+    }
+
+    // Engine block when associated
+    const engineAssociationStatus = String(row.engine_association_status || "").trim();
+    if (engineAssociationStatus === "associated") {
+      assert("associated engine row has used_engine_names", nonEmpty(row.used_engine_names), JSON.stringify(row).slice(0, 160));
+      assert("associated engine row has used_engine_registry_refs", nonEmpty(row.used_engine_registry_refs), JSON.stringify(row).slice(0, 160));
+      assert("associated engine row has engine_resolution_status", nonEmpty(row.engine_resolution_status), JSON.stringify(row).slice(0, 160));
+    }
+  }
 }
 
 const timestamp = new Date().toISOString();

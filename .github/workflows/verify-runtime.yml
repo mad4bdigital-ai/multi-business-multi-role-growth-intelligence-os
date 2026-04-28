@@ -22,6 +22,16 @@ on:
         required: false
         default: "true"
         type: string
+      verify_execution_log_row:
+        description: "Whether to verify latest Execution Log Unified row parity"
+        required: false
+        default: "true"
+        type: string
+      execution_log_verify_path:
+        description: "Runtime endpoint that returns the latest Execution Log Unified row"
+        required: false
+        default: "/governance/execution-log-latest"
+        type: string
 
 jobs:
   verify:
@@ -52,6 +62,8 @@ jobs:
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
           EXPECT_QUEUE_AVAILABLE: ${{ inputs.expect_queue_available }}
           EXPECT_WORKER_ENABLED: ${{ inputs.expect_worker_enabled }}
+          VERIFY_EXECUTION_LOG_ROW: ${{ inputs.verify_execution_log_row }}
+          EXECUTION_LOG_VERIFY_PATH: ${{ inputs.execution_log_verify_path }}
         run: node verify-runtime.mjs
 
       - name: Confirm parity result
