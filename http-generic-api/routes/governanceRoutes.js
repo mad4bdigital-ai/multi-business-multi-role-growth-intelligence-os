@@ -33,6 +33,18 @@ export function buildGovernanceRoutes(deps) {
     return Array.isArray(values) && values.some((cell) => String(cell ?? "").trim().length > 0);
   }
 
+  async function getSheetValuesWithRangeFallback(spreadsheetId, preferredRange, fallbackRange) {
+    try {
+      return await getSheetValues(spreadsheetId, preferredRange);
+    } catch (err) {
+      const message = String(err?.message || "");
+      if (!message.includes("Unable to parse range") || !fallbackRange) {
+        throw err;
+      }
+      return await getSheetValues(spreadsheetId, fallbackRange);
+    }
+  }
+
   router.get("/governance/execution-log-latest", requireBackendApiKey, async (_req, res) => {
     try {
       const registry = await getRegistry();
@@ -42,12 +54,14 @@ export function buildGovernanceRoutes(deps) {
         requireEnv("REGISTRY_SPREADSHEET_ID");
 
       const gid = "1200939177";
-      const headerRange = "'Execution Log Unified'!A1:AZ1";
-      const tailWindowRange = "'Execution Log Unified'!A2:AZ200";
+      const headerRange = "Execution Log Unified!A1:AZ1";
+      const tailWindowRange = "Execution Log Unified!A2:AZ200";
+      const legacyHeaderRange = "'Execution Log Unified'!A1:AZ1";
+      const legacyTailWindowRange = "'Execution Log Unified'!A2:AZ200";
 
       const [headerRowsRaw, tailRowsRaw] = await Promise.all([
-        getSheetValues(spreadsheetId, headerRange),
-        getSheetValues(spreadsheetId, tailWindowRange)
+        getSheetValuesWithRangeFallback(spreadsheetId, headerRange, legacyHeaderRange),
+        getSheetValuesWithRangeFallback(spreadsheetId, tailWindowRange, legacyTailWindowRange)
       ]);
 
       const headerRows = normalizeSheetRows(headerRowsRaw);
