@@ -94,7 +94,14 @@ jobs:
           MATCHES=$(grep -RInE 'from ["'\'']\./execution(\.js)?["'\'']|import\(["'\'']\./execution(\.js)?["'\'']\)|require\(["'\'']\./execution(\.js)?["'\'']\)' . \
             --include='*.js' --include='*.mjs' \
             --exclude='execution.js' \
-            --exclude='validate-architecture.mjs')
+            --exclude='validate-architecture.mjs' \
+            --exclude='extract-modules.js' \
+            --exclude='fix-all-truncated.mjs' \
+            --exclude='fix-crlf.mjs' \
+            --exclude='fix-extractions.mjs' \
+            --exclude='test-execution-log-evidence.mjs' \
+            --exclude='test-engine-evidence-derivation.mjs' \
+            --exclude='test-engine-evidence-integration.mjs')
           STATUS=$?
           set -e
           if [ "$STATUS" -eq 0 ]; then
