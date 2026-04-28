@@ -752,6 +752,32 @@ function normalizeEvidenceList(value = "") {
   return String(value || "").trim();
 }
 
+function getWorkflowRowByKey(workflowRows = [], workflowKey = "") {
+  const key = String(workflowKey || "").trim().toLowerCase();
+  if (!key) return null;
+  return (
+    workflowRows.find(r => {
+      const candidate = String(
+        r.workflow_key ??
+        r["workflow_key"] ??
+        r["workflow_key|workflow_key"] ??
+        r["Workflow Key"] ??
+        r["Route Key"] ??
+        ""
+      ).trim().toLowerCase();
+      return candidate === key;
+    }) || null
+  );
+}
+
+function getActiveEngineRegistryRows(engineRows = []) {
+  return engineRows.filter(r => {
+    const status = String(r.status ?? r["status"] ?? "active").trim().toLowerCase();
+    const callable = String(r.callable ?? r["callable"] ?? "true").trim().toLowerCase();
+    return status === "active" && (callable === "true" || callable === "yes" || callable === "1");
+  });
+}
+
 function splitPipeSemicolonOrComma(value = "") {
   return String(value || "").trim().split(/[|;,]/).map(s => s.trim()).filter(Boolean);
 }
@@ -1379,9 +1405,22 @@ async function performUniversalServerWriteback(input = {}) {
 }
 
 async function logValidationRunWriteback(input = {}) {
+  let selectedWorkflowRow = input.selectedWorkflowRow || null;
+  if (!selectedWorkflowRow && input.target_workflow) {
+    try {
+      const reg = await getRegistry();
+      selectedWorkflowRow = getWorkflowRowByKey(
+        Array.isArray(reg.workflowRows) ? reg.workflowRows : [],
+        input.target_workflow
+      );
+    } catch { /* best-effort */ }
+  }
+  const engineRegistryRows = getActiveEngineRegistryRows(
+    Array.isArray(input.engineRegistryRows) ? input.engineRegistryRows : []
+  );
   const derivedEngineEvidence = buildEngineEvidenceFromWorkflow({
-    selectedWorkflowRow: input.selectedWorkflowRow,
-    engineRegistryRows: input.engineRegistryRows,
+    selectedWorkflowRow,
+    engineRegistryRows,
     used_engine_names: input.used_engine_names,
     used_engine_registry_refs: input.used_engine_registry_refs,
     used_engine_file_ids: input.used_engine_file_ids,
@@ -1426,9 +1465,22 @@ async function logValidationRunWriteback(input = {}) {
 }
 
 async function logPartialHarvestWriteback(input = {}) {
+  let selectedWorkflowRow = input.selectedWorkflowRow || null;
+  if (!selectedWorkflowRow && input.target_workflow) {
+    try {
+      const reg = await getRegistry();
+      selectedWorkflowRow = getWorkflowRowByKey(
+        Array.isArray(reg.workflowRows) ? reg.workflowRows : [],
+        input.target_workflow
+      );
+    } catch { /* best-effort */ }
+  }
+  const engineRegistryRows = getActiveEngineRegistryRows(
+    Array.isArray(input.engineRegistryRows) ? input.engineRegistryRows : []
+  );
   const derivedEngineEvidence = buildEngineEvidenceFromWorkflow({
-    selectedWorkflowRow: input.selectedWorkflowRow,
-    engineRegistryRows: input.engineRegistryRows,
+    selectedWorkflowRow,
+    engineRegistryRows,
     used_engine_names: input.used_engine_names,
     used_engine_registry_refs: input.used_engine_registry_refs,
     used_engine_file_ids: input.used_engine_file_ids,
@@ -1473,9 +1525,22 @@ async function logPartialHarvestWriteback(input = {}) {
 }
 
 async function logRetryWriteback(input = {}) {
+  let selectedWorkflowRow = input.selectedWorkflowRow || null;
+  if (!selectedWorkflowRow && input.target_workflow) {
+    try {
+      const reg = await getRegistry();
+      selectedWorkflowRow = getWorkflowRowByKey(
+        Array.isArray(reg.workflowRows) ? reg.workflowRows : [],
+        input.target_workflow
+      );
+    } catch { /* best-effort */ }
+  }
+  const engineRegistryRows = getActiveEngineRegistryRows(
+    Array.isArray(input.engineRegistryRows) ? input.engineRegistryRows : []
+  );
   const derivedEngineEvidence = buildEngineEvidenceFromWorkflow({
-    selectedWorkflowRow: input.selectedWorkflowRow,
-    engineRegistryRows: input.engineRegistryRows,
+    selectedWorkflowRow,
+    engineRegistryRows,
     used_engine_names: input.used_engine_names,
     used_engine_registry_refs: input.used_engine_registry_refs,
     used_engine_file_ids: input.used_engine_file_ids,

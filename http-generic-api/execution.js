@@ -202,6 +202,32 @@ function normalizeEvidenceList(value = "") {
   return String(value || "").trim();
 }
 
+export function getWorkflowRowByKey(workflowRows = [], workflowKey = "") {
+  const key = String(workflowKey || "").trim().toLowerCase();
+  if (!key) return null;
+  return (
+    workflowRows.find(r => {
+      const candidate = String(
+        r.workflow_key ??
+        r["workflow_key"] ??
+        r["workflow_key|workflow_key"] ??
+        r["Workflow Key"] ??
+        r["Route Key"] ??
+        ""
+      ).trim().toLowerCase();
+      return candidate === key;
+    }) || null
+  );
+}
+
+export function getActiveEngineRegistryRows(engineRows = []) {
+  return engineRows.filter(r => {
+    const status = String(r.status ?? r["status"] ?? "active").trim().toLowerCase();
+    const callable = String(r.callable ?? r["callable"] ?? "true").trim().toLowerCase();
+    return status === "active" && (callable === "true" || callable === "yes" || callable === "1");
+  });
+}
+
 function splitPipeSemicolonOrComma(value = "") {
   return String(value || "").trim().split(/[|;,]/).map(s => s.trim()).filter(Boolean);
 }
