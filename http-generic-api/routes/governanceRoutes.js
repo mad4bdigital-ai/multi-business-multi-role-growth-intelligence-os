@@ -17,6 +17,7 @@ export function buildGovernanceRoutes(deps) {
 
   const router = Router();
   const EXECUTION_LOG_TAIL_WINDOW_ROWS = 200;
+  const EXECUTION_LOG_GROUP_LOOKBACK_ROWS = 60;
 
   function buildRowObject(headers = [], values = []) {
     const row = {};
@@ -28,6 +29,107 @@ export function buildGovernanceRoutes(deps) {
 
   function rowHasAnyValue(values = []) {
     return Array.isArray(values) && values.some((cell) => String(cell ?? "").trim().length > 0);
+  }
+
+  function normalizeCell(value) {
+    return String(value ?? "").trim();
+  }
+
+  function getRowValue(row = {}, key = "") {
+    return normalizeCell(row?.[key]);
+  }
+
+  function isSyncLikeExecutionRow(row = {}) {
+    const entryType = getRowValue(row, "Entry Type").toLowerCase();
+    const executionClass = getRowValue(row, "Execution Class").toLowerCase();
+    const outputSummary = getRowValue(row, "Output Summary").toLowerCase();
+    return (
+      entryType === "sync_execution" ||
+      executionClass === "sync_execution" ||
+      outputSummary.includes("sync")
+    );
+  }
+
+  function countPrimarySignalFields(row = {}) {
+    const keys = [
+      "User Input",
+      "Matched Aliases",
+      "Route Key(s)",
+      "Selected Workflows",
+      "Engine Chain",
+      "Execution Mode",
+      "Decision Trigger",
+      "Score Before",
+      "Score After",
+      "Performance Delta",
+      "route_status",
+      "route_source",
+      "matched_row_id",
+      "intake_validation_status",
+      "execution_ready_status",
+      "recovery_action"
+    ];
+    return keys.reduce((count, key) => count + (getRowValue(row, key) ? 1 : 0), 0);
+  }
+
+  function buildExecutionLogRows(headers = [], dataRows = [], dataStartRow = 2) {
+    return dataRows.map((values, index) => ({
+      row_index_1_based: dataStartRow + index,
+      values,
+      row: buildRowObject(headers, values)
+    }));
+  }
+
+  function buildGroupKey(candidate = {}) {
+    const row = candidate?.row || {};
+    const traceId = getRowValue(row, "execution_trace_id_writeback");
+    if (traceId) return `trace:${traceId}`;
+
+    const runDate = getRowValue(row, "Run Date");
+    const startTime = getRowValue(row, "Start Time");
+    const entryType = getRowValue(row, "Entry Type");
+    return `fallback:${runDate}|${startTime}|${entryType}`;
+  }
+
+  function selectLatestExecutionGroup(candidates = []) {
+    const nonEmpty = candidates.filter((candidate) => rowHasAnyValue(candidate?.values));
+    if (!nonEmpty.length) return [];
+
+    const latest = nonEmpty[nonEmpty.length - 1];
+    const latestKey = buildGroupKey(latest);
+    const latestRowIndex = Number(latest?.row_index_1_based || 0);
+
+    return nonEmpty.filter((candidate) => {
+      const candidateKey = buildGroupKey(candidate);
+      const candidateRowIndex = Number(candidate?.row_index_1_based || 0);
+      return (
+        candidateKey === latestKey ||
+        Math.abs(candidateRowIndex - latestRowIndex) <= EXECUTION_LOG_GROUP_LOOKBACK_ROWS
+      );
+    });
+  }
+
+  function choosePrimaryRowFromGroup(group = []) {
+    if (!group.length) return null;
+
+    const ranked = [...group].sort((a, b) => {
+      const aRow = a?.row || {};
+      const bRow = b?.row || {};
+
+      const aSyncPenalty = isSyncLikeExecutionRow(aRow) ? 1 : 0;
+      const bSyncPenalty = isSyncLikeExecutionRow(bRow) ? 1 : 0;
+      if (aSyncPenalty !== bSyncPenalty) return aSyncPenalty - bSyncPenalty;
+
+      const aSignals = countPrimarySignalFields(aRow);
+      const bSignals = countPrimarySignalFields(bRow);
+      if (aSignals !== bSignals) return bSignals - aSignals;
+
+      const aIndex = Number(a?.row_index_1_based || 0);
+      const bIndex = Number(b?.row_index_1_based || 0);
+      return bIndex - aIndex;
+    });
+
+    return ranked[0] || null;
   }
 
   async function getSheetRowCount(sheets, spreadsheetId, sheetName) {
@@ -124,22 +226,26 @@ export function buildGovernanceRoutes(deps) {
       );
 
       const dataRows = Array.isArray(tableRows) ? tableRows.slice(1) : [];
-      const nonEmptyTailRows = dataRows.filter((values) => rowHasAnyValue(values));
-      const latestValues = nonEmptyTailRows.length
-        ? nonEmptyTailRows[nonEmptyTailRows.length - 1]
-        : null;
+      const candidates = buildExecutionLogRows(headers, dataRows, dataStartRow);
+      const latestGroup = selectLatestExecutionGroup(candidates);
+      const selected = choosePrimaryRowFromGroup(latestGroup);
 
-      if (!latestValues) {
+      if (!selected?.row) {
         return res.status(404).json({
           ok: false,
           error: {
             code: "execution_log_latest_row_not_found",
-            message: "Execution Log Unified does not yet contain a readable latest row in the bounded tail window."
+            message: "Execution Log Unified does not yet contain a readable latest primary row in the scanned tail window."
+          },
+          diagnostics: {
+            resolved_sheet_row_count: rowCount,
+            data_start_row: dataStartRow,
+            data_end_row: dataEndRow
           }
         });
       }
 
-      const row = buildRowObject(headers, latestValues);
+      const row = selected.row;
 
       return res.status(200).json({
         ok: true,
@@ -149,7 +255,9 @@ export function buildGovernanceRoutes(deps) {
         gid,
         bounded_tail_window: `${dataStartRow}:AZ${dataEndRow} via fetchChunkedTable`,
         resolved_sheet_row_count: rowCount,
-        row_index_1_based: null,
+        selected_group_size: latestGroup.length,
+        selected_primary_row_index_1_based: selected.row_index_1_based,
+        selected_primary_row_type: getRowValue(row, "Entry Type"),
         row
       });
     } catch (err) {
@@ -182,6 +290,9 @@ export function buildGovernanceRoutes(deps) {
       let sheetExists = false;
       let shape = null;
       let sampleRows = [];
+      let sampleCandidates = [];
+      let latestGroup = [];
+      let selectedPrimary = null;
       let resolvedSheetRowCount = 0;
       let tailWindow = null;
       let error = null;
@@ -220,6 +331,15 @@ export function buildGovernanceRoutes(deps) {
             stopAfterEmptyChunk: false
           }
         );
+
+        const dataRows = Array.isArray(sampleRows) ? sampleRows.slice(1) : [];
+        sampleCandidates = buildExecutionLogRows(
+          Array.isArray(shape?.header) ? shape.header : [],
+          dataRows,
+          dataStartRow
+        );
+        latestGroup = selectLatestExecutionGroup(sampleCandidates);
+        selectedPrimary = choosePrimaryRowFromGroup(latestGroup);
       } catch (err) {
         error = {
           code: err?.code || null,
@@ -241,6 +361,16 @@ export function buildGovernanceRoutes(deps) {
         sample_row_count: Array.isArray(sampleRows) ? sampleRows.length : 0,
         first_two_rows: Array.isArray(sampleRows) ? sampleRows.slice(0, 2) : [],
         last_two_rows: Array.isArray(sampleRows) ? sampleRows.slice(-2) : [],
+        latest_group_size: latestGroup.length,
+        latest_group_row_indexes: latestGroup.map((item) => item.row_index_1_based),
+        selected_primary_row_index_1_based: selectedPrimary?.row_index_1_based || null,
+        selected_primary_row_type: selectedPrimary?.row
+          ? getRowValue(selectedPrimary.row, "Entry Type")
+          : null,
+        selected_primary_signal_count: selectedPrimary?.row
+          ? countPrimarySignalFields(selectedPrimary.row)
+          : 0,
+        selected_primary_row: selectedPrimary?.row || null,
         error
       });
     } catch (err) {
