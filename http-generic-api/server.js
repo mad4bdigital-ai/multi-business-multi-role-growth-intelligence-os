@@ -205,6 +205,7 @@ import {
   getGoogleClients as getGoogleClientsBase,
   getGoogleClientsForSpreadsheet as getGoogleClientsForSpreadsheetBase,
   fetchRange as fetchRangeBase,
+  fetchRanges as fetchRangesBase,
   fetchChunkedTable as fetchChunkedTableBase,
   assertSheetExistsInSpreadsheet as assertSheetExistsInSpreadsheetBase,
   clearFetchCache
@@ -1787,9 +1788,11 @@ async function assertGovernedSinkSheetsExist() {
 }
 
 async function fetchRange(sheets, range) { return fetchRangeBase(sheets, range); }
+async function fetchRanges(sheets, spreadsheetId, ranges) { return fetchRangesBase(sheets, spreadsheetId, ranges); }
 async function getSheetValues(spreadsheetId, range) {
   const { sheets } = await getGoogleClientsForSpreadsheet(spreadsheetId);
-  return fetchRange(sheets, range);
+  const results = await fetchRanges(sheets, spreadsheetId, [range]);
+  return results[range] || [];
 }
 async function fetchChunkedTable(sheets, options = {}) {
   return fetchChunkedTableBase(sheets, options);
