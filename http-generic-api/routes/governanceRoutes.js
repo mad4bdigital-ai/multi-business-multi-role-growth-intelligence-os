@@ -7,10 +7,66 @@ export function buildGovernanceRoutes(deps) {
     buildGovernedAdditionReviewResult,
     ensureSiteMigrationRegistrySurfaces,
     ensureSiteMigrationRouteWorkflowRows,
-    requireEnv
+    requireEnv,
+    getRegistry,
+    getSheetValues
   } = deps;
 
   const router = Router();
+
+  router.get("/governance/execution-log-latest", requireBackendApiKey, async (_req, res) => {
+    try {
+      const registry = await getRegistry();
+      const spreadsheetId =
+        registry?.registry_spreadsheet_id ||
+        process.env.REGISTRY_SPREADSHEET_ID ||
+        requireEnv("REGISTRY_SPREADSHEET_ID");
+
+      const gid = "1200939177";
+      const headerRange = "'Execution Log Unified'!A1:AZ2";
+      const tailRange = "'Execution Log Unified'!A:AZ";
+
+      const [headerRows, allRows] = await Promise.all([
+        getSheetValues(spreadsheetId, headerRange),
+        getSheetValues(spreadsheetId, tailRange)
+      ]);
+
+      const headers = Array.isArray(headerRows?.[0]) ? headerRows[0] : [];
+      const rows = Array.isArray(allRows) ? allRows : [];
+
+      if (!headers.length || rows.length < 2) {
+        return res.status(404).json({
+          ok: false,
+          error: {
+            code: "execution_log_latest_row_not_found",
+            message: "Execution Log Unified does not yet contain a readable latest row."
+          }
+        });
+      }
+
+      const latestValues = rows[rows.length - 1] || [];
+      const row = {};
+      for (let i = 0; i < headers.length; i++) {
+        row[headers[i]] = latestValues[i] ?? "";
+      }
+
+      return res.status(200).json({
+        ok: true,
+        surface: "Execution Log Unified",
+        gid,
+        row_index_1_based: rows.length,
+        row
+      });
+    } catch (err) {
+      return res.status(err?.status || 500).json({
+        ok: false,
+        error: {
+          code: err?.code || "execution_log_latest_read_failed",
+          message: err?.message || "Failed to read latest Execution Log Unified row."
+        }
+      });
+    }
+  });
 
   router.post("/hostinger/ssh-runtime-read", requireBackendApiKey, async (req, res) => {
     try {

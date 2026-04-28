@@ -1787,6 +1787,10 @@ async function assertGovernedSinkSheetsExist() {
 }
 
 async function fetchRange(sheets, range) { return fetchRangeBase(sheets, range); }
+async function getSheetValues(spreadsheetId, range) {
+  const { sheets } = await getGoogleClientsForSpreadsheet(spreadsheetId);
+  return fetchRange(sheets, range);
+}
 async function fetchChunkedTable(sheets, options = {}) {
   return fetchChunkedTableBase(sheets, options);
 }
@@ -3111,6 +3115,8 @@ registerRoutes(app, {
   ensureSiteMigrationRegistrySurfaces,
   ensureSiteMigrationRouteWorkflowRows,
   requireEnv,
+  getRegistry,
+  getSheetValues,
   // --- jobs + execute (via facade) ---
   executionFacade,
   resolveRequestedBy
