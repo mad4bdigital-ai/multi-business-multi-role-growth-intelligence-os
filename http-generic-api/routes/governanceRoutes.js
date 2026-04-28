@@ -16,6 +16,7 @@ export function buildGovernanceRoutes(deps) {
   } = deps;
 
   const router = Router();
+  const EXECUTION_LOG_TAIL_WINDOW_ROWS = 200;
 
   function buildRowObject(headers = [], values = []) {
     const row = {};
@@ -27,6 +28,31 @@ export function buildGovernanceRoutes(deps) {
 
   function rowHasAnyValue(values = []) {
     return Array.isArray(values) && values.some((cell) => String(cell ?? "").trim().length > 0);
+  }
+
+  async function getSheetRowCount(sheets, spreadsheetId, sheetName) {
+    const response = await sheets.spreadsheets.get({
+      spreadsheetId: String(spreadsheetId || "").trim(),
+      fields: "sheets.properties(title,gridProperties.rowCount)"
+    });
+
+    const allSheets = Array.isArray(response?.data?.sheets) ? response.data.sheets : [];
+    const target = allSheets.find(
+      (sheet) => String(sheet?.properties?.title || "").trim() === String(sheetName || "").trim()
+    );
+
+    if (!target) {
+      const err = new Error(`Execution Log sheet not found while resolving row count: ${sheetName}`);
+      err.code = "sheet_not_found";
+      err.status = 500;
+      err.available_sheets = allSheets
+        .map((sheet) => String(sheet?.properties?.title || "").trim())
+        .filter(Boolean);
+      throw err;
+    }
+
+    const rowCount = Number(target?.properties?.gridProperties?.rowCount || 0);
+    return Number.isFinite(rowCount) && rowCount > 0 ? rowCount : 0;
   }
 
   function resolveExecutionLogSpreadsheetId(registry = {}) {
@@ -57,6 +83,8 @@ export function buildGovernanceRoutes(deps) {
       const gid = "1200939177";
       await assertSheetExistsInSpreadsheet(spreadsheetId, sheetName);
 
+      const rowCount = await getSheetRowCount(sheets, spreadsheetId, sheetName);
+
       const shape = await readLiveSheetShape(
         spreadsheetId,
         sheetName,
@@ -75,6 +103,9 @@ export function buildGovernanceRoutes(deps) {
         });
       }
 
+      const dataStartRow = Math.max(2, rowCount - EXECUTION_LOG_TAIL_WINDOW_ROWS + 1);
+      const dataEndRow = Math.max(2, rowCount);
+
       const tableRows = await fetchChunkedTable(
         sheets,
         {
@@ -83,8 +114,8 @@ export function buildGovernanceRoutes(deps) {
           columnStart: "A",
           columnEnd: "AZ",
           headerRow: 1,
-          dataStartRow: 2,
-          dataEndRow: 200,
+          dataStartRow,
+          dataEndRow,
           chunkRowCount: 50,
           maxChunkReads: 4,
           maxChunkReadsPerCycle: 4,
@@ -116,7 +147,8 @@ export function buildGovernanceRoutes(deps) {
         spreadsheet_id: spreadsheetId,
         sheet_name: sheetName,
         gid,
-        bounded_tail_window: "A2:AZ200 via fetchChunkedTable",
+        bounded_tail_window: `${dataStartRow}:AZ${dataEndRow} via fetchChunkedTable`,
+        resolved_sheet_row_count: rowCount,
         row_index_1_based: null,
         row
       });
@@ -150,16 +182,28 @@ export function buildGovernanceRoutes(deps) {
       let sheetExists = false;
       let shape = null;
       let sampleRows = [];
+      let resolvedSheetRowCount = 0;
+      let tailWindow = null;
       let error = null;
 
       try {
         availableSheets = await assertSheetExistsInSpreadsheet(spreadsheetId, sheetName);
         sheetExists = true;
+        resolvedSheetRowCount = await getSheetRowCount(sheets, spreadsheetId, sheetName);
         shape = await readLiveSheetShape(
           spreadsheetId,
           sheetName,
           `'${sheetName.replace(/'/g, "''")}'!A1:AZ2`
         );
+
+        const dataStartRow = Math.max(2, resolvedSheetRowCount - EXECUTION_LOG_TAIL_WINDOW_ROWS + 1);
+        const dataEndRow = Math.max(2, resolvedSheetRowCount);
+        tailWindow = {
+          data_start_row: dataStartRow,
+          data_end_row: dataEndRow,
+          max_rows: EXECUTION_LOG_TAIL_WINDOW_ROWS
+        };
+
         sampleRows = await fetchChunkedTable(
           sheets,
           {
@@ -168,9 +212,9 @@ export function buildGovernanceRoutes(deps) {
             columnStart: "A",
             columnEnd: "AZ",
             headerRow: 1,
-            dataStartRow: 2,
-            dataEndRow: 20,
-            chunkRowCount: 20,
+            dataStartRow,
+            dataEndRow,
+            chunkRowCount: 50,
             maxChunkReads: 1,
             maxChunkReadsPerCycle: 1,
             stopAfterEmptyChunk: false
@@ -191,9 +235,12 @@ export function buildGovernanceRoutes(deps) {
         sheet_name: sheetName,
         sheet_exists: sheetExists,
         available_sheets: availableSheets,
+        resolved_sheet_row_count: resolvedSheetRowCount,
+        tail_window: tailWindow,
         shape,
         sample_row_count: Array.isArray(sampleRows) ? sampleRows.length : 0,
         first_two_rows: Array.isArray(sampleRows) ? sampleRows.slice(0, 2) : [],
+        last_two_rows: Array.isArray(sampleRows) ? sampleRows.slice(-2) : [],
         error
       });
     } catch (err) {
