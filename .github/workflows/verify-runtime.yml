@@ -55,6 +55,40 @@ jobs:
           echo "Triggered by:   ${{ github.actor }}"
           echo "Triggered at:   $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
+      - name: Inspect execution-log sheet read attempts
+        working-directory: http-generic-api
+        env:
+          RUNTIME_BASE_URL: ${{ inputs.runtime_base_url }}
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+        run: |
+          node -e '
+          const base = (process.env.RUNTIME_BASE_URL || "").replace(/\/$/, "");
+          const key = process.env.BACKEND_API_KEY || "";
+          if (!base) throw new Error("Missing RUNTIME_BASE_URL");
+          if (!key) throw new Error("Missing BACKEND_API_KEY");
+
+          fetch(`${base}/governance/execution-log-latest-inspect`, {
+            headers: {
+              "Authorization": `Bearer ${key}`,
+              "Content-Type": "application/json"
+            }
+          })
+            .then(async (res) => {
+              const text = await res.text();
+              let body;
+              try { body = JSON.parse(text); } catch { body = { raw: text }; }
+
+              console.log("STATUS:", res.status);
+              console.log(JSON.stringify(body, null, 2));
+
+              if (!res.ok) process.exit(1);
+            })
+            .catch((err) => {
+              console.error(err);
+              process.exit(1);
+            });
+          '
+
       - name: Run patch-vs-runtime verification
         working-directory: http-generic-api
         env:
