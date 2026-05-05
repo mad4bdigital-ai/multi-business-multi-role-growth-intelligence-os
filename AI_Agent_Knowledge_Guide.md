@@ -9,6 +9,8 @@ It translates the canonical architecture into an operational guide for AI agents
 
 `Top Level Instructions.md` is intentionally compact and must stay under 8,000 characters. Detailed rules formerly embedded there are maintained here.
 
+For the personal Custom GPT Admin Assistant action setup, scoped OpenAPI files, subdomains, and admin operating boundaries, use `GPT_Admin_Assistant_Knowledge_Guide.md`.
+
 ### Authority sources
 
 | Registry | Purpose |
