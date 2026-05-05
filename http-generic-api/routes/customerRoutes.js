@@ -44,18 +44,19 @@ export function buildCustomerRoutes(deps) {
   // ── POST /tickets ──────────────────────────────────────────────────────────
   router.post("/tickets", requireBackendApiKey, async (req, res) => {
     try {
-      const { tenant_id, title, customer_id, thread_id, category = "general", priority = "normal", service_mode = "self_serve", metadata_json } = req.body || {};
-      if (!tenant_id || !title) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "tenant_id and title are required." } });
+      const { tenant_id, title, subject, customer_id, thread_id, category = "general", priority = "normal", service_mode = "self_serve", metadata_json } = req.body || {};
+      const finalTitle = title || subject;
+      if (!tenant_id || !finalTitle) {
+        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "tenant_id and title (or subject) are required." } });
       }
       const ticket_id = randomUUID();
       const meta = metadata_json ? JSON.stringify(metadata_json) : null;
       await getPool().query(
         `INSERT INTO \`tickets\` (ticket_id, tenant_id, title, customer_id, thread_id, category, priority, service_mode, metadata_json)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [ticket_id, tenant_id, title, customer_id || null, thread_id || null, category, priority, service_mode, meta]
+        [ticket_id, tenant_id, finalTitle, customer_id || null, thread_id || null, category, priority, service_mode, meta]
       );
-      return res.status(201).json({ ok: true, ticket_id, tenant_id, title, category, priority, status: "open" });
+      return res.status(201).json({ ok: true, ticket_id, tenant_id, title: finalTitle, category, priority, status: "open" });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "ticket_create_failed", message: err.message } });
     }

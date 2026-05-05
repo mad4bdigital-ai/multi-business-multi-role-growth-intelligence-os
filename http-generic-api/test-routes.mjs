@@ -120,6 +120,18 @@ async function main() {
     assert("health reports worker disabled", healthBody?.dependencies?.worker?.enabled === false, JSON.stringify(healthBody?.dependencies?.worker || {}));
     assert("health reports queue disconnected", healthBody?.dependencies?.queue?.connected === false, JSON.stringify(healthBody?.dependencies?.queue || {}));
 
+    section("status host root route");
+
+    const statusRootRes = await fetch(`${baseUrl}/`, {
+      headers: { Host: "status.mad4b.com" },
+      signal: AbortSignal.timeout(3000)
+    });
+    const statusRootBody = await statusRootRes.text();
+
+    assert("GET / with status host returns public status page", statusRootRes.status === 200, `got ${statusRootRes.status}`);
+    assert("GET / with status host returns HTML", (statusRootRes.headers.get("content-type") || "").includes("text/html"), statusRootRes.headers.get("content-type") || "");
+    assert("GET / with status host contains System Status", statusRootBody.includes("System Status"));
+
     section("jobs route");
 
     const jobsRes = await fetch(`${baseUrl}/jobs`, {
@@ -144,6 +156,34 @@ async function main() {
 
     assert("POST /jobs returns 503 when queue unavailable", jobsRes.status === 503, `got ${jobsRes.status}`);
     assert("POST /jobs returns queue_unavailable code", jobsBody?.error?.code === "queue_unavailable", JSON.stringify(jobsBody));
+
+    section("admin control route");
+
+    const adminUnauthorizedRes = await fetch(`${baseUrl}/admin/control`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tool: "env", action: "list" }),
+      signal: AbortSignal.timeout(3000)
+    });
+    const adminUnauthorizedBody = await adminUnauthorizedRes.json();
+
+    assert("POST /admin/control requires backend auth", adminUnauthorizedRes.status === 401, `got ${adminUnauthorizedRes.status}`);
+    assert("POST /admin/control missing auth returns missing key code", adminUnauthorizedBody?.error?.code === "missing_backend_api_key", JSON.stringify(adminUnauthorizedBody));
+
+    const adminEnvRes = await fetch(`${baseUrl}/admin/control`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({ tool: "env", action: "get", name: "BACKEND_API_KEY" }),
+      signal: AbortSignal.timeout(3000)
+    });
+    const adminEnvBody = await adminEnvRes.json();
+
+    assert("POST /admin/control env get returns 200", adminEnvRes.status === 200, `got ${adminEnvRes.status}`);
+    assert("POST /admin/control reports env tool", adminEnvBody?.tool === "env", JSON.stringify(adminEnvBody));
+    assert("POST /admin/control masks sensitive env by default", adminEnvBody?.result?.value === "[masked]", JSON.stringify(adminEnvBody));
 
     section("site-migrate route");
 

@@ -508,6 +508,10 @@ User-facing activation output must preserve:
 - `activation_transport_attempted`
 - `activation_transport_status`
 - `activation_transport_evidence`
+- `session_context_attempted`
+- `session_context_status`
+- `session_history_count`
+- `session_context_transcript_status`
 - `live_canonical_validation_status`
 - `activation_dependency_order_status`
 
@@ -582,11 +586,12 @@ system_bootstrap MUST, in the same execution cycle:
 1. preserve knowledge-layer canonical traceability first
 2. resolve activation transport capability through Actions Registry
 3. resolve activation validation endpoints through API Actions Endpoint Registry
-4. execute at least one real governed HTTP transport call through `http_generic_api`
-5. continue into live canonical validation when governed activation transport remains available
-6. continue into Registry surface and binding validation when governed transport validation is feasible
-7. preserve machine-verifiable HTTP transport evidence before activation classification
-8. classify activation only after those steps are attempted
+4. execute `GET /activation/session-context` through `http_generic_api` for previous same-user session history, related scopes, and transcript availability
+5. execute at least one real governed HTTP transport call through `http_generic_api`
+6. continue into live canonical validation when governed activation transport remains available
+7. continue into Registry surface and binding validation when governed transport validation is feasible
+8. preserve machine-verifiable HTTP transport evidence before activation classification
+9. classify activation only after those steps are attempted
 
 Accepted activation transport:
 - `activation_transport_mode = governed_http_client`
@@ -609,10 +614,11 @@ Preferred validation order:
 1. knowledge-layer traceability
 2. Actions Registry activation capability resolution
 3. API Actions Endpoint Registry endpoint resolution
-4. governed HTTP client validation calls through `http_generic_api`
-5. live canonical and registry-surface readiness validation
-6. route/workflow/binding readiness validation
-7. activation classification
+4. same-user session-context read through `GET /activation/session-context`
+5. governed HTTP client validation calls through `http_generic_api`
+6. live canonical and registry-surface readiness validation
+7. route/workflow/binding readiness validation
+8. activation classification
 
 system_bootstrap MUST preserve machine-verifiable evidence for the activation transport attempt:
 - `activation_transport_attempted = true`
@@ -624,6 +630,14 @@ system_bootstrap MUST preserve machine-verifiable evidence for the activation tr
 - `activation_transport_evidence.attempt_outcome`
 
 system_bootstrap MUST also preserve:
+- `session_context_attempted`
+- `session_context_status`
+- `session_context_endpoint = /activation/session-context`
+- `session_history_count`
+- `session_context_related_scopes`
+- `session_context_transcript_status`
+- `session_context_raw_dump_requested`
+- `session_context_raw_dump_bounded`
 - `live_canonical_validation_required = true`
 - `live_canonical_validation_source = repository_canonical_fetch_plus_governed_transport`
 - `canonical_fetch_transport = github_api_mcp`
@@ -659,10 +673,13 @@ Classification rules:
 
 It is forbidden to:
 - skip the governed HTTP transport call when activation transport is available
+- skip the session-context layer during first-turn hard activation when signed-in Custom GPT Action transport is available
 - stop at knowledge-layer-only activation when governed transport validation is available
 - stop at connectivity-only success when live canonical or registry validation is still feasible
 - simulate transport validation
 - classify activation as `active`, `validated`, or `authorization_gated` without machine-verifiable transport attempt evidence
+
+Session-context failures classify the session-context surface as `degraded` or `authorization_gated` without replacing Drive, Sheets bootstrap, or GitHub validation. Raw transcript dumps are allowed only when explicitly requested and bounded by pagination and `raw_max_chars`; user-authenticated session-context reads must remain same-user scoped unless admin/service authority is present.
 
 Direct Governed HTTP Activation Transport Enforcement Rule
 

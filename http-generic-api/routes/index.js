@@ -1,5 +1,6 @@
 import { buildHealthRoutes } from "./healthRoutes.js";
 import { buildStatusRoutes } from "./statusRoutes.js";
+import { buildActivationRoutes } from "./activationRoutes.js";
 import { buildMcpRoutes } from "./mcpRoutes.js";
 import { buildGovernanceRoutes } from "./governanceRoutes.js";
 import { buildJobRoutes } from "./jobRoutes.js";
@@ -22,9 +23,12 @@ import { buildReleaseRoutes } from "./releaseRoutes.js";
 import { buildConnectorRoutes } from "./connectorRoutes.js";
 import { buildBatchRoutes }     from "./batchRoutes.js";
 import { buildLegalRoutes } from "./legalRoutes.js";
+import { buildAuthRoutes } from "./authRoutes.js";
+import { buildAdminCliRoutes, buildAdminControlHandler, requireAdminPrincipal } from "./adminCliRoutes.js";
 
 export function registerRoutes(app, deps) {
   app.use(buildStatusRoutes(deps));
+  app.use(buildActivationRoutes(deps));
   app.use(buildHealthRoutes(deps));
   app.use(buildMcpRoutes(deps));
   app.use(buildGovernanceRoutes(deps));
@@ -48,4 +52,7 @@ export function registerRoutes(app, deps) {
   app.use(buildBatchRoutes(deps));
   app.use(buildExecuteRoutes(deps));
   app.use(buildLegalRoutes(deps));
+  app.use("/auth", buildAuthRoutes(deps));
+  app.post("/admin/control", deps.requireBackendApiKey, requireAdminPrincipal, buildAdminControlHandler());
+  app.use("/admin/cli", buildAdminCliRoutes(deps));
 }

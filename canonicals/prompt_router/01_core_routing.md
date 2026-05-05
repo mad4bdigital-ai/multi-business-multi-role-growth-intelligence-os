@@ -105,6 +105,10 @@ The hardened activation routing wrapper is active:
   - `no_traceability_only_completion = true`
   - `tool_hesitation_retry_required = true` when policy allows same-cycle retry
   - `activation_transport_sequence_mode = registry_endpoint_first`
+  - `session_context_required = true`
+  - `session_context_endpoint = /activation/session-context`
+  - `session_context_scope = same_user_unless_admin`
+  - `session_context_raw_dump_allowed = bounded_when_requested`
   - `provider_bootstrap_sequence_required = drive_then_sheets_bootstrap_then_github`
   - project-folder-scoped Google Drive discovery through folder `1gNYX47P4TNuMXEbWvLNCvV4XRocH41K2` when fallback discovery or canonical lookup is needed
 - `system_activation_check` must remain reserved for explicit readiness-check phrasing and must not be preferred for plain `Activate System` when one-request activation is intended

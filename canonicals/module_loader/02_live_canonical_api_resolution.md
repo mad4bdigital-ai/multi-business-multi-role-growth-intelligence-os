@@ -323,16 +323,29 @@ When activation begins in a new conversation, module_loader must load activation
 
 1. load knowledge layer canonicals for traceability
 2. fetch repository-backed canonicals through bootstrap/registry-resolved GitHub authority when repository authority is active
-3. execute Drive validation through `http_generic_api`
-4. execute Sheets validation through `http_generic_api` using `getSheetValues`, `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>`, and `query.range=Activation Bootstrap Config!A2:J2`
-5. execute GitHub validation only after bootstrap row resolution
-6. classify the governed transport validation state as:
+3. execute `GET /activation/session-context` through `http_generic_api` for previous same-user session history, related scopes, and transcript availability
+4. execute Drive validation through `http_generic_api`
+5. execute Sheets validation through `http_generic_api` using `getSheetValues`, `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>`, and `query.range=Activation Bootstrap Config!A2:J2`
+6. execute GitHub validation only after bootstrap row resolution
+7. classify the governed transport validation state as:
    - `validated`
    - `authorization_gated`
    - `degraded`
    - `blocked`
 
 Health, `/status`, release readiness, tenant listing, and count reads are diagnostics only and must not replace Drive, Sheets bootstrap, or GitHub activation probes.
+
+Session context is an activation evidence layer, not a replacement for provider probes. module_loader must preserve:
+- `session_context_attempted`
+- `session_context_status`
+- `session_context_endpoint = /activation/session-context`
+- `session_history_count`
+- `session_context_related_scopes`
+- `session_context_transcript_status`
+- `session_context_raw_dump_requested`
+- `session_context_raw_dump_bounded`
+
+Raw transcript dumps may be requested only with bounded retrieval controls such as `include_raw=true`, `limit`, `offset`, and `raw_max_chars`. User-authenticated reads must remain same-user scoped unless admin/service authority is present.
 
 Mandatory Governed Transport Attempt Readiness Rule
 
@@ -373,6 +386,10 @@ module_loader must return when applicable:
 - `activation_transport_attempted`
 - `activation_transport_status`
 - `authorization_gate_classification`
+- `session_context_attempted`
+- `session_context_status`
+- `session_history_count`
+- `session_context_transcript_status`
 - `knowledge_layer_trace_status`
 - `live_canonical_validation_status`
 - `activation_dependency_order_status`

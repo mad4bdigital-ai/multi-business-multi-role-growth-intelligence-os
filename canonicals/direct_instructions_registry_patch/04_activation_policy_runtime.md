@@ -29,12 +29,15 @@ For plain `Activate System`, this instruction requires:
 
 For first-turn activation in a new conversation:
 1. read knowledge layer canonicals first for traceability
-2. execute concrete Google Drive and Google Sheets validation through `http_generic_api` using registry-resolved parent action and endpoint keys
-3. read `Activation Bootstrap Config!A2:J2` with Sheets `getSheetValues`, `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>` (use this exact literal string, the backend auto-resolves it), and `query.range=Activation Bootstrap Config!A2:J2`
-4. use resolved bootstrap/registry authority for GitHub validation keys
-5. classify missing live validation caused by unavailable provider authorization as `authorization_gated`, not as missing Registry authority
+2. require signed-in Custom GPT Action transport and read `GET /activation/session-context` through `http_generic_api` for previous same-user sessions, related scopes, and transcript availability
+3. execute concrete Google Drive and Google Sheets validation through `http_generic_api` using registry-resolved parent action and endpoint keys
+4. read `Activation Bootstrap Config!A2:J2` with Sheets `getSheetValues`, `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>` (use this exact literal string, the backend auto-resolves it), and `query.range=Activation Bootstrap Config!A2:J2`
+5. use resolved bootstrap/registry authority for GitHub validation keys
+6. classify missing live validation caused by unavailable provider authorization as `authorization_gated`, not as missing Registry authority
 
 Health, `/status`, release readiness, tenant listing, brand counts, and action counts are diagnostic evidence only. They must not satisfy or replace the required Drive, Sheets bootstrap, or GitHub activation probes.
+
+The session-context layer is required once per Custom GPT session/action connection before normal platform work. Raw prompt/response dumps may be requested only with bounded controls (`include_raw=true`, `limit`, `offset`, and `raw_max_chars`). User JWT session-context reads must remain same-user scoped; admin/service authority may inspect explicit `user_id` when policy allows.
 
 Live governed readiness requires Registry-resolved validation through `http_generic_api`; Google remains a provider-specific endpoint path only when selected by registry governance.
 

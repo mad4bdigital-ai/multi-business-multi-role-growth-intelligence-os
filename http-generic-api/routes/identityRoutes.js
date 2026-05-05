@@ -37,6 +37,30 @@ export function buildIdentityRoutes(deps) {
       });
     }
   });
+  // ── GET /users ─────────────────────────────────────────────────────────────
+  router.get("/users", requireBackendApiKey, async (req, res) => {
+    try {
+      const { status, email, limit = 100 } = req.query;
+      const conditions = [];
+      const params = [];
+      if (status) { conditions.push("status = ?"); params.push(status); }
+      if (email) { conditions.push("email = ?"); params.push(email); }
+      
+      const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+      const [rows] = await getPool().query(
+        `SELECT user_id, email, display_name, status, created_at, updated_at
+         FROM \`users\` ${whereClause} ORDER BY created_at DESC LIMIT ?`,
+        [...params, parseInt(limit, 10) || 100]
+      );
+      return res.status(200).json({ ok: true, users: rows, count: rows.length });
+    } catch (err) {
+      return res.status(500).json({
+        ok: false,
+        error: { code: "users_list_failed", message: err.message || "Failed to list users." }
+      });
+    }
+  });
+
 
   // ── GET /users/:id ─────────────────────────────────────────────────────────
   router.get("/users/:id", requireBackendApiKey, async (req, res) => {

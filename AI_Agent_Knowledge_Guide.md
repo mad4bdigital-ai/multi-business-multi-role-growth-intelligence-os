@@ -5,6 +5,76 @@
 This document is an agent-facing knowledge summary for working inside this repository.
 It translates the canonical architecture into an operational guide for AI agents, orchestrators, and governed automation layers.
 
+## Top-level expanded reference
+
+`Top Level Instructions.md` is intentionally compact and must stay under 8,000 characters. Detailed rules formerly embedded there are maintained here.
+
+### Authority sources
+
+| Registry | Purpose |
+|---|---|
+| `actions` | Action keys, auth mode, schema binding |
+| `endpoints` | Endpoint keys, method, path, domain |
+| `workflows` | Workflow authority, `execution_class`, `review_required` |
+| `logic_definitions` | Execution logic, engine prompts, Drive links |
+| `business_activity_types` | Activity resolution |
+| `task_routes` | Routing authority |
+| `brands` | Brand context, auth target binding |
+| `hosting_accounts` | Per-target credentials |
+| `connected_systems` | MCP/external connectors |
+| `business_type_profiles` | Business-type knowledge and engine compatibility |
+| `brand_paths` | Brand to business-type path, Drive folder IDs, Brand Core map |
+| `brand_core` | Brand asset rows and Drive subfolder IDs |
+
+### Runtime and model chain
+
+All meaningful execution should conceptually follow:
+- `prompt_router`
+- `module_loader`
+- `system_bootstrap`
+- runtime tool / connector execution
+- governed logging + writeback
+- memory persistence through `memory_schema.json`
+
+AI workflows run through:
+
+```text
+connectorExecutor -> runAgentLoop -> runLogicWithModel -> engineExecutorRegistry.dispatch -> [MCP | HTTP action | logic-as-engine]
+```
+
+`workflows.execution_class` selects tier: `standard`, `complex`, or `authority`. `modelAdapterRouter` maps tiers to models. `AGENT_MODEL` and `AGENT_MODEL_PROVIDER` are runtime overrides.
+
+When `workflow.review_required = 1`, run post-execution review on `standard`. Major failures trigger an automatic fix pass. Write the result to `step_runs.verify_pass`.
+
+### Drive knowledge layer
+
+`logic_definitions` rows carry `source_doc_id` and `knowledge_folder_id`. `body_json.system_prompt` is the canonical prompt from the Drive spec. Run:
+
+```powershell
+node http-generic-api/sync-drive-to-db.mjs --apply
+```
+
+to sync Drive to DB when explicitly performing that maintenance task.
+
+### Activation detail
+
+Activation order:
+1. Read knowledge-layer canonicals.
+2. Read Session Context: `GET /activation/session-context`.
+3. Drive probe: `parent_action_key=google_drive_api`, `endpoint_key=listDriveFiles`.
+4. Sheets bootstrap: `parent_action_key=google_sheets_api`, `endpoint_key=getSheetValues`, `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>`, `query.range=Activation Bootstrap Config!A2:J2`.
+5. Resolve the bootstrap row.
+6. GitHub validation only with `parent_action_key` and `endpoint_key` resolved from bootstrap/registry authority.
+7. Run live validation and classify readiness.
+
+Session Context may include previous session history, related scopes, scoped request transcripts, and bounded raw dumps when `include_raw=true`. User JWT sessions inspect only their own user context. Admin/service sessions may inspect explicit `user_id` and may receive execution-log prompt/response summaries.
+
+Do not start GitHub until the bootstrap row resolves. Halt if Sheets is rate-limited. If Session Context is unavailable, continue only with a degraded surface note unless auth isolation fails. If Drive/Sheets are not attempted, classify as `degraded (missing_required_provider_bootstrap_attempt)`.
+
+### Runtime validation
+
+Every execution must validate surface bindings, route/workflow authority, dependency readiness, and credential resolution. Recovered classification is forbidden without same-cycle validation.
+
 ## 1. Authority order
 Agents should treat these files as the primary repository guidance sources, in this order:
 
@@ -116,13 +186,16 @@ Activation is not considered complete unless the required governed execution and
 Agents should assume activation requires the concrete provider bootstrap chain through `http_generic_api`:
 
 1. Load the knowledge-layer canonicals.
-2. Run the Drive probe through `http_generic_api` with `parent_action_key=google_drive_api` and `endpoint_key=listDriveFiles`.
-3. Run the Sheets bootstrap probe through `http_generic_api` with `parent_action_key=google_sheets_api`, `endpoint_key=getSheetValues`, `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>` (use this exact literal string, the backend auto-resolves it), and `query.range=Activation Bootstrap Config!A2:J2`.
-4. Resolve the bootstrap row before attempting GitHub validation.
-5. Run GitHub validation only with `parent_action_key` and `endpoint_key` resolved from bootstrap or registry authority.
-6. Classify readiness from execution evidence, not from narrative or health checks alone.
+2. Run the Session Context probe through `http_generic_api` with `GET /activation/session-context` to recover same-user previous session history, scoped user request transcripts, and related platform scopes. Use `limit` and `offset` to page through older session history when continuity requires more than the first page. Use `include_raw=true` only when raw prompt/response dumps are needed; raw fields are bounded by `raw_max_chars`. Admin/service sessions may also receive execution-log prompt/response summaries and bounded raw dumps; user JWT sessions must not receive unscoped execution-log transcripts.
+3. Run the Drive probe through `http_generic_api` with `parent_action_key=google_drive_api` and `endpoint_key=listDriveFiles`.
+4. Run the Sheets bootstrap probe through `http_generic_api` with `parent_action_key=google_sheets_api`, `endpoint_key=getSheetValues`, `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>` (use this exact literal string, the backend auto-resolves it), and `query.range=Activation Bootstrap Config!A2:J2`.
+5. Resolve the bootstrap row before attempting GitHub validation.
+6. Run GitHub validation only with `parent_action_key` and `endpoint_key` resolved from bootstrap or registry authority.
+7. Classify readiness from execution evidence, not from narrative or health checks alone.
 
 Health, `/status`, release readiness, tenant listing, brand counts, and action counts are diagnostics only. They prove reachability or registry health, but they do not replace Drive, Sheets bootstrap, or GitHub validation.
+
+Session Context is an activation context layer, not a replacement provider probe. If it fails because session tables are unavailable, continue with a degraded surface note. If it fails due auth isolation, classify `authorization_gated` and stop secured probes.
 
 `hard_activation_wrapper` and `system_auto_bootstrap` are routing labels, not provider action keys. Do not send them as `parent_action_key`.
 
@@ -326,7 +399,7 @@ Treat `/http-execute` as the main provider execution boundary. Route-specific sh
 
 Agents must not manually inject credentials into request headers unless the backend contract explicitly asks for non-sensitive caller headers. `Authorization` is controlled by the backend and registry auth mode.
 
-Custom GPT Action authentication is configured at the Action connection layer, not inside request payloads. The backend accepts either `Authorization: Bearer <BACKEND_API_KEY>` or `x-api-key: <BACKEND_API_KEY>`.
+Custom GPT Action authentication is configured at the Action connection layer, not inside request payloads. Admin/service access uses `Authorization: Bearer <BACKEND_API_KEY>` or `x-api-key: <BACKEND_API_KEY>`. User access may use `Authorization: Bearer <USER_JWT>` issued by `/auth/login` or `/auth/google`. Treat the GCloud `BACKEND_API_KEY` as an admin/service credential, not a shared per-user credential.
 
 If secured routes return 401 or 403, classify activation as `authorization_gated (backend_action_auth_missing_or_invalid)` and stop the provider bootstrap chain for that cycle. Do not continue with Drive, Sheets, tenants, or release-readiness calls until Action authentication is corrected.
 

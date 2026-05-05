@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import jwt from "jsonwebtoken";
 import { createBackendApiKeyMiddleware } from "./runtimeGuards.js";
 
 function callMiddleware(headers = {}, env = { BACKEND_API_KEY: "secret" }) {
@@ -30,20 +31,32 @@ function callMiddleware(headers = {}, env = { BACKEND_API_KEY: "secret" }) {
     nextCalled = true;
   });
 
-  return { nextCalled, responseStatus, responseBody };
+  return { nextCalled, responseStatus, responseBody, req };
 }
 
-assert.equal(
-  callMiddleware({ Authorization: "Bearer secret" }).nextCalled,
-  true,
-  "accepts Authorization bearer token"
-);
+{
+  const result = callMiddleware({ Authorization: "Bearer secret" });
+  assert.equal(result.nextCalled, true, "accepts Authorization bearer token");
+  assert.equal(result.req.auth?.is_admin, true, "backend bearer auth is admin");
+}
 
-assert.equal(
-  callMiddleware({ "x-api-key": "secret" }).nextCalled,
-  true,
-  "accepts x-api-key token"
-);
+{
+  const result = callMiddleware({ "x-api-key": "secret" });
+  assert.equal(result.nextCalled, true, "accepts x-api-key token");
+  assert.equal(result.req.auth?.is_admin, true, "x-api-key auth is admin");
+}
+
+{
+  const token = jwt.sign({ user_id: "user-1", email: "user@example.com" }, "jwt-secret", { expiresIn: "5m" });
+  const result = callMiddleware(
+    { Authorization: `Bearer ${token}` },
+    { BACKEND_API_KEY: "secret", JWT_SECRET: "jwt-secret" }
+  );
+  assert.equal(result.nextCalled, true);
+  assert.equal(result.req.auth?.mode, "user_jwt");
+  assert.equal(result.req.auth?.is_admin, false);
+  assert.equal(result.req.auth?.user_id, "user-1");
+}
 
 {
   const result = callMiddleware({});
@@ -55,6 +68,14 @@ assert.equal(
 
 {
   const result = callMiddleware({ Authorization: "Bearer wrong" });
+  assert.equal(result.nextCalled, false);
+  assert.equal(result.responseStatus, 403);
+  assert.equal(result.responseBody.ok, false);
+  assert.equal(result.responseBody.error.code, "invalid_auth_token");
+}
+
+{
+  const result = callMiddleware({ "x-api-key": "wrong" });
   assert.equal(result.nextCalled, false);
   assert.equal(result.responseStatus, 403);
   assert.equal(result.responseBody.ok, false);

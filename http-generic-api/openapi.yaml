@@ -18,7 +18,7 @@ info:
         /api-credentials, /webhooks, /rate-limit-rules
     (3) Release operations — /release/readiness, /release/readiness-history,
         /release/entity-classification
-    All platform endpoints require Bearer authentication via BACKEND_API_KEY.
+    Platform endpoints accept admin/service authentication via BACKEND_API_KEY, or user authentication via a signed login JWT.
 
 servers:
   - url: https://http-generic-api-954909841518.europe-west1.run.app
@@ -27,6 +27,8 @@ servers:
 tags:
   - name: health
     description: Backend health and queue status.
+  - name: activation
+    description: Once-per-session activation probes, session history, and scope context.
   - name: jobs
     description: Async governed execution jobs.
   - name: execution
@@ -59,6 +61,8 @@ tags:
     description: Immutable audit log, secret references, incidents, and compliance.
   - name: developer-api
     description: Developer apps, API credentials (key generation), webhooks, and rate limits.
+  - name: admin-control
+    description: Personal administrator control surface for CLI, database, and runtime environment operations.
   - name: release
     description: Release readiness checks, history, and entity classification inventory.
 
@@ -67,17 +71,17 @@ components:
     backendBearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: Backend API Key
+      bearerFormat: Backend API Key or User JWT
       description: >
-        Required when BACKEND_API_KEY is enabled on the backend. Send as
-        Authorization: Bearer <BACKEND_API_KEY>.
+        Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or
+        Authorization: Bearer <USER_JWT> after user sign-in.
     backendApiKeyAuth:
       type: apiKey
       in: header
       name: x-api-key
       description: >
-        Alternative Custom GPT-safe backend authentication header. Send
-        x-api-key: <BACKEND_API_KEY>.
+        Admin/service Custom GPT-safe backend authentication header. Send
+        x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
 
   schemas:
 
@@ -1146,6 +1150,111 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+
+  /activation/session-context:
+    get:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: getActivationSessionContext
+      summary: Read previous session history and platform scope context
+      description: >
+        Hard activation layer that reads prior user session envelopes as a
+        paginated history log, scoped user request transcripts, plus audit
+        activity, developer scopes, API credential scopes, and connected-system
+        scopes. Admin/service sessions may also receive execution-log prompt and
+        response summaries. Raw dumps are returned only when include_raw=true and
+        are size-bounded. User JWT callers may inspect only their own user context.
+      parameters:
+        - name: user_id
+          in: query
+          schema: { type: string }
+          description: Optional user id. Admin callers may inspect any user; user JWT callers are restricted to themselves.
+        - name: tenant_id
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50, maximum: 200 }
+          description: Number of previous session/history rows to return per page.
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0, minimum: 0 }
+          description: Pagination offset for reading older previous session history.
+        - name: include_raw
+          in: query
+          schema: { type: boolean, default: false }
+          description: Include bounded raw request/response dumps where allowed by caller scope.
+        - name: raw_max_chars
+          in: query
+          schema: { type: integer, default: 4000, maximum: 20000 }
+          description: Maximum characters per raw dump field when include_raw=true.
+      responses:
+        "200":
+          description: Session history and related platform scopes
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, activation_layer, subject, pagination, session_history, related_scopes, history]
+                properties:
+                  ok: { type: boolean }
+                  activation_layer: { type: string, enum: [session_context] }
+                  subject:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      user_id: { type: string }
+                      tenant_id: { type: string }
+                      is_admin: { type: boolean }
+                  last_session:
+                    type: object
+                    additionalProperties: true
+                  pagination:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      limit: { type: integer }
+                      offset: { type: integer }
+                      include_raw: { type: boolean }
+                      raw_max_chars: { type: integer }
+                      has_more_session_history: { type: boolean }
+                  session_history:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties:
+                        transcript:
+                          type: object
+                          additionalProperties: false
+                          properties:
+                            user_request: { type: string }
+                            ai_response: { type: string }
+                            request_fields_available:
+                              type: array
+                              items: { type: string }
+                        raw_dump:
+                          type: object
+                          additionalProperties: true
+                  related_scopes:
+                    type: array
+                    items: { type: string }
+                  history:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  degraded_surfaces:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Unauthorized" }
+        "500": { description: Session context read failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /governance/resolve-context-diagnostic:
     post:
@@ -3014,6 +3123,89 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   # ── Release Readiness ──────────────────────────────────────────────────────
+
+  /admin/control:
+    post:
+      tags: [admin-control]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: executeAdminControl
+      summary: Execute personal admin control operation
+      description: >
+        Root-level personal administrator endpoint for GitHub CLI, gcloud CLI,
+        remote database SQL control through the configured application pool, and
+        local runtime environment inspection or mutation. This endpoint is intended
+        only for the owner's private admin GPT and requires backend API key auth.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [tool]
+              properties:
+                tool:
+                  type: string
+                  enum: [github, gcloud, db, env]
+                args:
+                  oneOf:
+                    - type: array
+                      items: { type: string }
+                    - type: string
+                  description: Arguments for github or gcloud tools. Prefer an array to preserve spacing.
+                timeout_ms:
+                  type: integer
+                  minimum: 1000
+                  maximum: 600000
+                  default: 120000
+                sql:
+                  type: string
+                  description: SQL statement for the db tool.
+                params:
+                  type: array
+                  items:
+                    oneOf:
+                      - type: string
+                      - type: number
+                      - type: integer
+                      - type: boolean
+                      - type: "null"
+                  description: Positional SQL parameters for the db tool.
+                action:
+                  type: string
+                  enum: [list, get, set, unset]
+                  default: list
+                  description: Runtime environment action for the env tool.
+                name:
+                  type: string
+                  description: Environment variable name for env get, set, or unset.
+                value:
+                  type: string
+                  description: Environment variable value for env set.
+                include_values:
+                  type: boolean
+                  default: false
+                  description: Include environment values when listing variables.
+                reveal_values:
+                  type: boolean
+                  default: false
+                  description: Return unmasked environment values, including sensitive-looking names.
+      responses:
+        "200":
+          description: Admin control operation result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, tool, result]
+                properties:
+                  ok: { type: boolean }
+                  tool: { type: string, enum: [github, gcloud, db, env] }
+                  result: { type: object, additionalProperties: true }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { description: Admin control execution failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /release/readiness:
     get:

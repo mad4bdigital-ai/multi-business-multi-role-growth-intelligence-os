@@ -235,8 +235,30 @@ function buildHtml(data) {
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
+function isStatusHost(req) {
+  const host = String(req.headers.host || "").split(":")[0].toLowerCase();
+  return host === "status.mad4b.com";
+}
+
 export function buildStatusRoutes(_deps) {
   const router = Router();
+
+  router.get("/", async (req, res, next) => {
+    if (!isStatusHost(req)) return next();
+
+    try {
+      const data = await gatherStatus();
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache");
+      return res.status(200).send(buildHtml(data));
+    } catch (err) {
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      return res.status(503).send(`<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px">
+        <h1 style="color:#cf222e">Status Unavailable</h1>
+        <p>Could not retrieve system status: ${err.message}</p>
+      </body></html>`);
+    }
+  });
 
   // ── GET /status — public JSON ─────────────────────────────────────────────
   router.get("/status", async (_req, res) => {

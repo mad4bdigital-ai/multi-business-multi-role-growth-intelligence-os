@@ -1,0 +1,1775 @@
+openapi: 3.1.0
+info:
+  title: Governed HTTP Client — AI Platform - Identity And Access Actions
+  version: 3.0.0-platform
+  summary: Custom GPT action schema for identity, access.
+  description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: identity, access.'
+servers:
+  - url: https://identity.mad4b.com
+    description: Identity And Access Actions custom domain
+tags:
+  - name: identity
+    description: Users, role assignments, plans, subscriptions, and assistance roles.
+  - name: access
+    description: 6-outcome access decision engine and request envelope log.
+components:
+  securitySchemes:
+    backendBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key or User JWT
+      description: |
+        Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or Authorization: Bearer <USER_JWT> after user sign-in.
+  schemas:
+    ReadbackRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        required:
+          type: boolean
+          default: false
+        mode:
+          type: string
+          enum:
+            - none
+            - echo
+            - location_followup
+          default: none
+    ReadbackResult:
+      type: object
+      properties: {}
+      additionalProperties: true
+      description: Optional readback result when requested and available.
+    QueryObject:
+      type: object
+      properties: {}
+      additionalProperties:
+        oneOf:
+          - type: string
+          - type: number
+          - type: integer
+          - type: boolean
+          - type: 'null'
+    StringMap:
+      type: object
+      properties: {}
+      additionalProperties:
+        type: string
+    PathParamsObject:
+      type: object
+      properties: {}
+      additionalProperties:
+        oneOf:
+          - type: string
+          - type: number
+          - type: integer
+          - type: boolean
+    JsonValue:
+      oneOf:
+        - type: object
+          properties: {}
+          additionalProperties: true
+        - type: array
+          items: {}
+        - type: string
+        - type: number
+        - type: integer
+        - type: boolean
+        - type: 'null'
+    ExecuteHttpRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - parent_action_key
+        - endpoint_key
+      properties:
+        target_key:
+          type: string
+          description: |
+            Brand or target selector resolved server-side through governed registries. Keep this as a top-level execution field, not inside body, when it is used for routing.
+        brand:
+          type: string
+          description: Optional brand name resolver input.
+        brand_domain:
+          type: string
+          description: Optional brand domain resolver input.
+        provider_domain:
+          type: string
+          description: |
+            Optional execution server source. May be omitted when the endpoint row defines a fixed provider domain or when governed placeholder resolution applies.
+        parent_action_key:
+          type: string
+          description: Governing parent action key from Actions Registry.
+        endpoint_key:
+          type: string
+          description: Governing endpoint key from API Actions Endpoint Registry.
+        method:
+          type: string
+          enum:
+            - GET
+            - POST
+            - PUT
+            - PATCH
+            - DELETE
+          description: |
+            Optional HTTP method override. When omitted, backend resolves the authoritative method from the endpoint registry/schema contract.
+        path:
+          type: string
+          pattern: ^/
+          description: |
+            Optional relative path override. When omitted, backend resolves the authoritative path from the endpoint registry/schema contract.
+        path_params:
+          $ref: '#/components/schemas/PathParamsObject'
+        query:
+          $ref: '#/components/schemas/QueryObject'
+        headers:
+          $ref: '#/components/schemas/StringMap'
+          description: |
+            Optional non-sensitive headers. Authorization must never be supplied by caller.
+        body:
+          $ref: '#/components/schemas/JsonValue'
+        expect_json:
+          type: boolean
+          default: true
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 300
+          description: Optional override bounded by backend policy.
+        readback:
+          $ref: '#/components/schemas/ReadbackRequest'
+        force_refresh:
+          type: boolean
+          description: Force registry reload before execution.
+    ExecuteHttpResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - status
+        - provider_domain
+        - parent_action_key
+        - endpoint_key
+        - method
+        - path
+      properties:
+        ok:
+          type: boolean
+        status:
+          type: integer
+          description: Upstream HTTP status code or backend execution status.
+        provider_domain:
+          type: string
+        parent_action_key:
+          type: string
+        endpoint_key:
+          type: string
+        method:
+          type: string
+        path:
+          type: string
+        openai_schema_file_id:
+          type: string
+        schema_name:
+          type: string
+        resolved_auth_mode:
+          type: string
+          enum:
+            - ''
+            - none
+            - basic_auth
+            - bearer_token
+            - api_key_query
+            - api_key_header
+            - oauth_gpt_action
+            - custom_headers
+        runtime_capability_class:
+          type: string
+        runtime_callable:
+          type: boolean
+        registry_runtime_callable:
+          type: boolean
+        primary_executor:
+          type: string
+        endpoint_role:
+          type: string
+        execution_mode:
+          type: string
+        transport_required:
+          type: boolean
+        request_schema_alignment_status:
+          type: string
+          enum:
+            - pending
+            - validated
+            - degraded
+            - blocked
+        response_schema_alignment_status:
+          type: string
+          enum:
+            - pending
+            - validated
+            - degraded
+            - blocked
+        transport_request_contract_status:
+          type: string
+          enum:
+            - pending
+            - validated
+            - degraded
+            - blocked
+        resolved_provider_domain_mode:
+          type: string
+          enum:
+            - ''
+            - fixed_domain
+            - placeholder_runtime_resolved
+            - brand_bound_domain
+        placeholder_resolution_source:
+          type: string
+        resilience_applied:
+          type: boolean
+        final_query:
+          type: object
+          additionalProperties: true
+          properties: {}
+        request_url:
+          type: string
+        response_headers:
+          type: object
+          additionalProperties: true
+          properties: {}
+        data:
+          $ref: '#/components/schemas/JsonValue'
+        readback:
+          $ref: '#/components/schemas/ReadbackResult'
+        upstream_status:
+          type: integer
+          description: Present on compact/specialized success envelopes.
+        post_id:
+          oneOf:
+            - type: integer
+            - type: string
+        link:
+          type: string
+        error:
+          $ref: '#/components/schemas/ErrorObject'
+    ResolveContextDiagnosticRequest:
+      type: object
+      additionalProperties: true
+      properties:
+        business_type_key:
+          type: string
+          description: Business type key, for example hvac_air_conditioning_services.
+        business_activity_type_key:
+          type: string
+          description: Optional business activity type key.
+        knowledge_profile_key:
+          type: string
+          description: Optional business type knowledge profile key.
+        brand_key:
+          type: string
+          description: Brand key, for example arab_cooling.
+        target_key:
+          type: string
+          description: |
+            Optional execution target key. When this diagnostic route is called through /http-execute, target_key should remain top-level in the governed execution envelope rather than inside body.
+        mutation_intent:
+          type: string
+          default: resolve_context_diagnostic
+        requestPayload:
+          type: object
+          additionalProperties: true
+          description: Optional nested request payload for diagnostic testing.
+          properties: {}
+        brand:
+          type: object
+          additionalProperties: true
+          description: Optional brand context override for diagnostics.
+          properties: {}
+        endpoint:
+          type: object
+          additionalProperties: true
+          description: Optional endpoint context override for diagnostics.
+          properties: {}
+        action:
+          type: object
+          additionalProperties: true
+          description: Optional action context override for diagnostics.
+          properties: {}
+      description: |
+        Diagnostic payload for resolving governed business type, brand path, Brand Core, validation, and execution readiness without mutation.
+    ResolveContextDiagnosticResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - diagnostic
+      properties:
+        ok:
+          type: boolean
+        diagnostic:
+          type: object
+          additionalProperties: true
+          required:
+            - resolution_status
+            - knowledge_ready
+            - execution_ready
+          properties:
+            request:
+              type: object
+              additionalProperties: true
+              properties: {}
+            path_resolver_load:
+              type: object
+              additionalProperties: true
+              properties: {}
+            resolution_status:
+              type: string
+              description: ready, validating, blocked, not_requested, or not_attempted.
+            knowledge_ready:
+              type: boolean
+            execution_ready:
+              type: boolean
+            business_type:
+              type: object
+              additionalProperties: true
+              properties: {}
+            brand:
+              type: object
+              additionalProperties: true
+              properties: {}
+            brand_core:
+              type: object
+              additionalProperties: true
+              properties: {}
+            validation_state:
+              type: object
+              additionalProperties: true
+              properties: {}
+            execution_target:
+              type: object
+              additionalProperties: true
+              properties: {}
+    JobCreateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        request_payload:
+          $ref: '#/components/schemas/ExecuteHttpRequest'
+        job_type:
+          type: string
+          default: http_execute
+        max_attempts:
+          type: integer
+          minimum: 1
+          maximum: 10
+        webhook_url:
+          type: string
+          format: uri
+        callback_secret:
+          type: string
+        idempotency_key:
+          type: string
+        target_key:
+          type: string
+        brand:
+          type: string
+        brand_domain:
+          type: string
+        provider_domain:
+          type: string
+        parent_action_key:
+          type: string
+        endpoint_key:
+          type: string
+        method:
+          type: string
+          enum:
+            - GET
+            - POST
+            - PUT
+            - PATCH
+            - DELETE
+        path:
+          type: string
+          pattern: ^/
+        path_params:
+          $ref: '#/components/schemas/PathParamsObject'
+        query:
+          $ref: '#/components/schemas/QueryObject'
+        headers:
+          $ref: '#/components/schemas/StringMap'
+        body:
+          $ref: '#/components/schemas/JsonValue'
+        expect_json:
+          type: boolean
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 300
+        readback:
+          $ref: '#/components/schemas/ReadbackRequest'
+        force_refresh:
+          type: boolean
+      description: |
+        Provide either request_payload or the top-level execution fields. Do not send both at once. After normalization, execution still requires parent_action_key and endpoint_key.
+    JobSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - job_id
+        - job_type
+        - status
+        - created_at
+        - updated_at
+        - requested_by
+        - target_key
+        - parent_action_key
+        - endpoint_key
+        - attempt_count
+        - max_attempts
+        - status_url
+        - result_url
+      properties:
+        job_id:
+          type: string
+        job_type:
+          type: string
+        status:
+          type: string
+          enum:
+            - queued
+            - running
+            - retrying
+            - succeeded
+            - failed
+            - cancelled
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        requested_by:
+          type: string
+        target_key:
+          type: string
+        parent_action_key:
+          type: string
+        endpoint_key:
+          type: string
+        attempt_count:
+          type: integer
+        max_attempts:
+          type: integer
+        next_retry_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        status_url:
+          type: string
+        result_url:
+          type: string
+        deduplicated:
+          type: boolean
+        terminal:
+          type: boolean
+        active:
+          type: boolean
+    JobResultPending:
+      type: object
+      additionalProperties: false
+      required:
+        - job_id
+        - status
+        - message
+        - status_url
+      properties:
+        job_id:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+        status_url:
+          type: string
+    JobResultSuccess:
+      type: object
+      additionalProperties: false
+      required:
+        - job_id
+        - status
+        - result
+      properties:
+        job_id:
+          type: string
+        status:
+          type: string
+        result:
+          $ref: '#/components/schemas/JsonValue'
+    JobResultFailure:
+      type: object
+      additionalProperties: false
+      required:
+        - job_id
+        - status
+        - error
+      properties:
+        job_id:
+          type: string
+        status:
+          type: string
+        error:
+          oneOf:
+            - $ref: '#/components/schemas/ErrorResponse'
+            - type: object
+              additionalProperties: true
+              properties: {}
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - service
+        - status
+        - version
+        - jobs
+        - timestamp
+      properties:
+        ok:
+          type: boolean
+        service:
+          type: string
+        status:
+          type: string
+        version:
+          type: string
+        jobs:
+          type: object
+          additionalProperties: false
+          required:
+            - total
+            - queued_buffer_size
+            - statuses
+          properties:
+            total:
+              type: integer
+            queued_buffer_size:
+              type: integer
+            statuses:
+              type: object
+              additionalProperties: false
+              required:
+                - queued
+                - running
+                - succeeded
+                - failed
+                - retrying
+                - cancelled
+              properties:
+                queued:
+                  type: integer
+                running:
+                  type: integer
+                succeeded:
+                  type: integer
+                failed:
+                  type: integer
+                retrying:
+                  type: integer
+                cancelled:
+                  type: integer
+        dependencies:
+          type: object
+          additionalProperties: true
+          description: Optional backend dependency health details, including database connectivity.
+          properties:
+            db:
+              type: object
+              additionalProperties: true
+              properties:
+                connected:
+                  oneOf:
+                    - type: boolean
+                    - type: 'null'
+                error:
+                  type: string
+                skipped:
+                  type: boolean
+        timestamp:
+          type: string
+          format: date-time
+    ErrorObject:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        status:
+          type: integer
+        details:
+          oneOf:
+            - type: object
+              additionalProperties: true
+              properties: {}
+            - type: 'null'
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - error
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - false
+        error:
+          $ref: '#/components/schemas/ErrorObject'
+        execution_guardrail:
+          type: boolean
+    AiIntentMaturation:
+      type: object
+      additionalProperties: true
+      description: |
+        First-class intent maturation context produced by the AI resolver. Carry the full object forward from /ai/implementation-plan into /ai/task-manifest to preserve route/workflow continuity.
+      properties:
+        intent_key:
+          type: string
+          description: Resolved intent key, e.g. ai_implementation_plan_generation.
+        resolver_type:
+          type: string
+          enum:
+            - implementation_plan
+            - task_manifest
+        maturation_status:
+          type: string
+          enum:
+            - matured
+            - blocked
+        upstream_resolver_type:
+          type: string
+          description: resolver_type from the prior route, if applicable.
+        upstream_intent_key:
+          type: string
+          description: intent_key from the prior route, if applicable.
+        execution_intent:
+          type: object
+          additionalProperties: true
+          properties: {}
+        route_workflow_state:
+          type: object
+          additionalProperties: true
+          properties: {}
+        mutation_intent:
+          type: object
+          additionalProperties: true
+          properties: {}
+        blocked_reason:
+          type: string
+          description: Non-empty only when maturation_status is blocked.
+    AiUsage:
+      type: object
+      additionalProperties: true
+      description: OpenAI token usage for the generation call.
+      properties:
+        prompt_tokens:
+          type: integer
+        completion_tokens:
+          type: integer
+        total_tokens:
+          type: integer
+    AiImplementationPlanRequest:
+      type: object
+      additionalProperties: true
+      required:
+        - userPrompt
+      properties:
+        userPrompt:
+          type: string
+          description: The user's high-level request to generate an implementation plan for.
+        systemContext:
+          type: string
+          description: |
+            Optional extra system context injected before the intent maturation block. Do not include intent_maturation here; it is injected automatically.
+        model:
+          type: string
+          default: gpt-4o
+          description: OpenAI model to use. Defaults to gpt-4o.
+        intent_key:
+          type: string
+          description: |
+            Optional explicit intent key override. When omitted, defaults to ai_implementation_plan_generation.
+        intent_maturation:
+          $ref: '#/components/schemas/AiIntentMaturation'
+          description: |
+            Optional carry-forward from a prior AI resolver call. Supply when chaining resolvers so route/workflow context is preserved.
+        routing_context:
+          type: object
+          additionalProperties: true
+          description: Optional governed routing context for intent resolution.
+          properties: {}
+    AiImplementationPlanResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - type
+        - intent_maturation
+        - planMarkdown
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+        type:
+          type: string
+          enum:
+            - implementation_plan
+        intent_maturation:
+          $ref: '#/components/schemas/AiIntentMaturation'
+        planMarkdown:
+          type: string
+          description: |
+            Full Markdown implementation plan. Pass this as implementationPlan in the body of a subsequent /ai/task-manifest call.
+        usage:
+          oneOf:
+            - $ref: '#/components/schemas/AiUsage'
+            - type: 'null'
+    AiTaskManifestRequest:
+      type: object
+      additionalProperties: true
+      required:
+        - implementationPlan
+      properties:
+        implementationPlan:
+          type: string
+          description: |
+            The Markdown implementation plan to break down into tasks. Pass the planMarkdown from /ai/implementation-plan here.
+        systemContext:
+          type: string
+          description: |
+            Optional extra system context injected before the intent maturation block.
+        model:
+          type: string
+          default: gpt-4o
+          description: OpenAI model to use. Defaults to gpt-4o.
+        intent_key:
+          type: string
+          description: |
+            Optional explicit intent key override. When omitted, defaults to ai_task_manifest_generation.
+        intent_maturation:
+          $ref: '#/components/schemas/AiIntentMaturation'
+          description: |
+            Carry-forward from /ai/implementation-plan. Supply the full intent_maturation object to preserve route/workflow continuity between the two resolver steps.
+        routing_context:
+          type: object
+          additionalProperties: true
+          description: Optional governed routing context for intent resolution.
+          properties: {}
+    AiTaskManifestResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - type
+        - intent_maturation
+        - taskMarkdown
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+        type:
+          type: string
+          enum:
+            - task_manifest
+        intent_maturation:
+          $ref: '#/components/schemas/AiIntentMaturation'
+        taskMarkdown:
+          type: string
+          description: Markdown task checklist derived from the implementation plan.
+        usage:
+          oneOf:
+            - $ref: '#/components/schemas/AiUsage'
+            - type: 'null'
+    AiRegistryReadinessBinding:
+      type: object
+      additionalProperties: false
+      required:
+        - intent_key
+        - route_found
+        - route_executable
+        - workflow_found
+        - workflow_executable
+      properties:
+        intent_key:
+          type: string
+        route_found:
+          type: boolean
+        route_executable:
+          type: boolean
+        route_id:
+          type: string
+        route_task_key:
+          type: string
+        route_workflow_key:
+          type: string
+        workflow_found:
+          type: boolean
+        workflow_executable:
+          type: boolean
+        workflow_id:
+          type: string
+        workflow_key:
+          type: string
+        workflow_route_key:
+          type: string
+    AiRegistryReadinessDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - mode
+        - required_intent_keys
+        - bindings
+        - missing_intent_keys
+        - unresolved_task_authority
+        - missing_workflow_bindings
+        - unresolved_workflow_authority
+        - task_routes_ready
+        - workflow_registry_ready
+        - ok
+      properties:
+        mode:
+          type: string
+          enum:
+            - validate_only
+        required_intent_keys:
+          type: array
+          items:
+            type: string
+        bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/AiRegistryReadinessBinding'
+        missing_intent_keys:
+          type: array
+          items:
+            type: string
+        unresolved_task_authority:
+          type: array
+          items:
+            type: string
+        missing_workflow_bindings:
+          type: array
+          items:
+            type: string
+        unresolved_workflow_authority:
+          type: array
+          items:
+            type: string
+        task_routes_ready:
+          type: boolean
+        workflow_registry_ready:
+          type: boolean
+        ok:
+          type: boolean
+    AiRegistryReadinessResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - readiness
+      properties:
+        ok:
+          type: boolean
+        degraded:
+          type: boolean
+          description: Present and true when readiness check is not fully passing.
+        message:
+          type: string
+        readiness:
+          $ref: '#/components/schemas/AiRegistryReadinessDetail'
+    OkResponse:
+      type: object
+      additionalProperties: true
+      required:
+        - ok
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+    PlatformRecord:
+      type: object
+      additionalProperties: true
+      description: Generic platform entity record. Fields vary by resource type.
+      properties: {}
+    PlatformListResponse:
+      type: object
+      additionalProperties: true
+      required:
+        - ok
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+        count:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlatformRecord'
+        tenants:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlatformRecord'
+    TenantCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - display_name
+      properties:
+        display_name:
+          type: string
+        tenant_type:
+          type: string
+          enum:
+            - platform_owner
+            - partner_organization
+            - freelancer_operator
+            - managed_client_account
+            - brand
+          default: brand
+        status:
+          type: string
+          enum:
+            - active
+            - suspended
+            - cancelled
+          default: active
+        metadata_json:
+          type: object
+          additionalProperties: true
+          properties: {}
+    MembershipCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - user_id
+        - role
+      properties:
+        user_id:
+          type: string
+        role:
+          type: string
+        service_mode:
+          type: string
+          enum:
+            - self_serve
+            - assisted
+            - managed
+    AccessResolveRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - tenant_id
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        risk_level:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+            - critical
+          default: low
+        intent_flags:
+          type: array
+          items:
+            type: string
+        persist:
+          type: boolean
+          default: false
+          description: Write the resolved envelope to request_envelopes table.
+    AccessResolveResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - decision
+        - reason
+        - service_mode
+        - resolved_at
+      properties:
+        ok:
+          type: boolean
+        decision:
+          type: string
+          enum:
+            - ALLOW_SELF_SERVE
+            - ALLOW_WITH_OPTIONAL_ASSISTANCE
+            - REQUIRE_REVIEW
+            - REQUIRE_SUPERVISOR_APPROVAL
+            - ROUTE_TO_MANAGED_SERVICE
+            - DENY
+        reason:
+          type: string
+        service_mode:
+          type: string
+        plan_key:
+          type: string
+        resolved_at:
+          type: string
+          format: date-time
+        envelope_id:
+          type: string
+          format: uuid
+    WorkflowRunCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - tenant_id
+        - workflow_key
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        workflow_key:
+          type: string
+        trigger_source:
+          type: string
+          enum:
+            - api
+            - planner
+            - schedule
+            - webhook
+          default: api
+        input_payload:
+          type: object
+          additionalProperties: true
+          properties: {}
+        user_id:
+          type: string
+          format: uuid
+    ApprovalDecisionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - decision
+      properties:
+        decision:
+          type: string
+          enum:
+            - approve
+            - reject
+        decided_by:
+          type: string
+          format: uuid
+        notes:
+          type: string
+    TelemetrySpanRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - trace_id
+        - span_name
+      properties:
+        trace_id:
+          type: string
+        span_id:
+          type: string
+        parent_span_id:
+          type: string
+        span_name:
+          type: string
+        tenant_id:
+          type: string
+          format: uuid
+        service_name:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        duration_ms:
+          type: integer
+        status:
+          type: string
+          enum:
+            - ok
+            - error
+            - timeout
+        attributes:
+          type: object
+          additionalProperties: true
+          properties: {}
+    UsageRecordRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - tenant_id
+        - meter_key
+        - quantity
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        meter_key:
+          type: string
+        quantity:
+          type: number
+        period_date:
+          type: string
+          format: date
+          description: Defaults to today (UTC). Used for daily bucket upsert.
+    ReleaseReadinessResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - overall
+        - run_id
+        - checked_at
+        - summary
+      properties:
+        ok:
+          type: boolean
+        overall:
+          type: string
+          enum:
+            - pass
+            - warn
+            - fail
+        run_id:
+          type: string
+          format: uuid
+        checked_at:
+          type: string
+          format: date-time
+        summary:
+          type: object
+          additionalProperties: false
+          required:
+            - total
+            - pass
+            - warn
+            - fail
+            - platform_tables_total
+            - platform_tables_ok
+          properties:
+            total:
+              type: integer
+            pass:
+              type: integer
+            warn:
+              type: integer
+            fail:
+              type: integer
+            platform_tables_total:
+              type: integer
+            platform_tables_ok:
+              type: integer
+        db_connectivity:
+          type: object
+          additionalProperties: true
+          properties: {}
+        platform_tables:
+          type: object
+          additionalProperties: true
+          properties: {}
+        legacy_tables:
+          type: object
+          additionalProperties: true
+          properties: {}
+        seed_data:
+          type: object
+          additionalProperties: true
+          properties: {}
+        migration_inventory:
+          type: object
+          additionalProperties: true
+          properties: {}
+  responses:
+    BadRequest:
+      description: Invalid request body or missing required field
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Invalid or missing backend API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+security:
+  - backendBearerAuth: []
+paths:
+  /users:
+    post:
+      tags:
+        - identity
+      security:
+        - backendBearerAuth: []
+      operationId: createUser
+      summary: Create a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                display_name:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - suspended
+                  default: active
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags:
+        - identity
+      security:
+        - backendBearerAuth: []
+      operationId: listUsers
+      summary: List users
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /users/{user_id}/role-assignments:
+    post:
+      tags:
+        - identity
+      security:
+        - backendBearerAuth: []
+      operationId: assignRole
+      summary: Assign a role to a user within a tenant
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tenant_id
+                - role_key
+              properties:
+                tenant_id:
+                  type: string
+                  format: uuid
+                role_key:
+                  type: string
+                scope:
+                  type: string
+                expires_at:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Role assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /plans:
+    get:
+      tags:
+        - identity
+      security:
+        - backendBearerAuth: []
+      operationId: listPlans
+      summary: List all subscription plans
+      responses:
+        '200':
+          description: Plan list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /subscriptions:
+    post:
+      tags:
+        - identity
+      security:
+        - backendBearerAuth: []
+      operationId: createSubscription
+      summary: Subscribe a tenant to a plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tenant_id
+                - plan_id
+              properties:
+                tenant_id:
+                  type: string
+                  format: uuid
+                plan_id:
+                  type: string
+                  format: uuid
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - cancelled
+                    - suspended
+                  default: active
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /tenants/{tenant_id}/subscriptions:
+    get:
+      tags:
+        - identity
+      security:
+        - backendBearerAuth: []
+      operationId: getTenantSubscriptions
+      summary: Get subscriptions for a tenant
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subscription list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /assistance-roles:
+    get:
+      tags:
+        - identity
+      security:
+        - backendBearerAuth: []
+      operationId: listAssistanceRoles
+      summary: List all assistance roles (7 levels from trainee to mentor)
+      responses:
+        '200':
+          description: Assistance role list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /users/{user_id}:
+    get:
+      tags:
+        - identity
+      security:
+        - backendBearerAuth: []
+      operationId: getUser
+      summary: Get a user by ID
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - identity
+      security:
+        - backendBearerAuth: []
+      operationId: replaceUser
+      summary: Full update of a user record
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - display_name
+              properties:
+                email:
+                  type: string
+                  format: email
+                display_name:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - suspended
+                    - archived
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Email already in use
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - identity
+      security:
+        - backendBearerAuth: []
+      operationId: archiveUser
+      summary: Archive a user (soft delete â€” sets status=archived)
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Archived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /entitlements:
+    post:
+      tags:
+        - identity
+      security:
+        - backendBearerAuth: []
+      operationId: createEntitlement
+      summary: Grant a feature entitlement to a tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tenant_id
+                - entitlement_key
+              properties:
+                tenant_id:
+                  type: string
+                  format: uuid
+                entitlement_key:
+                  type: string
+                entitlement_value:
+                  type: string
+                source:
+                  type: string
+                  enum:
+                    - manual
+                    - plan
+                    - promotion
+                  default: manual
+                granted_at:
+                  type: string
+                  format: date-time
+                expires_at:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Entitlement granted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /entitlements/{entitlement_id}:
+    get:
+      tags:
+        - identity
+      security:
+        - backendBearerAuth: []
+      operationId: getEntitlement
+      summary: Get an entitlement by ID
+      parameters:
+        - name: entitlement_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Entitlement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - identity
+      security:
+        - backendBearerAuth: []
+      operationId: replaceEntitlement
+      summary: Update an entitlement record
+      parameters:
+        - name: entitlement_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - entitlement_key
+              properties:
+                entitlement_key:
+                  type: string
+                entitlement_value:
+                  type: string
+                source:
+                  type: string
+                expires_at:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags:
+        - identity
+      security:
+        - backendBearerAuth: []
+      operationId: revokeEntitlement
+      summary: Revoke an entitlement (hard delete)
+      parameters:
+        - name: entitlement_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /tenants/{tenant_id}/entitlements:
+    get:
+      tags:
+        - identity
+      security:
+        - backendBearerAuth: []
+      operationId: getTenantEntitlements
+      summary: List entitlements for a tenant
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: key
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Entitlement list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /access/resolve:
+    post:
+      tags:
+        - access
+      security:
+        - backendBearerAuth: []
+      operationId: resolveAccess
+      summary: Run the 6-outcome access decision engine
+      description: |
+        Evaluates tenant context, membership, subscription, and policy to produce one of: ALLOW_SELF_SERVE, ALLOW_WITH_OPTIONAL_ASSISTANCE, REQUIRE_REVIEW, REQUIRE_SUPERVISOR_APPROVAL, ROUTE_TO_MANAGED_SERVICE, or DENY.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - tenant_id
+              properties:
+                tenant_id:
+                  type: string
+                  format: uuid
+                user_id:
+                  type: string
+                  format: uuid
+                risk_level:
+                  type: string
+                  enum:
+                    - low
+                    - medium
+                    - high
+                    - critical
+                  default: low
+                intent_flags:
+                  type: array
+                  items:
+                    type: string
+                persist:
+                  type: boolean
+                  default: false
+                  description: Write the resolved envelope to request_envelopes table.
+      responses:
+        '200':
+          description: Access decision resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessResolveResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /access/envelopes:
+    get:
+      tags:
+        - access
+      security:
+        - backendBearerAuth: []
+      operationId: listAccessEnvelopes
+      summary: List persisted access decision envelopes
+      parameters:
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: decision
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Envelope list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'

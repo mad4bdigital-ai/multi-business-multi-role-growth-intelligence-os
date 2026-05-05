@@ -1540,6 +1540,55 @@
           ],
           "default": "pending"
         },
+        "session_context_attempted": {
+          "type": "boolean",
+          "default": false
+        },
+        "session_context_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "validated",
+            "authorization_gated",
+            "degraded",
+            "blocked"
+          ],
+          "default": "pending"
+        },
+        "session_context_endpoint": {
+          "type": "string",
+          "default": "/activation/session-context"
+        },
+        "session_history_count": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "session_context_related_scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "session_context_transcript_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "available",
+            "partial",
+            "unavailable"
+          ],
+          "default": "pending"
+        },
+        "session_context_raw_dump_requested": {
+          "type": "boolean",
+          "default": false
+        },
+        "session_context_raw_dump_bounded": {
+          "type": "boolean",
+          "default": true
+        },
         "authorization_gate_classification": {
           "type": "string",
           "enum": [
@@ -1786,6 +1835,14 @@
         "activation_trace_status": "pending",
         "activation_transport_attempted": false,
         "activation_transport_status": "pending",
+        "session_context_attempted": false,
+        "session_context_status": "pending",
+        "session_context_endpoint": "/activation/session-context",
+        "session_history_count": 0,
+        "session_context_related_scopes": [],
+        "session_context_transcript_status": "pending",
+        "session_context_raw_dump_requested": false,
+        "session_context_raw_dump_bounded": true,
         "authorization_gate_classification": "",
         "post_activation_validation_status": "pending",
         "last_post_activation_validation_at": null,
@@ -1910,6 +1967,18 @@
           "type": "boolean",
           "default": false
         },
+        "session_context_required": {
+          "type": "boolean",
+          "default": true
+        },
+        "session_context_endpoint": {
+          "type": "string",
+          "default": "/activation/session-context"
+        },
+        "session_context_once_per_session": {
+          "type": "boolean",
+          "default": true
+        },
         "pre_response_guard_passed": {
           "type": "boolean",
           "default": false
@@ -1943,6 +2012,9 @@
       "default": {
         "wrapper_invoked": false,
         "use_governed_activation_transport_first": false,
+        "session_context_required": true,
+        "session_context_endpoint": "/activation/session-context",
+        "session_context_once_per_session": true,
         "pre_response_guard_passed": false,
         "same_cycle_retry_allowed": false,
         "same_cycle_retry_attempt_count": 0,

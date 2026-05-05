@@ -1,51 +1,25 @@
 openapi: 3.1.0
 info:
-  title: Growth Intelligence Platform Assistant - Custom GPT Actions
-  version: 3.0.0-custom-gpt
-  summary: Custom GPT-safe action schema for the governed Growth Intelligence Platform backend.
-  description: Custom GPT Actions schema for the governed Growth Intelligence Platform backend. Exposes 30 core actions for health, jobs, governed execution, AI planning, access, tenants, customers, connectors, release readiness, and batch dispatch.
+  title: Governed HTTP Client — AI Platform - Observability And Security Actions
+  version: 3.0.0-platform
+  summary: Custom GPT action schema for observability, security.
+  description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: observability, security.'
 servers:
-  - url: https://api.mad4b.com
-    description: Governed HTTP backend custom domain
+  - url: https://observability.mad4b.com
+    description: Observability And Security Actions custom domain
 tags:
-  - name: health
-    description: Backend health and queue status.
-  - name: jobs
-    description: Async governed execution jobs.
-  - name: execution
-    description: Synchronous governed HTTP execution.
-  - name: governance
-    description: Runtime governance diagnostics.
-  - name: ai
-    description: AI generation resolvers for implementation plans and task manifests.
-  - name: tenants
-    description: Multi-tenant provisioning, relationships, and memberships.
-  - name: identity
-    description: Users, role assignments, plans, subscriptions, and assistance roles.
-  - name: access
-    description: 6-outcome access decision engine and request envelope log.
-  - name: customers
-    description: Customer records, contacts, tickets, and timeline events.
-  - name: connected-systems
-    description: Connected systems, installations, permission grants, and workspaces.
-  - name: planner
-    description: Intent resolution and execution plan management.
-  - name: release
-    description: Release readiness checks, history, and entity classification inventory.
+  - name: observability
+    description: Telemetry spans, usage metering, and quota enforcement.
+  - name: security
+    description: Immutable audit log, secret references, incidents, and compliance.
 components:
   securitySchemes:
     backendBearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: Backend API Key
+      bearerFormat: Backend API Key or User JWT
       description: |
-        Required when BACKEND_API_KEY is enabled on the backend. Send as Authorization: Bearer <BACKEND_API_KEY>.
-    backendApiKeyAuth:
-      type: apiKey
-      in: header
-      name: x-api-key
-      description: |
-        Alternative Custom GPT-safe backend authentication header. Send x-api-key: <BACKEND_API_KEY>.
+        Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or Authorization: Bearer <USER_JWT> after user sign-in.
   schemas:
     ReadbackRequest:
       type: object
@@ -75,7 +49,7 @@ components:
           - type: number
           - type: integer
           - type: boolean
-          - type: "null"
+          - type: 'null'
     StringMap:
       type: object
       properties: {}
@@ -101,7 +75,7 @@ components:
         - type: number
         - type: integer
         - type: boolean
-        - type: "null"
+        - type: 'null'
     ExecuteHttpRequest:
       type: object
       additionalProperties: false
@@ -145,15 +119,15 @@ components:
           description: |
             Optional relative path override. When omitted, backend resolves the authoritative path from the endpoint registry/schema contract.
         path_params:
-          $ref: "#/components/schemas/PathParamsObject"
+          $ref: '#/components/schemas/PathParamsObject'
         query:
-          $ref: "#/components/schemas/QueryObject"
+          $ref: '#/components/schemas/QueryObject'
         headers:
-          $ref: "#/components/schemas/StringMap"
+          $ref: '#/components/schemas/StringMap'
           description: |
             Optional non-sensitive headers. Authorization must never be supplied by caller.
         body:
-          $ref: "#/components/schemas/JsonValue"
+          $ref: '#/components/schemas/JsonValue'
         expect_json:
           type: boolean
           default: true
@@ -163,7 +137,7 @@ components:
           maximum: 300
           description: Optional override bounded by backend policy.
         readback:
-          $ref: "#/components/schemas/ReadbackRequest"
+          $ref: '#/components/schemas/ReadbackRequest'
         force_refresh:
           type: boolean
           description: Force registry reload before execution.
@@ -201,7 +175,7 @@ components:
         resolved_auth_mode:
           type: string
           enum:
-            - ""
+            - ''
             - none
             - basic_auth
             - bearer_token
@@ -247,7 +221,7 @@ components:
         resolved_provider_domain_mode:
           type: string
           enum:
-            - ""
+            - ''
             - fixed_domain
             - placeholder_runtime_resolved
             - brand_bound_domain
@@ -258,15 +232,17 @@ components:
         final_query:
           type: object
           additionalProperties: true
+          properties: {}
         request_url:
           type: string
         response_headers:
           type: object
           additionalProperties: true
+          properties: {}
         data:
-          $ref: "#/components/schemas/JsonValue"
+          $ref: '#/components/schemas/JsonValue'
         readback:
-          $ref: "#/components/schemas/ReadbackResult"
+          $ref: '#/components/schemas/ReadbackResult'
         upstream_status:
           type: integer
           description: Present on compact/specialized success envelopes.
@@ -277,7 +253,7 @@ components:
         link:
           type: string
         error:
-          $ref: "#/components/schemas/ErrorObject"
+          $ref: '#/components/schemas/ErrorObject'
     ResolveContextDiagnosticRequest:
       type: object
       additionalProperties: true
@@ -305,18 +281,22 @@ components:
           type: object
           additionalProperties: true
           description: Optional nested request payload for diagnostic testing.
+          properties: {}
         brand:
           type: object
           additionalProperties: true
           description: Optional brand context override for diagnostics.
+          properties: {}
         endpoint:
           type: object
           additionalProperties: true
           description: Optional endpoint context override for diagnostics.
+          properties: {}
         action:
           type: object
           additionalProperties: true
           description: Optional action context override for diagnostics.
+          properties: {}
       description: |
         Diagnostic payload for resolving governed business type, brand path, Brand Core, validation, and execution readiness without mutation.
     ResolveContextDiagnosticResponse:
@@ -339,9 +319,11 @@ components:
             request:
               type: object
               additionalProperties: true
+              properties: {}
             path_resolver_load:
               type: object
               additionalProperties: true
+              properties: {}
             resolution_status:
               type: string
               description: ready, validating, blocked, not_requested, or not_attempted.
@@ -352,24 +334,29 @@ components:
             business_type:
               type: object
               additionalProperties: true
+              properties: {}
             brand:
               type: object
               additionalProperties: true
+              properties: {}
             brand_core:
               type: object
               additionalProperties: true
+              properties: {}
             validation_state:
               type: object
               additionalProperties: true
+              properties: {}
             execution_target:
               type: object
               additionalProperties: true
+              properties: {}
     JobCreateRequest:
       type: object
       additionalProperties: false
       properties:
         request_payload:
-          $ref: "#/components/schemas/ExecuteHttpRequest"
+          $ref: '#/components/schemas/ExecuteHttpRequest'
         job_type:
           type: string
           default: http_execute
@@ -408,13 +395,13 @@ components:
           type: string
           pattern: ^/
         path_params:
-          $ref: "#/components/schemas/PathParamsObject"
+          $ref: '#/components/schemas/PathParamsObject'
         query:
-          $ref: "#/components/schemas/QueryObject"
+          $ref: '#/components/schemas/QueryObject'
         headers:
-          $ref: "#/components/schemas/StringMap"
+          $ref: '#/components/schemas/StringMap'
         body:
-          $ref: "#/components/schemas/JsonValue"
+          $ref: '#/components/schemas/JsonValue'
         expect_json:
           type: boolean
         timeout_seconds:
@@ -422,7 +409,7 @@ components:
           minimum: 1
           maximum: 300
         readback:
-          $ref: "#/components/schemas/ReadbackRequest"
+          $ref: '#/components/schemas/ReadbackRequest'
         force_refresh:
           type: boolean
       description: |
@@ -480,7 +467,7 @@ components:
           oneOf:
             - type: string
               format: date-time
-            - type: "null"
+            - type: 'null'
         status_url:
           type: string
         result_url:
@@ -521,7 +508,7 @@ components:
         status:
           type: string
         result:
-          $ref: "#/components/schemas/JsonValue"
+          $ref: '#/components/schemas/JsonValue'
     JobResultFailure:
       type: object
       additionalProperties: false
@@ -536,9 +523,10 @@ components:
           type: string
         error:
           oneOf:
-            - $ref: "#/components/schemas/ErrorResponse"
+            - $ref: '#/components/schemas/ErrorResponse'
             - type: object
               additionalProperties: true
+              properties: {}
     HealthResponse:
       type: object
       additionalProperties: false
@@ -605,7 +593,7 @@ components:
                 connected:
                   oneOf:
                     - type: boolean
-                    - type: "null"
+                    - type: 'null'
                 error:
                   type: string
                 skipped:
@@ -630,7 +618,8 @@ components:
           oneOf:
             - type: object
               additionalProperties: true
-            - type: "null"
+              properties: {}
+            - type: 'null'
     ErrorResponse:
       type: object
       additionalProperties: false
@@ -643,7 +632,7 @@ components:
           enum:
             - false
         error:
-          $ref: "#/components/schemas/ErrorObject"
+          $ref: '#/components/schemas/ErrorObject'
         execution_guardrail:
           type: boolean
     AiIntentMaturation:
@@ -674,12 +663,15 @@ components:
         execution_intent:
           type: object
           additionalProperties: true
+          properties: {}
         route_workflow_state:
           type: object
           additionalProperties: true
+          properties: {}
         mutation_intent:
           type: object
           additionalProperties: true
+          properties: {}
         blocked_reason:
           type: string
           description: Non-empty only when maturation_status is blocked.
@@ -716,13 +708,14 @@ components:
           description: |
             Optional explicit intent key override. When omitted, defaults to ai_implementation_plan_generation.
         intent_maturation:
-          $ref: "#/components/schemas/AiIntentMaturation"
+          $ref: '#/components/schemas/AiIntentMaturation'
           description: |
             Optional carry-forward from a prior AI resolver call. Supply when chaining resolvers so route/workflow context is preserved.
         routing_context:
           type: object
           additionalProperties: true
           description: Optional governed routing context for intent resolution.
+          properties: {}
     AiImplementationPlanResponse:
       type: object
       additionalProperties: false
@@ -741,15 +734,15 @@ components:
           enum:
             - implementation_plan
         intent_maturation:
-          $ref: "#/components/schemas/AiIntentMaturation"
+          $ref: '#/components/schemas/AiIntentMaturation'
         planMarkdown:
           type: string
           description: |
             Full Markdown implementation plan. Pass this as implementationPlan in the body of a subsequent /ai/task-manifest call.
         usage:
           oneOf:
-            - $ref: "#/components/schemas/AiUsage"
-            - type: "null"
+            - $ref: '#/components/schemas/AiUsage'
+            - type: 'null'
     AiTaskManifestRequest:
       type: object
       additionalProperties: true
@@ -773,13 +766,14 @@ components:
           description: |
             Optional explicit intent key override. When omitted, defaults to ai_task_manifest_generation.
         intent_maturation:
-          $ref: "#/components/schemas/AiIntentMaturation"
+          $ref: '#/components/schemas/AiIntentMaturation'
           description: |
             Carry-forward from /ai/implementation-plan. Supply the full intent_maturation object to preserve route/workflow continuity between the two resolver steps.
         routing_context:
           type: object
           additionalProperties: true
           description: Optional governed routing context for intent resolution.
+          properties: {}
     AiTaskManifestResponse:
       type: object
       additionalProperties: false
@@ -798,14 +792,14 @@ components:
           enum:
             - task_manifest
         intent_maturation:
-          $ref: "#/components/schemas/AiIntentMaturation"
+          $ref: '#/components/schemas/AiIntentMaturation'
         taskMarkdown:
           type: string
           description: Markdown task checklist derived from the implementation plan.
         usage:
           oneOf:
-            - $ref: "#/components/schemas/AiUsage"
-            - type: "null"
+            - $ref: '#/components/schemas/AiUsage'
+            - type: 'null'
     AiRegistryReadinessBinding:
       type: object
       additionalProperties: false
@@ -864,7 +858,7 @@ components:
         bindings:
           type: array
           items:
-            $ref: "#/components/schemas/AiRegistryReadinessBinding"
+            $ref: '#/components/schemas/AiRegistryReadinessBinding'
         missing_intent_keys:
           type: array
           items:
@@ -902,7 +896,7 @@ components:
         message:
           type: string
         readiness:
-          $ref: "#/components/schemas/AiRegistryReadinessDetail"
+          $ref: '#/components/schemas/AiRegistryReadinessDetail'
     OkResponse:
       type: object
       additionalProperties: true
@@ -917,10 +911,7 @@ components:
       type: object
       additionalProperties: true
       description: Generic platform entity record. Fields vary by resource type.
-      properties:
-        id:
-          type: string
-          description: Optional record identifier when returned by the resource.
+      properties: {}
     PlatformListResponse:
       type: object
       additionalProperties: true
@@ -936,11 +927,11 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/PlatformRecord"
+            $ref: '#/components/schemas/PlatformRecord'
         tenants:
           type: array
           items:
-            $ref: "#/components/schemas/PlatformRecord"
+            $ref: '#/components/schemas/PlatformRecord'
     TenantCreateRequest:
       type: object
       additionalProperties: false
@@ -968,6 +959,7 @@ components:
         metadata_json:
           type: object
           additionalProperties: true
+          properties: {}
     MembershipCreateRequest:
       type: object
       additionalProperties: false
@@ -1069,6 +1061,7 @@ components:
         input_payload:
           type: object
           additionalProperties: true
+          properties: {}
         user_id:
           type: string
           format: uuid
@@ -1125,6 +1118,7 @@ components:
         attributes:
           type: object
           additionalProperties: true
+          properties: {}
     UsageRecordRequest:
       type: object
       additionalProperties: false
@@ -1194,831 +1188,218 @@ components:
         db_connectivity:
           type: object
           additionalProperties: true
+          properties: {}
         platform_tables:
           type: object
           additionalProperties: true
+          properties: {}
         legacy_tables:
           type: object
           additionalProperties: true
+          properties: {}
         seed_data:
           type: object
           additionalProperties: true
+          properties: {}
         migration_inventory:
           type: object
           additionalProperties: true
+          properties: {}
   responses:
     BadRequest:
       description: Invalid request body or missing required field
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
     Unauthorized:
       description: Invalid or missing backend API key
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
     NotFound:
       description: Resource not found
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
-security: []
+            $ref: '#/components/schemas/ErrorResponse'
+security:
+  - backendBearerAuth: []
 paths:
-  /health:
-    get:
-      tags:
-        - health
-      security: []
-      operationId: getHealth
-      summary: Health and queue status
-      responses:
-        "200":
-          description: Service health response
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HealthResponse"
-  /governance/resolve-context-diagnostic:
+  /telemetry/spans:
     post:
       tags:
-        - governance
+        - observability
       security:
         - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: resolveContextDiagnostic
-      summary: Resolve governed context diagnostic
-      description: |
-        Resolves business type, brand path, Brand Core documents, validation state, and execution readiness without performing a mutation. This is a native backend route in the parent OpenAI schema, so it does not require endpoint child schema overlay to pass method/path validation.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ResolveContextDiagnosticRequest"
-      responses:
-        "200":
-          description: Governed context diagnostic result
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ResolveContextDiagnosticResponse"
-        "400":
-          description: Invalid diagnostic request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          description: Invalid backend API key
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "403":
-          description: Forbidden by governance policy
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "409":
-          description: Governed context resolution blocked or incomplete
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "422":
-          description: Schema or resolver validation failure
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Diagnostic execution failure
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /jobs:
-    post:
-      tags:
-        - jobs
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: createJob
-      summary: Create an async governed execution job
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/JobCreateRequest"
-      responses:
-        "200":
-          description: Existing job returned due to idempotent deduplication
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: "#/components/schemas/JobSummary"
-                  - type: object
-                    properties:
-                      deduplicated:
-                        type: boolean
-        "202":
-          description: Job accepted and queued
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/JobSummary"
-        "400":
-          description: Invalid job request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          description: Invalid backend API key
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /jobs/{jobId}:
-    get:
-      tags:
-        - jobs
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: getJob
-      summary: Get async job status
-      parameters:
-        - name: jobId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Job summary
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: "#/components/schemas/JobSummary"
-                  - type: object
-                    properties:
-                      terminal:
-                        type: boolean
-                      active:
-                        type: boolean
-        "401":
-          description: Invalid backend API key
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: Job not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /jobs/{jobId}/result:
-    get:
-      tags:
-        - jobs
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: getJobResult
-      summary: Get async job result or current completion state
-      parameters:
-        - name: jobId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Completed job result or failure payload
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - $ref: "#/components/schemas/JobResultSuccess"
-                  - $ref: "#/components/schemas/JobResultFailure"
-        "202":
-          description: Job is not complete yet
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/JobResultPending"
-        "401":
-          description: Invalid backend API key
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: Job not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /http-execute:
-    post:
-      tags:
-        - execution
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: executeHttpRequest
-      summary: Execute a governed outbound HTTP request
-      description: |
-        Executes a governed HTTP request. The backend resolves routing, schema, auth, and provider-domain rules server-side. Backend bearer auth is enforced only when BACKEND_API_KEY is configured.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ExecuteHttpRequest"
-      responses:
-        "200":
-          description: Execution response
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ExecuteHttpResponse"
-        "400":
-          description: Invalid request or routing payload
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          description: Invalid backend API key
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "403":
-          description: Forbidden by policy or execution governance
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: Target job or target resource not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "422":
-          description: Request or response schema validation failure
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Execution failure
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /ai/implementation-plan:
-    post:
-      tags:
-        - ai
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: generateImplementationPlan
-      summary: Generate a structured implementation plan
-      description: |
-        Generates a Markdown implementation plan from a user prompt via an OpenAI-backed planning resolver. The response includes a first-class intent_maturation object that must be carried forward into the body of a subsequent /ai/task-manifest call to preserve route and workflow context continuity.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AiImplementationPlanRequest"
-      responses:
-        "200":
-          description: Implementation plan generated successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AiImplementationPlanResponse"
-        "400":
-          description: Missing or blocked intent, or missing userPrompt
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          description: Invalid backend API key
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: OpenAI API key not configured or upstream failure
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /ai/task-manifest:
-    post:
-      tags:
-        - ai
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: generateTaskManifest
-      summary: Generate a task checklist from an implementation plan
-      description: |
-        Generates a Markdown task checklist from an implementation plan. Supply planMarkdown as implementationPlan and pass intent_maturation to preserve route and workflow continuity.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AiTaskManifestRequest"
-      responses:
-        "200":
-          description: Task manifest generated successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AiTaskManifestResponse"
-        "400":
-          description: Missing or blocked intent, or missing implementationPlan
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          description: Invalid backend API key
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: OpenAI API key not configured or upstream failure
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /ai/registry-readiness:
-    get:
-      tags:
-        - ai
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: getAiRegistryReadiness
-      summary: Check AI resolver intent binding in Task Routes and Workflow Registry
-      description: |
-        Checks whether required AI resolver intent keys are bound to executable Task Routes and linked Workflow Registry rows. Returns 200 when ready or 409 when bindings are missing.
-      responses:
-        "200":
-          description: All AI resolver intent keys are route/workflow bound
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AiRegistryReadinessResponse"
-        "401":
-          description: Invalid backend API key
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "409":
-          description: One or more AI resolver intent bindings are missing or unresolved
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AiRegistryReadinessResponse"
-        "500":
-          description: Registry readiness check failed
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /tenants:
-    post:
-      tags:
-        - tenants
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: createTenant
-      summary: Create a tenant
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/TenantCreateRequest"
-      responses:
-        "201":
-          description: Tenant created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OkResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-    get:
-      tags:
-        - tenants
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: listTenants
-      summary: List tenants
-      parameters:
-        - name: type
-          in: query
-          schema:
-            type: string
-        - name: status
-          in: query
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 50
-      responses:
-        "200":
-          description: Tenant list
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PlatformListResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  /users:
-    post:
-      tags:
-        - identity
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: createUser
-      summary: Create a user
+      operationId: recordTelemetrySpan
+      summary: Record a telemetry span
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required:
-                - email
+                - trace_id
+                - span_name
               properties:
-                email:
+                trace_id:
                   type: string
-                  format: email
-                display_name:
+                span_id:
                   type: string
+                parent_span_id:
+                  type: string
+                span_name:
+                  type: string
+                tenant_id:
+                  type: string
+                  format: uuid
+                service_name:
+                  type: string
+                start_time:
+                  type: string
+                  format: date-time
+                end_time:
+                  type: string
+                  format: date-time
+                duration_ms:
+                  type: integer
                 status:
                   type: string
                   enum:
-                    - active
-                    - suspended
-                  default: active
-      responses:
-        "201":
-          description: User created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OkResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-    get:
-      tags:
-        - identity
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: listUsers
-      summary: List users
-      responses:
-        "200":
-          description: User list
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PlatformListResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  /access/resolve:
-    post:
-      tags:
-        - access
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: resolveAccess
-      summary: Run the 6-outcome access decision engine
-      description: |
-        Evaluates tenant context, membership, subscription, and policy to produce one of: ALLOW_SELF_SERVE, ALLOW_WITH_OPTIONAL_ASSISTANCE, REQUIRE_REVIEW, REQUIRE_SUPERVISOR_APPROVAL, ROUTE_TO_MANAGED_SERVICE, or DENY.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AccessResolveRequest"
-      responses:
-        "200":
-          description: Access decision resolved
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AccessResolveResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  /customers:
-    post:
-      tags:
-        - customers
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: createCustomer
-      summary: Create a customer record
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - tenant_id
-                - display_name
-              properties:
-                tenant_id:
-                  type: string
-                  format: uuid
-                display_name:
-                  type: string
-                email:
-                  type: string
-                  format: email
-                customer_type:
-                  type: string
-                external_id:
-                  type: string
-      responses:
-        "201":
-          description: Customer created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OkResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-    get:
-      tags:
-        - customers
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: listCustomers
-      summary: List customers
-      parameters:
-        - name: tenant_id
-          in: query
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 50
-      responses:
-        "200":
-          description: Customer list
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PlatformListResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  /tickets:
-    post:
-      tags:
-        - customers
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: createTicket
-      summary: Create a support ticket
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - tenant_id
-                - subject
-              properties:
-                tenant_id:
-                  type: string
-                  format: uuid
-                customer_id:
-                  type: string
-                  format: uuid
-                subject:
-                  type: string
-                body:
-                  type: string
-                priority:
-                  type: string
-                  enum:
-                    - low
-                    - normal
-                    - high
-                    - urgent
-                  default: normal
-                assigned_to:
-                  type: string
-                  format: uuid
-      responses:
-        "201":
-          description: Ticket created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OkResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-    get:
-      tags:
-        - customers
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: listTickets
-      summary: List tickets
-      parameters:
-        - name: tenant_id
-          in: query
-          schema:
-            type: string
-        - name: status
-          in: query
-          schema:
-            type: string
-        - name: priority
-          in: query
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 50
-      responses:
-        "200":
-          description: Ticket list
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PlatformListResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  /tickets/{ticket_id}:
-    get:
-      tags:
-        - customers
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: getTicket
-      summary: Get a ticket by ID
-      parameters:
-        - name: ticket_id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Ticket
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OkResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /connected-systems:
-    post:
-      tags:
-        - connected-systems
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: createConnectedSystem
-      summary: Register a connected system for a tenant
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - tenant_id
-                - system_key
-                - display_name
-              properties:
-                tenant_id:
-                  type: string
-                  format: uuid
-                system_key:
-                  type: string
-                display_name:
-                  type: string
-                provider_family:
-                  type: string
-                provider_domain:
-                  type: string
-                connector_family:
-                  type: string
-                status:
-                  type: string
-                  enum:
-                    - active
-                    - inactive
+                    - ok
                     - error
-                  default: active
-                self_serve_capable:
-                  type: boolean
-                  default: true
+                    - timeout
+                attributes:
+                  type: object
+                  additionalProperties: true
+                  properties: {}
       responses:
-        "201":
-          description: Connected system created
+        '201':
+          description: Span recorded
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OkResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  /tenants/{tenant_id}/connected-systems:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /telemetry/traces/{trace_id}:
     get:
       tags:
-        - connected-systems
+        - observability
       security:
         - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: getTenantConnectedSystems
-      summary: List connected systems for a tenant
+      operationId: getTrace
+      summary: Get all spans for a trace ID
+      parameters:
+        - name: trace_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Trace spans
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /usage/record:
+    post:
+      tags:
+        - observability
+      security:
+        - backendBearerAuth: []
+      operationId: recordUsage
+      summary: Record usage for a meter key (upserts daily bucket)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - tenant_id
+                - meter_key
+                - quantity
+              properties:
+                tenant_id:
+                  type: string
+                  format: uuid
+                meter_key:
+                  type: string
+                quantity:
+                  type: number
+                period_date:
+                  type: string
+                  format: date
+                  description: Defaults to today (UTC). Used for daily bucket upsert.
+      responses:
+        '200':
+          description: Usage recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /usage/{tenant_id}:
+    get:
+      tags:
+        - observability
+      security:
+        - backendBearerAuth: []
+      operationId: getTenantUsage
+      summary: Get usage meters for a tenant
       parameters:
         - name: tenant_id
           in: path
           required: true
           schema:
             type: string
+        - name: meter_key
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
       responses:
-        "200":
-          description: Connected system list
+        '200':
+          description: Usage records
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PlatformListResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  /planner/resolve-intent:
+                $ref: '#/components/schemas/PlatformListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /quota-rules:
     post:
       tags:
-        - planner
+        - observability
       security:
         - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: resolveIntent
-      summary: Resolve an intent key to a task route
+      operationId: createQuotaRule
+      summary: Create or upsert a quota rule
       requestBody:
         required: true
         content:
@@ -2026,168 +1407,67 @@ paths:
             schema:
               type: object
               required:
-                - intent_key
+                - meter_key
+                - limit_value
+                - period
               properties:
-                intent_key:
+                meter_key:
                   type: string
-                tenant_id:
+                limit_value:
+                  type: number
+                period:
                   type: string
-                  format: uuid
-                context:
-                  type: object
-                  additionalProperties: true
-      responses:
-        "200":
-          description: Intent resolved
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OkResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /planner/create-plan:
-    post:
-      tags:
-        - planner
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: createExecutionPlan
-      summary: Create an execution plan (runs access gate before planning)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - tenant_id
-                - intent_key
-              properties:
-                tenant_id:
-                  type: string
-                  format: uuid
-                user_id:
-                  type: string
-                  format: uuid
-                intent_key:
-                  type: string
-                input_context:
-                  type: object
-                  additionalProperties: true
-      responses:
-        "201":
-          description: Plan created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OkResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          description: Access denied by decision engine
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /release/readiness:
-    get:
-      tags:
-        - release
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: getReleaseReadiness
-      summary: Run 61-check platform release readiness report
-      description: |
-        Checks DB connectivity, platform and legacy tables, seed data, and migration inventory. Returns pass/warn/fail details. Use summary=true for a lightweight response and persist=true to log results.
-      parameters:
-        - name: persist
-          in: query
-          schema:
-            type: boolean
-            default: false
-        - name: summary
-          in: query
-          schema:
-            type: boolean
-            default: false
-      responses:
-        "200":
-          description: All checks passed (or warn-level issues only)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ReleaseReadinessResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "503":
-          description: One or more checks failed
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ReleaseReadinessResponse"
-  /connector/dispatch:
-    post:
-      tags:
-        - planner
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: connectorDispatch
-      summary: Dispatch a connector execution (WordPress transport or content workflow)
-      description: |
-        Dispatches an existing plan_id or creates an ad-hoc plan from brand_key, workflow_key, and tenant_id. Use apply=false for dry-run preview. Content workflows return a run_id to poll.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
+                  enum:
+                    - daily
+                    - monthly
+                    - rolling_30d
                 plan_id:
                   type: string
                   format: uuid
-                  description: Existing validated/approved plan. If omitted an ad-hoc plan is created.
                 tenant_id:
                   type: string
                   format: uuid
-                user_id:
-                  type: string
-                  format: uuid
-                brand_key:
-                  type: string
-                target_key:
-                  type: string
-                workflow_key:
-                  type: string
-                intent_key:
-                  type: string
-                apply:
-                  type: boolean
-                  default: false
-                post_types:
-                  type: array
-                  items:
-                    type: string
-                  default:
-                    - post
-                publish_status:
+                enforcement:
                   type: string
                   enum:
-                    - draft
-                    - publish
-                    - private
-                  default: draft
+                    - hard
+                    - soft
+                  default: hard
       responses:
-        "200":
-          description: Dispatch completed or queued
+        '201':
+          description: Quota rule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /quota-check/{tenant_id}/{meter_key}:
+    get:
+      tags:
+        - observability
+      security:
+        - backendBearerAuth: []
+      operationId: checkQuota
+      summary: Check current quota usage against applicable limit
+      description: |
+        Resolves the applicable quota rule in priority order: tenant override → plan-level rule → global rule. Returns current usage, limit, and whether the tenant is within quota.
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: meter_key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Quota check result
           content:
             application/json:
               schema:
@@ -2195,191 +1475,40 @@ paths:
                 additionalProperties: false
                 required:
                   - ok
-                  - run_id
-                  - trace_id
-                  - plan_id
-                  - connector_type
+                  - within_quota
                 properties:
                   ok:
                     type: boolean
-                  run_id:
+                  within_quota:
+                    type: boolean
+                  meter_key:
                     type: string
-                  trace_id:
+                  current_usage:
+                    type: number
+                  limit_value:
+                    type: number
+                  period:
                     type: string
-                  plan_id:
+                  enforcement:
                     type: string
-                  connector_type:
+                  rule_source:
                     type: string
                     enum:
-                      - wordpress
-                      - content_workflow
-                  plan_status:
-                    type: string
-                  apply:
-                    type: boolean
-                  duration_ms:
-                    type: integer
-                  result:
-                    type: object
-                    additionalProperties: true
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          description: Access denied — requires human approval
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /connector/dispatch/status/{run_id}:
-    get:
-      tags:
-        - planner
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: getConnectorDispatchStatus
-      summary: Poll connector dispatch status by workflow run ID
-      parameters:
-        - name: run_id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Run status with steps
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OkResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /planner/plans/{plan_id}/execute:
+                      - tenant_override
+                      - plan_level
+                      - global
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /tracking/workspaces:
     post:
       tags:
-        - planner
+        - observability
       security:
         - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: executePlan
-      summary: Execute a validated/approved plan via the connector dispatch engine
-      parameters:
-        - name: plan_id
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: apply
-          in: query
-          schema:
-            type: boolean
-            default: false
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                post_types:
-                  type: array
-                  items:
-                    type: string
-                publish_status:
-                  type: string
-                  enum:
-                    - draft
-                    - publish
-                    - private
-                  default: draft
-                actor_id:
-                  type: string
-                  format: uuid
-      responses:
-        "200":
-          description: Execution dispatched
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OkResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /status:
-    get:
-      tags:
-        - health
-      operationId: getStatus
-      summary: Public system status JSON - component health and open incidents
-      description: |
-        Returns live DB-backed component health (API, DB, tenant_management, identity, connector_execution, intent_resolution, observability, release_readiness), open incidents, and past 30-day incident history. Returns HTTP 503 when overall status is partial_outage or major_outage.
-      responses:
-        "200":
-          description: System operational
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                  status:
-                    type: string
-                    enum:
-                      - operational
-                      - degraded
-                      - partial_outage
-                      - major_outage
-                  status_label:
-                    type: string
-                  components:
-                    type: array
-                    items:
-                      type: object
-                      additionalProperties: true
-                  active_incidents:
-                    type: array
-                    items:
-                      type: object
-                      additionalProperties: true
-                  past_incidents:
-                    type: array
-                    items:
-                      type: object
-                      additionalProperties: true
-                  updated_at:
-                    type: string
-                    format: date-time
-        "503":
-          description: Partial or major outage detected
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                  status:
-                    type: string
-  /batch:
-    post:
-      tags:
-        - execution
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: batchDispatch
-      summary: Execute up to 50 API requests in a single call (parallel or sequential)
-      description: |
-        Fan-out dispatcher that self-calls internal routes. Forwards Authorization and x-api-key headers. /batch sub-requests are blocked to prevent loops. parallel=true (default) executes all requests concurrently via Promise.all.
+      operationId: createTrackingWorkspace
+      summary: Create a tracking workspace for analytics event collection
       requestBody:
         required: true
         content:
@@ -2387,77 +1516,110 @@ paths:
             schema:
               type: object
               required:
-                - requests
+                - tenant_id
+                - workspace_key
+                - display_name
               properties:
-                requests:
-                  type: array
-                  maxItems: 50
-                  items:
-                    type: object
-                    required:
-                      - method
-                      - path
-                    properties:
-                      method:
-                        type: string
-                        enum:
-                          - GET
-                          - POST
-                          - PUT
-                          - PATCH
-                          - DELETE
-                      path:
-                        type: string
-                        pattern: ^/
-                      body:
-                        type: object
-                        additionalProperties: true
-                parallel:
-                  type: boolean
-                  default: true
+                tenant_id:
+                  type: string
+                  format: uuid
+                workspace_key:
+                  type: string
+                display_name:
+                  type: string
+                config_json:
+                  type: object
+                  additionalProperties: true
+                  properties: {}
       responses:
-        "200":
-          description: Batch results
+        '201':
+          description: Workspace created
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - ok
-                  - count
-                  - results
-                properties:
-                  ok:
-                    type: boolean
-                  count:
-                    type: integer
-                  results:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        index:
-                          type: integer
-                        status:
-                          type: integer
-                        ok:
-                          type: boolean
-                        body:
-                          type: object
-                          additionalProperties: true
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  /tenants/{tenant_id}:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Key conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /tracking/workspaces/{workspace_id}:
     get:
       tags:
-        - tenants
+        - observability
       security:
         - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: getTenant
-      summary: Get a tenant by ID
+      operationId: getTrackingWorkspace
+      summary: Get a tracking workspace by ID
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - observability
+      security:
+        - backendBearerAuth: []
+      operationId: replaceTrackingWorkspace
+      summary: Update a tracking workspace
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - display_name
+              properties:
+                display_name:
+                  type: string
+                config_json:
+                  type: object
+                  additionalProperties: true
+                  properties: {}
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /tenants/{tenant_id}/tracking/workspaces:
+    get:
+      tags:
+        - observability
+      security:
+        - backendBearerAuth: []
+      operationId: getTenantTrackingWorkspaces
+      summary: List tracking workspaces for a tenant
       parameters:
         - name: tenant_id
           in: path
@@ -2465,13 +1627,595 @@ paths:
           schema:
             type: string
       responses:
-        "200":
-          description: Tenant
+        '200':
+          description: Workspace list
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OkResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
+                $ref: '#/components/schemas/PlatformListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /tracking/events:
+    post:
+      tags:
+        - observability
+      security:
+        - backendBearerAuth: []
+      operationId: createTrackingEvent
+      summary: Record an analytics tracking event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tenant_id
+                - event_type
+              properties:
+                tenant_id:
+                  type: string
+                  format: uuid
+                workspace_id:
+                  type: string
+                  format: uuid
+                event_type:
+                  type: string
+                actor_id:
+                  type: string
+                session_id:
+                  type: string
+                dimensions_json:
+                  type: object
+                  additionalProperties: true
+                  properties: {}
+                metrics_json:
+                  type: object
+                  additionalProperties:
+                    type: number
+                  properties: {}
+      responses:
+        '201':
+          description: Event recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /tracking/workspaces/{workspace_id}/events:
+    get:
+      tags:
+        - observability
+      security:
+        - backendBearerAuth: []
+      operationId: getTrackingWorkspaceEvents
+      summary: List tracking events for a workspace
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: event_type
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+      responses:
+        '200':
+          description: Event list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /reporting/views:
+    post:
+      tags:
+        - observability
+      security:
+        - backendBearerAuth: []
+      operationId: createReportingView
+      summary: Create a saved reporting view definition
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tenant_id
+                - view_key
+                - display_name
+              properties:
+                tenant_id:
+                  type: string
+                  format: uuid
+                view_key:
+                  type: string
+                display_name:
+                  type: string
+                filters_json:
+                  type: object
+                  additionalProperties: true
+                  properties: {}
+                columns_json:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: View created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Key conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /reporting/views/{view_id}:
+    get:
+      tags:
+        - observability
+      security:
+        - backendBearerAuth: []
+      operationId: getReportingView
+      summary: Get a reporting view by ID
+      parameters:
+        - name: view_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reporting view
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - observability
+      security:
+        - backendBearerAuth: []
+      operationId: replaceReportingView
+      summary: Update a reporting view definition
+      parameters:
+        - name: view_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - view_key
+                - display_name
+              properties:
+                view_key:
+                  type: string
+                display_name:
+                  type: string
+                filters_json:
+                  type: object
+                  additionalProperties: true
+                  properties: {}
+                columns_json:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /tenants/{tenant_id}/reporting/views:
+    get:
+      tags:
+        - observability
+      security:
+        - backendBearerAuth: []
+      operationId: getTenantReportingViews
+      summary: List reporting views for a tenant
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: View list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /audit-log:
+    get:
+      tags:
+        - security
+      security:
+        - backendBearerAuth: []
+      operationId: getAuditLog
+      summary: Query the immutable audit log
+      description: |
+        The audit log is append-only; no UPDATE or DELETE is ever issued against it. Use actor_id, resource_type, tenant_id, and date range to filter entries.
+      parameters:
+        - name: actor_id
+          in: query
+          schema:
+            type: string
+        - name: resource_type
+          in: query
+          schema:
+            type: string
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: Audit log entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /secret-references:
+    post:
+      tags:
+        - security
+      security:
+        - backendBearerAuth: []
+      operationId: createSecretReference
+      summary: Register a secret reference (no secret values stored)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - secret_key
+                - storage_backend
+              properties:
+                secret_key:
+                  type: string
+                storage_backend:
+                  type: string
+                  enum:
+                    - env_var
+                    - vault
+                    - aws_secrets_manager
+                env_var_name:
+                  type: string
+                tenant_id:
+                  type: string
+                  format: uuid
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Secret reference created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags:
+        - security
+      security:
+        - backendBearerAuth: []
+      operationId: listSecretReferences
+      summary: List secret references (metadata only, no secret values)
+      parameters:
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Secret reference list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /incidents:
+    post:
+      tags:
+        - security
+      security:
+        - backendBearerAuth: []
+      operationId: createIncident
+      summary: Open a security or operational incident
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - severity
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                severity:
+                  type: string
+                  enum:
+                    - low
+                    - medium
+                    - high
+                    - critical
+                tenant_id:
+                  type: string
+                  format: uuid
+                reported_by:
+                  type: string
+                  format: uuid
+                tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Incident created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags:
+        - security
+      security:
+        - backendBearerAuth: []
+      operationId: listIncidents
+      summary: List incidents
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: severity
+          in: query
+          schema:
+            type: string
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Incident list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /incidents/{incident_id}/status:
+    patch:
+      tags:
+        - security
+      security:
+        - backendBearerAuth: []
+      operationId: updateIncidentStatus
+      summary: Update incident status
+      parameters:
+        - name: incident_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - open
+                    - investigating
+                    - mitigated
+                    - resolved
+                    - closed
+                resolved_by:
+                  type: string
+                  format: uuid
+                resolution_notes:
+                  type: string
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /incidents/{incident_id}:
+    put:
+      tags:
+        - security
+      security:
+        - backendBearerAuth: []
+      operationId: replaceIncident
+      summary: Full update of an incident record
+      parameters:
+        - name: incident_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                severity:
+                  type: string
+                  enum:
+                    - low
+                    - medium
+                    - high
+                    - critical
+                category:
+                  type: string
+                description:
+                  type: string
+                assigned_to:
+                  type: string
+                  format: uuid
+                status:
+                  type: string
+                  enum:
+                    - open
+                    - investigating
+                    - contained
+                    - resolved
+                    - closed
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags:
+        - security
+      security:
+        - backendBearerAuth: []
+      operationId: closeIncident
+      summary: Close an incident (soft delete â€” sets status=closed and resolved_at=NOW())
+      parameters:
+        - name: incident_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /tenants/{tenant_id}/secret-references:
+    get:
+      tags:
+        - security
+      security:
+        - backendBearerAuth: []
+      operationId: getTenantSecretReferences
+      summary: List secret references for a tenant
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Secret reference list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
