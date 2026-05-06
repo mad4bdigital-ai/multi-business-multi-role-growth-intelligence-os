@@ -6,6 +6,8 @@ import { getPool } from "../db.js";
 const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
 const MAX_COMMAND_TIMEOUT_MS = 600000;
 const SENSITIVE_ENV_PATTERN = /(password|passwd|pwd|secret|token|key|credential|private|auth|cookie|session)/i;
+const LOCAL_WINDOWS_APP_ALLOWLIST_ENV = "LOCAL_WINDOWS_APP_ALLOWLIST";
+const LOCAL_WINDOWS_APP_CONTROL_ENABLED_ENV = "LOCAL_WINDOWS_APP_CONTROL_ENABLED";
 
 export function parseArgs(input) {
   if (Array.isArray(input)) return input.map((arg) => String(arg));
@@ -24,6 +26,151 @@ function maskEnvValue(name, value, revealValues) {
   if (revealValues === true) return value;
   if (SENSITIVE_ENV_PATTERN.test(String(name || ""))) return "[masked]";
   return value;
+}
+
+function parseBooleanEnv(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes";
+}
+
+function isGcloudRuntime(env = process.env) {
+  return Boolean(env.K_SERVICE || env.CLOUD_RUN_JOB || env.GOOGLE_CLOUD_PROJECT || env.GCLOUD_PROJECT);
+}
+
+function loadWindowsAppAllowlist(env = process.env) {
+  const raw = String(env[LOCAL_WINDOWS_APP_ALLOWLIST_ENV] || "").trim();
+  if (!raw) return {};
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    const err = new Error(`${LOCAL_WINDOWS_APP_ALLOWLIST_ENV} must be valid JSON.`);
+    err.status = 500;
+    err.code = "invalid_windows_app_allowlist";
+    throw err;
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    const err = new Error(`${LOCAL_WINDOWS_APP_ALLOWLIST_ENV} must be a JSON object keyed by app alias.`);
+    err.status = 500;
+    err.code = "invalid_windows_app_allowlist";
+    throw err;
+  }
+
+  return parsed;
+}
+
+function normalizeWindowsAppEntry(alias, entry) {
+  const normalizedAlias = String(alias || "").trim().toLowerCase();
+  if (!/^[a-z0-9_-]{1,64}$/.test(normalizedAlias)) {
+    const err = new Error("Windows app alias must use only lowercase letters, numbers, underscore, or dash.");
+    err.status = 500;
+    err.code = "invalid_windows_app_alias";
+    throw err;
+  }
+
+  const value = typeof entry === "string" ? { command: entry, args: [] } : entry;
+  const command = typeof value?.command === "string" ? value.command.trim() : "";
+  const args = Array.isArray(value?.args) ? value.args.map((arg) => String(arg)) : [];
+  const displayName = typeof value?.display_name === "string" ? value.display_name.trim() : normalizedAlias;
+
+  if (!command) {
+    const err = new Error(`Windows app alias ${normalizedAlias} is missing command.`);
+    err.status = 500;
+    err.code = "invalid_windows_app_entry";
+    throw err;
+  }
+
+  if (args.length > 20) {
+    const err = new Error(`Windows app alias ${normalizedAlias} has too many configured args.`);
+    err.status = 500;
+    err.code = "invalid_windows_app_entry";
+    throw err;
+  }
+
+  return { alias: normalizedAlias, display_name: displayName, command, args };
+}
+
+function getWindowsAppAllowlist(env = process.env) {
+  return Object.entries(loadWindowsAppAllowlist(env)).map(([alias, entry]) => normalizeWindowsAppEntry(alias, entry));
+}
+
+export function handleWindowsAppControl(body = {}, deps = {}) {
+  const env = deps.env || process.env;
+  const platform = deps.platform || process.platform;
+  const spawnImpl = deps.spawn || spawn;
+  const action = String(body.action || "list").trim().toLowerCase();
+
+  if (!parseBooleanEnv(env[LOCAL_WINDOWS_APP_CONTROL_ENABLED_ENV])) {
+    const err = new Error(`${LOCAL_WINDOWS_APP_CONTROL_ENABLED_ENV}=true is required before local Windows app control can run.`);
+    err.status = 403;
+    err.code = "local_windows_app_control_disabled";
+    throw err;
+  }
+
+  if (isGcloudRuntime(env)) {
+    const err = new Error("Local Windows app control is blocked in GCloud runtimes.");
+    err.status = 403;
+    err.code = "local_windows_app_control_gcloud_blocked";
+    throw err;
+  }
+
+  if (platform !== "win32") {
+    const err = new Error("Local Windows app control is only available on Windows.");
+    err.status = 400;
+    err.code = "local_windows_app_control_requires_windows";
+    throw err;
+  }
+
+  const allowlist = getWindowsAppAllowlist(env);
+  const publicApps = allowlist.map((entry) => ({
+    alias: entry.alias,
+    display_name: entry.display_name,
+    configured_args_count: entry.args.length
+  }));
+
+  if (action === "list") {
+    return {
+      action,
+      enabled: true,
+      runtime: "local_windows",
+      apps: publicApps,
+      count: publicApps.length
+    };
+  }
+
+  if (action !== "launch") {
+    const err = new Error("Unsupported windows_app action. Use list or launch.");
+    err.status = 400;
+    err.code = "unsupported_windows_app_action";
+    throw err;
+  }
+
+  const alias = String(body.app_alias || "").trim().toLowerCase();
+  const app = allowlist.find((entry) => entry.alias === alias);
+  if (!app) {
+    const err = new Error("app_alias must match a configured allowlisted Windows app.");
+    err.status = 400;
+    err.code = "windows_app_not_allowlisted";
+    throw err;
+  }
+
+  const child = spawnImpl(app.command, app.args, {
+    shell: false,
+    detached: true,
+    stdio: "ignore",
+    windowsHide: false
+  });
+  if (typeof child.unref === "function") child.unref();
+
+  return {
+    action,
+    launched: true,
+    app_alias: app.alias,
+    display_name: app.display_name,
+    pid: child.pid || null
+  };
 }
 
 export function handleEnvControl(body = {}) {
@@ -185,7 +332,11 @@ async function executeAdminControl(body = {}) {
     return { tool, result: handleEnvControl(body) };
   }
 
-  const err = new Error("tool must be one of github, gcloud, db, or env.");
+  if (tool === "windows_app") {
+    return { tool, result: handleWindowsAppControl(body) };
+  }
+
+  const err = new Error("tool must be one of github, gcloud, db, env, or windows_app.");
   err.status = 400;
   err.code = "unsupported_admin_control_tool";
   throw err;
@@ -201,7 +352,9 @@ function auditAdminControl(tool, body) {
       args: Array.isArray(body.args) ? body.args : undefined,
       sql: tool === "db" ? body.sql : undefined,
       env_action: tool === "env" ? body.action || "list" : undefined,
-      env_name: tool === "env" ? body.name : undefined
+      env_name: tool === "env" ? body.name : undefined,
+      windows_app_action: tool === "windows_app" ? body.action || "list" : undefined,
+      windows_app_alias: tool === "windows_app" ? body.app_alias : undefined
     }
   });
 }

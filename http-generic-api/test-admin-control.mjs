@@ -1,4 +1,4 @@
-import { handleEnvControl, parseArgs, requireAdminPrincipal } from "./routes/adminCliRoutes.js";
+import { handleEnvControl, handleWindowsAppControl, parseArgs, requireAdminPrincipal } from "./routes/adminCliRoutes.js";
 
 let passed = 0;
 let failed = 0;
@@ -38,6 +38,78 @@ try {
 
   const unset = handleEnvControl({ action: "unset", name: "ADMIN_CONTROL_TEST_PLAIN" });
   assert("env unset reports existing variable", unset.existed === true, JSON.stringify(unset));
+
+  {
+    try {
+      handleWindowsAppControl({}, { env: {}, platform: "win32" });
+      assert("windows app control disabled by default", false);
+    } catch (error) {
+      assert("windows app control disabled by default", error.code === "local_windows_app_control_disabled", error.message);
+    }
+  }
+
+  {
+    const env = {
+      LOCAL_WINDOWS_APP_CONTROL_ENABLED: "true",
+      LOCAL_WINDOWS_APP_ALLOWLIST: JSON.stringify({
+        notepad: { display_name: "Notepad", command: "notepad.exe", args: [] }
+      })
+    };
+    const listed = handleWindowsAppControl({ action: "list" }, { env, platform: "win32" });
+    assert("windows app list returns allowlisted app", listed.apps.length === 1 && listed.apps[0].alias === "notepad", JSON.stringify(listed));
+    assert("windows app list does not expose command", !JSON.stringify(listed).includes("notepad.exe"), JSON.stringify(listed));
+  }
+
+  {
+    const env = {
+      LOCAL_WINDOWS_APP_CONTROL_ENABLED: "true",
+      K_SERVICE: "http-generic-api",
+      LOCAL_WINDOWS_APP_ALLOWLIST: JSON.stringify({ notepad: "notepad.exe" })
+    };
+    try {
+      handleWindowsAppControl({ action: "list" }, { env, platform: "win32" });
+      assert("windows app control blocks gcloud runtime", false);
+    } catch (error) {
+      assert("windows app control blocks gcloud runtime", error.code === "local_windows_app_control_gcloud_blocked", error.message);
+    }
+  }
+
+  {
+    const env = {
+      LOCAL_WINDOWS_APP_CONTROL_ENABLED: "true",
+      LOCAL_WINDOWS_APP_ALLOWLIST: JSON.stringify({ notepad: "notepad.exe" })
+    };
+    try {
+      handleWindowsAppControl({ action: "launch", app_alias: "cmd" }, { env, platform: "win32" });
+      assert("windows app launch requires allowlisted alias", false);
+    } catch (error) {
+      assert("windows app launch requires allowlisted alias", error.code === "windows_app_not_allowlisted", error.message);
+    }
+  }
+
+  {
+    const env = {
+      LOCAL_WINDOWS_APP_CONTROL_ENABLED: "true",
+      LOCAL_WINDOWS_APP_ALLOWLIST: JSON.stringify({
+        notepad: { display_name: "Notepad", command: "notepad.exe", args: [] }
+      })
+    };
+    const spawned = [];
+    const result = handleWindowsAppControl(
+      { action: "launch", app_alias: "notepad" },
+      {
+        env,
+        platform: "win32",
+        spawn(command, args, options) {
+          spawned.push({ command, args, options });
+          return { pid: 1234, unref() {} };
+        }
+      }
+    );
+    assert("windows app launch uses allowlisted command", spawned[0]?.command === "notepad.exe", JSON.stringify(spawned));
+    assert("windows app launch does not use shell", spawned[0]?.options?.shell === false, JSON.stringify(spawned));
+    assert("windows app launch returns alias", result.launched === true && result.app_alias === "notepad", JSON.stringify(result));
+  }
 
   {
     let responseStatus = null;

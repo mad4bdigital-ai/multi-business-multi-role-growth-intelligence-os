@@ -1249,8 +1249,7 @@ paths:
         - backendBearerAuth: []
       operationId: executeAdminControl
       summary: Execute personal admin control operation
-      description: |
-        Root-level personal administrator endpoint for GitHub CLI, gcloud CLI, remote database SQL control through the configured application pool, and local runtime environment inspection or mutation. This endpoint is intended only for the owner's private admin GPT and requires backend API key auth.
+      description: Root-level personal administrator endpoint for GitHub CLI, gcloud CLI, remote database SQL control through the configured application pool, and local runtime environment inspection or mutation, plus disabled-by-default allowlisted local Windows app launch. This endpoint is intended only for the own.
       requestBody:
         required: true
         content:
@@ -1268,6 +1267,7 @@ paths:
                     - gcloud
                     - db
                     - env
+                    - windows_app
                 args:
                   oneOf:
                     - type: array
@@ -1300,8 +1300,9 @@ paths:
                     - get
                     - set
                     - unset
+                    - launch
                   default: list
-                  description: Runtime environment action for the env tool.
+                  description: Runtime environment action for env, or list/launch for windows_app.
                 name:
                   type: string
                   description: Environment variable name for env get, set, or unset.
@@ -1316,6 +1317,9 @@ paths:
                   type: boolean
                   default: false
                   description: Return unmasked environment values, including sensitive-looking names.
+                app_alias:
+                  type: string
+                  description: Allowlisted local Windows app alias for windows_app launch.
       responses:
         '200':
           description: Admin control operation result
@@ -1338,6 +1342,7 @@ paths:
                       - gcloud
                       - db
                       - env
+                      - windows_app
                   result:
                     type: object
                     additionalProperties: true
