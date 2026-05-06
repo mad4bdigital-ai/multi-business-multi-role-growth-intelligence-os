@@ -77,6 +77,21 @@ const sheetData = {
       "ready",
       "ready",
       "active"
+    ],
+    [
+      "allroyalegypt",
+      "AllRoyalEgypt Brand",
+      "AllRoyalEgypt Brand",
+      "hvac_air_conditioning_services",
+      "hvac_air_conditioning_services_profile",
+      "allroyalegypt-brand-folder-id",
+      "allroyalegypt",
+      "https://allroyalegypt.com/",
+      "allroyalegypt.com",
+      "wordpress",
+      "ready",
+      "ready",
+      "active"
     ]
   ],
   "Brand Path Resolver": [
@@ -148,6 +163,28 @@ const sheetData = {
       "active",
       "",
       "brand-profile-doc-id",
+      "active"
+    ],
+    [
+      "AllRoyalEgypt Brand",
+      "brand_core",
+      "01 - Brand Core Profile",
+      "https://docs.google.com/document/d/allroyalegypt-brand-profile-doc-id/edit",
+      "brand_identity",
+      "brand_writing|strategy|seo",
+      "critical",
+      "Canonical Brand Core profile doc under Shared Drive.",
+      "allroyalegypt",
+      "brand_core_profile",
+      "google_doc",
+      "surface.brand.allroyalegypt.brand_core_folder",
+      "1",
+      "none",
+      "",
+      "validated",
+      "active",
+      "",
+      "allroyalegypt-brand-profile-doc-id",
       "active"
     ]
   ],
@@ -221,20 +258,24 @@ app.use(buildGovernanceRoutes(makeDeps()));
 const server = app.listen(0);
 try {
   const { port } = server.address();
-  const response = await fetch(`http://127.0.0.1:${port}/governance/resolve-context-diagnostic`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({
-      business_type_key: "hvac_air_conditioning_services",
-      brand_key: "arab_cooling",
-      target_key: "arab_cooling"
-    })
-  });
+  async function resolveDiagnostic(body) {
+    const response = await fetch(`http://127.0.0.1:${port}/governance/resolve-context-diagnostic`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
 
-  assert.equal(response.status, 200);
-  const json = await response.json();
+    assert.equal(response.status, 200);
+    return response.json();
+  }
+
+  const json = await resolveDiagnostic({
+    business_type_key: "hvac_air_conditioning_services",
+    brand_key: "arab_cooling",
+    target_key: "arab_cooling"
+  });
 
   assert.equal(json.ok, true);
   assert.equal(json.diagnostic.path_resolver_load.loaded, true);
@@ -249,6 +290,33 @@ try {
   );
   assert.equal(json.diagnostic.brand_core.docs.brand_core_profile, "brand-profile-doc-id");
   assert.equal(json.diagnostic.validation_state.ready, true);
+
+  const allRoyalEgypt = await resolveDiagnostic({
+    business_type_key: "hvac_air_conditioning_services",
+    brand_key: "allroyalegypt",
+    target_key: "allroyalegypt"
+  });
+
+  assert.equal(allRoyalEgypt.ok, true);
+  assert.equal(allRoyalEgypt.diagnostic.path_resolver_load.loaded, true);
+  assert.equal(allRoyalEgypt.diagnostic.path_resolver_load.row_counts.brandRows, 1);
+  assert.equal(allRoyalEgypt.diagnostic.path_resolver_load.row_counts.brandCoreRows, 1);
+  assert.equal(allRoyalEgypt.diagnostic.path_resolver_load.row_counts.targetRows, 1);
+  assert.equal(allRoyalEgypt.diagnostic.path_resolver_load.row_counts.brandPathRows, 0);
+  assert.equal(allRoyalEgypt.diagnostic.path_resolver_load.row_counts.validationRows, 0);
+  assert.equal(allRoyalEgypt.diagnostic.knowledge_ready, false);
+  assert.equal(allRoyalEgypt.diagnostic.execution_ready, false);
+  assert.equal(allRoyalEgypt.diagnostic.validation_state.ready, false);
+  assert.equal(
+    allRoyalEgypt.diagnostic.validation_state.reason,
+    "missing_brand_path_rows|missing_validation_rows"
+  );
+  assert.equal(
+    allRoyalEgypt.diagnostic.brand.brand_folder_path,
+    "Growth Intelligence OS - Knowledge Assets/Business Type Assets/HVAC-Air-Conditioning-Services/brands/allroyalegypt"
+  );
+  assert.equal(allRoyalEgypt.diagnostic.brand_core.docs.brand_core_profile, "allroyalegypt-brand-profile-doc-id");
+  assert.equal(allRoyalEgypt.diagnostic.execution_target.auth_status, "");
 } finally {
   await new Promise((resolve) => server.close(resolve));
   if (previousRegistryId === undefined) {

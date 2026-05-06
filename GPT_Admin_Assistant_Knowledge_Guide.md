@@ -39,6 +39,53 @@ On every new GPT session, run hard activation once before normal platform work:
 
 Health, status, release readiness, and count routes are diagnostics only. They do not replace Drive, Sheets bootstrap, or GitHub validation.
 
+## Agent Sides
+
+The Admin Assistant can explain and operate from two sides. Pick the side before selecting an action.
+
+### Admin Agent Side
+
+Admin-side mode is for platform-owner administration. It may inspect and operate across all brands, tenants, plugins, logics, engines, scoped schemas, runtime-callable actions, provider bindings, release readiness, deployments, and registry health.
+
+Use admin side for:
+
+- hard activation and platform access verification
+- scoped OpenAPI action setup and schema/client error repair
+- release readiness, registry diagnostics, and generated schema review
+- GCloud, GitHub, DB, DNS, secrets references, and admin CLI work
+- cross-brand or cross-tenant troubleshooting
+
+Admin side requires backend/service auth and must keep privileged work evidence-based. Prefer a specific governed endpoint before `executeAdminControl`. For destructive operations, require explicit current-user intent, preserve audit evidence, and stop on auth or policy denial.
+
+### Customer Agent Side
+
+Customer-side mode is for tenant, brand, CRM, support, and user-scoped work. It must not assume platform-wide access even when the same GPT has admin actions available.
+
+Use customer side for:
+
+- customer, contact, ticket, thread, timeline, and tenant-scoped CRM work
+- user membership, role, subscription, entitlement, and access-decision checks
+- brand-specific growth, SEO, writing, and workflow guidance after Brand Core resolves
+- user-owned Drive/Sheets work only when authorized and required
+
+Customer side must stay inside the resolved tenant/user/brand scope. Do not use admin CLI, raw DB, GCloud, GitHub mutation, secret access, or cross-tenant diagnostics for customer tasks. If access is missing, report `authorization_gated`, `blocked`, or `degraded_contract` instead of attempting an admin recovery path.
+
+## Functional Endpoint Answer Model
+
+When asked what an endpoint or operation is for, answer with:
+
+1. scope and schema file
+2. functional purpose
+3. admin side, customer side, or both
+4. when to use it
+5. when not to use it
+6. auth and risk notes
+7. expected evidence or output shape
+
+Example:
+
+`GET /activation/session-context` in the Runtime scope loads same-user session history, related scopes, transcript availability, and `platform_access` for hard activation continuity. It is useful at the start of a GPT session and for recovery from prior degraded work. It does not replace Drive, Sheets bootstrap, GitHub validation, release readiness, or provider execution evidence. Raw transcript fields are optional, bounded, and should be requested only with `include_raw=true` when needed.
+
 ## Scoped Action Files
 
 Each schema must be added to the Custom GPT UI as a separate Action. Each file stays under 30 operations and uses a unique server URL.
@@ -59,16 +106,16 @@ Each schema must be added to the Custom GPT UI as a separate Action. Each file s
 
 Use `openapi.custom-gpt.runtime.yaml` for activation and governed execution.
 
-Key operations:
+Key operations and functional use:
 
-- `getActivationSessionContext`: previous sessions, transcripts, related scopes, and embedded `platform_access`
-- `getActivationPlatformAccess`: all-brand/admin scope plus brands, plugins, logics, engines, and runtime-callable actions counts
-- `executeHttpRequest`: governed provider call through registry `parent_action_key` and `endpoint_key`
-- `batchDispatch`: bounded multi-request dispatch
-- `createJob`, `getJob`, `getJobResult`: async governed execution
-- `generateImplementationPlan`, `generateTaskManifest`: AI resolver chain
-- `getAiRegistryReadiness`: route/workflow AI readiness
-- Tenant operations: create, list, read, replace, archive, memberships, relationships
+- `getActivationSessionContext`: admin and customer activation continuity; previous same-user sessions, related scopes, transcript availability, and embedded `platform_access`
+- `getActivationPlatformAccess`: admin access/count refresh for all-brand scope, brands, plugins, logics, engines, and runtime-callable actions
+- `executeHttpRequest`: governed provider call through registry `parent_action_key` and `endpoint_key`; use for Drive, Sheets, GitHub, and other provider actions after authority resolves
+- `batchDispatch`: bounded multi-request dispatch for low-risk grouped diagnostics; not a bypass for auth or mutation policy
+- `createJob`, `getJob`, `getJobResult`: async governed execution for longer work
+- `generateImplementationPlan`, `generateTaskManifest`: AI resolver chain for implementation planning
+- `getAiRegistryReadiness`: route/workflow AI readiness evidence
+- Tenant operations: admin or customer tenant state depending on auth; create, list, read, replace, archive, memberships, relationships
 
 Provider calls must go through `executeHttpRequest`; do not invent provider URLs or action keys.
 
@@ -76,15 +123,15 @@ Provider calls must go through `executeHttpRequest`; do not invent provider URLs
 
 Use `openapi.custom-gpt.identity.yaml` for admin identity and access operations.
 
-Includes:
+Functional use:
 
-- Users: create, list, read, replace, archive
-- Role assignments
-- Plans and subscriptions
-- Entitlements
-- Assistance roles
-- Access decision engine
-- Access envelope listing
+- Users: admin-side identity lifecycle; customer side only for own authorized profile context
+- Role assignments: admin-side tenant/user role binding
+- Plans and subscriptions: customer service mode and commercial readiness
+- Entitlements: feature access and scoped capabilities
+- Assistance roles: support/service level classification
+- Access decision engine: customer-side and admin-side authorization decision evidence before risky actions
+- Access envelope listing: admin audit and troubleshooting of prior access decisions
 
 Use this scope when managing who can use the platform and what service mode or entitlement they receive.
 
@@ -92,14 +139,14 @@ Use this scope when managing who can use the platform and what service mode or e
 
 Use `openapi.custom-gpt.customers.yaml` for CRM and support surfaces.
 
-Includes:
+Functional use:
 
-- Customers
-- Contacts
-- Tickets
-- Threads
-- Timeline events
-- Tenant-scoped customer/ticket/thread listings
+- Customers: tenant-scoped CRM records
+- Contacts: people linked to customers or tenants
+- Tickets: support/issues; accepts GPT-friendly `subject` on create
+- Threads: conversation/support continuity
+- Timeline events: customer history and operational trail
+- Tenant-scoped customer/ticket/thread listings: customer-side workspace views and admin diagnostics
 
 This scope is operational CRM state, not provider transport.
 
@@ -107,15 +154,15 @@ This scope is operational CRM state, not provider transport.
 
 Use `openapi.custom-gpt.systems.yaml` for connected-system administration and planner/bootstrap work.
 
-Includes:
+Functional use:
 
-- Connected systems
-- Workspaces
-- Installations
-- Permission grants
-- Planner intent resolution and execution plans
-- Connector dispatch/history/status
-- Bootstrap readiness and onboarding states
+- Connected systems: admin-side and tenant-side integration inventory
+- Workspaces: grouped execution or tracking context
+- Installations: installed integration/app state
+- Permission grants: access to integrations and workspaces
+- Planner intent resolution and execution plans: convert user work into governed executable plans
+- Connector dispatch/history/status: operational execution tracking; not raw provider transport
+- Bootstrap readiness and onboarding states: setup diagnostics
 
 Use this scope for platform connectivity and execution planning. For raw provider calls, use runtime `executeHttpRequest`.
 
@@ -123,14 +170,13 @@ Use this scope for platform connectivity and execution planning. For raw provide
 
 Use `openapi.custom-gpt.logic.yaml` for governed logic and workflow orchestration.
 
-Includes:
+Functional use:
 
-- Logic definitions
-- Logic packs
-- Pack attachments
-- Adaptation records and approval
-- Workflow runs and step runs
-- Approval holds
+- Logic definitions: admin-side logic inventory and customer-side explainability when scoped
+- Logic packs and attachments: reusable grouped logic capabilities
+- Adaptation records and approval: governed change lifecycle for logic updates
+- Workflow runs and step runs: execution trace and workflow state
+- Approval holds: human or policy gates before sensitive execution
 
 Governed logic must resolve pointer-first through registry authority. Logic routes must not bypass `runAgentLoop -> getAgentDeps()`.
 
@@ -138,15 +184,15 @@ Governed logic must resolve pointer-first through registry authority. Logic rout
 
 Use `openapi.custom-gpt.observability.yaml` for monitoring, audit, quota, and security response.
 
-Includes:
+Functional use:
 
-- Telemetry spans and traces
-- Usage recording and quota checks
-- Tracking workspaces and events
-- Reporting views
-- Audit log
-- Secret references
-- Incidents
+- Telemetry spans and traces: admin-side and scoped customer debugging evidence
+- Usage recording and quota checks: service limits and billing-safe operation
+- Tracking workspaces and events: customer journey or operational tracking
+- Reporting views: saved analytics/reporting surfaces
+- Audit log: admin evidence for privileged actions
+- Secret references: metadata/lifecycle only; never raw secret disclosure
+- Incidents: status and response coordination
 
 Secret reference routes expose references and lifecycle metadata, not raw secrets.
 
@@ -154,12 +200,12 @@ Secret reference routes expose references and lifecycle metadata, not raw secret
 
 Use `openapi.custom-gpt.developer.yaml` for API client and integration management.
 
-Includes:
+Functional use:
 
-- Developer apps
-- API credential creation/revocation
-- Webhooks
-- Rate limit rules
+- Developer apps: registered client/integration metadata
+- API credential creation/revocation: per-user or per-integration auth lifecycle
+- Webhooks: outbound event delivery configuration
+- Rate limit rules: quota and abuse-control policy
 
 Per-user API keys should be created here when moving from shared admin backend auth to user-scoped integrations.
 
@@ -177,11 +223,11 @@ This scope can broker GitHub CLI, Google Cloud CLI, remote DB control, and local
 
 Use `openapi.custom-gpt.ops.yaml` for release and registry maintenance checks.
 
-Includes:
+Functional use:
 
-- Release readiness
-- Release readiness history
-- Entity classification upsert/list
+- Release readiness: admin-side diagnostic evidence for platform deployability
+- Release readiness history: prior readiness snapshots and regression context
+- Entity classification upsert/list: registry maintenance for platform entities
 
 Release readiness is diagnostic evidence; it does not replace hard activation provider probes.
 

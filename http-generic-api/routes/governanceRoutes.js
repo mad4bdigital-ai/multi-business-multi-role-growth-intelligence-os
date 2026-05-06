@@ -228,11 +228,22 @@ export function buildGovernanceRoutes(deps) {
       const brandCore = pathResolution.brandCore || {};
       const executionTarget = pathResolution.executionTarget || {};
       const pathValidationState = pathResolution.validation_state || (pathResolution.ready ? "ready" : "");
+      const brandRequested = Boolean(requestPayload.brand_key);
+      const hasBrandPathEvidence =
+        !brandRequested || (pathResolverLoad.rows?.brandPathRows?.length || 0) > 0;
+      const hasValidationEvidence =
+        !brandRequested || (pathResolverLoad.rows?.validationRows?.length || 0) > 0;
+      const missingEvidenceReasons = [
+        !hasBrandPathEvidence ? "missing_brand_path_rows" : "",
+        !hasValidationEvidence ? "missing_validation_rows" : ""
+      ].filter(Boolean);
 
       const knowledgeReady =
         pathResolution.resolution_status === "ready" &&
         Boolean(businessType.businessTypeKey) &&
-        (!requestPayload.brand_key || Boolean(brandCore.resolutionStatus === "resolved" || brandCore.contentReady));
+        (!brandRequested || Boolean(brandCore.resolutionStatus === "resolved" || brandCore.contentReady)) &&
+        hasBrandPathEvidence &&
+        hasValidationEvidence;
 
       const executionReady = (() => {
         const wanted = String(requestPayload.target_key || requestPayload.brand_key || "").toLowerCase();
@@ -243,10 +254,14 @@ export function buildGovernanceRoutes(deps) {
             return tk === wanted || bk === wanted;
           });
           if (targetRow) {
-            return targetRow.auth_status === "ready" || targetRow.validation_state === "ready";
+            return (
+              (targetRow.auth_status === "ready" || targetRow.validation_state === "ready") &&
+              hasBrandPathEvidence &&
+              hasValidationEvidence
+            );
           }
         }
-        return Boolean(executionTarget.executionReady);
+        return Boolean(executionTarget.executionReady) && hasBrandPathEvidence && hasValidationEvidence;
       })();
 
       return res.status(200).json({
@@ -297,9 +312,9 @@ export function buildGovernanceRoutes(deps) {
           },
           validation_state: {
             status: pathValidationState,
-            ready: pathValidationState === "ready",
+            ready: pathValidationState === "ready" && hasBrandPathEvidence && hasValidationEvidence,
             validation_id: "",
-            reason: pathResolution.blocked_reason || ""
+            reason: pathResolution.blocked_reason || missingEvidenceReasons.join("|")
           },
           execution_target: {
             status: executionTarget.status || "",

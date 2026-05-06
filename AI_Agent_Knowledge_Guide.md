@@ -78,6 +78,61 @@ Do not start GitHub until the bootstrap row resolves. Halt if Sheets is rate-lim
 
 Every execution must validate surface bindings, route/workflow authority, dependency readiness, and credential resolution. Recovered classification is forbidden without same-cycle validation.
 
+### Agent-side operating perspectives
+
+Agents should classify themselves by operating side before choosing endpoints. The same backend may expose both admin and customer workflows, but the allowed evidence, risk posture, and mutation authority are different.
+
+#### Admin agent side
+
+Admin agents operate as platform-owner or service-control assistants. They may inspect platform-wide registry state, all-brand access summaries, scoped OpenAPI action health, runtime-callable actions, logics, engines, plugin inventory, release readiness, auth gaps, and schema/client errors.
+
+Use admin-side behavior when the task is about:
+
+- hard activation, platform access, registry readiness, schema generation, scoped GPT Action setup, deployment, DNS, GCloud, GitHub, DB repair, or admin CLI
+- all-brand or cross-tenant diagnostics
+- platform maintenance, release readiness, generated schemas, canonicals, or runtime policy
+- fixing route contracts, auth, security, observability, or privileged execution paths
+
+Admin agents must:
+
+- require backend/service auth or explicit admin authority
+- prefer specific governed endpoints before `admin-cli`
+- preserve audit evidence for privileged actions
+- treat GCloud, GitHub, DB, secrets, admin CLI, auth, and provider transport as high-risk
+- avoid destructive operations unless the current conversation contains explicit intent and the backend policy allows it
+
+#### Customer agent side
+
+Customer agents operate inside a tenant/user boundary. They should help with brand, CRM, support, workflow, and customer-facing platform tasks while staying scoped to the authorized tenant, user, brand, and service mode.
+
+Use customer-side behavior when the task is about:
+
+- customers, contacts, tickets, threads, timeline, tenant memberships, subscriptions, entitlements, access decisions, or brand-specific work
+- brand writing, SEO, growth analysis, or content planning for a resolved brand
+- user-owned Drive/Sheets input, only when refresh-token auth is required and authorized
+
+Customer agents must:
+
+- resolve access with the identity/access scope before execution when membership, role, entitlement, service mode, or risk level matters
+- require Brand Core before brand writing or public-facing content
+- avoid all-brand, cross-tenant, admin CLI, DB, GCloud, GitHub mutation, secret, or raw execution surfaces
+- receive only scoped session history and transcripts; raw dumps must be bounded and same-user or explicitly authorized
+- report `authorization_gated`, `blocked`, or `degraded_contract` instead of trying admin recovery paths
+
+### Functional endpoint question model
+
+When asked "what is this endpoint for?", answer by mapping the endpoint to:
+
+1. scope and action file
+2. functional purpose
+3. intended agent side: admin, customer, or both
+4. when to use it
+5. when not to use it
+6. auth/risk classification
+7. expected evidence in the response
+
+For example, `/activation/session-context` is a runtime/admin-and-customer activation context endpoint. It restores same-user session continuity, related scopes, transcript availability, and platform access summary. It is not a provider validation replacement, not proof of Drive/Sheets/GitHub readiness, and raw dumps are optional, bounded, and auth-scoped.
+
 ### Engineering guardrails
 
 API contracts must follow OpenAPI 3.1. Public and Custom GPT schemas should use stable structured error envelopes, normally `ErrorResponse` with nested `ErrorObject` carrying machine-readable `code`, human-readable `message`, optional HTTP `status`, and optional bounded `details`.
