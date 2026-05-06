@@ -986,7 +986,7 @@ components:
           format: uuid
         user_id:
           type: string
-          format: uuid
+          description: Platform user identifier. UUIDs and registry/user-key strings are accepted.
         risk_level:
           type: string
           enum:
@@ -996,9 +996,11 @@ components:
             - critical
           default: low
         intent_flags:
-          type: array
-          items:
-            type: string
+          type: object
+          additionalProperties:
+            type: boolean
+          description: Boolean intent flags, for example public_scope or destructive. Array flag-name input is accepted by the backend for compatibility.
+          properties: {}
         persist:
           type: boolean
           default: false
@@ -1015,6 +1017,8 @@ components:
       properties:
         ok:
           type: boolean
+        allows_execution:
+          type: boolean
         decision:
           type: string
           enum:
@@ -1026,6 +1030,18 @@ components:
             - DENY
         reason:
           type: string
+        tenant_id:
+          type: string
+        user_id:
+          type: string
+          nullable: true
+        risk_level:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+            - critical
         service_mode:
           type: string
         plan_key:

@@ -52,7 +52,7 @@ export function buildIdentityRoutes(deps) {
          FROM \`users\` ${whereClause} ORDER BY created_at DESC LIMIT ?`,
         [...params, parseInt(limit, 10) || 100]
       );
-      return res.status(200).json({ ok: true, users: rows, count: rows.length });
+      return res.status(200).json({ ok: true, items: rows, users: rows, count: rows.length });
     } catch (err) {
       return res.status(500).json({
         ok: false,

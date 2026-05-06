@@ -988,7 +988,7 @@ components:
           format: uuid
         user_id:
           type: string
-          format: uuid
+          description: Platform user identifier. UUIDs and registry/user-key strings are accepted.
         risk_level:
           type: string
           enum:
@@ -998,9 +998,11 @@ components:
             - critical
           default: low
         intent_flags:
-          type: array
-          items:
-            type: string
+          type: object
+          additionalProperties:
+            type: boolean
+          description: Boolean intent flags, for example public_scope or destructive. Array flag-name input is accepted by the backend for compatibility.
+          properties: {}
         persist:
           type: boolean
           default: false
@@ -1017,6 +1019,8 @@ components:
       properties:
         ok:
           type: boolean
+        allows_execution:
+          type: boolean
         decision:
           type: string
           enum:
@@ -1028,6 +1032,18 @@ components:
             - DENY
         reason:
           type: string
+        tenant_id:
+          type: string
+        user_id:
+          type: string
+          nullable: true
+        risk_level:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+            - critical
         service_mode:
           type: string
         plan_key:
@@ -1273,6 +1289,27 @@ paths:
         - backendBearerAuth: []
       operationId: listUsers
       summary: List users
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - active
+              - suspended
+              - archived
+        - name: email
+          in: query
+          schema:
+            type: string
+            format: email
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 500
       responses:
         '200':
           description: User list
@@ -1714,7 +1751,7 @@ paths:
                   format: uuid
                 user_id:
                   type: string
-                  format: uuid
+                  description: Platform user identifier. UUIDs and registry/user-key strings are accepted.
                 risk_level:
                   type: string
                   enum:
@@ -1724,9 +1761,11 @@ paths:
                     - critical
                   default: low
                 intent_flags:
-                  type: array
-                  items:
-                    type: string
+                  type: object
+                  additionalProperties:
+                    type: boolean
+                  description: Boolean intent flags, for example public_scope or destructive. Array flag-name input is accepted by the backend for compatibility.
+                  properties: {}
                 persist:
                   type: boolean
                   default: false

@@ -187,7 +187,12 @@ section("POST /access/resolve — input validation");
 
 section("POST /access/resolve — route registered");
 {
-  const r = await post("/access/resolve", { tenant_id: "t1", risk_level: "low" });
+  const r = await post("/access/resolve", {
+    tenant_id: "t1",
+    user_id: "test_recheck_actor",
+    risk_level: "low",
+    intent_flags: ["public_scope"],
+  });
   ok("valid input → not 404", r.status !== 404, `got ${r.status}`);
   ok("response has ok field", "ok" in r.body);
 }
@@ -322,6 +327,20 @@ section("POST /customers — route registered");
 {
   const r = await post("/customers", {});
   ok("not 404", r.status !== 404, `got ${r.status}`);
+}
+
+section("POST /tickets - Custom GPT subject compatibility");
+
+{
+  const r = await post("/tickets", {});
+  ok("missing tenant_id + subject -> 400", r.status === 400, `got ${r.status}`);
+  ok("code = missing_fields", r.body.error?.code === "missing_fields");
+}
+{
+  const r = await post("/tickets", { tenant_id: "t1", subject: "Custom GPT smoke ticket" });
+  ok("subject-only ticket payload -> not 400 missing_fields", !(r.status === 400 && r.body.error?.code === "missing_fields"),
+    `got ${r.status} ${JSON.stringify(r.body.error || {})}`);
+  ok("subject-only ticket payload -> not 404", r.status !== 404, `got ${r.status}`);
 }
 
 // ── 13. GET /tenants/:id/connected-systems — route registered ────────────────

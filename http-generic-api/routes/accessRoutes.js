@@ -2,6 +2,23 @@ import { Router } from "express";
 import { resolveAccess, DECISIONS } from "../accessDecisionEngine.js";
 import { getPool } from "../db.js";
 
+function normalizeIntentFlags(intent_flags) {
+  if (intent_flags === undefined || intent_flags === null) return {};
+  if (Array.isArray(intent_flags)) {
+    return Object.fromEntries(
+      intent_flags
+        .filter((flag) => typeof flag === "string" && flag.trim())
+        .map((flag) => [flag.trim(), true])
+    );
+  }
+  if (typeof intent_flags === "object") return intent_flags;
+
+  const err = new Error("intent_flags must be an object or an array of flag names.");
+  err.status = 400;
+  err.code = "invalid_intent_flags";
+  throw err;
+}
+
 export function buildAccessRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
@@ -36,7 +53,15 @@ export function buildAccessRoutes(deps) {
         });
       }
 
-      const result = await resolveAccess({ tenant_id, user_id, risk_level, intent_flags, persist });
+      const normalizedIntentFlags = normalizeIntentFlags(intent_flags);
+
+      const result = await resolveAccess({
+        tenant_id,
+        user_id,
+        risk_level,
+        intent_flags: normalizedIntentFlags,
+        persist,
+      });
 
       const allows_execution = result.decision === DECISIONS.ALLOW_SELF_SERVE ||
                                result.decision === DECISIONS.ALLOW_WITH_OPTIONAL_ASSISTANCE;
