@@ -92,6 +92,33 @@ async function loadLogicDefinition(logic_key) {
   return row;
 }
 
+// Loads all logic_definitions from the agent's bound packs, ordered by pack priority then logic_key.
+// Used by the rule_based path so the engine receives the full rule set rather than a single key.
+async function loadAgentPackDefinitions(agent_id) {
+  if (!agent_id) return [];
+  const [rows] = await getPool().query(
+    `SELECT ld.logic_id, ld.logic_key, ld.display_name, ld.logic_type,
+            ld.body_json, ld.version, ld.status,
+            lp.pack_key, lp.pack_type, alb.priority AS pack_priority
+     FROM \`agent_logic_pack_bindings\` alb
+     JOIN \`logic_packs\`    lp ON lp.pack_id  = alb.pack_id
+     JOIN \`pack_attachments\` pa ON pa.pack_id = alb.pack_id AND pa.target_type = 'logic'
+     JOIN \`logic_definitions\` ld ON ld.logic_id = pa.target_id
+     WHERE alb.agent_id = ?
+       AND lp.status = 'active'
+       AND ld.status = 'active'
+       AND pa.status = 'active'
+     ORDER BY alb.priority ASC, ld.logic_key ASC`,
+    [agent_id]
+  ).catch(() => [[]]);
+
+  return rows.map(r => {
+    let body = r.body_json;
+    try { body = body ? JSON.parse(body) : {}; } catch { body = {}; }
+    return { ...r, body_json: body };
+  });
+}
+
 function buildToolsFromEngines(mappedEngines = "") {
   return mappedEngines
     .split("|")
@@ -163,6 +190,44 @@ export async function runAgentLoop(plan, deps = {}) {
 
   // Use class-aware callModel when available; fall back to deps.callModel.
   const execution_class = workflow.execution_class || "standard";
+
+  // rule_based: bypass LLM entirely — dispatch directly to engineExecutorRegistry.
+  // Loads the agent's bound pack definitions so the engine receives the full rule set,
+  // not just a single logic_key. Falls back gracefully if no packs are bound.
+  if (execution_class === "rule_based") {
+    const packDefs = await loadAgentPackDefinitions(plan.agent_id || null);
+    const ruleContext = {
+      ...context,
+      pack_definitions: packDefs,
+      pack_definition_count: packDefs.length,
+    };
+
+    const ruleResult = await dispatchTool(logic_key, {
+      user_input: plan.intent_key || "",
+      context: ruleContext,
+    }, ruleContext);
+
+    const normalised = {
+      ok: ruleResult?.ok !== false,
+      output: ruleResult?.output ?? ruleResult,
+      tool_calls_made: [],
+      iteration_count: 0,
+      execution_trace_id: null,
+    };
+    await writeRunResult(run_id, normalised, plan.tenant_id);
+    return {
+      ok: normalised.ok,
+      run_id,
+      output: normalised.output,
+      tool_calls_made: [],
+      iterations: 0,
+      execution_trace_id: null,
+      review: null,
+      execution_class: "rule_based",
+      pack_definitions_loaded: packDefs.length,
+    };
+  }
+
   const callModel = deps.getCallModelForClass
     ? deps.getCallModelForClass(execution_class)
     : deps.callModel;

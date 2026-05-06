@@ -17,6 +17,7 @@ import { runWordpressConnectorMigration } from "./wordpress/phaseA.js";
 import { writeAuditLogAsync } from "./auditLogger.js";
 import { runAgentLoop } from "./agentLoopRunner.js";
 import { getAgentDeps } from "./agentRuntime.js";
+import { routeOutput }  from "./outputSinkRouter.js";
 
 const EXECUTABLE_DECISIONS = new Set([
   "ALLOW_SELF_SERVE",
@@ -113,15 +114,25 @@ function buildWpContext(brand) {
 // ── DB write helpers (all non-throwing) ──────────────────────────────────────
 
 async function createWorkflowRun(run_id, plan, service_mode) {
+  // Resolve agent_id from execution plan if not already on plan object
+  let agent_id = plan.agent_id || null;
+  if (!agent_id && plan.plan_id) {
+    const [planRow] = await getPool().query(
+      "SELECT agent_id FROM `execution_plans` WHERE plan_id = ? LIMIT 1", [plan.plan_id]
+    ).catch(() => [[]]);
+    agent_id = planRow[0]?.agent_id || null;
+  }
+
   await getPool().query(
     `INSERT INTO \`workflow_runs\`
-       (run_id, tenant_id, user_id, workflow_key, plan_id, service_mode, status, input_json, started_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'running', ?, NOW())`,
+       (run_id, tenant_id, user_id, workflow_key, agent_id, plan_id, service_mode, status, input_json, started_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'running', ?, NOW())`,
     [
       run_id,
       plan.tenant_id || null,
       plan.user_id || null,
       plan.workflow_key || "connector_dispatch",
+      agent_id,
       plan.plan_id,
       service_mode || "self_serve",
       JSON.stringify({ brand_key: plan.brand_key, target_key: plan.target_key, intent_key: plan.intent_key }),
@@ -332,6 +343,35 @@ export async function dispatchPlan(plan_id, {
     [plan_id]
   );
 
+  // Skill gate: verify the agent is granted the skill required for this connector type.
+  // Fails open (warns but proceeds) when the agent_skill_grants table is absent or empty,
+  // so existing plans remain executable while skills are still being seeded.
+  const CONNECTOR_SKILL_MAP = {
+    wordpress:        "api.wordpress_write",
+    mcp_connector:    "api.make_mcp",
+    content_workflow: "logic.evaluate_pack",
+  };
+  const requiredSkill = CONNECTOR_SKILL_MAP[connector_type];
+  if (requiredSkill && plan.agent_id) {
+    try {
+      const [skillRows] = await getPool().query(
+        `SELECT sg.grant_id FROM \`agent_skill_grants\` sg
+         JOIN \`agent_skills\` sk ON sk.skill_id = sg.skill_id
+         WHERE sg.agent_id = ? AND sk.skill_key = ?
+           AND sg.status = 'active' AND sk.status = 'active'
+           AND (sg.tenant_id IS NULL OR sg.tenant_id = ?)
+           AND (sg.expires_at IS NULL OR sg.expires_at > NOW())
+         LIMIT 1`,
+        [plan.agent_id, requiredSkill, plan.tenant_id]
+      );
+      if (!skillRows.length) {
+        console.warn(
+          `[connectorExecutor] skill gate: agent '${plan.agent_id}' lacks '${requiredSkill}' — proceeding (fail-open until grants are fully seeded)`
+        );
+      }
+    } catch { /* non-blocking — never let skill check break execution */ }
+  }
+
   let result, dispatchError;
   try {
     if (isWordpress) {
@@ -378,6 +418,18 @@ export async function dispatchPlan(plan_id, {
       plan_id, run_id, connector_type, apply, brand_key: plan.brand_key, workflow_key: plan.workflow_key,
     }),
   ]);
+
+  // Route output to typed sinks (non-blocking — never fail the main response)
+  if (succeeded && result?.output !== undefined) {
+    routeOutput({
+      run_id,
+      agent_id:     plan.agent_id || null,
+      tenant_id:    plan.tenant_id,
+      brand_key:    plan.brand_key || null,
+      workflow_key: plan.workflow_key || null,
+      output:       result.output,
+    }).catch(err => console.warn("[outputSinkRouter] non-fatal:", err?.message));
+  }
 
   writeAuditLogAsync({
     actor_id: actor_id || plan.user_id || "system",

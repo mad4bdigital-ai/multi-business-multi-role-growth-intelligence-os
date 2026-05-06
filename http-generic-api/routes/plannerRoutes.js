@@ -49,12 +49,29 @@ export function buildPlannerRoutes(deps) {
 
       const resolution_status = confidence > 0 ? "resolved" : "unmatched";
 
+      // Resolve agent_id from task_routes.execution_layer → agents.name
+      let resolved_agent_id = null;
+      if (matched_route_key) {
+        const [routeMeta] = await getPool().query(
+          "SELECT execution_layer FROM `task_routes` WHERE route_id = ? OR task_key = ? LIMIT 1",
+          [matched_route_key, matched_route_key]
+        );
+        if (routeMeta[0]?.execution_layer) {
+          const [agentRow] = await getPool().query(
+            "SELECT agent_id FROM `agents` WHERE execution_layer = ? AND status = 'active' AND health_status = 'active' LIMIT 1",
+            [routeMeta[0].execution_layer]
+          );
+          resolved_agent_id = agentRow[0]?.agent_id || null;
+        }
+      }
+
       await getPool().query(
         `INSERT INTO \`intent_resolutions\`
-           (resolution_id, tenant_id, user_id, raw_input, resolved_intent, confidence, matched_route_key, matched_workflow_key, resolution_status, service_mode)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (resolution_id, tenant_id, user_id, raw_input, resolved_intent, confidence,
+            matched_route_key, matched_workflow_key, agent_id, resolution_status, service_mode)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [resolution_id, tenant_id, user_id || null, raw_input, resolved_intent, confidence || null,
-         matched_route_key, matched_workflow_key, resolution_status, service_mode]
+         matched_route_key, matched_workflow_key, resolved_agent_id, resolution_status, service_mode]
       );
 
       return res.status(200).json({
@@ -65,6 +82,7 @@ export function buildPlannerRoutes(deps) {
         confidence: confidence ? Number(confidence.toFixed(4)) : null,
         matched_route_key,
         matched_workflow_key,
+        agent_id: resolved_agent_id,
       });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "intent_resolve_failed", message: err.message } });
@@ -90,6 +108,29 @@ export function buildPlannerRoutes(deps) {
       const access = await resolveAccess({ tenant_id, user_id, risk_level });
       const plan_id = randomUUID();
 
+      // Carry agent_id from resolution if available, or resolve from route_key
+      let plan_agent_id = null;
+      if (resolution_id) {
+        const [resRow] = await getPool().query(
+          "SELECT agent_id FROM `intent_resolutions` WHERE resolution_id = ? LIMIT 1",
+          [resolution_id]
+        );
+        plan_agent_id = resRow[0]?.agent_id || null;
+      }
+      if (!plan_agent_id && route_key) {
+        const [routeMeta] = await getPool().query(
+          "SELECT execution_layer FROM `task_routes` WHERE route_id = ? OR task_key = ? LIMIT 1",
+          [route_key, route_key]
+        );
+        if (routeMeta[0]?.execution_layer) {
+          const [agentRow] = await getPool().query(
+            "SELECT agent_id FROM `agents` WHERE execution_layer = ? AND status = 'active' AND health_status = 'active' LIMIT 1",
+            [routeMeta[0].execution_layer]
+          );
+          plan_agent_id = agentRow[0]?.agent_id || null;
+        }
+      }
+
       // Build steps preview
       const steps = [];
       if (intent_key) steps.push({ step: 1, type: "intent_resolution", key: intent_key });
@@ -106,11 +147,12 @@ export function buildPlannerRoutes(deps) {
       await getPool().query(
         `INSERT INTO \`execution_plans\`
            (plan_id, tenant_id, user_id, resolution_id, intent_key, brand_key, target_key, workflow_key, route_key,
-            service_mode, access_decision, plan_status, steps_json, validation_errors)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            agent_id, service_mode, access_decision, plan_status, steps_json, validation_errors)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           plan_id, tenant_id, user_id || null, resolution_id || null,
           intent_key || null, brand_key || null, target_key || null, workflow_key || null, route_key || null,
+          plan_agent_id,
           access.service_mode || "self_serve", access.decision, plan_status,
           JSON.stringify(steps),
           validation_errors.length ? JSON.stringify(validation_errors) : null,

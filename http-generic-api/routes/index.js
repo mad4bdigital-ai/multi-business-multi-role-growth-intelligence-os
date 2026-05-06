@@ -25,7 +25,11 @@ import { buildBatchRoutes }     from "./batchRoutes.js";
 import { buildLegalRoutes } from "./legalRoutes.js";
 import { buildAuthRoutes } from "./authRoutes.js";
 import { buildAdminCliRoutes, buildAdminControlHandler, requireAdminPrincipal } from "./adminCliRoutes.js";
+import { buildAgentRegistryRoutes } from "./agentRegistryRoutes.js";
+import { buildOutputSinkRoutes }    from "./outputSinkRoutes.js";
 import { buildRootDiscoveryRoutes } from "./rootDiscoveryRoutes.js";
+import { buildSessionRoutes }       from "./sessionRoutes.js";
+import { buildAgentSkillRoutes }    from "./agentSkillRoutes.js";
 
 export function registerRoutes(app, deps) {
   app.use(buildRootDiscoveryRoutes());
@@ -43,6 +47,10 @@ export function registerRoutes(app, deps) {
   app.use(buildCustomerRoutes(deps));
   app.use(buildConnectedSystemsRoutes(deps));
   app.use(buildPlannerRoutes(deps));
+  app.use(buildAgentRegistryRoutes(deps));
+  app.use(buildAgentSkillRoutes(deps));
+  app.use(buildOutputSinkRoutes(deps));
+  app.use(buildSessionRoutes(deps));
   app.use(buildBootstrapRoutes(deps));
   app.use(buildLogicRoutes(deps));
   app.use(buildWorkflowOrchestrationRoutes(deps));
