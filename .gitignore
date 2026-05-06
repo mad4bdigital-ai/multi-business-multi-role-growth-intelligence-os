@@ -4,6 +4,7 @@ node_modules/
 .mcp.json
 secrets/
 http-generic-api/google-oauth-token.json
+http-generic-api/scripts/create-admin.mjs
 .omx/
 Development/
 memory/
