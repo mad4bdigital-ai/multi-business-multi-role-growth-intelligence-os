@@ -111,6 +111,31 @@ Actions: `list` (returns allowlist), `read` (returns file content), `write` (cre
 
 ---
 
+## How the tunnel works (CNAME approach)
+
+No public IP or firewall changes are needed on the Windows machine. `cloudflared` makes an outbound connection to Cloudflare's edge. Inbound HTTPS requests to `connector.mad4b.com` are routed by Cloudflare through the tunnel to `http://127.0.0.1:3001`. TLS is handled automatically by Cloudflare.
+
+The Hostinger DNS record that makes this work is a CNAME:
+```
+connector → 95e4ba8c-782b-4819-9f80-04af4457ce73.cfargotunnel.com
+```
+This CNAME is already live in the `mad4b.com` DNS zone.
+
+---
+
+## Running on a spare device
+
+The same tunnel ID can be active on multiple machines simultaneously. Cloudflare load-balances across all connected cloudflared instances. To add a spare:
+
+1. Copy `cloudflared-config.yml` and the credentials file (`~/.cloudflared/<tunnel-id>.json`) to the spare device.
+2. Copy and fill `.env` with the same `BACKEND_API_KEY`.
+3. Start cloudflared on the spare: `cloudflared tunnel run --config cloudflared-config.yml`.
+4. Start the Node server on the spare: `node server.mjs`.
+
+Both machines will serve requests — if one disconnects, Cloudflare continues routing to the other automatically.
+
+---
+
 ## Security notes
 
 - The server binds to `127.0.0.1` only. It is never reachable on `0.0.0.0` or any network interface. Cloudflare Tunnel is the only entry point from the internet.

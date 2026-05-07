@@ -274,15 +274,43 @@ Functional use:
 
 Per-user API keys should be created here when moving from shared admin backend auth to user-scoped integrations.
 
+### Make.com integration — two distinct connection types
+
+Make.com has two registered adapters and two `app_integrations` catalog entries. Pick the correct one for the task:
+
+| app_key | Auth | Transport | Use |
+|---|---|---|---|
+| `makecom` | `Authorization: Token <api_key>` | REST `/api/v2/` | Manage scenarios, watch scenario state, trigger via webhooks |
+| `makecom_mcp` | Bearer token (URL or header) | JSON-RPC 2.0 `/mcp/stateless` | Enumerate and call Make.com MCP tools via the MCP protocol |
+
+When connecting a user's Make.com account, decide first which type of work is needed. Create the connection via `POST /app-connections` with the correct `app_key`. The `makecom_mcp` adapter supports `mcp_initialize`, `mcp_tools_list`, and `mcp_tools_call` actions; `mcp_tools_call` requires explicit approval (`auto_approve: false`).
+
 ## Admin CLI Scope
 
 Use `openapi.custom-gpt.admin-cli.yaml` only for high-risk platform-owner work.
 
-Operation:
+Operations:
 
-- `executeAdminControl`: raw admin control dispatcher
+- `executeAdminControl`: raw admin control dispatcher — tool routing by `tool` field
+- `executeHostingerApiCall`: direct Hostinger REST API proxy (`POST /admin/cli/hostinger`)
 
-This scope can broker GitHub CLI, Google Cloud CLI, remote DB control, and local environment operations when backend policy allows it. Always prefer a specific governed endpoint when one exists. For destructive operations, require explicit user intent in the current conversation and preserve audit evidence.
+### Tool routing inside executeAdminControl
+
+Pass `tool` to select the backend executor:
+
+| tool | Purpose | Key fields |
+|---|---|---|
+| `github` | `gh` CLI on Cloud Run container | `command_args` |
+| `gcloud` | `gcloud` CLI on Cloud Run container | `command_args` |
+| `db` | Raw SQL against Hostinger MySQL | `sql`, `params` |
+| `hostinger` | Hostinger REST API proxy | `path`, `method`, `request_body`, `api_key_ref` |
+| `shell` | Allowlisted shell command by alias | `alias`, `extra_args` |
+
+`hostinger` tool: `api_key_ref` is either `"shared_manager"` (uses `HOSTINGER_SHARED_MANAGER_01_API_KEY`) or `"cloud_plan"` (uses `HOSTINGER_CLOUD_PLAN_01_API_KEY`). `path` is the Hostinger API path, e.g. `/api/v1/vps`. Returns `{ status, ok, data }`.
+
+`shell` tool: `alias` must match an entry in `ADMIN_SHELL_ALLOWLIST` on the Cloud Run environment. Enabled only when `ADMIN_SHELL_ENABLED=true`. Use `action: "list"` first to discover available aliases. For `action: "run"`, pass `alias` and optionally `extra_args` when `allow_extra_args=true` on that alias. Arguments with shell metacharacters are rejected.
+
+This scope can broker GitHub CLI, Google Cloud CLI, remote DB control, Hostinger DNS/VPS/billing API, and allowlisted shell operations when backend policy allows it. Always prefer a specific governed endpoint when one exists. For destructive operations, require explicit user intent in the current conversation and preserve audit evidence.
 
 ## Ops Scope
 
@@ -295,6 +323,28 @@ Functional use:
 - Entity classification upsert/list: registry maintenance for platform entities
 
 Release readiness is diagnostic evidence; it does not replace hard activation provider probes.
+
+## Connector Scope
+
+Use `openapi.custom-gpt.connector.yaml` for break-glass operations when the primary Cloud Run API is unavailable.
+
+The connector runs on the admin's local Windows machine and is reachable via Cloudflare Tunnel at `connector.mad4b.com`. It requires the same `BACKEND_API_KEY` bearer token as the main API and binds only to `127.0.0.1` — Cloudflare Tunnel is the sole entry point from the internet.
+
+Key operations and functional use:
+
+- `connectorHealth` (`GET /health`): check if the connector is alive; no auth required; returns hostname, platform, uptime. Call this first before any recovery operation.
+- `connectorGithub` (`POST /github`): run `gh` CLI on the local Windows machine; use for pushing recovery commits, checking workflow status, or triggering deployments when Cloud Run is down. Pass `args` as an array or string.
+- `connectorGcloud` (`POST /gcloud`): run `gcloud` CLI on the local Windows machine; use for restarting Cloud Run services, reading deployment logs, or triggering redeployments. Pass `args` as an array or string.
+- `connectorShell` (`POST /shell`): run an allowlisted command by `alias`; use `action: "list"` to discover available aliases, `action: "run"` to execute. Only aliases in `CONNECTOR_SHELL_ALLOWLIST` are accepted.
+- `connectorFiles` (`POST /files`): read or write files restricted to paths in `CONNECTOR_FILE_PATHS`; actions are `list`, `read`, `write`. Use to stage recovery files before pushing via `/github`.
+
+When to use: Cloud Run is down or unhealthy, a deployment rollback is needed, a recovery commit must be pushed, or Cloud Run env/config must be checked when the admin API is unreachable.
+
+When not to use: Cloud Run is healthy; prefer the primary admin scopes. Never use as a general-purpose shell — it is a break-glass surface.
+
+Auth: `Authorization: Bearer <BACKEND_API_KEY>`. `/health` is unauthenticated.
+
+The connector may also run on a spare Windows device using the same Cloudflare Tunnel ID. Multiple machines can share one tunnel simultaneously for redundancy.
 
 ## Privacy Policy URLs
 
@@ -310,6 +360,7 @@ Each scoped subdomain should serve public HTML privacy policy pages:
 - `https://admin.mad4b.com/privacy-policy`
 - `https://ops.mad4b.com/privacy-policy`
 - `https://status.mad4b.com/privacy-policy`
+- `https://connector.mad4b.com/privacy-policy`
 
 ## GPT UI Setup Checklist
 
