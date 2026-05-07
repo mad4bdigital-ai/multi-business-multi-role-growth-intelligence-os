@@ -12,7 +12,7 @@ export function buildOnboardingRoutes() {
   const router = Router();
 
   router.get("/connect", (_req, res) => {
-    const customGptUrl = process.env.CUSTOM_GPT_URL || "https://chatgpt.com/gpts";
+    const customGptUrl = process.env.TENANT_GPT_URL || process.env.CUSTOM_GPT_URL || "https://chatgpt.com/gpts";
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=120");
     res.end(`<!doctype html>

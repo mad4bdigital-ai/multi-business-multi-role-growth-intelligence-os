@@ -1,0 +1,253 @@
+openapi: 3.1.0
+info:
+  title: Mad4B — Local Connector (Tenant)
+  version: 1.0.0
+  summary: Tenant-scoped local device operations via your Cloudflare tunnel.
+  description: Direct device API for shell commands, file access, URL fetch-to-upload, and health checks. Reaches your local machine via connector.mad4b.com or your dedicated {device}.connector.mad4b.com tunnel.
+servers:
+  - url: https://connector.mad4b.com
+    description: Your local Windows device via Cloudflare Tunnel
+tags:
+  - name: device
+    description: Health check and connector status.
+  - name: shell
+    description: Run allowlisted shell commands on your device.
+  - name: files
+    description: Read and write allowlisted local files.
+  - name: fetch
+    description: Fetch a remote URL and push content to the platform upload system.
+components:
+  securitySchemes:
+    connectorBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: connector_secret
+      description: "Send Authorization: Bearer <connector_secret> from your install bundle."
+  schemas:
+    ConnectorError:
+      type: object
+      properties:
+        ok: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+security:
+  - connectorBearerAuth: []
+paths:
+
+  /health:
+    get:
+      tags: [device]
+      operationId: connectorHealth
+      summary: Check if the local connector is alive
+      description: Returns uptime, hostname, and platform. No auth required. Use this first to confirm the connector is running before attempting any device operations.
+      security: []
+      responses:
+        '200':
+          description: Connector running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  service: { type: string }
+                  hostname: { type: string }
+                  platform: { type: string }
+                  uptime: { type: number }
+
+  /shell:
+    post:
+      tags: [shell]
+      operationId: connectorShell
+      summary: Run an allowlisted shell command on the local device
+      description: "action=list: show available aliases. action=run: execute by alias. action=status: check if shell is enabled. alias required for run."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [status, list, run]
+                  default: list
+                alias:
+                  type: string
+                  description: Shell alias to run. Required for action=run.
+                extra_args:
+                  type: array
+                  items: { type: string }
+                  description: Appended to the command. Only if alias has allow_extra_args=true.
+                timeout_ms:
+                  type: integer
+                  minimum: 1000
+                  maximum: 600000
+      responses:
+        '200':
+          description: Shell result or alias listing
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  enabled: { type: boolean }
+                  alias: { type: string }
+                  stdout: { type: string }
+                  stderr: { type: string }
+                  exit_code: { type: integer }
+                  aliases:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        alias: { type: string }
+                        display_name: { type: string }
+                        allow_extra_args: { type: boolean }
+        '401': { description: Unauthorized }
+        '403': { description: Alias not in allowlist }
+
+  /files:
+    post:
+      tags: [files]
+      operationId: connectorFiles
+      summary: Read or write allowlisted files on the local device
+      description: "action=list: show allowed paths. action=read: return file content. action=write: write content to path. path must be in the file access allowlist."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [list, read, write]
+                path:
+                  type: string
+                  description: Absolute local path. Must be in the file access allowlist.
+                content:
+                  type: string
+                  description: Content to write. Required for action=write.
+      responses:
+        '200':
+          description: File result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  path: { type: string }
+                  content: { type: string }
+                  size: { type: integer }
+                  written: { type: boolean }
+                  paths:
+                    type: array
+                    items: { type: string }
+        '401': { description: Unauthorized }
+        '403': { description: Path not in allowlist }
+
+  /fetch-upload:
+    post:
+      tags: [fetch]
+      operationId: connectorFetchUpload
+      summary: Fetch a URL and push the content to the platform upload system
+      description: Fetches the URL using Node fetch and forwards to POST /uploads on the platform. Returns upload_id. For auth-required sites or JS-rendered pages, use /shell-fetch-upload with curl instead.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, upload_type]
+              properties:
+                url:
+                  type: string
+                  description: URL to fetch — raw GitHub, CDN-hosted schemas, etc.
+                upload_type:
+                  type: string
+                  enum: [schema, skill, knowledge, repo_link, asset]
+                filename:
+                  type: string
+                  description: Override filename derived from URL.
+                uploaded_by:
+                  type: string
+                metadata:
+                  type: object
+                  additionalProperties: true
+                timeout_ms:
+                  type: integer
+                  minimum: 1000
+                  maximum: 600000
+                  default: 30000
+      responses:
+        '200':
+          description: Content fetched and upload created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  fetched_url: { type: string }
+                  via: { type: string }
+                  upload_id: { type: string }
+                  status: { type: string }
+        '401': { description: Unauthorized }
+        '502': { description: Remote fetch failed }
+
+  /shell-fetch-upload:
+    post:
+      tags: [fetch]
+      operationId: connectorShellFetchUpload
+      summary: Download a URL via curl and push content to the platform upload system
+      description: Downloads via curl (handles redirects, legacy TLS, self-signed certs) and forwards to POST /uploads. URL is validated against shell metacharacters before execution.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, upload_type]
+              properties:
+                url:
+                  type: string
+                  description: URL to download via curl. Must not contain shell metacharacters.
+                upload_type:
+                  type: string
+                  enum: [schema, skill, knowledge, repo_link, asset]
+                filename: { type: string }
+                uploaded_by: { type: string }
+                metadata:
+                  type: object
+                  additionalProperties: true
+                timeout_ms:
+                  type: integer
+                  minimum: 1000
+                  maximum: 600000
+                  default: 60000
+      responses:
+        '200':
+          description: File downloaded and upload created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  fetched_url: { type: string }
+                  via: { type: string }
+                  upload_id: { type: string }
+                  status: { type: string }
+        '400': { description: URL contains unsafe characters }
+        '401': { description: Unauthorized }
+        '502': { description: curl failed }
