@@ -5,7 +5,7 @@
 
 -- ─── Session summaries ────────────────────────────────────────────────────────
 -- One LLM-generated summary per completed customer_session.
--- Populated by the dev agent sweep; consumed by the proposal extractor.
+-- Populated by the dev agent sweep — consumed by the proposal extractor.
 
 CREATE TABLE IF NOT EXISTS `session_summaries` (
   `id`                   INT UNSIGNED  AUTO_INCREMENT PRIMARY KEY,
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS `proposal_discussions` (
 -- ─── App catalog: Make.com + n8n ─────────────────────────────────────────────
 
 INSERT INTO `app_integrations`
-  (app_key, display_name, app_category, auth_type, description, docs_url, status)
+  (app_key, display_name, category, auth_type, description, docs_url, status)
 VALUES
   ('makecom', 'Make.com', 'automation', 'api_key',
    'Trigger Make.com scenarios and webhooks from the platform',
@@ -113,5 +113,4 @@ VALUES
    'https://docs.n8n.io/api/', 'active')
 ON DUPLICATE KEY UPDATE
   display_name  = VALUES(display_name),
-  status        = VALUES(status),
-  updated_at    = NOW();
+  status        = VALUES(status);
