@@ -4,6 +4,12 @@
 
 This guide is the Custom GPT-facing reference for the personal Growth Intelligence Platform Admin Assistant. It maps the scoped OpenAPI action files, custom subdomains, activation contract, and admin operating boundaries needed to configure and run the GPT Admin Assistant.
 
+## Custom GPT Profile
+
+Name: Mad4B Platform Admin Assistant
+
+Description: Governed admin bridge for the Mad4B Growth Intelligence OS. Uses one auth platform connector and one local device connector to route runtime work through user, tenant, device, skill-grant, workflow, DNS, GCloud, and local-connector controls.
+
 Use this guide together with:
 
 1. `Top Level Instructions.md`
@@ -156,7 +162,7 @@ The GPT uses exactly **two** action connectors. Custom GPT is limited to 10 conn
 
 | Connector | File | Server URL | Ops | Purpose |
 |---|---|---:|---:|---|
-| **Platform** | `http-generic-api/openapi.custom-gpt.auth.yaml` | `https://auth.mad4b.com` | 9 | Universal dispatcher, schema, admin CLI, device provisioning, release readiness |
+| **Platform** | `http-generic-api/openapi.custom-gpt.auth.yaml` | `https://auth.mad4b.com` | 13 | Universal dispatcher, schema, GCloud, DNS, admin CLI, device provisioning, release readiness |
 | **Local** | `http-generic-api/openapi.custom-gpt.connector.yaml` | `https://connector.mad4b.com` | 7 | Direct break-glass shell/file/GitHub/gcloud on mohammedlap via Cloudflare Tunnel |
 
 ### Platform connector â€” operations
@@ -172,6 +178,10 @@ The GPT uses exactly **two** action connectors. Custom GPT is limited to 10 conn
 | `schemaImportRollback` | `POST /admin/schema-import/rollback` | Rollback the last schema import job |
 | `releaseReadiness` | `GET /admin/release/readiness` | CI/migration/agent health go/no-go decision |
 | `adminControl` | `POST /admin/cli/control` | Admin CLI â€” shell, gcloud, github, db, env, windows_app, hostinger |
+| `adminGcloud` | `POST /admin/cli/gcloud` | Run allowlisted GCloud administration actions |
+| `listDnsRecords` | `GET /admin/cli/dns` | List Hostinger DNS records for a managed domain |
+| `upsertDnsRecord` | `POST /admin/cli/dns` | Add or update a Hostinger DNS record |
+| `deleteDnsRecord` | `DELETE /admin/cli/dns` | Delete a Hostinger DNS record by explicit name and type |
 
 ### Platform connector â€” dispatch routing
 
@@ -412,6 +422,7 @@ Each scoped subdomain should serve public HTML privacy policy pages:
 - `https://logic.mad4b.com/privacy-policy`
 - `https://observability.mad4b.com/privacy-policy`
 - `https://developer.mad4b.com/privacy-policy`
+- `https://auth.mad4b.com/privacy-policy`
 - `https://admin.mad4b.com/privacy-policy`
 - `https://ops.mad4b.com/privacy-policy`
 - `https://status.mad4b.com/privacy-policy`

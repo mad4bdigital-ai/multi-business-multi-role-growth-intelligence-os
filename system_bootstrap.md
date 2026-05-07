@@ -26,6 +26,7 @@ Open the source file listed below for the relevant domain instead of loading thi
 | Business type and brand path resolution | `canonicals/system_bootstrap/15_business_type_brand_path_resolution.md` | Canonical path resolver for Business Type folders and brand folders under resolved business types. |
 | Context resolver layer | `canonicals/system_bootstrap/16_context_resolver_layer.md` | Resolver layer architecture, resolveContext contract, resolver inventory, and validation state model. |
 | Agent execution runtime | `canonicals/system_bootstrap/17_agent_execution_runtime.md` | Agent runtime, model class routing, verify pass, engine dispatch, Drive knowledge layer, and sync script. |
+| Local connector and dispatch governance | `canonicals/system_bootstrap/18_local_connector_dispatch.md` | Dispatch layer, task_routes authority, agent skill grants, local connector config, auto-provisioning, and DNS governance. |
 
 ---
 
