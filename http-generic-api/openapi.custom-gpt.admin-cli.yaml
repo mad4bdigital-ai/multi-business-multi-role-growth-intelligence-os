@@ -19,6 +19,30 @@ components:
       description: |
         Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or Authorization: Bearer <USER_JWT> after user sign-in.
   schemas:
+    SchemaImportJob:
+      type: object
+      additionalProperties: true
+      properties:
+        job_id: { type: string }
+        action_key: { type: string }
+        source_type:
+          type: string
+          enum: [upload, repo_link, rollback]
+        source_url: { type: string, nullable: true }
+        source_ref: { type: string, nullable: true }
+        source_filename: { type: string, nullable: true }
+        endpoints_upserted: { type: integer }
+        endpoints_deprecated: { type: integer }
+        warnings:
+          type: array
+          items: { type: string }
+          nullable: true
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        error_message: { type: string, nullable: true }
+        imported_by: { type: string, nullable: true }
+        imported_at: { type: string, format: date-time }
     ReadbackRequest:
       type: object
       additionalProperties: false
@@ -1476,3 +1500,225 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/schema-import/upload:
+    post:
+      tags: [admin-control]
+      security: [{ backendBearerAuth: [] }]
+      operationId: importSchemaUpload
+      summary: Upload a full OpenAPI schema file and split it into the registry
+      description: |
+        Accepts a full OpenAPI 3.x YAML or JSON schema as a string. The server parses it, resolves all $ref references inline, splits it per operation, upserts the parent action row, and upserts one endpoint row per operation with a compact dereferenced schema_json. Endpoints removed from the schema are marked deprecated. Returns a job record for audit and rollback.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [schema_yaml]
+              properties:
+                schema_yaml:
+                  type: string
+                  description: Full OpenAPI YAML or JSON content as a string. Use schema_json as an alias.
+                schema_json:
+                  type: string
+                  description: Alias for schema_yaml — supply one or the other.
+                action_key:
+                  type: string
+                  description: Override the action_key derived from the schema info.title slug. Useful when the title does not produce a clean key.
+                filename:
+                  type: string
+                  description: Original filename for audit purposes, e.g. openapi.wordpress.yaml.
+                imported_by:
+                  type: string
+                  description: Actor reference logged against the import job.
+      responses:
+        '200':
+          description: Import completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  job_id: { type: string }
+                  action_key: { type: string }
+                  endpoints_upserted: { type: integer }
+                  endpoints_deprecated: { type: integer }
+                  warnings: { type: array, items: { type: string } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422':
+          description: Schema parse or import failure
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /admin/schema-import/repo:
+    post:
+      tags: [admin-control]
+      security: [{ backendBearerAuth: [] }]
+      operationId: importSchemaFromRepo
+      summary: Install an OpenAPI schema directly from a GitHub or GitLab repo URL
+      description: |
+        Fetches the schema file from a GitHub or GitLab repository (converting the repo URL to a raw content URL automatically), then runs the same splitter pipeline as the upload endpoint. Supports pinning to a specific branch, tag, or commit via ref. Returns a job record for audit and rollback.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repo_url]
+              properties:
+                repo_url:
+                  type: string
+                  description: GitHub repo URL (e.g. https://github.com/owner/repo) or a direct raw schema URL.
+                path_in_repo:
+                  type: string
+                  default: openapi.yaml
+                  description: Path to the schema file within the repo. Defaults to openapi.yaml.
+                ref:
+                  type: string
+                  default: main
+                  description: Git branch, tag, or commit SHA to fetch from. Defaults to main.
+                action_key:
+                  type: string
+                  description: Override the action_key derived from the schema info.title slug.
+                imported_by:
+                  type: string
+      responses:
+        '200':
+          description: Import completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  job_id: { type: string }
+                  action_key: { type: string }
+                  endpoints_upserted: { type: integer }
+                  endpoints_deprecated: { type: integer }
+                  warnings: { type: array, items: { type: string } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422':
+          description: Fetch or import failure
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /admin/schema-import/rollback:
+    post:
+      tags: [admin-control]
+      security: [{ backendBearerAuth: [] }]
+      operationId: rollbackSchemaImport
+      summary: Restore endpoint schemas to a previous import job's snapshot
+      description: |
+        Restores all endpoint schema_json values for the given action_key to the exact state captured in the target job's endpoint_snapshots. Endpoints added after that job are marked deprecated. Endpoints that were removed are restored to active. Creates a new rollback job row for full audit continuity — the original job is never mutated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action_key, job_id]
+              properties:
+                action_key:
+                  type: string
+                  description: The action_key to roll back.
+                job_id:
+                  type: string
+                  description: The schema_import_jobs.job_id to restore from. Must have status=completed.
+                requested_by:
+                  type: string
+                  description: Actor reference logged against the rollback job.
+      responses:
+        '200':
+          description: Rollback completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  job_id: { type: string }
+                  action_key: { type: string }
+                  endpoints_restored: { type: integer }
+                  rolled_back_to_job: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422':
+          description: Rollback failure — job not found or not completed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /admin/schema-import/jobs:
+    get:
+      tags: [admin-control]
+      security: [{ backendBearerAuth: [] }]
+      operationId: listSchemaImportJobs
+      summary: List schema import jobs with optional action_key filter
+      parameters:
+        - name: action_key
+          in: query
+          schema: { type: string }
+          description: Filter by action_key. Omit to list all jobs.
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0, minimum: 0 }
+      responses:
+        '200':
+          description: Job list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  count: { type: integer }
+                  jobs:
+                    type: array
+                    items: { $ref: '#/components/schemas/SchemaImportJob' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /admin/schema-import/jobs/{job_id}:
+    get:
+      tags: [admin-control]
+      security: [{ backendBearerAuth: [] }]
+      operationId: getSchemaImportJob
+      summary: Get a single schema import job including endpoint snapshots
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Job detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  job:
+                    allOf:
+                      - $ref: '#/components/schemas/SchemaImportJob'
+                      - type: object
+                        properties:
+                          endpoint_snapshots:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                path: { type: string }
+                                method: { type: string }
+                                operationId: { type: string }
+                                schema_json: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
