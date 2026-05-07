@@ -17,6 +17,7 @@ import { apiKeyAdapter }       from "./apiKey.js";
 import { mcpAdapter }          from "./mcp.js";
 import { makecomAdapter }      from "./makecom.js";
 import { n8nAdapter }          from "./n8n.js";
+import { makecomMcpAdapter } from "./makecomMcp.js";
 import { decryptCredentials, encryptCredentials } from "../tokenEncryption.js";
 import { getPool }             from "../db.js";
 
@@ -30,6 +31,7 @@ const REGISTRY = {
   mcp:          mcpAdapter,
   makecom:      makecomAdapter,
   n8n:          n8nAdapter,
+  makecom_mcp: makecomMcpAdapter,
 };
 
 export function getAdapter(app_key) {

@@ -191,6 +191,19 @@ const TOOL_DEFINITIONS = [
       required: ["parent_action_key", "endpoint_key"],
     },
   },
+  {
+    name: "app_connection_call",
+    description: "Execute an action against a user's connected app (e.g. list Make.com MCP tools, trigger n8n workflow, run a Make scenario). Use list_app_connections first to get the connection_id.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        connection_id: { type: "string", description: "connection_id from list_app_connections" },
+        action_key:    { type: "string", description: "Action to call, e.g. mcp_tools_list, trigger_webhook, run_scenario" },
+        args:          { type: "object", description: "Action arguments (varies by app and action)", default: {} },
+      },
+      required: ["connection_id", "action_key"],
+    },
+  },
 ];
 
 async function dispatchTool(name, args, deps) {
@@ -305,6 +318,19 @@ async function dispatchTool(name, args, deps) {
 
     case "execute_action":
       return { status: "execute_action routed to governed execution engine", args };
+
+    case "app_connection_call": {
+      const { connection_id, action_key: appActionKey, args: appArgs = {} } = args;
+      if (!connection_id) return { error: "connection_id required" };
+      if (!appActionKey) return { error: "action_key required" };
+      const [connRows] = await getPool().query(
+        "SELECT * FROM `user_app_connections` WHERE connection_id = ? AND status = 'active' LIMIT 1",
+        [connection_id]
+      );
+      if (!connRows[0]) return { error: "connection_not_found_or_inactive" };
+      const { executeAppAction } = await import("./appAdapters/index.js");
+      return executeAppAction(connRows[0], appActionKey, appArgs);
+    }
 
     default:
       return { error: `Unknown tool: ${name}` };
