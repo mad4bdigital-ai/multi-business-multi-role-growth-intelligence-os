@@ -42,8 +42,16 @@ async function executeGovernedShellCommand(args) {
       throw new Error(`Command alias '${alias}' does not allow extra arguments.`);
     }
 
-    // TODO: replace with actual HTTP call to tunnel_url
-    output = { simulated: true, command: alias, args: extraArgs, result: `Command '${alias}' executed successfully.` };
+    const token = userConfig.config.connector_secret || process.env.CONNECTOR_LOCAL_API_KEY || '';
+    const response = await fetch(`${userConfig.config.tunnel_url}/shell`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action: "run", alias, extra_args: extraArgs }),
+      signal: AbortSignal.timeout(35000),
+    });
+    const raw = await response.json();
+    if (!raw.ok && raw.error) throw new Error(raw.error.message || raw.stderr || "Command failed");
+    output = raw;
     status = "completed";
 
   } catch (err) {
@@ -94,8 +102,16 @@ async function readGovernedLocalFile(args) {
     );
     if (!rule) throw new Error(`File path '${path}' not allowed for read access.`);
 
-    // TODO: replace with actual HTTP call to tunnel_url
-    content = `Simulated content of ${path}`;
+    const token = userConfig.config.connector_secret || process.env.CONNECTOR_LOCAL_API_KEY || '';
+    const response = await fetch(`${userConfig.config.tunnel_url}/files`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action: "read", path }),
+      signal: AbortSignal.timeout(35000),
+    });
+    const raw = await response.json();
+    if (!raw.ok) throw new Error(raw.error?.message || "File read failed");
+    content = raw.content;
     status = "completed";
 
   } catch (err) {
@@ -146,8 +162,16 @@ async function writeGovernedLocalFile(args) {
     );
     if (!rule) throw new Error(`File path '${path}' not allowed for write access.`);
 
-    // TODO: replace with actual HTTP call to tunnel_url
-    result = { simulated: true, path, bytes_written: content.length, message: `File '${path}' written successfully.` };
+    const token = userConfig.config.connector_secret || process.env.CONNECTOR_LOCAL_API_KEY || '';
+    const response = await fetch(`${userConfig.config.tunnel_url}/files`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action: "write", path, content }),
+      signal: AbortSignal.timeout(35000),
+    });
+    const raw = await response.json();
+    if (!raw.ok) throw new Error(raw.error?.message || "File write failed");
+    result = raw;
     status = "completed";
 
   } catch (err) {

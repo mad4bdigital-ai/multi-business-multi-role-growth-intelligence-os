@@ -1,4 +1,5 @@
 import * as authService from './authService.js';
+import { createLocalConnectorOrchestrator } from "./services/localConnectorOrchestrator.js";
 import { createStateManager } from "./stateManager.js";
 
 import express from "express";
@@ -369,6 +370,8 @@ const {
   performUniversalServerWriteback,
   logRetryWriteback
 });
+
+const localConnectorOrchestrator = createLocalConnectorOrchestrator({ performUniversalServerWriteback });
 
 const governanceValidationEngine = createGovernanceValidationEngine({
   getPool: sqlAdapter.getPool,
@@ -3112,7 +3115,8 @@ registerRoutes(app, {
   generateTaskManifest,
   resolveAiIntentMaturation,
   formatIntentMaturationForPrompt,
-  resolveRequestedBy
+  resolveRequestedBy,
+  localConnectorOrchestrator,
 });
 
 async function shutdownJobState() {
