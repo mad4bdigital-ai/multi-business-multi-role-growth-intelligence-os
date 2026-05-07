@@ -223,6 +223,9 @@ paths:
                 user_id: { type: string }
                 tenant_id: { type: string }
                 device_id: { type: string, description: "Stable machine name, e.g. mohammedlap" }
+                hostname:
+                  type: string
+                  description: Optional full route hostname under .connector.mad4b.com. Omit to auto-generate from user_id and device_id.
                 reprovision: { type: boolean, default: false }
                 custom_aliases:
                   type: array
@@ -244,6 +247,7 @@ paths:
                   ok: { type: boolean }
                   config_id: { type: string }
                   tunnel_url: { type: string }
+                  dns_record: { type: object, additionalProperties: true }
                   connector_secret: { type: string }
                   cf_tunnel_id: { type: string }
                   cloud_run_env: { type: object, additionalProperties: true }

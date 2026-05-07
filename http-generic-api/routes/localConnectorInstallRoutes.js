@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 const CF_API = "https://api.cloudflare.com/client/v4";
 const CONNECTOR_PORT = 7070;
 const CONNECTOR_SUBDOMAIN_SUFFIX = ".connector.mad4b.com";
 const DNS_DOMAIN = "mad4b.com";
+const CONNECTOR_DNS_PARENT = "connector";
 
 const DEFAULT_WINDOWS_ALIASES = [
   { alias: "node_ver",       cmd: "node",     args: ["--version"],                              allow_extra_args: false, description: "Node.js version" },
@@ -45,12 +46,52 @@ async function provisionTunnel(accountId, tunnelName) {
   return { tunnelId: tunnel.id, tunnelName: tunnel.name, token: tokenResult };
 }
 
-async function addHostingerCname(subdomain, tunnelId) {
+async function readTunnelIngress(accountId, tunnelId) {
+  try {
+    const result = await cfRequest("GET", `/accounts/${accountId}/cfd_tunnel/${tunnelId}/configurations`);
+    return Array.isArray(result?.config?.ingress) ? result.config.ingress : [];
+  } catch (err) {
+    console.warn("[install] Cloudflare ingress read warning:", err.message);
+    return [];
+  }
+}
+
+function upsertIngressEntry(existingIngress, hostname, serviceUrl) {
+  const targetHost = String(hostname || "").toLowerCase();
+  const existingRoutes = existingIngress
+    .filter((entry) => entry && entry.hostname)
+    .filter((entry) => String(entry.hostname).toLowerCase() !== targetHost);
+  return [
+    ...existingRoutes,
+    { hostname, service: serviceUrl },
+    { service: "http_status:404" },
+  ];
+}
+
+async function publishTunnelIngress(accountId, tunnelId, hostname, serviceUrl = `http://localhost:${CONNECTOR_PORT}`) {
+  const existingIngress = await readTunnelIngress(accountId, tunnelId);
+  return cfRequest("PUT", `/accounts/${accountId}/cfd_tunnel/${tunnelId}/configurations`, {
+    config: {
+      ingress: upsertIngressEntry(existingIngress, hostname, serviceUrl),
+    },
+  });
+}
+
+function hostingerApiKey() {
+  return (
+    process.env.HOSTINGER_CLOUD_PLAN_01_API_KEY ||
+    process.env.HOSTINGER_API_TOKEN ||
+    process.env.HOSTINGER_SHARED_MANAGER_01_API_KEY ||
+    ""
+  );
+}
+
+async function upsertHostingerCname(recordName, tunnelId) {
   const target = `${tunnelId}.cfargotunnel.com.`;
-  const res = await fetch(`https://api.hostinger.com/v1/dns/zone/${DNS_DOMAIN}`, {
+  const res = await fetch(`https://developers.hostinger.com/api/v1/dns/zone/${encodeURIComponent(DNS_DOMAIN)}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.HOSTINGER_API_TOKEN || ""}` },
-    body: JSON.stringify({ records: [{ name: subdomain, type: "CNAME", ttl: 300, content: target }] }),
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${hostingerApiKey()}` },
+    body: JSON.stringify({ records: [{ name: recordName, type: "CNAME", ttl: 300, content: target }] }),
     signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) {
@@ -58,6 +99,40 @@ async function addHostingerCname(subdomain, tunnelId) {
     throw new Error(`Hostinger DNS failed (${res.status}): ${txt.slice(0, 120)}`);
   }
   return await res.json();
+}
+
+function safeDnsLabel(value, fallback = "device") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+  return (normalized || fallback).slice(0, 32).replace(/^-+|-+$/g, "") || fallback;
+}
+
+function shortHash(value) {
+  return createHash("sha256").update(String(value || "")).digest("hex").slice(0, 10);
+}
+
+function buildUserDeviceRoute({ userId, deviceId, requestedHostname }) {
+  const requested = String(requestedHostname || "").trim().toLowerCase();
+  if (requested) {
+    if (!requested.endsWith(CONNECTOR_SUBDOMAIN_SUFFIX)) {
+      const err = new Error(`hostname must end with ${CONNECTOR_SUBDOMAIN_SUFFIX}`);
+      err.status = 400; err.code = "invalid_hostname"; throw err;
+    }
+    const recordName = requested.slice(0, -`.${DNS_DOMAIN}`.length);
+    return { hostname: requested, recordName };
+  }
+
+  const userLabel = safeDnsLabel(userId, "user");
+  const deviceLabel = safeDnsLabel(deviceId, "device");
+  const label = `${userLabel.slice(0, 18)}-${deviceLabel.slice(0, 24)}-${shortHash(`${userId}:${deviceId}`)}`.slice(0, 63).replace(/-+$/g, "");
+  return {
+    hostname: `${label}${CONNECTOR_SUBDOMAIN_SUFFIX}`,
+    recordName: `${label}.${CONNECTOR_DNS_PARENT}`,
+  };
 }
 
 // ── Builders ──────────────────────────────────────────────────────────────────
@@ -109,6 +184,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
     try {
       const {
         user_id, tenant_id, device_id,
+        hostname = null,
         custom_aliases = [],
         reprovision = false,
       } = req.body || {};
@@ -129,7 +205,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
         [user_id, tenant_id, device_id]
       );
 
-      let configId, tunnelId, tunnelToken, tunnelUrl, connectorSecret;
+      let configId, tunnelId, tunnelToken, tunnelUrl, connectorSecret, dnsRecordName;
 
       if (existing && !reprovision) {
         // Return existing install bundle without re-provisioning
@@ -138,15 +214,26 @@ export function buildLocalConnectorInstallRoutes(deps) {
         tunnelToken = existing.cf_token;
         tunnelUrl = existing.tunnel_url;
         connectorSecret = existing.connector_secret;
+        dnsRecordName = tunnelUrl ? new URL(tunnelUrl).hostname.slice(0, -`.${DNS_DOMAIN}`.length) : null;
+        if (tunnelId && tunnelUrl && dnsRecordName) {
+          const existingHostname = new URL(tunnelUrl).hostname;
+          await publishTunnelIngress(accountId, tunnelId, existingHostname);
+          try {
+            await upsertHostingerCname(dnsRecordName, tunnelId);
+          } catch (dnsErr) {
+            console.warn("[install] DNS warning:", dnsErr.message);
+          }
+        }
       } else {
         // Provision a new Cloudflare tunnel
-        const tunnelName = `${device_id}-connector`;
-        const subdomain = device_id;
+        const route = buildUserDeviceRoute({ userId: user_id, deviceId: device_id, requestedHostname: hostname });
+        const tunnelName = `${safeDnsLabel(user_id, "user")}-${safeDnsLabel(device_id, "device")}-connector`.slice(0, 128);
         const { tunnelId: newTunnelId, token } = await provisionTunnel(accountId, tunnelName);
+        await publishTunnelIngress(accountId, newTunnelId, route.hostname);
 
         // Add CNAME via Hostinger
         try {
-          await addHostingerCname(subdomain, newTunnelId);
+          await upsertHostingerCname(route.recordName, newTunnelId);
         } catch (dnsErr) {
           // Non-fatal if CNAME already exists — log and continue
           console.warn("[install] DNS warning:", dnsErr.message);
@@ -154,7 +241,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
 
         tunnelId = newTunnelId;
         tunnelToken = token;
-        tunnelUrl = `https://${subdomain}${CONNECTOR_SUBDOMAIN_SUFFIX}`;
+        tunnelUrl = `https://${route.hostname}`;
+        dnsRecordName = route.recordName;
         connectorSecret = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
         const newConfigId = existing?.config_id || randomUUID();
         configId = newConfigId;
@@ -205,6 +293,12 @@ export function buildLocalConnectorInstallRoutes(deps) {
         config_id: finalConfigId,
         device_id,
         tunnel_url: tunnelUrl,
+        dns_record: {
+          domain: DNS_DOMAIN,
+          name: dnsRecordName,
+          type: "CNAME",
+          content: tunnelId ? `${tunnelId}.cfargotunnel.com.` : null,
+        },
         connector_secret: connectorSecret,
         cf_tunnel_id: tunnelId,
         cloud_run_env: {
@@ -218,7 +312,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
             "1. Save install_bat content as install.bat in your local-connector folder.",
             "2. Run install.bat as Administrator (installs cloudflared service + starts connector).",
             `3. Update Cloud Run: ${`gcloud run services update http-generic-api --region=europe-west1 --update-env-vars="CONNECTOR_LOCAL_API_KEY=${connectorSecret}"`}`,
-            `4. Test: GET /local-connector/health?user_id=${user_id}&tenant_id=${tenant_id}&device_id=${device_id}`,
+            `4. Confirm DNS CNAME ${dnsRecordName}.${DNS_DOMAIN} -> ${tunnelId}.cfargotunnel.com.`,
+            `5. Test: GET /local-connector/health?user_id=${user_id}&tenant_id=${tenant_id}&device_id=${device_id}`,
           ],
         },
       });

@@ -138,11 +138,21 @@ Published application routes (Cloudflare dashboard → Networks → Tunnels → 
 
 ## Platform-orchestrated provisioning (Sprint 36+)
 
-For future users/devices, use `POST /local-connector/install` on the Cloud Run API. It:
-1. Creates a new Cloudflare tunnel via CF API (per device_id)
-2. Adds a CNAME record to Hostinger DNS (`{device_id}.connector.mad4b.com`)
-3. Seeds `local_connector_user_configs` and `local_connector_shell_allowlists` in the DB
-4. Returns a ready-to-run `install.bat` with `cloudflared service install {token}` + server startup
+For new users/devices, the platform route `POST /local-connector/install` now provisions the full routing chain:
+
+1. Creates a named Cloudflare tunnel for the user/device.
+2. Publishes the Cloudflare application route for the generated hostname.
+3. Adds the Hostinger DNS CNAME.
+4. Stores `tunnel_url`, tunnel metadata, and `connector_secret` in `local_connector_user_configs`.
+5. Returns an `install.bat` that installs cloudflared and starts the local connector.
+
+Generated hostnames use the shape:
+
+```
+{user-label}-{device-label}-{hash}.connector.mad4b.com
+```
+
+The optional `hostname` request field may override this, but it must remain under `.connector.mad4b.com`.
 
 This makes provisioning fully automated for any user/device. The platform stores `connector_secret` per device and uses it when proxying requests through `/dispatch`.
 
