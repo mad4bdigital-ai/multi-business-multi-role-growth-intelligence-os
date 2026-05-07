@@ -1,13 +1,15 @@
 openapi: 3.1.0
 info:
-  title: Mad4B — Tenant Connection Setup
+  title: Mad4B Growth Intelligence — Tenant AI
   version: 1.0.0
-  summary: Tenant-scoped connector setup and management via auth.mad4b.com.
-  description: "Mad4B: multi-tenant, Human-Managed, governed-registry-driven platform. Created by Essam Nagy (nagy.essam.website). Tenant connector for sign-in, tunnel provisioning, device install, and local connector health."
+  summary: Governed tenant access to the Growth AI Intelligence-Human Managed Platform.
+  description: "Scoped tenant brain: sign in, activate your backend connection (managed or dedicated), provision your Cloudflare tunnel, and access governed multi-agent workflows. Multi-tenant, Human-Managed, registry-driven. Created by Essam Nagy (nagy.essam.website)."
 servers:
   - url: https://auth.mad4b.com
     description: Mad4B platform — auth subdomain
 tags:
+  - name: governance
+    description: Tenant scope policy and access boundary. Call /policy first to understand what this scope permits.
   - name: auth
     description: Account creation and sign-in.
   - name: connect
@@ -15,14 +17,14 @@ tags:
   - name: connector
     description: Local connector install, status, and health.
   - name: credentials
-    description: Secure credential storage for dedicated mode.
+    description: Secure credential storage for dedicated connection mode.
 components:
   securitySchemes:
     userBearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: User JWT or backend API key
-      description: "After sign-in, send Authorization: Bearer <token> returned from /auth/login or /auth/google."
+      bearerFormat: User JWT
+      description: "After sign-in, send Authorization: Bearer <token> returned from /auth/login or /auth/google. This is a per-user JWT — NOT the platform BACKEND_API_KEY."
   schemas:
     AuthResult:
       type: object
@@ -39,7 +41,9 @@ components:
     Error:
       type: object
       properties:
-        ok: { type: boolean, example: false }
+        ok:
+          type: boolean
+          example: false
         error:
           type: object
           properties:
@@ -48,6 +52,39 @@ components:
 security:
   - userBearerAuth: []
 paths:
+
+  /policy:
+    get:
+      tags: [governance]
+      operationId: tenantPolicy
+      summary: Tenant scope governance policy
+      description: "Returns this tenant GPT's governance boundary: permitted operations, what requires platform admin, and the access model for managed vs dedicated modes. No auth required. Call this first to understand what is and is not available at tenant scope."
+      security: []
+      responses:
+        '200':
+          description: Tenant governance policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  scope: { type: string, example: tenant }
+                  permitted_operations:
+                    type: array
+                    items: { type: string }
+                    description: Operations this tenant GPT is authorised to perform.
+                  platform_admin_required:
+                    type: array
+                    items: { type: string }
+                    description: "Operations blocked at tenant scope — require platform admin principal: /admin/*, /activation/*, /dispatch."
+                  connection_modes:
+                    type: array
+                    items: { type: string, enum: [managed, dedicated] }
+                    description: "managed: platform provisions infrastructure. dedicated: tenant supplies own credentials."
+                  access_model:
+                    type: string
+                    description: Description of the JWT-based tenant access model.
 
   /auth/register:
     post:
@@ -67,7 +104,9 @@ paths:
                 email: { type: string, format: email }
                 password: { type: string, minLength: 8 }
                 display_name: { type: string }
-                tenant_display_name: { type: string, description: Optional workspace name. Defaults to display_name's workspace. }
+                tenant_display_name:
+                  type: string
+                  description: Optional workspace name. Defaults to display_name's workspace.
       responses:
         '201':
           description: Account created
@@ -116,7 +155,9 @@ paths:
               type: object
               required: [id_token]
               properties:
-                id_token: { type: string, description: Google ID token from GSI credential response. }
+                id_token:
+                  type: string
+                  description: Google ID token from GSI credential response.
       responses:
         '200':
           description: Authenticated
@@ -129,8 +170,8 @@ paths:
     get:
       tags: [connect]
       operationId: tenantConnectionStatus
-      summary: Get tenant connection state and provisioned devices
-      description: Returns user profile, tenant membership, current connection mode (managed/dedicated), and list of provisioned devices. Requires user JWT.
+      summary: Get authenticated tenant's connection state
+      description: Returns the tenant's connection mode (managed/dedicated), active devices, and provisioning status. Send user JWT from /auth/login or /auth/google in Authorization header.
       responses:
         '200':
           description: Connection status
@@ -165,8 +206,8 @@ paths:
     post:
       tags: [connect]
       operationId: tenantConnectionActivate
-      summary: Set backend connection mode (managed or dedicated)
-      description: "Activates managed (platform provides CF tunnel and Google SA) or dedicated (tenant supplies own CF/Hostinger). Upserts tenant_backend_connections row. User JWT required."
+      summary: Set tenant backend connection mode (managed or dedicated)
+      description: "Activates managed (platform provisions CF tunnel and uses its own Google SA) or dedicated (tenant supplies own CF/Hostinger credentials). Upserts tenant_backend_connections row. User JWT required."
       requestBody:
         required: true
         content:
@@ -188,16 +229,16 @@ paths:
                   default: managed
                 cf_api_token:
                   type: string
-                  description: Dedicated mode — Cloudflare API token.
+                  description: Dedicated mode only — Cloudflare API token for tunnel provisioning.
                 cf_account_id:
                   type: string
-                  description: Dedicated mode — Cloudflare account ID.
+                  description: Dedicated mode only — Cloudflare account ID.
                 hostinger_api_key:
                   type: string
-                  description: Dedicated mode — Hostinger DNS API key.
+                  description: Dedicated mode only — Hostinger DNS API key.
       responses:
         '200':
-          description: Mode activated
+          description: Activation result
           content:
             application/json:
               schema:
@@ -212,8 +253,8 @@ paths:
     post:
       tags: [connect]
       operationId: tenantDeviceInstall
-      summary: Provision a connector config for a device
-      description: Creates or returns a local connector config for device_id under the authenticated tenant. Returns tunnel_url, connector_secret, and install steps. User JWT required.
+      summary: Provision a local connector for the authenticated tenant's device
+      description: Creates a connector config for the given device_id under the tenant. Returns tunnel_url, connector_secret, and install steps. User JWT required.
       requestBody:
         required: true
         content:
@@ -224,10 +265,10 @@ paths:
               properties:
                 device_id:
                   type: string
-                  description: "Stable machine name, e.g. mohammedlap or johns-pc."
+                  description: "Stable machine identifier, e.g. mohammedlap or johns-pc."
       responses:
         '200':
-          description: Install bundle
+          description: Connector install bundle
           content:
             application/json:
               schema:
@@ -246,7 +287,7 @@ paths:
       tags: [connector]
       operationId: tenantLocalConnectorInstall
       summary: Full local connector provisioning with Cloudflare tunnel and DNS
-      description: Provisions a Cloudflare tunnel for the device, adds DNS CNAME, seeds DB config and shell allowlist. Returns install.bat for the device. Idempotent per user+device.
+      description: "Provisions a Cloudflare tunnel for the device, adds DNS CNAME, seeds DB config and shell allowlist. Returns install.bat for the device. Idempotent per user+device. Owner/admin uses env credentials; tenants use DB app connections (cloudflare_connection_id, hostinger_connection_id)."
       requestBody:
         required: true
         content:
@@ -279,7 +320,7 @@ paths:
                       description: { type: string }
       responses:
         '200':
-          description: Install bundle
+          description: Install bundle with tunnel credentials and install.bat
           content:
             application/json:
               schema:
@@ -297,8 +338,8 @@ paths:
     get:
       tags: [connector]
       operationId: tenantLocalConnectorStatus
-      summary: Check local connector install status for a device
-      description: Returns DB config and shell allowlist for the given user+device. installed=false means /local-connector/install has not been called yet for this device.
+      summary: Check local connector installation status for a device
+      description: Returns config and shell allowlist for the given user+device. installed=false means /local-connector/install has not been called yet for this device.
       parameters:
         - name: user_id
           in: query
@@ -329,8 +370,8 @@ paths:
     get:
       tags: [connector]
       operationId: tenantLocalConnectorHealth
-      summary: Check device connector reachability via platform proxy
-      description: Platform calls the device tunnel URL and returns health. Use when you know user_id+device_id but not the connector_secret. Returns ok=false if unreachable.
+      summary: Check local connector reachability via platform proxy
+      description: Platform calls the device tunnel and returns health. Slower than calling the connector directly but works without knowing the device secret. Returns ok=false if unreachable.
       parameters:
         - name: user_id
           in: query
@@ -346,7 +387,7 @@ paths:
           schema: { type: string }
       responses:
         '200':
-          description: Health (ok=false if unreachable)
+          description: Health result (ok=false if unreachable)
           content:
             application/json:
               schema:
@@ -380,7 +421,9 @@ paths:
                 auth_type:
                   type: string
                   enum: [api_key]
-                display_label: { type: string, description: Human-readable label for this connection. }
+                display_label:
+                  type: string
+                  description: Human-readable label for this connection.
                 credentials:
                   type: object
                   additionalProperties: true

@@ -1,13 +1,15 @@
 openapi: 3.1.0
 info:
-  title: Mad4B — Local Connector (Tenant)
+  title: Mad4B Growth Intelligence — Local Runtime
   version: 1.0.0
-  summary: Tenant-scoped local device operations via your Cloudflare tunnel.
-  description: "Mad4B: multi-tenant, Human-Managed, governed-registry-driven platform. Created by Essam Nagy (nagy.essam.website). Direct device API for shell, file access, and URL fetch via connector.mad4b.com or your dedicated tunnel."
+  summary: Governed direct device operations for tenant AI agent execution.
+  description: "Tenant local runtime brain: shell commands, file access, and URL ingestion via your Cloudflare tunnel. Part of the Growth AI Intelligence-Human Managed Platform by Essam Nagy (nagy.essam.website)."
 servers:
   - url: https://connector.mad4b.com
     description: Your local Windows device via Cloudflare Tunnel
 tags:
+  - name: governance
+    description: Runtime scope policy and access boundary. Call /policy first to understand what this device permits.
   - name: device
     description: Health check and connector status.
   - name: shell
@@ -22,20 +24,59 @@ components:
       type: http
       scheme: bearer
       bearerFormat: connector_secret
-      description: "Send Authorization: Bearer <connector_secret> from your install bundle."
+      description: "Send Authorization: Bearer <connector_secret> from your install bundle. This is NOT the platform BACKEND_API_KEY — it is the per-device secret generated at provisioning time."
   schemas:
     ConnectorError:
       type: object
       properties:
-        ok: { type: boolean, example: false }
+        ok:
+          type: boolean
+          example: false
         error:
           type: object
           properties:
-            code: { type: string }
-            message: { type: string }
+            code:
+              type: string
+            message:
+              type: string
 security:
   - connectorBearerAuth: []
 paths:
+
+  /policy:
+    get:
+      tags: [governance]
+      operationId: connectorPolicy
+      summary: Local runtime governance policy
+      description: "Returns this device's governance boundary: shell enabled state, permitted aliases, accessible file paths, and what operations are restricted at tenant scope vs requiring platform admin. No auth required. Call this before any device operation to understand what is available."
+      security: []
+      responses:
+        '200':
+          description: Runtime governance policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  scope: { type: string, example: tenant.local_runtime }
+                  shell_enabled: { type: boolean }
+                  permitted_aliases:
+                    type: array
+                    items: { type: string }
+                    description: Shell aliases currently registered in the allowlist.
+                  permitted_paths:
+                    type: array
+                    items: { type: string }
+                    description: File paths currently in the file access allowlist.
+                  restricted_operations:
+                    type: array
+                    items: { type: string }
+                    description: "Operations blocked at tenant scope — e.g. /github, /gcloud are admin-only."
+                  platform_admin_required:
+                    type: array
+                    items: { type: string }
+                    description: "Operations that require a platform admin to enable or modify — adding new shell aliases, expanding file paths, DNS changes."
 
   /health:
     get:
@@ -46,7 +87,7 @@ paths:
       security: []
       responses:
         '200':
-          description: Connector running
+          description: Connector is running
           content:
             application/json:
               schema:
@@ -63,7 +104,7 @@ paths:
       tags: [shell]
       operationId: connectorShell
       summary: Run an allowlisted shell command on the local device
-      description: "action=list: show available aliases. action=run: execute by alias. action=status: check if shell is enabled. alias required for run."
+      description: Executes commands from the tenant shell allowlist. Use action=status to check if shell is enabled, action=list to see available aliases, action=run to execute by alias.
       requestBody:
         required: true
         content:
@@ -78,18 +119,18 @@ paths:
                   default: list
                 alias:
                   type: string
-                  description: Shell alias to run. Required for action=run.
+                  description: Shell command alias to run (from allowlist). Required for action=run.
                 extra_args:
                   type: array
                   items: { type: string }
-                  description: Appended to the command. Only if alias has allow_extra_args=true.
+                  description: Additional args appended to the allowlisted command. Only if alias permits allow_extra_args=true.
                 timeout_ms:
                   type: integer
                   minimum: 1000
                   maximum: 600000
       responses:
         '200':
-          description: Shell result or alias listing
+          description: Shell result or allowlist listing
           content:
             application/json:
               schema:
@@ -118,7 +159,7 @@ paths:
       tags: [files]
       operationId: connectorFiles
       summary: Read or write allowlisted files on the local device
-      description: "action=list: show allowed paths. action=read: return file content. action=write: write content to path. path must be in the file access allowlist."
+      description: File access restricted to paths in the tenant file allowlist. Use action=list to see permitted paths, action=read to return content, action=write to write content to an allowed path.
       requestBody:
         required: true
         content:
@@ -132,13 +173,13 @@ paths:
                   enum: [list, read, write]
                 path:
                   type: string
-                  description: Absolute local path. Must be in the file access allowlist.
+                  description: Absolute file path (must be in the file access allowlist).
                 content:
                   type: string
-                  description: Content to write. Required for action=write.
+                  description: File content for write action.
       responses:
         '200':
-          description: File result
+          description: File operation result
           content:
             application/json:
               schema:
@@ -160,8 +201,8 @@ paths:
     post:
       tags: [fetch]
       operationId: connectorFetchUpload
-      summary: Fetch a URL and push the content to the platform upload system
-      description: Fetches the URL using Node fetch and forwards to POST /uploads on the platform. Returns upload_id. For auth-required sites or JS-rendered pages, use /shell-fetch-upload with curl instead.
+      summary: Fetch a remote URL and push the content to the platform upload system
+      description: Fetches the URL using Node fetch and forwards content to POST /uploads using the connector credentials. Returns upload_id for validation. Use for publicly accessible URLs. For auth-required sites or JS rendering, use /shell-fetch-upload with curl instead.
       requestBody:
         required: true
         content:
@@ -172,18 +213,20 @@ paths:
               properties:
                 url:
                   type: string
-                  description: URL to fetch — raw GitHub, CDN-hosted schemas, etc.
+                  description: The URL to fetch — raw GitHub URLs, CDN-hosted schemas, plugin repos, etc.
                 upload_type:
                   type: string
                   enum: [schema, skill, knowledge, repo_link, asset]
                 filename:
                   type: string
-                  description: Override filename derived from URL.
+                  description: Override the filename derived from the URL.
                 uploaded_by:
                   type: string
+                  description: Actor reference logged against the upload.
                 metadata:
                   type: object
                   additionalProperties: true
+                  description: Metadata segments (goal, platform, helpers) forwarded to the upload record.
                 timeout_ms:
                   type: integer
                   minimum: 1000
@@ -191,7 +234,7 @@ paths:
                   default: 30000
       responses:
         '200':
-          description: Content fetched and upload created
+          description: Content fetched and upload record created
           content:
             application/json:
               schema:
@@ -203,14 +246,15 @@ paths:
                   upload_id: { type: string }
                   status: { type: string }
         '401': { description: Unauthorized }
-        '502': { description: Remote fetch failed }
+        '403': { description: Fetch-upload disabled on this connector }
+        '502': { description: Remote fetch failed or forward to main API failed }
 
   /shell-fetch-upload:
     post:
       tags: [fetch]
       operationId: connectorShellFetchUpload
-      summary: Download a URL via curl and push content to the platform upload system
-      description: Downloads via curl (handles redirects, legacy TLS, self-signed certs) and forwards to POST /uploads. URL is validated against shell metacharacters before execution.
+      summary: Download a URL via curl and push the content to the platform upload system
+      description: Downloads via curl (handles self-signed certs, unusual redirects, legacy TLS) and forwards to POST /uploads. Use when /fetch-upload fails or when curl-specific flags are needed. URL is validated against shell metacharacters before execution.
       requestBody:
         required: true
         content:
@@ -225,8 +269,10 @@ paths:
                 upload_type:
                   type: string
                   enum: [schema, skill, knowledge, repo_link, asset]
-                filename: { type: string }
-                uploaded_by: { type: string }
+                filename:
+                  type: string
+                uploaded_by:
+                  type: string
                 metadata:
                   type: object
                   additionalProperties: true
@@ -237,7 +283,7 @@ paths:
                   default: 60000
       responses:
         '200':
-          description: File downloaded and upload created
+          description: File downloaded and upload record created
           content:
             application/json:
               schema:
@@ -250,4 +296,4 @@ paths:
                   status: { type: string }
         '400': { description: URL contains unsafe characters }
         '401': { description: Unauthorized }
-        '502': { description: curl failed }
+        '502': { description: curl failed or forward to main API failed }
