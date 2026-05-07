@@ -3,7 +3,7 @@ info:
   title: Mad4B — Tenant Connection Setup
   version: 1.0.0
   summary: Tenant-scoped connector setup and management via auth.mad4b.com.
-  description: Tenant API for account sign-in, backend connection activation, Cloudflare tunnel provisioning, and local connector health. Does not expose admin or DNS routes.
+  description: "Mad4B: multi-tenant, Human-Managed, governed-registry-driven platform. Created by Essam Nagy (nagy.essam.website). Tenant connector for sign-in, tunnel provisioning, device install, and local connector health."
 servers:
   - url: https://auth.mad4b.com
     description: Mad4B platform — auth subdomain

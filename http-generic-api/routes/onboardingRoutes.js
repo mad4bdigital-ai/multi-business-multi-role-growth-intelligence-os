@@ -176,6 +176,10 @@ export function buildOnboardingRoutes() {
       <div id="setupStatus" class="status">Ready.</div>
     </section>
   </main>
+  <footer style="text-align:center;padding:20px 28px;font-size:12px;color:#8a9ab0;border-top:1px solid #d8dee8;margin-top:12px;">
+    A multi-tenant, Human-Managed, governed-registry-driven execution system &mdash; Growth AI Intelligence-Human Managed Platform &nbsp;&bull;&nbsp;
+    Created by <a href="https://nagy.essam.website" target="_blank" rel="noreferrer" style="color:#155eef;text-decoration:none;">Essam Nagy</a>
+  </footer>
   <script>
     const state = JSON.parse(localStorage.getItem("mad4b_connect_state") || "{}");
     let mode = "login";

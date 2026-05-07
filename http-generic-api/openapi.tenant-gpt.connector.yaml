@@ -3,7 +3,7 @@ info:
   title: Mad4B — Local Connector (Tenant)
   version: 1.0.0
   summary: Tenant-scoped local device operations via your Cloudflare tunnel.
-  description: Direct device API for shell commands, file access, URL fetch-to-upload, and health checks. Reaches your local machine via connector.mad4b.com or your dedicated {device}.connector.mad4b.com tunnel.
+  description: "Mad4B: multi-tenant, Human-Managed, governed-registry-driven platform. Created by Essam Nagy (nagy.essam.website). Direct device API for shell, file access, and URL fetch via connector.mad4b.com or your dedicated tunnel."
 servers:
   - url: https://connector.mad4b.com
     description: Your local Windows device via Cloudflare Tunnel

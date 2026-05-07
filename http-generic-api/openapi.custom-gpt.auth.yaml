@@ -3,7 +3,7 @@ info:
   title: Mad4B Platform — Unified HTTP Client
   version: 1.0.0
   summary: Single GPT connector for all cloud platform operations.
-  description: Centralised platform API. Use /dispatch for intent-routed ops (local connector shell/file, workflows). Use specific endpoints for provisioning, schema, and admin. The local connector (connector.mad4b.com) handles direct device ops.
+  description: "Mad4B: multi-tenant, Human-Managed, governed-registry-driven execution system for multi-agent business intelligence workflows. Created by Essam Nagy (nagy.essam.website). Admin connector for dispatch, provisioning, schema, and infrastructure."
 servers:
   - url: https://auth.mad4b.com
     description: Mad4B platform — Cloud Run via auth subdomain

@@ -1,6 +1,12 @@
 ﻿# Multi-Business Multi-Role Growth Intelligence OS
 
-This repository is a governed, registry-driven execution system. It is not primarily a generic web application stack, even though it contains application runtime code.
+**A multi-tenant, Human-Managed, governed-registry-driven execution system — designed for multi-agent workflows within a business intelligence context, collaborative by design, and fully realizing the vision of a Growth AI Intelligence-Human Managed Platform.**
+
+Created by [Essam Nagy](https://nagy.essam.website)
+
+---
+
+This repository is the canonical source for that system. It is not primarily a generic web application stack, even though it contains application runtime code.
 
 The architecture is centered on canonical authority documents, registry-backed execution control, validation-first runtime behavior, and governed logging/writeback.
 
