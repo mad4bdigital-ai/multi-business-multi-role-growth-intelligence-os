@@ -6,11 +6,7 @@ export function buildReleaseRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
 
-  // ── GET /release/readiness ────────────────────────────────────────────────
-  // Full platform health check: all tables, seed data, legacy connectivity.
-  // ?persist=true writes results to release_readiness_log.
-  // ?summary=true returns only the summary (faster for uptime probes).
-  router.get("/release/readiness", requireBackendApiKey, async (req, res) => {
+  async function handleReadiness(req, res) {
     try {
       const persist  = req.query.persist === "true" || req.query.persist === "1";
       const summary  = req.query.summary === "true" || req.query.summary === "1";
@@ -35,7 +31,14 @@ export function buildReleaseRoutes(deps) {
         error: { code: "release_readiness_failed", message: err.message }
       });
     }
-  });
+  }
+
+  // ── GET /release/readiness ────────────────────────────────────────────────
+  // Full platform health check: all tables, seed data, legacy connectivity.
+  // ?persist=true writes results to release_readiness_log.
+  // ?summary=true returns only the summary (faster for uptime probes).
+  router.get("/release/readiness", requireBackendApiKey, handleReadiness);
+  router.get("/admin/release/readiness", requireBackendApiKey, handleReadiness);
 
   // ── GET /release/readiness-history ────────────────────────────────────────
   // Returns the last N readiness runs from release_readiness_log.

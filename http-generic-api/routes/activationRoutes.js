@@ -1,5 +1,15 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
+import {
+  REGISTRY_SPREADSHEET_ID,
+  ACTIVITY_SPREADSHEET_ID,
+  ACTIVATION_BOOTSTRAP_SPREADSHEET_ID,
+  ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
+  ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
+  REGISTRY_CACHE_TTL_SECONDS,
+  ACTIVATION_WORKBOOK_CACHE_TTL_SECONDS,
+  ACTIVATION_BOOTSTRAP_ROW_CACHE_TTL_SECONDS,
+} from "../config.js";
 
 export function capLimit(value, fallback = 50, max = 200) {
   const parsed = Number(value);
@@ -459,6 +469,38 @@ export async function buildActivationSessionContext(req) {
 export function buildActivationRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
+
+  router.get("/activation/env-bootstrap", requireBackendApiKey, async (_req, res) => {
+    return res.status(200).json({
+      ok: true,
+      activation_layer: "env_bootstrap",
+      source: "cloud_run_env",
+      bootstrap: {
+        registry_spreadsheet_id: REGISTRY_SPREADSHEET_ID,
+        activity_spreadsheet_id: ACTIVITY_SPREADSHEET_ID,
+        activation_bootstrap_spreadsheet_id: ACTIVATION_BOOTSTRAP_SPREADSHEET_ID,
+        activation_bootstrap_config_sheet: ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
+        activation_bootstrap_config_range: ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
+      },
+      cache_policy: {
+        registry_cache_ttl_seconds: REGISTRY_CACHE_TTL_SECONDS,
+        activation_workbook_cache_ttl_seconds: ACTIVATION_WORKBOOK_CACHE_TTL_SECONDS,
+        activation_bootstrap_row_cache_ttl_seconds: ACTIVATION_BOOTSTRAP_ROW_CACHE_TTL_SECONDS,
+      },
+      env_presence: {
+        google_auth_mode: process.env.GOOGLE_AUTH_MODE || "default",
+        google_application_credentials_configured: Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS),
+        google_sa_json_configured: Boolean(process.env.GOOGLE_SA_JSON),
+        google_refresh_token_configured: Boolean(process.env.GOOGLE_REFRESH_TOKEN),
+        github_token_configured: Boolean(process.env.GITHUB_TOKEN),
+        cloudflare_account_id_configured: Boolean(process.env.CLOUDFLARE_ACCOUNT_ID),
+        cloudflare_api_token_configured: Boolean(process.env.CLOUDFLARE_API_TOKEN),
+        hostinger_cloud_plan_key_configured: Boolean(process.env.HOSTINGER_CLOUD_PLAN_01_API_KEY),
+        connector_local_api_key_configured: Boolean(process.env.CONNECTOR_LOCAL_API_KEY),
+      },
+      note: "Use this as the fast activation bootstrap from Cloud Run env. Sheets readback remains validation evidence, not the first configuration authority.",
+    });
+  });
 
   router.get("/activation/session-context", requireBackendApiKey, async (req, res) => {
     try {

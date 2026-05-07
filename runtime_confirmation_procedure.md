@@ -79,7 +79,7 @@ In the MySQL database (via direct query or API endpoint), verify:
 - [ ] `Execution Log Unified` received at least one writeback row since deployment
 - [ ] No policy rows contain unsupported custom literals that would bypass normalization
 
-For activation confirmation, do not stop at `/health`, `/status`, release readiness, tenant listing, or count routes. Those checks prove diagnostics only. Activation confirmation requires Drive validation, Sheets `getSheetValues` row readback for `Activation Bootstrap Config!A2:J2` using `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>` (use this exact literal string, the backend auto-resolves it), and GitHub validation using bootstrap/registry-resolved keys.
+For activation confirmation, do not stop at `/health`, `/status`, release readiness, tenant listing, or count routes. Those checks prove diagnostics only. Start with `GET /activation/env-bootstrap` as the Cloud Run env bootstrap authority for non-secret IDs, sheet/range names, cache policy, and credential presence. Full activation confirmation still requires Drive validation, Sheets `getSheetValues` row readback for `Activation Bootstrap Config!A2:J2` using `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>` (use this exact literal string, the backend auto-resolves it), and GitHub validation using bootstrap/registry-resolved keys.
 
 ---
 

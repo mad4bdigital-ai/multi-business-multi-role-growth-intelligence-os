@@ -162,13 +162,16 @@ The GPT uses exactly **two** action connectors. Custom GPT is limited to 10 conn
 
 | Connector | File | Server URL | Ops | Purpose |
 |---|---|---:|---:|---|
-| **Platform** | `http-generic-api/openapi.custom-gpt.auth.yaml` | `https://auth.mad4b.com` | 13 | Universal dispatcher, schema, GCloud, DNS, admin CLI, device provisioning, release readiness |
+| **Platform** | `http-generic-api/openapi.custom-gpt.auth.yaml` | `https://auth.mad4b.com` | 16 | Activation, universal dispatcher, schema, GCloud, DNS, admin CLI, device provisioning, release readiness |
 | **Local** | `http-generic-api/openapi.custom-gpt.connector.yaml` | `https://connector.mad4b.com` | 7 | Direct break-glass shell/file/GitHub/gcloud on mohammedlap via Cloudflare Tunnel |
 
 ### Platform connector â€” operations
 
 | Operation | Path | Use |
 |---|---|---|
+| `getActivationEnvBootstrap` | `GET /activation/env-bootstrap` | Read non-secret Cloud Run env bootstrap config before provider validation |
+| `getActivationSessionContext` | `GET /activation/session-context` | Load session context and embedded platform access |
+| `getActivationPlatformAccess` | `GET /activation/platform-access` | Refresh access scope, counts, and degraded surfaces |
 | `dispatch` | `POST /dispatch` | Universal intent dispatcher â€” routes to correct module at runtime |
 | `listDispatchRoutes` | `GET /dispatch/routes` | List all active task_routes and which are directly dispatched |
 | `installDevice` | `POST /local-connector/install` | Provision Cloudflare tunnel + DNS + DB config + install.bat for a user/device |

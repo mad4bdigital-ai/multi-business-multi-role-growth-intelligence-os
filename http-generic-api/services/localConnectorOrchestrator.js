@@ -1,14 +1,31 @@
 import { getPool } from "../db.js";
 import crypto from "node:crypto";
 
+const PLATFORM_TENANT_ID = "00000000-0000-4000-a000-000000000001";
+const PLATFORM_ADMIN_USER_ID = "00000000-0000-4000-a000-000000000002";
+
 function createLocalActionId() {
   return `local_action_${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
+function resolveLocalConnectorPrincipalAliases(userId, tenantId) {
+  const normalizedUser = String(userId || "").trim().toLowerCase();
+  const normalizedTenant = String(tenantId || "").trim().toLowerCase();
+  return {
+    userId: ["admin", "nagy", "platform_admin"].includes(normalizedUser)
+      ? PLATFORM_ADMIN_USER_ID
+      : userId,
+    tenantId: ["platform", "mad4b", "platform_owner"].includes(normalizedTenant)
+      ? PLATFORM_TENANT_ID
+      : tenantId,
+  };
+}
+
 async function resolveUserLocalConfig(userId, tenantId, deviceId) {
+  const principal = resolveLocalConnectorPrincipalAliases(userId, tenantId);
   const [configs] = await getPool().query(
     "SELECT * FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = TRUE LIMIT 1",
-    [userId, tenantId, deviceId]
+    [principal.userId, principal.tenantId, deviceId]
   );
   const config = configs[0];
   if (!config) return null;

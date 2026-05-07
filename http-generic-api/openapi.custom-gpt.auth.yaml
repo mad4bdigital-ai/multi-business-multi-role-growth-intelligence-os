@@ -8,6 +8,8 @@ servers:
   - url: https://auth.mad4b.com
     description: Mad4B platform — Cloud Run via auth subdomain
 tags:
+  - name: activation
+    description: Fast activation bootstrap, session context, and platform access.
   - name: dispatch
     description: Universal intent-based dispatcher — routes to cloud or local connector at runtime.
   - name: device
@@ -45,6 +47,90 @@ components:
 security:
   - backendBearerAuth: []
 paths:
+
+  /activation/env-bootstrap:
+    get:
+      tags: [activation]
+      operationId: getActivationEnvBootstrap
+      summary: Read activation bootstrap from Cloud Run env
+      description: Returns non-secret env bootstrap IDs, sheet/range names, cache policy, and credential presence flags. Use before provider validation.
+      responses:
+        '200':
+          description: Env bootstrap config
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  activation_layer: { type: string }
+                  source: { type: string }
+                  bootstrap: { type: object, additionalProperties: true }
+                  cache_policy: { type: object, additionalProperties: true }
+                  env_presence: { type: object, additionalProperties: true }
+
+  /activation/session-context:
+    get:
+      tags: [activation]
+      operationId: getActivationSessionContext
+      summary: Get GPT activation session context
+      description: Loads session context, platform access, transcript availability, developer apps, credentials, installations, and degraded surfaces.
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: include_raw
+          in: query
+          required: false
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Session context
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  activation_layer: { type: string }
+                  subject: { type: object, additionalProperties: true }
+                  context: { type: object, additionalProperties: true }
+                  platform_access: { type: object, additionalProperties: true }
+                  degraded_surfaces: { type: array, items: { type: object } }
+
+  /activation/platform-access:
+    get:
+      tags: [activation]
+      operationId: getActivationPlatformAccess
+      summary: Get platform access and surface counts
+      description: Returns platform access scope, counts, registry surfaces, and degraded surfaces for activation classification.
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Platform access
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  activation_layer: { type: string }
+                  access_scope: { type: string }
+                  counts: { type: object, additionalProperties: true }
+                  degraded_surfaces: { type: array, items: { type: object } }
 
   /dispatch:
     post:
