@@ -306,6 +306,140 @@ paths:
                   checks: { type: array, items: { type: object } }
                   warnings: { type: array, items: { type: string } }
 
+  /admin/cli/gcloud:
+    post:
+      tags: [admin]
+      operationId: adminGcloud
+      summary: Run a gcloud CLI command on Cloud Run
+      description: Executes gcloud on the Cloud Run container. Use for service restarts, traffic updates, log reads, or env var updates. Admin principal required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [args]
+              properties:
+                args:
+                  oneOf:
+                    - type: array
+                      items: { type: string }
+                    - type: string
+                  description: gcloud arguments, e.g. ["run", "services", "update-traffic", "http-generic-api", "--to-latest"]
+                timeout_ms:
+                  type: integer
+                  minimum: 1000
+                  maximum: 600000
+                  default: 120000
+      responses:
+        '200':
+          description: CLI output
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  stdout: { type: string }
+                  stderr: { type: string }
+                  exit_code: { type: integer }
+        '400': { description: Missing args }
+        '403': { description: Admin principal required }
+
+  /admin/cli/dns:
+    get:
+      tags: [admin]
+      operationId: listDnsRecords
+      summary: List DNS records for a domain via Hostinger API
+      description: Returns all DNS records for the given domain from Hostinger. Defaults to mad4b.com. Admin principal required.
+      parameters:
+        - name: domain
+          in: query
+          required: false
+          schema: { type: string, default: mad4b.com }
+        - name: api_key_ref
+          in: query
+          required: false
+          schema: { type: string, enum: [cloud_plan, shared_manager], default: cloud_plan }
+      responses:
+        '200':
+          description: DNS records list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  domain: { type: string }
+                  records: { type: object, additionalProperties: true }
+        '403': { description: Admin principal required }
+    post:
+      tags: [admin]
+      operationId: upsertDnsRecord
+      summary: Add or update a DNS record via Hostinger API
+      description: Upserts a single DNS record (CNAME, A, TXT, etc.) for the given domain using the Hostinger API. Defaults to mad4b.com. Admin principal required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, type, content]
+              properties:
+                domain: { type: string, default: mad4b.com }
+                name: { type: string, description: "Record name, e.g. connector or n8n" }
+                type: { type: string, enum: [A, AAAA, CNAME, TXT, MX, NS, SRV] }
+                content: { type: string, description: "Record value, e.g. tunnel-id.cfargotunnel.com." }
+                ttl: { type: integer, default: 300 }
+                api_key_ref: { type: string, enum: [cloud_plan, shared_manager], default: cloud_plan }
+      responses:
+        '200':
+          description: Upsert result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  domain: { type: string }
+                  name: { type: string }
+                  type: { type: string }
+                  result: { type: object, additionalProperties: true }
+        '400': { description: Missing name, type, or content }
+        '403': { description: Admin principal required }
+    delete:
+      tags: [admin]
+      operationId: deleteDnsRecord
+      summary: Delete a DNS record via Hostinger API
+      description: Removes a DNS record by name and type for the given domain using the Hostinger API. Defaults to mad4b.com. Admin principal required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, type]
+              properties:
+                domain: { type: string, default: mad4b.com }
+                name: { type: string }
+                type: { type: string, enum: [A, AAAA, CNAME, TXT, MX, NS, SRV] }
+                api_key_ref: { type: string, enum: [cloud_plan, shared_manager], default: cloud_plan }
+      responses:
+        '200':
+          description: Delete result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  domain: { type: string }
+                  name: { type: string }
+                  type: { type: string }
+                  result: { type: object, additionalProperties: true }
+        '400': { description: Missing name or type }
+        '403': { description: Admin principal required }
+
   /admin/cli/control:
     post:
       tags: [admin]

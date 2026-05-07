@@ -636,6 +636,58 @@ export function buildAdminCliRoutes(deps) {
 
   router.post("/control", requireBackendApiKey, requireAdminPrincipal, adminControlHandler);
 
+  // ── GET /admin/cli/dns — list DNS records for a domain ─────────────────────
+  router.get("/dns", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
+    const domain = String(req.query.domain || "mad4b.com").trim();
+    const keyRef = String(req.query.api_key_ref || "cloud_plan").trim();
+    try {
+      const result = await executeHostingerControl({ path: `/api/v1/dns/zone/${encodeURIComponent(domain)}`, method: "GET", api_key_ref: keyRef });
+      return res.status(result.status || 200).json({ ok: result.ok, domain, records: result.data });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "dns_list_failed", message: err.message } });
+    }
+  });
+
+  // ── POST /admin/cli/dns — upsert a DNS record ───────────────────────────────
+  router.post("/dns", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
+    const { domain = "mad4b.com", name, type, content, ttl = 300, api_key_ref = "cloud_plan" } = req.body || {};
+    if (!name || !type || !content) {
+      return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "name, type, content required." } });
+    }
+    try {
+      writeAuditLogAsync({ action: "admin_dns.upsert", resource_type: "dns_record", resource_id: `${name}.${domain}`, payload: { name, type, content, ttl } });
+      const result = await executeHostingerControl({
+        path: `/api/v1/dns/zone/${encodeURIComponent(domain)}`,
+        method: "PUT",
+        api_key_ref,
+        request_body: { overwrite: false, zone: [{ name, type, ttl, records: [{ content }] }] },
+      });
+      return res.status(result.status || 200).json({ ok: result.ok, domain, name, type, result: result.data });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "dns_upsert_failed", message: err.message } });
+    }
+  });
+
+  // ── DELETE /admin/cli/dns — delete a DNS record ─────────────────────────────
+  router.delete("/dns", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
+    const { domain = "mad4b.com", name, type, api_key_ref = "cloud_plan" } = req.body || {};
+    if (!name || !type) {
+      return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "name and type required." } });
+    }
+    try {
+      writeAuditLogAsync({ action: "admin_dns.delete", resource_type: "dns_record", resource_id: `${name}.${domain}`, payload: { name, type } });
+      const result = await executeHostingerControl({
+        path: `/api/v1/dns/zone/${encodeURIComponent(domain)}`,
+        method: "DELETE",
+        api_key_ref,
+        request_body: { zone: [{ name, type }] },
+      });
+      return res.status(result.status || 200).json({ ok: result.ok, domain, name, type, result: result.data });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "dns_delete_failed", message: err.message } });
+    }
+  });
+
   router.post("/hostinger", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
     const body = req.body || {};
     try {
