@@ -1,6 +1,17 @@
 # local-connector
 
-This is a lightweight break-glass HTTP connector that runs on this Windows machine and is exposed to the internet exclusively via a Cloudflare Tunnel. The GPT admin assistant calls it when the primary Cloud Run API is unavailable. It exposes a small set of CLI and file operations behind the same `BACKEND_API_KEY` bearer token as the main API, binds only to `127.0.0.1` so it is never reachable without the tunnel, and logs every authenticated request to stdout.
+A lightweight break-glass HTTP connector running on this Windows machine (`mohammedlap`), exposed exclusively via Cloudflare Tunnel. Serves two purposes:
+
+1. **Break-glass recovery** — the GPT admin assistant calls it directly when Cloud Run is unavailable, to run `gh`/`gcloud` CLI, shell aliases, or file ops.
+2. **Platform-orchestrated device ops** — the Cloud Run API (`/dispatch`, `/local-connector/*`) uses the tunnel URL from `local_connector_user_configs` to execute governed shell/file commands on behalf of the GPT.
+
+Binds only to `127.0.0.1`; Cloudflare Tunnel is the sole entry point. Every authenticated request is logged to stdout.
+
+**Device:** mohammedlap | **Port:** 7070 | **Tunnel:** 95e4ba8c-782b-4819-9f80-04af4457ce73
+
+**Cloudflare Tunnel routes:**
+- `connector.mad4b.com → localhost:7070` (this connector)
+- `n8n.mad4b.com → localhost:5678` (n8n workflow automation)
 
 ---
 
@@ -24,7 +35,7 @@ This is a lightweight break-glass HTTP connector that runs on this Windows machi
    ```
    node server.mjs
    ```
-   Visit `http://127.0.0.1:3001/` — you should see a JSON health response.
+   Visit `http://127.0.0.1:7070/` — you should see a JSON health response. Default port is 7070; set `CONNECTOR_PORT` in `.env` to override.
 
 5. **Install as a Windows service** (run PowerShell as Administrator)
    ```
@@ -113,13 +124,27 @@ Actions: `list` (returns allowlist), `read` (returns file content), `write` (cre
 
 ## How the tunnel works (CNAME approach)
 
-No public IP or firewall changes are needed on the Windows machine. `cloudflared` makes an outbound connection to Cloudflare's edge. Inbound HTTPS requests to `connector.mad4b.com` are routed by Cloudflare through the tunnel to `http://127.0.0.1:3001`. TLS is handled automatically by Cloudflare.
+No public IP or firewall changes are needed on the Windows machine. `cloudflared` makes an outbound connection to Cloudflare's edge. Inbound HTTPS requests are routed through the tunnel to `127.0.0.1`. TLS is handled automatically by Cloudflare.
 
-The Hostinger DNS record that makes this work is a CNAME:
+Hostinger DNS CNAMEs in `mad4b.com`:
 ```
-connector → 95e4ba8c-782b-4819-9f80-04af4457ce73.cfargotunnel.com
+connector → 95e4ba8c-782b-4819-9f80-04af4457ce73.cfargotunnel.com  (→ localhost:7070)
+n8n       → 95e4ba8c-782b-4819-9f80-04af4457ce73.cfargotunnel.com  (→ localhost:5678)
 ```
-This CNAME is already live in the `mad4b.com` DNS zone.
+
+Published application routes (Cloudflare dashboard → Networks → Tunnels → mohammedlap → Published application routes):
+- `connector.mad4b.com` → `http://localhost:7070`
+- `n8n.mad4b.com` → `http://localhost:5678`
+
+## Platform-orchestrated provisioning (Sprint 36+)
+
+For future users/devices, use `POST /local-connector/install` on the Cloud Run API. It:
+1. Creates a new Cloudflare tunnel via CF API (per device_id)
+2. Adds a CNAME record to Hostinger DNS (`{device_id}.connector.mad4b.com`)
+3. Seeds `local_connector_user_configs` and `local_connector_shell_allowlists` in the DB
+4. Returns a ready-to-run `install.bat` with `cloudflared service install {token}` + server startup
+
+This makes provisioning fully automated for any user/device. The platform stores `connector_secret` per device and uses it when proxying requests through `/dispatch`.
 
 ---
 

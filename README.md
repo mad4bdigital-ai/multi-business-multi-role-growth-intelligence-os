@@ -74,7 +74,7 @@ These documents are the real architecture spine of the project.
 
 ### Memory schema layer
 
-`memory_schema.json` is the persistent state contract root. It has been decomposed into 12 domain sub-schemas under `schemas/`, each referenced via JSON Schema `$ref`:
+`memory_schema.json` is the persistent state contract root. Decomposed into 12 domain sub-schemas under `schemas/`, each referenced via JSON Schema `$ref`:
 
 | Sub-schema | Domain |
 |---|---|
@@ -91,68 +91,32 @@ These documents are the real architecture spine of the project.
 | `operations` | System context, monitoring, writeback rules |
 | `wordpress_api` | WordPress state, API inventory, credential resolution |
 
-The root schema enforces `additionalProperties: false` and all 99 required fields. The root is now about 41 KB after moving large domain blocks into `schemas/`. Validate schema references with `node validate-memory-schema.mjs`.
+The root schema enforces `additionalProperties: false` and all 99 required fields (~41 KB). Validate with `node validate-memory-schema.mjs`.
 
 ### Registry-centered authority layer
 
-Important governed surfaces include:
-- `Task Routes`
-- `Workflow Registry`
-- `Actions Registry`
-- `API Actions Endpoint Registry`
-- `Execution Policy Registry`
+Important governed surfaces (all SQL-primary, `DATA_SOURCE=sql`):
 
-### Canonical governance layer
-
-The root canonical files define:
-- routing expectations
-- loading and readiness expectations
-- activation and bootstrap rules
-- hard enforcement constraints
-- durable memory structure
-
-These documents are the real architecture spine of the project.
-
-### Memory schema layer
-
-`memory_schema.json` is the persistent state contract root. It has been decomposed into 12 domain sub-schemas under `schemas/`, each referenced via JSON Schema `$ref`:
-
-| Sub-schema | Domain |
+| Surface | Role |
 |---|---|
-| `shared` | Primitive types shared across domains |
-| `business_identity` | Company, catalog, destinations, modules |
-| `brand` | Brand context, identity, writing engine |
-| `execution` | Runtime validation, activation, Google Workspace |
-| `analytics` | Measurement, revenue signals, tracking bindings |
-| `governance` | Schema state, drift detection, variable contracts |
-| `logic_knowledge` | Logic pointers, logic knowledge, business-type knowledge |
-| `repair_audit` | Repair memory, audit state, anomaly clusters |
-| `routing_transport` | Routing context, HTTP transport, surface roles |
-| `graph_addition` | Graph intelligence, governed addition pipeline |
-| `operations` | System context, monitoring, writeback rules |
-| `wordpress_api` | WordPress state, API inventory, credential resolution |
+| `task_routes` | intent_key → workflow_key → target_module routing authority |
+| `workflows` | Workflow registry: execution_class, review_required, target_module |
+| `agent_skills` | Skill capability definitions (skill_key, scope, capability_json) |
+| `agent_skill_grants` | Per-agent skill grant bindings with status |
+| `agent_workflow_bindings` | Agent ↔ workflow binding, trigger_condition |
+| `agent_supervision_policy` | Auto-approve class thresholds per agent+tenant |
+| `actions` | Action keys, auth mode, schema binding |
+| `endpoints` | Endpoint keys, method, path, domain |
+| `output_artifacts` | Canonical store for agent-generated outputs |
+| `sink_dispatch_log` | Audit trail for output routing decisions |
+| `agent_chain_events` | Event bus for inter-agent chaining |
+| `local_connector_user_configs` | Per-user device tunnel config, connector_secret |
+| `local_connector_shell_allowlists` | Per-device shell alias allowlists |
+| `local_connector_file_access_rules` | Per-device file path access rules |
+| `Execution Log Unified` | Append-only governed execution sink |
+| `JSON Asset Registry` | Governed artifact store |
 
-The root schema enforces `additionalProperties: false` and all 99 required fields. The root is now about 41 KB after moving large domain blocks into `schemas/`. Validate schema references with `node validate-memory-schema.mjs`.
-
-### Registry-centered authority layer
-
-Important governed surfaces include:
-- `Task Routes`
-- `Workflow Registry`
-- `Actions Registry`
-- `API Actions Endpoint Registry`
-- `Execution Policy Registry`
-- `Execution Log Unified`
-- `JSON Asset Registry`
-- `Brand Registry`
-- `output_artifacts` (new)
-- `sink_dispatch_log` (new)
-- `agent_chain_events` (new)
-- `local_connector_user_configs` (new)
-- `Hosting Account Registry`
-- `Brand Core Registry`
-
-These governed surfaces are strictly SQL-primary. MySQL is the sole authoritative read source for runtime execution (`DATA_SOURCE=sql`).
+MySQL is the sole authoritative read source for runtime execution.
 
 Runtime behavior must prefer live registry truth via the `stateManager.js` data layer over local assumptions, stale memory, or narrative summaries.
 
@@ -233,26 +197,45 @@ Its WordPress subsystem is split into:
 
 ## Current repository status
 
-The project has completed Sprint 2 (WordPress modular extraction), Sprint 3 (http-generic-api decomposition), and Sprint 4 (memory schema decomposition). The runtime and schema layer are both materially modular.
+Completed sprints: WordPress extraction (S2), http-generic-api decomposition (S3), memory schema decomposition (S4), output sink router (S21), session/upload system (S29–S29b), schema import pipeline (S28), local connector (S35), tunnel auto-provisioning (S36), workflow pipeline (S37), unified dispatch / 2-connector GPT (S38).
 
-Current state:
-- `http-generic-api/server.js` is decomposed - reduced from ~29,000 lines to ~4,636 lines; authority-based modules extracted
-- `http-generic-api/wordpress/` - 16 phase modules (A-P), shared.js, index.js barrel (545 exports)
-- `http-generic-api/normalization.js` - canonical normalization layer successfully implementing all A-H domains (Execution Intent, Policy State, Endpoint Identity, Route/Workflow State, Surface Classification, Mutation Intent, Execution Result, Sink Write Contract)
-- `memory_schema.json` decomposed into 12 domain sub-schemas in `schemas/` (about 41 KB root; schema refs validated by `validate-memory-schema.mjs`)
-- `http-generic-api/mutationGovernance.js`, `governedChangeControl.js`, `governedSheetWrites.js` - centralized mutation and writeback governance
-- `http-generic-api/registryResolution.js`, `routeWorkflowGovernance.js`, `registryMutations.js` - registry-backed routing and execution control
-- `http-generic-api/executionRouting.js` - isolated HTTP execution context resolution with dependency-injected guard chain
-- `http-generic-api/auth.js` - Google OAuth scope resolution, policy enforcement, and resilience helpers; fully wired
-- `http-generic-api/driveFileLoader.js` - schema and OAuth config loader with `supportsAllDrives: true` for shared-drive artifact reads
-- governed sink handling for `Execution Log Unified` and `JSON Asset Registry` is stable
-- 46+ test files passing with 800+ assertions: utility, job runner, execution routing, connectors, routes, activation bootstrap cache, Google Sheets chunking, sheets range drift, starter authority surfaces, transport governance, activation classification, activation response, governed activation runner, registry alignment validator, logic switching smoke, WordPress, AI resolvers, SQL migration tooling (sqlAdapter TABLE_MAP completeness, column normalisation, duplicate detection, expand-schema dry-run guard), and data-flow smoke test (all 15 SQL tables, route→workflow chain, UNIQUE constraint enforcement)
-- `/health` reports degraded dependency truth for Redis/BullMQ instead of assuming queue connectivity
-- async job submission returns `503` when the queue backend cannot accept work (safely rejects to prevent job loss)
-- runtime instances can run in API-only mode with `QUEUE_WORKER_ENABLED=FALSE`, or connect to Memorystore/Upstash/Hostinger Redis for background workers
-- `All 19 actions are runtime_callable with correct auth modes: api_key_query, bearer_token, google_oauth2, google_ads_oauth2, per_target_credentials, managed_service_account_adc, mcp_connector`
-- `googleAuthTokenResolver.js` - shared Google token cache; platform bootstrap uses managed service account ADC, while user-owned Drive/Sheets input sources use refresh-token auth
-- `connectorExecutor.js — MCP connector branch added: plans with connected_system.connector_family=make_mcp dispatch to dispatchMcpConnector() via JSON-RPC 2.0 to Make MCP stateless endpoint`
+### Platform layer — local connector pipeline (Sprints 35–38)
+
+- `http-generic-api/services/localConnectorOrchestrator.js` — factory-pattern orchestrator that executes governed shell/file/health ops on user devices via Cloudflare tunnel. Token from `local_connector_user_configs.connector_secret`.
+- `http-generic-api/routes/localConnectorRoutes.js` — `POST /local-connector/shell`, `POST /local-connector/file/read`, `POST /local-connector/file/write`, `GET /local-connector/health`.
+- `http-generic-api/routes/localConnectorInstallRoutes.js` — `POST /local-connector/install` auto-provisions a Cloudflare tunnel per user/device (CF API + Hostinger DNS), seeds shell allowlist, returns `install.bat`. Idempotent. `GET /local-connector/install/status`, `DELETE /local-connector/uninstall`.
+- `http-generic-api/routes/dispatchRoutes.js` — `POST /dispatch` universal intent dispatcher: resolves `intent_key → task_routes → target_module → MODULE_EXECUTORS`, validates agent skill grants, executes or returns routing advice. `GET /dispatch/routes` lists all active routes with `directly_dispatched` flag.
+- `http-generic-api/openapi.custom-gpt.platform.yaml` — consolidated 9-operation OpenAPI spec for `admin.mad4b.com` replacing 8+ separate scoped connectors in the GPT.
+- `local-connector/` — Node.js break-glass connector running on `mohammedlap` at port 7070, exposed via Cloudflare Tunnel to `connector.mad4b.com`. Also routes `n8n.mad4b.com → localhost:5678`.
+
+### Migrations (032–034)
+
+| File | Sprint | Content |
+|---|---|---|
+| `032_sprint35_local_connector_seed.sql` | S35 | `connector_secret` column, mohammedlap device seed, shell allowlist |
+| `033_sprint36_tunnel_provisioning.sql` | S36 | `cf_tunnel_id`, `cf_tunnel_name`, `cf_token` columns |
+| `034_sprint37_local_connector_workflow_routes.sql` | S37 | workflows, task_routes, agent_skills (skl-loc-con-001/002/003), agent_skill_grants, agent_workflow_bindings, agent_supervision_policy |
+
+### Custom GPT — 2-connector architecture (Sprint 38)
+
+The GPT uses exactly two action connectors:
+- **Platform** (`openapi.custom-gpt.platform.yaml` → `admin.mad4b.com`): 9 ops including `/dispatch` for all governed device ops
+- **Local** (`openapi.custom-gpt.connector.yaml` → `connector.mad4b.com`): 7 ops for direct break-glass access to mohammedlap
+
+Intent routing via `POST /dispatch` validates `agent_skill_grants` at runtime and executes directly for local connector modules or returns `suggested_endpoint` for other modules.
+
+### Core runtime state
+
+- `http-generic-api/server.js` decomposed from ~29,000 → ~4,636 lines
+- `http-generic-api/wordpress/` — 16 phase modules (A-P), 545 exports
+- `http-generic-api/normalization.js` — canonical normalization for 8 domains (A-H)
+- `memory_schema.json` → 12 domain sub-schemas in `schemas/` (~41 KB root)
+- governed sinks: `Execution Log Unified`, `JSON Asset Registry`, `output_artifacts`, `sink_dispatch_log`, `agent_chain_events`, `local_connector_user_configs`
+- 150 tests passing (up from 46+ test files / 800+ assertions baseline)
+- `/health` reports degraded dependency truth for Redis/BullMQ
+- async job submission returns `503` when queue backend cannot accept work
+- `googleAuthTokenResolver.js` — platform bootstrap uses managed service account ADC; user-owned Drive/Sheets uses refresh-token auth
+- MCP connector branch added: `makecom_mcp` dispatches via JSON-RPC 2.0 to Make MCP stateless endpoint
 
 ## Upgrade direction
 

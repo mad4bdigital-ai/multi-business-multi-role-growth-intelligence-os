@@ -102,7 +102,31 @@ Required expectations:
 - `user_id` and `tenant_id` are correctly resolved and enforced
 - `alias` and `path_pattern` are unique within their scope
 - `is_enabled` and `access_mode` reflect current policy
+- `connector_secret` stored in `user_configs` is the per-device auth token; rotated only via reprovision
 - mutations are subject to `approval_holds` for sensitive changes
+
+### `task_routes`
+Treat as:
+- routing authority table for intent_key → workflow_key → target_module
+- directly executed by `/dispatch` at runtime; any mutation immediately affects live routing
+
+Required expectations:
+- `intent_key` is unique and stable; changing it breaks active GPT dispatches
+- `active` and `enabled` flags must be set correctly before going live
+- `target_module` must match a registered MODULE_EXECUTORS key or a known endpoint pattern
+- insert via `INSERT IGNORE` with platform_seed `route_source` for system routes
+
+### `agent_skills`, `agent_skill_grants`, `agent_workflow_bindings`
+Treat as:
+- authorization authority surfaces that gate dispatch execution
+- `agent_skill_grants` is validated on every `/dispatch` call for `agent_id`-bearing requests
+
+Required expectations:
+- `skill_key` in `agent_skills` must be unique; used as the capability reference key
+- `agent_skill_grants.status = 'active'` is required for skill to pass validation
+- `agent_workflow_bindings.trigger_condition` must be a supported value (`on_demand`, `scheduled`, etc.)
+- insert via `INSERT IGNORE`; revoke by setting `status = 'revoked'` on the grant row, not by deleting
+- `agent_supervision_policy.auto_approve_below_class` controls which execution_class tiers auto-approve without holds
 
 ### `approval_holds`
 Treat as:

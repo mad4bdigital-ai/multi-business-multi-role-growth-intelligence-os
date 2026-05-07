@@ -28,9 +28,13 @@ For the personal Custom GPT Admin Assistant action setup, scoped OpenAPI files, 
 | `output_artifacts` | Canonical store for agent-generated outputs |
 | `sink_dispatch_log` | Audit trail for output routing decisions |
 | `agent_chain_events` | Event bus for inter-agent communication and chaining |
-| `local_connector_user_configs` | User-specific local connector enablement and device IDs |
-| `local_connector_shell_allowlists` | User-specific allowlists for local shell commands |
-| `local_connector_file_access_rules` | User-specific allowlists for local file access |
+| `local_connector_user_configs` | Per-user device tunnel URL, connector_secret, cf_tunnel_id |
+| `local_connector_shell_allowlists` | Per-device shell alias allowlists (alias, command_template) |
+| `local_connector_file_access_rules` | Per-device file path access rules |
+| `agent_skills` | Skill capability definitions: skill_key, scope, capability_json |
+| `agent_skill_grants` | Per-agent active skill bindings; validated at dispatch time |
+| `agent_workflow_bindings` | Agent ↔ workflow binding with trigger_condition |
+| `agent_supervision_policy` | Auto-approve class thresholds per agent+tenant |
 | `brand_paths` | Brand to business-type path, Drive folder IDs, Brand Core map |
 | `brand_core` | Brand asset rows and Drive subfolder IDs |
 
@@ -536,11 +540,21 @@ Common `http-generic-api` surfaces:
 - `/jobs`, `/jobs/{jobId}`, `/jobs/{jobId}/result` - async governed execution lifecycle
 - `/governance/resolve-context-diagnostic` - non-mutating governed context resolution
 - `/ai/implementation-plan`, `/ai/task-manifest`, `/ai/registry-readiness` - AI planning and registry binding checks
-- `/governance/validate-execution` (new) - endpoint for explicit validation checks
+- `/governance/validate-execution` - endpoint for explicit validation checks
 - `/release/readiness` - platform readiness diagnostics
 - `/connector/dispatch` and `/planner/plans/{plan_id}/execute` - governed connector/workflow dispatch
 
-Treat `/http-execute` as the main provider execution boundary. Route-specific shortcuts must not bypass auth, policy, runtime-callable checks, or registry validation.
+**Dispatch and local connector surfaces (Sprint 35–38):**
+- `POST /dispatch` — universal intent dispatcher: resolves `intent_key → task_routes → MODULE_EXECUTORS`; validates `agent_skill_grants`; directly executes or returns `suggested_endpoint`. Required: `intent_key`, `user_id`, `tenant_id`. Optional: `device_id`, `agent_id`, `payload`.
+- `GET /dispatch/routes` — list all active `task_routes` with `directly_dispatched` flag.
+- `POST /local-connector/install` — auto-provision Cloudflare tunnel + Hostinger DNS CNAME + DB config + shell allowlist for any user/device. Returns `install.bat`. Idempotent.
+- `GET /local-connector/install/status` — check provisioning state for a user/device.
+- `GET /local-connector/health` — platform-proxied health check to device tunnel.
+- `POST /local-connector/shell` — execute governed shell alias on user device via tunnel.
+- `POST /local-connector/file/read` — read governed file from user device.
+- `POST /local-connector/file/write` — write governed file to user device.
+
+Treat `/http-execute` as the main provider execution boundary. Use `/dispatch` as the unified runtime router for local connector and workflow module execution. Route-specific shortcuts must not bypass auth, policy, runtime-callable checks, or registry validation.
 
 ### Auth and credential boundaries
 

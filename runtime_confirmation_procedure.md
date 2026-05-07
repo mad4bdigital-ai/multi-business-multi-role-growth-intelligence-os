@@ -35,14 +35,16 @@ BACKEND_API_KEY=your-api-key \
 node http-generic-api/verify-runtime.mjs
 ```
 
-This script checks four governed behaviors:
+This script checks governed behaviors:
 1. `GET /health` — runtime is up, returns `ok: true`
 2. Authentication — authorized requests accepted, unauthorized blocked (if applicable)
 3. Dry-run site migration — `POST /site-migrations` with `apply: false` does not crash
 4. Local dispatch — `POST /http-execute` with `github_git_blob_chunk_read` does not throw `ReferenceError`
 5. Async job queue — `POST /jobs` enqueues and `GET /jobs/:id` returns a known status
 6. Governance Validation Engine — `POST /governance/validate-execution` returns expected validation status
-7. Local Connector Governance — `GET /local-connector/user-configs` returns expected configuration
+7. Local Connector Governance — `GET /local-connector/install/status` returns install state for mohammedlap
+8. Dispatch routing — `GET /dispatch/routes` returns active task_routes with `directly_dispatched` flags
+9. Dispatch intent — `POST /dispatch` with `intent_key=local.health.check` returns `ok` or expected error shape (not 500)
 
 **Passing output ends with:**
 ```
@@ -137,7 +139,7 @@ Interpretation guidance:
 | Check | Automated in CI | Requires live runtime |
 |---|---|---|
 | Module syntax | ✅ | ❌ |
-| Unit + integration tests | ✅ | ❌ |
+| Unit + integration tests (150+) | ✅ | ❌ |
 | Architecture export floor | ✅ | ❌ |
 | Inline redefinition drift | ✅ | ❌ |
 | server.js size guard | ✅ | ❌ |
@@ -145,6 +147,9 @@ Interpretation guidance:
 | Dry-run migration | ❌ | ✅ |
 | Dispatch ReferenceError check | ❌ | ✅ |
 | Job queue round-trip | ❌ | ✅ |
+| `GET /dispatch/routes` returns active routes | ❌ | ✅ |
+| `POST /dispatch` intent resolution (local.health.check) | ❌ | ✅ |
+| Local connector install/status check | ❌ | ✅ |
 | Registry sheet writeback | ❌ | ✅ (manual) |
 
 ---
