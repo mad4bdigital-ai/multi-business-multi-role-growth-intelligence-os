@@ -10,8 +10,6 @@ servers:
 tags:
   - name: governance
     description: Tenant scope policy and access boundary. Call /policy first to understand what this scope permits.
-  - name: auth
-    description: Account creation and sign-in. Configure GPT Action authentication as OAuth using authorization URL https://auth.mad4b.com/auth/oauth/authorize and token URL https://auth.mad4b.com/auth/oauth/token, scope tenant. Email/password login or registration are fallback options.
   - name: connect
     description: Backend connection activation and device provisioning.
   - name: connector
@@ -24,7 +22,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: User JWT
-      description: "After sign-in, send Authorization: Bearer <token> returned from /auth/login or /auth/google. This is a per-user JWT — NOT the platform BACKEND_API_KEY."
+      description: "Configured by GPT Action OAuth. ChatGPT obtains the per-user tenant token through the OAuth popup; do not call OAuth token or Google ID-token endpoints as normal actions."
   schemas:
     AuthResult:
       type: object
@@ -86,156 +84,12 @@ paths:
                     type: string
                     description: Description of the JWT-based tenant access model.
 
-  /auth/register:
-    post:
-      tags: [auth]
-      operationId: tenantRegister
-      summary: Create a new tenant account
-      description: Creates a user, tenant workspace, and owner membership. Returns a JWT. Use email, password, and display_name. tenant_display_name is optional.
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, password, display_name]
-              properties:
-                email: { type: string, format: email }
-                password: { type: string, minLength: 8 }
-                display_name: { type: string }
-                tenant_display_name:
-                  type: string
-                  description: Optional workspace name. Defaults to display_name's workspace.
-      responses:
-        '201':
-          description: Account created
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AuthResult' }
-        '409': { description: Email already registered }
-
-  /auth/login:
-    post:
-      tags: [auth]
-      operationId: tenantLogin
-      summary: Sign in with email and password
-      description: Validates credentials and returns a user JWT and tenant memberships. Send the token as Authorization Bearer on all subsequent calls.
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, password]
-              properties:
-                email: { type: string, format: email }
-                password: { type: string }
-      responses:
-        '200':
-          description: Authenticated
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AuthResult' }
-        '401': { description: Invalid credentials }
-
-  /auth/oauth/authorize:
-    get:
-      tags: [auth]
-      operationId: tenantOAuthAuthorize
-      summary: Open the Google sign-in popup for GPT Action OAuth
-      description: Browser endpoint used by ChatGPT OAuth. It renders Growth Intelligence Platform Google Sign-In, then redirects back to the GPT callback with a short-lived authorization code.
-      security: []
-      parameters:
-        - name: redirect_uri
-          in: query
-          required: true
-          schema: { type: string, format: uri }
-        - name: state
-          in: query
-          required: false
-          schema: { type: string }
-        - name: client_id
-          in: query
-          required: false
-          schema: { type: string }
-      responses:
-        '200':
-          description: Google sign-in popup HTML
-          content:
-            text/html:
-              schema: { type: string }
-        '400': { description: Invalid redirect_uri }
-
-  /auth/oauth/token:
-    post:
-      tags: [auth]
-      operationId: tenantOAuthToken
-      summary: Exchange a GPT Action OAuth code for a tenant user token
-      description: Token endpoint used by ChatGPT OAuth. Accepts an authorization_code from /auth/oauth/authorize and returns a Bearer access token for tenant-scoped actions.
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              type: object
-              required: [grant_type, code]
-              properties:
-                grant_type:
-                  type: string
-                  enum: [authorization_code]
-                code: { type: string }
-                redirect_uri: { type: string, format: uri }
-                client_id: { type: string }
-                client_secret: { type: string }
-      responses:
-        '200':
-          description: OAuth access token
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  access_token: { type: string }
-                  token_type: { type: string, example: Bearer }
-                  expires_in: { type: integer, example: 604800 }
-                  scope: { type: string, example: tenant }
-        '400': { description: Invalid OAuth request or grant }
-
-  /auth/google:
-    post:
-      tags: [auth]
-      operationId: tenantGoogleAuth
-      summary: Sign in with a Google ID token
-      description: Verifies a Google ID token (from Google Sign-In / GSI), creates or links the account, and returns a user JWT. For GPT Actions, prefer the OAuth popup at /auth/oauth/authorize. Use this endpoint only when an ID token is available inside a trusted web flow.
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [id_token]
-              properties:
-                id_token:
-                  type: string
-                  description: Google ID token from GSI credential response.
-      responses:
-        '200':
-          description: Authenticated
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AuthResult' }
-        '401': { description: Invalid Google token }
-
   /connect/status:
     get:
       tags: [connect]
       operationId: tenantConnectionStatus
       summary: Get authenticated tenant's connection state
-      description: Returns the tenant's connection mode (managed/dedicated), active devices, and provisioning status. Send user JWT from /auth/login or /auth/google in Authorization header.
+      description: Returns the tenant's connection mode (managed/dedicated), active devices, and provisioning status. ChatGPT sends the tenant OAuth bearer token configured for this action.
       responses:
         '200':
           description: Connection status
