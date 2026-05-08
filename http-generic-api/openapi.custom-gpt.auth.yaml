@@ -280,6 +280,19 @@ paths:
                   type: string
                   description: Optional DB app connection for non-admin Hostinger credentials.
                 reprovision: { type: boolean, default: false }
+                local_apps:
+                  type: array
+                  description: Optional path-based apps to expose on the same connector host.
+                  items:
+                    type: object
+                    properties:
+                      app_key: { type: string, example: webbrowsing }
+                      path_prefix: { type: string, example: /webbrowsing }
+                      local_port: { type: integer, example: 9222 }
+                      status:
+                        type: string
+                        enum: [planned, active, disabled]
+                        default: planned
                 custom_aliases:
                   type: array
                   items:
@@ -303,6 +316,19 @@ paths:
                   dns_record: { type: object, additionalProperties: true }
                   connector_secret: { type: string }
                   cf_tunnel_id: { type: string }
+                  app_routes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        app_key: { type: string }
+                        route_mode: { type: string, enum: [host, path] }
+                        hostname: { type: string }
+                        path_prefix: { type: string, nullable: true }
+                        local_port: { type: integer }
+                        service_url: { type: string }
+                        public_url: { type: string }
+                        status: { type: string, enum: [planned, active, disabled] }
                   cloud_run_env: { type: object, additionalProperties: true }
                   installation: { type: object, additionalProperties: true }
 
@@ -337,6 +363,7 @@ paths:
                   installed: { type: boolean }
                   config: { type: object, additionalProperties: true }
                   aliases: { type: array, items: { type: object } }
+                  app_routes: { type: array, items: { type: object } }
 
   /local-connector/health:
     get:
@@ -607,6 +634,9 @@ paths:
                       status: { type: string }
                       cloudflare_mode: { type: string }
                       google_auth_mode: { type: string }
+                      n8n_activation_mode:
+                        type: string
+                        enum: [managed_main_server, self_hosted_local]
                       device_count: { type: integer }
                       activated_at: { type: string }
                   devices:
@@ -644,6 +674,11 @@ paths:
                   type: string
                   enum: [managed, dedicated]
                   default: managed
+                n8n_activation_mode:
+                  type: string
+                  enum: [managed_main_server, self_hosted_local]
+                  default: managed_main_server
+                  description: managed_main_server uses n8n.mad4b.com; self_hosted_local provisions device-local n8n route.
                 cf_api_token:
                   type: string
                   description: Dedicated mode only — Cloudflare API token for tunnel provisioning.
@@ -662,7 +697,18 @@ paths:
                 type: object
                 properties:
                   ok: { type: boolean }
-                  connection: { type: object, additionalProperties: true }
+                  connection:
+                    type: object
+                    properties:
+                      mode: { type: string, enum: [managed, dedicated] }
+                      status: { type: string }
+                      cloudflare_mode: { type: string, enum: [managed, dedicated] }
+                      google_auth_mode: { type: string, enum: [managed, dedicated] }
+                      n8n_activation_mode:
+                        type: string
+                        enum: [managed_main_server, self_hosted_local]
+                      device_count: { type: integer }
+                      activated_at: { type: string }
                   notice: { type: string }
         '403': { description: User JWT required }
 
@@ -671,7 +717,7 @@ paths:
       tags: [connect]
       operationId: tenantDeviceInstall
       summary: Provision a local connector for the authenticated tenant's device
-      description: Creates a connector config for the given device_id under the tenant. Returns tunnel_url, connector_secret, and install steps. User JWT required.
+      description: Creates or reuses a connector config, DNS tunnel, default n8n/browser app routes, and install bundle. User JWT required.
       requestBody:
         required: true
         content:
@@ -683,6 +729,20 @@ paths:
                 device_id:
                   type: string
                   description: Stable machine identifier, e.g. mohammedlap or johns-pc.
+                hostname:
+                  type: string
+                  description: Optional full hostname under .connector.mad4b.com.
+                cloudflare_connection_id: { type: string }
+                hostinger_connection_id: { type: string }
+                local_apps:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      app_key: { type: string }
+                      path_prefix: { type: string }
+                      local_port: { type: integer }
+                      status: { type: string, enum: [planned, active, disabled] }
       responses:
         '200':
           description: Connector install bundle
@@ -696,7 +756,23 @@ paths:
                   device_id: { type: string }
                   tunnel_url: { type: string }
                   connector_secret: { type: string }
-                  install_steps: { type: array, items: { type: string } }
+                  cf_tunnel_id: { type: string }
+                  credential_source: { type: string }
+                  dns_record: { type: object, additionalProperties: true }
+                  app_routes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        app_key: { type: string }
+                        route_mode: { type: string, enum: [host, path] }
+                        hostname: { type: string }
+                        path_prefix: { type: string, nullable: true }
+                        local_port: { type: integer }
+                        service_url: { type: string }
+                        public_url: { type: string }
+                        status: { type: string, enum: [planned, active, disabled] }
+                  installation: { type: object, additionalProperties: true }
         '403': { description: User JWT required }
 
   /admin/cli/control:

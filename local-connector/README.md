@@ -11,7 +11,8 @@ Binds only to `127.0.0.1`; Cloudflare Tunnel is the sole entry point. Every auth
 
 **Cloudflare Tunnel routes:**
 - `connector.mad4b.com → localhost:7070` (this connector)
-- `n8n.mad4b.com → localhost:5678` (n8n workflow automation)
+
+Managed n8n is centralized on GCloud at `n8n.mad4b.com`. Local/self-hosted n8n should be exposed through connector-scoped routes such as `https://{user-device}.connector.mad4b.com/n8n`.
 
 ---
 
@@ -129,12 +130,11 @@ No public IP or firewall changes are needed on the Windows machine. `cloudflared
 Hostinger DNS CNAMEs in `mad4b.com`:
 ```
 connector → 95e4ba8c-782b-4819-9f80-04af4457ce73.cfargotunnel.com  (→ localhost:7070)
-n8n       → 95e4ba8c-782b-4819-9f80-04af4457ce73.cfargotunnel.com  (→ localhost:5678)
+n8n       → ghs.googlehosted.com.                                 (→ centralized GCloud n8n)
 ```
 
 Published application routes (Cloudflare dashboard → Networks → Tunnels → mohammedlap → Published application routes):
 - `connector.mad4b.com` → `http://localhost:7070`
-- `n8n.mad4b.com` → `http://localhost:5678`
 
 ## Platform-orchestrated provisioning (Sprint 36+)
 

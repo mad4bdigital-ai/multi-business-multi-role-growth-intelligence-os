@@ -8,6 +8,8 @@ const CONNECTOR_PORT = 7070;
 const CONNECTOR_SUBDOMAIN_SUFFIX = ".connector.mad4b.com";
 const DNS_DOMAIN = "mad4b.com";
 const CONNECTOR_DNS_PARENT = "connector";
+const DEFAULT_N8N_PORT = 5678;
+const DEFAULT_BROWSER_PORT = 9222;
 const PLATFORM_TENANT_ID = "00000000-0000-4000-a000-000000000001";
 const PLATFORM_ADMIN_USER_ID = "00000000-0000-4000-a000-000000000002";
 
@@ -131,9 +133,9 @@ async function loadConnectionCredentials({ connectionId = null, tenantId, userId
 }
 
 async function resolveProvisioningCredentials(req, principal, body = {}) {
-  if (req.auth?.is_admin === true) {
+  if (req.auth?.is_admin === true || body.provisioning_credential_mode === "managed") {
     return {
-      source: "server_env",
+      source: req.auth?.is_admin === true ? "server_env" : "managed_server_env",
       cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
       cloudflareToken: process.env.CLOUDFLARE_API_TOKEN,
       hostingerToken: hostingerApiKey(),
@@ -237,12 +239,44 @@ async function readTunnelIngress(accountId, tunnelId, cfToken = null) {
 
 function upsertIngressEntry(existingIngress, hostname, serviceUrl) {
   const targetHost = String(hostname || "").toLowerCase();
+  const targetPath = "";
   const existingRoutes = existingIngress
     .filter((entry) => entry && entry.hostname)
-    .filter((entry) => String(entry.hostname).toLowerCase() !== targetHost);
+    .filter((entry) => {
+      const sameHost = String(entry.hostname).toLowerCase() === targetHost;
+      const samePath = String(entry.path || "") === targetPath;
+      return !(sameHost && samePath);
+    });
   return [
     ...existingRoutes,
     { hostname, service: serviceUrl },
+    { service: "http_status:404" },
+  ];
+}
+
+function normalizeIngressRoute(route = {}) {
+  return {
+    hostname: String(route.hostname || "").trim().toLowerCase(),
+    path: String(route.path || "").trim(),
+    service: String(route.service || route.serviceUrl || "").trim(),
+  };
+}
+
+function upsertIngressRoutes(existingIngress, desiredRoutes = []) {
+  const normalizedRoutes = desiredRoutes
+    .map(normalizeIngressRoute)
+    .filter((route) => route.hostname && route.service);
+  const routeKeys = new Set(normalizedRoutes.map((route) => `${route.hostname}|${route.path}`));
+  const preservedRoutes = existingIngress
+    .filter((entry) => entry && entry.hostname)
+    .filter((entry) => !routeKeys.has(`${String(entry.hostname).toLowerCase()}|${String(entry.path || "")}`));
+  return [
+    ...preservedRoutes,
+    ...normalizedRoutes.map((route) => ({
+      hostname: route.hostname,
+      ...(route.path ? { path: route.path } : {}),
+      service: route.service,
+    })),
     { service: "http_status:404" },
   ];
 }
@@ -252,6 +286,15 @@ async function publishTunnelIngress(accountId, tunnelId, hostname, serviceUrl = 
   return cfRequest("PUT", `/accounts/${accountId}/cfd_tunnel/${tunnelId}/configurations`, {
     config: {
       ingress: upsertIngressEntry(existingIngress, hostname, serviceUrl),
+    },
+  }, cfToken);
+}
+
+async function publishTunnelIngressRoutes(accountId, tunnelId, routes = [], cfToken = null) {
+  const existingIngress = await readTunnelIngress(accountId, tunnelId, cfToken);
+  return cfRequest("PUT", `/accounts/${accountId}/cfd_tunnel/${tunnelId}/configurations`, {
+    config: {
+      ingress: upsertIngressRoutes(existingIngress, routes),
     },
   }, cfToken);
 }
@@ -308,12 +351,128 @@ function buildUserDeviceRoute({ userId, deviceId, requestedHostname }) {
 
   const userLabel = safeDnsLabel(userId, "user");
   const deviceLabel = safeDnsLabel(deviceId, "device");
-  const label = `${userLabel.slice(0, 18)}-${deviceLabel.slice(0, 24)}-${shortHash(`${userId}:${deviceId}`)}`.slice(0, 63).replace(/-+$/g, "");
+  const readableLabel = `${userLabel}-${deviceLabel}`.slice(0, 63).replace(/-+$/g, "");
+  const label = readableLabel || `${userLabel.slice(0, 18)}-${deviceLabel.slice(0, 24)}-${shortHash(`${userId}:${deviceId}`)}`.slice(0, 63).replace(/-+$/g, "");
   return {
     hostname: `${label}${CONNECTOR_SUBDOMAIN_SUFFIX}`,
     recordName: `${label}.${CONNECTOR_DNS_PARENT}`,
   };
 }
+
+function buildDefaultLocalAppRoutes({ hostname, includeN8n = true, includeBrowser = true, localApps = [] }) {
+  const routes = [
+    {
+      app_key: "connector",
+      route_mode: "host",
+      hostname,
+      path_prefix: null,
+      local_port: CONNECTOR_PORT,
+      service_url: `http://localhost:${CONNECTOR_PORT}`,
+      public_url: `https://${hostname}`,
+      status: "active",
+    },
+  ];
+  if (includeN8n) {
+    routes.push({
+      app_key: "n8n",
+      route_mode: "path",
+      hostname,
+      path_prefix: "/n8n",
+      local_port: DEFAULT_N8N_PORT,
+      service_url: `http://localhost:${DEFAULT_N8N_PORT}`,
+      public_url: `https://${hostname}/n8n`,
+      status: "planned",
+    });
+  }
+  if (includeBrowser) {
+    routes.push({
+      app_key: "browser",
+      route_mode: "path",
+      hostname,
+      path_prefix: "/browser",
+      local_port: DEFAULT_BROWSER_PORT,
+      service_url: `http://localhost:${DEFAULT_BROWSER_PORT}`,
+      public_url: `https://${hostname}/browser`,
+      status: "planned",
+    });
+  }
+  for (const app of localApps) {
+    const appKey = safeDnsLabel(app.app_key || app.key, "app");
+    const pathPrefix = String(app.path_prefix || `/${appKey}`).trim();
+    const localPort = Number(app.local_port || app.port || 0);
+    if (!appKey || !pathPrefix.startsWith("/") || !localPort) continue;
+    routes.push({
+      app_key: appKey,
+      route_mode: "path",
+      hostname,
+      path_prefix: pathPrefix,
+      local_port: localPort,
+      service_url: `http://localhost:${localPort}`,
+      public_url: `https://${hostname}${pathPrefix}`,
+      status: app.status || "planned",
+    });
+  }
+  return routes;
+}
+
+function toCloudflareIngressRoutes(localAppRoutes = []) {
+  return localAppRoutes
+    .filter((route) => route.status === "active")
+    .map((route) => ({
+      hostname: route.hostname,
+      path: route.route_mode === "path" ? `${route.path_prefix}*` : "",
+      service: route.service_url,
+    }));
+}
+
+async function seedLocalAppRoutes(pool, configId, routes = []) {
+  for (const route of routes) {
+    await pool.query(
+      `INSERT INTO \`local_connector_app_routes\`
+         (config_id, app_key, route_mode, hostname, path_prefix, local_port, service_url, public_url, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         route_mode = VALUES(route_mode),
+         hostname = VALUES(hostname),
+         path_prefix = VALUES(path_prefix),
+         local_port = VALUES(local_port),
+         service_url = VALUES(service_url),
+         public_url = VALUES(public_url),
+         status = VALUES(status)`,
+      [
+        configId,
+        route.app_key,
+        route.route_mode,
+        route.hostname,
+        route.path_prefix,
+        route.local_port,
+        route.service_url,
+        route.public_url,
+        route.status,
+      ]
+    );
+  }
+}
+
+async function loadLocalAppRoutes(pool, configId) {
+  try {
+    const [routes] = await pool.query(
+      "SELECT app_key, route_mode, hostname, path_prefix, local_port, service_url, public_url, status FROM `local_connector_app_routes` WHERE config_id = ? ORDER BY FIELD(app_key, 'connector', 'n8n', 'browser'), app_key",
+      [configId]
+    );
+    return routes;
+  } catch (err) {
+    if (err.code === "ER_NO_SUCH_TABLE") return [];
+    throw err;
+  }
+}
+
+export {
+  buildUserDeviceRoute,
+  buildDefaultLocalAppRoutes,
+  toCloudflareIngressRoutes,
+  upsertIngressRoutes,
+};
 
 // ── Builders ──────────────────────────────────────────────────────────────────
 
@@ -395,6 +554,134 @@ function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, 
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
+
+export async function provisionLocalConnectorInstall(req, body = {}) {
+  const {
+    user_id, tenant_id, device_id,
+    hostname = null,
+    custom_aliases = [],
+    local_apps = [],
+    reprovision = false,
+  } = body || {};
+  if (!user_id || !tenant_id || !device_id) {
+    throw httpError(400, "missing_fields", "user_id, tenant_id, device_id required.");
+  }
+
+  const pool = getPool();
+  const principal = await resolveRequestedLocalPrincipal(req, { user_id, tenant_id });
+  const resolvedUserId = principal.userId;
+  const resolvedTenantId = principal.tenantId;
+  const provisioningCredentials = await resolveProvisioningCredentials(req, principal, body || {});
+  const accountId = provisioningCredentials.cloudflareAccountId;
+  if (!accountId) throw httpError(500, "missing_config", "Cloudflare account id not configured.");
+
+  const [[tenant]] = await pool.query("SELECT tenant_id FROM `tenants` WHERE tenant_id = ? LIMIT 1", [resolvedTenantId]);
+  if (!tenant) throw httpError(404, "tenant_not_found", "Tenant not found.");
+
+  const [[existing]] = await pool.query(
+    "SELECT config_id, cf_tunnel_id, cf_token, connector_secret, tunnel_url FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1",
+    [resolvedUserId, resolvedTenantId, device_id]
+  );
+
+  let configId = existing?.config_id || randomUUID();
+  let tunnelId = existing?.cf_tunnel_id || null;
+  let tunnelToken = existing?.cf_token || null;
+  let tunnelUrl = existing?.tunnel_url || null;
+  let connectorSecret = existing?.connector_secret || null;
+  let dnsRecordName = tunnelUrl ? new URL(tunnelUrl).hostname.slice(0, -`.${DNS_DOMAIN}`.length) : null;
+
+  if (!existing || reprovision) {
+    const route = buildUserDeviceRoute({ userId: resolvedUserId, deviceId: device_id, requestedHostname: hostname });
+    const tunnelName = `${safeDnsLabel(resolvedUserId, "user")}-${safeDnsLabel(device_id, "device")}-connector`.slice(0, 128);
+    const provisioned = await provisionTunnel(accountId, tunnelName, provisioningCredentials.cloudflareToken);
+    tunnelId = provisioned.tunnelId;
+    tunnelToken = provisioned.token;
+    tunnelUrl = `https://${route.hostname}`;
+    dnsRecordName = route.recordName;
+    connectorSecret = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
+
+    await pool.query(
+      `INSERT INTO \`local_connector_user_configs\`
+         (config_id, user_id, tenant_id, device_id, tunnel_url, connector_secret, cf_tunnel_id, cf_tunnel_name, cf_token, is_enabled)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+       ON DUPLICATE KEY UPDATE
+         tunnel_url = VALUES(tunnel_url),
+         connector_secret = VALUES(connector_secret),
+         cf_tunnel_id = VALUES(cf_tunnel_id),
+         cf_tunnel_name = VALUES(cf_tunnel_name),
+         cf_token = VALUES(cf_token),
+         is_enabled = 1`,
+      [configId, resolvedUserId, resolvedTenantId, device_id, tunnelUrl, connectorSecret, tunnelId, tunnelName, tunnelToken]
+    );
+  }
+
+  const [[cfgRow]] = await pool.query(
+    "SELECT config_id FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1",
+    [resolvedUserId, resolvedTenantId, device_id]
+  );
+  const finalConfigId = cfgRow.config_id;
+  const hostnameForRoutes = new URL(tunnelUrl).hostname;
+  const localAppRoutes = buildDefaultLocalAppRoutes({ hostname: hostnameForRoutes, localApps: local_apps });
+  await seedLocalAppRoutes(pool, finalConfigId, localAppRoutes);
+  if (tunnelId && dnsRecordName) {
+    await publishTunnelIngressRoutes(accountId, tunnelId, toCloudflareIngressRoutes(localAppRoutes), provisioningCredentials.cloudflareToken);
+    try {
+      await upsertHostingerCname(dnsRecordName, tunnelId, provisioningCredentials.hostingerToken);
+    } catch (dnsErr) {
+      console.warn("[install] DNS warning:", dnsErr.message);
+    }
+  }
+
+  const allAliases = [...DEFAULT_WINDOWS_ALIASES, ...custom_aliases];
+  for (const entry of allAliases) {
+    const cmdTemplate = [entry.cmd, ...(entry.args || [])].join(" ");
+    await pool.query(
+      `INSERT IGNORE INTO \`local_connector_shell_allowlists\`
+         (config_id, alias, command_template, allow_extra_args, description)
+       VALUES (?, ?, ?, ?, ?)`,
+      [finalConfigId, entry.alias, cmdTemplate, entry.allow_extra_args ? 1 : 0, entry.description || null]
+    );
+  }
+
+  const installPowerShell = buildInstallPowerShell({ cfToken: tunnelToken, connectorSecret, tunnelUrl, aliases: allAliases, port: CONNECTOR_PORT });
+  const connectorEnv = buildConnectorEnv({ connectorSecret, aliases: allAliases, port: CONNECTOR_PORT });
+  const startConnectorBat = buildStartConnectorBat();
+  const installScript = buildInstallScript({ cfToken: tunnelToken, connectorSecret, tunnelUrl, aliases: allAliases, port: CONNECTOR_PORT });
+
+  return {
+    ok: true,
+    config_id: finalConfigId,
+    device_id,
+    tunnel_url: tunnelUrl,
+    connector_secret: connectorSecret,
+    cf_tunnel_id: tunnelId,
+    credential_source: provisioningCredentials.source,
+    dns_record: {
+      domain: DNS_DOMAIN,
+      name: dnsRecordName,
+      type: "CNAME",
+      content: tunnelId ? `${tunnelId}.cfargotunnel.com.` : null,
+    },
+    app_routes: await loadLocalAppRoutes(pool, finalConfigId),
+    installation: {
+      aliases: allAliases.map((a) => a.alias),
+      install_bat: installScript,
+      install_ps1: installPowerShell,
+      files: {
+        ".env": connectorEnv,
+        "start-connector.bat": startConnectorBat,
+        "install-local-connector.ps1": installPowerShell,
+        "install.bat": installScript,
+      },
+      local_runtime: {
+        port: CONNECTOR_PORT,
+        env_file: ".env",
+        start_command: "start-connector.bat",
+        tunnel_command: `cloudflared service install ${tunnelToken}`,
+      },
+    },
+  };
+}
 
 export function buildLocalConnectorInstallRoutes(deps) {
   const { requireBackendApiKey } = deps;
@@ -495,6 +782,22 @@ export function buildLocalConnectorInstallRoutes(deps) {
         [resolvedUserId, resolvedTenantId, device_id]
       );
       const finalConfigId = cfgRow.config_id;
+      const hostnameForRoutes = tunnelUrl ? new URL(tunnelUrl).hostname : null;
+      const localAppRoutes = hostnameForRoutes ? buildDefaultLocalAppRoutes({
+        hostname: hostnameForRoutes,
+        localApps: req.body?.local_apps || [],
+      }) : [];
+      if (localAppRoutes.length) {
+        await seedLocalAppRoutes(pool, finalConfigId, localAppRoutes);
+        if (tunnelId) {
+          await publishTunnelIngressRoutes(
+            accountId,
+            tunnelId,
+            toCloudflareIngressRoutes(localAppRoutes),
+            provisioningCredentials.cloudflareToken
+          );
+        }
+      }
 
       const allAliases = [...DEFAULT_WINDOWS_ALIASES, ...custom_aliases];
       for (const entry of allAliases) {
@@ -538,6 +841,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
         connector_secret: connectorSecret,
         cf_tunnel_id: tunnelId,
         credential_source: provisioningCredentials.source,
+        app_routes: await loadLocalAppRoutes(pool, finalConfigId),
         cloud_run_env: {
           CONNECTOR_LOCAL_API_KEY: connectorSecret,
           instruction: `gcloud run services update http-generic-api --region=europe-west1 --update-env-vars="CONNECTOR_LOCAL_API_KEY=${connectorSecret}"`,
@@ -590,7 +894,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
         "SELECT alias, command_template, allow_extra_args, description FROM `local_connector_shell_allowlists` WHERE config_id = ?",
         [config.config_id]
       );
-      return res.status(200).json({ ok: true, installed: true, config, aliases });
+      const appRoutes = await loadLocalAppRoutes(getPool(), config.config_id);
+      return res.status(200).json({ ok: true, installed: true, config, aliases, app_routes: appRoutes });
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "status_failed", message: err.message } });
     }

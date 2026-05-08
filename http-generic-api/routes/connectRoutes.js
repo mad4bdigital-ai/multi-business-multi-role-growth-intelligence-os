@@ -1,17 +1,18 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
-import { randomUUID, randomBytes } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
 import jwt from "jsonwebtoken";
+import { provisionLocalConnectorInstall } from "./localConnectorInstallRoutes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECT_STATIC = join(__dirname, "../public/connect");
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
-const CONNECTOR_SUBDOMAIN_SUFFIX = ".connector.mad4b.com";
+const VALID_N8N_ACTIVATION_MODES = new Set(["managed_main_server", "self_hosted_local"]);
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 
@@ -164,9 +165,10 @@ export function buildConnectRoutes(deps) {
           status: connection.status,
           cloudflare_mode: connection.cloudflare_mode,
           google_auth_mode: connection.google_auth_mode,
+          n8n_activation_mode: connection.n8n_activation_mode || "managed_main_server",
           device_count: connection.device_count,
           activated_at: connection.activated_at,
-        } : { mode: null, status: null, cloudflare_mode: "managed", google_auth_mode: "managed", device_count: 0, activated_at: null },
+        } : { mode: null, status: null, cloudflare_mode: "managed", google_auth_mode: "managed", n8n_activation_mode: "managed_main_server", device_count: 0, activated_at: null },
         devices: devices.map(d => ({ device_id: d.device_id, tunnel_url: d.tunnel_url, is_enabled: Boolean(d.is_enabled) })),
       });
     } catch (err) {
@@ -178,10 +180,13 @@ export function buildConnectRoutes(deps) {
   router.post("/connect/activate", requireBackendApiKey, requireUserJwt, async (req, res) => {
     try {
       const { user_id, tenant_id } = req.auth;
-      const { mode, cloudflare_mode, google_auth_mode, cf_api_token, cf_account_id, hostinger_api_key } = req.body || {};
+      const { mode, cloudflare_mode, google_auth_mode, n8n_activation_mode = "managed_main_server", cf_api_token, cf_account_id, hostinger_api_key } = req.body || {};
 
       if (!mode || !["managed", "dedicated"].includes(mode)) {
         return res.status(400).json({ ok: false, error: { code: "invalid_mode", message: "mode must be 'managed' or 'dedicated'." } });
+      }
+      if (!VALID_N8N_ACTIVATION_MODES.has(n8n_activation_mode)) {
+        return res.status(400).json({ ok: false, error: { code: "invalid_n8n_activation_mode", message: "n8n_activation_mode must be 'managed_main_server' or 'self_hosted_local'." } });
       }
 
       const membership = await fetchActiveMembership(user_id);
@@ -210,16 +215,17 @@ export function buildConnectRoutes(deps) {
       const gaMode = google_auth_mode || "managed";
       await pool.query(
         `INSERT INTO \`tenant_backend_connections\`
-           (connection_id, tenant_id, connection_mode, cloudflare_mode, google_auth_mode, status, activated_at)
-         VALUES (?, ?, ?, ?, ?, 'active', NOW())
+           (connection_id, tenant_id, connection_mode, cloudflare_mode, google_auth_mode, n8n_activation_mode, status, activated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())
          ON DUPLICATE KEY UPDATE
            connection_mode = VALUES(connection_mode),
            cloudflare_mode = VALUES(cloudflare_mode),
            google_auth_mode = VALUES(google_auth_mode),
+           n8n_activation_mode = VALUES(n8n_activation_mode),
            status = 'active',
            activated_at = COALESCE(activated_at, NOW()),
            updated_at = NOW()`,
-        [connectionId, resolvedTenantId, mode, cfMode, gaMode]
+        [connectionId, resolvedTenantId, mode, cfMode, gaMode, n8n_activation_mode]
       );
 
       const connection = await fetchTenantConnection(resolvedTenantId);
@@ -230,6 +236,7 @@ export function buildConnectRoutes(deps) {
           status: connection.status,
           cloudflare_mode: connection.cloudflare_mode,
           google_auth_mode: connection.google_auth_mode,
+          n8n_activation_mode: connection.n8n_activation_mode || n8n_activation_mode,
           device_count: connection.device_count,
           activated_at: connection.activated_at,
         },
@@ -244,7 +251,7 @@ export function buildConnectRoutes(deps) {
   router.post("/connect/device-install", requireBackendApiKey, requireUserJwt, async (req, res) => {
     try {
       const { user_id, tenant_id } = req.auth;
-      const { device_id } = req.body || {};
+      const { device_id, hostname = null, cloudflare_connection_id = null, hostinger_connection_id = null, local_apps = [] } = req.body || {};
 
       if (!device_id || !/^[a-zA-Z0-9_-]{2,64}$/.test(device_id)) {
         return res.status(400).json({ ok: false, error: { code: "invalid_device_id", message: "device_id must be 2-64 alphanumeric/dash/underscore characters." } });
@@ -257,64 +264,23 @@ export function buildConnectRoutes(deps) {
         return res.status(403).json({ ok: false, error: { code: "no_tenant", message: "No active tenant found for this user." } });
       }
 
-      const pool = getPool();
-
-      // Check for existing config
-      const [existing] = await pool.query(
-        "SELECT config_id, tunnel_url, connector_secret FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1",
-        [user_id, resolvedTenantId, device_id]
-      );
-
-      let configId, tunnelUrl, connectorSecret;
-
-      if (existing.length) {
-        // Reuse existing
-        configId = existing[0].config_id;
-        tunnelUrl = existing[0].tunnel_url;
-        connectorSecret = existing[0].connector_secret;
-        if (!connectorSecret) {
-          connectorSecret = randomBytes(32).toString("hex");
-          await pool.query(
-            "UPDATE `local_connector_user_configs` SET connector_secret = ? WHERE config_id = ?",
-            [connectorSecret, configId]
-          );
-        }
-      } else {
-        // Create new config with managed platform tunnel (user-scoped subdomain)
-        configId = randomUUID();
-        tunnelUrl = `https://${device_id}${CONNECTOR_SUBDOMAIN_SUFFIX}`;
-        connectorSecret = randomBytes(32).toString("hex");
-        await pool.query(
-          `INSERT INTO \`local_connector_user_configs\`
-             (config_id, user_id, tenant_id, device_id, tunnel_url, connector_secret, is_enabled)
-           VALUES (?, ?, ?, ?, ?, ?, 1)`,
-          [configId, user_id, resolvedTenantId, device_id, tunnelUrl, connectorSecret]
-        );
-
-        // Update device count on connection
-        await pool.query(
-          "UPDATE `tenant_backend_connections` SET device_count = device_count + 1 WHERE tenant_id = ?",
-          [resolvedTenantId]
-        );
-      }
-
-      const installSteps = [
-        `1. Download the connector for Windows: https://github.com/cloudflare/cloudflared/releases/latest`,
-        `2. Set your connector secret: set CONNECTOR_SECRET=${connectorSecret}`,
-        `3. Set the tunnel URL: set TUNNEL_URL=${tunnelUrl}`,
-        `4. Run: cloudflared tunnel --url http://localhost:7070`,
-        `5. Your device ID is: ${device_id}`,
-        `6. Verify connectivity: curl ${tunnelUrl}/health`,
-      ];
-
-      return res.json({
-        ok: true,
-        config_id: configId,
+      const connection = await fetchTenantConnection(resolvedTenantId);
+      const useManagedProvisioning = (connection?.cloudflare_mode || "managed") === "managed";
+      const result = await provisionLocalConnectorInstall(req, {
+        user_id,
+        tenant_id: resolvedTenantId,
         device_id,
-        tunnel_url: tunnelUrl,
-        connector_secret: connectorSecret,
-        install_steps: installSteps,
+        hostname,
+        cloudflare_connection_id,
+        hostinger_connection_id,
+        local_apps,
+        provisioning_credential_mode: useManagedProvisioning ? "managed" : "dedicated",
       });
+      await getPool().query(
+        "UPDATE `tenant_backend_connections` SET device_count = (SELECT COUNT(*) FROM `local_connector_user_configs` WHERE tenant_id = ? AND is_enabled = 1) WHERE tenant_id = ?",
+        [resolvedTenantId, resolvedTenantId]
+      );
+      return res.json(result);
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "device_install_failed", message: err.message } });
     }

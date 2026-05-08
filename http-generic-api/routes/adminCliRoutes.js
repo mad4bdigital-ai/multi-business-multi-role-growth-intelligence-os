@@ -641,7 +641,7 @@ export function buildAdminCliRoutes(deps) {
     const domain = String(req.query.domain || "mad4b.com").trim();
     const keyRef = String(req.query.api_key_ref || "cloud_plan").trim();
     try {
-      const result = await executeHostingerControl({ path: `/api/v1/dns/zone/${encodeURIComponent(domain)}`, method: "GET", api_key_ref: keyRef });
+      const result = await executeHostingerControl({ path: `/api/dns/v1/zones/${encodeURIComponent(domain)}`, method: "GET", api_key_ref: keyRef });
       return res.status(result.status || 200).json({ ok: result.ok, domain, records: result.data });
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "dns_list_failed", message: err.message } });
@@ -657,7 +657,7 @@ export function buildAdminCliRoutes(deps) {
     try {
       writeAuditLogAsync({ action: "admin_dns.upsert", resource_type: "dns_record", resource_id: `${name}.${domain}`, payload: { name, type, content, ttl } });
       const result = await executeHostingerControl({
-        path: `/api/v1/dns/zone/${encodeURIComponent(domain)}`,
+        path: `/api/dns/v1/zones/${encodeURIComponent(domain)}`,
         method: "PUT",
         api_key_ref,
         request_body: { overwrite: false, zone: [{ name, type, ttl, records: [{ content }] }] },
@@ -677,10 +677,10 @@ export function buildAdminCliRoutes(deps) {
     try {
       writeAuditLogAsync({ action: "admin_dns.delete", resource_type: "dns_record", resource_id: `${name}.${domain}`, payload: { name, type } });
       const result = await executeHostingerControl({
-        path: `/api/v1/dns/zone/${encodeURIComponent(domain)}`,
+        path: `/api/dns/v1/zones/${encodeURIComponent(domain)}`,
         method: "DELETE",
         api_key_ref,
-        request_body: { zone: [{ name, type }] },
+        request_body: { filters: [{ name, type }] },
       });
       return res.status(result.status || 200).json({ ok: result.ok, domain, name, type, result: result.data });
     } catch (err) {
