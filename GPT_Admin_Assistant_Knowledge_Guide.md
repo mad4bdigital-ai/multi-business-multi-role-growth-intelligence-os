@@ -33,7 +33,7 @@ On every new GPT session, run hard activation once before normal platform work:
 
 1. Announce: `Connecting to Growth Intelligence Platform...`
 2. Confirm the Custom GPT Action connection is signed in.
-3. Call `GET /activation/session-context` through the runtime action.
+3. Call `GET /activation/session-context` through the auth-dispatcher platform action.
 4. Read `platform_access` from the response. If missing or stale, call `GET /activation/platform-access`.
 5. Call `GET /activation/bootstrap-config` for the authoritative backend runtime bootstrap row. Response includes `source: backend_runtime`, `sheets_required: false`, `bootstrap_row` (system_name, api_base_url, environment, connector_url, github_repo, etc.), and live `platform_state` (tenant/device/connection counts, last_activation_at). No Sheets readback required.
 6. Run GitHub validation only through registry/bootstrap-resolved authority when `github_token_configured: true` in the bootstrap response.
@@ -152,67 +152,41 @@ Example:
 
 `GET /activation/session-context` in the Runtime scope loads same-user session history, related scopes, transcript availability, and `platform_access` for hard activation continuity. It is useful at the start of a GPT session and for recovery from prior degraded work. It does not replace Drive, Sheets bootstrap, GitHub validation, release readiness, or provider execution evidence. Raw transcript fields are optional, bounded, and should be requested only with `include_raw=true` when needed.
 
-## Scoped Action Files â€” 2-Connector Architecture (Sprint 38)
+## Scoped Action Files - Admin 2-Connector Architecture
 
-The GPT uses exactly **two** action connectors. Custom GPT is limited to 10 connectors Ã— 30 ops; this architecture consolidates platform ops into a single cloud client and keeps the local break-glass client separate.
+The Admin Assistant uses exactly **two** action connectors. Custom GPT is limited to 10 connectors x 30 ops; this architecture consolidates governed platform/admin work into a single auth-host client and keeps the local machine bridge separate.
 
 | Connector | File | Server URL | Ops | Purpose |
 |---|---|---:|---:|---|
-| **Platform** | `http-generic-api/openapi.custom-gpt.auth.yaml` | `https://auth.mad4b.com` | 16 | Activation, universal dispatcher, schema, GCloud, DNS, admin CLI, device provisioning, release readiness |
-| **Local** | `http-generic-api/openapi.custom-gpt.connector.yaml` | `https://connector.mad4b.com` | 7 | Direct break-glass shell/file/GitHub/gcloud on mohammedlap via Cloudflare Tunnel |
+| **Platform** | `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` | `https://auth.mad4b.com` | 18 | Hard activation, MCP-like `/system/*` discovery/calls, admin registry tools, admin control, schema import, and session continuity |
+| **Local** | `http-generic-api/openapi.custom-gpt.connector.yaml` | `https://connector.mad4b.com` | 7 | Standalone local execution bridge for break-glass shell/file/GitHub/gcloud on mohammedlap via Cloudflare Tunnel |
+
+`auth.mad4b.com` is the governed control plane and must be the first choice for admin work. The local connector is a standalone plugin/action because it touches the local environment; call it only after the platform action indicates local execution is needed, or when the cloud control plane is unavailable and break-glass recovery is explicitly required. If `connect.mad4b.com` is used as the connector-facing host alias, it must follow the same local-connector contract as `connector.mad4b.com`.
 
 ### Platform connector â€” operations
 
 | Operation | Path | Use |
 |---|---|---|
-| `getActivationEnvBootstrap` | `GET /activation/env-bootstrap` | Read non-secret Cloud Run env bootstrap config before provider validation |
 | `getActivationSessionContext` | `GET /activation/session-context` | Load session context and embedded platform access |
 | `getActivationPlatformAccess` | `GET /activation/platform-access` | Refresh access scope, counts, and degraded surfaces |
-| `dispatch` | `POST /dispatch` | Universal intent dispatcher â€” routes to correct module at runtime |
-| `listDispatchRoutes` | `GET /dispatch/routes` | List all active task_routes and which are directly dispatched |
-| `installDevice` | `POST /local-connector/install` | Provision Cloudflare tunnel + DNS + DB config + local install bundle for a user/device. Admin uses env credentials; customer/API auth uses DB app connections. |
-| `deviceInstallStatus` | `GET /local-connector/install/status` | Check if a device has been provisioned |
-| `deviceHealth` | `GET /local-connector/health` | Proxy health check to device tunnel without knowing its secret |
+| `listSystemTools` | `GET /system/tools` | List MCP-like governed system tools available to the current principal |
+| `callSystemTool` | `POST /system/tools/call` | Call fixed DB-backed system tools through runtime/principal validation |
+| `listSystemConnectors` | `GET /system/connectors` | Inspect connected systems through principal-aware scoping |
+| `getSystemConnector` | `GET /system/connectors/{system_id}` | Inspect one connected system and installations through principal-aware scoping |
+| `listAdminSystemTools` | `GET /admin/system/tools` | List admin-only system-layer tools |
+| `callAdminSystemTool` | `POST /admin/system/tools/call` | Call admin-only system-layer tools |
 | `schemaImportUpload` | `POST /admin/schema-import/upload` | Import JSON/YAML schema or repo URL into the platform |
 | `schemaImportRollback` | `POST /admin/schema-import/rollback` | Rollback the last schema import job |
-| `releaseReadiness` | `GET /admin/release/readiness` | CI/migration/agent health go/no-go decision |
-| `adminControl` | `POST /admin/cli/control` | Admin CLI â€” shell, gcloud, github, db, env, windows_app, hostinger |
-| `adminGcloud` | `POST /admin/cli/gcloud` | Run allowlisted GCloud administration actions |
-| `listDnsRecords` | `GET /admin/cli/dns` | List Hostinger DNS records for a managed domain |
-| `upsertDnsRecord` | `POST /admin/cli/dns` | Add or update a Hostinger DNS record |
-| `deleteDnsRecord` | `DELETE /admin/cli/dns` | Delete a Hostinger DNS record by explicit name and type |
+| `executeAdminControl` | `POST /admin/control` | Root-level admin CLI/control for env, db, GitHub, gcloud, Hostinger, and allowlisted local app operations |
 
-### Platform connector â€” dispatch routing
+### Platform connector - system-layer routing
 
-The `/dispatch` operation routes `intent_key` values to the correct backend module. At runtime, the platform resolves `intent_key â†’ task_routes â†’ target_module â†’ executor`.
+The `/system/*` operations behave like a small MCP facade over governed platform registries. The Admin Assistant should list tools first, choose a fixed tool name, and call it through `/system/tools/call` or `/admin/system/tools/call`. The backend enforces principal scope and DB/runtime validation; the GPT must not invent tool names, bypass registry checks, or use the local connector for work that can be completed through the auth-host system layer.
 
-**Directly dispatched (executes immediately and returns result):**
-
-| intent_key | Module | What it does |
-|---|---|---|
-| `local.shell.run` | `local_connector_shell` | Run an allowlisted shell alias on the user's device |
-| `local.file.read` | `local_connector_file` | Read a governed file from the user's device |
-| `local.file.write` | `local_connector_file` | Write a governed file to the user's device |
-| `local.health.check` | `local_connector_health` | Check device tunnel reachability |
-| `local.device.install` | `local_connector_install` | Provision a new device (returns `suggested_endpoint: POST /local-connector/install`) |
-
-**Dispatch body shape:**
-
-```json
-{
-  "intent_key": "local.shell.run",
-  "user_id": "...",
-  "tenant_id": "...",
-  "device_id": "mohammedlap",
-  "agent_id": "00000000-0000-4000-a000-000000000020",
-  "payload": { "alias": "git_status" }
-}
-```
-
-**When to use `/dispatch` vs local connector directly:**
-- Use `/dispatch` for **governed platform ops** â€” shell run, file access, health check on any user device, routed through skill grant validation and audit trail.
-- Use **local connector directly** (connector.mad4b.com) for **break-glass recovery** â€” when Cloud Run is down, for GitHub/gcloud CLI work that doesn't require platform routing.
-- Use `https://auth.mad4b.com/connect` for **self-serve onboarding** â€” signup/signin, DB credential capture, new-device install bundle, and the Custom GPT redirect.
+**When to use the auth-host system layer vs local connector directly:**
+- Use **auth-dispatcher first** (`auth.mad4b.com`) for hard activation, MCP-like tool discovery, connector registry inspection, admin control, schema import, and any routed/runtime-validated operation.
+- Use **local connector directly** (`connector.mad4b.com`, or `connect.mad4b.com` if configured as the connector host alias) only for local-machine break-glass recovery, local shell/file/GitHub/gcloud checks, or local health validation that cannot be routed through the cloud control plane.
+- Use `https://auth.mad4b.com/connect` for **self-serve onboarding** - signup/signin, DB credential capture, new-device install bundle, and the Custom GPT redirect.
 
 ### Legacy scoped action files (still available â€” do not add to GPT)
 
@@ -232,7 +206,7 @@ These scoped files remain in the repo for specific direct use cases but are not 
 
 ## Runtime Scope
 
-Use `openapi.custom-gpt.runtime.yaml` for activation and governed execution.
+Use `openapi.custom-gpt.runtime.yaml` only for direct runtime clients outside the Admin GPT's two-action setup. In the Admin Assistant, activation is exposed through `openapi.custom-gpt.auth-dispatcher.yaml` on `auth.mad4b.com`.
 
 Key operations and functional use:
 

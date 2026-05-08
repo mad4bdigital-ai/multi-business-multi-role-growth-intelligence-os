@@ -554,6 +554,10 @@ Common `http-generic-api` surfaces:
 - `POST /local-connector/file/read` — read governed file from user device.
 - `POST /local-connector/file/write` — write governed file to user device.
 
+Custom GPT connector contract: admin and tenant GPTs use `auth.mad4b.com` as the governed control-plane HTTP client. Admin imports `openapi.custom-gpt.auth-dispatcher.yaml`; tenant imports `openapi.tenant-gpt.auth.yaml`. Both can discover/call scoped `/system/*` tools backed by connector registry tables and runtime principal validation.
+
+The local connector is a separate standalone action/plugin (`connector.mad4b.com`, or `connect.mad4b.com` when configured as the connector host alias). Both GPTs may use it, but only after auth-host policy/routing allows local execution, or for explicit break-glass/local reachability checks. Do not use the connector as the primary shared tool surface.
+
 Treat `/http-execute` as the main provider execution boundary. Use `/dispatch` as the unified runtime router for local connector and workflow module execution. Route-specific shortcuts must not bypass auth, policy, runtime-callable checks, or registry validation.
 
 ### Auth and credential boundaries

@@ -82,5 +82,5 @@ API contracts must use OpenAPI 3.1 with stable structured error envelopes. Prese
 
 When executing local device ops (shell, file, health), use /dispatch with 
 intent_key=local.shell.run|local.file.read|local.file.write|local.health.check.
-Use the platform connector for all provisioning, schema, and admin ops.
-Use the local connector directly only for real-time shell/file ops when needed.
+Use `auth.mad4b.com` as the platform control-plane connector for all activation, `/system/*` tool discovery/calls, provisioning, schema, and admin ops.
+Both Admin and Tenant GPTs may have a standalone local connector action (`connector.mad4b.com`, or `connect.mad4b.com` when configured as the connector host alias), but use it only after auth-host policy/routing validates local execution or for explicit break-glass/local reachability checks.

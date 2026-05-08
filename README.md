@@ -211,7 +211,7 @@ Completed sprints: WordPress extraction (S2), http-generic-api decomposition (S3
 - `http-generic-api/routes/localConnectorRoutes.js` â€” `POST /local-connector/shell`, `POST /local-connector/file/read`, `POST /local-connector/file/write`, `GET /local-connector/health`.
 - `http-generic-api/routes/localConnectorInstallRoutes.js` â€” `POST /local-connector/install` auto-provisions a Cloudflare tunnel per user/device (CF API + Hostinger DNS), seeds shell allowlist, returns `install.bat`, `install-local-connector.ps1`, `.env`, and `start-connector.bat`. Owner/admin auth uses root env credentials; user/API-client auth resolves Cloudflare and Hostinger credentials from DB app connections. Idempotent for repeat login and new-device routing.
 - `http-generic-api/routes/dispatchRoutes.js` â€” `POST /dispatch` universal intent dispatcher: resolves `intent_key â†’ task_routes â†’ target_module â†’ MODULE_EXECUTORS`, validates agent skill grants, executes or returns routing advice. `GET /dispatch/routes` lists all active routes with `directly_dispatched` flag.
-- `http-generic-api/openapi.custom-gpt.auth.yaml` â€” consolidated 16-operation OpenAPI spec for `auth.mad4b.com`, replacing 8+ separate scoped connectors in the GPT and centralizing activation, dispatch, GCloud, DNS, schema, admin, and device provisioning.
+- `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` - admin single-host OpenAPI spec for `auth.mad4b.com`, centralizing hard activation, `/system/*` MCP-like registry tools, admin control, schema import, and session continuity. Tenant GPT uses `http-generic-api/openapi.tenant-gpt.auth.yaml` on the same host with OAuth/user-JWT scoping.
 - `local-connector/` â€” Node.js break-glass connector running on `mohammedlap` at port 7070, exposed via Cloudflare Tunnel to `connector.mad4b.com`. Also routes `n8n.mad4b.com â†’ localhost:5678`.
 
 ### Migrations (032â€“035)
@@ -223,14 +223,16 @@ Completed sprints: WordPress extraction (S2), http-generic-api decomposition (S3
 | `034_sprint37_local_connector_workflow_routes.sql` | S37 | workflows, task_routes, agent_skills (skl-loc-con-001/002/003), agent_skill_grants, agent_workflow_bindings, agent_supervision_policy |
 | `035_sprint39_customer_local_integration_credentials.sql` | S39 | `cloudflare` and `hostinger` app integration catalog rows for customer-owned routing credentials |
 
-### Custom GPT â€” 2-connector architecture (Sprint 38)
+### Custom GPT - auth-host + local connector architecture
 
-The GPT uses exactly two action connectors:
-- **Platform** (`openapi.custom-gpt.auth.yaml` â†’ `auth.mad4b.com`): 16 ops including `/activation/env-bootstrap`, `/dispatch`, `/admin/cli/gcloud`, `/admin/cli/dns`, schema import, release readiness, and governed device provisioning
-- **Local** (`openapi.custom-gpt.connector.yaml` â†’ `connector.mad4b.com`): 7 ops for direct break-glass access to mohammedlap
+Both Custom GPT assistants use `auth.mad4b.com` as the governed control-plane client and may use a standalone local connector action when local-device execution is required:
+
+- **Admin Platform** (`openapi.custom-gpt.auth-dispatcher.yaml` -> `auth.mad4b.com`): hard activation, `/system/*` MCP-like registry tools, `/admin/system/*`, admin control, schema import, and session continuity. Auth: admin/service `BACKEND_API_KEY`.
+- **Tenant Platform** (`openapi.tenant-gpt.auth.yaml` -> `auth.mad4b.com`): tenant OAuth sign-in, connection activation, tenant-scoped `/system/*` registry tools, local connector install/status/health, and app connections. Auth: tenant OAuth/user JWT.
+- **Local Connector** (`openapi.custom-gpt.connector.yaml` -> `connector.mad4b.com`, or `connect.mad4b.com` if configured as the connector host alias): standalone local execution bridge for break-glass admin work or tenant-owned device workflows after platform routing/validation.
 - **Self-serve setup** (`https://auth.mad4b.com/connect`): signup/signin, DB credential capture for Cloudflare + Hostinger, new-device install bundle generation, and Custom GPT redirect.
 
-Intent routing via `POST /dispatch` validates `agent_skill_grants` at runtime and executes directly for local connector modules or returns `suggested_endpoint` for other modules.
+The local connector is intentionally a separate plugin/action because it connects to a local environment. Use the auth-host system layer first for discovery, policy, and runtime validation; call the connector only for approved local execution or explicit break-glass recovery.
 
 ### Core runtime state
 
