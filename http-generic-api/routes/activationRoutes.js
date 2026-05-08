@@ -517,8 +517,8 @@ export function buildActivationRoutes(deps) {
            SUM(CASE WHEN tbc.status = 'active' THEN 1 ELSE 0 END) AS active_connections,
            MAX(tbc.activated_at)                                 AS last_activation_at
          FROM tenants t
-         LEFT JOIN memberships m ON m.tenant_id = t.tenant_id
-         LEFT JOIN tenant_backend_connections tbc ON tbc.tenant_id = t.tenant_id`
+         LEFT JOIN memberships m ON CAST(m.tenant_id AS CHAR) COLLATE utf8mb4_unicode_ci = CAST(t.tenant_id AS CHAR) COLLATE utf8mb4_unicode_ci
+         LEFT JOIN tenant_backend_connections tbc ON CAST(tbc.tenant_id AS CHAR) COLLATE utf8mb4_unicode_ci = CAST(t.tenant_id AS CHAR) COLLATE utf8mb4_unicode_ci`
       );
 
       const [[deviceRow]] = await pool.query(
