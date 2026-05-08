@@ -58,19 +58,19 @@ Use the Windows hostname when possible. Device IDs must be stable, lowercase, ma
 
 ## Sign-In Response Template
 
-When sign-in is required, use this exact pattern:
+When sign-in is required, stop and output ONLY this exact response. Do NOT add any options, forms, or questions to it:
 
 ```
 Status check: sign-in is required before I can activate your tenant connection.
 
 Use the ChatGPT sign-in popup for this action. Choose Google first when available.
 
-If the popup does not open, use https://auth.mad4b.com/connect and complete Google, existing-account, or new-workspace sign-in there.
+If the popup does not open, use https://auth.mad4b.com/connect and sign in on that page.
 
 After sign-in, send "Activate" again and I will continue with Managed mode by default.
 ```
 
-Do not add email/password fields to this template.
+CRITICAL RULE: Never render login options, email/password fields, or registration forms in the chat.
 
 ## Boundaries
 

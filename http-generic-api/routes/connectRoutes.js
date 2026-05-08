@@ -29,7 +29,7 @@ function requireUserJwt(req, res, next) {
   if (req.auth?.mode === "user_jwt") return next();
   const payload = verifyUserJwt(req.headers.authorization);
   if (!payload || !payload.user_id) {
-    return res.status(403).json({ ok: false, error: { code: "user_jwt_required", message: "Sign in required." } });
+    return res.status(401).json({ ok: false, error: { code: "user_jwt_required", message: "Sign in required." } });
   }
   req.auth = { mode: "user_jwt", user_id: payload.user_id, tenant_id: payload.tenant_id, is_admin: false };
   return next();
