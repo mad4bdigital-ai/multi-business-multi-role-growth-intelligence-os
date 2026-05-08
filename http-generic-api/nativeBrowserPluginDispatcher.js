@@ -2,6 +2,35 @@ import { resolveNativeBrowserPlugin } from "./nativeBrowserPluginRegistry.js";
 
 const DESCRIPTIVE_ACTIONS = new Set(["status", "describe"]);
 const URL_BOUND_ACTIONS = new Set(["open_url", "download_allowlisted_file", "upload_allowlisted_file"]);
+const BROWSER_CLIENT_ALIASES = new Map([
+  ["", "local_default"],
+  ["default", "local_default"],
+  ["local", "local_default"],
+  ["local_default", "local_default"],
+  ["local-device-default", "local_default"],
+  ["local_device_default", "local_default"],
+  ["system", "local_default"],
+  ["system_default", "local_default"],
+  ["edge", "edge"],
+  ["msedge", "edge"],
+  ["microsoft-edge", "edge"],
+  ["microsoft_edge", "edge"],
+  ["chrome", "chrome"],
+  ["google-chrome", "chrome"],
+  ["google_chrome", "chrome"],
+  ["chromium", "chromium"],
+  ["firefox", "firefox"],
+  ["webkit", "webkit"]
+]);
+
+const PLAYWRIGHT_CLIENTS = {
+  edge: { browser_type: "chromium", channel: "msedge" },
+  chrome: { browser_type: "chromium", channel: "chrome" },
+  chromium: { browser_type: "chromium", channel: null },
+  firefox: { browser_type: "firefox", channel: null },
+  webkit: { browser_type: "webkit", channel: null }
+};
+
 const FORBIDDEN_DISPATCH_ACTIONS = new Set([
   "eval",
   "evaluate",
@@ -38,6 +67,77 @@ function normalizeAllowlist(value) {
     return value.split(",").map((entry) => normalizeKey(entry)).filter(Boolean);
   }
   return [];
+}
+
+function normalizeBrowserClient(value) {
+  const normalized = normalizeKey(value).replace(/\s+/g, "_");
+  return BROWSER_CLIENT_ALIASES.get(normalized) || normalized;
+}
+
+function readDefaultBrowserClientHint(request, deps) {
+  if (request.default_browser_client) {
+    return normalizeBrowserClient(request.default_browser_client);
+  }
+  if (request.defaultBrowserClient) {
+    return normalizeBrowserClient(request.defaultBrowserClient);
+  }
+  if (typeof deps.defaultBrowserClient === "string") {
+    return normalizeBrowserClient(deps.defaultBrowserClient);
+  }
+  if (typeof deps.defaultBrowserClientProvider === "function") {
+    return normalizeBrowserClient(deps.defaultBrowserClientProvider());
+  }
+  if (typeof deps.detectDefaultBrowserClient === "function") {
+    return normalizeBrowserClient(deps.detectDefaultBrowserClient());
+  }
+  return null;
+}
+
+function buildPlaywrightClientConfig(client) {
+  const config = PLAYWRIGHT_CLIENTS[client] || PLAYWRIGHT_CLIENTS.chromium;
+  return {
+    browser_type: config.browser_type,
+    channel: config.channel,
+    use_installed_channel: Boolean(config.channel)
+  };
+}
+
+function resolveBrowserClient(plugin, request = {}, deps = {}) {
+  const supportedClients = Array.isArray(plugin.supported_browser_clients) ? plugin.supported_browser_clients : [];
+  const fallbackClients = Array.isArray(plugin.fallback_browser_clients) ? plugin.fallback_browser_clients : [];
+  const requestedClient = normalizeBrowserClient(request.browser_client || request.browserClient || "");
+  const defaultClient = readDefaultBrowserClientHint(request, deps);
+  const attempts = [];
+
+  if (requestedClient === "local_default") {
+    if (defaultClient) {
+      attempts.push(defaultClient);
+    }
+    attempts.push(...fallbackClients);
+  } else {
+    attempts.push(requestedClient);
+  }
+
+  const supportedAttempts = attempts.filter((client) => client && supportedClients.includes(client) && client !== "local_default");
+  const resolvedClient = supportedAttempts[0];
+
+  if (!resolvedClient) {
+    throw browserPluginError("browser_plugin_browser_client_not_supported", "Browser client is not supported for this plugin.", 400, {
+      plugin_key: plugin.plugin_key,
+      requested_browser_client: requestedClient,
+      default_browser_client: defaultClient,
+      supported_browser_clients: supportedClients
+    });
+  }
+
+  return {
+    requested: requestedClient,
+    resolved: resolvedClient,
+    default_browser_client: defaultClient,
+    resolution_strategy: requestedClient === "local_default" ? plugin.default_client_strategy : "explicit_request",
+    fallback_browser_clients: fallbackClients,
+    playwright: plugin.library === "playwright" ? buildPlaywrightClientConfig(resolvedClient) : null
+  };
 }
 
 function hostnameMatchesRule(hostname, rule) {
@@ -101,6 +201,9 @@ function buildStatus(plugin, action, deps = {}) {
     execution_surfaces: plugin.execution_surfaces,
     capability_groups: plugin.capability_groups || [],
     allowed_actions: plugin.allowed_actions,
+    default_client_strategy: plugin.default_client_strategy,
+    supported_browser_clients: plugin.supported_browser_clients || [],
+    fallback_browser_clients: plugin.fallback_browser_clients || [],
     dependency_status: adapter && typeof adapter.dispatch === "function" ? "available" : "missing",
     executable: plugin.lifecycle !== "research_only"
   };
@@ -126,6 +229,7 @@ function buildAdapterInput(plugin, request, normalized) {
     schema: request.schema || null,
     artifact_key: request.artifact_key || null,
     options: request.options || {},
+    browser_client: normalized.browser_client,
     domain_allowlist: normalized.url?.domain_allowlist || normalizeAllowlist(request.domain_allowlist)
   };
 }
@@ -183,18 +287,23 @@ export function validateNativeBrowserPluginRequest(request = {}) {
   const normalizedUrl = URL_BOUND_ACTIONS.has(action)
     ? validateUrlAllowlist(request.url, request.domain_allowlist)
     : null;
+  const normalizedBrowserClient = resolveBrowserClient(plugin, request, {});
 
   return {
     ok: true,
     plugin,
     action,
     descriptive: false,
-    url: normalizedUrl
+    url: normalizedUrl,
+    browser_client: normalizedBrowserClient
   };
 }
 
 export async function dispatchNativeBrowserPluginRequest(request = {}, deps = {}) {
   const normalized = validateNativeBrowserPluginRequest(request);
+  if (!normalized.descriptive) {
+    normalized.browser_client = resolveBrowserClient(normalized.plugin, request, deps);
+  }
 
   if (normalized.descriptive) {
     return buildStatus(normalized.plugin, normalized.action, deps);

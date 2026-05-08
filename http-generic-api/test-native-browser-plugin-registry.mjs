@@ -36,6 +36,10 @@ assert(playwright.allowed_actions.includes("wait_for_selector"), "Playwright plu
 assert(playwright.allowed_actions.includes("download_allowlisted_file"), "Playwright plugin supports allowlisted downloads");
 assert(playwright.allowed_actions.includes("upload_allowlisted_file"), "Playwright plugin supports allowlisted uploads");
 assert(playwright.capability_groups.includes("qa"), "Playwright plugin advertises QA capability group");
+assert.equal(playwright.default_client_strategy, "local_device_default_first", "Playwright prefers local device default browser");
+assert(playwright.supported_browser_clients.includes("edge"), "Playwright supports Microsoft Edge client");
+assert(playwright.supported_browser_clients.includes("chrome"), "Playwright supports Google Chrome client");
+assert.deepEqual(playwright.fallback_browser_clients.slice(0, 2), ["edge", "chrome"], "Playwright falls back through common local browser clients");
 
 const stagehand = resolveNativeBrowserPlugin("browser.stagehand");
 assert.equal(stagehand?.requires_approval_hold, true, "Stagehand plugin is approval gated");

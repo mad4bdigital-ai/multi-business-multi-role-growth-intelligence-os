@@ -30,6 +30,9 @@ assert.equal(status.plugin_key, "browser.playwright");
 assert.equal(status.dependency_status, "missing");
 assert.equal(status.executable, true);
 assert(status.allowed_actions.includes("capture_screenshot"));
+assert.equal(status.default_client_strategy, "local_device_default_first");
+assert(status.supported_browser_clients.includes("edge"));
+assert(status.supported_browser_clients.includes("chrome"));
 
 assertBrowserPluginError(
   () => validateNativeBrowserPluginRequest({ plugin_key: "browser.unknown", action: "status" }),
@@ -88,6 +91,18 @@ assertBrowserPluginError(
   "browser_plugin_invalid_url_protocol"
 );
 
+assertBrowserPluginError(
+  () =>
+    validateNativeBrowserPluginRequest({
+      plugin_key: "browser.playwright",
+      action: "open_url",
+      url: "https://example.com/page",
+      domain_allowlist: ["example.com"],
+      browser_client: "safari"
+    }),
+  "browser_plugin_browser_client_not_supported"
+);
+
 await assertBrowserPluginRejects(
   dispatchNativeBrowserPluginRequest({
     plugin_key: "browser.playwright",
@@ -127,6 +142,64 @@ assert.equal(calls[0].plugin.plugin_key, "browser.playwright");
 assert.equal(calls[0].plugin.library, "playwright");
 assert.equal(calls[0].action, "open_url");
 assert.deepEqual(calls[0].domain_allowlist, ["*.example.com"]);
+assert.equal(calls[0].browser_client.requested, "local_default");
+assert.equal(calls[0].browser_client.resolved, "edge");
+assert.equal(calls[0].browser_client.playwright.browser_type, "chromium");
+assert.equal(calls[0].browser_client.playwright.channel, "msedge");
+
+calls.length = 0;
+const explicitChrome = await dispatchNativeBrowserPluginRequest(
+  {
+    plugin_key: "browser.playwright",
+    action: "open_url",
+    url: "https://app.example.com/page",
+    domain_allowlist: ["*.example.com"],
+    browser_client: "chrome"
+  },
+  {
+    adapters: {
+      playwright: {
+        dispatch(input) {
+          calls.push(input);
+          return { browser_client: input.browser_client.resolved };
+        }
+      }
+    },
+    defaultBrowserClient: "edge"
+  }
+);
+
+assert.equal(explicitChrome.result.browser_client, "chrome");
+assert.equal(calls[0].browser_client.requested, "chrome");
+assert.equal(calls[0].browser_client.resolved, "chrome");
+assert.equal(calls[0].browser_client.playwright.channel, "chrome");
+
+calls.length = 0;
+await dispatchNativeBrowserPluginRequest(
+  {
+    plugin_key: "browser.playwright",
+    action: "open_url",
+    url: "https://app.example.com/page",
+    domain_allowlist: ["*.example.com"]
+  },
+  {
+    adapters: {
+      playwright: {
+        dispatch(input) {
+          calls.push(input);
+          return { browser_client: input.browser_client.resolved };
+        }
+      }
+    },
+    detectDefaultBrowserClient() {
+      return "chrome";
+    }
+  }
+);
+
+assert.equal(calls[0].browser_client.requested, "local_default");
+assert.equal(calls[0].browser_client.default_browser_client, "chrome");
+assert.equal(calls[0].browser_client.resolved, "chrome");
 
 const stagehandExecuted = await dispatchNativeBrowserPluginRequest(
   {

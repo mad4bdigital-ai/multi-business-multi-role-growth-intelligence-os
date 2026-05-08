@@ -49,6 +49,9 @@ export const NATIVE_BROWSER_PLUGIN_TIERS = [
     tier: 1,
     lifecycle: "candidate_default",
     library: "playwright",
+    default_client_strategy: "local_device_default_first",
+    supported_browser_clients: ["local_default", "edge", "chrome", "chromium", "firefox", "webkit"],
+    fallback_browser_clients: ["edge", "chrome", "chromium"],
     execution_surfaces: ["local_connector", "cloud_worker"],
     risk_tier: "controlled_browser",
     capability_groups: ["session", "navigation", "interaction", "extraction", "artifacts", "qa"],
@@ -93,6 +96,9 @@ export const NATIVE_BROWSER_PLUGIN_TIERS = [
     tier: 2,
     lifecycle: "chrome_specialist",
     library: "puppeteer",
+    default_client_strategy: "local_device_default_first",
+    supported_browser_clients: ["local_default", "edge", "chrome", "chromium"],
+    fallback_browser_clients: ["edge", "chrome", "chromium"],
     execution_surfaces: ["local_connector", "cloud_worker"],
     risk_tier: "controlled_browser_chromium",
     capability_groups: ["session", "navigation", "interaction", "extraction", "artifacts", "qa"],
@@ -135,6 +141,9 @@ export const NATIVE_BROWSER_PLUGIN_TIERS = [
     tier: 3,
     lifecycle: "approval_gated_candidate",
     library: "stagehand",
+    default_client_strategy: "local_device_default_first",
+    supported_browser_clients: ["local_default", "edge", "chrome", "chromium"],
+    fallback_browser_clients: ["edge", "chrome", "chromium"],
     execution_surfaces: ["local_connector", "cloud_worker"],
     risk_tier: "ai_adaptive_browser",
     capability_groups: ["session", "navigation", "interaction", "extraction", "artifacts", "ai_adaptive"],
@@ -171,6 +180,9 @@ export const NATIVE_BROWSER_PLUGIN_TIERS = [
     tier: 4,
     lifecycle: "research_only",
     library: "remote-browser",
+    default_client_strategy: "remote_research_only",
+    supported_browser_clients: [],
+    fallback_browser_clients: [],
     execution_surfaces: [],
     risk_tier: "legacy_extension_browser_research",
     allowed_actions: [],
@@ -225,6 +237,24 @@ export function validateNativeBrowserPluginDefinition(definition = {}) {
 
   if (definition.lifecycle !== "research_only" && allowedActions.length === 0) {
     errors.push("non-research browser plugins must declare at least one safe action.");
+  }
+
+  if (definition.lifecycle !== "research_only") {
+    const supportedClients = Array.isArray(definition.supported_browser_clients)
+      ? definition.supported_browser_clients
+      : [];
+    const fallbackClients = Array.isArray(definition.fallback_browser_clients)
+      ? definition.fallback_browser_clients
+      : [];
+
+    if (!supportedClients.includes("local_default")) {
+      errors.push("browser plugins must support local_default browser client resolution.");
+    }
+    for (const fallbackClient of fallbackClients) {
+      if (!supportedClients.includes(fallbackClient)) {
+        errors.push(`fallback browser client is not supported: ${fallbackClient}`);
+      }
+    }
   }
 
   return {
