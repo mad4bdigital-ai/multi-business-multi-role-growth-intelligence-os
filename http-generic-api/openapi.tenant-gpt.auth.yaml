@@ -25,15 +25,6 @@ components:
       scheme: bearer
       bearerFormat: User JWT
       description: "After sign-in, send Authorization: Bearer <token> returned from /auth/login or /auth/google. This is a per-user JWT — NOT the platform BACKEND_API_KEY."
-    userOAuth:
-      type: oauth2
-      description: "Recommended for Custom GPT Actions. Configure Authorization URL https://auth.mad4b.com/auth/oauth/authorize, Token URL https://auth.mad4b.com/auth/oauth/token, scope tenant."
-      flows:
-        authorizationCode:
-          authorizationUrl: https://auth.mad4b.com/auth/oauth/authorize
-          tokenUrl: https://auth.mad4b.com/auth/oauth/token
-          scopes:
-            tenant: Tenant workspace access.
   schemas:
     AuthResult:
       type: object
