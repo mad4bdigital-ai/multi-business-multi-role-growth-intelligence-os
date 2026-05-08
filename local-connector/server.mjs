@@ -43,7 +43,7 @@ loadEnv(path.join(__dirname, '.env'));
 // Config
 // ---------------------------------------------------------------------------
 
-const PORT = parseInt(process.env.CONNECTOR_PORT ?? '3001', 10);
+const PORT = parseInt(process.env.CONNECTOR_PORT ?? '7070', 10);
 const API_KEY = process.env.BACKEND_API_KEY ?? '';
 const SHELL_ENABLED = process.env.CONNECTOR_SHELL_ENABLED === 'true';
 const FILES_ENABLED = process.env.CONNECTOR_FILES_ENABLED === 'true';
@@ -120,7 +120,8 @@ function runCommand(command, args, timeoutMs) {
       if (!settled) {
         settled = true;
         clearTimeout(timer);
-        resolve({ stdout, stderr, exitCode: code ?? 0 });
+        const exitCode = code ?? 0;
+        resolve({ stdout, stderr, exitCode, exit_code: exitCode });
       }
     });
 

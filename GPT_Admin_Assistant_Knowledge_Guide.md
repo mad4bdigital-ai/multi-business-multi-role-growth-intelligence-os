@@ -188,6 +188,13 @@ Admin-only activation tools exposed through `/system/tools/call`:
 - `activation_drive_probe` - checks Google Drive transport for targeted recovery.
 - `activation_sheets_bootstrap_read` - reads the configured Activation Bootstrap Config row for targeted recovery.
 - `activation_github_validate` - validates GitHub using bootstrap/env repository binding, with optional `github_owner`, `github_repo`, and `github_branch` arguments.
+- `activation_bootstrap_config_upsert` - writes the GitHub activation binding into DB runtime config so activation can recover without a Cloud Run env update.
+
+Activation bootstrap recovery when Cloud Run cannot run `gcloud`:
+1. Do not retry `gcloud run services update` from Cloud Run when the error is `spawn gcloud ENOENT`.
+2. Call `/system/tools/call` or `/admin/system/tools/call` with `name: "activation_bootstrap_config_upsert"` and `arguments: { "github_parent_action_key": "github_api_mcp", "github_endpoint_key": "github_get_repository", "github_owner": "mad4bdigital-ai", "github_repo": "multi-business-multi-role-growth-intelligence-os", "github_branch": "main" }`.
+3. Then call `activation_provider_bootstrap_validate`.
+4. Use the local connector `/gcloud` path only if a deployment or revision-level change is still required after DB runtime config validates.
 
 **When to use the auth-host system layer vs local connector directly:**
 - Use **auth-dispatcher first** (`auth.mad4b.com`) for hard activation, MCP-like tool discovery, connector registry inspection, admin control, schema import, and any routed/runtime-validated operation.

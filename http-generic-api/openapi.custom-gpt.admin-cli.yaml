@@ -1462,10 +1462,11 @@ paths:
                     - activation_sheets_bootstrap_read
                     - activation_github_validate
                     - activation_provider_bootstrap_validate
+                    - activation_bootstrap_config_upsert
                 arguments:
                   type: object
                   additionalProperties: true
-                  description: Tool arguments. For connector_registry_get, include system_id. For activation_github_validate, optional github_owner, github_repo, and github_branch override bootstrap/env bindings. Activation provider tools require admin/service auth.
+                  description: Tool arguments. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields. Admin provider tools require admin/service auth.
                   properties: {}
       responses:
         '200':
@@ -1649,10 +1650,11 @@ paths:
                     - activation_sheets_bootstrap_read
                     - activation_github_validate
                     - activation_provider_bootstrap_validate
+                    - activation_bootstrap_config_upsert
                 arguments:
                   type: object
                   additionalProperties: true
-                  description: Tool arguments. For connector_registry_get, include system_id. For activation_github_validate, optional github_owner, github_repo, and github_branch override bootstrap/env bindings.
+                  description: Tool arguments. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields.
                   properties: {}
       responses:
         '200':

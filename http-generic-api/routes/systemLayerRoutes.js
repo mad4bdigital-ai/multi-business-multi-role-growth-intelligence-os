@@ -7,7 +7,11 @@ import {
 import { getPool } from "../db.js";
 import { getGoogleClientsForSpreadsheet } from "../googleSheets.js";
 import { runGovernedActivation } from "../governedActivationRunner.js";
-import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
+import {
+  ACTIVATION_GITHUB_BOOTSTRAP_CONFIG_KEY,
+  resolveActivationBootstrapConfig,
+  validateActivationBootstrapConfig,
+} from "../activationBootstrapConfig.js";
 import { requireAdminPrincipal } from "./adminCliRoutes.js";
 
 const SYSTEM_LAYER_TOOLS = [
@@ -68,6 +72,23 @@ const SYSTEM_LAYER_TOOLS = [
     description: "Admin-only same-cycle Drive, Sheets bootstrap, and GitHub activation validation chain.",
     requires_admin: true,
     inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "activation_bootstrap_config_upsert",
+    description: "Admin-only DB runtime bootstrap upsert for GitHub activation binding; avoids Cloud Run env mutation.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        github_parent_action_key: { type: "string", default: "github_api_mcp" },
+        github_endpoint_key: { type: "string", default: "github_get_repository" },
+        github_owner: { type: "string" },
+        github_repo: { type: "string" },
+        github_branch: { type: "string", default: "main" },
+        note: { type: "string" },
+      },
+      required: ["github_parent_action_key", "github_endpoint_key", "github_owner", "github_repo"],
+    },
   },
 ];
 
@@ -190,6 +211,64 @@ function bootstrapConfigToRunnerRow(bootstrapConfig) {
     github_branch: bootstrapConfig.github_branch || "main",
     source: bootstrapConfig.source,
     sheets_required: false,
+  };
+}
+
+async function ensurePlatformRuntimeConfigTable(pool = getPool()) {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS \`platform_runtime_config\` (
+      \`config_key\`  VARCHAR(128) NOT NULL,
+      \`config_json\` JSON         NOT NULL,
+      \`status\`      ENUM('active','disabled') NOT NULL DEFAULT 'active',
+      \`note\`        VARCHAR(255) NULL,
+      \`created_at\`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      \`updated_at\`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`config_key\`),
+      KEY \`idx_prc_status\` (\`status\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+  );
+}
+
+async function activationBootstrapConfigUpsert(args = {}) {
+  const validated = validateActivationBootstrapConfig(args, "db_runtime");
+  if (!validated.ok) {
+    const err = new Error(`Missing required activation bootstrap fields: ${validated.missing.join(", ")}.`);
+    err.status = 400;
+    err.code = validated.error;
+    throw err;
+  }
+
+  const config = {
+    github_parent_action_key: validated.config.github_parent_action_key,
+    github_endpoint_key: validated.config.github_endpoint_key,
+    github_owner: validated.config.github_owner,
+    github_repo: validated.config.github_repo,
+    github_branch: validated.config.github_branch || "main",
+  };
+  const note = String(args.note || "admin_system_tool").trim().slice(0, 255);
+  const pool = getPool();
+
+  await ensurePlatformRuntimeConfigTable(pool);
+  await pool.query(
+    `INSERT INTO \`platform_runtime_config\`
+       (config_key, config_json, status, note)
+     VALUES (?, ?, 'active', ?)
+     ON DUPLICATE KEY UPDATE
+       config_json = VALUES(config_json),
+       status = 'active',
+       note = VALUES(note),
+       updated_at = CURRENT_TIMESTAMP`,
+    [ACTIVATION_GITHUB_BOOTSTRAP_CONFIG_KEY, JSON.stringify(config), note]
+  );
+
+  const readback = await resolveActivationBootstrapConfig();
+  return {
+    ok: readback.ok,
+    config_key: ACTIVATION_GITHUB_BOOTSTRAP_CONFIG_KEY,
+    source: readback.source,
+    config: readback.ok ? readback.config : config,
+    next_step: "Call activation_provider_bootstrap_validate from /system/tools/call or /admin/system/tools/call.",
+    ...(readback.ok ? {} : { error: readback.error, db_error: readback.db_error, env_error: readback.env_error }),
   };
 }
 
@@ -564,6 +643,8 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
     }
     case "activation_provider_bootstrap_validate":
       return await activationProviderBootstrapValidate(args, deps);
+    case "activation_bootstrap_config_upsert":
+      return await activationBootstrapConfigUpsert(args);
     default: {
       const err = new Error(`Unknown system layer tool: ${name}`);
       err.status = 400;
@@ -677,7 +758,9 @@ export function buildSystemLayerRoutes(deps) {
 
 export {
   SYSTEM_LAYER_TOOLS,
+  activationBootstrapConfigUpsert,
   callSystemLayerTool,
+  ensurePlatformRuntimeConfigTable,
   getConnectorRegistrySystem,
   listConnectorRegistry,
 };

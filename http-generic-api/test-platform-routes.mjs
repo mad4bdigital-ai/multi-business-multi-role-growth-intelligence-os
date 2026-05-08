@@ -299,6 +299,7 @@ section("Admin system layer connector facade");
   ok("system tools exposes Drive probe", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "activation_drive_probe"));
   ok("system tools exposes Sheets bootstrap read", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "activation_sheets_bootstrap_read"));
   ok("system tools exposes GitHub validation", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "activation_github_validate"));
+  ok("system tools exposes bootstrap config upsert", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "activation_bootstrap_config_upsert"));
 }
 {
   const r = await post("/admin/system/tools/call", {});
@@ -320,6 +321,14 @@ section("Admin system layer connector facade");
   const r = await post("/system/tools/call", {});
   ok("shared system tool call validates name", r.status === 400, `got ${r.status}`);
   ok("shared system tool call missing name code", r.body.error?.code === "missing_tool_name", `got ${r.body.error?.code}`);
+}
+{
+  const r = await post("/admin/system/tools/call", {
+    name: "activation_bootstrap_config_upsert",
+    arguments: {}
+  });
+  ok("bootstrap config upsert validates required fields before DB write", r.status === 400, `got ${r.status}`);
+  ok("bootstrap config upsert missing fields code", r.body.error?.code === "missing_required_activation_bootstrap_fields", `got ${r.body.error?.code}`);
 }
 
 // ── 9. GET /planner/plans/:id — route registration ───────────────────────────

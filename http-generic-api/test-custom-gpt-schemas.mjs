@@ -216,6 +216,8 @@ section("openapi.custom-gpt.auth-dispatcher.yaml");
   const adminToolCall = doc.paths?.["/admin/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
   assert("auth dispatcher shared system calls expose provider bootstrap validation", sharedToolCall?.properties?.name?.enum?.includes("activation_provider_bootstrap_validate"));
   assert("auth dispatcher admin system calls expose provider bootstrap validation", adminToolCall?.properties?.name?.enum?.includes("activation_provider_bootstrap_validate"));
+  assert("auth dispatcher shared system calls expose bootstrap config upsert", sharedToolCall?.properties?.name?.enum?.includes("activation_bootstrap_config_upsert"));
+  assert("auth dispatcher admin system calls expose bootstrap config upsert", adminToolCall?.properties?.name?.enum?.includes("activation_bootstrap_config_upsert"));
 }
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
