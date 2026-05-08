@@ -43,6 +43,7 @@ import { buildConnectRoutes } from "./connectRoutes.js";
 
 export function registerRoutes(app, deps) {
   app.use(buildRootDiscoveryRoutes());
+  app.use(buildConnectRoutes(deps));
   app.use(buildOnboardingRoutes(deps));
   app.use(buildStatusRoutes(deps));
   app.use(buildActivationRoutes(deps));
@@ -82,7 +83,6 @@ export function registerRoutes(app, deps) {
   app.use(buildDispatchRoutes(deps));
   app.use(buildLocalConnectorRoutes(deps));
   app.use(buildLocalConnectorInstallRoutes(deps));
-  app.use(buildConnectRoutes(deps));
   app.post("/admin/control", deps.requireBackendApiKey, requireAdminPrincipal, buildAdminControlHandler());
   app.use("/admin/cli", buildAdminCliRoutes(deps));
 }
