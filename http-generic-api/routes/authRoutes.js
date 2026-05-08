@@ -17,6 +17,8 @@ const USER_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 const PLATFORM_JWT_CLIENT_DEFAULT_TTL_SECONDS = 15 * 60;
 const PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS = 60 * 60;
 const VALID_SIGN_IN_OPTIONS = new Set(["google", "email", "register"]);
+const PLATFORM_JWT_ISSUER = process.env.PLATFORM_JWT_ISSUER || "https://auth.mad4b.com";
+const TENANT_GPT_JWT_AUDIENCE = process.env.TENANT_GPT_JWT_AUDIENCE || "mad4b-tenant-gpt";
 
 function cleanOption(value, allowed, fallback = null) {
   const normalized = String(value || "").trim().toLowerCase();
@@ -72,6 +74,35 @@ function cleanTtlSeconds(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return PLATFORM_JWT_CLIENT_DEFAULT_TTL_SECONDS;
   return Math.min(Math.max(Math.floor(parsed), 60), PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS);
+}
+
+function issueTenantGptAccessToken(payload, { clientId = "chatgpt-action" } = {}) {
+  const userId = String(payload?.user_id || "").trim();
+  if (!userId) {
+    const err = new Error("Cannot issue tenant GPT token without user_id.");
+    err.code = "missing_user_id";
+    throw err;
+  }
+
+  const tenantId = payload?.tenant_id ? String(payload.tenant_id).trim() : null;
+  const email = payload?.email ? String(payload.email).trim() : null;
+  const subject = tenantId ? `tenant:${tenantId}:user:${userId}` : `user:${userId}`;
+
+  return jwt.sign(
+    {
+      iss: PLATFORM_JWT_ISSUER,
+      aud: TENANT_GPT_JWT_AUDIENCE,
+      sub: subject,
+      user_id: userId,
+      email,
+      tenant_id: tenantId,
+      scope: "tenant",
+      purpose: "tenant_gpt_access",
+      client_id: String(clientId || "chatgpt-action").trim() || "chatgpt-action",
+    },
+    JWT_SECRET,
+    { expiresIn: USER_TOKEN_TTL_SECONDS, jwtid: randomUUID() }
+  );
 }
 
 async function fetchActiveUserForJwtClient(pool, { user_id, email }) {
@@ -456,8 +487,11 @@ export function buildAuthRoutes(deps) {
         return res.status(400).json({ error: "invalid_grant", error_description: "redirect_uri does not match the issued code." });
       }
 
+      const signedInPayload = jwt.verify(payload.token, JWT_SECRET);
+      const accessToken = issueTenantGptAccessToken(signedInPayload, { clientId: req.body?.client_id });
+
       return res.status(200).json({
-        access_token: payload.token,
+        access_token: accessToken,
         token_type: "Bearer",
         expires_in: USER_TOKEN_TTL_SECONDS,
         scope: "tenant",

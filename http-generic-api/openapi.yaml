@@ -1177,7 +1177,7 @@ x-tenant-gpt-auth:
   security_scheme_name: userBearerAuth
   security_scheme:
     type: oauth2
-    description: "Tenant GPT OAuth. ChatGPT obtains a per-user tenant JWT through the Growth Intelligence Platform popup; do not call OAuth token or Google ID-token endpoints as normal actions. The authorize URL may include safe activation hints such as screen_hint, activation_mode, device_id, workspace_name, and sign_in_options, but never secrets."
+    description: "Tenant GPT OAuth. ChatGPT signs in through the Growth Intelligence Platform popup, then /auth/oauth/token mints a fresh Mad4B tenant access JWT with issuer, audience, subject, scope, user_id, and tenant_id claims. Google Sign-In is only an upstream identity proof inside the popup; do not call OAuth token or Google ID-token endpoints as normal actions. The authorize URL may include safe activation hints such as screen_hint, activation_mode, device_id, workspace_name, and sign_in_options, but never secrets."
     flows:
       authorizationCode:
         authorizationUrl: https://auth.mad4b.com/auth/oauth/authorize
