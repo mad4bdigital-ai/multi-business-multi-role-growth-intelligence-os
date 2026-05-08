@@ -27,6 +27,8 @@ Configure every Custom GPT Action connection with one auth scheme:
 
 Do not place credentials inside request bodies. Treat the backend API key as the admin/service identity for the platform owner. User-level JWTs should be scoped per user and should not replace the admin backend key for platform-wide administration.
 
+Tenant `/connect/*` routes reject backend/service auth with `user_jwt_required`. For admin-assisted activation checks, first call `POST /auth/platform-jwt/issue` through the platform connector to issue a short-lived JWT for an existing active user, then use that JWT as `Authorization: Bearer <USER_JWT>` on tenant `/connect/status`, `/connect/activate`, or `/connect/device-install`. Do not relax tenant guards or send the admin backend key to tenant-only operations.
+
 ## Hard Activation
 
 On every new GPT session, run hard activation once before normal platform work:
@@ -40,6 +42,8 @@ On every new GPT session, run hard activation once before normal platform work:
 7. Report system status, registry source, session summary, platform access scope, brands/plugins/logics/engines counts, runtime-callable actions count, degraded surfaces, auth gaps, and schema/client errors.
 
 Health, status, release readiness, and count routes are diagnostics only. They do not replace `GET /activation/bootstrap-config` or `activation_provider_bootstrap_validate`.
+
+Correction for future runs: do not query `activation_bootstrap_config` directly. Hard activation provider probes must go through `POST /system/tools/call` with `name: "activation_provider_bootstrap_validate"`. Bootstrap repair must go through `POST /system/tools/call` with `name: "activation_bootstrap_config_upsert"`. Do not use the direct `/admin/control` DB surface when a governed system tool exists.
 
 ## Agent Sides
 
@@ -158,7 +162,7 @@ The Admin Assistant uses exactly **two** action connectors. Custom GPT is limite
 
 | Connector | File | Server URL | Ops | Purpose |
 |---|---|---:|---:|---|
-| **Platform** | `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` | `https://auth.mad4b.com` | 18 | Hard activation, MCP-like `/system/*` discovery/calls, admin registry tools, admin control, schema import, and session continuity |
+| **Platform** | `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` | `https://auth.mad4b.com` | 19 | Hard activation, MCP-like `/system/*` discovery/calls, platform JWT client, admin registry tools, admin control, schema import, and session continuity |
 | **Local** | `http-generic-api/openapi.custom-gpt.connector.yaml` | `https://connector.mad4b.com` | 7 | Standalone local execution bridge for break-glass shell/file/GitHub/gcloud on mohammedlap via Cloudflare Tunnel |
 
 `auth.mad4b.com` is the governed control plane and must be the first choice for admin work. The local connector is a standalone plugin/action because it touches the local environment; call it only after the platform action indicates local execution is needed, or when the cloud control plane is unavailable and break-glass recovery is explicitly required. If `connect.mad4b.com` is used as the connector-facing host alias, it must follow the same local-connector contract as `connector.mad4b.com`.
@@ -177,7 +181,8 @@ The Admin Assistant uses exactly **two** action connectors. Custom GPT is limite
 | `callAdminSystemTool` | `POST /admin/system/tools/call` | Call admin-only system-layer tools |
 | `schemaImportUpload` | `POST /admin/schema-import/upload` | Import JSON/YAML schema or repo URL into the platform |
 | `schemaImportRollback` | `POST /admin/schema-import/rollback` | Rollback the last schema import job |
-| `executeAdminControl` | `POST /admin/control` | Root-level admin CLI/control for env, db, GitHub, gcloud, Hostinger, and allowlisted local app operations |
+| `issuePlatformJwtClientToken` | `POST /auth/platform-jwt/issue` | Admin-only short-lived user JWT issuer for governed tenant `/connect/*` calls |
+| `executeAdminControl` | `POST /admin/control` | Root-level admin CLI/control for env, db, GitHub, gcloud, Hostinger, and allowlisted local app operations; do not use for activation bootstrap when `/system/tools/call` provides a governed tool |
 
 ### Platform connector - system-layer routing
 
@@ -195,6 +200,8 @@ Activation bootstrap recovery when Cloud Run cannot run `gcloud`:
 2. Call `/system/tools/call` or `/admin/system/tools/call` with `name: "activation_bootstrap_config_upsert"` and `arguments: { "github_parent_action_key": "github_api_mcp", "github_endpoint_key": "github_get_repository", "github_owner": "mad4bdigital-ai", "github_repo": "multi-business-multi-role-growth-intelligence-os", "github_branch": "main" }`.
 3. Then call `activation_provider_bootstrap_validate`.
 4. Use the local connector `/gcloud` path only if a deployment or revision-level change is still required after DB runtime config validates.
+
+Do not query a table named `activation_bootstrap_config`; that table is not part of the activation contract. The governed repair tool owns the DB/runtime details and currently writes the `activation.bootstrap.github` config under the backend runtime config authority.
 
 **When to use the auth-host system layer vs local connector directly:**
 - Use **auth-dispatcher first** (`auth.mad4b.com`) for hard activation, MCP-like tool discovery, connector registry inspection, admin control, schema import, and any routed/runtime-validated operation.

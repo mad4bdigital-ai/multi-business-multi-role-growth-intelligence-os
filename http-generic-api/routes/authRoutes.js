@@ -14,6 +14,8 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 const OAUTH_CODE_TTL_SECONDS = 5 * 60;
 const USER_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
+const PLATFORM_JWT_CLIENT_DEFAULT_TTL_SECONDS = 15 * 60;
+const PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS = 60 * 60;
 const VALID_SIGN_IN_OPTIONS = new Set(["google", "email", "register"]);
 
 function cleanOption(value, allowed, fallback = null) {
@@ -53,6 +55,66 @@ function parseActivationContext(query = {}) {
       return value !== null && value !== "";
     })
   );
+}
+
+function requireAdminPrincipal(req, res, next) {
+  if (req.auth?.is_admin === true) return next();
+  return res.status(403).json({
+    ok: false,
+    error: {
+      code: "admin_principal_required",
+      message: "Platform JWT client endpoints require the admin/service BACKEND_API_KEY.",
+    },
+  });
+}
+
+function cleanTtlSeconds(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return PLATFORM_JWT_CLIENT_DEFAULT_TTL_SECONDS;
+  return Math.min(Math.max(Math.floor(parsed), 60), PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS);
+}
+
+async function fetchActiveUserForJwtClient(pool, { user_id, email }) {
+  const hasUserId = typeof user_id === "string" && user_id.trim();
+  const hasEmail = typeof email === "string" && email.trim();
+  if (!hasUserId && !hasEmail) return null;
+
+  const where = hasUserId ? "u.user_id = ?" : "u.email = ?";
+  const param = hasUserId ? user_id.trim() : email.trim();
+  const [rows] = await pool.query(
+    `SELECT u.user_id, u.email, u.display_name, u.status
+       FROM \`users\` u
+      WHERE ${where}
+      LIMIT 1`,
+    [param]
+  );
+  const user = rows[0] || null;
+  return user?.status === "active" ? user : null;
+}
+
+async function fetchJwtClientMembership(pool, userId, requestedTenantId) {
+  if (requestedTenantId) {
+    const [rows] = await pool.query(
+      `SELECT m.tenant_id, m.role, m.status, t.display_name AS tenant_display_name
+         FROM \`memberships\` m
+         LEFT JOIN \`tenants\` t ON t.tenant_id = m.tenant_id
+        WHERE m.user_id = ? AND m.tenant_id = ? AND m.status = 'active'
+        LIMIT 1`,
+      [userId, requestedTenantId]
+    );
+    return rows[0] || null;
+  }
+
+  const [rows] = await pool.query(
+    `SELECT m.tenant_id, m.role, m.status, t.display_name AS tenant_display_name
+       FROM \`memberships\` m
+       LEFT JOIN \`tenants\` t ON t.tenant_id = m.tenant_id
+      WHERE m.user_id = ? AND m.status = 'active'
+      ORDER BY m.granted_at ASC
+      LIMIT 1`,
+    [userId]
+  );
+  return rows[0] || null;
 }
 
 function escapeHtmlAttribute(value) {
@@ -242,6 +304,80 @@ function buildOAuthAuthorizeHtml({ clientId, redirectUri, state, activationConte
 
 export function buildAuthRoutes(deps) {
   const router = Router();
+  const requireBackendApiKey = deps?.requireBackendApiKey;
+  const resolvePool = typeof deps?.getPool === "function" ? deps.getPool : getPool;
+
+  if (typeof requireBackendApiKey === "function") {
+    router.post("/platform-jwt/issue", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
+      try {
+        const { user_id, email, tenant_id = null, ttl_seconds, reason = "admin_assistant_jwt_client" } = req.body || {};
+        const pool = resolvePool();
+        const user = await fetchActiveUserForJwtClient(pool, { user_id, email });
+        if (!user) {
+          return res.status(404).json({
+            ok: false,
+            error: {
+              code: "user_not_found",
+              message: "No active user found for the requested platform JWT client identity.",
+            },
+          });
+        }
+
+        const requestedTenantId = typeof tenant_id === "string" && tenant_id.trim() ? tenant_id.trim() : null;
+        const membership = await fetchJwtClientMembership(pool, user.user_id, requestedTenantId);
+        if (requestedTenantId && !membership) {
+          return res.status(403).json({
+            ok: false,
+            error: {
+              code: "tenant_membership_required",
+              message: "The requested user does not have active membership in that tenant.",
+            },
+          });
+        }
+
+        const expiresIn = cleanTtlSeconds(ttl_seconds);
+        const resolvedTenantId = requestedTenantId || membership?.tenant_id || null;
+        const token = jwt.sign(
+          {
+            user_id: user.user_id,
+            email: user.email,
+            tenant_id: resolvedTenantId,
+            purpose: "platform_jwt_client",
+            client: "admin_assistant",
+            reason: cleanText(reason, 120) || "admin_assistant_jwt_client",
+          },
+          JWT_SECRET,
+          { expiresIn, jwtid: randomUUID() }
+        );
+
+        return res.status(200).json({
+          ok: true,
+          token_type: "Bearer",
+          access_token: token,
+          expires_in: expiresIn,
+          user: {
+            user_id: user.user_id,
+            email: user.email,
+            display_name: user.display_name,
+          },
+          tenant: {
+            tenant_id: resolvedTenantId,
+            role: membership?.role || null,
+            display_name: membership?.tenant_display_name || null,
+          },
+          next_step: "Use this access_token as Authorization: Bearer <USER_JWT> for tenant /connect/* operations.",
+        });
+      } catch (err) {
+        return res.status(500).json({
+          ok: false,
+          error: {
+            code: "platform_jwt_issue_failed",
+            message: err.message,
+          },
+        });
+      }
+    });
+  }
 
   router.get("/oauth/authorize", (req, res) => {
     const redirectUri = String(req.query.redirect_uri || "");

@@ -1897,6 +1897,85 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /auth/platform-jwt/issue:
+    post:
+      tags:
+        - admin-control
+      security:
+        - backendBearerAuth: []
+      operationId: issuePlatformJwtClientToken
+      summary: Issue a short-lived tenant user JWT
+      description: Admin-only platform JWT client. Mints a short-lived user JWT for an existing active user so governed tenant /connect/* calls can use user auth without relaxing tenant guards.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                user_id:
+                  type: string
+                  description: Existing active platform user ID. Required when email is omitted.
+                email:
+                  type: string
+                  description: Existing active platform user email. Required when user_id is omitted.
+                tenant_id:
+                  type: string
+                  nullable: true
+                  description: Optional tenant. When supplied, the user must have active membership.
+                ttl_seconds:
+                  type: integer
+                  minimum: 60
+                  maximum: 3600
+                  default: 900
+                reason:
+                  type: string
+                  description: Short audit hint for why the token is being issued.
+      responses:
+        '200':
+          description: Short-lived user JWT issued
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok:
+                    type: boolean
+                  token_type:
+                    type: string
+                    example: Bearer
+                  access_token:
+                    type: string
+                  expires_in:
+                    type: integer
+                  user:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  tenant:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  next_step:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin principal or tenant membership required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          description: Platform JWT issue failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /admin/session-continuity/link-user:
     post:
       tags:

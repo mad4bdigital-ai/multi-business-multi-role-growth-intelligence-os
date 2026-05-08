@@ -151,6 +151,98 @@ try {
   });
   assert("token endpoint rejects redirect mismatch", mismatch.status === 400, `${mismatch.status}`);
   assert("redirect mismatch reports invalid_grant", mismatch.body.error === "invalid_grant", JSON.stringify(mismatch.body));
+
+  section("platform JWT client");
+
+  const fakePool = {
+    async query(sql, params) {
+      if (sql.includes("FROM `users`")) {
+        const lookup = params[0];
+        if (lookup === "user-1" || lookup === "user@example.com") {
+          return [[{
+            user_id: "user-1",
+            email: "user@example.com",
+            display_name: "User One",
+            status: "active",
+          }]];
+        }
+        return [[]];
+      }
+      if (sql.includes("FROM `memberships`") && sql.includes("m.tenant_id = ?")) {
+        if (params[0] === "user-1" && params[1] === "tenant-1") {
+          return [[{
+            tenant_id: "tenant-1",
+            role: "owner",
+            status: "active",
+            tenant_display_name: "Tenant One",
+          }]];
+        }
+        return [[]];
+      }
+      if (sql.includes("FROM `memberships`")) {
+        return [[{
+          tenant_id: "tenant-1",
+          role: "owner",
+          status: "active",
+          tenant_display_name: "Tenant One",
+        }]];
+      }
+      throw new Error(`Unexpected query: ${sql}`);
+    },
+  };
+
+  function requireBackendApiKey(req, res, next) {
+    const auth = req.headers.authorization || "";
+    if (auth === "Bearer admin-secret") {
+      req.auth = { mode: "backend_api_key", is_admin: true };
+      return next();
+    }
+    if (auth === "Bearer user-secret") {
+      req.auth = { mode: "user_jwt", is_admin: false, user_id: "user-1" };
+      return next();
+    }
+    return res.status(401).json({ ok: false });
+  }
+
+  const jwtClientApp = express();
+  jwtClientApp.use(express.json());
+  jwtClientApp.use("/auth", buildAuthRoutes({ requireBackendApiKey, getPool: () => fakePool }));
+  const jwtClientServer = await startServer(jwtClientApp);
+  try {
+    const unauthorized = await fetch(`${jwtClientServer.baseUrl}/auth/platform-jwt/issue`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer user-secret" },
+      body: JSON.stringify({ email: "user@example.com" }),
+    });
+    const unauthorizedBody = await readJson(unauthorized);
+    assert("platform JWT client rejects user principal", unauthorized.status === 403, `${unauthorized.status}`);
+    assert("platform JWT client reports admin requirement", unauthorizedBody.error?.code === "admin_principal_required", JSON.stringify(unauthorizedBody));
+
+    const issued = await fetch(`${jwtClientServer.baseUrl}/auth/platform-jwt/issue`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer admin-secret" },
+      body: JSON.stringify({ email: "user@example.com", tenant_id: "tenant-1", ttl_seconds: 120, reason: "activation-check" }),
+    });
+    const issuedBody = await readJson(issued);
+    assert("platform JWT client issues token for admin", issued.status === 200, `${issued.status}`);
+    assert("platform JWT client returns bearer token", issuedBody.token_type === "Bearer" && typeof issuedBody.access_token === "string", JSON.stringify(issuedBody));
+    assert("platform JWT client clamps requested ttl", issuedBody.expires_in === 120, JSON.stringify(issuedBody));
+    const issuedPayload = jwt.verify(issuedBody.access_token, process.env.JWT_SECRET);
+    assert("platform JWT token has user claim", issuedPayload.user_id === "user-1", JSON.stringify(issuedPayload));
+    assert("platform JWT token has tenant claim", issuedPayload.tenant_id === "tenant-1", JSON.stringify(issuedPayload));
+    assert("platform JWT token carries client purpose", issuedPayload.purpose === "platform_jwt_client", JSON.stringify(issuedPayload));
+
+    const wrongTenant = await fetch(`${jwtClientServer.baseUrl}/auth/platform-jwt/issue`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer admin-secret" },
+      body: JSON.stringify({ email: "user@example.com", tenant_id: "tenant-2" }),
+    });
+    const wrongTenantBody = await readJson(wrongTenant);
+    assert("platform JWT client enforces tenant membership", wrongTenant.status === 403, `${wrongTenant.status}`);
+    assert("tenant membership failure is explicit", wrongTenantBody.error?.code === "tenant_membership_required", JSON.stringify(wrongTenantBody));
+  } finally {
+    await new Promise((resolve) => jwtClientServer.server.close(resolve));
+  }
 } finally {
   await new Promise((resolve) => server.close(resolve));
 }
