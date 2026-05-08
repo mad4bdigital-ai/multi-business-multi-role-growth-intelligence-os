@@ -2,12 +2,14 @@ openapi: 3.1.0
 info:
   title: Governed HTTP Client — AI Platform - Auth Dispatcher Admin Control Actions
   version: 3.0.0-platform
-  summary: Custom GPT action schema for admin control and system layer via auth dispatcher.
-  description: Single-host Custom GPT action schema generated from openapi.yaml. Exposes admin-control and system-layer routes via auth.mad4b.com.
+  summary: Custom GPT action schema for activation, admin control, and system layer via auth dispatcher.
+  description: Single-host Custom GPT action schema generated from openapi.yaml. Exposes activation, admin-control, and system-layer routes via auth.mad4b.com.
 servers:
   - url: https://auth.mad4b.com
     description: Auth Dispatcher Admin Control Actions custom domain
 tags:
+  - name: activation
+    description: Once-per-session activation probes, session history, and scope context.
   - name: admin-control
     description: Personal administrator control surface for CLI, database, and runtime environment operations.
   - name: system-layer
@@ -1290,6 +1292,267 @@ components:
 security:
   - backendBearerAuth: []
 paths:
+  /activation/session-context:
+    get:
+      tags:
+        - activation
+      security:
+        - backendBearerAuth: []
+      operationId: getActivationSessionContext
+      summary: Read previous session history and platform scope context
+      description: Hard activation layer that reads prior user session envelopes as a paginated history log, scoped user request transcripts, plus audit activity, developer scopes, API credential scopes, and connected-system scopes. Admin/service sessions may also receive execution-log prompt and response summaries..
+      parameters:
+        - name: user_id
+          in: query
+          schema:
+            type: string
+          description: Optional user id. Admin callers may inspect any user; user JWT callers are restricted to themselves.
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+          description: Number of previous session/history rows to return per page.
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Pagination offset for reading older previous session history.
+        - name: include_raw
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Include bounded raw request/response dumps where allowed by caller scope.
+        - name: raw_max_chars
+          in: query
+          schema:
+            type: integer
+            default: 4000
+            maximum: 20000
+          description: Maximum characters per raw dump field when include_raw=true.
+      responses:
+        '200':
+          description: Session history and related platform scopes
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - activation_layer
+                  - subject
+                  - pagination
+                  - session_history
+                  - related_scopes
+                  - history
+                properties:
+                  ok:
+                    type: boolean
+                  activation_layer:
+                    type: string
+                    enum:
+                      - session_context
+                  subject:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      user_id:
+                        type: string
+                      tenant_id:
+                        type: string
+                      is_admin:
+                        type: boolean
+                  last_session:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  pagination:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      limit:
+                        type: integer
+                      offset:
+                        type: integer
+                      include_raw:
+                        type: boolean
+                      raw_max_chars:
+                        type: integer
+                      has_more_session_history:
+                        type: boolean
+                  session_history:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties:
+                        transcript:
+                          type: object
+                          additionalProperties: false
+                          properties:
+                            user_request:
+                              type: string
+                            ai_response:
+                              type: string
+                            request_fields_available:
+                              type: array
+                              items:
+                                type: string
+                        raw_dump:
+                          type: object
+                          additionalProperties: true
+                          properties: {}
+                  related_scopes:
+                    type: array
+                    items:
+                      type: string
+                  history:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  degraded_surfaces:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Session context read failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /activation/platform-access:
+    get:
+      tags:
+        - activation
+      security:
+        - backendBearerAuth: []
+      operationId: getActivationPlatformAccess
+      summary: Read platform-wide activation access and registry counts
+      description: |
+        Hard activation evidence for admin/service sessions. Returns explicit all-brand scope plus counts and readiness for brands, plugins, logics, engines, and runtime-callable actions.
+      responses:
+        '200':
+          description: Platform-wide activation access summary
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - activation_layer
+                  - principal
+                  - access_scope
+                  - access
+                  - counts
+                  - readiness
+                properties:
+                  ok:
+                    type: boolean
+                  activation_layer:
+                    type: string
+                    enum:
+                      - platform_access
+                  principal:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      type:
+                        type: string
+                      is_admin:
+                        type: boolean
+                      user_id:
+                        type: string
+                      tenant_id:
+                        type: string
+                  access_scope:
+                    type: string
+                    enum:
+                      - platform_admin_all
+                      - user_scoped
+                  access:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      brands:
+                        type: string
+                      plugins:
+                        type: string
+                      logics:
+                        type: string
+                      engines:
+                        type: string
+                      actions:
+                        type: string
+                  counts:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      brands:
+                        type: object
+                        additionalProperties: true
+                        properties: {}
+                      plugins:
+                        type: object
+                        additionalProperties: true
+                        properties: {}
+                      logics:
+                        type: object
+                        additionalProperties: true
+                        properties: {}
+                      engines:
+                        type: object
+                        additionalProperties: true
+                        properties: {}
+                      actions:
+                        type: object
+                        additionalProperties: true
+                        properties: {}
+                  readiness:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      brands:
+                        type: string
+                      plugins:
+                        type: string
+                      logics:
+                        type: string
+                      engines:
+                        type: string
+                      actions:
+                        type: string
+                  degraded_surfaces:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Platform access read failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /system/connectors:
     get:
       tags:

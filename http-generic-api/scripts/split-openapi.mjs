@@ -497,7 +497,7 @@ function main() {
 
   validateCoverage(sourceOperations, generatedDocs);
 
-  const authDispatcherTags = new Set(["admin-control", "system-layer"]);
+  const authDispatcherTags = new Set(["activation", "admin-control", "system-layer"]);
   const adminOperations = sourceOperations.filter((operation) => authDispatcherTags.has(operation.primaryTag));
   if (adminOperations.length > 0) {
     const dispatcherDoc = buildScopeDoc(doc, { operations: adminOperations, tags: [...authDispatcherTags] }, {
@@ -508,8 +508,8 @@ function main() {
     dispatcherDoc.info = {
       ...dispatcherDoc.info,
       title: `${doc.info?.title || "Platform API"} - Auth Dispatcher Admin Control Actions`,
-      summary: "Custom GPT action schema for admin control and system layer via auth dispatcher.",
-      description: `Single-host Custom GPT action schema generated from ${SOURCE_OPENAPI_FILE}. Exposes admin-control and system-layer routes via auth.mad4b.com.`
+      summary: "Custom GPT action schema for activation, admin control, and system layer via auth dispatcher.",
+      description: `Single-host Custom GPT action schema generated from ${SOURCE_OPENAPI_FILE}. Exposes activation, admin-control, and system-layer routes via auth.mad4b.com.`
     };
     const dispatcherPath = path.resolve(`./${AUTH_DISPATCHER_SCHEMA_FILE}`);
     const dispatcherYaml = yaml.dump(dispatcherDoc, { lineWidth: -1, noRefs: true });
