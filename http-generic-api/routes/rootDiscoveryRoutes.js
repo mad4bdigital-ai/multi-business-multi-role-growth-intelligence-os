@@ -50,9 +50,13 @@ const SCOPES_BY_HOST = {
     primary_paths: ["/admin/control"]
   },
   "auth.mad4b.com": {
-    scope: "auth-dispatcher",
-    schema_file: "openapi.custom-gpt.auth-dispatcher.yaml",
-    primary_paths: ["/admin/control", "/admin/session-continuity/link-user"]
+    scope: "auth-tenant",
+    schema_file: "openapi.custom-gpt.auth.yaml",
+    primary_paths: ["/connect/status", "/connect/activate", "/connect/device-install"],
+    schema_variants: {
+      tenant: "openapi.custom-gpt.auth.yaml",
+      admin: "openapi.custom-gpt.auth-dispatcher.yaml"
+    }
   },
   "ops.mad4b.com": {
     scope: "ops",
@@ -93,6 +97,7 @@ export function buildRootDiscoveryRoutes() {
       host: host || null,
       scope: scope.scope,
       schema_file: scope.schema_file,
+      schema_variants: scope.schema_variants || undefined,
       primary_paths: scope.primary_paths,
       diagnostics: ["/health", "/status", "/privacy-policy"]
     });
