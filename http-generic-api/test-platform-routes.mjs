@@ -306,6 +306,16 @@ section("Admin system layer connector facade");
   ok("system connector list validates status", r.status === 400, `got ${r.status}`);
   ok("system connector invalid status code", r.body.error?.code === "invalid_status", `got ${r.body.error?.code}`);
 }
+{
+  const r = await get("/system/tools");
+  ok("shared system tools returns 200", r.status === 200, `got ${r.status}`);
+  ok("shared system tools exposes MCP facade protocol", r.body.protocol === "openapi-mcp-facade", `got ${r.body.protocol}`);
+}
+{
+  const r = await post("/system/tools/call", {});
+  ok("shared system tool call validates name", r.status === 400, `got ${r.status}`);
+  ok("shared system tool call missing name code", r.body.error?.code === "missing_tool_name", `got ${r.body.error?.code}`);
+}
 
 // ── 9. GET /planner/plans/:id — route registration ───────────────────────────
 

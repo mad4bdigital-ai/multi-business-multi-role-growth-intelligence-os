@@ -2,14 +2,16 @@ openapi: 3.1.0
 info:
   title: Governed HTTP Client — AI Platform - Auth Dispatcher Admin Control Actions
   version: 3.0.0-platform
-  summary: Custom GPT action schema for admin-control via auth dispatcher.
-  description: Single-host Custom GPT action schema generated from openapi.yaml. Exposes admin-control routes via auth.mad4b.com.
+  summary: Custom GPT action schema for admin control and system layer via auth dispatcher.
+  description: Single-host Custom GPT action schema generated from openapi.yaml. Exposes admin-control and system-layer routes via auth.mad4b.com.
 servers:
   - url: https://auth.mad4b.com
     description: Auth Dispatcher Admin Control Actions custom domain
 tags:
   - name: admin-control
     description: Personal administrator control surface for CLI, database, and runtime environment operations.
+  - name: system-layer
+    description: MCP-style governed system layer backed by connector registries, principal context, and runtime validation.
 components:
   securitySchemes:
     backendBearerAuth:
@@ -1288,6 +1290,206 @@ components:
 security:
   - backendBearerAuth: []
 paths:
+  /system/connectors:
+    get:
+      tags:
+        - system-layer
+      security:
+        - backendBearerAuth: []
+      operationId: listSystemConnectors
+      summary: List connector systems visible to the current principal
+      description: Principal-aware facade over connected_systems. Tenant users are automatically scoped to their tenant; admin principals can inspect all tenants.
+      parameters:
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+          description: Admin-only filter. Tenant principals are always forced to their own tenant_id.
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - active
+              - pending
+              - error
+              - archived
+        - name: connector_family
+          in: query
+          schema:
+            type: string
+        - name: provider_family
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Principal-scoped connector registry list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  count:
+                    type: integer
+                  connectors:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Tenant scope violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /system/connectors/{system_id}:
+    get:
+      tags:
+        - system-layer
+      security:
+        - backendBearerAuth: []
+      operationId: getSystemConnector
+      summary: Get one connector system visible to the current principal
+      description: Principal-aware connector registry read. Tenant users can only read systems in their tenant; admins can read any system.
+      parameters:
+        - name: system_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Principal-scoped connector registry record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  connector:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Tenant scope violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Connector system not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /system/tools:
+    get:
+      tags:
+        - system-layer
+      security:
+        - backendBearerAuth: []
+      operationId: listSystemTools
+      summary: List MCP-style system tools visible to the current principal
+      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context.
+      responses:
+        '200':
+          description: System layer tools
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  protocol:
+                    type: string
+                    example: openapi-mcp-facade
+                  principal:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+                  tools:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /system/tools/call:
+    post:
+      tags:
+        - system-layer
+      security:
+        - backendBearerAuth: []
+      operationId: callSystemTool
+      summary: Call a governed MCP-style system tool
+      description: Calls a fixed system-layer tool through principal-aware runtime validation. Tenant principals are scoped to their tenant; admin principals can inspect all connector registry records.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  enum:
+                    - connector_registry_list
+                    - connector_registry_get
+                arguments:
+                  type: object
+                  additionalProperties: true
+                  description: Tool arguments. For connector_registry_get, include system_id.
+                  properties: {}
+      responses:
+        '200':
+          description: System tool result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok:
+                    type: boolean
+                  name:
+                    type: string
+                  result:
+                    type: object
+                    additionalProperties: true
+                    properties: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Tenant scope violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /admin/system/connectors:
     get:
       tags:

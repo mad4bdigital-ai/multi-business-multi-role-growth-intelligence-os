@@ -114,6 +114,9 @@ try {
     const statusConnection = doc.paths?.["/connect/status"]?.get?.responses?.["200"]?.content?.["application/json"]?.schema?.properties?.connection;
     const deviceResponse = doc.paths?.["/connect/device-install"]?.post?.responses?.["200"]?.content?.["application/json"]?.schema;
     assert("tenant GPT schema hides OAuth plumbing operations", !exposedPaths.some((path) => path.startsWith("/auth/")), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes system tools list", exposedPaths.includes("/system/tools"), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes system tools call", exposedPaths.includes("/system/tools/call"), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes system connector list", exposedPaths.includes("/system/connectors"), exposedPaths.join(", "));
     assert("activate schema exposes n8n activation mode", Array.isArray(activateSchema?.properties?.n8n_activation_mode?.enum), JSON.stringify(activateSchema?.properties));
     assert("n8n activation enum supports managed main server", activateSchema.properties.n8n_activation_mode.enum.includes("managed_main_server"));
     assert("n8n activation enum supports self hosted local", activateSchema.properties.n8n_activation_mode.enum.includes("self_hosted_local"));

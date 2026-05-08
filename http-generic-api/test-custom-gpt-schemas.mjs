@@ -49,7 +49,7 @@ const EXPECTED_SCOPE_TAGS = {
   "openapi.custom-gpt.logic.yaml": new Set(["logic", "workflows"]),
   "openapi.custom-gpt.observability.yaml": new Set(["observability", "security"]),
   "openapi.custom-gpt.developer.yaml": new Set(["developer-api"]),
-  "openapi.custom-gpt.admin-cli.yaml": new Set(["admin-control"]),
+  "openapi.custom-gpt.admin-cli.yaml": new Set(["admin-control", "system-layer"]),
   "openapi.custom-gpt.ops.yaml": new Set(["release"]),
 };
 
@@ -205,9 +205,11 @@ section("openapi.custom-gpt.auth-dispatcher.yaml");
   const operations = collectOperations(doc);
   assert("auth dispatcher uses auth host", doc.servers?.[0]?.url === "https://auth.mad4b.com", doc.servers?.[0]?.url);
   assert("auth dispatcher has admin operations", operations.length > 0);
-  assert("auth dispatcher is admin-control only", operations.every((operation) => operation.operation.tags?.[0] === "admin-control"));
+  assert("auth dispatcher is admin-control/system-layer only", operations.every((operation) => ["admin-control", "system-layer"].includes(operation.operation.tags?.[0])));
   assert("auth dispatcher exposes system layer tools", operations.some((operation) => operation.pathKey === "/admin/system/tools"));
   assert("auth dispatcher exposes system layer tool calls", operations.some((operation) => operation.pathKey === "/admin/system/tools/call"));
+  assert("auth dispatcher exposes shared system tools", operations.some((operation) => operation.pathKey === "/system/tools"));
+  assert("auth dispatcher exposes shared system tool calls", operations.some((operation) => operation.pathKey === "/system/tools/call"));
 }
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`);

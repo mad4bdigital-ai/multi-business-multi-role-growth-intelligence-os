@@ -33,6 +33,35 @@ const SYSTEM_LAYER_TOOLS = [
 
 const VALID_STATUSES = new Set(["active", "pending", "error", "archived"]);
 
+function isAdminPrincipal(auth) {
+  return auth?.is_admin === true;
+}
+
+function principalTenantId(auth) {
+  return auth?.tenant_id || null;
+}
+
+function scopeFiltersToPrincipal(filters = {}, auth = {}) {
+  if (isAdminPrincipal(auth)) return { ...filters };
+
+  const tenantId = principalTenantId(auth);
+  if (!tenantId) {
+    const err = new Error("Tenant-scoped system tools require a tenant context.");
+    err.status = 403;
+    err.code = "tenant_context_required";
+    throw err;
+  }
+
+  if (filters.tenant_id && filters.tenant_id !== tenantId) {
+    const err = new Error("Tenant-scoped system tools cannot access another tenant.");
+    err.status = 403;
+    err.code = "tenant_scope_violation";
+    throw err;
+  }
+
+  return { ...filters, tenant_id: tenantId };
+}
+
 function clampLimit(value, fallback = 50) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed)) return fallback;
@@ -71,34 +100,35 @@ function systemRow(row) {
   };
 }
 
-async function listConnectorRegistry(filters = {}) {
+async function listConnectorRegistry(filters = {}, auth = null) {
+  const scopedFilters = auth ? scopeFiltersToPrincipal(filters, auth) : filters;
   const conditions = ["1=1"];
   const params = [];
 
-  if (filters.tenant_id) {
+  if (scopedFilters.tenant_id) {
     conditions.push("cs.tenant_id = ?");
-    params.push(filters.tenant_id);
+    params.push(scopedFilters.tenant_id);
   }
-  if (filters.status) {
-    if (!VALID_STATUSES.has(filters.status)) {
+  if (scopedFilters.status) {
+    if (!VALID_STATUSES.has(scopedFilters.status)) {
       const err = new Error("status must be one of: active, pending, error, archived.");
       err.status = 400;
       err.code = "invalid_status";
       throw err;
     }
     conditions.push("cs.status = ?");
-    params.push(filters.status);
+    params.push(scopedFilters.status);
   }
-  if (filters.connector_family) {
+  if (scopedFilters.connector_family) {
     conditions.push("cs.connector_family = ?");
-    params.push(filters.connector_family);
+    params.push(scopedFilters.connector_family);
   }
-  if (filters.provider_family) {
+  if (scopedFilters.provider_family) {
     conditions.push("cs.provider_family = ?");
-    params.push(filters.provider_family);
+    params.push(scopedFilters.provider_family);
   }
 
-  const limit = clampLimit(filters.limit);
+  const limit = clampLimit(scopedFilters.limit);
   params.push(limit);
 
   const [rows] = await getPool().query(
@@ -120,7 +150,7 @@ async function listConnectorRegistry(filters = {}) {
   return rows.map(systemRow);
 }
 
-async function getConnectorRegistrySystem(systemId) {
+async function getConnectorRegistrySystem(systemId, auth = null) {
   if (!systemId) {
     const err = new Error("system_id is required.");
     err.status = 400;
@@ -150,6 +180,14 @@ async function getConnectorRegistrySystem(systemId) {
     throw err;
   }
 
+  const row = rows[0];
+  if (auth && !isAdminPrincipal(auth) && row.tenant_id !== principalTenantId(auth)) {
+    const err = new Error("Tenant-scoped system tools cannot access another tenant.");
+    err.status = 403;
+    err.code = "tenant_scope_violation";
+    throw err;
+  }
+
   const [installations] = await getPool().query(
     `SELECT installation_id, tenant_id, scope, credential_ref, status, installed_at, expires_at, meta_json
        FROM \`installations\`
@@ -160,7 +198,7 @@ async function getConnectorRegistrySystem(systemId) {
   );
 
   return {
-    ...systemRow(rows[0]),
+    ...systemRow(row),
     installations: installations.map((installation) => ({
       ...installation,
       meta_json: parseConfigJson(installation.meta_json),
@@ -168,12 +206,12 @@ async function getConnectorRegistrySystem(systemId) {
   };
 }
 
-async function callSystemLayerTool(name, args = {}) {
+async function callSystemLayerTool(name, args = {}, auth = null) {
   switch (name) {
     case "connector_registry_list":
-      return { connectors: await listConnectorRegistry(args) };
+      return { connectors: await listConnectorRegistry(args, auth) };
     case "connector_registry_get":
-      return { connector: await getConnectorRegistrySystem(args.system_id) };
+      return { connector: await getConnectorRegistrySystem(args.system_id, auth) };
     default: {
       const err = new Error(`Unknown system layer tool: ${name}`);
       err.status = 400;
@@ -197,10 +235,55 @@ export function buildSystemLayerRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
   const adminOnly = [requireBackendApiKey, requireAdminPrincipal];
+  const authenticated = [requireBackendApiKey];
+
+  router.get("/system/tools", ...authenticated, async (req, res) => {
+    return res.status(200).json({
+      ok: true,
+      protocol: "openapi-mcp-facade",
+      principal: {
+        mode: req.auth?.mode || null,
+        is_admin: isAdminPrincipal(req.auth),
+        tenant_id: principalTenantId(req.auth),
+      },
+      tools: SYSTEM_LAYER_TOOLS,
+    });
+  });
+
+  router.post("/system/tools/call", ...authenticated, async (req, res) => {
+    try {
+      const { name, arguments: args = {} } = req.body || {};
+      if (!name) {
+        return res.status(400).json({ ok: false, error: { code: "missing_tool_name", message: "name is required." } });
+      }
+      const result = await callSystemLayerTool(name, args, req.auth);
+      return res.status(200).json({ ok: true, name, result });
+    } catch (err) {
+      return sendError(res, err, "system_tool_call_failed");
+    }
+  });
+
+  router.get("/system/connectors", ...authenticated, async (req, res) => {
+    try {
+      const connectors = await listConnectorRegistry(req.query || {}, req.auth);
+      return res.status(200).json({ ok: true, connectors, count: connectors.length });
+    } catch (err) {
+      return sendError(res, err, "connector_registry_list_failed");
+    }
+  });
+
+  router.get("/system/connectors/:system_id", ...authenticated, async (req, res) => {
+    try {
+      const connector = await getConnectorRegistrySystem(req.params.system_id, req.auth);
+      return res.status(200).json({ ok: true, connector });
+    } catch (err) {
+      return sendError(res, err, "connector_registry_get_failed");
+    }
+  });
 
   router.get("/admin/system/connectors", ...adminOnly, async (req, res) => {
     try {
-      const connectors = await listConnectorRegistry(req.query || {});
+      const connectors = await listConnectorRegistry(req.query || {}, req.auth);
       return res.status(200).json({ ok: true, connectors, count: connectors.length });
     } catch (err) {
       return sendError(res, err, "connector_registry_list_failed");
@@ -209,7 +292,7 @@ export function buildSystemLayerRoutes(deps) {
 
   router.get("/admin/system/connectors/:system_id", ...adminOnly, async (req, res) => {
     try {
-      const connector = await getConnectorRegistrySystem(req.params.system_id);
+      const connector = await getConnectorRegistrySystem(req.params.system_id, req.auth);
       return res.status(200).json({ ok: true, connector });
     } catch (err) {
       return sendError(res, err, "connector_registry_get_failed");
@@ -230,7 +313,7 @@ export function buildSystemLayerRoutes(deps) {
       if (!name) {
         return res.status(400).json({ ok: false, error: { code: "missing_tool_name", message: "name is required." } });
       }
-      const result = await callSystemLayerTool(name, args);
+      const result = await callSystemLayerTool(name, args, req.auth);
       return res.status(200).json({ ok: true, name, result });
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");

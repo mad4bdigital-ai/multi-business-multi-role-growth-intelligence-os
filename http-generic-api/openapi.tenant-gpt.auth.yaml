@@ -10,6 +10,8 @@ servers:
 tags:
   - name: governance
     description: Tenant scope policy and access boundary. Call /policy first to understand what this scope permits.
+  - name: system-layer
+    description: MCP-style tenant-scoped tool discovery and connector registry calls.
   - name: connect
     description: Backend connection activation and device provisioning.
   - name: connector
@@ -83,6 +85,121 @@ paths:
                   access_model:
                     type: string
                     description: Description of the JWT-based tenant access model.
+
+  /system/tools:
+    get:
+      tags: [system-layer]
+      operationId: tenantListSystemTools
+      summary: List tenant-visible MCP-style system tools
+      description: Lists OpenAPI-compatible system tools available to this tenant GPT through auth.mad4b.com. Tool calls are tenant-scoped by the OAuth bearer token.
+      responses:
+        '200':
+          description: Tenant-visible system tools
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  protocol: { type: string, example: openapi-mcp-facade }
+                  principal: { type: object, additionalProperties: true }
+                  tools:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+
+  /system/tools/call:
+    post:
+      tags: [system-layer]
+      operationId: tenantCallSystemTool
+      summary: Call a tenant-scoped MCP-style system tool
+      description: Calls a fixed system-layer tool through principal-aware runtime validation. Tenant principals are always scoped to their own tenant_id.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  enum: [connector_registry_list, connector_registry_get]
+                arguments:
+                  type: object
+                  additionalProperties: true
+                  description: Tool arguments. For connector_registry_get, include system_id.
+      responses:
+        '200':
+          description: System tool result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  name: { type: string }
+                  result: { type: object, additionalProperties: true }
+        '400': { description: Invalid tool request }
+        '403': { description: Tenant scope violation }
+
+  /system/connectors:
+    get:
+      tags: [system-layer]
+      operationId: tenantListSystemConnectors
+      summary: List connector systems for the authenticated tenant
+      description: Lists connected_systems rows visible to the tenant principal. tenant_id is derived from the OAuth bearer token.
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [active, pending, error, archived] }
+        - name: connector_family
+          in: query
+          schema: { type: string }
+        - name: provider_family
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200':
+          description: Tenant connector registry list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  count: { type: integer }
+                  connectors:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+
+  /system/connectors/{system_id}:
+    get:
+      tags: [system-layer]
+      operationId: tenantGetSystemConnector
+      summary: Get one connector system for the authenticated tenant
+      description: Reads a connected_systems row only if it belongs to the tenant principal.
+      parameters:
+        - name: system_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Tenant connector registry record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  connector: { type: object, additionalProperties: true }
+        '403': { description: Tenant scope violation }
+        '404': { description: Connector system not found }
 
   /connect/status:
     get:

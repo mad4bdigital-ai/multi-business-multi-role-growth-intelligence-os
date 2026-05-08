@@ -59,7 +59,7 @@ const SERVER_SCOPES = [
     slug: "admin-cli",
     host: "admin.mad4b.com",
     title: "Admin Control Actions",
-    tags: ["admin-control"]
+    tags: ["admin-control", "system-layer"]
   },
   {
     slug: "ops",
@@ -497,9 +497,10 @@ function main() {
 
   validateCoverage(sourceOperations, generatedDocs);
 
-  const adminOperations = sourceOperations.filter((operation) => operation.primaryTag === "admin-control");
+  const authDispatcherTags = new Set(["admin-control", "system-layer"]);
+  const adminOperations = sourceOperations.filter((operation) => authDispatcherTags.has(operation.primaryTag));
   if (adminOperations.length > 0) {
-    const dispatcherDoc = buildScopeDoc(doc, { operations: adminOperations, tags: ["admin-control"] }, {
+    const dispatcherDoc = buildScopeDoc(doc, { operations: adminOperations, tags: [...authDispatcherTags] }, {
       slug: "auth-dispatcher",
       host: "auth.mad4b.com",
       title: "Auth Dispatcher Admin Control Actions"
@@ -507,8 +508,8 @@ function main() {
     dispatcherDoc.info = {
       ...dispatcherDoc.info,
       title: `${doc.info?.title || "Platform API"} - Auth Dispatcher Admin Control Actions`,
-      summary: "Custom GPT action schema for admin-control via auth dispatcher.",
-      description: `Single-host Custom GPT action schema generated from ${SOURCE_OPENAPI_FILE}. Exposes admin-control routes via auth.mad4b.com.`
+      summary: "Custom GPT action schema for admin control and system layer via auth dispatcher.",
+      description: `Single-host Custom GPT action schema generated from ${SOURCE_OPENAPI_FILE}. Exposes admin-control and system-layer routes via auth.mad4b.com.`
     };
     const dispatcherPath = path.resolve(`./${AUTH_DISPATCHER_SCHEMA_FILE}`);
     const dispatcherYaml = yaml.dump(dispatcherDoc, { lineWidth: -1, noRefs: true });
