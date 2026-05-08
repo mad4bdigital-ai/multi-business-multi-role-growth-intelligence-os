@@ -1283,6 +1283,26 @@ paths:
               additionalProperties: false
               required:
                 - tool
+              allOf:
+                - if:
+                    properties:
+                      tool:
+                        const: db
+                    required:
+                      - tool
+                  then:
+                    required:
+                      - sql
+                - if:
+                    properties:
+                      tool:
+                        const: shell
+                    required:
+                      - tool
+                  then:
+                    required:
+                      - action
+                      - alias
               properties:
                 tool:
                   type: string
@@ -1296,6 +1316,7 @@ paths:
                   minimum: 1000
                   maximum: 600000
                   default: 120000
+                  description: Request timeout in milliseconds. Use timeout_ms (not timeout).
                 sql:
                   type: string
                   description: SQL statement for the db tool.
