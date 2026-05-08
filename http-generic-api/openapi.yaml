@@ -3234,13 +3234,11 @@ paths:
               properties:
                 tool:
                   type: string
-                  enum: [github, gcloud, db, env, windows_app]
+                  enum: [github, gcloud, db, env, windows_app, hostinger, shell]
                 args:
-                  oneOf:
-                    - type: array
-                      items: { type: string }
-                    - type: string
-                  description: Arguments for github or gcloud tools. Prefer an array to preserve spacing.
+                  type: array
+                  items: { type: string }
+                  description: Arguments for github, gcloud, or shell tools.
                 timeout_ms:
                   type: integer
                   minimum: 1000
@@ -3251,13 +3249,7 @@ paths:
                   description: SQL statement for the db tool.
                 params:
                   type: array
-                  items:
-                    oneOf:
-                      - type: string
-                      - type: number
-                      - type: integer
-                      - type: boolean
-                      - type: "null"
+                  items: {}
                   description: Positional SQL parameters for the db tool.
                 action:
                   type: string
