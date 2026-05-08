@@ -4,6 +4,7 @@ import path from "path";
 
 const SOURCE_OPENAPI_FILE = "openapi.yaml";
 const OUTPUT_PREFIX = "openapi.custom-gpt";
+const AUTH_DISPATCHER_SCHEMA_FILE = `${OUTPUT_PREFIX}.auth-dispatcher.yaml`;
 const MAX_OPERATIONS_PER_SCHEMA = 29;
 const METHOD_NAMES = new Set(["get", "post", "put", "delete", "patch", "options", "head", "trace"]);
 const DEDICATED_SCOPE_TAGS = new Set(["admin-control"]);
@@ -335,6 +336,10 @@ function removeStaleGeneratedSchemas() {
       fs.unlinkSync(filePath);
     }
   }
+  const dispatcherPath = path.resolve(`./${AUTH_DISPATCHER_SCHEMA_FILE}`);
+  if (fs.existsSync(dispatcherPath)) {
+    fs.unlinkSync(dispatcherPath);
+  }
 }
 
 function validateCoverage(sourceOperations, generatedDocs) {
@@ -408,6 +413,25 @@ function main() {
   });
 
   validateCoverage(sourceOperations, generatedDocs);
+
+  const adminOperations = sourceOperations.filter((operation) => operation.primaryTag === "admin-control");
+  if (adminOperations.length > 0) {
+    const dispatcherDoc = buildScopeDoc(doc, { operations: adminOperations, tags: ["admin-control"] }, {
+      slug: "auth-dispatcher",
+      host: "auth.mad4b.com",
+      title: "Auth Dispatcher Admin Control Actions"
+    });
+    dispatcherDoc.info = {
+      ...dispatcherDoc.info,
+      title: `${doc.info?.title || "Platform API"} - Auth Dispatcher Admin Control Actions`,
+      summary: "Custom GPT action schema for admin-control via auth dispatcher.",
+      description: `Single-host Custom GPT action schema generated from ${SOURCE_OPENAPI_FILE}. Exposes admin-control routes via auth.mad4b.com.`
+    };
+    const dispatcherPath = path.resolve(`./${AUTH_DISPATCHER_SCHEMA_FILE}`);
+    const dispatcherYaml = yaml.dump(dispatcherDoc, { lineWidth: -1, noRefs: true });
+    fs.writeFileSync(dispatcherPath, dispatcherYaml, "utf8");
+    console.log(`Generated ${dispatcherPath} (${countOperations(dispatcherDoc.paths)} operations) -> https://auth.mad4b.com`);
+  }
 
   console.log(`\nSuccessfully generated ${generatedDocs.length} scoped Custom GPT schemas from ${SOURCE_OPENAPI_FILE}.`);
 }
