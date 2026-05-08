@@ -23,26 +23,49 @@ components:
       type: object
       additionalProperties: true
       properties:
-        job_id: { type: string }
-        action_key: { type: string }
+        job_id:
+          type: string
+        action_key:
+          type: string
         source_type:
           type: string
-          enum: [upload, repo_link, rollback]
-        source_url: { type: string, nullable: true }
-        source_ref: { type: string, nullable: true }
-        source_filename: { type: string, nullable: true }
-        endpoints_upserted: { type: integer }
-        endpoints_deprecated: { type: integer }
+          enum:
+            - upload
+            - repo_link
+            - rollback
+        source_url:
+          type: string
+          nullable: true
+        source_ref:
+          type: string
+          nullable: true
+        source_filename:
+          type: string
+          nullable: true
+        endpoints_upserted:
+          type: integer
+        endpoints_deprecated:
+          type: integer
         warnings:
           type: array
-          items: { type: string }
+          items:
+            type: string
           nullable: true
         status:
           type: string
-          enum: [pending, completed, failed]
-        error_message: { type: string, nullable: true }
-        imported_by: { type: string, nullable: true }
-        imported_at: { type: string, format: date-time }
+          enum:
+            - pending
+            - completed
+            - failed
+        error_message:
+          type: string
+          nullable: true
+        imported_by:
+          type: string
+          nullable: true
+        imported_at:
+          type: string
+          format: date-time
     ReadbackRequest:
       type: object
       additionalProperties: false
@@ -1306,10 +1329,18 @@ paths:
               properties:
                 tool:
                   type: string
-                  enum: [github, gcloud, db, env, windows_app, hostinger, shell]
+                  enum:
+                    - github
+                    - gcloud
+                    - db
+                    - env
+                    - windows_app
+                    - hostinger
+                    - shell
                 args:
                   type: array
-                  items: { type: string }
+                  items:
+                    type: string
                   description: Arguments for github, gcloud, or shell tools.
                 timeout_ms:
                   type: integer
@@ -1353,38 +1384,6 @@ paths:
                 app_alias:
                   type: string
                   description: Allowlisted local Windows app alias for windows_app launch.
-                path:
-                  type: string
-                  description: 'Hostinger API path for the hostinger tool, e.g. /v1/dns/zone/mad4b.com/records or /v1/vps/virtual-machines'
-                method:
-                  type: string
-                  enum:
-                    - GET
-                    - POST
-                    - PUT
-                    - DELETE
-                    - PATCH
-                  default: GET
-                  description: HTTP method for the hostinger tool.
-                request_body:
-                  type: object
-                  additionalProperties: true
-                  description: JSON request body for POST/PUT/PATCH Hostinger API calls.
-                api_key_ref:
-                  type: string
-                  enum:
-                    - cloud_plan
-                    - shared_manager
-                  default: cloud_plan
-                  description: Which Hostinger API key to use. cloud_plan for VPS/cloud resources, shared_manager for shared hosting and domains.
-                alias:
-                  type: string
-                  description: Shell command alias to run. Must exist in ADMIN_SHELL_ALLOWLIST. Use with tool=shell, action=run.
-                extra_args:
-                  type: array
-                  items:
-                    type: string
-                  description: Extra arguments appended after the allowlisted shell command args. Only permitted if the alias has allow_extra_args=true. Shell metacharacters are rejected.
       responses:
         '200':
           description: Admin control operation result
@@ -1445,7 +1444,7 @@ paths:
               properties:
                 path:
                   type: string
-                  description: 'Hostinger API path, e.g. /v1/dns/zone/mad4b.com/records or /v1/vps/virtual-machines'
+                  description: Hostinger API path, e.g. /v1/dns/zone/mad4b.com/records or /v1/vps/virtual-machines
                 method:
                   type: string
                   enum:
@@ -1459,10 +1458,12 @@ paths:
                   type: object
                   additionalProperties: true
                   description: JSON body for POST/PUT/PATCH requests.
+                  properties: {}
                 params:
                   type: object
                   additionalProperties: true
                   description: Query string parameters to append.
+                  properties: {}
                 api_key_ref:
                   type: string
                   enum:
@@ -1495,6 +1496,7 @@ paths:
                       data:
                         type: object
                         additionalProperties: true
+                        properties: {}
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1505,11 +1507,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /admin/schema-import/upload:
     post:
-      tags: [admin-control]
-      security: [{ backendBearerAuth: [] }]
+      tags:
+        - admin-control
+      security:
+        - backendBearerAuth: []
       operationId: importSchemaUpload
       summary: Upload a full OpenAPI schema file and split it into the registry
       description: Accepts a full OpenAPI 3.x schema string. Parses it, inlines $refs, splits per operation, upserts the parent action row and one endpoint row per operation with a compact dereferenced schema_json. Removed endpoints are deprecated. Returns a job record for audit and rollback.
@@ -1519,14 +1522,15 @@ paths:
           application/json:
             schema:
               type: object
-              required: [schema_yaml]
+              required:
+                - schema_yaml
               properties:
                 schema_yaml:
                   type: string
                   description: Full OpenAPI YAML or JSON content as a string. Use schema_json as an alias.
                 schema_json:
                   type: string
-                  description: Alias for schema_yaml — supply one or the other.
+                  description: Alias for schema_yaml - supply one or the other.
                 action_key:
                   type: string
                   description: Override the action_key derived from the schema info.title slug. Useful when the title does not produce a clean key.
@@ -1544,24 +1548,36 @@ paths:
               schema:
                 type: object
                 properties:
-                  ok: { type: boolean }
-                  job_id: { type: string }
-                  action_key: { type: string }
-                  endpoints_upserted: { type: integer }
-                  endpoints_deprecated: { type: integer }
-                  warnings: { type: array, items: { type: string } }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+                  ok:
+                    type: boolean
+                  job_id:
+                    type: string
+                  action_key:
+                    type: string
+                  endpoints_upserted:
+                    type: integer
+                  endpoints_deprecated:
+                    type: integer
+                  warnings:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '422':
           description: Schema parse or import failure
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
-
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /admin/schema-import/repo:
     post:
-      tags: [admin-control]
-      security: [{ backendBearerAuth: [] }]
+      tags:
+        - admin-control
+      security:
+        - backendBearerAuth: []
       operationId: importSchemaFromRepo
       summary: Install an OpenAPI schema directly from a GitHub or GitLab repo URL
       description: |
@@ -1572,7 +1588,8 @@ paths:
           application/json:
             schema:
               type: object
-              required: [repo_url]
+              required:
+                - repo_url
               properties:
                 repo_url:
                   type: string
@@ -1598,34 +1615,48 @@ paths:
               schema:
                 type: object
                 properties:
-                  ok: { type: boolean }
-                  job_id: { type: string }
-                  action_key: { type: string }
-                  endpoints_upserted: { type: integer }
-                  endpoints_deprecated: { type: integer }
-                  warnings: { type: array, items: { type: string } }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+                  ok:
+                    type: boolean
+                  job_id:
+                    type: string
+                  action_key:
+                    type: string
+                  endpoints_upserted:
+                    type: integer
+                  endpoints_deprecated:
+                    type: integer
+                  warnings:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '422':
           description: Fetch or import failure
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
-
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /admin/schema-import/rollback:
     post:
-      tags: [admin-control]
-      security: [{ backendBearerAuth: [] }]
+      tags:
+        - admin-control
+      security:
+        - backendBearerAuth: []
       operationId: rollbackSchemaImport
       summary: Restore endpoint schemas to a previous import job's snapshot
-      description: Restores endpoint schema_json values for the given action_key to the state captured in the target job's snapshots. Post-job endpoints are deprecated; removed endpoints restored to active. Creates a new rollback job row for audit — the original job is never mutated.
+      description: Restores endpoint schema_json values for the given action_key to the state captured in the target job's snapshots. Post-job endpoints are deprecated; removed endpoints restored to active. Creates a new rollback job row for audit - the original job is never mutated.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [action_key, job_id]
+              required:
+                - action_key
+                - job_id
               properties:
                 action_key:
                   type: string
@@ -1644,36 +1675,53 @@ paths:
               schema:
                 type: object
                 properties:
-                  ok: { type: boolean }
-                  job_id: { type: string }
-                  action_key: { type: string }
-                  endpoints_restored: { type: integer }
-                  rolled_back_to_job: { type: string }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
+                  ok:
+                    type: boolean
+                  job_id:
+                    type: string
+                  action_key:
+                    type: string
+                  endpoints_restored:
+                    type: integer
+                  rolled_back_to_job:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '422':
-          description: Rollback failure — job not found or not completed
+          description: Rollback failure - job not found or not completed
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
-
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /admin/schema-import/jobs:
     get:
-      tags: [admin-control]
-      security: [{ backendBearerAuth: [] }]
+      tags:
+        - admin-control
+      security:
+        - backendBearerAuth: []
       operationId: listSchemaImportJobs
       summary: List schema import jobs with optional action_key filter
       parameters:
         - name: action_key
           in: query
-          schema: { type: string }
+          schema:
+            type: string
           description: Filter by action_key. Omit to list all jobs.
         - name: limit
           in: query
-          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
         - name: offset
           in: query
-          schema: { type: integer, default: 0, minimum: 0 }
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
       responses:
         '200':
           description: Job list
@@ -1682,24 +1730,30 @@ paths:
               schema:
                 type: object
                 properties:
-                  ok: { type: boolean }
-                  count: { type: integer }
+                  ok:
+                    type: boolean
+                  count:
+                    type: integer
                   jobs:
                     type: array
-                    items: { $ref: '#/components/schemas/SchemaImportJob' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-
+                    items:
+                      $ref: '#/components/schemas/SchemaImportJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /admin/schema-import/jobs/{job_id}:
     get:
-      tags: [admin-control]
-      security: [{ backendBearerAuth: [] }]
+      tags:
+        - admin-control
+      security:
+        - backendBearerAuth: []
       operationId: getSchemaImportJob
       summary: Get a single schema import job including endpoint snapshots
       parameters:
         - name: job_id
           in: path
           required: true
-          schema: { type: string }
+          schema:
+            type: string
       responses:
         '200':
           description: Job detail
@@ -1708,7 +1762,8 @@ paths:
               schema:
                 type: object
                 properties:
-                  ok: { type: boolean }
+                  ok:
+                    type: boolean
                   job:
                     allOf:
                       - $ref: '#/components/schemas/SchemaImportJob'
@@ -1719,9 +1774,15 @@ paths:
                             items:
                               type: object
                               properties:
-                                path: { type: string }
-                                method: { type: string }
-                                operationId: { type: string }
-                                schema_json: { type: string }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                                path:
+                                  type: string
+                                method:
+                                  type: string
+                                operationId:
+                                  type: string
+                                schema_json:
+                                  type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'

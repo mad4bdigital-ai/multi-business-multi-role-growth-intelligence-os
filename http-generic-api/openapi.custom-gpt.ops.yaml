@@ -19,6 +19,53 @@ components:
       description: |
         Send Authorization: Bearer <BACKEND_API_KEY> for admin/service access, or Authorization: Bearer <USER_JWT> after user sign-in.
   schemas:
+    SchemaImportJob:
+      type: object
+      additionalProperties: true
+      properties:
+        job_id:
+          type: string
+        action_key:
+          type: string
+        source_type:
+          type: string
+          enum:
+            - upload
+            - repo_link
+            - rollback
+        source_url:
+          type: string
+          nullable: true
+        source_ref:
+          type: string
+          nullable: true
+        source_filename:
+          type: string
+          nullable: true
+        endpoints_upserted:
+          type: integer
+        endpoints_deprecated:
+          type: integer
+        warnings:
+          type: array
+          items:
+            type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+            - pending
+            - completed
+            - failed
+        error_message:
+          type: string
+          nullable: true
+        imported_by:
+          type: string
+          nullable: true
+        imported_at:
+          type: string
+          format: date-time
     ReadbackRequest:
       type: object
       additionalProperties: false

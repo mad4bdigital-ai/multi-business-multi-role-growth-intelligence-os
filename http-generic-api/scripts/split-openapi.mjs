@@ -328,10 +328,12 @@ function countOperations(paths) {
 }
 
 function removeStaleGeneratedSchemas() {
-  for (const fileName of fs.readdirSync(".")) {
-    if (!fileName.startsWith(`${OUTPUT_PREFIX}.`) || !fileName.endsWith(".yaml")) continue;
-    if (fileName === `${OUTPUT_PREFIX}.yaml`) continue;
-    fs.unlinkSync(fileName);
+  for (const scope of SERVER_SCOPES) {
+    const fileName = `${OUTPUT_PREFIX}.${scope.slug}.yaml`;
+    const filePath = path.resolve(`./${fileName}`);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
   }
 }
 
