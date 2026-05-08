@@ -1183,7 +1183,7 @@ x-tenant-gpt-auth:
         authorizationUrl: https://auth.mad4b.com/auth/oauth/authorize
         tokenUrl: https://auth.mad4b.com/auth/oauth/token
         scopes:
-          tenant: Tenant-scoped Growth Intelligence access for the signed-in user.
+          tenant: Access tenant-scoped Growth Intelligence links, connection status, activation, install bundles, and governed system tools for the signed-in user.
   security:
     - userBearerAuth:
         - tenant
