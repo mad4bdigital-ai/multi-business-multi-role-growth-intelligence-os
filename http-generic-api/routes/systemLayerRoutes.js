@@ -3,8 +3,6 @@ import {
   ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
   ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
   ACTIVATION_BOOTSTRAP_SPREADSHEET_ID,
-  GITHUB_API_BASE_URL,
-  GITHUB_TOKEN
 } from "../config.js";
 import { getPool } from "../db.js";
 import { getGoogleClientsForSpreadsheet } from "../googleSheets.js";
@@ -265,15 +263,24 @@ function resolveGithubValidationTarget(args = {}, bootstrapRow = {}) {
   return target ? { ...target, branch: args.github_branch || bootstrapRow.github_branch || process.env.GITHUB_BRANCH || "main" } : null;
 }
 
-async function activationGithubValidate(args = {}, bootstrapRow = {}) {
+function normalizeExecutionBody(executionResult = {}) {
+  const body = executionResult?.body || executionResult?.data || executionResult || {};
+  return body?.data && typeof body.data === "object" ? body.data : body;
+}
+
+async function activationGithubValidate(args = {}, bootstrapRow = {}, deps = {}) {
   try {
-    if (!GITHUB_TOKEN) {
-      const err = new Error("Missing required environment variable: GITHUB_TOKEN");
-      err.code = "missing_github_token";
+    const executeGovernedHttp = deps.executionFacade?.execute || deps.executeGovernedHttp;
+
+    if (typeof executeGovernedHttp !== "function") {
+      const err = new Error("Governed HTTP execution facade is unavailable for GitHub validation.");
+      err.code = "governed_http_execution_unavailable";
       err.status = 500;
       throw err;
     }
+
     const target = resolveGithubValidationTarget(args, bootstrapRow);
+
     if (!target) {
       return {
         ok: false,
@@ -283,21 +290,46 @@ async function activationGithubValidate(args = {}, bootstrapRow = {}) {
       };
     }
 
-    const response = await fetch(
-      `${GITHUB_API_BASE_URL}/repos/${encodeURIComponent(target.owner)}/${encodeURIComponent(target.repo)}`,
-      {
-        headers: {
-          Accept: "application/vnd.github+json",
-          Authorization: `Bearer ${GITHUB_TOKEN}`,
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
-      }
-    );
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const err = new Error(payload?.message || `GitHub validation failed with status ${response.status}.`);
-      err.code = response.status === 401 || response.status === 403 ? "provider_auth_failed" : "github_validation_failed";
-      err.status = response.status;
+    const parentActionKey = String(
+      bootstrapRow.github_parent_action_key || "github_api_mcp"
+    ).trim();
+    const endpointKey = String(
+      bootstrapRow.github_endpoint_key || "github_get_repository"
+    ).trim();
+
+    const executionResult = await executeGovernedHttp({
+      parent_action_key: parentActionKey,
+      endpoint_key: endpointKey,
+      path_params: {
+        owner: target.owner,
+        repo: target.repo,
+      },
+      query: {},
+      timeout_seconds: Number(args.timeout_seconds || 15),
+      expect_json: true,
+      execution_trace_id: args.execution_trace_id,
+      source_layer: "system_layer_activation",
+      readback: {
+        required: false,
+        mode: "none",
+      },
+    });
+
+    const status = Number(executionResult?.status || executionResult?.statusCode || 0);
+    const payload = normalizeExecutionBody(executionResult);
+
+    if (status < 200 || status >= 300 || payload?.ok === false) {
+      const err = new Error(
+        payload?.error?.message ||
+        payload?.message ||
+        `Governed GitHub validation failed with status ${status || "unknown"}.`
+      );
+      err.code =
+        payload?.error?.code ||
+        (status === 401 || status === 403
+          ? "provider_auth_failed"
+          : "github_governed_validation_failed");
+      err.status = status || payload?.error?.status || 500;
       throw err;
     }
 
@@ -305,20 +337,22 @@ async function activationGithubValidate(args = {}, bootstrapRow = {}) {
       ok: true,
       provider: "github",
       attempted_binding: {
-        parent_action_key: bootstrapRow.github_parent_action_key || "github_api_mcp",
-        endpoint_key: bootstrapRow.github_endpoint_key || "github_get_repository",
+        parent_action_key: parentActionKey,
+        endpoint_key: endpointKey,
       },
       repository: payload.full_name || `${target.owner}/${target.repo}`,
       default_branch: payload.default_branch || null,
       requested_branch: target.branch,
       private: Boolean(payload.private),
+      governed_execution: true,
+      http_status: status,
     };
   } catch (err) {
     return { provider: "github", ...providerProbeError(err) };
   }
 }
 
-async function activationProviderBootstrapValidate(args = {}) {
+async function activationProviderBootstrapValidate(args = {}, deps = {}) {
   let bootstrapRow = null;
   let sheetsDiagnostic = null;
   const runtimeBootstrap = await resolveActivationBootstrapConfig();
@@ -357,7 +391,7 @@ async function activationProviderBootstrapValidate(args = {}) {
       return { ok: true, row: bootstrapRow };
     },
     attemptGitHub: async (bindings) => {
-      const probe = await activationGithubValidate(args, { ...bootstrapRow, ...bindings });
+      const probe = await activationGithubValidate(args, { ...bootstrapRow, ...bindings }, deps);
       return { ok: probe.ok, auth_failed: probe.auth_failed };
     },
   });
@@ -509,7 +543,7 @@ async function getConnectorRegistrySystem(systemId, auth = null) {
   };
 }
 
-async function callSystemLayerTool(name, args = {}, auth = null) {
+async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   assertAdminToolAccess(name, auth);
   switch (name) {
     case "connector_registry_list":
@@ -524,11 +558,12 @@ async function callSystemLayerTool(name, args = {}, auth = null) {
       const runtimeBootstrap = await resolveActivationBootstrapConfig();
       return await activationGithubValidate(
         args,
-        runtimeBootstrap.ok ? bootstrapConfigToRunnerRow(runtimeBootstrap.config) : {}
+        runtimeBootstrap.ok ? bootstrapConfigToRunnerRow(runtimeBootstrap.config) : {},
+        deps
       );
     }
     case "activation_provider_bootstrap_validate":
-      return await activationProviderBootstrapValidate(args);
+      return await activationProviderBootstrapValidate(args, deps);
     default: {
       const err = new Error(`Unknown system layer tool: ${name}`);
       err.status = 400;
@@ -549,7 +584,7 @@ function sendError(res, err, fallbackCode) {
 }
 
 export function buildSystemLayerRoutes(deps) {
-  const { requireBackendApiKey } = deps;
+  const { requireBackendApiKey, executionFacade } = deps;
   const router = Router();
   const adminOnly = [requireBackendApiKey, requireAdminPrincipal];
   const authenticated = [requireBackendApiKey];
@@ -573,7 +608,7 @@ export function buildSystemLayerRoutes(deps) {
       if (!name) {
         return res.status(400).json({ ok: false, error: { code: "missing_tool_name", message: "name is required." } });
       }
-      const result = await callSystemLayerTool(name, args, req.auth);
+      const result = await callSystemLayerTool(name, args, req.auth, { executionFacade });
       return res.status(200).json({ ok: true, name, result });
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");
@@ -630,7 +665,7 @@ export function buildSystemLayerRoutes(deps) {
       if (!name) {
         return res.status(400).json({ ok: false, error: { code: "missing_tool_name", message: "name is required." } });
       }
-      const result = await callSystemLayerTool(name, args, req.auth);
+      const result = await callSystemLayerTool(name, args, req.auth, { executionFacade });
       return res.status(200).json({ ok: true, name, result });
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");
