@@ -9,6 +9,7 @@ import {
 import { getPool } from "../db.js";
 import { getGoogleClientsForSpreadsheet } from "../googleSheets.js";
 import { runGovernedActivation } from "../governedActivationRunner.js";
+import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
 import { requireAdminPrincipal } from "./adminCliRoutes.js";
 
 const SYSTEM_LAYER_TOOLS = [
@@ -172,12 +173,25 @@ function bootstrapRowObject(values = []) {
   const repo = parseGithubRepo(mapped.github_repo || process.env.GITHUB_REPO);
   return {
     ...mapped,
+    diagnostic_only: true,
     github_parent_action_key: "github_api_mcp",
     github_endpoint_key: "getRepositoryContent",
     github_owner: repo?.owner || "",
     github_repo: repo?.repo || mapped.github_repo,
     github_branch: process.env.GITHUB_BRANCH || "main",
     raw_values: row,
+  };
+}
+
+function bootstrapConfigToRunnerRow(bootstrapConfig) {
+  return {
+    github_parent_action_key: bootstrapConfig.github_parent_action_key,
+    github_endpoint_key: bootstrapConfig.github_endpoint_key,
+    github_owner: bootstrapConfig.github_owner,
+    github_repo: bootstrapConfig.github_repo,
+    github_branch: bootstrapConfig.github_branch || "main",
+    source: bootstrapConfig.source,
+    sheets_required: false,
   };
 }
 
@@ -292,7 +306,7 @@ async function activationGithubValidate(args = {}, bootstrapRow = {}) {
       provider: "github",
       attempted_binding: {
         parent_action_key: bootstrapRow.github_parent_action_key || "github_api_mcp",
-        endpoint_key: bootstrapRow.github_endpoint_key || "getRepositoryContent",
+        endpoint_key: bootstrapRow.github_endpoint_key || "github_get_repository",
       },
       repository: payload.full_name || `${target.owner}/${target.repo}`,
       default_branch: payload.default_branch || null,
@@ -306,6 +320,9 @@ async function activationGithubValidate(args = {}, bootstrapRow = {}) {
 
 async function activationProviderBootstrapValidate(args = {}) {
   let bootstrapRow = null;
+  let sheetsDiagnostic = null;
+  const runtimeBootstrap = await resolveActivationBootstrapConfig();
+
   const result = await runGovernedActivation({
     attemptDrive: async () => {
       const probe = await activationDriveProbe();
@@ -313,25 +330,30 @@ async function activationProviderBootstrapValidate(args = {}) {
     },
     attemptSheets: async () => {
       const probe = await activationSheetsBootstrapRead();
-      if (probe.ok) bootstrapRow = probe.bootstrap_row;
+      sheetsDiagnostic = probe;
       return { ok: probe.ok, auth_failed: probe.auth_failed, rate_limited: probe.rate_limited };
     },
     getSpreadsheet: async () => {
-      if (bootstrapRow) {
+      if (runtimeBootstrap.ok) {
         return { ok: true, data: { sheets: [{ properties: { title: ACTIVATION_BOOTSTRAP_CONFIG_SHEET } }] } };
       }
       const probe = await activationSheetsBootstrapRead();
-      if (probe.ok) bootstrapRow = probe.bootstrap_row;
+      sheetsDiagnostic = probe;
       return probe.ok
         ? { ok: true, data: { sheets: [{ properties: { title: ACTIVATION_BOOTSTRAP_CONFIG_SHEET } }] } }
         : { ok: false, reason: probe.code || "activation_bootstrap_workbook_unreadable" };
     },
     readBootstrapRow: async () => {
-      if (!bootstrapRow) {
-        const probe = await activationSheetsBootstrapRead();
-        if (!probe.ok) return { ok: false };
-        bootstrapRow = probe.bootstrap_row;
+      if (!runtimeBootstrap.ok) {
+        return {
+          ok: false,
+          source: "db_runtime_or_server_env",
+          error: runtimeBootstrap.error,
+          db_error: runtimeBootstrap.db_error,
+          env_error: runtimeBootstrap.env_error,
+        };
       }
+      bootstrapRow = bootstrapConfigToRunnerRow(runtimeBootstrap.config);
       return { ok: true, row: bootstrapRow };
     },
     attemptGitHub: async (bindings) => {
@@ -343,6 +365,17 @@ async function activationProviderBootstrapValidate(args = {}) {
   return {
     ok: result.runtime_classification?.activation_status === "active",
     activation_layer: "provider_bootstrap_system_tool",
+    bootstrap_source: runtimeBootstrap.ok ? runtimeBootstrap.source : "unresolved",
+    sheets_required: false,
+    sheets_diagnostic: sheetsDiagnostic
+      ? {
+          attempted: true,
+          ok: sheetsDiagnostic.ok === true,
+          diagnostic_only: true,
+          spreadsheet_id: sheetsDiagnostic.spreadsheet_id || null,
+          range: sheetsDiagnostic.range || null,
+        }
+      : { attempted: false, diagnostic_only: true },
     ...result,
   };
 }
@@ -488,8 +521,11 @@ async function callSystemLayerTool(name, args = {}, auth = null) {
     case "activation_sheets_bootstrap_read":
       return await activationSheetsBootstrapRead(args);
     case "activation_github_validate": {
-      const sheetsProbe = await activationSheetsBootstrapRead();
-      return await activationGithubValidate(args, sheetsProbe.ok ? sheetsProbe.bootstrap_row : {});
+      const runtimeBootstrap = await resolveActivationBootstrapConfig();
+      return await activationGithubValidate(
+        args,
+        runtimeBootstrap.ok ? bootstrapConfigToRunnerRow(runtimeBootstrap.config) : {}
+      );
     }
     case "activation_provider_bootstrap_validate":
       return await activationProviderBootstrapValidate(args);

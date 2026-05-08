@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
+import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
 import {
   REGISTRY_SPREADSHEET_ID,
   ACTIVITY_SPREADSHEET_ID,
@@ -507,6 +508,7 @@ export function buildActivationRoutes(deps) {
   router.get("/activation/bootstrap-config", requireBackendApiKey, async (req, res) => {
     try {
       const pool = getPool();
+      const activationBootstrap = await resolveActivationBootstrapConfig();
 
       // Pull live platform state from DB
       const [[platform]] = await pool.query(
@@ -546,6 +548,24 @@ export function buildActivationRoutes(deps) {
         source: "backend_runtime",
         sheets_required: false,
         bootstrap_row: bootstrapRow,
+        activation_bootstrap: activationBootstrap.ok
+          ? {
+              ok: true,
+              source: activationBootstrap.source,
+              sheets_required: false,
+              github_parent_action_key: activationBootstrap.config.github_parent_action_key,
+              github_endpoint_key: activationBootstrap.config.github_endpoint_key,
+              github_owner: activationBootstrap.config.github_owner,
+              github_repo: activationBootstrap.config.github_repo,
+              github_branch: activationBootstrap.config.github_branch,
+            }
+          : {
+              ok: false,
+              source: "unresolved",
+              error: activationBootstrap.error,
+              db_error: activationBootstrap.db_error,
+              env_error: activationBootstrap.env_error,
+            },
         platform_state: {
           tenant_count:       Number(platform?.tenant_count || 0),
           membership_count:   Number(platform?.membership_count || 0),
@@ -555,7 +575,7 @@ export function buildActivationRoutes(deps) {
           enabled_devices:    Number(deviceRow?.enabled_devices || 0),
           last_activation_at: platform?.last_activation_at || null,
         },
-        note: "Authoritative backend runtime bootstrap. Replaces Activation Bootstrap Config!A2:J2 Sheets readback. No Sheets validation required.",
+        note: "Authoritative backend runtime bootstrap. GitHub activation binding resolves from DB runtime config first, then server env fallback. Sheets readback is diagnostic only.",
       });
     } catch (err) {
       return res.status(500).json({
