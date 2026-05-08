@@ -172,8 +172,8 @@ export function buildConnectRoutes(deps) {
     res.send(buildConnectHtml(GOOGLE_CLIENT_ID));
   });
 
-  // GET /connect/status — requires user JWT
-  router.get("/connect/status", requireBackendApiKey, requireUserJwt, async (req, res) => {
+  // GET /connect/status — requires user JWT (web channel: no backend API key needed)
+  router.get("/connect/status", requireUserJwt, async (req, res) => {
     try {
       const { user_id, tenant_id } = req.auth;
       const [user, membership] = await Promise.all([
@@ -213,7 +213,7 @@ export function buildConnectRoutes(deps) {
   });
 
   // POST /connect/activate — requires user JWT
-  router.post("/connect/activate", requireBackendApiKey, requireUserJwt, async (req, res) => {
+  router.post("/connect/activate", requireUserJwt, async (req, res) => {
     try {
       const { user_id, tenant_id } = req.auth;
       const { mode, cloudflare_mode, google_auth_mode, n8n_activation_mode = "managed_main_server", cf_api_token, cf_account_id, hostinger_api_key } = req.body || {};
@@ -284,7 +284,7 @@ export function buildConnectRoutes(deps) {
   });
 
   // POST /connect/device-install — requires user JWT
-  router.post("/connect/device-install", requireBackendApiKey, requireUserJwt, async (req, res) => {
+  router.post("/connect/device-install", requireUserJwt, async (req, res) => {
     try {
       const { user_id, tenant_id } = req.auth;
       const { device_id, hostname = null, cloudflare_connection_id = null, hostinger_connection_id = null, local_apps = [] } = req.body || {};
@@ -323,7 +323,7 @@ export function buildConnectRoutes(deps) {
   });
 
   // POST /connect/preferences — save tenant onboarding preferences
-  router.post("/connect/preferences", requireBackendApiKey, requireUserJwt, async (req, res) => {
+  router.post("/connect/preferences", requireUserJwt, async (req, res) => {
     try {
       const { user_id, tenant_id } = req.auth;
       const membership = await fetchActiveMembership(user_id);
@@ -341,7 +341,7 @@ export function buildConnectRoutes(deps) {
   });
 
   // POST /connect/profile — save tenant business profile
-  router.post("/connect/profile", requireBackendApiKey, requireUserJwt, async (req, res) => {
+  router.post("/connect/profile", requireUserJwt, async (req, res) => {
     try {
       const { user_id, tenant_id } = req.auth;
       const membership = await fetchActiveMembership(user_id);
