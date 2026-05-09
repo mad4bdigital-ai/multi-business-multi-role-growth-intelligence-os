@@ -9,3 +9,5 @@ Development/
 memory/
 
 .vs/
+
+local-connector/.env
