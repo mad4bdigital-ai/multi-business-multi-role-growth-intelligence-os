@@ -25,14 +25,22 @@ function looksLikePem(value = "") {
 function normalizePemText(value = "") {
   return String(value || "")
     .trim()
+    .replace(/^\uFEFF/, "")
+    .replace(/^'"]|['"]$g, "")
     .replace(/\\r\\n/g, "\n")
     .replace(/\\n/g, "\n")
     .replace(/\r\n/g, "\n");
 }
 
+function stripCommonEnvAssignment(value = "") {
+  const text = String(value || "").trim();
+  const match = text.match(/^[A-Za-z_][A-Za-z0-9_]*=(.*)$/s);
+  return match ? match[1].trim() : text;
+}
+
 function tryDecodeBase64(value = "") {
   try {
-    const compact = String(value || "").replace(/\s+/g, "");
+    const compact = stripCommonEnvAssignment(value).replace(/\s+/g, "");
     if (!compact) return "";
     return Buffer.from(compact, "base64").toString("utf8").trim();
   } catch {
@@ -42,7 +50,7 @@ function tryDecodeBase64(value = "") {
 
 function tryDecodeJsonWrappedSecret(value = "") {
   try {
-    const parsed = JSON.parse(value);
+    const parsed = JSON.parse(stripCommonEnvAssignment(value));
     if (typeof parsed === "string") return parsed;
     if (parsed && typeof parsed === "object") {
       return (
@@ -61,11 +69,11 @@ function tryDecodeJsonWrappedSecret(value = "") {
 }
 
 function buildPemCandidates(value = "") {
-  const raw = String(value || "").trim();
+  const raw = stripCommonEnvAssignment(String(value || "").trim());
   const candidates = [];
 
   const push = (candidate) => {
-    const normalized = normalizePemText(candidate);
+    const normalized = normalizePemText(stripCommonEnvAssignment(candidate));
     if (normalized && !candidates.includes(normalized)) candidates.push(normalized);
   };
 
@@ -85,8 +93,7 @@ function buildPemCandidates(value = "") {
     if (decodedTwice) push(decodedTwice);
   }
 
-  return candidates;
-}
+  return candidates;}
 
 export function decodeGitHubAppPrivateKey(value = "") {
   const candidates = buildPemCandidates(value);
@@ -108,7 +115,7 @@ function createInvalidPrivateKeyError(cause) {
   return err;
 }
 
-export function createGitHubAppJwt({appId, privateKey, nowSeconds = Math.floor(Date.now() / 1000)}) {
+export function createGitHubAppJwt({ appId, privateKey, nowSeconds = Math.floor(Date.now() / 1000)}) {
   const iss = String(appId || "").trim();
   const key = decodeGitHubAppPrivateKey(privateKey);
 
@@ -126,7 +133,7 @@ export function createGitHubAppJwt({appId, privateKey, nowSeconds = Math.floor(D
     throw err;
   }
 
-  const header = {alg: "RS256", typ: "JWT"};
+  const header = { alg: "RS256", typ: "JWT" };
   const payload = {
     iat: nowSeconds - 60,
     exp: nowSeconds + 540,
@@ -172,7 +179,7 @@ export async function getGitHubAppInstallationToken({action = {}, fetchImpl = fe
     return cachedInstallationToken.token;
   }
 
-  const {appId, installationId, privateKey} = resolveGitHubAppConfig(action);
+  const { appId, installationId, privateKey } = resolveGitHubAppConfig(action);
   if (!installationId) {
     const err = new Error("Missing GitHub App installation id.");
     err.code = "github_app_auth_missing_installation_id";
@@ -180,12 +187,12 @@ export async function getGitHubAppInstallationToken({action = {}, fetchImpl = fe
     throw err;
   }
 
-  const jxt = createGitHubAppJwt({appId, privateKey});
+  const jwt = createGitHubAppJwt({ appId, privateKey });
   const response = await fetchImpl(`https://api.github.com/app/installations/${installationId}/access_tokens`, {
     method: "POST",
     headers: {
       Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${jxt}`,
+      Authorization: `Bearer ${jwt}`,
       "X-GitHub-Api-Version": "2022-11-28",
       "User-Agent": "mad4b-growth-os-github-app",
     },
@@ -196,7 +203,7 @@ export async function getGitHubAppInstallationToken({action = {}, fetchImpl = fe
     const err = new Error(`GitHub App installation token request failed with status ${response.status}.`);
     err.code = "github_app_installation_token_failed";
     err.status = 500;
-    err.details = {upstream_status: response.status, message: body?.message || ""};
+    err.details = { upstream_status: response.status, message: body?.message || "" };
     throw err;
   }
 
