@@ -4,6 +4,11 @@ import { getPool } from "../db.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
+import {
+  TENANT_GPT_OAUTH_CLIENT_ID,
+  TENANT_GPT_SCOPE,
+  TENANT_GPT_SCOPE_LINKS,
+} from "../tenantGptOAuthPreset.js";
 
 // Default fallback secret for development if missing.
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
@@ -19,14 +24,6 @@ const PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS = 60 * 60;
 const VALID_SIGN_IN_OPTIONS = new Set(["google", "email", "register"]);
 const PLATFORM_JWT_ISSUER = process.env.PLATFORM_JWT_ISSUER || "https://auth.mad4b.com";
 const TENANT_GPT_JWT_AUDIENCE = process.env.TENANT_GPT_JWT_AUDIENCE || "mad4b-tenant-gpt";
-const TENANT_GPT_SCOPE_LINKS = [
-  "https://auth.mad4b.com/scopes/tenant.links",
-  "https://auth.mad4b.com/scopes/tenant.status",
-  "https://auth.mad4b.com/scopes/tenant.activation",
-  "https://auth.mad4b.com/scopes/tenant.install",
-  "https://auth.mad4b.com/scopes/tenant.system-tools",
-];
-const TENANT_GPT_SCOPE = TENANT_GPT_SCOPE_LINKS.join(" ");
 
 function cleanOption(value, allowed, fallback = null) {
   const normalized = String(value || "").trim().toLowerCase();
@@ -84,7 +81,7 @@ function cleanTtlSeconds(value) {
   return Math.min(Math.max(Math.floor(parsed), 60), PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS);
 }
 
-function issueTenantGptAccessToken(payload, { clientId = "chatgpt-action" } = {}) {
+function issueTenantGptAccessToken(payload, { clientId = TENANT_GPT_OAUTH_CLIENT_ID } = {}) {
   const userId = String(payload?.user_id || "").trim();
   if (!userId) {
     const err = new Error("Cannot issue tenant GPT token without user_id.");
@@ -107,7 +104,7 @@ function issueTenantGptAccessToken(payload, { clientId = "chatgpt-action" } = {}
       scope: TENANT_GPT_SCOPE,
       scope_links: TENANT_GPT_SCOPE_LINKS,
       purpose: "tenant_gpt_access",
-      client_id: String(clientId || "chatgpt-action").trim() || "chatgpt-action",
+      client_id: String(clientId || TENANT_GPT_OAUTH_CLIENT_ID).trim() || TENANT_GPT_OAUTH_CLIENT_ID,
     },
     JWT_SECRET,
     { expiresIn: USER_TOKEN_TTL_SECONDS, jwtid: randomUUID() }

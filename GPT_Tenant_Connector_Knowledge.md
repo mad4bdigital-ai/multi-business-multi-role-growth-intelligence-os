@@ -76,7 +76,25 @@ The platform uses these credentials to provision the tunnel under the tenant's o
 
 URL: `https://auth.mad4b.com/connect`
 
-Primary sign-in option: the GPT Action OAuth popup at `https://auth.mad4b.com/auth/oauth/authorize`, exchanging through `https://auth.mad4b.com/auth/oauth/token` with scope `tenant`. The Tenant Assistant action must be configured as OAuth so ChatGPT attaches the returned Mad4B tenant JWT automatically; no-auth, API-key auth, or the admin backend key will produce `user_jwt_required` on `/connect/status`. The popup presents Google first, and can also present existing-account and new-workspace options when `sign_in_options=google,email,register` is supplied. `https://auth.mad4b.com/connect` is the web fallback. Account passwords and registration details must be entered only in the OAuth popup or hosted web page, never in GPT chat.
+Primary sign-in option: the GPT Action OAuth popup at `https://auth.mad4b.com/auth/oauth/authorize`, exchanging through `https://auth.mad4b.com/auth/oauth/token`. The Tenant Assistant action must be configured as OAuth so ChatGPT attaches the returned Mad4B tenant JWT automatically; no-auth, API-key auth, or the admin backend key will produce `user_jwt_required` on `/connect/status`. The popup presents Google first, and can also present existing-account and new-workspace options when `sign_in_options=google,email,register` is supplied. `https://auth.mad4b.com/connect` is the web fallback. Account passwords and registration details must be entered only in the OAuth popup or hosted web page, never in GPT chat.
+
+Tenant GPT Action OAuth preset:
+- Schema URL: `https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml`
+- Preset URL: `https://auth.mad4b.com/tenant-gpt/oauth-preset`
+- Authentication Type: `OAuth`
+- Client ID: `mad4b-tenant-gpt`
+- Client Secret: generate and store one GPT-specific secret in the GPT Builder
+- Authorization URL: `https://auth.mad4b.com/auth/oauth/authorize`
+- Token URL: `https://auth.mad4b.com/auth/oauth/token`
+- Token Exchange Method: `Default (POST request)`
+- Scope links:
+  - `https://auth.mad4b.com/scopes/tenant.links`
+  - `https://auth.mad4b.com/scopes/tenant.status`
+  - `https://auth.mad4b.com/scopes/tenant.activation`
+  - `https://auth.mad4b.com/scopes/tenant.install`
+  - `https://auth.mad4b.com/scopes/tenant.system-tools`
+
+If the GPT Builder presents a single Scope input, paste the same links as one space-delimited value.
 
 Safe activation redirect hints:
 - `screen_hint=google|signin|signup`

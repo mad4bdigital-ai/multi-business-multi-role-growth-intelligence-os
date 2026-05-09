@@ -135,6 +135,8 @@ try {
     assert("tenant GPT schema declares linked tenant scopes", TENANT_SCOPE_LINKS.every((scope) => scopeKeys.includes(scope)), JSON.stringify(scopeKeys));
     assert("tenant GPT schema root security requires linked tenant scopes", TENANT_SCOPE_LINKS.every((scope) => doc.security?.[0]?.userBearerAuth?.includes(scope)), JSON.stringify(doc.security));
     assert("tenant GPT schema embeds OAuth security on protected operations", protectedOperations.every(({ operation }) => TENANT_SCOPE_LINKS.every((scope) => operation.security?.[0]?.userBearerAuth?.includes(scope))), JSON.stringify(protectedOperations.map(({ pathKey, method }) => `${method.toUpperCase()} ${pathKey}`)));
+    assert("tenant GPT schema carries action auth preset", doc["x-gpt-action-auth-preset"]?.client_id === "mad4b-tenant-gpt", JSON.stringify(doc["x-gpt-action-auth-preset"]));
+    assert("tenant GPT schema preset carries scope links", TENANT_SCOPE_LINKS.every((scope) => doc["x-gpt-action-auth-preset"]?.scope_links?.includes(scope)), JSON.stringify(doc["x-gpt-action-auth-preset"]));
     assert("tenant GPT schema hides OAuth plumbing operations", !exposedPaths.some((path) => path.startsWith("/auth/")), exposedPaths.join(", "));
     assert("tenant GPT schema exposes system tools list", exposedPaths.includes("/system/tools"), exposedPaths.join(", "));
     assert("tenant GPT schema exposes system tools call", exposedPaths.includes("/system/tools/call"), exposedPaths.join(", "));

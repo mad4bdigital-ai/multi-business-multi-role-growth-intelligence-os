@@ -1175,6 +1175,20 @@ security: []
 
 x-tenant-gpt-auth:
   security_scheme_name: userBearerAuth
+  action_auth_preset:
+    authentication_type: OAuth
+    schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml
+    client_id: mad4b-tenant-gpt
+    client_secret: <generate-and-store-in-the-GPT-builder>
+    authorization_url: https://auth.mad4b.com/auth/oauth/authorize
+    token_url: https://auth.mad4b.com/auth/oauth/token
+    token_exchange_method: Default (POST request)
+    scope_links:
+      - https://auth.mad4b.com/scopes/tenant.links
+      - https://auth.mad4b.com/scopes/tenant.status
+      - https://auth.mad4b.com/scopes/tenant.activation
+      - https://auth.mad4b.com/scopes/tenant.install
+      - https://auth.mad4b.com/scopes/tenant.system-tools
   security_scheme:
     type: oauth2
     description: "Tenant GPT OAuth. ChatGPT signs in through the Growth Intelligence Platform popup, then /auth/oauth/token mints a fresh Mad4B tenant access JWT with issuer, audience, subject, scope, user_id, and tenant_id claims. Google Sign-In is only an upstream identity proof inside the popup; do not call OAuth token or Google ID-token endpoints as normal actions. The authorize URL may include safe activation hints such as screen_hint, activation_mode, device_id, workspace_name, and sign_in_options, but never secrets."

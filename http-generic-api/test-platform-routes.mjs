@@ -162,6 +162,20 @@ section("GET /openapi*.yaml - public scoped schemas");
   ok("wrong host cannot fetch tenant schema", wrongHost.status === 404, `got ${wrongHost.status}`);
 }
 
+section("GET /tenant-gpt/oauth-preset - public auth preset");
+{
+  const r = await getWithHost("/tenant-gpt/oauth-preset", "auth.mad4b.com");
+  ok("auth host serves tenant OAuth preset", r.status === 200, `got ${r.status}`);
+  ok("tenant OAuth preset uses OAuth", r.body.preset?.auth_type === "OAuth", JSON.stringify(r.body));
+  ok("tenant OAuth preset has client id", r.body.preset?.client_id === "mad4b-tenant-gpt", JSON.stringify(r.body));
+  ok("tenant OAuth preset has authorize URL", r.body.preset?.authorization_url === "https://auth.mad4b.com/auth/oauth/authorize", JSON.stringify(r.body));
+  ok("tenant OAuth preset has token URL", r.body.preset?.token_url === "https://auth.mad4b.com/auth/oauth/token", JSON.stringify(r.body));
+  ok("tenant OAuth preset has linked scopes", r.body.preset?.scope_links?.includes("https://auth.mad4b.com/scopes/tenant.links"), JSON.stringify(r.body));
+
+  const wrongHost = await getWithHost("/tenant-gpt/oauth-preset", "api.mad4b.com");
+  ok("wrong host cannot fetch tenant OAuth preset", wrongHost.status === 404, `got ${wrongHost.status}`);
+}
+
 section("POST / - root discovery stays non-mutating JSON");
 {
   const r = await postWithHost("/", "admin.mad4b.com", { accidental: true });

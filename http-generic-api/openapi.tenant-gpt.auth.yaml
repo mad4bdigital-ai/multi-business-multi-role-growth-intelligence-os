@@ -820,3 +820,17 @@ paths:
             - https://auth.mad4b.com/scopes/tenant.activation
             - https://auth.mad4b.com/scopes/tenant.install
             - https://auth.mad4b.com/scopes/tenant.system-tools
+x-gpt-action-auth-preset:
+  authentication_type: OAuth
+  schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml
+  client_id: mad4b-tenant-gpt
+  client_secret: <generate-and-store-in-the-GPT-builder>
+  authorization_url: https://auth.mad4b.com/auth/oauth/authorize
+  token_url: https://auth.mad4b.com/auth/oauth/token
+  token_exchange_method: Default (POST request)
+  scope_links:
+    - https://auth.mad4b.com/scopes/tenant.links
+    - https://auth.mad4b.com/scopes/tenant.status
+    - https://auth.mad4b.com/scopes/tenant.activation
+    - https://auth.mad4b.com/scopes/tenant.install
+    - https://auth.mad4b.com/scopes/tenant.system-tools

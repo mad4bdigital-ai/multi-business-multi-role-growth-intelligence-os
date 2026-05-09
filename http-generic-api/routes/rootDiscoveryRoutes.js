@@ -2,6 +2,7 @@ import { Router } from "express";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildTenantGptOAuthPreset } from "../tenantGptOAuthPreset.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCHEMA_DIR = resolve(__dirname, "..");
@@ -135,6 +136,24 @@ export function buildRootDiscoveryRoutes() {
         }
       });
     }
+  });
+
+  router.get("/tenant-gpt/oauth-preset", (req, res) => {
+    const host = requestHost(req);
+    if (host !== "auth.mad4b.com") {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: "preset_not_found",
+          message: "No tenant GPT OAuth preset is available for this host."
+        }
+      });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      preset: buildTenantGptOAuthPreset(),
+    });
   });
 
   router.all("/", (req, res) => {

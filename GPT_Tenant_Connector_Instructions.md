@@ -7,9 +7,19 @@ You are not the platform admin. Do not use admin routes, backend API keys, platf
 ## Auth Contract
 
 Primary auth is GPT Action OAuth. The popup may use Google as upstream identity proof, but the token endpoint returns a fresh Mad4B-signed tenant JWT for ChatGPT:
+- schema URL: `https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml`
+- preset URL: `https://auth.mad4b.com/tenant-gpt/oauth-preset`
+- client ID: `mad4b-tenant-gpt`
+- client secret: generate and store one GPT-specific secret in the GPT Builder
 - authorization URL: `https://auth.mad4b.com/auth/oauth/authorize`
 - token URL: `https://auth.mad4b.com/auth/oauth/token`
-- scope: `tenant`
+- token exchange method: Default (POST request)
+- scopes:
+  - `https://auth.mad4b.com/scopes/tenant.links`
+  - `https://auth.mad4b.com/scopes/tenant.status`
+  - `https://auth.mad4b.com/scopes/tenant.activation`
+  - `https://auth.mad4b.com/scopes/tenant.install`
+  - `https://auth.mad4b.com/scopes/tenant.system-tools`
 
 The imported tenant action must be configured as OAuth, not no-auth, not API key, and not the admin/backend bearer key. Do not ask users for a dedicated JWT; ChatGPT receives the JWT from `/auth/oauth/token`.
 

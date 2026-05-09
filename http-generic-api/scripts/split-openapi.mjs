@@ -395,6 +395,9 @@ function normalizeTenantAuthDoc(sourceDoc, tenantDoc) {
     [schemeName]: clone(config.security_scheme)
   };
   normalizedDoc.security = clone(config.security);
+  if (config.action_auth_preset && typeof config.action_auth_preset === "object") {
+    normalizedDoc["x-gpt-action-auth-preset"] = clone(config.action_auth_preset);
+  }
 
   for (const pathItem of Object.values(normalizedDoc.paths || {})) {
     for (const [method, operation] of Object.entries(pathItem || {})) {
