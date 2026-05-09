@@ -401,6 +401,12 @@ section("Admin system layer connector facade");
   ok("Google Auth Platform data_access endpoint returns one tab", Array.isArray(r.body.tabs) && r.body.tabs.length === 1, JSON.stringify(r.body));
   ok("Google Auth Platform data_access endpoint has scopes", Array.isArray(r.body.tabs?.[0]?.config?.state?.scopes), JSON.stringify(r.body));
 }
+{
+  const r = await get("/admin/apis-services/credentials");
+  ok("APIs & Services credentials alias returns 200", r.status === 200, `got ${r.status}`);
+  ok("APIs & Services credentials alias returns api_credentials tab", r.body.tabs?.[0]?.config?.tab === "api_credentials", JSON.stringify(r.body));
+  ok("APIs & Services credentials alias links credential clients", Array.isArray(r.body.tabs?.[0]?.config?.state?.linked_credential_clients), JSON.stringify(r.body));
+}
 
 // ── 9. GET /planner/plans/:id — route registration ───────────────────────────
 

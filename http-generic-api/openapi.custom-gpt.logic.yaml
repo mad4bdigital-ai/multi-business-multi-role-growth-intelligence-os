@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Governed HTTP Client — AI Platform - Logic And Workflow Actions
+  title: Governed HTTP Client â€” AI Platform - Logic And Workflow Actions
   version: 3.0.0-platform
   summary: Custom GPT action schema for logic, workflows.
   description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: logic, workflows.'
@@ -2025,7 +2025,7 @@ paths:
       security:
         - backendBearerAuth: []
       operationId: archiveLogicDefinition
-      summary: Archive a logic definition (soft delete â€” sets status=archived)
+      summary: Archive a logic definition (soft delete - sets status=archived)
       parameters:
         - name: logic_id
           in: path

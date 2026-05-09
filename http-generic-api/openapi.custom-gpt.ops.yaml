@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Governed HTTP Client — AI Platform - Platform Operations Actions
+  title: Governed HTTP Client â€” AI Platform - Platform Operations Actions
   version: 3.0.0-platform
   summary: Custom GPT action schema for release.
   description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: release.'

@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Governed HTTP Client — AI Platform - Customer Operations Actions
+  title: Governed HTTP Client â€” AI Platform - Customer Operations Actions
   version: 3.0.0-platform
   summary: Custom GPT action schema for customers.
   description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: customers.'
@@ -1578,7 +1578,7 @@ paths:
       security:
         - backendBearerAuth: []
       operationId: closeTicket
-      summary: Close a ticket (soft delete — sets status=closed)
+      summary: Close a ticket (soft delete â€” sets status=closed)
       parameters:
         - name: ticket_id
           in: path
@@ -1777,7 +1777,7 @@ paths:
       security:
         - backendBearerAuth: []
       operationId: archiveCustomer
-      summary: Archive a customer (soft delete â€” sets status=archived)
+      summary: Archive a customer (soft delete - sets status=archived)
       parameters:
         - name: customer_id
           in: path
@@ -2086,7 +2086,7 @@ paths:
       security:
         - backendBearerAuth: []
       operationId: closeThread
-      summary: Close a thread (soft delete â€” sets status=closed)
+      summary: Close a thread (soft delete - sets status=closed)
       parameters:
         - name: thread_id
           in: path

@@ -1,4 +1,5 @@
 import { getPool } from "./db.js";
+import { listPlatformCredentialClientConfigs } from "./platformCredentialClientsConfig.js";
 
 export const GOOGLE_AUTH_PLATFORM_CONFIG_PREFIX = "google_auth_platform";
 
@@ -234,15 +235,41 @@ export async function getGoogleAuthPlatformConfig(args = {}) {
     if (err.code !== "DB_CONFIG_MISSING") throw err;
   }
   const byTab = new Map(saved.map((row) => [row.config?.tab, row]));
+  let credentialClients = [];
+  if (!tab || tab === "clients" || tab === "api_credentials") {
+    try {
+      const result = await listPlatformCredentialClientConfigs({
+        owner_type: args.owner_type || "platform",
+        tenant_id: args.tenant_id,
+        limit: 200,
+      });
+      credentialClients = result.clients || [];
+    } catch (err) {
+      if (err.code !== "DB_CONFIG_MISSING") throw err;
+    }
+  }
   const tabs = (tab ? [tab] : GOOGLE_AUTH_PLATFORM_TABS).map((tabKey) => {
     const row = byTab.get(tabKey);
-    return row || {
+    const resolved = row || {
       config_key: `${GOOGLE_AUTH_PLATFORM_CONFIG_PREFIX}.${ownerType}.${ownerId}.${projectKey}.${tabKey}`,
       status: "default",
       note: "default_google_auth_platform_tab",
       updated_at: null,
       config: normalizeGoogleAuthPlatformConfig({ ...args, tab: tabKey, state: defaults[tabKey] }),
     };
+    if (tabKey === "clients" || tabKey === "api_credentials") {
+      return {
+        ...resolved,
+        config: {
+          ...resolved.config,
+          state: {
+            ...(resolved.config?.state || {}),
+            linked_credential_clients: credentialClients,
+          },
+        },
+      };
+    }
+    return resolved;
   });
 
   return {

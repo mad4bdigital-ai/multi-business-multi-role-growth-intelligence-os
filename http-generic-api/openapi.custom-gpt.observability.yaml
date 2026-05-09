@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Governed HTTP Client — AI Platform - Observability And Security Actions
+  title: Governed HTTP Client â€” AI Platform - Observability And Security Actions
   version: 3.0.0-platform
   summary: Custom GPT action schema for observability, security.
   description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: observability, security.'
@@ -1516,7 +1516,7 @@ paths:
       operationId: checkQuota
       summary: Check current quota usage against applicable limit
       description: |
-        Resolves the applicable quota rule in priority order: tenant override → plan-level rule → global rule. Returns current usage, limit, and whether the tenant is within quota.
+        Resolves the applicable quota rule in priority order: tenant override â†’ plan-level rule â†’ global rule. Returns current usage, limit, and whether the tenant is within quota.
       parameters:
         - name: tenant_id
           in: path
@@ -2243,7 +2243,7 @@ paths:
       security:
         - backendBearerAuth: []
       operationId: closeIncident
-      summary: Close an incident (soft delete â€” sets status=closed and resolved_at=NOW())
+      summary: Close an incident (soft delete - sets status=closed and resolved_at=NOW())
       parameters:
         - name: incident_id
           in: path

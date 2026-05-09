@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Governed HTTP Client — AI Platform - Developer Actions
+  title: Governed HTTP Client â€” AI Platform - Developer Actions
   version: 3.0.0-platform
   summary: Custom GPT action schema for developer-api.
   description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: developer-api.'
@@ -1389,7 +1389,7 @@ paths:
                     type: string
       responses:
         '201':
-          description: API key generated (store immediately — not retrievable again)
+          description: API key generated (store immediately â€” not retrievable again)
           content:
             application/json:
               schema:
@@ -1408,7 +1408,7 @@ paths:
                     format: uuid
                   api_key:
                     type: string
-                    description: Full key — store now, not retrievable again.
+                    description: Full key â€” store now, not retrievable again.
                   key_prefix:
                     type: string
         '400':
@@ -1570,7 +1570,7 @@ paths:
       security:
         - backendBearerAuth: []
       operationId: archiveDeveloperApp
-      summary: Archive a developer app (soft delete â€” sets status=archived)
+      summary: Archive a developer app (soft delete - sets status=archived)
       parameters:
         - name: app_id
           in: path

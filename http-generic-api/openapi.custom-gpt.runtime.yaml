@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Governed HTTP Client — AI Platform - Runtime Governed Actions
+  title: Governed HTTP Client â€” AI Platform - Runtime Governed Actions
   version: 3.0.0-platform
   summary: Custom GPT action schema for health, activation, governance, jobs, execution, ai, tenants.
   description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: health, activation, governance, jobs, execution, ai, tenants.'
@@ -2358,7 +2358,7 @@ paths:
       tags:
         - health
       operationId: getStatus
-      summary: Public system status JSON â€” component health and open incidents
+      summary: Public system status JSON - component health and open incidents
       description: |
         Returns live DB-backed component health (API, DB, tenant_management, identity, connector_execution, intent_resolution, observability, release_readiness), open incidents, and past 30-day incident history. Returns HTTP 503 when overall status is partial_outage or major_outage.
       responses:
@@ -2634,7 +2634,7 @@ paths:
       security:
         - backendBearerAuth: []
       operationId: archiveTenant
-      summary: Archive a tenant (soft delete â€” sets status=archived)
+      summary: Archive a tenant (soft delete - sets status=archived)
       parameters:
         - name: tenant_id
           in: path

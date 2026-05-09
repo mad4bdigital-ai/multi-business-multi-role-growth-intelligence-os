@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Governed HTTP Client — AI Platform - Connected Systems Actions
+  title: Governed HTTP Client â€” AI Platform - Connected Systems Actions
   version: 3.0.0-platform
   summary: Custom GPT action schema for connected-systems, planner, bootstrap.
   description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: connected-systems, planner, bootstrap.'
@@ -1481,7 +1481,7 @@ paths:
       security:
         - backendBearerAuth: []
       operationId: archiveConnectedSystem
-      summary: Archive a connected system (soft delete — sets status=archived)
+      summary: Archive a connected system (soft delete â€” sets status=archived)
       parameters:
         - name: system_id
           in: path
@@ -2017,7 +2017,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Access denied — requires human approval
+          description: Access denied â€” requires human approval
           content:
             application/json:
               schema:
@@ -2292,7 +2292,7 @@ paths:
       security:
         - backendBearerAuth: []
       operationId: deleteInstallation
-      summary: Delete an installation (hard delete â€” revokes access grant)
+      summary: Delete an installation (hard delete - revokes access grant)
       parameters:
         - name: installation_id
           in: path

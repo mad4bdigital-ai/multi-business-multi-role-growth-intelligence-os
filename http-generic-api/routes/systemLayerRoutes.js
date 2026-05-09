@@ -213,6 +213,7 @@ const VALID_STATUSES = new Set(["active", "pending", "error", "archived"]);
 const ADMIN_ONLY_SYSTEM_TOOLS = new Set(
   SYSTEM_LAYER_TOOLS.filter((tool) => tool.requires_admin === true).map((tool) => tool.name)
 );
+const LOCAL_SYSTEM_TOOL_NAMES = new Set(SYSTEM_LAYER_TOOLS.map((tool) => tool.name));
 
 
 function safeParseJsonObject(value, fallback = {}) {
@@ -920,8 +921,16 @@ async function getConnectorRegistrySystem(systemId, auth = null) {
 }
 
 async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
-  const platformEndpointTool = await callPlatformEndpointToolIfAvailable(name, args, auth, deps);
-  if (platformEndpointTool.handled) return platformEndpointTool.result;
+  if (!LOCAL_SYSTEM_TOOL_NAMES.has(name)) {
+    let platformEndpointTool;
+    try {
+      platformEndpointTool = await callPlatformEndpointToolIfAvailable(name, args, auth, deps);
+    } catch (err) {
+      if (err.code !== "DB_CONFIG_MISSING") throw err;
+      platformEndpointTool = { handled: false };
+    }
+    if (platformEndpointTool.handled) return platformEndpointTool.result;
+  }
 
   assertAdminToolAccess(name, auth);
   switch (name) {
@@ -1090,6 +1099,24 @@ export function buildSystemLayerRoutes(deps) {
     }
   });
 
+  router.get("/admin/apis-services/credentials", ...adminOnly, async (req, res) => {
+    try {
+      const result = await getGoogleAuthPlatformConfig({ ...(req.query || {}), tab: "api_credentials" });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "google_api_credentials_get_failed");
+    }
+  });
+
+  router.post("/admin/apis-services/credentials", ...adminOnly, async (req, res) => {
+    try {
+      const result = await upsertGoogleAuthPlatformConfig({ ...(req.body || {}), tab: "api_credentials" });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "google_api_credentials_upsert_failed");
+    }
+  });
+
   return router;
 }
 
@@ -1101,6 +1128,5 @@ export {
   getConnectorRegistrySystem,
   listConnectorRegistry,
 };
-
 
 
