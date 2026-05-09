@@ -16,6 +16,7 @@ export function inferAuthMode({ action, brand }) {
   if (apiKeyMode === "basic_auth_app_password") return "basic_auth";
   if (apiKeyMode === "google_oauth2") return "google_oauth2";
   if (apiKeyMode === "google_ads_oauth2") return "google_ads_oauth2";
+  if (apiKeyMode === "github_app") return "github_app";
   if (apiKeyMode === "bearer_token") return "bearer_token";
 
   // Header/param heuristics — fallback when api_key_mode is absent or unrecognised.
@@ -46,7 +47,7 @@ export function buildResolvedAuthHeaders(contract) {
     return { Authorization: `Basic ${token}` };
   }
 
-  if (contract.mode === "bearer_token") {
+  if (contract.mode === "bearer_token" || contract.mode === "github_app") {
     if (!contract.secret) {
       const err = new Error("Missing secret for bearer_token.");
       err.code = "auth_resolution_failed";
@@ -124,7 +125,7 @@ export function injectAuthForSchemaValidation(query, headers, contract) {
     nextHeaders[contract.header_name] = contract.secret;
   }
 
-  if (contract.mode === "bearer_token") {
+  if (contract.mode === "bearer_token" || contract.mode === "github_app") {
     if (!contract.secret) {
       const err = new Error("Missing secret for bearer_token.");
       err.code = "auth_resolution_failed";

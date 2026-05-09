@@ -1,6 +1,7 @@
 import { inferAuthMode } from "./authInjection.js";
 import { policyValue } from "./registryResolution.js";
 import { getGoogleAccessToken } from "./googleAuthTokenResolver.js";
+import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 
 // ── Storage-mode-aware secret resolvers ───────────────────────────────────────
 
@@ -103,6 +104,12 @@ async function _buildAuthContract({
     contract.custom_headers = {};
     if (devToken) contract.custom_headers["developer-token"] = devToken;
     if (customerId) contract.custom_headers["login-customer-id"] = customerId;
+    return contract;
+  }
+
+  if (mode === "github_app") {
+    contract.header_name = "Authorization";
+    contract.secret = await getGitHubAppInstallationToken({ action });
     return contract;
   }
 
