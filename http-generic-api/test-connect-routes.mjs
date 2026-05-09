@@ -10,7 +10,8 @@
 import express from "express";
 import { readFileSync } from "node:fs";
 import yaml from "js-yaml";
-import { buildConnectRoutes } from "./routes/connectRoutes.js"; import { buildOnboardingRoutes } from "./routes/onboardingRoutes.js";
+import { buildConnectRoutes } from "./routes/connectRoutes.js";
+import { buildOnboardingRoutes } from "./routes/onboardingRoutes.js";
 
 const TENANT_SCOPE_LINKS = [
   "https://auth.mad4b.com/scopes/tenant.links",
@@ -86,6 +87,9 @@ app.use((req, _res, next) => {
   };
   next();
 });
+
+// Regression guard: legacy onboarding is mounted first to prove it cannot shadow /connect.
+app.use(buildOnboardingRoutes({}));
 app.use(buildConnectRoutes({
   requireBackendApiKey: (_req, _res, next) => next(),
 }));
@@ -108,7 +112,8 @@ try {
     assert("connect shell references app bundle", result.status === 200, `${result.status}`);
     const html = result.body.toString("utf8");
     assert("connect shell title matches OAuth app name", html.includes("<title>Growth Intelligence Platform · Connect</title>"));
-    assert("connect shell includes exact OAuth app name", html.includes("Growth Intelligence Platform")); assert("connect shell is not legacy onboarding page", !html.includes("Mad4B Connector Setup"));
+    assert("connect shell includes exact OAuth app name", html.includes("Growth Intelligence Platform"));
+    assert("connect shell is not legacy onboarding page", !html.includes("Mad4B Connector Setup"));
     assert("connect shell links privacy policy", html.includes('href="/privacy-policy"'));
     assert("connect shell links terms of use", html.includes('href="/terms-of-use"'));
   }
@@ -129,13 +134,15 @@ try {
         .filter(([method, operation]) => ["get", "post", "put", "delete", "patch"].includes(method) && !(Array.isArray(operation?.security) && operation.security.length === 0))
         .map(([method, operation]) => ({ pathKey, method, operation }));
     });
+
     assert("tenant GPT schema uses OAuth action auth", securityScheme?.type === "oauth2", JSON.stringify(securityScheme));
     assert("tenant GPT schema declares authorization code flow", Boolean(securityScheme?.flows?.authorizationCode), JSON.stringify(securityScheme));
+
     const scopeKeys = Object.keys(securityScheme?.flows?.authorizationCode?.scopes || {});
     assert("tenant GPT schema declares linked tenant scopes", TENANT_SCOPE_LINKS.every((scope) => scopeKeys.includes(scope)), JSON.stringify(scopeKeys));
     assert("tenant GPT schema root security requires linked tenant scopes", TENANT_SCOPE_LINKS.every((scope) => doc.security?.[0]?.userBearerAuth?.includes(scope)), JSON.stringify(doc.security));
     assert("tenant GPT schema embeds OAuth security on protected operations", protectedOperations.every(({ operation }) => TENANT_SCOPE_LINKS.every((scope) => operation.security?.[0]?.userBearerAuth?.includes(scope))), JSON.stringify(protectedOperations.map(({ pathKey, method }) => `${method.toUpperCase()} ${pathKey}`)));
-    assert("tenant GPT schema carries action auth preset", doc["x-gpt-action-auth-preset"]?.client_id === "mad4b-tenant-gpt", JSON.stringify(doc["x-gpt-action-auth-preset"]));
+    assert("tenant GPT schema carries action auth preset", doc["x-gpt-action-auth-preset"]?.client_id === "mad4b-tenant-gpt", JSON.stringify(securityScheme));
     assert("tenant GPT schema preset carries scope links", TENANT_SCOPE_LINKS.every((scope) => doc["x-gpt-action-auth-preset"]?.scope_links?.includes(scope)), JSON.stringify(doc["x-gpt-action-auth-preset"]));
     assert("tenant GPT schema hides OAuth plumbing operations", !exposedPaths.some((path) => path.startsWith("/auth/")), exposedPaths.join(", "));
     assert("tenant GPT schema exposes system tools list", exposedPaths.includes("/system/tools"), exposedPaths.join(", "));
