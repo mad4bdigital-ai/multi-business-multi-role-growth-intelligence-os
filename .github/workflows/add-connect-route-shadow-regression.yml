@@ -1,0 +1,63 @@
+name: Add Connect Route Shadow Regression
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/add-connect-route-shadow-regression.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  add-connect-route-shadow-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: true
+
+      - name: Patch connect route regression test
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("http-generic-api/test-connect-routes.mjs")
+          text = path.read_text(encoding="utf-8")
+
+          if 'import { buildOnboardingRoutes } from "./routes/onboardingRoutes.js";' not in text:
+              text = text.replace(
+                  'import { buildConnectRoutes } from "./routes/connectRoutes.js";',
+                  'import { buildConnectRoutes } from "./routes/connectRoutes.js"; import { buildOnboardingRoutes } from "./routes/onboardingRoutes.js";',
+              )
+
+          if 'app.use(buildOnboardingRoutes({}));' not in text:
+              text = text.replace(
+                  'app.use(buildConnectRoutes({ requireBackendApiKey: (_req, _res, next) => next(), }));',
+                  'app.use(buildOnboardingRoutes({})); app.use(buildConnectRoutes({ requireBackendApiKey: (_req, _res, next) => next(), }));',
+              )
+
+          if 'connect shell is not legacy onboarding page' not in text:
+              text = text.replace(
+                  'assert("connect shell includes exact OAuth app name", html.includes("Growth Intelligence Platform"));',
+                  'assert("connect shell includes exact OAuth app name", html.includes("Growth Intelligence Platform")); assert("connect shell is not legacy onboarding page", !html.includes("Mad4B Connector Setup"));',
+              )
+
+          path.write_text(text, encoding="utf-8")
+
+          Path(".github/workflows/add-connect-route-shadow-regression.yml").unlink(missing_ok=True)
+          PY
+
+          git config user.name "mad4b-platform-bot"
+          git config user.email "platform-bot@mad4b.com"
+          git add http-generic-api/test-connect-routes.mjs .github/workflows/add-connect-route-shadow-regression.yml
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "test(auth): guard connect UI against legacy onboarding shadow"
+          git push
