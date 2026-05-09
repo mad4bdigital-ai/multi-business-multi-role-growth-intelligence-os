@@ -1,4 +1,4 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import {
   ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
   ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
@@ -213,6 +213,178 @@ const VALID_STATUSES = new Set(["active", "pending", "error", "archived"]);
 const ADMIN_ONLY_SYSTEM_TOOLS = new Set(
   SYSTEM_LAYER_TOOLS.filter((tool) => tool.requires_admin === true).map((tool) => tool.name)
 );
+
+
+function safeParseJsonObject(value, fallback = {}) {
+  if (!value) return fallback;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function platformEndpointToolViewForPrincipal(auth) {
+  return isAdminPrincipal(auth) ? "admin_platform_endpoint_tools" : "tenant_platform_endpoint_tools";
+}
+
+function normalizePlatformEndpointInputSchema(schemaJson) {
+  const schema = safeParseJsonObject(schemaJson, { type: "object", properties: {}, required: [] });
+
+  if (schema?.requestBody?.type) {
+    return {
+      type: "object",
+      properties: {
+        path_params: { type: "object", additionalProperties: true },
+        query: { type: "object", additionalProperties: true },
+        body: schema.requestBody,
+        headers: { type: "object", additionalProperties: true },
+        timeout_seconds: { type: "integer", minimum: 1, maximum: 120 },
+        readback: { type: "object", additionalProperties: true },
+      },
+      required: [],
+    };
+  }
+
+  if (schema?.parameters) {
+    return {
+      type: "object",
+      properties: {
+        path_params: {
+          type: "object",
+          properties: schema.parameters.path || {},
+          additionalProperties: true,
+        },
+        query: {
+          type: "object",
+          properties: schema.parameters.query || {},
+          additionalProperties: true,
+        },
+        body: schema.requestBody || { type: "object", additionalProperties: true },
+        headers: { type: "object", additionalProperties: true },
+        timeout_seconds: { type: "integer", minimum: 1, maximum: 120 },
+        readback: { type: "object", additionalProperties: true },
+      },
+      required: [],
+    };
+  }
+
+  return schema;
+}
+
+async function listPlatformEndpointToolsForPrincipal(auth, existingNames = new Set()) {
+  try {
+    const viewName = platformEndpointToolViewForPrincipal(auth);
+    const [rows] = await getPool().query(
+      `SELECT tool_name, parent_action_key, endpoint_key, scope_class, input_schema_json
+         FROM ${viewName}
+        ORDER BY tool_name`
+    );
+
+    return rows
+      .filter((row) => row?.tool_name && !existingNames.has(row.tool_name))
+      .map((row) => ({
+        name: row.tool_name,
+        description: `Registry endpoint tool ${row.parent_action_key}/${row.endpoint_key}.`,
+        requires_admin: row.scope_class === "admin",
+        inputSchema: normalizePlatformEndpointInputSchema(row.input_schema_json),
+        x_platform_endpoint: {
+          parent_action_key: row.parent_action_key,
+          endpoint_key: row.endpoint_key,
+          source: "platform_endpoint_tool_exports",
+        },
+      }));
+  } catch {
+    return [];
+  }
+}
+
+async function toolsForPrincipalWithPlatformEndpoints(auth) {
+  const baseTools = toolsForPrincipal(auth);
+  const existingNames = new Set(baseTools.map((tool) => tool.name));
+  const platformTools = await listPlatformEndpointToolsForPrincipal(auth, existingNames);
+  return [...baseTools, ...platformTools];
+}
+
+async function callRuntimeEndpointViaFacade(payload, deps = {}) {
+  const facade = deps.executionFacade;
+  if (!facade) {
+    const err = new Error("No executionFacade is available for platform endpoint dispatch.");
+    err.status = 503;
+    err.code = "runtime_endpoint_executor_missing";
+    throw err;
+  }
+
+  if (typeof facade === "function") {
+    return await facade(payload);
+  }
+
+  const methodNames = [
+    "executeHttpRequest",
+    "executeHttpRequestAction",
+    "execute",
+    "dispatch",
+    "run",
+    "callEndpoint",
+  ];
+
+  for (const methodName of methodNames) {
+    if (typeof facade[methodName] === "function") {
+      return await facade[methodName](payload);
+    }
+  }
+
+  const err = new Error("executionFacade does not expose a supported endpoint dispatch method.");
+  err.status = 503;
+  err.code = "runtime_endpoint_executor_method_missing";
+  throw err;
+}
+
+function normalizePlatformEndpointCallArgs(row, args = {}) {
+  if (row.tool_name === "runtime_endpoint_call") {
+    return args;
+  }
+
+  return {
+    parent_action_key: row.parent_action_key,
+    endpoint_key: row.endpoint_key,
+    path_params: args.path_params || args.path || {},
+    query: args.query || {},
+    body: args.body || {},
+    headers: args.headers || {},
+    timeout_seconds: args.timeout_seconds || 30,
+    readback: args.readback || { required: false, mode: "none" },
+  };
+}
+
+async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null, deps = {}) {
+  const viewName = platformEndpointToolViewForPrincipal(auth);
+  const [rows] = await getPool().query(
+    `SELECT tool_name, parent_action_key, endpoint_key, scope_class
+       FROM ${viewName}
+      WHERE tool_name = ?
+      LIMIT 1`,
+    [name]
+  );
+
+  if (!rows.length) {
+    return { handled: false };
+  }
+
+  const row = rows[0];
+
+  if (row.scope_class === "admin" && !isAdminPrincipal(auth)) {
+    const err = new Error("This platform endpoint tool requires admin access.");
+    err.status = 403;
+    err.code = "platform_endpoint_tool_admin_required";
+    throw err;
+  }
+
+  const payload = normalizePlatformEndpointCallArgs(row, args);
+  const result = await callRuntimeEndpointViaFacade(payload, deps);
+  return { handled: true, result };
+}
 
 function isAdminPrincipal(auth) {
   return auth?.is_admin === true;
@@ -806,7 +978,7 @@ export function buildSystemLayerRoutes(deps) {
         is_admin: isAdminPrincipal(req.auth),
         tenant_id: principalTenantId(req.auth),
       },
-      tools: toolsForPrincipal(req.auth),
+      tools: await toolsForPrincipalWithPlatformEndpoints(req.auth),
     });
   });
 
@@ -863,7 +1035,7 @@ export function buildSystemLayerRoutes(deps) {
     return res.status(200).json({
       ok: true,
       protocol: "openapi-mcp-facade",
-      tools: toolsForPrincipal(req.auth),
+      tools: await toolsForPrincipalWithPlatformEndpoints(req.auth),
     });
   });
 
@@ -918,3 +1090,4 @@ export {
   getConnectorRegistrySystem,
   listConnectorRegistry,
 };
+
