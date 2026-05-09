@@ -18,6 +18,11 @@ import {
   PLATFORM_CREDENTIAL_CLIENT_TYPES,
   upsertPlatformCredentialClientConfig,
 } from "../platformCredentialClientsConfig.js";
+import {
+  getGoogleAuthPlatformConfig,
+  GOOGLE_AUTH_PLATFORM_TABS,
+  upsertGoogleAuthPlatformConfig,
+} from "../googleAuthPlatformConfig.js";
 import { requireAdminPrincipal } from "./adminCliRoutes.js";
 
 const SYSTEM_LAYER_TOOLS = [
@@ -162,6 +167,42 @@ const SYSTEM_LAYER_TOOLS = [
         channel_key: { type: "string" },
         credential_type: { type: "string", enum: PLATFORM_CREDENTIAL_CLIENT_TYPES },
         limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "google_auth_platform_config_upsert",
+    description: "Admin-only DB source-of-truth upsert for simulated Google Auth Platform and APIs & Services tab state.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        owner_type: { type: "string", enum: ["platform", "tenant"], default: "platform" },
+        tenant_id: { type: "string" },
+        project_key: { type: "string", default: "growth-intelligence-os" },
+        project_id: { type: "string" },
+        project_display_name: { type: "string" },
+        tab: { type: "string", enum: GOOGLE_AUTH_PLATFORM_TABS },
+        path: { type: "string" },
+        state: { type: "object" },
+        note: { type: "string" },
+      },
+      required: ["tab"],
+    },
+  },
+  {
+    name: "google_auth_platform_config_get",
+    description: "Admin-only read of simulated Google Auth Platform and APIs & Services tab state.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        owner_type: { type: "string", enum: ["platform", "tenant"], default: "platform" },
+        tenant_id: { type: "string" },
+        project_key: { type: "string", default: "growth-intelligence-os" },
+        project_id: { type: "string" },
+        tab: { type: "string", enum: GOOGLE_AUTH_PLATFORM_TABS },
       },
       required: [],
     },
@@ -727,6 +768,10 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       return await upsertPlatformCredentialClientConfig(args);
     case "credential_client_config_list":
       return await listPlatformCredentialClientConfigs(args);
+    case "google_auth_platform_config_upsert":
+      return await upsertGoogleAuthPlatformConfig(args);
+    case "google_auth_platform_config_get":
+      return await getGoogleAuthPlatformConfig(args);
     default: {
       const err = new Error(`Unknown system layer tool: ${name}`);
       err.status = 400;
@@ -832,6 +877,33 @@ export function buildSystemLayerRoutes(deps) {
       return res.status(200).json({ ok: true, name, result });
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");
+    }
+  });
+
+  router.get("/admin/apis-services/google-auth-platform", ...adminOnly, async (req, res) => {
+    try {
+      const result = await getGoogleAuthPlatformConfig(req.query || {});
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "google_auth_platform_config_get_failed");
+    }
+  });
+
+  router.get("/admin/apis-services/google-auth-platform/:tab", ...adminOnly, async (req, res) => {
+    try {
+      const result = await getGoogleAuthPlatformConfig({ ...(req.query || {}), tab: req.params.tab });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "google_auth_platform_config_get_failed");
+    }
+  });
+
+  router.post("/admin/apis-services/google-auth-platform/:tab", ...adminOnly, async (req, res) => {
+    try {
+      const result = await upsertGoogleAuthPlatformConfig({ ...(req.body || {}), tab: req.params.tab });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "google_auth_platform_config_upsert_failed");
     }
   });
 

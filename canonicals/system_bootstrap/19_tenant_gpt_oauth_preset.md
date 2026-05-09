@@ -46,4 +46,6 @@ Use this registry for platform-controlled projects now and tenant-owned projects
 
 The registry should preserve Google-console field shape where practical: API key records carry API restrictions and application restrictions, OAuth records carry client type, authorized JavaScript origins, redirect URIs, scopes, token exchange method, and secret status/hint, and service-account records carry email, unique ID, IAM roles, allowed APIs, and key/runtime ADC references.
 
+Google Auth Platform and APIs & Services console state is simulated through governed DB-backed tabs under `/admin/apis-services/google-auth-platform`. The supported tabs are `overview`, `branding`, `audience`, `clients`, `data_access`, `verification_center`, `settings`, and `api_credentials`. Admins can read or seed these tabs with `google_auth_platform_config_get`, `google_auth_platform_config_upsert`, or `node scripts/seed-google-auth-platform-tabs.mjs`. These tab records describe console paths and verification/configuration state; credential material remains in the credential-client registry as secret references.
+
 Do not store raw API keys, OAuth client secrets, or private keys in canonical files, GPT instructions, or OpenAPI extensions. Store only secret references and allowed callback/scope metadata in the DB source of truth.

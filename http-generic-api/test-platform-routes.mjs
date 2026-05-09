@@ -338,10 +338,14 @@ section("Admin system layer connector facade");
   ok("system tools exposes tenant GPT OAuth client upsert", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "tenant_gpt_oauth_client_upsert"));
   ok("system tools exposes credential client config upsert", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "credential_client_config_upsert"));
   ok("system tools exposes credential client config list", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "credential_client_config_list"));
+  ok("system tools exposes Google Auth Platform upsert", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "google_auth_platform_config_upsert"));
+  ok("system tools exposes Google Auth Platform get", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "google_auth_platform_config_get"));
   const credentialTool = r.body.tools.find((tool) => tool.name === "credential_client_config_upsert");
   ok("credential client config supports Google OAuth origins", Boolean(credentialTool?.inputSchema?.properties?.authorized_javascript_origins));
   ok("credential client config supports API key app restrictions", Boolean(credentialTool?.inputSchema?.properties?.application_restrictions));
   ok("credential client config supports service account unique id", Boolean(credentialTool?.inputSchema?.properties?.service_account_unique_id));
+  const googleAuthTool = r.body.tools.find((tool) => tool.name === "google_auth_platform_config_upsert");
+  ok("Google Auth Platform config exposes tab enum", Array.isArray(googleAuthTool?.inputSchema?.properties?.tab?.enum));
 }
 {
   const r = await post("/admin/system/tools/call", {});
@@ -360,6 +364,7 @@ section("Admin system layer connector facade");
   ok("shared system tools exposes provider bootstrap chain to admin", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "activation_provider_bootstrap_validate"));
   ok("shared system tools exposes tenant GPT OAuth client upsert to admin", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "tenant_gpt_oauth_client_upsert"));
   ok("shared system tools exposes credential client config upsert to admin", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "credential_client_config_upsert"));
+  ok("shared system tools exposes Google Auth Platform config to admin", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "google_auth_platform_config_get"));
 }
 {
   const r = await post("/system/tools/call", {});
@@ -381,6 +386,20 @@ section("Admin system layer connector facade");
   });
   ok("credential client config upsert validates credential type", r.status === 400, `got ${r.status}`);
   ok("credential client config bad type code", r.body.error?.code === "invalid_credential_type", `got ${r.body.error?.code}`);
+}
+{
+  const r = await post("/admin/system/tools/call", {
+    name: "google_auth_platform_config_upsert",
+    arguments: { tab: "bad_tab" }
+  });
+  ok("Google Auth Platform config validates tab", r.status === 400, `got ${r.status}`);
+  ok("Google Auth Platform bad tab code", r.body.error?.code === "invalid_google_auth_platform_tab", `got ${r.body.error?.code}`);
+}
+{
+  const r = await get("/admin/apis-services/google-auth-platform/data_access");
+  ok("Google Auth Platform data_access endpoint returns 200", r.status === 200, `got ${r.status}`);
+  ok("Google Auth Platform data_access endpoint returns one tab", Array.isArray(r.body.tabs) && r.body.tabs.length === 1, JSON.stringify(r.body));
+  ok("Google Auth Platform data_access endpoint has scopes", Array.isArray(r.body.tabs?.[0]?.config?.state?.scopes), JSON.stringify(r.body));
 }
 
 // ── 9. GET /planner/plans/:id — route registration ───────────────────────────

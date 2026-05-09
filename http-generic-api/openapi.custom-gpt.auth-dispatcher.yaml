@@ -1726,6 +1726,11 @@ paths:
                     - activation_github_validate
                     - activation_provider_bootstrap_validate
                     - activation_bootstrap_config_upsert
+                    - tenant_gpt_oauth_client_upsert
+                    - credential_client_config_upsert
+                    - credential_client_config_list
+                    - google_auth_platform_config_upsert
+                    - google_auth_platform_config_get
                 arguments:
                   type: object
                   additionalProperties: true
@@ -1936,6 +1941,165 @@ paths:
                     type: object
                     additionalProperties: true
                     properties: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/apis-services/google-auth-platform:
+    get:
+      tags:
+        - admin-control
+      security:
+        - backendBearerAuth: []
+      operationId: getAdminGoogleAuthPlatformTabs
+      summary: Read simulated Google Auth Platform tabs
+      description: Returns governed DB-backed tab state for the platform-controlled Google Auth Platform and APIs & Services console simulation.
+      parameters:
+        - in: query
+          name: project_key
+          schema:
+            type: string
+            default: growth-intelligence-os
+        - in: query
+          name: owner_type
+          schema:
+            type: string
+            enum:
+              - platform
+              - tenant
+            default: platform
+        - in: query
+          name: tenant_id
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Google Auth Platform tab state
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok:
+                    type: boolean
+                  project_key:
+                    type: string
+                  console_root:
+                    type: string
+                  tabs:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties: {}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/apis-services/google-auth-platform/{tab}:
+    get:
+      tags:
+        - admin-control
+      security:
+        - backendBearerAuth: []
+      operationId: getAdminGoogleAuthPlatformTab
+      summary: Read one simulated Google Auth Platform tab
+      description: Returns one governed tab state, such as overview, branding, audience, clients, data_access, verification_center, settings, or api_credentials.
+      parameters:
+        - in: path
+          name: tab
+          required: true
+          schema:
+            type: string
+            enum:
+              - overview
+              - branding
+              - audience
+              - clients
+              - data_access
+              - verification_center
+              - settings
+              - api_credentials
+        - in: query
+          name: project_key
+          schema:
+            type: string
+            default: growth-intelligence-os
+      responses:
+        '200':
+          description: Google Auth Platform tab state
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags:
+        - admin-control
+      security:
+        - backendBearerAuth: []
+      operationId: upsertAdminGoogleAuthPlatformTab
+      summary: Upsert one simulated Google Auth Platform tab
+      description: Writes governed DB-backed tab state for Google Auth Platform or APIs & Services console simulation.
+      parameters:
+        - in: path
+          name: tab
+          required: true
+          schema:
+            type: string
+            enum:
+              - overview
+              - branding
+              - audience
+              - clients
+              - data_access
+              - verification_center
+              - settings
+              - api_credentials
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                project_key:
+                  type: string
+                  default: growth-intelligence-os
+                project_id:
+                  type: string
+                project_display_name:
+                  type: string
+                owner_type:
+                  type: string
+                  enum:
+                    - platform
+                    - tenant
+                  default: platform
+                tenant_id:
+                  type: string
+                path:
+                  type: string
+                state:
+                  type: object
+                  additionalProperties: true
+                  properties: {}
+                note:
+                  type: string
+      responses:
+        '200':
+          description: Upserted Google Auth Platform tab state
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties: {}
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
