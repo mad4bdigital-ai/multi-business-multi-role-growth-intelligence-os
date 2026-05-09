@@ -1,6 +1,6 @@
-/**
+﻿/**
  * local-connector/server.mjs
- * Break-glass Express connector — reached via Cloudflare Tunnel when Cloud Run is down.
+ * Break-glass Express connector â€” reached via Cloudflare Tunnel when Cloud Run is down.
  * Bind: 127.0.0.1 only. Cloudflare Tunnel is the sole entry point.
  */
 
@@ -13,7 +13,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------------------
-// Bootstrap — manual .env parse (no dotenv dependency)
+// Bootstrap â€” manual .env parse (no dotenv dependency)
 // ---------------------------------------------------------------------------
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -103,7 +103,24 @@ function runCommand(command, args, timeoutMs) {
     let stderr = '';
     let settled = false;
 
-    const proc = spawn(command, args, { shell: false, windowsHide: true });
+        const isWindowsCommandScript =
+      process.platform === 'win32' && /\.(cmd|bat)$/i.test(command);
+
+    const quoteForCmd = (value) => {
+      const s = String(value);
+      if (!s) return '""';
+      return `"${s.replace(/"/g, '\\"')}"`;
+    };
+
+    const spawnCommand = isWindowsCommandScript
+      ? (process.env.ComSpec || 'cmd.exe')
+      : command;
+
+    const spawnArgs = isWindowsCommandScript
+      ? ['/d', '/s', '/c', [quoteForCmd(command), ...args.map(quoteForCmd)].join(' ')]
+      : args;
+
+    const proc = spawn(spawnCommand, spawnArgs, { shell: false, windowsHide: true });
 
     const timer = setTimeout(() => {
       if (!settled) {
@@ -224,7 +241,7 @@ function healthBody() {
 }
 
 // ---------------------------------------------------------------------------
-// Config — fetch-upload
+// Config â€” fetch-upload
 // ---------------------------------------------------------------------------
 
 const MAIN_API_URL = (process.env.MAIN_API_URL ?? 'https://api.mad4b.com').replace(/\/$/, '');
@@ -511,3 +528,4 @@ server.listen(PORT, '127.0.0.1', () => {
   console.log(`[connector] Shell aliases: ${Object.keys(SHELL_ALLOWLIST).join(', ') || '(none)'}`);
   console.log(`[connector] File allowlist: ${FILE_ALLOWLIST.join(', ') || '(none)'}`);
 });
+
