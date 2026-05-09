@@ -100,6 +100,7 @@ const SYSTEM_LAYER_TOOLS = [
       properties: {
         client_id: { type: "string", default: "mad4b-tenant-gpt" },
         client_secret: { type: "string", description: "Optional explicit secret. If omitted, one is generated or the current one is retained." },
+        callback_urls_to_allow: { type: "array", items: { type: "string" } },
         rotate: { type: "boolean", default: false },
         note: { type: "string" },
       },

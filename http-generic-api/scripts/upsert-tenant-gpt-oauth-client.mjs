@@ -31,6 +31,17 @@ function argValue(name) {
   return index >= 0 ? process.argv[index + 1] : "";
 }
 
+function argValues(name) {
+  const prefix = `--${name}=`;
+  const values = process.argv
+    .filter((arg) => arg.startsWith(prefix))
+    .map((arg) => arg.slice(prefix.length));
+  process.argv.forEach((arg, index) => {
+    if (arg === `--${name}` && process.argv[index + 1]) values.push(process.argv[index + 1]);
+  });
+  return values;
+}
+
 const required = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"].filter((key) => !process.env[key]);
 if (required.length) {
   console.error(`Missing required DB env vars: ${required.join(", ")}`);
@@ -40,6 +51,7 @@ if (required.length) {
 const result = await upsertTenantGptOAuthClientConfig({
   client_id: argValue("client-id"),
   client_secret: argValue("client-secret"),
+  callback_urls_to_allow: argValues("callback-url"),
   rotate: process.argv.includes("--rotate"),
   note: argValue("note") || "tenant_gpt_oauth_client_script",
 });

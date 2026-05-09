@@ -20,6 +20,7 @@ export const TENANT_GPT_CALLBACK_URLS_TO_ALLOW = [
 export function buildTenantGptOAuthPreset({
   baseUrl = "https://auth.mad4b.com",
   schemaUrl = "https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml",
+  callbackUrlsToAllow = TENANT_GPT_CALLBACK_URLS_TO_ALLOW,
 } = {}) {
   return {
     auth_type: "OAuth",
@@ -32,7 +33,7 @@ export function buildTenantGptOAuthPreset({
     scope: TENANT_GPT_SCOPE,
     scope_links: TENANT_GPT_SCOPE_LINKS,
     token_exchange_method: "default_post_request",
-    callback_urls_to_allow: TENANT_GPT_CALLBACK_URLS_TO_ALLOW,
+    callback_urls_to_allow: callbackUrlsToAllow,
     notes: [
       "Configure the Custom GPT Action Authentication Type as OAuth.",
       "Use the DB-backed client secret stored under platform_runtime_config config_key=tenant_gpt.oauth.client.",

@@ -1,6 +1,7 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { getPool } from "./db.js";
 import {
+  TENANT_GPT_CALLBACK_URLS_TO_ALLOW,
   TENANT_GPT_OAUTH_CLIENT_ID,
   TENANT_GPT_SCOPE,
   TENANT_GPT_SCOPE_LINKS,
@@ -28,6 +29,14 @@ function cleanSecret(value) {
   return normalized || "";
 }
 
+function cleanCallbackUrls(value) {
+  const raw = Array.isArray(value) ? value : [];
+  const cleaned = raw
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+  return [...new Set(cleaned.length ? cleaned : TENANT_GPT_CALLBACK_URLS_TO_ALLOW)];
+}
+
 function fixedTimeEqual(left, right) {
   const a = Buffer.from(String(left || ""), "utf8");
   const b = Buffer.from(String(right || ""), "utf8");
@@ -50,6 +59,7 @@ export function sanitizeTenantGptOAuthClientConfig(config = {}, source = "unknow
     client_secret_required: Boolean(clientSecret),
     scope: TENANT_GPT_SCOPE,
     scope_links: TENANT_GPT_SCOPE_LINKS,
+    callback_urls_to_allow: cleanCallbackUrls(config.callback_urls_to_allow),
     created_at: config.created_at || null,
     rotated_at: config.rotated_at || null,
   };
@@ -123,6 +133,7 @@ export function readTenantGptOAuthClientConfigFromEnv() {
       {
         client_id: process.env.TENANT_GPT_OAUTH_CLIENT_ID || TENANT_GPT_OAUTH_CLIENT_ID,
         client_secret: clientSecret,
+        callback_urls_to_allow: TENANT_GPT_CALLBACK_URLS_TO_ALLOW,
       },
       "server_env"
     ),
@@ -158,6 +169,7 @@ export async function resolveTenantGptOAuthClientConfig(options = {}) {
       {
         client_id: TENANT_GPT_OAUTH_CLIENT_ID,
         client_secret: "",
+        callback_urls_to_allow: TENANT_GPT_CALLBACK_URLS_TO_ALLOW,
       },
       "default_unconfigured"
     ),
@@ -228,6 +240,7 @@ export async function upsertTenantGptOAuthClientConfig(args = {}) {
     client_secret: clientSecret,
     scope: TENANT_GPT_SCOPE,
     scope_links: TENANT_GPT_SCOPE_LINKS,
+    callback_urls_to_allow: cleanCallbackUrls(args.callback_urls_to_allow || existingConfig?.callback_urls_to_allow),
     created_at: existingConfig?.created_at || now,
     rotated_at: existingConfig?.client_secret && clientSecret !== existingConfig.client_secret ? now : existingConfig?.rotated_at || null,
   };
@@ -255,6 +268,7 @@ export async function upsertTenantGptOAuthClientConfig(args = {}) {
     client_secret_required: true,
     scope: config.scope,
     scope_links: config.scope_links,
+    callback_urls_to_allow: config.callback_urls_to_allow,
     next_step: "Save client_id and client_secret in the Custom GPT OAuth authentication panel.",
   };
 }

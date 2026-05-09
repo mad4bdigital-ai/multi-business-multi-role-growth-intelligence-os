@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildTenantGptOAuthPreset } from "../tenantGptOAuthPreset.js";
+import { resolveTenantGptOAuthClientConfig } from "../tenantGptOAuthClientConfig.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCHEMA_DIR = resolve(__dirname, "..");
@@ -138,7 +139,7 @@ export function buildRootDiscoveryRoutes() {
     }
   });
 
-  router.get("/tenant-gpt/oauth-preset", (req, res) => {
+  router.get("/tenant-gpt/oauth-preset", async (req, res) => {
     const host = requestHost(req);
     if (host !== "auth.mad4b.com") {
       return res.status(404).json({
@@ -150,9 +151,15 @@ export function buildRootDiscoveryRoutes() {
       });
     }
 
+    const clientConfig = await resolveTenantGptOAuthClientConfig();
+    const callbackUrlsToAllow = Array.isArray(clientConfig.config?.callback_urls_to_allow)
+      ? clientConfig.config.callback_urls_to_allow
+      : undefined;
+
     return res.status(200).json({
       ok: true,
-      preset: buildTenantGptOAuthPreset(),
+      source: clientConfig.source,
+      preset: buildTenantGptOAuthPreset({ callbackUrlsToAllow }),
     });
   });
 

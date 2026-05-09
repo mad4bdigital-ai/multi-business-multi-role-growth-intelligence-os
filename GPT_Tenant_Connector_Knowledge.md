@@ -95,7 +95,7 @@ Tenant GPT Action OAuth preset:
   - `https://auth.mad4b.com/scopes/tenant.install`
   - `https://auth.mad4b.com/scopes/tenant.system-tools`
 
-If the GPT Builder presents a single Scope input, paste the same links as one space-delimited value. The public preset endpoint intentionally redacts the raw client secret; platform admins seed or rotate it with `tenant_gpt_oauth_client_upsert` or `node scripts/upsert-tenant-gpt-oauth-client.mjs`.
+If the GPT Builder presents a single Scope input, paste the same links as one space-delimited value. The public preset endpoint intentionally redacts the raw client secret; platform admins seed or rotate the DB source of truth, including default allowed callback URLs, with `tenant_gpt_oauth_client_upsert` or `node scripts/upsert-tenant-gpt-oauth-client.mjs`.
 
 Safe activation redirect hints:
 - `screen_hint=google|signin|signup`

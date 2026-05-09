@@ -5,12 +5,14 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 import {
-  TENANT_GPT_CALLBACK_URLS_TO_ALLOW,
   TENANT_GPT_OAUTH_CLIENT_ID,
   TENANT_GPT_SCOPE,
   TENANT_GPT_SCOPE_LINKS,
 } from "../tenantGptOAuthPreset.js";
-import { validateTenantGptOAuthClientCredentials } from "../tenantGptOAuthClientConfig.js";
+import {
+  resolveTenantGptOAuthClientConfig,
+  validateTenantGptOAuthClientCredentials,
+} from "../tenantGptOAuthClientConfig.js";
 
 // Default fallback secret for development if missing.
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
@@ -174,16 +176,27 @@ function parseOAuthRedirectUri(redirectUri) {
   }
 }
 
-function isAllowedTenantGptRedirectUri(redirectUri) {
+function callbackPatternToRegExp(pattern) {
+  const escaped = String(pattern || "")
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    .replace("\\{g-GPT-ID\\}", "g-[a-z0-9]+");
+  return new RegExp(`^${escaped}$`, "i");
+}
+
+async function isAllowedTenantGptRedirectUri(redirectUri, queryFn) {
   const url = parseOAuthRedirectUri(redirectUri);
   if (!url) return false;
 
   const normalized = url.toString();
-  if (TENANT_GPT_CALLBACK_URLS_TO_ALLOW.includes(normalized)) return true;
+  const resolved = await resolveTenantGptOAuthClientConfig({ query: queryFn });
+  const callbacks = Array.isArray(resolved.config?.callback_urls_to_allow)
+    ? resolved.config.callback_urls_to_allow
+    : [];
 
-  const isAllowedHost = url.hostname === "chat.openai.com" || url.hostname === "chatgpt.com";
-  const pathMatch = url.pathname.match(/^\/aip\/g-[a-z0-9]+\/oauth\/callback$/i);
-  return isAllowedHost && Boolean(pathMatch);
+  return callbacks.some((callback) => {
+    if (callback === normalized) return true;
+    return callback.includes("{g-GPT-ID}") && callbackPatternToRegExp(callback).test(normalized);
+  });
 }
 
 function appendOAuthParams(redirectUri, params) {
@@ -453,12 +466,13 @@ export function buildAuthRoutes(deps) {
     });
   }
 
-  router.get("/oauth/authorize", (req, res) => {
+  router.get("/oauth/authorize", async (req, res) => {
     const redirectUri = String(req.query.redirect_uri || "");
     const state = String(req.query.state || "");
     const activationContext = parseActivationContext(req.query);
 
-    if (!isAllowedTenantGptRedirectUri(redirectUri)) {
+    const query = (sql, params) => resolvePool().query(sql, params);
+    if (!(await isAllowedTenantGptRedirectUri(redirectUri, query))) {
       return res.status(400).type("text/plain").send("OAuth redirect_uri is not allowed for the Tenant GPT client.");
     }
 
@@ -478,7 +492,8 @@ export function buildAuthRoutes(deps) {
       if (!token || !redirect_uri) {
         return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "token and redirect_uri are required." } });
       }
-      if (!isAllowedTenantGptRedirectUri(redirect_uri)) {
+      const query = (sql, params) => resolvePool().query(sql, params);
+      if (!(await isAllowedTenantGptRedirectUri(redirect_uri, query))) {
         return res.status(400).json({ ok: false, error: { code: "invalid_redirect_uri", message: "redirect_uri is not allowed for the Tenant GPT client." } });
       }
 
