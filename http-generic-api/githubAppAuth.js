@@ -22,20 +22,20 @@ function looksLikePem(value = "") {
   return value.includes("-----BEGIN") && value.includes("PRIVATE KEY-----");
 }
 
-function normalizePemText(value = "") {
-  return String(value || "")
-    .trim()
-    .replace(/^\uFEFF/, "")
-    .replace(/^'"]|['"]$g, "")
-    .replace(/\\r\\n/g, "\n")
-    .replace(/\\n/g, "\n")
-    .replace(/\r\n/g, "\n");
-}
-
 function stripCommonEnvAssignment(value = "") {
   const text = String(value || "").trim();
   const match = text.match(/^[A-Za-z_][A-Za-z0-9_]*=(.*)$/s);
   return match ? match[1].trim() : text;
+}
+
+function normalizePemText(value = "") {
+  return stripCommonEnvAssignment(value)
+    .trim()
+    .replace(/^\uFEFF/, "")
+    .replace(/^['"]|['"]$/g, "")
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n");
 }
 
 function tryDecodeBase64(value = "") {
@@ -73,7 +73,7 @@ function buildPemCandidates(value = "") {
   const candidates = [];
 
   const push = (candidate) => {
-    const normalized = normalizePemText(stripCommonEnvAssignment(candidate));
+    const normalized = normalizePemText(candidate);
     if (normalized && !candidates.includes(normalized)) candidates.push(normalized);
   };
 
@@ -93,7 +93,8 @@ function buildPemCandidates(value = "") {
     if (decodedTwice) push(decodedTwice);
   }
 
-  return candidates;}
+  return candidates;
+}
 
 export function decodeGitHubAppPrivateKey(value = "") {
   const candidates = buildPemCandidates(value);
@@ -115,7 +116,7 @@ function createInvalidPrivateKeyError(cause) {
   return err;
 }
 
-export function createGitHubAppJwt({ appId, privateKey, nowSeconds = Math.floor(Date.now() / 1000)}) {
+export function createGitHubAppJwt({ appId, privateKey, nowSeconds = Math.floor(Date.now() / 1000) }) {
   const iss = String(appId || "").trim();
   const key = decodeGitHubAppPrivateKey(privateKey);
 
@@ -169,7 +170,7 @@ export function resolveGitHubAppConfig(action = {}) {
   };
 }
 
-export async function getGitHubAppInstallationToken({action = {}, fetchImpl = fetch} = {}) {
+export async function getGitHubAppInstallationToken({ action = {}, fetchImpl = fetch } = {}) {
   const nowMs = Date.now();
   if (
     cachedInstallationToken?.token &&
