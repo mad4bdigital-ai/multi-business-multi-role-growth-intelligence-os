@@ -31,3 +31,17 @@ If the GPT Builder presents a single Scope input, use the same links as one spac
 OpenAI GPT Actions require the OAuth fields to be configured in the GPT Builder authentication panel. The OpenAPI schema can declare the OAuth security scheme and carry the preset as extension metadata, but it does not replace saving the Builder authentication fields. The public preset endpoint intentionally redacts the raw client secret; platform admins seed or rotate the DB source of truth, including default allowed callback URLs, with the admin-only `tenant_gpt_oauth_client_upsert` system tool or `node scripts/upsert-tenant-gpt-oauth-client.mjs`. If the Tenant GPT calls `/connect/status` without a bearer token and receives `user_jwt_required`, treat the action as not signed in or not configured with OAuth.
 
 The popup may use Google as upstream identity proof, but `/auth/oauth/token` must mint a fresh Mad4B-signed tenant JWT for ChatGPT. ChatGPT then sends that JWT as `Authorization: Bearer <token>` on tenant action calls. The Tenant GPT must not ask users for passwords, OAuth codes, Google ID tokens, provider tokens, API keys, connector secrets, or registration credentials in chat.
+
+## Platform Credential Clients
+
+Credential clients are governed DB configuration, not hardcoded prompt text. Admins can create Google-style platform credential options for API keys, OAuth clients, and service accounts through `POST /system/tools/call` with `name: "credential_client_config_upsert"` or locally with `node scripts/upsert-platform-credential-client.mjs`. The records are stored in `platform_runtime_config` with keys beginning `platform_credential_client.` and can be listed with `credential_client_config_list`.
+
+Use this registry for platform-controlled projects now and tenant-owned projects later:
+
+| Credential type | Purpose | Stored secret material |
+|---|---|---|
+| `api_key` | Simple API access and quota attribution for a controlled project | `key_secret_ref` only |
+| `oauth_client` | User consent flows such as Custom GPT Actions OAuth | `client_secret_ref` only |
+| `service_account` | Server-to-server platform automation | `key_secret_ref` or runtime ADC reference only |
+
+Do not store raw API keys, OAuth client secrets, or private keys in canonical files, GPT instructions, or OpenAPI extensions. Store only secret references and allowed callback/scope metadata in the DB source of truth.

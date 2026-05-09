@@ -13,6 +13,11 @@ import {
   validateActivationBootstrapConfig,
 } from "../activationBootstrapConfig.js";
 import { upsertTenantGptOAuthClientConfig } from "../tenantGptOAuthClientConfig.js";
+import {
+  listPlatformCredentialClientConfigs,
+  PLATFORM_CREDENTIAL_CLIENT_TYPES,
+  upsertPlatformCredentialClientConfig,
+} from "../platformCredentialClientsConfig.js";
 import { requireAdminPrincipal } from "./adminCliRoutes.js";
 
 const SYSTEM_LAYER_TOOLS = [
@@ -103,6 +108,51 @@ const SYSTEM_LAYER_TOOLS = [
         callback_urls_to_allow: { type: "array", items: { type: "string" } },
         rotate: { type: "boolean", default: false },
         note: { type: "string" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "credential_client_config_upsert",
+    description: "Admin-only DB source-of-truth upsert for platform-controlled credential clients: API key, OAuth client, or service account.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        owner_type: { type: "string", enum: ["platform", "tenant"], default: "platform" },
+        tenant_id: { type: "string" },
+        channel_key: { type: "string", default: "custom_gpt" },
+        credential_type: { type: "string", enum: PLATFORM_CREDENTIAL_CLIENT_TYPES },
+        client_key: { type: "string" },
+        display_name: { type: "string" },
+        provider: { type: "string", default: "google" },
+        project_id: { type: "string" },
+        client_id: { type: "string" },
+        client_secret_ref: { type: "string" },
+        redirect_uris: { type: "array", items: { type: "string" } },
+        scopes: { type: "array", items: { type: "string" } },
+        key_secret_ref: { type: "string" },
+        allowed_apis: { type: "array", items: { type: "string" } },
+        restrictions: { type: "object" },
+        service_account_email: { type: "string" },
+        roles: { type: "array", items: { type: "string" } },
+        note: { type: "string" },
+      },
+      required: ["credential_type"],
+    },
+  },
+  {
+    name: "credential_client_config_list",
+    description: "Admin-only list of platform-controlled credential client configs stored in DB.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        owner_type: { type: "string", enum: ["platform", "tenant"] },
+        tenant_id: { type: "string" },
+        channel_key: { type: "string" },
+        credential_type: { type: "string", enum: PLATFORM_CREDENTIAL_CLIENT_TYPES },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
       },
       required: [],
     },
@@ -664,6 +714,10 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       return await activationBootstrapConfigUpsert(args);
     case "tenant_gpt_oauth_client_upsert":
       return await upsertTenantGptOAuthClientConfig(args);
+    case "credential_client_config_upsert":
+      return await upsertPlatformCredentialClientConfig(args);
+    case "credential_client_config_list":
+      return await listPlatformCredentialClientConfigs(args);
     default: {
       const err = new Error(`Unknown system layer tool: ${name}`);
       err.status = 400;

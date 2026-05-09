@@ -336,6 +336,8 @@ section("Admin system layer connector facade");
   ok("system tools exposes GitHub validation", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "activation_github_validate"));
   ok("system tools exposes bootstrap config upsert", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "activation_bootstrap_config_upsert"));
   ok("system tools exposes tenant GPT OAuth client upsert", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "tenant_gpt_oauth_client_upsert"));
+  ok("system tools exposes credential client config upsert", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "credential_client_config_upsert"));
+  ok("system tools exposes credential client config list", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "credential_client_config_list"));
 }
 {
   const r = await post("/admin/system/tools/call", {});
@@ -353,6 +355,7 @@ section("Admin system layer connector facade");
   ok("shared system tools exposes MCP facade protocol", r.body.protocol === "openapi-mcp-facade", `got ${r.body.protocol}`);
   ok("shared system tools exposes provider bootstrap chain to admin", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "activation_provider_bootstrap_validate"));
   ok("shared system tools exposes tenant GPT OAuth client upsert to admin", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "tenant_gpt_oauth_client_upsert"));
+  ok("shared system tools exposes credential client config upsert to admin", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "credential_client_config_upsert"));
 }
 {
   const r = await post("/system/tools/call", {});
@@ -366,6 +369,14 @@ section("Admin system layer connector facade");
   });
   ok("bootstrap config upsert validates required fields before DB write", r.status === 400, `got ${r.status}`);
   ok("bootstrap config upsert missing fields code", r.body.error?.code === "missing_required_activation_bootstrap_fields", `got ${r.body.error?.code}`);
+}
+{
+  const r = await post("/admin/system/tools/call", {
+    name: "credential_client_config_upsert",
+    arguments: { credential_type: "bad_type" }
+  });
+  ok("credential client config upsert validates credential type", r.status === 400, `got ${r.status}`);
+  ok("credential client config bad type code", r.body.error?.code === "invalid_credential_type", `got ${r.body.error?.code}`);
 }
 
 // ── 9. GET /planner/plans/:id — route registration ───────────────────────────
