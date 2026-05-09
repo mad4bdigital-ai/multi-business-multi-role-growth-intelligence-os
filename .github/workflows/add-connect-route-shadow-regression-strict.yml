@@ -1,0 +1,73 @@
+name: Add Connect Route Shadow Regression Strict
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/add-connect-route-shadow-regression-strict.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  add-connect-route-shadow-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: true
+
+      - name: Patch connect route regression test
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("http-generic-api/test-connect-routes.mjs")
+          text = path.read_text(encoding="utf-8")
+          original = text
+
+          connect_import = 'import { buildConnectRoutes } from "./routes/connectRoutes.js";'
+          onboarding_import = 'import { buildOnboardingRoutes } from "./routes/onboardingRoutes.js";'
+          if onboarding_import not in text:
+              if connect_import not in text:
+                  raise SystemExit("connect route import anchor not found")
+              text = text.replace(connect_import, f"{connect_import} {onboarding_import}")
+
+          mount_anchor = 'app.use(buildConnectRoutes({ requireBackendApiKey: (_req, _res, next) => next(), }));'
+          mount_replacement = 'app.use(buildOnboardingRoutes({})); app.use(buildConnectRoutes({ requireBackendApiKey: (_req, _res, next) => next(), }));'
+          if 'app.use(buildOnboardingRoutes({}));' not in text:
+              if mount_anchor not in text:
+                  raise SystemExit("connect route mount anchor not found")
+              text = text.replace(mount_anchor, mount_replacement)
+
+          assert_anchor = 'assert("connect shell includes exact OAuth app name", html.includes("Growth Intelligence Platform"));'
+          assert_replacement = 'assert("connect shell includes exact OAuth app name", html.includes("Growth Intelligence Platform")); assert("connect shell is not legacy onboarding page", !html.includes("Mad4B Connector Setup"));'
+          if 'connect shell is not legacy onboarding page' not in text:
+              if assert_anchor not in text:
+                  raise SystemExit("connect route assertion anchor not found")
+              text = text.replace(assert_anchor, assert_replacement)
+
+          if text == original:
+              raise SystemExit("test file was not modified")
+
+          required = [
+              onboarding_import,
+              'app.use(buildOnboardingRoutes({}));',
+              'connect shell is not legacy onboarding page',
+          ]
+          for item in required:
+              if item not in text:
+                  raise SystemExit(f"required patch missing: {item}")
+
+          path.write_text(text, encoding="utf-8")
+          Path(".github/workflows/add-connect-route-shadow-regression-strict.yml").unlink(missing_ok=True)
+          PY
+
+          git config user.name "mad4b-platform-bot"
+          git config user.email "platform-bot@mad4b.com"
+          git add http-generic-api/test-connect-routes.mjs .github/workflows/add-connect-route-shadow-regression-strict.yml
+          git diff --cached --check
+          git commit -m "test(auth): guard connect UI against legacy onboarding shadow"
+          git push
