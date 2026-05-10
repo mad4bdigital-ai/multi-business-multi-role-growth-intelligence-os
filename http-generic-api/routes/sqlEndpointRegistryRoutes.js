@@ -48,7 +48,7 @@ export function buildSqlEndpointRegistryRoutes(deps = {}) {
   const requireAdminPrincipal = deps.requireAdminPrincipal || ((_req, _res, next) => next());
 
   router.get(
-    "/sql/endpoint-registry/endpoints",
+    "/admin/sql/endpoint-registry/endpoints",
     requireBackendApiKey,
     requireAdminPrincipal,
     async (req, res) => {
@@ -98,7 +98,7 @@ export function buildSqlEndpointRegistryRoutes(deps = {}) {
   );
 
   router.get(
-    "/sql/endpoint-registry/resolve",
+    "/admin/sql/endpoint-registry/resolve",
     requireBackendApiKey,
     requireAdminPrincipal,
     async (req, res) => {
