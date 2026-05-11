@@ -1,0 +1,85 @@
+name: Patch Endpoint Registry SQL Source
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/ops/trigger-endpoint-registry-sql-patch.txt"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: contains(github.event.head_commit.message, 'ops: trigger endpoint registry sql source patch run')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch registrySheets.js endpoint registry read path to SQL first
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'http-generic-api/registrySheets.js';
+          let src = fs.readFileSync(path, 'utf8');
+
+          const oldSource = 'const _DATA_SOURCE = (process.env.DATA_SOURCE || "sheets").trim().toLowerCase();';
+          const newSource = `const _DATA_SOURCE = (process.env.DATA_SOURCE || "sheets").trim().toLowerCase();
+const _ENDPOINT_REGISTRY_SOURCE = (process.env.ENDPOINT_REGISTRY_SOURCE || "sql").trim().toLowerCase();
+const _LEGACY_SHEET_ENDPOINT_REGISTRY_ENABLED = String(process.env.LEGACY_SHEET_ENDPOINT_REGISTRY_ENABLED || "false").trim().toLowerCase() === "true";
+
+function shouldReadEndpointRegistryFromSql() {
+  return _ENDPOINT_REGISTRY_SOURCE !== "sheets" || !_LEGACY_SHEET_ENDPOINT_REGISTRY_ENABLED;
+}`;
+
+          if (!src.includes('const _ENDPOINT_REGISTRY_SOURCE')) {
+            if (!src.includes(oldSource)) {
+              throw new Error('Could not find DATA_SOURCE declaration to patch');
+            }
+            src = src.replace(oldSource, newSource);
+          }
+
+          const marker = `} = deps;
+  const values = await readRegistryTable(sheets, deps, {
+    spreadsheetId: REGISTRY_SPREADSHEET_ID,`;
+          const insert = `} = deps;
+
+  if (shouldReadEndpointRegistryFromSql()) {
+    const rows = await sqlReadTable("API Actions Endpoint Registry");
+    return rows.filter(r => r.endpoint_key);
+  }
+
+  const values = await readRegistryTable(sheets, deps, {
+    spreadsheetId: REGISTRY_SPREADSHEET_ID,`;
+
+          if (!src.includes('shouldReadEndpointRegistryFromSql()) {\n    const rows = await sqlReadTable("API Actions Endpoint Registry")')) {
+            if (!src.includes(marker)) {
+              throw new Error('Could not find loadEndpointRegistry Sheets read marker to patch');
+            }
+            src = src.replace(marker, insert);
+          }
+
+          fs.writeFileSync(path, src);
+          NODE
+
+      - name: Validate patch
+        run: |
+          set -euo pipefail
+          grep -n "ENDPOINT_REGISTRY_SOURCE" http-generic-api/registrySheets.js
+          grep -n "shouldReadEndpointRegistryFromSql" http-generic-api/registrySheets.js
+          grep -n "API Actions Endpoint Registry" http-generic-api/registrySheets.js
+
+      - name: Commit patch
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "mad4bdigital-ai"
+          git config user.email "mad4b.digital@gmail.com"
+          git add http-generic-api/registrySheets.js
+          git commit -m "fix: read endpoint registry from SQL by default"
+          git push
