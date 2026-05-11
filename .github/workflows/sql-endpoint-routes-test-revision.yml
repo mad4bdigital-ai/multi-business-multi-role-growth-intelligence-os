@@ -3,8 +3,13 @@ name: SQL Endpoint Registry Routes Test Revision
 on:
   workflow_dispatch:
     inputs:
+      project_id:
+        description: "Google Cloud project ID. Defaults to repository variable GCP_PROJECT_ID."
+        required: false
+        default: ""
+        type: string
       service:
-        description: "Cloud Run service name"
+        description: "Cloud Run service"
         required: false
         default: "http-generic-api"
         type: string
@@ -14,12 +19,12 @@ on:
         default: "europe-west1"
         type: string
       enable_flag:
-        description: "Enable SQL endpoint registry routes in the test revision"
+        description: "Enable SQL endpoint registry routes"
         required: false
         default: "true"
         type: string
       tag_name:
-        description: "Tag name for the no-traffic test revision"
+        description: "No-traffic test revision tag"
         required: false
         default: "sql-endpoint-test"
         type: string
@@ -28,89 +33,106 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  PROJECT_ID: ${{ inputs.project_id || vars.GCP_PROJECT_ID }}
+
 jobs:
   create-test-revision:
-    name: Create no-traffic Cloud Run test revision
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Validate config
+        run: |
+          set -euo pipefail
+          test -n "$PROJECT_ID" || (echo "Set repository variable GCP_PROJECT_ID or pass project_id input." >&2; exit 1)
+          test -n "${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}" || (echo "Missing repository variable GCP_WORKLOAD_IDENTITY_PROVIDER." >&2; exit 1)
+          test -n "${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}" || (echo "Missing repository variable GCP_DEPLOYER_SERVICE_ACCOUNT." >&2; exit 1)
+          echo "Using project: $PROJECT_ID"
 
-      - name: Authenticate to Google Cloud via Workload Identity Federation
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+          project_id: ${{ env.PROJECT_ID }}
 
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
 
-      - name: Create no-traffic revision with SQL routes flag
-        id: revision
+      - name: Create no-traffic revision and tag it
+        id: rev
         run: |
           set -euo pipefail
-
           SERVICE="${{ inputs.service }}"
-          REGION="${{ inputs.region }}"
-          FLAG="${{ inputs.enable_flag }}"
+          REGION="{{ inputs.region }}"
           TAG="${{ inputs.tag_name }}"
+          FLAG="${{ inputs.enable_flag }}"
 
-          echo "Creating test revision for ${SERVICE} in ${REGION} with ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES=${FLAG}"
+          gcloud config set project "$PROJECT_ID" --quiet
 
-          gcloud run services update "${SERVICE}" \
-            --region "${REGION}" \
-            --update-env-vars "ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES=${FLAG}" \
-            --no-traffic
+          echo "Creating test revision for ${SERVICE} in ${REGION} on project ${PROJECT_ID} with ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES=${FLAG}"
+
+          gcloud run services update "$SERVICE" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --update-env-vars "ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES=$FLAG" \
+            --no-traffic \
+            --quiet
 
           REVISION="$(gcloud run revisions list \
-            --service "${SERVICE}" \
-            --region "${REGION}" \
+            --project "$PROJECT_ID" \
+            --service "$SERVICE" \
+            --region "$REGION" \
             --sort-by '~metadata.creationTimestamp' \
             --limit 1 \
             --format 'value(metadata.name)')"
 
-          if [ -z "${REVISION}" ]; then
-            echo "Failed to resolve latest revision name" >&2
-            exit 1
-          fi
+          test -n "$REVISION" || (echo "Could not resolve latest revision." >&2; exit 1)
 
-          gcloud run services update-traffic "${SERVICE}" \
-            --region "${REGION}" \
-            --set-tags "${TAG}=${REVISION}"
+          gcloud run services update-traffic "$SERVICE" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --set-tags "$TAG=$REVISION" \
+            --quiet
 
-          URL="$(gcloud run services describe "${SERVICE}" \
-            --region "${REGION}" \
-            --format "value(status.url)")"
+          URL="$(gcloud run services describe "$SERVICE" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --format 'value(status.url)')"
 
-          TAGGED_URL="$(URL="${URL}" TAG="${TAG}" node -e "const url=process.env.URL; const tag=process.env.TAG; const u=new URL(url); u.hostname = tag + '---' + u.hostname; console.log(u.toString().replace(/\/$/, ''));")"
+          TAGGED_URL="$(URL="$URL" TAG="$TAG" node -e "const u=new URL(process.env.URL); u.hostname=process.env.TAG+'---'+u.hostname; console.log(u.toString().replace(/\\$/,''));")"
 
-          echo "revision=${REVISION}" >> "${GITHUB_OUTPUT}"
-          echo "tagged_url=${TAGGED_URL}" >> "${GITHUB_OUTPUT}"
-          echo "Test revision: ${REVISION}"
-          echo "Tagged URL: ${TAGGED_URL}"
+          echo "revision=$REVISION" >> "$GITHUB_OUTPUT"
+          echo "tagged_url=$TAGGED_URL" >> "$GITHUB_OUTPUT"
+          echo "Revision: $REVISION"
+          echo "Tagged URL: $TAGGED_URL"
 
-      - name: Smoke test source-status
+      - name: Smoke source-status
         env:
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
-          TAGGED_URL: ${{ steps.revision.outputs.tagged_url }}
+          TAGGED_URL: ${{ steps.rev.outputs.tagged_url }}
+        run: |
+          set -euo pipefail
+          test -n "$BACKEND_API_KEY" || (echo "Missing BACKEND_API_KEY secret." >&2; exit 1)
+          curl -fSS \
+            -H "Authorization: Bearer $BACKEND_API_KEY" \
+            "$TAGGED_URL/admin/sql/endpoint-registry/source-status" | tee source-status.json
+
+      - name: Smoke createGitRef resolver
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          TAGGED_URL: ${{ steps.rev.outputs.tagged_url }}
         run: |
           set -euo pipefail
           curl -fSS \
-            -H "Authorization: Bearer ${BACKEND_API_KEY}" \
-            "${TAGGED_URL}/admin/sql/endpoint-registry/source-status" | tee source-status.json
-
-      - name: Smoke test github create-ref endpoint resolve
-        env:
-          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
-          TAGGED_URL: ${{ steps.revision.outputs.tagged_url }}
-        run: |
-          set -euo pipefail
-          curl -fSS \
-            -H "Authorization: Bearer ${BACKEND_API_KEY}" \
-            "${TAGGED_URL}/admin/sql/endpoint-registry/resolve?parent_action_key=github_git_data&endpoint_key=createGitRef" | tee resolve.json
+            -H "Authorization: Bearer $BACKEND_API_KEY" \
+            "$TAGGED_URL/admin/sql/endpoint-registry/resolve?parent_action_key=github_git_data&endpoint_key=createGitRef" | tee resolve.json
 
       - name: Result
         run: |
           echo "SQL endpoint registry route test revision created and smoke tests passed."
-          echo "Revision: ${{ steps.revision.outputs.revision }}"
-          echo "Tagged URL: ${{ steps.revision.outputs.tagged_url }}"
+          echo "Revision: ${{ steps.rev.outputs.revision }}"
+          echo "Tagged URL: ${{ steps.rev.outputs.tagged_url }}"
