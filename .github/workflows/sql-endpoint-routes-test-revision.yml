@@ -74,7 +74,6 @@ jobs:
           FLAG: ${{ inputs.enable_flag }}
         run: |
           set -euo pipefail
-
           test -n "$SERVICE" || (echo "service input is required" >&2; exit 1)
           test -n "$REGION" || (echo "region input is required" >&2; exit 1)
           test -n "$TAG" || (echo "tag_name input is required" >&2; exit 1)
@@ -112,12 +111,15 @@ jobs:
             --region "$REGION" \
             --format 'value(status.url)')"
 
-          TAGGED_URL=b$URL" TAG="$TAG" node -e "const u=new URL(process.env.URL); u.hostname=process.env.TAG+'---'+u.hostname; console.log(u.toString().replace(/\/$/,''));")`
+          HOST="${URL#https://}"
+          HOST="${HOST#http://}"
+          HOST="${HOST%/}"
+          TAGGED_URL="https://${TAG}---${HOST}"
 
           echo "revision=$REVISION" >> "$GITHUB_OUTPUT"
           echo "tagged_url=$TAGGED_URL" >> "$GITHUB_OUTPUT"
           echo "Revision: $REVISION"
-          echo "Taged URL: $TAGGED_URL"
+          echo "Tagged URL: $TAGGED_URL"
 
       - name: Smoke source-status
         env:
@@ -142,6 +144,6 @@ jobs:
 
       - name: Result
         run: |
-          echo "SQL endpoint registry route test revision created and smoke tests passed."
+          echo "SQL  endpoint registry route test revision created and smoke tests passed."
           echo "Revision: ${{ steps.rev.outputs.revision }}"
           echo "Tagged URL: ${{ steps.rev.outputs.tagged_url }}"
