@@ -49,7 +49,7 @@ jobs:
           set -euo pipefail
 
           SERVICE="${{ inputs.service }}"
-          REGION="{{ inputs.region }}"
+          REGION="${{ inputs.region }}"
           FLAG="${{ inputs.enable_flag }}"
           TAG="${{ inputs.tag_name }}"
 
@@ -68,13 +68,10 @@ jobs:
             --region "$REGION" \
             --format "value(status.url)")
 
-          TAGGED_URL=$(node -e "const url=process.env.URL;const tag=process.env.TAG;const u=new URL(url);const p=u.hostname.split('-');p.splice(0,0,tag);u.hostname=p.join('-');console.log(u.toString())" )
+          TAGGED_URL=(URL="$URL" TAG="$TAG" node -e "const url=process.env.URL; const tag=process.env.TAG; const u=new URL(url); const parts=u.hostname.split('-'); parts.splice(0, 0, tag); u.hostname=parts.join('-'); console.log(u.toString());")
 
           echo "Test revision tagged at: $TAGGED_URL"
           echo "TAGGED_URL=$TAGGED_URL" >> "$GITHUB_ENV"
-        env:
-          URL: ${{ steps.nothing.outputs.nothing }}
-          TAG: ${{ inputs.tag_name }}
 
       - name: Smoke test source-status
         env:
