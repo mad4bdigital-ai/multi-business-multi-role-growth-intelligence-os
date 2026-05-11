@@ -1,0 +1,48 @@
+name: SQL Endpoint Registry Routes Production Smoke Once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/sql-endpoint-routes-production-smoke-once.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  production-smoke:
+    name: Smoke test current production URL
+    if: contains(github.event.head_commit.message, 'ops: trigger one-time SQL endpoint production smoke')
+    runs-on: ubuntu-latest
+    env:
+      PRODUCION_URL: ${{ vars.HTTP_GENERIC_API_PRODUCTION_URL || 'https://http-generic-api-x2sm3bgphq-ew.a.run.app' }}
+    steps:
+      - name: Validate config
+        run: |
+          set -euo pipefail
+          test -n "$PRODUCTION_URL" || (echo "Missing HTTP_GENERIC_API_PRODUCTION_URL repository variable or default URL." >&2; exit 1)
+          test -n "${{ secrets.BACKEND_API_KEY }}" || (echo "Missing BACKEND_API_KEY secret." >&2; exit 1)
+          echo "Production URL: $PRODUCTION_URL"
+
+      - name: Smoke source-status
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+        run: |
+          set -euo pipefail
+          curl -iSS \
+            -H "Authorization: Bearer $BACKEND_API_KEY" \
+            "$PRODUCTION_URL/admin/sql/endpoint-registry/source-status" | tee production-source-status.txt
+
+      - name: Smoke createGitRef resolver
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+        run: |
+          set -euo pipefail
+          curl -iSS \
+            -H "Authorization: Bearer $BACKEND_API_KEY" \
+            "$PRODUCTION_URL/admin/sql/endpoint-registry/resolve?parent_action_key=github_git_data&endpoint_key=createGitRef" | tee production-resolve.txt
+
+      - name: Result
+        run: |
+          echo "Production smoke completed. Review the two response files above for HTTP status and body."
