@@ -11,7 +11,7 @@ on:
       region:
         description: "Cloud Run region"
         required: false
-        default: "us-central1"
+        default: "europe-west1"
         type: string
       enable_flag:
         description: "Enable SQL endpoint registry routes in the test revision"
@@ -36,15 +36,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
+      - name: Authenticate to Google Cloud via Workload Identity Federation
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
 
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Create no-traffic revision with SQL routes flag
+        id: revision
         run: |
           set -euo pipefail
 
@@ -53,44 +55,62 @@ jobs:
           FLAG="${{ inputs.enable_flag }}"
           TAG="${{ inputs.tag_name }}"
 
-          echo "Creating test revision for $SERVICE in $REGION with ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES=$FLAG"
+          echo "Creating test revision for ${SERVICE} in ${REGION} with ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES=${FLAG}"
 
-          gcloud run services update "$SERVICE" \
-            --region "$REGION" \
-            --update-env-vars "ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES=$FLAG" \
+          gcloud run services update "${SERVICE}" \
+            --region "${REGION}" \
+            --update-env-vars "ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES=${FLAG}" \
             --no-traffic
 
-          gcloud run services update-traffic "$SERVICE" \
-            --region "$REGION" \
-            --set-tags "$TAG=LATEST"
+          REVISION="$(gcloud run revisions list \
+            --service "${SERVICE}" \
+            --region "${REGION}" \
+            --sort-by '~metadata.creationTimestamp' \
+            --limit 1 \
+            --format 'value(metadata.name)')"
 
-          URL=$(gcloud run services describe "$SERVICE" \
-            --region "$REGION" \
-            --format "value(status.url)")
+          if [ -z "${REVISION}" ]; then
+            echo "Failed to resolve latest revision name" >&2
+            exit 1
+          fi
 
-          TAGGED_URL=(URL="$URL" TAG="$TAG" node -e "const url=process.env.URL; const tag=process.env.TAG; const u=new URL(url); const parts=u.hostname.split('-'); parts.splice(0, 0, tag); u.hostname=parts.join('-'); console.log(u.toString());")
+          gcloud run services update-traffic "${SERVICE}" \
+            --region "${REGION}" \
+            --set-tags "${TAG}=${REVISION}"
 
-          echo "Test revision tagged at: $TAGGED_URL"
-          echo "TAGGED_URL=$TAGGED_URL" >> "$GITHUB_ENV"
+          URL="$(gcloud run services describe "${SERVICE}" \
+            --region "${REGION}" \
+            --format "value(status.url)")"
+
+          TAGGED_URL="$(URL="${URL}" TAG="${TAG}" node -e "const url=process.env.URL; const tag=process.env.TAG; const u=new URL(url); u.hostname = tag + '---' + u.hostname; console.log(u.toString().replace(/\/$/, ''));")"
+
+          echo "revision=${REVISION}" >> "${GITHUB_OUTPUT}"
+          echo "tagged_url=${TAGGED_URL}" >> "${GITHUB_OUTPUT}"
+          echo "Test revision: ${REVISION}"
+          echo "Tagged URL: ${TAGGED_URL}"
 
       - name: Smoke test source-status
         env:
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          TAGGED_URL: ${{ steps.revision.outputs.tagged_url }}
         run: |
           set -euo pipefail
           curl -fSS \
-            -H "Authorization: Bearer $BACKEND_API_KEY" \
-            "$TAGGED_URL/admin/sql/endpoint-registry/source-status" | tee source-status.json
+            -H "Authorization: Bearer ${BACKEND_API_KEY}" \
+            "${TAGGED_URL}/admin/sql/endpoint-registry/source-status" | tee source-status.json
 
       - name: Smoke test github create-ref endpoint resolve
         env:
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          TAGGED_URL: ${{ steps.revision.outputs.tagged_url }}
         run: |
           set -euo pipefail
           curl -fSS \
-            -H "Authorization: Bearer $BACKEND_API_KEY" \
-            "$TAGGED_URL/admin/sql/endpoint-registry/resolve?parent_action_key=github_git_data&endpoint_key=createGitRef" | tee resolve.json
+            -H "Authorization: Bearer ${BACKEND_API_KEY}" \
+            "${TAGGED_URL}/admin/sql/endpoint-registry/resolve?parent_action_key=github_git_data&endpoint_key=createGitRef" | tee resolve.json
 
       - name: Result
         run: |
           echo "SQL endpoint registry route test revision created and smoke tests passed."
+          echo "Revision: ${{ steps.revision.outputs.revision }}"
+          echo "Tagged URL: ${{ steps.revision.outputs.tagged_url }}"
