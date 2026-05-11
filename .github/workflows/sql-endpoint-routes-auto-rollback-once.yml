@@ -1,0 +1,67 @@
+name: SQL Endpoint Registry Routes Auto Rollback Once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/sql-endpoint-routes-auto-rollback-once.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  rollback:
+    name: Roll back production traffic to safe baseline revision
+    if: contains(github.event.head_commit.message, 'ops: trigger one-time SQL endpoint route rollback')
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      SERVICE: http-generic-api
+      REGION: europe-west1
+      REVISION: http-generic-api-00528-qtz
+    steps:
+      - name: Validate config
+        env:
+          WIF_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          DEPLOYER_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          test -n "$PROJECT_ID" || (echo "Missing GCP_PROJECT_ID repository variable." >&2; exit 1)
+          test -n "$WIF_PROVIDER" || (echo "Missing GCP_WORKLOAD_IDENTITY_PROVIDER repository variable." >&2; exit 1)
+          test -n "$DEPLOYER_SERVICE_ACCOUNT" || (echo "Missing GCP_DEPLOYER_SERVICE_ACCOUNT repository variable." >&2; exit 1)
+          echo "Rolling back $SERVICE in $REGION on $PROJECT_ID to $REVISION"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Roll back traffic
+        run: |
+          set -euo pipefail
+          gcloud config set project "$PROJECT_ID" --quiet
+
+          gcloud run services update-traffic "$SERVICE" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --to-revisions "$REVISION=100" \
+            --quiet
+
+          gcloud run services describe "$SERVICE" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --format "yaml(status.url,status.traffic)"
+
+      - name: Result
+        run: |
+          echo "Rollback requested revision is now targeted for 100% traffic."
+          echo "Revision: $REVISION"
