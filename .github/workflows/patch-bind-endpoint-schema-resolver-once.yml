@@ -1,1 +1,13 @@
-{"name":"Patch Bind Endpoint Schema Resolver","on":{"push":{"branches":["main"],"paths":[".github/ops/trigger-bind-endpoint-schema-resolver.txt"]}},"permissions":{"contents":"write"},"jobs":{"patch":{"runs-on":"ubuntu-latest","steps":[{"uses":"actions/checkout@v4"},{"name":"Bind endpointSchemaResolver into executionPreparation","run":"set -euo pipefail\nnode <<'NODE'\nconst fs = require(\"fs\");\nconst file = \"http-generic-api/executionPreparation.js\";\nlet src = fs.readFileSync(file, \"utf8\");\n\nconst importPatch = 'import { resolveEndpointLocalSchemaContract } from \"./endpointSchemaResolver.js\";';\nif (!src.includes(importPatch)) {\n  const anchor = 'import { loadPathResolverRowsForRequest } from \"./pathResolverRowsLoader.js\";';\n  if (!src.includes(anchor)) throw new Error(\"import anchor not found\");\n  src = src.replace(anchor, anchor + \"\\n\" + importPatch);\n}\n\nconst oldBlock = [\n  '  const schemaContract = await fetchSchemaContract(drive, action.openai_schema_file_id);',\n  '  const schemaOperationInfo = await resolveSchemaOperation(schemaContract, resolvedMethodPath.method, schemaLookupPath);'\n].join(\"\\n\");\n\nconst newBlock = [\n  '  const localSchemaJsonAssets = (deps && Array.isArray(deps.jsonAssets)) ? deps.jsonAssets :',\n  '    ((deps && Array.isArray(deps.registryJsonAssets)) ? deps.registryJsonAssets : []);',\n  '  const endpointLocalSchemaContract = resolveEndpointLocalSchemaContract(endpoint, { jsonAssets: localSchemaJsonAssets });',\n  '  const schemaContract = endpointLocalSchemaContract ||',\n  '    await fetchSchemaContract(drive, action.openai_schema_file_id);',\n  '  const schemaOperationInfo = await resolveSchemaOperation(schemaContract, resolvedMethodPath.method, schemaLookupPath);'\n].join(\"\\n\");\n\nif (!src.includes('resolveEndpointLocalSchemaContract(endpoint')) {\n  if (!src.includes(oldBlock)) throw new Error(\"schema contract block not found\");\n  src = src.replace(oldBlock, newBlock);\n}\n\nfs.writeFileSync(file, src);\nNODE\n\nnode --check http-generic-api/endpointSchemaResolver.js\nnode --check http-generic-api/executionPreparation.js\n\ngrep -n \"resolveEndpointLocalSchemaContract\" http-generic-api/executionPreparation.js\ngrep -n \"endpointLocalSchemaContract\" http-generic-api/executionPreparation.js\n\nif git diff --quiet; then\n  echo \"No changes to commit.\"\n  exit 0\nfi\n\ngit config user.name \"mad4bdigital-ai\"\ngit config user.email \"mad4b.digital@gmail.com\"\ngit add http-generic-api/executionPreparation.js\ngit commit -m \"feat: prefer endpoint-local schema contracts\"\ngit push\n"}]}}}
+name: Archived one-off patch workflow
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  archived:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Archived one-off workflow; no automatic trigger."
