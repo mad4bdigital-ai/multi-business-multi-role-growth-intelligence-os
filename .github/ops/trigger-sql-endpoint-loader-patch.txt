@@ -1,1 +1,1 @@
-trigger sql endpoint loader patch 2026-05-12T08:44:40.551009Z
+trigger sql endpoint loader patch corrected yaml 2026-05-12T08:55:00Z
