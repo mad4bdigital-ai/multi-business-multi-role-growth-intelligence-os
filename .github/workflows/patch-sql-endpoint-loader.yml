@@ -5,7 +5,6 @@ on:
   push:
     paths:
       - ".github/ops/trigger-sql-endpoint-loader-patch.txt"
-      - ".github/workflows/patch-sql-endpoint-loader.yml"
 
 permissions:
   contents: write
@@ -16,137 +15,43 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Add SQL endpoint registry loader and wire loadEndpointRegistry
+      - name: Wire SQL endpoint loader
         run: |
-          python <<'PY'
+          python3 - <<'PY'
           from pathlib import Path
 
-          loader_path = Path("http-generic-api/sqlEndpointRegistryLoader.js")
-          loader_path.write_text('''import { readTable as sqlReadTable } from "./sqlAdapter.js";
-
-const ENDPOINT_REGISTRY_SQL_TABLE = "API Actions Endpoint Registry";
-
-export function shouldReadEndpointRegistryFromSql(env = process.env) {
-  const source = String(env.ENDPOINT_REGISTRY_SOURCE || env.DATA_SOURCE || "sql")
-    .trim()
-    .toLowerCase();
-  const legacySheetsEnabled =
-    String(env.LEGACY_SHEET_ENDPOINT_REGISTRY_ENABLED || "false")
-      .trim()
-      .toLowerCase() === "true";
-
-  // SQL is the default authority. Sheets are legacy-only and require both flags.
-  return source !== "sheets" || !legacySheetsEnabled;
-}
-
-function normalizeEndpointRegistryRow(row = {}) {
-  return {
-    ...row,
-    endpoint_id: row.endpoint_id ?? row.endpointId ?? "",
-    parent_action_key: row.parent_action_key ?? row.parentActionKey ?? "",
-    endpoint_key: row.endpoint_key ?? row.endpointKey ?? "",
-    endpoint_operation: row.endpoint_operation ?? row.endpointOperation ?? "",
-    provider_domain: row.provider_domain ?? row.providerDomain ?? "",
-    method: row.method ?? "",
-    endpoint_path_or_function: row.endpoint_path_or_function ?? row.endpointPathOrFunction ?? "",
-    route_target: row.route_target ?? row.routeTarget ?? "",
-    openai_action_name: row.openai_action_name ?? row.openaiActionName ?? "",
-    module_binding: row.module_binding ?? row.moduleBinding ?? "",
-    connector_family: row.connector_family ?? row.connectorFamily ?? "",
-    status: row.status ?? "",
-    spec_validation_status: row.spec_validation_status ?? row.specValidationStatus ?? "",
-    auth_validation_status: row.auth_validation_status ?? row.authValidationStatus ?? "",
-    privacy_validation_status: row.privacy_validation_status ?? row.privacyValidationStatus ?? "",
-    execution_readiness: row.execution_readiness ?? row.executionReadiness ?? "",
-    endpoint_role: row.endpoint_role ?? row.endpointRole ?? "",
-    execution_mode: row.execution_mode ?? row.executionMode ?? "",
-    transport_required: row.transport_required ?? row.transportRequired ?? "",
-    fallback_allowed: row.fallback_allowed ?? row.fallbackAllowed ?? "",
-    fallback_match_basis: row.fallback_match_basis ?? row.fallbackMatchBasis ?? "",
-    fallback_provider_domain: row.fallback_provider_domain ?? row.fallbackProviderDomain ?? "",
-    fallback_connector_family: row.fallback_connector_family ?? row.fallbackConnectorFamily ?? "",
-    fallback_action_name: row.fallback_action_name ?? row.fallbackActionName ?? "",
-    fallback_route_target: row.fallback_route_target ?? row.fallbackRouteTarget ?? "",
-    fallback_notes: row.fallback_notes ?? row.fallbackNotes ?? "",
-    inventory_role: row.inventory_role ?? row.inventoryRole ?? "",
-    inventory_source: row.inventory_source ?? row.inventorySource ?? "",
-    notes: row.notes ?? "",
-    brand_resolution_source: row.brand_resolution_source ?? row.brandResolutionSource ?? "",
-    transport_action_key: row.transport_action_key ?? row.transportActionKey ?? "",
-    endpoint_title: row.endpoint_title ?? row.endpointTitle ?? "",
-    provider_family: row.provider_family ?? row.providerFamily ?? "",
-    execution_layer: row.execution_layer ?? row.executionLayer ?? "",
-    dependencies: row.dependencies ?? "",
-    logging_target: row.logging_target ?? row.loggingTarget ?? "",
-    category_group: row.category_group ?? row.categoryGroup ?? "",
-    category_detail: row.category_detail ?? row.categoryDetail ?? "",
-    required_variable_contracts: row.required_variable_contracts ?? row.requiredVariableContracts ?? "",
-    runtime_binding_profile: row.runtime_binding_profile ?? row.runtimeBindingProfile ?? "",
-    schema_json: row.schema_json ?? row.schemaJson ?? "",
-    client_interface_agnostic: row.client_interface_agnostic ?? row.clientInterfaceAgnostic ?? "",
-    request_envelope_required: row.request_envelope_required ?? row.requestEnvelopeRequired ?? "",
-    structured_api_supported: row.structured_api_supported ?? row.structuredApiSupported ?? "",
-    conversational_trigger_supported: row.conversational_trigger_supported ?? row.conversationalTriggerSupported ?? "",
-    provider_agnostic: row.provider_agnostic ?? row.providerAgnostic ?? "",
-    allowed_actor_roles: row.allowed_actor_roles ?? row.allowedActorRoles ?? "",
-    allowed_governance_levels: row.allowed_governance_levels ?? row.allowedGovernanceLevels ?? "",
-    client_allowed: row.client_allowed ?? row.clientAllowed ?? "",
-    team_allowed: row.team_allowed ?? row.teamAllowed ?? "",
-    admin_only: row.admin_only ?? row.adminOnly ?? "",
-    writeback_scope: row.writeback_scope ?? row.writebackScope ?? ""
-  };
-}
-
-export async function loadSqlEndpointRegistry({ readTable = sqlReadTable } = {}) {
-  const rows = await readTable(ENDPOINT_REGISTRY_SQL_TABLE);
-  return rows
-    .map(normalizeEndpointRegistryRow)
-    .filter(row => String(row.endpoint_key || "").trim());
-}
-''', encoding="utf-8")
-
-          registry_path = Path("http-generic-api/registrySheets.js")
-          text = registry_path.read_text(encoding="utf-8")
+          path = Path("http-generic-api/registrySheets.js")
+          text = path.read_text(encoding="utf-8")
 
           import_line = 'import { loadSqlEndpointRegistry, shouldReadEndpointRegistryFromSql } from "./sqlEndpointRegistryLoader.js";\n'
+          import_marker = 'import { readTable as sqlReadTable } from "./sqlAdapter.js";\n'
           if import_line not in text:
-              marker = 'import { readTable as sqlReadTable } from "./sqlAdapter.js";\n'
-              if marker not in text:
-                  raise SystemExit("Expected sqlAdapter import marker not found in registrySheets.js")
-              text = text.replace(marker, marker + import_line, 1)
+              if import_marker not in text:
+                  raise SystemExit("sqlAdapter import marker not found")
+              text = text.replace(import_marker, import_marker + import_line, 1)
 
-          branch = '''  if (shouldReadEndpointRegistryFromSql()) {
+          anchor = 'const { ENDPOINT_REGISTRY_SHEET, REGISTRY_SPREADSHEET_ID, debugLog, getCell, headerMap, registryError } = deps;'
+          branch = ''' const { ENDPOINT_REGISTRY_SHEET, REGISTRY_SPREADSHEET_ID, debugLog, getCell, headerMap, registryError } = deps;
+  if (shouldReadEndpointRegistryFromSql()) {
     const rows = await loadSqlEndpointRegistry();
+    debugLog("ENDPOINT_REGISTRY_SOURCE:", "sql");
+    debugLog("ENDPOINT_REGISTRY_SQL_ROW_COUNT:", String(rows.length));
     return rows.filter(row => row.endpoint_key);
-  }
+  }'''
+          if "loadSqlEndpointRegistry()" not in text:
+              if anchor not in text:
+                  raise SystemExit("loadEndpointRegistry deps marker not found")
+              text = text.replace(anchor, branch, 1)
 
-'''
-          if "shouldReadEndpointRegistryFromSql()" not in text.split("export async function loadEndpointRegistry", 1)[-1]:
-              marker = '''  const {
-    ENDPOINT_REGISTRY_SHEET,
-    REGISTRY_SPREADSHEET_ID,
-    debugLog,
-    getCell,
-    headerMap,
-    registryError
-  } = deps;
-'''
-              if marker not in text:
-                  raise SystemExit("Expected loadEndpointRegistry deps marker not found in registrySheets.js")
-              text = text.replace(marker, marker + branch, 1)
-
-          registry_path.write_text(text, encoding="utf-8")
+          path.write_text(text, encoding="utf-8")
           PY
 
-      - name: Validate patch markers
+      - name: Validate
         run: |
           test -f http-generic-api/sqlEndpointRegistryLoader.js
           grep -q "loadSqlEndpointRegistry" http-generic-api/registrySheets.js
           grep -q "shouldReadEndpointRegistryFromSql" http-generic-api/registrySheets.js
-          node --check http-generic-api/sqlEndpointRegistryLoader.js
 
       - name: Commit changes
         run: |
@@ -156,6 +61,6 @@ export async function loadSqlEndpointRegistry({ readTable = sqlReadTable } = {})
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add http-generic-api/sqlEndpointRegistryLoader.js http-generic-api/registrySheets.js
-          git commit -m "fix: load endpoint registry from SQL by default"
+          git add http-generic-api/registrySheets.js http-generic-api/sqlEndpointRegistryLoader.js
+          git commit -m "fix: wire endpoint registry SQL loader"
           git push
