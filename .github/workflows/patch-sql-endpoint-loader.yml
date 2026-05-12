@@ -75,7 +75,28 @@ function normalizeEndpointRegistryRow(row = {}) {
     inventory_source: row.inventory_source ?? row.inventorySource ?? "",
     notes: row.notes ?? "",
     brand_resolution_source: row.brand_resolution_source ?? row.brandResolutionSource ?? "",
-    transport_action_key: row.transport_action_key ?? row.transportActionKey ?? ""
+    transport_action_key: row.transport_action_key ?? row.transportActionKey ?? "",
+    endpoint_title: row.endpoint_title ?? row.endpointTitle ?? "",
+    provider_family: row.provider_family ?? row.providerFamily ?? "",
+    execution_layer: row.execution_layer ?? row.executionLayer ?? "",
+    dependencies: row.dependencies ?? "",
+    logging_target: row.logging_target ?? row.loggingTarget ?? "",
+    category_group: row.category_group ?? row.categoryGroup ?? "",
+    category_detail: row.category_detail ?? row.categoryDetail ?? "",
+    required_variable_contracts: row.required_variable_contracts ?? row.requiredVariableContracts ?? "",
+    runtime_binding_profile: row.runtime_binding_profile ?? row.runtimeBindingProfile ?? "",
+    schema_json: row.schema_json ?? row.schemaJson ?? "",
+    client_interface_agnostic: row.client_interface_agnostic ?? row.clientInterfaceAgnostic ?? "",
+    request_envelope_required: row.request_envelope_required ?? row.requestEnvelopeRequired ?? "",
+    structured_api_supported: row.structured_api_supported ?? row.structuredApiSupported ?? "",
+    conversational_trigger_supported: row.conversational_trigger_supported ?? row.conversationalTriggerSupported ?? "",
+    provider_agnostic: row.provider_agnostic ?? row.providerAgnostic ?? "",
+    allowed_actor_roles: row.allowed_actor_roles ?? row.allowedActorRoles ?? "",
+    allowed_governance_levels: row.allowed_governance_levels ?? row.allowedGovernanceLevels ?? "",
+    client_allowed: row.client_allowed ?? row.clientAllowed ?? "",
+    team_allowed: row.team_allowed ?? row.teamAllowed ?? "",
+    admin_only: row.admin_only ?? row.adminOnly ?? "",
+    writeback_scope: row.writeback_scope ?? row.writebackScope ?? ""
   };
 }
 
@@ -92,10 +113,10 @@ export async function loadSqlEndpointRegistry({ readTable = sqlReadTable } = {})
 
           import_line = 'import { loadSqlEndpointRegistry, shouldReadEndpointRegistryFromSql } from "./sqlEndpointRegistryLoader.js";\n'
           if import_line not in text:
-            marker = 'import { readTable as sqlReadTable } from "./sqlAdapter.js";\n'
-            if marker not in text:
-              raise SystemExit("Expected sqlAdapter import marker not found in registrySheets.js")
-            text = text.replace(marker, marker + import_line, 1)
+              marker = 'import { readTable as sqlReadTable } from "./sqlAdapter.js";\n'
+              if marker not in text:
+                  raise SystemExit("Expected sqlAdapter import marker not found in registrySheets.js")
+              text = text.replace(marker, marker + import_line, 1)
 
           branch = '''  if (shouldReadEndpointRegistryFromSql()) {
     const rows = await loadSqlEndpointRegistry();
@@ -103,8 +124,8 @@ export async function loadSqlEndpointRegistry({ readTable = sqlReadTable } = {})
   }
 
 '''
-          if "shouldReadEndpointRegistryFromSql()" not in text:
-            marker = '''  const {
+          if "shouldReadEndpointRegistryFromSql()" not in text.split("export async function loadEndpointRegistry", 1)[-1]:
+              marker = '''  const {
     ENDPOINT_REGISTRY_SHEET,
     REGISTRY_SPREADSHEET_ID,
     debugLog,
@@ -113,9 +134,9 @@ export async function loadSqlEndpointRegistry({ readTable = sqlReadTable } = {})
     registryError
   } = deps;
 '''
-            if marker not in text:
-              raise SystemExit("Expected loadEndpointRegistry deps marker not found in registrySheets.js")
-            text = text.replace(marker, marker + branch, 1)
+              if marker not in text:
+                  raise SystemExit("Expected loadEndpointRegistry deps marker not found in registrySheets.js")
+              text = text.replace(marker, marker + branch, 1)
 
           registry_path.write_text(text, encoding="utf-8")
           PY
@@ -125,6 +146,7 @@ export async function loadSqlEndpointRegistry({ readTable = sqlReadTable } = {})
           test -f http-generic-api/sqlEndpointRegistryLoader.js
           grep -q "loadSqlEndpointRegistry" http-generic-api/registrySheets.js
           grep -q "shouldReadEndpointRegistryFromSql" http-generic-api/registrySheets.js
+          node --check http-generic-api/sqlEndpointRegistryLoader.js
 
       - name: Commit changes
         run: |
