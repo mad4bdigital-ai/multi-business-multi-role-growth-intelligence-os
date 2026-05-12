@@ -1,1 +1,1 @@
-2026-05-12T08:26:56Z trigger endpoint registry sql source patch after json-workflow
+2026-05-12T12:25:00Z trigger registrySource adapter endpoint sql patch
