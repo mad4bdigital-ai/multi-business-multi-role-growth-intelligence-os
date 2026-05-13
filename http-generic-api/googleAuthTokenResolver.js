@@ -166,6 +166,26 @@ function diagnoseSaJson(saJson, credFile) {
   }
 }
 
+async function diagRawTokenExchange(saJson) {
+  try {
+    const { createSign } = await import("node:crypto");
+    const now = Math.floor(Date.now() / 1000);
+    const tokenUri = saJson.token_uri || "https://oauth2.googleapis.com/token";
+    const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT", kid: saJson.private_key_id })).toString("base64url");
+    const payload = Buffer.from(JSON.stringify({ iss: saJson.client_email, scope: GOOGLE_WORKSPACE_SCOPES.join(" "), aud: tokenUri, exp: now + 3600, iat: now })).toString("base64url");
+    const sigInput = `${header}.${payload}`;
+    const sign = createSign("RSA-SHA256");
+    sign.update(sigInput);
+    const sig = sign.sign(saJson.private_key).toString("base64url");
+    const jwt = `${sigInput}.${sig}`;
+    const res = await fetch(tokenUri, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}` });
+    const data = await res.json();
+    console.warn(`[googleAuth] raw token exchange → HTTP ${res.status}: ${JSON.stringify(data).substring(0, 300)}`);
+  } catch (e) {
+    console.warn(`[googleAuth] raw token exchange error: ${e.message}`);
+  }
+}
+
 async function fetchGlobalGoogleToken() {
   if (fetchingGlobal) return "";
   fetchingGlobal = true;
@@ -235,6 +255,9 @@ async function fetchGlobalGoogleToken() {
       const errDump = last ? JSON.stringify(last, Object.getOwnPropertyNames(last)).substring(0, 600) : "";
       console.warn("[googleAuth] Could not obtain a Google access token." + (last?.message ? ` Last error: ${last.message}` : "") + errDetail + ` Sources attempted: ${sourceSummary}`);
       if (errDump) console.warn("[googleAuth] Error dump:", errDump);
+      const credFile2 = process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_CREDENTIALS_PATH;
+      const saJson2 = parseSaJson(process.env.GOOGLE_SA_JSON) || loadSaFile(credFile2);
+      if (saJson2) diagRawTokenExchange(saJson2);
     }
     return "";
   } finally {
