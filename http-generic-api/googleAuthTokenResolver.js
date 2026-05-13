@@ -146,44 +146,30 @@ async function getMemberScopedToken(options = {}) {
   return token;
 }
 
-const SA_REQUIRED_FIELDS = ["type", "project_id", "private_key_id", "private_key", "client_email", "client_id", "token_uri"];
-let saDiagnosed = false;
-
-function diagnoseSaJson(saJson, credFile) {
-  if (saDiagnosed) return;
-  saDiagnosed = true;
-  if (!saJson) {
-    console.warn(`[googleAuth] SA JSON could not be loaded.${credFile ? ` File: ${credFile}` : " No GOOGLE_SA_JSON / GOOGLE_CREDENTIALS_PATH set."}`);
-    return;
+async function saJsonToAccessToken(saJson, scopes) {
+  const { createSign } = await import("node:crypto");
+  const now = Math.floor(Date.now() / 1000);
+  const tokenUri = saJson.token_uri || "https://oauth2.googleapis.com/token";
+  const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT", kid: saJson.private_key_id })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({ iss: saJson.client_email, scope: scopes.join(" "), aud: tokenUri, exp: now + 3600, iat: now })).toString("base64url");
+  const sigInput = `${header}.${payload}`;
+  const sign = createSign("RSA-SHA256");
+  sign.update(sigInput);
+  const sig = sign.sign(saJson.private_key).toString("base64url");
+  const jwt = `${sigInput}.${sig}`;
+  const res = await fetch(tokenUri, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`
+  });
+  const data = await res.json();
+  if (!data.access_token) {
+    const e = new Error(`SA token exchange failed (HTTP ${res.status}): ${data.error || JSON.stringify(data)}`);
+    e.code = "sa_token_exchange_failed";
+    e.status = 403;
+    throw e;
   }
-  const missing = SA_REQUIRED_FIELDS.filter(f => !saJson[f]);
-  const present = SA_REQUIRED_FIELDS.filter(f => saJson[f]);
-  if (missing.length) {
-    console.warn(`[googleAuth] SA JSON missing required fields: ${missing.join(", ")}. Present: ${present.join(", ")}`);
-  } else {
-    const hasRealNewlines = typeof saJson.private_key === "string" && saJson.private_key.includes("\n");
-    console.log(`[googleAuth] SA JSON structure OK. client_email=${saJson.client_email} private_key_id=${saJson.private_key_id} key_newlines=${hasRealNewlines}`);
-  }
-}
-
-async function diagRawTokenExchange(saJson) {
-  try {
-    const { createSign } = await import("node:crypto");
-    const now = Math.floor(Date.now() / 1000);
-    const tokenUri = saJson.token_uri || "https://oauth2.googleapis.com/token";
-    const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT", kid: saJson.private_key_id })).toString("base64url");
-    const payload = Buffer.from(JSON.stringify({ iss: saJson.client_email, scope: GOOGLE_WORKSPACE_SCOPES.join(" "), aud: tokenUri, exp: now + 3600, iat: now })).toString("base64url");
-    const sigInput = `${header}.${payload}`;
-    const sign = createSign("RSA-SHA256");
-    sign.update(sigInput);
-    const sig = sign.sign(saJson.private_key).toString("base64url");
-    const jwt = `${sigInput}.${sig}`;
-    const res = await fetch(tokenUri, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}` });
-    const data = await res.json();
-    console.warn(`[googleAuth] raw token exchange → HTTP ${res.status}: ${JSON.stringify(data).substring(0, 300)}`);
-  } catch (e) {
-    console.warn(`[googleAuth] raw token exchange error: ${e.message}`);
-  }
+  return data.access_token;
 }
 
 async function fetchGlobalGoogleToken() {
@@ -192,7 +178,6 @@ async function fetchGlobalGoogleToken() {
   try {
     const credFile = process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_CREDENTIALS_PATH;
     const saJson = parseSaJson(process.env.GOOGLE_SA_JSON) || loadSaFile(credFile);
-    diagnoseSaJson(saJson, credFile);
     const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
     const attempts = [];
 
@@ -200,13 +185,9 @@ async function fetchGlobalGoogleToken() {
       if (source === "explicit_service_account") {
         attempts.push({
           source: "explicit service account",
-          run: async () => {
-            const opts = { scopes: GOOGLE_SCOPES };
-            if (saJson) opts.credentials = saJson;
-            else opts.keyFilename = credFile;
-            const auth = new google.auth.GoogleAuth(opts);
-            return (await auth.getClient()).getAccessToken();
-          }
+          run: async () => saJson
+            ? saJsonToAccessToken(saJson, GOOGLE_SCOPES)
+            : (() => { throw new Error("No SA JSON loaded and no keyFilename fallback."); })()
         });
       }
 
@@ -251,13 +232,7 @@ async function fetchGlobalGoogleToken() {
     if (!warned) {
       warned = true;
       const sourceSummary = getGoogleAuthCredentialSourcesForEnv(process.env).join(", ") || "none";
-      const errDetail = last?.response?.data ? ` GCP response: ${JSON.stringify(last.response.data)}` : (last?.cause?.message ? ` Cause: ${last.cause.message}` : "");
-      const errDump = last ? JSON.stringify(last, Object.getOwnPropertyNames(last)).substring(0, 600) : "";
-      console.warn("[googleAuth] Could not obtain a Google access token." + (last?.message ? ` Last error: ${last.message}` : "") + errDetail + ` Sources attempted: ${sourceSummary}`);
-      if (errDump) console.warn("[googleAuth] Error dump:", errDump);
-      const credFile2 = process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_CREDENTIALS_PATH;
-      const saJson2 = parseSaJson(process.env.GOOGLE_SA_JSON) || loadSaFile(credFile2);
-      if (saJson2) diagRawTokenExchange(saJson2);
+      console.warn("[googleAuth] Could not obtain a Google access token." + (last?.message ? ` Last error: ${last.message}` : "") + ` Sources attempted: ${sourceSummary}`);
     }
     return "";
   } finally {
