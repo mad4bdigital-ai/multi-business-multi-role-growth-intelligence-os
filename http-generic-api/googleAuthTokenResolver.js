@@ -146,12 +146,33 @@ async function getMemberScopedToken(options = {}) {
   return token;
 }
 
+const SA_REQUIRED_FIELDS = ["type", "project_id", "private_key_id", "private_key", "client_email", "client_id", "token_uri"];
+let saDiagnosed = false;
+
+function diagnoseSaJson(saJson, credFile) {
+  if (saDiagnosed) return;
+  saDiagnosed = true;
+  if (!saJson) {
+    console.warn(`[googleAuth] SA JSON could not be loaded.${credFile ? ` File: ${credFile}` : " No GOOGLE_SA_JSON / GOOGLE_CREDENTIALS_PATH set."}`);
+    return;
+  }
+  const missing = SA_REQUIRED_FIELDS.filter(f => !saJson[f]);
+  const present = SA_REQUIRED_FIELDS.filter(f => saJson[f]);
+  if (missing.length) {
+    console.warn(`[googleAuth] SA JSON missing required fields: ${missing.join(", ")}. Present: ${present.join(", ")}`);
+  } else {
+    const hasRealNewlines = typeof saJson.private_key === "string" && saJson.private_key.includes("\n");
+    console.log(`[googleAuth] SA JSON structure OK. client_email=${saJson.client_email} key_newlines=${hasRealNewlines}`);
+  }
+}
+
 async function fetchGlobalGoogleToken() {
   if (fetchingGlobal) return "";
   fetchingGlobal = true;
   try {
     const credFile = process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_CREDENTIALS_PATH;
     const saJson = parseSaJson(process.env.GOOGLE_SA_JSON) || loadSaFile(credFile);
+    diagnoseSaJson(saJson, credFile);
     const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
     const attempts = [];
 
