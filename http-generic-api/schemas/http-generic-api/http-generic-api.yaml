@@ -16,7 +16,7 @@ info:
     endpoint child schema overlay fallback.
 
 servers:
-  - url: https://http-generic-api-954909841518.europe-west1.run.app
+  - url: https://auth.mad4b.com
     description: Governed HTTP backend
 
 tags:

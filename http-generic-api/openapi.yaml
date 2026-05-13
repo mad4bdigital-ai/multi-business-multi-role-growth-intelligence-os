@@ -21,7 +21,7 @@ info:
     Platform endpoints accept admin/service authentication via BACKEND_API_KEY, or user authentication via a signed login JWT.
 
 servers:
-  - url: https://http-generic-api-954909841518.europe-west1.run.app
+  - url: https://auth.mad4b.com
     description: Governed HTTP backend
 
 tags:
