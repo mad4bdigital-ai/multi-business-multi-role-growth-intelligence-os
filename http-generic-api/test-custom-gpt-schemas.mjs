@@ -199,25 +199,43 @@ for (const file of SCHEMAS) {
   }
 }
 
-section("openapi.custom-gpt.auth-dispatcher.yaml");
+section("openapi.custom-gpt.auth-dispatcher.yaml (MCP-style)");
 {
   const doc = loadSchema("openapi.custom-gpt.auth-dispatcher.yaml");
   const operations = collectOperations(doc);
   assert("auth dispatcher uses auth host", doc.servers?.[0]?.url === "https://auth.mad4b.com", doc.servers?.[0]?.url);
-  assert("auth dispatcher has admin operations", operations.length > 0);
-  assert("auth dispatcher is activation/admin-control/system-layer only", operations.every((operation) => ["activation", "admin-control", "system-layer"].includes(operation.operation.tags?.[0])));
-  assert("auth dispatcher exposes activation session context", operations.some((operation) => operation.pathKey === "/activation/session-context"));
-  assert("auth dispatcher exposes activation platform access", operations.some((operation) => operation.pathKey === "/activation/platform-access"));
-  assert("auth dispatcher exposes system layer tools", operations.some((operation) => operation.pathKey === "/admin/system/tools"));
-  assert("auth dispatcher exposes system layer tool calls", operations.some((operation) => operation.pathKey === "/admin/system/tools/call"));
-  assert("auth dispatcher exposes shared system tools", operations.some((operation) => operation.pathKey === "/system/tools"));
-  assert("auth dispatcher exposes shared system tool calls", operations.some((operation) => operation.pathKey === "/system/tools/call"));
-  const sharedToolCall = doc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
-  const adminToolCall = doc.paths?.["/admin/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
-  assert("auth dispatcher shared system calls expose provider bootstrap validation", sharedToolCall?.properties?.name?.enum?.includes("activation_provider_bootstrap_validate"));
-  assert("auth dispatcher admin system calls expose provider bootstrap validation", adminToolCall?.properties?.name?.enum?.includes("activation_provider_bootstrap_validate"));
-  assert("auth dispatcher shared system calls expose bootstrap config upsert", sharedToolCall?.properties?.name?.enum?.includes("activation_bootstrap_config_upsert"));
-  assert("auth dispatcher admin system calls expose bootstrap config upsert", adminToolCall?.properties?.name?.enum?.includes("activation_bootstrap_config_upsert"));
+  assert("auth dispatcher has operations", operations.length > 0);
+  assert("auth dispatcher operation count <= 30", operations.length <= 30, `got ${operations.length}`);
+  assert("auth dispatcher uses session and tools tags only",
+    operations.every((op) => ["session", "tools"].includes(op.operation.tags?.[0])),
+    operations.map((op) => op.operation.tags?.[0]).join(", "));
+
+  // MCP meta-operations
+  assert("auth dispatcher exposes activateSession", operations.some((op) => op.pathKey === "/activation/session-context" && op.method === "get"));
+  assert("auth dispatcher exposes listTools", operations.some((op) => op.pathKey === "/gpt/tools" && op.method === "get"));
+  assert("auth dispatcher exposes callTool", operations.some((op) => op.pathKey === "/gpt/tools/call" && op.method === "post"));
+  assert("auth dispatcher exposes writeSessionTurn", operations.some((op) => op.pathKey === "/gpt/sessions/{id}/turn" && op.method === "post"));
+  assert("auth dispatcher exposes endSession", operations.some((op) => op.pathKey === "/gpt/sessions/{id}/end" && op.method === "post"));
+
+  // All POST operations must be marked non-consequential so ChatGPT never halts for approval
+  const postOps = operations.filter((op) => op.method === "post");
+  assert("all auth dispatcher POST operations are non-consequential",
+    postOps.every((op) => op.operation["x-openai-isConsequential"] === false),
+    postOps.filter((op) => op.operation["x-openai-isConsequential"] !== false).map((op) => op.pathKey).join(", "));
+
+  // callTool body must require name
+  const callToolSchema = doc.paths?.["/gpt/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
+  assert("callTool body requires name", Array.isArray(callToolSchema?.required) && callToolSchema.required.includes("name"));
+
+  // Security scheme
+  const securitySchemes = Object.keys(doc.components?.securitySchemes || {});
+  assert("auth dispatcher exposes one security scheme", securitySchemes.length === 1);
+  assert("auth dispatcher security scheme is backendBearerAuth", securitySchemes[0] === "backendBearerAuth", securitySchemes[0]);
+
+  // Description length
+  const longDescriptions = walkDescriptions(doc);
+  assert("auth dispatcher descriptions are <= 300 chars", longDescriptions.length === 0,
+    longDescriptions.map((item) => `${item.path}:${item.length}`).join(", "));
 }
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`);

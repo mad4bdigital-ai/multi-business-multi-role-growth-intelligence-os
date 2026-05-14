@@ -3,8 +3,7 @@ info:
   title: Growth Intelligence Platform - Admin GPT - MCP Actions
   version: 4.0.0-mcp
   summary: Admin GPT schema. Five meta-operations; all platform tools discovered via listTools and called via callTool.
-  description: |
-    MCP-style admin action schema. Workflow: 1) activateSession at conversation start to get session_id and recent context. 2) listTools to discover available platform operations. 3) callTool to execute any operation by name. 4) writeSessionTurn after each exchange. 5) endSession when the conversation is complete.
+  description: "MCP-style admin schema. Five meta-ops: 1) activateSession to get session_id. 2) listTools to discover tools. 3) callTool to run any tool by name. 4) writeSessionTurn after each exchange. 5) endSession when done."
 servers:
   - url: https://auth.mad4b.com
     description: Growth Intelligence Platform — auth dispatcher
