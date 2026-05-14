@@ -49,6 +49,15 @@ const SHELL_ENABLED = process.env.CONNECTOR_SHELL_ENABLED === 'true';
 const FILES_ENABLED = process.env.CONNECTOR_FILES_ENABLED === 'true';
 const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_TIMEOUT_MS = 600_000;
+const PS_ENABLED = process.env.CONNECTOR_POWERSHELL_ENABLED === 'true';
+const WIN_ENABLED = process.env.CONNECTOR_WIN_ENABLED === 'true';
+const N8N_ENABLED = process.env.CONNECTOR_N8N_ENABLED === 'true';
+const N8N_BASE = (process.env.N8N_BASE_URL ?? 'http://localhost:5678').replace(/\/$/, '');
+const N8N_API_KEY = process.env.N8N_API_KEY ?? '';
+const CF_ENABLED = process.env.CONNECTOR_CF_ENABLED === 'true';
+const CF_TOKEN = process.env.CLOUDFLARE_API_TOKEN ?? '';
+const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID ?? '';
+const CF_ZONE_ID = process.env.CF_ZONE_ID ?? '';
 
 /** @type {Record<string, ShellAlias>} */
 let SHELL_ALLOWLIST = {};
@@ -238,6 +247,18 @@ function healthBody() {
     platform: process.platform,
     uptime: process.uptime(),
   };
+}
+
+// ---------------------------------------------------------------------------
+// PowerShell helper
+// ---------------------------------------------------------------------------
+
+function runPs(script, timeoutMs = 10000) {
+  const encoded = Buffer.from(script, 'utf16le').toString('base64');
+  return runCommand('powershell.exe', [
+    '-NonInteractive', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+    '-EncodedCommand', encoded,
+  ], timeoutMs);
 }
 
 // ---------------------------------------------------------------------------
@@ -492,6 +513,316 @@ async function handleFiles(req, res) {
   return err(res, 400, 'UNKNOWN_ACTION', 'action must be "list", "read", or "write"');
 }
 
+async function handlePs(req, res) {
+  if (!PS_ENABLED) return err(res, 403, 'DISABLED', 'PowerShell endpoint is disabled — set CONNECTOR_POWERSHELL_ENABLED=true');
+  if (!requireAuth(req, res)) return;
+  let body;
+  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
+
+  const { script, timeout_ms } = body;
+  if (!script || typeof script !== 'string') return err(res, 400, 'MISSING_SCRIPT', 'script is required');
+  if (script.length > 10000) return err(res, 400, 'SCRIPT_TOO_LONG', 'script must be <= 10000 chars');
+
+  const timeoutMs = clampTimeout(timeout_ms);
+  audit(req, { action: 'ps:run', script_len: script.length });
+
+  try {
+    const result = await runPs(script, timeoutMs);
+    return ok(res, result);
+  } catch (e) {
+    return err(res, 500, 'EXEC_ERROR', e.message);
+  }
+}
+
+async function handleWin(req, res) {
+  if (!WIN_ENABLED) return err(res, 403, 'DISABLED', 'Windows control endpoint is disabled — set CONNECTOR_WIN_ENABLED=true');
+  if (!requireAuth(req, res)) return;
+  let body;
+  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
+
+  const { action } = body;
+  if (!action) return err(res, 400, 'MISSING_ACTION', 'action is required');
+  audit(req, { action: `win:${action}` });
+
+  if (action === 'open_url') {
+    const { url } = body;
+    if (!url || typeof url !== 'string') return err(res, 400, 'MISSING_URL', 'url is required');
+    try {
+      await runPs(`Start-Process ${JSON.stringify(url)}`, 8000);
+      return ok(res, { opened: url });
+    } catch (e) { return err(res, 500, 'EXEC_ERROR', e.message); }
+  }
+
+  if (action === 'open_vscode') {
+    const { path: filePath } = body;
+    if (!filePath || typeof filePath !== 'string') return err(res, 400, 'MISSING_PATH', 'path is required');
+    try {
+      await runPs(`Start-Process 'code' -ArgumentList ${JSON.stringify(filePath)}`, 8000);
+      return ok(res, { opened: filePath });
+    } catch (e) { return err(res, 500, 'EXEC_ERROR', e.message); }
+  }
+
+  if (action === 'screenshot') {
+    const scale = Math.min(Math.max(Number(body.scale) || 0.5, 0.1), 1.0);
+    const ps = `Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+$bounds=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+$full=New-Object System.Drawing.Bitmap($bounds.Width,$bounds.Height)
+$g=[System.Drawing.Graphics]::FromImage($full)
+$g.CopyFromScreen($bounds.Location,[System.Drawing.Point]::Empty,$bounds.Size)
+$w=[int]($bounds.Width*${scale});$h=[int]($bounds.Height*${scale})
+$scaled=New-Object System.Drawing.Bitmap($w,$h)
+$sg=[System.Drawing.Graphics]::FromImage($scaled)
+$sg.DrawImage($full,0,0,$w,$h)
+$m=New-Object System.IO.MemoryStream
+$scaled.Save($m,[System.Drawing.Imaging.ImageFormat]::Jpeg)
+[Convert]::ToBase64String($m.ToArray())`;
+    try {
+      const result = await runPs(ps, 15000);
+      if (result.exitCode !== 0) return err(res, 500, 'SCREENSHOT_FAILED', result.stderr);
+      return ok(res, { image_base64: result.stdout.trim(), format: 'jpeg', scale });
+    } catch (e) { return err(res, 500, 'EXEC_ERROR', e.message); }
+  }
+
+  if (action === 'process_list') {
+    const filter = body.filter ?? '';
+    const top = Math.min(Number(body.top) || 30, 100);
+    if (filter && /[^\w\s\-.*]/.test(filter)) return err(res, 400, 'UNSAFE_FILTER', 'filter contains unsafe characters');
+    const filterPs = filter ? `| Where-Object {$_.Name -like '*${filter}*'}` : '';
+    const ps = `Get-Process ${filterPs} | Sort-Object CPU -Descending | Select-Object -First ${top} Name,Id,@{N='CPU';E={[math]::Round($_.CPU,1)}},@{N='MemMB';E={[math]::Round($_.WorkingSet64/1MB,1)}} | ConvertTo-Json -Compress`;
+    try {
+      const result = await runPs(ps, 10000);
+      let processes;
+      try { processes = JSON.parse(result.stdout); } catch { processes = result.stdout; }
+      return ok(res, { processes });
+    } catch (e) { return err(res, 500, 'EXEC_ERROR', e.message); }
+  }
+
+  if (action === 'process_kill') {
+    const { name, pid } = body;
+    if (!name && !pid) return err(res, 400, 'MISSING_TARGET', 'name or pid is required');
+    if (name && /[^\w\-.]/.test(name)) return err(res, 400, 'UNSAFE_NAME', 'process name contains unsafe characters');
+    const ps = pid
+      ? `Stop-Process -Id ${parseInt(pid, 10)} -Force -ErrorAction Stop`
+      : `Stop-Process -Name '${name}' -Force -ErrorAction Stop`;
+    try {
+      const result = await runPs(ps, 10000);
+      return ok(res, { killed: name || pid, exit_code: result.exitCode });
+    } catch (e) { return err(res, 500, 'EXEC_ERROR', e.message); }
+  }
+
+  if (action === 'notify') {
+    const title = String(body.title ?? 'Growth Intelligence').slice(0, 100);
+    const message = String(body.message ?? '').slice(0, 250);
+    const ps = `Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+$n=New-Object System.Windows.Forms.NotifyIcon
+$n.Icon=[System.Drawing.SystemIcons]::Information
+$n.Visible=$true
+$n.ShowBalloonTip(5000,${JSON.stringify(title)},${JSON.stringify(message)},[System.Windows.Forms.ToolTipIcon]::Info)
+Start-Sleep -Milliseconds 500;$n.Dispose()`;
+    try {
+      await runPs(ps, 8000);
+      return ok(res, { notified: true, title, message });
+    } catch (e) { return err(res, 500, 'EXEC_ERROR', e.message); }
+  }
+
+  if (action === 'service_list') {
+    const filter = body.filter ?? '';
+    if (filter && /[^\w\s\-.*]/.test(filter)) return err(res, 400, 'UNSAFE_FILTER', 'filter contains unsafe characters');
+    const filterPs = filter ? `| Where-Object {$_.Name -like '*${filter}*' -or $_.DisplayName -like '*${filter}*'}` : '';
+    const ps = `Get-Service ${filterPs} | Select-Object Name,DisplayName,Status | ConvertTo-Json -Compress`;
+    try {
+      const result = await runPs(ps, 10000);
+      let services;
+      try { services = JSON.parse(result.stdout); } catch { services = result.stdout; }
+      return ok(res, { services });
+    } catch (e) { return err(res, 500, 'EXEC_ERROR', e.message); }
+  }
+
+  if (action === 'service_action') {
+    const { service_name, service_action: svcAct } = body;
+    if (!service_name) return err(res, 400, 'MISSING_SERVICE', 'service_name is required');
+    if (!['start', 'stop', 'restart'].includes(svcAct)) return err(res, 400, 'INVALID_ACTION', 'service_action must be start, stop, or restart');
+    if (/[^\w\-.]/.test(service_name)) return err(res, 400, 'UNSAFE_NAME', 'service_name contains unsafe characters');
+    const cmdMap = { start: 'Start-Service', stop: 'Stop-Service', restart: 'Restart-Service' };
+    const ps = `${cmdMap[svcAct]} -Name '${service_name}' -ErrorAction Stop`;
+    try {
+      const result = await runPs(ps, 30000);
+      return ok(res, { service_name, service_action: svcAct, exit_code: result.exitCode });
+    } catch (e) { return err(res, 500, 'EXEC_ERROR', e.message); }
+  }
+
+  if (action === 'disk_list') {
+    const ps = `Get-Volume | Where-Object {$_.DriveType -in 'Fixed','Removable','Network'} | Select-Object DriveLetter,FileSystemLabel,FileSystem,DriveType,@{N='SizeGB';E={[math]::Round($_.Size/1GB,2)}},@{N='FreeGB';E={[math]::Round($_.SizeRemaining/1GB,2)}} | ConvertTo-Json -Compress`;
+    try {
+      const result = await runPs(ps, 10000);
+      let disks;
+      try { disks = JSON.parse(result.stdout); } catch { disks = result.stdout; }
+      if (!Array.isArray(disks)) disks = disks ? [disks] : [];
+      return ok(res, { disks });
+    } catch (e) { return err(res, 500, 'EXEC_ERROR', e.message); }
+  }
+
+  if (action === 'dir_list') {
+    const { path: dirPath } = body;
+    if (!dirPath || typeof dirPath !== 'string') return err(res, 400, 'MISSING_PATH', 'path is required');
+    const ps = `Get-ChildItem -Path ${JSON.stringify(dirPath)} -ErrorAction SilentlyContinue | Select-Object Name,@{N='Type';E={if($_.PSIsContainer){'dir'}else{'file'}}},@{N='SizeKB';E={if($_.PSIsContainer){$null}else{[math]::Round($_.Length/1KB,1)}}},@{N='Modified';E={$_.LastWriteTime.ToString('yyyy-MM-dd HH:mm')}} | ConvertTo-Json -Compress`;
+    try {
+      const result = await runPs(ps, 15000);
+      let entries;
+      try { entries = JSON.parse(result.stdout); } catch { entries = result.stdout; }
+      if (!Array.isArray(entries)) entries = entries ? [entries] : [];
+      return ok(res, { path: dirPath, entries, count: entries.length });
+    } catch (e) { return err(res, 500, 'EXEC_ERROR', e.message); }
+  }
+
+  if (action === 'file_search') {
+    const { path: searchPath = 'D:\\', pattern = '*', recurse = true, limit = 50 } = body;
+    const maxLimit = Math.min(parseInt(limit, 10) || 50, 200);
+    const ps = `Get-ChildItem -Path ${JSON.stringify(searchPath)} ${recurse ? '-Recurse' : ''} -Filter ${JSON.stringify(pattern)} -File -ErrorAction SilentlyContinue | Select-Object -First ${maxLimit} FullName,@{N='SizeKB';E={[math]::Round($_.Length/1KB,1)}},@{N='Modified';E={$_.LastWriteTime.ToString('yyyy-MM-dd HH:mm')}} | ConvertTo-Json -Compress`;
+    try {
+      const result = await runPs(ps, 30000);
+      let files;
+      try { files = JSON.parse(result.stdout); } catch { files = result.stdout; }
+      if (!Array.isArray(files)) files = files ? [files] : [];
+      return ok(res, { path: searchPath, pattern, files, count: files.length });
+    } catch (e) { return err(res, 500, 'EXEC_ERROR', e.message); }
+  }
+
+  return err(res, 400, 'UNKNOWN_ACTION', 'action must be: open_url, open_vscode, screenshot, process_list, process_kill, notify, service_list, service_action, disk_list, dir_list, file_search');
+}
+
+async function handleN8n(req, res) {
+  if (!N8N_ENABLED) return err(res, 403, 'DISABLED', 'n8n endpoint is disabled — set CONNECTOR_N8N_ENABLED=true');
+  if (!requireAuth(req, res)) return;
+  let body;
+  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
+
+  const { action } = body;
+  if (!action) return err(res, 400, 'MISSING_ACTION', 'action is required');
+  audit(req, { action: `n8n:${action}` });
+
+  const n8nHeaders = { 'Content-Type': 'application/json', ...(N8N_API_KEY ? { 'X-N8N-API-KEY': N8N_API_KEY } : {}) };
+
+  const n8nFetch = async (method, path, data) => {
+    const opts = { method, headers: n8nHeaders };
+    if (data !== undefined) opts.body = JSON.stringify(data);
+    const r = await fetch(`${N8N_BASE}${path}`, opts);
+    return r.json();
+  };
+
+  try {
+    if (action === 'health') {
+      const data = await n8nFetch('GET', '/healthz');
+      return ok(res, { n8n: data });
+    }
+    if (action === 'list_workflows') {
+      const data = await n8nFetch('GET', '/api/v1/workflows?limit=50');
+      return ok(res, { workflows: data });
+    }
+    if (action === 'get_workflow') {
+      const { workflow_id } = body;
+      if (!workflow_id) return err(res, 400, 'MISSING_ID', 'workflow_id is required');
+      const data = await n8nFetch('GET', `/api/v1/workflows/${workflow_id}`);
+      return ok(res, { workflow: data });
+    }
+    if (action === 'activate_workflow') {
+      const { workflow_id } = body;
+      if (!workflow_id) return err(res, 400, 'MISSING_ID', 'workflow_id is required');
+      const data = await n8nFetch('POST', `/api/v1/workflows/${workflow_id}/activate`);
+      return ok(res, { result: data });
+    }
+    if (action === 'deactivate_workflow') {
+      const { workflow_id } = body;
+      if (!workflow_id) return err(res, 400, 'MISSING_ID', 'workflow_id is required');
+      const data = await n8nFetch('POST', `/api/v1/workflows/${workflow_id}/deactivate`);
+      return ok(res, { result: data });
+    }
+    if (action === 'run_workflow') {
+      const { workflow_id, input_data = {} } = body;
+      if (!workflow_id) return err(res, 400, 'MISSING_ID', 'workflow_id is required');
+      const data = await n8nFetch('POST', `/api/v1/workflows/${workflow_id}/run`, { data: input_data });
+      return ok(res, { execution: data });
+    }
+    if (action === 'list_executions') {
+      const { workflow_id, limit = 10 } = body;
+      const qs = workflow_id ? `?workflowId=${workflow_id}&limit=${limit}` : `?limit=${limit}`;
+      const data = await n8nFetch('GET', `/api/v1/executions${qs}`);
+      return ok(res, { executions: data });
+    }
+    return err(res, 400, 'UNKNOWN_ACTION', 'action must be: health, list_workflows, get_workflow, activate_workflow, deactivate_workflow, run_workflow, list_executions');
+  } catch (e) {
+    return err(res, 502, 'N8N_ERROR', e.message);
+  }
+}
+
+async function handleCf(req, res) {
+  if (!CF_ENABLED) return err(res, 403, 'DISABLED', 'Cloudflare endpoint is disabled — set CONNECTOR_CF_ENABLED=true');
+  if (!requireAuth(req, res)) return;
+  if (!CF_TOKEN) return err(res, 500, 'NO_CF_TOKEN', 'CLOUDFLARE_API_TOKEN not configured');
+  let body;
+  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
+
+  const { action } = body;
+  if (!action) return err(res, 400, 'MISSING_ACTION', 'action is required');
+  audit(req, { action: `cf:${action}` });
+
+  const zoneId = body.zone_id || CF_ZONE_ID;
+  const CF_BASE = 'https://api.cloudflare.com/client/v4';
+  const cfHeaders = { 'Authorization': `Bearer ${CF_TOKEN}`, 'Content-Type': 'application/json' };
+
+  const cfFetch = async (method, path, data) => {
+    const opts = { method, headers: cfHeaders };
+    if (data !== undefined) opts.body = JSON.stringify(data);
+    const r = await fetch(`${CF_BASE}${path}`, opts);
+    return r.json();
+  };
+
+  try {
+    if (action === 'list_zones') {
+      const data = await cfFetch('GET', `/zones?account.id=${CF_ACCOUNT_ID}&per_page=50`);
+      return ok(res, { zones: data.result });
+    }
+    if (action === 'list_dns') {
+      if (!zoneId) return err(res, 400, 'MISSING_ZONE', 'zone_id is required (or set CF_ZONE_ID in env)');
+      const data = await cfFetch('GET', `/zones/${zoneId}/dns_records?per_page=100`);
+      return ok(res, { records: data.result });
+    }
+    if (action === 'create_dns') {
+      if (!zoneId) return err(res, 400, 'MISSING_ZONE', 'zone_id is required');
+      const { type, name, content, proxied = true, ttl = 1 } = body;
+      if (!type || !name || !content) return err(res, 400, 'MISSING_FIELDS', 'type, name, content are required');
+      const data = await cfFetch('POST', `/zones/${zoneId}/dns_records`, { type, name, content, proxied, ttl });
+      return ok(res, { record: data.result });
+    }
+    if (action === 'delete_dns') {
+      if (!zoneId) return err(res, 400, 'MISSING_ZONE', 'zone_id is required');
+      const { record_id } = body;
+      if (!record_id) return err(res, 400, 'MISSING_ID', 'record_id is required');
+      const data = await cfFetch('DELETE', `/zones/${zoneId}/dns_records/${record_id}`);
+      return ok(res, { deleted: record_id, success: data.success });
+    }
+    if (action === 'list_tunnels') {
+      const data = await cfFetch('GET', `/accounts/${CF_ACCOUNT_ID}/cfd_tunnel?is_deleted=false`);
+      return ok(res, { tunnels: data.result });
+    }
+    if (action === 'tunnel_status') {
+      const { tunnel_id } = body;
+      if (!tunnel_id) return err(res, 400, 'MISSING_ID', 'tunnel_id is required');
+      const data = await cfFetch('GET', `/accounts/${CF_ACCOUNT_ID}/cfd_tunnel/${tunnel_id}`);
+      return ok(res, { tunnel: data.result });
+    }
+    if (action === 'purge_cache') {
+      if (!zoneId) return err(res, 400, 'MISSING_ZONE', 'zone_id is required');
+      const { files, tags, prefixes } = body;
+      const data = await cfFetch('POST', `/zones/${zoneId}/purge_cache`, { files, tags, prefixes });
+      return ok(res, { purged: data.success });
+    }
+    return err(res, 400, 'UNKNOWN_ACTION', 'action must be: list_zones, list_dns, create_dns, delete_dns, list_tunnels, tunnel_status, purge_cache');
+  } catch (e) {
+    return err(res, 502, 'CF_ERROR', e.message);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
@@ -524,6 +855,10 @@ const server = http.createServer(async (req, res) => {
     if (method === 'POST' && url === '/files') return await handleFiles(req, res);
     if (method === 'POST' && url === '/fetch-upload') return await handleFetchUpload(req, res);
     if (method === 'POST' && url === '/shell-fetch-upload') return await handleShellFetchUpload(req, res);
+    if (method === 'POST' && url === '/ps') return await handlePs(req, res);
+    if (method === 'POST' && url === '/win') return await handleWin(req, res);
+    if (method === 'POST' && url === '/n8n') return await handleN8n(req, res);
+    if (method === 'POST' && url === '/cf') return await handleCf(req, res);
 
     return err(res, 404, 'NOT_FOUND', `No route for ${method} ${url}`);
   } catch (e) {
@@ -541,5 +876,7 @@ server.listen(PORT, '127.0.0.1', () => {
   console.log(`[connector] Shell enabled: ${SHELL_ENABLED}, Files enabled: ${FILES_ENABLED}`);
   console.log(`[connector] Shell aliases: ${Object.keys(SHELL_ALLOWLIST).join(', ') || '(none)'}`);
   console.log(`[connector] File allowlist: ${FILE_ALLOWLIST.join(', ') || '(none)'}`);
+  console.log(`[connector] PowerShell enabled: ${PS_ENABLED}, Win control: ${WIN_ENABLED}`);
+  console.log(`[connector] n8n enabled: ${N8N_ENABLED} (${N8N_BASE}), CF enabled: ${CF_ENABLED}`);
 });
 

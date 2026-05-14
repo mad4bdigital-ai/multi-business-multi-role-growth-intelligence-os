@@ -347,6 +347,244 @@ paths:
         '403':
           description: Path not in allowlist or files disabled
 
+  /ps:
+    post:
+      x-openai-isConsequential: false
+      tags: [connector]
+      operationId: connectorPs
+      summary: Execute a PowerShell script on the local Windows device
+      description: "Run any PowerShell script — repairs, config changes, process management, file ops, calling APIs via Invoke-RestMethod. Returns stdout/stderr/exit_code. Requires CONNECTOR_POWERSHELL_ENABLED=true."
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [script]
+              properties:
+                script:
+                  type: string
+                  description: "PowerShell script or single command. Max 10000 chars."
+                timeout_ms:
+                  type: integer
+                  minimum: 1000
+                  maximum: 600000
+                  default: 120000
+      responses:
+        '200':
+          description: Script result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CliResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: PowerShell disabled on this connector
+
+  /win:
+    post:
+      x-openai-isConsequential: false
+      tags: [connector]
+      operationId: connectorWin
+      summary: Control Windows UI and apps on the local device
+      description: "Windows app and UI control. Actions: open_url (browser), open_vscode (editor), screenshot (base64 JPEG), process_list, process_kill, notify (toast), service_list, service_action. Requires CONNECTOR_WIN_ENABLED=true."
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [open_url, open_vscode, screenshot, process_list, process_kill, notify, service_list, service_action, disk_list, dir_list, file_search]
+                url:
+                  type: string
+                  description: "URL for open_url action."
+                path:
+                  type: string
+                  description: "File or folder path for open_vscode or dir_list. Root path for file_search (default D:\\)."
+                pattern:
+                  type: string
+                  default: "*"
+                  description: "Glob pattern for file_search, e.g. *.log, *.mjs, report*.xlsx."
+                recurse:
+                  type: boolean
+                  default: true
+                  description: "Search subdirectories for file_search."
+                limit:
+                  type: integer
+                  default: 50
+                  maximum: 200
+                  description: "Max results for file_search."
+                scale:
+                  type: number
+                  minimum: 0.1
+                  maximum: 1.0
+                  default: 0.5
+                  description: "Screenshot scale factor."
+                filter:
+                  type: string
+                  description: "Name filter for process_list or service_list."
+                top:
+                  type: integer
+                  default: 30
+                  description: "Max results for process_list."
+                name:
+                  type: string
+                  description: "Process or service name."
+                pid:
+                  type: integer
+                  description: "Process ID for process_kill."
+                title:
+                  type: string
+                  description: "Notification title."
+                message:
+                  type: string
+                  description: "Notification message body."
+                service_name:
+                  type: string
+                  description: "Windows service name for service_action."
+                service_action:
+                  type: string
+                  enum: [start, stop, restart]
+                  description: "Action for service_action."
+      responses:
+        '200':
+          description: Action result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  opened: { type: string }
+                  image_base64: { type: string }
+                  format: { type: string }
+                  processes: { type: array, items: { type: object } }
+                  services: { type: array, items: { type: object } }
+                  notified: { type: boolean }
+                  disks: { type: array, items: { type: object } }
+                  entries: { type: array, items: { type: object } }
+                  files: { type: array, items: { type: object } }
+                  count: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Windows control disabled on this connector
+
+  /n8n:
+    post:
+      x-openai-isConsequential: false
+      tags: [connector]
+      operationId: connectorN8n
+      summary: Control the local n8n automation instance
+      description: "Calls the n8n REST API at localhost:5678. Actions: health, list_workflows, get_workflow, activate_workflow, deactivate_workflow, run_workflow, list_executions. Requires N8N_API_KEY in env."
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [health, list_workflows, get_workflow, activate_workflow, deactivate_workflow, run_workflow, list_executions]
+                workflow_id:
+                  type: string
+                  description: "n8n workflow ID. Required for get, activate, deactivate, run."
+                input_data:
+                  type: object
+                  additionalProperties: true
+                  description: "Input data for run_workflow."
+                limit:
+                  type: integer
+                  default: 10
+                  description: "Max results for list_executions."
+      responses:
+        '200':
+          description: n8n API result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: n8n endpoint disabled
+        '502':
+          description: n8n unreachable or error
+
+  /cf:
+    post:
+      x-openai-isConsequential: false
+      tags: [connector]
+      operationId: connectorCf
+      summary: Call Cloudflare API using stored account credentials
+      description: "Cloudflare API via stored token. Actions: list_zones, list_dns, create_dns, delete_dns, list_tunnels, tunnel_status, purge_cache. zone_id defaults to CF_ZONE_ID env. Requires CONNECTOR_CF_ENABLED=true."
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [list_zones, list_dns, create_dns, delete_dns, list_tunnels, tunnel_status, purge_cache]
+                zone_id:
+                  type: string
+                  description: "Cloudflare Zone ID. Falls back to CF_ZONE_ID env."
+                record_id:
+                  type: string
+                  description: "DNS record ID for delete_dns."
+                tunnel_id:
+                  type: string
+                  description: "Tunnel ID for tunnel_status."
+                type:
+                  type: string
+                  description: "DNS record type, e.g. A, CNAME."
+                name:
+                  type: string
+                  description: "DNS record name or subdomain."
+                content:
+                  type: string
+                  description: "DNS record value."
+                proxied:
+                  type: boolean
+                  default: true
+                files:
+                  type: array
+                  items: { type: string }
+                  description: "URLs to purge for purge_cache."
+      responses:
+        '200':
+          description: Cloudflare API result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: CF endpoint disabled
+        '502':
+          description: Cloudflare API error
+
 x-gpt-action-auth-preset:
   authentication_type: Bearer
   description: "Use the BACKEND_API_KEY from the connector .env file."

@@ -4,4 +4,6 @@ credentials-file: C:\Users\IT\.cloudflared\95e4ba8c-782b-4819-9f80-04af4457ce73.
 ingress:
   - hostname: connector.mad4b.com
     service: http://localhost:7070
+  - hostname: local.mad4b.com
+    service: http://localhost:7070
   - service: http_status:404
