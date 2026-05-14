@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
+import { provisionLocalConnectorInstall } from "./localConnectorInstallRoutes.js";
 
 // ── Module handler registry ───────────────────────────────────────────────────
 // Maps target_module (from task_routes) to an executor function.
@@ -57,11 +58,35 @@ async function execLocalFile(ctx, deps) {
   return execLocalFileRead(ctx, deps);
 }
 
+async function execLocalConnectorInstall(ctx, _deps) {
+  const { user_id, tenant_id, payload = {} } = ctx;
+  const device_id = ctx.device_id || payload.device_id;
+  if (!device_id) return { ok: false, error: { code: "missing_device_id", message: "device_id required for connector install." } };
+
+  const fakeReq = {
+    auth: { is_admin: true, mode: "backend_api_key" },
+    body: { user_id, tenant_id, device_id, ...payload },
+  };
+  const result = await provisionLocalConnectorInstall(fakeReq, fakeReq.body);
+  if (!result.ok) return result;
+
+  return {
+    ...result,
+    guidance: {
+      message: `Local connector provisioned for device '${device_id}'. Share the steps below with the user.`,
+      tunnel_url: result.tunnel_url,
+      install_command: result.installation?.local_runtime?.tunnel_command,
+      steps: result.installation?.steps || [],
+    },
+  };
+}
+
 // Map target_module → executor
 const MODULE_EXECUTORS = {
   local_connector_shell:   execLocalShell,
   local_connector_health:  execLocalHealth,
   local_connector_file:    execLocalFile,
+  local_connector_install: execLocalConnectorInstall,
 };
 
 // ── Skill validation (lightweight) ────────────────────────────────────────────
@@ -69,9 +94,10 @@ const MODULE_EXECUTORS = {
 async function checkAgentSkill(agentId, targetModule) {
   if (!agentId) return true; // no agent context — skip (API key auth already passed)
   const moduleSkillMap = {
-    local_connector_shell:  'local.connector.shell_execute',
-    local_connector_health: 'local.connector.device_management',
-    local_connector_file:   'local.connector.file_access',
+    local_connector_shell:   'local.connector.shell_execute',
+    local_connector_health:  'local.connector.device_management',
+    local_connector_file:    'local.connector.file_access',
+    local_connector_install: 'local.connector.device_management',
   };
   const requiredSkillKey = moduleSkillMap[targetModule];
   if (!requiredSkillKey) return true;
