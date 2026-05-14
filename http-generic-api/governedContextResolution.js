@@ -537,6 +537,12 @@ export function buildGovernedExecutionContext(input = {}) {
     path_resolution: pathResolution,
     task_route: taskRoute,
     logic,
+    knowledge_surfaces: {
+      requested: false,
+      resolved: false,
+      surfaces: [],
+      reason: "pending"
+    },
     action: {
       parent_action_key: normalize(action.action_key || endpoint.parent_action_key),
       endpoint_key: normalize(endpoint.endpoint_key),

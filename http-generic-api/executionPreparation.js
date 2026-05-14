@@ -203,6 +203,35 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     taskRouteRows
   });
 
+  // Conditionally resolve knowledge surfaces for brand/business-type requests
+  {
+    const { isBrandOrBusinessTypeRequest, resolveKnowledgeSurfaces } = await import("./knowledgeSurfaceResolver.js");
+    if (isBrandOrBusinessTypeRequest(requestPayload, governedExecutionContext)) {
+      const businessTypeKey =
+        governedExecutionContext.path_resolution?.business_type_key ||
+        governedExecutionContext.path_resolution?.businessType?.businessTypeKey ||
+        String(requestPayload.business_type_key || "").trim();
+      const brandKey =
+        governedExecutionContext.brand?.brand_key ||
+        String(requestPayload.brand_key || requestPayload.brand_name || "").trim();
+      try {
+        const result = await resolveKnowledgeSurfaces({ business_type_key: businessTypeKey, brand_key: brandKey });
+        governedExecutionContext.knowledge_surfaces = {
+          requested: true,
+          resolved: true,
+          ...result
+        };
+      } catch {
+        governedExecutionContext.knowledge_surfaces = {
+          requested: true,
+          resolved: false,
+          surfaces: [],
+          reason: "resolution_failed"
+        };
+      }
+    }
+  }
+
   debugLog(
     "GOVERNED_EXECUTION_CONTEXT_PATH_RESOLUTION:",
     JSON.stringify({
