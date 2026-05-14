@@ -1,0 +1,352 @@
+openapi: 3.1.0
+info:
+  title: Growth Intelligence Platform - Local Windows Connector
+  version: 1.0.0
+  summary: Break-glass local device connector reachable via Cloudflare Tunnel.
+  description: "Local connector on the admin Windows device via connector.mad4b.com. Use when the main server is down. Supports GitHub CLI, gcloud CLI, allowlisted shell commands, and allowlisted file operations."
+servers:
+  - url: https://connector.mad4b.com
+    description: Local Windows device via Cloudflare Tunnel
+components:
+  securitySchemes:
+    backendBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: "Authorization: Bearer <BACKEND_API_KEY>"
+  schemas:
+    CliResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        stdout: { type: string }
+        stderr: { type: string }
+        exit_code: { type: integer }
+    ConnectorError:
+      type: object
+      properties:
+        ok: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ConnectorError' }
+security:
+  - backendBearerAuth: []
+paths:
+  /health:
+    get:
+      tags: [connector]
+      operationId: connectorHealth
+      summary: Check if the local connector is alive
+      description: "Returns uptime, hostname, and platform. Call first to confirm the connector is reachable before attempting recovery operations."
+      security: []
+      responses:
+        '200':
+          description: Connector is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  service: { type: string }
+                  hostname: { type: string }
+                  platform: { type: string }
+                  uptime: { type: number }
+
+  /github:
+    post:
+      x-openai-isConsequential: false
+      tags: [connector]
+      operationId: connectorGithub
+      summary: Run a gh CLI command on the local device
+      description: "Executes the GitHub CLI (gh) on the local Windows machine. Use for pushing recovery commits, checking workflow status, or triggering deployments when the main server is down."
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [args]
+              properties:
+                args:
+                  oneOf:
+                    - type: array
+                      items: { type: string }
+                    - type: string
+                  description: "gh CLI arguments, e.g. [\"workflow\", \"run\", \"deploy.yml\"] or \"status\""
+                timeout_ms:
+                  type: integer
+                  minimum: 1000
+                  maximum: 600000
+                  default: 120000
+      responses:
+        '200':
+          description: CLI output
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CliResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /gcloud:
+    post:
+      x-openai-isConsequential: false
+      tags: [connector]
+      operationId: connectorGcloud
+      summary: Run a gcloud CLI command on the local device
+      description: "Executes gcloud on the local Windows machine. Use for restarting Cloud Run services, reading logs, or triggering redeployments when the server is down."
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [args]
+              properties:
+                args:
+                  oneOf:
+                    - type: array
+                      items: { type: string }
+                    - type: string
+                  description: "gcloud arguments, e.g. [\"run\", \"services\", \"update-traffic\", \"http-generic-api\", \"--to-latest\"]"
+                timeout_ms:
+                  type: integer
+                  minimum: 1000
+                  maximum: 600000
+                  default: 120000
+      responses:
+        '200':
+          description: CLI output
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CliResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /shell:
+    post:
+      x-openai-isConsequential: false
+      tags: [connector]
+      operationId: connectorShell
+      summary: Run an allowlisted shell command on the local device
+      description: "Executes commands from CONNECTOR_SHELL_ALLOWLIST. action=status checks if enabled, action=list returns available aliases, action=run executes by alias name."
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [status, list, run]
+                alias:
+                  type: string
+                  description: "Alias to run. Required for action=run."
+                extra_args:
+                  type: array
+                  items: { type: string }
+                  description: "Extra args appended to the command. Only if the alias permits allow_extra_args=true."
+                timeout_ms:
+                  type: integer
+                  minimum: 1000
+                  maximum: 600000
+      responses:
+        '200':
+          description: Shell result or alias listing
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  shell_enabled: { type: boolean }
+                  alias: { type: string }
+                  stdout: { type: string }
+                  stderr: { type: string }
+                  exit_code: { type: integer }
+                  aliases:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        alias: { type: string }
+                        display_name: { type: string }
+                        allow_extra_args: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Shell disabled on this connector
+
+  /fetch-upload:
+    post:
+      x-openai-isConsequential: false
+      tags: [connector]
+      operationId: connectorFetchUpload
+      summary: Fetch a URL and push the content to the platform upload system
+      description: "Fetches a URL using Node fetch and forwards content to POST /uploads via the connector API key. Returns upload_id. For auth-required or JS-rendered pages use /shell-fetch-upload instead."
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, upload_type]
+              properties:
+                url:
+                  type: string
+                  description: "URL to fetch — raw GitHub URLs, CDN-hosted schemas, public assets."
+                upload_type:
+                  type: string
+                  enum: [schema, skill, knowledge, repo_link, asset]
+                filename:
+                  type: string
+                  description: "Override the filename derived from the URL."
+                uploaded_by:
+                  type: string
+                metadata:
+                  type: object
+                  additionalProperties: true
+                timeout_ms:
+                  type: integer
+                  minimum: 1000
+                  maximum: 600000
+                  default: 30000
+      responses:
+        '200':
+          description: Content fetched and upload record created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  fetched_url: { type: string }
+                  via: { type: string }
+                  upload_id: { type: string }
+                  status: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Fetch-upload disabled on this connector
+        '502':
+          description: Remote fetch failed or forward to main API failed
+
+  /shell-fetch-upload:
+    post:
+      x-openai-isConsequential: false
+      tags: [connector]
+      operationId: connectorShellFetchUpload
+      summary: Download a URL via curl and push the content to the platform upload system
+      description: "Downloads via curl on the local device and forwards to POST /uploads. Handles self-signed certs and unusual redirects. URL is validated against shell metacharacters before execution."
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, upload_type]
+              properties:
+                url:
+                  type: string
+                  description: "URL to download via curl. Must not contain shell metacharacters."
+                upload_type:
+                  type: string
+                  enum: [schema, skill, knowledge, repo_link, asset]
+                filename:
+                  type: string
+                uploaded_by:
+                  type: string
+                metadata:
+                  type: object
+                  additionalProperties: true
+                timeout_ms:
+                  type: integer
+                  minimum: 1000
+                  maximum: 600000
+                  default: 60000
+      responses:
+        '200':
+          description: File downloaded and upload record created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  fetched_url: { type: string }
+                  via: { type: string }
+                  upload_id: { type: string }
+                  status: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '400':
+          description: URL contains unsafe characters
+        '502':
+          description: curl failed or forward to main API failed
+
+  /files:
+    post:
+      x-openai-isConsequential: false
+      tags: [connector]
+      operationId: connectorFiles
+      summary: Read or write allowlisted files on the local device
+      description: "File access restricted to CONNECTOR_FILE_PATHS. action=list shows allowed paths, action=read returns content, action=write overwrites. Use to stage recovery files before pushing via /github."
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [list, read, write]
+                path:
+                  type: string
+                  description: "Absolute file path. Must be in CONNECTOR_FILE_PATHS allowlist."
+                content:
+                  type: string
+                  description: "File content for write action."
+      responses:
+        '200':
+          description: File operation result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  path: { type: string }
+                  content: { type: string }
+                  size: { type: integer }
+                  bytes_written: { type: integer }
+                  allowed_paths:
+                    type: array
+                    items: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Path not in allowlist or files disabled
+
+x-gpt-action-auth-preset:
+  authentication_type: Bearer
+  description: "Use the BACKEND_API_KEY from the connector .env file."

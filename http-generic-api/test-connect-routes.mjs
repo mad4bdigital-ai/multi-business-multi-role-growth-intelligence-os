@@ -205,6 +205,64 @@ try {
   server.close();
 }
 
+  section("local connector GPT action schema");
+
+  {
+    const doc = yaml.load(readFileSync("openapi.gpt-action.local-connector.yaml", "utf8"));
+    const exposedPaths = Object.keys(doc.paths || {});
+    const allOperations = exposedPaths.flatMap((pathKey) => {
+      const pathItem = doc.paths[pathKey] || {};
+      return Object.entries(pathItem)
+        .filter(([method]) => ["get", "post", "put", "delete", "patch"].includes(method))
+        .map(([method, operation]) => ({ pathKey, method, operation }));
+    });
+    const postOps = allOperations.filter(({ method }) => method === "post");
+    const securityScheme = doc.components?.securitySchemes?.backendBearerAuth;
+
+    assert("local connector schema uses OpenAPI 3.1", doc.openapi === "3.1.0", doc.openapi);
+    assert("local connector schema has connector.mad4b.com server", doc.servers?.[0]?.url === "https://connector.mad4b.com", doc.servers?.[0]?.url);
+    assert("local connector schema uses backendBearerAuth", securityScheme?.type === "http" && securityScheme?.scheme === "bearer");
+    assert("local connector schema has root security", "backendBearerAuth" in (doc.security?.[0] ?? {}));
+
+    assert("local connector schema exposes /health", exposedPaths.includes("/health"));
+    assert("local connector schema exposes /github", exposedPaths.includes("/github"));
+    assert("local connector schema exposes /gcloud", exposedPaths.includes("/gcloud"));
+    assert("local connector schema exposes /shell", exposedPaths.includes("/shell"));
+    assert("local connector schema exposes /files", exposedPaths.includes("/files"));
+    assert("local connector schema exposes /fetch-upload", exposedPaths.includes("/fetch-upload"));
+    assert("local connector schema exposes /shell-fetch-upload", exposedPaths.includes("/shell-fetch-upload"));
+
+    assert("local connector /health has no auth (security: [])",
+      Array.isArray(doc.paths["/health"]?.get?.security) && doc.paths["/health"].get.security.length === 0);
+
+    assert("local connector all POST operations are non-consequential",
+      postOps.every(({ operation }) => operation["x-openai-isConsequential"] === false),
+      postOps.filter(({ operation }) => operation["x-openai-isConsequential"] !== false).map(({ pathKey }) => pathKey).join(", "));
+
+    const MAX_DESC = 300;
+    function collectLongDescs(node, path = "$") {
+      if (!node || typeof node !== "object") return [];
+      const out = [];
+      if (typeof node.description === "string" && node.description.length > MAX_DESC)
+        out.push(`${path}:${node.description.length}`);
+      for (const [k, v] of Object.entries(node)) out.push(...collectLongDescs(v, `${path}.${k}`));
+      return out;
+    }
+    const longDescs = collectLongDescs(doc);
+    assert("local connector all descriptions are <= 300 chars", longDescs.length === 0, longDescs.join(", "));
+
+    const shellCallSchema = doc.paths?.["/shell"]?.post?.requestBody?.content?.["application/json"]?.schema;
+    assert("local connector /shell requires action field",
+      Array.isArray(shellCallSchema?.required) && shellCallSchema.required.includes("action"));
+
+    const uploadPaths = ["/fetch-upload", "/shell-fetch-upload"];
+    for (const p of uploadPaths) {
+      const s = doc.paths?.[p]?.post?.requestBody?.content?.["application/json"]?.schema;
+      assert(`local connector ${p} requires url and upload_type`,
+        Array.isArray(s?.required) && s.required.includes("url") && s.required.includes("upload_type"));
+    }
+  }
+
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
 console.log("ALL CONNECT ROUTE TESTS PASS");

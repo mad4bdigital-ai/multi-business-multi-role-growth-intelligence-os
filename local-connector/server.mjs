@@ -396,9 +396,11 @@ async function handleShell(req, res) {
   if (action === 'list') {
     audit(req, { action: 'shell:list' });
     return ok(res, {
-      aliases: Object.fromEntries(
-        Object.entries(SHELL_ALLOWLIST).map(([k, v]) => [k, { display_name: v.display_name ?? k, allow_extra_args: v.allow_extra_args ?? false }])
-      ),
+      aliases: Object.entries(SHELL_ALLOWLIST).map(([alias, v]) => ({
+        alias,
+        display_name: v.display_name ?? alias,
+        allow_extra_args: v.allow_extra_args ?? false,
+      })),
     });
   }
 
@@ -502,6 +504,18 @@ const server = http.createServer(async (req, res) => {
     if ((method === 'GET') && (url === '/' || url === '/health')) {
       audit(req, { action: 'health' });
       return json(res, 200, healthBody());
+    }
+
+    if (method === 'GET' && url === '/schema') {
+      const schemaPath = path.join(__dirname, '..', 'http-generic-api', 'openapi.gpt-action.local-connector.yaml');
+      try {
+        const schema = fs.readFileSync(schemaPath, 'utf8');
+        res.writeHead(200, { 'Content-Type': 'application/yaml; charset=utf-8', 'Cache-Control': 'no-cache' });
+        res.end(schema);
+      } catch {
+        return err(res, 404, 'SCHEMA_NOT_FOUND', 'Schema file not found');
+      }
+      return;
     }
 
     if (method === 'POST' && url === '/github') return await handleGitHub(req, res);
