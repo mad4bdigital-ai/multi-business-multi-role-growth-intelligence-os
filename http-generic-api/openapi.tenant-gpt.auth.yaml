@@ -582,7 +582,7 @@ paths:
         - connector
       operationId: tenantLocalConnectorInstall
       summary: Full local connector provisioning with Cloudflare tunnel and DNS
-      description: Provisions a Cloudflare tunnel for the device, adds DNS CNAME, seeds DB config and shell allowlist. Returns install.bat for the device. Idempotent per user+device. Owner/admin uses env credentials; tenants use DB app connections (cloudflare_connection_id, hostinger_connection_id).
+      description: "Provisions a Cloudflare tunnel for the signed-in user's device. Only device_id is required — user_id and tenant_id are resolved automatically from the Bearer token. Idempotent: calling again for the same device returns the existing config without touching Cloudflare."
       requestBody:
         required: true
         content:
@@ -590,27 +590,15 @@ paths:
             schema:
               type: object
               required:
-                - user_id
-                - tenant_id
                 - device_id
               properties:
-                user_id:
-                  type: string
-                tenant_id:
-                  type: string
                 device_id:
                   type: string
-                  description: Stable machine name.
-                cloudflare_connection_id:
-                  type: string
-                  description: App connection ID for dedicated CF credentials. Omit to use platform managed credentials.
-                hostinger_connection_id:
-                  type: string
-                  description: App connection ID for dedicated Hostinger credentials. Omit to use platform managed DNS.
+                  description: "Stable machine name chosen by the user (e.g. 'my-laptop', 'home-pc'). Must be unique per user."
                 reprovision:
                   type: boolean
                   default: false
-                  description: Set true to rotate the tunnel and connector_secret.
+                  description: "Set true only if the user explicitly asks to reset/rotate their connector. Not needed for first-time install."
                 custom_aliases:
                   type: array
                   items:
@@ -663,18 +651,8 @@ paths:
         - connector
       operationId: tenantLocalConnectorStatus
       summary: Check local connector installation status for a device
-      description: Returns config and shell allowlist for the given user+device. installed=false means /local-connector/install has not been called yet for this device.
+      description: "Returns config and shell allowlist for the signed-in user's device. Only device_id is required — user identity is resolved from the Bearer token. installed=false means /local-connector/install has not been called yet."
       parameters:
-        - name: user_id
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: tenant_id
-          in: query
-          required: true
-          schema:
-            type: string
         - name: device_id
           in: query
           required: true
@@ -712,18 +690,8 @@ paths:
         - connector
       operationId: tenantLocalConnectorHealth
       summary: Check local connector reachability via platform proxy
-      description: Platform calls the device tunnel and returns health. Slower than calling the connector directly but works without knowing the device secret. Returns ok=false if unreachable.
+      description: "Platform proxies a health call to the device tunnel and returns reachability. Only device_id is required — user identity resolved from the Bearer token. Returns ok=false and reachable=false if the device agent is not running."
       parameters:
-        - name: user_id
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: tenant_id
-          in: query
-          required: true
-          schema:
-            type: string
         - name: device_id
           in: query
           required: true
