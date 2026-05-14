@@ -78,11 +78,34 @@ export function buildInstructions(uploadId, uploadType, baseUrl) {
 }
 
 // ---------------------------------------------------------------------------
+// Drive folder helper — find or create a named subfolder under parentId
+// ---------------------------------------------------------------------------
+
+export async function getOrCreateDriveFolder(name, parentId) {
+  const drive = getDrive();
+  const safeName = String(name).replace(/'/g, "\\'");
+  const list = await drive.files.list({
+    q: `name = '${safeName}' and mimeType = 'application/vnd.google-apps.folder' and '${parentId}' in parents and trashed = false`,
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+    fields: "files(id)",
+    pageSize: 1,
+  });
+  if (list.data.files.length > 0) return list.data.files[0].id;
+  const created = await drive.files.create({
+    requestBody: { name, mimeType: "application/vnd.google-apps.folder", parents: [parentId] },
+    supportsAllDrives: true,
+    fields: "id",
+  });
+  return created.data.id;
+}
+
+// ---------------------------------------------------------------------------
 // Drive upload
 // ---------------------------------------------------------------------------
 
-export async function uploadContentToDrive(content, filename, mimeType, userEmail = null) {
-  const folderId = process.env.UPLOADS_DRIVE_FOLDER_ID;
+export async function uploadContentToDrive(content, filename, mimeType, userEmail = null, folderIdOverride = null) {
+  const folderId = folderIdOverride || process.env.UPLOADS_DRIVE_FOLDER_ID;
   if (!folderId) throw new Error("UPLOADS_DRIVE_FOLDER_ID is not configured");
 
   const drive = getDrive();

@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { Router } from "express";
 import { getPool } from "../db.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
@@ -301,8 +302,39 @@ export function resolveSessionContextSubject(req) {
   };
 }
 
+const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
+
+async function autoOpenGptSession(pool, subject) {
+  const userId = subject.user_id || null;
+  const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+
+  const [closeResult] = await pool.query(
+    `UPDATE \`customer_sessions\`
+     SET session_status = 'closed', ended_at = NOW()
+     WHERE originator = 'gpt_action'
+       AND tenant_id = ?
+       AND (? IS NULL OR user_id = ?)
+       AND session_status NOT IN ('completed', 'closed')`,
+    [tenantId, userId, userId]
+  );
+
+  const sessionId = randomUUID();
+  await pool.query(
+    `INSERT INTO \`customer_sessions\`
+       (session_id, tenant_id, user_id, originator, session_status, started_at)
+     VALUES (?, ?, ?, 'gpt_action', 'open', NOW())`,
+    [sessionId, tenantId, userId]
+  );
+
+  return { session_id: sessionId, closed_sessions: closeResult.affectedRows || 0 };
+}
+
 export async function buildActivationSessionContext(req) {
+  const pool = getPool();
   const subject = resolveSessionContextSubject(req);
+
+  const { session_id: newSessionId, closed_sessions } = await autoOpenGptSession(pool, subject);
+
   const limit = capLimit(req.query.limit);
   const offset = normalizeOffset(req.query.offset);
   const includeRaw = asBoolean(req.query.include_raw);
@@ -406,9 +438,24 @@ export async function buildActivationSessionContext(req) {
       if (key) scopeSet.add(String(key));
     }
   }
+  const gptSessionsTenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const gptSessions = await safeQuery(
+    `SELECT session_id, tenant_id, user_id, session_status, turn_count,
+            started_at, ended_at, drive_export_url
+     FROM \`customer_sessions\`
+     WHERE originator = 'gpt_action'
+       AND tenant_id = ?
+       AND (? IS NULL OR user_id = ?)
+     ORDER BY started_at DESC
+     LIMIT 10`,
+    [gptSessionsTenantId, subject.user_id, subject.user_id]
+  );
+
   const platformAccess = await buildActivationPlatformAccess(req);
 
   return {
+    session_id: newSessionId,
+    closed_sessions,
     subject,
     pagination: {
       limit,
@@ -452,6 +499,7 @@ export async function buildActivationSessionContext(req) {
       api_credentials: apiCredentials.rows.map((row) => ({ ...row, scopes: parseScopes(row.scopes) })),
       installations: installations.rows.map((row) => ({ ...row, scope: parseScopes(row.scope) }))
     },
+    gpt_sessions: gptSessions.rows,
     platform_access: platformAccess,
     degraded_surfaces: [
       ["request_envelopes", envelopes],
@@ -460,6 +508,7 @@ export async function buildActivationSessionContext(req) {
       ["api_credentials", apiCredentials],
       ["installations", installations],
       ["execution_log", executionTranscript],
+      ["gpt_sessions", gptSessions],
       ["platform_access", { ok: platformAccess.degraded_surfaces.length === 0, error: { code: "platform_access_degraded", details: platformAccess.degraded_surfaces } }]
     ]
       .filter(([, result]) => !result.ok)

@@ -20,6 +20,10 @@ tags:
     description: Direct device operations proxied through the platform — shell commands, file access, and URL fetch. Requires an installed connector.
   - name: credentials
     description: Secure credential storage for dedicated connection mode.
+  - name: activation
+    description: Once-per-session activation probe that opens a new conversation session and returns context and scope.
+  - name: gpt-sessions
+    description: GPT conversation session lifecycle - write per-turn messages and close sessions with Drive archival.
 components:
   securitySchemes:
     userBearerAuth:
@@ -1145,6 +1149,141 @@ paths:
         '400': { description: URL contains unsafe characters }
         '404': { description: Device not found }
         '502': { description: Proxy or device error }
+      security:
+        - userBearerAuth: []
+  /activation/session-context:
+    get:
+      tags:
+        - activation
+      operationId: getActivationSessionContext
+      summary: Open a new conversation session and read scope context
+      description: Opens a new GPT session for this conversation (closing any previously open ones) and returns the session_id plus platform scope context. Call once at the start of every GPT conversation. Use the returned session_id for all /gpt/sessions/{id}/turn and /gpt/sessions/{id}/end calls.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 50
+          description: Number of recent history rows to return.
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Session opened and scope context returned
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, session_id]
+                properties:
+                  ok: { type: boolean }
+                  session_id:
+                    type: string
+                    description: Newly opened session ID. Pass to /gpt/sessions/{id}/turn and /gpt/sessions/{id}/end.
+                  closed_sessions:
+                    type: integer
+                  gpt_sessions:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+        '401': { description: Unauthorized }
+      security:
+        - userBearerAuth: []
+  /gpt/sessions/{id}/turn:
+    post:
+      tags:
+        - gpt-sessions
+      operationId: writeGptSessionTurn
+      summary: Record a conversation turn (user, assistant, or tool message)
+      description: Appends a message turn to the active session. Call after every user or assistant exchange. Use role=user for the human message, role=assistant for the GPT reply, role=tool for tool-call results.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role, content]
+              properties:
+                role:
+                  type: string
+                  enum: [user, assistant, tool]
+                content:
+                  type: string
+                action_key:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Turn written
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  session_id: { type: string }
+                  turn_index: { type: integer }
+        '400': { description: Missing fields }
+        '401': { description: Unauthorized }
+        '404': { description: Session not found }
+        '409': { description: Session is closed }
+      security:
+        - userBearerAuth: []
+  /gpt/sessions/{id}/end:
+    post:
+      tags:
+        - gpt-sessions
+      operationId: endGptSession
+      summary: Close the session and archive conversation to Google Drive
+      description: Marks the session completed, optionally saves a summary, and exports the full conversation JSON to Drive with hierarchical filing (year-month/day/user_time_id.json). Call at end of conversation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                summary:
+                  type: string
+                  nullable: true
+                  description: One-paragraph summary of what was accomplished.
+      responses:
+        '200':
+          description: Session closed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  session_id: { type: string }
+                  drive_export:
+                    type: object
+                    nullable: true
+                    properties:
+                      drive_file_id: { type: string }
+                      drive_web_url: { type: string }
+        '401': { description: Unauthorized }
+        '404': { description: Session not found }
+        '409': { description: Session already ended }
       security:
         - userBearerAuth: []
 

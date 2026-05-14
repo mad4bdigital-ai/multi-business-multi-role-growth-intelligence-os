@@ -1,5 +1,19 @@
 import { getPool } from "./db.js";
-import { uploadContentToDrive, fetchDriveContent } from "./uploadPipeline.js";
+import { uploadContentToDrive, fetchDriveContent, getOrCreateDriveFolder } from "./uploadPipeline.js";
+
+// ---------------------------------------------------------------------------
+// Build hierarchical file path for gpt_action sessions:
+//   SESSIONS_DRIVE_FOLDER_ID/{year-month}/{day}/{userSlug}_{HH-MM-SS}_{shortId}.json
+// ---------------------------------------------------------------------------
+function buildSessionFilePath(session) {
+  const ts = session.started_at ? new Date(session.started_at) : new Date();
+  const yearMonth = ts.toISOString().slice(0, 7);
+  const day = ts.toISOString().slice(8, 10);
+  const time = ts.toISOString().slice(11, 19).replace(/:/g, "-");
+  const userSlug = (session.user_id || "admin").slice(0, 12).replace(/[^a-z0-9]/gi, "_").toLowerCase();
+  const shortId = String(session.session_id).slice(-8);
+  return { yearMonth, day, filename: `${userSlug}_${time}_${shortId}.json` };
+}
 
 // ---------------------------------------------------------------------------
 // Resolve the best email address to share the Drive export with.
@@ -77,14 +91,26 @@ export async function exportSessionToDrive(sessionId, userEmailOverride = null) 
     summary: summaries[0] || null,
   };
 
-  const datePart = new Date().toISOString().slice(0, 10);
-  const filename = `session_${sessionId}_${datePart}.json`;
+  let filename;
+  let folderIdOverride = null;
+  const sessionsDriveRoot = process.env.SESSIONS_DRIVE_FOLDER_ID;
+
+  if (session.originator === "gpt_action" && sessionsDriveRoot) {
+    const { yearMonth, day, filename: gptFilename } = buildSessionFilePath(session);
+    const monthFolderId = await getOrCreateDriveFolder(yearMonth, sessionsDriveRoot);
+    const dayFolderId = await getOrCreateDriveFolder(day, monthFolderId);
+    folderIdOverride = dayFolderId;
+    filename = gptFilename;
+  } else {
+    filename = `session_${sessionId}_${new Date().toISOString().slice(0, 10)}.json`;
+  }
 
   const driveResult = await uploadContentToDrive(
     JSON.stringify(doc, null, 2),
     filename,
     "application/json",
-    shareEmail
+    shareEmail,
+    folderIdOverride
   );
 
   await pool.query(
