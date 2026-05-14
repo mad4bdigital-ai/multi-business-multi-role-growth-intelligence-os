@@ -344,15 +344,36 @@ async function executeDbControl(body = {}) {
     throw err;
   }
 
-  const [result, fields] = await getPool().query(sql, params);
+  // Split on semicolons so multi-statement migration SQL can be run in one call.
+  // Params only apply to single-statement calls (the typical interactive case).
+  const statements = sql
+    .split(/;(?=(?:[^']*'[^']*')*[^']*$)/)  // split on ; outside string literals
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && !s.startsWith("--") && !/^\/\*/.test(s));
 
-  return {
-    rows: Array.isArray(result) ? result : undefined,
-    result: Array.isArray(result) ? undefined : result,
-    fields: Array.isArray(fields)
-      ? fields.map((field) => ({ name: field.name, column_type: field.columnType }))
-      : undefined
-  };
+  if (statements.length === 1) {
+    const [result, fields] = await getPool().query(statements[0], params);
+    return {
+      rows: Array.isArray(result) ? result : undefined,
+      result: Array.isArray(result) ? undefined : result,
+      fields: Array.isArray(fields)
+        ? fields.map((f) => ({ name: f.name, column_type: f.columnType }))
+        : undefined,
+    };
+  }
+
+  // Multi-statement execution: run sequentially, collect per-statement results.
+  const results = [];
+  for (const stmt of statements) {
+    const [result] = await getPool().query(stmt);
+    results.push({
+      statement: stmt.slice(0, 120),
+      affectedRows: result?.affectedRows,
+      insertId: result?.insertId,
+      warningStatus: result?.warningStatus,
+    });
+  }
+  return { statements_executed: results.length, results };
 }
 
 function looksLikeUuid(value) {
