@@ -133,7 +133,15 @@ async function loadConnectionCredentials({ connectionId = null, tenantId, userId
 }
 
 async function resolveProvisioningCredentials(req, principal, body = {}) {
-  if (req.auth?.is_admin === true || body.provisioning_credential_mode === "managed") {
+  // Managed platform: admin, user JWT, and api_credential all use platform CF credentials.
+  // Only dedicated mode (body.provisioning_credential_mode === "dedicated") uses tenant-owned creds.
+  const useManagedCreds =
+    req.auth?.is_admin === true ||
+    req.auth?.mode === "user_jwt" ||
+    req.auth?.mode === "api_credential" ||
+    body.provisioning_credential_mode === "managed";
+
+  if (useManagedCreds && body.provisioning_credential_mode !== "dedicated") {
     return {
       source: req.auth?.is_admin === true ? "server_env" : "managed_server_env",
       cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
