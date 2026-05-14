@@ -748,9 +748,11 @@ export function buildLocalConnectorInstallRoutes(deps) {
       const [[tenant]] = await pool.query("SELECT tenant_id FROM `tenants` WHERE tenant_id = ? LIMIT 1", [resolvedTenantId]);
       if (!tenant) return res.status(404).json({ ok: false, error: { code: "tenant_not_found" } });
 
+      // Lookup by user_id + device_id only — a device belongs to a user, not a specific
+      // tenant context. The tenant_id on the config may differ from the caller's active tenant.
       const [[existing]] = await pool.query(
-        "SELECT config_id, cf_tunnel_id, cf_token, connector_secret, tunnel_url FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1",
-        [resolvedUserId, resolvedTenantId, device_id]
+        "SELECT config_id, cf_tunnel_id, cf_token, connector_secret, tunnel_url, tenant_id FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? LIMIT 1",
+        [resolvedUserId, device_id]
       );
 
       let configId, tunnelId, tunnelToken, tunnelUrl, connectorSecret, dnsRecordName;
@@ -789,8 +791,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
 
       // Seed allowlist (idempotent)
       const [[cfgRow]] = await pool.query(
-        "SELECT config_id FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1",
-        [resolvedUserId, resolvedTenantId, device_id]
+        "SELECT config_id FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? LIMIT 1",
+        [resolvedUserId, device_id]
       );
       const finalConfigId = cfgRow.config_id;
       const hostnameForRoutes = tunnelUrl ? new URL(tunnelUrl).hostname : null;
