@@ -34,6 +34,8 @@ try {
 const args = process.argv.slice(2);
 const DRY_RUN = args.includes("--dry-run");
 const SEED    = args.includes("--seed");
+const ONLY_IDX = args.indexOf("--only");
+const ONLY    = ONLY_IDX !== -1 ? String(args[ONLY_IDX + 1] || "").trim() : null;
 
 const MIGRATIONS_DIR = resolve(__dirname, "migrations");
 
@@ -94,6 +96,7 @@ async function main() {
 
   const files = readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith(".sql"))
+    .filter((f) => !ONLY || f.startsWith(ONLY))
     .sort();
 
   console.log(`Found ${files.length} migration file(s).`);
