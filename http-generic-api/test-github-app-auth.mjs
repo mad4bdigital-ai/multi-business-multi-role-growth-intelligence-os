@@ -45,7 +45,7 @@ assert.equal(payload.iss, "3654304", "JWT issuer is GitHub App id");
 assert.equal(payload.iat, 1_699_999_940, "JWT iat is backdated for clock skew");
 assert.equal(payload.exp, 1_700_000_540, "JWT exp stays within GitHub ten-minute limit");
 
-process.env.TEST_GITHUB_APP_PRIVATE_KEY_B64 = privateKeyB64;
+process.env.TEST_GITHUB_APP_PRIVATE_KEY = privateKeyPem;
 clearGitHubAppInstallationTokenCache();
 
 let calls = 0;
@@ -53,7 +53,7 @@ const token = await getGitHubAppInstallationToken({
   action: {
     github_app_id: "3654304",
     github_app_installation_id: "130821054",
-    secret_store_ref: "ref:secret:TEST_GITHUB_APP_PRIVATE_KEY_B64",
+    secret_store_ref: "ref:secret:TEST_GITHUB_APP_PRIVATE_KEY",
   },
   fetchImpl: async (url, options = {}) => {
     calls += 1;
@@ -89,7 +89,7 @@ const cached = await getGitHubAppInstallationToken({
   action: {
     github_app_id: "3654304",
     github_app_installation_id: "130821054",
-    secret_store_ref: "ref:secret:TEST_GITHUB_APP_PRIVATE_KEY_B64",
+    secret_store_ref: "ref:secret:TEST_GITHUB_APP_PRIVATE_KEY",
   },
   fetchImpl: async () => {
     throw new Error("cache miss");
@@ -101,9 +101,11 @@ assert.equal(calls, 1, "installation token fetch runs once before cache reuse");
 
 const savedGitHubAppId = process.env.GITHUB_APP_ID;
 const savedGitHubAppInstallationId = process.env.GITHUB_APP_INSTALLATION_ID;
+const savedGitHubAppPrivateKey = process.env.GITHUB_APP_PRIVATE_KEY;
 const savedGitHubAppPrivateKeyB64 = process.env.GITHUB_APP_PRIVATE_KEY_B64;
 delete process.env.GITHUB_APP_ID;
 delete process.env.GITHUB_APP_INSTALLATION_ID;
+delete process.env.GITHUB_APP_PRIVATE_KEY;
 delete process.env.GITHUB_APP_PRIVATE_KEY_B64;
 
 assert.deepEqual(
@@ -116,6 +118,8 @@ if (savedGitHubAppId === undefined) delete process.env.GITHUB_APP_ID;
 else process.env.GITHUB_APP_ID = savedGitHubAppId;
 if (savedGitHubAppInstallationId === undefined) delete process.env.GITHUB_APP_INSTALLATION_ID;
 else process.env.GITHUB_APP_INSTALLATION_ID = savedGitHubAppInstallationId;
+if (savedGitHubAppPrivateKey === undefined) delete process.env.GITHUB_APP_PRIVATE_KEY;
+else process.env.GITHUB_APP_PRIVATE_KEY = savedGitHubAppPrivateKey;
 if (savedGitHubAppPrivateKeyB64 === undefined) delete process.env.GITHUB_APP_PRIVATE_KEY_B64;
 else process.env.GITHUB_APP_PRIVATE_KEY_B64 = savedGitHubAppPrivateKeyB64;
 

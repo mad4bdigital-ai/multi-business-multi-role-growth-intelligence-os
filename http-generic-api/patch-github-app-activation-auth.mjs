@@ -6,7 +6,7 @@
  * Sets on the `actions` row where action_key = 'github_api_mcp':
  *   api_key_mode         = github_app
  *   api_key_storage_mode = secret_reference
- *   secret_store_ref     = ref:secret:GITHUB_APP_PRIVATE_KEY_B64
+ *   secret_store_ref     = ref:secret:GITHUB_APP_PRIVATE_KEY
  *   api_key_value        = NULL
  *
  * GITHUB_APP_ID and GITHUB_APP_INSTALLATION_ID are read from runtime env vars.
@@ -47,7 +47,8 @@ console.log(`\n=== GitHub App Activation Auth Patcher - ${APPLY ? "APPLY" : "DRY
 console.log("Runtime env readiness:");
 console.log(`  GITHUB_APP_INSTALLATION_ID: ${maskPresence("GITHUB_APP_INSTALLATION_ID")}`);
 console.log(`  GITHUB_APP_ID:              ${maskPresence("GITHUB_APP_ID")}`);
-console.log(`  GITHUB_APP_PRIVATE_KEY_B64: ${maskPresence("GITHUB_APP_PRIVATE_KEY_B64")}`);
+console.log(`  GITHUB_APP_PRIVATE_KEY:     ${maskPresence("GITHUB_APP_PRIVATE_KEY")}`);
+console.log(`  GITHUB_APP_PRIVATE_KEY_B64: ${maskPresence("GITHUB_APP_PRIVATE_KEY_B64")} (legacy fallback)`);
 console.log(`  GITHUB_TOKEN:               ${maskPresence("GITHUB_TOKEN")} (not used for github_app mode)`);
 
 const [rows] = await pool.query(
@@ -76,7 +77,7 @@ console.log(`  api_key_value:        ${row.api_key_value ? "[PRESENT - will be N
 const target = {
   api_key_mode: "github_app",
   api_key_storage_mode: "secret_reference",
-  secret_store_ref: "ref:secret:GITHUB_APP_PRIVATE_KEY_B64",
+  secret_store_ref: "ref:secret:GITHUB_APP_PRIVATE_KEY",
   api_key_value: null,
 };
 
@@ -97,7 +98,7 @@ if (!changes.length) {
       `UPDATE \`actions\`
        SET api_key_mode = 'github_app',
            api_key_storage_mode = 'secret_reference',
-           secret_store_ref = 'ref:secret:GITHUB_APP_PRIVATE_KEY_B64',
+           secret_store_ref = 'ref:secret:GITHUB_APP_PRIVATE_KEY',
            api_key_value = NULL
        WHERE id = ?`,
       [row.id]
