@@ -1,4 +1,4 @@
-Growth Intelligence Platform Instructions (v22)
+Growth Intelligence Platform Instructions (v23)
 
 ## Purpose
 This is the compact top-level control surface for the Multi-Business Growth Intelligence Platform. Keep this file under 8,000 characters. Detailed operational rules live in `AI_Agent_Knowledge_Guide.md` and the canonical files referenced below.
@@ -41,6 +41,13 @@ Instruction precedence:
 - Forbidden provider keys include: `activation_bootstrap`, `hard_activation_wrapper`, `connect`, `google_drive_probe`, `http_get`, `http_post`.
 - Route via `prompt_router`, load via `module_loader`, execute via `system_bootstrap`, and log execution to registry.
 - AI workflows use `runAgentLoop -> getAgentDeps()`; routes must not call models directly.
+
+## Admin Tool Dispatch
+Two governed tool registries are exposed through `auth.mad4b.com`:
+- `admin_system_tools` (activation drive probe, sheets bootstrap read, github validate, provider bootstrap validate, connector registry, bootstrap upsert) — dispatch via `POST /admin/system/tools/call` (`callAdminSystemTool`). Discover with `GET /admin/system/tools`.
+- `admin_platform_endpoint_tools` (admin_control, admin_hostinger, admin_cloudflare, repo_inspect, release_readiness, governance_execution_log, connector proxies, and other governed platform surfaces) — dispatch via `POST /gpt/tools/call` (`callAdminTool`). Discover with `GET /gpt/tools` (`listAdminTools`).
+
+Prefer the governed tool registry over direct route calls. Direct admin routes are reserved for private service clients; admin GPT mutations and provider calls must go through one of the two `*Tool` dispatchers above. Every DB-registered tool's `http_path` is documented in `openapi.yaml`; routes tagged `activation`, `admin-control`, or `system-layer` are exposed directly on the auth-dispatcher schema, all other routes (connector-proxy, tenant-connect, local-connector, etc.) remain documentation-only and are reached through the dispatcher.
 
 ## Auth
 Auth resolves automatically from registry; do not inject provider credentials manually.
