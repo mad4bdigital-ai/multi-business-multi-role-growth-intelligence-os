@@ -886,7 +886,162 @@ export function buildAdminCliRoutes(deps) {
     }
   });
 
+  // ── GET /admin/cli/local-connector/install-bundle ─────────────────────────
+  // Generates a pre-filled Windows .bat installer with the tunnel token embedded.
+  // Uploads the file to Google Drive and returns a shareable link so the admin
+  // GPT can hand the user a direct download without exposing the API key.
+  // ?format=bat  → returns the file directly as an attachment (for curl)
+  router.get("/local-connector/install-bundle", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
+    try {
+      const tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN || "";
+      const format      = String(req.query.format || "json").toLowerCase();
+
+      if (!tunnelToken) {
+        return res.status(500).json({
+          ok: false,
+          error: { code: "tunnel_token_missing", message: "CLOUDFLARE_TUNNEL_TOKEN is not configured on the server." }
+        });
+      }
+
+      const batContent = generateConnectorInstallerBat(tunnelToken);
+      const filename   = `install-connector-${new Date().toISOString().slice(0,10)}.bat`;
+
+      if (format === "bat") {
+        res.setHeader("Content-Type", "application/octet-stream");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        return res.send(batContent);
+      }
+
+      // Upload to Drive so GPT can share a link
+      let driveResult = null;
+      if (typeof deps.getGoogleClients === "function") {
+        try {
+          const { drive } = await deps.getGoogleClients();
+          const created = await drive.files.create({
+            requestBody: { name: filename, mimeType: "application/octet-stream" },
+            media: { mimeType: "application/octet-stream", body: batContent },
+            fields: "id,webViewLink",
+          });
+          if (created?.data?.id) {
+            await drive.permissions.create({
+              fileId: created.data.id,
+              requestBody: { role: "reader", type: "anyone" },
+            });
+            driveResult = {
+              drive_file_id: created.data.id,
+              drive_link: `https://drive.google.com/uc?export=download&id=${created.data.id}`,
+              view_link: created.data.webViewLink,
+            };
+          }
+        } catch (driveErr) {
+          console.warn("[install-bundle] Drive upload failed:", driveErr.message);
+        }
+      }
+
+      writeAuditLogAsync({
+        action: "admin_cli.local_connector_install_bundle",
+        resource_type: "install_bundle",
+        resource_id: filename,
+        payload: { drive_uploaded: !!driveResult },
+      });
+
+      return res.status(200).json({
+        ok: true,
+        filename,
+        instructions: "Save the file as install-connector.bat and run as Administrator. cloudflared will be installed automatically if missing.",
+        script_content: batContent,
+        drive: driveResult,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: { code: "install_bundle_failed", message: err.message },
+      });
+    }
+  });
+
   return router;
+}
+
+function generateConnectorInstallerBat(tunnelToken) {
+  return `@echo off
+setlocal EnableDelayedExpansion
+title Growth Intelligence Platform - Connector Installer
+
+net session >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo ERROR: Run this as Administrator. Right-click ^> Run as administrator.
+    pause
+    exit /b 1
+)
+
+set CF_TOKEN=${tunnelToken}
+set SERVICE_NAME=cloudflared
+set TUNNEL_HOST=connector.mad4b.com
+
+echo.
+echo  Growth Intelligence Platform - Local Connector Installer
+echo  =========================================================
+echo.
+
+sc query %SERVICE_NAME% >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    for /f "tokens=4" %%s in ('sc query %SERVICE_NAME% ^| findstr /i "STATE"') do set SVC_STATE=%%s
+    if /i "!SVC_STATE!"=="RUNNING" (
+        echo  Connector service is already running.
+        echo  Tunnel %TUNNEL_HOST% is active.
+        goto :done
+    )
+    echo  Service exists but stopped. Starting...
+    net start %SERVICE_NAME%
+    if %ERRORLEVEL% equ 0 ( goto :done )
+    echo  Start failed. Reinstalling service...
+    cloudflared service uninstall >nul 2>&1
+    timeout /t 2 /nobreak >nul
+)
+
+where cloudflared >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo  cloudflared not found. Installing via winget...
+    winget install --id Cloudflare.cloudflared -e --accept-source-agreements --accept-package-agreements
+    if %ERRORLEVEL% neq 0 (
+        echo  ERROR: winget install failed.
+        echo  Download from: https://github.com/cloudflare/cloudflared/releases
+        pause
+        exit /b 1
+    )
+    where cloudflared >nul 2>&1
+    if %ERRORLEVEL% neq 0 (
+        echo  PATH not updated yet. Restart your terminal and re-run this installer.
+        pause
+        exit /b 1
+    )
+)
+
+echo  Installing cloudflared tunnel service...
+cloudflared service install %CF_TOKEN%
+if %ERRORLEVEL% neq 0 (
+    echo  ERROR: Service install failed ^(exit %ERRORLEVEL%^).
+    pause
+    exit /b 1
+)
+
+echo  Starting service...
+net start %SERVICE_NAME%
+if %ERRORLEVEL% neq 0 (
+    echo  ERROR: Service did not start.
+    echo  Check: eventvwr ^> Windows Logs ^> System, source cloudflared
+    pause
+    exit /b 1
+)
+
+:done
+echo.
+echo  Done! Tunnel %TUNNEL_HOST% is active.
+echo  Verify at: https://one.dash.cloudflare.com (Zero Trust -^> Tunnels)
+echo.
+pause
+`;
 }
 
 
