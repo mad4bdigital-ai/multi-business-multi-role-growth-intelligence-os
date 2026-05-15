@@ -446,6 +446,20 @@ section("GET /health — DB dependency visible");
     JSON.stringify(r.body?.dependencies?.db || {}));
 }
 
+section("GET /version and /deployment-manifest - deployment provenance");
+
+{
+  const r = await get("/version");
+  ok("version returns 200", r.status === 200, `got ${r.status}`);
+  ok("version reports service", r.body.service === "http_generic_api_connector", JSON.stringify(r.body));
+  ok("version reports deployment status", typeof r.body.deployment?.deployment_status === "string", JSON.stringify(r.body));
+}
+{
+  const r = await get("/deployment-manifest");
+  ok("deployment manifest returns 200", r.status === 200, `got ${r.status}`);
+  ok("deployment manifest has ok field", "ok" in r.body, JSON.stringify(r.body));
+}
+
 // ── 12. POST /customers — route registered ───────────────────────────────────
 
 section("POST /customers — route registered");

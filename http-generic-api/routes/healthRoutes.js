@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { buildVersionPayload, readDeploymentManifest } from "../deploymentManifest.js";
 
 export function buildHealthRoutes(deps) {
   const {
@@ -72,6 +73,18 @@ export function buildHealthRoutes(deps) {
       },
       timestamp: new Date().toISOString()
     });
+  });
+
+  router.get("/deployment-manifest", async (_req, res) => {
+    const manifestResult = readDeploymentManifest();
+    return res.status(200).json({
+      ok: manifestResult.ok,
+      ...manifestResult,
+    });
+  });
+
+  router.get("/version", async (_req, res) => {
+    return res.status(200).json(buildVersionPayload({ serviceVersion: SERVICE_VERSION }));
   });
 
   return router;
