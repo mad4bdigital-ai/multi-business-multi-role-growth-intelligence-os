@@ -558,6 +558,10 @@ export function buildActivationRoutes(deps) {
         github_app_id_configured: Boolean(process.env.GITHUB_APP_ID),
         github_app_private_key_b64_configured: Boolean(process.env.GITHUB_APP_PRIVATE_KEY_B64),
         github_token_configured: githubPatConfigured,
+        activation_github_repository_configured: Boolean(process.env.ACTIVATION_GITHUB_REPOSITORY),
+        activation_github_owner_configured: Boolean(process.env.ACTIVATION_GITHUB_OWNER),
+        activation_github_repo_configured: Boolean(process.env.ACTIVATION_GITHUB_REPO),
+        activation_github_branch_configured: Boolean(process.env.ACTIVATION_GITHUB_BRANCH),
         cloudflare_account_id_configured: Boolean(process.env.CLOUDFLARE_ACCOUNT_ID),
         cloudflare_api_token_configured: Boolean(process.env.CLOUDFLARE_API_TOKEN),
         hostinger_cloud_plan_key_configured: Boolean(process.env.HOSTINGER_CLOUD_PLAN_01_API_KEY),
@@ -597,7 +601,9 @@ export function buildActivationRoutes(deps) {
         environment:        process.env.NODE_ENV || "production",
         registry_sheet_id:  REGISTRY_SPREADSHEET_ID || null,
         activity_sheet_id:  ACTIVITY_SPREADSHEET_ID || null,
-        github_repo:        process.env.GITHUB_REPO || null,
+        github_repo:        activationBootstrap.ok
+          ? `${activationBootstrap.config.github_owner}/${activationBootstrap.config.github_repo}`
+          : (process.env.ACTIVATION_GITHUB_REPOSITORY || process.env.ACTIVATION_GITHUB_REPO || null),
         cloudflare_zone:    process.env.CLOUDFLARE_ZONE_ID || null,
         connector_url:      process.env.CONNECTOR_URL || "https://connector.mad4b.com",
         bootstrap_version:  process.env.SERVICE_VERSION || "backend_runtime",

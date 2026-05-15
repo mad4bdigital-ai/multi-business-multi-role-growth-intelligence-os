@@ -80,6 +80,7 @@ export const GITHUB_API_BASE_URL =
 export const GITHUB_TOKEN = String(process.env.GITHUB_TOKEN || "").trim();
 export const ACTIVATION_GITHUB_PARENT_ACTION_KEY = String(process.env.ACTIVATION_GITHUB_PARENT_ACTION_KEY || "").trim();
 export const ACTIVATION_GITHUB_ENDPOINT_KEY = String(process.env.ACTIVATION_GITHUB_ENDPOINT_KEY || "").trim();
+export const ACTIVATION_GITHUB_REPOSITORY = String(process.env.ACTIVATION_GITHUB_REPOSITORY || "").trim();
 export const ACTIVATION_GITHUB_OWNER = String(process.env.ACTIVATION_GITHUB_OWNER || "").trim();
 export const ACTIVATION_GITHUB_REPO = String(process.env.ACTIVATION_GITHUB_REPO || "").trim();
 export const ACTIVATION_GITHUB_BRANCH = String(process.env.ACTIVATION_GITHUB_BRANCH || "main").trim();

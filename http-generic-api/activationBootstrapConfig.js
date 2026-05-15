@@ -5,6 +5,7 @@ import {
   ACTIVATION_GITHUB_OWNER,
   ACTIVATION_GITHUB_PARENT_ACTION_KEY,
   ACTIVATION_GITHUB_REPO,
+  ACTIVATION_GITHUB_REPOSITORY,
 } from "./config.js";
 
 export const ACTIVATION_GITHUB_BOOTSTRAP_CONFIG_KEY = "activation.bootstrap.github";
@@ -27,14 +28,22 @@ function parseJsonConfig(value) {
   }
 }
 
+function parseGithubRepository(value = "") {
+  const normalized = String(value || "").trim().replace(/^https:\/\/github\.com\//i, "");
+  const [owner, repo] = normalized.split("/").map((part) => part.trim()).filter(Boolean);
+  if (!owner || !repo) return null;
+  return { owner, repo: repo.replace(/\.git$/i, "") };
+}
+
 export function validateActivationBootstrapConfig(config = {}, source = "unknown") {
+  const repository = parseGithubRepository(config.github_repository || config.github_repo);
   const normalized = {
     source,
     sheets_required: false,
     github_parent_action_key: String(config.github_parent_action_key || "").trim(),
     github_endpoint_key: String(config.github_endpoint_key || "").trim(),
-    github_owner: String(config.github_owner || "").trim(),
-    github_repo: String(config.github_repo || "").trim(),
+    github_owner: String(config.github_owner || repository?.owner || "").trim(),
+    github_repo: String(config.github_repo_name || config.github_repo || repository?.repo || "").trim(),
     github_branch: String(config.github_branch || "main").trim(),
   };
 
@@ -97,6 +106,7 @@ export function readActivationBootstrapFromEnv() {
     {
       github_parent_action_key: ACTIVATION_GITHUB_PARENT_ACTION_KEY,
       github_endpoint_key: ACTIVATION_GITHUB_ENDPOINT_KEY,
+      github_repository: ACTIVATION_GITHUB_REPOSITORY,
       github_owner: ACTIVATION_GITHUB_OWNER,
       github_repo: ACTIVATION_GITHUB_REPO,
       github_branch: ACTIVATION_GITHUB_BRANCH,
