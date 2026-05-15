@@ -5887,3 +5887,463 @@ paths:
       responses:
         "200": { description: Secret reference list, content: { application/json: { schema: { $ref: "#/components/schemas/PlatformListResponse" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /activation/bootstrap-config:
+    get:
+      tags: [activation-runtime]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: getActivationBootstrapConfig
+      summary: Authoritative runtime bootstrap config
+      description: "Returns the runtime bootstrap row plus live platform state (tenant count, membership count, connection count, device count, last activation timestamp). Replaces the legacy Sheets readback at Activation Bootstrap Config!A2:J2. Used by admin GPT self-repair (tool keys activation_bootstrap_config, platform_self_repair_diagnose)."
+      responses:
+        "200":
+          description: Bootstrap row, activation bootstrap, and platform state
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, activation_layer, source, bootstrap_row, platform_state]
+                properties:
+                  ok: { type: boolean }
+                  activation_layer: { type: string }
+                  source: { type: string }
+                  sheets_required: { type: boolean }
+                  bootstrap_row:
+                    type: object
+                    additionalProperties: true
+                  activation_bootstrap:
+                    type: object
+                    additionalProperties: true
+                  platform_state:
+                    type: object
+                    additionalProperties: true
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { description: Bootstrap config resolution failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /governance/execution-log-latest:
+    get:
+      tags: [governance]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: getGovernanceExecutionLogLatest
+      summary: Latest execution log tail (audit)
+      description: "Returns the most recent rows from Execution Log Unified for audit and trace lookups. Reads via the Sheets adapter using registry-resolved spreadsheet id and sheet name. Used by admin tool governance_execution_log."
+      responses:
+        "200":
+          description: Latest execution log rows
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+                  headers:
+                    type: array
+                    items: { type: string }
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  row_count: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Execution log headers not readable, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "500": { description: Execution log read failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /connector/{device_id}/policy:
+    get:
+      tags: [connector-proxy]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: getConnectorDevicePolicy
+      summary: Read connector policy via tenant tunnel
+      description: "Proxies GET /policy to the user's local connector tunnel. Resolves the device's tunnel_url and connector_secret from local_connector_user_configs. Returns the connector-side policy document (permitted ops, file roots, shell allowlist)."
+      parameters:
+        - { name: device_id, in: path, required: true, schema: { type: string } }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+      responses:
+        "200": { description: Connector policy payload, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /connector/{device_id}/health:
+    get:
+      tags: [connector-proxy]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: getConnectorDeviceHealth
+      summary: Health-check the device tunnel
+      description: "Proxies GET /health to the local connector tunnel for the named device. Returns the connector-side health payload (uptime, allowed paths, agent version)."
+      parameters:
+        - { name: device_id, in: path, required: true, schema: { type: string } }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+      responses:
+        "200": { description: Device health payload, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /connector/{device_id}/shell:
+    post:
+      tags: [connector-proxy]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: postConnectorDeviceShell
+      summary: Run allowlisted shell command on device
+      description: "Proxies POST /shell to the device tunnel. The connector enforces an alias-based allowlist; raw commands are rejected. Body forwarded verbatim."
+      parameters:
+        - { name: device_id, in: path, required: true, schema: { type: string } }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200": { description: Shell execution result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /connector/{device_id}/files:
+    post:
+      tags: [connector-proxy]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: postConnectorDeviceFiles
+      summary: Read or write files via device tunnel
+      description: "Proxies POST /files to the device tunnel. Connector restricts I/O to configured roots; size and path constraints are enforced server-side."
+      parameters:
+        - { name: device_id, in: path, required: true, schema: { type: string } }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200": { description: File operation result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /connector/{device_id}/fetch-upload:
+    post:
+      tags: [connector-proxy]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: postConnectorDeviceFetchUpload
+      summary: Fetch a remote URL and upload to device
+      description: "Proxies POST /fetch-upload to the device tunnel. Connector downloads from an allowlisted source URL and writes into a permitted local path. Admin-facing helper for installer/asset distribution."
+      parameters:
+        - { name: device_id, in: path, required: true, schema: { type: string } }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200": { description: Fetch-upload result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /connector/{device_id}/github:
+    post:
+      tags: [connector-proxy]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: postConnectorDeviceGithub
+      summary: Invoke GitHub helper on device
+      description: "Proxies POST /github to the device tunnel. Used for git operations against the device's checked-out repo (status, log, branch listing, etc.) under the connector's policy."
+      parameters:
+        - { name: device_id, in: path, required: true, schema: { type: string } }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200": { description: GitHub operation result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /connector/{device_id}/gcloud:
+    post:
+      tags: [connector-proxy]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: postConnectorDeviceGcloud
+      summary: Invoke gcloud helper on device
+      description: "Proxies POST /gcloud to the device tunnel. Invokes gcloud CLI commands under the connector's allowlist (auth list, projects describe, builds list, etc.)."
+      parameters:
+        - { name: device_id, in: path, required: true, schema: { type: string } }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200": { description: gcloud operation result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /connector/{device_id}/shell-fetch-upload:
+    post:
+      tags: [connector-proxy]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: postConnectorDeviceShellFetchUpload
+      summary: Shell-driven fetch-upload on device
+      description: "Proxies POST /shell-fetch-upload to the device tunnel. Combined helper that resolves an allowlisted source via shell and writes the result into a permitted local path. Admin-facing."
+      parameters:
+        - { name: device_id, in: path, required: true, schema: { type: string } }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200": { description: Shell fetch-upload result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /policy:
+    get:
+      tags: [tenant-connect]
+      operationId: getTenantPolicy
+      summary: Public tenant policy document
+      description: "Returns the public tenant policy: permitted operations, connection modes, onboarding URL, and activation sequence. No auth required — used by tenant GPT to introspect the contract before sign-in."
+      responses:
+        "200":
+          description: Public policy payload
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, scope, version, permitted_operations]
+                properties:
+                  ok: { type: boolean }
+                  scope: { type: string }
+                  version: { type: string }
+                  permitted_operations:
+                    type: array
+                    items: { type: string }
+                  connection_modes:
+                    type: array
+                    items: { type: string }
+                  onboarding_url: { type: string }
+
+  /connect/status:
+    get:
+      tags: [tenant-connect]
+      security: [userBearerAuth: []]
+      operationId: getConnectStatus
+      summary: Tenant connection status for signed-in user
+      description: "Returns the signed-in user, their active tenant membership, the tenant backend connection (mode, status, cloudflare_mode, google_auth_mode, n8n_activation_mode), and the user's configured devices. Requires user JWT."
+      responses:
+        "200":
+          description: Connection status payload
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, user, tenant, connection, devices]
+                properties:
+                  ok: { type: boolean }
+                  user:
+                    type: object
+                    additionalProperties: true
+                  tenant:
+                    type: object
+                    additionalProperties: true
+                  connection:
+                    type: object
+                    additionalProperties: true
+                  devices:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: User not found, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "500": { description: Status read failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /connect/activate:
+    post:
+      tags: [tenant-connect]
+      security: [userBearerAuth: []]
+      operationId: postConnectActivate
+      summary: Activate tenant backend connection
+      description: "Activates the tenant backend connection in managed or dedicated mode. Optionally records Cloudflare account context for dedicated mode (tokens are never stored). Upserts tenant_backend_connections and returns the resolved connection."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [mode]
+              properties:
+                mode:
+                  type: string
+                  enum: [managed, dedicated]
+                cloudflare_mode:
+                  type: string
+                google_auth_mode:
+                  type: string
+                n8n_activation_mode:
+                  type: string
+                  enum: [managed_main_server, self_hosted_local]
+                cf_api_token:
+                  type: string
+                  description: Dedicated mode only — accepted but not stored.
+                cf_account_id:
+                  type: string
+                hostinger_api_key:
+                  type: string
+      responses:
+        "200":
+          description: Activation result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, connection]
+                properties:
+                  ok: { type: boolean }
+                  connection:
+                    type: object
+                    additionalProperties: true
+                  notice: { type: string }
+        "400": { description: Invalid mode or activation parameters, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: No active tenant for this user, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "500": { description: Activation write failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /connect/device-install:
+    post:
+      tags: [tenant-connect]
+      security: [userBearerAuth: []]
+      operationId: postConnectDeviceInstall
+      summary: Provision a local connector device for the tenant
+      description: "Provisions a Cloudflare tunnel and connector config for the named device. Uses managed or dedicated provisioning depending on the tenant connection's cloudflare_mode. Returns install bundle pointers and updates device_count."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [device_id]
+              properties:
+                device_id:
+                  type: string
+                  description: 2-64 alphanumeric, dash, or underscore characters.
+                hostname:
+                  type: string
+                cloudflare_connection_id:
+                  type: string
+                hostinger_connection_id:
+                  type: string
+                local_apps:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+      responses:
+        "200": { description: Device install result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Invalid device_id, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: No active tenant for this user, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "500": { description: Provisioning failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /local-connector/health:
+    get:
+      tags: [local-connector]
+      security: [backendBearerAuth: [], backendApiKeyAuth: [], userBearerAuth: []]
+      operationId: getLocalConnectorHealth
+      summary: Check tunnel reachability for a tenant device
+      description: "Resolves the tenant device's tunnel_url and connector_secret, then probes the connector /health endpoint with a 10s timeout. Returns the agent's health payload on success, or a structured connector_unreachable error on failure (HTTP 200 either way for tenant ergonomics)."
+      parameters:
+        - { name: device_id, in: query, required: true, schema: { type: string } }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
+        - { name: tenant_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target tenant id. }
+      responses:
+        "200":
+          description: Health probe result (reachable or unreachable)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+                  tunnel_url: { type: string }
+                  agent:
+                    type: object
+                    additionalProperties: true
+                  error:
+                    type: object
+                    additionalProperties: true
+        "400": { description: Missing device_id or identity, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: No local connector config for this user/device, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "500": { description: Health check failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /local-connector/devices:
+    get:
+      tags: [local-connector]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: getLocalConnectorDevices
+      summary: List local connector devices for a tenant user
+      description: "Returns all local_connector_user_configs rows for the given user_id and tenant_id, ordered by created_at desc. Each entry includes device_id, tunnel_url, cf_tunnel_id, cf_tunnel_name, is_enabled, and timestamps."
+      parameters:
+        - { name: user_id, in: query, required: true, schema: { type: string } }
+        - { name: tenant_id, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Device list
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, devices, count]
+                properties:
+                  ok: { type: boolean }
+                  count: { type: integer }
+                  devices:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+        "400": { description: Missing user_id or tenant_id, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { description: Device list read failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }

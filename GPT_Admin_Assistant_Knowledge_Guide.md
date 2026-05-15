@@ -15,8 +15,8 @@ Use this guide together with:
 1. `Top Level Instructions.md`
 2. `AI_Agent_Knowledge_Guide.md`
 3. `http-generic-api/openapi.yaml`
-4. `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` (platform connector — 5 ops)
-5. `http-generic-api/openapi.gpt-action.local-connector.yaml` (local connector — 10 ops)
+4. `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` (platform connector — 19 ops, generated from `openapi.yaml`)
+5. `http-generic-api/openapi.gpt-action.local-connector.yaml` (local connector — 11 ops, hand-maintained)
 
 ## GPT Action Auth
 
@@ -223,14 +223,14 @@ The Admin Assistant uses exactly **two** action connectors. Custom GPT is limite
 
 | Connector | File | Server URL | Ops | Purpose |
 |---|---|---:|---:|---|
-| **Platform** | `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` | `https://auth.mad4b.com` | 5 | Five MCP-style meta-ops: open session, list tools, call any tool, write turn, end session |
-| **Local** | `http-generic-api/openapi.gpt-action.local-connector.yaml` | `https://connector.mad4b.com` | 10 | Standalone local execution bridge for break-glass shell/file/GitHub/gcloud/PS/Win/n8n on mohammedlap via Cloudflare Tunnel |
+| **Platform** | `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` | `https://auth.mad4b.com` | 19 | Activation context, system + admin tool registries (list/call), GPT meta-tool dispatcher (`listAdminTools` / `callAdminTool`), and a small set of admin-CLI surfaces. All other admin work routes through `callAdminTool` with a registered tool_key. |
+| **Local** | `http-generic-api/openapi.gpt-action.local-connector.yaml` | `https://connector.mad4b.com` | 11 | Standalone local execution bridge for break-glass shell/file/GitHub/gcloud/PS/Win/n8n/cf on mohammedlap via Cloudflare Tunnel |
 
 `auth.mad4b.com` is the governed control plane and must be the first choice for admin work. The local connector is a standalone plugin/action because it touches the local environment; call it only after the platform action indicates local execution is needed, or when the cloud control plane is unavailable and break-glass recovery is explicitly required. If `connect.mad4b.com` is used as the connector-facing host alias, it must follow the same local-connector contract as `connector.mad4b.com`.
 
 ### Platform connector — operations
 
-The auth-dispatcher is now a 5-op MCP-style schema (v4.0.0-mcp). All platform capabilities beyond these five meta-ops are accessed through the tool registry via `listTools` + `callTool`.
+The auth-dispatcher exposes 19 ops, generated from `openapi.yaml` by `scripts/split-openapi.mjs` for routes tagged `activation`, `admin-control`, or `system-layer`. It includes activation context (`getActivationSessionContext`, `getActivationPlatformAccess`), system + admin tool registries (`listSystemTools` / `callSystemTool`, `listAdminSystemTools` / `callAdminSystemTool`), the GPT meta-tool dispatcher (`listAdminTools` / `callAdminTool`), three admin-CLI surfaces (`getLocalConnectorInstallBundle`, `repairLocalConnector`, `listDnsRecords`), schema-import, and admin Google-auth read helpers. All other admin work routes through `callAdminTool` with a registered tool_key from `admin_platform_endpoint_tools`.
 
 | Operation | Path | Use |
 |---|---|---|
@@ -242,7 +242,7 @@ The auth-dispatcher is now a 5-op MCP-style schema (v4.0.0-mcp). All platform ca
 
 ### Platform connector — tool registry routing
 
-All platform capabilities beyond the five meta-ops are reached through `listTools` → `callTool`. The backend enforces principal scope and DB/runtime validation; the GPT must not invent tool names, bypass registry checks, or use the local connector for work that can be completed through the auth-host system layer.
+All platform capabilities beyond the dispatcher's direct ops are reached through `listAdminTools` → `callAdminTool`. The backend enforces principal scope and DB/runtime validation; the GPT must not invent tool names, bypass registry checks, or use the local connector for work that can be completed through the auth-host system layer.
 
 **Workflow:**
 1. Call `listTools` to get the current tool catalog (name, description, inputSchema).
@@ -269,31 +269,19 @@ Do not query a table named `activation_bootstrap_config`; that table is not part
 - Use **local connector directly** (`connector.mad4b.com`, or `connect.mad4b.com` if configured as the connector host alias) only for local-machine break-glass recovery, local shell/file/GitHub/gcloud checks, or local health validation that cannot be routed through the cloud control plane.
 - Use `https://auth.mad4b.com/connect` for **self-serve onboarding** — signup/signin, DB credential capture, new-device install bundle, and the Custom GPT redirect.
 
-### Legacy scoped action files (still available â€” do not add to GPT)
+### Legacy scoped action files (deleted)
 
-These scoped files remain in the repo for specific direct use cases but are not loaded into the GPT:
-
-| Scope | File | Server URL |
-|---|---|---|
-| Runtime | `openapi.custom-gpt.runtime.yaml` | `https://api.mad4b.com` |
-| Identity | `openapi.custom-gpt.identity.yaml` | `https://identity.mad4b.com` |
-| Customers | `openapi.custom-gpt.customers.yaml` | `https://customers.mad4b.com` |
-| Systems | `openapi.custom-gpt.systems.yaml` | `https://systems.mad4b.com` |
-| Logic | `openapi.custom-gpt.logic.yaml` | `https://logic.mad4b.com` |
-| Observability | `openapi.custom-gpt.observability.yaml` | `https://observability.mad4b.com` |
-| Developer | `openapi.custom-gpt.developer.yaml` | `https://developer.mad4b.com` |
-| Admin CLI | `openapi.custom-gpt.admin-cli.yaml` | `https://admin.mad4b.com` |
-| Ops | `openapi.custom-gpt.ops.yaml` | `https://ops.mad4b.com` |
+The earlier scope-split schemas (`openapi.custom-gpt.runtime.yaml`, `.identity.yaml`, `.customers.yaml`, `.systems.yaml`, `.logic.yaml`, `.observability.yaml`, `.developer.yaml`, `.admin-cli.yaml`, `.ops.yaml`) were consolidated and removed in Sprint 50. `test-custom-gpt-schemas.mjs` asserts they stay deleted. Only three active GPT schemas remain: `openapi.custom-gpt.auth-dispatcher.yaml`, `openapi.tenant-gpt.auth.yaml`, and `openapi.gpt-action.local-connector.yaml`.
 
 ## Runtime Scope
 
-Use `openapi.custom-gpt.runtime.yaml` only for direct runtime clients outside the Admin GPT's two-action setup. In the Admin Assistant, session management and platform tool calls are exposed through `openapi.custom-gpt.auth-dispatcher.yaml` on `auth.mad4b.com` via `activateSession` / `listTools` / `callTool`.
+In the Admin Assistant, session management and platform tool calls are exposed through `openapi.custom-gpt.auth-dispatcher.yaml` on `auth.mad4b.com` via `activateSession` / `listAdminTools` / `callAdminTool`. For direct runtime clients outside this two-action setup, call routes documented in `openapi.yaml` directly using `BACKEND_API_KEY`.
 
 Key operations and functional use:
 
-- `getActivationSessionContext`: for direct runtime clients — admin and customer activation continuity; previous same-user sessions, related scopes, transcript availability, and embedded `platform_access`. In the Admin GPT, use `activateSession` instead.
-- `getActivationPlatformAccess`: admin access/count refresh for all-brand scope, brands, plugins, logics, engines, and runtime-callable actions. In the Admin GPT, use `callTool` with `name: "activation_platform_access"` instead.
-- `executeHttpRequest`: governed provider call through registry `parent_action_key` and `endpoint_key`; use for direct runtime clients outside the Admin GPT two-action setup. In the Admin Assistant, hard activation provider probes go through `callTool` with `name: "activation_provider_bootstrap_validate"`.
+- `getActivationSessionContext`: admin and customer activation continuity; previous same-user sessions, related scopes, transcript availability, and embedded `platform_access`. In the Admin GPT, use `activateSession` instead.
+- `getActivationPlatformAccess`: admin access/count refresh for all-brand scope, brands, plugins, logics, engines, and runtime-callable actions. In the Admin GPT, use `callAdminTool` with `name: "activation_platform_access"` instead.
+- Governed provider calls: route through `callAdminTool` with the registered tool_key. In the Admin Assistant, hard activation provider probes go through `callAdminTool` with `name: "activation_provider_bootstrap_validate"`.
 - `batchDispatch`: bounded multi-request dispatch for low-risk grouped diagnostics; not a bypass for auth or mutation policy.
 - `createJob`, `getJob`, `getJobResult`: async governed execution for longer work.
 - `generateImplementationPlan`, `generateTaskManifest`: AI resolver chain for implementation planning.
@@ -304,7 +292,7 @@ Provider calls must go through the active governed surface for the client: Admin
 
 ## Identity Scope
 
-Use `openapi.custom-gpt.identity.yaml` for admin identity and access operations.
+Use `callAdminTool` with the relevant identity tool_key (e.g. `identity_users_list`, `identity_role_assign`, `access_decision_resolve`) for admin identity and access operations. The legacy `openapi.custom-gpt.identity.yaml` has been deleted; routes are documented in `openapi.yaml` and dispatched through the tool registry.
 
 Functional use:
 
@@ -320,7 +308,7 @@ Use this scope when managing who can use the platform and what service mode or e
 
 ## Customers Scope
 
-Use `openapi.custom-gpt.customers.yaml` for CRM and support surfaces.
+Use `callAdminTool` with the relevant CRM tool_key for customers, contacts, tickets, threads, and timeline events. The legacy `openapi.custom-gpt.customers.yaml` has been deleted; routes are documented in `openapi.yaml` and dispatched through the tool registry.
 
 Functional use:
 
@@ -335,7 +323,7 @@ This scope is operational CRM state, not provider transport.
 
 ## Systems Scope
 
-Use `openapi.custom-gpt.systems.yaml` for connected-system administration and planner/bootstrap work.
+Use `callAdminTool` with the relevant systems tool_key for connected-system administration and planner/bootstrap work. The legacy `openapi.custom-gpt.systems.yaml` has been deleted; routes are documented in `openapi.yaml` and dispatched through the tool registry.
 
 Functional use:
 
@@ -351,7 +339,7 @@ Use this scope for platform connectivity and execution planning. For Admin GPT a
 
 ## Logic Scope
 
-Use `openapi.custom-gpt.logic.yaml` for governed logic and workflow orchestration.
+Use `callAdminTool` with the relevant logic/workflow tool_key for governed logic and workflow orchestration. The legacy `openapi.custom-gpt.logic.yaml` has been deleted; routes are documented in `openapi.yaml` and dispatched through the tool registry.
 
 Functional use:
 
@@ -365,7 +353,7 @@ Governed logic must resolve pointer-first through registry authority. Logic rout
 
 ## Observability Scope
 
-Use `openapi.custom-gpt.observability.yaml` for monitoring, audit, quota, and security response.
+Use `callAdminTool` with the relevant observability tool_key for monitoring, audit, quota, and security response. The legacy `openapi.custom-gpt.observability.yaml` has been deleted; routes are documented in `openapi.yaml` and dispatched through the tool registry.
 
 Functional use:
 
@@ -381,7 +369,7 @@ Secret reference routes expose references and lifecycle metadata, not raw secret
 
 ## Developer Scope
 
-Use `openapi.custom-gpt.developer.yaml` for API client and integration management.
+Use `callAdminTool` with the relevant developer-API tool_key for API client and integration management. The legacy `openapi.custom-gpt.developer.yaml` has been deleted; routes are documented in `openapi.yaml` and dispatched through the tool registry.
 
 Functional use:
 
@@ -405,7 +393,7 @@ When connecting a user's Make.com account, decide first which type of work is ne
 
 ## Admin CLI Scope
 
-Use `openapi.custom-gpt.admin-cli.yaml` only for direct admin CLI clients. In the two-connector Admin GPT, admin control is reached via `callTool` with the registered tool name (e.g. `admin_control`) — use `listTools` to discover the current registry entry.
+Admin CLI surfaces are reached via `callAdminTool` with the registered tool name (e.g. `admin_control`, `admin_hostinger`, `admin_cloudflare`, `admin_dns_records`) — use `listAdminTools` to discover the current registry entry. The legacy `openapi.custom-gpt.admin-cli.yaml` was deleted in Sprint 50; routes are documented in `openapi.yaml`. A small subset of read-only admin-CLI surfaces is exposed directly on the auth-dispatcher (`getLocalConnectorInstallBundle`, `repairLocalConnector`, `listDnsRecords`) for ergonomics during connector outages.
 
 Operations:
 
@@ -432,7 +420,7 @@ This scope can broker GitHub CLI, Google Cloud CLI, remote DB control, Hostinger
 
 ## Ops Scope
 
-Use `openapi.custom-gpt.ops.yaml` for release and registry maintenance checks.
+Use `callAdminTool` with `release_readiness` or related ops tool_keys for release and registry maintenance checks. The legacy `openapi.custom-gpt.ops.yaml` has been deleted; routes are documented in `openapi.yaml` and dispatched through the tool registry.
 
 Functional use:
 
