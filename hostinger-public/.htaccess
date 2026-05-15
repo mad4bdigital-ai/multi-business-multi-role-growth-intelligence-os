@@ -5,7 +5,16 @@ PassengerStartupFile http-generic-api/server.js
 PassengerBaseURI /
 PassengerRestartDir /home/u338416126/domains/auth.mad4b.com/nodejs/tmp
 SetEnv LSNODE_CONSOLE_LOG console.log
-SetEnv DATA_SOURCE db
+
+RewriteEngine On
+
+# Bypass LiteSpeed anti-bot CAPTCHA using rewrite env — SetEnvIfNoCase runs after lsrecap decides
+# All traffic arrives via Cloudflare, so CF-Connecting-IP is always present
+RewriteCond %{HTTP:CF-Connecting-IP} .+ [NC]
+RewriteRule ^ - [E=noabuse:1]
+
+# Also bypass for explicit API bearer tokens
+RewriteCond %{HTTP:Authorization} .+ [NC]
+RewriteRule ^ - [E=noabuse:1]
+
 RewriteRule ^\.builds - [F,L]
-SetEnvIfNoCase CF-Connecting-IP .+ noabuse=1
-SetEnvIfNoCase Authorization .+ noabuse=1
