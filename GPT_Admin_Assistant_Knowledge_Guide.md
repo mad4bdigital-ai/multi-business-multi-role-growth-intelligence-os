@@ -119,30 +119,38 @@ If the customer connector is missing, disabled, not on Windows, not allowlisted,
 
 ## Self-Repair Capabilities
 
-The admin GPT can autonomously diagnose and repair connected systems using the following tools from the registry. Call `listTools` and filter by tag `admin` or `cloudflare` to see all of them.
+The admin GPT can autonomously diagnose and repair connected systems using the following tools from the registry. Call `listTools` and filter by tag `admin` or `self_repair` to discover them.
 
-### Cloudflare
+### RULE: connector.mad4b.com returns 1033 or status 530 — MANDATORY action
+
+**Do NOT just report the error. Do NOT wait for the user to ask. Execute immediately:**
+
+1. Call `local_connector_self_repair` (no params needed — defaults to admin device `mohammedlap`).
+2. The response contains `repair.drive.drive_link` — hand this link to the user immediately.
+3. Tell the user: *"The local connector is down. Download **[filename]** from [drive_link] and run as Administrator on the Windows machine. Both cloudflared and the connector service will be reinstalled automatically. Takes ~30 seconds."*
+
+The `local_connector_self_repair` tool does everything in one call:
+- Reads the device config (cf_token, connector_secret) from DB for `mohammedlap`
+- Checks Cloudflare tunnel health via API
+- Generates a pre-filled `.bat` installer (cloudflared + NSSM Node service — both auto-restart on failure and reboot)
+- Uploads to Google Drive
+- Returns `diagnosis` object + `repair.drive.drive_link`
+
+**Never call `cloudflare_tunnel_status` or `local_connector_install_bundle` separately when the connector is down — `local_connector_self_repair` replaces that two-step workflow.**
+
+### Cloudflare (non-repair use)
 
 | Tool | What it does |
 |---|---|
-| `admin_cloudflare` | Forward any call to the Cloudflare REST API. Pass `path` (e.g. `/client/v4/accounts/{account_id}/tunnels`), `method`, optional `request_body` and `params`. |
-| `cloudflare_tunnel_status` | List active tunnels to diagnose 1033 errors on `connector.mad4b.com`. |
+| `admin_cloudflare` | Forward any call to the Cloudflare REST API. Pass `path`, `method`, optional `request_body` and `params`. |
+| `cloudflare_tunnel_status` | List active tunnels — use only for informational checks, not as part of 1033 repair (use `local_connector_self_repair` for that). |
 
-Use `admin_cloudflare` with `path=/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/tunnels` to see tunnel health. A tunnel showing `status: inactive` confirms cloudflared is not running on the Windows host.
-
-### Local connector installer
+### Local connector tools
 
 | Tool | What it does |
 |---|---|
-| `local_connector_install_bundle` | Generate a pre-filled Windows `.bat` installer with the tunnel token embedded. Uploads to Google Drive. Returns `drive.drive_link` (direct download) and `script_content`. |
-
-Workflow when `connector.mad4b.com` is unreachable:
-1. Call `cloudflare_tunnel_status` → confirm tunnel is inactive.
-2. Call `local_connector_install_bundle` → get Drive download link.
-3. Tell user: *"Download `install-connector-<date>.bat` from [link] and run as Administrator."*
-4. User runs it → cloudflared installs and starts → tunnel is live within 30 seconds.
-
-No manual token lookup needed. The server reads `CLOUDFLARE_TUNNEL_TOKEN` from env and embeds it automatically.
+| `local_connector_self_repair` | **Primary repair tool for 1033.** Reads device config from DB, checks CF tunnel status, generates + uploads installer bundle, returns Drive link. Defaults to admin device (mohammedlap). |
+| `local_connector_install_bundle` | Generate a pre-filled installer for a specific user/device. Accepts `user_id` and `device_id`. Use for provisioning new devices, not for break-glass repair. |
 
 ### Hostinger
 
@@ -458,7 +466,7 @@ The connector runs on the admin’s local Windows machine (`mohammedlap`) and is
 
 Key operations:
 
-- `connectorHealth` (`GET /health`): alive check; no auth required; returns hostname, platform, uptime. Call first before any recovery op.
+- `connectorHealth` (`GET /health`): alive check; no auth required; returns hostname, platform, uptime. **If this returns 1033 / status 530: immediately call `local_connector_self_repair` — do NOT just report the error.** See Self-Repair Capabilities section.
 - `connectorGithub` (`POST /github`): run `gh` CLI on the Windows machine; use for recovery commits, workflow status, deployment triggers when Cloud Run is down.
 - `connectorGcloud` (`POST /gcloud`): run `gcloud` CLI; use for restarting Cloud Run, reading deployment logs, triggering redeployments.
 - `connectorShell` (`POST /shell`): run an allowlisted shell alias (`action: “list”` to discover, `action: “run”` to execute). Default aliases: `node_ver`, `git_status`, `list_processes`, `disk_usage`, `n8n_health`.
