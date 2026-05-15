@@ -887,23 +887,57 @@ export function buildAdminCliRoutes(deps) {
   });
 
   // ── GET /admin/cli/local-connector/install-bundle ─────────────────────────
-  // Generates a pre-filled Windows .bat installer with the tunnel token embedded.
-  // Uploads the file to Google Drive and returns a shareable link so the admin
-  // GPT can hand the user a direct download without exposing the API key.
+  // Generates a pre-filled Windows .bat installer.
+  // Credential resolution order:
+  //   1. DB: local_connector_user_configs for the given user_id + device_id
+  //   2. Env fallback: CLOUDFLARE_TUNNEL_TOKEN (for backward compat / admin own device)
+  // ?user_id=X   → resolve config for this user (admin only; defaults to platform admin)
+  // ?device_id=Y → resolve config for this device (defaults to "mohammedlap")
   // ?format=bat  → returns the file directly as an attachment (for curl)
   router.get("/local-connector/install-bundle", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
     try {
-      const tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN || "";
-      const format      = String(req.query.format || "json").toLowerCase();
+      const format   = String(req.query.format || "json").toLowerCase();
+      const userId   = String(req.query.user_id   || "").trim() || "00000000-0000-4000-a000-000000000002";
+      const deviceId = String(req.query.device_id || "").trim() || "mohammedlap";
+
+      // 1. Look up device config from DB
+      let tunnelToken    = "";
+      let backendKey     = "";
+      let configSource   = "env";
+      let resolvedDevice = deviceId;
+      try {
+        const pool = getPool();
+        const [[row]] = await pool.query(
+          "SELECT cf_token, connector_secret, device_id FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+          [userId, deviceId]
+        );
+        if (row?.cf_token) {
+          tunnelToken    = row.cf_token;
+          backendKey     = row.connector_secret || "";
+          configSource   = "db";
+          resolvedDevice = row.device_id;
+        }
+      } catch (dbErr) {
+        console.warn("[install-bundle] DB lookup failed, trying env fallback:", dbErr.message);
+      }
+
+      // 2. Env fallback
+      if (!tunnelToken) {
+        tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN || "";
+        backendKey  = process.env.BACKEND_API_KEY || "";
+        configSource = "env";
+      }
 
       if (!tunnelToken) {
-        return res.status(500).json({
+        return res.status(404).json({
           ok: false,
-          error: { code: "tunnel_token_missing", message: "CLOUDFLARE_TUNNEL_TOKEN is not configured on the server." }
+          error: {
+            code: "config_not_found",
+            message: `No connector config found in DB for user_id=${userId} device_id=${deviceId}, and CLOUDFLARE_TUNNEL_TOKEN is not set. Run POST /local-connector/install first to provision the device.`,
+          }
         });
       }
 
-      const backendKey = process.env.BACKEND_API_KEY || "";
       const batContent = generateConnectorInstallerBat(tunnelToken, backendKey);
       const filename   = `install-connector-${new Date().toISOString().slice(0,10)}.bat`;
 
@@ -943,13 +977,15 @@ export function buildAdminCliRoutes(deps) {
         action: "admin_cli.local_connector_install_bundle",
         resource_type: "install_bundle",
         resource_id: filename,
-        payload: { drive_uploaded: !!driveResult },
+        payload: { drive_uploaded: !!driveResult, config_source: configSource, device_id: resolvedDevice, user_id: userId },
       });
 
       return res.status(200).json({
         ok: true,
         filename,
-        instructions: "Save the file as install-connector.bat and run as Administrator. cloudflared and the Node.js connector service (via NSSM) will be installed automatically if missing. Both services auto-restart on failure and reboot.",
+        config_source: configSource,
+        device_id: resolvedDevice,
+        instructions: "Save the file as install-connector.bat and run as Administrator from the repo root. cloudflared and the Node.js connector service (via NSSM) will be installed automatically if missing. Both services auto-restart on failure and reboot.",
         script_content: batContent,
         drive: driveResult,
       });
