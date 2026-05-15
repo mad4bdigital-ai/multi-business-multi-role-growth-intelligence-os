@@ -3,8 +3,7 @@ info:
   title: Mad4B Growth Intelligence - Tenant AI - MCP Actions
   version: 2.0.0-mcp
   summary: Tenant GPT schema. Five meta-operations; all platform tools discovered via listTools and called via callTool.
-  description: |
-    MCP-style tenant action schema. Workflow: 1) activateSession at conversation start to get session_id and platform context. 2) listTools to discover available operations for this tenant. 3) callTool to execute any operation by name. 4) writeSessionTurn after each exchange. 5) endSession when the conversation is complete. Created by Essam Nagy (nagy.essam.website).
+  description: 'MCP-style tenant action schema. Workflow: 1) activateSession at conversation start to get session_id and platform context. 2) listTools to discover available operations for this tenant. 3) callTool to execute any operation by name. 4) writeSessionTurn after each exchange. 5) endSession when the con.'
 servers:
   - url: https://auth.mad4b.com
     description: Mad4B platform — auth subdomain
@@ -12,7 +11,7 @@ components:
   securitySchemes:
     userBearerAuth:
       type: oauth2
-      description: Tenant GPT OAuth. ChatGPT signs in through the Growth Intelligence Platform popup, then /auth/oauth/token mints a fresh Mad4B tenant access JWT with issuer, audience, subject, scope, user_id, and tenant_id claims. Google Sign-In is only an upstream identity proof inside the popup; do not call OAuth token or Google ID-token endpoints as normal actions. The authorize URL may include safe activation hints such as screen_hint, activation_mode, device_id, workspace_name, and sign_in_options, but never secrets.
+      description: Tenant GPT OAuth. ChatGPT signs in through the Growth Intelligence Platform popup, then /auth/oauth/token mints a fresh Mad4B tenant access JWT with issuer, audience, subject, scope, user_id, and tenant_id claims. Google Sign-In is only an upstream identity proof inside the popup; do not call OAuth.
       flows:
         authorizationCode:
           authorizationUrl: https://auth.mad4b.com/auth/oauth/authorize
