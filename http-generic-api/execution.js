@@ -2591,6 +2591,13 @@ export async function fetchSchemaContract(drive, fileId) {
     throw err;
   }
 
+  if (!drive) {
+    const err = new Error("Google Drive client unavailable — schema contract cannot be fetched.");
+    err.code = "google_token_missing";
+    err.status = 503;
+    throw err;
+  }
+
   const meta = await drive.files.get({
     fileId,
     fields: "id,name,mimeType"

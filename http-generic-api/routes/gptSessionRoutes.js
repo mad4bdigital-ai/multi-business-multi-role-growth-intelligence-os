@@ -61,8 +61,8 @@ export function buildGptSessionRoutes(deps) {
       );
 
       await pool.query(
-        `INSERT INTO \`session_events\` (session_id, record_type, event_type, payload_json, event_timestamp)
-         VALUES (?, 'message', ?, ?, NOW())`,
+        `INSERT INTO \`session_events\` (event_id, session_id, record_type, event_type, payload_json, event_timestamp)
+         VALUES (UUID(), ?, 'message', ?, ?, NOW())`,
         [session.session_id, role, JSON.stringify({ role, content, action_key })]
       );
 

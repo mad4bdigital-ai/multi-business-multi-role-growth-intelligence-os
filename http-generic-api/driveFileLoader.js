@@ -171,6 +171,13 @@ export async function fetchSchemaContract(drive, fileId) {
     return fetchSqlBackedActionSchema(normalizedFileId.slice("action_schema:".length));
   }
 
+  if (!drive) {
+    const err = new Error("Google Drive client unavailable — schema contract cannot be fetched.");
+    err.code = "google_token_missing";
+    err.status = 503;
+    throw err;
+  }
+
   const meta = await drive.files.get(
     buildSharedDriveRequest(normalizedFileId, { fields: "id,name,mimeType,driveId,parents" })
   );
