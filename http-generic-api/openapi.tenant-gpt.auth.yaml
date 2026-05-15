@@ -195,7 +195,7 @@ paths:
                 name:
                   type: string
                   description: Tool name from listTools (e.g. connector_shell, connect_status).
-                arguments:
+                tool_args:
                   type: object
                   additionalProperties: true
                   description: Arguments matching the tool inputSchema.

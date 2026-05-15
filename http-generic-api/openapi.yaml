@@ -3697,6 +3697,77 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /gpt/tools:
+    get:
+      tags: [admin-control]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: listAdminTools
+      summary: List all admin platform tools from the DB registry
+      description: "Returns the full catalog of admin platform operations from admin_platform_endpoint_tools. Each tool has a name (pass to callAdminTool), description, and inputSchema. Call this to discover available operations before using callAdminTool."
+      responses:
+        "200":
+          description: Admin tool catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, tools]
+                properties:
+                  ok: { type: boolean }
+                  caller_type: { type: string }
+                  count: { type: integer }
+                  tools:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties:
+                        name: { type: string }
+                        displayName: { type: string }
+                        description: { type: string }
+                        method: { type: string }
+                        path: { type: string }
+                        inputSchema: { type: object, additionalProperties: true }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { description: Tool list failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /gpt/tools/call:
+    post:
+      tags: [admin-control]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: callAdminTool
+      summary: Execute any admin platform tool by name
+      description: "Executes a tool from admin_platform_endpoint_tools. Use listAdminTools to get tool names and inputSchema. Pass tool arguments in tool_args. Path params are substituted automatically. Returns the raw upstream response."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  description: Tool key from listAdminTools, e.g. admin_control, admin_cloudflare, local_connector_self_repair.
+                tool_args:
+                  type: object
+                  additionalProperties: true
+                  description: Arguments matching the tool inputSchema. For admin_control pass tool, sql, args etc. here.
+      responses:
+        "200":
+          description: Upstream tool response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Tool not found, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "500": { description: Tool call failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
   /admin/control:
     post:
       tags: [admin-control]
