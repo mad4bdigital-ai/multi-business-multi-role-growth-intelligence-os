@@ -2484,7 +2484,6 @@ async function fetchFromGoogleSheets(options = {}) {
     registryReadPolicyOverride = READ_POLICIES.FORCED_REFRESH;
   }
   try {
-    const { drive } = await getGoogleClients();
     const sheetsClient = null;
     const [
       brandRows,
@@ -2511,7 +2510,7 @@ async function fetchFromGoogleSheets(options = {}) {
     ]);
 
     return {
-      drive,
+      drive: null,
       brandRows,
       hostingAccounts,
       actionRows,
@@ -2993,6 +2992,7 @@ const executionFacade = createExecutionFacade({
   // registry
   getRegistry,
   reloadRegistry,
+  getGoogleClients,
   getGoogleClientsForSpreadsheet,
   fetchChunkedTable,
   headerMap,

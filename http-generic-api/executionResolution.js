@@ -20,6 +20,7 @@ export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
     validateTopLevelRoutingFields,
     getRegistry,
     reloadRegistry,
+    getGoogleClients,
     getRequiredHttpExecutionPolicyKeys,
     requirePolicySet,
     policyValue,
@@ -147,7 +148,12 @@ export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
     debugLog("REGISTRY_FORCE_REFRESH:", true);
   }
   const registry = forceRefresh ? await reloadRegistry() : await getRegistry();
-  const { drive, brandRows, hostingAccounts, actionRows, endpointRows, policies } = registry;
+  const { brandRows, hostingAccounts, actionRows, endpointRows, policies } = registry;
+  let drive = null;
+  try {
+    const clients = await getGoogleClients();
+    drive = clients.drive;
+  } catch (_) {}
 
   const requiredHttpExecutionPolicyKeys =
     getRequiredHttpExecutionPolicyKeys(policies);
