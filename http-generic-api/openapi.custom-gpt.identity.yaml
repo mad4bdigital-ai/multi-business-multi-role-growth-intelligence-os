@@ -5,7 +5,7 @@ info:
   summary: Custom GPT action schema for identity, access.
   description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: identity, access.'
 servers:
-  - url: https://identity.mad4b.com
+  - url: https://auth.mad4b.com
     description: Identity And Access Actions custom domain
 tags:
   - name: identity

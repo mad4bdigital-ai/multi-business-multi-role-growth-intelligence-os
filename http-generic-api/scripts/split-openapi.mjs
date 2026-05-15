@@ -13,58 +13,62 @@ const CUSTOM_GPT_SECURITY_SCHEME = "backendBearerAuth";
 const CUSTOM_GPT_DESCRIPTION_LIMIT = 300;
 const CUSTOM_GPT_REQUIRED_SECURITY = [{ [CUSTOM_GPT_SECURITY_SCHEME]: [] }];
 
+// All scopes share auth.mad4b.com — the only live API server.
+// Subdomains like api/admin/identity/etc. are not provisioned; update hosts here when they are.
+const LIVE_HOST = "auth.mad4b.com";
+
 const SERVER_SCOPES = [
   {
     slug: "runtime",
-    host: "api.mad4b.com",
+    host: LIVE_HOST,
     title: "Runtime Governed Actions",
     tags: ["health", "activation", "governance", "jobs", "execution", "ai", "tenants"]
   },
   {
     slug: "identity",
-    host: "identity.mad4b.com",
+    host: LIVE_HOST,
     title: "Identity And Access Actions",
     tags: ["identity", "access"]
   },
   {
     slug: "customers",
-    host: "customers.mad4b.com",
+    host: LIVE_HOST,
     title: "Customer Operations Actions",
     tags: ["customers"]
   },
   {
     slug: "systems",
-    host: "systems.mad4b.com",
+    host: LIVE_HOST,
     title: "Connected Systems Actions",
     tags: ["connected-systems", "planner", "bootstrap"]
   },
   {
     slug: "logic",
-    host: "logic.mad4b.com",
+    host: LIVE_HOST,
     title: "Logic And Workflow Actions",
     tags: ["logic", "workflows"]
   },
   {
     slug: "observability",
-    host: "observability.mad4b.com",
+    host: LIVE_HOST,
     title: "Observability And Security Actions",
     tags: ["observability", "security"]
   },
   {
     slug: "developer",
-    host: "developer.mad4b.com",
+    host: LIVE_HOST,
     title: "Developer Actions",
     tags: ["developer-api"]
   },
   {
     slug: "admin-cli",
-    host: "admin.mad4b.com",
+    host: LIVE_HOST,
     title: "Admin Control Actions",
     tags: ["admin-control", "system-layer"]
   },
   {
     slug: "ops",
-    host: "ops.mad4b.com",
+    host: LIVE_HOST,
     title: "Platform Operations Actions",
     tags: ["release"]
   }
@@ -529,10 +533,6 @@ function main() {
     const scope = chunk.scope;
     const serverUrl = `https://${scope.host}`;
 
-    if (serverUrls.has(serverUrl)) {
-      console.error(`Duplicate server URL configured for scoped Custom GPT schemas: ${serverUrl}`);
-      process.exit(1);
-    }
     serverUrls.add(serverUrl);
 
     const scopedDoc = buildScopeDoc(doc, chunk, scope);

@@ -5,7 +5,7 @@ info:
   summary: Custom GPT action schema for customers.
   description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: customers.'
 servers:
-  - url: https://customers.mad4b.com
+  - url: https://auth.mad4b.com
     description: Customer Operations Actions custom domain
 tags:
   - name: customers

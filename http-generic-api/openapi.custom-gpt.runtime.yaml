@@ -5,7 +5,7 @@ info:
   summary: Custom GPT action schema for health, activation, governance, jobs, execution, ai, tenants.
   description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: health, activation, governance, jobs, execution, ai, tenants.'
 servers:
-  - url: https://api.mad4b.com
+  - url: https://auth.mad4b.com
     description: Runtime Governed Actions custom domain
 tags:
   - name: health

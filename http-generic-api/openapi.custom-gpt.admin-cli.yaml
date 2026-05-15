@@ -5,7 +5,7 @@ info:
   summary: Custom GPT action schema for admin-control, system-layer.
   description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: admin-control, system-layer.'
 servers:
-  - url: https://admin.mad4b.com
+  - url: https://auth.mad4b.com
     description: Admin Control Actions custom domain
 tags:
   - name: admin-control

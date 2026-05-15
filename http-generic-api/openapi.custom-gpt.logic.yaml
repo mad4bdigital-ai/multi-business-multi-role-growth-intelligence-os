@@ -5,7 +5,7 @@ info:
   summary: Custom GPT action schema for logic, workflows.
   description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: logic, workflows.'
 servers:
-  - url: https://logic.mad4b.com
+  - url: https://auth.mad4b.com
     description: Logic And Workflow Actions custom domain
 tags:
   - name: logic

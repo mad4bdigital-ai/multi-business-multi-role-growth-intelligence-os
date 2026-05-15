@@ -5,7 +5,7 @@ info:
   summary: Custom GPT action schema for observability, security.
   description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: observability, security.'
 servers:
-  - url: https://observability.mad4b.com
+  - url: https://auth.mad4b.com
     description: Observability And Security Actions custom domain
 tags:
   - name: observability

@@ -5,7 +5,7 @@ info:
   summary: Custom GPT action schema for connected-systems, planner, bootstrap.
   description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: connected-systems, planner, bootstrap.'
 servers:
-  - url: https://systems.mad4b.com
+  - url: https://auth.mad4b.com
     description: Connected Systems Actions custom domain
 tags:
   - name: connected-systems

@@ -5,7 +5,7 @@ info:
   summary: Custom GPT action schema for developer-api.
   description: 'Custom GPT action schema generated from openapi.yaml. Scope tags: developer-api.'
 servers:
-  - url: https://developer.mad4b.com
+  - url: https://auth.mad4b.com
     description: Developer Actions custom domain
 tags:
   - name: developer-api
