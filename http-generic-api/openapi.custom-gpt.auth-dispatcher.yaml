@@ -144,7 +144,7 @@ paths:
       tags: [tools]
       operationId: callTool
       summary: Execute any platform tool by name
-      description: "Executes a tool from the registry. Use listTools first to get tool names and required arguments. Path params are substituted automatically; GET uses query string, POST/PUT/PATCH uses request body. Returns the raw upstream response."
+      description: "Executes a tool from the registry. Use listTools first to get tool names and inputSchema. Pass tool name as 'name' and any arguments as 'tool_args' (object). Path params substituted automatically; GET uses query string, POST/PUT/PATCH uses body. Returns raw upstream response."
       requestBody:
         required: true
         content:
@@ -156,10 +156,10 @@ paths:
                 name:
                   type: string
                   description: Tool name from listTools (e.g. admin_control, connector_shell).
-                arguments:
+                tool_args:
                   type: object
                   additionalProperties: true
-                  description: Arguments matching the tool inputSchema. Path params are substituted automatically.
+                  description: Arguments matching the tool inputSchema. Path params are substituted automatically. Use tool_args (not arguments) to avoid OpenAI reserved-keyword conflict.
       responses:
         '200':
           description: Upstream tool response (status and body forwarded from the underlying endpoint)

@@ -127,7 +127,10 @@ export function buildGptToolsRoutes(deps) {
   // POST /gpt/tools/call
   router.post("/gpt/tools/call", requireBackendApiKey, async (req, res) => {
     try {
-      const { name, arguments: args = {} } = req.body || {};
+      const body = req.body || {};
+      // Accept both "tool_args" (preferred — avoids OpenAI reserved-keyword conflict) and legacy "arguments"
+      const args = body.tool_args ?? body.arguments ?? {};
+      const { name } = body;
       if (!name) {
         return res.status(400).json({ ok: false, error: { code: "missing_name", message: "name is required." } });
       }

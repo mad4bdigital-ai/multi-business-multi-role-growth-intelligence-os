@@ -176,7 +176,7 @@ The auth-dispatcher is now a 5-op MCP-style schema (v4.0.0-mcp). All platform ca
 |---|---|---|
 | `activateSession` | `GET /activation/session-context` | Open session (auto-closes prior open session), return `session_id` + `platform_access` + `gpt_sessions`. Call once per conversation. |
 | `listTools` | `GET /gpt/tools` | Discover all available platform tools from the DB registry. Returns tool names, descriptions, methods, paths, and inputSchemas. |
-| `callTool` | `POST /gpt/tools/call` | Execute any registered tool by name. Pass `name` (from `listTools`) and `arguments`. Path params substituted automatically. Returns raw upstream response. |
+| `callTool` | `POST /gpt/tools/call` | Execute any registered tool by name. Pass `name` (from `listTools`) and `tool_args` (not `arguments` — reserved by OpenAI). Path params substituted automatically. Returns raw upstream response. |
 | `writeSessionTurn` | `POST /gpt/sessions/{id}/turn` | Persist a conversation turn (user, assistant, or tool). Requires `session_id` from `activateSession`. Call after every exchange. |
 | `endSession` | `POST /gpt/sessions/{id}/end` | Close session, optionally save summary, export full conversation JSON to Drive. Returns Drive link. |
 
@@ -187,7 +187,7 @@ All platform capabilities beyond the five meta-ops are reached through `listTool
 **Workflow:**
 1. Call `listTools` to get the current tool catalog (name, description, inputSchema).
 2. Pick the tool name that matches the task.
-3. Call `callTool` with `{ name, arguments }`.
+3. Call `callTool` with `{ name, tool_args }`. Do not use `arguments` — that field name is reserved by OpenAI and causes `UnrecognizedKwargsError`.
 
 Admin-only activation tools accessible via `callTool`:
 - `activation_provider_bootstrap_validate` — full hard activation provider chain: Drive probe, Sheets bootstrap row read, and GitHub validation.
@@ -198,7 +198,7 @@ Admin-only activation tools accessible via `callTool`:
 
 Activation bootstrap recovery when Cloud Run cannot run `gcloud`:
 1. Do not retry `gcloud run services update` from Cloud Run when the error is `spawn gcloud ENOENT`.
-2. Call `callTool` with `name: "activation_bootstrap_config_upsert"` and `arguments: { "github_parent_action_key": "github_api_mcp", "github_endpoint_key": "github_get_repository", "github_owner": "mad4bdigital-ai", "github_repo": "multi-business-multi-role-growth-intelligence-os", "github_branch": "main" }`.
+2. Call `callTool` with `name: "activation_bootstrap_config_upsert"` and `tool_args: { "github_parent_action_key": "github_api_mcp", "github_endpoint_key": "github_get_repository", "github_owner": "mad4bdigital-ai", "github_repo": "multi-business-multi-role-growth-intelligence-os", "github_branch": "main" }`.
 3. Then call `callTool` with `name: "activation_provider_bootstrap_validate"`.
 4. Use the local connector `/gcloud` path only if a deployment or revision-level change is still required after DB runtime config validates.
 
