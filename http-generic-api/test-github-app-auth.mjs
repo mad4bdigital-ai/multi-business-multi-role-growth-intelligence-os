@@ -11,6 +11,7 @@ import {
   createGitHubAppJwt,
   decodeGitHubAppPrivateKey,
   getGitHubAppInstallationToken,
+  resolveGitHubAppConfig,
 } from "./githubAppAuth.js";
 import { buildResolvedAuthHeaders, inferAuthMode } from "./authInjection.js";
 
@@ -97,6 +98,26 @@ const cached = await getGitHubAppInstallationToken({
 
 assert.equal(cached, "installation-token", "installation token is cached");
 assert.equal(calls, 1, "installation token fetch runs once before cache reuse");
+
+const savedGitHubAppId = process.env.GITHUB_APP_ID;
+const savedGitHubAppInstallationId = process.env.GITHUB_APP_INSTALLATION_ID;
+const savedGitHubAppPrivateKeyB64 = process.env.GITHUB_APP_PRIVATE_KEY_B64;
+delete process.env.GITHUB_APP_ID;
+delete process.env.GITHUB_APP_INSTALLATION_ID;
+delete process.env.GITHUB_APP_PRIVATE_KEY_B64;
+
+assert.deepEqual(
+  resolveGitHubAppConfig({}),
+  { appId: "", installationId: "", privateKey: "" },
+  "github app config has no hardcoded fallback ids"
+);
+
+if (savedGitHubAppId === undefined) delete process.env.GITHUB_APP_ID;
+else process.env.GITHUB_APP_ID = savedGitHubAppId;
+if (savedGitHubAppInstallationId === undefined) delete process.env.GITHUB_APP_INSTALLATION_ID;
+else process.env.GITHUB_APP_INSTALLATION_ID = savedGitHubAppInstallationId;
+if (savedGitHubAppPrivateKeyB64 === undefined) delete process.env.GITHUB_APP_PRIVATE_KEY_B64;
+else process.env.GITHUB_APP_PRIVATE_KEY_B64 = savedGitHubAppPrivateKeyB64;
 
 assert.equal(
   inferAuthMode({ action: { api_key_mode: "github_app" }, brand: {} }),

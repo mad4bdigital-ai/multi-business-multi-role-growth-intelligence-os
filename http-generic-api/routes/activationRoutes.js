@@ -521,6 +521,13 @@ export function buildActivationRoutes(deps) {
   const router = Router();
 
   router.get("/activation/env-bootstrap", requireBackendApiKey, async (_req, res) => {
+    const githubAppConfigured = Boolean(
+      process.env.GITHUB_APP_INSTALLATION_ID &&
+      process.env.GITHUB_APP_ID &&
+      process.env.GITHUB_APP_PRIVATE_KEY_B64
+    );
+    const githubPatConfigured = Boolean(process.env.GITHUB_TOKEN);
+
     return res.status(200).json({
       ok: true,
       activation_layer: "env_bootstrap",
@@ -544,7 +551,13 @@ export function buildActivationRoutes(deps) {
         google_application_credentials_configured: Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS),
         google_sa_json_configured: Boolean(process.env.GOOGLE_SA_JSON),
         google_refresh_token_configured: Boolean(process.env.GOOGLE_REFRESH_TOKEN),
-        github_token_configured: Boolean(process.env.GITHUB_TOKEN),
+        github_auth_configured: githubAppConfigured || githubPatConfigured,
+        github_auth_mode: githubAppConfigured ? "github_app" : (githubPatConfigured ? "pat" : "unconfigured"),
+        github_app_configured: githubAppConfigured,
+        github_app_installation_id_configured: Boolean(process.env.GITHUB_APP_INSTALLATION_ID),
+        github_app_id_configured: Boolean(process.env.GITHUB_APP_ID),
+        github_app_private_key_b64_configured: Boolean(process.env.GITHUB_APP_PRIVATE_KEY_B64),
+        github_token_configured: githubPatConfigured,
         cloudflare_account_id_configured: Boolean(process.env.CLOUDFLARE_ACCOUNT_ID),
         cloudflare_api_token_configured: Boolean(process.env.CLOUDFLARE_API_TOKEN),
         hostinger_cloud_plan_key_configured: Boolean(process.env.HOSTINGER_CLOUD_PLAN_01_API_KEY),

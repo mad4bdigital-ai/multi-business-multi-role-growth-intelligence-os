@@ -192,7 +192,7 @@ Admin-only activation tools exposed through `/system/tools/call`:
 - `activation_provider_bootstrap_validate` - runs the hard activation provider chain: Drive probe, Sheets bootstrap row read, and GitHub validation.
 - `activation_drive_probe` - checks Google Drive transport for targeted recovery.
 - `activation_sheets_bootstrap_read` - reads the configured Activation Bootstrap Config row for targeted recovery.
-- `activation_github_validate` - validates GitHub using the bootstrap-resolved repository binding, with optional `github_owner`, `github_repo`, and `github_branch` arguments.
+- `activation_github_validate` - validates GitHub using the bootstrap-resolved repository binding, with optional `github_owner`, `github_repo`, and `github_branch` arguments. The `github_api_mcp` action should use `api_key_mode=github_app` with `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_ID`, and `GITHUB_APP_PRIVATE_KEY_B64`; PAT-based `GITHUB_TOKEN` is not the activation authority.
 - `activation_bootstrap_config_upsert` - writes the GitHub activation binding into DB runtime config so activation can recover without a Cloud Run env update.
 
 Activation bootstrap recovery when Cloud Run cannot run `gcloud`:

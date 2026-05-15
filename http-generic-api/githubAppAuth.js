@@ -157,12 +157,10 @@ export function resolveGitHubAppConfig(action = {}) {
   return {
     appId:
       String(action.github_app_id || "").trim() ||
-      String(process.env.GITHUB_APP_ID || "").trim() ||
-      "3654304",
+      String(process.env.GITHUB_APP_ID || "").trim(),
     installationId:
       String(action.github_app_installation_id || "").trim() ||
-      String(process.env.GITHUB_APP_INSTALLATION_ID || "").trim() ||
-      "130821054",
+      String(process.env.GITHUB_APP_INSTALLATION_ID || "").trim(),
     privateKey:
       envSecretFromReference(action.secret_store_ref) ||
       String(process.env.GITHUB_APP_PRIVATE_KEY_B64 || "").trim() ||
