@@ -921,11 +921,23 @@ export function buildAdminCliRoutes(deps) {
         console.warn("[install-bundle] DB lookup failed, trying env fallback:", dbErr.message);
       }
 
-      // 2. Env fallback
+      // 2. Env fallback — also persist to DB so subsequent calls use DB
       if (!tunnelToken) {
         tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN || "";
         backendKey  = process.env.BACKEND_API_KEY || "";
         configSource = "env";
+        if (tunnelToken) {
+          try {
+            const pool = getPool();
+            await pool.query(
+              `UPDATE \`local_connector_user_configs\`
+               SET cf_token = COALESCE(NULLIF(cf_token,''), ?),
+                   connector_secret = COALESCE(NULLIF(connector_secret,''), ?)
+               WHERE user_id = ? AND device_id = ?`,
+              [tunnelToken, backendKey || null, userId, deviceId]
+            );
+          } catch {}
+        }
       }
 
       if (!tunnelToken) {
@@ -993,6 +1005,147 @@ export function buildAdminCliRoutes(deps) {
       return res.status(err.status || 500).json({
         ok: false,
         error: { code: "install_bundle_failed", message: err.message },
+      });
+    }
+  });
+
+  // ── POST /admin/cli/local-connector/self-repair ───────────────────────────
+  // Single-shot self-repair for the admin's local connector.
+  // 1. Reads device config from DB (user_id + device_id, defaults to admin / mohammedlap).
+  // 2. Checks CF tunnel health via Cloudflare API.
+  // 3. Generates and uploads install bundle.
+  // 4. Returns diagnosis + Drive download link so GPT can hand it directly to user.
+  // GPT should call this whenever connector.mad4b.com returns 1033.
+  router.post("/local-connector/self-repair", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
+    try {
+      const userId   = String(req.body?.user_id   || "").trim() || "00000000-0000-4000-a000-000000000002";
+      const deviceId = String(req.body?.device_id || "").trim() || "mohammedlap";
+
+      // 1. Load config from DB
+      let tunnelToken  = "";
+      let backendKey   = "";
+      let cfTunnelId   = null;
+      let tunnelUrl    = null;
+      let configSource = "env";
+      try {
+        const pool = getPool();
+        const [[row]] = await pool.query(
+          "SELECT cf_token, connector_secret, cf_tunnel_id, tunnel_url FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+          [userId, deviceId]
+        );
+        if (row) {
+          tunnelToken  = row.cf_token || "";
+          backendKey   = row.connector_secret || "";
+          cfTunnelId   = row.cf_tunnel_id || null;
+          tunnelUrl    = row.tunnel_url || null;
+          configSource = tunnelToken ? "db" : "env_fallback";
+        }
+      } catch (dbErr) {
+        console.warn("[self-repair] DB lookup failed:", dbErr.message);
+      }
+      if (!tunnelToken) {
+        tunnelToken  = process.env.CLOUDFLARE_TUNNEL_TOKEN || "";
+        backendKey   = process.env.BACKEND_API_KEY || "";
+        configSource = "env";
+        // Persist to DB so future calls resolve from DB
+        if (tunnelToken) {
+          try {
+            const pool = getPool();
+            await pool.query(
+              `UPDATE \`local_connector_user_configs\`
+               SET cf_token = COALESCE(NULLIF(cf_token,''), ?),
+                   connector_secret = COALESCE(NULLIF(connector_secret,''), ?)
+               WHERE user_id = ? AND device_id = ?`,
+              [tunnelToken, backendKey || null, userId, deviceId]
+            );
+          } catch {}
+        }
+      }
+
+      // 2. Check CF tunnel status via API (best-effort, non-blocking)
+      let tunnelStatus = null;
+      const cfApiToken  = process.env.CLOUDFLARE_API_TOKEN || "";
+      const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID || "";
+      if (cfApiToken && cfAccountId && cfTunnelId) {
+        try {
+          const cfRes = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/cfd_tunnel/${cfTunnelId}`,
+            { headers: { Authorization: `Bearer ${cfApiToken}` }, signal: AbortSignal.timeout(8000) }
+          );
+          const cfJson = await cfRes.json();
+          tunnelStatus = cfJson?.result?.status || null;
+        } catch (cfErr) {
+          console.warn("[self-repair] CF tunnel status check failed:", cfErr.message);
+        }
+      }
+
+      // 3. Generate install bundle
+      if (!tunnelToken) {
+        return res.status(404).json({
+          ok: false,
+          diagnosis: { error: "no_tunnel_token", tunnel_status: tunnelStatus },
+          error: {
+            code: "config_not_found",
+            message: `No cf_token in DB for user=${userId} device=${deviceId} and CLOUDFLARE_TUNNEL_TOKEN env not set. Run POST /local-connector/install to provision the device first.`,
+          }
+        });
+      }
+
+      const batContent = generateConnectorInstallerBat(tunnelToken, backendKey);
+      const filename   = `repair-connector-${deviceId}-${new Date().toISOString().slice(0,10)}.bat`;
+      let driveResult  = null;
+      if (typeof deps.getGoogleClients === "function") {
+        try {
+          const { drive } = await deps.getGoogleClients();
+          const created = await drive.files.create({
+            requestBody: { name: filename, mimeType: "application/octet-stream" },
+            media: { mimeType: "application/octet-stream", body: batContent },
+            fields: "id,webViewLink",
+          });
+          if (created?.data?.id) {
+            await drive.permissions.create({
+              fileId: created.data.id,
+              requestBody: { role: "reader", type: "anyone" },
+            });
+            driveResult = {
+              drive_file_id: created.data.id,
+              drive_link: `https://drive.google.com/uc?export=download&id=${created.data.id}`,
+              view_link: created.data.webViewLink,
+            };
+          }
+        } catch (driveErr) {
+          console.warn("[self-repair] Drive upload failed:", driveErr.message);
+        }
+      }
+
+      writeAuditLogAsync({
+        action: "admin_cli.local_connector_self_repair",
+        resource_type: "install_bundle",
+        resource_id: filename,
+        payload: { user_id: userId, device_id: deviceId, tunnel_status: tunnelStatus, config_source: configSource },
+      });
+
+      return res.status(200).json({
+        ok: true,
+        diagnosis: {
+          device_id: deviceId,
+          tunnel_url: tunnelUrl || "https://connector.mad4b.com",
+          cf_tunnel_id: cfTunnelId,
+          cf_tunnel_status: tunnelStatus,
+          config_source: configSource,
+          likely_cause: "cloudflared or node connector service not running on the local device",
+        },
+        repair: {
+          action: "Run the installer as Administrator on the Windows device. It installs cloudflared and the Node.js connector as auto-restart Windows services (via NSSM).",
+          filename,
+          drive: driveResult,
+          script_content: batContent,
+        },
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: { code: "self_repair_failed", message: err.message },
       });
     }
   });
