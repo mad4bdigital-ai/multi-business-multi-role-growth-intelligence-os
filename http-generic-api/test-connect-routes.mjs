@@ -10,7 +10,7 @@
 import express from "express";
 import { readFileSync } from "node:fs";
 import yaml from "js-yaml";
-import { buildConnectRoutes } from "./routes/connectRoutes.js";
+import { buildConnectRoutes, _testingSanitizeMetadataPayload, _testingAllowlists } from "./routes/connectRoutes.js";
 import { buildOnboardingRoutes } from "./routes/onboardingRoutes.js";
 
 const TENANT_SCOPE_LINKS = [
@@ -262,6 +262,78 @@ try {
         Array.isArray(s?.required) && s.required.includes("url") && s.required.includes("upload_type"));
     }
   }
+
+// ── sanitizeMetadataPayload guarantees for /connect/preferences and /connect/profile ─────
+{
+  const { PREFERENCES_FIELD_ALLOWLIST, BUSINESS_PROFILE_FIELD_ALLOWLIST, PROFILE_MAX_BYTES } = _testingAllowlists;
+
+  // 1) tenant_id and user_id from body are always dropped (auth-derived only)
+  {
+    const { sanitized, dropped } = _testingSanitizeMetadataPayload({
+      tenant_id: "spoofed",
+      user_id: "spoofed-user",
+      tz: "UTC",
+    }, PREFERENCES_FIELD_ALLOWLIST);
+    assert("sanitizer drops body tenant_id", !("tenant_id" in sanitized) && dropped.includes("tenant_id"));
+    assert("sanitizer drops body user_id", !("user_id" in sanitized) && dropped.includes("user_id"));
+    assert("sanitizer keeps allowlisted tz", sanitized.tz === "UTC");
+  }
+
+  // 2) Sensitive-named keys are stripped even if the frontend regresses
+  {
+    const { sanitized, dropped } = _testingSanitizeMetadataPayload({
+      bizType: "Service",
+      industry: "Hospitality",
+      cmsKey: "wp_app_password_value",
+      api_key: "secret_value",
+      password: "secret_value",
+      access_token: "secret_value",
+      client_secret: "secret_value",
+      encrypted_credentials: "should_not_pass",
+    }, BUSINESS_PROFILE_FIELD_ALLOWLIST);
+    for (const key of ["cmsKey", "api_key", "password", "access_token", "client_secret", "encrypted_credentials"]) {
+      assert(`sanitizer strips ${key}`, !(key in sanitized) && dropped.includes(key));
+    }
+    assert("sanitizer keeps bizType", sanitized.bizType === "Service");
+    assert("sanitizer keeps industry", sanitized.industry === "Hospitality");
+  }
+
+  // 3) Allowlist drops unrecognized fields silently
+  {
+    const { sanitized, dropped } = _testingSanitizeMetadataPayload({
+      tz: "UTC",
+      unknown_field: "drop_me",
+      another_unknown: { nested: true },
+    }, PREFERENCES_FIELD_ALLOWLIST);
+    assert("sanitizer drops unknown_field", !("unknown_field" in sanitized) && dropped.includes("unknown_field"));
+    assert("sanitizer drops another_unknown", !("another_unknown" in sanitized) && dropped.includes("another_unknown"));
+    assert("sanitizer keeps allowlisted tz", sanitized.tz === "UTC");
+  }
+
+  // 4) PROFILE_MAX_BYTES is bounded
+  assert("PROFILE_MAX_BYTES is positive and bounded", PROFILE_MAX_BYTES > 0 && PROFILE_MAX_BYTES <= 1_000_000);
+
+  // 5) Non-object body becomes empty sanitized payload, not a crash
+  {
+    const { sanitized: a } = _testingSanitizeMetadataPayload(null, PREFERENCES_FIELD_ALLOWLIST);
+    const { sanitized: b } = _testingSanitizeMetadataPayload("string body", PREFERENCES_FIELD_ALLOWLIST);
+    const { sanitized: c } = _testingSanitizeMetadataPayload([1, 2, 3], PREFERENCES_FIELD_ALLOWLIST);
+    assert("sanitizer handles null body", Object.keys(a).length === 0);
+    assert("sanitizer handles string body", Object.keys(b).length === 0);
+    assert("sanitizer handles array body", Object.keys(c).length === 0);
+  }
+
+  // 6) Case-insensitive secret match: CMSKEY and ClientSecret are also blocked
+  {
+    const { sanitized, dropped } = _testingSanitizeMetadataPayload({
+      bizType: "Service",
+      CMSKEY: "value",
+      ClientSecret: "value",
+    }, BUSINESS_PROFILE_FIELD_ALLOWLIST);
+    assert("sanitizer strips CMSKEY (case-insensitive)", !("CMSKEY" in sanitized) && dropped.includes("CMSKEY"));
+    assert("sanitizer strips ClientSecret (case-insensitive)", !("ClientSecret" in sanitized) && dropped.includes("ClientSecret"));
+  }
+}
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);

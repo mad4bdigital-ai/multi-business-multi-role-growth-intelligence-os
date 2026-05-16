@@ -14,6 +14,64 @@ const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 const VALID_N8N_ACTIVATION_MODES = new Set(["managed_main_server", "self_hosted_local"]);
 
+// Fields accepted by POST /connect/preferences. Anything outside this list is
+// dropped server-side, so a frontend regression cannot start saving arbitrary
+// blobs to tenants.metadata_json.onboarding_preferences. Add new keys here.
+const PREFERENCES_FIELD_ALLOWLIST = new Set([
+  "tz", "language", "currency", "comms", "tone", "hours", "goals", "notify",
+  "niches", "networks", "perks", "seats", "services",
+]);
+
+// Fields accepted by POST /connect/profile. Same drop-rule as preferences.
+// cmsKey, application_password, api_key, secret, token, credential -- and any
+// key containing those substrings -- are also stripped by the secret blocklist.
+const BUSINESS_PROFILE_FIELD_ALLOWLIST = new Set([
+  "bizType", "industry", "brandVoice", "tagline", "story", "audience",
+  "locations", "products", "socials", "cms", "cmsUrl", "analytics",
+]);
+
+const SECRET_KEY_SUBSTRINGS = [
+  "password", "passwd", "secret", "token", "credential", "private_key",
+  "api_key", "apikey", "auth_key", "authkey", "cmskey", "appkey", "app_key",
+  "client_secret", "access_token", "refresh_token", "encrypted",
+];
+
+const PROFILE_MAX_BYTES = 65536; // 64 KiB upper bound for metadata_json payloads
+
+function isSensitiveKey(key) {
+  const lower = String(key || "").toLowerCase();
+  return SECRET_KEY_SUBSTRINGS.some((s) => lower.includes(s));
+}
+
+// Drop tenant_id (auth-derived only) plus any key matching the sensitive
+// pattern, then restrict to the allowlist if one is supplied. Returns the
+// sanitized object and a list of dropped/forbidden keys so the route can
+// echo a clear notice without exposing the raw values.
+function sanitizeMetadataPayload(rawBody, allowlist = null) {
+  const source = (rawBody && typeof rawBody === "object" && !Array.isArray(rawBody)) ? rawBody : {};
+  const sanitized = {};
+  const dropped = [];
+
+  for (const [key, value] of Object.entries(source)) {
+    if (key === "tenant_id" || key === "user_id") { dropped.push(key); continue; }
+    if (isSensitiveKey(key)) { dropped.push(key); continue; }
+    if (allowlist && !allowlist.has(key)) { dropped.push(key); continue; }
+    sanitized[key] = value;
+  }
+
+  return { sanitized, dropped };
+}
+
+export function _testingSanitizeMetadataPayload(rawBody, allowlist) {
+  return sanitizeMetadataPayload(rawBody, allowlist);
+}
+export const _testingAllowlists = {
+  PREFERENCES_FIELD_ALLOWLIST,
+  BUSINESS_PROFILE_FIELD_ALLOWLIST,
+  SECRET_KEY_SUBSTRINGS,
+  PROFILE_MAX_BYTES,
+};
+
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 
 function verifyUserJwt(authHeader) {
@@ -354,12 +412,18 @@ export function buildConnectRoutes(deps) {
       const membership = await fetchActiveMembership(user_id);
       const resolvedTenantId = tenant_id || membership?.tenant_id;
       if (!resolvedTenantId) return res.status(403).json({ ok: false, error: { code: "no_tenant", message: "No active tenant." } });
-      const prefs = req.body || {};
+
+      const { sanitized, dropped } = sanitizeMetadataPayload(req.body, PREFERENCES_FIELD_ALLOWLIST);
+      const serialized = JSON.stringify(sanitized);
+      if (Buffer.byteLength(serialized, "utf8") > PROFILE_MAX_BYTES) {
+        return res.status(413).json({ ok: false, error: { code: "preferences_too_large", message: `Preferences payload exceeds ${PROFILE_MAX_BYTES} bytes.` } });
+      }
+
       await getPool().query(
         `UPDATE \`tenants\` SET metadata_json = JSON_SET(COALESCE(metadata_json, '{}'), '$.onboarding_preferences', CAST(? AS JSON)), updated_at = NOW() WHERE tenant_id = ?`,
-        [JSON.stringify(prefs), resolvedTenantId]
+        [serialized, resolvedTenantId]
       );
-      return res.status(201).json({ ok: true, tenant_id: resolvedTenantId });
+      return res.status(201).json({ ok: true, tenant_id: resolvedTenantId, dropped_fields: dropped });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "preferences_failed", message: err.message } });
     }
@@ -372,12 +436,18 @@ export function buildConnectRoutes(deps) {
       const membership = await fetchActiveMembership(user_id);
       const resolvedTenantId = tenant_id || membership?.tenant_id;
       if (!resolvedTenantId) return res.status(403).json({ ok: false, error: { code: "no_tenant", message: "No active tenant." } });
-      const profile = req.body || {};
+
+      const { sanitized, dropped } = sanitizeMetadataPayload(req.body, BUSINESS_PROFILE_FIELD_ALLOWLIST);
+      const serialized = JSON.stringify(sanitized);
+      if (Buffer.byteLength(serialized, "utf8") > PROFILE_MAX_BYTES) {
+        return res.status(413).json({ ok: false, error: { code: "profile_too_large", message: `Business profile payload exceeds ${PROFILE_MAX_BYTES} bytes. CMS credentials must use the CMS claim flow (/connect/api/cms/claims), not the profile blob.` } });
+      }
+
       await getPool().query(
         `UPDATE \`tenants\` SET metadata_json = JSON_SET(COALESCE(metadata_json, '{}'), '$.business_profile', CAST(? AS JSON)), updated_at = NOW() WHERE tenant_id = ?`,
-        [JSON.stringify(profile), resolvedTenantId]
+        [serialized, resolvedTenantId]
       );
-      return res.status(201).json({ ok: true, tenant_id: resolvedTenantId });
+      return res.status(201).json({ ok: true, tenant_id: resolvedTenantId, dropped_fields: dropped });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "profile_failed", message: err.message } });
     }
