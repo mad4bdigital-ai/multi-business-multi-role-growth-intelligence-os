@@ -37,6 +37,13 @@ export function buildConnectorTaxonomyRoutes(deps = {}) {
                 COUNT(DISTINCT action_key) AS bound_actions
            FROM app_integration_action_bindings`
       );
+      const [[toolBindings]] = await pool.query(
+        `SELECT COUNT(*) AS app_tool_bindings,
+                SUM(status = 'active') AS active_app_tool_bindings,
+                COUNT(DISTINCT app_key) AS tool_bound_apps,
+                COUNT(DISTINCT tool_key) AS bound_tools
+           FROM app_integration_tool_bindings`
+      );
       const [[coverage]] = await pool.query(
         `SELECT SUM(action_count) AS action_count,
                 SUM(active_action_count) AS active_action_count,
