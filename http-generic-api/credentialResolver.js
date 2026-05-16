@@ -1,5 +1,8 @@
 import { getPool } from "./db.js";
-import { decryptCredentials as defaultDecryptCredentials } from "./tokenEncryption.js";
+import {
+  decryptCredentials as defaultDecryptCredentials,
+  decryptToken as defaultDecryptToken
+} from "./tokenEncryption.js";
 
 function str(value) {
   return String(value ?? "").trim();
