@@ -10,6 +10,7 @@ import {
 
 const PREVIEW_CHARS = 512;
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
+const DEFAULT_SESSIONS_DRIVE_FOLDER_ID = "1TIxUmnh0RrLCfXYfkjf96EwGc8OYnEw1";
 
 function defaultDeps() {
   return {
@@ -21,6 +22,7 @@ function defaultDeps() {
     updateDriveFileContent,
     sessionsDriveFolderId:
       process.env.SESSIONS_DRIVE_FOLDER_ID ||
+      DEFAULT_SESSIONS_DRIVE_FOLDER_ID ||
       process.env.UPLOADS_DRIVE_FOLDER_ID ||
       process.env.OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID ||
       "",
