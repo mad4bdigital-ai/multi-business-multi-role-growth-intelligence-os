@@ -408,13 +408,25 @@ function normalizePlatformEndpointCallArgs(row, args = {}) {
 }
 
 async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null, deps = {}) {
-  const viewName = platformEndpointToolViewForPrincipal(auth);
+  const scopeClasses = platformEndpointToolScopeClassesForPrincipal(auth);
+  const tenantClause = platformEndpointToolTenantClauseForPrincipal(auth, "x");
   const [rows] = await getPool().query(
-    `SELECT tool_name, parent_action_key, endpoint_key, scope_class
-       FROM ${viewName}
-      WHERE tool_name = ?
+    `SELECT x.tool_name,
+            x.parent_action_key,
+            x.endpoint_key,
+            x.scope_class,
+            e.method
+       FROM platform_endpoint_tool_exports x
+       LEFT JOIN endpoints e
+         ON e.parent_action_key = x.parent_action_key
+        AND e.endpoint_key = x.endpoint_key
+        AND e.status = 'active'
+      WHERE x.tool_name = ?
+        AND x.status = 'active'
+        AND x.scope_class IN (?, ?)
+        ${tenantClause.sql}
       LIMIT 1`,
-    [name]
+    [name, ...scopeClasses, ...tenantClause.params]
   );
 
   if (!rows.length) {
