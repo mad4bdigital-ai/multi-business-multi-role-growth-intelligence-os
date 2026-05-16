@@ -51,7 +51,7 @@ const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_TIMEOUT_MS = 600_000;
 const PS_ENABLED = process.env.CONNECTOR_POWERSHELL_ENABLED === 'true';
 const WIN_ENABLED = process.env.CONNECTOR_WIN_ENABLED === 'true';
-const N8N_ENABLED = process.env.CONNECTOR_N8N_ENABLED === 'true';
+const N8N_ENABLED = process.env.CONNECTOR_N8N_ENABLED !== 'false';
 const N8N_BASE = (process.env.N8N_BASE_URL ?? 'http://localhost:5678').replace(/\/$/, '');
 const N8N_API_KEY = process.env.N8N_API_KEY ?? '';
 const N8N_COMMAND = process.env.N8N_COMMAND ?? (process.platform === 'win32' ? 'D:\\npm-global\\n8n.cmd' : 'n8n');
