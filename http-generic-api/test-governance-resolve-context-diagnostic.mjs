@@ -316,7 +316,12 @@ try {
     "Growth Intelligence OS - Knowledge Assets/Business Type Assets/HVAC-Air-Conditioning-Services/brands/allroyalegypt"
   );
   assert.equal(allRoyalEgypt.diagnostic.brand_core.docs.brand_core_profile, "allroyalegypt-brand-profile-doc-id");
-  assert.equal(allRoyalEgypt.diagnostic.execution_target.auth_status, "");
+  // execution_target now surfaces the matched target row's actual fields per the
+  // execution-target-diagnostic patch. The brand fixture has auth_validation_status="ready",
+  // so auth_status is "ready" here. execution_ready is still false because the brand has
+  // no brand_path / validation rows in this scenario.
+  assert.equal(allRoyalEgypt.diagnostic.execution_target.auth_status, "ready");
+  assert.equal(allRoyalEgypt.diagnostic.execution_target.execution_ready, false);
 } finally {
   await new Promise((resolve) => server.close(resolve));
   if (previousRegistryId === undefined) {

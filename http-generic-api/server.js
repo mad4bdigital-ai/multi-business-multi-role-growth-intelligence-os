@@ -1167,14 +1167,18 @@ function toJsonAssetRegistryRow(args = {}) {
       : driveStored
         ? "drive_stored"
         : "captured_embedded",
-    validation_status: wordpressAssetContext?.validation_status || "pending",
+    validation_status: isWordpressPreflightAsset
+      ? wordpressAssetContext?.validation_status
+      : driveStored
+        ? "pending_external_readback"
+        : "pending",
     last_validated_at: args.captured_at,
     notes: isWordpressPreflightAsset
       ? `Governed wordpress_cpt_schema_preflight asset captured for execution_trace_id=${args.execution_trace_id}; authoritative_home=${assetHome.authoritative_home}`
       : driveStored
         ? `Drive artifact captured for execution_trace_id=${args.execution_trace_id}; authoritative_home=${assetHome.authoritative_home}`
         : `Embedded derived JSON artifact captured for execution_trace_id=${args.execution_trace_id}; authoritative_home=${assetHome.authoritative_home}`,
-    active_status: "TRUE"
+    active_status: driveStored ? "external_reference" : "TRUE"
   };
 }
 

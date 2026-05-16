@@ -233,6 +233,27 @@ export function buildGovernanceRoutes(deps) {
       const executionTarget = pathResolution.executionTarget || {};
       const pathValidationState = pathResolution.validation_state || (pathResolution.ready ? "ready" : "");
       const brandRequested = Boolean(requestPayload.brand_key);
+      const wantedTargetKey = String(requestPayload.target_key || requestPayload.brand_key || "").toLowerCase();
+      const diagnosticTargetRow = (pathResolverLoad.rows?.targetRows || []).find(row => {
+        const tk = String(row.target_key || "").toLowerCase();
+        const bk = String(row.brand_key || "").toLowerCase();
+        return wantedTargetKey && (tk === wantedTargetKey || bk === wantedTargetKey);
+      }) || null;
+      const diagnosticTargetAuthStatus = diagnosticTargetRow?.auth_status || executionTarget.authStatus || "";
+      const diagnosticTargetValidationState = diagnosticTargetRow?.validation_state || executionTarget.validationState || "";
+      const diagnosticTargetExecutionReady = diagnosticTargetRow
+        ? (
+            diagnosticTargetAuthStatus === "ready" ||
+            diagnosticTargetValidationState === "ready"
+          )
+        : Boolean(executionTarget.executionReady);
+      const diagnosticTargetBlockingReason =
+        diagnosticTargetRow?.blocking_reason ||
+        diagnosticTargetRow?.resolver_writeback_status ||
+        (String(diagnosticTargetValidationState || "").startsWith("blocked") ? diagnosticTargetValidationState : "") ||
+        (!diagnosticTargetExecutionReady && diagnosticTargetAuthStatus && diagnosticTargetAuthStatus !== "ready"
+          ? `auth_not_ready:${diagnosticTargetAuthStatus}`
+          : "");
       const hasBrandPathEvidence =
         !brandRequested || (pathResolverLoad.rows?.brandPathRows?.length || 0) > 0;
       const hasValidationEvidence =
@@ -250,20 +271,8 @@ export function buildGovernanceRoutes(deps) {
         hasValidationEvidence;
 
       const executionReady = (() => {
-        const wanted = String(requestPayload.target_key || requestPayload.brand_key || "").toLowerCase();
-        if (wanted) {
-          const targetRow = (pathResolverLoad.rows?.targetRows || []).find(row => {
-            const tk = String(row.target_key || "").toLowerCase();
-            const bk = String(row.brand_key || "").toLowerCase();
-            return tk === wanted || bk === wanted;
-          });
-          if (targetRow) {
-            return (
-              (targetRow.auth_status === "ready" || targetRow.validation_state === "ready") &&
-              hasBrandPathEvidence &&
-              hasValidationEvidence
-            );
-          }
+        if (diagnosticTargetRow) {
+          return diagnosticTargetExecutionReady && hasBrandPathEvidence && hasValidationEvidence;
         }
         return Boolean(executionTarget.executionReady) && hasBrandPathEvidence && hasValidationEvidence;
       })();
@@ -321,13 +330,21 @@ export function buildGovernanceRoutes(deps) {
             reason: pathResolution.blocked_reason || missingEvidenceReasons.join("|")
           },
           execution_target: {
-            status: executionTarget.status || "",
-            target_key: executionTarget.targetKey || "",
-            base_url: executionTarget.baseUrl || "",
-            provider: executionTarget.provider || "",
-            auth_status: executionTarget.authStatus || "",
-            validation_state: executionTarget.validationState || "",
-            execution_ready: Boolean(executionTarget.executionReady)
+            status: diagnosticTargetRow?.status || executionTarget.status || "",
+            target_key: diagnosticTargetRow?.target_key || executionTarget.targetKey || "",
+            base_url: diagnosticTargetRow?.base_url || executionTarget.baseUrl || "",
+            provider: diagnosticTargetRow?.provider || executionTarget.provider || "",
+            auth_status: diagnosticTargetAuthStatus,
+            validation_state: diagnosticTargetValidationState,
+            resolver_status: diagnosticTargetRow?.resolver_status || "",
+            resolver_writeback_status: diagnosticTargetRow?.resolver_writeback_status || "",
+            resolver_last_checked_at: diagnosticTargetRow?.resolver_last_checked_at || "",
+            credential_resolution: diagnosticTargetRow?.credential_resolution || "",
+            transport_enabled: diagnosticTargetRow?.transport_enabled || "",
+            write_allowed: diagnosticTargetRow?.write_allowed || "",
+            destructive_allowed: diagnosticTargetRow?.destructive_allowed || "",
+            blocking_reason: diagnosticTargetBlockingReason,
+            execution_ready: executionReady
           }
         }
       });

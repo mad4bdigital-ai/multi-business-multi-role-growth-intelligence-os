@@ -135,6 +135,15 @@ async function loadTargetRows(req) {
     provider: str(r.transport_action_key),
     auth_status: str(r.auth_validation_status || r.auth_type),
     validation_state: str(r.resolver_status),
+    resolver_status: str(r.resolver_status),
+    resolver_writeback_status: str(r.resolver_writeback_status),
+    resolver_last_checked_at: str(r.resolver_last_checked_at),
+    credential_resolution: str(r.credential_resolution),
+    transport_enabled: str(r.transport_enabled),
+    write_allowed: str(r.write_allowed),
+    destructive_allowed: str(r.destructive_allowed),
+    auth_type: str(r.auth_type),
+    blocking_reason: str(r.resolver_writeback_status || r.resolver_status),
     status: str(r.status),
   }));
 }

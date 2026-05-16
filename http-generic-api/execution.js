@@ -516,12 +516,12 @@ export function toJsonAssetRegistryRow(args = {}) {
     source_asset_ref: driveStored ? args.drive_file_id : "",
     json_payload: embeddedPayload,
     transport_status: driveStored ? "drive_stored" : "captured_embedded",
-    validation_status: "pending",
+    validation_status: driveStored ? "pending_external_readback" : "pending",
     last_validated_at: args.captured_at,
     notes: driveStored
       ? `Drive artifact captured for execution_trace_id=${args.execution_trace_id}; authoritative_home=${assetHome.authoritative_home}`
       : `Embedded derived JSON artifact captured for execution_trace_id=${args.execution_trace_id}; authoritative_home=${assetHome.authoritative_home}`,
-    active_status: "TRUE"
+    active_status: driveStored ? "external_reference" : "TRUE"
   };
 }
 
