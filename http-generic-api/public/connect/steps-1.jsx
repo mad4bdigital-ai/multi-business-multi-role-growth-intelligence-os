@@ -105,7 +105,7 @@ function AuthStep({ onSignIn, error }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 24, position: "relative" }}>
       <div style={{ position: "relative", paddingTop: 12 }}>
-        <span className="label-eyebrow" style={{ color: "var(--coral)" }}>/connect · step 01</span>
+        <span className="label-eyebrow" style={{ color: "var(--coral)" }}>/connect · sign-in gate</span>
         <h1 style={{
           fontFamily: "var(--font-display)", fontWeight: 800,
           fontSize: 56, lineHeight: 1.02, letterSpacing: "-0.025em",
@@ -237,7 +237,7 @@ function TenantPicker({ memberships, onPick, onCreate }) {
 
   return (
     <div style={{ position: "relative", maxWidth: 720, margin: "0 auto", paddingTop: 16 }}>
-      <span className="label-eyebrow" style={{ color: "var(--cyan)" }}>/connect · step 02</span>
+      <span className="label-eyebrow" style={{ color: "var(--cyan)" }}>/connect · step 01 · workspace</span>
       <h1 style={{
         fontFamily: "var(--font-display)", fontWeight: 800,
         fontSize: 44, lineHeight: 1.1, letterSpacing: "-0.02em",

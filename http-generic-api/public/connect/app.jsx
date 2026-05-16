@@ -39,7 +39,8 @@ function App() {
   const applyStatusData = (data) => {
     const u = data.user;
     if (!u) return false;
-    setSession({ email: u.email, name: u.display_name || u.email, owner: false, user_id: u.user_id });
+    const ownerFromTenant = data.tenant?.role === 'owner';
+    setSession({ email: u.email, name: u.display_name || u.email, owner: ownerFromTenant, user_id: u.user_id });
     setAuthError('');
     if (data.tenant?.tenant_id) {
       const color = ['coral','cyan','lime','blue'][Math.floor(Math.random()*4)];
@@ -118,7 +119,10 @@ function App() {
 
   const handlePickTenant = (m) => {
     setTenant(m);
-    pushLog({ method: 'POST', path: '/auth/select-tenant', status: 200, ms: 92, body: { ok: true, tenant_id: m.tenant_id } });
+    // Drive owner-mode UI (CMS claim auto-approval, owner badge) from the
+    // selected membership's role rather than email pattern.
+    setSession(s => s ? { ...s, owner: m.role === 'owner' } : s);
+    pushLog({ method: 'POST', path: '/auth/select-tenant', status: 200, ms: 92, body: { ok: true, tenant_id: m.tenant_id, role: m.role } });
     setCompleted(prev => new Set([...prev, 'tenant']));
     setStep('hub');
   };
@@ -131,18 +135,62 @@ function App() {
 
   const handleSavePreferences = async (prefs) => {
     if (tenant) {
-      const { ok } = await apiFetch('/connect/preferences', { method: 'POST', body: JSON.stringify({ tenant_id: tenant.tenant_id, ...prefs }) });
-      pushLog({ method: 'POST', path: '/connect/preferences', status: ok ? 201 : 500, ms: 88, body: { ok } });
+      const { ok, status, data } = await apiFetch('/connect/preferences', { method: 'POST', body: JSON.stringify({ tenant_id: tenant.tenant_id, ...prefs }) });
+      pushLog({
+        method: 'POST', path: '/connect/preferences', status: status || (ok ? 201 : 500), ms: 88,
+        body: {
+          ok,
+          tenant_id: data?.tenant_id || tenant.tenant_id,
+          dropped_fields: data?.dropped_fields || [],
+          stored: { onboarding_preferences: prefs },
+        },
+      });
     }
     setCompleted(prev => new Set([...prev, 'preferences']));
     setStep('business');
   };
 
-  const handleSaveBusiness = async (profile) => {
+  // profile is the business-profile form payload; cmsCredential (optional) is
+  // routed to the encrypted /connect/api/cms/claims path so the cmsKey never
+  // lands in metadata_json. Server returns dropped_fields[] from the allowlist
+  // sanitizer; we surface that in the evidence drawer.
+  const handleSaveBusiness = async (profile, cmsCredential) => {
     if (tenant) {
-      const { ok } = await apiFetch('/connect/profile', { method: 'POST', body: JSON.stringify({ tenant_id: tenant.tenant_id, ...profile }) });
-      pushLog({ method: 'POST', path: '/connect/profile', status: ok ? 201 : 500, ms: 134, body: { ok } });
+      const { ok, status, data } = await apiFetch('/connect/profile', { method: 'POST', body: JSON.stringify({ tenant_id: tenant.tenant_id, ...profile }) });
+      pushLog({
+        method: 'POST', path: '/connect/profile', status: status || (ok ? 201 : 500), ms: 134,
+        body: {
+          ok,
+          tenant_id: data?.tenant_id || tenant.tenant_id,
+          dropped_fields: data?.dropped_fields || [],
+          stored: { business_profile: profile },
+        },
+      });
     }
+
+    if (cmsCredential && cmsCredential.cmsKey && tenant) {
+      const claimBody = {
+        site_url: profile.cmsUrl || '',
+        username: session?.email || '',
+        application_password: cmsCredential.cmsKey,
+        requested_scope: cmsCredential.requestedScope || 'read_only',
+      };
+      const { ok: claimOk, status: claimStatus, data: claimData } = await apiFetch('/connect/api/cms/claims', { method: 'POST', body: JSON.stringify(claimBody) });
+      pushLog({
+        method: 'POST', path: '/connect/api/cms/claims', status: claimStatus || (claimOk ? 201 : 500), ms: 156,
+        body: claimOk ? {
+          ok: true,
+          claim_id: claimData?.claim_id,
+          connection_id: claimData?.connection_id,
+          matched_brand_key: claimData?.matched_brand_key,
+          match_confidence: claimData?.match_confidence,
+          approval_required: claimData?.approval_required === true,
+          next_action: claimData?.next_action,
+          // server NEVER reflects the application_password back
+        } : { ok: false, error: claimData?.error },
+      });
+    }
+
     setCompleted(prev => new Set([...prev, 'business']));
     setStep('hub');
   };
@@ -174,9 +222,12 @@ function App() {
   const gptReady = connections.cloudflare === 'connected' && connections.hostinger === 'connected' && connections.device === 'installed_here';
   const onMesh = step === 'auth';
 
+  // Auth is now a gate — returning to the sign-in screen requires explicit
+  // Sign out from the top bar. The step jumper never shows 'auth' and goto()
+  // refuses to navigate to it.
   const goto = (key) => {
-    if (!session && key !== 'auth') return;
-    if (!tenant && ['hub','credentials','preferences','business','device','launch'].includes(key)) return;
+    if (!session || !tenant) return;
+    if (key === 'auth') return;
     setStep(key);
   };
 
@@ -185,10 +236,10 @@ function App() {
       <MeshBackdrop active={onMesh}/>
       <div style={{ position: 'relative', zIndex: 2 }}>
         <TopBar session={session} tenant={tenant} gptReady={gptReady} onSwitchTenant={() => setStep('tenant')} onLaunchGpt={handleLaunch} onSignOut={handleSignOut} onOpenEvidence={() => setEvidenceOpen(true)}/>
-        {session && (
+        {session && tenant && (
           <div style={{ display: 'flex', justifyContent: 'center', gap: 6, padding: '12px 0 0', flexWrap: 'wrap' }}>
             {STEPS.filter(s => s.key !== 'credentials').map(s => (
-              <button key={s.key} onClick={() => goto(s.key)} disabled={!session && s.key !== 'auth'} style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11.5, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', background: step === s.key ? 'var(--ink)' : 'transparent', color: step === s.key ? 'var(--panel)' : 'var(--muted)', border: `1px solid ${step === s.key ? 'var(--ink)' : 'var(--line)'}`, cursor: 'pointer' }}>
+              <button key={s.key} onClick={() => goto(s.key)} style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11.5, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', background: step === s.key ? 'var(--ink)' : 'transparent', color: step === s.key ? 'var(--panel)' : 'var(--muted)', border: `1px solid ${step === s.key ? 'var(--ink)' : 'var(--line)'}`, cursor: 'pointer' }}>
                 {s.num} · {s.label}
               </button>
             ))}
@@ -233,11 +284,21 @@ function App() {
         </div>
       )}
       <TweaksPanel title="Tweaks">
+        <TweakSection title="Surface">
+          <TweakRadio label="Theme" value={t.theme} onChange={(v) => setTweak('theme', v)}
+            options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]}/>
+          <TweakRadio label="Density" value={t.density} onChange={(v) => setTweak('density', v)}
+            options={[{ value: 'comfortable', label: 'Comfortable' }, { value: 'compact', label: 'Compact' }]}/>
+        </TweakSection>
         <TweakSection title="Type pairing">
           <TweakRadio label="Stack" value={t.type} onChange={(v) => setTweak('type', v)} options={[{ value: 'manrope-inter', label: 'Manrope+Inter' }, { value: 'geist', label: 'Geist' }, { value: 'instrument', label: 'Instrument' }]}/>
         </TweakSection>
         <TweakSection title="Energy accents">
           <TweakRadio label="Set" value={t.accent} onChange={(v) => setTweak('accent', v)} options={[{ value: 'default', label: 'Spark' }, { value: 'cool', label: 'Cool' }, { value: 'hot', label: 'Hot' }, { value: 'mono', label: 'Mono' }]}/>
+        </TweakSection>
+        <TweakSection title="Evidence console">
+          <TweakRadio label="Style" value={t.evidence} onChange={(v) => setTweak('evidence', v)}
+            options={[{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }]}/>
         </TweakSection>
       </TweaksPanel>
     </div>

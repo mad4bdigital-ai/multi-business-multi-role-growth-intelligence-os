@@ -78,6 +78,8 @@ function EvidenceDrawer({ open, onClose, log, style = "dark" }) {
 
 function LogEntry({ entry, palette }) {
   const statusColor = entry.status >= 400 ? "#ff8a80" : entry.status >= 300 ? "#ffd166" : "#84e4a8";
+  const dropped = entry.body && Array.isArray(entry.body.dropped_fields) ? entry.body.dropped_fields : null;
+  const approvalRequired = entry.body && entry.body.approval_required === true;
   return (
     <div style={{
       padding: "8px 18px", borderBottom: `1px solid ${palette.line}`,
@@ -93,6 +95,29 @@ function LogEntry({ entry, palette }) {
         <span style={{ color: statusColor, fontWeight: 600 }}>{entry.status}</span>
         <span style={{ color: palette.muted }}>{entry.ms}ms</span>
       </div>
+      {(dropped && dropped.length > 0) && (
+        <div style={{
+          marginTop: 4, padding: "6px 8px",
+          background: "color-mix(in srgb, #ffd166 14%, transparent)",
+          border: `1px solid color-mix(in srgb, #ffd166 30%, ${palette.line})`,
+          borderRadius: 4, color: "#ffd166", fontSize: 11.5,
+        }}>
+          <span style={{ fontWeight: 700, marginRight: 6 }}>⚠ dropped_fields[{dropped.length}]:</span>
+          <span style={{ color: palette.ink }}>{dropped.join(", ")}</span>
+          <div style={{ color: palette.muted, fontSize: 10.5, marginTop: 2 }}>not on allowlist or matches sensitive-key blocklist · see /connect/api/cms/claims for credentials</div>
+        </div>
+      )}
+      {approvalRequired && (
+        <div style={{
+          marginTop: 4, padding: "6px 8px",
+          background: "color-mix(in srgb, #ff8a80 12%, transparent)",
+          border: `1px solid color-mix(in srgb, #ff8a80 30%, ${palette.line})`,
+          borderRadius: 4, color: "#ff8a80", fontSize: 11.5,
+        }}>
+          <span style={{ fontWeight: 700, marginRight: 6 }}>⏸ approval_required</span>
+          <span style={{ color: palette.ink }}>claim queued — awaiting platform owner</span>
+        </div>
+      )}
       {entry.body && <JsonBlock obj={entry.body} palette={palette}/>}
     </div>
   );

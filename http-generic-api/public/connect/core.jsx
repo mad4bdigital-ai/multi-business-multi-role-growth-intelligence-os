@@ -13,15 +13,17 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "spark": true
 }/*EDITMODE-END*/;
 
+// Sign-in is a GATE, not a step. Once authenticated the user navigates the 7
+// activation steps below; returning to sign-in requires an explicit Sign out
+// from the top bar.
 const STEPS = [
-  { key: "auth", label: "Sign in", num: "01" },
-  { key: "tenant", label: "Workspace", num: "02" },
-  { key: "hub", label: "Activation", num: "03" },
-  { key: "credentials", label: "Credentials", num: "04" },
-  { key: "preferences", label: "Preferences", num: "05" },
-  { key: "business", label: "Business profile", num: "06" },
-  { key: "device", label: "Local connector", num: "07" },
-  { key: "launch", label: "GPT launch", num: "08" },
+  { key: "tenant", label: "Workspace", num: "01" },
+  { key: "hub", label: "Activation", num: "02" },
+  { key: "credentials", label: "Credentials", num: "03" },
+  { key: "preferences", label: "Preferences", num: "04" },
+  { key: "business", label: "Business profile", num: "05" },
+  { key: "device", label: "Local connector", num: "06" },
+  { key: "launch", label: "GPT launch", num: "07" },
 ];
 
 const SAMPLE_MEMBERSHIPS = [

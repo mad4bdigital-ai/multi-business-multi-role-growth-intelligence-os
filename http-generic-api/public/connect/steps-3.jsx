@@ -46,7 +46,7 @@ function DeviceInstall({ tenant, deviceId, setDeviceId, onComplete, onBack, comp
 
   return (
     <div style={{ position: "relative" }}>
-      <span className="label-eyebrow" style={{ color: "var(--lime)" }}>/connect · step 05 · local connector</span>
+      <span className="label-eyebrow" style={{ color: "var(--lime)" }}>/connect · step 06 · local connector</span>
       <h1 style={{
         fontFamily: "var(--font-display)", fontWeight: 800,
         fontSize: 36, lineHeight: 1.06, letterSpacing: "-0.02em",
@@ -247,7 +247,7 @@ function GptLaunch({ session, tenant, deviceId, connections, onLaunch, onBack, u
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 28, alignItems: "start" }}>
       <div>
-        <span className="label-eyebrow" style={{ color: "var(--blue)" }}>/connect · step 06 · launch</span>
+        <span className="label-eyebrow" style={{ color: "var(--blue)" }}>/connect · step 07 · launch</span>
         <h1 style={{
           fontFamily: "var(--font-display)", fontWeight: 800,
           fontSize: 48, lineHeight: 1.02, letterSpacing: "-0.025em",

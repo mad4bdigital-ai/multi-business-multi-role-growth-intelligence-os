@@ -1,5 +1,13 @@
-/* global React */
+/* global React, Icon, StatusDot */
 const { useState: useStateB, useEffect: useEffectB, useRef: useRefB, useMemo: useMemoB } = React;
+
+function Spinner({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" style={{ animation: "spin 0.9s linear infinite" }}>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.4" fill="none" strokeDasharray="40 16" strokeLinecap="round"/>
+    </svg>
+  );
+}
 
 // ============================================================================
 // HOSTING PROVIDERS GLOSSARY
@@ -81,7 +89,7 @@ function ActivationHub({ session, tenant, connections, setConnections, onLaunch,
     <div style={{ position: "relative" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20, gap: 24 }}>
         <div>
-          <span className="label-eyebrow" style={{ color: "var(--lime)" }}>/connect · step 03 · activation hub</span>
+          <span className="label-eyebrow" style={{ color: "var(--lime)" }}>/connect · step 02 · activation hub</span>
           <h1 style={{
             fontFamily: "var(--font-display)", fontWeight: 800,
             fontSize: 38, lineHeight: 1.05, letterSpacing: "-0.02em",
@@ -339,4 +347,4 @@ function OwnerBadge() {
   );
 }
 
-Object.assign(window, { ActivationHub, FeatureCard, OptionalConnectorCard, StateChip, ProgressRing, OwnerBadge });
+Object.assign(window, { ActivationHub, FeatureCard, OptionalConnectorCard, StateChip, ProgressRing, OwnerBadge, Spinner });

@@ -207,7 +207,7 @@ function CredentialVault({ connections, onSave, onBack }) {
 
   return (
     <div style={{ position: "relative" }}>
-      <span className="label-eyebrow" style={{ color: "var(--coral)" }}>/connect · step 04 · credential vault</span>
+      <span className="label-eyebrow" style={{ color: "var(--coral)" }}>/connect · step 03 · credential vault</span>
       <h1 style={{
         fontFamily: "var(--font-display)", fontWeight: 800,
         fontSize: 36, lineHeight: 1.06, letterSpacing: "-0.02em",
