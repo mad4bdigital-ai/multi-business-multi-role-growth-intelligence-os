@@ -1574,7 +1574,7 @@ const server = http.createServer(async (req, res) => {
     if (method === 'POST' && url === '/shell-fetch-upload') return await handleShellFetchUpload(req, res);
     if (method === 'POST' && url === '/ps') return await handlePs(req, res);
     if (method === 'POST' && url === '/win') return await handleWin(req, res);
-    if (method === 'POST' && url === '/n8n') return await handleN8n(req, res);
+    if (method === 'POST' && url === '/n8n') return await handleN8nV2(req, res);
     if (method === 'POST' && url === '/cf') return await handleCf(req, res);
 
     return err(res, 404, 'NOT_FOUND', `No route for ${method} ${url}`);
