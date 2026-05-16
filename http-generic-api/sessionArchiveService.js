@@ -19,7 +19,11 @@ function defaultDeps() {
     uploadContentToDrive,
     fetchDriveContent,
     updateDriveFileContent,
-    sessionsDriveFolderId: process.env.SESSIONS_DRIVE_FOLDER_ID || "",
+    sessionsDriveFolderId:
+      process.env.SESSIONS_DRIVE_FOLDER_ID ||
+      process.env.UPLOADS_DRIVE_FOLDER_ID ||
+      process.env.OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID ||
+      "",
     now: () => new Date(),
   };
 }
