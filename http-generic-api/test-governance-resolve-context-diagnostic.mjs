@@ -264,7 +264,7 @@ try {
       headers: {
         "content-type": "application/json"
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ data_source: "sheets", ...body })
     });
 
     assert.equal(response.status, 200);

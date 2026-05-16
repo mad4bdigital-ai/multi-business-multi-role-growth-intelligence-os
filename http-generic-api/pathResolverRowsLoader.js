@@ -394,6 +394,18 @@ export async function loadPathResolverRowsForRequest(requestPayload = {}, deps =
     };
   }
 
+  const envDataSource = typeof process !== "undefined" ? process.env?.DATA_SOURCE : "";
+  const dataSourceMode = lower(firstNonEmpty(
+    deps.DATA_SOURCE,
+    deps.runtimeAuthority,
+    envDataSource
+  ));
+
+  if (["sql", "db", "mysql"].includes(dataSourceMode)) {
+    const { loadPathResolverRowsFromDb } = await import('./pathResolverDbLoader.js');
+    return loadPathResolverRowsFromDb(loadRequest);
+  }
+
   if (!hasFunction(deps.getGoogleClientsForSpreadsheet)) {
     const { loadPathResolverRowsFromDb } = await import('./pathResolverDbLoader.js');
     return loadPathResolverRowsFromDb(loadRequest);

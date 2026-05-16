@@ -227,6 +227,26 @@ function makeDeps() {
 }
 
 {
+  // SQL authority must win even when Google/Sheets deps are present. This
+  // protects governed context resolution from drifting back to Sheets just
+  // because spreadsheet clients are wired into the route.
+  const loaded = await loadPathResolverRowsForRequest(
+    {
+      business_type_key: "hvac_air_conditioning_services",
+      brand_key: "arab_cooling"
+    },
+    {
+      ...makeDeps(),
+      DATA_SOURCE: "sql"
+    }
+  );
+
+  assert.equal(loaded.requested, true);
+  assert.equal(loaded.loaded, true);
+  assert.equal(loaded.reason, "loaded_from_db");
+}
+
+{
   // When no Google deps are provided, the loader falls back to the DB layer
   // (pathResolverDbLoader.js). DB queries may return empty results in CI, but
   // the function still reports loaded=true with reason "loaded_from_db".

@@ -206,6 +206,8 @@ export function buildGovernanceRoutes(deps) {
       const requestPayload = buildDiagnosticRequestPayload(body);
 
       const pathResolverLoad = await loadPathResolverRowsForRequest(requestPayload, {
+        DATA_SOURCE: body.data_source || body.DATA_SOURCE || process.env.DATA_SOURCE || "sql",
+        runtimeAuthority: body.runtime_authority || body.runtimeAuthority || "",
         REGISTRY_SPREADSHEET_ID:
           body.registry_spreadsheet_id ||
           process.env.REGISTRY_SPREADSHEET_ID ||
@@ -369,12 +371,16 @@ export function buildGovernanceRoutes(deps) {
       const headers = sheetColumns.length ? sheetColumns : Object.keys(rows[0] || {});
       const candidates = rows.map((sqlRow, idx) => {
         const sheetRow = {};
+        const values = [];
         for (const col of headers) {
           const sqlCol = col.toLowerCase().replace(/\(s\)/g, "s").replace(/[^a-z0-9]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
-          sheetRow[col] = sqlRow[sqlCol] ?? sqlRow[col] ?? "";
+          const value = sqlRow[sqlCol] ?? sqlRow[col] ?? "";
+          sheetRow[col] = value;
+          values.push(value);
         }
         return {
           row: sheetRow,
+          values,
           row_index_1_based: rows.length - idx,
           source: "sql",
           sql_id: sqlRow.id

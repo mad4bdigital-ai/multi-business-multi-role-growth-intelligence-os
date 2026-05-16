@@ -212,17 +212,25 @@ async function dispatchContentWorkflow(plan, workflowDef, deps = {}) {
 }
 
 async function dispatchMcpConnector(plan) {
-  // Resolve the bearer token from the make_mcp_server action's secret reference.
-  // Falls back to MAKE_MCP_TOKEN env var directly if the action row isn't found.
+  // Resolve the bearer token from the canonical Make.com MCP action's secret reference.
+  // Keep make_mcp_server as a temporary legacy fallback for one release window.
   let token = process.env.MAKE_MCP_TOKEN || "";
   if (!token) {
     const [rows] = await getPool().query(
-      "SELECT secret_store_ref FROM `actions` WHERE action_key = 'make_mcp_server' LIMIT 1"
+      `SELECT secret_store_ref, action_key
+         FROM \`actions\`
+        WHERE action_key IN ('makecom_mcp_client', 'make_mcp_server')
+        ORDER BY CASE action_key
+          WHEN 'makecom_mcp_client' THEN 0
+          WHEN 'make_mcp_server' THEN 1
+          ELSE 2
+        END
+        LIMIT 1`
     );
     if (rows[0]?.secret_store_ref) token = resolveSecretFromReference(rows[0].secret_store_ref);
   }
   if (!token) {
-    throw new Error("MAKE_MCP_TOKEN not configured — set in .env and run patch-make-mcp-connector.mjs --apply");
+    throw new Error("MAKE_MCP_TOKEN not configured - set ref:secret:MAKE_MCP_TOKEN on action makecom_mcp_client and provide the env secret.");
   }
 
   // Build a JSON-RPC 2.0 tools/call envelope from the plan's first step.
