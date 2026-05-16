@@ -26,6 +26,7 @@ function defaultDeps() {
       process.env.UPLOADS_DRIVE_FOLDER_ID ||
       process.env.OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID ||
       "",
+    subfolderHint: "",
     now: () => new Date(),
   };
 }
@@ -77,6 +78,10 @@ async function updateArchiveStatus(pool, sessionId, status, error = null) {
 async function createArchiveFiles(session, deps) {
   let parentId = deps.sessionsDriveFolderId;
   if (!parentId) return null;
+
+  if (deps.subfolderHint) {
+    parentId = await deps.getOrCreateDriveFolder(String(deps.subfolderHint), parentId);
+  }
 
   for (const part of buildSessionArchivePath(session, deps.now())) {
     parentId = await deps.getOrCreateDriveFolder(part, parentId);

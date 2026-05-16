@@ -2,9 +2,11 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { buildActivationSessionContext } from "./routes/activationRoutes.js";
 import { closeGptSessionArchive, recordGptSessionTurn } from "./sessionArchiveService.js";
-import { fetchDriveContent } from "./uploadPipeline.js";
+import { fetchDriveContent, deleteDriveFile } from "./uploadPipeline.js";
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
+const DEFAULT_SMOKE_SUBFOLDER = "_smoke_archives";
+const SMOKE_ORIGINATOR = "gpt_action_smoke";
 
 function check(name, pass, detail = null) {
   return { name, pass: Boolean(pass), ...(detail === null ? {} : { detail }) };
@@ -15,14 +17,65 @@ function parseJsonl(raw = "") {
   return lines.map((line) => JSON.parse(line));
 }
 
+async function cleanupSmokeArtifacts({ pool, sessionId, archivedSession, deleteDriveFn }) {
+  const cleanup = {
+    sql_session_deleted: false,
+    sql_turns_deleted: 0,
+    sql_events_deleted: 0,
+    drive_files_deleted: 0,
+    drive_files_failed: 0,
+    errors: [],
+  };
+
+  try {
+    const [turnRes] = await pool.query("DELETE FROM `gpt_session_turns` WHERE session_id = ?", [sessionId]);
+    cleanup.sql_turns_deleted = Number(turnRes?.affectedRows || 0);
+  } catch (err) {
+    cleanup.errors.push({ stage: "delete_turns", message: String(err?.message || err).slice(0, 200) });
+  }
+
+  try {
+    const [eventRes] = await pool.query("DELETE FROM `session_events` WHERE session_id = ?", [sessionId]);
+    cleanup.sql_events_deleted = Number(eventRes?.affectedRows || 0);
+  } catch (err) {
+    cleanup.errors.push({ stage: "delete_events", message: String(err?.message || err).slice(0, 200) });
+  }
+
+  try {
+    const [sessionRes] = await pool.query("DELETE FROM `customer_sessions` WHERE session_id = ?", [sessionId]);
+    cleanup.sql_session_deleted = Number(sessionRes?.affectedRows || 0) > 0;
+  } catch (err) {
+    cleanup.errors.push({ stage: "delete_session", message: String(err?.message || err).slice(0, 200) });
+  }
+
+  const driveFileIds = [
+    archivedSession?.drive_doc_id,
+    archivedSession?.drive_jsonl_id,
+  ].filter(Boolean);
+  for (const fileId of driveFileIds) {
+    try {
+      await deleteDriveFn(fileId);
+      cleanup.drive_files_deleted += 1;
+    } catch (err) {
+      cleanup.drive_files_failed += 1;
+      cleanup.errors.push({ stage: "delete_drive_file", file_id: fileId, message: String(err?.message || err).slice(0, 200) });
+    }
+  }
+
+  return cleanup;
+}
+
 export async function runSessionArchiveSmoke({
   pool = getPool(),
   tenantId = PLATFORM_TENANT_ID,
   userId = `session_archive_smoke_${Date.now()}`,
   actionKey = "session_archive_live_smoke",
   includeDriveReadback = true,
+  cleanup: shouldCleanup = true,
+  smokeSubfolder = DEFAULT_SMOKE_SUBFOLDER,
   activationContextReader = buildActivationSessionContext,
   fetchDriveContentFn = fetchDriveContent,
+  deleteDriveFileFn = deleteDriveFile,
   injectedArchiveDeps = {},
 } = {}) {
   const startedAt = new Date();
@@ -31,19 +84,20 @@ export async function runSessionArchiveSmoke({
   const longPrefix = "smoke-context ".repeat(80);
   const userContent = `${longPrefix}user turn ${marker}`;
   const assistantContent = `${longPrefix}assistant turn ${marker}`;
+  const archiveDeps = { subfolderHint: smokeSubfolder, ...injectedArchiveDeps };
 
   await pool.query(
     `INSERT INTO \`customer_sessions\`
        (session_id, tenant_id, user_id, originator, session_status, started_at)
-     VALUES (?, ?, ?, 'gpt_action_smoke', 'open', NOW())`,
-    [sessionId, tenantId, userId]
+     VALUES (?, ?, ?, ?, 'open', NOW())`,
+    [sessionId, tenantId, userId, SMOKE_ORIGINATOR]
   );
 
   const session = {
     session_id: sessionId,
     tenant_id: tenantId,
     user_id: userId,
-    originator: "gpt_action_smoke",
+    originator: SMOKE_ORIGINATOR,
     session_status: "open",
     started_at: startedAt,
   };
@@ -55,7 +109,7 @@ export async function runSessionArchiveSmoke({
     content: userContent,
     action_key: actionKey,
     turnIndex: 0,
-    injectedDeps: injectedArchiveDeps,
+    injectedDeps: archiveDeps,
   });
   const [sessionAfterFirstTurnRows] = await pool.query("SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1", [sessionId]);
   const sessionAfterFirstTurn = sessionAfterFirstTurnRows[0] || session;
@@ -66,7 +120,7 @@ export async function runSessionArchiveSmoke({
     content: assistantContent,
     action_key: actionKey,
     turnIndex: 1,
-    injectedDeps: injectedArchiveDeps,
+    injectedDeps: archiveDeps,
   });
 
   const [freshRows] = await pool.query("SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1", [sessionId]);
@@ -81,7 +135,7 @@ export async function runSessionArchiveSmoke({
     pool,
     session: freshSession,
     summary: `Session archive smoke summary ${marker}`,
-    injectedDeps: injectedArchiveDeps,
+    injectedDeps: archiveDeps,
   });
 
   const [sessionRows] = await pool.query(
@@ -156,6 +210,17 @@ export async function runSessionArchiveSmoke({
   ];
 
   const ok = checks.every((item) => item.pass);
+
+  let cleanup = null;
+  if (shouldCleanup) {
+    cleanup = await cleanupSmokeArtifacts({
+      pool,
+      sessionId,
+      archivedSession,
+      deleteDriveFn: deleteDriveFileFn,
+    });
+  }
+
   return {
     ok,
     status: ok ? "pass" : "fail",
@@ -164,12 +229,15 @@ export async function runSessionArchiveSmoke({
     session_id: sessionId,
     tenant_id: tenantId,
     user_id: userId,
+    originator: SMOKE_ORIGINATOR,
+    smoke_subfolder: smokeSubfolder,
     drive: {
       folder_id: archivedSession.drive_folder_id || null,
       doc_id: archivedSession.drive_doc_id || null,
       jsonl_id: archivedSession.drive_jsonl_id || null,
       export_url_present: Boolean(archivedSession.drive_export_url),
     },
+    cleanup,
     checks,
   };
 }

@@ -48,6 +48,8 @@ export function buildReleaseRoutes(deps) {
         tenantId: req.body?.tenant_id,
         userId: req.body?.user_id,
         includeDriveReadback: req.body?.include_drive_readback !== false,
+        cleanup: req.body?.cleanup !== false,
+        smokeSubfolder: req.body?.smoke_subfolder,
       });
       return res.status(result.ok ? 200 : 500).json(result);
     } catch (err) {
