@@ -5,6 +5,95 @@ import { getPool } from "../db.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
 import { writeAuditLogAsync } from "../auditLogger.js";
+import { recordGptSessionTurn } from "../sessionArchiveService.js";
+
+const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
+const SENSITIVE_ARG_SUBSTRINGS = [
+  "password", "secret", "token", "api_key", "apikey",
+  "credential", "private_key", "sa_json", "service_account_json",
+  "client_secret", "refresh_token", "access_token", "authorization",
+];
+const TURN_CONTENT_RESULT_LIMIT = 3000;
+const TURN_CONTENT_STRING_LIMIT = 500;
+
+function redactArgsForArchive(value) {
+  if (Array.isArray(value)) return value.map(redactArgsForArchive);
+  if (!value || typeof value !== "object") {
+    if (typeof value === "string" && value.length > TURN_CONTENT_STRING_LIMIT) {
+      return `${value.slice(0, TURN_CONTENT_STRING_LIMIT)}...[truncated]`;
+    }
+    return value;
+  }
+  const redacted = {};
+  for (const [key, child] of Object.entries(value)) {
+    const lower = String(key).toLowerCase();
+    if (SENSITIVE_ARG_SUBSTRINGS.some((p) => lower.includes(p))) {
+      redacted[key] = "[redacted]";
+    } else {
+      redacted[key] = redactArgsForArchive(child);
+    }
+  }
+  return redacted;
+}
+
+async function findActiveSessionForCaller(pool, req) {
+  const tenantId = String(req?.auth?.tenant_id || PLATFORM_TENANT_ID);
+  const userId = req?.auth?.user_id || null;
+  const [rows] = await pool.query(
+    `SELECT session_id, tenant_id, user_id, originator, session_status, started_at,
+            drive_folder_id, drive_doc_id, drive_doc_url, drive_jsonl_id, drive_jsonl_url
+       FROM \`customer_sessions\`
+      WHERE originator = 'gpt_action'
+        AND tenant_id = ?
+        AND (user_id <=> ?)
+        AND session_status NOT IN ('completed', 'closed')
+      ORDER BY started_at DESC
+      LIMIT 1`,
+    [tenantId, userId]
+  );
+  return rows[0] || null;
+}
+
+async function recordToolDispatchTurn(req, toolKey, args, result) {
+  try {
+    const pool = getPool();
+    const session = await findActiveSessionForCaller(pool, req);
+    if (!session) return null;
+
+    const [[{ max_idx }]] = await pool.query(
+      "SELECT COALESCE(MAX(turn_index), -1) AS max_idx FROM `gpt_session_turns` WHERE session_id = ?",
+      [session.session_id]
+    );
+    const turnIndex = Number(max_idx) + 1;
+
+    const resultBodyJson = JSON.stringify(result?.body || {}, null, 2);
+    const truncatedResult = resultBodyJson.length > TURN_CONTENT_RESULT_LIMIT
+      ? `${resultBodyJson.slice(0, TURN_CONTENT_RESULT_LIMIT)}...[truncated]`
+      : resultBodyJson;
+    const content = [
+      `Tool: ${toolKey}`,
+      `Status: HTTP ${result?.status ?? "n/a"} ok=${result?.body?.ok !== false}`,
+      "",
+      "Args:",
+      JSON.stringify(redactArgsForArchive(args || {}), null, 2),
+      "",
+      "Result:",
+      truncatedResult,
+    ].join("\n");
+
+    return await recordGptSessionTurn({
+      pool,
+      session,
+      role: "tool",
+      content,
+      action_key: toolKey,
+      turnIndex,
+    });
+  } catch (err) {
+    console.warn(`[gpt-tools] auto-record turn failed for ${toolKey}: ${err.message}`);
+    return null;
+  }
+}
 
 // Meta-operations that live in the GPT schema itself — never callable via tools/call
 const RESERVED_TOOL_KEYS = new Set([
@@ -124,6 +213,15 @@ async function fetchTools(callerType) {
 }
 
 async function dispatchTool(callerType, toolKey, args, req) {
+  const result = await dispatchToolImpl(callerType, toolKey, args, req);
+  // Best-effort: archive the dispatch as a tool turn so admin GPT sessions get a
+  // complete transcript without depending on the GPT calling writeSessionTurn.
+  // Errors are logged and swallowed so the tool result still flows through.
+  await recordToolDispatchTurn(req, toolKey, args, result);
+  return result;
+}
+
+async function dispatchToolImpl(callerType, toolKey, args, req) {
   if (callerType === "admin" && toolKey === "repo_inspect") {
     return { status: 200, body: { ok: true, name: toolKey, result: await inspectRepoReadOnly(args) } };
   }

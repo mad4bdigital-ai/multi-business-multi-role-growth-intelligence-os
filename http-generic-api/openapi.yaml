@@ -6517,3 +6517,96 @@ paths:
         "400": { description: Missing user_id or tenant_id, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { description: Device list read failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /gpt/sessions/{id}/turn:
+    post:
+      tags: [session-archive]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: writeGptSessionTurn
+      summary: Append one turn to a customer_sessions archive
+      description: "Append one conversation turn to the active customer_sessions row. Writes the full content to the Drive transcript Doc and JSONL sidecar, and stores a bounded preview, sha256 hash, and Drive anchor in gpt_session_turns. Registered as the admin tool gpt_session_turn_write."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string }, description: session_id returned by getActivationSessionContext. }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [role, content]
+              properties:
+                role: { type: string, enum: [user, assistant, tool] }
+                content: { type: string }
+                action_key: { type: string }
+      responses:
+        "200":
+          description: Turn write result with Drive anchor and archive status
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, session_id, turn_index, turn_id, archive_status]
+                properties:
+                  ok: { type: boolean }
+                  session_id: { type: string }
+                  turn_index: { type: integer }
+                  turn_id: { type: string }
+                  drive_doc_id: { type: string }
+                  drive_anchor: { type: string }
+                  archive_status: { type: string }
+        "400": { description: Missing role/content or invalid role, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Session belongs to a different user, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "404": { description: Session not found, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: Cannot add turns to a closed session, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "500": { description: Turn write failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /gpt/sessions/{id}/end:
+    post:
+      tags: [session-archive]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: endGptSession
+      summary: Close a customer_sessions archive
+      description: "Close the active customer_sessions row. Optionally writes a session_summaries row, finalizes the Drive transcript through closeGptSessionArchive, and triggers the exportSessionToDrive pipeline so drive_export_url is populated for activation readback. Registered as the admin tool gpt_session_end."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string }, description: session_id returned by getActivationSessionContext. }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                summary: { type: string }
+                user_email: { type: string }
+      responses:
+        "200":
+          description: Session close result with archive and Drive export pointers
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, session_id]
+                properties:
+                  ok: { type: boolean }
+                  session_id: { type: string }
+                  archive:
+                    type: object
+                    additionalProperties: true
+                  drive_export:
+                    oneOf:
+                      - type: object
+                        additionalProperties: true
+                        properties:
+                          drive_file_id: { type: string }
+                          drive_web_url: { type: string }
+                      - type: "null"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Session belongs to a different user, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "404": { description: Session not found, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: Session is already closed, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "500": { description: Session end failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }

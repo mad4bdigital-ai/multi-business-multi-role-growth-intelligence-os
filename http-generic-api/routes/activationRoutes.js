@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { Router } from "express";
 import { getPool } from "../db.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
+import { ensureSessionArchive } from "../sessionArchiveService.js";
 import {
   REGISTRY_SPREADSHEET_ID,
   ACTIVITY_SPREADSHEET_ID,
@@ -322,14 +323,37 @@ async function autoOpenGptSession(pool, subject) {
   );
 
   const sessionId = randomUUID();
+  const startedAt = new Date();
   await pool.query(
     `INSERT INTO \`customer_sessions\`
        (session_id, tenant_id, user_id, originator, session_status, started_at)
-     VALUES (?, ?, ?, 'gpt_action', 'open', NOW())`,
-    [sessionId, tenantId, userId]
+     VALUES (?, ?, ?, 'gpt_action', 'open', ?)`,
+    [sessionId, tenantId, userId, startedAt]
   );
 
-  return { session_id: sessionId, closed_sessions: closeResult.affectedRows || 0 };
+  // Best-effort: allocate the Drive archive structure now so future turn writes
+  // (manual writeSessionTurn or auto-recorded tool dispatches) flow into a
+  // ready folder without lazy-allocating on first turn. Fail-open: activation
+  // must still succeed if Drive auth is unavailable.
+  let archiveStatus = "not_attempted";
+  try {
+    const archiveResult = await ensureSessionArchive(pool, {
+      session_id: sessionId,
+      tenant_id: tenantId,
+      user_id: userId,
+      started_at: startedAt,
+    });
+    archiveStatus = archiveResult?.configured ? "ready" : "not_configured";
+  } catch (err) {
+    archiveStatus = "deferred";
+    console.warn(`[activation] ensureSessionArchive failed for ${sessionId}, will lazy-allocate on first turn: ${err.message}`);
+  }
+
+  return {
+    session_id: sessionId,
+    closed_sessions: closeResult.affectedRows || 0,
+    archive_status: archiveStatus,
+  };
 }
 
 export async function buildActivationSessionContext(req) {
