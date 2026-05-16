@@ -7,10 +7,27 @@ import { writeAuditLogAsync } from "../auditLogger.js";
 const TOKEN_BYTES = 32;
 const DEFAULT_TTL_MINUTES = 30;
 const MAX_TTL_MINUTES = 24 * 60;
-const ALLOWED_AUTH_TYPES = new Set(["api_key", "webhook", "mcp", "basic_auth", "bearer_token"]);
+
+const ALLOWED_AUTH_TYPES = new Set([
+  "api_key",
+  "webhook",
+  "mcp",
+  "basic_auth",
+  "bearer_token",
+  "oauth2",
+  "custom_headers",
+  "client_credentials",
+]);
+
+const ALLOWED_FIELD_TARGETS = new Set(["credentials", "connection", "metadata"]);
+const ALLOWED_FIELD_TYPES = new Set(["text", "password", "url", "email", "number", "textarea", "select", "checkbox"]);
 
 function sha256(value) {
   return createHash("sha256").update(String(value || "")).digest("hex");
+}
+
+function randomToken() {
+  return randomBytes(TOKEN_BYTES).toString("base64url");
 }
 
 function htmlEscape(value) {
@@ -28,75 +45,119 @@ function clampTtlMinutes(value) {
   return Math.min(Math.max(parsed, 1), MAX_TTL_MINUTES);
 }
 
-function randomToken() {
-  return randomBytes(TOKEN_BYTES).toString("base64url");
+function normalizeFieldName(name) {
+  return String(name || "")
+    .trim()
+    .replace(/[^A-Za-z0-9_]/g, "_")
+    .replace(/_+/g, "_")
+    .slice(0, 64);
 }
 
-async function loadApp(appKey) {
-  const [rows] = await getPool().query(
-    "SELECT app_key, display_name, description, auth_type, category, status FROM `app_integrations` WHERE app_key = ? LIMIT 1",
-    [appKey]
-  );
-  return rows[0] || null;
+function safeJsonParse(value, fallback) {
+  if (!value) return fallback;
+  if (typeof value === "object") return value;
+  try { return JSON.parse(value); } catch { return fallback; }
 }
 
-async function loadPendingSession(token) {
-  const tokenHash = sha256(token);
-  const [rows] = await getPool().query(
-    `SELECT * FROM credential_intake_sessions
-      WHERE token_hash = ?
-      LIMIT 1`,
-    [tokenHash]
-  );
-  const session = rows[0] || null;
-  if (!session) return { ok: false, status: 404, error: "credential_intake_session_not_found" };
-  if (session.status !== "pending") return { ok: false, status: 410, error: `credential_intake_session_${session.status}` };
-  if (new Date(session.expires_at).getTime() <= Date.now()) {
-    await getPool().query("UPDATE credential_intake_sessions SET status = 'expired' WHERE session_id = ?", [session.session_id]);
-    return { ok: false, status: 410, error: "credential_intake_session_expired" };
-  }
-  return { ok: true, session };
+function sanitizeField(raw = {}) {
+  const name = normalizeFieldName(raw.name);
+  if (!name) return null;
+  const type = ALLOWED_FIELD_TYPES.has(raw.type) ? raw.type : (raw.secret ? "password" : "text");
+  const target = ALLOWED_FIELD_TARGETS.has(raw.target) ? raw.target : "credentials";
+  return {
+    name,
+    label: String(raw.label || name).slice(0, 120),
+    type,
+    target,
+    required: raw.required !== false,
+    secret: raw.secret !== false && target === "credentials",
+    autocomplete: String(raw.autocomplete || (raw.secret === false ? "off" : "new-password")).slice(0, 64),
+    placeholder: String(raw.placeholder || "").slice(0, 240),
+    help: String(raw.help || "").slice(0, 240),
+    options: Array.isArray(raw.options) ? raw.options.slice(0, 50).map((item) => ({
+      value: String(item.value ?? item).slice(0, 120),
+      label: String(item.label ?? item.value ?? item).slice(0, 120),
+    })) : [],
+  };
 }
 
-function credentialFieldsFor(authType) {
+function defaultCredentialSchema(authType) {
   if (authType === "api_key") {
-    return [{ name: "api_key", label: "API key", type: "password", required: true, autocomplete: "new-password" }];
+    return [
+      { name: "api_key", label: "API key", type: "password", target: "credentials", required: true, secret: true },
+      { name: "api_base_url", label: "API base URL", type: "url", target: "connection", required: false, secret: false },
+    ];
   }
   if (authType === "bearer_token") {
-    return [{ name: "bearer_token", label: "Bearer token", type: "password", required: true, autocomplete: "new-password" }];
+    return [
+      { name: "bearer_token", label: "Bearer token", type: "password", target: "credentials", required: true, secret: true },
+      { name: "api_base_url", label: "API base URL", type: "url", target: "connection", required: false, secret: false },
+    ];
   }
   if (authType === "mcp") {
-    return [{ name: "mcp_bearer", label: "MCP API key / bearer token", type: "password", required: true, autocomplete: "new-password" }];
+    return [
+      { name: "mcp_endpoint", label: "MCP endpoint URL", type: "url", target: "connection", required: true, secret: false },
+      { name: "mcp_bearer", label: "MCP API key / bearer token", type: "password", target: "credentials", required: true, secret: true },
+    ];
   }
   if (authType === "webhook") {
-    return [{ name: "webhook_secret", label: "Webhook secret", type: "password", required: false, autocomplete: "new-password" }];
+    return [
+      { name: "webhook_url", label: "Webhook URL", type: "url", target: "connection", required: true, secret: false },
+      { name: "webhook_secret", label: "Webhook secret", type: "password", target: "credentials", required: false, secret: true },
+    ];
   }
   if (authType === "basic_auth") {
     return [
-      { name: "username", label: "Username", type: "text", required: true, autocomplete: "username" },
-      { name: "password", label: "Password", type: "password", required: true, autocomplete: "new-password" },
+      { name: "username", label: "Username", type: "text", target: "credentials", required: true, secret: false, autocomplete: "username" },
+      { name: "password", label: "Password", type: "password", target: "credentials", required: true, secret: true },
+      { name: "api_base_url", label: "API base URL", type: "url", target: "connection", required: false, secret: false },
     ];
+  }
+  if (authType === "client_credentials") {
+    return [
+      { name: "client_id", label: "Client ID", type: "text", target: "credentials", required: true, secret: false },
+      { name: "client_secret", label: "Client secret", type: "password", target: "credentials", required: true, secret: true },
+      { name: "token_url", label: "Token URL", type: "url", target: "metadata", required: false, secret: false },
+      { name: "scope", label: "Scope", type: "text", target: "metadata", required: false, secret: false },
+    ];
+  }
+  if (authType === "custom_headers") {
+    return [
+      { name: "header_name", label: "Header name", type: "text", target: "metadata", required: true, secret: false },
+      { name: "header_value", label: "Header value", type: "password", target: "credentials", required: true, secret: true },
+      { name: "api_base_url", label: "API base URL", type: "url", target: "connection", required: false, secret: false },
+    ];
+  }
+  if (authType === "oauth2") {
+    return [];
   }
   return [];
 }
 
-function collectCredentials(authType, body = {}) {
-  const credentials = {};
-  for (const field of credentialFieldsFor(authType)) {
-    const value = String(body[field.name] || "").trim();
-    if (field.required && !value) {
-      const err = new Error(`${field.name} is required.`);
-      err.status = 400;
-      err.code = "missing_credential_field";
-      throw err;
-    }
-    if (value) credentials[field.name] = value;
-  }
+function normalizeCredentialSchema(authType, schema) {
+  const rawFields = Array.isArray(schema?.fields) ? schema.fields : Array.isArray(schema) ? schema : defaultCredentialSchema(authType);
+  const fields = rawFields.map(sanitizeField).filter(Boolean);
+  const seen = new Set();
+  return fields.filter((field) => {
+    if (seen.has(field.name)) return false;
+    seen.add(field.name);
+    return true;
+  }).slice(0, 30);
+}
 
-  if (authType === "api_key" && credentials.api_key) credentials.bearer_token = credentials.api_key;
-  if (authType === "bearer_token" && credentials.bearer_token) credentials.api_key = credentials.bearer_token;
-  if (authType === "mcp" && credentials.mcp_bearer) credentials.bearer_token = credentials.mcp_bearer;
-  return credentials;
+function inputHtml(field, value = "") {
+  const common = `name="${htmlEscape(field.name)}" ${field.required ? "required" : ""} autocomplete="${htmlEscape(field.autocomplete)}" placeholder="${htmlEscape(field.placeholder)}"`;
+  if (field.type === "textarea") {
+    return `<textarea ${common}>${htmlEscape(value)}</textarea>`;
+  }
+  if (field.type === "select") {
+    const options = field.options.map((opt) => `<option value="${htmlEscape(opt.value)}">${htmlEscape(opt.label)}</option>`).join("");
+    return `<select ${common}>${options}</select>`;
+  }
+  if (field.type === "checkbox") {
+    return `<input ${common} type="checkbox" value="1">`;
+  }
+  return `<input ${common} type="${htmlEscape(field.type)}" value="${field.secret ? "" : htmlEscape(value)}">`;
 }
 
 function noStoreHeaders(res) {
@@ -112,22 +173,88 @@ function noStoreHeaders(res) {
   );
 }
 
-function renderCredentialForm({ session, app, error = "" }) {
-  const authType = session.auth_type;
-  const fields = credentialFieldsFor(authType);
-  const endpointField = authType === "mcp" && !session.mcp_endpoint
-    ? `<label>MCP endpoint URL<input name="mcp_endpoint" type="url" required placeholder="https://..." autocomplete="off"></label>`
-    : "";
-  const webhookField = authType === "webhook" && !session.webhook_url
-    ? `<label>Webhook URL<input name="webhook_url" type="url" required placeholder="https://..." autocomplete="off"></label>`
-    : "";
-  const apiBaseField = !session.api_base_url && ["api_key", "bearer_token"].includes(authType)
-    ? `<label>API base URL <span class="optional">optional</span><input name="api_base_url" type="url" placeholder="https://api.example.com" autocomplete="off"></label>`
-    : "";
+async function loadApp(appKey) {
+  const [rows] = await getPool().query(
+    "SELECT app_key, display_name, description, auth_type, category, status FROM `app_integrations` WHERE app_key = ? LIMIT 1",
+    [appKey]
+  );
+  return rows[0] || null;
+}
 
+async function loadPendingSession(token) {
+  const tokenHash = sha256(token);
+  const [rows] = await getPool().query(
+    `SELECT * FROM credential_intake_sessions WHERE token_hash = ? LIMIT 1`,
+    [tokenHash]
+  );
+  const session = rows[0] || null;
+  if (!session) return { ok: false, status: 404, error: "credential_intake_session_not_found" };
+  if (session.status !== "pending") return { ok: false, status: 410, error: `credential_intake_session_${session.status}` };
+  if (new Date(session.expires_at).getTime() <= Date.now()) {
+    await getPool().query("UPDATE credential_intake_sessions SET status = 'expired' WHERE session_id = ?", [session.session_id]);
+    return { ok: false, status: 410, error: "credential_intake_session_expired" };
+  }
+  return { ok: true, session };
+}
+
+function sessionSchema(session) {
+  return normalizeCredentialSchema(session.auth_type, safeJsonParse(session.credential_schema_json, null));
+}
+
+function collectSubmission({ authType, schema, body = {}, session = {} }) {
+  const credentials = {};
+  const metadata = safeJsonParse(session.metadata_json, {}) || {};
+  const connection = {
+    mcp_endpoint: session.mcp_endpoint || null,
+    webhook_url: session.webhook_url || null,
+    api_base_url: session.api_base_url || null,
+  };
+
+  for (const field of schema) {
+    const rawValue = field.type === "checkbox" ? (body[field.name] ? "1" : "") : String(body[field.name] || "").trim();
+    if (field.required && !rawValue) {
+      const err = new Error(`${field.name} is required.`);
+      err.status = 400;
+      err.code = "missing_credential_field";
+      throw err;
+    }
+    if (!rawValue) continue;
+
+    if (field.target === "credentials") credentials[field.name] = rawValue;
+    else if (field.target === "connection") {
+      if (["mcp_endpoint", "webhook_url", "api_base_url"].includes(field.name)) connection[field.name] = rawValue;
+      else metadata[field.name] = rawValue;
+    } else {
+      metadata[field.name] = rawValue;
+    }
+  }
+
+  const displayLabel = String(body.display_label || session.display_label || "").trim() || null;
+
+  // Compatibility aliases used by existing app adapters and credential resolvers.
+  if (authType === "api_key" && credentials.api_key) credentials.bearer_token = credentials.api_key;
+  if (authType === "bearer_token" && credentials.bearer_token) credentials.api_key = credentials.bearer_token;
+  if (authType === "mcp" && credentials.mcp_bearer) credentials.bearer_token = credentials.mcp_bearer;
+  if (authType === "custom_headers" && credentials.header_value && metadata.header_name) {
+    credentials.custom_headers = { [metadata.header_name]: credentials.header_value };
+  }
+
+  if (authType === "mcp" && !connection.mcp_endpoint) throw Object.assign(new Error("mcp_endpoint is required."), { status: 400 });
+  if (authType === "webhook" && !connection.webhook_url) throw Object.assign(new Error("webhook_url is required."), { status: 400 });
+  if (!Object.keys(credentials).length && authType !== "webhook") throw Object.assign(new Error("At least one credential secret is required."), { status: 400 });
+
+  return { credentials, metadata, connection, displayLabel };
+}
+
+function renderCredentialForm({ session, app, error = "" }) {
+  const fields = sessionSchema(session);
+  const oauthNotice = session.auth_type === "oauth2"
+    ? `<div class="meta">This app uses OAuth. Use the app authorization route instead of manual secret entry.</div>`
+    : "";
   const fieldHtml = fields.map((field) => `
     <label>${htmlEscape(field.label)}${field.required ? "" : " <span class=\"optional\">optional</span>"}
-      <input name="${htmlEscape(field.name)}" type="${htmlEscape(field.type)}" ${field.required ? "required" : ""} autocomplete="${htmlEscape(field.autocomplete)}">
+      ${inputHtml(field)}
+      ${field.help ? `<small>${htmlEscape(field.help)}</small>` : ""}
     </label>`).join("\n");
 
   return `<!doctype html>
@@ -139,37 +266,36 @@ function renderCredentialForm({ session, app, error = "" }) {
   <style>
     :root { color-scheme: light dark; font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif; }
     body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0f172a; color: #0f172a; }
-    main { width: min(560px, calc(100vw - 32px)); background: #fff; border-radius: 24px; padding: 28px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
+    main { width: min(640px, calc(100vw - 32px)); background: #fff; border-radius: 24px; padding: 28px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
     h1 { margin: 0 0 8px; font-size: 24px; }
     p { line-height: 1.55; color: #475569; }
     label { display: block; margin: 16px 0 6px; font-weight: 650; }
-    input { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 14px; padding: 13px 14px; font: inherit; margin-top: 7px; }
+    input, textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 14px; padding: 13px 14px; font: inherit; margin-top: 7px; }
+    textarea { min-height: 96px; resize: vertical; }
     button { width: 100%; margin-top: 22px; border: 0; border-radius: 16px; padding: 14px 18px; font-weight: 700; background: #2563eb; color: white; cursor: pointer; }
     .meta { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px 14px; margin: 18px 0; }
     .error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 14px; padding: 12px; }
-    .optional { color: #64748b; font-weight: 500; font-size: 12px; }
+    .optional, small { color: #64748b; font-weight: 500; font-size: 12px; display:block; margin-top:4px; }
     .fine { font-size: 13px; color: #64748b; }
   </style>
 </head>
 <body>
   <main>
     <h1>Secure credential intake</h1>
-    <p>Enter credentials for <strong>${htmlEscape(app.display_name || session.app_key)}</strong>. The secret is encrypted server-side and will not be shown again.</p>
+    <p>Enter credentials for <strong>${htmlEscape(app.display_name || session.app_key)}</strong>. Secrets are encrypted server-side and will not be shown again.</p>
     ${error ? `<div class="error">${htmlEscape(error)}</div>` : ""}
     <div class="meta">
       <div><strong>App:</strong> ${htmlEscape(session.app_key)}</div>
-      <div><strong>Auth type:</strong> ${htmlEscape(authType)}</div>
+      <div><strong>Auth type:</strong> ${htmlEscape(session.auth_type)}</div>
       <div><strong>Expires:</strong> ${htmlEscape(new Date(session.expires_at).toISOString())}</div>
     </div>
+    ${oauthNotice}
     <form method="post" autocomplete="off">
       ${fieldHtml}
-      ${endpointField}
-      ${webhookField}
-      ${apiBaseField}
       <label>Display label <span class="optional">optional</span><input name="display_label" type="text" value="${htmlEscape(session.display_label || "")}" autocomplete="off"></label>
-      <button type="submit">Save encrypted connection</button>
+      <button type="submit" ${session.auth_type === "oauth2" ? "disabled" : ""}>Save encrypted connection</button>
     </form>
-    <p class="fine">This page is single-use and short-lived. Do not share the URL after submission.</p>
+    <p class="fine">This page is single-use and short-lived. The URL contains a one-time token; do not share it after submission.</p>
   </main>
 </body>
 </html>`;
@@ -201,6 +327,8 @@ export function buildCredentialIntakeRoutes(deps = {}) {
         webhook_url,
         api_base_url,
         workspace_id,
+        credential_schema,
+        metadata,
         expires_in_minutes,
         created_by,
       } = req.body || {};
@@ -209,11 +337,16 @@ export function buildCredentialIntakeRoutes(deps = {}) {
         return res.status(400).json({ ok: false, error: { code: "missing_required_fields", message: "user_id, tenant_id, app_key, auth_type are required." } });
       }
       if (!ALLOWED_AUTH_TYPES.has(String(auth_type))) {
-        return res.status(400).json({ ok: false, error: { code: "unsupported_auth_type", message: "auth_type must be one of api_key, webhook, mcp, basic_auth, bearer_token." } });
+        return res.status(400).json({ ok: false, error: { code: "unsupported_auth_type", message: "Unsupported auth_type." } });
       }
 
       const app = await loadApp(app_key);
       if (!app) return res.status(404).json({ ok: false, error: { code: "app_not_found", message: `App ${app_key} was not found.` } });
+
+      const normalizedSchema = normalizeCredentialSchema(auth_type, credential_schema || null);
+      if (auth_type !== "oauth2" && !normalizedSchema.length) {
+        return res.status(400).json({ ok: false, error: { code: "empty_credential_schema", message: "No credential fields are available for this auth_type." } });
+      }
 
       const sessionId = randomUUID();
       const token = randomToken();
@@ -224,27 +357,46 @@ export function buildCredentialIntakeRoutes(deps = {}) {
       await getPool().query(
         `INSERT INTO credential_intake_sessions
            (session_id, token_hash, user_id, tenant_id, app_key, auth_type, display_label,
-            mcp_endpoint, webhook_url, api_base_url, workspace_id, status, expires_at, created_by)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`,
+            mcp_endpoint, webhook_url, api_base_url, workspace_id, credential_schema_json,
+            metadata_json, status, expires_at, created_by)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`,
         [sessionId, tokenHash, user_id, tenant_id, app_key, auth_type, display_label || null,
-         mcp_endpoint || null, webhook_url || null, api_base_url || null, workspace_id || null, expiresAt, created_by || req?.auth?.user_id || null]
+         mcp_endpoint || null, webhook_url || null, api_base_url || null, workspace_id || null,
+         JSON.stringify({ fields: normalizedSchema }), JSON.stringify(metadata || {}), expiresAt, created_by || req?.auth?.user_id || null]
       );
 
       const intakeUrl = `${absoluteBaseUrl(req)}/credential-intake/${encodeURIComponent(token)}`;
-      return res.status(201).json({ ok: true, session_id: sessionId, intake_url: intakeUrl, expires_at: expiresAt, app_key, auth_type });
+      return res.status(201).json({ ok: true, session_id: sessionId, intake_url: intakeUrl, expires_at: expiresAt, app_key, auth_type, field_count: normalizedSchema.length });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "credential_intake_session_create_failed", message: err.message } });
     }
+  });
+
+  router.get("/credential-intake/:token/schema", async (req, res) => {
+    noStoreHeaders(res);
+    const loaded = await loadPendingSession(req.params.token);
+    if (!loaded.ok) return res.status(loaded.status).json({ ok: false, error: loaded.error });
+    const app = await loadApp(loaded.session.app_key);
+    return res.json({
+      ok: true,
+      app: app ? { app_key: app.app_key, display_name: app.display_name, category: app.category, auth_type: app.auth_type } : null,
+      session: {
+        app_key: loaded.session.app_key,
+        auth_type: loaded.session.auth_type,
+        expires_at: loaded.session.expires_at,
+        fields: sessionSchema(loaded.session).map((field) => ({ ...field, secret: !!field.secret })),
+      },
+    });
   });
 
   router.get("/credential-intake/:token", async (req, res) => {
     noStoreHeaders(res);
     try {
       const loaded = await loadPendingSession(req.params.token);
-      if (!loaded.ok) return res.status(loaded.status).send(renderCredentialForm({ session: { app_key: "expired", auth_type: "api_key", expires_at: new Date().toISOString() }, app: { display_name: "Expired session" }, error: loaded.error }));
+      if (!loaded.ok) return res.status(loaded.status).type("text").send(loaded.error);
       const app = await loadApp(loaded.session.app_key);
       return res.status(200).type("html").send(renderCredentialForm({ session: loaded.session, app: app || {} }));
-    } catch (err) {
+    } catch {
       return res.status(500).type("text").send("Credential intake page failed.");
     }
   });
@@ -255,15 +407,8 @@ export function buildCredentialIntakeRoutes(deps = {}) {
       const loaded = await loadPendingSession(req.params.token);
       if (!loaded.ok) return res.status(loaded.status).type("text").send(loaded.error);
       const session = loaded.session;
-      const app = await loadApp(session.app_key);
-      const credentials = collectCredentials(session.auth_type, req.body || {});
-      const mcpEndpoint = String(req.body?.mcp_endpoint || session.mcp_endpoint || "").trim() || null;
-      const webhookUrl = String(req.body?.webhook_url || session.webhook_url || "").trim() || null;
-      const apiBaseUrl = String(req.body?.api_base_url || session.api_base_url || "").trim() || null;
-      const displayLabel = String(req.body?.display_label || session.display_label || "").trim() || null;
-
-      if (session.auth_type === "mcp" && !mcpEndpoint) throw Object.assign(new Error("mcp_endpoint is required."), { status: 400 });
-      if (session.auth_type === "webhook" && !webhookUrl) throw Object.assign(new Error("webhook_url is required."), { status: 400 });
+      const schema = sessionSchema(session);
+      const { credentials, metadata, connection, displayLabel } = collectSubmission({ authType: session.auth_type, schema, body: req.body || {}, session });
 
       const connectionId = randomUUID();
       await getPool().query(
@@ -273,9 +418,9 @@ export function buildCredentialIntakeRoutes(deps = {}) {
             mcp_endpoint, webhook_url, api_base_url, is_primary, status, validation_status)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,'active','pending_validation')`,
         [connectionId, session.user_id, session.tenant_id, session.app_key, displayLabel,
-         session.auth_type, encryptCredentials(credentials), displayLabel || apiBaseUrl || mcpEndpoint || webhookUrl || null,
-         JSON.stringify({ intake_session_id: session.session_id, intake_type: "web_form" }),
-         mcpEndpoint, webhookUrl, apiBaseUrl]
+         session.auth_type, encryptCredentials(credentials), displayLabel || connection.api_base_url || connection.mcp_endpoint || connection.webhook_url || null,
+         JSON.stringify({ ...metadata, intake_session_id: session.session_id, intake_type: "schema_driven_web_form" }),
+         connection.mcp_endpoint, connection.webhook_url, connection.api_base_url]
       );
 
       await getPool().query(
@@ -285,14 +430,23 @@ export function buildCredentialIntakeRoutes(deps = {}) {
         [connectionId, session.session_id]
       );
 
-      writeAuditLogAsync?.({
+      writeAuditLogAsync({
         tenant_id: session.tenant_id,
         actor_id: session.user_id,
         actor_type: "credential_intake_link",
         action: "credential_intake.connection_created",
         resource_type: "user_app_connection",
         resource_id: connectionId,
-        after_json: { app_key: session.app_key, auth_type: session.auth_type, has_mcp_endpoint: !!mcpEndpoint, has_webhook_url: !!webhookUrl, has_api_base_url: !!apiBaseUrl },
+        after_json: {
+          app_key: session.app_key,
+          auth_type: session.auth_type,
+          field_count: schema.length,
+          has_mcp_endpoint: !!connection.mcp_endpoint,
+          has_webhook_url: !!connection.webhook_url,
+          has_api_base_url: !!connection.api_base_url,
+        },
+        ip_address: req.ip,
+        user_agent: req.headers["user-agent"] || null,
       });
 
       return res.status(201).type("html").send(renderDone(connectionId));
@@ -300,7 +454,7 @@ export function buildCredentialIntakeRoutes(deps = {}) {
       const loaded = await loadPendingSession(req.params.token).catch(() => null);
       const app = loaded?.session ? await loadApp(loaded.session.app_key).catch(() => ({})) : {};
       return res.status(err.status || 500).type("html").send(renderCredentialForm({
-        session: loaded?.session || { app_key: "unknown", auth_type: "api_key", expires_at: new Date().toISOString() },
+        session: loaded?.session || { app_key: "unknown", auth_type: "api_key", expires_at: new Date().toISOString(), credential_schema_json: JSON.stringify({ fields: defaultCredentialSchema("api_key") }) },
         app: app || {},
         error: err.message || "Failed to save credentials.",
       }));
