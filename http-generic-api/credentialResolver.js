@@ -22,18 +22,10 @@ function roleCandidateFields(role = "", authType = "") {
   if (normalizedRole.includes("mcp")) {
     return ["mcp_token", "mcp_bearer", "mcp_bearer_token", "bearer_token", "api_key", "token"];
   }
-  if (normalizedRole.includes("oauth_refresh")) {
-    return ["refresh_token"];
-  }
-  if (normalizedRole.includes("oauth_access")) {
-    return ["access_token"];
-  }
-  if (normalizedRole.includes("webhook")) {
-    return ["webhook_secret", "secret"];
-  }
-  if (normalizedRole.includes("api_key")) {
-    return ["api_key", "key", "token", "bearer_token"];
-  }
+  if (normalizedRole.includes("oauth_refresh")) return ["refresh_token"];
+  if (normalizedRole.includes("oauth_access")) return ["access_token"];
+  if (normalizedRole.includes("webhook")) return ["webhook_secret", "secret"];
+  if (normalizedRole.includes("api_key")) return ["api_key", "key", "token", "bearer_token"];
 
   if (normalizedAuth === "oauth2") return ["access_token", "refresh_token"];
   if (normalizedAuth === "mcp") return ["mcp_token", "mcp_bearer", "bearer_token", "api_key"];
@@ -71,6 +63,70 @@ async function loadConnection(pool, connectionId) {
     [connectionId]
   ).catch(() => []);
   return rows[0] || null;
+}
+
+function externalReferenceResult(row, context, source) {
+  const includeSecret = Boolean(context.includeSecret);
+  return safeResult({
+    status: "resolved_reference_only",
+    credential_ref: row.secret_ref || "",
+    owner_type: source === "platform_secrets" ? "platform" : "tenant",
+    source,
+    storage_backend: row.storage_backend || "",
+    secret_present: Boolean(row.secret_ref || row.value_sha256 || row.value_ciphertext)
+  }, includeSecret);
+}
+
+function encryptedSecretResult(row, context, source) {
+  const includeSecret = Boolean(context.includeSecret);
+  const secretKey = row.secret_key || context.secretKey || "";
+
+  if (!row || row.status !== "active" || !str(row.value_ciphertext)) {
+    return safeResult({
+      status: "blocked_missing_secret",
+      credential_ref: context.credentialRef || "",
+      missing_secret_key: secretKey,
+      owner_type: source === "platform_secrets" ? "platform" : "tenant",
+      source,
+      storage_backend: row?.storage_backend || "db_encrypted"
+    }, includeSecret);
+  }
+
+  if (!includeSecret) {
+    return {
+      status: "resolved",
+      credential_ref: context.credentialRef || "",
+      owner_type: source === "platform_secrets" ? "platform" : "tenant",
+      source,
+      storage_backend: row.storage_backend || "db_encrypted",
+      secret_present: true,
+      value_sha256: row.value_sha256 || ""
+    };
+  }
+
+  const decryptToken = context.decryptToken || defaultDecryptToken;
+  const secret = decryptToken(row.value_ciphertext);
+  if (!str(secret)) {
+    return safeResult({
+      status: "blocked_missing_secret",
+      credential_ref: context.credentialRef || "",
+      missing_secret_key: secretKey,
+      owner_type: source === "platform_secrets" ? "platform" : "tenant",
+      source,
+      storage_backend: row.storage_backend || "db_encrypted"
+    }, includeSecret);
+  }
+
+  return {
+    status: "resolved",
+    credential_ref: context.credentialRef || "",
+    owner_type: source === "platform_secrets" ? "platform" : "tenant",
+    source,
+    storage_backend: row.storage_backend || "db_encrypted",
+    secret,
+    secret_present: true,
+    value_sha256: row.value_sha256 || ""
+  };
 }
 
 async function resolveUserAppConnectionRef(ref, context, deps) {
@@ -157,30 +213,65 @@ async function resolveUserAppConnectionRef(ref, context, deps) {
   };
 }
 
-async function resolveEnvRef(ref, context, deps) {
+async function resolveLegacyEnvRef(ref, context, deps) {
   const includeSecret = Boolean(context.includeSecret);
   const env = deps.env || process.env;
   const secretKey = str(ref).slice("ref:secret:".length);
   const value = str(env[secretKey]);
-  if (!secretKey) {
-    return safeResult({ status: "invalid_credential_ref", credential_ref: ref, source: "env" }, includeSecret);
-  }
+  if (!secretKey) return safeResult({ status: "invalid_credential_ref", credential_ref: ref, source: "env" }, includeSecret);
   if (!value) {
     return safeResult({
       status: "blocked_missing_secret",
       credential_ref: ref,
       missing_secret_key: secretKey,
-      source: "env"
+      source: "env_legacy_fallback"
     }, includeSecret);
   }
   return safeResult({
     status: "resolved",
     credential_ref: ref,
-    source: "env",
+    source: "env_legacy_fallback",
     missing_secret_key: "",
     secret: value,
     secret_present: true
   }, includeSecret);
+}
+
+async function resolveSecretReferenceRef(ref, context, deps) {
+  const secretKey = str(ref).slice("ref:secret:".length);
+  if (!secretKey) {
+    return safeResult({ status: "invalid_credential_ref", credential_ref: ref, source: "secret_references" }, Boolean(context.includeSecret));
+  }
+
+  const rows = await query(
+    deps.pool,
+    "SELECT * FROM `secret_references` WHERE secret_key = ? AND status = 'active' LIMIT 1",
+    [secretKey]
+  ).catch(() => []);
+  const row = rows[0];
+
+  if (!row) return resolveLegacyEnvRef(ref, context, deps);
+
+  if (row.store_type === "db_encrypted") {
+    if (row.owner_type === "platform") return resolvePlatformSecretRef(`platform_secret:${secretKey}`, context, deps);
+    return resolveTenantSecretRef(`tenant_secret:${row.tenant_id}:${secretKey}`, context, deps);
+  }
+
+  if (row.store_type === "vault" || row.store_type === "external") {
+    return safeResult({
+      status: "resolved_reference_only",
+      credential_ref: ref,
+      owner_type: row.owner_type,
+      owner_id: row.owner_id || row.tenant_id,
+      source: "secret_references",
+      store_type: row.store_type,
+      vault_path: row.vault_path || "",
+      secret_present: Boolean(row.vault_path)
+    }, Boolean(context.includeSecret));
+  }
+
+  // Env is now legacy compatibility, not the preferred source.
+  return resolveLegacyEnvRef(ref, context, deps);
 }
 
 async function resolveTenantSecretRef(ref, context, deps) {
@@ -192,7 +283,7 @@ async function resolveTenantSecretRef(ref, context, deps) {
 
   const rows = await query(
     deps.pool,
-    "SELECT * FROM `tenant_secrets` WHERE tenant_id = ? AND secret_key = ? AND status = 'active' LIMIT 1",
+    "SELECT * FROM `tenant_secrets` WHERE tenant_id = ? AND secret_key = ? LIMIT 1",
     [tenantId, secretKey]
   ).catch(() => []);
   const row = rows[0];
@@ -206,16 +297,24 @@ async function resolveTenantSecretRef(ref, context, deps) {
     }, includeSecret);
   }
 
-  if (str(row.secret_ref).startsWith("ref:secret:")) {
-    return resolveEnvRef(row.secret_ref, context, deps);
+  const storage = str(row.storage_backend);
+  if (storage === "db_encrypted" || (storage === "manual" && str(row.value_ciphertext))) {
+    return encryptedSecretResult(row, { ...context, credentialRef: ref, secretKey, decryptToken: deps.decryptToken }, "tenant_secrets");
+  }
+  if (storage === "env_ref" && str(row.secret_ref).startsWith("ref:secret:")) {
+    return resolveLegacyEnvRef(row.secret_ref, context, deps);
+  }
+  if (["gcp_secret_manager", "external_vault", "mounted_file"].includes(storage)) {
+    return externalReferenceResult(row, context, "tenant_secrets");
   }
 
   return safeResult({
-    status: "resolved_reference_only",
+    status: "blocked_missing_secret",
     credential_ref: ref,
+    missing_secret_key: secretKey,
     owner_type: "tenant",
     source: "tenant_secrets",
-    secret_present: Boolean(row.value_sha256 || row.secret_ref)
+    storage_backend: storage || "manual"
   }, includeSecret);
 }
 
@@ -228,7 +327,7 @@ async function resolvePlatformSecretRef(ref, context, deps) {
 
   const rows = await query(
     deps.pool,
-    "SELECT * FROM `platform_secrets` WHERE secret_key = ? AND status = 'active' LIMIT 1",
+    "SELECT * FROM `platform_secrets` WHERE secret_key = ? LIMIT 1",
     [secretKey]
   ).catch(() => []);
   const row = rows[0];
@@ -242,16 +341,24 @@ async function resolvePlatformSecretRef(ref, context, deps) {
     }, includeSecret);
   }
 
-  if (str(row.secret_ref).startsWith("ref:secret:")) {
-    return resolveEnvRef(row.secret_ref, context, deps);
+  const storage = str(row.storage_backend);
+  if (storage === "db_encrypted" || (storage === "manual" && str(row.value_ciphertext))) {
+    return encryptedSecretResult(row, { ...context, credentialRef: ref, secretKey, decryptToken: deps.decryptToken }, "platform_secrets");
+  }
+  if (storage === "env_ref" && str(row.secret_ref).startsWith("ref:secret:")) {
+    return resolveLegacyEnvRef(row.secret_ref, context, deps);
+  }
+  if (["gcp_secret_manager", "external_vault", "mounted_file"].includes(storage)) {
+    return externalReferenceResult(row, context, "platform_secrets");
   }
 
   return safeResult({
-    status: "resolved_reference_only",
+    status: "blocked_missing_secret",
     credential_ref: ref,
+    missing_secret_key: secretKey,
     owner_type: "platform",
     source: "platform_secrets",
-    secret_present: Boolean(row.value_sha256 || row.secret_ref)
+    storage_backend: storage || "manual"
   }, includeSecret);
 }
 
@@ -260,18 +367,10 @@ async function resolveCredentialRef(ref, context, deps) {
   if (!normalizedRef) {
     return safeResult({ status: "blocked_missing_secret", credential_ref: "", source: "none" }, Boolean(context.includeSecret));
   }
-  if (normalizedRef.startsWith("user_app_connection:")) {
-    return resolveUserAppConnectionRef(normalizedRef, context, deps);
-  }
-  if (normalizedRef.startsWith("ref:secret:")) {
-    return resolveEnvRef(normalizedRef, context, deps);
-  }
-  if (normalizedRef.startsWith("tenant_secret:")) {
-    return resolveTenantSecretRef(normalizedRef, context, deps);
-  }
-  if (normalizedRef.startsWith("platform_secret:")) {
-    return resolvePlatformSecretRef(normalizedRef, context, deps);
-  }
+  if (normalizedRef.startsWith("user_app_connection:")) return resolveUserAppConnectionRef(normalizedRef, context, deps);
+  if (normalizedRef.startsWith("ref:secret:")) return resolveSecretReferenceRef(normalizedRef, context, deps);
+  if (normalizedRef.startsWith("tenant_secret:")) return resolveTenantSecretRef(normalizedRef, context, deps);
+  if (normalizedRef.startsWith("platform_secret:")) return resolvePlatformSecretRef(normalizedRef, context, deps);
   return safeResult({
     status: "unsupported_credential_ref",
     credential_ref: normalizedRef,
@@ -280,15 +379,7 @@ async function resolveCredentialRef(ref, context, deps) {
 }
 
 function bindingSpecificityScore(binding = {}) {
-  return [
-    binding.connection_id,
-    binding.user_id,
-    binding.owner_id,
-    binding.installation_id,
-    binding.system_id,
-    binding.action_key,
-    binding.target_key
-  ].filter(Boolean).length;
+  return [binding.connection_id, binding.user_id, binding.owner_id, binding.installation_id, binding.system_id, binding.action_key, binding.target_key].filter(Boolean).length;
 }
 
 function bindingMatches(binding = {}, context = {}) {
@@ -355,13 +446,15 @@ async function fallbackActionSecret(context, deps) {
   };
 }
 
-function fallbackTargetEnvSecret(context) {
+function fallbackTargetSecret(context) {
   if (context.credentialRole !== "wordpress_app_password" || !context.targetKey) return null;
+  // Prefer tenant_secret convention over env. The resolver will report missing
+  // until a tenant secret row is provisioned.
   return {
-    credential_ref: `ref:secret:${upperEnvKey(context.targetKey)}_APP_PASSWORD`,
+    credential_ref: `tenant_secret:${context.tenantId}:${upperEnvKey(context.targetKey)}_APP_PASSWORD`,
     owner_type: "tenant",
     owner_id: context.tenantId,
-    source: "target_env_convention",
+    source: "target_tenant_secret_convention",
     target_key: context.targetKey
   };
 }
@@ -381,16 +474,13 @@ export async function resolveEffectiveCredential(input = {}, deps = {}) {
     allowPlatformFallback: input.allowPlatformFallback !== false && input.allow_platform_fallback !== false
   };
 
-  if (!context.tenantId) {
-    return safeResult({ status: "missing_tenant_id", source: "credential_resolver" }, context.includeSecret);
-  }
-  if (!context.credentialRole) {
-    return safeResult({ status: "missing_credential_role", source: "credential_resolver" }, context.includeSecret);
-  }
+  if (!context.tenantId) return safeResult({ status: "missing_tenant_id", source: "credential_resolver" }, context.includeSecret);
+  if (!context.credentialRole) return safeResult({ status: "missing_credential_role", source: "credential_resolver" }, context.includeSecret);
 
   const runtimeDeps = {
     pool: deps.pool || getPool(),
     decryptCredentials: deps.decryptCredentials || defaultDecryptCredentials,
+    decryptToken: deps.decryptToken || defaultDecryptToken,
     env: deps.env || process.env
   };
 
@@ -399,17 +489,16 @@ export async function resolveEffectiveCredential(input = {}, deps = {}) {
     ...bindings.map(binding => ({ ...binding, source: "credential_bindings" })),
     await fallbackUserConnection(context, runtimeDeps),
     await fallbackActionSecret(context, runtimeDeps),
-    fallbackTargetEnvSecret(context)
+    fallbackTargetSecret(context)
   ].filter(Boolean);
 
   if (!context.allowPlatformFallback) {
     for (let i = candidates.length - 1; i >= 0; i -= 1) {
-      if (candidates[i]?.owner_type === "platform" && candidates[i]?.source !== "credential_bindings") {
-        candidates.splice(i, 1);
-      }
+      if (candidates[i]?.owner_type === "platform" && candidates[i]?.source !== "credential_bindings") candidates.splice(i, 1);
     }
   }
 
+  let firstMissing = null;
   for (const candidate of candidates) {
     const resolved = await resolveCredentialRef(candidate.credential_ref, context, runtimeDeps);
     if (resolved.status === "resolved" || resolved.status === "resolved_reference_only") {
@@ -424,17 +513,19 @@ export async function resolveEffectiveCredential(input = {}, deps = {}) {
       }, context.includeSecret);
     }
 
-    if (resolved.status === "blocked_missing_secret") {
-      return safeResult({
+    if (resolved.status === "blocked_missing_secret" && !firstMissing) {
+      firstMissing = {
         ...resolved,
         credential_role: context.credentialRole,
         owner_type: candidate.owner_type || resolved.owner_type || "",
         owner_id: candidate.owner_id || "",
         binding_id: candidate.binding_id || "",
         source: candidate.source || resolved.source
-      }, context.includeSecret);
+      };
     }
   }
+
+  if (firstMissing) return safeResult(firstMissing, context.includeSecret);
 
   return safeResult({
     status: "blocked_missing_secret",
