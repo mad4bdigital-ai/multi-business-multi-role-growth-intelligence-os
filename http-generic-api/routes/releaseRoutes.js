@@ -1,10 +1,12 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
 import { runReleaseReadiness } from "../releaseReadiness.js";
+import { runSessionArchiveSmoke } from "../sessionArchiveSmoke.js";
 
 export function buildReleaseRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
+  const sessionArchiveSmokeRunner = deps.runSessionArchiveSmoke || runSessionArchiveSmoke;
 
   async function handleReadiness(req, res) {
     try {
@@ -39,6 +41,29 @@ export function buildReleaseRoutes(deps) {
   // ?summary=true returns only the summary (faster for uptime probes).
   router.get("/release/readiness", requireBackendApiKey, handleReadiness);
   router.get("/admin/release/readiness", requireBackendApiKey, handleReadiness);
+
+  async function handleSessionArchiveSmoke(req, res) {
+    try {
+      const result = await sessionArchiveSmokeRunner({
+        tenantId: req.body?.tenant_id,
+        userId: req.body?.user_id,
+        includeDriveReadback: req.body?.include_drive_readback !== false,
+      });
+      return res.status(result.ok ? 200 : 500).json(result);
+    } catch (err) {
+      return res.status(500).json({
+        ok: false,
+        status: "fail",
+        smoke_type: "session_archive_drive_writeback",
+        error: { code: "session_archive_smoke_failed", message: err.message },
+      });
+    }
+  }
+
+  // Writes a tiny GPT action session and verifies Drive doc, JSONL, SQL pointers,
+  // and activation readback. Intended for daily scheduler/monitor probes.
+  router.post("/release/session-archive-smoke", requireBackendApiKey, handleSessionArchiveSmoke);
+  router.post("/admin/release/session-archive-smoke", requireBackendApiKey, handleSessionArchiveSmoke);
 
   // ── GET /release/readiness-history ────────────────────────────────────────
   // Returns the last N readiness runs from release_readiness_log.

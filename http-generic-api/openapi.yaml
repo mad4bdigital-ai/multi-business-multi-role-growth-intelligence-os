@@ -1154,6 +1154,58 @@ components:
           type: object
           additionalProperties: true
 
+    SessionArchiveSmokeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        tenant_id:
+          type: string
+          description: Tenant id to use for the synthetic GPT action session. Defaults to the platform tenant.
+        user_id:
+          type: string
+          description: Synthetic user id to use for the smoke session. Defaults to a generated session_archive_smoke_* value.
+        include_drive_readback:
+          type: boolean
+          default: true
+          description: When true, export/read the created Drive doc and JSONL sidecar to verify persisted content.
+
+    SessionArchiveSmokeResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, status, smoke_type, checked_at, session_id, checks]
+      properties:
+        ok: { type: boolean }
+        status:
+          type: string
+          enum: [pass, fail]
+        smoke_type:
+          type: string
+          enum: [session_archive_drive_writeback]
+        checked_at: { type: string, format: date-time }
+        session_id: { type: string, format: uuid }
+        tenant_id: { type: string }
+        user_id: { type: string }
+        drive:
+          type: object
+          additionalProperties: true
+          properties:
+            folder_id: { type: string }
+            doc_id: { type: string }
+            jsonl_id: { type: string }
+            export_url_present: { type: boolean }
+        checks:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            required: [name, pass]
+            properties:
+              name: { type: string }
+              pass: { type: boolean }
+              detail:
+                type: object
+                additionalProperties: true
+
   responses:
     BadRequest:
       description: Invalid request body or missing required field
@@ -4567,6 +4619,36 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ReleaseReadinessResponse" }
+
+  /release/session-archive-smoke:
+    post:
+      tags: [release]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: runSessionArchiveSmoke
+      summary: Run live GPT session archive Drive writeback smoke
+      description: >
+        Writes a tiny synthetic GPT action session, appends user and assistant
+        turns to Drive, closes the archive, and verifies Google Doc readback,
+        Tool_Calls.jsonl readback, SQL preview/hash/pointer storage, and
+        activation/session-context Drive URL readback. Intended for daily
+        scheduler or uptime monitor probes.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SessionArchiveSmokeRequest" }
+      responses:
+        "200":
+          description: Smoke passed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionArchiveSmokeResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500":
+          description: Smoke failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionArchiveSmokeResponse" }
 
   /release/readiness-history:
     get:

@@ -69,7 +69,7 @@ const SCOPES_BY_HOST = {
   "ops.mad4b.com": {
     scope: "ops",
     schema_file: "openapi.custom-gpt.ops.yaml",
-    primary_paths: ["/release/readiness", "/release/readiness-history", "/release/entity-classification"]
+    primary_paths: ["/release/readiness", "/release/session-archive-smoke", "/release/readiness-history", "/release/entity-classification"]
   },
   "status.mad4b.com": {
     scope: "status",
