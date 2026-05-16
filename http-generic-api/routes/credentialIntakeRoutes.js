@@ -29,7 +29,7 @@ function clampTtlMinutes(value) {
 }
 
 function randomToken() {
-  return Buffer.from(crypto.getRandomValues(new Uint8Array(TOKEN_BYTES))).toString("base64url");
+  return randomBytes(TOKEN_BYTES).toString("base64url");
 }
 
 async function loadApp(appKey) {
