@@ -726,7 +726,7 @@ paths:
               properties:
                 action:
                   type: string
-                  enum: [health, list_workflows, get_workflow, activate_workflow, deactivate_workflow, run_workflow, list_executions]
+                  enum: [status, diagnose, start, open, stop, restart, health, list_workflows, get_workflow, activate_workflow, deactivate_workflow, run_workflow, list_executions]
                 workflow_id:
                   type: string
                   description: "n8n workflow ID. Required for get, activate, deactivate, run."
