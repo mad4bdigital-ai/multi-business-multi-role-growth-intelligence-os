@@ -63,7 +63,7 @@ export function buildConnectorTaxonomyRoutes(deps = {}) {
              LEFT JOIN actions a ON CONVERT(a.action_key USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(b.action_key USING utf8mb4) COLLATE utf8mb4_unicode_ci
             WHERE ai.app_key IS NULL OR a.action_key IS NULL) AS orphan_app_action_bindings`
       );
-      return res.status(200).json({ ok: true, families, bindings, coverage, quality });
+      return res.status(200).json({ ok: true, families, bindings, tool_bindings: toolBindings, coverage, quality });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "connector_taxonomy_summary_failed", message: err.message } });
     }
