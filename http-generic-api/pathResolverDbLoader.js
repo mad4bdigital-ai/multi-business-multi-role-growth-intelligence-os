@@ -139,8 +139,59 @@ async function loadTargetRows(req) {
   }));
 }
 
+async function loadValidationRows(req) {
+  const keys = [
+    req.brandKey,
+    req.targetKey,
+    req.businessTypeKey,
+    req.businessActivityTypeKey,
+    req.knowledgeProfileKey,
+    req.surfaceId,
+    req.targetSurfaceId,
+  ].filter(Boolean);
+
+  if (!keys.length) return [];
+
+  const placeholders = keys.map(() => "?").join(", ");
+  const rows = await query(
+    `SELECT *
+       FROM \`validation_repair\`
+      WHERE entity_key IN (${placeholders})
+         OR validation_target IN (${placeholders})
+         OR target_surface_id IN (${placeholders})
+         OR surface_id IN (${placeholders})
+      ORDER BY required_for_execution DESC, surface_id, validation_id`,
+    [...keys, ...keys, ...keys, ...keys]
+  );
+
+  return rows.map(r => ({
+    validation_id: str(r.validation_id),
+    entity_key: str(r.entity_key),
+    surface_id: str(r.surface_id),
+    surface_name: str(r.surface_name),
+    rule_id: str(r.rule_id),
+    validation_target: str(r.validation_target),
+    target_surface_id: str(r.target_surface_id),
+    validation_type: str(r.validation_type),
+    validation_method: str(r.validation_method),
+    required_for_execution: str(r.required_for_execution),
+    validation_status: str(r.validation_status),
+    readiness_state: str(r.result_state || r.execution_readiness_status),
+    result_state: str(r.result_state),
+    repair_required: str(r.repair_required),
+    repair_recommended: str(r.repair_recommended),
+    repair_status: str(r.repair_status),
+    status: str(r.validation_status || r.result_state),
+    execution_readiness_status: str(r.execution_readiness_status),
+    last_validated_at: str(r.last_validated_at),
+    blocking_reason: str(r.blocking_reason),
+    summary: str(r.summary),
+    notes: str(r.notes),
+  }));
+}
+
 export async function loadPathResolverRowsFromDb(loadRequest = {}) {
-  const [businessActivityRows, profileRows, brandRows, brandPathRows, brandCoreRows, targetRows] =
+  const [businessActivityRows, profileRows, brandRows, brandPathRows, brandCoreRows, targetRows, validationRows] =
     await Promise.all([
       loadBusinessActivityRows(loadRequest).catch(() => []),
       loadProfileRows(loadRequest).catch(() => []),
@@ -148,6 +199,7 @@ export async function loadPathResolverRowsFromDb(loadRequest = {}) {
       loadBrandPathRows(loadRequest).catch(() => []),
       loadBrandCoreRows(loadRequest).catch(() => []),
       loadTargetRows(loadRequest).catch(() => []),
+      loadValidationRows(loadRequest).catch(() => []),
     ]);
 
   return {
@@ -162,7 +214,7 @@ export async function loadPathResolverRowsFromDb(loadRequest = {}) {
       brandPathRows,
       brandCoreRows,
       targetRows,
-      validationRows: [],
+      validationRows,
     },
   };
 }
