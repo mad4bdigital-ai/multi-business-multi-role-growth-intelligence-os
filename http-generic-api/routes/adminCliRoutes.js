@@ -1181,6 +1181,74 @@ export function buildAdminCliRoutes(deps) {
     }
   });
 
+  router.get("/data-source/census", requireBackendApiKey, requireAdminPrincipal, async (_req, res) => {
+    try {
+      const { TABLE_MAP } = await import("../sqlAdapter.js");
+      const pool = getPool();
+      const tables = [];
+
+      for (const [sheetName, sqlTable] of Object.entries(TABLE_MAP)) {
+        try {
+          const [[counts]] = await pool.query(
+            `SELECT COUNT(*) AS row_count FROM \`${sqlTable}\``
+          );
+          let lastWriteAt = null;
+          try {
+            const [[ts]] = await pool.query(
+              `SELECT MAX(GREATEST(COALESCE(updated_at, '1970-01-01'), COALESCE(created_at, '1970-01-01'))) AS last_write_at FROM \`${sqlTable}\``
+            );
+            lastWriteAt = ts?.last_write_at || null;
+          } catch {
+            lastWriteAt = null;
+          }
+          tables.push({
+            sql_table: sqlTable,
+            sheet_name: sheetName,
+            sql_row_count: Number(counts?.row_count || 0),
+            sql_last_write_at: lastWriteAt,
+            sql_seeded: Number(counts?.row_count || 0) > 0,
+          });
+        } catch (err) {
+          tables.push({
+            sql_table: sqlTable,
+            sheet_name: sheetName,
+            sql_row_count: null,
+            sql_last_write_at: null,
+            sql_seeded: false,
+            error: { code: "sql_read_failed", message: String(err?.message || err).slice(0, 200) },
+          });
+        }
+      }
+
+      const dataSourceMode = (process.env.DATA_SOURCE || "sql").trim().toLowerCase();
+      const sheetsMirrorConfigured = Boolean(
+        process.env.REGISTRY_SPREADSHEET_ID || process.env.ACTIVITY_SPREADSHEET_ID
+      );
+      const seededCount = tables.filter((t) => t.sql_seeded).length;
+
+      return res.status(200).json({
+        ok: true,
+        data_source: {
+          runtime_authority: "sql",
+          mode: dataSourceMode,
+          sheets_role: "async_mirror_and_recovery",
+          sheets_mirror_configured: sheetsMirrorConfigured,
+        },
+        summary: {
+          total_tables: tables.length,
+          seeded_tables: seededCount,
+          empty_tables: tables.length - seededCount,
+        },
+        tables,
+      });
+    } catch (err) {
+      return res.status(500).json({
+        ok: false,
+        error: { code: "data_source_census_failed", message: err.message },
+      });
+    }
+  });
+
   return router;
 }
 

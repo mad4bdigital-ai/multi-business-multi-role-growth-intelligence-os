@@ -2,7 +2,7 @@ export const CANONICALS = [
   {
     output: 'system_bootstrap.md',
     sourceDir: 'canonicals/system_bootstrap',
-    expectedFileCount: 20,
+    expectedFileCount: 21,
     index: [
       ['Header and purpose', '00_header_purpose.md', 'Canonical identity, status, and purpose.'],
       ['Logic pointers and knowledge profiles', '01_logic_pointer_knowledge.md', 'Logic pointer authority, knowledge profiles, brand onboarding, and asset-read governance.'],
@@ -24,6 +24,7 @@ export const CANONICALS = [
       ['Agent execution runtime', '17_agent_execution_runtime.md', 'Agent runtime, model class routing, verify pass, engine dispatch, Drive knowledge layer, and sync script.'],
       ['Local connector and dispatch governance', '18_local_connector_dispatch.md', 'Dispatch layer, task_routes authority, agent skill grants, local connector config, auto-provisioning, and DNS governance.'],
       ['Tenant GPT OAuth preset', '19_tenant_gpt_oauth_preset.md', 'Tenant Custom GPT OAuth preset, schema URL, client ID, redirect/auth URLs, scopes, and sign-in failure interpretation.'],
+      ['SQL primary data source', '20_sql_primary_data_source.md', 'SQL runtime authority, sheet-to-table map, async mirror behavior, recovery helpers, and GPT-initiated migration repair flow.'],
     ],
   },
   {

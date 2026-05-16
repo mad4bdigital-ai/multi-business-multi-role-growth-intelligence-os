@@ -5926,11 +5926,11 @@ paths:
       tags: [governance]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: getGovernanceExecutionLogLatest
-      summary: Latest execution log tail (audit)
-      description: "Returns the most recent rows from Execution Log Unified for audit and trace lookups. Reads via the Sheets adapter using registry-resolved spreadsheet id and sheet name. Used by admin tool governance_execution_log."
+      summary: Latest execution log tail (SQL authoritative)
+      description: "Returns the most recent rows from execution_log SQL table for audit and trace lookups. SQL is the runtime source of truth; the Sheets mirror is async-only. Used by admin tool governance_execution_log. For Sheets-mirror parity verification use /governance/execution-log-sheets-recovery."
       responses:
         "200":
-          description: Latest execution log rows
+          description: Latest execution log primary row from SQL
           content:
             application/json:
               schema:
@@ -5939,18 +5939,106 @@ paths:
                 required: [ok]
                 properties:
                   ok: { type: boolean }
-                  headers:
-                    type: array
-                    items: { type: string }
-                  rows:
+                  surface: { type: string }
+                  source: { type: string, enum: [sql] }
+                  sql_table: { type: string }
+                  tail_window_rows: { type: integer }
+                  scanned_rows: { type: integer }
+                  selected_group_size: { type: integer }
+                  selected_primary_row_index_1_based: { type: integer }
+                  selected_primary_row_type: { type: string }
+                  row:
+                    type: object
+                    additionalProperties: true
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: SQL execution_log empty or no readable primary row, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "500": { description: SQL read failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /governance/execution-log-sheets-recovery:
+    get:
+      tags: [governance]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: getGovernanceExecutionLogSheetsRecovery
+      summary: Execution log latest from Sheets mirror (recovery)
+      description: "Reads the latest execution log primary row from the Sheets mirror for parity verification or break-glass recovery. Sheets is NOT the runtime source of truth — use /governance/execution-log-latest (SQL) for authoritative reads. This route reads the registry-resolved spreadsheet id and sheet name."
+      responses:
+        "200":
+          description: Sheets mirror readback with explicit recovery framing
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, source, warning]
+                properties:
+                  ok: { type: boolean }
+                  surface: { type: string }
+                  source: { type: string, enum: [sheets_mirror_recovery] }
+                  warning: { type: string }
+                  spreadsheet_id: { type: string }
+                  sheet_name: { type: string }
+                  gid: { type: string }
+                  resolved_sheet_row_count: { type: integer }
+                  selected_primary_row_index_1_based: { type: integer }
+                  row:
+                    type: object
+                    additionalProperties: true
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Sheets mirror unavailable or no readable primary row, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "500": { description: Sheets mirror read failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /admin/cli/data-source/census:
+    get:
+      tags: [admin-control]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: getPlatformDataSourceCensus
+      summary: SQL data-source census across platform tables
+      description: "Returns row counts and last-write timestamps for every SQL table mapped in the platform registry (brands, actions, endpoints, plugins, execution_log, etc.) plus the Sheets mirror configuration. Use to verify SQL is the runtime authority, find empty tables that may need seeding, and audit migration completeness."
+      responses:
+        "200":
+          description: Per-table census with summary
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, data_source, summary, tables]
+                properties:
+                  ok: { type: boolean }
+                  data_source:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      runtime_authority: { type: string, enum: [sql] }
+                      mode: { type: string }
+                      sheets_role: { type: string }
+                      sheets_mirror_configured: { type: boolean }
+                  summary:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      total_tables: { type: integer }
+                      seeded_tables: { type: integer }
+                      empty_tables: { type: integer }
+                  tables:
                     type: array
                     items:
                       type: object
                       additionalProperties: true
-                  row_count: { type: integer }
+                      properties:
+                        sql_table: { type: string }
+                        sheet_name: { type: string }
+                        sql_row_count:
+                          oneOf:
+                            - type: integer
+                            - type: "null"
+                        sql_last_write_at:
+                          oneOf:
+                            - type: string
+                            - type: "null"
+                        sql_seeded: { type: boolean }
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { description: Execution log headers not readable, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
-        "500": { description: Execution log read failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "500": { description: Census query failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
   /connector/{device_id}/policy:
     get:

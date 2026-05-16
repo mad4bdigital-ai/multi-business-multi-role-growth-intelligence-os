@@ -2442,3 +2442,80 @@ paths:
                       $ref: '#/components/schemas/SchemaImportJob'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /admin/cli/data-source/census:
+    get:
+      tags:
+        - admin-control
+      security:
+        - backendBearerAuth: []
+      operationId: getPlatformDataSourceCensus
+      summary: SQL data-source census across platform tables
+      description: Returns row counts and last-write timestamps for every SQL table mapped in the platform registry (brands, actions, endpoints, plugins, execution_log, etc.) plus the Sheets mirror configuration. Use to verify SQL is the runtime authority, find empty tables that may need seeding, and audit migration.
+      responses:
+        '200':
+          description: Per-table census with summary
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required:
+                  - ok
+                  - data_source
+                  - summary
+                  - tables
+                properties:
+                  ok:
+                    type: boolean
+                  data_source:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      runtime_authority:
+                        type: string
+                        enum:
+                          - sql
+                      mode:
+                        type: string
+                      sheets_role:
+                        type: string
+                      sheets_mirror_configured:
+                        type: boolean
+                  summary:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      total_tables:
+                        type: integer
+                      seeded_tables:
+                        type: integer
+                      empty_tables:
+                        type: integer
+                  tables:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      properties:
+                        sql_table:
+                          type: string
+                        sheet_name:
+                          type: string
+                        sql_row_count:
+                          oneOf:
+                            - type: integer
+                            - type: 'null'
+                        sql_last_write_at:
+                          oneOf:
+                            - type: string
+                            - type: 'null'
+                        sql_seeded:
+                          type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Census query failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

@@ -28,6 +28,7 @@ Open the source file listed below for the relevant domain instead of loading thi
 | Agent execution runtime | `canonicals/system_bootstrap/17_agent_execution_runtime.md` | Agent runtime, model class routing, verify pass, engine dispatch, Drive knowledge layer, and sync script. |
 | Local connector and dispatch governance | `canonicals/system_bootstrap/18_local_connector_dispatch.md` | Dispatch layer, task_routes authority, agent skill grants, local connector config, auto-provisioning, and DNS governance. |
 | Tenant GPT OAuth preset | `canonicals/system_bootstrap/19_tenant_gpt_oauth_preset.md` | Tenant Custom GPT OAuth preset, schema URL, client ID, redirect/auth URLs, scopes, and sign-in failure interpretation. |
+| SQL primary data source | `canonicals/system_bootstrap/20_sql_primary_data_source.md` | SQL runtime authority, sheet-to-table map, async mirror behavior, recovery helpers, and GPT-initiated migration repair flow. |
 
 ---
 

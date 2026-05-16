@@ -1,5 +1,7 @@
 Google Workspace Native Action Governance Rule
 
+Scope: this rule governs Google Workspace native actions when they are **write targets** for user-facing artifacts. The platform registry itself resolves from SQL, not from Sheets. See `system_bootstrap/20_sql_primary_data_source.md` for the runtime authority contract and the recovery-helper role of Sheets.
+
 Google Sheets, Google Docs, and Google Drive native actions are execution-capable tools, but they must not be treated as standalone authority.
 
 All Sheets, Docs, and Drive execution must remain Registry-governed through:

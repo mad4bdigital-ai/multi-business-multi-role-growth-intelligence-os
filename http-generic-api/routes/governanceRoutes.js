@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { buildGovernedExecutionContext } from "../governedContextResolution.js";
 import { loadPathResolverRowsForRequest } from "../pathResolverRowsLoader.js";
+import { getPool } from "../db.js";
+import { TABLE_MAP, SHEET_COLUMNS } from "../sqlAdapter.js";
 
 export function buildGovernanceRoutes(deps) {
   const {
@@ -340,6 +342,90 @@ export function buildGovernanceRoutes(deps) {
 
   router.get("/governance/execution-log-latest", requireBackendApiKey, async (_req, res) => {
     try {
+      const pool = getPool();
+      const sqlTable = TABLE_MAP["Execution Log Unified"];
+      const sheetColumns = SHEET_COLUMNS[sqlTable] || [];
+
+      const [rows] = await pool.query(
+        `SELECT * FROM \`${sqlTable}\` ORDER BY id DESC LIMIT ?`,
+        [EXECUTION_LOG_TAIL_WINDOW_ROWS]
+      );
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(404).json({
+          ok: false,
+          error: {
+            code: "execution_log_latest_row_not_found",
+            message: `SQL table '${sqlTable}' is empty. Use governance_execution_log_sheets_recovery for Sheets fallback.`
+          },
+          diagnostics: {
+            source: "sql",
+            sql_table: sqlTable,
+            tail_window_rows: EXECUTION_LOG_TAIL_WINDOW_ROWS
+          }
+        });
+      }
+
+      const headers = sheetColumns.length ? sheetColumns : Object.keys(rows[0] || {});
+      const candidates = rows.map((sqlRow, idx) => {
+        const sheetRow = {};
+        for (const col of headers) {
+          const sqlCol = col.toLowerCase().replace(/\(s\)/g, "s").replace(/[^a-z0-9]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+          sheetRow[col] = sqlRow[sqlCol] ?? sqlRow[col] ?? "";
+        }
+        return {
+          row: sheetRow,
+          row_index_1_based: rows.length - idx,
+          source: "sql",
+          sql_id: sqlRow.id
+        };
+      });
+
+      const latestGroup = selectLatestExecutionGroup(candidates);
+      const selected = choosePrimaryRowFromGroup(latestGroup);
+
+      if (!selected?.row) {
+        return res.status(404).json({
+          ok: false,
+          error: {
+            code: "execution_log_latest_row_not_found",
+            message: "execution_log SQL table tail window does not contain a readable primary row."
+          },
+          diagnostics: {
+            source: "sql",
+            sql_table: sqlTable,
+            tail_window_rows: EXECUTION_LOG_TAIL_WINDOW_ROWS,
+            scanned_rows: rows.length
+          }
+        });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        surface: "Execution Log Unified",
+        source: "sql",
+        sql_table: sqlTable,
+        tail_window_rows: EXECUTION_LOG_TAIL_WINDOW_ROWS,
+        scanned_rows: rows.length,
+        selected_group_size: latestGroup.length,
+        selected_primary_row_index_1_based: selected.row_index_1_based,
+        selected_primary_row_type: getRowValue(selected.row, "Entry Type"),
+        row: selected.row
+      });
+    } catch (err) {
+      return res.status(err?.status || 500).json({
+        ok: false,
+        error: {
+          code: err?.code || "execution_log_latest_read_failed",
+          message: err?.message || "Failed to read latest execution_log row from SQL.",
+          details: { source: "sql", sql_table: TABLE_MAP["Execution Log Unified"] }
+        }
+      });
+    }
+  });
+
+  router.get("/governance/execution-log-sheets-recovery", requireBackendApiKey, async (_req, res) => {
+    try {
       const registry = await getRegistry();
       const spreadsheetId = resolveExecutionLogSpreadsheetId(registry);
       const sheetName = resolveExecutionLogSheetName(registry);
@@ -363,7 +449,7 @@ export function buildGovernanceRoutes(deps) {
           ok: false,
           error: {
             code: "execution_log_headers_not_found",
-            message: "Execution Log Unified headers are not readable."
+            message: "Execution Log Unified headers are not readable from the Sheets mirror."
           }
         });
       }
@@ -398,9 +484,10 @@ export function buildGovernanceRoutes(deps) {
           ok: false,
           error: {
             code: "execution_log_latest_row_not_found",
-            message: "Execution Log Unified does not yet contain a readable latest primary row in the scanned tail window."
+            message: "Sheets mirror does not contain a readable latest primary row in the scanned tail window."
           },
           diagnostics: {
+            source: "sheets_mirror",
             resolved_sheet_row_count: rowCount,
             data_start_row: dataStartRow,
             data_end_row: dataEndRow
@@ -413,6 +500,8 @@ export function buildGovernanceRoutes(deps) {
       return res.status(200).json({
         ok: true,
         surface: "Execution Log Unified",
+        source: "sheets_mirror_recovery",
+        warning: "Sheets is an async mirror, not the runtime source of truth. Use /governance/execution-log-latest for SQL-authoritative reads.",
         spreadsheet_id: spreadsheetId,
         sheet_name: sheetName,
         gid,
@@ -427,9 +516,10 @@ export function buildGovernanceRoutes(deps) {
       return res.status(err?.status || 500).json({
         ok: false,
         error: {
-          code: err?.code || "execution_log_latest_read_failed",
-          message: err?.message || "Failed to read latest Execution Log Unified row.",
+          code: err?.code || "execution_log_sheets_recovery_failed",
+          message: err?.message || "Failed to read Execution Log Unified from Sheets mirror.",
           details: {
+            source: "sheets_mirror",
             execution_log_unified_spreadsheet_id:
               process.env.EXECUTION_LOG_UNIFIED_SPREADSHEET_ID || null,
             execution_log_unified_sheet_name:
