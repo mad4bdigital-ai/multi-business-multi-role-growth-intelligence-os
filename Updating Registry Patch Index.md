@@ -996,3 +996,42 @@ policy:platform-code-main:snapshot-draft -> policy_not_active, activation_gate_n
 ### Boundary
 
 A reviewed executor implementation must be added separately before any artifact can be created.
+
+---
+
+## Patch 21 — Local Backup Destination Layout
+
+- Status: destination folders prepared; no backup artifact created
+- Date: 2026-05-17
+- Script: `http-generic-api/scripts/local-backup-destination-prepare.mjs`
+- Guide: `docs/backup-and-copy-governance.md`
+
+### Scope
+
+Prepared the selected local destination on the Essam device with governance folders and a destination marker file. This patch does not dump databases, copy source files, create backup artifacts, encrypt artifacts, approve policies, or run restore tests.
+
+### Local destination layout
+
+```text
+D:\\Nagy\\Growth-0s-Backups\\artifacts
+D:\\Nagy\\Growth-0s-Backups\\manifests
+D:\\Nagy\\Growth-0s-Backups\\restore-tests
+D:\\Nagy\\Growth-0s-Backups\\restore-tests\\db-isolated
+D:\\Nagy\\Growth-0s-Backups\\restore-tests\\code-clean-checkout
+D:\\Nagy\\Growth-0s-Backups\\logs
+D:\\Nagy\\Growth-0s-Backups\\.growth-os-backup-destination.json
+```
+
+### DB update
+
+`platform_copy_locations.validation_json` for `local:Essam:growth-os-backups` now records:
+
+```text
+prepared_layout = true
+no_backup_artifact_created = true
+required_subdirectories = artifacts, manifests, restore-tests, restore-tests/db-isolated, restore-tests/code-clean-checkout, logs
+```
+
+### Boundary
+
+The marker file certifies the folder as a governed destination only. It is not a backup artifact.
