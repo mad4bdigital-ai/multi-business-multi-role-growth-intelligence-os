@@ -7,7 +7,7 @@ This checklist distinguishes four verification layers that must all pass before 
 
 ## Layer 1 - File merged (CI gate)
 
-These pass automatically in CI on every push/PR:
+These pass automatically in CI on every push/PR. After every push, do not rely on screenshots or commit status assumptions; read GitHub workflow runs, jobs, and logs through the governed GitHub Actions tools until the target run is `completed` with `conclusion=success`. If a job fails, classify it, repair it, push again, and repeat verification until all required jobs are green.
 
 - [ ] `npm test` passes from `http-generic-api/` (800+ assertions across 46+ test files: utility, job runner, execution routing, execution response, execution log evidence, logic evidence plumbing, engine evidence derivation, engine evidence integration, connectors, routes, activation bootstrap cache, Google Sheets chunking, sheets range drift, starter authority surfaces, transport governance, activation classification, activation response, governed activation runner, registry alignment validator, logic switching, WordPress, AI resolvers, SQL migration tooling, and data-flow smoke test)
 - [ ] `npm run validate` passes from `http-generic-api/` (173+ architecture checks)
