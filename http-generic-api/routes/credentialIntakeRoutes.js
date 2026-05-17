@@ -343,6 +343,10 @@ export function buildCredentialIntakeRoutes(deps = {}) {
   const { requireBackendApiKey } = deps;
   const router = Router();
 
+  // Browser form submissions are application/x-www-form-urlencoded. Keep this
+  // local to credential-intake so JSON admin/API routes are unaffected.
+  router.use("/credential-intake", urlencoded({ extended: false, limit: "64kb" }));
+
   router.post("/credential-intake/sessions", requireBackendApiKey, async (req, res) => {
     try {
       const {
