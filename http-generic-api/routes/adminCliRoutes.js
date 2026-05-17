@@ -567,6 +567,15 @@ function builtInShellAllowlist() {
       max_extra_args: 4,
       timeout_ms: 600000,
       built_in: true
+    },
+    db_backup_exporter_create: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/db-backup-exporter.mjs", "--action=create"],
+      display_name: "Encrypted DB backup exporter create",
+      allow_extra_args: true,
+      max_extra_args: 4,
+      timeout_ms: 600000,
+      built_in: true
     }
   };
 }
