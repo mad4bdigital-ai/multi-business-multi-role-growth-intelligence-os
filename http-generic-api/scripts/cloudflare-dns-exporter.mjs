@@ -80,10 +80,9 @@ async function exportManifest(args) {
   try {
     tokenVerification = await cfFetch(baseUrl, token, "/user/tokens/verify");
   } catch (err) {
-    // Account API tokens may not validate against the user token verify endpoint.
-    // Do not fail here; the effective permission check is the zone/DNS read below.
     tokenVerifyWarning = { status: err.status || null, message: err.message, details: err.details || null };
   }
+
   const zones = await cfFetch(baseUrl, token, `/zones?name=${encodeURIComponent(zoneName)}&per_page=50`);
   const zone = zones.result?.[0];
   if (!zone?.id) throw new Error(`Cloudflare zone not found or not readable: ${zoneName}`);
@@ -179,30 +178,7 @@ async function exportManifest(args) {
   await pool.query(
     `UPDATE user_app_connections
         SET validation_status='validated', last_validated_at=NOW(),
-            account_metadata=JSON_SET(COALESCE(account_metadata, JSON_OBJECT()), '$.cloudflare_export', JSON_EXTRACT(?, '
-
-  return { manifest, summary };
-}
-
-async function main() {
-  const args = parseArgs();
-  try {
-    const { manifest, summary } = await exportManifest(args);
-    const payload = String(args.summary_only).toLowerCase() === "true"
-      ? { ok: true, summary }
-      : { ok: true, summary, manifest };
-    console.log(JSON.stringify(payload, null, 2));
-  } finally {
-    await pool.end();
-  }
-}
-
-main().catch(async (err) => {
-  try { await pool.end(); } catch {}
-  console.error(JSON.stringify({ ok: false, error: { code: err.code || "cloudflare_dns_export_failed", message: err.message, status: err.status || null, details: err.details || null } }, null, 2));
-  process.exitCode = 1;
-});
-))
+            account_metadata=JSON_SET(COALESCE(account_metadata, JSON_OBJECT()), '$.cloudflare_export', ?)
       WHERE connection_id=?`,
     [JSON.stringify(summary), connectionId]
   );
