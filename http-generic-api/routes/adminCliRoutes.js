@@ -586,13 +586,13 @@ function builtInShellAllowlist() {
       timeout_ms: 300000,
       built_in: true
     },
-    cloudflare_dns_exporter: {
+    credential_diagnostics: {
       command: process.execPath,
-      args: ["http-generic-api/scripts/cloudflare-dns-exporter.mjs", "--action=export"],
-      display_name: "Cloudflare DNS and tunnel manifest exporter",
+      args: ["http-generic-api/scripts/credential-diagnostics.mjs"],
+      display_name: "Non-secret credential diagnostics",
       allow_extra_args: true,
-      max_extra_args: 8,
-      timeout_ms: 300000,
+      max_extra_args: 4,
+      timeout_ms: 120000,
       built_in: true
     }
   };
