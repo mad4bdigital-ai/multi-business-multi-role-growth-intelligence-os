@@ -322,7 +322,20 @@ Helper actions:
 ```text
 list-approvals
 list-restore-tests
+decide-approval
+evaluate-activation-gate
+activate-policy
 ```
+
+Approval guardrails:
+
+```text
+decide-approval --decision=approved requires --decision-token=APPROVE:<policy_key>
+activate-policy requires --activation-token=ACTIVATE:<policy_key>
+activation requires activation_gate_status=ready
+```
+
+These actions decide or activate policy metadata only. They do not execute backup artifacts.
 
 ## Approval boundary
 
