@@ -471,7 +471,7 @@ function loadShellAllowlist(env = process.env) {
 function builtInShellAllowlist() {
   return {
     session_archive_relink_repair_dry_run: {
-      command: "node",
+      command: process.execPath,
       args: ["session-archive-relink-repair.mjs", "--dry-run"],
       display_name: "Session archive relink repair dry-run",
       allow_extra_args: true,
