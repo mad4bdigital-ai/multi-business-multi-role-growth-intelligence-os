@@ -573,6 +573,12 @@ async function executeShellControl(body = {}) {
       if (extraArgs.length > entry.max_extra_args) {
         const e = new Error(`Too many extra_args (max ${entry.max_extra_args}).`); e.status = 400; e.code = "too_many_extra_args"; throw e;
       }
+      if (alias === "session_archive_relink_repair_dry_run" && extraArgs.includes("--apply")) {
+        const e = new Error("dry-run relink alias must not receive --apply in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
+      }
+      if (alias === "session_archive_relink_repair_apply" && extraArgs.includes("--dry-run")) {
+        const e = new Error("apply relink alias must not receive --dry-run in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
+      }
       for (const arg of extraArgs) {
         if (EXTRA_ARG_UNSAFE_PATTERN.test(arg)) {
           const e = new Error(`extra_args contains disallowed shell metacharacter: ${JSON.stringify(arg)}`);
