@@ -4,6 +4,8 @@ import path from "node:path";
 import { getPool } from "../db.js";
 import { decryptCredentials } from "../tokenEncryption.js";
 
+const pool = getPool();
+
 function clean(value = "") { return String(value ?? "").trim(); }
 function parseArgs(argv = process.argv.slice(2)) {
   const args = { action: "export", zone_name: "mad4b.com", output_dir: "" };
