@@ -52,6 +52,7 @@ import { buildAdminScopeGrantsRoutes } from "./adminScopeGrantsRoutes.js";
 import { buildDeviceToolsRoutes } from "./deviceToolsRoutes.js";
 import { buildConnectorTaxonomyRoutes } from "./connectorTaxonomyRoutes.js";
 import { buildCredentialIntakeRoutes } from "./credentialIntakeRoutes.js";
+import { buildBackupArtifactRoutes } from "./backupArtifactRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
