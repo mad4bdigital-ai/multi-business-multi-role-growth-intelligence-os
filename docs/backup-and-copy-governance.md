@@ -80,6 +80,46 @@ risk_level = medium
 notes = device connector runtime path; bounded tenant/user operations only when ownership rules allow
 ```
 
+## Admin governance helper
+
+Server-side helper:
+
+```text
+http-generic-api/scripts/backup-copy-governance-helper.mjs
+```
+
+Governed `admin_control` aliases:
+
+```text
+backup_copy_governance_helper_dry_run
+backup_copy_governance_helper_apply
+```
+
+Supported actions:
+
+```text
+list-locations
+register-location
+list-policies
+draft-policy
+record-dry-run
+```
+
+These helpers record governance metadata only. They do not copy files, dump databases, upload artifacts, or schedule backup jobs.
+
+Example list:
+
+```json
+{
+  "tool": "shell",
+  "action": "run",
+  "alias": "backup_copy_governance_helper_dry_run",
+  "extra_args": ["--action=list-locations"]
+}
+```
+
+The dry-run alias rejects `--apply`; the apply alias rejects `--dry-run`.
+
 ## Backup policy requirements
 
 A backup policy must define:
