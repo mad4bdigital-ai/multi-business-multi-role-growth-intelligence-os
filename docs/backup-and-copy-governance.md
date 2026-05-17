@@ -80,6 +80,16 @@ risk_level = medium
 notes = device connector runtime path; bounded tenant/user operations only when ownership rules allow
 ```
 
+```text
+local:Essam:growth-os-backups
+provider = local_connector
+path_or_ref = D:\\Nagy\\Growth-0s-Backups
+owner_scope = platform
+risk_level = critical
+status = active
+notes = local encrypted backup destination on Essam device; no backup exists until an approved apply run succeeds
+```
+
 ## Admin governance helper
 
 Server-side helper:
