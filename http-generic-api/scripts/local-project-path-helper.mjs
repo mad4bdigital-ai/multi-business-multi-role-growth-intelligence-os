@@ -47,6 +47,27 @@ function parseJson(value, fallback = null) {
   }
 }
 
+function normalizeOwnerScope(value = "") {
+  const scope = clean(value || "platform").toLowerCase();
+  if (!["platform", "tenant", "user", "device"].includes(scope)) throw new Error("Invalid --owner-scope");
+  return scope;
+}
+
+function normalizeAllowedSubjectScope(value = "", ownerScope = "platform") {
+  const fallback = ownerScope === "tenant" ? "tenant_admin" : ownerScope === "user" || ownerScope === "device" ? "user_owner" : "admin";
+  const scope = clean(value || fallback).toLowerCase();
+  if (!["admin", "tenant_admin", "user_owner", "none"].includes(scope)) throw new Error("Invalid --allowed-subject-scope");
+  return scope;
+}
+
+function defaultAllowedOperations(ownerScope = "platform", projectKey = "") {
+  if (ownerScope === "platform") return ["validate", "repo_status", "controlled_repair"];
+  if (projectKey === "local-connector" || ownerScope === "device") return ["health", "validate", "connector_status", "connector_repair", "bounded_dir_list", "bounded_file_search"];
+  if (ownerScope === "tenant") return ["validate", "bounded_dir_list", "bounded_file_search", "controlled_repair"];
+  if (ownerScope === "user") return ["validate", "bounded_dir_list", "bounded_file_search", "local_repair"];
+  return [];
+}
+
 async function findPath(conn, { tenantId, deviceId, projectKey }) {
   const [rows] = await conn.query(
     `SELECT * FROM local_project_path_registry
