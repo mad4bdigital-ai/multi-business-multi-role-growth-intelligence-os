@@ -251,6 +251,7 @@ The local connector is intentionally a separate plugin/action because it connect
 - `/health` reports degraded dependency truth for Redis/BullMQ
 - async job submission returns `503` when queue backend cannot accept work
 - `googleAuthTokenResolver.js` â€” platform bootstrap uses managed service account ADC; user-owned Drive/Sheets uses refresh-token auth
+- `authCredentialResolution.js`, `userAppConnectionCredentials.js`, `authInjection.js`, `executionPreparation.js`, and `routes/systemLayerRoutes.js` — parent-action external auth strategy: exported tools can resolve platform, user, tenant, or explicit connection credentials at runtime
 - MCP connector branch added: `makecom_mcp` dispatches via JSON-RPC 2.0 to Make MCP stateless endpoint
 
 ## Upgrade direction
