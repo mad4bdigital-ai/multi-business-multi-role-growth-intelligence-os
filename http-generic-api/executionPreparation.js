@@ -80,7 +80,14 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     action,
     brand,
     hostingAccounts,
-    targetKey: requestBody.target_key || resolvedTargetKey || ""
+    targetKey: requestBody.target_key || resolvedTargetKey || "",
+    user_id: requestBody.user_id || requestBody.auth_context?.user_id || "",
+    tenant_id: requestBody.tenant_id || requestBody.auth_context?.tenant_id || "",
+    auth_context: requestBody.auth_context || null,
+    credential_scope: requestBody.credential_scope || requestBody.auth_context?.credential_scope || "",
+    allow_platform_fallback: Object.prototype.hasOwnProperty.call(requestBody, "allow_platform_fallback")
+      ? requestBody.allow_platform_fallback
+      : requestBody.auth_context?.allow_platform_fallback
   });
 
   if (String(action.action_key || "").trim() === "hostinger_api") {
