@@ -190,6 +190,25 @@ Owns:
 - auth header construction for basic, bearer, and custom-header modes
 - query/header auth injection helpers for execution and schema validation
 
+### External endpoint credential strategy boundary
+
+- [`http-generic-api/authCredentialResolution.js`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/http-generic-api/authCredentialResolution.js>)
+- [`http-generic-api/userAppConnectionCredentials.js`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/http-generic-api/userAppConnectionCredentials.js>)
+- [`http-generic-api/executionPreparation.js`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/http-generic-api/executionPreparation.js>)
+- [`http-generic-api/routes/systemLayerRoutes.js`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/http-generic-api/routes/systemLayerRoutes.js>)
+
+Owns:
+- parent action credential policy from `actions.runtime_binding_profile.auth_strategy`
+- optional endpoint override from `endpoints.runtime_binding_profile.auth_strategy_override`
+- runtime selector forwarding for `credential_scope`, `user_id`, `tenant_id`, `connection_id`, `app_key`, `scopes`, `auth_type`, `allow_platform_fallback`, and `auth_context`
+- scoped credential resolution from `user_app_connections.encrypted_credentials`
+- enforcement that user/tenant/connection scoped calls with `allow_platform_fallback=false` never silently use platform credentials
+
+Must not:
+- duplicate parent auth policy into every endpoint row
+- copy user secrets into `actions`, `endpoints`, or tool export rows
+- use platform credentials when the caller explicitly requested scoped credentials and disabled fallback
+
 ### Async job infrastructure boundary
 
 - [`http-generic-api/queue.js`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/http-generic-api/queue.js>)
