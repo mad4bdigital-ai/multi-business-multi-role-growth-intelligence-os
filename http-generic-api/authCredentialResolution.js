@@ -213,6 +213,7 @@ function applyConnectionToContract(contract, connectionResult, mode) {
 
 async function _buildAuthContract({
   action,
+  endpoint = {},
   brand,
   hostingAccounts = [],
   targetKey = "",
