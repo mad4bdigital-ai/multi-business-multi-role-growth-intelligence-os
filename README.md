@@ -125,6 +125,8 @@ Important governed surfaces (all SQL-primary, `DATA_SOURCE=sql`):
 
 MySQL is the sole authoritative read source for runtime execution.
 
+External endpoint authentication is governed at the parent action level. `actions.runtime_binding_profile.auth_strategy` defines the default credential-selection policy for all child endpoints. Endpoints inherit this policy unless `endpoints.runtime_binding_profile.auth_strategy_override` is explicitly set for a narrower operation. Exported endpoint tools can choose `credential_scope=platform|user|tenant|connection|auto` at runtime and may pass `user_id`, `tenant_id`, `connection_id`, `app_key`, `scopes`, `auth_type`, `allow_platform_fallback`, or `auth_context`. When user/tenant/connection scope is requested with `allow_platform_fallback=false`, the runtime must not silently use platform credentials. See `docs/external-endpoint-auth-strategy.md`.
+
 Runtime behavior must prefer live registry truth via the `stateManager.js` data layer over local assumptions, stale memory, or narrative summaries.
 
 ### Runtime implementation layer
