@@ -576,6 +576,15 @@ function builtInShellAllowlist() {
       max_extra_args: 4,
       timeout_ms: 300000,
       built_in: true
+    },
+    cloudflare_dns_exporter: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/cloudflare-dns-exporter.mjs", "--action=export"],
+      display_name: "Cloudflare DNS and tunnel manifest exporter",
+      allow_extra_args: true,
+      max_extra_args: 8,
+      timeout_ms: 300000,
+      built_in: true
     }
   };
 }
