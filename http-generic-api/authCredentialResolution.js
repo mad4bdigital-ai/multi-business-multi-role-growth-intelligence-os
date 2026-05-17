@@ -245,12 +245,16 @@ async function _buildAuthContract({
 
   if (mode === "api_key_query") {
     contract.param_name = action.api_key_param_name || "api_key";
+    const scoped = await resolveScopedConnection({ action, endpoint, mode, user_id, tenant_id, auth_context, credential_scope, allow_platform_fallback });
+    if (applyConnectionToContract(contract, scoped, mode)) return contract;
     contract.secret = resolveActionSecret(action);
     return contract;
   }
 
   if (mode === "api_key_header") {
     contract.header_name = action.api_key_header_name || "x-api-key";
+    const scoped = await resolveScopedConnection({ action, endpoint, mode, user_id, tenant_id, auth_context, credential_scope, allow_platform_fallback });
+    if (applyConnectionToContract(contract, scoped, mode)) return contract;
     contract.secret = resolveActionSecret(action);
     return contract;
   }
