@@ -597,6 +597,59 @@ The dry-run alias rejects `--apply` and the apply alias rejects `--dry-run`.
 - Local connector shell aliases added and tested on the Essam device: `local_disk_list`, `local_dir_list`, and `local_file_search`.
 - `local_dir_list` verified the main repo markers including `.git`, `package.json`, `http-generic-api`, and `local-connector`.
 - `local_file_search` found the main repo `package.json`.
+
+---
+
+## Patch 13 — Local Project Path Access Policy
+
+- Status: applied and documented
+- Date: 2026-05-17
+- Migration: `http-generic-api/migrations/079_sprint61_local_project_path_access_policy.sql`
+
+### Scope
+
+Local project paths now carry explicit ownership/access policy fields. Tenant/user access is allowed only for separately registered tenant-owned or user/device-owned paths. Platform admin paths remain admin-only.
+
+### SQL fields added
+
+```text
+owner_scope = platform | tenant | user | device
+allowed_subject_scope = admin | tenant_admin | user_owner | none
+allowed_operations_json = JSON array
+```
+
+### Current policy
+
+```text
+project_key = growth-intelligence-os
+current_path = D:\\Nagy\\Multi-Business-Multi-Role-Growth-Intelligence-OS
+owner_scope = platform
+allowed_subject_scope = admin
+```
+
+```text
+project_key = local-connector
+current_path = C:\\mad4b-connector
+owner_scope = device
+allowed_subject_scope = user_owner
+allowed_operations = health, validate, connector_status, connector_repair, bounded_dir_list, bounded_file_search
+```
+
+### Tenant rule
+
+A tenant must not access the platform admin repo path. Tenant access is allowed only when a separate row is registered with:
+
+```text
+owner_scope = tenant
+allowed_subject_scope = tenant_admin
+tenant_id = <tenant id>
+```
+
+### Files changed
+
+- `http-generic-api/migrations/079_sprint61_local_project_path_access_policy.sql`
+- `http-generic-api/scripts/local-project-path-helper.mjs`
+- `docs/local-project-path-governance.md`
 - Essam `growth-intelligence-os` path registered and validated: `D:\\Nagy\\Multi-Business-Multi-Role-Growth-Intelligence-OS`.
 - Essam `local-connector` path registered and validated: `C:\\mad4b-connector`.
 - Local connector shell aliases added and tested on the Essam device: `local_disk_list`, `local_dir_list`, and `local_file_search`.
