@@ -480,7 +480,7 @@ function builtInShellAllowlist() {
       built_in: true
     },
     session_archive_relink_repair_apply: {
-      command: "node",
+      command: process.execPath,
       args: ["session-archive-relink-repair.mjs", "--apply"],
       display_name: "Session archive relink repair apply",
       allow_extra_args: true,
