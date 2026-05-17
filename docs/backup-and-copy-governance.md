@@ -449,6 +449,25 @@ restore_status = passed
 plaintext_restore_sql_removed = true
 ```
 
+First local n8n backup run:
+
+```text
+docs/backup-run-2026-05-17-n8n-local.md
+```
+
+n8n backup summary:
+
+```text
+policy = policy:local-n8n-data:manual
+run_mode = apply
+status = succeeded
+source = D:\\n8n-data
+artifact = D:\\Nagy\\Growth-0s-Backups\\artifacts\\growth-os-n8n-local-2026-05-17T18-25-41-880Z.zip.aes256gcm
+checksum_sha256 = cc3b4819a6c984d51a121446779d8110bedf15f43321deda9785676c5387fbb7
+restore_status = passed
+plaintext_validation_zip_removed = true
+```
+
 ## Non-goals in this phase
 
 This phase does not:
