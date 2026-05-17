@@ -75,7 +75,15 @@ async function exportManifest(args) {
   if (!token) throw new Error("Cloudflare bearer token not found in encrypted credentials.");
   const baseUrl = conn.api_base_url || "https://api.cloudflare.com/client/v4";
 
-  const tokenVerification = await cfFetch(baseUrl, token, "/user/tokens/verify");
+  let tokenVerification = { result: { status: "not_checked" }, success: null };
+  let tokenVerifyWarning = null;
+  try {
+    tokenVerification = await cfFetch(baseUrl, token, "/user/tokens/verify");
+  } catch (err) {
+    // Account API tokens may not validate against the user token verify endpoint.
+    // Do not fail here; the effective permission check is the zone/DNS read below.
+    tokenVerifyWarning = { status: err.status || null, message: err.message, details: err.details || null };
+  }
   const zones = await cfFetch(baseUrl, token, `/zones?name=${encodeURIComponent(zoneName)}&per_page=50`);
   const zone = zones.result?.[0];
   if (!zone?.id) throw new Error(`Cloudflare zone not found or not readable: ${zoneName}`);
