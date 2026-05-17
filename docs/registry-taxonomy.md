@@ -54,6 +54,8 @@ Use for exact runtime-callable operation metadata: endpoint key, provider domain
 Rules:
 
 - Every executable provider operation should belong to one `parent_action_key`.
+- Endpoint rows inherit `actions.runtime_binding_profile.auth_strategy` by default.
+- Endpoint-specific auth differences must be expressed as `endpoints.runtime_binding_profile.auth_strategy_override`, not as duplicated policy text across every endpoint.
 - Endpoint rows are not automatically GPT-callable tools.
 - Endpoint-local `schema_json` is the runtime contract source for request and response validation.
 
