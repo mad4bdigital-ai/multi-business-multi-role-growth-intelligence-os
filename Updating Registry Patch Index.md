@@ -426,3 +426,69 @@ This means formula-driven columns (e.g. auto-computed scores, cross-sheet lookup
 - `node --check authCredentialResolution.js`: OK
 - `node --check migrate-sheets-to-sql.mjs`: OK
 - DB: `actions.api_key_value` NULL for all `embedded_sheet` rows; `hosting_accounts.api_key_reference` updated to `ref:secret:` format; `brands.application_password` NULL
+
+---
+
+## Patch 10 — Parent Action External Auth Strategy
+
+- Status: committed
+- Date: 2026-05-17
+- Migration: `http-generic-api/migrations/076_sprint61_parent_action_auth_strategy.sql`
+
+### Scope
+
+External endpoint credential selection is now governed from the parent action row instead of duplicated per endpoint.
+
+Authoritative policy location:
+
+```text
+actions.runtime_binding_profile.auth_strategy
+```
+
+Optional endpoint override location:
+
+```text
+endpoints.runtime_binding_profile.auth_strategy_override
+```
+
+Runtime selector fields exposed through endpoint tools:
+
+```text
+credential_scope = platform | user | tenant | connection | auto
+user_id
+tenant_id
+connection_id
+app_key
+scopes
+auth_type
+allow_platform_fallback
+auth_context
+```
+
+### Files changed
+
+- `http-generic-api/userAppConnectionCredentials.js` — generic `user_app_connections` resolver for user/tenant/connection credentials.
+- `http-generic-api/authCredentialResolution.js` — parent action auth strategy resolver and scoped credential contract builder.
+- `http-generic-api/authInjection.js` — recognizes `custom_headers` auth mode.
+- `http-generic-api/executionPreparation.js` — merges runtime auth selector fields into `auth_context`.
+- `http-generic-api/routes/systemLayerRoutes.js` — forwards the external auth selector set from exported tool calls to the runtime facade.
+- `http-generic-api/migrations/076_sprint61_parent_action_auth_strategy.sql` — idempotent DB reconciliation for parent auth policies and exported tool schemas.
+- `docs/external-endpoint-auth-strategy.md` — operating guide.
+- `docs/registry-taxonomy.md`, `README.md`, `AI_Agent_Knowledge_Guide.md`, `connector_contracts.md`, `deployment_parity_checklist.md` — documentation alignment.
+
+### Runtime behavior
+
+- Parent actions default to platform credentials unless runtime scope requests user, tenant, connection, or auto.
+- Scoped credentials resolve from `user_app_connections.encrypted_credentials`.
+- Secret material remains encrypted or referenced. It is not copied into `actions`, `endpoints`, or tool export rows.
+- If `credential_scope` is `user`, `tenant`, or `connection` and `allow_platform_fallback=false`, the runtime must return a scoped credential error rather than using a platform secret.
+- `github_actions_status` and `github_git_data` now use GitHub App auth instead of an expiring `GITHUB_TOKEN` bearer token.
+
+### Verification
+
+- `cloudflare_api__cf_list_zones` with `credential_scope=platform` returned `200`.
+- `cloudflare_api__cf_list_zones` with `credential_scope=user`, admin user id, and `allow_platform_fallback=false` returned `403 external_credential_connection_not_found` as expected.
+- `google_drive_api__listDriveFiles` platform scope returned `200` after the Google resolver fix.
+- User-scoped Google Drive without an active OAuth connection and without fallback returned the scoped auth error as expected.
+- GitHub Actions status query now resolves through `github_app` and returns `200`.
+- CI verification after push completed successfully.
