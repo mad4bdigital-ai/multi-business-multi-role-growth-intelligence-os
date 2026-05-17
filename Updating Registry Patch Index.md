@@ -592,3 +592,8 @@ The dry-run alias rejects `--apply` and the apply alias rejects `--dry-run`.
 - Tables created live in SQL.
 - `admin_control` schema updated to describe local project path aliases.
 - Documentation linked from `deployment_parity_checklist.md`.
+- Essam `growth-intelligence-os` path registered and validated: `D:\\Nagy\\Multi-Business-Multi-Role-Growth-Intelligence-OS`.
+- Essam `local-connector` path registered and validated: `C:\\mad4b-connector`.
+- Local connector shell aliases added and tested on the Essam device: `local_disk_list`, `local_dir_list`, and `local_file_search`.
+- `local_dir_list` verified the main repo markers including `.git`, `package.json`, `http-generic-api`, and `local-connector`.
+- `local_file_search` found the main repo `package.json`.
