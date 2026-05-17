@@ -146,16 +146,17 @@ Do not upload recovery keys to the same destination unless access is split.
 
 ## Cloudflare / DNS status
 
-Cloudflare export is not complete in this baseline.
+Cloudflare export is complete for this baseline.
 
-Observed blockers:
+Persisted manifest:
 
 ```text
-connector_cf:list_dns -> not_configured
-auth:listDnsRecords -> unauthenticated
+local_manifest_path = D:\\Nagy\\Growth-0s-Backups\\manifests\\cloudflare-dns-manifest-2026-05-17.json
+drive_manifest_file_id = 1dF6cMcwh4Sy2ebVatGJqTYReBjfJbkbU
+manifest_sha256 = 2db10b875123f964b40fc4dc7657cfb1c1bb1d2a4da26ceb0f6d2c6d744f1c93
 ```
 
-Expected domains to re-export later:
+Validated domains:
 
 ```text
 auth.mad4b.com
