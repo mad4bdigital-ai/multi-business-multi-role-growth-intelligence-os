@@ -839,41 +839,63 @@ The policies remain `draft`. The DB policy remains blocked with `allowed_executo
 
 ---
 
-## Patch 17 — Essam Local Backup Destination
+## Patch 18 — Backup Preflight, Manifest, Checksum, and Encryption Contract
 
-- Status: destination registered; no backup executed
+- Status: preflight contract applied; no backup executed
 - Date: 2026-05-17
-- Migration: `http-generic-api/migrations/084_sprint61_local_backup_destination.sql`
+- Migration: `http-generic-api/migrations/085_sprint61_backup_preflight_manifest_contract.sql`
 - Guide: `docs/backup-and-copy-governance.md`
 
 ### Scope
 
-Registered the admin-selected local backup destination on the Essam device and linked existing draft policies to it. This patch does not dump a database, copy files, upload artifacts, approve a policy, or execute a restore test.
+Added explicit artifact contract fields, run preflight metadata, and a manifest table. This patch does not dump databases, copy files, encrypt artifacts, upload artifacts, or execute restore tests.
 
-### Destination
+### SQL changes
+
+Policy/run fields added:
 
 ```text
-location_key = local:Essam:growth-os-backups
-path = D:\\Nagy\\Growth-0s-Backups
-owner_scope = platform
-risk_level = critical
-status = active
+artifact_format
+encryption_scheme
+checksum_algorithm
+manifest_schema_version
+preflight_required
+preflight_status
+preflight_json
 ```
 
-### Policy updates
+Table added:
 
 ```text
-policy:platform-db-primary:manual-draft -> destination local:Essam:growth-os-backups
-policy:platform-code-main:snapshot-draft -> destination local:Essam:growth-os-backups
+platform_backup_artifact_manifests
 ```
 
-### Restore-test target plans
+### Current contracts
 
 ```text
-policy:platform-db-primary:manual-draft -> D:\\Nagy\\Growth-0s-Backups\\restore-tests\\db-isolated
-policy:platform-code-main:snapshot-draft -> D:\\Nagy\\Growth-0s-Backups\\restore-tests\\code-clean-checkout
+policy:platform-db-primary:manual-draft
+artifact_format = sql_dump
+encryption_scheme = platform_managed
+checksum_algorithm = sha256
+preflight_status = blocked
+blockers = policy_not_active, approval_not_granted, executor_not_enabled
+```
+
+```text
+policy:platform-code-main:snapshot-draft
+artifact_format = zip
+encryption_scheme = zip_aes256
+checksum_algorithm = sha256
+preflight_status = blocked
+blockers = policy_not_active, approval_not_granted
+```
+
+### Helper action added
+
+```text
+preflight-policy
 ```
 
 ### Execution boundary
 
-The policies remain `draft`. The DB policy remains blocked with `allowed_executor=none`; encrypted artifact format, checksum implementation, and explicit approval are still required before any apply-mode backup.
+Preflight is a gate only. A blocked preflight must prevent apply-mode execution. No backup artifact exists until an approved executor writes one, records a manifest, verifies checksum, and passes restore-test requirements.
