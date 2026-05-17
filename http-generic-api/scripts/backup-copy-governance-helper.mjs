@@ -256,6 +256,80 @@ async function main() {
       return;
     }
 
+    if (action === "preflight-policy") {
+      const policyKey = required(args, "policy_key");
+      const policy = await getPolicy(conn, policyKey);
+      if (!policy) throw new Error(`policy_key not found: ${policyKey}`);
+      const [rows] = await conn.query(
+        `SELECT p.policy_id, p.policy_key, p.status AS policy_status, p.backup_kind,
+                p.artifact_format, p.encryption_scheme, p.checksum_algorithm, p.manifest_schema_version,
+                p.approval_required, p.restore_test_required, p.allowed_executor,
+                s.location_key AS source_location_key, s.status AS source_status,
+                d.location_key AS destination_location_key, d.status AS destination_status,
+                SUM(CASE WHEN a.approval_type='policy_activation' AND a.status='approved' THEN 1 ELSE 0 END) AS approved_count,
+                SUM(CASE WHEN rt.status IN ('planned','passed') THEN 1 ELSE 0 END) AS restore_plan_count
+           FROM platform_backup_policies p
+           JOIN platform_copy_locations s ON s.location_id=p.source_location_id
+           LEFT JOIN platform_copy_locations d ON d.location_id=p.destination_location_id
+           LEFT JOIN platform_backup_approvals a ON a.policy_id=p.policy_id
+           LEFT JOIN platform_backup_runs r ON r.policy_id=p.policy_id
+           LEFT JOIN platform_restore_tests rt ON rt.backup_run_id=r.run_id
+          WHERE p.policy_key=?
+          GROUP BY p.policy_id, p.policy_key, p.status, p.backup_kind, p.artifact_format,
+                   p.encryption_scheme, p.checksum_algorithm, p.manifest_schema_version,
+                   p.approval_required, p.restore_test_required, p.allowed_executor,
+                   s.location_key, s.status, d.location_key, d.status`,
+        [policyKey]
+      );
+      const row = rows[0];
+      const blockers = [];
+      if (!row.destination_location_key) blockers.push("missing_destination");
+      if (row.destination_status !== "active") blockers.push("destination_not_active");
+      if (row.source_status !== "active" && row.source_status !== "pending_validation") blockers.push("source_not_available");
+      if (row.policy_status !== "active") blockers.push("policy_not_active");
+      if (row.approval_required && Number(row.approved_count || 0) < 1) blockers.push("approval_not_granted");
+      if (row.restore_test_required && Number(row.restore_plan_count || 0) < 1) blockers.push("restore_test_plan_missing");
+      if (!row.artifact_format || row.artifact_format === "none") blockers.push("artifact_format_missing");
+      if (!row.checksum_algorithm || row.checksum_algorithm === "none") blockers.push("checksum_algorithm_missing");
+      if (row.backup_kind === "database" && row.encryption_scheme === "none") blockers.push("encryption_required_for_database");
+      if (row.allowed_executor === "none") blockers.push("executor_not_enabled");
+      const preflight = {
+        ok: true,
+        action,
+        policyKey,
+        preflightStatus: blockers.length ? "blocked" : "passed",
+        blockers,
+        contract: {
+          artifactFormat: row.artifact_format,
+          encryptionScheme: row.encryption_scheme,
+          checksumAlgorithm: row.checksum_algorithm,
+          manifestSchemaVersion: row.manifest_schema_version,
+          allowedExecutor: row.allowed_executor
+        },
+        source: { key: row.source_location_key, status: row.source_status },
+        destination: { key: row.destination_location_key, status: row.destination_status },
+        approvals: { approvedCount: Number(row.approved_count || 0) },
+        restoreTests: { planCount: Number(row.restore_plan_count || 0) },
+        note: "Preflight only. No backup executed."
+      };
+      if (apply) {
+        await conn.query(
+          `UPDATE platform_backup_runs r
+             JOIN platform_backup_policies p ON p.policy_id=r.policy_id
+              SET r.preflight_status=?, r.preflight_json=?,
+                  r.artifact_format=?, r.encryption_scheme=?, r.checksum_algorithm=?, r.manifest_schema_version=?
+            WHERE p.policy_key=? AND r.run_mode='dry_run'
+            ORDER BY r.created_at DESC
+            LIMIT 1`,
+          [preflight.preflightStatus, JSON.stringify(preflight), row.artifact_format, row.encryption_scheme,
+            row.checksum_algorithm, row.manifest_schema_version, policyKey]
+        );
+        preflight.recorded = true;
+      }
+      print(preflight);
+      return;
+    }
+
     if (action === "record-dry-run") {
       const policyKey = required(args, "policy_key");
       const policy = await getPolicy(conn, policyKey);
