@@ -18,6 +18,7 @@ export function inferAuthMode({ action, brand }) {
   if (apiKeyMode === "google_ads_oauth2") return "google_ads_oauth2";
   if (apiKeyMode === "github_app") return "github_app";
   if (apiKeyMode === "bearer_token") return "bearer_token";
+  if (apiKeyMode === "custom_headers") return "custom_headers";
 
   // Header/param heuristics — fallback when api_key_mode is absent or unrecognised.
   // Authorization header always means bearer_token — injecting a raw secret into
