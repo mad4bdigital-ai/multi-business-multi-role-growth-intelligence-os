@@ -525,6 +525,9 @@ folder_id = 1cYCHu2pAX8_EGa11jCQH62kbAcvSrDza
 - Copied target turn range: `114..291`.
 - Marked the superseded `5dee...` session as completed/superseded.
 - Added a `Restore Relink Backfill — 2026-05-17` note to the official Google Doc.
+- Added reusable CLI `http-generic-api/session-archive-relink-repair.mjs`.
+- Added governed built-in `admin_control` shell aliases: `session_archive_relink_repair_dry_run` and `session_archive_relink_repair_apply`.
+- Added migration `http-generic-api/migrations/077_sprint61_session_archive_relink_aliases.sql` to document alias usage in the admin tool registry schema.
 - Verified the official folder resumed updates.
 
 ### Guardrail added
