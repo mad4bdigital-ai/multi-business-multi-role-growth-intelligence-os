@@ -697,3 +697,57 @@ These aliases are record-only governance helpers. They do not perform backup exe
 ### Backup boundary
 
 No apply-mode backup may run until an approved policy exists with source, destination, retention, encryption, checksum, approval, and restore-test requirements.
+
+---
+
+## Patch 15 — Backup Policy Draft Templates
+
+- Status: draft metadata applied; no backup executed
+- Date: 2026-05-17
+- Migration: `http-generic-api/migrations/082_sprint61_backup_policy_templates.sql`
+- Guide: `docs/backup-and-copy-governance.md`
+
+### Scope
+
+Added logical database and pending encrypted destination copy locations, plus draft backup policies for the primary database and main code branch. Also recorded dry-run governance rows. This patch does not dump a database, copy files, upload artifacts, or schedule a backup.
+
+### Copy locations added
+
+```text
+database:mysql:auth-runtime-primary
+object-storage:pending:encrypted-backups
+```
+
+### Draft policies added
+
+```text
+policy:platform-db-primary:manual-draft
+backup_kind = database
+status = draft
+allowed_executor = none
+encryption_required = true
+checksum_required = true
+approval_required = true
+restore_test_required = true
+```
+
+```text
+policy:platform-code-main:snapshot-draft
+backup_kind = code
+status = draft
+allowed_executor = github_actions
+checksum_required = true
+approval_required = true
+restore_test_required = true
+```
+
+### Dry-run records
+
+```text
+policy:platform-db-primary:manual-draft -> dry_run/planned
+policy:platform-code-main:snapshot-draft -> dry_run/planned
+```
+
+### Execution boundary
+
+The database policy is intentionally blocked with `allowed_executor=none` until an encrypted destination, approval flow, and restore-test target are selected.
