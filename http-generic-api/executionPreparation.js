@@ -78,6 +78,7 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
 
   const authContract = await normalizeAuthContract({
     action,
+    endpoint,
     brand,
     hostingAccounts,
     targetKey: requestBody.target_key || resolvedTargetKey || "",
