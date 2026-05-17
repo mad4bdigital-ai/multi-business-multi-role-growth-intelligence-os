@@ -2,6 +2,11 @@
 --
 -- Stores non-blocking improvements, blockers, maintenance, certification,
 -- automation, and security tasks that should be surfaced during hard activation.
+--
+-- Visibility rule:
+-- - owner_scope='platform' is admin-only.
+-- - tenant/user/device scopes are only visible to the matching principal.
+--
 -- Idempotent. No DELETE/TRUNCATE/DROP.
 
 CREATE TABLE IF NOT EXISTS platform_pending_tasks (
