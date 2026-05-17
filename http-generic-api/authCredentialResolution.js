@@ -349,7 +349,9 @@ async function _buildAuthContract({
 // Async public entry point — adds credential_resolution_status to every contract.
 export async function normalizeAuthContract(args) {
   const contract = await _buildAuthContract(args);
-  contract.credential_resolution_status = contract.secret ? "resolved" : "empty_secret";
+  const hasSecret = Boolean(contract.secret);
+  const hasCustomHeaders = contract.custom_headers && typeof contract.custom_headers === "object" && Object.keys(contract.custom_headers).length > 0;
+  contract.credential_resolution_status = (hasSecret || hasCustomHeaders) ? "resolved" : "empty_secret";
   return contract;
 }
 
