@@ -1,10 +1,10 @@
-name: Deploy Hostinger Node Apps
+name: Fallback Hostinger SSH Deploy
 
 on:
   workflow_dispatch:
     inputs:
       target:
-        description: "Deployment target: auth, connector, or both"
+        description: "Fallback deployment target: auth, connector, or both"
         required: true
         default: "auth"
         type: choice
@@ -17,32 +17,28 @@ on:
         required: false
         default: true
         type: boolean
-  push:
-    branches: [main]
-    paths:
-      - "http-generic-api/**"
-      - "local-connector/**"
-      - "scripts/**"
-      - "canonicals/**"
-      - "schemas/**"
-      - "*.md"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/deploy-hostinger-node.yml"
 
 concurrency:
-  group: hostinger-node-deploy-${{ github.ref }}
+  group: fallback-hostinger-ssh-deploy-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build deployment artifact
+  note:
+    name: Manual fallback only
     runs-on: ubuntu-latest
-    outputs:
-      artifact_name: hostinger-node-app
+    steps:
+      - name: Explain preferred deployment path
+        run: |
+          echo "Preferred deployment path: Hostinger hPanel Auto Deploy from GitHub."
+          echo "This workflow is intentionally manual-only and should be used only if Hostinger Auto Deploy is degraded."
+
+  build:
+    name: Build fallback artifact
+    runs-on: ubuntu-latest
+    needs: note
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,29 +56,22 @@ jobs:
         working-directory: http-generic-api
         run: npm ci --omit=dev
 
-      - name: Validate critical JavaScript modules
+      - name: Validate deploy-critical modules
         run: |
           set -euo pipefail
           node --check local-connector/server.mjs
           node --check http-generic-api/server.js
           node --check http-generic-api/routes/connectorAgentRoutes.js
-          node --check http-generic-api/routes/credentialIntakeRoutes.js
-          node --check http-generic-api/routes/connectorTaxonomyRoutes.js
-
-      - name: Verify connector agent contains n8n lifecycle support
-        run: |
-          set -euo pipefail
           grep -q "handleN8nV2" local-connector/server.mjs
           grep -q "N8N_COMMAND" local-connector/server.mjs
           grep -q "connector-agent/version" http-generic-api/routes/connectorAgentRoutes.js
 
-      - name: Create deploy staging directory
+      - name: Create fallback artifact
         run: |
           set -euo pipefail
           mkdir -p .deploy
           rsync -a ./ .deploy/ \
             --exclude='.git' \
-            --exclude='.github' \
             --exclude='.deploy' \
             --exclude='node_modules' \
             --exclude='http-generic-api/node_modules' \
@@ -95,29 +84,30 @@ jobs:
             "branch": "${GITHUB_REF_NAME}",
             "run_id": "${GITHUB_RUN_ID}",
             "run_number": "${GITHUB_RUN_NUMBER}",
-            "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "deployment_mode": "manual_fallback_ssh"
           }
           JSON
 
-      - name: Upload artifact
+      - name: Upload fallback artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hostinger-node-app
+          name: fallback-hostinger-node-app
           path: .deploy
-          retention-days: 7
+          retention-days: 3
           include-hidden-files: true
 
   deploy-auth:
-    name: Deploy auth.mad4b.com app
+    name: Fallback deploy auth.mad4b.com app
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'push' || inputs.target == 'auth' || inputs.target == 'both'
+    if: inputs.target == 'auth' || inputs.target == 'both'
     environment: hostinger-auth
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: hostinger-node-app
+          name: fallback-hostinger-node-app
           path: deploy
 
       - name: Deploy over SSH/rsync
@@ -147,15 +137,11 @@ jobs:
             cd "${{ secrets.HOSTINGER_AUTH_NODE_PATH }}"
             if [ -n "${{ secrets.HOSTINGER_AUTH_RESTART_CMD }}" ]; then
               ${{ secrets.HOSTINGER_AUTH_RESTART_CMD }}
-            elif [ -d tmp ]; then
-              touch tmp/restart.txt
             else
               mkdir -p tmp && touch tmp/restart.txt
             fi
 
       - name: Verify auth deployment
-        env:
-          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
         run: |
           set -euo pipefail
           curl -fsS "https://auth.mad4b.com/health" | tee health.json
@@ -163,16 +149,16 @@ jobs:
           node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('connector-agent-version.json','utf8')); if(!j.ok || !j.agent?.has_n8n_lifecycle){ console.error(j); process.exit(1); } console.log('Connector agent verified:', j.agent.sha256);"
 
   deploy-connector:
-    name: Deploy connector.mad4b.com app
+    name: Fallback deploy connector.mad4b.com app
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'push' || inputs.target == 'connector' || inputs.target == 'both'
+    if: inputs.target == 'connector' || inputs.target == 'both'
     environment: hostinger-connector
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: hostinger-node-app
+          name: fallback-hostinger-node-app
           path: deploy
 
       - name: Deploy over SSH/rsync
@@ -202,25 +188,9 @@ jobs:
             cd "${{ secrets.HOSTINGER_CONNECTOR_NODE_PATH }}"
             if [ -n "${{ secrets.HOSTINGER_CONNECTOR_RESTART_CMD }}" ]; then
               ${{ secrets.HOSTINGER_CONNECTOR_RESTART_CMD }}
-            elif [ -d tmp ]; then
-              touch tmp/restart.txt
             else
               mkdir -p tmp && touch tmp/restart.txt
             fi
 
       - name: Verify connector hostname
-        run: |
-          set -euo pipefail
-          curl -fsS "https://connector.mad4b.com/health" | tee connector-health.json
-
-  verify-runtime:
-    name: Optional runtime verification
-    runs-on: ubuntu-latest
-    needs: [deploy-auth]
-    if: github.event_name == 'push' || inputs.run_runtime_verify == true
-    steps:
-      - name: Verify connector agent after auth deploy
-        run: |
-          set -euo pipefail
-          curl -fsS "https://auth.mad4b.com/connector-agent/version" | tee agent.json
-          node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('agent.json','utf8')); if(!j.ok || !j.agent?.has_n8n_lifecycle) process.exit(1); console.log(JSON.stringify(j.agent,null,2));"
+        run: curl -fsS "https://connector.mad4b.com/health" | tee connector-health.json
