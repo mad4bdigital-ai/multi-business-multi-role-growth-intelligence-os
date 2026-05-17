@@ -114,6 +114,30 @@ If `credential_scope` is `user`, `tenant`, or `connection` and `allow_platform_f
 
 Use platform credentials only when the task is platform-owned or the caller explicitly allows fallback. See `docs/external-endpoint-auth-strategy.md`.
 
+### External endpoint credential selection
+
+External endpoint auth is governed at the parent action level. `actions.runtime_binding_profile.auth_strategy` is the default policy for all child endpoints. Endpoints inherit it unless `endpoints.runtime_binding_profile.auth_strategy_override` is explicitly defined for a narrower operation.
+
+When calling exported external endpoint tools, agents may pass:
+
+```json
+{
+  "credential_scope": "platform | user | tenant | connection | auto",
+  "user_id": "optional",
+  "tenant_id": "optional",
+  "connection_id": "optional",
+  "app_key": "optional",
+  "scopes": "optional",
+  "auth_type": "optional",
+  "allow_platform_fallback": false,
+  "auth_context": {}
+}
+```
+
+If `credential_scope` is `user`, `tenant`, or `connection` and `allow_platform_fallback=false`, the runtime must not use platform credentials. Missing scoped credentials should return `external_credential_connection_not_found` or the provider-specific scoped-auth error. Use this for user-owned Drive, tenant API keys, customer Cloudflare/Hostinger, MCP credentials, webhooks, or any per-user external system.
+
+Use platform credentials only when the task is platform-owned or the caller explicitly allows fallback. See `docs/external-endpoint-auth-strategy.md`.
+
 ### Agent-side operating perspectives
 
 Agents should classify themselves by operating side before choosing endpoints. The same backend may expose both admin and customer workflows, but the allowed evidence, risk posture, and mutation authority are different.
