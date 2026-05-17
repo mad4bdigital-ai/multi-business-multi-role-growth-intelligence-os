@@ -26,6 +26,8 @@ The selected row must match the intended Drive session folder. Then confirm the 
 
 Every repo or SQL change must also update the relevant Markdown ledger/runbook/checklist before the work is considered complete. See `docs/change-documentation-governance.md`.
 
+For local device project path changes, use the SQL-backed registry and governed helpers documented in `docs/local-project-path-governance.md`. A local path update is not a backup and must not be treated as one.
+
 - [ ] `npm test` passes from `http-generic-api/` (800+ assertions across 46+ test files: utility, job runner, execution routing, execution response, execution log evidence, logic evidence plumbing, engine evidence derivation, engine evidence integration, connectors, routes, activation bootstrap cache, Google Sheets chunking, sheets range drift, starter authority surfaces, transport governance, activation classification, activation response, governed activation runner, registry alignment validator, logic switching, WordPress, AI resolvers, SQL migration tooling, and data-flow smoke test)
 - [ ] `npm run validate` passes from `http-generic-api/` (173+ architecture checks)
 - [ ] All `.js` modules pass `node --check`
