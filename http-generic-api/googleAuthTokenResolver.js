@@ -320,9 +320,27 @@ export async function getGoogleAccessToken(options = {}) {
   const key = cacheKey(options);
   const hit = cache.get(key);
   if (hit?.token && hit.expiresAt > Date.now() + 60000) return hit.token;
-  const action = options.action || {};
-  const ref = parseOauthConfigRef(options.oauth_config_ref || action.oauth_config_ref || "");
-  const token = ref.mode ? await getMemberScopedToken(options) : await fetchGlobalGoogleToken();
+
+  const oauthRef = effectiveOauthConfigRef(options);
+  const ref = parseOauthConfigRef(oauthRef);
+  let token = "";
+
+  if (isUserScopedGoogleRefMode(ref.mode)) {
+    try {
+      token = await getMemberScopedToken({ ...options, oauth_config_ref: oauthRef });
+    } catch (err) {
+      if (!allowPlatformFallback(options)) throw err;
+      console.warn(`[googleAuth] User/tenant scoped Google auth failed; falling back to platform identity. reason=${err?.code || err?.message || "unknown"}`);
+    }
+    if (!token && !allowPlatformFallback(options)) {
+      const e = new Error("No active Google user/tenant OAuth connection resolved and platform fallback is disabled.");
+      e.code = "google_oauth_connection_not_found";
+      e.status = 403;
+      throw e;
+    }
+  }
+
+  if (!token) token = await fetchGlobalGoogleToken();
   if (token) cache.set(key, { token, expiresAt: Date.now() + 55 * 60000 });
   return token;
 }
