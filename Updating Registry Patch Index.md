@@ -597,3 +597,8 @@ The dry-run alias rejects `--apply` and the apply alias rejects `--dry-run`.
 - Local connector shell aliases added and tested on the Essam device: `local_disk_list`, `local_dir_list`, and `local_file_search`.
 - `local_dir_list` verified the main repo markers including `.git`, `package.json`, `http-generic-api`, and `local-connector`.
 - `local_file_search` found the main repo `package.json`.
+- Essam `growth-intelligence-os` path registered and validated: `D:\\Nagy\\Multi-Business-Multi-Role-Growth-Intelligence-OS`.
+- Essam `local-connector` path registered and validated: `C:\\mad4b-connector`.
+- Local connector shell aliases added and tested on the Essam device: `local_disk_list`, `local_dir_list`, and `local_file_search`.
+- `local_dir_list` verified the main repo markers including `.git`, `package.json`, `http-generic-api`, and `local-connector`.
+- `local_file_search` found the main repo `package.json`.
