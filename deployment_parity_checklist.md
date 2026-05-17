@@ -22,7 +22,7 @@ ORDER BY started_at DESC
 LIMIT 1;
 ```
 
-The selected row must match the intended Drive session folder. Then confirm the Drive `Tool_Calls.jsonl` and `Session Transcript` modified times advance after a tool call. See `docs/session-archive-relink-2026-05-17.md` for the recovery pattern and use `http-generic-api/session-archive-relink-repair.mjs --dry-run` before any apply-mode relink.
+The selected row must match the intended Drive session folder. Then confirm the Drive `Tool_Calls.jsonl` and `Session Transcript` modified times advance after a tool call. See `docs/session-archive-relink-2026-05-17.md` for the recovery pattern and use `http-generic-api/session-archive-relink-repair.mjs --dry-run`, or governed `admin_control` alias `session_archive_relink_repair_dry_run`, before any apply-mode relink. Apply mode must use the separate alias `session_archive_relink_repair_apply`.
 
 Every repo or SQL change must also update the relevant Markdown ledger/runbook/checklist before the work is considered complete. See `docs/change-documentation-governance.md`.
 
