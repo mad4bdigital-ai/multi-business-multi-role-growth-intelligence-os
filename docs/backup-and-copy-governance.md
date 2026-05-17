@@ -261,8 +261,8 @@ policy:platform-code-main:snapshot-draft -> policy_activation/requested
 Current planned restore-test records:
 
 ```text
-policy:platform-db-primary:manual-draft -> pending://isolated-restore-db-target
-policy:platform-code-main:snapshot-draft -> pending://clean-checkout-or-release-restore-target
+policy:platform-db-primary:manual-draft -> D:\\Nagy\\Growth-0s-Backups\\restore-tests\\db-isolated
+policy:platform-code-main:snapshot-draft -> D:\\Nagy\\Growth-0s-Backups\\restore-tests\\code-clean-checkout
 ```
 
 These are only approval requests and planned restore targets. They do not approve or execute a backup.
