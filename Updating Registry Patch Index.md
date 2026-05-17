@@ -949,3 +949,50 @@ activation requires activation_gate_status=ready
 ### Current state
 
 Both draft policies remain blocked and unapproved. No backup artifact exists.
+
+---
+
+## Patch 20 — Backup Executor Guard
+
+- Status: executor guard added; no backup executed
+- Date: 2026-05-17
+- Script: `http-generic-api/scripts/backup-executor-guard.mjs`
+- Alias schema migration: `http-generic-api/migrations/087_sprint61_backup_executor_guard_alias_schema.sql`
+- Guide: `docs/backup-and-copy-governance.md`
+
+### Scope
+
+Added a guarded executor skeleton that evaluates execution gates, generates artifact/manifest plans, and can record metadata-only run records. It does not create backup artifacts, dump databases, copy files, encrypt artifacts, or run restore tests.
+
+### Admin aliases
+
+```text
+backup_executor_guard_dry_run
+backup_executor_guard_apply
+```
+
+### Actions
+
+```text
+plan-run
+prepare-run-record
+execute
+```
+
+### Execution behavior
+
+- `plan-run` returns planned artifact and manifest refs only.
+- `prepare-run-record` can record metadata only.
+- `execute` returns `backup_execution_blocked` while governance blockers exist.
+- Apply-mode artifact creation is intentionally not implemented in the guard.
+
+### Current blockers
+
+```text
+policy:platform-db-primary:manual-draft -> policy_not_active, activation_gate_not_ready, preflight_not_promoted_to_active, approval_not_granted, executor_not_enabled, database_executor_must_be_local_connector_or_explicitly_changed
+policy:platform-code-main:snapshot-draft -> policy_not_active, activation_gate_not_ready, preflight_not_promoted_to_active, approval_not_granted
+```
+
+### Boundary
+
+A reviewed executor implementation must be added separately before any artifact can be created.
