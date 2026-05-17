@@ -96,13 +96,13 @@ async function _buildAuthContract({
 
   if (mode === "google_oauth2") {
     contract.header_name = "Authorization";
-    contract.secret = await getGoogleAccessToken({ action, brand, targetKey });
+    contract.secret = await getGoogleAccessToken({ action, brand, targetKey, user_id, tenant_id, auth_context, credential_scope, allow_platform_fallback });
     return contract;
   }
 
   if (mode === "google_ads_oauth2") {
     contract.header_name = "Authorization";
-    contract.secret = await getGoogleAccessToken({ action, brand, targetKey });
+    contract.secret = await getGoogleAccessToken({ action, brand, targetKey, user_id, tenant_id, auth_context, credential_scope, allow_platform_fallback });
 
     const devToken = String(process.env.GOOGLEADS_DEVELOPER_TOKEN || "").trim();
     const customerId = String(process.env.GOOGLEADS_LOGIN_CUSTOMER_ID || "").trim();
