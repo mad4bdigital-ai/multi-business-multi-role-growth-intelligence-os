@@ -468,8 +468,35 @@ function loadShellAllowlist(env = process.env) {
   }
 }
 
+function builtInShellAllowlist() {
+  return {
+    session_archive_relink_repair_dry_run: {
+      command: "node",
+      args: ["session-archive-relink-repair.mjs", "--dry-run"],
+      display_name: "Session archive relink repair dry-run",
+      allow_extra_args: true,
+      max_extra_args: 12,
+      timeout_ms: 120000,
+      built_in: true
+    },
+    session_archive_relink_repair_apply: {
+      command: "node",
+      args: ["session-archive-relink-repair.mjs", "--apply"],
+      display_name: "Session archive relink repair apply",
+      allow_extra_args: true,
+      max_extra_args: 12,
+      timeout_ms: 120000,
+      built_in: true
+    }
+  };
+}
+
+function mergedShellAllowlist(env = process.env) {
+  return { ...builtInShellAllowlist(), ...loadShellAllowlist(env) };
+}
+
 function getShellAllowlist(env = process.env) {
-  return Object.entries(loadShellAllowlist(env)).map(([alias, entry]) => {
+  return Object.entries(mergedShellAllowlist(env)).map(([alias, entry]) => {
     const normalized = String(alias).trim().toLowerCase();
     if (!/^[a-z0-9_-]{1,64}$/.test(normalized)) {
       const err = new Error(`Shell alias '${alias}' must use only lowercase letters, numbers, underscore, or dash.`);
