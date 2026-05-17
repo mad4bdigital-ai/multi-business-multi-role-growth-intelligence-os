@@ -21,7 +21,7 @@ A platform connection has four different meanings:
 
 ### `actions`
 
-Role: provider capability groups.
+Role: provider capability groups and parent-level auth strategy authority.
 
 Use for external REST API groups, MCP client groups, native runtime controllers, resolver-only records, and transport executors.
 
@@ -40,7 +40,10 @@ Rules:
 - `actions` is not the app marketplace.
 - `actions` is not an installed tenant connection table.
 - `actions.action_key` is the parent key for executable endpoint contracts.
+- `actions.runtime_binding_profile.auth_strategy` is the default credential-selection policy for all child endpoints.
 - `runtime_capability_class` should classify the capability layer, such as `external_action_only`, `mcp_connector`, `http_transport_executor`, `native_runtime`, or `resolver_only_registry`.
+
+Parent auth strategy supports the runtime scopes `platform`, `tenant`, `user`, `connection`, and `auto`. The standard resolution order is explicit connection, user primary connection, tenant primary connection, then platform secret only when fallback policy allows it. See `docs/external-endpoint-auth-strategy.md`.
 
 ### `endpoints`
 
