@@ -330,6 +330,100 @@ async function main() {
       return;
     }
 
+    if (action === "decide-approval") {
+      const policyKey = required(args, "policy_key");
+      const decision = clean(args.decision || "").toLowerCase();
+      if (!["approved", "rejected", "revoked"].includes(decision)) throw new Error("--decision must be approved, rejected, or revoked");
+      const actor = required(args, "actor");
+      const decisionToken = clean(args.decision_token || "");
+      if (decision === "approved" && decisionToken !== `APPROVE:${policyKey}`) {
+        throw new Error(`Approval requires --decision-token=APPROVE:${policyKey}`);
+      }
+      const policy = await getPolicy(conn, policyKey);
+      if (!policy) throw new Error(`policy_key not found: ${policyKey}`);
+      const [approvalRows] = await conn.query(
+        `SELECT * FROM platform_backup_approvals
+          WHERE policy_id=? AND approval_type='policy_activation' AND status='requested'
+          ORDER BY requested_at DESC LIMIT 1`,
+        [policy.policy_id]
+      );
+      const approval = approvalRows[0];
+      if (!approval) throw new Error(`No requested policy_activation approval found for ${policyKey}`);
+      const plan = { ok: true, action, mode: args.mode, policyKey, decision, approvalId: approval.approval_id, actor, note: "Approval decision only. No backup executed." };
+      if (!apply) { print(plan); return; }
+      await conn.query(
+        `UPDATE platform_backup_approvals
+            SET status=?, approved_by=CASE WHEN ?='approved' THEN ? ELSE approved_by END,
+                rejected_by=CASE WHEN ? IN ('rejected','revoked') THEN ? ELSE rejected_by END,
+                decision_token=NULLIF(?, ''), decision_source='admin_session',
+                reason=COALESCE(NULLIF(?, ''), reason),
+                policy_snapshot_json=?, decided_at=NOW()
+          WHERE approval_id=?`,
+        [decision, decision, actor, decision, actor, decisionToken, clean(args.reason), JSON.stringify(policy), approval.approval_id]
+      );
+      print({ ...plan, applied: true });
+      return;
+    }
+
+    if (action === "evaluate-activation-gate") {
+      const policyKey = required(args, "policy_key");
+      const [rows] = await conn.query(
+        `SELECT p.policy_id, p.policy_key, p.status AS policy_status, p.backup_kind,
+                p.artifact_format, p.encryption_scheme, p.checksum_algorithm, p.manifest_schema_version,
+                p.approval_required, p.restore_test_required, p.allowed_executor,
+                s.location_key AS source_location_key, s.status AS source_status,
+                d.location_key AS destination_location_key, d.status AS destination_status,
+                SUM(CASE WHEN a.approval_type='policy_activation' AND a.status='approved' THEN 1 ELSE 0 END) AS approved_count,
+                SUM(CASE WHEN rt.status IN ('planned','passed') THEN 1 ELSE 0 END) AS restore_plan_count
+           FROM platform_backup_policies p
+           JOIN platform_copy_locations s ON s.location_id=p.source_location_id
+           LEFT JOIN platform_copy_locations d ON d.location_id=p.destination_location_id
+           LEFT JOIN platform_backup_approvals a ON a.policy_id=p.policy_id
+           LEFT JOIN platform_backup_runs r ON r.policy_id=p.policy_id
+           LEFT JOIN platform_restore_tests rt ON rt.backup_run_id=r.run_id
+          WHERE p.policy_key=?
+          GROUP BY p.policy_id, p.policy_key, p.status, p.backup_kind, p.artifact_format,
+                   p.encryption_scheme, p.checksum_algorithm, p.manifest_schema_version,
+                   p.approval_required, p.restore_test_required, p.allowed_executor,
+                   s.location_key, s.status, d.location_key, d.status`,
+        [policyKey]
+      );
+      if (!rows[0]) throw new Error(`policy_key not found: ${policyKey}`);
+      const row = rows[0];
+      const blockers = [];
+      if (!row.destination_location_key) blockers.push("missing_destination");
+      if (row.destination_status !== "active") blockers.push("destination_not_active");
+      if (row.source_status !== "active" && row.source_status !== "pending_validation") blockers.push("source_not_available");
+      if (row.approval_required && Number(row.approved_count || 0) < 1) blockers.push("approval_not_granted");
+      if (row.restore_test_required && Number(row.restore_plan_count || 0) < 1) blockers.push("restore_test_plan_missing");
+      if (!row.artifact_format || row.artifact_format === "none") blockers.push("artifact_format_missing");
+      if (!row.checksum_algorithm || row.checksum_algorithm === "none") blockers.push("checksum_algorithm_missing");
+      if (row.backup_kind === "database" && row.encryption_scheme === "none") blockers.push("encryption_required_for_database");
+      if (row.backup_kind === "database" && row.allowed_executor === "none") blockers.push("executor_not_enabled");
+      const gate = { ok: true, action, policyKey, activationGateStatus: blockers.length ? "blocked" : "ready", blockers, note: "Activation gate only. No backup executed." };
+      if (apply) {
+        await conn.query(`UPDATE platform_backup_policies SET activation_gate_status=?, activation_gate_json=? WHERE policy_key=?`, [gate.activationGateStatus, JSON.stringify(gate), policyKey]);
+        gate.recorded = true;
+      }
+      print(gate);
+      return;
+    }
+
+    if (action === "activate-policy") {
+      const policyKey = required(args, "policy_key");
+      const actor = required(args, "actor");
+      const token = clean(args.activation_token || "");
+      if (token !== `ACTIVATE:${policyKey}`) throw new Error(`Activation requires --activation-token=ACTIVATE:${policyKey}`);
+      const [rows] = await conn.query(`SELECT activation_gate_status FROM platform_backup_policies WHERE policy_key=? LIMIT 1`, [policyKey]);
+      if (!rows[0]) throw new Error(`policy_key not found: ${policyKey}`);
+      if (rows[0].activation_gate_status !== "ready") throw new Error(`Policy is not activation-ready: ${rows[0].activation_gate_status}`);
+      const plan = { ok: true, action, mode: args.mode, policyKey, actor, note: "Policy activation only. No backup executed." };
+      if (!apply) { print(plan); return; }
+      await conn.query(`UPDATE platform_backup_policies SET status='active', activation_gate_status='active', approved_by=?, approved_at=NOW(), updated_by=? WHERE policy_key=?`, [actor, actor, policyKey]);
+      print({ ...plan, applied: true });
+      return;
+    }
+
     if (action === "record-dry-run") {
       const policyKey = required(args, "policy_key");
       const policy = await getPolicy(conn, policyKey);
