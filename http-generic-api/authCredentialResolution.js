@@ -235,6 +235,8 @@ async function _buildAuthContract({
   };
 
   if (mode === "basic_auth") {
+    const scoped = await resolveScopedConnection({ action, endpoint, mode, user_id, tenant_id, auth_context, credential_scope, allow_platform_fallback });
+    if (applyConnectionToContract(contract, scoped, mode)) return contract;
     contract.username = brand?.username || "";
     contract.secret = resolveWpAppPassword(brand);
     contract.header_name = "Authorization";
