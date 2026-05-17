@@ -176,6 +176,23 @@ Behavior:
 5. Admin confirms with `confirm-move`; SQL status becomes `active`, validation becomes `valid`.
 6. If markers or files are missing, use `mark-repair-required` and run the local repair script.
 
+## Current validated admin device paths
+
+As of 2026-05-17, the following Essam device paths are registered and validated in SQL:
+
+```text
+device_id = Essam
+project_key = growth-intelligence-os
+current_path = D:\\Nagy\\Multi-Business-Multi-Role-Growth-Intelligence-OS
+status = active / valid
+
+project_key = local-connector
+current_path = C:\\mad4b-connector
+status = active / valid
+```
+
+The paths were verified with the governed local shell aliases `local_dir_list` and `local_file_search` before being marked valid.
+
 ## Validation checklist
 
 For each registered path:
