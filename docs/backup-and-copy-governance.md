@@ -431,7 +431,23 @@ checksum_sha256 = 6c99cf7dccdbc8a2f78c9d2971c7056cadebe19a02f2f87e3ed32d0559bd11
 restore_status = passed
 ```
 
-This was a code backup only. DB backup remains blocked until a DB executor is implemented and approved.
+This was the first code backup. The first database backup is documented here:
+
+```text
+docs/backup-run-2026-05-17-db-primary.md
+```
+
+Database backup summary:
+
+```text
+policy = policy:platform-db-primary:manual-draft
+run_mode = apply
+status = succeeded
+artifact = D:\\Nagy\\Growth-0s-Backups\\artifacts\\growth-os-db-primary-2026-05-17T18-10-17-164Z.sql.gz.aes256gcm
+checksum_sha256 = e7ac7a51a4d74d55e31954d55edf659c05ddadbacf73a0f66ea48f902f2f4756
+restore_status = passed
+plaintext_restore_sql_removed = true
+```
 
 ## Non-goals in this phase
 
