@@ -161,7 +161,7 @@ async function main() {
   const expiresAt = new Date(Date.now() + retentionMinutes * 60_000).toISOString();
   const download = { export_id: exportId, token_sha256: tokenSha, expires_at: expiresAt, files: [path.basename(artifactPath), path.basename(manifestPath), path.basename(keyPath)] };
   await fs.writeFile(path.join(dir, "download.json"), `${JSON.stringify(download, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
-  const url = (file) => `${PUBLIC_BASE_URL}/backup-artifacts/export/${exportId}/${encodeURIComponent(file)}?token=${encodeURIComponent(token)}`;
+  const url = (file) => `${PUBLIC_BASE_URL}/connector-agent/backup-artifacts/export/${exportId}/${encodeURIComponent(file)}?token=${encodeURIComponent(token)}`;
   console.log(JSON.stringify({
     ok: true,
     export_id: exportId,
