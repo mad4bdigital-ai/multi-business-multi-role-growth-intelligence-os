@@ -899,3 +899,53 @@ preflight-policy
 ### Execution boundary
 
 Preflight is a gate only. A blocked preflight must prevent apply-mode execution. No backup artifact exists until an approved executor writes one, records a manifest, verifies checksum, and passes restore-test requirements.
+
+---
+
+## Patch 19 — Backup Approval Workflow Contract
+
+- Status: approval workflow applied; no policy approved or activated; no backup executed
+- Date: 2026-05-17
+- Migration: `http-generic-api/migrations/086_sprint61_backup_approval_workflow_contract.sql`
+- Guide: `docs/backup-and-copy-governance.md`
+
+### Scope
+
+Added approval decision metadata, activation gate metadata, and helper actions for deciding approvals and activating policies only after gates pass. This patch does not approve any policy, activate any policy, dump databases, copy files, create artifacts, or run restore tests.
+
+### SQL changes
+
+Fields added to `platform_backup_approvals`:
+
+```text
+decision_token
+decision_source
+policy_snapshot_json
+```
+
+Fields added to `platform_backup_policies`:
+
+```text
+activation_gate_status
+activation_gate_json
+```
+
+### Helper actions added
+
+```text
+decide-approval
+evaluate-activation-gate
+activate-policy
+```
+
+### Guardrails
+
+```text
+approval requires --decision-token=APPROVE:<policy_key>
+activation requires --activation-token=ACTIVATE:<policy_key>
+activation requires activation_gate_status=ready
+```
+
+### Current state
+
+Both draft policies remain blocked and unapproved. No backup artifact exists.
