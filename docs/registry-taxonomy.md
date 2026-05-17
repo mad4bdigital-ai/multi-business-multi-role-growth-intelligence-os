@@ -70,6 +70,8 @@ Rules:
 - This is a curated allowlist, not a mirror of all active endpoints.
 - Use `scope_class` to decide admin, tenant, or both.
 - Use `input_schema_json`, `auth_policy_json`, and `execution_policy_json` for GPT-facing contracts and safety policy.
+- Exported external endpoints must expose the runtime auth selector fields: `credential_scope`, `user_id`, `tenant_id`, `connection_id`, `app_key`, `scopes`, `auth_type`, `allow_platform_fallback`, and `auth_context`.
+- `auth_policy_json.inherits_parent_action_auth_strategy=true` means the tool follows the parent action's `auth_strategy` unless endpoint override policy says otherwise.
 - Do not bypass this table by querying endpoint rows directly for tool exposure.
 
 ### `admin_platform_endpoint_tools` and `tenant_platform_endpoint_tools`
