@@ -52,6 +52,163 @@ export function resolveWpAppPassword(brand = {}) {
   return embedded;
 }
 
+// ── Parent-action auth strategy helpers ────────────────────────────────────────
+
+function parseJsonObject(value) {
+  if (!value) return {};
+  if (typeof value === "object" && !Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function boolOption(value, fallback = false) {
+  if (value === true || value === false) return value;
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["true", "1", "yes"].includes(normalized)) return true;
+  if (["false", "0", "no"].includes(normalized)) return false;
+  return fallback;
+}
+
+function asList(value) {
+  if (Array.isArray(value)) return value.map(v => String(v || "").trim()).filter(Boolean);
+  return String(value || "").split(/[,|\s]+/).map(v => v.trim()).filter(Boolean);
+}
+
+function defaultAppKeyForAction(action = {}) {
+  return String(action.action_key || action.module_binding || action.connector_family || "").trim();
+}
+
+function getParentAuthStrategy(action = {}, endpoint = {}) {
+  const actionProfile = parseJsonObject(action.runtime_binding_profile);
+  const endpointProfile = parseJsonObject(endpoint.runtime_binding_profile);
+  const base = actionProfile.auth_strategy && typeof actionProfile.auth_strategy === "object" ? actionProfile.auth_strategy : {};
+  const override = endpointProfile.auth_strategy_override && typeof endpointProfile.auth_strategy_override === "object" ? endpointProfile.auth_strategy_override : {};
+  return {
+    auth_strategy_version: 1,
+    default_scope: "platform",
+    supported_scopes: ["platform", "tenant", "user", "connection"],
+    credential_resolution_order: ["request_connection", "user_primary_connection", "tenant_primary_connection", "platform_secret"],
+    allow_platform_fallback_default: true,
+    allowed_auth_types: ["oauth2", "api_key", "bearer_token", "basic_auth", "custom_headers", "client_credentials"],
+    app_key: defaultAppKeyForAction(action),
+    required_scopes: [],
+    ...base,
+    ...override
+  };
+}
+
+function resolveRequestedCredentialScope({ strategy, auth_context, credential_scope }) {
+  const requested = String(auth_context?.credential_scope || credential_scope || "").trim().toLowerCase();
+  const defaultScope = String(strategy.default_scope || "platform").trim().toLowerCase() || "platform";
+  const scope = requested || defaultScope;
+  if (scope === "auto") return "auto";
+  const supported = asList(strategy.supported_scopes).map(v => v.toLowerCase());
+  return supported.includes(scope) ? scope : defaultScope;
+}
+
+function allowFallbackForScope({ strategy, auth_context, allow_platform_fallback, scope }) {
+  if (allow_platform_fallback !== undefined) return boolOption(allow_platform_fallback, false);
+  if (auth_context && Object.prototype.hasOwnProperty.call(auth_context, "allow_platform_fallback")) return boolOption(auth_context.allow_platform_fallback, false);
+  if (["user", "tenant", "connection"].includes(scope)) return boolOption(strategy.allow_platform_fallback_default, false);
+  return true;
+}
+
+function authTypesForMode(mode, strategy = {}) {
+  const allowed = asList(strategy.allowed_auth_types);
+  if (mode === "bearer_token" || mode === "github_app") return allowed.length ? allowed : ["bearer_token", "api_key", "oauth2"];
+  if (mode === "api_key_header" || mode === "api_key_query") return allowed.length ? allowed : ["api_key", "bearer_token"];
+  if (mode === "basic_auth") return ["basic_auth"];
+  if (mode === "custom_headers") return ["custom_headers"];
+  if (mode === "google_oauth2" || mode === "google_ads_oauth2" || mode === "oauth_gpt_action") return ["oauth2"];
+  return allowed;
+}
+
+function credentialScopeCandidates(scope, auth_context = {}) {
+  if (scope === "auto") {
+    const candidates = [];
+    if (auth_context?.connection_id) candidates.push("connection");
+    if (auth_context?.user_id) candidates.push("user");
+    if (auth_context?.tenant_id) candidates.push("tenant");
+    return candidates;
+  }
+  return [scope].filter(v => ["user", "tenant", "connection"].includes(v));
+}
+
+async function resolveScopedConnection({ action, endpoint, mode, user_id, tenant_id, auth_context, credential_scope, allow_platform_fallback }) {
+  const strategy = getParentAuthStrategy(action, endpoint);
+  const scope = resolveRequestedCredentialScope({ strategy, auth_context, credential_scope });
+  const fallbackAllowed = allowFallbackForScope({ strategy, auth_context, allow_platform_fallback, scope });
+  if (scope === "platform") return { connection: null, strategy, scope, fallbackAllowed };
+
+  const appKey = String(auth_context?.app_key || strategy.app_key || defaultAppKeyForAction(action)).trim();
+  const requiredScopes = Array.isArray(strategy.required_scopes) ? strategy.required_scopes.join(" ") : String(strategy.required_scopes || "").trim();
+  const authTypes = authTypesForMode(mode, strategy);
+
+  for (const candidateScope of credentialScopeCandidates(scope, { ...auth_context, user_id, tenant_id })) {
+    const connection = await findUserAppConnection({
+      action,
+      authContext: { ...(auth_context || {}), user_id, tenant_id, credential_scope: candidateScope },
+      credentialScope: candidateScope,
+      userId: user_id,
+      tenantId: tenant_id,
+      appKey,
+      authType: authTypes,
+      connectionId: auth_context?.connection_id || "",
+      requiredScopes
+    });
+    if (connection) return { connection, strategy, scope: candidateScope, fallbackAllowed };
+  }
+
+  if (!fallbackAllowed) {
+    const err = new Error(`No active ${scope} credential connection found for action ${action?.action_key || "unknown"}; platform fallback is disabled.`);
+    err.code = "external_credential_connection_not_found";
+    err.status = 403;
+    err.details = { action_key: action?.action_key || "", requested_scope: scope, app_key: appKey };
+    throw err;
+  }
+  return { connection: null, strategy, scope, fallbackAllowed };
+}
+
+function applyConnectionToContract(contract, connectionResult, mode) {
+  const connection = connectionResult?.connection;
+  if (!connection) return false;
+  const credentials = connection.credentials || {};
+  contract.credential_resolution_source = `user_app_connections:${connection.row?.connection_id || ""}`;
+  contract.credential_scope = connectionResult.scope || "";
+
+  if (mode === "basic_auth") {
+    contract.username = extractCredentialValue(credentials, "username", "user", "email");
+    contract.secret = extractCredentialValue(credentials, "password", "app_password", "secret", "token");
+    contract.header_name = "Authorization";
+    return true;
+  }
+  if (mode === "api_key_query") {
+    contract.param_name = contract.param_name || "api_key";
+    contract.secret = extractCredentialValue(credentials, "api_key", "apikey", "key", "token", "secret");
+    return true;
+  }
+  if (mode === "api_key_header") {
+    contract.header_name = contract.header_name || "x-api-key";
+    contract.secret = extractCredentialValue(credentials, "api_key", "apikey", "key", "token", "secret");
+    return true;
+  }
+  if (mode === "custom_headers") {
+    contract.custom_headers = extractCredentialHeaders(credentials);
+    return true;
+  }
+  if (["bearer_token", "github_app", "oauth_gpt_action"].includes(mode)) {
+    contract.header_name = "Authorization";
+    contract.mode = "bearer_token";
+    contract.secret = extractCredentialValue(credentials, "access_token", "bearer_token", "token", "api_key", "secret");
+    return true;
+  }
+  return false;
+}
+
 // ── Public auth contract builder ───────────────────────────────────────────────
 
 async function _buildAuthContract({
