@@ -481,7 +481,7 @@ function builtInShellAllowlist() {
     },
     session_archive_relink_repair_apply: {
       command: process.execPath,
-      args: ["session-archive-relink-repair.mjs", "--apply"],
+      args: ["http-generic-api/session-archive-relink-repair.mjs", "--apply"],
       display_name: "Session archive relink repair apply",
       allow_extra_args: true,
       max_extra_args: 12,
