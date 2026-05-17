@@ -166,7 +166,7 @@ jobs:
     name: Deploy connector.mad4b.com app
     runs-on: ubuntu-latest
     needs: build
-    if: inputs.target == 'connector' || inputs.target == 'both'
+    if: github.event_name == 'push' || inputs.target == 'connector' || inputs.target == 'both'
     environment: hostinger-connector
     steps:
       - name: Download artifact
