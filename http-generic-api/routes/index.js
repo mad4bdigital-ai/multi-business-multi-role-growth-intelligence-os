@@ -133,7 +133,6 @@ export function registerRoutes(app, deps) {
   app.use(buildAdminScopeGrantsRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildDeviceToolsRoutes(deps));
   app.use(buildConnectorTaxonomyRoutes({ ...deps, requireAdminPrincipal }));
-  app.use(buildCredentialIntakeRoutes(deps));
   app.use(buildBackupArtifactRoutes(deps));
   registerOptionalSqlEndpointRegistryRoutes(app, deps);
   app.post("/admin/control", deps.requireBackendApiKey, requireAdminPrincipal, buildAdminControlHandler());
