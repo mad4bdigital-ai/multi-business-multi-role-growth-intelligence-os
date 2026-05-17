@@ -87,6 +87,109 @@ function scopeOk(granted = "", required = "") {
   return req.some(r => got.some(g => g === r || g === "https://www.googleapis.com/auth/cloud-platform" || (g === "https://www.googleapis.com/auth/cloud-platform.read-only" && r.endsWith(".readonly"))));
 }
 
+function parseRuntimeBindingProfile(action = {}) {
+  const profile = parseJsonMaybe(action.runtime_binding_profile);
+  return profile && typeof profile === "object" ? profile : {};
+}
+
+function candidateAppKeys(action = {}, authContext = {}, explicitAppKey = "") {
+  const profile = parseRuntimeBindingProfile(action);
+  const strategy = profile.auth_strategy && typeof profile.auth_strategy === "object" ? profile.auth_strategy : {};
+  return [...new Set([
+    explicitAppKey,
+    authContext.app_key,
+    strategy.app_key,
+    action.action_key,
+    action.module_binding,
+    action.connector_family,
+  ].map(v => String(v || "").trim()).filter(Boolean))];
+}
+
+function normalizeAuthTypes(authType = "") {
+  if (Array.isArray(authType)) return authType.map(v => String(v || "").trim()).filter(Boolean);
+  return splitList(authType);
+}
+
+export function extractCredentialValue(credentials = {}, ...keys) {
+  const sources = [credentials, credentials?.credentials, credentials?.oauth, credentials?.auth].filter(Boolean);
+  for (const source of sources) {
+    for (const key of keys) {
+      const value = source?.[key];
+      if (value !== undefined && value !== null && String(value).trim() !== "") return value;
+    }
+  }
+  return "";
+}
+
+export function extractCredentialHeaders(credentials = {}) {
+  const headers = credentials?.headers || credentials?.custom_headers || credentials?.customHeaders || credentials?.credentials?.headers || {};
+  return headers && typeof headers === "object" && !Array.isArray(headers) ? headers : {};
+}
+
+export async function findUserAppConnection({
+  action = {},
+  authContext = {},
+  credentialScope = "",
+  userId = "",
+  tenantId = "",
+  appKey = "",
+  authType = "",
+  connectionId = "",
+  requiredScopes = ""
+} = {}) {
+  const scope = String(authContext.credential_scope || credentialScope || "").trim().toLowerCase();
+  const resolvedUserId = String(authContext.user_id || userId || "").trim();
+  const resolvedTenantId = String(authContext.tenant_id || tenantId || "").trim();
+  const resolvedConnectionId = String(authContext.connection_id || connectionId || "").trim();
+  const keys = candidateAppKeys(action, authContext, appKey);
+  const authTypes = normalizeAuthTypes(authContext.auth_type || authType);
+  const scopesRequired = String(authContext.scopes || requiredScopes || "").trim();
+
+  const filters = ["uac.status='active'"];
+  const params = [];
+
+  if (resolvedConnectionId) {
+    filters.push("CAST(uac.connection_id AS CHAR)=CAST(? AS CHAR)");
+    params.push(resolvedConnectionId);
+  } else if (["user", "member_user_id"].includes(scope)) {
+    if (!resolvedUserId) return null;
+    filters.push("CAST(uac.user_id AS CHAR)=CAST(? AS CHAR)");
+    params.push(resolvedUserId);
+  } else if (["tenant", "tenant_primary"].includes(scope)) {
+    if (!resolvedTenantId) return null;
+    filters.push("CAST(uac.tenant_id AS CHAR)=CAST(? AS CHAR)");
+    params.push(resolvedTenantId);
+  } else {
+    return null;
+  }
+
+  if (keys.length) {
+    filters.push(`uac.app_key IN (${keys.map(() => "?").join(",")})`);
+    params.push(...keys);
+  }
+  if (authTypes.length) {
+    filters.push(`uac.auth_type IN (${authTypes.map(() => "?").join(",")})`);
+    params.push(...authTypes);
+  }
+
+  const [rows] = await getPool().query(
+    `SELECT uac.*, u.email AS member_email
+       FROM user_app_connections uac
+       LEFT JOIN users u ON CAST(u.user_id AS CHAR)=CAST(uac.user_id AS CHAR)
+      WHERE ${filters.join(" AND ")}
+      ORDER BY uac.is_primary DESC, COALESCE(uac.last_used_at,uac.connected_at) DESC
+      LIMIT 10`,
+    params
+  );
+
+  for (const row of rows || []) {
+    if (!scopeOk(row.scopes_granted, scopesRequired)) continue;
+    const credentials = decryptUserAppCredentials(row.encrypted_credentials) || {};
+    return { row, credentials, scope, authContext };
+  }
+  return null;
+}
+
 export async function findGoogleUserAppConnection({ action = {}, oauthConfigRef = "" } = {}) {
   const ref = parseOauthConfigRef(oauthConfigRef || action.oauth_config_ref || "");
   const keys = appKeys(action, ref);
