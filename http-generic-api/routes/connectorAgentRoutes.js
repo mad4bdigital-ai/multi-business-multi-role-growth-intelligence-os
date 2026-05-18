@@ -371,5 +371,22 @@ export function buildConnectorAgentRoutes() {
     }
   });
 
+  router.post("/connector-agent/heartbeat", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const config = await resolveHeartbeatConfig(req, body);
+      const event = await writeHeartbeat(config, body);
+      return res.status(200).json({
+        ok: true,
+        config_id: config.config_id,
+        device_id: config.device_id,
+        event,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "connector_heartbeat_failed", message: err.message } });
+    }
+  });
+
   return router;
 }
