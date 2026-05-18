@@ -12,10 +12,10 @@ function parseArgs(argv = process.argv.slice(2)) {
 
 async function request(url) {
   const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
-  const text = await res.text();
+  const buffer = Buffer.from(await res.arrayBuffer());
   let body = null;
-  try { body = JSON.parse(text); } catch { body = { raw_preview: text.slice(0, 500) }; }
-  return { status: res.status, ok: res.ok, body, headers: res.headers };
+  try { body = JSON.parse(buffer.toString("utf8")); } catch { body = { raw_preview: buffer.toString("utf8", 0, Math.min(buffer.length, 200)) }; }
+  return { status: res.status, ok: res.ok, body, headers: res.headers, buffer };
 }
 
 function assertOk(condition, code, details = {}) {
@@ -26,21 +26,50 @@ function assertOk(condition, code, details = {}) {
   throw err;
 }
 
+async function sha256Hex(buffer) {
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(hashBuffer)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function verifyManifestFile(name, file) {
+  assertOk(file?.url && file?.sha256, "manifest_file_entry_incomplete", { name });
+  const response = await request(file.url);
+  assertOk(response.status === 200, "manifest_file_request_failed", { name, status: response.status });
+  const headerHash = response.headers.get("x-mad4b-sha256");
+  const actualHash = await sha256Hex(response.buffer);
+  assertOk(actualHash === file.sha256, "manifest_file_hash_mismatch", { name, actualHashPrefix: actualHash.slice(0, 12), manifestHashPrefix: file.sha256.slice(0, 12) });
+  if (headerHash) {
+    assertOk(headerHash === file.sha256, "manifest_file_header_hash_mismatch", { name, headerHashPrefix: headerHash.slice(0, 12), manifestHashPrefix: file.sha256.slice(0, 12) });
+  }
+  return {
+    name,
+    status: response.status,
+    content_type: response.headers.get("content-type") || null,
+    cache_control: response.headers.get("cache-control") || null,
+    size: response.buffer.length,
+    hash_prefix: file.sha256.slice(0, 12),
+  };
+}
+
 async function main() {
   const args = parseArgs();
   const base = String(args.base_url || DEFAULT_BASE).replace(/\/$/, "");
   const manifest = await request(`${base}/connector-agent/manifest.json`);
   assertOk(manifest.status === 200 && manifest.body?.ok === true, "manifest_request_failed", { status: manifest.status, body: manifest.body });
   assertOk(manifest.body.agent === "mad4b-local-connector", "manifest_agent_mismatch", { body: manifest.body });
-  assertOk(manifest.body.files?.["server.mjs"]?.sha256, "manifest_missing_server_hash", { body: manifest.body });
-  assertOk(manifest.body.files?.["connector-watchdog.ps1"]?.sha256, "manifest_missing_watchdog_hash", { body: manifest.body });
-  assertOk(manifest.body.files?.["connector-safe-upgrade.ps1"]?.sha256, "manifest_missing_safe_upgrade_hash", { body: manifest.body });
 
-  const serverUrl = manifest.body.files["server.mjs"].url;
-  const server = await request(serverUrl);
-  assertOk(server.status === 200, "server_file_request_failed", { status: server.status, body: server.body });
-  const headerHash = server.headers.get("x-mad4b-sha256");
-  assertOk(headerHash === manifest.body.files["server.mjs"].sha256, "server_hash_header_mismatch", { headerHash, manifestHash: manifest.body.files["server.mjs"].sha256 });
+  const requiredFiles = ["server.mjs", "connector-watchdog.ps1", "connector-safe-upgrade.ps1"];
+  for (const name of requiredFiles) {
+    assertOk(manifest.body.files?.[name]?.sha256, "manifest_missing_required_file_hash", { name });
+  }
+
+  const verifiedFiles = [];
+  for (const name of requiredFiles) {
+    verifiedFiles.push(await verifyManifestFile(name, manifest.body.files[name]));
+  }
+
+  const unsignedInstaller = await request(`${base}/connector-agent/installer.ps1`);
+  assertOk([400, 401].includes(unsignedInstaller.status), "unsigned_installer_should_be_rejected", { status: unsignedInstaller.status, code: unsignedInstaller.body?.error?.code || null });
 
   console.log(JSON.stringify({
     ok: true,
@@ -48,13 +77,15 @@ async function main() {
     manifest_status: manifest.status,
     version: manifest.body.version,
     file_count: Object.keys(manifest.body.files || {}).length,
-    server_size: manifest.body.files["server.mjs"].size,
-    server_hash_prefix: manifest.body.files["server.mjs"].sha256.slice(0, 12),
+    verified_files: verifiedFiles,
+    unsigned_installer_status: unsignedInstaller.status,
+    unsigned_installer_code: unsignedInstaller.body?.error?.code || null,
     secrets_included: false,
+    bodies_printed: false,
   }, null, 2));
 }
 
 main().catch((err) => {
-  console.error(JSON.stringify({ ok: false, error: { code: err.code || "connector_agent_smoke_failed", message: err.message, details: err.details || undefined }, secrets_included: false }, null, 2));
+  console.error(JSON.stringify({ ok: false, error: { code: err.code || "connector_agent_smoke_failed", message: err.message, details: err.details || undefined }, secrets_included: false, bodies_printed: false }, null, 2));
   process.exitCode = 1;
 });
