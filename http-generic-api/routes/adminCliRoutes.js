@@ -622,6 +622,15 @@ function builtInShellAllowlist() {
       max_extra_args: 4,
       timeout_ms: 120000,
       built_in: true
+    },
+    connector_agent_smoke: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/connector-agent-smoke-test.mjs"],
+      display_name: "Connector agent manifest smoke test",
+      allow_extra_args: true,
+      max_extra_args: 2,
+      timeout_ms: 120000,
+      built_in: true
     }
   };
 }
