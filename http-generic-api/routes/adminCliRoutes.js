@@ -631,6 +631,15 @@ function builtInShellAllowlist() {
       max_extra_args: 2,
       timeout_ms: 120000,
       built_in: true
+    },
+    dev_db_restore_client: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/dev-db-restore-client.mjs"],
+      display_name: "Dev database restore client",
+      allow_extra_args: true,
+      max_extra_args: 8,
+      timeout_ms: 900000,
+      built_in: true
     }
   };
 }
