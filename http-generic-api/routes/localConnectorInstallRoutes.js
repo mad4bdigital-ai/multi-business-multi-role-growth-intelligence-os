@@ -985,9 +985,18 @@ export function buildLocalConnectorInstallRoutes(deps) {
   });
 
   // ── POST /local-connector/install ─────────────────────────────────────────
-  // Governs the full install lifecycle for any user/device.
-  // Creates a Cloudflare tunnel, adds DNS CNAME, seeds DB config + allowlist,
-  // returns a ready-to-run install.bat. Idempotent per user+device.
+  // Governs the full install lifecycle for any user/device through the shared provisioning helper.
+  router.post("/local-connector/install", requireBackendApiKey, async (req, res) => {
+    try {
+      const result = await provisionLocalConnectorInstall(req, req.body || {});
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "install_failed", message: err.message } });
+    }
+  });
+
+  // Legacy inline install handler retained temporarily for removal after dev smoke.
+  // It is unreachable because the shared helper route above returns the response first.
   router.post("/local-connector/install", requireBackendApiKey, async (req, res) => {
     try {
       const {
