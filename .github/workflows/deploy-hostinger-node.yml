@@ -195,3 +195,60 @@ jobs:
 
       - name: Verify connector hostname
         run: curl -fsS "https://connector.mad4b.com/health" | tee connector-health.json
+
+  deploy-dev:
+    name: Fallback deploy dev.mad4b.com app
+    runs-on: ubuntu-latest
+    needs: build
+    if: inputs.target == 'dev'
+    environment: hostinger-dev
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fallback-hostinger-node-app
+          path: deploy
+
+      - name: Deploy over SSH/rsync
+        uses: easingthemes/ssh-deploy@v5.1.0
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.HOSTINGER_SSH_PRIVATE_KEY }}
+          ARGS: "-rlgoDzvc -i --delete"
+          SOURCE: "deploy/"
+          REMOTE_HOST: ${{ secrets.HOSTINGER_SSH_HOST }}
+          REMOTE_USER: ${{ secrets.HOSTINGER_SSH_USER }}
+          REMOTE_PORT: ${{ secrets.HOSTINGER_SSH_PORT }}
+          TARGET: ${{ secrets.HOSTINGER_DEV_NODE_PATH }}
+          EXCLUDE: "/.env,/.env.*,/.htaccess,/node_modules,/http-generic-api/node_modules,/storage,/uploads"
+
+      - name: Install production dependencies and restart dev app
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          key: ${{ secrets.HOSTINGER_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.HOSTINGER_SSH_PORT }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.HOSTINGER_DEV_NODE_PATH }}/http-generic-api"
+            npm ci --omit=dev
+            cd "${{ secrets.HOSTINGER_DEV_NODE_PATH }}"
+            cat > DEPLOYMENT_COMMIT.json <<JSON
+            {
+              "commit": "${GITHUB_SHA}",
+              "branch": "${GITHUB_REF_NAME}",
+              "run_id": "${GITHUB_RUN_ID}",
+              "run_number": "${GITHUB_RUN_NUMBER}",
+              "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+              "deployment_mode": "manual_fallback_ssh_dev"
+            }
+            JSON
+            if [ -n "${{ secrets.HOSTINGER_DEV_RESTART_CMD }}" ]; then
+              ${{ secrets.HOSTINGER_DEV_RESTART_CMD }}
+            else
+              mkdir -p tmp && touch tmp/restart.txt
+            fi
+
+      - name: Verify dev hostname
+        run: curl -fsS "https://dev.mad4b.com/health" | tee dev-health.json
