@@ -286,6 +286,55 @@ async function repairLocalOriginRule(args) {
   };
 }
 
+async function upsertTunnelIngressHostname(args) {
+  const runtime = await loadCloudflareRuntime(args);
+  const tunnelId = requireArg(args, "tunnel_id");
+  const hostname = requireArg(args, "hostname");
+  const accountId = clean(args.account_id || "dd1024b934e907723484568d97c7c74c");
+  const service = clean(args.service || "http://localhost:7070");
+  const apply = String(args.apply || "false").toLowerCase() === "true";
+  const current = await cfFetch(runtime.baseUrl, runtime.token, `/accounts/${encodeURIComponent(accountId)}/cfd_tunnel/${encodeURIComponent(tunnelId)}/configurations`);
+  const currentConfig = current.result?.config || current.config || {};
+  const ingress = Array.isArray(currentConfig.ingress) ? currentConfig.ingress : [];
+  const catchAllIndex = ingress.findIndex((rule) => !rule.hostname);
+  const existingIndex = ingress.findIndex((rule) => rule.hostname === hostname);
+  const desiredRule = { service, hostname };
+  let nextIngress = [...ingress];
+  let alreadyCorrect = false;
+
+  if (existingIndex >= 0) {
+    alreadyCorrect = nextIngress[existingIndex]?.service === service;
+    nextIngress[existingIndex] = { ...nextIngress[existingIndex], ...desiredRule };
+  } else {
+    const insertAt = catchAllIndex >= 0 ? catchAllIndex : nextIngress.length;
+    nextIngress.splice(insertAt, 0, desiredRule);
+  }
+
+  const nextConfig = { ...currentConfig, ingress: nextIngress };
+  let appliedResult = null;
+  if (apply && !alreadyCorrect) {
+    const updated = await cfFetch(runtime.baseUrl, runtime.token, `/accounts/${encodeURIComponent(accountId)}/cfd_tunnel/${encodeURIComponent(tunnelId)}/configurations`, {
+      method: "PUT",
+      body: { config: nextConfig },
+    });
+    appliedResult = updated.result || updated;
+  }
+
+  return {
+    ok: true,
+    action: "upsert-tunnel-ingress-hostname",
+    applied: apply,
+    account_id: accountId,
+    tunnel_id: tunnelId,
+    desired_rule: desiredRule,
+    already_correct: alreadyCorrect,
+    before_ingress: ingress,
+    after_ingress: nextIngress,
+    applied_result: appliedResult ? { version: appliedResult.version || null, source: appliedResult.source || null } : null,
+    secrets_included: false,
+  };
+}
+
 async function inspectTunnelConfig(args) {
   const runtime = await loadCloudflareRuntime(args);
   const tunnelId = requireArg(args, "tunnel_id");
