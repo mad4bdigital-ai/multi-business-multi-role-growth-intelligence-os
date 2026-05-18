@@ -595,6 +595,15 @@ function builtInShellAllowlist() {
       max_extra_args: 4,
       timeout_ms: 120000,
       built_in: true
+    },
+    local_gateway_hostinger_proxy: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/local-gateway-hostinger-proxy.mjs"],
+      display_name: "Install local.mad4b.com Hostinger proxy files",
+      allow_extra_args: true,
+      max_extra_args: 1,
+      timeout_ms: 120000,
+      built_in: true
     }
   };
 }
