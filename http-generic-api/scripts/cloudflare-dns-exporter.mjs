@@ -286,6 +286,21 @@ async function repairLocalOriginRule(args) {
   };
 }
 
+async function inspectTunnelConfig(args) {
+  const runtime = await loadCloudflareRuntime(args);
+  const tunnelId = requireArg(args, "tunnel_id");
+  const accountId = clean(args.account_id || "dd1024b934e907723484568d97c7c74c");
+  const config = await cfFetch(runtime.baseUrl, runtime.token, `/accounts/${encodeURIComponent(accountId)}/cfd_tunnel/${encodeURIComponent(tunnelId)}/configurations`);
+  return {
+    ok: true,
+    action: "inspect-tunnel-config",
+    account_id: accountId,
+    tunnel_id: tunnelId,
+    config: config.result || config,
+    secrets_included: false,
+  };
+}
+
 async function exportManifest(args) {
   if (args.action !== "export") throw new Error("Only --action=export is supported.");
   const outputDir = clean(args.output_dir || "");
