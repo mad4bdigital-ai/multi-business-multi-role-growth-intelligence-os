@@ -141,6 +141,7 @@ export function registerRoutes(app, deps) {
   app.use(buildAdminScopeGrantsRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildDeviceToolsRoutes(deps));
   app.use(buildLocalGatewayToolsRoutes(deps));
+  app.use(buildLocalConnectorDeviceRouteRoutes(deps));
   app.use(buildConnectorTaxonomyRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildBackupArtifactRoutes(deps));
   registerOptionalSqlEndpointRegistryRoutes(app, deps);
