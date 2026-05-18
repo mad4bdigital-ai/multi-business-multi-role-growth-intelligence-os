@@ -21,7 +21,13 @@ The prompt router converts user/request intent into a governed route, never into
 9. Resolve action/endpoint/schema/credential contract.
 10. Run validation and dispatch.
 
-## 3. Task routes authority
+## 3. Multi-business routing rule
+
+The router must not treat tourism, travel, tours, destinations, or hospitality as default platform context. Those are activity profiles selected only when `business_activity_type_key` or a safe route inference resolves to that activity.
+
+For business-facing requests, activity resolution comes before business type profile, knowledge profile, engine selection, workflow variant, and Brand Core expectations.
+
+## 4. Task routes authority
 
 `task_routes` is the authority for intent dispatch.
 
