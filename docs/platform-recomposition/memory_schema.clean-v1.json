@@ -8,6 +8,7 @@
     "version",
     "purpose",
     "data_source_state",
+    "multi_business_activity_state",
     "activation_state",
     "auto_bootstrap_state",
     "hard_activation_wrapper_state",
