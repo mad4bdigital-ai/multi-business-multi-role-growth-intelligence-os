@@ -181,7 +181,73 @@ function validateCredentialBoundary({ req, tool, args, isAdmin }) {
   return { ok: true };
 }
 
-async function insertCallLog({ tool, req, args, deviceConfig, callId, publicHost }) {
+function normalizeServiceMode(row, args = {}) {
+  return String(args.service_mode || row.default_service_mode || "self_serve").trim();
+}
+
+function serviceModeAllowed(row, serviceMode) {
+  const allowed = parseJson(row.service_modes_json, []);
+  return !Array.isArray(allowed) || allowed.length === 0 || allowed.includes(serviceMode);
+}
+
+function consentStatusFor(row, args = {}) {
+  if (!row.consent_required) return "not_required";
+  return args.consent_accepted === true || args.consent_accepted === "true" ? "accepted" : "missing";
+}
+
+async function tenantHasEntitlement(tenantId, entitlementKey) {
+  if (!entitlementKey) return true;
+  if (!tenantId) return false;
+  const [rows] = await getPool().query(
+    `SELECT entitlement_id
+       FROM \`entitlements\`
+      WHERE tenant_id = ?
+        AND entitlement_key = ?
+        AND (expires_at IS NULL OR expires_at > NOW())
+      LIMIT 1`,
+    [tenantId, entitlementKey]
+  );
+  return Boolean(rows[0]);
+}
+
+async function getApprovedApprovalHold({ holdId, tenantId, row }) {
+  const normalized = String(holdId || "").trim();
+  if (!normalized) return null;
+  const [rows] = await getPool().query(
+    `SELECT hold_id, tenant_id, hold_type, requested_by, required_role, status, expires_at
+       FROM \`approval_holds\`
+      WHERE hold_id = ?
+        AND tenant_id = ?
+        AND status = 'approved'
+        AND hold_type = ?
+        AND (expires_at IS NULL OR expires_at > NOW())
+      LIMIT 1`,
+    [normalized, tenantId, row.approval_hold_type || "review"]
+  );
+  return rows[0] || null;
+}
+
+async function createApprovalHold({ callId, req, row, tenantId }) {
+  const holdId = crypto.randomUUID();
+  const ttlMinutes = Math.max(15, Math.min(10080, Number(row.approval_ttl_minutes || 1440)));
+  await getPool().query(
+    `INSERT INTO \`approval_holds\`
+       (hold_id, run_id, tenant_id, hold_type, requested_by, required_role, status, expires_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'open', DATE_ADD(NOW(), INTERVAL ? MINUTE), NOW())`,
+    [
+      holdId,
+      callId,
+      tenantId,
+      row.approval_hold_type || "review",
+      req.auth?.user_id || null,
+      row.approval_required_role || null,
+      ttlMinutes,
+    ]
+  );
+  return holdId;
+}
+
+async function insertCallLog({ tool, req, args, deviceConfig, callId, publicHost, serviceMode = null, entitlementKey = null, consentStatus = "not_required", approvalHoldId = null }) {
   const redactedArgs = redactArgs(args || {});
   await getPool().query(
     `INSERT INTO \`local_gateway_tool_call_log\`
