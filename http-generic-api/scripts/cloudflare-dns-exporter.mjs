@@ -354,6 +354,11 @@ async function main() {
       console.log(JSON.stringify(result, null, 2));
       return;
     }
+    if (args.action === "repair-local-origin-rule") {
+      const result = await repairLocalOriginRule(args);
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
 
     const { manifest, summary } = await exportManifest(args);
     const payload = String(args.summary_only).toLowerCase() === "true"
