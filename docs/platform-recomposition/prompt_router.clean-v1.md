@@ -55,6 +55,10 @@ The router must return structured states instead of guessing.
 | multiple matching workflow rows without unique selector | `blocked.workflow_ambiguous` |
 | schema missing for runtime-callable action | `degraded_contract.schema_unresolved` |
 | brand target required but unresolved | `blocked.brand_target_resolution_required` |
+| tenant or actor role unresolved | `blocked.access_context_unresolved` |
+| scope mismatch | `blocked.scope_denied` |
+| entitlement missing for paid/limited/managed feature | `blocked.entitlement_required` |
+| review/approval required but no oversight route exists | `blocked.human_oversight_required` |
 | path resolver rows missing for path-sensitive mutation | `blocked.missing_required_path_resolver_rows` |
 | agent skill missing | `blocked.skill_not_granted` |
 | local intent missing device_id | `blocked.missing_device_id` |
