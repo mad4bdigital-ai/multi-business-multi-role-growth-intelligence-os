@@ -26,7 +26,9 @@ async function resolveDeviceTunnel(userId, deviceId, { isAdmin = false, tenantId
   deviceId = await resolveCanonicalDeviceId({ deviceId, userId, tenantId });
   if (userId) {
     const [rows] = await getPool().query(
-      `SELECT tunnel_url, connector_secret, user_id, tenant_id, device_id
+      `SELECT COALESCE(device_runtime_url, tunnel_url) AS tunnel_url,
+              public_gateway_url, device_runtime_url, admin_recovery_url,
+              connector_secret, user_id, tenant_id, device_id
          FROM \`local_connector_user_configs\`
         WHERE user_id = ? AND device_id = ? AND is_enabled = 1
         ORDER BY updated_at DESC
