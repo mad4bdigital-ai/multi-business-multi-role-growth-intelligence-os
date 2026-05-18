@@ -12,7 +12,13 @@ dev.mad4b.com CNAME auth.mad4b.com
 proxied = true
 ```
 
-This only routes traffic to the same Hostinger origin. It does **not** by itself make `dev.mad4b.com` read from the dev branch.
+Smoke result after DNS creation:
+
+```text
+GET https://dev.mad4b.com/health -> 525 SSL handshake failed
+```
+
+Interpretation: Cloudflare can resolve the hostname, but Hostinger does not yet have a separate vhost/SSL/Node application bound to `dev.mad4b.com`. DNS alone does **not** make `dev.mad4b.com` read from the dev branch.
 
 ## Required Hostinger separation
 
