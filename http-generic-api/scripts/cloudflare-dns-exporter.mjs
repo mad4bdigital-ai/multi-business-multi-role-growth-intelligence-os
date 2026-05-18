@@ -20,10 +20,15 @@ function requireArg(args, key) {
   if (!value) throw new Error(`Missing required --${key.replace(/_/g, "-")}`);
   return value;
 }
-async function cfFetch(baseUrl, token, pathAndQuery) {
-  const res = await fetch(`${baseUrl.replace(/\/$/, "")}${pathAndQuery}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-  });
+async function cfFetch(baseUrl, token, pathAndQuery, options = {}) {
+  const method = String(options.method || "GET").toUpperCase();
+  const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
+  const fetchOptions = { method, headers };
+  if (Object.prototype.hasOwnProperty.call(options, "body")) {
+    headers["Content-Type"] = "application/json";
+    fetchOptions.body = JSON.stringify(options.body);
+  }
+  const res = await fetch(`${baseUrl.replace(/\/$/, "")}${pathAndQuery}`, fetchOptions);
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.success === false) {
     const err = new Error(data?.errors?.[0]?.message || `Cloudflare request failed: ${res.status}`);
