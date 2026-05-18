@@ -857,7 +857,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
         format: "ps1",
         exp: Math.floor(Date.now() / 1000) + ttl * 60,
       });
-      const download_url = `${publicBaseUrl(req)}/local-connector/install/download?token=${encodeURIComponent(token)}`;
+      const download_url = `${publicBaseUrl(req)}/connector-agent/installer.ps1?token=${encodeURIComponent(token)}`;
       return res.status(200).json({ ok: true, device_id, config_id: config.config_id, ttl_minutes: ttl, download_url, secrets_included: false });
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "download_link_failed", message: err.message } });
