@@ -392,6 +392,405 @@ function shortHash(value) {
   return createHash("sha256").update(String(value || "")).digest("hex").slice(0, 10);
 }
 
+function runtimeHostnameForConfig(configId) {
+  const prefix = String(configId || "").split("-")[0] || shortHash(configId).slice(0, 8);
+  return `lc-${safeDnsLabel(prefix, "device")}.${DNS_DOMAIN}`;
+}
+
+function runtimeRecordNameForHostname(hostname) {
+  return String(hostname || "").replace(new RegExp(`\\.${DNS_DOMAIN.replace(/\\./g, "\\\\.")}import { Router } from "express";
+import { getPool } from "../db.js";
+import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { decryptCredentials } from "../tokenEncryption.js";
+
+const CF_API = "https://api.cloudflare.com/client/v4";
+const CONNECTOR_PORT = 7070;
+const CONNECTOR_SUBDOMAIN_SUFFIX = ".connector.mad4b.com"; // legacy custom-host suffix
+const DNS_DOMAIN = "mad4b.com";
+const CONNECTOR_DNS_PARENT = "connector";
+const LOCAL_GATEWAY_URL = "https://local.mad4b.com";
+const ADMIN_RECOVERY_URL = "https://connector.mad4b.com";
+const DEFAULT_N8N_PORT = 5678;
+const DEFAULT_BROWSER_PORT = 9222;
+const PLATFORM_TENANT_ID = "00000000-0000-4000-a000-000000000001";
+const PLATFORM_ADMIN_USER_ID = "00000000-0000-4000-a000-000000000002";
+
+const DEFAULT_WINDOWS_ALIASES = [
+  { alias: "node_ver",       cmd: "node",     args: ["--version"],                              allow_extra_args: false, description: "Node.js version" },
+  { alias: "git_status",     cmd: "git",      args: ["status"],                                 allow_extra_args: false, description: "Git status" },
+  { alias: "list_processes", cmd: "tasklist", args: ["/FO", "CSV", "/NH"],                      allow_extra_args: false, description: "Running processes (CSV)" },
+  { alias: "disk_usage",     cmd: "wmic",     args: ["logicaldisk", "get", "size,freespace,caption"], allow_extra_args: false, description: "Disk usage" },
+  { alias: "n8n_health",     cmd: "curl",     args: ["-s", "--max-time", "10", "http://127.0.0.1:5678/"], allow_extra_args: false, description: "n8n health check" },
+];
+
+function resolveLocalConnectorPrincipalAliases(userId, tenantId) {
+  const normalizedUser = String(userId || "").trim().toLowerCase();
+  const normalizedTenant = String(tenantId || "").trim().toLowerCase();
+  return {
+    userId: ["admin", "nagy", "platform_admin"].includes(normalizedUser)
+      ? PLATFORM_ADMIN_USER_ID
+      : userId,
+    tenantId: ["platform", "mad4b", "platform_owner"].includes(normalizedTenant)
+      ? PLATFORM_TENANT_ID
+      : tenantId,
+  };
+}
+
+function firstString(...values) {
+  for (const value of values) {
+    const str = String(value || "").trim();
+    if (str) return str;
+  }
+  return "";
+}
+
+function parseMaybeJsonObject(value) {
+  if (!value) return {};
+  if (typeof value === "object") return value;
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function httpError(status, code, message) {
+  const err = new Error(message || code);
+  err.status = status;
+  err.code = code;
+  return err;
+}
+
+function base64url(input) {
+  return Buffer.from(input).toString("base64url");
+}
+
+function publicBaseUrl(req) {
+  const proto = String(req.headers["x-forwarded-proto"] || req.protocol || "https").split(",")[0].trim();
+  const host = String(req.headers["x-forwarded-host"] || req.headers.host || "auth.mad4b.com").split(",")[0].trim();
+  return `${proto}://${host}`;
+}
+
+function installerTokenSecret() {
+  const secret = String(process.env.BACKEND_API_KEY || "").trim();
+  if (!secret) throw httpError(500, "installer_token_secret_missing", "BACKEND_API_KEY is required for installer download links.");
+  return secret;
+}
+
+function signInstallerDownloadToken(payload) {
+  const body = base64url(JSON.stringify(payload));
+  const sig = createHmac("sha256", installerTokenSecret()).update(body).digest("base64url");
+  return `${body}.${sig}`;
+}
+
+function verifyInstallerDownloadToken(token) {
+  const [body, sig] = String(token || "").split(".");
+  if (!body || !sig) throw httpError(401, "invalid_download_token", "Invalid installer download token.");
+  const expected = createHmac("sha256", installerTokenSecret()).update(body).digest("base64url");
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    throw httpError(401, "invalid_download_token", "Invalid installer download token signature.");
+  }
+  const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+  if (!payload.exp || Number(payload.exp) < Math.floor(Date.now() / 1000)) {
+    throw httpError(401, "download_token_expired", "Installer download token has expired.");
+  }
+  return payload;
+}
+
+async function assertActiveMembership(userId, tenantId) {
+  const [rows] = await getPool().query(
+    "SELECT 1 FROM `memberships` WHERE user_id = ? AND tenant_id = ? AND status = 'active' LIMIT 1",
+    [userId, tenantId]
+  );
+  if (!rows.length) throw httpError(403, "membership_required", "User is not an active member of this tenant.");
+}
+
+function assertApiCredentialScope(req, acceptedScopes = []) {
+  if (req.auth?.mode !== "api_credential") return;
+  const scopes = Array.isArray(req.auth.scopes) ? req.auth.scopes : [];
+  if (!scopes.length) return;
+  const allowed = acceptedScopes.some((scope) => scopes.includes(scope)) || scopes.includes("local_connector.*");
+  if (!allowed) throw httpError(403, "scope_not_granted", `API credential requires one of: ${acceptedScopes.join(", ")}`);
+}
+
+async function resolveRequestedLocalPrincipal(req, { user_id, tenant_id }) {
+  if (req.auth?.is_admin === true) {
+    const principal = resolveLocalConnectorPrincipalAliases(user_id, tenant_id);
+    return { ...principal, source: "admin_env" };
+  }
+
+  if (req.auth?.mode === "user_jwt") {
+    const userId = req.auth.user_id;
+    const tenantId = req.auth.tenant_id || tenant_id;
+    if (!userId || !tenantId) throw httpError(400, "missing_principal", "Signed-in user and tenant_id are required.");
+    if (req.auth.tenant_id && tenant_id && req.auth.tenant_id !== tenant_id) {
+      throw httpError(403, "tenant_mismatch", "Request tenant_id does not match the signed-in user's token.");
+    }
+    await assertActiveMembership(userId, tenantId);
+    return { userId, tenantId, source: "user_jwt" };
+  }
+
+  if (req.auth?.mode === "api_credential") {
+    assertApiCredentialScope(req, ["local_connector.install", "local_connector.manage"]);
+    const tenantId = req.auth.tenant_id;
+    const userId = user_id || req.auth.user_id;
+    if (!tenantId || !userId) {
+      throw httpError(400, "missing_principal", "API credential calls require a user_id for the device owner.");
+    }
+    if (tenant_id && tenant_id !== tenantId) {
+      throw httpError(403, "tenant_mismatch", "Request tenant_id does not match the API credential tenant.");
+    }
+    await assertActiveMembership(userId, tenantId);
+    return { userId, tenantId, source: "api_credential" };
+  }
+
+  throw httpError(403, "unsupported_auth_mode", "Unsupported authentication mode for local connector install.");
+}
+
+async function loadConnectionCredentials({ connectionId = null, tenantId, userId, appKeys = [] }) {
+  const params = [];
+  let sql = "SELECT * FROM `user_app_connections` WHERE status = 'active'";
+  if (connectionId) {
+    sql += " AND connection_id = ?";
+    params.push(connectionId);
+  } else {
+    sql += " AND tenant_id = ? AND app_key IN (?) AND (user_id = ? OR is_primary = 1)";
+    params.push(tenantId, appKeys, userId);
+  }
+  sql += " ORDER BY (user_id = ?) DESC, is_primary DESC, connected_at DESC LIMIT 1";
+  params.push(userId);
+
+  const [rows] = await getPool().query(sql, params);
+  const connection = rows[0];
+  if (!connection) return null;
+  return {
+    connection,
+    credentials: decryptCredentials(connection.encrypted_credentials) || {},
+  };
+}
+
+async function resolveProvisioningCredentials(req, principal, body = {}) {
+  // Managed platform: admin, user JWT, and api_credential all use platform CF credentials.
+  // Only dedicated mode (body.provisioning_credential_mode === "dedicated") uses tenant-owned creds.
+  const useManagedCreds =
+    req.auth?.is_admin === true ||
+    req.auth?.mode === "user_jwt" ||
+    req.auth?.mode === "api_credential" ||
+    body.provisioning_credential_mode === "managed";
+
+  if (useManagedCreds && body.provisioning_credential_mode !== "dedicated") {
+    return {
+      source: req.auth?.is_admin === true ? "server_env" : "managed_server_env",
+      cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
+      cloudflareToken: process.env.CLOUDFLARE_API_TOKEN,
+      hostingerToken: hostingerApiKey(),
+    };
+  }
+
+  const cloudflare = await loadConnectionCredentials({
+    connectionId: body.cloudflare_connection_id || null,
+    tenantId: principal.tenantId,
+    userId: principal.userId,
+    appKeys: ["cloudflare"],
+  });
+  const hostinger = await loadConnectionCredentials({
+    connectionId: body.hostinger_connection_id || null,
+    tenantId: principal.tenantId,
+    userId: principal.userId,
+    appKeys: ["hostinger"],
+  });
+
+  const cloudflareCreds = cloudflare?.credentials || {};
+  const hostingerCreds = hostinger?.credentials || {};
+  const cloudflareMetadata = parseMaybeJsonObject(cloudflare?.connection?.account_metadata);
+  const cloudflareToken = firstString(
+    cloudflareCreds.cloudflare_api_token,
+    cloudflareCreds.api_token,
+    cloudflareCreds.bearer_token,
+    cloudflareCreds.api_key,
+    cloudflareCreds.access_token
+  );
+  const cloudflareAccountId = firstString(
+    cloudflareCreds.cloudflare_account_id,
+    cloudflareCreds.account_id,
+    cloudflareMetadata.cloudflare_account_id,
+    cloudflareMetadata.account_id
+  );
+  const hostingerToken = firstString(
+    hostingerCreds.hostinger_api_token,
+    hostingerCreds.api_token,
+    hostingerCreds.bearer_token,
+    hostingerCreds.api_key,
+    hostingerCreds.access_token
+  );
+
+  if (!cloudflareToken || !cloudflareAccountId || !hostingerToken) {
+    throw httpError(
+      403,
+      "customer_credentials_required",
+      "Customer local integration routing requires active DB app connections for cloudflare and hostinger credentials."
+    );
+  }
+
+  return {
+    source: "db_user_app_connections",
+    cloudflareAccountId,
+    cloudflareToken,
+    hostingerToken,
+    cloudflareConnectionId: cloudflare.connection.connection_id,
+    hostingerConnectionId: hostinger.connection.connection_id,
+  };
+}
+
+// ── Cloudflare tunnel helpers ──────────────────────────────────────────────────
+
+function cfHeaders(tokenOverride = null) {
+  const token = tokenOverride || process.env.CLOUDFLARE_API_TOKEN;
+  if (!token) throw new Error("CLOUDFLARE_API_TOKEN not configured.");
+  return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+}
+
+async function cfRequest(method, path, body, tokenOverride = null) {
+  const res = await fetch(`${CF_API}${path}`, {
+    method,
+    headers: cfHeaders(tokenOverride),
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(20000),
+  });
+  const json = await res.json();
+  if (!json.success) throw new Error(json.errors?.[0]?.message || "Cloudflare API error");
+  return json.result;
+}
+
+async function provisionTunnel(accountId, tunnelName, cfToken = null) {
+  const tunnel = await cfRequest("POST", `/accounts/${accountId}/cfd_tunnel`, {
+    name: tunnelName,
+    tunnel_secret: Buffer.from(randomUUID().replace(/-/g, ""), "hex").toString("base64"),
+    config_src: "cloudflare",
+  }, cfToken);
+  const tokenResult = await cfRequest("GET", `/accounts/${accountId}/cfd_tunnel/${tunnel.id}/token`, null, cfToken);
+  return { tunnelId: tunnel.id, tunnelName: tunnel.name, token: tokenResult };
+}
+
+async function readTunnelIngress(accountId, tunnelId, cfToken = null) {
+  try {
+    const result = await cfRequest("GET", `/accounts/${accountId}/cfd_tunnel/${tunnelId}/configurations`, null, cfToken);
+    return Array.isArray(result?.config?.ingress) ? result.config.ingress : [];
+  } catch (err) {
+    console.warn("[install] Cloudflare ingress read warning:", err.message);
+    return [];
+  }
+}
+
+function upsertIngressEntry(existingIngress, hostname, serviceUrl) {
+  const targetHost = String(hostname || "").toLowerCase();
+  const targetPath = "";
+  const existingRoutes = existingIngress
+    .filter((entry) => entry && entry.hostname)
+    .filter((entry) => {
+      const sameHost = String(entry.hostname).toLowerCase() === targetHost;
+      const samePath = String(entry.path || "") === targetPath;
+      return !(sameHost && samePath);
+    });
+  return [
+    ...existingRoutes,
+    { hostname, service: serviceUrl },
+    { service: "http_status:404" },
+  ];
+}
+
+function normalizeIngressRoute(route = {}) {
+  return {
+    hostname: String(route.hostname || "").trim().toLowerCase(),
+    path: String(route.path || "").trim(),
+    service: String(route.service || route.serviceUrl || "").trim(),
+  };
+}
+
+function upsertIngressRoutes(existingIngress, desiredRoutes = []) {
+  const normalizedRoutes = desiredRoutes
+    .map(normalizeIngressRoute)
+    .filter((route) => route.hostname && route.service);
+  const routeKeys = new Set(normalizedRoutes.map((route) => `${route.hostname}|${route.path}`));
+  const preservedRoutes = existingIngress
+    .filter((entry) => entry && entry.hostname)
+    .filter((entry) => !routeKeys.has(`${String(entry.hostname).toLowerCase()}|${String(entry.path || "")}`));
+  return [
+    ...preservedRoutes,
+    ...normalizedRoutes.map((route) => ({
+      hostname: route.hostname,
+      ...(route.path ? { path: route.path } : {}),
+      service: route.service,
+    })),
+    { service: "http_status:404" },
+  ];
+}
+
+async function publishTunnelIngress(accountId, tunnelId, hostname, serviceUrl = `http://localhost:${CONNECTOR_PORT}`, cfToken = null) {
+  const existingIngress = await readTunnelIngress(accountId, tunnelId, cfToken);
+  return cfRequest("PUT", `/accounts/${accountId}/cfd_tunnel/${tunnelId}/configurations`, {
+    config: {
+      ingress: upsertIngressEntry(existingIngress, hostname, serviceUrl),
+    },
+  }, cfToken);
+}
+
+async function publishPrivateTunnelIngress(accountId, tunnelId, serviceUrl = `http://localhost:${CONNECTOR_PORT}`, cfToken = null) {
+  return cfRequest("PUT", `/accounts/${accountId}/cfd_tunnel/${tunnelId}/configurations`, {
+    config: { ingress: [{ service: serviceUrl }] },
+  }, cfToken);
+}
+
+async function publishTunnelIngressRoutes(accountId, tunnelId, routes = [], cfToken = null) {
+  const existingIngress = await readTunnelIngress(accountId, tunnelId, cfToken);
+  return cfRequest("PUT", `/accounts/${accountId}/cfd_tunnel/${tunnelId}/configurations`, {
+    config: {
+      ingress: upsertIngressRoutes(existingIngress, routes),
+    },
+  }, cfToken);
+}
+
+function hostingerApiKey(tokenOverride = null) {
+  if (tokenOverride) return tokenOverride;
+  return (
+    process.env.HOSTINGER_CLOUD_PLAN_01_API_KEY ||
+    process.env.HOSTINGER_API_TOKEN ||
+    process.env.HOSTINGER_SHARED_MANAGER_01_API_KEY ||
+    ""
+  );
+}
+
+async function upsertHostingerCname(recordName, tunnelId, hostingerToken = null) {
+  const target = `${tunnelId}.cfargotunnel.com.`;
+  const res = await fetch(`https://developers.hostinger.com/api/v1/dns/zone/${encodeURIComponent(DNS_DOMAIN)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${hostingerApiKey(hostingerToken)}` },
+    body: JSON.stringify({ records: [{ name: recordName, type: "CNAME", ttl: 300, content: target }] }),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Hostinger DNS failed (${res.status}): ${txt.slice(0, 120)}`);
+  }
+  return await res.json();
+}
+
+function safeDnsLabel(value, fallback = "device") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+  return (normalized || fallback).slice(0, 32).replace(/^-+|-+$/g, "") || fallback;
+}
+
+), "");
+}
+
 function buildUserDeviceRoute({ userId, deviceId, requestedHostname }) {
   const requested = String(requestedHostname || "").trim().toLowerCase();
   if (requested) {
