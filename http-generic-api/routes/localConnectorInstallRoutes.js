@@ -5,11 +5,9 @@ import { decryptCredentials } from "../tokenEncryption.js";
 
 const CF_API = "https://api.cloudflare.com/client/v4";
 const CONNECTOR_PORT = 7070;
-const CONNECTOR_SUBDOMAIN_SUFFIX = ".connector.mad4b.com"; // legacy custom-host suffix
+const CONNECTOR_SUBDOMAIN_SUFFIX = ".connector.mad4b.com";
 const DNS_DOMAIN = "mad4b.com";
 const CONNECTOR_DNS_PARENT = "connector";
-const LOCAL_GATEWAY_URL = "https://local.mad4b.com";
-const ADMIN_RECOVERY_URL = "https://connector.mad4b.com";
 const DEFAULT_N8N_PORT = 5678;
 const DEFAULT_BROWSER_PORT = 9222;
 const PLATFORM_TENANT_ID = "00000000-0000-4000-a000-000000000001";
