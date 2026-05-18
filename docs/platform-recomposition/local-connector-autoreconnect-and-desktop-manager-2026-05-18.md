@@ -557,10 +557,96 @@ Implementation status as of this doc update:
 - Signed installer generation reads `COALESCE(device_runtime_url, tunnel_url)`.
 - The legacy direct `POST /local-connector/install` route still contains older duplicate provisioning logic and should be refactored to call `provisionLocalConnectorInstall()` directly to avoid drift.
 
+## Autopilot customer-selectable route modes
+
+The platform should support all connection options, but the customer should not need programming or networking expertise. The desktop app/bootstrapper should present simple choices and then configure the technical route automatically.
+
+Customer-facing choices:
+
+```text
+Recommended automatic mode
+Fast private connection
+Direct IP connection
+Local network connection
+Cloudflare tunnel only
+```
+
+Internal route types are stored in:
+
+```text
+local_connector_device_routes
+```
+
+Supported route types:
+
+```text
+vpn_private_ip      preferred private route when platform VPN/overlay is available
+direct_public_ip    public/static IP or router-port-forward route
+dynamic_public_ip   public IP discovered by heartbeat, with changing endpoint support
+lan_private_ip      same-network/local-office route
+cloudflare_tunnel   default zero-config route through lc-<config>.mad4b.com
+admin_recovery      admin-only break-glass route through connector.mad4b.com
+```
+
+Each route carries:
+
+```text
+endpoint_url
+priority
+health_status
+requires_router_config
+requires_vpn_agent
+requires_admin_setup
+tls_mode
+auth_mode
+route_metadata
+```
+
+Default priorities:
+
+```text
+10  vpn_private_ip
+20  lan_private_ip
+30  direct_public_ip
+40  dynamic_public_ip
+50  cloudflare_tunnel
+90  admin_recovery
+```
+
+The route selector should choose the lowest-priority enabled healthy/unknown route, attempt dispatch, mark failures, and fall back automatically to the next route.
+
+Initial DB support was added in migration:
+
+```text
+098_sprint62i_local_connector_device_routes.sql
+```
+
+For existing devices, the migration seeds:
+
+```text
+cloudflare_tunnel -> COALESCE(device_runtime_url, tunnel_url)
+admin_recovery    -> COALESCE(admin_recovery_url, https://connector.mad4b.com)
+```
+
+Autopilot behavior expected from the desktop app/bootstrapper:
+
+1. Detect available network capabilities.
+2. Register device with Auth.
+3. Provision Cloudflare tunnel by default.
+4. Offer optional VPN/private route setup.
+5. Offer direct IP only when public IP/port forwarding is detected or configured.
+6. Add route rows to `local_connector_device_routes`.
+7. Run health checks for each route.
+8. Set preferred route priority based on customer selection.
+9. Keep Cloudflare tunnel as fallback unless customer explicitly disables it.
+10. Never use `connector.mad4b.com` for tenant/customer runtime.
+
 ## Next implementation steps
 
 1. Refactor legacy direct `POST /local-connector/install` to call `provisionLocalConnectorInstall()` instead of duplicating provisioning logic.
-2. Add a small regression smoke test for token-gated installer route that checks status/headers without printing installer content.
-3. Update `local_connector_user_configs.watchdog_installed`, `watchdog_version`, and `agent_version` after successful install or heartbeat.
-4. Log watchdog/repair events from local agent back to Auth when online.
-5. Build the Desktop Manager as a tray app/bootstrapper on top of watchdog and safe-upgrade.
+2. Implement route selector in `connectorProxyRoutes.js` using `local_connector_device_routes` with fallback.
+3. Add route registration/update endpoints for Desktop Manager.
+4. Add a small regression smoke test for token-gated installer route that checks status/headers without printing installer content.
+5. Update `local_connector_user_configs.watchdog_installed`, `watchdog_version`, and `agent_version` after successful install or heartbeat.
+6. Log watchdog/repair events from local agent back to Auth when online.
+7. Build the Desktop Manager as a tray app/bootstrapper on top of watchdog and safe-upgrade.
