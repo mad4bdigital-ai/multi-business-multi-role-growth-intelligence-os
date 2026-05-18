@@ -98,13 +98,35 @@ Important fields:
 - Device reachability must be resolved internally from DB.
 - `connector.mad4b.com` may remain a direct Cloudflare tunnel only for admin recovery and break-glass.
 
-## Promotion blockers
+## Activation status - 2026-05-18
 
-Before exposing this as the default tenant/member path:
+`local.mad4b.com` is now an active public gateway path.
 
-1. Add `/local/tools` and `/local/tools/call` routes on Auth.
-2. Ensure `local.mad4b.com` DNS/Hostinger vhost maps to the same app as `auth.mad4b.com`.
-3. Add role/tenant/entitlement checks before dispatch.
-4. Add approval/hold integration for high-risk tools.
-5. Ensure every call writes `local_gateway_tool_call_log`.
-6. Keep `connector.mad4b.com` out of tenant-facing gateway records except admin recovery configs.
+Implemented and validated:
+
+1. `/local/tools` and `/local/tools/call` are mounted on the Auth runtime.
+2. `local.mad4b.com` is a Hostinger website/vhost on the same hosting order as `auth.mad4b.com`.
+3. Cloudflare DNS for `local.mad4b.com` points to the Hostinger/Auth origin IP `147.93.49.130` with proxy enabled.
+4. A Hostinger PHP proxy in `/home/u338416126/domains/local.mad4b.com/public_html` forwards traffic to `https://auth.mad4b.com` while preserving the public local gateway host context.
+5. `GET https://local.mad4b.com/health` returns healthy.
+6. Unauthenticated `GET https://local.mad4b.com/local/tools` returns `401`, as expected.
+7. Authenticated admin `GET https://local.mad4b.com/local/tools` returns 14 gateway tools.
+8. Authenticated admin `POST https://local.mad4b.com/local/tools/call` with `local.connector.health` succeeds against device `essam-pc`.
+9. Tenant-JWT path lists 6 tenant/member-safe tools and exposes zero `local.admin.*` tools.
+10. Tenant-JWT `local.connector.health` succeeds through device-scoped credentials.
+11. Calls are written to `local_gateway_tool_call_log` with `public_host = local.mad4b.com` and caller type `admin` or `tenant`.
+
+Validation call IDs:
+
+- Admin path: `db4c929f-d058-43a6-a91f-e7bbcdd31fc6`
+- Tenant path: `db23b4f3-1081-42f9-b751-d3e5ba4149c3`
+
+## Remaining promotion blockers
+
+Before treating all high-risk local tools as production-ready tenant/member actions:
+
+1. Add approval/hold integration for `requires_approval = 1` tools.
+2. Add entitlement/service-mode enforcement beyond the current registry flags.
+3. Add UI-level consent and visible risk labels for consequential local operations.
+4. Keep `connector.mad4b.com` out of tenant-facing gateway records except admin recovery configs.
+5. Continue using `local_gateway_public_smoke` after route/proxy/credential changes.
