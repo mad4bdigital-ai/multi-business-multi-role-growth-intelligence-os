@@ -843,6 +843,32 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   );
   const finalConfigId = cfgRow.config_id;
 
+  const runtimeUrl = deviceRuntimeUrl || buildDeviceRuntimeUrl(finalConfigId);
+  const runtimeHost = new URL(runtimeUrl).hostname;
+  const localAppRoutes = buildDefaultLocalAppRoutes({
+    hostname: runtimeHost,
+    localApps,
+  });
+  if (tunnelId) {
+    await upsertCloudflareCnameRecord(runtimeHost, tunnelId, provisioningCredentials.cloudflareToken);
+    await seedLocalAppRoutes(pool, finalConfigId, localAppRoutes);
+    await publishTunnelIngressRoutes(
+      accountId,
+      tunnelId,
+      toCloudflareIngressRoutes(localAppRoutes),
+      provisioningCredentials.cloudflareToken
+    );
+    await pool.query(
+      `UPDATE \`local_connector_user_configs\`
+          SET public_gateway_url = ?,
+              device_runtime_url = ?,
+              admin_recovery_url = ?,
+              updated_at = NOW()
+        WHERE config_id = ?`,
+      [LOCAL_GATEWAY_URL, runtimeUrl, ADMIN_RECOVERY_URL, finalConfigId]
+    );
+  }
+
   const allAliases = [...DEFAULT_WINDOWS_ALIASES, ...custom_aliases];
   for (const entry of allAliases) {
     const cmdTemplate = [entry.cmd, ...(entry.args || [])].join(" ");
