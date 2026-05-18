@@ -355,6 +355,19 @@ section("connect api auth scope");
       /app\.use\(buildDeviceToolsRoutes\(/.test(indexSource));
   }
 
+  section("local gateway route mounting");
+
+  {
+    const indexSource = readFileSync("routes/index.js", "utf8");
+    const gatewayImportMatches = indexSource.match(/buildLocalGatewayToolsRoutes/g) || [];
+    assert("local gateway route builder appears exactly twice (import + mount)",
+      gatewayImportMatches.length === 2, `found ${gatewayImportMatches.length}`);
+    assert("local gateway routes imported in routes/index.js",
+      indexSource.includes("buildLocalGatewayToolsRoutes") && indexSource.includes("./localGatewayToolsRoutes.js"));
+    assert("local gateway routes mounted via app.use",
+      /app\.use\(buildLocalGatewayToolsRoutes\(deps\)\)/.test(indexSource));
+  }
+
   section("auth-host connector proxy admin-only enforcement");
 
   {
