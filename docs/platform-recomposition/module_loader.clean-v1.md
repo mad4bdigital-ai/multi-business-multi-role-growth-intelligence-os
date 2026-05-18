@@ -16,11 +16,14 @@ The module loader prepares runtime dependencies before execution. It must not in
 4. Workflow row by unique execution key.
 5. Business activity rows from `business_activity_types`.
 6. Business type/profile/path resolver rows from SQL after activity resolution.
-7. Brand and Brand Core rows when brand-targeted output is requested.
-8. Logic pointer and activity-compatible knowledge profile rows.
-9. Credential binding and connected system records.
-10. Schema contracts from endpoint-local schema, imported action schema, or governed schema asset.
-11. Execution policies and validation/repair rows.
+7. Tenant, relationship, actor role, and scope rows from `tenants`, `tenant_relationships`, and `role_assignments`.
+8. Service mode and entitlement rows for self-serve, assisted, managed, paid, limited, or package-gated features.
+9. Human oversight rows from `assistance_roles` and `approval_holds` when review, audit, supervisor signoff, or managed execution is required.
+10. Brand and Brand Core rows when brand-targeted output is requested.
+11. Logic pointer and activity-compatible knowledge profile rows.
+12. Credential binding and connected system records.
+13. Schema contracts from endpoint-local schema, imported action schema, or governed schema asset.
+14. Execution policies and validation/repair rows.
 
 ## 3. Activity-first rule
 
