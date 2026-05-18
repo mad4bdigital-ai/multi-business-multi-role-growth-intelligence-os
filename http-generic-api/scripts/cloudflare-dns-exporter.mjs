@@ -431,6 +431,11 @@ async function main() {
       console.log(JSON.stringify(result, null, 2));
       return;
     }
+    if (args.action === "inspect-tunnel-config") {
+      const result = await inspectTunnelConfig(args);
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
 
     const { manifest, summary } = await exportManifest(args);
     const payload = String(args.summary_only).toLowerCase() === "true"
