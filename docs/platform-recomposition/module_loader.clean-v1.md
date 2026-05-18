@@ -14,12 +14,13 @@ The module loader prepares runtime dependencies before execution. It must not in
 2. Action and endpoint rows from `actions` and `endpoints`.
 3. Task route rows from `task_routes` using `intent_key` or route context.
 4. Workflow row by unique execution key.
-5. Business activity and path resolver rows from SQL.
-6. Brand and Brand Core rows when brand-targeted output is requested.
-7. Logic pointer and knowledge profile rows.
-8. Credential binding and connected system records.
-9. Schema contracts from endpoint-local schema, imported action schema, or governed schema asset.
-10. Execution policies and validation/repair rows.
+5. Business activity rows from `business_activity_types`.
+6. Business type/profile/path resolver rows from SQL after activity resolution.
+7. Brand and Brand Core rows when brand-targeted output is requested.
+8. Logic pointer and activity-compatible knowledge profile rows.
+9. Credential binding and connected system records.
+10. Schema contracts from endpoint-local schema, imported action schema, or governed schema asset.
+11. Execution policies and validation/repair rows.
 
 ## 3. SQL-first rule
 
