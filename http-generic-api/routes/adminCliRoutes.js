@@ -641,7 +641,7 @@ function builtInShellAllowlist() {
       timeout_ms: 900000,
       built_in: true
     },
-    backup_artifact_url_smoke: {
+    dev_db_status_client: { command: process.execPath, args: ["http-generic-api/scripts/dev-db-status-client.mjs"], display_name: "Dev database status client", allow_extra_args: true, max_extra_args: 2, timeout_ms: 120000, built_in: true }, backup_artifact_url_smoke: {
       command: process.execPath,
       args: ["http-generic-api/scripts/backup-artifact-url-smoke.mjs"],
       display_name: "Backup artifact URL smoke diagnostic",
