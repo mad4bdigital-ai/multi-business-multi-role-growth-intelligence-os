@@ -780,7 +780,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   if (!tenant) throw httpError(404, "tenant_not_found", "Tenant not found.");
 
   const [[existing]] = await pool.query(
-    "SELECT config_id, cf_tunnel_id, cf_token, connector_secret, tunnel_url FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1",
+    "SELECT config_id, cf_tunnel_id, cf_token, connector_secret, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1",
     [resolvedUserId, resolvedTenantId, device_id]
   );
 
@@ -789,6 +789,12 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   let tunnelToken = existing?.cf_token || null;
   let tunnelUrl = existing?.tunnel_url || null;
   let connectorSecret = existing?.connector_secret || null;
+  const requestedRuntimeHostname = String(hostname || "").trim().toLowerCase();
+  if (requestedRuntimeHostname && !requestedRuntimeHostname.endsWith(`.${DNS_DOMAIN}`)) {
+    throw httpError(400, "invalid_runtime_hostname", `hostname must end with .${DNS_DOMAIN}`);
+  }
+  const runtimeHostname = requestedRuntimeHostname || buildDeviceRuntimeHostname(configId);
+  const deviceRuntimeUrl = existing?.device_runtime_url || `https://${runtimeHostname}`;
 
   if (!existing || reprovision) {
     const tunnelName = `${safeDnsLabel(resolvedUserId, "user")}-${safeDnsLabel(device_id, "device")}-connector`.slice(0, 128);
