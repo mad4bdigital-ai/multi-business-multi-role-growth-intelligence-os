@@ -15,6 +15,14 @@ const TLS_MODES = new Set(["required", "self_signed_allowed", "plain_http_intern
 const AUTH_MODES = new Set(["bearer_connector_secret", "mtls", "none"]);
 const HEALTH_STATUSES = new Set(["unknown", "healthy", "degraded", "down"]);
 const ADMIN_RECOVERY_HOSTS = new Set(["connector.mad4b.com", "connect.mad4b.com"]);
+const DEFAULT_ROUTE_PRIORITIES = Object.freeze({
+  vpn_private_ip: 10,
+  lan_private_ip: 20,
+  direct_public_ip: 30,
+  dynamic_public_ip: 40,
+  cloudflare_tunnel: 50,
+  admin_recovery: 90,
+});
 
 function httpError(status, code, message, details = null) {
   const err = new Error(message || code);
