@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import jwt from "jsonwebtoken";
+
 const DEFAULT_BASE = "https://local.mad4b.com";
 
 function parseArgs(argv = process.argv.slice(2)) {
