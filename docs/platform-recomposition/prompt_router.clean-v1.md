@@ -14,10 +14,10 @@ The prompt router converts user/request intent into a governed route, never into
 2. Resolve `intent_key` from explicit request or conversational inference.
 3. Resolve active `task_routes` row by `intent_key`.
 4. Resolve workflow execution row.
-5. Resolve business activity type when the request concerns business/brand/growth output.
-6. Resolve business type path and brand path when path-sensitive.
+5. Resolve business activity type through `business_activity_types` when the request concerns business/brand/growth output.
+6. Resolve business type profile, business path, and brand path under the resolved activity.
 7. Resolve brand and Brand Core when brand-targeted.
-8. Resolve logic pointer and knowledge profile.
+8. Resolve logic pointer and activity-compatible knowledge profile.
 9. Resolve action/endpoint/schema/credential contract.
 10. Run validation and dispatch.
 
