@@ -640,6 +640,15 @@ function builtInShellAllowlist() {
       max_extra_args: 8,
       timeout_ms: 900000,
       built_in: true
+    },
+    backup_artifact_url_smoke: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/backup-artifact-url-smoke.mjs"],
+      display_name: "Backup artifact URL smoke diagnostic",
+      allow_extra_args: true,
+      max_extra_args: 2,
+      timeout_ms: 120000,
+      built_in: true
     }
   };
 }
