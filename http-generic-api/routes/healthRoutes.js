@@ -73,6 +73,7 @@ export function buildHealthRoutes(deps) {
         worker: {
           enabled: QUEUE_WORKER_ENABLED
         },
+        sql_cache: sqlCacheHealth,
         db: {
           connected: dbHealth.connected,
           ...(dbHealth.error ? { error: dbHealth.error } : {}),
