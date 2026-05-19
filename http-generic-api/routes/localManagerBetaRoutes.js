@@ -583,27 +583,35 @@ function getToken(){ return sessionStorage.getItem('mlm_user_token') || ''; }
 function restore(){ const raw = sessionStorage.getItem('mlm_user'); if(getToken() && raw){ try { const u=JSON.parse(raw); $('authState').innerHTML='<span class="ok">Signed in as '+esc(u.email || u.user_id || 'user')+'</span>'; } catch {} } }
 $('normalize').onclick = () => { $('deviceCode').value = normalizeCode($('deviceCode').value); $('codePreview').textContent = $('deviceCode').value || '---- ----'; };
 $('deviceCode').oninput = () => { $('codePreview').textContent = normalizeCode($('deviceCode').value) || '---- ----'; };
+async function approveDevice(){
+  const code = normalizeCode($('deviceCode').value);
+  if(!code){ setOut({ok:false,error:{code:'missing_code',message:'Enter the pairing code from the Windows app.'}}); return false; }
+  const token = getToken();
+  if(!token){ setOut({ok:false,error:{code:'not_signed_in',message:'Sign in first.'}}); return false; }
+  $('authState').innerHTML = '<span class="ok">Signed in. Approving device…</span>';
+  const res = await fetch('/local-manager/device-link/approve',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({code})});
+  const data = await res.json();
+  setOut(data);
+  if(res.ok && data.ok){ $('authState').innerHTML = '<span class="ok">Device approved. You can return to the Windows app.</span>'; return true; }
+  return false;
+}
 $('signIn').onclick = async () => {
   const res = await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});
   const data = await res.json();
   if(!res.ok || !data.token){ setOut(data); return; }
-  setToken(data.token, data); setOut({ok:true, next:'Approve this device.'});
+  setToken(data.token, data);
+  const code = normalizeCode($('deviceCode').value);
+  if(code) await approveDevice(); else setOut({ok:true,next:'Enter the pairing code, then approve this device.'});
 };
 $('createAccount').onclick = async () => {
   const res = await fetch('/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value,display_name:$('displayName').value || $('email').value,tenant_display_name:$('workspaceName').value || 'Local Manager workspace'})});
   const data = await res.json();
   if(!res.ok || !data.token){ setOut(data); return; }
-  setToken(data.token, data); setOut({ok:true, next:'Approve this device.'});
-};
-$('approve').onclick = async () => {
+  setToken(data.token, data);
   const code = normalizeCode($('deviceCode').value);
-  if(!code){ setOut({ok:false,error:{code:'missing_code',message:'Enter the pairing code from the Windows app.'}}); return; }
-  const token = getToken();
-  if(!token){ setOut({ok:false,error:{code:'not_signed_in',message:'Sign in first.'}}); return; }
-  const res = await fetch('/local-manager/device-link/approve',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({code})});
-  const data = await res.json();
-  setOut(data);
+  if(code) await approveDevice(); else setOut({ok:true,next:'Enter the pairing code, then approve this device.'});
 };
+$('approve').onclick = approveDevice;
 restore(); $('normalize').click();
 </script>
 </body></html>`;
