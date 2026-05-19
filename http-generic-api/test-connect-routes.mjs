@@ -187,6 +187,40 @@ try {
     assert("invalid n8n activation mode has stable code", result.body?.error?.code === "invalid_n8n_activation_mode", JSON.stringify(result.body));
   }
 
+  section("connect tenantless onboarding recovery");
+
+  {
+    const routeSource = readFileSync("routes/connectRoutes.js", "utf8");
+    const authSource = readFileSync("routes/authRoutes.js", "utf8");
+    const appSource = readFileSync("public/connect/app.jsx", "utf8");
+    const stepSource = readFileSync("public/connect/steps-1.jsx", "utf8");
+    const indexSource = readFileSync("routes/index.js", "utf8");
+    assert("connect exposes explicit onboarding-state route",
+      routeSource.includes('router.get("/connect/onboarding-state"') && routeSource.includes('workspace_required'));
+    assert("connect exposes tenantless-safe workspace creation and escalation routes",
+      routeSource.includes('router.post("/connect/workspace"') &&
+      routeSource.includes('router.post("/connect/escalate"') &&
+      routeSource.includes('onboarding_escalations'));
+    assert("connect exposes minimal /me workspace/capability control-plane",
+      routeSource.includes('router.get("/me"') &&
+      routeSource.includes('router.get("/me/workspaces"') &&
+      routeSource.includes('router.post("/me/workspaces"') &&
+      routeSource.includes('router.get("/me/capabilities"'));
+    assert("connect UI routes signed-in no-tenant users to tenant step instead of blank hub",
+      appSource.includes("setStep(hasTenant ? 'hub' : 'tenant')") &&
+      appSource.includes("CreateWorkspacePanel") &&
+      appSource.includes("/connect/workspace"));
+    assert("email signup passes tenant_display_name through UI",
+      appSource.includes("tenant_display_name") && stepSource.includes("tenant_display_name: tenantName"));
+    assert("Google auth repairs existing users with no workspace",
+      authSource.includes("ensureDefaultWorkspaceForUser") &&
+      authSource.includes("google_existing_user_workspace_repair"));
+    assert("admin onboarding recovery routes are imported and mounted",
+      indexSource.includes("buildAdminOnboardingRoutes") &&
+      indexSource.includes("./adminOnboardingRoutes.js") &&
+      indexSource.includes("buildAdminOnboardingRoutes({ ...deps, requireAdminPrincipal })"));
+  }
+
   section("device install validation");
 
   {
