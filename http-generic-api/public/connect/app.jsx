@@ -316,4 +316,26 @@ function App() {
   );
 }
 
+function CreateWorkspacePanel({ session, onCreate }) {
+  return (
+    <div className="panel" style={{ maxWidth: 720, margin: '24px auto 0', padding: 30, textAlign: 'left', position: 'relative', overflow: 'hidden' }}>
+      <span className="label-eyebrow" style={{ color: 'var(--coral)' }}>/connect · workspace required</span>
+      <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 38, lineHeight: 1.08, letterSpacing: '-0.02em', margin: '10px 0 12px' }}>
+        Create a workspace to continue activation.
+      </h1>
+      <p style={{ color: 'var(--ink-soft)', fontSize: 15, lineHeight: 1.55, maxWidth: 560 }}>
+        You are signed in as <strong>{session?.email}</strong>, but this account is not attached to a workspace yet.
+        Create one now so activation, device setup, support escalation, and GPT tools have a tenant context.
+      </p>
+      <div style={{ display: 'flex', gap: 12, marginTop: 22, flexWrap: 'wrap' }}>
+        <button className="btn btn-primary" onClick={onCreate} style={{ height: 44 }}>
+          Create workspace
+          <Icon.arrow width={16} height={16} stroke="currentColor"/>
+        </button>
+      </div>
+      <span style={{ position: 'absolute', top: -28, right: -22, width: 84, height: 84, background: 'var(--lime)', opacity: 0.22, borderRadius: 8, transform: 'rotate(15deg)' }} aria-hidden/>
+    </div>
+  );
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
