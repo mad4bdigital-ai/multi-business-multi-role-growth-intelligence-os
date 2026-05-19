@@ -719,12 +719,12 @@ export function buildLocalManagerBetaRoutes(deps) {
     return res.status(200).send(localManagerShellPage({
       eyebrow: "Account",
       title: "Sign in to Mad4B",
-      body: "Use your Mad4B account before linking a device. The production OAuth/device-code backend is the next integration step; this page is the dedicated sign-in destination for the Windows app and public flow.",
+      body: "Use your Mad4B account before linking a Windows device. The app generates a short-lived pairing code, then this page approves it after sign-in.",
       primaryText: "Continue to device linking",
       primaryHref: "/app/local-manager/link-device",
       cards: [
         { title: "No admin token", body: "The public app never asks for shared backend keys or shared platform secrets." },
-        { title: "Role-governed access", body: "After authentication, controls are scoped to the signed-in user, tenant, and device permissions." },
+        { title: "Role-governed access", body: "Device approval is scoped to the signed-in user, tenant, and device permissions." },
       ],
     }));
   });
