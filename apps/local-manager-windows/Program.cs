@@ -14,8 +14,8 @@ internal static class Program
 {
     private const string BaseUrl = "https://auth.mad4b.com";
     private const string LocalManagerUrl = BaseUrl + "/app/local-manager";
-    private const string SignInUrl = BaseUrl + "/connect?return_to=%2Fapp%2Flocal-manager%2Flink-device&source=windows-app";
-    private const string SignUpUrl = BaseUrl + "/connect?return_to=%2Fapp%2Flocal-manager%2Flink-device&source=windows-app&mode=signup";
+    private const string SignInUrl = BaseUrl + "/app/local-manager/link-device?mode=signin&source=windows-app";
+    private const string SignUpUrl = BaseUrl + "/app/local-manager/link-device?mode=signup&source=windows-app";
     private const string DevicesUrl = BaseUrl + "/app/local-manager/devices?source=windows-app";
     private const string RoutesUrl = BaseUrl + "/app/local-manager/routes?source=windows-app";
     private const string BackupsUrl = BaseUrl + "/app/local-manager/backups?source=windows-app";
