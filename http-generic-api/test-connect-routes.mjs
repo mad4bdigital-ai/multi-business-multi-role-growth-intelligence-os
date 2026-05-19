@@ -470,6 +470,7 @@ section("connect api auth scope");
       betaSource.includes('router.get("/app/local-manager/backups"') &&
       betaSource.includes('router.get("/app/local-manager/settings"') &&
       betaSource.includes('router.post("/local-manager/device-link/start"') &&
+      betaSource.includes('router.get("/local-manager/device-link/preview"') &&
       betaSource.includes('router.post("/local-manager/device-link/poll"') &&
       betaSource.includes('router.post("/local-manager/device-link/approve"') &&
       betaSource.includes('router.get("/local-manager/device-link/devices"') &&
