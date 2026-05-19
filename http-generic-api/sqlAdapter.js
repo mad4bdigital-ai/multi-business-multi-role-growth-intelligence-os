@@ -341,21 +341,25 @@ function sheetRowToSqlPairs(table, rowObject) {
 
 export async function readTable(sheetName) {
   const table = resolveTable(sheetName);
-  const [rows] = await getPool().query(
-    `SELECT * FROM \`${table}\` ORDER BY id`
-  );
-  return rows.map(({ id, created_at, updated_at, ...rest }) =>
-    sqlRowToSheetRow(table, rest)
-  );
+  return cachedSqlTableRead(table, "sheet_rows", async () => {
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`${table}\` ORDER BY id`
+    );
+    return rows.map(({ id, created_at, updated_at, ...rest }) =>
+      sqlRowToSheetRow(table, rest)
+    );
+  });
 }
 
 // Returns rows with raw snake_case SQL column names — no sheet-name reverse-mapping.
 export async function readTableDirect(sheetName) {
   const table = resolveTable(sheetName);
-  const [rows] = await getPool().query(
-    `SELECT * FROM \`${table}\` ORDER BY id`
-  );
-  return rows.map(({ id, created_at, updated_at, ...rest }) => rest);
+  return cachedSqlTableRead(table, "direct_rows", async () => {
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`${table}\` ORDER BY id`
+    );
+    return rows.map(({ id, created_at, updated_at, ...rest }) => rest);
+  });
 }
 
 export async function appendRow(sheetName, rowObject) {
