@@ -592,8 +592,8 @@ async function loadPreview(){
 }
 function getToken(){ return sessionStorage.getItem('mlm_user_token') || ''; }
 function restore(){ const raw = sessionStorage.getItem('mlm_user'); if(getToken() && raw){ try { const u=JSON.parse(raw); $('authState').innerHTML='<span class="ok">Signed in as '+esc(u.email || u.user_id || 'user')+'</span>'; } catch {} } }
-$('normalize').onclick = () => { $('deviceCode').value = normalizeCode($('deviceCode').value); $('codePreview').textContent = $('deviceCode').value || '---- ----'; };
-$('deviceCode').oninput = () => { $('codePreview').textContent = normalizeCode($('deviceCode').value) || '---- ----'; };
+$('normalize').onclick = async () => { $('deviceCode').value = normalizeCode($('deviceCode').value); $('codePreview').textContent = $('deviceCode').value || '---- ----'; await loadPreview(); };
+$('deviceCode').oninput = () => { $('codePreview').textContent = normalizeCode($('deviceCode').value) || '---- ----'; window.clearTimeout(window.__mlmPreviewTimer); window.__mlmPreviewTimer = window.setTimeout(loadPreview, 250); };
 async function approveDevice(){
   const code = normalizeCode($('deviceCode').value);
   if(!code){ setOut({ok:false,error:{code:'missing_code',message:'Enter the pairing code from the Windows app.'}}); return false; }
