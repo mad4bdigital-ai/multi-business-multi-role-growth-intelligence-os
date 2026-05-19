@@ -445,6 +445,8 @@ section("GET /health — DB dependency visible");
   ok("returns 200", r.status === 200, `got ${r.status}`);
   ok("reports DB connected", r.body?.dependencies?.db?.connected === true,
     JSON.stringify(r.body?.dependencies?.db || {}));
+  ok("reports SQL cache dependency", r.body?.dependencies?.sql_cache?.enabled === true,
+    JSON.stringify(r.body?.dependencies?.sql_cache || {}));
 }
 
 section("GET /version and /deployment-manifest - deployment provenance");
