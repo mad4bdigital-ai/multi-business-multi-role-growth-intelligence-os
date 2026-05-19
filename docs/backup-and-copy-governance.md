@@ -468,6 +468,27 @@ restore_status = passed
 plaintext_validation_zip_removed = true
 ```
 
+## Sprint 63 backup automation review
+
+Sprint 63 performed dry-run schedule readiness checks only. It did not enable recurring schedules or execute backups.
+
+Canonical delta:
+
+```text
+docs/sprint63-governance-update-2026-05-19.md
+```
+
+Dry-run readiness result:
+
+```text
+policy:platform-code-main:snapshot-draft -> ready
+policy:local-n8n-data:manual -> ready
+policy:local-connector-runtime:manual -> ready
+policy:platform-db-primary:manual-draft -> blocked: database_executor_must_be_local_connector_or_explicitly_changed
+```
+
+Schedule automation remains blocked until explicit admin approval defines cron values, notification destination, retention dry-run behavior, and DB executor policy.
+
 ## Non-goals in this phase
 
 This phase does not:
