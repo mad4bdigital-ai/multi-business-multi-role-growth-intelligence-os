@@ -1,4 +1,5 @@
 import { getPool } from "./db.js";
+import { cachedSqlTableRead, invalidateSqlTableCache } from "./sqlCache.js";
 
 // ── Sheet name → SQL table name ────────────────────────────────────────────────
 const TABLE_MAP = {
