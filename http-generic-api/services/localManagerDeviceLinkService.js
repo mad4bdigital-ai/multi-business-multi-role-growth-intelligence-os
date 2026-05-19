@@ -226,6 +226,34 @@ export async function startDeviceLinkSession(req, res) {
   }
 }
 
+export async function previewDeviceLinkSession(req, res) {
+  try {
+    await ensureDeviceLinkTable();
+    const displayCode = cleanText(req.query?.code || req.query?.device_code || req.query?.user_code, 16).toUpperCase();
+    if (!displayCode) {
+      return res.status(400).json({ ok: false, error: { code: "missing_device_code", message: "A pairing code is required." }, secrets_included: false });
+    }
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`local_manager_device_link_sessions\` WHERE display_code_hash = ? LIMIT 1`,
+      [sha256(displayCode)]
+    );
+    const row = rows[0] || null;
+    if (!row) {
+      return res.status(404).json({ ok: false, error: { code: "device_link_not_found", message: "Pairing code was not found." }, secrets_included: false });
+    }
+    if (new Date(row.expires_at).getTime() <= nowMs() && row.status === "pending") {
+      await getPool().query(`UPDATE \`local_manager_device_link_sessions\` SET status = 'expired' WHERE session_id = ?`, [row.session_id]);
+      row.status = "expired";
+    }
+    const safe = sanitizeSession(row);
+    delete safe.user_id;
+    delete safe.tenant_id;
+    return res.status(200).json({ ok: true, status: safe.status, device: safe, secrets_included: false });
+  } catch (err) {
+    return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_link_preview_failed", message: err.message }, secrets_included: false });
+  }
+}
+
 export async function pollDeviceLinkSession(req, res) {
   try {
     await ensureDeviceLinkTable();
