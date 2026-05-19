@@ -1,0 +1,62 @@
+name: Build Local Manager Windows EXE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/local-manager-windows/**'
+      - '.github/workflows/local-manager-windows.yml'
+  pull_request:
+    paths:
+      - 'apps/local-manager-windows/**'
+      - '.github/workflows/local-manager-windows.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build-windows-exe:
+    name: Build Windows EXE
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj
+
+      - name: Publish single-file EXE
+        run: >-
+          dotnet publish apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:EnableCompressionInSingleFile=true
+          -o dist/local-manager-windows
+
+      - name: Rename EXE
+        shell: pwsh
+        run: |
+          $source = 'dist/local-manager-windows/Mad4B-Local-Manager.exe'
+          $target = 'dist/Mad4B-Local-Manager-Setup.exe'
+          if (!(Test-Path $source)) { throw "Expected EXE not found: $source" }
+          Copy-Item -LiteralPath $source -Destination $target -Force
+          Get-FileHash -Algorithm SHA256 -LiteralPath $target | ConvertTo-Json | Out-File -Encoding utf8 'dist/Mad4B-Local-Manager-Setup.exe.sha256.json'
+
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mad4B-Local-Manager-Windows-EXE
+          path: |
+            dist/Mad4B-Local-Manager-Setup.exe
+            dist/Mad4B-Local-Manager-Setup.exe.sha256.json
+          if-no-files-found: error
