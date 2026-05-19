@@ -450,6 +450,30 @@ section("connect api auth scope");
       /app\.use\(buildLocalGatewayToolsRoutes\(deps\)\)/.test(indexSource));
   }
 
+  section("installer reprovision smoke and sanitized status");
+
+  {
+    const routeSource = readFileSync("routes/localConnectorInstallRoutes.js", "utf8");
+    const scriptSource = readFileSync("scripts/installer-reprovision-smoke.mjs", "utf8");
+    const packageSource = readFileSync("package.json", "utf8");
+    assert("install status response is read-only and explicitly non-secret",
+      routeSource.includes("read_only: true") &&
+      routeSource.includes("secrets_included: false") &&
+      routeSource.includes("download_link_available") &&
+      routeSource.includes("reprovision_requires_explicit_flag"));
+    assert("install status excludes raw secret columns and installer bodies from aliases",
+      routeSource.includes("SELECT alias, allow_extra_args, description") &&
+      routeSource.includes("aliases.map") &&
+      !routeSource.includes("return res.status(200).json({ ok: true, installed: true, config, aliases"));
+    assert("installer reprovision smoke is dry-run and checks negative cases",
+      scriptSource.includes("dry_run: true") &&
+      scriptSource.includes("writes_attempted: false") &&
+      scriptSource.includes("invalid installer download token is rejected") &&
+      scriptSource.includes("install endpoint rejects empty body before provisioning side effects"));
+    assert("installer reprovision smoke has npm entry",
+      packageSource.includes('"smoke:installer-reprovision": "node scripts/installer-reprovision-smoke.mjs"'));
+  }
+
   section("route selector runtime smoke coverage");
 
   {
