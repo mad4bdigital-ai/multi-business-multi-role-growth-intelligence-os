@@ -397,13 +397,15 @@ export async function deleteRow(sheetName, id) {
 export async function findRows(sheetName, whereColSheet, value) {
   const table = resolveTable(sheetName);
   const col = toSqlCol(whereColSheet);
-  const [rows] = await getPool().query(
-    `SELECT * FROM \`${table}\` WHERE \`${col}\` = ? ORDER BY id`,
-    [value]
-  );
-  return rows.map(({ id, created_at, updated_at, ...rest }) =>
-    sqlRowToSheetRow(table, rest)
-  );
+  return cachedSqlTableRead(table, `find_${col}_${String(value || "").slice(0, 128)}`, async () => {
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`${table}\` WHERE \`${col}\` = ? ORDER BY id`,
+      [value]
+    );
+    return rows.map(({ id, created_at, updated_at, ...rest }) =>
+      sqlRowToSheetRow(table, rest)
+    );
+  });
 }
 
 // Bulk insert — used by the migrator script. Processes in chunks of 100 rows.
