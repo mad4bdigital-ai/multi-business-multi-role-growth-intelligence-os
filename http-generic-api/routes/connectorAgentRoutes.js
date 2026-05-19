@@ -29,6 +29,11 @@ const FILES = {
     contentType: "text/javascript; charset=utf-8",
     executable: false,
   },
+  "n8n-restore-certifier.mjs": {
+    relativePath: "local-connector/n8n-restore-certifier.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
 };
 
 const DEFAULT_WINDOWS_ALIASES = [
