@@ -211,12 +211,19 @@ export async function dispatchToolForCaller(callerType, toolKey, args, req) {
 
 async function fetchTools(callerType) {
   const table = TOOLS_TABLE[callerType] || TOOLS_TABLE.tenant;
-  const [rows] = await getPool().query(
-    `SELECT tool_key, display_name, description, http_method, http_path,
-            path_param_keys, input_schema, tags
-     FROM \`${table}\`
-     WHERE is_enabled = 1
-     ORDER BY sort_order ASC, tool_key ASC`
+  const rows = await cachedSqlRead(
+    sqlCacheKey("tools", callerType, "list", "v1"),
+    toolCacheTtl(),
+    async () => {
+      const [toolRows] = await getPool().query(
+        `SELECT tool_key, display_name, description, http_method, http_path,
+                path_param_keys, input_schema, tags
+         FROM \`${table}\`
+         WHERE is_enabled = 1
+         ORDER BY sort_order ASC, tool_key ASC`
+      );
+      return toolRows;
+    }
   );
   const dbTools = rows.map((r) => ({
     name: r.tool_key,
