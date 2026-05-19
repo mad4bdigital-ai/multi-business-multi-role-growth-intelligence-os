@@ -269,6 +269,83 @@ function localManagerAppPage() {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mad4B Local Manager</title>
   <style>
+    :root { color-scheme: light dark; --bg:#07111f; --panel:#101a30; --card:#17243e; --fg:#f0f5ff; --muted:#a8b6d8; --line:#2d3f62; --accent:#6383ff; --ok:#62d6a8; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif; background:radial-gradient(circle at top left,#1f3265,#07111f 58%); color:var(--fg); }
+    main { max-width:1120px; margin:0 auto; padding:48px 20px 70px; }
+    header { display:grid; grid-template-columns:1.2fr .8fr; gap:24px; align-items:center; margin-bottom:28px; }
+    h1 { font-size:44px; line-height:1.04; letter-spacing:-.05em; margin:0 0 14px; }
+    h2 { margin:0 0 10px; }
+    p { color:var(--muted); line-height:1.6; font-size:16px; }
+    .hero,.card { background:rgba(16,26,48,.90); border:1px solid var(--line); border-radius:24px; box-shadow:0 24px 70px rgba(0,0,0,.28); }
+    .hero { padding:26px; }
+    .badge { display:inline-flex; border:1px solid var(--line); border-radius:999px; padding:6px 11px; color:var(--muted); font-size:13px; margin-bottom:16px; }
+    .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:22px; }
+    a.button, button { border-radius:14px; border:1px solid #87a0ff; padding:12px 16px; color:white; background:var(--accent); text-decoration:none; font-weight:800; cursor:pointer; }
+    a.secondary { background:#14213a; border-color:var(--line); }
+    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:16px; }
+    .card { padding:18px; }
+    .steps { counter-reset:step; display:grid; gap:10px; margin-top:12px; }
+    .step { display:grid; grid-template-columns:38px 1fr; gap:12px; align-items:start; padding:14px; border:1px solid var(--line); border-radius:18px; background:#0d172b; }
+    .step:before { counter-increment:step; content:counter(step); width:30px; height:30px; display:grid; place-items:center; border-radius:50%; background:#223968; color:#dbe6ff; font-weight:900; }
+    code { background:#0b1428; border:1px solid var(--line); border-radius:8px; padding:2px 6px; color:#dce7ff; }
+    .note { border-left:3px solid var(--ok); padding:10px 12px; background:#0c1c2a; border-radius:12px; }
+    @media (max-width: 860px) { header,.grid { grid-template-columns:1fr; } h1 { font-size:34px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <section>
+        <span class="badge">Public Local Manager</span>
+        <h1>Download, sign in, and link this device.</h1>
+        <p>Mad4B Local Manager is installed first. Authentication happens inside the installed app when the user signs in and chooses to link the current device.</p>
+        <div class="actions">
+          <a class="button" href="#download">Download Local Manager</a>
+          <a class="button secondary" href="#how-it-works">How linking works</a>
+          <a class="button secondary" href="/app/local-manager/admin">Admin installer tools</a>
+        </div>
+      </section>
+      <section class="hero">
+        <h2>No token fields here</h2>
+        <p>This public page does not ask for a platform token, backend key, user id, tenant id, or device id.</p>
+        <p class="note">The installed app will authenticate with Mad4B, then request a scoped device credential from the backend after user consent.</p>
+      </section>
+    </header>
+
+    <section id="download" class="grid">
+      <div class="card"><h2>Windows</h2><p>Download the Local Manager installer, then sign in after installation.</p><p><button disabled>Windows installer coming next</button></p></div>
+      <div class="card"><h2>macOS</h2><p>Desktop packaging is planned after the Windows connector flow is completed.</p><p><button disabled>Planned</button></p></div>
+      <div class="card"><h2>Linux</h2><p>Agent packaging is planned for server and workstation installs.</p><p><button disabled>Planned</button></p></div>
+    </section>
+
+    <section id="how-it-works" class="card" style="margin-top:14px;">
+      <h2>Device linking flow</h2>
+      <div class="steps">
+        <div class="step"><div><strong>Install</strong><p>User downloads and installs Local Manager. No admin token is typed into this web page.</p></div></div>
+        <div class="step"><div><strong>Sign in</strong><p>The installed app opens Mad4B login using OAuth, device-code login, or a one-time pairing code.</p></div></div>
+        <div class="step"><div><strong>Link device</strong><p>The app asks the user to link the current machine. The backend creates scoped credentials for that device only.</p></div></div>
+        <div class="step"><div><strong>Manage</strong><p>The device appears in Local Manager with route health, backup probes, and recovery actions governed by the signed-in user role.</p></div></div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:14px;">
+      <h2>Current admin bridge</h2>
+      <p>The old token/device installer generator has been moved to <code>/app/local-manager/admin</code>. It is for admin recovery only and is not the public user flow.</p>
+    </section>
+  </main>
+</body>
+</html>`;
+}
+
+function localManagerAdminPage() {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mad4B Local Manager</title>
+  <style>
     :root { color-scheme: light dark; --bg:#08111f; --panel:#111b31; --card:#16233d; --fg:#eff5ff; --muted:#9fb1d1; --line:#2b3d60; --ok:#5fe0ad; --warn:#ffd166; --bad:#ff7b7b; --accent:#6383ff; }
     * { box-sizing:border-box; }
     body { margin:0; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif; background:radial-gradient(circle at top left,#1c2b58,#08111f 55%); color:var(--fg); }
