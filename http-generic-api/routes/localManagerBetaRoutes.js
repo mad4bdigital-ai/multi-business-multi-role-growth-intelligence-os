@@ -548,6 +548,7 @@ function localManagerLinkDevicePage(initialCode = "") {
     <h1>Link this Windows device</h1>
     <p>Enter the pairing code shown in the Windows app, sign in, then approve the device. The Windows app receives a device-scoped token only through its private polling channel.</p>
     <div class="code" id="codePreview">${escapeHtml(code || "---- ----")}</div>
+    <p id="devicePreview">Enter a code to load device details.</p>
   </section>
   <section class="grid">
     <div class="card">
