@@ -58,6 +58,7 @@ import { buildLocalConnectorDeviceRouteRoutes } from "./localConnectorDeviceRout
 import { buildLocalManagerBetaRoutes } from "./localManagerBetaRoutes.js";
 import { buildDeploymentInfoRoutes } from "./deploymentInfoRoutes.js";
 import { buildDevDbRestoreRoutes } from "./devDbRestoreRoutes.js";
+import { buildAdminOnboardingRoutes } from "./adminOnboardingRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
