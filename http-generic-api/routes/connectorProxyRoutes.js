@@ -13,6 +13,31 @@ const ROUTE_TYPE_ORDER = [
 
 const ROUTE_LEVEL_FAILURE_STATUSES = new Set([502, 503, 504, 520, 521, 522, 523, 524, 525, 526, 527, 530]);
 
+function httpError(status, code, message, details = null) {
+  const err = new Error(message || code);
+  err.status = status;
+  err.code = code;
+  err.details = details;
+  return err;
+}
+
+function ambiguousDeviceError(deviceId, rows) {
+  return httpError(
+    409,
+    "ambiguous_device_identity",
+    `Device '${deviceId}' matches multiple active connector configs. Provide tenant_id or config_id to disambiguate.`,
+    {
+      device_id: deviceId,
+      matches: rows.map((row) => ({
+        config_id: row.config_id,
+        user_id: row.user_id,
+        tenant_id: row.tenant_id,
+        device_id: row.device_id,
+      })),
+    }
+  );
+}
+
 async function resolveCanonicalDeviceId({ deviceId, userId = null, tenantId = null }) {
   const requested = String(deviceId || "").trim();
   if (!requested) return "";
