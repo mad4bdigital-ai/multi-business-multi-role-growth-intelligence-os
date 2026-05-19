@@ -372,6 +372,7 @@ export async function appendRow(sheetName, rowObject) {
     `INSERT INTO \`${table}\` (${colList}) VALUES (${placeholders})`,
     vals
   );
+  await invalidateSqlTableCache(table);
   return result.insertId;
 }
 
