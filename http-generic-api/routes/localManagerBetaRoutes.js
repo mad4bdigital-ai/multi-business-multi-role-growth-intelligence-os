@@ -511,6 +511,13 @@ export function buildLocalManagerBetaRoutes(deps) {
     return res.status(200).send(localManagerAppPage());
   });
 
+  router.get("/app/local-manager/download/windows", (req, res) => {
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Content-Disposition", "attachment; filename=Mad4B-Local-Manager-Windows-Bootstrap.ps1");
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).send(localManagerWindowsBootstrapScript(req));
+  });
+
   router.get("/app/local-manager/admin", (_req, res) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
