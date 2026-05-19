@@ -43,23 +43,6 @@ function ambiguousDeviceError(deviceId, rows) {
   );
 }
 
-function ambiguousDeviceError(deviceId, rows) {
-  return httpError(
-    409,
-    "ambiguous_device_identity",
-    `Device '${deviceId}' matches multiple active connector configs. Provide tenant_id or config_id to disambiguate.`,
-    {
-      device_id: deviceId,
-      matches: rows.map((row) => ({
-        config_id: row.config_id,
-        user_id: row.user_id,
-        tenant_id: row.tenant_id,
-        device_id: row.device_id,
-      })),
-    }
-  );
-}
-
 function redactArgs(value) {
   if (Array.isArray(value)) return value.map(redactArgs);
   if (!value || typeof value !== "object") return value;
