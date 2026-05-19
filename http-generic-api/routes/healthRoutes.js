@@ -7,6 +7,7 @@ export function buildHealthRoutes(deps) {
     normalizeJobStatus,
     getWaitingCountSafe,
     getRedisRuntimeStatus,
+    getSqlCacheRuntimeStatus,
     testDbConnection,
     SERVICE_VERSION,
     QUEUE_WORKER_ENABLED
