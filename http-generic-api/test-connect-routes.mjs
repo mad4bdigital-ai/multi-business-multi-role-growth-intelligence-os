@@ -438,6 +438,8 @@ section("connect api auth scope");
       betaSource.includes('router.post("/local-manager/device-link/poll"') &&
       betaSource.includes('router.post("/local-manager/device-link/approve"') &&
       betaSource.includes('router.get("/local-manager/device-link/devices"') &&
+      betaSource.includes('router.get("/local-manager/device/session"') &&
+      betaSource.includes('router.get("/local-manager/device/controls"') &&
       betaSource.includes('router.get("/app/local-manager/admin"') &&
       betaSource.includes('router.get("/local-manager/beta"') &&
       betaSource.includes('router.get("/local-manager/beta/status", requireBackendApiKey, requireAdminPrincipal'));
