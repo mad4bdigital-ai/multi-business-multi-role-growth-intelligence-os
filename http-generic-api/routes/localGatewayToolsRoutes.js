@@ -171,49 +171,62 @@ async function resolveCanonicalDeviceId({ deviceId, userId = null, tenantId = nu
 async function resolveDeviceConfig({ req, args, isAdmin }) {
   const requestedDeviceId = String(args.device_id || "").trim();
   if (!requestedDeviceId) return null;
+  const requestedTenantId = String(args.tenant_id || "").trim() || null;
   const deviceId = await resolveCanonicalDeviceId({
     deviceId: requestedDeviceId,
     userId: isAdmin ? String(args.user_id || "").trim() || null : req.auth?.user_id || null,
-    tenantId: isAdmin ? String(args.tenant_id || "").trim() || null : req.auth?.tenant_id || null,
+    tenantId: isAdmin ? requestedTenantId : req.auth?.tenant_id || null,
   });
   args.device_id = deviceId;
+
+  const selectSql = `SELECT config_id,
+                            user_id,
+                            tenant_id,
+                            device_id,
+                            COALESCE(device_runtime_url, tunnel_url) AS tunnel_url,
+                            public_gateway_url,
+                            device_runtime_url,
+                            admin_recovery_url
+                       FROM \`local_connector_user_configs\`
+                      WHERE is_enabled = 1`;
 
   if (!isAdmin) {
     const userId = req.auth?.user_id;
     const tenantId = req.auth?.tenant_id;
     if (!userId || !tenantId) return null;
     const [rows] = await getPool().query(
-      `SELECT config_id, user_id, tenant_id, device_id, tunnel_url
-         FROM \`local_connector_user_configs\`
-        WHERE user_id = ? AND device_id = ? AND is_enabled = 1
+      `${selectSql} AND tenant_id = ? AND user_id = ? AND device_id = ?
         ORDER BY updated_at DESC
-        LIMIT 1`,
-      [userId, deviceId]
+        LIMIT 2`,
+      [tenantId, userId, deviceId]
     );
+    if (rows.length > 1) throw ambiguousDeviceError(deviceId, rows);
     return rows[0] || null;
   }
 
   const requestedUserId = String(args.user_id || "").trim();
   if (requestedUserId) {
-    const [rows] = await getPool().query(
-      `SELECT config_id, user_id, tenant_id, device_id, tunnel_url
-         FROM \`local_connector_user_configs\`
-        WHERE user_id = ? AND device_id = ? AND is_enabled = 1
-        ORDER BY updated_at DESC
-        LIMIT 1`,
-      [requestedUserId, deviceId]
-    );
+    const params = [requestedUserId, deviceId];
+    let sql = `${selectSql} AND user_id = ? AND device_id = ?`;
+    if (requestedTenantId) {
+      sql += " AND tenant_id = ?";
+      params.push(requestedTenantId);
+    }
+    sql += " ORDER BY updated_at DESC LIMIT 2";
+    const [rows] = await getPool().query(sql, params);
+    if (rows.length > 1) throw ambiguousDeviceError(deviceId, rows);
     if (rows[0]) return rows[0];
   }
 
-  const [rows] = await getPool().query(
-    `SELECT config_id, user_id, tenant_id, device_id, tunnel_url
-       FROM \`local_connector_user_configs\`
-      WHERE device_id = ? AND is_enabled = 1
-      ORDER BY updated_at DESC
-      LIMIT 1`,
-    [deviceId]
-  );
+  const params = [deviceId];
+  let sql = `${selectSql} AND device_id = ?`;
+  if (requestedTenantId) {
+    sql += " AND tenant_id = ?";
+    params.push(requestedTenantId);
+  }
+  sql += " ORDER BY updated_at DESC LIMIT 2";
+  const [rows] = await getPool().query(sql, params);
+  if (rows.length > 1) throw ambiguousDeviceError(deviceId, rows);
   return rows[0] || null;
 }
 
