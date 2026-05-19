@@ -954,6 +954,7 @@ export function buildLocalManagerBetaRoutes(deps) {
   });
 
   router.post("/local-manager/device-link/start", startDeviceLinkSession);
+  router.get("/local-manager/device-link/preview", previewDeviceLinkSession);
   router.post("/local-manager/device-link/poll", pollDeviceLinkSession);
   router.post("/local-manager/device-link/approve", approveDeviceLinkSession);
   router.get("/local-manager/device-link/devices", listLinkedDevices);
