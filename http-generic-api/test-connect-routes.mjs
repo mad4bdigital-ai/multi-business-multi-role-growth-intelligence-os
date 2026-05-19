@@ -361,6 +361,8 @@ section("connect api auth scope");
 
   {
     const source = readFileSync("routes/connectorAgentRoutes.js", "utf8");
+    assert("connector agent exposes version endpoint",
+      source.includes('router.get("/connector-agent/version"') && source.includes("has_n8n_lifecycle"));
     assert("connector agent exposes heartbeat endpoint",
       source.includes('router.post("/connector-agent/heartbeat"'));
     assert("connector heartbeat writes recovery events and config metadata",
