@@ -86,6 +86,7 @@ export function registerRoutes(app, deps) {
   app.use(buildDeploymentInfoRoutes());
   app.use(buildBackupArtifactRoutes(deps));
   app.use(buildDevDbRestoreRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildAdminOnboardingRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildConnectorAgentRoutes());
   // Local Manager beta and installer download include public UI/token-gated paths.
   // Mount before root-level protected routers that can return missing_backend_api_key.
