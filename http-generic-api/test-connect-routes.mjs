@@ -391,6 +391,29 @@ section("connect api auth scope");
       source.includes("shared provisioning helper"));
   }
 
+  section("local manager beta read-only surface");
+
+  {
+    const indexSource = readFileSync("routes/index.js", "utf8");
+    const betaSource = readFileSync("routes/localManagerBetaRoutes.js", "utf8");
+    assert("local manager beta routes are imported and mounted",
+      indexSource.includes("buildLocalManagerBetaRoutes") &&
+      indexSource.includes("./localManagerBetaRoutes.js") &&
+      indexSource.includes("buildLocalManagerBetaRoutes({ ...deps, requireAdminPrincipal })"));
+    assert("local manager beta exposes page and protected status API",
+      betaSource.includes('router.get("/local-manager/beta"') &&
+      betaSource.includes('router.get("/local-manager/beta/status", requireBackendApiKey, requireAdminPrincipal'));
+    assert("local manager beta is read-only and redacts secrets",
+      betaSource.includes("read_only: true") &&
+      betaSource.includes("secrets_included: false") &&
+      betaSource.includes("Repair execution is not enabled in beta") &&
+      betaSource.includes("redactUrl"));
+    assert("local manager beta reads routes and recovery events without raw secrets",
+      betaSource.includes("local_connector_device_routes") &&
+      betaSource.includes("local_connector_recovery_events") &&
+      !betaSource.includes("connector_secret"));
+  }
+
   section("device-tools route mounting");
 
   {
