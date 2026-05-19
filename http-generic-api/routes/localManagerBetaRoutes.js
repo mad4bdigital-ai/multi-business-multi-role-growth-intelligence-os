@@ -841,10 +841,10 @@ export function buildLocalManagerBetaRoutes(deps) {
     return res.status(200).send(localManagerAppPage());
   });
 
-  router.get("/app/local-manager/update/windows", (req, res) => {
+  router.get("/app/local-manager/update/windows", async (req, res) => {
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
-    return res.status(200).json(localManagerWindowsUpdateInfo(req));
+    return res.status(200).json(await localManagerWindowsUpdateInfo(req));
   });
 
   router.get("/app/local-manager/download/windows", (_req, res) => {
