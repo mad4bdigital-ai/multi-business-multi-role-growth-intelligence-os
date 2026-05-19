@@ -40,6 +40,8 @@ internal static class Program
         private readonly Label _pairingCode;
         private readonly ProgressBar _progress;
         private readonly TextBox _output;
+        private readonly NotifyIcon _notifyIcon;
+        private WindowsUpdateInfo? _lastUpdateInfo;
         private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
         public MainForm()
