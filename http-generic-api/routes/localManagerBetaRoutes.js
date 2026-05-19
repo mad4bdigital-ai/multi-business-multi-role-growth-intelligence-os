@@ -781,13 +781,13 @@ export function buildLocalManagerBetaRoutes(deps) {
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).send(localManagerShellPage({
       eyebrow: "Account",
-      title: "Create your Mad4B account",
-      body: "Create an account, then link this device from the installed Local Manager app. Account creation will route through the platform auth provider when OAuth onboarding is enabled.",
-      primaryText: "Go to sign in",
-      primaryHref: "/app/local-manager/sign-in",
+      title: "Create or recover your workspace",
+      body: "Use the platform /connect onboarding flow for sign-up, Google auth, workspace creation, and tenant recovery. Local Manager then returns to device linking.",
+      primaryText: "Open /connect onboarding",
+      primaryHref: localManagerConnectUrl("/app/local-manager/link-device"),
       cards: [
-        { title: "Device consent", body: "A device is registered only after the signed-in user approves linking." },
-        { title: "Scoped credentials", body: "The backend issues device-scoped credentials only after linking succeeds." },
+        { title: "Workspace recovery", body: "Tenantless users and missing-workspace states are handled by the shared /connect recovery flow." },
+        { title: "Scoped credentials", body: "The backend issues device-scoped credentials only after the signed-in user approves linking." },
       ],
     }));
   });
