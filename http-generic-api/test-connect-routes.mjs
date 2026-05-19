@@ -458,9 +458,10 @@ section("connect api auth scope");
       indexSource.indexOf("buildLocalManagerBetaRoutes({ ...deps, requireAdminPrincipal })") < indexSource.indexOf("buildLocalConnectorInstallRoutes(deps)") &&
       indexSource.indexOf("buildLocalConnectorInstallRoutes(deps)") < indexSource.indexOf("buildLocalConnectorRoutes(deps)") &&
       indexSource.indexOf("buildLocalConnectorInstallRoutes(deps)") < indexSource.indexOf("buildDeviceToolsRoutes(deps)"));
-    assert("local manager public app, Windows EXE download, auth/control pages, device-code APIs, admin bridge, beta page, and protected status API are exposed",
+    assert("local manager public app, Windows EXE download, update metadata, auth/control pages, device-code APIs, admin bridge, beta page, and protected status API are exposed",
       betaSource.includes('router.get("/app/local-manager"') &&
       betaSource.includes('router.get("/app/local-manager/download/windows"') &&
+      betaSource.includes('router.get("/app/local-manager/update/windows"') &&
       betaSource.includes('router.get("/app/local-manager/sign-in"') &&
       betaSource.includes('router.get("/app/local-manager/sign-up"') &&
       betaSource.includes('router.get("/app/local-manager/link-device"') &&
@@ -484,6 +485,16 @@ section("connect api auth scope");
       betaSource.includes("function localManagerAdminPage") &&
       betaSource.includes("<YOUR_PLATFORM_TOKEN>") &&
       !betaSource.includes("BACKEND_API_KEY"));
+    assert("local manager auth pages align with shared /connect flow",
+      betaSource.includes("localManagerConnectUrl") &&
+      betaSource.includes("Open /connect sign-in") &&
+      betaSource.includes("Open /connect onboarding") &&
+      betaSource.includes("/connect?return_to="));
+    assert("local manager Windows update metadata is secret-free",
+      betaSource.includes("LOCAL_MANAGER_WINDOWS_LATEST_VERSION") &&
+      betaSource.includes("localManagerWindowsUpdateInfo") &&
+      betaSource.includes("update_available") &&
+      betaSource.includes("secrets_included: false"));
     const deviceLinkSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
     assert("local manager Windows default download redirects to public EXE release asset",
       betaSource.includes("Mad4B-Local-Manager-Setup.exe") &&

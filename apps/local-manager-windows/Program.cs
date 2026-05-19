@@ -14,13 +14,14 @@ internal static class Program
 {
     private const string BaseUrl = "https://auth.mad4b.com";
     private const string LocalManagerUrl = BaseUrl + "/app/local-manager";
-    private const string SignInUrl = BaseUrl + "/app/local-manager/sign-in?source=windows-app";
-    private const string SignUpUrl = BaseUrl + "/app/local-manager/sign-up?source=windows-app";
+    private const string SignInUrl = BaseUrl + "/connect?return_to=%2Fapp%2Flocal-manager%2Flink-device&source=windows-app";
+    private const string SignUpUrl = BaseUrl + "/connect?return_to=%2Fapp%2Flocal-manager%2Flink-device&source=windows-app&mode=signup";
     private const string DevicesUrl = BaseUrl + "/app/local-manager/devices?source=windows-app";
     private const string RoutesUrl = BaseUrl + "/app/local-manager/routes?source=windows-app";
     private const string BackupsUrl = BaseUrl + "/app/local-manager/backups?source=windows-app";
     private const string SettingsUrl = BaseUrl + "/app/local-manager/settings?source=windows-app";
     private const string UpdateUrl = BaseUrl + "/app/local-manager/download/windows";
+    private const string UpdateInfoUrl = BaseUrl + "/app/local-manager/update/windows";
     private const string DeviceLinkStartUrl = BaseUrl + "/local-manager/device-link/start";
     private const string DeviceLinkPollUrl = BaseUrl + "/local-manager/device-link/poll";
     private const string DeviceSessionUrl = BaseUrl + "/local-manager/device/session";
@@ -87,7 +88,7 @@ internal static class Program
 
             var shortcutButton = MakeButton("Create desktop shortcut", 28, 336, 210, (_, _) => CreateShortcut());
             var folderButton = MakeButton("Open local folder", 254, 336, 170, (_, _) => OpenLocalFolder());
-            var updateButton = MakeButton("Check / install update", 440, 336, 200, async (_, _) => await DownloadAndRunLatestAsync());
+            var updateButton = MakeButton("Check / install update", 440, 336, 200, async (_, _) => await CheckAndInstallUpdateAsync(true));
             var tokenStatusButton = MakeButton("Token status", 656, 336, 160, (_, _) => ShowTokenStatus());
 
             _status = new Label
@@ -129,10 +130,11 @@ internal static class Program
                 _status, _progress, _output
             });
 
-            Shown += (_, _) =>
+            Shown += async (_, _) =>
             {
                 EnsureLocalFiles(_status);
                 ShowTokenStatus();
+                await CheckAndInstallUpdateAsync(false);
             };
         }
 
@@ -386,6 +388,70 @@ internal static class Program
             Process.Start(new ProcessStartInfo { FileName = InstallRoot, UseShellExecute = true });
         }
 
+        private async Task CheckAndInstallUpdateAsync(bool userInitiated)
+        {
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                var infoUrl = UpdateInfoUrl + "?current_version=" + Uri.EscapeDataString(Application.ProductVersion ?? "0.0.0");
+                using var response = await client.GetAsync(infoUrl);
+                var text = await response.Content.ReadAsStringAsync();
+                var info = JsonSerializer.Deserialize<WindowsUpdateInfo>(text, _json);
+
+                if (!response.IsSuccessStatusCode || info?.Ok != true)
+                {
+                    if (userInitiated)
+                    {
+                        _status.Text = "Could not check for updates.";
+                        _output.Text = text;
+                    }
+                    return;
+                }
+
+                if (info.UpdateAvailable == true)
+                {
+                    _status.Text = $"Update available: {info.LatestVersion} (current {info.CurrentVersion ?? Application.ProductVersion}).";
+                    _output.Text = JsonSerializer.Serialize(new
+                    {
+                        update_available = true,
+                        current_version = info.CurrentVersion ?? Application.ProductVersion,
+                        latest_version = info.LatestVersion,
+                        release_notes = info.ReleaseNotes,
+                        secrets_included = false
+                    }, _json);
+
+                    var result = MessageBox.Show(
+                        $"Mad4B Local Manager {info.LatestVersion} is available. Download and install now?",
+                        "Update available",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Information);
+                    if (result == DialogResult.Yes) await DownloadAndRunLatestAsync();
+                    return;
+                }
+
+                if (userInitiated)
+                {
+                    _status.Text = $"Local Manager is up to date ({info.LatestVersion}).";
+                    _output.Text = JsonSerializer.Serialize(new
+                    {
+                        update_available = false,
+                        current_version = info.CurrentVersion ?? Application.ProductVersion,
+                        latest_version = info.LatestVersion,
+                        secrets_included = false
+                    }, _json);
+                    MessageBox.Show("Mad4B Local Manager is up to date.", "No update available", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (userInitiated)
+                {
+                    _status.Text = "Update check failed: " + ex.Message;
+                    _output.Text = ex.ToString();
+                }
+            }
+        }
+
         private async Task DownloadAndRunLatestAsync()
         {
             try
@@ -432,6 +498,24 @@ internal static class Program
         {
             Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
         }
+    }
+
+    private sealed class WindowsUpdateInfo
+    {
+        [JsonPropertyName("ok")]
+        public bool Ok { get; set; }
+
+        [JsonPropertyName("latest_version")]
+        public string? LatestVersion { get; set; }
+
+        [JsonPropertyName("current_version")]
+        public string? CurrentVersion { get; set; }
+
+        [JsonPropertyName("update_available")]
+        public bool? UpdateAvailable { get; set; }
+
+        [JsonPropertyName("release_notes")]
+        public string[]? ReleaseNotes { get; set; }
     }
 
     private sealed class DeviceLinkError

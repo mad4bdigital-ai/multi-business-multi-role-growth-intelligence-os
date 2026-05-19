@@ -8,9 +8,9 @@
     <AssemblyName>Mad4B-Local-Manager</AssemblyName>
     <RootNamespace>Mad4B.LocalManager.Windows</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.1.0</Version>
-    <FileVersion>0.1.0.0</FileVersion>
-    <InformationalVersion>0.1.0-public-bootstrap</InformationalVersion>
+    <Version>0.1.1</Version>
+    <FileVersion>0.1.1.0</FileVersion>
+    <InformationalVersion>0.1.1-update-notification-connect-ux</InformationalVersion>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
