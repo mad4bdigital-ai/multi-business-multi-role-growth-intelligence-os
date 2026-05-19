@@ -282,7 +282,9 @@ internal static class Program
                 _status.Text = "Pairing code created. Browser opened for approval.";
                 _progress.Value = 10;
                 _output.Text = JsonSerializer.Serialize(new { pairing_code = start.UserCode, expires_in = start.ExpiresIn, secrets_included = false }, _json);
-                OpenUrl(start.VerificationUriComplete ?? start.VerificationUri ?? (BaseUrl + "/app/local-manager/link-device"));
+                var approvalUrl = start.VerificationUriComplete ?? start.VerificationUri ?? (BaseUrl + "/app/local-manager/link-device");
+                approvalUrl += approvalUrl.Contains('?') ? "&mode=" + Uri.EscapeDataString(mode) : "?mode=" + Uri.EscapeDataString(mode);
+                OpenUrl(approvalUrl);
                 await PollDeviceLinkAsync(start.UserCode, start.PollToken, Math.Max(2, start.Interval));
             }
             catch (Exception ex)
