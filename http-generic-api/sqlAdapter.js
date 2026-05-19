@@ -437,12 +437,14 @@ export async function bulkInsertRows(sheetName, rows, { ignore = false } = {}) {
     );
     total += result.affectedRows;
   }
+  await invalidateSqlTableCache(table);
   return total;
 }
 
 export async function clearTable(sheetName) {
   const table = resolveTable(sheetName);
   await getPool().query(`TRUNCATE TABLE \`${table}\``);
+  await invalidateSqlTableCache(table);
 }
 
 // Like readTable but keeps the auto-increment `id` so callers can UPDATE by it.
