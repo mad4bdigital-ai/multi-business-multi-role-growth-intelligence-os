@@ -247,7 +247,7 @@ internal static class Program
             _output.Text = "Device token removed. Link this device again to restore controls.";
         }
 
-        private async Task StartDeviceLinkAsync()
+        private async Task StartDeviceLinkAsync(string mode = "link")
         {
             try
             {
