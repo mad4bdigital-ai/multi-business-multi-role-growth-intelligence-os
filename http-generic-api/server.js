@@ -3138,6 +3138,7 @@ registerRoutes(app, {
   normalizeJobStatus,
   getWaitingCountSafe,
   getRedisRuntimeStatus,
+  getSqlCacheRuntimeStatus,
   testDbConnection: testConnection,
   SERVICE_VERSION,
   QUEUE_WORKER_ENABLED,
