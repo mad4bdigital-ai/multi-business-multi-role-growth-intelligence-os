@@ -426,40 +426,152 @@ export function buildConnectRoutes(deps) {
   // GET /connect/status — requires user JWT (web channel: no backend API key needed)
   router.get("/connect/status", requireUserJwt, async (req, res) => {
     try {
-      const { user_id, tenant_id } = req.auth;
-      const [user, membership] = await Promise.all([
-        fetchUser(user_id),
-        fetchActiveMembership(user_id),
-      ]);
-      if (!user) return res.status(404).json({ ok: false, error: { code: "user_not_found", message: "User not found." } });
-
-      const resolvedTenantId = tenant_id || membership?.tenant_id;
-      const [connection, devices] = await Promise.all([
-        resolvedTenantId ? fetchTenantConnection(resolvedTenantId) : Promise.resolve(null),
-        resolvedTenantId ? fetchUserDevices(user_id, resolvedTenantId) : Promise.resolve([]),
-      ]);
+      const state = await resolveConnectState(req.auth.user_id, req.auth.tenant_id || null);
+      if (!state.user) return res.status(404).json({ ok: false, error: { code: "user_not_found", message: "User not found." } });
 
       return res.json({
         ok: true,
-        user: { user_id: user.user_id, email: user.email, display_name: user.display_name },
-        tenant: {
-          tenant_id: resolvedTenantId || null,
-          display_name: membership?.tenant_display_name || null,
-          role: membership?.role || null,
-        },
-        connection: connection ? {
-          mode: connection.connection_mode,
-          status: connection.status,
-          cloudflare_mode: connection.cloudflare_mode,
-          google_auth_mode: connection.google_auth_mode,
-          n8n_activation_mode: connection.n8n_activation_mode || "managed_main_server",
-          device_count: connection.device_count,
-          activated_at: connection.activated_at,
-        } : { mode: null, status: null, cloudflare_mode: "managed", google_auth_mode: "managed", n8n_activation_mode: "managed_main_server", device_count: 0, activated_at: null },
-        devices: devices.map(d => ({ device_id: d.device_id, tunnel_url: d.tunnel_url, is_enabled: Boolean(d.is_enabled) })),
+        user: { user_id: state.user.user_id, email: state.user.email, display_name: state.user.display_name },
+        tenant: state.resolvedTenantId ? {
+          tenant_id: state.resolvedTenantId,
+          display_name: state.membership?.tenant_display_name || null,
+          role: state.membership?.role || null,
+        } : null,
+        memberships_count: state.memberships.length,
+        memberships: state.memberships.map((m) => ({ tenant_id: m.tenant_id, role: m.role, display_name: m.tenant_display_name })),
+        onboarding: state.onboarding,
+        connection: state.connection ? {
+          mode: state.connection.connection_mode,
+          status: state.connection.status,
+          cloudflare_mode: state.connection.cloudflare_mode,
+          google_auth_mode: state.connection.google_auth_mode,
+          n8n_activation_mode: state.connection.n8n_activation_mode || "managed_main_server",
+          device_count: state.connection.device_count,
+          activated_at: state.connection.activated_at,
+        } : null,
+        devices: state.devices.map(d => ({ device_id: d.device_id, tunnel_url: d.tunnel_url, is_enabled: Boolean(d.is_enabled) })),
       });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "status_failed", message: err.message } });
+    }
+  });
+
+  // GET /connect/onboarding-state — explicit no-tenant-safe onboarding state.
+  router.get("/connect/onboarding-state", requireUserJwt, async (req, res) => {
+    try {
+      const state = await resolveConnectState(req.auth.user_id, req.auth.tenant_id || null);
+      if (!state.user) return res.status(404).json({ ok: false, error: { code: "user_not_found", message: "User not found." } });
+      return res.status(200).json({
+        ok: true,
+        user: { user_id: state.user.user_id, email: state.user.email, display_name: state.user.display_name },
+        tenant_id: state.resolvedTenantId || null,
+        onboarding: state.onboarding,
+        memberships_count: state.memberships.length,
+        allowed_actions: state.onboarding.allowed_actions,
+      });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "onboarding_state_failed", message: err.message } });
+    }
+  });
+
+  // POST /connect/workspace — idempotently create a workspace for a signed-in user with no tenant.
+  router.post("/connect/workspace", requireUserJwt, async (req, res) => {
+    try {
+      const created = await createWorkspaceForUser({
+        userId: req.auth.user_id,
+        displayName: req.body?.display_name || req.body?.tenant_display_name,
+        source: "connect_workspace_create",
+      });
+      return res.status(created.created ? 201 : 200).json({
+        ok: true,
+        created: created.created,
+        tenant: { tenant_id: created.tenant_id, display_name: created.display_name, role: created.role },
+        onboarding: { state: "workspace_ready_not_activated", workspace_required: false, allowed_actions: ["activate", "escalate"] },
+        next_action: "connect_activate",
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_create_failed", message: err.message } });
+    }
+  });
+
+  // POST /connect/escalate — tenantless-safe escalation path for onboarding failures.
+  router.post("/connect/escalate", requireUserJwt, async (req, res) => {
+    try {
+      const state = await resolveConnectState(req.auth.user_id, req.auth.tenant_id || null);
+      if (!state.user) return res.status(404).json({ ok: false, error: { code: "user_not_found", message: "User not found." } });
+      const escalation = await createOnboardingEscalation({
+        user: state.user,
+        tenantId: state.resolvedTenantId || null,
+        title: req.body?.title || "Tenant onboarding escalation",
+        body: req.body?.body || req.body?.message || null,
+        priority: req.body?.priority || "urgent",
+        source: "connect_escalate",
+        metadata: {
+          ...(safeMetadata(req.body?.metadata_json)),
+          onboarding: state.onboarding,
+          memberships_count: state.memberships.length,
+        },
+      });
+      return res.status(201).json({ ok: true, escalation, onboarding: state.onboarding });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "connect_escalate_failed", message: err.message } });
+    }
+  });
+
+  // GET /me and /me/workspaces — minimal tenant control-plane identity package.
+  router.get("/me", requireUserJwt, async (req, res) => {
+    try {
+      const state = await resolveConnectState(req.auth.user_id, req.auth.tenant_id || null);
+      if (!state.user) return res.status(404).json({ ok: false, error: { code: "user_not_found", message: "User not found." } });
+      return res.status(200).json({
+        ok: true,
+        user: { user_id: state.user.user_id, email: state.user.email, display_name: state.user.display_name },
+        tenant_id: state.resolvedTenantId || null,
+        onboarding: state.onboarding,
+        memberships: state.memberships.map((m) => ({ tenant_id: m.tenant_id, role: m.role, display_name: m.tenant_display_name })),
+      });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "me_read_failed", message: err.message } });
+    }
+  });
+
+  router.get("/me/workspaces", requireUserJwt, async (req, res) => {
+    try {
+      const memberships = await fetchActiveMemberships(req.auth.user_id);
+      return res.status(200).json({
+        ok: true,
+        workspaces: memberships.map((m) => ({ tenant_id: m.tenant_id, display_name: m.tenant_display_name, role: m.role })),
+        count: memberships.length,
+        onboarding: memberships.length ? { state: "workspace_ready", workspace_required: false } : { state: "workspace_required", workspace_required: true, allowed_actions: ["create_workspace", "escalate"] },
+      });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspaces_list_failed", message: err.message } });
+    }
+  });
+
+  router.post("/me/workspaces", requireUserJwt, async (req, res) => {
+    try {
+      const created = await createWorkspaceForUser({
+        userId: req.auth.user_id,
+        displayName: req.body?.display_name || req.body?.tenant_display_name,
+        source: "me_workspaces_create",
+      });
+      return res.status(created.created ? 201 : 200).json({ ok: true, created: created.created, workspace: { tenant_id: created.tenant_id, display_name: created.display_name, role: created.role } });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_create_failed", message: err.message } });
+    }
+  });
+
+  router.get("/me/capabilities", requireUserJwt, async (req, res) => {
+    try {
+      const state = await resolveConnectState(req.auth.user_id, req.auth.tenant_id || null);
+      if (!state.user) return res.status(404).json({ ok: false, error: { code: "user_not_found", message: "User not found." } });
+      const capabilities = state.resolvedTenantId
+        ? ["connect_activate", "connect_device_install", "support_ticket_create", "local_gateway_tools_list"]
+        : [];
+      return res.status(200).json({ ok: true, tenant_id: state.resolvedTenantId || null, onboarding: state.onboarding, capabilities, next_actions: state.onboarding.allowed_actions });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "capabilities_read_failed", message: err.message } });
     }
   });
 
