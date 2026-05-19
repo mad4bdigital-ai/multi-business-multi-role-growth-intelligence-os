@@ -751,9 +751,15 @@ export function buildLocalManagerBetaRoutes(deps) {
     return res.status(200).send(localManagerAppPage());
   });
 
+  router.get("/app/local-manager/update/windows", (req, res) => {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).json(localManagerWindowsUpdateInfo(req));
+  });
+
   router.get("/app/local-manager/download/windows", (_req, res) => {
     res.setHeader("Cache-Control", "no-store");
-    return res.redirect(302, "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup.exe");
+    return res.redirect(302, LOCAL_MANAGER_WINDOWS_EXE_URL);
   });
 
   router.get("/app/local-manager/sign-in", (_req, res) => {
