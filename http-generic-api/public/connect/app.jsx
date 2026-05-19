@@ -129,6 +129,14 @@ function App() {
     setStep('hub');
   };
 
+  const handleCreateWorkspace = async () => {
+    const displayName = `${session?.name || 'My'} workspace`;
+    const { ok, status, data } = await apiFetch('/connect/workspace', { method: 'POST', body: JSON.stringify({ display_name: displayName }) });
+    pushLog({ method: 'POST', path: '/connect/workspace', status: status || (ok ? 201 : 500), ms: 118, body: ok ? { ok: true, tenant: data.tenant } : { error: data?.error?.message } });
+    if (!ok) { setAuthError(data?.error?.message || 'Could not create workspace'); return; }
+    await loadSession();
+  };
+
   const handleSaveCredentials = async () => {
     const { ok, data } = await apiFetch('/connect/activate', { method: 'POST', body: JSON.stringify({ mode: 'managed', cloudflare_mode: 'managed', google_auth_mode: 'managed' }) });
     pushLog({ method: 'POST', path: '/connect/activate', status: ok ? 200 : 500, ms: 142, body: ok ? { ok: true } : { error: data?.error?.message } });
