@@ -4,6 +4,7 @@ import { Queue, Worker } from "bullmq";
 // Redis is only created when explicitly configured.
 // Absence of REDIS_URL means queue features are disabled — no connection attempt.
 const REDIS_URL = process.env.REDIS_URL || "";
+export const REDIS_URL_CONFIGURED = Boolean(String(REDIS_URL || "").trim());
 export const QUEUE_WORKER_EXPLICITLY_ENABLED =
   String(process.env.QUEUE_WORKER_ENABLED || "").trim().toUpperCase() === "TRUE";
 export const REDIS_ENABLED = !!REDIS_URL || QUEUE_WORKER_EXPLICITLY_ENABLED;
