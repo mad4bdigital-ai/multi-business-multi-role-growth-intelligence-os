@@ -385,11 +385,13 @@ export async function updateRow(sheetName, rowObject, id) {
     `UPDATE \`${table}\` SET ${setClause} WHERE id = ?`,
     [...vals, id]
   );
+  await invalidateSqlTableCache(table);
 }
 
 export async function deleteRow(sheetName, id) {
   const table = resolveTable(sheetName);
   await getPool().query(`DELETE FROM \`${table}\` WHERE id = ?`, [id]);
+  await invalidateSqlTableCache(table);
 }
 
 export async function findRows(sheetName, whereColSheet, value) {
