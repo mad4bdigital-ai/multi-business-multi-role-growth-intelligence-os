@@ -54,7 +54,7 @@ function cacheableTableSet() {
 }
 
 export function isSqlCacheAvailable() {
-  return Boolean(SQL_CACHE_ENABLED && REDIS_ENABLED && redis);
+  return Boolean(SQL_CACHE_ENABLED && REDIS_ENABLED && REDIS_URL_CONFIGURED && redis);
 }
 
 export function isSqlCacheTableAllowed(tableName = "") {
