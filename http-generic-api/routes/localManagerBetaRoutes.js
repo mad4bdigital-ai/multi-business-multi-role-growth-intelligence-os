@@ -477,6 +477,12 @@ export function buildLocalManagerBetaRoutes(deps) {
     return res.status(200).send(localManagerAppPage());
   });
 
+  router.get("/app/local-manager/admin", (_req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).send(localManagerAdminPage());
+  });
+
   router.get("/local-manager/beta", (_req, res) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
