@@ -471,6 +471,7 @@ export async function updateRowById(sheetName, rowObject, id) {
     `UPDATE \`${table}\` SET ${setClause} WHERE id = ?`,
     [...vals, id]
   );
+  await invalidateSqlTableCache(table);
 }
 
 export { TABLE_MAP, SHEET_COLUMNS };
