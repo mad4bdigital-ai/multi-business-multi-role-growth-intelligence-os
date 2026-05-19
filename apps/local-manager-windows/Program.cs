@@ -88,7 +88,7 @@ internal static class Program
 
             var shortcutButton = MakeButton("Create desktop shortcut", 28, 336, 210, (_, _) => CreateShortcut());
             var folderButton = MakeButton("Open local folder", 254, 336, 170, (_, _) => OpenLocalFolder());
-            var updateButton = MakeButton("Check / install update", 440, 336, 200, async (_, _) => await DownloadAndRunLatestAsync());
+            var updateButton = MakeButton("Check / install update", 440, 336, 200, async (_, _) => await CheckAndInstallUpdateAsync(true));
             var tokenStatusButton = MakeButton("Token status", 656, 336, 160, (_, _) => ShowTokenStatus());
 
             _status = new Label
