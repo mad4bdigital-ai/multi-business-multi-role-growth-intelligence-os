@@ -65,9 +65,9 @@ internal static class Program
                 Size = new Size(780, 82)
             };
 
-            var signInButton = MakeButton("Sign in", 28, 164, 140, (_, _) => OpenUrl(SignInUrl));
-            var signUpButton = MakeButton("Create account", 184, 164, 150, (_, _) => OpenUrl(SignUpUrl));
-            var linkButton = MakeButton("Link this device", 350, 164, 160, async (_, _) => await StartDeviceLinkAsync());
+            var signInButton = MakeButton("Sign in", 28, 164, 140, async (_, _) => await StartDeviceLinkAsync("signin"));
+            var signUpButton = MakeButton("Create account", 184, 164, 150, async (_, _) => await StartDeviceLinkAsync("signup"));
+            var linkButton = MakeButton("Link this device", 350, 164, 160, async (_, _) => await StartDeviceLinkAsync("link"));
             var openButton = MakeButton("Open web app", 526, 164, 140, (_, _) => OpenUrl(LocalManagerUrl));
             var forgetButton = MakeButton("Forget device", 682, 164, 140, (_, _) => ForgetDeviceToken());
 
