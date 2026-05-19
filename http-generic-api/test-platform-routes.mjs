@@ -51,6 +51,7 @@ const HEALTH_DEPS = {
   normalizeJobStatus: (status) => status,
   getWaitingCountSafe: async () => ({ ok: true, count: 0 }),
   getRedisRuntimeStatus: () => ({ connected: true }),
+  getSqlCacheRuntimeStatus: () => ({ enabled: true, available: false, registry_ttl_seconds: 60 }),
   testDbConnection: async () => {},
   SERVICE_VERSION: "test",
   QUEUE_WORKER_ENABLED: false,
