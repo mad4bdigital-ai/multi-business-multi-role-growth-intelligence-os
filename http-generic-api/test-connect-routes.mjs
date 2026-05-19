@@ -458,9 +458,10 @@ section("connect api auth scope");
       indexSource.indexOf("buildLocalManagerBetaRoutes({ ...deps, requireAdminPrincipal })") < indexSource.indexOf("buildLocalConnectorInstallRoutes(deps)") &&
       indexSource.indexOf("buildLocalConnectorInstallRoutes(deps)") < indexSource.indexOf("buildLocalConnectorRoutes(deps)") &&
       indexSource.indexOf("buildLocalConnectorInstallRoutes(deps)") < indexSource.indexOf("buildDeviceToolsRoutes(deps)"));
-    assert("local manager public app, Windows EXE download, auth/control pages, device-code APIs, admin bridge, beta page, and protected status API are exposed",
+    assert("local manager public app, Windows EXE download, update metadata, auth/control pages, device-code APIs, admin bridge, beta page, and protected status API are exposed",
       betaSource.includes('router.get("/app/local-manager"') &&
       betaSource.includes('router.get("/app/local-manager/download/windows"') &&
+      betaSource.includes('router.get("/app/local-manager/update/windows"') &&
       betaSource.includes('router.get("/app/local-manager/sign-in"') &&
       betaSource.includes('router.get("/app/local-manager/sign-up"') &&
       betaSource.includes('router.get("/app/local-manager/link-device"') &&
