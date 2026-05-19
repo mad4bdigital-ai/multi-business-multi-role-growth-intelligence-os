@@ -22,6 +22,8 @@ const VERIFY_EXECUTION_LOG_ROW =
 const EXECUTION_LOG_VERIFY_PATH =
   String(process.env.EXECUTION_LOG_VERIFY_PATH || "/governance/execution-log-latest").trim() ||
   "/governance/execution-log-latest";
+const ALLOW_ENVIRONMENT_ACCESS_BLOCKED =
+  String(process.env.ALLOW_ENVIRONMENT_ACCESS_BLOCKED || "FALSE").trim().toUpperCase() === "TRUE";
 
 if (!BASE_URL) {
   console.error("ERROR: RUNTIME_BASE_URL environment variable is required.");
