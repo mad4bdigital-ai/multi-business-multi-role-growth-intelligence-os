@@ -424,7 +424,7 @@ section("connect api auth scope");
       indexSource.indexOf("buildLocalManagerBetaRoutes({ ...deps, requireAdminPrincipal })") < indexSource.indexOf("buildLocalConnectorInstallRoutes(deps)") &&
       indexSource.indexOf("buildLocalConnectorInstallRoutes(deps)") < indexSource.indexOf("buildLocalConnectorRoutes(deps)") &&
       indexSource.indexOf("buildLocalConnectorInstallRoutes(deps)") < indexSource.indexOf("buildDeviceToolsRoutes(deps)"));
-    assert("local manager public app, Windows bootstrap, admin bridge, beta page, and protected status API are exposed",
+    assert("local manager public app, Windows EXE download, admin bridge, beta page, and protected status API are exposed",
       betaSource.includes('router.get("/app/local-manager"') &&
       betaSource.includes('router.get("/app/local-manager/download/windows"') &&
       betaSource.includes('router.get("/app/local-manager/admin"') &&
@@ -433,15 +433,14 @@ section("connect api auth scope");
     assert("local manager public app is true public UX while admin bridge holds token installer flow",
       betaSource.includes("Download, sign in, and link this device") &&
       betaSource.includes("No token fields here") &&
-      betaSource.includes("Download for Windows") &&
+      betaSource.includes("Download for Windows (.exe)") &&
       betaSource.includes("function localManagerAdminPage") &&
       betaSource.includes("<YOUR_PLATFORM_TOKEN>") &&
       !betaSource.includes("BACKEND_API_KEY"));
-    assert("local manager Windows bootstrap is public and secret-free",
-      betaSource.includes("function localManagerWindowsBootstrapScript") &&
-      betaSource.includes("Mad4B-Local-Manager-Windows-Bootstrap.ps1") &&
-      betaSource.includes("Public bootstrap: no backend key, no platform token, no device credential") &&
-      betaSource.includes("No secrets were installed by this bootstrap") &&
+    assert("local manager Windows default download redirects to public EXE release asset",
+      betaSource.includes("Mad4B-Local-Manager-Setup.exe") &&
+      betaSource.includes("releases/download/local-manager-windows-latest") &&
+      !betaSource.includes("Mad4B-Local-Manager-Windows-Bootstrap.ps1") &&
       !betaSource.includes("connector_secret") &&
       !betaSource.includes("cf_token"));
     assert("local manager beta is read-only and redacts secrets",
