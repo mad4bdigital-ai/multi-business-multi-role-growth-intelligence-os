@@ -131,6 +131,174 @@ async function fetchUserDevices(userId, tenantId) {
   return rows;
 }
 
+async function fetchActiveMemberships(userId) {
+  const [rows] = await getPool().query(
+    `SELECT m.tenant_id, m.role, m.status, t.display_name AS tenant_display_name
+       FROM memberships m
+       JOIN tenants t ON t.tenant_id = m.tenant_id
+      WHERE m.user_id = ? AND m.status = 'active'
+      ORDER BY m.granted_at ASC`,
+    [userId]
+  );
+  return rows;
+}
+
+function workspaceDisplayName(value, user) {
+  const cleaned = String(value || "").trim().slice(0, 120);
+  if (cleaned) return cleaned;
+  return `${user?.display_name || user?.email || "User"}'s workspace`;
+}
+
+function buildOnboardingState({ resolvedTenantId, connection, devices = [] }) {
+  if (!resolvedTenantId) {
+    return {
+      state: "workspace_required",
+      workspace_required: true,
+      allowed_actions: ["create_workspace", "escalate"],
+    };
+  }
+  if (!connection) {
+    return {
+      state: "workspace_ready_not_activated",
+      workspace_required: false,
+      allowed_actions: ["activate", "escalate"],
+    };
+  }
+  if (!devices.length) {
+    return {
+      state: "activated_no_device",
+      workspace_required: false,
+      allowed_actions: ["install_device", "escalate"],
+    };
+  }
+  return {
+    state: "healthy",
+    workspace_required: false,
+    allowed_actions: ["open_gpt", "install_device", "escalate"],
+  };
+}
+
+async function resolveConnectState(userId, jwtTenantId = null) {
+  const [user, memberships] = await Promise.all([
+    fetchUser(userId),
+    fetchActiveMemberships(userId),
+  ]);
+  if (!user) return { user: null };
+
+  const activeMembership = jwtTenantId
+    ? memberships.find((m) => m.tenant_id === jwtTenantId) || memberships[0] || null
+    : memberships[0] || null;
+  const resolvedTenantId = jwtTenantId || activeMembership?.tenant_id || null;
+  const [connection, devices] = await Promise.all([
+    resolvedTenantId ? fetchTenantConnection(resolvedTenantId) : Promise.resolve(null),
+    resolvedTenantId ? fetchUserDevices(userId, resolvedTenantId) : Promise.resolve([]),
+  ]);
+  return {
+    user,
+    memberships,
+    membership: activeMembership,
+    resolvedTenantId,
+    connection,
+    devices,
+    onboarding: buildOnboardingState({ resolvedTenantId, connection, devices }),
+  };
+}
+
+async function createWorkspaceForUser({ userId, displayName = null, source = "connect_workspace_create" } = {}) {
+  const pool = getPool();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [userRows] = await connection.query(
+      "SELECT user_id, email, display_name FROM `users` WHERE user_id = ? AND status = 'active' LIMIT 1",
+      [userId]
+    );
+    const user = userRows[0];
+    if (!user) {
+      const err = new Error("User not found or inactive.");
+      err.status = 404;
+      err.code = "user_not_found";
+      throw err;
+    }
+
+    const [existing] = await connection.query(
+      `SELECT m.tenant_id, m.role, t.display_name AS tenant_display_name
+         FROM memberships m
+         JOIN tenants t ON t.tenant_id = m.tenant_id
+        WHERE m.user_id = ? AND m.status = 'active'
+        ORDER BY m.granted_at ASC
+        LIMIT 1`,
+      [userId]
+    );
+    if (existing[0]) {
+      await connection.commit();
+      return { created: false, user, tenant_id: existing[0].tenant_id, display_name: existing[0].tenant_display_name, role: existing[0].role };
+    }
+
+    const tenantId = randomUUID();
+    const tenantName = workspaceDisplayName(displayName, user);
+    await connection.query(
+      `INSERT INTO \`tenants\` (tenant_id, tenant_type, display_name, status, metadata_json)
+       VALUES (?, 'managed_client_account', ?, 'active', ?)`,
+      [tenantId, tenantName, JSON.stringify({ source, user_id: userId })]
+    );
+    await connection.query(
+      `INSERT INTO \`memberships\` (user_id, tenant_id, role, status)
+       VALUES (?, ?, 'owner', 'active')`,
+      [userId, tenantId]
+    );
+    await connection.query(
+      `UPDATE \`onboarding_escalations\`
+          SET tenant_id = COALESCE(tenant_id, ?), status = IF(status = 'open', 'in_review', status)
+        WHERE user_id = ? AND tenant_id IS NULL`,
+      [tenantId, userId]
+    ).catch(() => {});
+    await connection.commit();
+    return { created: true, user, tenant_id: tenantId, display_name: tenantName, role: "owner" };
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+function cleanEscalationPriority(value) {
+  const normalized = String(value || "urgent").trim().toLowerCase();
+  return ["low", "normal", "high", "urgent"].includes(normalized) ? normalized : "urgent";
+}
+
+function safeMetadata(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value;
+}
+
+async function createOnboardingEscalation({ user, tenantId = null, title, body, priority, source = "connect", metadata = {} }) {
+  const escalationId = randomUUID();
+  const finalTitle = String(title || "Tenant onboarding escalation").trim().slice(0, 512);
+  const finalPriority = cleanEscalationPriority(priority);
+  const meta = JSON.stringify({ ...safeMetadata(metadata), onboarding_source: source });
+  let ticketId = null;
+
+  if (tenantId) {
+    ticketId = randomUUID();
+    await getPool().query(
+      `INSERT INTO \`tickets\` (ticket_id, tenant_id, title, category, priority, service_mode, metadata_json)
+       VALUES (?, ?, ?, 'escalation', ?, 'managed', ?)`,
+      [ticketId, tenantId, finalTitle, finalPriority, JSON.stringify({ body: body || null, source, metadata: safeMetadata(metadata) })]
+    );
+  }
+
+  await getPool().query(
+    `INSERT INTO \`onboarding_escalations\`
+       (escalation_id, tenant_id, user_id, email, title, body, category, priority, status, source, metadata_json, ticket_id)
+     VALUES (?, ?, ?, ?, ?, ?, 'escalation', ?, 'open', ?, ?, ?)`,
+    [escalationId, tenantId || null, user?.user_id || null, user?.email || null, finalTitle, body || null, finalPriority, source, meta, ticketId]
+  );
+
+  return { escalation_id: escalationId, ticket_id: ticketId, title: finalTitle, priority: finalPriority, tenant_id: tenantId || null };
+}
+
 // ── HTML page ─────────────────────────────────────────────────────────────────
 
 function buildConnectHtml(googleClientId) {
