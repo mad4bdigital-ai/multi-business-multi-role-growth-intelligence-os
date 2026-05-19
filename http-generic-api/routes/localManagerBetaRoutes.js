@@ -672,7 +672,8 @@ const LOCAL_MANAGER_WINDOWS_EXE_URL = "https://github.com/mad4bdigital-ai/multi-
 const LOCAL_MANAGER_WINDOWS_SHA256_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup.exe.sha256.json";
 
 function normalizeVersion(value) {
-  return String(value || "").trim().replace(/^v/i, "");
+  const raw = String(value || "").trim().replace(/^v/i, "");
+  return raw.split(/[+-]/)[0] || raw;
 }
 
 function localManagerWindowsUpdateInfo(req) {
