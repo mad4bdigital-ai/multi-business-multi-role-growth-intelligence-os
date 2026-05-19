@@ -9,6 +9,7 @@ import {
 const KEY_PREFIX = "sql";
 const DEFAULT_CACHEABLE_TABLES = new Set([
   "actions",
+  "brand_core",
   "endpoints",
   "execution_policies",
   "brands",
