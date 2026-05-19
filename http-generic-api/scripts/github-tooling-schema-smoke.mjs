@@ -153,6 +153,7 @@ async function main() {
     writes_attempted: false,
     secrets_included: false,
   }, null, 2));
+  await pool.end();
   if (failed) process.exitCode = 1;
 }
 

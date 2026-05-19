@@ -36,5 +36,7 @@ assert("GitHub tooling smoke is non-mutating and secret-safe",
   !script.includes("mergePullRequest(") &&
   !script.includes("merge_method") &&
   !script.includes("method = \"POST\""));
+assert("GitHub tooling smoke closes the DB pool so admin shell calls do not hang",
+  script.includes("await pool.end()"));
 
 if (process.exitCode) process.exit(process.exitCode);
