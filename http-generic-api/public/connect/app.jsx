@@ -68,7 +68,7 @@ function App() {
     apiFetch('/connect/status').then(({ ok, data }) => {
       if (!ok) { localStorage.removeItem('mad4b_connect_token'); return; }
       const hasTenant = applyStatusData(data);
-      setStep(hasTenant ? 'hub' : 'hub');
+      setStep(hasTenant ? 'hub' : 'tenant');
     }).catch(() => {});
   }, []);
 
