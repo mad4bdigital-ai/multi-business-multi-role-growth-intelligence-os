@@ -169,6 +169,7 @@ export function getSqlCacheRuntimeStatus() {
     enabled: Boolean(SQL_CACHE_ENABLED),
     available: isSqlCacheAvailable(),
     redis_enabled: Boolean(REDIS_ENABLED),
+    redis_url_configured: Boolean(REDIS_URL_CONFIGURED),
     queue_worker_enabled: Boolean(QUEUE_WORKER_EXPLICITLY_ENABLED),
     registry_ttl_seconds: registryCacheTtl(),
     tool_ttl_seconds: toolCacheTtl(),
