@@ -857,13 +857,13 @@ export function buildLocalManagerBetaRoutes(deps) {
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).send(localManagerShellPage({
       eyebrow: "Account",
-      title: "Sign in with the Growth Intelligence Platform",
-      body: "Local Manager uses the same platform /connect sign-in and workspace recovery flow as the rest of Mad4B. Sign in there, then return to approve this device.",
-      primaryText: "Open /connect sign-in",
-      primaryHref: localManagerConnectUrl("/app/local-manager/link-device"),
+      title: "Sign in and approve this device",
+      body: "Local Manager uses a dedicated device-code approval page. Sign in there, approve the pairing code, and the Windows app will finish automatically by polling.",
+      primaryText: "Open device approval",
+      primaryHref: "/app/local-manager/link-device?mode=signin",
       cards: [
-        { title: "Matches /connect", body: "Google sign-in, workspace recovery, and tenant onboarding stay centralized in the platform connect flow." },
-        { title: "Device approval", body: "After sign-in, return to the pairing-code approval page to link this Windows device." },
+        { title: "Existing users", body: "Use the platform email/password sign-in on the approval page, then approve the pairing code." },
+        { title: "App completes by polling", body: "The browser does not need to return to the EXE. Once you approve, the Windows app receives the device token through its polling channel." },
       ],
     }));
   });
