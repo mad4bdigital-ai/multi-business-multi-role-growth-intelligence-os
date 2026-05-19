@@ -554,6 +554,120 @@ export function buildLocalManagerBetaRoutes(deps) {
     return res.redirect(302, "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup.exe");
   });
 
+  router.get("/app/local-manager/sign-in", (_req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).send(localManagerShellPage({
+      eyebrow: "Account",
+      title: "Sign in to Mad4B",
+      body: "Use your Mad4B account before linking a device. The production OAuth/device-code backend is the next integration step; this page is the dedicated sign-in destination for the Windows app and public flow.",
+      primaryText: "Continue to device linking",
+      primaryHref: "/app/local-manager/link-device",
+      cards: [
+        { title: "No admin token", body: "The public app never asks for BACKEND_API_KEY or shared platform secrets." },
+        { title: "Role-governed access", body: "After authentication, controls are scoped to the signed-in user, tenant, and device permissions." },
+      ],
+    }));
+  });
+
+  router.get("/app/local-manager/sign-up", (_req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).send(localManagerShellPage({
+      eyebrow: "Account",
+      title: "Create your Mad4B account",
+      body: "Create an account, then link this device from the installed Local Manager app. Account creation will route through the platform auth provider when OAuth onboarding is enabled.",
+      primaryText: "Go to sign in",
+      primaryHref: "/app/local-manager/sign-in",
+      cards: [
+        { title: "Device consent", body: "A device is registered only after the signed-in user approves linking." },
+        { title: "Scoped credentials", body: "The backend issues device-scoped credentials only after linking succeeds." },
+      ],
+    }));
+  });
+
+  router.get("/app/local-manager/link-device", (_req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).send(localManagerShellPage({
+      eyebrow: "Device linking",
+      title: "Link this Windows device",
+      body: "This is the dedicated device-linking page. The installed app should arrive here after sign-in, then the backend will create device-scoped connector credentials for the current machine.",
+      primaryText: "Open device dashboard",
+      primaryHref: "/app/local-manager/devices",
+      cards: [
+        { title: "Pairing flow", body: "The next backend step is a short-lived device-code or OAuth return flow." },
+        { title: "No shared secrets", body: "The device receives only its own scoped connector credential after consent." },
+      ],
+    }));
+  });
+
+  router.get("/app/local-manager/devices", (_req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).send(localManagerShellPage({
+      eyebrow: "Dashboard",
+      title: "My devices",
+      body: "After sign-in, this dashboard will list devices, health, routes, backups, DR probes, and update status for the signed-in account.",
+      primaryText: "Routes",
+      primaryHref: "/app/local-manager/routes",
+      cards: [
+        { title: "Device health", body: "View active connector status, last heartbeat, agent version, and watchdog status." },
+        { title: "Updates", body: "Windows app updates are handled by the installed app's Check / install update control." },
+        { title: "Backups and DR", body: "Open backup probes and restore certification actions after account authorization.", href: "/app/local-manager/backups", cta: "Backups / DR" },
+        { title: "Settings", body: "Manage account, tenant, notification, and device preferences.", href: "/app/local-manager/settings", cta: "Settings" },
+      ],
+    }));
+  });
+
+  router.get("/app/local-manager/routes", (_req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).send(localManagerShellPage({
+      eyebrow: "Controls",
+      title: "Routes",
+      body: "View and manage connector route options after sign-in: Cloudflare tunnel, admin recovery, LAN, VPN, direct public IP, and dynamic public IP where provisioned.",
+      primaryText: "My devices",
+      primaryHref: "/app/local-manager/devices",
+      cards: [
+        { title: "Current live route", body: "The runtime selector chooses the highest-priority healthy route." },
+        { title: "Optional routes", body: "LAN/VPN/direct/dynamic routes are shown as not provisioned until configured." },
+      ],
+    }));
+  });
+
+  router.get("/app/local-manager/backups", (_req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).send(localManagerShellPage({
+      eyebrow: "Controls",
+      title: "Backups and DR",
+      body: "After sign-in, users can view backup policy status, restore probe readiness, DB restore certification, and n8n restore certification for their authorized devices.",
+      primaryText: "My devices",
+      primaryHref: "/app/local-manager/devices",
+      cards: [
+        { title: "DB restore probe", body: "Runs only through the governed device alias after connector upgrade." },
+        { title: "n8n restore probe", body: "Runs only through the governed device alias after connector upgrade." },
+      ],
+    }));
+  });
+
+  router.get("/app/local-manager/settings", (_req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).send(localManagerShellPage({
+      eyebrow: "Controls",
+      title: "Settings",
+      body: "After sign-in, manage profile, tenant, device notifications, update preferences, and permissions for Local Manager.",
+      primaryText: "My devices",
+      primaryHref: "/app/local-manager/devices",
+      cards: [
+        { title: "Notifications", body: "Configure backup and route health alerts when notification targets are available." },
+        { title: "Security", body: "Review linked devices and revoke device credentials." },
+      ],
+    }));
+  });
+
   router.get("/app/local-manager/admin", (_req, res) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
