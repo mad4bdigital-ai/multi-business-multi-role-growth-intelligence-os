@@ -873,12 +873,12 @@ export function buildLocalManagerBetaRoutes(deps) {
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).send(localManagerShellPage({
       eyebrow: "Account",
-      title: "Create or recover your workspace",
-      body: "Use the platform /connect onboarding flow for sign-up, Google auth, workspace creation, and tenant recovery. Local Manager then returns to device linking.",
-      primaryText: "Open /connect onboarding",
-      primaryHref: localManagerConnectUrl("/app/local-manager/link-device"),
+      title: "Create account and approve this device",
+      body: "Create a Mad4B account on the Local Manager device approval page, then approve the pairing code. The Windows app will receive a scoped device token after approval.",
+      primaryText: "Open device approval",
+      primaryHref: "/app/local-manager/link-device?mode=signup",
       cards: [
-        { title: "Workspace recovery", body: "Tenantless users and missing-workspace states are handled by the shared /connect recovery flow." },
+        { title: "New users", body: "The approval page can create a workspace and immediately continue to device approval." },
         { title: "Scoped credentials", body: "The backend issues device-scoped credentials only after the signed-in user approves linking." },
       ],
     }));
