@@ -11,6 +11,7 @@ import {
   validateArgsAgainstGrant,
   recordGrantUse,
 } from "../scopeGrantsService.js";
+import { cachedSqlRead, sqlCacheKey, toolCacheTtl } from "../sqlCache.js";
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const SENSITIVE_ARG_SUBSTRINGS = [
