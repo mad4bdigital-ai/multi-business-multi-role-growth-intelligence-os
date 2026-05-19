@@ -450,13 +450,15 @@ export async function clearTable(sheetName) {
 // Like readTable but keeps the auto-increment `id` so callers can UPDATE by it.
 export async function readTableRaw(sheetName) {
   const table = resolveTable(sheetName);
-  const [rows] = await getPool().query(
-    `SELECT * FROM \`${table}\` ORDER BY id`
-  );
-  return rows.map(({ id, created_at, updated_at, ...rest }) => ({
-    id,
-    ...sqlRowToSheetRow(table, rest)
-  }));
+  return cachedSqlTableRead(table, "raw_rows", async () => {
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`${table}\` ORDER BY id`
+    );
+    return rows.map(({ id, created_at, updated_at, ...rest }) => ({
+      id,
+      ...sqlRowToSheetRow(table, rest)
+    }));
+  });
 }
 
 // Update a row by its auto-increment id using sheet-style column names.
