@@ -1163,6 +1163,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
     }
   });
 
+  */
+
   // ── GET /local-connector/install/status ───────────────────────────────────
   router.get("/local-connector/install/status", requireBackendApiKey, async (req, res) => {
     try {
