@@ -672,12 +672,105 @@ const LOCAL_MANAGER_WINDOWS_EXE_URL = "https://github.com/mad4bdigital-ai/multi-
 const LOCAL_MANAGER_WINDOWS_SHA256_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup.exe.sha256.json";
 
 function normalizeVersion(value) {
-  return String(value || "").trim().replace(/^v/i, "");
+  const raw = String(value || "").trim().replace(/^v/i, "");
+  return raw.split(/[+-]/)[0] || raw;
 }
 
-function localManagerWindowsUpdateInfo(req) {
+async function ensureLocalAppReleasesTable() {
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS \`local_app_releases\` (
+      \`release_id\` VARCHAR(64) NOT NULL,
+      \`app_key\` VARCHAR(96) NOT NULL,
+      \`platform\` VARCHAR(32) NOT NULL,
+      \`release_channel\` VARCHAR(48) NOT NULL DEFAULT 'stable',
+      \`version\` VARCHAR(80) NOT NULL,
+      \`minimum_supported_version\` VARCHAR(80) NULL,
+      \`release_tag\` VARCHAR(128) NULL,
+      \`artifact_url\` VARCHAR(1024) NOT NULL,
+      \`sha256_url\` VARCHAR(1024) NULL,
+      \`sha256\` VARCHAR(128) NULL,
+      \`update_required\` TINYINT(1) NOT NULL DEFAULT 0,
+      \`release_notes_json\` JSON NULL,
+      \`status\` ENUM('draft','active','deprecated') NOT NULL DEFAULT 'active',
+      \`published_at\` DATETIME NULL,
+      \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`release_id\`),
+      UNIQUE KEY \`uq_local_app_release_version\` (\`app_key\`, \`platform\`, \`release_channel\`, \`version\`),
+      KEY \`idx_local_app_release_lookup\` (\`app_key\`, \`platform\`, \`release_channel\`, \`status\`, \`published_at\`),
+      KEY \`idx_local_app_release_updated\` (\`updated_at\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+
+  await getPool().query(
+    `INSERT INTO \`local_app_releases\`
+      (release_id, app_key, platform, release_channel, version, minimum_supported_version, release_tag, artifact_url, sha256_url, sha256, update_required, release_notes_json, status, published_at)
+     VALUES (?, 'mad4b-local-manager', 'windows', 'latest-prerelease', ?, NULL, ?, ?, ?, NULL, 0, JSON_ARRAY(
+       'Adds update availability notifications in the Windows app.',
+       'Aligns Local Manager sign-in/sign-up with the platform /connect flow.',
+       'Improves public app UX while keeping device-token controls read-only.'
+     ), 'active', NOW())
+     ON DUPLICATE KEY UPDATE
+       release_tag = VALUES(release_tag),
+       artifact_url = VALUES(artifact_url),
+       sha256_url = VALUES(sha256_url),
+       release_notes_json = VALUES(release_notes_json),
+       status = VALUES(status),
+       published_at = COALESCE(published_at, VALUES(published_at))`,
+    [
+      "mad4b-local-manager-windows-latest-prerelease-0-1-1",
+      LOCAL_MANAGER_WINDOWS_LATEST_VERSION,
+      LOCAL_MANAGER_WINDOWS_RELEASE_TAG,
+      LOCAL_MANAGER_WINDOWS_EXE_URL,
+      LOCAL_MANAGER_WINDOWS_SHA256_URL,
+    ]
+  );
+}
+
+function localManagerFallbackReleaseRow() {
+  return {
+    app_key: "mad4b-local-manager",
+    platform: "windows",
+    release_channel: "latest-prerelease",
+    version: LOCAL_MANAGER_WINDOWS_LATEST_VERSION,
+    minimum_supported_version: null,
+    release_tag: LOCAL_MANAGER_WINDOWS_RELEASE_TAG,
+    artifact_url: LOCAL_MANAGER_WINDOWS_EXE_URL,
+    sha256_url: LOCAL_MANAGER_WINDOWS_SHA256_URL,
+    sha256: null,
+    update_required: 0,
+    release_notes_json: [
+      "Adds update availability notifications in the Windows app.",
+      "Aligns Local Manager sign-in/sign-up with the platform /connect flow.",
+      "Improves public app UX while keeping device-token controls read-only."
+    ],
+    source: "code_fallback",
+  };
+}
+
+async function latestLocalManagerWindowsRelease() {
+  try {
+    await ensureLocalAppReleasesTable();
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`local_app_releases\`
+        WHERE app_key = 'mad4b-local-manager'
+          AND platform = 'windows'
+          AND release_channel = 'latest-prerelease'
+          AND status = 'active'
+        ORDER BY COALESCE(published_at, updated_at, created_at) DESC, version DESC
+        LIMIT 1`
+    );
+    return rows[0] ? { ...rows[0], source: "db" } : localManagerFallbackReleaseRow();
+  } catch {
+    return localManagerFallbackReleaseRow();
+  }
+}
+
+async function localManagerWindowsUpdateInfo(req) {
   const currentVersion = normalizeVersion(req.query.current_version || req.query.version || "");
-  const latestVersion = LOCAL_MANAGER_WINDOWS_LATEST_VERSION;
+  const release = await latestLocalManagerWindowsRelease();
+  const latestVersion = normalizeVersion(release.version);
+  const notes = parseJsonMaybe(release.release_notes_json) || [];
   return {
     ok: true,
     platform: "windows",
@@ -685,17 +778,16 @@ function localManagerWindowsUpdateInfo(req) {
     latest_version: latestVersion,
     current_version: currentVersion || null,
     update_available: currentVersion ? currentVersion !== latestVersion : null,
-    required: false,
-    release_channel: "latest-prerelease",
-    release_tag: LOCAL_MANAGER_WINDOWS_RELEASE_TAG,
+    required: Boolean(Number(release.update_required || 0)),
+    minimum_supported_version: release.minimum_supported_version || null,
+    release_channel: release.release_channel || "latest-prerelease",
+    release_tag: release.release_tag || LOCAL_MANAGER_WINDOWS_RELEASE_TAG,
     download_url: "/app/local-manager/download/windows",
-    direct_download_url: LOCAL_MANAGER_WINDOWS_EXE_URL,
-    sha256_url: LOCAL_MANAGER_WINDOWS_SHA256_URL,
-    release_notes: [
-      "Adds update availability notifications in the Windows app.",
-      "Aligns Local Manager sign-in/sign-up with the platform /connect flow.",
-      "Improves public app UX while keeping device-token controls read-only."
-    ],
+    direct_download_url: release.artifact_url || LOCAL_MANAGER_WINDOWS_EXE_URL,
+    sha256_url: release.sha256_url || LOCAL_MANAGER_WINDOWS_SHA256_URL,
+    sha256: release.sha256 || null,
+    release_notes: Array.isArray(notes) ? notes : [],
+    registry_source: release.source || "db",
     checked_at: new Date().toISOString(),
     secrets_included: false,
   };
@@ -749,10 +841,10 @@ export function buildLocalManagerBetaRoutes(deps) {
     return res.status(200).send(localManagerAppPage());
   });
 
-  router.get("/app/local-manager/update/windows", (req, res) => {
+  router.get("/app/local-manager/update/windows", async (req, res) => {
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
-    return res.status(200).json(localManagerWindowsUpdateInfo(req));
+    return res.status(200).json(await localManagerWindowsUpdateInfo(req));
   });
 
   router.get("/app/local-manager/download/windows", (_req, res) => {

@@ -490,11 +490,22 @@ section("connect api auth scope");
       betaSource.includes("Open /connect sign-in") &&
       betaSource.includes("Open /connect onboarding") &&
       betaSource.includes("/connect?return_to="));
-    assert("local manager Windows update metadata is secret-free",
+    assert("local manager Windows update metadata is secret-free and DB-backed",
       betaSource.includes("LOCAL_MANAGER_WINDOWS_LATEST_VERSION") &&
       betaSource.includes("localManagerWindowsUpdateInfo") &&
+      betaSource.includes("local_app_releases") &&
+      betaSource.includes("registry_source") &&
       betaSource.includes("update_available") &&
       betaSource.includes("secrets_included: false"));
+    assert("local manager update comparison normalizes prerelease and build metadata",
+      betaSource.includes("raw.split(/[+-]/)[0]") &&
+      betaSource.includes("latestLocalManagerWindowsRelease"));
+    const releaseMigrationSource = readFileSync("migrations/100_sprint62k_local_app_releases.sql", "utf8");
+    assert("local app releases migration seeds Local Manager Windows release",
+      releaseMigrationSource.includes("CREATE TABLE IF NOT EXISTS `local_app_releases`") &&
+      releaseMigrationSource.includes("mad4b-local-manager") &&
+      releaseMigrationSource.includes("latest-prerelease") &&
+      releaseMigrationSource.includes("Mad4B-Local-Manager-Setup.exe"));
     const deviceLinkSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
     assert("local manager Windows default download redirects to public EXE release asset",
       betaSource.includes("Mad4B-Local-Manager-Setup.exe") &&

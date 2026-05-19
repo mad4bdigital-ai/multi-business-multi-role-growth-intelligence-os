@@ -155,6 +155,13 @@ internal static class Program
         private static string LinkStatusPath => Path.Combine(InstallRoot, "device-link-status.json");
         private static string ProtectedTokenPath => Path.Combine(InstallRoot, "device-token.dpapi");
 
+        private static string CurrentSemVer()
+        {
+            var raw = Application.ProductVersion ?? "0.0.0";
+            var core = raw.Split(new[] { '-', '+' }, 2)[0];
+            return string.IsNullOrWhiteSpace(core) ? raw : core;
+        }
+
         private static void EnsureLocalFiles(Label? status = null)
         {
             Directory.CreateDirectory(InstallRoot);
@@ -393,7 +400,7 @@ internal static class Program
             try
             {
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                var infoUrl = UpdateInfoUrl + "?current_version=" + Uri.EscapeDataString(Application.ProductVersion ?? "0.0.0");
+                var infoUrl = UpdateInfoUrl + "?current_version=" + Uri.EscapeDataString(CurrentSemVer());
                 using var response = await client.GetAsync(infoUrl);
                 var text = await response.Content.ReadAsStringAsync();
                 var info = JsonSerializer.Deserialize<WindowsUpdateInfo>(text, _json);
@@ -466,27 +473,46 @@ internal static class Program
 
                 var total = response.Content.Headers.ContentLength;
                 var target = Path.Combine(UpdatesRoot, "Mad4B-Local-Manager-Setup-latest.exe");
-                await using var source = await response.Content.ReadAsStreamAsync();
-                await using var destination = File.Create(target);
 
-                var buffer = new byte[81920];
-                long readTotal = 0;
-                while (true)
+                await using (var source = await response.Content.ReadAsStreamAsync())
+                await using (var destination = File.Create(target))
                 {
-                    var read = await source.ReadAsync(buffer.AsMemory(0, buffer.Length));
-                    if (read == 0) break;
-                    await destination.WriteAsync(buffer.AsMemory(0, read));
-                    readTotal += read;
-                    if (total.HasValue && total.Value > 0)
+                    var buffer = new byte[81920];
+                    long readTotal = 0;
+                    while (true)
                     {
-                        var pct = (int)Math.Min(100, (readTotal * 100L) / total.Value);
-                        _progress.Value = pct;
+                        var read = await source.ReadAsync(buffer.AsMemory(0, buffer.Length));
+                        if (read == 0) break;
+                        await destination.WriteAsync(buffer.AsMemory(0, read));
+                        readTotal += read;
+                        if (total.HasValue && total.Value > 0)
+                        {
+                            var pct = (int)Math.Min(100, (readTotal * 100L) / total.Value);
+                            _progress.Value = pct;
+                        }
                     }
+                }
+
+                var fileInfo = new FileInfo(target);
+                if (!fileInfo.Exists || fileInfo.Length < 2)
+                {
+                    throw new InvalidOperationException("Downloaded installer file is missing or empty.");
+                }
+                var signature = File.ReadAllBytes(target).Take(2).ToArray();
+                if (signature.Length < 2 || signature[0] != (byte)'M' || signature[1] != (byte)'Z')
+                {
+                    throw new InvalidOperationException("Downloaded file is not a valid Windows EXE. Please download again from the web app.");
                 }
 
                 _progress.Value = 100;
                 _status.Text = $"Latest installer downloaded: {target}. Launching…";
-                Process.Start(new ProcessStartInfo { FileName = target, UseShellExecute = true });
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = target,
+                    UseShellExecute = true,
+                    WorkingDirectory = Path.GetDirectoryName(target) ?? UpdatesRoot,
+                    Verb = "open"
+                });
             }
             catch (Exception ex)
             {
