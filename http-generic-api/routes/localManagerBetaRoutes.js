@@ -666,6 +666,45 @@ try { const raw=sessionStorage.getItem('mlm_user'); if(getToken()&&raw){ const u
 </body></html>`;
 }
 
+const LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.1.1";
+const LOCAL_MANAGER_WINDOWS_RELEASE_TAG = "local-manager-windows-latest";
+const LOCAL_MANAGER_WINDOWS_EXE_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup.exe";
+const LOCAL_MANAGER_WINDOWS_SHA256_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup.exe.sha256.json";
+
+function normalizeVersion(value) {
+  return String(value || "").trim().replace(/^v/i, "");
+}
+
+function localManagerWindowsUpdateInfo(req) {
+  const currentVersion = normalizeVersion(req.query.current_version || req.query.version || "");
+  const latestVersion = LOCAL_MANAGER_WINDOWS_LATEST_VERSION;
+  return {
+    ok: true,
+    platform: "windows",
+    app: "mad4b-local-manager",
+    latest_version: latestVersion,
+    current_version: currentVersion || null,
+    update_available: currentVersion ? currentVersion !== latestVersion : null,
+    required: false,
+    release_channel: "latest-prerelease",
+    release_tag: LOCAL_MANAGER_WINDOWS_RELEASE_TAG,
+    download_url: "/app/local-manager/download/windows",
+    direct_download_url: LOCAL_MANAGER_WINDOWS_EXE_URL,
+    sha256_url: LOCAL_MANAGER_WINDOWS_SHA256_URL,
+    release_notes: [
+      "Adds update availability notifications in the Windows app.",
+      "Aligns Local Manager sign-in/sign-up with the platform /connect flow.",
+      "Improves public app UX while keeping device-token controls read-only."
+    ],
+    checked_at: new Date().toISOString(),
+    secrets_included: false,
+  };
+}
+
+function localManagerConnectUrl(returnTo = "/app/local-manager/link-device") {
+  return `/connect?return_to=${encodeURIComponent(returnTo)}`;
+}
+
 function localManagerWindowsBootstrapScript(req) {
   const proto = String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim() || "https";
   const host = req.get("host") || "auth.mad4b.com";
