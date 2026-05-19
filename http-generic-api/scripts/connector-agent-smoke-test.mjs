@@ -58,7 +58,7 @@ async function main() {
   assertOk(manifest.status === 200 && manifest.body?.ok === true, "manifest_request_failed", { status: manifest.status, body: manifest.body });
   assertOk(manifest.body.agent === "mad4b-local-connector", "manifest_agent_mismatch", { body: manifest.body });
 
-  const requiredFiles = ["server.mjs", "connector-watchdog.ps1", "connector-safe-upgrade.ps1", "db-restore-certifier.mjs"];
+  const requiredFiles = ["server.mjs", "connector-watchdog.ps1", "connector-safe-upgrade.ps1", "db-restore-certifier.mjs", "n8n-restore-certifier.mjs"];
   for (const name of requiredFiles) {
     assertOk(manifest.body.files?.[name]?.sha256, "manifest_missing_required_file_hash", { name });
   }

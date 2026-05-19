@@ -383,6 +383,11 @@ section("connect api auth scope");
       source.includes("db_restore_certify_probe") &&
       source.includes("Read-only DB restore certification prerequisite probe") &&
       !source.includes("CONNECTOR_POWERSHELL_ENABLED=true"));
+    assert("connector agent ships n8n restore certifier probe without enabling broad PowerShell",
+      source.includes('"n8n-restore-certifier.mjs"') &&
+      source.includes("n8n_restore_certify_probe") &&
+      source.includes("Read-only n8n restore certification prerequisite probe") &&
+      !source.includes("CONNECTOR_POWERSHELL_ENABLED=true"));
     assert("connector agent exposes heartbeat endpoint",
       source.includes('router.post("/connector-agent/heartbeat"'));
     assert("connector heartbeat writes recovery events and config metadata",
