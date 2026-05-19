@@ -378,6 +378,11 @@ section("connect api auth scope");
     const source = readFileSync("routes/connectorAgentRoutes.js", "utf8");
     assert("connector agent exposes version endpoint",
       source.includes('router.get("/connector-agent/version"') && source.includes("has_n8n_lifecycle"));
+    assert("connector agent ships DB restore certifier probe without enabling broad PowerShell",
+      source.includes('"db-restore-certifier.mjs"') &&
+      source.includes("db_restore_certify_probe") &&
+      source.includes("Read-only DB restore certification prerequisite probe") &&
+      !source.includes("CONNECTOR_POWERSHELL_ENABLED=true"));
     assert("connector agent exposes heartbeat endpoint",
       source.includes('router.post("/connector-agent/heartbeat"'));
     assert("connector heartbeat writes recovery events and config metadata",

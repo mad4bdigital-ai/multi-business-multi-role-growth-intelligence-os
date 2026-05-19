@@ -24,6 +24,11 @@ const FILES = {
     contentType: "text/plain; charset=utf-8",
     executable: false,
   },
+  "db-restore-certifier.mjs": {
+    relativePath: "local-connector/db-restore-certifier.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
 };
 
 const DEFAULT_WINDOWS_ALIASES = [
@@ -32,6 +37,7 @@ const DEFAULT_WINDOWS_ALIASES = [
   { alias: "list_processes", cmd: "tasklist", args: ["/FO", "CSV", "/NH"], allow_extra_args: false, description: "Running processes (CSV)" },
   { alias: "disk_usage", cmd: "wmic", args: ["logicaldisk", "get", "size,freespace,caption"], allow_extra_args: false, description: "Disk usage" },
   { alias: "n8n_health", cmd: "curl", args: ["-s", "--max-time", "10", "http://127.0.0.1:5678/"], allow_extra_args: false, description: "n8n health check" },
+  { alias: "db_restore_certify_probe", cmd: "node", args: ["db-restore-certifier.mjs"], allow_extra_args: false, description: "Read-only DB restore certification prerequisite probe" },
 ];
 
 function sha256(buffer) {
@@ -117,6 +123,7 @@ function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, 
     "$ManifestPath = Join-Path $Root 'connector-agent-manifest.json'",
     "$WatchdogPs1 = Join-Path $Root 'connector-watchdog.ps1'",
     "$SafeUpgradePs1 = Join-Path $Root 'connector-safe-upgrade.ps1'",
+    "$DbRestoreCertifier = Join-Path $Root 'db-restore-certifier.mjs'", 
     "",
     "function Get-Mad4BManifestFile {",
     "  param([Parameter(Mandatory=$true)][string]$Name, [Parameter(Mandatory=$true)][string]$OutFile)",
@@ -140,6 +147,7 @@ function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, 
     "Get-Mad4BManifestFile -Name 'server.mjs' -OutFile $ServerMjs",
     "Get-Mad4BManifestFile -Name 'connector-watchdog.ps1' -OutFile $WatchdogPs1",
     "Get-Mad4BManifestFile -Name 'connector-safe-upgrade.ps1' -OutFile $SafeUpgradePs1",
+    "Get-Mad4BManifestFile -Name 'db-restore-certifier.mjs' -OutFile $DbRestoreCertifier",
     "Copy-Item -LiteralPath $ServerMjs -Destination (Join-Path $Root 'server.mjs.stable') -Force",
     "",
     "$EnvText = @'",
