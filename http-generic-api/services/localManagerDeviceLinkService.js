@@ -341,3 +341,126 @@ export async function listLinkedDevices(req, res) {
     return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_list_failed", message: err.message }, secrets_included: false });
   }
 }
+
+export async function requireLocalManagerDevice(req) {
+  const auth = String(req.headers.authorization || "");
+  const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+  if (!token) {
+    const err = new Error("A linked device token is required.");
+    err.status = 401;
+    err.code = "device_token_required";
+    throw err;
+  }
+
+  let payload;
+  try {
+    payload = jwt.verify(token, JWT_SECRET);
+  } catch {
+    const err = new Error("Device token is invalid or expired.");
+    err.status = 401;
+    err.code = "invalid_device_token";
+    throw err;
+  }
+
+  if (payload.purpose !== "local_manager_device_access" || payload.scope !== "local_manager.device") {
+    const err = new Error("Token is not a Local Manager device token.");
+    err.status = 403;
+    err.code = "wrong_token_scope";
+    throw err;
+  }
+
+  const device = {
+    user_id: cleanText(payload.user_id, 64),
+    tenant_id: cleanText(payload.tenant_id, 64) || null,
+    device_id: cleanText(payload.device_id, 128),
+    session_id: cleanText(payload.session_id, 64),
+  };
+  if (!device.user_id || !device.device_id || !device.session_id) {
+    const err = new Error("Device token is missing required claims.");
+    err.status = 401;
+    err.code = "invalid_device_token_claims";
+    throw err;
+  }
+
+  await ensureDeviceLinkTable();
+  const [rows] = await getPool().query(
+    `SELECT * FROM \`local_manager_device_link_sessions\`
+      WHERE session_id = ? AND device_id = ? AND user_id = ? AND status IN ('approved','completed')
+      LIMIT 1`,
+    [device.session_id, device.device_id, device.user_id]
+  );
+  const row = rows[0] || null;
+  if (!row) {
+    const err = new Error("Linked device session was not found.");
+    err.status = 403;
+    err.code = "device_session_not_found";
+    throw err;
+  }
+  return { ...device, session: sanitizeSession(row) };
+}
+
+export async function getDeviceSession(req, res) {
+  try {
+    const device = await requireLocalManagerDevice(req);
+    return res.status(200).json({
+      ok: true,
+      device,
+      controls: {
+        devices: "/local-manager/device/session",
+        routes: "/local-manager/device/controls?section=routes",
+        backups: "/local-manager/device/controls?section=backups",
+        settings: "/local-manager/device/controls?section=settings",
+      },
+      secrets_included: false,
+    });
+  } catch (err) {
+    return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_session_failed", message: err.message }, secrets_included: false });
+  }
+}
+
+export async function getDeviceControls(req, res) {
+  try {
+    const device = await requireLocalManagerDevice(req);
+    const section = cleanText(req.query.section || "overview", 32) || "overview";
+    const allowedSections = new Set(["overview", "routes", "backups", "settings"]);
+    if (!allowedSections.has(section)) {
+      return res.status(400).json({ ok: false, error: { code: "invalid_control_section", message: "Unsupported device control section." }, secrets_included: false });
+    }
+
+    const baseControls = {
+      overview: {
+        label: "Device overview",
+        actions: ["view_link_status", "open_dashboard", "check_update"],
+        destructive_actions_enabled: false,
+      },
+      routes: {
+        label: "Routes",
+        actions: ["view_route_health", "view_selected_route"],
+        write_actions_enabled: false,
+        note: "Route mutations remain admin-governed until consent and entitlement checks are complete.",
+      },
+      backups: {
+        label: "Backups and DR",
+        actions: ["view_backup_policy_status", "view_restore_probe_readiness"],
+        write_actions_enabled: false,
+        note: "Restore probes require upgraded local connector aliases before execution.",
+      },
+      settings: {
+        label: "Settings",
+        actions: ["view_device_identity", "view_token_storage_status", "open_account_settings"],
+        write_actions_enabled: false,
+      },
+    };
+
+    return res.status(200).json({
+      ok: true,
+      section,
+      device,
+      controls: baseControls[section],
+      token_scope: "local_manager.device",
+      secrets_included: false,
+    });
+  } catch (err) {
+    return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_controls_failed", message: err.message }, secrets_included: false });
+  }
+}
