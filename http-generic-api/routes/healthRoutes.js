@@ -33,6 +33,9 @@ export function buildHealthRoutes(deps) {
 
     const queueHealth = await getWaitingCountSafe();
     const redisHealth = getRedisRuntimeStatus();
+    const sqlCacheHealth = typeof getSqlCacheRuntimeStatus === "function"
+      ? getSqlCacheRuntimeStatus()
+      : { enabled: false, available: false, skipped: true };
     const dbHealth = testDbConnection
       ? await testDbConnection()
         .then(() => ({ connected: true }))
