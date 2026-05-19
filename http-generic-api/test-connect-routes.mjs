@@ -424,7 +424,7 @@ section("connect api auth scope");
       indexSource.indexOf("buildLocalManagerBetaRoutes({ ...deps, requireAdminPrincipal })") < indexSource.indexOf("buildLocalConnectorInstallRoutes(deps)") &&
       indexSource.indexOf("buildLocalConnectorInstallRoutes(deps)") < indexSource.indexOf("buildLocalConnectorRoutes(deps)") &&
       indexSource.indexOf("buildLocalConnectorInstallRoutes(deps)") < indexSource.indexOf("buildDeviceToolsRoutes(deps)"));
-    assert("local manager public app, Windows EXE download, auth/control pages, admin bridge, beta page, and protected status API are exposed",
+    assert("local manager public app, Windows EXE download, auth/control pages, device-code APIs, admin bridge, beta page, and protected status API are exposed",
       betaSource.includes('router.get("/app/local-manager"') &&
       betaSource.includes('router.get("/app/local-manager/download/windows"') &&
       betaSource.includes('router.get("/app/local-manager/sign-in"') &&
@@ -434,6 +434,10 @@ section("connect api auth scope");
       betaSource.includes('router.get("/app/local-manager/routes"') &&
       betaSource.includes('router.get("/app/local-manager/backups"') &&
       betaSource.includes('router.get("/app/local-manager/settings"') &&
+      betaSource.includes('router.post("/local-manager/device-link/start"') &&
+      betaSource.includes('router.post("/local-manager/device-link/poll"') &&
+      betaSource.includes('router.post("/local-manager/device-link/approve"') &&
+      betaSource.includes('router.get("/local-manager/device-link/devices"') &&
       betaSource.includes('router.get("/app/local-manager/admin"') &&
       betaSource.includes('router.get("/local-manager/beta"') &&
       betaSource.includes('router.get("/local-manager/beta/status", requireBackendApiKey, requireAdminPrincipal'));
@@ -444,12 +448,21 @@ section("connect api auth scope");
       betaSource.includes("function localManagerAdminPage") &&
       betaSource.includes("<YOUR_PLATFORM_TOKEN>") &&
       !betaSource.includes("BACKEND_API_KEY"));
+    const deviceLinkSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
     assert("local manager Windows default download redirects to public EXE release asset",
       betaSource.includes("Mad4B-Local-Manager-Setup.exe") &&
       betaSource.includes("releases/download/local-manager-windows-latest") &&
       !betaSource.includes("Mad4B-Local-Manager-Windows-Bootstrap.ps1") &&
       !betaSource.includes("connector_secret") &&
       !betaSource.includes("cf_token"));
+    assert("local manager device-code service stores only hashed poll/display tokens and emits device-scoped token after approval",
+      deviceLinkSource.includes("display_code_hash") &&
+      deviceLinkSource.includes("poll_token_hash") &&
+      deviceLinkSource.includes("device_access_token") &&
+      deviceLinkSource.includes("local_manager_device_access") &&
+      deviceLinkSource.includes("requireLocalManagerUser") &&
+      !deviceLinkSource.includes("connector_secret") &&
+      !deviceLinkSource.includes("cf_token"));
     assert("local manager beta is read-only and redacts secrets",
       betaSource.includes("read_only: true") &&
       betaSource.includes("secrets_included: false") &&

@@ -1,5 +1,11 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
+import {
+  approveDeviceLinkSession,
+  listLinkedDevices,
+  pollDeviceLinkSession,
+  startDeviceLinkSession,
+} from "../services/localManagerDeviceLinkService.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -505,6 +511,159 @@ function localManagerShellPage({ title, eyebrow, body, primaryText, primaryHref,
 </main></body></html>`;
 }
 
+function localManagerLinkDevicePage(initialCode = "") {
+  const code = String(initialCode || "").trim().slice(0, 16).toUpperCase();
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Link this device · Mad4B Local Manager</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#07111f; --card:#14213a; --fg:#f0f5ff; --muted:#a8b6d8; --line:#2d3f62; --accent:#6383ff; --ok:#62d6a8; --bad:#ff7b7b; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif; background:radial-gradient(circle at top left,#1f3265,#07111f 58%); color:var(--fg); }
+    main { max-width:980px; margin:0 auto; padding:48px 20px 70px; }
+    .panel,.card { background:rgba(16,26,48,.92); border:1px solid var(--line); border-radius:24px; box-shadow:0 24px 70px rgba(0,0,0,.28); padding:24px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+    h1 { font-size:42px; line-height:1.05; margin:0 0 14px; letter-spacing:-.04em; }
+    h2 { margin:0 0 10px; }
+    p { color:var(--muted); line-height:1.6; }
+    label { display:block; color:var(--muted); font-size:13px; margin:10px 0 5px; }
+    input { width:100%; border-radius:14px; border:1px solid var(--line); padding:12px 14px; background:#0b1428; color:var(--fg); font-size:15px; }
+    button,a.button { display:inline-flex; border-radius:14px; border:1px solid #87a0ff; padding:12px 16px; color:white; background:var(--accent); text-decoration:none; font-weight:800; cursor:pointer; margin-top:12px; }
+    button.secondary,a.secondary { background:#14213a; border-color:var(--line); }
+    .code { font-size:30px; letter-spacing:.08em; font-weight:900; background:#0b1428; border:1px solid var(--line); border-radius:18px; padding:14px; text-align:center; }
+    pre { white-space:pre-wrap; word-break:break-word; background:#0b1428; border:1px solid var(--line); border-radius:14px; padding:12px; }
+    .ok { color:var(--ok); } .bad { color:var(--bad); }
+    @media (max-width:760px){ .grid{grid-template-columns:1fr;} h1{font-size:34px;} }
+  </style>
+</head>
+<body><main>
+  <section class="panel">
+    <p>Device linking</p>
+    <h1>Link this Windows device</h1>
+    <p>Enter the pairing code shown in the Windows app, sign in, then approve the device. The Windows app receives a device-scoped token only through its private polling channel.</p>
+    <div class="code" id="codePreview">${escapeHtml(code || "---- ----")}</div>
+  </section>
+  <section class="grid">
+    <div class="card">
+      <h2>1. Pairing code</h2>
+      <label for="deviceCode">Code from Windows app</label>
+      <input id="deviceCode" value="${escapeHtml(code)}" placeholder="ABCD-EFGH" autocomplete="one-time-code" />
+      <button class="secondary" id="normalize">Use this code</button>
+    </div>
+    <div class="card">
+      <h2>2. Sign in</h2>
+      <label for="email">Email</label><input id="email" type="email" autocomplete="email" />
+      <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" />
+      <button id="signIn">Sign in</button>
+      <button class="secondary" id="createAccount">Create account</button>
+      <label for="displayName">Name for new account</label><input id="displayName" autocomplete="name" />
+      <label for="workspaceName">Workspace for new account</label><input id="workspaceName" />
+    </div>
+  </section>
+  <section class="card" style="margin-top:14px;">
+    <h2>3. Approve</h2>
+    <p id="authState">Not signed in yet.</p>
+    <button id="approve">Approve device</button>
+    <a class="button secondary" href="/app/local-manager/devices">Open my devices</a>
+    <pre id="out">Waiting for sign-in and pairing code.</pre>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+function normalizeCode(value){ return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^(.{4})(.*)$/,'$1-$2').slice(0,9); }
+function setOut(obj){ $('out').textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2); }
+function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); $('authState').innerHTML = '<span class="ok">Signed in as '+esc(user?.email || user?.user_id || 'user')+'</span>'; }
+function getToken(){ return sessionStorage.getItem('mlm_user_token') || ''; }
+function restore(){ const raw = sessionStorage.getItem('mlm_user'); if(getToken() && raw){ try { const u=JSON.parse(raw); $('authState').innerHTML='<span class="ok">Signed in as '+esc(u.email || u.user_id || 'user')+'</span>'; } catch {} } }
+$('normalize').onclick = () => { $('deviceCode').value = normalizeCode($('deviceCode').value); $('codePreview').textContent = $('deviceCode').value || '---- ----'; };
+$('deviceCode').oninput = () => { $('codePreview').textContent = normalizeCode($('deviceCode').value) || '---- ----'; };
+$('signIn').onclick = async () => {
+  const res = await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});
+  const data = await res.json();
+  if(!res.ok || !data.token){ setOut(data); return; }
+  setToken(data.token, data); setOut({ok:true, next:'Approve this device.'});
+};
+$('createAccount').onclick = async () => {
+  const res = await fetch('/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value,display_name:$('displayName').value || $('email').value,tenant_display_name:$('workspaceName').value || 'Local Manager workspace'})});
+  const data = await res.json();
+  if(!res.ok || !data.token){ setOut(data); return; }
+  setToken(data.token, data); setOut({ok:true, next:'Approve this device.'});
+};
+$('approve').onclick = async () => {
+  const code = normalizeCode($('deviceCode').value);
+  if(!code){ setOut({ok:false,error:{code:'missing_code',message:'Enter the pairing code from the Windows app.'}}); return; }
+  const token = getToken();
+  if(!token){ setOut({ok:false,error:{code:'not_signed_in',message:'Sign in first.'}}); return; }
+  const res = await fetch('/local-manager/device-link/approve',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({code})});
+  const data = await res.json();
+  setOut(data);
+};
+restore(); $('normalize').click();
+</script>
+</body></html>`;
+}
+
+function localManagerDevicesPage() {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My devices · Mad4B Local Manager</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#07111f; --card:#14213a; --fg:#f0f5ff; --muted:#a8b6d8; --line:#2d3f62; --accent:#6383ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif; background:radial-gradient(circle at top left,#1f3265,#07111f 58%); color:var(--fg); }
+    main { max-width:1080px; margin:0 auto; padding:48px 20px 70px; }
+    .panel,.card { background:rgba(16,26,48,.92); border:1px solid var(--line); border-radius:24px; box-shadow:0 24px 70px rgba(0,0,0,.28); padding:24px; }
+    .grid { display:grid; grid-template-columns:320px 1fr; gap:14px; margin-top:14px; }
+    h1 { font-size:42px; line-height:1.05; margin:0 0 14px; letter-spacing:-.04em; }
+    p { color:var(--muted); line-height:1.6; }
+    label { display:block; color:var(--muted); font-size:13px; margin:10px 0 5px; }
+    input { width:100%; border-radius:14px; border:1px solid var(--line); padding:12px 14px; background:#0b1428; color:var(--fg); }
+    button,a.button { display:inline-flex; border-radius:14px; border:1px solid #87a0ff; padding:12px 16px; color:white; background:var(--accent); text-decoration:none; font-weight:800; cursor:pointer; margin-top:12px; }
+    a.secondary { background:#14213a; border-color:var(--line); }
+    table { width:100%; border-collapse:collapse; font-size:14px; } th,td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); vertical-align:top; } th { color:var(--muted); }
+    pre { white-space:pre-wrap; word-break:break-word; background:#0b1428; border:1px solid var(--line); border-radius:14px; padding:12px; }
+    @media (max-width:850px){ .grid{grid-template-columns:1fr;} h1{font-size:34px;} }
+  </style>
+</head>
+<body><main>
+  <section class="panel">
+    <p>Dashboard</p><h1>My devices</h1>
+    <p>Sign in to list Local Manager devices linked to your account. Device tokens are never shown here.</p>
+    <a class="button secondary" href="/app/local-manager/link-device">Link another device</a>
+  </section>
+  <section class="grid">
+    <div class="card">
+      <h2>Sign in</h2>
+      <label for="email">Email</label><input id="email" type="email" autocomplete="email" />
+      <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" />
+      <button id="signIn">Sign in</button>
+      <button id="load">Load devices</button>
+      <p id="authState">Not signed in.</p>
+    </div>
+    <div class="card"><h2>Devices</h2><div id="devices"><p>No devices loaded.</p></div></div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); $('authState').textContent = 'Signed in as '+(user?.email || user?.user_id || 'user'); }
+function getToken(){ return sessionStorage.getItem('mlm_user_token') || ''; }
+function renderDevices(data){ if(!data.ok){ $('devices').innerHTML='<pre>'+esc(JSON.stringify(data,null,2))+'</pre>'; return; } const rows=data.devices||[]; if(!rows.length){ $('devices').innerHTML='<p>No linked devices yet.</p>'; return; } $('devices').innerHTML='<table><thead><tr><th>device</th><th>status</th><th>platform</th><th>approved</th><th>completed</th></tr></thead><tbody>'+rows.map(d=>'<tr><td>'+esc(d.device_id)+'<br><small>'+esc(d.hostname||'')+'</small></td><td>'+esc(d.status)+'</td><td>'+esc(d.platform||'')+'</td><td>'+esc(d.approved_at||'')+'</td><td>'+esc(d.completed_at||'')+'</td></tr>').join('')+'</tbody></table>'; }
+async function loadDevices(){ const token=getToken(); if(!token){ renderDevices({ok:false,error:{code:'not_signed_in',message:'Sign in first.'}}); return; } const res=await fetch('/local-manager/device-link/devices',{headers:{authorization:'Bearer '+token,accept:'application/json'}}); renderDevices(await res.json()); }
+$('signIn').onclick = async () => { const res=await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})}); const data=await res.json(); if(!res.ok||!data.token){ renderDevices(data); return; } setToken(data.token,data); await loadDevices(); };
+$('load').onclick = loadDevices;
+try { const raw=sessionStorage.getItem('mlm_user'); if(getToken()&&raw){ const u=JSON.parse(raw); $('authState').textContent='Signed in as '+(u.email||u.user_id||'user'); } } catch {}
+</script>
+</body></html>`;
+}
+
 function localManagerWindowsBootstrapScript(req) {
   const proto = String(req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0].trim() || "https";
   const host = req.get("host") || "auth.mad4b.com";
@@ -560,12 +719,12 @@ export function buildLocalManagerBetaRoutes(deps) {
     return res.status(200).send(localManagerShellPage({
       eyebrow: "Account",
       title: "Sign in to Mad4B",
-      body: "Use your Mad4B account before linking a device. The production OAuth/device-code backend is the next integration step; this page is the dedicated sign-in destination for the Windows app and public flow.",
+      body: "Use your Mad4B account before linking a Windows device. The app generates a short-lived pairing code, then this page approves it after sign-in.",
       primaryText: "Continue to device linking",
       primaryHref: "/app/local-manager/link-device",
       cards: [
         { title: "No admin token", body: "The public app never asks for shared backend keys or shared platform secrets." },
-        { title: "Role-governed access", body: "After authentication, controls are scoped to the signed-in user, tenant, and device permissions." },
+        { title: "Role-governed access", body: "Device approval is scoped to the signed-in user, tenant, and device permissions." },
       ],
     }));
   });
@@ -586,38 +745,16 @@ export function buildLocalManagerBetaRoutes(deps) {
     }));
   });
 
-  router.get("/app/local-manager/link-device", (_req, res) => {
+  router.get("/app/local-manager/link-device", (req, res) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
-    return res.status(200).send(localManagerShellPage({
-      eyebrow: "Device linking",
-      title: "Link this Windows device",
-      body: "This is the dedicated device-linking page. The installed app should arrive here after sign-in, then the backend will create device-scoped connector credentials for the current machine.",
-      primaryText: "Open device dashboard",
-      primaryHref: "/app/local-manager/devices",
-      cards: [
-        { title: "Pairing flow", body: "The next backend step is a short-lived device-code or OAuth return flow." },
-        { title: "No shared secrets", body: "The device receives only its own scoped connector credential after consent." },
-      ],
-    }));
+    return res.status(200).send(localManagerLinkDevicePage(req.query.code || ""));
   });
 
   router.get("/app/local-manager/devices", (_req, res) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
-    return res.status(200).send(localManagerShellPage({
-      eyebrow: "Dashboard",
-      title: "My devices",
-      body: "After sign-in, this dashboard will list devices, health, routes, backups, DR probes, and update status for the signed-in account.",
-      primaryText: "Routes",
-      primaryHref: "/app/local-manager/routes",
-      cards: [
-        { title: "Device health", body: "View active connector status, last heartbeat, agent version, and watchdog status." },
-        { title: "Updates", body: "Windows app updates are handled by the installed app's Check / install update control." },
-        { title: "Backups and DR", body: "Open backup probes and restore certification actions after account authorization.", href: "/app/local-manager/backups", cta: "Backups / DR" },
-        { title: "Settings", body: "Manage account, tenant, notification, and device preferences.", href: "/app/local-manager/settings", cta: "Settings" },
-      ],
-    }));
+    return res.status(200).send(localManagerDevicesPage());
   });
 
   router.get("/app/local-manager/routes", (_req, res) => {
@@ -667,6 +804,11 @@ export function buildLocalManagerBetaRoutes(deps) {
       ],
     }));
   });
+
+  router.post("/local-manager/device-link/start", startDeviceLinkSession);
+  router.post("/local-manager/device-link/poll", pollDeviceLinkSession);
+  router.post("/local-manager/device-link/approve", approveDeviceLinkSession);
+  router.get("/local-manager/device-link/devices", listLinkedDevices);
 
   router.get("/app/local-manager/admin", (_req, res) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
