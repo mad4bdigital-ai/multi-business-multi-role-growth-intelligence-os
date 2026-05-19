@@ -1,5 +1,11 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
+import {
+  approveDeviceLinkSession,
+  listLinkedDevices,
+  pollDeviceLinkSession,
+  startDeviceLinkSession,
+} from "../services/localManagerDeviceLinkService.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
