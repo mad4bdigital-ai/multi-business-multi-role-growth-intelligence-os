@@ -21,6 +21,7 @@ internal static class Program
     private const string BackupsUrl = BaseUrl + "/app/local-manager/backups?source=windows-app";
     private const string SettingsUrl = BaseUrl + "/app/local-manager/settings?source=windows-app";
     private const string UpdateUrl = BaseUrl + "/app/local-manager/download/windows";
+    private const string UpdateInfoUrl = BaseUrl + "/app/local-manager/update/windows";
     private const string DeviceLinkStartUrl = BaseUrl + "/local-manager/device-link/start";
     private const string DeviceLinkPollUrl = BaseUrl + "/local-manager/device-link/poll";
     private const string DeviceSessionUrl = BaseUrl + "/local-manager/device/session";
