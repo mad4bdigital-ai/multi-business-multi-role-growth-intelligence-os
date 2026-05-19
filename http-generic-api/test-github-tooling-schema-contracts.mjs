@@ -30,6 +30,11 @@ assert("GitHub tooling smoke validates read-only secret-name tools",
 assert("GitHub tooling smoke validates workflow-specific and Git tree tools",
   script.includes("listWorkflowRunsForWorkflow") && script.includes("getGitTree"));
 assert("GitHub tooling smoke is non-mutating and secret-safe",
-  script.includes("writes_attempted: false") && script.includes("secrets_included: false") && !script.includes("create_pull_request") && !script.includes("merge_method"));
+  script.includes("writes_attempted: false") &&
+  script.includes("secrets_included: false") &&
+  !script.includes("create_pull_request(") &&
+  !script.includes("mergePullRequest(") &&
+  !script.includes("merge_method") &&
+  !script.includes("method = \"POST\""));
 
 if (process.exitCode) process.exit(process.exitCode);
