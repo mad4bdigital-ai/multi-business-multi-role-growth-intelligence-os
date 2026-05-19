@@ -581,6 +581,15 @@ const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&
 function normalizeCode(value){ return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^(.{4})(.*)$/,'$1-$2').slice(0,9); }
 function setOut(obj){ $('out').textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2); }
 function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); $('authState').innerHTML = '<span class="ok">Signed in as '+esc(user?.email || user?.user_id || 'user')+'</span>'; }
+async function loadPreview(){
+  const code = normalizeCode($('deviceCode').value);
+  if(!code){ $('devicePreview').textContent = 'Enter a code to load device details.'; return; }
+  const res = await fetch('/local-manager/device-link/preview?code=' + encodeURIComponent(code), {headers:{accept:'application/json'}});
+  const data = await res.json();
+  if(!res.ok || !data.ok){ $('devicePreview').innerHTML = '<span class="bad">'+esc(data?.error?.message || 'Could not load pairing code.')+'</span>'; return; }
+  const d = data.device || {};
+  $('devicePreview').innerHTML = 'Device: <strong>'+esc(d.hostname || d.device_id || 'Windows device')+'</strong> · Platform: '+esc(d.platform || 'windows')+' · Status: '+esc(d.status)+' · Expires: '+esc(d.expires_at || 'soon');
+}
 function getToken(){ return sessionStorage.getItem('mlm_user_token') || ''; }
 function restore(){ const raw = sessionStorage.getItem('mlm_user'); if(getToken() && raw){ try { const u=JSON.parse(raw); $('authState').innerHTML='<span class="ok">Signed in as '+esc(u.email || u.user_id || 'user')+'</span>'; } catch {} } }
 $('normalize').onclick = () => { $('deviceCode').value = normalizeCode($('deviceCode').value); $('codePreview').textContent = $('deviceCode').value || '---- ----'; };
