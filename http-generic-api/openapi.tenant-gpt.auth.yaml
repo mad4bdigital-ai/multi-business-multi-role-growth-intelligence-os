@@ -3,7 +3,7 @@ info:
   title: Mad4B Growth Intelligence - Tenant AI - MCP Actions
   version: 2.0.0-mcp
   summary: Tenant GPT schema. Five meta-operations; all platform tools discovered via listTools and called via callTool.
-  description: 'MCP-style tenant action schema. Workflow: 1) activateSession at conversation start to get session_id and platform context. 2) listTools to discover available operations for this tenant. 3) callTool to execute any operation by name. 4) writeSessionTurn after each exchange. 5) endSession when the con.'
+  description: 'Tenant MCP schema. Start with activateSession, discover tools with listTools, execute through callTool, then archive turns/endSession. For activation call connect_activate with tool_args.mode managed or dedicated.'
 servers:
   - url: https://auth.mad4b.com
     description: Mad4B platform — auth subdomain
@@ -11,7 +11,7 @@ components:
   securitySchemes:
     userBearerAuth:
       type: oauth2
-      description: Tenant GPT OAuth. ChatGPT signs in through the Growth Intelligence Platform popup, then /auth/oauth/token mints a fresh Mad4B tenant access JWT with issuer, audience, subject, scope, user_id, and tenant_id claims. Google Sign-In is only an upstream identity proof inside the popup; do not call OAuth.
+      description: Tenant GPT OAuth. ChatGPT signs in through the platform popup and receives a scoped Mad4B tenant JWT. Google Sign-In is only upstream identity proof inside the popup.
       flows:
         authorizationCode:
           authorizationUrl: https://auth.mad4b.com/auth/oauth/authorize
@@ -182,7 +182,7 @@ paths:
         - tools
       operationId: callTool
       summary: Execute any platform tool by name
-      description: Executes a tool from the tenant registry. Use listTools first to get tool names and required arguments. Path params are substituted automatically; GET uses query string, POST uses request body. Returns the raw upstream response.
+      description: Executes a tenant registry tool by name. Use listTools first. For connect_activate, pass tool_args.mode as managed or dedicated.
       requestBody:
         required: true
         content:

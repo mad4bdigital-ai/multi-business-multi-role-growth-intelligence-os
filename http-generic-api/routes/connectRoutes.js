@@ -6,13 +6,17 @@ import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
 import jwt from "jsonwebtoken";
 import { provisionLocalConnectorInstall } from "./localConnectorInstallRoutes.js";
+import {
+  activationModeCatalog,
+  resolveActivationModePolicy,
+  CANONICAL_CONNECTION_MODES,
+} from "../activationModePolicy.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECT_STATIC = join(__dirname, "../public/connect");
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
-const VALID_N8N_ACTIVATION_MODES = new Set(["managed_main_server", "self_hosted_local"]);
 
 // Fields accepted by POST /connect/preferences. Anything outside this list is
 // dropped server-side, so a frontend regression cannot start saving arbitrary
@@ -404,7 +408,8 @@ export function buildConnectRoutes(deps) {
         "admin/* — admin CLI and control (admin BACKEND_API_KEY only)",
         "http-execute — governed HTTP executor (admin BACKEND_API_KEY only)",
       ],
-      connection_modes: ["managed", "dedicated"],
+      connection_modes: CANONICAL_CONNECTION_MODES,
+      activation_mode_catalog: activationModeCatalog(),
       access_model: "Sign in via POST /auth/login, /auth/register, or /auth/google. Use the returned token as Authorization: Bearer <token> on all subsequent calls. For Google Sign-In, complete the flow at https://auth.mad4b.com/connect and use the token shown on the final step.",
       onboarding_url: "https://auth.mad4b.com/connect",
       activation_sequence: [
@@ -440,6 +445,7 @@ export function buildConnectRoutes(deps) {
         memberships_count: state.memberships.length,
         memberships: state.memberships.map((m) => ({ tenant_id: m.tenant_id, role: m.role, display_name: m.tenant_display_name })),
         onboarding: state.onboarding,
+        activation_mode_catalog: activationModeCatalog(),
         connection: state.connection ? {
           mode: state.connection.connection_mode,
           status: state.connection.status,
@@ -569,7 +575,14 @@ export function buildConnectRoutes(deps) {
       const capabilities = state.resolvedTenantId
         ? ["connect_activate", "connect_device_install", "support_ticket_create", "local_gateway_tools_list"]
         : [];
-      return res.status(200).json({ ok: true, tenant_id: state.resolvedTenantId || null, onboarding: state.onboarding, capabilities, next_actions: state.onboarding.allowed_actions });
+      return res.status(200).json({
+        ok: true,
+        tenant_id: state.resolvedTenantId || null,
+        onboarding: state.onboarding,
+        capabilities,
+        next_actions: state.onboarding.allowed_actions,
+        activation_mode_catalog: activationModeCatalog(),
+      });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "capabilities_read_failed", message: err.message } });
     }
@@ -579,14 +592,21 @@ export function buildConnectRoutes(deps) {
   router.post("/connect/activate", requireUserJwt, async (req, res) => {
     try {
       const { user_id, tenant_id } = req.auth;
-      const { mode, cloudflare_mode, google_auth_mode, n8n_activation_mode = "managed_main_server", cf_api_token, cf_account_id, hostinger_api_key } = req.body || {};
-
-      if (!mode || !["managed", "dedicated"].includes(mode)) {
-        return res.status(400).json({ ok: false, error: { code: "invalid_mode", message: "mode must be 'managed' or 'dedicated'." } });
+      const { cf_api_token, cf_account_id, hostinger_api_key } = req.body || {};
+      let modePolicy;
+      try {
+        modePolicy = resolveActivationModePolicy(req.body || {});
+      } catch (modeErr) {
+        return res.status(modeErr.status || 400).json({
+          ok: false,
+          error: {
+            code: modeErr.code || "invalid_activation_mode",
+            message: modeErr.message,
+            details: modeErr.details || activationModeCatalog(),
+          },
+        });
       }
-      if (!VALID_N8N_ACTIVATION_MODES.has(n8n_activation_mode)) {
-        return res.status(400).json({ ok: false, error: { code: "invalid_n8n_activation_mode", message: "n8n_activation_mode must be 'managed_main_server' or 'self_hosted_local'." } });
-      }
+      const { mode, cloudflare_mode, google_auth_mode, n8n_activation_mode } = modePolicy;
 
       const membership = await fetchActiveMembership(user_id);
       const resolvedTenantId = tenant_id || membership?.tenant_id;
@@ -630,6 +650,7 @@ export function buildConnectRoutes(deps) {
       const connection = await fetchTenantConnection(resolvedTenantId);
       return res.json({
         ok: true,
+        mode_policy: modePolicy,
         connection: {
           mode: connection.connection_mode,
           status: connection.status,
