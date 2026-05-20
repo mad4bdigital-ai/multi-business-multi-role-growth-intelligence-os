@@ -2,6 +2,7 @@ import { resolveExecutionRequest } from "./executionResolution.js";
 import { prepareExecutionRequest } from "./executionPreparation.js";
 import { dispatchPreparedExecution } from "./executionDispatch.js";
 import { validateAndShapeExecutionResponse } from "./executionResponse.js";
+import { buildPassiveExecutionReport } from "./executionControlResolvers.js";
 import {
   getExecutionJob,
   pollExecutionJobResult,
