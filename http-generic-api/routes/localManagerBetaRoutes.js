@@ -747,7 +747,7 @@ $('signIn').onclick = async () => { const res=await fetch('/auth/login',{method:
 $('load').onclick = loadDevices;
 function restoreUser(){
   const token=getToken();
-  const raw=sessionStorage.getItem('mlm_user');
+  const raw=sessionStorage.getItem('mlm_user') || localStorage.getItem('mlm_user');
   if(!token) return false;
   try {
     const u=raw ? JSON.parse(raw) : {};
