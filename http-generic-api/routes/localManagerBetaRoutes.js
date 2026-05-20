@@ -726,6 +726,23 @@ async function loadDevices(){
     renderDevices({ok:false,error:{code:'device_load_failed',message:e.message}});
   }
 }
+function setupGoogle(){
+  if(!GOOGLE_CLIENT_ID){ $('googleHint').style.display='block'; return; }
+  if(!window.google?.accounts?.id) return window.setTimeout(setupGoogle, 250);
+  window.google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: async (response) => {
+      try {
+        const res = await fetch('/auth/google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id_token:response.credential})});
+        const data = await res.json();
+        if(!res.ok || !data.token){ renderDevices(data); return; }
+        setToken(data.token, data);
+        await loadDevices();
+      } catch (err) { renderDevices({ok:false,error:{code:'google_sign_in_failed',message:err.message}}); }
+    }
+  });
+  window.google.accounts.id.renderButton($('googleSignIn'), { theme:'outline', size:'large', width:280, text:'continue_with', locale:'en' });
+}
 $('signIn').onclick = async () => { const res=await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})}); const data=await res.json(); if(!res.ok||!data.token){ renderDevices(data); return; } setToken(data.token,data); await loadDevices(); };
 $('load').onclick = loadDevices;
 function restoreUser(){
