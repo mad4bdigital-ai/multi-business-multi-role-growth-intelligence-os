@@ -717,7 +717,7 @@ try { const raw=sessionStorage.getItem('mlm_user'); if(getToken()&&raw){ const u
 </body></html>`;
 }
 
-const LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.1.1";
+const LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.1.2";
 const LOCAL_MANAGER_WINDOWS_RELEASE_TAG = "local-manager-windows-latest";
 const LOCAL_MANAGER_WINDOWS_EXE_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup.exe";
 const LOCAL_MANAGER_WINDOWS_SHA256_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup.exe.sha256.json";
@@ -757,9 +757,9 @@ async function ensureLocalAppReleasesTable() {
     `INSERT INTO \`local_app_releases\`
       (release_id, app_key, platform, release_channel, version, minimum_supported_version, release_tag, artifact_url, sha256_url, sha256, update_required, release_notes_json, status, published_at)
      VALUES (?, 'mad4b-local-manager', 'windows', 'latest-prerelease', ?, NULL, ?, ?, ?, NULL, 0, JSON_ARRAY(
-       'Adds update availability notifications in the Windows app.',
-       'Aligns Local Manager sign-in/sign-up with the platform /connect flow.',
-       'Improves public app UX while keeping device-token controls read-only.'
+       'Adds Continue with Google to Local Manager device approval.',
+       'Adds forgot-password entry point while preserving the pairing code.',
+       'Keeps device approval on the installed app polling flow after authentication.'
      ), 'active', NOW())
      ON DUPLICATE KEY UPDATE
        release_tag = VALUES(release_tag),
@@ -769,7 +769,7 @@ async function ensureLocalAppReleasesTable() {
        status = VALUES(status),
        published_at = COALESCE(published_at, VALUES(published_at))`,
     [
-      "mad4b-local-manager-windows-latest-prerelease-0-1-1",
+      "mad4b-local-manager-windows-latest-prerelease-0-1-2",
       LOCAL_MANAGER_WINDOWS_LATEST_VERSION,
       LOCAL_MANAGER_WINDOWS_RELEASE_TAG,
       LOCAL_MANAGER_WINDOWS_EXE_URL,
@@ -791,9 +791,9 @@ function localManagerFallbackReleaseRow() {
     sha256: null,
     update_required: 0,
     release_notes_json: [
-      "Adds update availability notifications in the Windows app.",
-      "Aligns Local Manager sign-in/sign-up with the platform /connect flow.",
-      "Improves public app UX while keeping device-token controls read-only."
+      "Adds Continue with Google to Local Manager device approval.",
+      "Adds forgot-password entry point while preserving the pairing code.",
+      "Keeps device approval on the installed app polling flow after authentication."
     ],
     source: "code_fallback",
   };
