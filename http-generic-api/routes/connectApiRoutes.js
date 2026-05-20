@@ -38,6 +38,61 @@ function requireUserJwt(req, res, next) {
   return next();
 }
 
+function sha256(value) {
+  return createHash("sha256").update(String(value || "")).digest("hex");
+}
+
+function randomToken() {
+  return randomBytes(32).toString("base64url");
+}
+
+function clampTtlMinutes(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return 30;
+  return Math.min(Math.max(parsed, 1), 24 * 60);
+}
+
+function absoluteBaseUrl(req) {
+  const proto = String(req.headers["x-forwarded-proto"] || req.protocol || "https").split(",")[0].trim();
+  const host = String(req.headers["x-forwarded-host"] || req.headers.host || "auth.mad4b.com").split(",")[0].trim();
+  return `${proto}://${host}`;
+}
+
+function defaultCredentialSchema(authType) {
+  if (authType === "api_key") return { fields: [
+    { name: "api_key", label: "API key", type: "password", target: "credentials", required: true, secret: true },
+    { name: "api_base_url", label: "API base URL", type: "url", target: "connection", required: false, secret: false },
+  ] };
+  if (authType === "bearer_token") return { fields: [
+    { name: "bearer_token", label: "Bearer token", type: "password", target: "credentials", required: true, secret: true },
+    { name: "api_base_url", label: "API base URL", type: "url", target: "connection", required: false, secret: false },
+  ] };
+  if (authType === "basic_auth") return { fields: [
+    { name: "username", label: "Username", type: "text", target: "credentials", required: true, secret: false },
+    { name: "password", label: "Password", type: "password", target: "credentials", required: true, secret: true },
+    { name: "api_base_url", label: "API base URL", type: "url", target: "connection", required: false, secret: false },
+  ] };
+  if (authType === "mcp") return { fields: [
+    { name: "mcp_endpoint", label: "MCP endpoint URL", type: "url", target: "connection", required: true, secret: false },
+    { name: "mcp_bearer", label: "MCP bearer/API key", type: "password", target: "credentials", required: true, secret: true },
+  ] };
+  if (authType === "webhook") return { fields: [
+    { name: "webhook_url", label: "Webhook URL", type: "url", target: "connection", required: true, secret: false },
+    { name: "webhook_secret", label: "Webhook secret", type: "password", target: "credentials", required: false, secret: true },
+  ] };
+  if (authType === "custom_headers") return { fields: [
+    { name: "header_name", label: "Header name", type: "text", target: "metadata", required: true, secret: false },
+    { name: "header_value", label: "Header value", type: "password", target: "credentials", required: true, secret: true },
+    { name: "api_base_url", label: "API base URL", type: "url", target: "connection", required: false, secret: false },
+  ] };
+  return { fields: [] };
+}
+
+function normalizeCredentialSchema(authType, requestedSchema) {
+  if (requestedSchema && typeof requestedSchema === "object") return requestedSchema;
+  return defaultCredentialSchema(authType);
+}
+
 export function buildConnectApiRoutes(deps = {}) {
   const router = Router();
   const pool = deps.pool || { query: (...args) => getPool().query(...args) };
