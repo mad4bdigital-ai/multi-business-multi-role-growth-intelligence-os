@@ -380,38 +380,44 @@ async function callRuntimeEndpointViaFacade(payload, deps = {}) {
 // Cap all platform endpoint tool calls to 25s so we always respond before that.
 const PLATFORM_TOOL_MAX_TIMEOUT_SECONDS = 25;
 
-function normalizePlatformEndpointCallArgs(row, args = {}) {
+function normalizePlatformEndpointCallArgs(row, args = {}, auth = null) {
+  let payload;
   if (row.tool_name === "runtime_endpoint_call") {
-    return args;
-  }
+    payload = { ...(args || {}) };
+  } else {
+    payload = {
+      parent_action_key: row.parent_action_key,
+      endpoint_key: row.endpoint_key,
+      path_params: args.path_params || args.path || {},
+      query: args.query || {},
+      headers: args.headers || {},
+      timeout_seconds: Math.min(
+        Number(args.timeout_seconds) || PLATFORM_TOOL_MAX_TIMEOUT_SECONDS,
+        PLATFORM_TOOL_MAX_TIMEOUT_SECONDS
+      ),
+      readback: args.readback || { required: false, mode: "none" },
+    };
 
-  const payload = {
-    parent_action_key: row.parent_action_key,
-    endpoint_key: row.endpoint_key,
-    path_params: args.path_params || args.path || {},
-    query: args.query || {},
-    headers: args.headers || {},
-    timeout_seconds: Math.min(
-      Number(args.timeout_seconds) || PLATFORM_TOOL_MAX_TIMEOUT_SECONDS,
-      PLATFORM_TOOL_MAX_TIMEOUT_SECONDS
-    ),
-    readback: args.readback || { required: false, mode: "none" },
-  };
+    for (const optionalAuthField of ["user_id", "tenant_id", "credential_scope", "connection_id", "app_key", "scopes", "auth_type", "allow_platform_fallback", "auth_context", "dry_run"]) {
+      if (Object.prototype.hasOwnProperty.call(args, optionalAuthField)) {
+        payload[optionalAuthField] = args[optionalAuthField];
+      }
+    }
 
-  for (const optionalAuthField of ["user_id", "tenant_id", "credential_scope", "connection_id", "app_key", "scopes", "auth_type", "allow_platform_fallback", "auth_context"]) {
-    if (Object.prototype.hasOwnProperty.call(args, optionalAuthField)) {
-      payload[optionalAuthField] = args[optionalAuthField];
+    const method = String(row.method || "").toUpperCase();
+    const hasBody = args.body && Object.keys(args.body).length > 0;
+
+    if (!["GET", "HEAD"].includes(method) && hasBody) {
+      payload.body = args.body;
     }
   }
 
-  const method = String(row.method || "").toUpperCase();
-  const hasBody = args.body && Object.keys(args.body).length > 0;
-
-  if (!["GET", "HEAD"].includes(method) && hasBody) {
-    payload.body = args.body;
-  }
-
-  return payload;
+  const guarded = derivePrincipalExecutionContext(payload, auth);
+  return {
+    ...guarded.payload,
+    _principal: guarded.principal,
+    _principal_context_guard: guarded.guard,
+  };
 }
 
 async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null, deps = {}) {
