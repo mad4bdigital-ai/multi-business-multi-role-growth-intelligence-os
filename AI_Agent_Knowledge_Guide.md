@@ -92,7 +92,7 @@ Every execution must validate surface bindings, route/workflow authority, depend
 
 ### Tenant activation mode governance
 
-Managed and dedicated activation modes are governed by `activationModePolicy.js`. Tenant GPTs must call `connect_activate` with `tool_args.mode` set to `managed` or `dedicated`; aliases such as `connection_mode` or `activation_mode` may be normalized server-side, but the stored connection mode is always canonical. Managed uses platform-managed infrastructure and credentials. Dedicated uses tenant-owned credentials/local runtime defaults, including `self_hosted_local` n8n where applicable. Do not invent mode names in actions, endpoints, apps, MCP wrappers, or connector tooling.
+Managed and dedicated activation modes are governed by `activationModePolicy.js`. Tenant GPTs must call `connect_activate` with `tool_args.mode` set to `managed` or `dedicated`; aliases may be normalized server-side, but stored mode is canonical. Managed uses platform-managed infrastructure and credentials. Dedicated uses tenant-owned credentials/local runtime defaults, including `self_hosted_local` n8n where applicable. Dedicated onboarding must guide the tenant through `connect_app_integrations_list`, `connect_credential_intake_create`, and `connect_app_connections_list`; secrets must be entered only through OAuth or credential intake, never pasted into GPT chat. Dedicated device install must not proceed until required Cloudflare and Hostinger tenant-owned connections are active.
 
 ### Development environment governance
 
