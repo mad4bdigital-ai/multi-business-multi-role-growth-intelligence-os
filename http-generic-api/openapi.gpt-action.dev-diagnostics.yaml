@@ -2,11 +2,11 @@ openapi: 3.1.0
 info:
   title: Mad4B Dev Diagnostics Actions
   version: 1.0.0
-  summary: Direct Custom GPT action schema for read-only dev.mad4b.com diagnostics.
-  description: Read-only diagnostics for the dev runtime. Protected endpoints require backend bearer auth.
+  summary: Direct Custom GPT action schema for passive dev.mad4b.com deployment diagnostics.
+  description: Verifies the development host before production promotion: health, branch/commit deployment info, and protected DB-clone status.
 servers:
   - url: https://dev.mad4b.com
-    description: Mad4B development runtime
+    description: Mad4B governed development runtime
 components:
   securitySchemes:
     backendBearerAuth:
