@@ -495,6 +495,9 @@ section("connect api auth scope");
       betaSource.includes("loadPreview") &&
       betaSource.includes("setupGoogle") &&
       betaSource.includes("/auth/google") &&
+      betaSource.includes("localStorage.setItem('mlm_user_token'") &&
+      betaSource.includes("localStorage.getItem('mlm_user_token'") &&
+      betaSource.includes("Loading linked devices") &&
       betaSource.includes("forgotPassword") &&
       betaSource.includes("/auth/password/forgot") &&
       !betaSource.includes("Open /connect sign-in"));

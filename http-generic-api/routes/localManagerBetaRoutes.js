@@ -587,7 +587,7 @@ const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 function normalizeCode(value){ return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^(.{4})(.*)$/,'$1-$2').slice(0,9); }
 function setOut(obj){ $('out').textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2); }
-function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); $('authState').innerHTML = '<span class="ok">Signed in as '+esc(user?.email || user?.user_id || 'user')+'</span>'; }
+function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); try { localStorage.setItem('mlm_user_token', token); localStorage.setItem('mlm_user', JSON.stringify(user || {})); } catch {} $('authState').innerHTML = '<span class="ok">Signed in as '+esc(user?.email || user?.user_id || 'user')+'</span>'; }
 async function completeAuth(token, user){
   setToken(token, user);
   const code = normalizeCode($('deviceCode').value);
@@ -618,8 +618,8 @@ async function loadPreview(){
   const d = data.device || {};
   $('devicePreview').innerHTML = 'Device: <strong>'+esc(d.hostname || d.device_id || 'Windows device')+'</strong> · Platform: '+esc(d.platform || 'windows')+' · Status: '+esc(d.status)+' · Expires: '+esc(d.expires_at || 'soon');
 }
-function getToken(){ return sessionStorage.getItem('mlm_user_token') || ''; }
-function restore(){ const raw = sessionStorage.getItem('mlm_user'); if(getToken() && raw){ try { const u=JSON.parse(raw); $('authState').innerHTML='<span class="ok">Signed in as '+esc(u.email || u.user_id || 'user')+'</span>'; } catch {} } }
+function getToken(){ return sessionStorage.getItem('mlm_user_token') || localStorage.getItem('mlm_user_token') || ''; }
+function restore(){ const raw = sessionStorage.getItem('mlm_user') || localStorage.getItem('mlm_user'); if(getToken() && raw){ try { const u=JSON.parse(raw); $('authState').innerHTML='<span class="ok">Signed in as '+esc(u.email || u.user_id || 'user')+'</span>'; } catch {} } }
 $('normalize').onclick = async () => { $('deviceCode').value = normalizeCode($('deviceCode').value); $('codePreview').textContent = $('deviceCode').value || '---- ----'; await loadPreview(); };
 $('deviceCode').oninput = () => { $('codePreview').textContent = normalizeCode($('deviceCode').value) || '---- ----'; window.clearTimeout(window.__mlmPreviewTimer); window.__mlmPreviewTimer = window.setTimeout(loadPreview, 250); };
 async function approveDevice(){
@@ -710,8 +710,8 @@ function localManagerDevicesPage() {
 const GOOGLE_CLIENT_ID = ${JSON.stringify(GOOGLE_CLIENT_ID)};
 const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); $('authState').textContent = 'Signed in as '+(user?.email || user?.user_id || 'user'); }
-function getToken(){ return sessionStorage.getItem('mlm_user_token') || ''; }
+function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); try { localStorage.setItem('mlm_user_token', token); localStorage.setItem('mlm_user', JSON.stringify(user || {})); } catch {} $('authState').textContent = 'Signed in as '+(user?.email || user?.user_id || 'user'); }
+function getToken(){ return sessionStorage.getItem('mlm_user_token') || localStorage.getItem('mlm_user_token') || ''; }
 function renderDevices(data){ if(!data.ok){ $('devices').innerHTML='<pre>'+esc(JSON.stringify(data,null,2))+'</pre>'; return; } const rows=data.devices||[]; if(!rows.length){ $('devices').innerHTML='<p>No linked devices yet.</p>'; return; } $('devices').innerHTML='<table><thead><tr><th>device</th><th>status</th><th>platform</th><th>approved</th><th>completed</th></tr></thead><tbody>'+rows.map(d=>'<tr><td>'+esc(d.device_id)+'<br><small>'+esc(d.hostname||'')+'</small></td><td>'+esc(d.status)+'</td><td>'+esc(d.platform||'')+'</td><td>'+esc(d.approved_at||'')+'</td><td>'+esc(d.completed_at||'')+'</td></tr>').join('')+'</tbody></table>'; }
 async function loadDevices(){
   const token=getToken();
@@ -747,7 +747,7 @@ $('signIn').onclick = async () => { const res=await fetch('/auth/login',{method:
 $('load').onclick = loadDevices;
 function restoreUser(){
   const token=getToken();
-  const raw=sessionStorage.getItem('mlm_user');
+  const raw=sessionStorage.getItem('mlm_user') || localStorage.getItem('mlm_user');
   if(!token) return false;
   try {
     const u=raw ? JSON.parse(raw) : {};
