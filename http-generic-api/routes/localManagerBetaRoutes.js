@@ -791,9 +791,9 @@ function localManagerFallbackReleaseRow() {
     sha256: null,
     update_required: 0,
     release_notes_json: [
-      "Adds update availability notifications in the Windows app.",
-      "Aligns Local Manager sign-in/sign-up with the platform /connect flow.",
-      "Improves public app UX while keeping device-token controls read-only."
+      "Adds Continue with Google to Local Manager device approval.",
+      "Adds forgot-password entry point while preserving the pairing code.",
+      "Keeps device approval on the installed app polling flow after authentication."
     ],
     source: "code_fallback",
   };
