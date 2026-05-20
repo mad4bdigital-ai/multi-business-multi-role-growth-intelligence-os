@@ -1105,6 +1105,15 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
 
   assertAdminToolAccess(name, auth);
   switch (name) {
+    case "runtime_endpoint_preview": {
+      const guarded = derivePrincipalExecutionContext({ ...(args || {}), dry_run: true }, auth);
+      return await callRuntimeEndpointViaFacade({
+        ...guarded.payload,
+        dry_run: true,
+        _principal: guarded.principal,
+        _principal_context_guard: guarded.guard,
+      }, deps);
+    }
     case "connector_registry_list":
       return { connectors: await listConnectorRegistry(args, auth) };
     case "connector_registry_get":
