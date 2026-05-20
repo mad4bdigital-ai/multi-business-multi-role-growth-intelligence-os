@@ -6,6 +6,11 @@ import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
 import jwt from "jsonwebtoken";
 import { provisionLocalConnectorInstall } from "./localConnectorInstallRoutes.js";
+import {
+  activationModeCatalog,
+  resolveActivationModePolicy,
+  CANONICAL_CONNECTION_MODES,
+} from "../activationModePolicy.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECT_STATIC = join(__dirname, "../public/connect");
