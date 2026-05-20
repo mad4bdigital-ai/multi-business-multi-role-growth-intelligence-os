@@ -724,7 +724,17 @@ async function loadDevices(){
 }
 $('signIn').onclick = async () => { const res=await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})}); const data=await res.json(); if(!res.ok||!data.token){ renderDevices(data); return; } setToken(data.token,data); await loadDevices(); };
 $('load').onclick = loadDevices;
-try { const raw=sessionStorage.getItem('mlm_user'); if(getToken()&&raw){ const u=JSON.parse(raw); $('authState').textContent='Signed in as '+(u.email||u.user_id||'user'); } } catch {}
+function restoreUser(){
+  const token=getToken();
+  const raw=sessionStorage.getItem('mlm_user');
+  if(!token) return false;
+  try {
+    const u=raw ? JSON.parse(raw) : {};
+    $('authState').textContent='Signed in as '+(u.email||u.user_id||'user');
+  } catch { $('authState').textContent='Signed in.'; }
+  return true;
+}
+if(restoreUser()) loadDevices();
 </script>
 </body></html>`;
 }
