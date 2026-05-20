@@ -619,7 +619,7 @@ async function loadPreview(){
   $('devicePreview').innerHTML = 'Device: <strong>'+esc(d.hostname || d.device_id || 'Windows device')+'</strong> · Platform: '+esc(d.platform || 'windows')+' · Status: '+esc(d.status)+' · Expires: '+esc(d.expires_at || 'soon');
 }
 function getToken(){ return sessionStorage.getItem('mlm_user_token') || localStorage.getItem('mlm_user_token') || ''; }
-function restore(){ const raw = sessionStorage.getItem('mlm_user') || localStorage.getItem('mlm_user'); if(getToken() && raw){ try { const u=JSON.parse(raw); $('authState').innerHTML='<span class="ok">Signed in as '+esc(u.email || u.user_id || 'user')+'</span>'; } catch {} } }
+function restore(){ const raw = sessionStorage.getItem('mlm_user') || localStorage.getItem('mlm_user'); if(!getToken()) return false; if(raw){ try { const u=JSON.parse(raw); $('authState').innerHTML='<span class="ok">Signed in as '+esc(u.email || u.user_id || 'user')+'</span>'; } catch { $('authState').innerHTML='<span class="ok">Signed in.</span>'; } } else { $('authState').innerHTML='<span class="ok">Signed in.</span>'; } return true; }
 $('normalize').onclick = async () => { $('deviceCode').value = normalizeCode($('deviceCode').value); $('codePreview').textContent = $('deviceCode').value || '---- ----'; await loadPreview(); };
 $('deviceCode').oninput = () => { $('codePreview').textContent = normalizeCode($('deviceCode').value) || '---- ----'; window.clearTimeout(window.__mlmPreviewTimer); window.__mlmPreviewTimer = window.setTimeout(loadPreview, 250); };
 async function approveDevice(){
@@ -631,7 +631,13 @@ async function approveDevice(){
   const res = await fetch('/local-manager/device-link/approve',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({code})});
   const data = await res.json();
   setOut(data);
-  if(res.ok && data.ok){ $('authState').innerHTML = '<span class="ok">Device approved. You can return to the Windows app.</span>'; return true; }
+  if(res.ok && data.ok){
+    const msg = data.already_linked
+      ? 'This device was already linked. The Windows app session has been refreshed.'
+      : 'Device approved. You can return to the Windows app.';
+    $('authState').innerHTML = '<span class="ok">'+esc(msg)+'</span>';
+    return true;
+  }
   return false;
 }
 $('signIn').onclick = async () => {
@@ -655,7 +661,17 @@ $('createAccount').onclick = async () => {
   await completeAuth(data.token, data);
 };
 $('approve').onclick = approveDevice;
-restore(); $('normalize').click(); setupGoogle();
+async function initializeLinkDevicePage(){
+  const signedIn = restore();
+  $('deviceCode').value = normalizeCode($('deviceCode').value);
+  $('codePreview').textContent = $('deviceCode').value || '---- ----';
+  await loadPreview();
+  if(signedIn && normalizeCode($('deviceCode').value)){
+    setOut({ok:true,status:'signed_in',message:'Signed in. Checking this device link…'});
+    await approveDevice();
+  }
+}
+setupGoogle(); initializeLinkDevicePage();
 </script>
 </body></html>`;
 }

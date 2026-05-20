@@ -352,6 +352,18 @@ export async function approveDeviceLinkSession(req, res) {
       return res.status(409).json({ ok: false, status: row.status, error: { code: "device_link_not_pending", message: "Pairing code is no longer pending." }, secrets_included: false });
     }
 
+    const [existingRows] = await getPool().query(
+      `SELECT * FROM \`local_manager_device_link_sessions\`
+        WHERE device_id = ?
+          AND user_id = ?
+          AND (? IS NULL OR tenant_id = ?)
+          AND status IN ('approved','completed')
+        ORDER BY COALESCE(completed_at, approved_at, created_at) DESC
+        LIMIT 1`,
+      [row.device_id, principal.user_id, principal.tenant_id, principal.tenant_id]
+    );
+    const existingLinked = existingRows[0] || null;
+
     await getPool().query(
       `UPDATE \`local_manager_device_link_sessions\`
           SET status = 'approved', user_id = ?, tenant_id = ?, approved_at = NOW()
@@ -359,7 +371,18 @@ export async function approveDeviceLinkSession(req, res) {
       [principal.user_id, principal.tenant_id, row.session_id]
     );
     const approved = { ...row, status: "approved", user_id: principal.user_id, tenant_id: principal.tenant_id, approved_at: new Date() };
-    return res.status(200).json({ ok: true, status: "approved", user: principal, device: sanitizeSession(approved), secrets_included: false });
+    return res.status(200).json({
+      ok: true,
+      status: "approved",
+      already_linked: Boolean(existingLinked),
+      reauthorized_existing_device: Boolean(existingLinked),
+      user: principal,
+      device: sanitizeSession(approved),
+      message: existingLinked
+        ? "This device was already linked for your account. The current app session was re-authorized."
+        : undefined,
+      secrets_included: false,
+    });
   } catch (err) {
     return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_link_approve_failed", message: err.message }, secrets_included: false });
   }

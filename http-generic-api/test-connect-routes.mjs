@@ -498,6 +498,9 @@ section("connect api auth scope");
       betaSource.includes("localStorage.setItem('mlm_user_token'") &&
       betaSource.includes("localStorage.getItem('mlm_user_token'") &&
       betaSource.includes("Loading linked devices") &&
+      betaSource.includes("initializeLinkDevicePage") &&
+      betaSource.includes("Checking this device link") &&
+      betaSource.includes("already linked") &&
       betaSource.includes("forgotPassword") &&
       betaSource.includes("/auth/password/forgot") &&
       !betaSource.includes("Open /connect sign-in"));
@@ -538,6 +541,8 @@ section("connect api auth scope");
       deviceLinkSource.includes("requireLocalManagerUser") &&
       deviceLinkSource.includes("requireLocalManagerDevice") &&
       deviceLinkSource.includes("getDeviceControls") &&
+      deviceLinkSource.includes("already_linked") &&
+      deviceLinkSource.includes("reauthorized_existing_device") &&
       !deviceLinkSource.includes("connector_secret") &&
       !deviceLinkSource.includes("cf_token"));
     assert("local manager beta is read-only and redacts secrets",
