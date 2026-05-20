@@ -717,7 +717,7 @@ try { const raw=sessionStorage.getItem('mlm_user'); if(getToken()&&raw){ const u
 </body></html>`;
 }
 
-const LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.1.1";
+const LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.1.2";
 const LOCAL_MANAGER_WINDOWS_RELEASE_TAG = "local-manager-windows-latest";
 const LOCAL_MANAGER_WINDOWS_EXE_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup.exe";
 const LOCAL_MANAGER_WINDOWS_SHA256_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup.exe.sha256.json";
