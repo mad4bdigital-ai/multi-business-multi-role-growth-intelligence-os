@@ -486,12 +486,16 @@ section("connect api auth scope");
       betaSource.includes("function localManagerAdminPage") &&
       betaSource.includes("<YOUR_PLATFORM_TOKEN>") &&
       !betaSource.includes("BACKEND_API_KEY"));
-    assert("local manager auth pages use dedicated device approval flow",
+    assert("local manager auth pages use dedicated device approval flow with Google and forgot-password controls",
       betaSource.includes("Open device approval") &&
       betaSource.includes("/app/local-manager/link-device?mode=signin") &&
       betaSource.includes("/app/local-manager/link-device?mode=signup") &&
       betaSource.includes("approveDevice") &&
       betaSource.includes("loadPreview") &&
+      betaSource.includes("setupGoogle") &&
+      betaSource.includes("/auth/google") &&
+      betaSource.includes("forgotPassword") &&
+      betaSource.includes("/auth/password/forgot") &&
       !betaSource.includes("Open /connect sign-in"));
     assert("local manager Windows update metadata is secret-free and DB-backed",
       betaSource.includes("LOCAL_MANAGER_WINDOWS_LATEST_VERSION") &&
