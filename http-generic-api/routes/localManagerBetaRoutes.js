@@ -694,6 +694,8 @@ function localManagerDevicesPage() {
   <section class="grid">
     <div class="card">
       <h2>Sign in</h2>
+      <div id="googleSignIn"></div>
+      <p id="googleHint" style="display:none;color:#ff7b7b;">Google sign-in is not configured yet.</p>
       <label for="email">Email</label><input id="email" type="email" autocomplete="email" />
       <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" />
       <button id="signIn">Sign in</button>
