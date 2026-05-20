@@ -414,6 +414,7 @@ export function buildConnectRoutes(deps) {
       ],
       connection_modes: CANONICAL_CONNECTION_MODES,
       activation_mode_catalog: activationModeCatalog(),
+      dedicated_integration_catalog: dedicatedIntegrationCatalog(),
       access_model: "Sign in via POST /auth/login, /auth/register, or /auth/google. Use the returned token as Authorization: Bearer <token> on all subsequent calls. For Google Sign-In, complete the flow at https://auth.mad4b.com/connect and use the token shown on the final step.",
       onboarding_url: "https://auth.mad4b.com/connect",
       activation_sequence: [
