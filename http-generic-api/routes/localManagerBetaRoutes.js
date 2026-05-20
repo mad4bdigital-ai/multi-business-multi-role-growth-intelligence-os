@@ -709,7 +709,19 @@ const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&
 function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); $('authState').textContent = 'Signed in as '+(user?.email || user?.user_id || 'user'); }
 function getToken(){ return sessionStorage.getItem('mlm_user_token') || ''; }
 function renderDevices(data){ if(!data.ok){ $('devices').innerHTML='<pre>'+esc(JSON.stringify(data,null,2))+'</pre>'; return; } const rows=data.devices||[]; if(!rows.length){ $('devices').innerHTML='<p>No linked devices yet.</p>'; return; } $('devices').innerHTML='<table><thead><tr><th>device</th><th>status</th><th>platform</th><th>approved</th><th>completed</th></tr></thead><tbody>'+rows.map(d=>'<tr><td>'+esc(d.device_id)+'<br><small>'+esc(d.hostname||'')+'</small></td><td>'+esc(d.status)+'</td><td>'+esc(d.platform||'')+'</td><td>'+esc(d.approved_at||'')+'</td><td>'+esc(d.completed_at||'')+'</td></tr>').join('')+'</tbody></table>'; }
-async function loadDevices(){ const token=getToken(); if(!token){ renderDevices({ok:false,error:{code:'not_signed_in',message:'Sign in first.'}}); return; } const res=await fetch('/local-manager/device-link/devices',{headers:{authorization:'Bearer '+token,accept:'application/json'}}); renderDevices(await res.json()); }
+async function loadDevices(){
+  const token=getToken();
+  if(!token){ renderDevices({ok:false,error:{code:'not_signed_in',message:'Sign in first or return from the link-device approval page.'}}); return; }
+  $('devices').innerHTML='<p>Loading linked devices…</p>';
+  try {
+    const res=await fetch('/local-manager/device-link/devices',{headers:{authorization:'Bearer '+token,accept:'application/json'}});
+    const data=await res.json();
+    if(data?.user){ sessionStorage.setItem('mlm_user', JSON.stringify(data.user)); $('authState').textContent='Signed in as '+(data.user.email||data.user.user_id||'user'); }
+    renderDevices(data);
+  } catch(e) {
+    renderDevices({ok:false,error:{code:'device_load_failed',message:e.message}});
+  }
+}
 $('signIn').onclick = async () => { const res=await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})}); const data=await res.json(); if(!res.ok||!data.token){ renderDevices(data); return; } setToken(data.token,data); await loadDevices(); };
 $('load').onclick = loadDevices;
 try { const raw=sessionStorage.getItem('mlm_user'); if(getToken()&&raw){ const u=JSON.parse(raw); $('authState').textContent='Signed in as '+(u.email||u.user_id||'user'); } } catch {}
