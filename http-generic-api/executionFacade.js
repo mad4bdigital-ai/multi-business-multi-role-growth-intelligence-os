@@ -307,6 +307,8 @@ export function createExecutionFacade(deps) {
           placeholderResolutionSource,
           authContract,
           schemaContract,
+          schemaSource,
+          schemaContractFileId,
           schemaOperationInfo,
           route_id,
           target_module,
@@ -315,8 +317,67 @@ export function createExecutionFacade(deps) {
           finalQuery,
           finalHeaders,
           baseUrl,
-          requestUrl
+          requestUrl,
+          governedExecutionContext,
+          pathResolverLoad
         } = preparation;
+
+        const dryRunRequested = requestPayload.dry_run === true || String(requestPayload.dry_run || "").trim().toLowerCase() === "true";
+        if (dryRunRequested) {
+          const report = buildPassiveExecutionReport({
+            requestPayload,
+            action,
+            endpoint,
+            brand,
+            resolvedMethodPath,
+            resolvedProviderDomain,
+            resolvedProviderDomainMode,
+            placeholderResolutionSource,
+            authContract,
+            schemaContract,
+            schemaSource,
+            schemaContractFileId,
+            schemaOperationInfo,
+            governedExecutionContext,
+            pathResolverLoad,
+            finalQuery,
+            baseUrl,
+            requestUrl,
+            principal: requestPayload._principal || null
+          });
+
+          await performUniversalServerWriteback({
+            mode: "sync",
+            job_id: undefined,
+            target_key: requestPayload.target_key,
+            parent_action_key,
+            endpoint_key,
+            route_id,
+            target_module,
+            target_workflow,
+            source_layer: "http_client_backend",
+            entry_type: "sync_execution_dry_run",
+            execution_class: "dry_run",
+            attempt_count: 1,
+            status_source: "succeeded",
+            responseBody: report,
+            error_code: undefined,
+            error_message_short: undefined,
+            http_status: 200,
+            brand_name,
+            execution_trace_id,
+            started_at: sync_execution_started_at,
+            credential_resolution_status: authContract?.credential_resolution_status ?? "",
+            runtime_capability_class: String(action?.runtime_capability_class || ""),
+            primary_executor: String(action?.primary_executor || ""),
+            endpoint_role: String(endpoint?.endpoint_role || ""),
+            transport_action_key: String(endpoint?.transport_action_key || ""),
+            schema_contract_validation_status: schemaContract ? "validated" : "not_declared",
+            transport_request_contract_status: "validated"
+          });
+
+          return { status: 200, body: report };
+        }
 
         const dispatchResult = await dispatchPreparedExecution(
           {
