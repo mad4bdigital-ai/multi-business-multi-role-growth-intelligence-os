@@ -28,6 +28,75 @@ const PLATFORM_JWT_CLIENT_MAX_TTL_SECONDS = 60 * 60;
 const VALID_SIGN_IN_OPTIONS = new Set(["google", "email", "register"]);
 const PLATFORM_JWT_ISSUER = process.env.PLATFORM_JWT_ISSUER || "https://auth.mad4b.com";
 const TENANT_GPT_JWT_AUDIENCE = process.env.TENANT_GPT_JWT_AUDIENCE || "mad4b-tenant-gpt";
+const PASSWORD_RESET_TTL_SECONDS = 30 * 60;
+const PASSWORD_RESET_BASE_URL = (process.env.PUBLIC_BASE_URL || PLATFORM_JWT_ISSUER || "https://auth.mad4b.com").replace(/\/$/, "");
+
+function sha256(value) {
+  return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
+}
+
+function secureToken(bytes = 32) {
+  return randomBytes(bytes).toString("base64url");
+}
+
+function emailDeliveryConfigured() {
+  return Boolean(process.env.SMTP_URL || process.env.SENDGRID_API_KEY || process.env.RESEND_API_KEY || process.env.MAILGUN_API_KEY);
+}
+
+function safeReturnTo(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "/connect";
+  if (raw.startsWith("/") && !raw.startsWith("//")) return raw.slice(0, 512);
+  try {
+    const url = new URL(raw);
+    if (url.origin === PASSWORD_RESET_BASE_URL) return `${url.pathname}${url.search}${url.hash}`.slice(0, 512);
+  } catch {}
+  return "/connect";
+}
+
+async function ensurePasswordResetTables() {
+  const pool = getPool();
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS \`auth_password_reset_tokens\` (
+      \`reset_id\` VARCHAR(64) NOT NULL,
+      \`user_id\` VARCHAR(64) NOT NULL,
+      \`email\` VARCHAR(255) NOT NULL,
+      \`token_hash\` VARCHAR(64) NOT NULL,
+      \`status\` ENUM('pending','used','expired','revoked') NOT NULL DEFAULT 'pending',
+      \`requested_ip\` VARCHAR(64) NULL,
+      \`requested_user_agent\` VARCHAR(255) NULL,
+      \`expires_at\` DATETIME NOT NULL,
+      \`used_at\` DATETIME NULL,
+      \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`reset_id\`),
+      UNIQUE KEY \`uq_auth_password_reset_token_hash\` (\`token_hash\`),
+      KEY \`idx_auth_password_reset_email_status\` (\`email\`, \`status\`, \`expires_at\`),
+      KEY \`idx_auth_password_reset_user_status\` (\`user_id\`, \`status\`, \`expires_at\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS \`auth_email_outbox\` (
+      \`email_id\` VARCHAR(64) NOT NULL,
+      \`purpose\` VARCHAR(64) NOT NULL,
+      \`recipient_email\` VARCHAR(255) NOT NULL,
+      \`subject\` VARCHAR(255) NOT NULL,
+      \`body_text\` TEXT NOT NULL,
+      \`body_html\` MEDIUMTEXT NULL,
+      \`status\` ENUM('queued','sent','failed','skipped') NOT NULL DEFAULT 'queued',
+      \`provider\` VARCHAR(64) NULL,
+      \`provider_message_id\` VARCHAR(255) NULL,
+      \`metadata_json\` JSON NULL,
+      \`last_error\` TEXT NULL,
+      \`sent_at\` DATETIME NULL,
+      \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`email_id\`),
+      KEY \`idx_auth_email_outbox_status\` (\`status\`, \`purpose\`, \`created_at\`),
+      KEY \`idx_auth_email_outbox_recipient\` (\`recipient_email\`, \`created_at\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+}
 
 // Single-use OAuth code tracking: jti → expiry ms. Lazily cleaned.
 const _usedOAuthCodeJtis = new Map();
