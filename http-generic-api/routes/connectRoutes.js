@@ -575,7 +575,14 @@ export function buildConnectRoutes(deps) {
       const capabilities = state.resolvedTenantId
         ? ["connect_activate", "connect_device_install", "support_ticket_create", "local_gateway_tools_list"]
         : [];
-      return res.status(200).json({ ok: true, tenant_id: state.resolvedTenantId || null, onboarding: state.onboarding, capabilities, next_actions: state.onboarding.allowed_actions });
+      return res.status(200).json({
+        ok: true,
+        tenant_id: state.resolvedTenantId || null,
+        onboarding: state.onboarding,
+        capabilities,
+        next_actions: state.onboarding.allowed_actions,
+        activation_mode_catalog: activationModeCatalog(),
+      });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "capabilities_read_failed", message: err.message } });
     }
