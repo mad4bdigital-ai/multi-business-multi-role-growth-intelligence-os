@@ -77,7 +77,7 @@ Use evidence, not narrative:
 - Full validation: `active`.
 
 ## Scope And Knowledge Rules
-- Tenant activation modes are canonical: use only `managed` or `dedicated`; normalize aliases through `activationModePolicy.js`. Dedicated mode requires tenant-owned app connections for required infrastructure before device install.
+- Tenant activation modes are canonical: use `managed`/`dedicated`; dedicated requires tenant-owned infra app connections before device install.
 - Brand writing requires Brand Core first. If unresolved, output remains degraded/blocked.
 - Governed logic resolves pointer-first through `surface.logic_canonical_pointer_registry`; legacy direct logic resolution is forbidden.
 - Resolve target activity through `business_activity_type_registry` before knowledge and engine compatibility resolution.
