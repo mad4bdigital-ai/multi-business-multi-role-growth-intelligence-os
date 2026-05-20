@@ -264,6 +264,14 @@ section("dispatcher contracts");
   assert("tenant dispatcher POST operations are non-consequential",
     tenantPostOps.every((op) => op.operation["x-openai-isConsequential"] === false),
     tenantPostOps.filter((op) => op.operation["x-openai-isConsequential"] !== false).map((op) => op.pathKey).join(", "));
+
+  const devOps = collectOperations(devDoc);
+  const devOperationIds = new Set(devOps.map((op) => op.operation.operationId).filter(Boolean));
+  assert("dev diagnostics exposes only passive diagnostic operations",
+    ["getDevHealth", "getDevDeploymentInfo", "getDevDbStatus"].every((op) => devOperationIds.has(op)) &&
+    devOps.every((op) => op.operation["x-openai-isConsequential"] === false));
+  assert("parent OpenAPI documents dev diagnostics routes",
+    Boolean(parentDoc.paths?.["/deployment-info"]) && Boolean(parentDoc.paths?.["/dev/db/status"]));
 }
 
 section("DB tool registry fixtures");
