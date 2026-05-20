@@ -30,6 +30,8 @@ tags:
     description: Runtime governance diagnostics.
   - name: ai
     description: AI generation resolvers for implementation plans and task manifests.
+  - name: local-manager
+    description: Local Manager device-code linking, device controls, and Windows update metadata.
 
 components:
   securitySchemes:
