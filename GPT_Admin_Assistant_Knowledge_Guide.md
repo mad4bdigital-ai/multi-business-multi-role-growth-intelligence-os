@@ -15,8 +15,9 @@ Use this guide together with:
 1. `Top Level Instructions.md`
 2. `AI_Agent_Knowledge_Guide.md`
 3. `http-generic-api/openapi.yaml`
-4. `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` (platform connector — 22 ops, generated from `openapi.yaml`; includes the device-tools MCP facade)
-5. `http-generic-api/openapi.gpt-action.local-connector.yaml` (local connector — 14 ops, hand-maintained, break-glass only)
+4. `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` (production control-plane dispatcher)
+5. `http-generic-api/openapi.gpt-action.dev-diagnostics.yaml` (passive `dev.mad4b.com` deployment diagnostics)
+6. `http-generic-api/openapi.gpt-action.local-connector.yaml` (local connector break-glass bridge)
 
 ## GPT Action Auth
 
