@@ -705,7 +705,9 @@ function localManagerDevicesPage() {
     <div class="card"><h2>Devices</h2><div id="devices"><p>No devices loaded.</p></div></div>
   </section>
 </main>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
+const GOOGLE_CLIENT_ID = ${JSON.stringify(GOOGLE_CLIENT_ID)};
 const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); $('authState').textContent = 'Signed in as '+(user?.email || user?.user_id || 'user'); }
