@@ -33,6 +33,12 @@ const ACTIVE_SCHEMAS = {
     maxOperations: 30,
     requiredOperations: ["connectorHealth", "connectorShell", "connectorCf"],
   },
+  "openapi.gpt-action.dev-diagnostics.yaml": {
+    serverUrl: "https://dev.mad4b.com",
+    securityScheme: "backendBearerAuth",
+    maxOperations: 10,
+    requiredOperations: ["getDevHealth", "getDevDeploymentInfo", "getDevDbStatus"],
+  },
 };
 
 const OBSOLETE_SCHEMAS = [
