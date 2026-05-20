@@ -10,6 +10,8 @@ import {
   startDeviceLinkSession,
 } from "../services/localManagerDeviceLinkService.js";
 
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
