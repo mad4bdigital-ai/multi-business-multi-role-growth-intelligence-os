@@ -80,7 +80,17 @@ http-generic-api/routes/connectorAgentRoutes.js
 
 ## Verification after auto deploy
 
-After Hostinger completes the deployment, verify:
+After Hostinger completes a dev deployment, verify:
+
+```text
+https://dev.mad4b.com/health
+https://dev.mad4b.com/deployment-info
+https://dev.mad4b.com/dev/db/status   # backend auth required
+```
+
+The deployment info must match the expected branch and commit before production promotion.
+
+After Hostinger completes a production deployment, verify:
 
 ```text
 https://auth.mad4b.com/health
