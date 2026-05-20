@@ -86,6 +86,12 @@ components:
       description: >
         Admin/service Custom GPT-safe backend authentication header. Send
         x-api-key: <BACKEND_API_KEY>. This key should be scoped to the admin user/service identity.
+    localManagerBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: User JWT or Local Manager device token
+      description: >
+        Bearer token minted by /auth/login, /auth/register, or approved device-link polling.
 
   schemas:
 
