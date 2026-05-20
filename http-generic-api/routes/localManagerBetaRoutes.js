@@ -757,9 +757,9 @@ async function ensureLocalAppReleasesTable() {
     `INSERT INTO \`local_app_releases\`
       (release_id, app_key, platform, release_channel, version, minimum_supported_version, release_tag, artifact_url, sha256_url, sha256, update_required, release_notes_json, status, published_at)
      VALUES (?, 'mad4b-local-manager', 'windows', 'latest-prerelease', ?, NULL, ?, ?, ?, NULL, 0, JSON_ARRAY(
-       'Adds update availability notifications in the Windows app.',
-       'Aligns Local Manager sign-in/sign-up with the platform /connect flow.',
-       'Improves public app UX while keeping device-token controls read-only.'
+       'Adds Continue with Google to Local Manager device approval.',
+       'Adds forgot-password entry point while preserving the pairing code.',
+       'Keeps device approval on the installed app polling flow after authentication.'
      ), 'active', NOW())
      ON DUPLICATE KEY UPDATE
        release_tag = VALUES(release_tag),
