@@ -661,7 +661,17 @@ $('createAccount').onclick = async () => {
   await completeAuth(data.token, data);
 };
 $('approve').onclick = approveDevice;
-restore(); $('normalize').click(); setupGoogle();
+async function initializeLinkDevicePage(){
+  const signedIn = restore();
+  $('deviceCode').value = normalizeCode($('deviceCode').value);
+  $('codePreview').textContent = $('deviceCode').value || '---- ----';
+  await loadPreview();
+  if(signedIn && normalizeCode($('deviceCode').value)){
+    setOut({ok:true,status:'signed_in',message:'Signed in. Checking this device link…'});
+    await approveDevice();
+  }
+}
+setupGoogle(); initializeLinkDevicePage();
 </script>
 </body></html>`;
 }
