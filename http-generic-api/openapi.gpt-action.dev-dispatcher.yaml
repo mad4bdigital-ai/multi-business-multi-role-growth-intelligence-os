@@ -1,0 +1,151 @@
+openapi: 3.1.0
+info:
+  title: Mad4B Dev Dispatcher Actions
+  version: 1.0.0
+  summary: Separate Custom GPT dispatcher schema for dev.mad4b.com.
+  description: Passive development-host dispatcher for branch, health, and protected DB-clone checks before production promotion.
+servers:
+  - url: https://dev.mad4b.com
+    description: Mad4B governed development runtime
+components:
+  securitySchemes:
+    backendBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Backend API Key
+      description: Send Authorization bearer token for protected dev diagnostics.
+  schemas:
+    ErrorObject:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        status: { type: integer }
+        details:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: 'null'
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, error]
+      properties:
+        ok:
+          type: boolean
+          enum: [false]
+        error:
+          $ref: '#/components/schemas/ErrorObject'
+    HealthResponse:
+      type: object
+      additionalProperties: true
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        service: { type: string }
+        status: { type: string }
+        version: { type: string }
+        timestamp:
+          type: string
+          format: date-time
+    DeploymentInfoResponse:
+      type: object
+      additionalProperties: true
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        branch: { type: string }
+        branch_source: { type: string }
+        commit_sha: { type: string }
+        commit_source: { type: string }
+        deployed_at: { type: string }
+        expected_dev_branch: { type: string }
+        evidence:
+          type: object
+          additionalProperties: true
+    DevDbStatusResponse:
+      type: object
+      additionalProperties: true
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        db_name: { type: string }
+        table_count: { type: integer }
+        row_count: { type: integer }
+        branch: { type: string }
+        commit_sha: { type: string }
+security:
+  - backendBearerAuth: []
+paths:
+  /health:
+    get:
+      operationId: getDevHealth
+      tags: [dev-dispatcher]
+      summary: Check dev runtime health.
+      description: Public read-only health check for dev.mad4b.com.
+      x-openai-isConsequential: false
+      security: []
+      responses:
+        '200':
+          description: Health status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        default:
+          description: Error response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /deployment-info:
+    get:
+      operationId: getDevDeploymentInfo
+      tags: [dev-dispatcher]
+      summary: Read dev deployment information.
+      description: Public read-only branch and commit metadata for deployment verification.
+      x-openai-isConsequential: false
+      security: []
+      responses:
+        '200':
+          description: Deployment metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentInfoResponse'
+        default:
+          description: Error response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /dev/db/status:
+    get:
+      operationId: getDevDbStatus
+      tags: [dev-dispatcher]
+      summary: Read protected dev database status.
+      description: Authenticated read-only dev DB clone status. Does not restore or mutate data.
+      x-openai-isConsequential: false
+      security:
+        - backendBearerAuth: []
+      responses:
+        '200':
+          description: Dev database status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevDbStatusResponse'
+        '401':
+          description: Missing or invalid backend bearer auth.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        default:
+          description: Error response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

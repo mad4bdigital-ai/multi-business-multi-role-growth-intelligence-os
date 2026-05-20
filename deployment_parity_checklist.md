@@ -57,7 +57,8 @@ Verify the live Google Sheets registry reflects intended architecture:
 
 Verify the deployed container/process matches the committed code:
 
-- [ ] Deployed image was built from the current `main` commit (`git rev-parse HEAD`)
+- [ ] For dev, `https://dev.mad4b.com/deployment-info` reports the expected GitHub branch and commit before production promotion
+- [ ] For production, deployed image was built from the current `main` commit (`git rev-parse HEAD`)
 - [ ] `GET /health` returns `200 OK` with `{ ok: true }`
 - [ ] `SERVICE_VERSION` in health response matches `package.json` version
 - [ ] `GET /health` dependency surface matches the intended topology: `dependencies.redis`, `dependencies.queue`, and `dependencies.worker.enabled`

@@ -27,6 +27,8 @@ servers:
 tags:
   - name: health
     description: Backend health and queue status.
+  - name: dev-diagnostics
+    description: Passive development environment diagnostics for dev.mad4b.com.
   - name: activation
     description: Once-per-session activation probes, session history, and scope context.
   - name: jobs
@@ -1472,6 +1474,71 @@ x-tenant-gpt-auth:
         - https://auth.mad4b.com/scopes/tenant.system-tools
 
 paths:
+
+  /deployment-info:
+    get:
+      tags: [dev-diagnostics]
+      security: []
+      operationId: getDeploymentInfo
+      summary: Read deployment branch and commit metadata
+      description: Passive deployment evidence for dev/prod branch validation. Does not expose secrets.
+      responses:
+        "200":
+          description: Deployment metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+                  branch: { type: string, nullable: true }
+                  commit_sha: { type: string, nullable: true }
+                  deployed_at: { type: string, nullable: true }
+                  expected_dev_branch: { type: string, nullable: true }
+                  evidence:
+                    type: object
+                    additionalProperties: true
+        default:
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /dev/db/status:
+    get:
+      tags: [dev-diagnostics]
+      security:
+        - backendBearerAuth: []
+      operationId: getDevDbStatus
+      summary: Read protected development database status
+      description: Authenticated read-only status for the dev DB clone; never restores or mutates data.
+      responses:
+        "200":
+          description: Development DB status
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+                  db_name: { type: string }
+                  table_count: { type: integer }
+                  row_count: { type: integer }
+                  branch: { type: string, nullable: true }
+                  commit_sha: { type: string, nullable: true }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Unauthorized" }
+        default:
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /health:
     get:

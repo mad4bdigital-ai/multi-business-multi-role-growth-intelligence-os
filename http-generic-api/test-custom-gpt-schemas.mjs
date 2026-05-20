@@ -27,6 +27,12 @@ const ACTIVE_SCHEMAS = {
     maxOperations: 30,
     requiredOperations: ["activateSession", "listTools", "callTool", "writeSessionTurn", "endSession"],
   },
+  "openapi.gpt-action.dev-dispatcher.yaml": {
+    serverUrl: "https://dev.mad4b.com",
+    securityScheme: "backendBearerAuth",
+    maxOperations: 10,
+    requiredOperations: ["getDevHealth", "getDevDeploymentInfo", "getDevDbStatus"],
+  },
   "openapi.gpt-action.local-connector.yaml": {
     serverUrl: "https://connector.mad4b.com",
     securityScheme: "backendBearerAuth",
@@ -203,6 +209,8 @@ section("dispatcher contracts");
 {
   const adminDoc = loadSchema("openapi.custom-gpt.auth-dispatcher.yaml");
   const tenantDoc = loadSchema("openapi.tenant-gpt.auth.yaml");
+  const devDoc = loadSchema("openapi.gpt-action.dev-dispatcher.yaml");
+  const parentDoc = loadSchema("openapi.yaml");
 
   assertToolArgsContract(adminDoc, "callAdminTool");
   assertToolArgsContract(tenantDoc, "callTool");
@@ -218,6 +226,8 @@ section("dispatcher contracts");
     adminOps.some((op) => op.pathKey === "/gpt/tools/call" && op.method === "post"));
   assert("admin dispatcher hides direct admin control route",
     !adminOps.some((op) => op.operation.operationId === "executeAdminControl"));
+  assert("auth dispatcher does not expose dev-host diagnostic routes",
+    !adminOps.some((op) => ["/deployment-info", "/dev/db/status"].includes(op.pathKey)));
   assert("admin dispatcher keeps device capability routes DB-backed",
     !adminOps.some((op) => [
       "/connector/{device_id}/dependencies",
@@ -256,6 +266,14 @@ section("dispatcher contracts");
   assert("tenant dispatcher POST operations are non-consequential",
     tenantPostOps.every((op) => op.operation["x-openai-isConsequential"] === false),
     tenantPostOps.filter((op) => op.operation["x-openai-isConsequential"] !== false).map((op) => op.pathKey).join(", "));
+
+  const devOps = collectOperations(devDoc);
+  const devOperationIds = new Set(devOps.map((op) => op.operation.operationId).filter(Boolean));
+  assert("dev dispatcher exposes only passive diagnostic operations",
+    ["getDevHealth", "getDevDeploymentInfo", "getDevDbStatus"].every((op) => devOperationIds.has(op)) &&
+    devOps.every((op) => op.operation["x-openai-isConsequential"] === false));
+  assert("parent OpenAPI documents dev dispatcher routes",
+    Boolean(parentDoc.paths?.["/deployment-info"]) && Boolean(parentDoc.paths?.["/dev/db/status"]));
 }
 
 section("DB tool registry fixtures");

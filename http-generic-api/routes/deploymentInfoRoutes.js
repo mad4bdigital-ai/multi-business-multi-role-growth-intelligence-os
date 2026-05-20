@@ -157,13 +157,14 @@ export function buildDeploymentInfoRoutes() {
     const git = await readGitCheckoutInfo();
     const host = String(req.headers.host || "").toLowerCase();
     const isDevHostname = host.startsWith("dev.mad4b.com");
+    const expectedDevBranch = firstString(process.env.DEV_DEPLOYMENT_BRANCH, process.env.GOVERNED_DEV_BRANCH, "dev");
     const branch = firstString(
       deployment?.branch,
       process.env.GITHUB_REF_NAME,
       process.env.DEPLOY_BRANCH,
       process.env.BRANCH_NAME,
       git?.branch,
-      isDevHostname ? "dev-autopilot-routing" : null
+      isDevHostname ? expectedDevBranch : null
     );
     const commitSha = firstString(
       deployment?.commit_sha,
@@ -197,7 +198,7 @@ export function buildDeploymentInfoRoutes() {
         ["DEPLOY_BRANCH", process.env.DEPLOY_BRANCH],
         ["BRANCH_NAME", process.env.BRANCH_NAME],
         ["git_checkout", git?.branch],
-        ["dev_hostname_fallback", isDevHostname ? "dev-autopilot-routing" : null],
+        ["dev_hostname_fallback", isDevHostname ? expectedDevBranch : null],
       ]),
       commit: commitSha,
       commit_sha: commitSha,
@@ -238,7 +239,7 @@ export function buildDeploymentInfoRoutes() {
         secrets_included: false,
       },
       app_env: process.env.APP_ENV || process.env.NODE_ENV || null,
-      expected_dev_branch: "dev-autopilot-routing",
+      expected_dev_branch: expectedDevBranch,
       is_dev_hostname: isDevHostname,
       generated_at: generatedAt,
     });

@@ -15,8 +15,9 @@ Use this guide together with:
 1. `Top Level Instructions.md`
 2. `AI_Agent_Knowledge_Guide.md`
 3. `http-generic-api/openapi.yaml`
-4. `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` (platform connector — 22 ops, generated from `openapi.yaml`; includes the device-tools MCP facade)
-5. `http-generic-api/openapi.gpt-action.local-connector.yaml` (local connector — 14 ops, hand-maintained, break-glass only)
+4. `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` (production control-plane dispatcher)
+5. `http-generic-api/openapi.gpt-action.dev-dispatcher.yaml` (separate passive dispatcher for `dev.mad4b.com`)
+6. `http-generic-api/openapi.gpt-action.local-connector.yaml` (local connector break-glass bridge)
 
 ## GPT Action Auth
 
@@ -116,6 +117,18 @@ The safe customer flow is:
 6. The local connector performs final local authorization and launch.
 
 If the customer connector is missing, disabled, not on Windows, not allowlisted, or not scoped to the signed-in user, return `authorization_gated` or `blocked_local_runtime`. Do not fall back to admin CLI or backend API key.
+
+## Development/Staging Environment
+
+`dev.mad4b.com` is the governed development host for testing repo-branch deployments before production. It should identify the source GitHub branch, commit SHA, deployment mode, Hostinger root, and validation result. Use the separate `openapi.gpt-action.dev-dispatcher.yaml` schema for passive checks only: `/health`, `/deployment-info`, and protected `/dev/db/status`.
+
+Admin workflow:
+1. Deploy or inspect the dev branch first.
+2. Verify `dev.mad4b.com/health` and `/deployment-info` match the expected branch/commit.
+3. Run release readiness and targeted smoke checks through the auth dispatcher.
+4. Promote to `main`/`auth.mad4b.com` only after explicit approval.
+
+Do not use dev diagnostics for production mutations. Do not treat Hostinger hPanel Git branch metadata as governed evidence unless it is mirrored into repo docs, DB environment registry, or `/deployment-info`.
 
 ## Self-Repair Capabilities
 
@@ -217,16 +230,17 @@ Example:
 
 `GET /activation/session-context` in the Runtime scope loads same-user session history, related scopes, transcript availability, and `platform_access` for hard activation continuity. It is useful at the start of a GPT session and for recovery from prior degraded work. It does not replace Drive, Sheets bootstrap, GitHub validation, release readiness, or provider execution evidence. Raw transcript fields are optional, bounded, and should be requested only with `include_raw=true` when needed.
 
-## Scoped Action Files - Admin 2-Connector Architecture
+## Scoped Action Files - Admin Connector Architecture
 
-The Admin Assistant uses exactly **two** action connectors. Custom GPT is limited to 10 connectors x 30 ops; this architecture consolidates governed platform/admin work into a single auth-host client and keeps the local machine bridge separate.
+The Admin Assistant keeps production control in one auth-host connector, may add a passive dev diagnostics connector, and keeps the local machine bridge separate. Custom GPT connector/operation limits still apply; avoid direct route sprawl.
 
-| Connector | File | Server URL | Ops | Purpose |
-|---|---|---:|---:|---|
-| **Platform** | `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` | `https://auth.mad4b.com` | 19 | Activation context, system + admin tool registries (list/call), GPT meta-tool dispatcher (`listAdminTools` / `callAdminTool`), and a small set of admin-CLI surfaces. All other admin work routes through `callAdminTool` with a registered tool_key. |
-| **Local** | `http-generic-api/openapi.gpt-action.local-connector.yaml` | `https://connector.mad4b.com` | 11 | Standalone local execution bridge for break-glass shell/file/GitHub/gcloud/PS/Win/n8n/cf on the active admin Windows host via Cloudflare Tunnel |
+| Connector | File | Server URL | Purpose |
+|---|---|---:|---|
+| **Platform** | `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` | `https://auth.mad4b.com` | Production control-plane dispatcher. Activation, system/admin tool registries, `listAdminTools` / `callAdminTool`, and governed admin surfaces. |
+| **Dev dispatcher** | `http-generic-api/openapi.gpt-action.dev-dispatcher.yaml` | `https://dev.mad4b.com` | Separate passive staging dispatcher: health, deployment-info, protected dev DB status. No production mutation. |
+| **Local** | `http-generic-api/openapi.gpt-action.local-connector.yaml` | `https://connector.mad4b.com` | Standalone local execution bridge for break-glass shell/file/GitHub/gcloud/PS/Win/n8n/cf on the active admin Windows host. |
 
-`auth.mad4b.com` is the governed control plane and must be the first choice for admin work. The local connector is a standalone plugin/action because it touches the local environment; call it only after the platform action indicates local execution is needed, or when the cloud control plane is unavailable and break-glass recovery is explicitly required. If `connect.mad4b.com` is used as the connector-facing host alias, it must follow the same local-connector contract as `connector.mad4b.com`.
+`auth.mad4b.com` is the governed production control plane and must be the first choice for admin work. Use `dev.mad4b.com` only to verify a branch deployment before promotion. The local connector is a standalone plugin/action because it touches the local environment; call it only after the platform action indicates local execution is needed, or when the cloud control plane is unavailable and break-glass recovery is explicitly required.
 
 ### Platform connector — operations
 
@@ -271,7 +285,7 @@ Do not query a table named `activation_bootstrap_config`; that table is not part
 
 ### Legacy scoped action files (deleted)
 
-The earlier scope-split schemas (`openapi.custom-gpt.runtime.yaml`, `.identity.yaml`, `.customers.yaml`, `.systems.yaml`, `.logic.yaml`, `.observability.yaml`, `.developer.yaml`, `.admin-cli.yaml`, `.ops.yaml`) were consolidated and removed in Sprint 50. `test-custom-gpt-schemas.mjs` asserts they stay deleted. Only three active GPT schemas remain: `openapi.custom-gpt.auth-dispatcher.yaml`, `openapi.tenant-gpt.auth.yaml`, and `openapi.gpt-action.local-connector.yaml`.
+The earlier scope-split schemas (`openapi.custom-gpt.runtime.yaml`, `.identity.yaml`, `.customers.yaml`, `.systems.yaml`, `.logic.yaml`, `.observability.yaml`, `.developer.yaml`, `.admin-cli.yaml`, `.ops.yaml`) were consolidated and removed in Sprint 50. `test-custom-gpt-schemas.mjs` asserts they stay deleted. Active GPT schemas are separated by server URL and principal: `openapi.custom-gpt.auth-dispatcher.yaml`, `openapi.tenant-gpt.auth.yaml`, `openapi.gpt-action.dev-dispatcher.yaml`, and `openapi.gpt-action.local-connector.yaml`.
 
 ## Runtime Scope
 

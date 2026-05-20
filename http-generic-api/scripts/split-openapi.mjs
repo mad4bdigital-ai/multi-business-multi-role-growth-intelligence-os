@@ -3,9 +3,11 @@ import yaml from "js-yaml";
 import path from "path";
 
 // GPT schema architecture:
-//   openapi.custom-gpt.auth-dispatcher.yaml  — admin GPT (MCP-like dispatcher via auth.mad4b.com)
-//   openapi.tenant-gpt.auth.yaml             — tenant GPT (MCP-like dispatcher via auth.mad4b.com)
-//   openapi.gpt-action.local-connector.yaml  — local connector (hand-maintained, connector.mad4b.com)
+//   one server URL per action schema; never mix hosts in one dispatcher schema.
+//   openapi.custom-gpt.auth-dispatcher.yaml  — admin dispatcher on auth.mad4b.com
+//   openapi.tenant-gpt.auth.yaml             — tenant dispatcher on auth.mad4b.com
+//   openapi.gpt-action.dev-dispatcher.yaml   — dev dispatcher on dev.mad4b.com
+//   openapi.gpt-action.local-connector.yaml  — connector dispatcher on connector.mad4b.com
 //
 // Run: node scripts/split-openapi.mjs
 
@@ -214,9 +216,10 @@ function main() {
   generateTenantAuthSchema(sourceDoc);
 
   console.log("\nDone. Active GPT schemas:");
-  console.log("  openapi.custom-gpt.auth-dispatcher.yaml  — admin GPT (auth.mad4b.com)");
-  console.log("  openapi.tenant-gpt.auth.yaml             — tenant GPT (auth.mad4b.com)");
-  console.log("  openapi.gpt-action.local-connector.yaml  — local connector (connector.mad4b.com, hand-maintained)");
+  console.log("  openapi.custom-gpt.auth-dispatcher.yaml  — admin dispatcher (auth.mad4b.com)");
+  console.log("  openapi.tenant-gpt.auth.yaml             — tenant dispatcher (auth.mad4b.com)");
+  console.log("  openapi.gpt-action.dev-dispatcher.yaml   — dev dispatcher (dev.mad4b.com, hand-maintained)");
+  console.log("  openapi.gpt-action.local-connector.yaml  — connector dispatcher (connector.mad4b.com, hand-maintained)");
 }
 
 main();
