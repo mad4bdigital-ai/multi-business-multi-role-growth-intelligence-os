@@ -201,6 +201,9 @@ async function resolveConnectState(userId, jwtTenantId = null) {
     resolvedTenantId ? fetchTenantConnection(resolvedTenantId) : Promise.resolve(null),
     resolvedTenantId ? fetchUserDevices(userId, resolvedTenantId) : Promise.resolve([]),
   ]);
+  const dedicatedIntegrationReadiness = resolvedTenantId
+    ? await assessDedicatedIntegrationReadiness({ tenantId: resolvedTenantId, userId, connection })
+    : null;
   return {
     user,
     memberships,
@@ -208,6 +211,7 @@ async function resolveConnectState(userId, jwtTenantId = null) {
     resolvedTenantId,
     connection,
     devices,
+    dedicatedIntegrationReadiness,
     onboarding: buildOnboardingState({ resolvedTenantId, connection, devices }),
   };
 }
