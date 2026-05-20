@@ -584,14 +584,21 @@ export function buildConnectRoutes(deps) {
   router.post("/connect/activate", requireUserJwt, async (req, res) => {
     try {
       const { user_id, tenant_id } = req.auth;
-      const { mode, cloudflare_mode, google_auth_mode, n8n_activation_mode = "managed_main_server", cf_api_token, cf_account_id, hostinger_api_key } = req.body || {};
-
-      if (!mode || !["managed", "dedicated"].includes(mode)) {
-        return res.status(400).json({ ok: false, error: { code: "invalid_mode", message: "mode must be 'managed' or 'dedicated'." } });
+      const { cf_api_token, cf_account_id, hostinger_api_key } = req.body || {};
+      let modePolicy;
+      try {
+        modePolicy = resolveActivationModePolicy(req.body || {});
+      } catch (modeErr) {
+        return res.status(modeErr.status || 400).json({
+          ok: false,
+          error: {
+            code: modeErr.code || "invalid_activation_mode",
+            message: modeErr.message,
+            details: modeErr.details || activationModeCatalog(),
+          },
+        });
       }
-      if (!VALID_N8N_ACTIVATION_MODES.has(n8n_activation_mode)) {
-        return res.status(400).json({ ok: false, error: { code: "invalid_n8n_activation_mode", message: "n8n_activation_mode must be 'managed_main_server' or 'self_hosted_local'." } });
-      }
+      const { mode, cloudflare_mode, google_auth_mode, n8n_activation_mode } = modePolicy;
 
       const membership = await fetchActiveMembership(user_id);
       const resolvedTenantId = tenant_id || membership?.tenant_id;
