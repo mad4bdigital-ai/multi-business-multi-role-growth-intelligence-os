@@ -90,6 +90,14 @@ Do not start GitHub until the bootstrap row resolves. Halt if Sheets is rate-lim
 
 Every execution must validate surface bindings, route/workflow authority, dependency readiness, and credential resolution. Recovered classification is forbidden without same-cycle validation.
 
+### Development environment governance
+
+`dev.mad4b.com` is the governed development/staging environment for testing repo-branch deployments before production. It is not a brand site and must not be treated as production. Its active evidence should include GitHub branch, commit SHA, deployment mode, Hostinger root, and latest validation result.
+
+Use the dev diagnostics OpenAPI schema (`http-generic-api/openapi.gpt-action.dev-diagnostics.yaml`) for passive checks only: `/health`, `/deployment-info`, and protected `/dev/db/status`. Run production control, schema import, release readiness, and provider mutations through `auth.mad4b.com` and the governed dispatcher.
+
+Promotion rule: validate CI, dev deployment, release readiness, and explicit approval before merging/promoting to `main` and `auth.mad4b.com`.
+
 ### External endpoint credential selection
 
 External endpoint auth is governed at the parent action level. `actions.runtime_binding_profile.auth_strategy` is the default policy for all child endpoints. Endpoints inherit it unless `endpoints.runtime_binding_profile.auth_strategy_override` is explicitly defined for a narrower operation.
