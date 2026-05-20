@@ -51,6 +51,7 @@ const HEALTH_DEPS = {
   normalizeJobStatus: (status) => status,
   getWaitingCountSafe: async () => ({ ok: true, count: 0 }),
   getRedisRuntimeStatus: () => ({ connected: true }),
+  getSqlCacheRuntimeStatus: () => ({ enabled: true, available: false, registry_ttl_seconds: 60 }),
   testDbConnection: async () => {},
   SERVICE_VERSION: "test",
   QUEUE_WORKER_ENABLED: false,
@@ -447,6 +448,8 @@ section("GET /health — DB dependency visible");
   ok("returns 200", r.status === 200, `got ${r.status}`);
   ok("reports DB connected", r.body?.dependencies?.db?.connected === true,
     JSON.stringify(r.body?.dependencies?.db || {}));
+  ok("reports SQL cache dependency", r.body?.dependencies?.sql_cache?.enabled === true,
+    JSON.stringify(r.body?.dependencies?.sql_cache || {}));
 }
 
 section("GET /version and /deployment-manifest - deployment provenance");

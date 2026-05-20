@@ -7,6 +7,7 @@ export function buildHealthRoutes(deps) {
     normalizeJobStatus,
     getWaitingCountSafe,
     getRedisRuntimeStatus,
+    getSqlCacheRuntimeStatus,
     testDbConnection,
     SERVICE_VERSION,
     QUEUE_WORKER_ENABLED
@@ -32,6 +33,9 @@ export function buildHealthRoutes(deps) {
 
     const queueHealth = await getWaitingCountSafe();
     const redisHealth = getRedisRuntimeStatus();
+    const sqlCacheHealth = typeof getSqlCacheRuntimeStatus === "function"
+      ? getSqlCacheRuntimeStatus()
+      : { enabled: false, available: false, skipped: true };
     const dbHealth = testDbConnection
       ? await testDbConnection()
         .then(() => ({ connected: true }))
@@ -69,6 +73,7 @@ export function buildHealthRoutes(deps) {
         worker: {
           enabled: QUEUE_WORKER_ENABLED
         },
+        sql_cache: sqlCacheHealth,
         db: {
           connected: dbHealth.connected,
           ...(dbHealth.error ? { error: dbHealth.error } : {}),

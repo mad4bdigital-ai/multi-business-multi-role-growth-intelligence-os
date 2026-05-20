@@ -13,6 +13,7 @@ import {
   getIdempotencyEntry, setIdempotencyEntry, deleteIdempotencyEntry, hasIdempotencyEntry,
   getRedisRuntimeStatus, getWaitingCountSafe
 } from "./queue.js";
+import { getSqlCacheRuntimeStatus } from "./sqlCache.js";
 
 import {
   createJobRepository,
@@ -3137,6 +3138,7 @@ registerRoutes(app, {
   normalizeJobStatus,
   getWaitingCountSafe,
   getRedisRuntimeStatus,
+  getSqlCacheRuntimeStatus,
   testDbConnection: testConnection,
   SERVICE_VERSION,
   QUEUE_WORKER_ENABLED,

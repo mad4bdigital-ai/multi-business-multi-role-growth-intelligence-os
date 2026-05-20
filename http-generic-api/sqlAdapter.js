@@ -1,4 +1,5 @@
 import { getPool } from "./db.js";
+import { cachedSqlTableRead, invalidateSqlTableCache } from "./sqlCache.js";
 
 // ── Sheet name → SQL table name ────────────────────────────────────────────────
 const TABLE_MAP = {
@@ -340,21 +341,25 @@ function sheetRowToSqlPairs(table, rowObject) {
 
 export async function readTable(sheetName) {
   const table = resolveTable(sheetName);
-  const [rows] = await getPool().query(
-    `SELECT * FROM \`${table}\` ORDER BY id`
-  );
-  return rows.map(({ id, created_at, updated_at, ...rest }) =>
-    sqlRowToSheetRow(table, rest)
-  );
+  return cachedSqlTableRead(table, "sheet_rows", async () => {
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`${table}\` ORDER BY id`
+    );
+    return rows.map(({ id, created_at, updated_at, ...rest }) =>
+      sqlRowToSheetRow(table, rest)
+    );
+  });
 }
 
 // Returns rows with raw snake_case SQL column names — no sheet-name reverse-mapping.
 export async function readTableDirect(sheetName) {
   const table = resolveTable(sheetName);
-  const [rows] = await getPool().query(
-    `SELECT * FROM \`${table}\` ORDER BY id`
-  );
-  return rows.map(({ id, created_at, updated_at, ...rest }) => rest);
+  return cachedSqlTableRead(table, "direct_rows", async () => {
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`${table}\` ORDER BY id`
+    );
+    return rows.map(({ id, created_at, updated_at, ...rest }) => rest);
+  });
 }
 
 export async function appendRow(sheetName, rowObject) {
@@ -367,6 +372,7 @@ export async function appendRow(sheetName, rowObject) {
     `INSERT INTO \`${table}\` (${colList}) VALUES (${placeholders})`,
     vals
   );
+  await invalidateSqlTableCache(table);
   return result.insertId;
 }
 
@@ -379,23 +385,27 @@ export async function updateRow(sheetName, rowObject, id) {
     `UPDATE \`${table}\` SET ${setClause} WHERE id = ?`,
     [...vals, id]
   );
+  await invalidateSqlTableCache(table);
 }
 
 export async function deleteRow(sheetName, id) {
   const table = resolveTable(sheetName);
   await getPool().query(`DELETE FROM \`${table}\` WHERE id = ?`, [id]);
+  await invalidateSqlTableCache(table);
 }
 
 export async function findRows(sheetName, whereColSheet, value) {
   const table = resolveTable(sheetName);
   const col = toSqlCol(whereColSheet);
-  const [rows] = await getPool().query(
-    `SELECT * FROM \`${table}\` WHERE \`${col}\` = ? ORDER BY id`,
-    [value]
-  );
-  return rows.map(({ id, created_at, updated_at, ...rest }) =>
-    sqlRowToSheetRow(table, rest)
-  );
+  return cachedSqlTableRead(table, `find_${col}_${String(value || "").slice(0, 128)}`, async () => {
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`${table}\` WHERE \`${col}\` = ? ORDER BY id`,
+      [value]
+    );
+    return rows.map(({ id, created_at, updated_at, ...rest }) =>
+      sqlRowToSheetRow(table, rest)
+    );
+  });
 }
 
 // Bulk insert — used by the migrator script. Processes in chunks of 100 rows.
@@ -427,24 +437,28 @@ export async function bulkInsertRows(sheetName, rows, { ignore = false } = {}) {
     );
     total += result.affectedRows;
   }
+  await invalidateSqlTableCache(table);
   return total;
 }
 
 export async function clearTable(sheetName) {
   const table = resolveTable(sheetName);
   await getPool().query(`TRUNCATE TABLE \`${table}\``);
+  await invalidateSqlTableCache(table);
 }
 
 // Like readTable but keeps the auto-increment `id` so callers can UPDATE by it.
 export async function readTableRaw(sheetName) {
   const table = resolveTable(sheetName);
-  const [rows] = await getPool().query(
-    `SELECT * FROM \`${table}\` ORDER BY id`
-  );
-  return rows.map(({ id, created_at, updated_at, ...rest }) => ({
-    id,
-    ...sqlRowToSheetRow(table, rest)
-  }));
+  return cachedSqlTableRead(table, "raw_rows", async () => {
+    const [rows] = await getPool().query(
+      `SELECT * FROM \`${table}\` ORDER BY id`
+    );
+    return rows.map(({ id, created_at, updated_at, ...rest }) => ({
+      id,
+      ...sqlRowToSheetRow(table, rest)
+    }));
+  });
 }
 
 // Update a row by its auto-increment id using sheet-style column names.
@@ -457,6 +471,7 @@ export async function updateRowById(sheetName, rowObject, id) {
     `UPDATE \`${table}\` SET ${setClause} WHERE id = ?`,
     [...vals, id]
   );
+  await invalidateSqlTableCache(table);
 }
 
 export { TABLE_MAP, SHEET_COLUMNS };
