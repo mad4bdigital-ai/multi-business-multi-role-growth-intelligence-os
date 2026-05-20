@@ -120,7 +120,7 @@ If the customer connector is missing, disabled, not on Windows, not allowlisted,
 
 ## Development/Staging Environment
 
-`dev.mad4b.com` is the governed development host for testing repo-branch deployments before production. It should identify the source GitHub branch, commit SHA, deployment mode, Hostinger root, and validation result. Use `openapi.gpt-action.dev-diagnostics.yaml` for passive checks only: `/health`, `/deployment-info`, and protected `/dev/db/status`.
+`dev.mad4b.com` is the governed development host for testing repo-branch deployments before production. It should identify the source GitHub branch, commit SHA, deployment mode, Hostinger root, and validation result. Use the separate `openapi.gpt-action.dev-dispatcher.yaml` schema for passive checks only: `/health`, `/deployment-info`, and protected `/dev/db/status`.
 
 Admin workflow:
 1. Deploy or inspect the dev branch first.
