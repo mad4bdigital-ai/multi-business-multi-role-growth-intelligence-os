@@ -27,6 +27,8 @@ servers:
 tags:
   - name: health
     description: Backend health and queue status.
+  - name: dev-diagnostics
+    description: Passive development environment diagnostics for dev.mad4b.com.
   - name: activation
     description: Once-per-session activation probes, session history, and scope context.
   - name: jobs
