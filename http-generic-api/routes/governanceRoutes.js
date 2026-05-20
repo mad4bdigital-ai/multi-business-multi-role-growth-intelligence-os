@@ -3,6 +3,7 @@ import { buildGovernedExecutionContext } from "../governedContextResolution.js";
 import { loadPathResolverRowsForRequest } from "../pathResolverRowsLoader.js";
 import { getPool } from "../db.js";
 import { TABLE_MAP, SHEET_COLUMNS } from "../sqlAdapter.js";
+import { resolvePlatformGraphContext } from "../services/platformKnowledgeGraphResolver.js";
 
 export function buildGovernanceRoutes(deps) {
   const {
