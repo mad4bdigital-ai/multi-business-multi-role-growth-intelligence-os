@@ -445,6 +445,7 @@ export function buildConnectRoutes(deps) {
         memberships_count: state.memberships.length,
         memberships: state.memberships.map((m) => ({ tenant_id: m.tenant_id, role: m.role, display_name: m.tenant_display_name })),
         onboarding: state.onboarding,
+        activation_mode_catalog: activationModeCatalog(),
         connection: state.connection ? {
           mode: state.connection.connection_mode,
           status: state.connection.status,
