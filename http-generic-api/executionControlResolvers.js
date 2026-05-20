@@ -25,6 +25,33 @@ function containsAny(haystack, needles) {
   return needles.some((needle) => value.includes(needle));
 }
 
+function redactPreviewValue(key, value) {
+  const k = lower(key);
+  if (/(authorization|token|secret|password|api[_-]?key|key)$/i.test(k)) return "[redacted]";
+  return value;
+}
+
+function redactObject(value = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).map(([key, val]) => [key, redactPreviewValue(key, val)]));
+}
+
+function redactUrl(rawUrl = "") {
+  const value = normalize(rawUrl);
+  if (!value) return "";
+  try {
+    const url = new URL(value);
+    for (const key of Array.from(url.searchParams.keys())) {
+      if (redactPreviewValue(key, url.searchParams.get(key)) === "[redacted]") {
+        url.searchParams.set(key, "[redacted]");
+      }
+    }
+    return url.toString();
+  } catch {
+    return value;
+  }
+}
+
 export function classifyEndpointRisk({ action = {}, endpoint = {}, method = "", path = "", principal = null } = {}) {
   const httpMethod = normalize(method || endpoint.method).toUpperCase();
   const text = [
