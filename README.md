@@ -279,6 +279,7 @@ Operations and validation:
 - [`connector_contracts.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/connector_contracts.md>)
 - [`docs/external-endpoint-auth-strategy.md`](docs/external-endpoint-auth-strategy.md)
 - [`deployment_parity_checklist.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/deployment_parity_checklist.md>)
+- [`docs/development-environment-governance.md`](docs/development-environment-governance.md)
 - [`runtime_confirmation_procedure.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/runtime_confirmation_procedure.md>)
 
 Agent-facing guide:
