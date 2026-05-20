@@ -157,13 +157,14 @@ export function buildDeploymentInfoRoutes() {
     const git = await readGitCheckoutInfo();
     const host = String(req.headers.host || "").toLowerCase();
     const isDevHostname = host.startsWith("dev.mad4b.com");
+    const expectedDevBranch = firstString(process.env.DEV_DEPLOYMENT_BRANCH, process.env.GOVERNED_DEV_BRANCH, "dev");
     const branch = firstString(
       deployment?.branch,
       process.env.GITHUB_REF_NAME,
       process.env.DEPLOY_BRANCH,
       process.env.BRANCH_NAME,
       git?.branch,
-      isDevHostname ? "dev-autopilot-routing" : null
+      isDevHostname ? expectedDevBranch : null
     );
     const commitSha = firstString(
       deployment?.commit_sha,
