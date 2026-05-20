@@ -455,7 +455,7 @@ async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null,
     throw err;
   }
 
-  const payload = normalizePlatformEndpointCallArgs(row, args);
+  const payload = normalizePlatformEndpointCallArgs(row, args, auth);
   const result = await callRuntimeEndpointViaFacade(payload, deps);
   return { handled: true, result };
 }
