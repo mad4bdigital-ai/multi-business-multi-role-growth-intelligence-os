@@ -30,10 +30,10 @@ hostinger_root = /home/u338416126/domains/dev.mad4b.com/<runtime-root>
 validation_status = pass | warn | fail
 ```
 
-The public/passive diagnostics schema is:
+The public/passive dispatcher schema for this server URL is:
 
 ```text
-http-generic-api/openapi.gpt-action.dev-diagnostics.yaml
+http-generic-api/openapi.gpt-action.dev-dispatcher.yaml
 ```
 
 It exposes only:
