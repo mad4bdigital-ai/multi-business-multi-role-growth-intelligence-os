@@ -593,6 +593,8 @@ export function buildConnectRoutes(deps) {
         capabilities,
         next_actions: state.onboarding.allowed_actions,
         activation_mode_catalog: activationModeCatalog(),
+        dedicated_integration_catalog: dedicatedIntegrationCatalog(),
+        dedicated_integration_readiness: state.dedicatedIntegrationReadiness,
       });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "capabilities_read_failed", message: err.message } });
