@@ -32,12 +32,13 @@ function assertCheck(checks, name, passed, details = {}) {
 async function main() {
   const args = parseArgs();
   const base = String(args.base_url || "https://dev.mad4b.com").replace(/\/$/, "");
+  const expectedBranch = String(args.expected_branch || process.env.DEV_DEPLOYMENT_BRANCH || process.env.GOVERNED_DEV_BRANCH || "dev").trim();
   const checks = [];
 
   const status = await fetchDevStatus({ base_url: base });
   assertCheck(checks, "dev health is OK", status.summary.health.status === 200 && status.summary.health.ok, status.summary.health);
   assertCheck(checks, "deployment-info is OK", status.summary.deployment.status === 200 && status.summary.deployment.ok, status.summary.deployment);
-  assertCheck(checks, "deployment branch is dev-autopilot-routing", status.summary.deployment.branch === "dev-autopilot-routing", status.summary.deployment);
+  assertCheck(checks, `deployment branch is ${expectedBranch}`, status.summary.deployment.branch === expectedBranch, status.summary.deployment);
   assertCheck(checks, "dev db status is OK", status.summary.db_status.status === 200 && status.summary.db_status.ok, status.summary.db_status);
   assertCheck(checks, "dev db clone has expected minimum table count", Number(status.summary.db_status.table_count || 0) >= 160, status.summary.db_status);
   assertCheck(checks, "dev db clone has expected minimum row count", Number(status.summary.db_status.row_count || 0) >= 40000, status.summary.db_status);
