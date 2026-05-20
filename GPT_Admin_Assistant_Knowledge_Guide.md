@@ -16,7 +16,7 @@ Use this guide together with:
 2. `AI_Agent_Knowledge_Guide.md`
 3. `http-generic-api/openapi.yaml`
 4. `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` (production control-plane dispatcher)
-5. `http-generic-api/openapi.gpt-action.dev-diagnostics.yaml` (passive `dev.mad4b.com` deployment diagnostics)
+5. `http-generic-api/openapi.gpt-action.dev-dispatcher.yaml` (separate passive dispatcher for `dev.mad4b.com`)
 6. `http-generic-api/openapi.gpt-action.local-connector.yaml` (local connector break-glass bridge)
 
 ## GPT Action Auth
