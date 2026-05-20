@@ -50,10 +50,11 @@ For each Node.js app that should auto-deploy:
 mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
 ```
 
-6. Select branch:
+6. Select branch by environment:
 
 ```text
-main
+dev.mad4b.com  -> dev or the governed active development branch
+auth.mad4b.com -> main
 ```
 
 7. Use repository root as app root unless Hostinger explicitly supports separate app root and install/start commands.
