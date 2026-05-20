@@ -216,9 +216,10 @@ function main() {
   generateTenantAuthSchema(sourceDoc);
 
   console.log("\nDone. Active GPT schemas:");
-  console.log("  openapi.custom-gpt.auth-dispatcher.yaml  — admin GPT (auth.mad4b.com)");
-  console.log("  openapi.tenant-gpt.auth.yaml             — tenant GPT (auth.mad4b.com)");
-  console.log("  openapi.gpt-action.local-connector.yaml  — local connector (connector.mad4b.com, hand-maintained)");
+  console.log("  openapi.custom-gpt.auth-dispatcher.yaml  — admin dispatcher (auth.mad4b.com)");
+  console.log("  openapi.tenant-gpt.auth.yaml             — tenant dispatcher (auth.mad4b.com)");
+  console.log("  openapi.gpt-action.dev-dispatcher.yaml   — dev dispatcher (dev.mad4b.com, hand-maintained)");
+  console.log("  openapi.gpt-action.local-connector.yaml  — connector dispatcher (connector.mad4b.com, hand-maintained)");
 }
 
 main();
