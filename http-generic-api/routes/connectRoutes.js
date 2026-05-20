@@ -710,6 +710,20 @@ export function buildConnectRoutes(deps) {
 
       const connection = await fetchTenantConnection(resolvedTenantId);
       const useManagedProvisioning = (connection?.cloudflare_mode || "managed") === "managed";
+      if (!useManagedProvisioning) {
+        const readiness = await assessDedicatedIntegrationReadiness({ tenantId: resolvedTenantId, userId: user_id, connection });
+        if (!readiness.ready) {
+          return res.status(409).json({
+            ok: false,
+            error: {
+              code: "dedicated_integrations_required",
+              message: "Dedicated device install requires tenant-owned Cloudflare and Hostinger app connections before provisioning.",
+              details: readiness,
+            },
+            dedicated_integration_catalog: dedicatedIntegrationCatalog(),
+          });
+        }
+      }
       const result = await provisionLocalConnectorInstall(req, {
         user_id,
         tenant_id: resolvedTenantId,
