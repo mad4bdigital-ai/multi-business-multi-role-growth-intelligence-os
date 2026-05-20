@@ -561,9 +561,12 @@ function localManagerLinkDevicePage(initialCode = "") {
     </div>
     <div class="card">
       <h2>2. Sign in</h2>
+      <div id="googleSignIn"></div>
+      <p id="googleHint" class="bad" style="display:none;">Google sign-in is not configured yet.</p>
       <label for="email">Email</label><input id="email" type="email" autocomplete="email" />
       <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" />
       <button id="signIn">Sign in</button>
+      <button class="secondary" id="forgotPassword">Forgot password?</button>
       <button class="secondary" id="createAccount">Create account</button>
       <label for="displayName">Name for new account</label><input id="displayName" autocomplete="name" />
       <label for="workspaceName">Workspace for new account</label><input id="workspaceName" />
