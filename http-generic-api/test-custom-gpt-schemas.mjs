@@ -27,6 +27,12 @@ const ACTIVE_SCHEMAS = {
     maxOperations: 30,
     requiredOperations: ["activateSession", "listTools", "callTool", "writeSessionTurn", "endSession"],
   },
+  "openapi.gpt-action.dev-dispatcher.yaml": {
+    serverUrl: "https://dev.mad4b.com",
+    securityScheme: "backendBearerAuth",
+    maxOperations: 10,
+    requiredOperations: ["getDevHealth", "getDevDeploymentInfo", "getDevDbStatus"],
+  },
   "openapi.gpt-action.local-connector.yaml": {
     serverUrl: "https://connector.mad4b.com",
     securityScheme: "backendBearerAuth",
