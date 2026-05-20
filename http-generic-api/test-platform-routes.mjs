@@ -328,6 +328,9 @@ section("Admin system layer connector facade");
 {
   const r = await get("/admin/system/tools");
   ok("system tools returns 200", r.status === 200, `got ${r.status}`);
+  ok("system tools exposes passive endpoint preview", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "runtime_endpoint_preview"));
+  const previewTool = r.body.tools.find((tool) => tool.name === "runtime_endpoint_preview");
+  ok("passive endpoint preview requires parent and endpoint keys", Array.isArray(previewTool?.inputSchema?.required) && previewTool.inputSchema.required.includes("parent_action_key") && previewTool.inputSchema.required.includes("endpoint_key"));
   ok("system tools exposes connector registry list", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "connector_registry_list"));
   ok("system tools exposes connector registry get", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "connector_registry_get"));
   ok("system tools exposes provider bootstrap chain", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "activation_provider_bootstrap_validate"));

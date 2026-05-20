@@ -27,8 +27,30 @@ import {
 import { requireAdminPrincipal } from "./adminCliRoutes.js";
 import { decodeGitHubAppPrivateKey, resolveGitHubAppConfig } from "../githubAppAuth.js";
 import { DATA_SOURCE_MODE } from "../dataSource.js";
+import { derivePrincipalExecutionContext } from "../executionControlResolvers.js";
 
 const SYSTEM_LAYER_TOOLS = [
+  {
+    name: "runtime_endpoint_preview",
+    description: "Passive dry-run resolver for a governed endpoint. Resolves action, endpoint, schema, provider URL, credentials, risk, and readiness without calling the provider.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        parent_action_key: { type: "string" },
+        endpoint_key: { type: "string" },
+        path_params: { type: "object", additionalProperties: true },
+        query: { type: "object", additionalProperties: true },
+        body: { type: "object", additionalProperties: true },
+        headers: { type: "object", additionalProperties: true },
+        credential_scope: { type: "string", enum: ["platform", "tenant", "user", "connection", "auto"] },
+        connection_id: { type: "string" },
+        app_key: { type: "string" },
+        auth_type: { type: "string" },
+        auth_context: { type: "object", additionalProperties: true },
+      },
+      required: ["parent_action_key", "endpoint_key"],
+    },
+  },
   {
     name: "connector_registry_list",
     description: "List connector systems from the connected_systems registry.",
@@ -379,38 +401,44 @@ async function callRuntimeEndpointViaFacade(payload, deps = {}) {
 // Cap all platform endpoint tool calls to 25s so we always respond before that.
 const PLATFORM_TOOL_MAX_TIMEOUT_SECONDS = 25;
 
-function normalizePlatformEndpointCallArgs(row, args = {}) {
+function normalizePlatformEndpointCallArgs(row, args = {}, auth = null) {
+  let payload;
   if (row.tool_name === "runtime_endpoint_call") {
-    return args;
-  }
+    payload = { ...(args || {}) };
+  } else {
+    payload = {
+      parent_action_key: row.parent_action_key,
+      endpoint_key: row.endpoint_key,
+      path_params: args.path_params || args.path || {},
+      query: args.query || {},
+      headers: args.headers || {},
+      timeout_seconds: Math.min(
+        Number(args.timeout_seconds) || PLATFORM_TOOL_MAX_TIMEOUT_SECONDS,
+        PLATFORM_TOOL_MAX_TIMEOUT_SECONDS
+      ),
+      readback: args.readback || { required: false, mode: "none" },
+    };
 
-  const payload = {
-    parent_action_key: row.parent_action_key,
-    endpoint_key: row.endpoint_key,
-    path_params: args.path_params || args.path || {},
-    query: args.query || {},
-    headers: args.headers || {},
-    timeout_seconds: Math.min(
-      Number(args.timeout_seconds) || PLATFORM_TOOL_MAX_TIMEOUT_SECONDS,
-      PLATFORM_TOOL_MAX_TIMEOUT_SECONDS
-    ),
-    readback: args.readback || { required: false, mode: "none" },
-  };
+    for (const optionalAuthField of ["user_id", "tenant_id", "credential_scope", "connection_id", "app_key", "scopes", "auth_type", "allow_platform_fallback", "auth_context", "dry_run"]) {
+      if (Object.prototype.hasOwnProperty.call(args, optionalAuthField)) {
+        payload[optionalAuthField] = args[optionalAuthField];
+      }
+    }
 
-  for (const optionalAuthField of ["user_id", "tenant_id", "credential_scope", "connection_id", "app_key", "scopes", "auth_type", "allow_platform_fallback", "auth_context"]) {
-    if (Object.prototype.hasOwnProperty.call(args, optionalAuthField)) {
-      payload[optionalAuthField] = args[optionalAuthField];
+    const method = String(row.method || "").toUpperCase();
+    const hasBody = args.body && Object.keys(args.body).length > 0;
+
+    if (!["GET", "HEAD"].includes(method) && hasBody) {
+      payload.body = args.body;
     }
   }
 
-  const method = String(row.method || "").toUpperCase();
-  const hasBody = args.body && Object.keys(args.body).length > 0;
-
-  if (!["GET", "HEAD"].includes(method) && hasBody) {
-    payload.body = args.body;
-  }
-
-  return payload;
+  const guarded = derivePrincipalExecutionContext(payload, auth);
+  return {
+    ...guarded.payload,
+    _principal: guarded.principal,
+    _principal_context_guard: guarded.guard,
+  };
 }
 
 async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null, deps = {}) {
@@ -448,7 +476,7 @@ async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null,
     throw err;
   }
 
-  const payload = normalizePlatformEndpointCallArgs(row, args);
+  const payload = normalizePlatformEndpointCallArgs(row, args, auth);
   const result = await callRuntimeEndpointViaFacade(payload, deps);
   return { handled: true, result };
 }
@@ -1077,6 +1105,15 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
 
   assertAdminToolAccess(name, auth);
   switch (name) {
+    case "runtime_endpoint_preview": {
+      const guarded = derivePrincipalExecutionContext({ ...(args || {}), dry_run: true }, auth);
+      return await callRuntimeEndpointViaFacade({
+        ...guarded.payload,
+        dry_run: true,
+        _principal: guarded.principal,
+        _principal_context_guard: guarded.guard,
+      }, deps);
+    }
     case "connector_registry_list":
       return { connectors: await listConnectorRegistry(args, auth) };
     case "connector_registry_get":
