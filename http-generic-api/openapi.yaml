@@ -7802,7 +7802,12 @@ paths:
                   app_key: { type: string }
                   auth_type: { type: string }
                   secret_exposed: { type: boolean, enum: [false] }
-        "400": { $ref: "#/components/responses/ValidationError" }
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401": { $ref: "#/components/responses/Unauthorized" }
         default:
           description: Error response
