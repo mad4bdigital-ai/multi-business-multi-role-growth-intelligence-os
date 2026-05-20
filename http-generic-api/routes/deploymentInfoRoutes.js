@@ -198,7 +198,7 @@ export function buildDeploymentInfoRoutes() {
         ["DEPLOY_BRANCH", process.env.DEPLOY_BRANCH],
         ["BRANCH_NAME", process.env.BRANCH_NAME],
         ["git_checkout", git?.branch],
-        ["dev_hostname_fallback", isDevHostname ? "dev-autopilot-routing" : null],
+        ["dev_hostname_fallback", isDevHostname ? expectedDevBranch : null],
       ]),
       commit: commitSha,
       commit_sha: commitSha,
