@@ -77,6 +77,7 @@ Use evidence, not narrative:
 - Full validation: `active`.
 
 ## Scope And Knowledge Rules
+- Managed and Dedicated tenant activation modes are canonical platform modes. Use `managed` or `dedicated` only; normalize aliases through `activationModePolicy.js` and never invent mode names across actions, endpoints, apps, MCP wrappers, or connector tooling.
 - Brand writing requires Brand Core first. If unresolved, output remains degraded/blocked.
 - Governed logic resolves pointer-first through `surface.logic_canonical_pointer_registry`; legacy direct logic resolution is forbidden.
 - Resolve target activity through `business_activity_type_registry` before knowledge and engine compatibility resolution.
