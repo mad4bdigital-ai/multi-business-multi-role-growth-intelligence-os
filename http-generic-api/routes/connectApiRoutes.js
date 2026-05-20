@@ -135,6 +135,90 @@ export function buildConnectApiRoutes(deps = {}) {
     }
   });
 
+  // POST /connect/api/credential-intake/sessions — create a short-lived secure secret-entry link.
+  router.post("/connect/api/credential-intake/sessions", async (req, res, next) => {
+    try {
+      const {
+        app_key,
+        auth_type,
+        display_label,
+        mcp_endpoint,
+        webhook_url,
+        api_base_url,
+        workspace_id,
+        credential_schema,
+        metadata,
+        expires_in_minutes,
+      } = req.body || {};
+
+      if (!app_key || !auth_type) {
+        return res.status(400).json({ ok: false, error: { code: "missing_required_fields", message: "app_key and auth_type are required." } });
+      }
+
+      const [apps] = await pool.query(
+        `SELECT app_key, display_name, auth_type, status
+           FROM \`app_integrations\`
+          WHERE app_key = ? AND status IN ('active','beta')
+          LIMIT 1`,
+        [app_key]
+      );
+      const app = apps?.[0];
+      if (!app) return res.status(404).json({ ok: false, error: { code: "app_not_found", message: `App ${app_key} was not found.` } });
+      if (app.auth_type !== auth_type) {
+        return res.status(400).json({ ok: false, error: { code: "auth_type_mismatch", message: `App ${app_key} expects auth_type ${app.auth_type}.` } });
+      }
+      if (auth_type === "oauth2") {
+        return res.status(400).json({ ok: false, error: { code: "oauth_flow_required", message: "OAuth apps must use their authorization flow, not manual credential intake." } });
+      }
+
+      const sessionId = randomUUID();
+      const token = randomToken();
+      const tokenHash = sha256(token);
+      const ttl = clampTtlMinutes(expires_in_minutes);
+      const expiresAt = new Date(Date.now() + ttl * 60_000).toISOString().slice(0, 19).replace("T", " ");
+      const schema = normalizeCredentialSchema(auth_type, credential_schema || null);
+
+      await pool.query(
+        `INSERT INTO credential_intake_sessions
+           (session_id, token_hash, user_id, tenant_id, app_key, auth_type, display_label,
+            mcp_endpoint, webhook_url, api_base_url, workspace_id, credential_schema_json,
+            metadata_json, status, expires_at, created_by)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`,
+        [
+          sessionId,
+          tokenHash,
+          req.auth.user_id,
+          req.auth.tenant_id,
+          app_key,
+          auth_type,
+          display_label || null,
+          mcp_endpoint || null,
+          webhook_url || null,
+          api_base_url || null,
+          workspace_id || null,
+          JSON.stringify(schema),
+          JSON.stringify({ ...(metadata || {}), source: "connect_api_user_jwt" }),
+          expiresAt,
+          req.auth.user_id,
+        ]
+      );
+
+      const intakeUrl = `${absoluteBaseUrl(req)}/credential-intake/${encodeURIComponent(token)}`;
+      return res.status(201).json({
+        ok: true,
+        session_id: sessionId,
+        intake_url: intakeUrl,
+        expires_at: expiresAt,
+        app_key,
+        auth_type,
+        secret_exposed: false,
+        next_action: "open_intake_url_and_submit_credentials",
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // POST /connect/api/cms/claims — verify WordPress credentials + create claim.
   router.post("/connect/api/cms/claims", async (req, res) => {
     try {
