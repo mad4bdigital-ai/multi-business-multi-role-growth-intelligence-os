@@ -2,6 +2,7 @@ import { Router } from "express";
 import { getPool } from "../db.js";
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { decryptCredentials } from "../tokenEncryption.js";
+import { normalizeConnectionMode } from "../activationModePolicy.js";
 
 const CF_API = "https://api.cloudflare.com/client/v4";
 const CONNECTOR_PORT = 7070;
