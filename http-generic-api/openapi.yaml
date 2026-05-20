@@ -1487,6 +1487,334 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
 
+  /local-manager/device-link/start:
+    post:
+      tags: [local-manager]
+      security: []
+      operationId: startLocalManagerDeviceLink
+      summary: Start a Local Manager device-code pairing session
+      x-openai-isConsequential: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocalManagerDeviceLinkStartRequest"
+      responses:
+        "201":
+          description: Pairing session created with code and private poll token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalManagerDeviceLinkStartResponse"
+        "400":
+          description: Invalid pairing request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Pairing session creation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /local-manager/device-link/preview:
+    get:
+      tags: [local-manager]
+      security: []
+      operationId: previewLocalManagerDeviceLink
+      summary: Preview a pairing code without exposing owner or token secrets
+      x-openai-isConsequential: false
+      parameters:
+        - name: code
+          in: query
+          schema: { type: string }
+          description: Pairing code shown in the Windows app.
+        - name: device_code
+          in: query
+          schema: { type: string }
+          description: Alternate pairing code field accepted by the backend.
+        - name: user_code
+          in: query
+          schema: { type: string }
+          description: Alternate pairing code field accepted by the backend.
+      responses:
+        "200":
+          description: Secret-free pairing preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalManagerDeviceLinkPreviewResponse"
+        "400":
+          description: Missing pairing code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Pairing code not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /local-manager/device-link/poll:
+    post:
+      tags: [local-manager]
+      security: []
+      operationId: pollLocalManagerDeviceLink
+      summary: Poll device-link status from the Windows app
+      x-openai-isConsequential: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocalManagerDeviceLinkPollRequest"
+      responses:
+        "200":
+          description: Approved, completed, or terminal pairing state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalManagerDeviceLinkPollResponse"
+        "202":
+          description: Pairing session is still pending approval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalManagerDeviceLinkPollResponse"
+        "400":
+          description: Missing device_code or poll_token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Pairing session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "410":
+          description: Pairing code expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /local-manager/device-link/approve:
+    post:
+      tags: [local-manager]
+      security:
+        - localManagerBearerAuth: []
+      operationId: approveLocalManagerDeviceLink
+      summary: Approve a pending pairing code for the signed-in user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocalManagerDeviceLinkCodeRequest"
+      responses:
+        "200":
+          description: Pairing code approved for the signed-in user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalManagerDeviceLinkApproveResponse"
+        "400":
+          description: Missing pairing code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Signed-in user JWT is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Active tenant membership required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Pairing code is no longer pending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "410":
+          description: Pairing code expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /local-manager/device-link/devices:
+    get:
+      tags: [local-manager]
+      security:
+        - localManagerBearerAuth: []
+      operationId: listLocalManagerLinkedDevices
+      summary: List devices linked to the signed-in user
+      x-openai-isConsequential: false
+      responses:
+        "200":
+          description: Linked devices for the signed-in user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalManagerLinkedDevicesResponse"
+        "401":
+          description: Signed-in user JWT is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Active tenant membership required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /local-manager/device/session:
+    get:
+      tags: [local-manager]
+      security:
+        - localManagerBearerAuth: []
+      operationId: getLocalManagerDeviceSession
+      summary: Read the current linked-device session using a device token
+      x-openai-isConsequential: false
+      responses:
+        "200":
+          description: Current linked-device session and available controls
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalManagerDeviceSessionResponse"
+        "401":
+          description: Linked device token is required or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Wrong token scope or missing linked-device session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /local-manager/device/controls:
+    get:
+      tags: [local-manager]
+      security:
+        - localManagerBearerAuth: []
+      operationId: getLocalManagerDeviceControls
+      summary: Read device control metadata for a linked Local Manager device
+      x-openai-isConsequential: false
+      parameters:
+        - name: section
+          in: query
+          schema: { type: string, enum: [overview, routes, backups, settings], default: overview }
+      responses:
+        "200":
+          description: Device control metadata for the requested section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalManagerDeviceControlsResponse"
+        "400":
+          description: Unsupported control section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Linked device token is required or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Wrong token scope or missing linked-device session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /app/local-manager/update/windows:
+    get:
+      tags: [local-manager]
+      security: []
+      operationId: getLocalManagerWindowsUpdate
+      summary: Get Windows Local Manager update metadata
+      x-openai-isConsequential: false
+      parameters:
+        - name: current_version
+          in: query
+          schema: { type: string }
+        - name: version
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Secret-free Windows update metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalManagerWindowsUpdateResponse"
+
+  /local-manager/beta/status:
+    get:
+      tags: [local-manager]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: getLocalManagerBetaStatus
+      summary: Admin-only read-only Local Manager beta device status
+      x-openai-isConsequential: false
+      parameters:
+        - name: device_id
+          in: query
+          schema: { type: string }
+        - name: user_id
+          in: query
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        "200":
+          description: Read-only Local Manager device status with redacted URLs
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          description: Backend/admin authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Admin principal required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /activation/session-context:
     get:
       tags: [activation]
