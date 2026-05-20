@@ -197,7 +197,7 @@ export function buildConnectApiRoutes(deps = {}) {
           api_base_url || null,
           workspace_id || null,
           JSON.stringify(schema),
-          JSON.stringify({ ...(metadata || {}), source: "connect_api_user_jwt" }),
+          JSON.stringify({ ...((metadata && typeof metadata === "object" && !Array.isArray(metadata)) ? metadata : {}), source: "connect_api_user_jwt" }),
           expiresAt,
           req.auth.user_id,
         ]
