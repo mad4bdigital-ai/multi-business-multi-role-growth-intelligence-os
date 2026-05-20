@@ -588,6 +588,27 @@ const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&
 function normalizeCode(value){ return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^(.{4})(.*)$/,'$1-$2').slice(0,9); }
 function setOut(obj){ $('out').textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2); }
 function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); $('authState').innerHTML = '<span class="ok">Signed in as '+esc(user?.email || user?.user_id || 'user')+'</span>'; }
+async function completeAuth(token, user){
+  setToken(token, user);
+  const code = normalizeCode($('deviceCode').value);
+  if(code) await approveDevice(); else setOut({ok:true,next:'Enter the pairing code, then approve this device.'});
+}
+function setupGoogle(){
+  if(!GOOGLE_CLIENT_ID){ $('googleHint').style.display='block'; return; }
+  if(!window.google?.accounts?.id) return window.setTimeout(setupGoogle, 250);
+  window.google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: async (response) => {
+      try {
+        const res = await fetch('/auth/google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id_token:response.credential})});
+        const data = await res.json();
+        if(!res.ok || !data.token){ setOut(data); return; }
+        await completeAuth(data.token, data);
+      } catch (err) { setOut({ok:false,error:{code:'google_sign_in_failed',message:err.message}}); }
+    }
+  });
+  window.google.accounts.id.renderButton($('googleSignIn'), { theme:'outline', size:'large', width:320, text:'continue_with', locale:'en' });
+}
 async function loadPreview(){
   const code = normalizeCode($('deviceCode').value);
   if(!code){ $('devicePreview').textContent = 'Enter a code to load device details.'; return; }
