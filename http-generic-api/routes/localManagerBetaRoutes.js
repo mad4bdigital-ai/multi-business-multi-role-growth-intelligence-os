@@ -769,7 +769,7 @@ async function ensureLocalAppReleasesTable() {
        status = VALUES(status),
        published_at = COALESCE(published_at, VALUES(published_at))`,
     [
-      "mad4b-local-manager-windows-latest-prerelease-0-1-1",
+      "mad4b-local-manager-windows-latest-prerelease-0-1-2",
       LOCAL_MANAGER_WINDOWS_LATEST_VERSION,
       LOCAL_MANAGER_WINDOWS_RELEASE_TAG,
       LOCAL_MANAGER_WINDOWS_EXE_URL,
