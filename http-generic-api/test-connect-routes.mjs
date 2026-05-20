@@ -450,6 +450,7 @@ section("connect api auth scope");
   {
     const indexSource = readFileSync("routes/index.js", "utf8");
     const betaSource = readFileSync("routes/localManagerBetaRoutes.js", "utf8");
+    const authSource = readFileSync("routes/authRoutes.js", "utf8");
     assert("local manager beta routes are imported and mounted",
       indexSource.includes("buildLocalManagerBetaRoutes") &&
       indexSource.includes("./localManagerBetaRoutes.js") &&
