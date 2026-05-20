@@ -890,6 +890,19 @@ export function buildAuthRoutes(deps) {
     }
   });
 
+  // ── GET /auth/password/reset ───────────────────────────────────────────────
+  router.get("/password/reset", (req, res) => {
+    const token = cleanText(req.query?.token, 512);
+    const returnTo = safeReturnTo(req.query?.return_to || "/connect");
+    res.setHeader("cache-control", "no-store");
+    return res.status(200).type("html").send(`<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Reset password · Mad4B</title>
+<style>body{font-family:Arial,sans-serif;margin:0;background:#07111f;color:#f0f5ff;display:grid;min-height:100vh;place-items:center}main{width:min(460px,calc(100vw - 32px));background:#101a30;border:1px solid #2d3f62;border-radius:22px;padding:26px;box-shadow:0 24px 70px rgba(0,0,0,.28)}label{display:block;margin:12px 0 5px;color:#a8b6d8;font-size:13px}input{width:100%;box-sizing:border-box;border-radius:14px;border:1px solid #2d3f62;padding:12px;background:#0b1428;color:#f0f5ff}button,a{display:inline-flex;border-radius:14px;border:1px solid #87a0ff;padding:12px 16px;color:white;background:#6383ff;text-decoration:none;font-weight:800;margin-top:14px}pre{white-space:pre-wrap;background:#0b1428;border:1px solid #2d3f62;border-radius:14px;padding:12px}</style></head>
+<body><main><h1>Reset your password</h1><p>Enter a new password for your Mad4B account.</p><label>New password</label><input id="password" type="password" autocomplete="new-password" minlength="8"/><button id="reset">Reset password</button><a href="${escapeHtmlAttribute(returnTo)}">Back</a><pre id="out">Waiting.</pre></main>
+<script>const token=${JSON.stringify(token)};const returnTo=${JSON.stringify(returnTo)};const out=document.getElementById('out');document.getElementById('reset').onclick=async()=>{const password=document.getElementById('password').value;const res=await fetch('/auth/password/reset',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token,password})});const data=await res.json();out.textContent=JSON.stringify(data,null,2);if(res.ok&&data.ok){setTimeout(()=>location.assign(returnTo),1200);}};</script></body></html>`);
+  });
+
   // ── POST /auth/password/reset ──────────────────────────────────────────────
   router.post("/password/reset", async (req, res) => {
     try {
