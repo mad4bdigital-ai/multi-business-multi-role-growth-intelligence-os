@@ -408,7 +408,8 @@ export function buildConnectRoutes(deps) {
         "admin/* — admin CLI and control (admin BACKEND_API_KEY only)",
         "http-execute — governed HTTP executor (admin BACKEND_API_KEY only)",
       ],
-      connection_modes: ["managed", "dedicated"],
+      connection_modes: CANONICAL_CONNECTION_MODES,
+      activation_mode_catalog: activationModeCatalog(),
       access_model: "Sign in via POST /auth/login, /auth/register, or /auth/google. Use the returned token as Authorization: Bearer <token> on all subsequent calls. For Google Sign-In, complete the flow at https://auth.mad4b.com/connect and use the token shown on the final step.",
       onboarding_url: "https://auth.mad4b.com/connect",
       activation_sequence: [
