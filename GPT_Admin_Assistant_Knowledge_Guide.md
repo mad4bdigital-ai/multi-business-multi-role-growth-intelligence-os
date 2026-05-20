@@ -284,7 +284,7 @@ Do not query a table named `activation_bootstrap_config`; that table is not part
 
 ### Legacy scoped action files (deleted)
 
-The earlier scope-split schemas (`openapi.custom-gpt.runtime.yaml`, `.identity.yaml`, `.customers.yaml`, `.systems.yaml`, `.logic.yaml`, `.observability.yaml`, `.developer.yaml`, `.admin-cli.yaml`, `.ops.yaml`) were consolidated and removed in Sprint 50. `test-custom-gpt-schemas.mjs` asserts they stay deleted. Only three active GPT schemas remain: `openapi.custom-gpt.auth-dispatcher.yaml`, `openapi.tenant-gpt.auth.yaml`, and `openapi.gpt-action.local-connector.yaml`.
+The earlier scope-split schemas (`openapi.custom-gpt.runtime.yaml`, `.identity.yaml`, `.customers.yaml`, `.systems.yaml`, `.logic.yaml`, `.observability.yaml`, `.developer.yaml`, `.admin-cli.yaml`, `.ops.yaml`) were consolidated and removed in Sprint 50. `test-custom-gpt-schemas.mjs` asserts they stay deleted. Active GPT schemas are: `openapi.custom-gpt.auth-dispatcher.yaml`, `openapi.tenant-gpt.auth.yaml`, `openapi.gpt-action.dev-diagnostics.yaml`, and `openapi.gpt-action.local-connector.yaml`.
 
 ## Runtime Scope
 
