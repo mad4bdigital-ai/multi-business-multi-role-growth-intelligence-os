@@ -375,6 +375,59 @@ section("Sprint 56: device-tools MCP facade");
     parentSchema.includes("listDeviceTools") && parentSchema.includes("callDeviceTool"));
 }
 
+section("Sprint 57: Local Manager device-link schema coverage");
+{
+  const parentDoc = loadSchema("openapi.yaml");
+  const childDoc = yaml.load(readFileSync(resolve(__dirname, "schemas/http-generic-api/http-generic-api.yaml"), "utf8"));
+  const expectedPaths = [
+    "/local-manager/device-link/start",
+    "/local-manager/device-link/preview",
+    "/local-manager/device-link/poll",
+    "/local-manager/device-link/approve",
+    "/local-manager/device-link/devices",
+    "/local-manager/device/session",
+    "/local-manager/device/controls",
+    "/app/local-manager/update/windows",
+    "/local-manager/beta/status",
+  ];
+  const expectedOperationIds = [
+    "startLocalManagerDeviceLink",
+    "previewLocalManagerDeviceLink",
+    "pollLocalManagerDeviceLink",
+    "approveLocalManagerDeviceLink",
+    "listLocalManagerLinkedDevices",
+    "getLocalManagerDeviceSession",
+    "getLocalManagerDeviceControls",
+    "getLocalManagerWindowsUpdate",
+    "getLocalManagerBetaStatus",
+  ];
+  for (const [docLabel, doc] of [["parent", parentDoc], ["child", childDoc]]) {
+    const ops = collectOperations(doc);
+    const operationIds = new Set(ops.map((op) => op.operation.operationId).filter(Boolean));
+    assert(`${docLabel} schema defines local-manager tag`,
+      (doc.tags || []).some((tag) => tag.name === "local-manager"));
+    assert(`${docLabel} schema defines localManagerBearerAuth`,
+      Boolean(doc.components?.securitySchemes?.localManagerBearerAuth));
+    for (const path of expectedPaths) {
+      assert(`${docLabel} schema exposes ${path}`, Boolean(doc.paths?.[path]));
+    }
+    for (const operationId of expectedOperationIds) {
+      assert(`${docLabel} schema exposes ${operationId}`, operationIds.has(operationId));
+    }
+    assert(`${docLabel} preview response is secret-free by contract`,
+      Boolean(doc.components?.schemas?.LocalManagerDeviceLinkPreviewResponse) &&
+      JSON.stringify(doc.components.schemas.LocalManagerDeviceLinkPublicSession || {}).includes("must not include user_id") &&
+      JSON.stringify(doc.components.schemas.LocalManagerDeviceLinkPublicSession || {}).includes("device token"));
+    assert(`${docLabel} Windows update response is secret-free`,
+      JSON.stringify(doc.components?.schemas?.LocalManagerWindowsUpdateResponse || {}).includes("secrets_included"));
+  }
+
+  const adminDispatcher = loadSchema("openapi.custom-gpt.auth-dispatcher.yaml");
+  const adminDispatcherPaths = Object.keys(adminDispatcher.paths || {});
+  assert("active admin GPT dispatcher does not expose direct Local Manager device-link routes",
+    !adminDispatcherPaths.some((path) => path.startsWith("/local-manager/device-link")));
+}
+
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
 console.log("ALL CUSTOM GPT SCHEMA TESTS PASS");
