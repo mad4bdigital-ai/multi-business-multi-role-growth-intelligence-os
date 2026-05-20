@@ -54,7 +54,7 @@ const SCOPES_BY_HOST = {
   },
   "dev.mad4b.com": {
     scope: "development",
-    schema_file: "openapi.gpt-action.dev-diagnostics.yaml",
+    schema_file: "openapi.gpt-action.dev-dispatcher.yaml",
     primary_paths: ["/health", "/deployment-info", "/dev/db/status"]
   },
   "admin.mad4b.com": {
