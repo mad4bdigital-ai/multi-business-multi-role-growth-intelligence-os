@@ -42,6 +42,12 @@ Instruction precedence:
 - Route via `prompt_router`, load via `module_loader`, execute via `system_bootstrap`, and log execution to registry.
 - AI workflows use `runAgentLoop -> getAgentDeps()`; routes must not call models directly.
 
+## Development Environment
+- Treat `dev.mad4b.com` as the governed development/staging environment for validating repo-branch deployments before production.
+- Production remains `auth.mad4b.com` on `main`; dev must declare its GitHub source branch, commit SHA, deployment mode, Hostinger root, and last validation status.
+- Use `openapi.gpt-action.dev-diagnostics.yaml` only for passive dev checks (`/health`, `/deployment-info`, `/dev/db/status`). Do not run production mutations through the dev diagnostics schema.
+- Promote changes from dev to production only after CI, dev deployment verification, release readiness, and explicit merge/deploy approval.
+
 ## Admin Tool Dispatch
 Two governed tool registries are exposed through `auth.mad4b.com`:
 - `admin_system_tools` (activation drive probe, sheets bootstrap read, github validate, provider bootstrap validate, connector registry, bootstrap upsert) — dispatch via `POST /admin/system/tools/call` (`callAdminSystemTool`). Discover with `GET /admin/system/tools`.
