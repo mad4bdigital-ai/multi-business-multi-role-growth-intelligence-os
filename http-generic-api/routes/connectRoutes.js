@@ -661,9 +661,19 @@ export function buildConnectRoutes(deps) {
       );
 
       const connection = await fetchTenantConnection(resolvedTenantId);
+      const dedicatedIntegrationReadiness = await assessDedicatedIntegrationReadiness({
+        tenantId: resolvedTenantId,
+        userId: user_id,
+        connection,
+      });
       return res.json({
         ok: true,
         mode_policy: modePolicy,
+        dedicated_integration_catalog: dedicatedIntegrationCatalog(),
+        dedicated_integration_readiness: dedicatedIntegrationReadiness,
+        next_actions: dedicatedIntegrationReadiness?.ready === false
+          ? dedicatedIntegrationReadiness.next_actions
+          : ["connect_device_install"],
         connection: {
           mode: connection.connection_mode,
           status: connection.status,
