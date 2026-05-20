@@ -187,6 +187,25 @@ try {
     assert("invalid n8n activation mode has stable code", result.body?.error?.code === "invalid_n8n_activation_mode", JSON.stringify(result.body));
   }
 
+  {
+    const source = readFileSync("routes/connectRoutes.js", "utf8");
+    const policySource = readFileSync("activationModePolicy.js", "utf8");
+    assert("connect activation uses centralized activation mode policy",
+      source.includes("resolveActivationModePolicy(req.body || {})") &&
+      source.includes("activationModeCatalog()") &&
+      policySource.includes("CANONICAL_CONNECTION_MODES") &&
+      policySource.includes("managed") &&
+      policySource.includes("dedicated"));
+    assert("activation mode policy normalizes aliases for MCP/GPT wrappers",
+      policySource.includes("connection_mode") &&
+      policySource.includes("activation_mode") &&
+      policySource.includes("service_mode") &&
+      policySource.includes("tenant_activation_mode"));
+    assert("dedicated mode defaults to local n8n and tenant-owned provisioning",
+      policySource.includes("self_hosted_local") &&
+      policySource.includes("tenant_owned_user_app_connections"));
+  }
+
   section("connect tenantless onboarding recovery");
 
   {
