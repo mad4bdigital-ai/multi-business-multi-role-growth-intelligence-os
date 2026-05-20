@@ -239,7 +239,7 @@ export function buildDeploymentInfoRoutes() {
         secrets_included: false,
       },
       app_env: process.env.APP_ENV || process.env.NODE_ENV || null,
-      expected_dev_branch: "dev-autopilot-routing",
+      expected_dev_branch: expectedDevBranch,
       is_dev_hostname: isDevHostname,
       generated_at: generatedAt,
     });
