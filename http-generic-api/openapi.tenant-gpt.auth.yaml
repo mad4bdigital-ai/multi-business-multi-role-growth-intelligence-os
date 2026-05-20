@@ -11,7 +11,7 @@ components:
   securitySchemes:
     userBearerAuth:
       type: oauth2
-      description: Tenant GPT OAuth. ChatGPT signs in through the Growth Intelligence Platform popup, then /auth/oauth/token mints a fresh Mad4B tenant access JWT with issuer, audience, subject, scope, user_id, and tenant_id claims. Google Sign-In is only an upstream identity proof inside the popup; do not call OAuth.
+      description: Tenant GPT OAuth. ChatGPT signs in through the platform popup and receives a scoped Mad4B tenant JWT. Google Sign-In is only upstream identity proof inside the popup.
       flows:
         authorizationCode:
           authorizationUrl: https://auth.mad4b.com/auth/oauth/authorize
