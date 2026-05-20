@@ -226,6 +226,8 @@ section("dispatcher contracts");
     adminOps.some((op) => op.pathKey === "/gpt/tools/call" && op.method === "post"));
   assert("admin dispatcher hides direct admin control route",
     !adminOps.some((op) => op.operation.operationId === "executeAdminControl"));
+  assert("auth dispatcher does not expose dev-host diagnostic routes",
+    !adminOps.some((op) => ["/deployment-info", "/dev/db/status"].includes(op.pathKey)));
   assert("admin dispatcher keeps device capability routes DB-backed",
     !adminOps.some((op) => [
       "/connector/{device_id}/dependencies",
