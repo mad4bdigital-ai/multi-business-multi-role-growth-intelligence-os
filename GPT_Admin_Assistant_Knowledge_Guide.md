@@ -237,7 +237,7 @@ The Admin Assistant keeps production control in one auth-host connector, may add
 | Connector | File | Server URL | Purpose |
 |---|---|---:|---|
 | **Platform** | `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` | `https://auth.mad4b.com` | Production control-plane dispatcher. Activation, system/admin tool registries, `listAdminTools` / `callAdminTool`, and governed admin surfaces. |
-| **Dev diagnostics** | `http-generic-api/openapi.gpt-action.dev-diagnostics.yaml` | `https://dev.mad4b.com` | Passive staging checks only: health, deployment-info, protected dev DB status. No production mutation. |
+| **Dev dispatcher** | `http-generic-api/openapi.gpt-action.dev-dispatcher.yaml` | `https://dev.mad4b.com` | Separate passive staging dispatcher: health, deployment-info, protected dev DB status. No production mutation. |
 | **Local** | `http-generic-api/openapi.gpt-action.local-connector.yaml` | `https://connector.mad4b.com` | Standalone local execution bridge for break-glass shell/file/GitHub/gcloud/PS/Win/n8n/cf on the active admin Windows host. |
 
 `auth.mad4b.com` is the governed production control plane and must be the first choice for admin work. Use `dev.mad4b.com` only to verify a branch deployment before promotion. The local connector is a standalone plugin/action because it touches the local environment; call it only after the platform action indicates local execution is needed, or when the cloud control plane is unavailable and break-glass recovery is explicitly required.
