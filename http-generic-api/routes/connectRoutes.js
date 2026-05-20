@@ -642,6 +642,7 @@ export function buildConnectRoutes(deps) {
       const connection = await fetchTenantConnection(resolvedTenantId);
       return res.json({
         ok: true,
+        mode_policy: modePolicy,
         connection: {
           mode: connection.connection_mode,
           status: connection.status,
