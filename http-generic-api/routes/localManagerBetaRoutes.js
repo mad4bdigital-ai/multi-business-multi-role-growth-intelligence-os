@@ -638,20 +638,24 @@ $('signIn').onclick = async () => {
   const res = await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});
   const data = await res.json();
   if(!res.ok || !data.token){ setOut(data); return; }
-  setToken(data.token, data);
-  const code = normalizeCode($('deviceCode').value);
-  if(code) await approveDevice(); else setOut({ok:true,next:'Enter the pairing code, then approve this device.'});
+  await completeAuth(data.token, data);
+};
+$('forgotPassword').onclick = async () => {
+  const email = $('email').value;
+  if(!email){ setOut({ok:false,error:{code:'missing_email',message:'Enter your email first, then click Forgot password.'}}); return; }
+  const returnTo = '/app/local-manager/link-device?code=' + encodeURIComponent(normalizeCode($('deviceCode').value)) + '&mode=signin';
+  const res = await fetch('/auth/password/forgot',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,return_to:returnTo})});
+  const data = await res.json();
+  setOut(data);
 };
 $('createAccount').onclick = async () => {
   const res = await fetch('/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value,display_name:$('displayName').value || $('email').value,tenant_display_name:$('workspaceName').value || 'Local Manager workspace'})});
   const data = await res.json();
   if(!res.ok || !data.token){ setOut(data); return; }
-  setToken(data.token, data);
-  const code = normalizeCode($('deviceCode').value);
-  if(code) await approveDevice(); else setOut({ok:true,next:'Enter the pairing code, then approve this device.'});
+  await completeAuth(data.token, data);
 };
 $('approve').onclick = approveDevice;
-restore(); $('normalize').click();
+restore(); $('normalize').click(); setupGoogle();
 </script>
 </body></html>`;
 }
