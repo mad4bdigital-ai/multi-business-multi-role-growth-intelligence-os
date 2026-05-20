@@ -11,6 +11,10 @@ import {
   resolveActivationModePolicy,
   CANONICAL_CONNECTION_MODES,
 } from "../activationModePolicy.js";
+import {
+  assessDedicatedIntegrationReadiness,
+  dedicatedIntegrationCatalog,
+} from "../dedicatedIntegrationPolicy.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECT_STATIC = join(__dirname, "../public/connect");
