@@ -337,6 +337,18 @@ export async function approveDeviceLinkSession(req, res) {
       return res.status(410).json({ ok: false, error: { code: "device_link_expired", message: "Pairing code expired." }, secrets_included: false });
     }
     if (row.status !== "pending") {
+      const sameOwner = row.user_id === principal.user_id && (!row.tenant_id || !principal.tenant_id || row.tenant_id === principal.tenant_id);
+      if (sameOwner && ["approved", "completed"].includes(row.status)) {
+        return res.status(200).json({
+          ok: true,
+          status: row.status,
+          already_linked: true,
+          user: principal,
+          device: sanitizeSession(row),
+          message: "This pairing code was already approved for your account.",
+          secrets_included: false,
+        });
+      }
       return res.status(409).json({ ok: false, status: row.status, error: { code: "device_link_not_pending", message: "Pairing code is no longer pending." }, secrets_included: false });
     }
 
