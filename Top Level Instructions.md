@@ -43,10 +43,9 @@ Instruction precedence:
 - AI workflows use `runAgentLoop -> getAgentDeps()`; routes must not call models directly.
 
 ## Development Environment
-- Treat `dev.mad4b.com` as the governed development/staging environment for validating repo-branch deployments before production.
-- Production remains `auth.mad4b.com` on `main`; dev must declare its GitHub source branch, commit SHA, deployment mode, Hostinger root, and last validation status.
-- Use `openapi.gpt-action.dev-diagnostics.yaml` only for passive dev checks (`/health`, `/deployment-info`, `/dev/db/status`). Do not run production mutations through the dev diagnostics schema.
-- Promote changes from dev to production only after CI, dev deployment verification, release readiness, and explicit merge/deploy approval.
+- Treat `dev.mad4b.com` as the governed staging host for repo-branch deployments before production.
+- Production is `auth.mad4b.com` on `main`; dev must expose branch, commit SHA, deployment mode, Hostinger root, and validation status.
+- Use `openapi.gpt-action.dev-diagnostics.yaml` only for passive dev checks. Promote only after CI, dev verification, release readiness, and explicit approval.
 
 ## Admin Tool Dispatch
 Two governed tool registries are exposed through `auth.mad4b.com`:
