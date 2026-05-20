@@ -71,6 +71,8 @@ tags:
     description: Release readiness checks, history, and entity classification inventory.
   - name: local-manager
     description: Local Manager device-code linking, device controls, and Windows update metadata.
+  - name: platform-graph
+    description: SQL-primary platform knowledge graph projection, validation, and context resolution.
 
 components:
   securitySchemes:
