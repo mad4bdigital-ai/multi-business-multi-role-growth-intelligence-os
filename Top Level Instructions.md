@@ -45,7 +45,7 @@ Instruction precedence:
 ## Development Environment
 - Treat `dev.mad4b.com` as the governed staging host for repo-branch deployments before production.
 - Production is `auth.mad4b.com` on `main`; dev must expose branch, commit SHA, deployment mode, Hostinger root, and validation status.
-- Use `openapi.gpt-action.dev-diagnostics.yaml` only for passive dev checks. Promote only after CI, dev verification, release readiness, and explicit approval.
+- Use the separate `openapi.gpt-action.dev-dispatcher.yaml` schema only for passive dev checks. Promote only after CI, dev verification, release readiness, and explicit approval.
 
 ## Admin Tool Dispatch
 Two governed tool registries are exposed through `auth.mad4b.com`:
