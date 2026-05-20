@@ -225,6 +225,33 @@ export function buildGovernanceRoutes(deps) {
         pathResolverRows: pathResolverLoad.rows || {}
       });
 
+      let graphContext = {
+        requested: false,
+        resolved: false,
+        reason: "not_attempted"
+      };
+      try {
+        graphContext = await resolvePlatformGraphContext({
+          ...requestPayload,
+          tenant_id: body.tenant_id || requestPayload.tenant_id,
+          user_id: body.user_id || requestPayload.user_id,
+          device_id: body.device_id || requestPayload.device_id,
+          asset_id: body.asset_id || requestPayload.asset_id,
+          depth: 2,
+          limit: 80
+        });
+      } catch (graphErr) {
+        graphContext = {
+          requested: true,
+          resolved: false,
+          validation_state: "degraded",
+          error: {
+            code: graphErr?.code || "graph_context_resolution_failed",
+            message: graphErr?.message || "Graph context resolution failed."
+          }
+        };
+      }
+
       const pathResolution = governedExecutionContext.path_resolution || {};
       const businessType = pathResolution.businessType || {};
       const brand = pathResolution.brand || {};
