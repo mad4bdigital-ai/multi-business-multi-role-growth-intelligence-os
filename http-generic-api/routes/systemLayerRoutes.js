@@ -31,6 +31,27 @@ import { derivePrincipalExecutionContext } from "../executionControlResolvers.js
 
 const SYSTEM_LAYER_TOOLS = [
   {
+    name: "runtime_endpoint_preview",
+    description: "Passive dry-run resolver for a governed endpoint. Resolves action, endpoint, schema, provider URL, credentials, risk, and readiness without calling the provider.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        parent_action_key: { type: "string" },
+        endpoint_key: { type: "string" },
+        path_params: { type: "object", additionalProperties: true },
+        query: { type: "object", additionalProperties: true },
+        body: { type: "object", additionalProperties: true },
+        headers: { type: "object", additionalProperties: true },
+        credential_scope: { type: "string", enum: ["platform", "tenant", "user", "connection", "auto"] },
+        connection_id: { type: "string" },
+        app_key: { type: "string" },
+        auth_type: { type: "string" },
+        auth_context: { type: "object", additionalProperties: true },
+      },
+      required: ["parent_action_key", "endpoint_key"],
+    },
+  },
+  {
     name: "connector_registry_list",
     description: "List connector systems from the connected_systems registry.",
     inputSchema: {
