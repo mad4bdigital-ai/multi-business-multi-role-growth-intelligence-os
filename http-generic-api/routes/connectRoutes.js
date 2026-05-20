@@ -17,7 +17,6 @@ const CONNECT_STATIC = join(__dirname, "../public/connect");
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
-const VALID_N8N_ACTIVATION_MODES = new Set(["managed_main_server", "self_hosted_local"]);
 
 // Fields accepted by POST /connect/preferences. Anything outside this list is
 // dropped server-side, so a frontend regression cannot start saving arbitrary
