@@ -209,6 +209,8 @@ section("dispatcher contracts");
 {
   const adminDoc = loadSchema("openapi.custom-gpt.auth-dispatcher.yaml");
   const tenantDoc = loadSchema("openapi.tenant-gpt.auth.yaml");
+  const devDoc = loadSchema("openapi.gpt-action.dev-diagnostics.yaml");
+  const parentDoc = loadSchema("openapi.yaml");
 
   assertToolArgsContract(adminDoc, "callAdminTool");
   assertToolArgsContract(tenantDoc, "callTool");
