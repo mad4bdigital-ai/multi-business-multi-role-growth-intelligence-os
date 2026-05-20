@@ -357,6 +357,16 @@ export function buildGovernanceRoutes(deps) {
             validation_id: "",
             reason: pathResolution.blocked_reason || missingEvidenceReasons.join("|")
           },
+          graph_context: {
+            requested: Boolean(graphContext.requested),
+            resolved: Boolean(graphContext.resolved),
+            validation_state: graphContext.validation_state || "not_attempted",
+            start_node_ids: graphContext.start_node_ids || [],
+            node_count: graphContext.node_count || 0,
+            edge_count: graphContext.edge_count || 0,
+            authority_summary: graphContext.authority_summary || {},
+            error: graphContext.error || null
+          },
           execution_target: {
             status: diagnosticTargetRow?.status || executionTarget.status || "",
             target_key: diagnosticTargetRow?.target_key || executionTarget.targetKey || "",
