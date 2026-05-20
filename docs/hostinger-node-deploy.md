@@ -7,17 +7,19 @@ Hostinger hPanel supports Auto Deploy from a Git repository. This is the preferr
 Target state:
 
 ```text
-push to main -> Hostinger Auto Deploy pulls GitHub repo -> npm install/postinstall -> npm start -> runtime verification
+push to dev branch -> Hostinger Auto Deploy -> dev.mad4b.com validation
+push/merge to main -> Hostinger Auto Deploy -> auth.mad4b.com production validation
 ```
 
 ## Apps
 
 | Hostname | Role | Preferred deploy source |
 |---|---|---|
-| `auth.mad4b.com` | Platform control plane and `/connector-agent/server.mjs` distributor | GitHub repo `main` |
+| `dev.mad4b.com` | Development/staging runtime for branch deployment tests before production | GitHub repo `dev` or the governed active development branch |
+| `auth.mad4b.com` | Production control plane and `/connector-agent/server.mjs` distributor | GitHub repo `main` |
 | `connector.mad4b.com` | Hostinger Node app entry if kept in hPanel. Note: live DNS currently points to the Cloudflare Tunnel for the local connector. | GitHub repo `main` or disabled if unused |
 
-`auth.mad4b.com` is the critical app for distributing the local connector agent. After deploy, `/connector-agent/version` must report `has_n8n_lifecycle: true`.
+`dev.mad4b.com` must expose `/deployment-info` with branch and commit evidence. `auth.mad4b.com` is the production app and remains the critical distributor for `/connector-agent/version`.
 
 ## Repository readiness
 
