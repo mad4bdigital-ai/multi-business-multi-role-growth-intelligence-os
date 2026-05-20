@@ -3,7 +3,7 @@ info:
   title: Governed HTTP Client â€” AI Platform - Auth Dispatcher Admin Control Actions
   version: 3.0.0-platform
   summary: Admin GPT action schema — MCP-like dispatcher for activation, admin control, and system layer.
-  description: Single-host admin GPT schema for auth.mad4b.com. Use it for production control, admin dispatch, and validating dev.mad4b.com through governed tools; dev has a separate passive diagnostics schema.
+  description: Single-host admin GPT schema for auth.mad4b.com. Use it for production control and admin dispatch. dev.mad4b.com has its own separate passive dispatcher schema.
 servers:
   - url: https://auth.mad4b.com
     description: Production control plane; dev promotion is validated through governed tools first.
