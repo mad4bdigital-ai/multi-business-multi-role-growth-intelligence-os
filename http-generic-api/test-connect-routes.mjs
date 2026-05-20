@@ -206,6 +206,36 @@ try {
       policySource.includes("tenant_owned_user_app_connections"));
   }
 
+  {
+    const routeSource = readFileSync("routes/connectRoutes.js", "utf8");
+    const apiSource = readFileSync("routes/connectApiRoutes.js", "utf8");
+    const dedicatedSource = readFileSync("dedicatedIntegrationPolicy.js", "utf8");
+    const migrationSource = readFileSync("migrations/105_sprint64_dedicated_integration_flow.sql", "utf8");
+    assert("dedicated mode exposes integration readiness in status and capabilities",
+      routeSource.includes("dedicated_integration_readiness") &&
+      routeSource.includes("dedicatedIntegrationCatalog()") &&
+      dedicatedSource.includes("DEDICATED_REQUIRED_INTEGRATIONS"));
+    assert("dedicated install blocks before provisioning when required integrations are missing",
+      routeSource.includes("dedicated_integrations_required") &&
+      routeSource.includes("assessDedicatedIntegrationReadiness") &&
+      routeSource.indexOf("dedicated_integrations_required") < routeSource.indexOf("provisionLocalConnectorInstall(req"));
+    assert("dedicated policy requires tenant-owned Cloudflare and Hostinger connections",
+      dedicatedSource.includes('app_key: "cloudflare"') &&
+      dedicatedSource.includes('app_key: "hostinger"') &&
+      dedicatedSource.includes("user_app_connections") &&
+      dedicatedSource.includes("secret_handling"));
+    assert("connect API can create user-scoped credential intake sessions without chat secrets",
+      apiSource.includes('router.post("/connect/api/credential-intake/sessions"') &&
+      apiSource.includes("secret_exposed: false") &&
+      apiSource.includes("req.auth.user_id") &&
+      apiSource.includes("req.auth.tenant_id"));
+    assert("tenant tool registry exposes dedicated app integration tools",
+      migrationSource.includes("connect_app_integrations_list") &&
+      migrationSource.includes("connect_credential_intake_create") &&
+      migrationSource.includes("connect_app_connections_list") &&
+      migrationSource.includes("connect_app_connection_revoke"));
+  }
+
   section("connect tenantless onboarding recovery");
 
   {

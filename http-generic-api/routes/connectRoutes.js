@@ -11,6 +11,10 @@ import {
   resolveActivationModePolicy,
   CANONICAL_CONNECTION_MODES,
 } from "../activationModePolicy.js";
+import {
+  assessDedicatedIntegrationReadiness,
+  dedicatedIntegrationCatalog,
+} from "../dedicatedIntegrationPolicy.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECT_STATIC = join(__dirname, "../public/connect");
@@ -197,6 +201,9 @@ async function resolveConnectState(userId, jwtTenantId = null) {
     resolvedTenantId ? fetchTenantConnection(resolvedTenantId) : Promise.resolve(null),
     resolvedTenantId ? fetchUserDevices(userId, resolvedTenantId) : Promise.resolve([]),
   ]);
+  const dedicatedIntegrationReadiness = resolvedTenantId
+    ? await assessDedicatedIntegrationReadiness({ tenantId: resolvedTenantId, userId, connection })
+    : null;
   return {
     user,
     memberships,
@@ -204,6 +211,7 @@ async function resolveConnectState(userId, jwtTenantId = null) {
     resolvedTenantId,
     connection,
     devices,
+    dedicatedIntegrationReadiness,
     onboarding: buildOnboardingState({ resolvedTenantId, connection, devices }),
   };
 }
@@ -410,6 +418,7 @@ export function buildConnectRoutes(deps) {
       ],
       connection_modes: CANONICAL_CONNECTION_MODES,
       activation_mode_catalog: activationModeCatalog(),
+      dedicated_integration_catalog: dedicatedIntegrationCatalog(),
       access_model: "Sign in via POST /auth/login, /auth/register, or /auth/google. Use the returned token as Authorization: Bearer <token> on all subsequent calls. For Google Sign-In, complete the flow at https://auth.mad4b.com/connect and use the token shown on the final step.",
       onboarding_url: "https://auth.mad4b.com/connect",
       activation_sequence: [
@@ -446,6 +455,8 @@ export function buildConnectRoutes(deps) {
         memberships: state.memberships.map((m) => ({ tenant_id: m.tenant_id, role: m.role, display_name: m.tenant_display_name })),
         onboarding: state.onboarding,
         activation_mode_catalog: activationModeCatalog(),
+        dedicated_integration_catalog: dedicatedIntegrationCatalog(),
+        dedicated_integration_readiness: state.dedicatedIntegrationReadiness,
         connection: state.connection ? {
           mode: state.connection.connection_mode,
           status: state.connection.status,
@@ -582,6 +593,8 @@ export function buildConnectRoutes(deps) {
         capabilities,
         next_actions: state.onboarding.allowed_actions,
         activation_mode_catalog: activationModeCatalog(),
+        dedicated_integration_catalog: dedicatedIntegrationCatalog(),
+        dedicated_integration_readiness: state.dedicatedIntegrationReadiness,
       });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "capabilities_read_failed", message: err.message } });
@@ -648,9 +661,19 @@ export function buildConnectRoutes(deps) {
       );
 
       const connection = await fetchTenantConnection(resolvedTenantId);
+      const dedicatedIntegrationReadiness = await assessDedicatedIntegrationReadiness({
+        tenantId: resolvedTenantId,
+        userId: user_id,
+        connection,
+      });
       return res.json({
         ok: true,
         mode_policy: modePolicy,
+        dedicated_integration_catalog: dedicatedIntegrationCatalog(),
+        dedicated_integration_readiness: dedicatedIntegrationReadiness,
+        next_actions: dedicatedIntegrationReadiness?.ready === false
+          ? dedicatedIntegrationReadiness.next_actions
+          : ["connect_device_install"],
         connection: {
           mode: connection.connection_mode,
           status: connection.status,
@@ -687,6 +710,20 @@ export function buildConnectRoutes(deps) {
 
       const connection = await fetchTenantConnection(resolvedTenantId);
       const useManagedProvisioning = (connection?.cloudflare_mode || "managed") === "managed";
+      if (!useManagedProvisioning) {
+        const readiness = await assessDedicatedIntegrationReadiness({ tenantId: resolvedTenantId, userId: user_id, connection });
+        if (!readiness.ready) {
+          return res.status(409).json({
+            ok: false,
+            error: {
+              code: "dedicated_integrations_required",
+              message: "Dedicated device install requires tenant-owned Cloudflare and Hostinger app connections before provisioning.",
+              details: readiness,
+            },
+            dedicated_integration_catalog: dedicatedIntegrationCatalog(),
+          });
+        }
+      }
       const result = await provisionLocalConnectorInstall(req, {
         user_id,
         tenant_id: resolvedTenantId,
