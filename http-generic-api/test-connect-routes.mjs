@@ -541,6 +541,8 @@ section("connect api auth scope");
       deviceLinkSource.includes("requireLocalManagerUser") &&
       deviceLinkSource.includes("requireLocalManagerDevice") &&
       deviceLinkSource.includes("getDeviceControls") &&
+      deviceLinkSource.includes("already_linked") &&
+      deviceLinkSource.includes("reauthorized_existing_device") &&
       !deviceLinkSource.includes("connector_secret") &&
       !deviceLinkSource.includes("cf_token"));
     assert("local manager beta is read-only and redacts secrets",
