@@ -497,6 +497,12 @@ section("connect api auth scope");
       betaSource.includes("forgotPassword") &&
       betaSource.includes("/auth/password/forgot") &&
       !betaSource.includes("Open /connect sign-in"));
+    assert("platform auth exposes password reset request and reset routes",
+      authSource.includes('router.post("/password/forgot"') &&
+      authSource.includes('router.get("/password/reset"') &&
+      authSource.includes('router.post("/password/reset"') &&
+      authSource.includes("auth_password_reset_tokens") &&
+      authSource.includes("auth_email_outbox"));
     assert("local manager Windows update metadata is secret-free and DB-backed",
       betaSource.includes("LOCAL_MANAGER_WINDOWS_LATEST_VERSION") &&
       betaSource.includes("localManagerWindowsUpdateInfo") &&
