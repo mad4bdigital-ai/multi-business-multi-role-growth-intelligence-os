@@ -6,6 +6,7 @@ import {
   getDeviceSession,
   listLinkedDevices,
   pollDeviceLinkSession,
+  previewDeviceLinkSession,
   startDeviceLinkSession,
 } from "../services/localManagerDeviceLinkService.js";
 
@@ -547,6 +548,7 @@ function localManagerLinkDevicePage(initialCode = "") {
     <h1>Link this Windows device</h1>
     <p>Enter the pairing code shown in the Windows app, sign in, then approve the device. The Windows app receives a device-scoped token only through its private polling channel.</p>
     <div class="code" id="codePreview">${escapeHtml(code || "---- ----")}</div>
+    <p id="devicePreview">Enter a code to load device details.</p>
   </section>
   <section class="grid">
     <div class="card">
@@ -579,31 +581,48 @@ const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&
 function normalizeCode(value){ return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^(.{4})(.*)$/,'$1-$2').slice(0,9); }
 function setOut(obj){ $('out').textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2); }
 function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); $('authState').innerHTML = '<span class="ok">Signed in as '+esc(user?.email || user?.user_id || 'user')+'</span>'; }
+async function loadPreview(){
+  const code = normalizeCode($('deviceCode').value);
+  if(!code){ $('devicePreview').textContent = 'Enter a code to load device details.'; return; }
+  const res = await fetch('/local-manager/device-link/preview?code=' + encodeURIComponent(code), {headers:{accept:'application/json'}});
+  const data = await res.json();
+  if(!res.ok || !data.ok){ $('devicePreview').innerHTML = '<span class="bad">'+esc(data?.error?.message || 'Could not load pairing code.')+'</span>'; return; }
+  const d = data.device || {};
+  $('devicePreview').innerHTML = 'Device: <strong>'+esc(d.hostname || d.device_id || 'Windows device')+'</strong> · Platform: '+esc(d.platform || 'windows')+' · Status: '+esc(d.status)+' · Expires: '+esc(d.expires_at || 'soon');
+}
 function getToken(){ return sessionStorage.getItem('mlm_user_token') || ''; }
 function restore(){ const raw = sessionStorage.getItem('mlm_user'); if(getToken() && raw){ try { const u=JSON.parse(raw); $('authState').innerHTML='<span class="ok">Signed in as '+esc(u.email || u.user_id || 'user')+'</span>'; } catch {} } }
-$('normalize').onclick = () => { $('deviceCode').value = normalizeCode($('deviceCode').value); $('codePreview').textContent = $('deviceCode').value || '---- ----'; };
-$('deviceCode').oninput = () => { $('codePreview').textContent = normalizeCode($('deviceCode').value) || '---- ----'; };
+$('normalize').onclick = async () => { $('deviceCode').value = normalizeCode($('deviceCode').value); $('codePreview').textContent = $('deviceCode').value || '---- ----'; await loadPreview(); };
+$('deviceCode').oninput = () => { $('codePreview').textContent = normalizeCode($('deviceCode').value) || '---- ----'; window.clearTimeout(window.__mlmPreviewTimer); window.__mlmPreviewTimer = window.setTimeout(loadPreview, 250); };
+async function approveDevice(){
+  const code = normalizeCode($('deviceCode').value);
+  if(!code){ setOut({ok:false,error:{code:'missing_code',message:'Enter the pairing code from the Windows app.'}}); return false; }
+  const token = getToken();
+  if(!token){ setOut({ok:false,error:{code:'not_signed_in',message:'Sign in first.'}}); return false; }
+  $('authState').innerHTML = '<span class="ok">Signed in. Approving device…</span>';
+  const res = await fetch('/local-manager/device-link/approve',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({code})});
+  const data = await res.json();
+  setOut(data);
+  if(res.ok && data.ok){ $('authState').innerHTML = '<span class="ok">Device approved. You can return to the Windows app.</span>'; return true; }
+  return false;
+}
 $('signIn').onclick = async () => {
   const res = await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});
   const data = await res.json();
   if(!res.ok || !data.token){ setOut(data); return; }
-  setToken(data.token, data); setOut({ok:true, next:'Approve this device.'});
+  setToken(data.token, data);
+  const code = normalizeCode($('deviceCode').value);
+  if(code) await approveDevice(); else setOut({ok:true,next:'Enter the pairing code, then approve this device.'});
 };
 $('createAccount').onclick = async () => {
   const res = await fetch('/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value,display_name:$('displayName').value || $('email').value,tenant_display_name:$('workspaceName').value || 'Local Manager workspace'})});
   const data = await res.json();
   if(!res.ok || !data.token){ setOut(data); return; }
-  setToken(data.token, data); setOut({ok:true, next:'Approve this device.'});
-};
-$('approve').onclick = async () => {
+  setToken(data.token, data);
   const code = normalizeCode($('deviceCode').value);
-  if(!code){ setOut({ok:false,error:{code:'missing_code',message:'Enter the pairing code from the Windows app.'}}); return; }
-  const token = getToken();
-  if(!token){ setOut({ok:false,error:{code:'not_signed_in',message:'Sign in first.'}}); return; }
-  const res = await fetch('/local-manager/device-link/approve',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({code})});
-  const data = await res.json();
-  setOut(data);
+  if(code) await approveDevice(); else setOut({ok:true,next:'Enter the pairing code, then approve this device.'});
 };
+$('approve').onclick = approveDevice;
 restore(); $('normalize').click();
 </script>
 </body></html>`;
@@ -857,13 +876,13 @@ export function buildLocalManagerBetaRoutes(deps) {
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).send(localManagerShellPage({
       eyebrow: "Account",
-      title: "Sign in with the Growth Intelligence Platform",
-      body: "Local Manager uses the same platform /connect sign-in and workspace recovery flow as the rest of Mad4B. Sign in there, then return to approve this device.",
-      primaryText: "Open /connect sign-in",
-      primaryHref: localManagerConnectUrl("/app/local-manager/link-device"),
+      title: "Sign in and approve this device",
+      body: "Local Manager uses a dedicated device-code approval page. Sign in there, approve the pairing code, and the Windows app will finish automatically by polling.",
+      primaryText: "Open device approval",
+      primaryHref: "/app/local-manager/link-device?mode=signin",
       cards: [
-        { title: "Matches /connect", body: "Google sign-in, workspace recovery, and tenant onboarding stay centralized in the platform connect flow." },
-        { title: "Device approval", body: "After sign-in, return to the pairing-code approval page to link this Windows device." },
+        { title: "Existing users", body: "Use the platform email/password sign-in on the approval page, then approve the pairing code." },
+        { title: "App completes by polling", body: "The browser does not need to return to the EXE. Once you approve, the Windows app receives the device token through its polling channel." },
       ],
     }));
   });
@@ -873,12 +892,12 @@ export function buildLocalManagerBetaRoutes(deps) {
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).send(localManagerShellPage({
       eyebrow: "Account",
-      title: "Create or recover your workspace",
-      body: "Use the platform /connect onboarding flow for sign-up, Google auth, workspace creation, and tenant recovery. Local Manager then returns to device linking.",
-      primaryText: "Open /connect onboarding",
-      primaryHref: localManagerConnectUrl("/app/local-manager/link-device"),
+      title: "Create account and approve this device",
+      body: "Create a Mad4B account on the Local Manager device approval page, then approve the pairing code. The Windows app will receive a scoped device token after approval.",
+      primaryText: "Open device approval",
+      primaryHref: "/app/local-manager/link-device?mode=signup",
       cards: [
-        { title: "Workspace recovery", body: "Tenantless users and missing-workspace states are handled by the shared /connect recovery flow." },
+        { title: "New users", body: "The approval page can create a workspace and immediately continue to device approval." },
         { title: "Scoped credentials", body: "The backend issues device-scoped credentials only after the signed-in user approves linking." },
       ],
     }));
@@ -945,6 +964,7 @@ export function buildLocalManagerBetaRoutes(deps) {
   });
 
   router.post("/local-manager/device-link/start", startDeviceLinkSession);
+  router.get("/local-manager/device-link/preview", previewDeviceLinkSession);
   router.post("/local-manager/device-link/poll", pollDeviceLinkSession);
   router.post("/local-manager/device-link/approve", approveDeviceLinkSession);
   router.get("/local-manager/device-link/devices", listLinkedDevices);

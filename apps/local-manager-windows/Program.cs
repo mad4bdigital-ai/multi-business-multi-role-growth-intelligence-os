@@ -14,8 +14,8 @@ internal static class Program
 {
     private const string BaseUrl = "https://auth.mad4b.com";
     private const string LocalManagerUrl = BaseUrl + "/app/local-manager";
-    private const string SignInUrl = BaseUrl + "/connect?return_to=%2Fapp%2Flocal-manager%2Flink-device&source=windows-app";
-    private const string SignUpUrl = BaseUrl + "/connect?return_to=%2Fapp%2Flocal-manager%2Flink-device&source=windows-app&mode=signup";
+    private const string SignInUrl = BaseUrl + "/app/local-manager/link-device?mode=signin&source=windows-app";
+    private const string SignUpUrl = BaseUrl + "/app/local-manager/link-device?mode=signup&source=windows-app";
     private const string DevicesUrl = BaseUrl + "/app/local-manager/devices?source=windows-app";
     private const string RoutesUrl = BaseUrl + "/app/local-manager/routes?source=windows-app";
     private const string BackupsUrl = BaseUrl + "/app/local-manager/backups?source=windows-app";
@@ -65,9 +65,9 @@ internal static class Program
                 Size = new Size(780, 82)
             };
 
-            var signInButton = MakeButton("Sign in", 28, 164, 140, (_, _) => OpenUrl(SignInUrl));
-            var signUpButton = MakeButton("Create account", 184, 164, 150, (_, _) => OpenUrl(SignUpUrl));
-            var linkButton = MakeButton("Link this device", 350, 164, 160, async (_, _) => await StartDeviceLinkAsync());
+            var signInButton = MakeButton("Sign in", 28, 164, 140, async (_, _) => await StartDeviceLinkAsync("signin"));
+            var signUpButton = MakeButton("Create account", 184, 164, 150, async (_, _) => await StartDeviceLinkAsync("signup"));
+            var linkButton = MakeButton("Link this device", 350, 164, 160, async (_, _) => await StartDeviceLinkAsync("link"));
             var openButton = MakeButton("Open web app", 526, 164, 140, (_, _) => OpenUrl(LocalManagerUrl));
             var forgetButton = MakeButton("Forget device", 682, 164, 140, (_, _) => ForgetDeviceToken());
 
@@ -247,7 +247,7 @@ internal static class Program
             _output.Text = "Device token removed. Link this device again to restore controls.";
         }
 
-        private async Task StartDeviceLinkAsync()
+        private async Task StartDeviceLinkAsync(string mode = "link")
         {
             try
             {
@@ -282,7 +282,9 @@ internal static class Program
                 _status.Text = "Pairing code created. Browser opened for approval.";
                 _progress.Value = 10;
                 _output.Text = JsonSerializer.Serialize(new { pairing_code = start.UserCode, expires_in = start.ExpiresIn, secrets_included = false }, _json);
-                OpenUrl(start.VerificationUriComplete ?? start.VerificationUri ?? (BaseUrl + "/app/local-manager/link-device"));
+                var approvalUrl = start.VerificationUriComplete ?? start.VerificationUri ?? (BaseUrl + "/app/local-manager/link-device");
+                approvalUrl += approvalUrl.Contains('?') ? "&mode=" + Uri.EscapeDataString(mode) : "?mode=" + Uri.EscapeDataString(mode);
+                OpenUrl(approvalUrl);
                 await PollDeviceLinkAsync(start.UserCode, start.PollToken, Math.Max(2, start.Interval));
             }
             catch (Exception ex)
