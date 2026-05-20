@@ -4,11 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: "Fallback deployment target: auth, connector, or both"
+        description: "Fallback deployment target: dev, auth, connector, or both"
         required: true
         default: "auth"
         type: choice
         options:
+          - dev
           - auth
           - connector
           - both
