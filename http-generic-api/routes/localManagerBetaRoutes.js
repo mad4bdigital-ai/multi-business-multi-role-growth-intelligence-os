@@ -631,7 +631,13 @@ async function approveDevice(){
   const res = await fetch('/local-manager/device-link/approve',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({code})});
   const data = await res.json();
   setOut(data);
-  if(res.ok && data.ok){ $('authState').innerHTML = '<span class="ok">Device approved. You can return to the Windows app.</span>'; return true; }
+  if(res.ok && data.ok){
+    const msg = data.already_linked
+      ? 'This device was already linked. The Windows app session has been refreshed.'
+      : 'Device approved. You can return to the Windows app.';
+    $('authState').innerHTML = '<span class="ok">'+esc(msg)+'</span>';
+    return true;
+  }
   return false;
 }
 $('signIn').onclick = async () => {
