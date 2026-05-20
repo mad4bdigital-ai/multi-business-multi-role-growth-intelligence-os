@@ -94,5 +94,19 @@ assert("governance diagnostic includes graph_context",
   governance.includes("graph_context") &&
   governance.includes("authority_summary"));
 
+assert("parent and child OpenAPI expose platform graph tag, schemas, and paths",
+  [parentOpenapi, childOpenapi].every((schema) =>
+    schema.includes("name: platform-graph") &&
+    schema.includes("PlatformGraphNode:") &&
+    schema.includes("PlatformGraphEdge:") &&
+    schema.includes("PlatformGraphContext:") &&
+    schema.includes("/platform/graph/project:") &&
+    schema.includes("/platform/graph/validate:") &&
+    schema.includes("/platform/graph/resolve-context:") &&
+    schema.includes("/platform/graph/node/{node_id}:") &&
+    schema.includes("/platform/graph/neighborhood:") &&
+    schema.includes("/platform/graph/status:")
+  ));
+
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
