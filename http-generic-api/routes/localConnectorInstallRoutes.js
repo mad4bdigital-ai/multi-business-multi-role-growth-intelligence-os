@@ -187,6 +187,7 @@ async function resolveProvisioningCredentials(req, principal, body = {}) {
   if (useManagedCreds) {
     return {
       source: req.auth?.is_admin === true ? "server_env" : "managed_server_env",
+      provisioning_credential_mode: provisioningCredentialMode,
       cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
       cloudflareToken: process.env.CLOUDFLARE_API_TOKEN,
       hostingerToken: hostingerApiKey(),
