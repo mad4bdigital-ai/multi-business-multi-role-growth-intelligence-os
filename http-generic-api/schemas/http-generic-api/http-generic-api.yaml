@@ -611,6 +611,202 @@ components:
         execution_guardrail:
           type: boolean
 
+    # -- Local Manager schemas ------------------------------------------------
+
+    LocalManagerDeviceLinkSession:
+      type: object
+      additionalProperties: false
+      properties:
+        session_id: { type: string }
+        status: { type: string, enum: [pending, approved, completed, expired, cancelled] }
+        device_id: { type: string }
+        hostname: { type: string, nullable: true }
+        platform: { type: string, nullable: true }
+        app_version: { type: string, nullable: true }
+        user_id: { type: string, nullable: true }
+        tenant_id: { type: string, nullable: true }
+        approved_at: { type: string, format: date-time, nullable: true }
+        completed_at: { type: string, format: date-time, nullable: true }
+        expires_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time, nullable: true }
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    LocalManagerDeviceLinkPublicSession:
+      allOf:
+        - $ref: "#/components/schemas/LocalManagerDeviceLinkSession"
+      description: Secret-free pairing preview. Implementations must not include user_id, tenant_id, poll token, or device token.
+
+    LocalManagerDeviceLinkStartRequest:
+      type: object
+      additionalProperties: true
+      properties:
+        device_id: { type: string }
+        hostname: { type: string }
+        device_name: { type: string }
+        platform: { type: string, default: windows }
+        app_version: { type: string }
+
+    LocalManagerDeviceLinkStartResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, session_id, device_code, user_code, verification_uri, verification_uri_complete, expires_in, interval, poll_token, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        session_id: { type: string }
+        device_code: { type: string }
+        user_code: { type: string }
+        verification_uri: { type: string, format: uri }
+        verification_uri_complete: { type: string, format: uri }
+        expires_in: { type: integer }
+        interval: { type: integer }
+        poll_token: { type: string }
+        secrets_included: { type: boolean, enum: [false] }
+
+    LocalManagerDeviceLinkPreviewResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, status, device, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        status: { type: string }
+        device:
+          $ref: "#/components/schemas/LocalManagerDeviceLinkPublicSession"
+        secrets_included: { type: boolean, enum: [false] }
+
+    LocalManagerDeviceLinkCodeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        code: { type: string }
+        device_code: { type: string }
+        user_code: { type: string }
+
+    LocalManagerDeviceLinkPollRequest:
+      allOf:
+        - $ref: "#/components/schemas/LocalManagerDeviceLinkCodeRequest"
+        - type: object
+          required: [poll_token]
+          properties:
+            poll_token: { type: string }
+
+    LocalManagerDeviceLinkPollResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, status, secrets_included]
+      properties:
+        ok: { type: boolean }
+        status: { type: string }
+        interval: { type: integer }
+        expires_at: { type: string, format: date-time }
+        device_access_token: { type: string }
+        token_type: { type: string, enum: [Bearer] }
+        expires_in: { type: integer }
+        device:
+          $ref: "#/components/schemas/LocalManagerDeviceLinkSession"
+        secrets_included: { type: boolean, enum: [false] }
+        error:
+          $ref: "#/components/schemas/ErrorObject"
+
+    LocalManagerUserSummary:
+      type: object
+      additionalProperties: true
+      properties:
+        user_id: { type: string }
+        email: { type: string }
+        display_name: { type: string, nullable: true }
+        tenant_id: { type: string, nullable: true }
+        role: { type: string, nullable: true }
+        tenant_display_name: { type: string, nullable: true }
+
+    LocalManagerDeviceLinkApproveResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, status, user, device, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        status: { type: string, enum: [approved] }
+        user:
+          $ref: "#/components/schemas/LocalManagerUserSummary"
+        device:
+          $ref: "#/components/schemas/LocalManagerDeviceLinkSession"
+        secrets_included: { type: boolean, enum: [false] }
+
+    LocalManagerLinkedDevicesResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, user, devices, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        user:
+          $ref: "#/components/schemas/LocalManagerUserSummary"
+        devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/LocalManagerDeviceLinkSession"
+        secrets_included: { type: boolean, enum: [false] }
+
+    LocalManagerDeviceSessionResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, device, controls, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        device:
+          type: object
+          additionalProperties: true
+        controls:
+          type: object
+          additionalProperties: true
+        secrets_included: { type: boolean, enum: [false] }
+
+    LocalManagerDeviceControlsResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, section, device, controls, token_scope, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        section: { type: string, enum: [overview, routes, backups, settings] }
+        device:
+          type: object
+          additionalProperties: true
+        controls:
+          type: object
+          additionalProperties: true
+        token_scope: { type: string, enum: [local_manager.device] }
+        secrets_included: { type: boolean, enum: [false] }
+
+    LocalManagerWindowsUpdateResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, platform, app, latest_version, update_available, download_url, direct_download_url, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        platform: { type: string, enum: [windows] }
+        app: { type: string, enum: [mad4b-local-manager] }
+        latest_version: { type: string }
+        current_version: { type: string, nullable: true }
+        update_available:
+          oneOf:
+            - type: boolean
+            - type: "null"
+        required: { type: boolean }
+        minimum_supported_version: { type: string, nullable: true }
+        release_channel: { type: string }
+        release_tag: { type: string }
+        download_url: { type: string }
+        direct_download_url: { type: string, format: uri }
+        sha256_url: { type: string, format: uri }
+        sha256: { type: string, nullable: true }
+        release_notes:
+          type: array
+          items: { type: string }
+        registry_source: { type: string }
+        checked_at: { type: string, format: date-time }
+        secrets_included: { type: boolean, enum: [false] }
+
     # -- AI resolver schemas --------------------------------------------------
 
     AiIntentMaturation:
