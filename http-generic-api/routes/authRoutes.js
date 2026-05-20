@@ -828,6 +828,123 @@ export function buildAuthRoutes(deps) {
     }
   });
 
+  // ── POST /auth/password/forgot ─────────────────────────────────────────────
+  router.post("/password/forgot", async (req, res) => {
+    try {
+      await ensurePasswordResetTables();
+      const email = cleanText(req.body?.email, 255).toLowerCase();
+      const returnTo = safeReturnTo(req.body?.return_to || req.body?.returnTo || "/connect");
+      if (!email) {
+        return res.status(400).json({ ok: false, error: { code: "missing_email", message: "email is required." } });
+      }
+
+      const generic = {
+        ok: true,
+        message: "If an active account exists for that email, password reset instructions have been queued.",
+        email_delivery_configured: emailDeliveryConfigured(),
+        secrets_included: false,
+      };
+
+      const [rows] = await getPool().query(
+        `SELECT user_id, email, display_name, status FROM \`users\` WHERE email = ? LIMIT 1`,
+        [email]
+      );
+      const user = rows[0] || null;
+      if (!user || user.status !== "active") return res.status(200).json(generic);
+
+      const resetId = randomUUID();
+      const rawToken = secureToken(36);
+      const tokenHash = sha256(rawToken);
+      const resetUrl = `${PASSWORD_RESET_BASE_URL}/auth/password/reset?token=${encodeURIComponent(rawToken)}&return_to=${encodeURIComponent(returnTo)}`;
+      const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_SECONDS * 1000);
+
+      await getPool().query(
+        `UPDATE \`auth_password_reset_tokens\`
+            SET status = 'revoked'
+          WHERE user_id = ? AND status = 'pending' AND expires_at > NOW()`,
+        [user.user_id]
+      );
+      await getPool().query(
+        `INSERT INTO \`auth_password_reset_tokens\`
+          (reset_id, user_id, email, token_hash, status, requested_ip, requested_user_agent, expires_at)
+         VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)`,
+        [resetId, user.user_id, user.email, tokenHash, cleanText(req.ip || req.socket?.remoteAddress || "", 64), cleanText(req.get("user-agent") || "", 255), expiresAt]
+      );
+      await getPool().query(
+        `INSERT INTO \`auth_email_outbox\`
+          (email_id, purpose, recipient_email, subject, body_text, body_html, status, metadata_json)
+         VALUES (?, 'password_reset', ?, ?, ?, ?, 'queued', ?)`,
+        [
+          randomUUID(),
+          user.email,
+          "Reset your Mad4B password",
+          `Reset your Mad4B password:\n\n${resetUrl}\n\nThis link expires in 30 minutes. If you did not request it, ignore this message.`,
+          `<p>Reset your Mad4B password:</p><p><a href="${escapeHtmlAttribute(resetUrl)}">Reset password</a></p><p>This link expires in 30 minutes. If you did not request it, ignore this message.</p>`,
+          JSON.stringify({ reset_id: resetId, return_to: returnTo, delivery_configured: emailDeliveryConfigured() }),
+        ]
+      );
+
+      return res.status(200).json(generic);
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "password_reset_request_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  // ── POST /auth/password/reset ──────────────────────────────────────────────
+  router.post("/password/reset", async (req, res) => {
+    try {
+      await ensurePasswordResetTables();
+      const token = cleanText(req.body?.token, 512);
+      const password = String(req.body?.password || "");
+      if (!token || !password) {
+        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "token and password are required." }, secrets_included: false });
+      }
+      if (password.length < 8) {
+        return res.status(400).json({ ok: false, error: { code: "weak_password", message: "Password must be at least 8 characters." }, secrets_included: false });
+      }
+
+      const [rows] = await getPool().query(
+        `SELECT * FROM \`auth_password_reset_tokens\`
+          WHERE token_hash = ? AND status = 'pending'
+          LIMIT 1`,
+        [sha256(token)]
+      );
+      const reset = rows[0] || null;
+      if (!reset || new Date(reset.expires_at).getTime() <= Date.now()) {
+        if (reset) {
+          await getPool().query(`UPDATE \`auth_password_reset_tokens\` SET status = 'expired' WHERE reset_id = ?`, [reset.reset_id]);
+        }
+        return res.status(400).json({ ok: false, error: { code: "invalid_or_expired_token", message: "Password reset link is invalid or expired." }, secrets_included: false });
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      const connection = await getPool().getConnection();
+      try {
+        await connection.beginTransaction();
+        await connection.query(
+          `INSERT INTO \`user_credentials\` (user_id, auth_provider, password_hash)
+           VALUES (?, 'platform', ?)
+           ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash)`,
+          [reset.user_id, passwordHash]
+        );
+        await connection.query(
+          `UPDATE \`auth_password_reset_tokens\` SET status = 'used', used_at = NOW() WHERE reset_id = ?`,
+          [reset.reset_id]
+        );
+        await connection.commit();
+      } catch (err) {
+        await connection.rollback();
+        throw err;
+      } finally {
+        connection.release();
+      }
+
+      return res.status(200).json({ ok: true, message: "Password has been reset. You can sign in with the new password.", secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "password_reset_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   // ── POST /auth/google ───────────────────────────────────────────────────────
   router.post("/google", async (req, res) => {
     try {
