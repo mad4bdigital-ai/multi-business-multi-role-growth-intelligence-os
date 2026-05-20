@@ -151,6 +151,22 @@ export async function findUserAppConnection({
   if (resolvedConnectionId) {
     filters.push("CAST(uac.connection_id AS CHAR)=CAST(? AS CHAR)");
     params.push(resolvedConnectionId);
+    if (["user", "member_user_id"].includes(scope) && resolvedUserId) {
+      filters.push("CAST(uac.user_id AS CHAR)=CAST(? AS CHAR)");
+      params.push(resolvedUserId);
+    } else if (["tenant", "tenant_primary"].includes(scope) && resolvedTenantId) {
+      filters.push("CAST(uac.tenant_id AS CHAR)=CAST(? AS CHAR)");
+      params.push(resolvedTenantId);
+    } else if (scope === "connection") {
+      if (resolvedTenantId) {
+        filters.push("CAST(uac.tenant_id AS CHAR)=CAST(? AS CHAR)");
+        params.push(resolvedTenantId);
+      }
+      if (resolvedUserId) {
+        filters.push("CAST(uac.user_id AS CHAR)=CAST(? AS CHAR)");
+        params.push(resolvedUserId);
+      }
+    }
   } else if (["user", "member_user_id"].includes(scope)) {
     if (!resolvedUserId) return null;
     filters.push("CAST(uac.user_id AS CHAR)=CAST(? AS CHAR)");
