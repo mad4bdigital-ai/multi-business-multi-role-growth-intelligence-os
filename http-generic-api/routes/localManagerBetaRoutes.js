@@ -755,6 +755,7 @@ function restoreUser(){
   } catch { $('authState').textContent='Signed in.'; }
   return true;
 }
+setupGoogle();
 if(restoreUser()) loadDevices();
 </script>
 </body></html>`;
