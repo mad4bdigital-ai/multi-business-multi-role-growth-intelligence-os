@@ -241,6 +241,7 @@ async function resolveProvisioningCredentials(req, principal, body = {}) {
 
   return {
     source: "db_user_app_connections",
+    provisioning_credential_mode: provisioningCredentialMode,
     cloudflareAccountId,
     cloudflareToken,
     hostingerToken,
