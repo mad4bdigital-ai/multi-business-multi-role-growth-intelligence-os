@@ -182,7 +182,7 @@ paths:
         - tools
       operationId: callTool
       summary: Execute any platform tool by name
-      description: Executes a tool from the tenant registry. Use listTools first to get tool names and required arguments. For connect_activate, always pass tool_args.mode as managed or dedicated. Path params are substituted automatically; GET uses query string, POST uses request body. Returns the raw upstream response.
+      description: Executes a tenant registry tool by name. Use listTools first. For connect_activate, pass tool_args.mode as managed or dedicated.
       requestBody:
         required: true
         content:
