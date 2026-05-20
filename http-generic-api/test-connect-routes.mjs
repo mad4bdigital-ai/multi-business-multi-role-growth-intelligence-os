@@ -450,6 +450,7 @@ section("connect api auth scope");
   {
     const indexSource = readFileSync("routes/index.js", "utf8");
     const betaSource = readFileSync("routes/localManagerBetaRoutes.js", "utf8");
+    const authSource = readFileSync("routes/authRoutes.js", "utf8");
     assert("local manager beta routes are imported and mounted",
       indexSource.includes("buildLocalManagerBetaRoutes") &&
       indexSource.includes("./localManagerBetaRoutes.js") &&
@@ -486,13 +487,23 @@ section("connect api auth scope");
       betaSource.includes("function localManagerAdminPage") &&
       betaSource.includes("<YOUR_PLATFORM_TOKEN>") &&
       !betaSource.includes("BACKEND_API_KEY"));
-    assert("local manager auth pages use dedicated device approval flow",
+    assert("local manager auth pages use dedicated device approval flow with Google and forgot-password controls",
       betaSource.includes("Open device approval") &&
       betaSource.includes("/app/local-manager/link-device?mode=signin") &&
       betaSource.includes("/app/local-manager/link-device?mode=signup") &&
       betaSource.includes("approveDevice") &&
       betaSource.includes("loadPreview") &&
+      betaSource.includes("setupGoogle") &&
+      betaSource.includes("/auth/google") &&
+      betaSource.includes("forgotPassword") &&
+      betaSource.includes("/auth/password/forgot") &&
       !betaSource.includes("Open /connect sign-in"));
+    assert("platform auth exposes password reset request and reset routes",
+      authSource.includes('router.post("/password/forgot"') &&
+      authSource.includes('router.get("/password/reset"') &&
+      authSource.includes('router.post("/password/reset"') &&
+      authSource.includes("auth_password_reset_tokens") &&
+      authSource.includes("auth_email_outbox"));
     assert("local manager Windows update metadata is secret-free and DB-backed",
       betaSource.includes("LOCAL_MANAGER_WINDOWS_LATEST_VERSION") &&
       betaSource.includes("localManagerWindowsUpdateInfo") &&

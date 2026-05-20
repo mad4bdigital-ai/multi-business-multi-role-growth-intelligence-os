@@ -10,6 +10,8 @@ import {
   startDeviceLinkSession,
 } from "../services/localManagerDeviceLinkService.js";
 
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -559,9 +561,12 @@ function localManagerLinkDevicePage(initialCode = "") {
     </div>
     <div class="card">
       <h2>2. Sign in</h2>
+      <div id="googleSignIn"></div>
+      <p id="googleHint" class="bad" style="display:none;">Google sign-in is not configured yet.</p>
       <label for="email">Email</label><input id="email" type="email" autocomplete="email" />
       <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" />
       <button id="signIn">Sign in</button>
+      <button class="secondary" id="forgotPassword">Forgot password?</button>
       <button class="secondary" id="createAccount">Create account</button>
       <label for="displayName">Name for new account</label><input id="displayName" autocomplete="name" />
       <label for="workspaceName">Workspace for new account</label><input id="workspaceName" />
@@ -575,12 +580,35 @@ function localManagerLinkDevicePage(initialCode = "") {
     <pre id="out">Waiting for sign-in and pairing code.</pre>
   </section>
 </main>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
+const GOOGLE_CLIENT_ID = ${JSON.stringify(GOOGLE_CLIENT_ID)};
 const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 function normalizeCode(value){ return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^(.{4})(.*)$/,'$1-$2').slice(0,9); }
 function setOut(obj){ $('out').textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2); }
 function setToken(token, user){ sessionStorage.setItem('mlm_user_token', token); sessionStorage.setItem('mlm_user', JSON.stringify(user || {})); $('authState').innerHTML = '<span class="ok">Signed in as '+esc(user?.email || user?.user_id || 'user')+'</span>'; }
+async function completeAuth(token, user){
+  setToken(token, user);
+  const code = normalizeCode($('deviceCode').value);
+  if(code) await approveDevice(); else setOut({ok:true,next:'Enter the pairing code, then approve this device.'});
+}
+function setupGoogle(){
+  if(!GOOGLE_CLIENT_ID){ $('googleHint').style.display='block'; return; }
+  if(!window.google?.accounts?.id) return window.setTimeout(setupGoogle, 250);
+  window.google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: async (response) => {
+      try {
+        const res = await fetch('/auth/google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id_token:response.credential})});
+        const data = await res.json();
+        if(!res.ok || !data.token){ setOut(data); return; }
+        await completeAuth(data.token, data);
+      } catch (err) { setOut({ok:false,error:{code:'google_sign_in_failed',message:err.message}}); }
+    }
+  });
+  window.google.accounts.id.renderButton($('googleSignIn'), { theme:'outline', size:'large', width:320, text:'continue_with', locale:'en' });
+}
 async function loadPreview(){
   const code = normalizeCode($('deviceCode').value);
   if(!code){ $('devicePreview').textContent = 'Enter a code to load device details.'; return; }
@@ -610,20 +638,24 @@ $('signIn').onclick = async () => {
   const res = await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});
   const data = await res.json();
   if(!res.ok || !data.token){ setOut(data); return; }
-  setToken(data.token, data);
-  const code = normalizeCode($('deviceCode').value);
-  if(code) await approveDevice(); else setOut({ok:true,next:'Enter the pairing code, then approve this device.'});
+  await completeAuth(data.token, data);
+};
+$('forgotPassword').onclick = async () => {
+  const email = $('email').value;
+  if(!email){ setOut({ok:false,error:{code:'missing_email',message:'Enter your email first, then click Forgot password.'}}); return; }
+  const returnTo = '/app/local-manager/link-device?code=' + encodeURIComponent(normalizeCode($('deviceCode').value)) + '&mode=signin';
+  const res = await fetch('/auth/password/forgot',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,return_to:returnTo})});
+  const data = await res.json();
+  setOut(data);
 };
 $('createAccount').onclick = async () => {
   const res = await fetch('/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value,display_name:$('displayName').value || $('email').value,tenant_display_name:$('workspaceName').value || 'Local Manager workspace'})});
   const data = await res.json();
   if(!res.ok || !data.token){ setOut(data); return; }
-  setToken(data.token, data);
-  const code = normalizeCode($('deviceCode').value);
-  if(code) await approveDevice(); else setOut({ok:true,next:'Enter the pairing code, then approve this device.'});
+  await completeAuth(data.token, data);
 };
 $('approve').onclick = approveDevice;
-restore(); $('normalize').click();
+restore(); $('normalize').click(); setupGoogle();
 </script>
 </body></html>`;
 }
