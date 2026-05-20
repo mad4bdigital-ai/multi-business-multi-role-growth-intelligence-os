@@ -118,6 +118,18 @@ The safe customer flow is:
 
 If the customer connector is missing, disabled, not on Windows, not allowlisted, or not scoped to the signed-in user, return `authorization_gated` or `blocked_local_runtime`. Do not fall back to admin CLI or backend API key.
 
+## Development/Staging Environment
+
+`dev.mad4b.com` is the governed development host for testing repo-branch deployments before production. It should identify the source GitHub branch, commit SHA, deployment mode, Hostinger root, and validation result. Use `openapi.gpt-action.dev-diagnostics.yaml` for passive checks only: `/health`, `/deployment-info`, and protected `/dev/db/status`.
+
+Admin workflow:
+1. Deploy or inspect the dev branch first.
+2. Verify `dev.mad4b.com/health` and `/deployment-info` match the expected branch/commit.
+3. Run release readiness and targeted smoke checks through the auth dispatcher.
+4. Promote to `main`/`auth.mad4b.com` only after explicit approval.
+
+Do not use dev diagnostics for production mutations. Do not treat Hostinger hPanel Git branch metadata as governed evidence unless it is mirrored into repo docs, DB environment registry, or `/deployment-info`.
+
 ## Self-Repair Capabilities
 
 The admin GPT can autonomously diagnose and repair connected systems using the following tools from the registry. Call `listTools` and filter by tag `admin` or `self_repair` to discover them.
