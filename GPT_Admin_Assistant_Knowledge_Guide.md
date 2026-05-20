@@ -230,16 +230,17 @@ Example:
 
 `GET /activation/session-context` in the Runtime scope loads same-user session history, related scopes, transcript availability, and `platform_access` for hard activation continuity. It is useful at the start of a GPT session and for recovery from prior degraded work. It does not replace Drive, Sheets bootstrap, GitHub validation, release readiness, or provider execution evidence. Raw transcript fields are optional, bounded, and should be requested only with `include_raw=true` when needed.
 
-## Scoped Action Files - Admin 2-Connector Architecture
+## Scoped Action Files - Admin Connector Architecture
 
-The Admin Assistant uses exactly **two** action connectors. Custom GPT is limited to 10 connectors x 30 ops; this architecture consolidates governed platform/admin work into a single auth-host client and keeps the local machine bridge separate.
+The Admin Assistant keeps production control in one auth-host connector, may add a passive dev diagnostics connector, and keeps the local machine bridge separate. Custom GPT connector/operation limits still apply; avoid direct route sprawl.
 
-| Connector | File | Server URL | Ops | Purpose |
-|---|---|---:|---:|---|
-| **Platform** | `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` | `https://auth.mad4b.com` | 19 | Activation context, system + admin tool registries (list/call), GPT meta-tool dispatcher (`listAdminTools` / `callAdminTool`), and a small set of admin-CLI surfaces. All other admin work routes through `callAdminTool` with a registered tool_key. |
-| **Local** | `http-generic-api/openapi.gpt-action.local-connector.yaml` | `https://connector.mad4b.com` | 11 | Standalone local execution bridge for break-glass shell/file/GitHub/gcloud/PS/Win/n8n/cf on the active admin Windows host via Cloudflare Tunnel |
+| Connector | File | Server URL | Purpose |
+|---|---|---:|---|
+| **Platform** | `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` | `https://auth.mad4b.com` | Production control-plane dispatcher. Activation, system/admin tool registries, `listAdminTools` / `callAdminTool`, and governed admin surfaces. |
+| **Dev diagnostics** | `http-generic-api/openapi.gpt-action.dev-diagnostics.yaml` | `https://dev.mad4b.com` | Passive staging checks only: health, deployment-info, protected dev DB status. No production mutation. |
+| **Local** | `http-generic-api/openapi.gpt-action.local-connector.yaml` | `https://connector.mad4b.com` | Standalone local execution bridge for break-glass shell/file/GitHub/gcloud/PS/Win/n8n/cf on the active admin Windows host. |
 
-`auth.mad4b.com` is the governed control plane and must be the first choice for admin work. The local connector is a standalone plugin/action because it touches the local environment; call it only after the platform action indicates local execution is needed, or when the cloud control plane is unavailable and break-glass recovery is explicitly required. If `connect.mad4b.com` is used as the connector-facing host alias, it must follow the same local-connector contract as `connector.mad4b.com`.
+`auth.mad4b.com` is the governed production control plane and must be the first choice for admin work. Use `dev.mad4b.com` only to verify a branch deployment before promotion. The local connector is a standalone plugin/action because it touches the local environment; call it only after the platform action indicates local execution is needed, or when the cloud control plane is unavailable and break-glass recovery is explicitly required.
 
 ### Platform connector — operations
 
