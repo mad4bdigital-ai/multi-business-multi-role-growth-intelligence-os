@@ -7754,6 +7754,63 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { description: Revocation failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
+  /connect/api/credential-intake/sessions:
+    post:
+      tags: [connect-api]
+      security: [userBearerAuth: []]
+      operationId: createConnectCredentialIntakeSession
+      summary: Create a user-scoped secure credential intake link
+      description: Creates a short-lived URL where the signed-in tenant user can enter integration secrets outside GPT chat.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [app_key, auth_type]
+              additionalProperties: true
+              properties:
+                app_key: { type: string }
+                auth_type:
+                  type: string
+                  enum: [api_key, bearer_token, basic_auth, mcp, webhook, custom_headers, client_credentials]
+                display_label: { type: string }
+                api_base_url: { type: string, format: uri }
+                mcp_endpoint: { type: string, format: uri }
+                webhook_url: { type: string, format: uri }
+                expires_in_minutes: { type: integer, minimum: 1, maximum: 1440 }
+                metadata:
+                  type: object
+                  additionalProperties: true
+                credential_schema:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "201":
+          description: Credential intake session created
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, session_id, intake_url, app_key, auth_type]
+                properties:
+                  ok: { type: boolean }
+                  session_id: { type: string }
+                  intake_url: { type: string, format: uri }
+                  expires_at: { type: string }
+                  app_key: { type: string }
+                  auth_type: { type: string }
+                  secret_exposed: { type: boolean, enum: [false] }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default:
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /connect/api/cms/claims:
     get:
       tags: [connect-api]
