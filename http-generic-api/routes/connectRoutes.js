@@ -675,8 +675,19 @@ export function buildConnectRoutes(deps) {
         [connectionId, resolvedTenantId, mode, cfMode, gaMode, n8n_activation_mode]
       );
 
+      await upsertTenantIntegrationPolicies({
+        tenantId: resolvedTenantId,
+        userId: user_id,
+        integrationModes: req.body?.integration_modes || {},
+        source: "connect_activate",
+      });
       const connection = await fetchTenantConnection(resolvedTenantId);
       const dedicatedIntegrationReadiness = await assessDedicatedIntegrationReadiness({
+        tenantId: resolvedTenantId,
+        userId: user_id,
+        connection,
+      });
+      const hybridIntegrationReadiness = await assessHybridIntegrationReadiness({
         tenantId: resolvedTenantId,
         userId: user_id,
         connection,
@@ -686,8 +697,10 @@ export function buildConnectRoutes(deps) {
         mode_policy: modePolicy,
         dedicated_integration_catalog: dedicatedIntegrationCatalog(),
         dedicated_integration_readiness: dedicatedIntegrationReadiness,
-        next_actions: dedicatedIntegrationReadiness?.ready === false
-          ? dedicatedIntegrationReadiness.next_actions
+        hybrid_integration_catalog: hybridIntegrationCatalog(),
+        hybrid_integration_readiness: hybridIntegrationReadiness,
+        next_actions: hybridIntegrationReadiness?.ready === false
+          ? hybridIntegrationReadiness.next_actions
           : ["connect_device_install"],
         connection: {
           mode: connection.connection_mode,
