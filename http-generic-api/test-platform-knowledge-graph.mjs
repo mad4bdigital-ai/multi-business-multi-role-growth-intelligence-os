@@ -77,6 +77,15 @@ assert("graph service forbids raw secret terms and avoids raw secret columns",
   !service.includes("SELECT oauth_client_secret") &&
   !service.includes("SELECT password_hash"));
 
+assert("graph memory service resolves scoped assets through graph attachments",
+  memoryService.includes("export async function resolveGraphRelevantAssets") &&
+  memoryService.includes("resolvePlatformGraphContext") &&
+  memoryService.includes("platform_graph_edges e") &&
+  memoryService.includes("json_asset_subject_links") &&
+  memoryService.includes("payload_summary") &&
+  memoryService.includes("redactSecrets") &&
+  memoryService.includes("secrets_included: false"));
+
 assert("graph service uses MariaDB-compatible JSON writes",
   !service.includes("CAST(? AS JSON)") &&
   service.includes("metadata_json=VALUES(metadata_json)") &&
