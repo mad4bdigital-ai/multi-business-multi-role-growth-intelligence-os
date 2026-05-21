@@ -608,6 +608,8 @@ export function buildConnectRoutes(deps) {
         activation_mode_catalog: activationModeCatalog(),
         dedicated_integration_catalog: dedicatedIntegrationCatalog(),
         dedicated_integration_readiness: state.dedicatedIntegrationReadiness,
+        hybrid_integration_catalog: hybridIntegrationCatalog(),
+        hybrid_integration_readiness: state.hybridIntegrationReadiness,
       });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "capabilities_read_failed", message: err.message } });
