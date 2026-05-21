@@ -480,6 +480,7 @@ export async function approveDeviceLinkSession(req, res) {
       [principal.user_id, principal.tenant_id, row.session_id]
     );
     const approved = { ...row, status: "approved", user_id: principal.user_id, tenant_id: principal.tenant_id, approved_at: new Date() };
+    const connectorAlias = await ensureLocalConnectorAliasForDeviceLink({ session: approved, principal });
     return res.status(200).json({
       ok: true,
       status: "approved",
@@ -487,6 +488,7 @@ export async function approveDeviceLinkSession(req, res) {
       reauthorized_existing_device: Boolean(existingLinked),
       user: principal,
       device: sanitizeSession(approved),
+      connector_alias: connectorAlias,
       message: existingLinked
         ? "This device was already linked for your account. The current app session was re-authorized."
         : undefined,
