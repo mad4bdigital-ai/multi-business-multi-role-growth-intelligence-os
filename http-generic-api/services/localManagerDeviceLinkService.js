@@ -598,7 +598,7 @@ export async function getDeviceControls(req, res) {
   try {
     const device = await requireLocalManagerDevice(req);
     const section = cleanText(req.query.section || "overview", 32) || "overview";
-    const allowedSections = new Set(["overview", "routes", "backups", "settings"]);
+    const allowedSections = new Set(["overview", "routes", "backups", "repairs", "settings"]);
     if (!allowedSections.has(section)) {
       return res.status(400).json({ ok: false, error: { code: "invalid_control_section", message: "Unsupported device control section." }, secrets_included: false });
     }
