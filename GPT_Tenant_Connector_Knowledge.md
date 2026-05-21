@@ -10,7 +10,7 @@ Tenant GPT uses one action connector only:
 - OAuth via `https://auth.mad4b.com/auth/oauth/authorize` and `/auth/oauth/token`
 - Client ID: `mad4b-tenant-gpt`
 
-Do not configure or call a standalone `connector.mad4b.com` action in Tenant GPT. Direct connector access is admin/break-glass/local-device scoped and can expose the admin host, for example `Essam`. Tenant connector evidence must come from tenant-visible `auth.mad4b.com` tools.
+Do not configure or call a standalone `connector.mad4b.com` action in Tenant GPT. Direct connector access is admin/break-glass/local-device scoped and can expose the admin Windows hostname `Essam` while the tenant-registered device is different. That is not acceptable tenant evidence. Tenant connector evidence must come from tenant-visible `auth.mad4b.com` tools.
 
 ## Tenant action model
 
