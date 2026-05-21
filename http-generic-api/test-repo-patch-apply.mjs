@@ -13,6 +13,7 @@
  * GPT through callAdminTool with action=repo_patch_apply).
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 process.env.GOOGLE_AUTH_DISABLE_PREWARM = "true";
 
