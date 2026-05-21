@@ -58,6 +58,18 @@ pass("denied file name is rejected with repo_file_blocked");
 await expectRejection({ args: { action: "write_file", path: "http-generic-api/server.js", commit_message: "x" }, code: "repo_patch_missing_message" });
 pass("missing commit_message is rejected with repo_patch_missing_message");
 
+// ── Protected branch policy static contract ───────────────────────────────────
+{
+  const source = readFileSync("./routes/gptToolsRoutes.js", "utf8");
+  assert.ok(source.includes("repo_patch_protected_branch"));
+  assert.ok(source.includes("REPO_PATCH_ALLOW_PROTECTED_BRANCH"));
+  assert.ok(source.includes("defaultRepoPatchBranch"));
+  assert.ok(source.includes("allow_protected_branch"));
+  assert.ok(source.includes("break_glass_reason"));
+  assert.ok(!source.includes("Defaults to main"));
+  pass("repo_patch_apply blocks protected branches by runtime policy");
+}
+
 // ── Unified-diff parser (call applyUnifiedDiffToText indirectly) ──────────────
 // Re-import the diff helper through a side-channel: re-evaluate the module to grab the
 // internal function. We instead exercise applyRepoPatch with a stubbed network shouldn't
