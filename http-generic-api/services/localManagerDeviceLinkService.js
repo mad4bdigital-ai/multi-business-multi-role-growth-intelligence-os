@@ -137,6 +137,113 @@ async function fetchUserMembership({ userId, tenantId = null }) {
   return rows[0] ? { user, membership: rows[0] } : { user, membership: { tenant_id: null, role: null, status: null, tenant_display_name: null } };
 }
 
+async function resolveCanonicalConnectorConfig({ userId, tenantId, deviceId, hostname }) {
+  const pool = getPool();
+  const candidateIds = [...new Set([deviceId, hostname].map((value) => cleanId(value, { max: 128 })).filter(Boolean))];
+
+  if (candidateIds.length) {
+    const placeholders = candidateIds.map(() => "?").join(", ");
+    const [exactRows] = await pool.query(
+      `SELECT config_id, user_id, tenant_id, device_id
+         FROM \`local_connector_user_configs\`
+        WHERE is_enabled = 1
+          AND user_id = ?
+          AND device_id IN (${placeholders})
+        ORDER BY CASE WHEN tenant_id = ? THEN 0 WHEN tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END,
+                 COALESCE(last_health_at, updated_at, created_at) DESC
+        LIMIT 1`,
+      [userId, ...candidateIds, tenantId || ""]
+    );
+    if (exactRows[0]) return exactRows[0];
+  }
+
+  const [fallbackRows] = await pool.query(
+    `SELECT config_id, user_id, tenant_id, device_id
+       FROM \`local_connector_user_configs\`
+      WHERE is_enabled = 1
+        AND user_id = ?
+        AND (? IS NULL OR tenant_id = ? OR tenant_id = '00000000-0000-0000-0000-000000000000')
+        AND COALESCE(tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url) IS NOT NULL
+      ORDER BY CASE WHEN tenant_id = ? THEN 0 WHEN tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END,
+               COALESCE(last_health_at, updated_at, created_at) DESC
+      LIMIT 2`,
+    [userId, tenantId || null, tenantId || null, tenantId || ""]
+  );
+
+  return fallbackRows.length === 1 ? fallbackRows[0] : null;
+}
+
+async function upsertConnectorAlias({ aliasDeviceId, canonical, principal }) {
+  const pool = getPool();
+  const alias = cleanId(aliasDeviceId, { max: 128 });
+  const canonicalDeviceId = cleanId(canonical?.device_id, { max: 128 });
+  if (!alias || !canonicalDeviceId || alias.toLowerCase() === canonicalDeviceId.toLowerCase()) return null;
+
+  const reason = "Auto-created from Local Manager device-link approval so app hostname/device id resolves to the executable local connector device.";
+  const [updateResult] = await pool.query(
+    `UPDATE \`local_connector_device_aliases\`
+        SET canonical_device_id = ?, canonical_config_id = ?, user_id = ?, tenant_id = ?, reason = ?, status = 'active', updated_at = NOW()
+      WHERE alias_device_id = ?
+        AND (user_id = ? OR user_id IS NULL)
+      LIMIT 1`,
+    [canonicalDeviceId, canonical.config_id, principal.user_id, principal.tenant_id || null, reason, alias, principal.user_id]
+  );
+
+  if (!Number(updateResult?.affectedRows || 0)) {
+    await pool.query(
+      `INSERT INTO \`local_connector_device_aliases\`
+        (alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, reason, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
+      [alias, canonicalDeviceId, canonical.config_id, principal.user_id, principal.tenant_id || null, reason]
+    );
+  }
+
+  return {
+    alias_device_id: alias,
+    canonical_device_id: canonicalDeviceId,
+    canonical_config_id: canonical.config_id,
+    status: "active",
+  };
+}
+
+async function ensureLocalConnectorAliasForDeviceLink({ session, principal }) {
+  try {
+    const canonical = await resolveCanonicalConnectorConfig({
+      userId: principal.user_id,
+      tenantId: principal.tenant_id,
+      deviceId: session.device_id,
+      hostname: session.hostname,
+    });
+    if (!canonical) {
+      return { attempted: true, resolved: false, reason: "canonical_connector_config_not_found", secrets_included: false };
+    }
+
+    const aliasInputs = [...new Set([session.device_id, session.hostname].filter(Boolean))];
+    const aliases = [];
+    for (const aliasDeviceId of aliasInputs) {
+      const alias = await upsertConnectorAlias({ aliasDeviceId, canonical, principal });
+      if (alias) aliases.push(alias);
+    }
+
+    return {
+      attempted: true,
+      resolved: true,
+      canonical_device_id: canonical.device_id,
+      canonical_config_id: canonical.config_id,
+      aliases,
+      secrets_included: false,
+    };
+  } catch (err) {
+    return {
+      attempted: true,
+      resolved: false,
+      reason: "connector_alias_upsert_failed",
+      error: { code: err?.code || "connector_alias_upsert_failed", message: err?.message || String(err) },
+      secrets_included: false,
+    };
+  }
+}
+
 export async function requireLocalManagerUser(req) {
   const auth = String(req.headers.authorization || "");
   const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
