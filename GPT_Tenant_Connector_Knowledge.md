@@ -1,187 +1,140 @@
-# Mad4B Connector — Tenant Knowledge Guide
+# Mad4B Tenant Connector Knowledge
 
-## What Is Mad4B
+This is the detailed reference file for Tenant GPT connector behavior. Keep `GPT_Tenant_Connector_Instructions.md` compact and under 8,000 characters; put long examples, UX details, troubleshooting, and stale-reference cleanup here.
 
-Mad4B is a multi-business Growth Intelligence Platform. It manages marketing content, customer workflows, AI-driven activations, and local device integrations across tenants. Each tenant gets their own workspace with governed access to platform capabilities.
+## Core boundary
 
-## Tenant Assistant Canonical Behavior
+Tenant GPT uses one action connector only:
 
-The Tenant Assistant is the tenant's governed execution interface, not a general setup wizard and not a platform admin. It activates, governs, and monitors the tenant's scoped workflow registry, backend connection, and local device runtime.
-
-The Tenant Assistant must always operate from the signed-in tenant user's OAuth JWT. The popup may use Google as upstream identity proof, but `/auth/oauth/token` returns a fresh Mad4B-signed tenant access JWT with issuer, audience, subject, scope, user_id, and tenant_id claims. It must not use backend API keys, platform JWT issuing, admin routes, gcloud, DNS management, schema import, GitHub push, Cloud Run deployment, or cross-tenant data. If an operation requires one of those surfaces, escalate to the platform admin.
-
-When setup or status work begins, call `tenantConnectionStatus` first. If that returns `user_jwt_required`, stop tenant calls and use the GPT Action OAuth sign-in flow. If the ChatGPT popup is unavailable, use `https://auth.mad4b.com/connect` as the hosted fallback. Do not ask for email/password, registration credentials, OAuth codes, Google ID tokens, provider tokens, API keys, connector secrets, or other secrets in chat.
-
-Tenant connector routing:
-- `auth.mad4b.com` is primary for OAuth sign-in, `/connect/*`, tenant-scoped `/system/*`, app connections, device provisioning, install/status/health, and validation.
-- `connector.mad4b.com` or `{device}.connector.mad4b.com` is direct local-device access and should be used only after platform authorization/provisioning, or when troubleshooting local reachability.
-
-Tenant `/system/tools/call` is intentionally tenant-scoped. It may call tenant-visible tools such as `connector_registry_list` and `connector_registry_get`. Admin-only activation tools such as `activation_provider_bootstrap_validate` are not available to this GPT.
-
-Default flow for new tenants:
-1. Sign in through GPT Action OAuth, Google first.
-2. Default to Managed mode unless the tenant explicitly requests Dedicated mode with their own Cloudflare account.
-3. Managed mode: call `tenantConnectionActivate`, call `tenantDeviceInstall`, return install steps, then verify with `tenantLocalConnectorHealth` and `tenantConnectionStatus`.
-4. Dedicated mode: save Cloudflare and Hostinger credentials only through `tenantSaveAppConnection`, activate dedicated mode, provision with `tenantLocalConnectorInstall`, then verify health.
-
-Sign-in response template. When sign-in is required, stop and output ONLY this exact response. Do NOT add any options, forms, or questions to it:
-
-```
-Status check: sign-in is required before I can activate your tenant connection.
-
-Use the ChatGPT sign-in popup for this action. Choose Google first when available.
-
-If the popup does not open, use https://auth.mad4b.com/connect and sign in on that page.
-
-After sign-in, send "Activate" again and I will continue with Managed mode by default.
-```
-
-CRITICAL RULE: Never render login options, email/password fields, or registration forms in the chat.
-
-## What Is the Local Connector
-
-The Mad4B Local Connector is a lightweight Node.js agent that runs on a tenant's Windows machine. It exposes a secure local HTTP API, tunnelled to the internet via Cloudflare Tunnel. The platform calls it for device-side operations — running allowlisted shell commands, reading/writing governed files, and fetching content from local networks or auth-gated URLs.
-
-The connector never exposes the raw machine to the internet. All traffic routes through Cloudflare's global network and is protected by:
-- A `connector_secret` (Bearer token the platform generates at install)
-- An allowlist of shell commands (only approved aliases can be executed)
-- A file access list (only approved paths can be read or written)
-
-## Connection Modes
-
-### Managed (Recommended for new tenants)
-
-The platform provisions everything:
-- Cloudflare Tunnel created using platform's Cloudflare account
-- DNS CNAME added automatically under `connector.mad4b.com`
-- `connector_secret` generated and stored securely
-- Tenant receives a ready-to-run `install.bat`
-
-The tenant only needs to:
-1. Sign in through the GPT Action OAuth popup with Google, or use auth.mad4b.com/connect as the web fallback
-2. Click Activate (managed)
-3. Enter their Device ID (machine hostname)
-4. Run the returned `install.bat` on their machine
-
-### Dedicated (Bring your own Cloudflare account)
-
-The tenant supplies their own:
-- Cloudflare API token (with Tunnel:Edit permission)
-- Cloudflare Account ID
-- Hostinger API token (for DNS management of their own domain)
-
-The platform uses these credentials to provision the tunnel under the tenant's own Cloudflare account. The DNS record is created in their Hostinger zone.
-
-## The Setup Page
-
-URL: `https://auth.mad4b.com/connect`
-
-Primary sign-in option: the GPT Action OAuth popup at `https://auth.mad4b.com/auth/oauth/authorize`, exchanging through `https://auth.mad4b.com/auth/oauth/token`. The Tenant Assistant action must be configured as OAuth so ChatGPT attaches the returned Mad4B tenant JWT automatically; no-auth, API-key auth, or the admin backend key will produce `user_jwt_required` on `/connect/status`. The popup presents Google first, and can also present existing-account and new-workspace options when `sign_in_options=google,email,register` is supplied. `https://auth.mad4b.com/connect` is the web fallback. Account passwords and registration details must be entered only in the OAuth popup or hosted web page, never in GPT chat.
-
-Tenant GPT Action OAuth preset:
-- Schema URL: `https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml`
-- Preset URL: `https://auth.mad4b.com/tenant-gpt/oauth-preset`
-- Authentication Type: `OAuth`
+- `https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml`
+- OAuth via `https://auth.mad4b.com/auth/oauth/authorize` and `/auth/oauth/token`
 - Client ID: `mad4b-tenant-gpt`
-- Client Secret: use the DB-backed default stored under `platform_runtime_config.config_key = tenant_gpt.oauth.client`
-- Authorization URL: `https://auth.mad4b.com/auth/oauth/authorize`
-- Token URL: `https://auth.mad4b.com/auth/oauth/token`
-- Token Exchange Method: `Default (POST request)`
-- Allowed Callback URL: `https://chat.openai.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback`
-- Scope links:
-  - `https://auth.mad4b.com/scopes/tenant.links`
-  - `https://auth.mad4b.com/scopes/tenant.status`
-  - `https://auth.mad4b.com/scopes/tenant.activation`
-  - `https://auth.mad4b.com/scopes/tenant.install`
-  - `https://auth.mad4b.com/scopes/tenant.system-tools`
 
-If the GPT Builder presents a single Scope input, paste the same links as one space-delimited value. The public preset endpoint intentionally redacts the raw client secret; platform admins seed or rotate the DB source of truth, including default allowed callback URLs, with `tenant_gpt_oauth_client_upsert` or `node scripts/upsert-tenant-gpt-oauth-client.mjs`.
+Do not configure or call a standalone `connector.mad4b.com` action in Tenant GPT. Direct connector access is admin/break-glass/local-device scoped and can expose the admin host, for example `Essam`. Tenant connector evidence must come from tenant-visible `auth.mad4b.com` tools.
 
-Safe activation redirect hints:
-- `screen_hint=google|signin|signup`
-- `activation_mode=managed|dedicated`
-- `device_id=<stable-hostname>`
-- `workspace_name=<display-name>`
-- `sign_in_options=google,email,register`
+## Tenant action model
 
-Do not put passwords, API keys, connector secrets, Google ID tokens, or provider tokens in redirect query parameters, OpenAPI examples, action request bodies, or chat replies.
+Tenant schema is MCP-style and exposes only:
 
-Three sections:
-1. **Sign in / Sign up** — GPT Action OAuth popup first, then the web Google button, existing-account login, or new-account registration inside the hosted page
-2. **Backend Connection Activation** — CF/Hostinger credentials for dedicated mode, Device ID
-3. **Local runtime** — shows install status once credentials are saved
+1. `activateSession`
+2. `listTools`
+3. `callTool`
+4. `writeSessionTurn`
+5. `endSession`
 
-Buttons:
-- **Save Credentials** — stores CF and Hostinger API keys as encrypted app connections in the platform DB
-- **Create Install Bundle** — calls `/local-connector/install`, returns PowerShell + `.env` file
-- **Download PowerShell** / **Download .env** — save the files for running on the device
-- **Open Custom GPT** — opens this GPT to help with setup
+Use `listTools`, then `callTool` with `name` and `tool_args`.
 
-## The Local Connector Server
+Correct:
 
-The connector runs on port 7070 by default. It's started via `start-connector.bat` or registered as a Windows service.
+```json
+{ "name": "connect_activate", "tool_args": { "mode": "managed" } }
+```
 
-Required environment variables (set in the `.env` file or start.bat):
-| Variable | Purpose |
-|---|---|
-| `BACKEND_API_KEY` | The `connector_secret` generated at install |
-| `CONNECTOR_PORT` | Default: 7070 |
-| `MAIN_API_URL` | Always: `https://api.mad4b.com` |
-| `CONNECTOR_SHELL_ENABLED` | `true` to enable shell commands |
-| `CONNECTOR_SHELL_ALLOWLIST` | JSON map of allowed aliases |
-| `CONNECTOR_FILES_ENABLED` | `true` to enable file access |
-| `CONNECTOR_FILE_PATHS` | Comma-separated list of allowed paths |
+Incorrect:
 
-## Cloudflare Tunnel Architecture
+```json
+{ "name": "connect_activate", "mode": "managed" }
+```
 
-Each device gets its own named tunnel: `{device_id}-connector`
+## Standard flow
 
-DNS record: `{device_id}.connector.mad4b.com` → `{tunnel_id}.cfargotunnel.com`
+1. `activateSession`
+2. `listTools`
+3. `callTool` with `connect_status`
+4. If missing sign-in, stop and use the sign-in template from the compact Instructions file.
+5. If workspace is missing, use tenant-visible onboarding/workspace tools or `/connect`.
+6. If activation is missing, call `connect_activate`.
+7. If device setup is needed, call `connect_device_install`.
+8. Show the real installer output returned by backend.
+9. After the installer runs, check status/health through tenant-visible auth-host tools only.
 
-Managed mode uses `connector.mad4b.com` (platform's shared tunnel) until a dedicated tunnel is provisioned.
+## Managed mode
 
-The `cloudflared` service must run on the device. The install.bat installs it via `winget install Cloudflare.cloudflared` and registers the tunnel token.
+Managed is the default for new tenants unless they ask for Dedicated or tenant-owned integrations.
 
-## Shell Allowlist
+```json
+{ "name": "connect_activate", "tool_args": { "mode": "managed" } }
+```
 
-The shell allowlist controls what commands the connector can run. Default aliases seeded at install:
-| Alias | Command | Purpose |
-|---|---|---|
-| `node_ver` | `node --version` | Verify Node.js is installed |
-| `git_status` | `git status` | Check local repo state |
-| `n8n_health` | `curl -s http://127.0.0.1:5678/` | Check n8n is running |
-| `list_processes` | `tasklist /FO CSV /NH` | List running processes |
-| `nslookup_test` | `nslookup n8n.mad4b.com` | DNS resolution check |
+```json
+{ "name": "connect_device_install", "tool_args": { "device_id": "nagy-mbp-m4" } }
+```
 
-Custom aliases can be added via the platform admin or by calling `/local-connector/install` with `custom_aliases`.
+Managed mode should not ask for dedicated Cloudflare or Hostinger credentials.
 
-## Troubleshooting
+## Dedicated mode
 
-**Connector is unreachable (`ok: false, error.code: connector_unreachable`)**
-- Run `start-connector.bat` on the device
-- Check the Cloudflare tunnel is active: `cloudflared tunnel list`
-- Verify port 7070 is not blocked by firewall
+Dedicated mode is for tenant-owned infrastructure or self-hosted/local runtime defaults.
 
-**`config_not_found` from platform health check**
-- The device has no DB config row. Run the install flow again.
+```json
+{ "name": "connect_activate", "tool_args": { "mode": "dedicated", "n8n_activation_mode": "self_hosted_local" } }
+```
 
-**`invalid_credentials` on sign-in**
-- Complete sign-in again inside the OAuth popup or hosted `/connect` page. If using Google, the Google account email must match the registered email.
+Dedicated device install may require tenant-owned app connections. Use `connect_app_integrations_list`, `connect_credential_intake_create`, `connect_app_connections_list`, then retry `connect_device_install`. Never ask the user to paste provider credentials in chat.
 
-**`alias_not_found` on shell run**
-- The alias is not in the allowlist. Use `action=list` to see available aliases.
+## Mixed app policy
 
-**Tunnel DNS not resolving**
-- DNS propagation can take 1–5 minutes. Try `nslookup {device}.connector.mad4b.com` after waiting.
+There is no activation mode named `hybrid`. Activation mode remains `managed` or `dedicated`. Per-app mixed behavior belongs in `integration_modes` or `connect_integration_policy_update`.
 
-**`connector_secret` was lost**
-- Call `/local-connector/install` with `reprovision=true`. This rotates the secret and tunnel.
-- Update `CONNECTOR_LOCAL_API_KEY` in Cloud Run with the new secret.
+Example:
 
-## Security Model
+```json
+{
+  "name": "connect_activate",
+  "tool_args": {
+    "mode": "managed",
+    "integration_modes": {
+      "cloudflare": "dedicated",
+      "hostinger": "dedicated",
+      "google_drive": "managed"
+    }
+  }
+}
+```
 
-- The platform NEVER stores raw API tokens in the database. Cloudflare and Hostinger tokens are encrypted in `app_integration_connections`.
-- `connector_secret` is generated using `crypto.randomBytes(32)` and returned once at install.
-- Shell execution requires both: a valid Bearer token AND the alias must be in the DB allowlist for that config_id.
-- File access requires both: a valid Bearer token AND the path must be in `local_connector_file_access_rules`.
-- All connector operations are audit-logged on the platform side.
+## Device and health rules
+
+Device IDs must be stable lowercase IDs with letters, numbers, and hyphens only. Example: `nagy-mbp-m4`.
+
+For “Check connector,” use `connect_status` or a tenant-visible connector health/status tool discovered by `listTools`. Do not call `connector.mad4b.com`. If any admin-only evidence reports a hostname different from the registered device ID, do not present that hostname as tenant evidence.
+
+## `/connect` frontend requirements
+
+`https://auth.mad4b.com/connect?activation_mode=managed&device_id=nagy-mbp-m4` should:
+
+1. Parse and preserve `activation_mode` / `mode` and `device_id` through sign-in.
+2. Call `/connect/status` after sign-in.
+3. Activate managed mode automatically when allowed.
+4. Call `/connect/device-install` with the preserved device ID.
+5. Show the real installer response.
+6. Avoid fake DNS/tunnel artifacts, fake terminal animation, and JWT copy blocks.
+7. Use a calm Claude-style flow with one primary action at a time.
+
+## Windows `.ps1` fallback
+
+When automatic launch is unavailable, Windows `.ps1` installer is the main fallback artifact. Show:
+
+- Download `installer.ps1`
+- Run as Administrator in PowerShell
+- Return and click “Check connector”
+
+Safe command after download:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installer.ps1
+```
+
+Never display raw connector secrets, Cloudflare tokens, device access tokens, backend API keys, `.env` contents, or full credential blobs.
+
+## Maintenance
+
+When tenant activation changes, update:
+
+1. `GPT_Tenant_Connector_Instructions.md` for compact non-negotiable rules.
+2. `GPT_Tenant_Connector_Knowledge.md` for detailed guidance.
+3. `http-generic-api/openapi.tenant-gpt.auth.yaml` for wrapper-safe schema fields.
+4. `http-generic-api/test-custom-gpt-schemas.mjs` for schema and boundary checks.
+5. `/connect` frontend files under `http-generic-api/public/connect/` for UX changes.
+6. Tenant tool registry migrations/seeds for DB tool schema changes.
+
+If this file becomes stale, update it. Delete it only if a newer canonical tenant knowledge file replaces it and tests point to that replacement.
