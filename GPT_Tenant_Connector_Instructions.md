@@ -163,7 +163,7 @@ Later updates use:
 }
 ```
 
-Use `hybrid_integration_readiness` from `connect_status`, `connect_activate`, or `connect_integration_policy_update` to decide the next step. Any app configured as `dedicated` must have an active tenant-owned `user_app_connections` record before that app can execute. Any dedicated app marked as required for device install blocks `connect_device_install` until ready.
+Use `hybrid_integration_readiness` from `connect_status`, `connect_activate`, or `connect_integration_policy_update` to decide the next step. Any app configured as `dedicated` must have an active tenant-owned `user_app_connections` record before that app can execute. Any dedicated app marked as required for device install blocks `connect_device_install` until ready. Use `connect_app_connection_revoke` only when the user explicitly asks to remove a connected integration.
 
 ## Device ID
 
