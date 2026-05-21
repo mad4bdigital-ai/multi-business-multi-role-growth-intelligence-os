@@ -972,21 +972,30 @@ export function buildLocalConnectorInstallRoutes(deps) {
   router.get("/local-connector/install/download", async (req, res) => {
     try {
       const payload = verifyInstallerDownloadToken(req.query.token);
-      if (payload.format !== "ps1") throw httpError(400, "unsupported_format", "Only ps1 installer downloads are supported.");
+      if (!["ps1", "bat"].includes(payload.format)) throw httpError(400, "unsupported_format", "Only ps1 or bat installer downloads are supported.");
       const [[config]] = await getPool().query(
         "SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, cf_token FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
         [payload.user_id, payload.device_id]
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
       if (!config.cf_token || !config.connector_secret) throw httpError(409, "connector_config_incomplete", "Connector config is missing recovery token or connector secret.");
-      const installer = buildInstallPowerShell({
-        cfToken: config.cf_token,
-        connectorSecret: config.connector_secret,
-        tunnelUrl: config.tunnel_url,
-        aliases: DEFAULT_WINDOWS_ALIASES,
-        port: CONNECTOR_PORT,
-      });
-      const filename = `install-local-connector-${String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-")}.ps1`;
+      const installer = payload.format === "bat"
+        ? buildInstallScript({
+            cfToken: config.cf_token,
+            connectorSecret: config.connector_secret,
+            tunnelUrl: config.tunnel_url,
+            aliases: DEFAULT_WINDOWS_ALIASES,
+            port: CONNECTOR_PORT,
+          })
+        : buildInstallPowerShell({
+            cfToken: config.cf_token,
+            connectorSecret: config.connector_secret,
+            tunnelUrl: config.tunnel_url,
+            aliases: DEFAULT_WINDOWS_ALIASES,
+            port: CONNECTOR_PORT,
+          });
+      const safeDeviceId = String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-");
+      const filename = `install-local-connector-${safeDeviceId}.${payload.format}`;
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
       res.setHeader("Cache-Control", "no-store");
       res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
