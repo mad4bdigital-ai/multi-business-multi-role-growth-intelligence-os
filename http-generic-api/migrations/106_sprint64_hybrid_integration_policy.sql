@@ -32,7 +32,7 @@ VALUES
     'POST',
     '/connect/api/integration-policy',
     NULL,
-    '{"type":"object","required":["integration_modes"],"properties":{"integration_modes":{"type":"object","description":"Map of app_key to source mode or policy object. Example: {\"cloudflare\":\"dedicated\",\"hostinger\":\"dedicated\",\"google_drive\":\"managed\"}","additionalProperties":{"oneOf":[{"type":"string","enum":["managed","dedicated"]},{"type":"object","properties":{"source_mode":{"type":"string","enum":["managed","dedicated"]},"fallback_allowed":{"type":"boolean"},"required_for_device_install":{"type":"boolean"},"notes":{"type":"string"}},"additionalProperties":false}]}}}}',
+    '{"type":"object","required":["integration_modes"],"properties":{"integration_modes":{"type":"object","description":"Map app_key to managed or dedicated source policy.","additionalProperties":true}}}',
     NULL,
     'connect,integrations,hybrid,policy,state_changing,managed,dedicated',
     1,
@@ -52,7 +52,7 @@ ON DUPLICATE KEY UPDATE
 
 UPDATE `tenant_platform_endpoint_tools`
    SET `description` = 'Activate the tenant workspace in managed or dedicated mode, optionally with per-app mixed managed/dedicated integration_modes.',
-       `input_schema` = '{"type":"object","required":["mode"],"properties":{"mode":{"type":"string","enum":["managed","dedicated"],"description":"Canonical activation mode. Hybrid behavior is configured per app through integration_modes."},"connection_mode":{"type":"string","enum":["managed","dedicated"],"description":"Alias accepted by the backend; prefer mode."},"activation_mode":{"type":"string","enum":["managed","dedicated"],"description":"Alias accepted by the backend; prefer mode."},"service_mode":{"type":"string","enum":["managed","dedicated"],"description":"Alias accepted by the backend; prefer mode."},"device_id":{"type":"string","description":"Optional existing device id for follow-up installation guidance."},"workspace_name":{"type":"string"},"cloudflare_mode":{"type":"string","enum":["managed","dedicated"]},"google_auth_mode":{"type":"string","enum":["managed","dedicated"]},"n8n_activation_mode":{"type":"string","enum":["managed_main_server","self_hosted_local"]},"integration_modes":{"type":"object","description":"Optional per-app source policy. Example: {\"cloudflare\":\"dedicated\",\"hostinger\":\"dedicated\",\"google_drive\":\"managed\"}","additionalProperties":true}}}'
+       `input_schema` = '{"type":"object","required":["mode"],"properties":{"mode":{"type":"string","enum":["managed","dedicated"]},"device_id":{"type":"string"},"workspace_name":{"type":"string"},"cloudflare_mode":{"type":"string","enum":["managed","dedicated"]},"google_auth_mode":{"type":"string","enum":["managed","dedicated"]},"n8n_activation_mode":{"type":"string","enum":["managed_main_server","self_hosted_local"]},"integration_modes":{"type":"object","description":"Optional per-app source policy.","additionalProperties":true}}}'
  WHERE `tool_key` = 'connect_activate';
 
 UPDATE `tenant_platform_endpoint_tools`
