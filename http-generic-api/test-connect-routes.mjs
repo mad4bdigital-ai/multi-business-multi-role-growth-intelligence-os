@@ -655,6 +655,7 @@ section("connect api auth scope");
 
   {
     const indexSource = readFileSync("routes/index.js", "utf8");
+    const gatewaySource = readFileSync("routes/localGatewayToolsRoutes.js", "utf8");
     const gatewayImportMatches = indexSource.match(/buildLocalGatewayToolsRoutes/g) || [];
     assert("local gateway route builder appears exactly twice (import + mount)",
       gatewayImportMatches.length === 2, `found ${gatewayImportMatches.length}`);
@@ -662,6 +663,12 @@ section("connect api auth scope");
       indexSource.includes("buildLocalGatewayToolsRoutes") && indexSource.includes("./localGatewayToolsRoutes.js"));
     assert("local gateway routes mounted via app.use",
       /app\.use\(buildLocalGatewayToolsRoutes\(deps\)\)/.test(indexSource));
+    assert("local gateway resolves aliases and allows legacy all-zero canonical tenant fallback",
+      gatewaySource.includes("local_connector_device_aliases") &&
+      gatewaySource.includes("resolveCanonicalDeviceId") &&
+      gatewaySource.includes("tenant_id = '00000000-0000-0000-0000-000000000000'") &&
+      gatewaySource.includes("CASE WHEN tenant_id = ? THEN 0") &&
+      gatewaySource.includes("ambiguousDeviceError"));
   }
 
   section("installer reprovision smoke and sanitized status");
