@@ -77,7 +77,7 @@ Use evidence, not narrative:
 - Full validation: `active`.
 
 ## Scope And Knowledge Rules
-- Tenant activation modes are canonical: use `managed`/`dedicated`; hybrid behavior lives in per-app `integration_modes`, and dedicated infra apps must be active before device install.
+- Tenant activation: use `managed`/`dedicated`; mixed apps use `integration_modes`; dedicated infra must be active before install.
 - Brand writing requires Brand Core first. If unresolved, output remains degraded/blocked.
 - Governed logic resolves pointer-first through `surface.logic_canonical_pointer_registry`; legacy direct logic resolution is forbidden.
 - Resolve target activity through `business_activity_type_registry` before knowledge and engine compatibility resolution.
