@@ -5,7 +5,7 @@ INSERT INTO `admin_platform_endpoint_tools`
 VALUES
   ('local_connector_installer_download_link',
    'Create Local Connector Installer Download Link',
-   'Create a short-lived signed download URL for install-local-connector.ps1 without exposing live credentials in the GPT response.',
+   'Create a short-lived signed download URL for install-local-connector.ps1 or .bat without exposing live credentials in the GPT response.',
    'POST',
    '/local-connector/install/download-link',
    NULL,
