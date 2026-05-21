@@ -126,12 +126,13 @@ export async function upsertTenantIntegrationPolicies({ tenantId, userId, integr
     try {
       await getPool().query(
         `INSERT INTO \`tenant_integration_policies\`
-           (tenant_id, app_key, source_mode, fallback_allowed, required_for_device_install, notes, status, updated_by, source)
-         VALUES (?,?,?,?,?,'','active',?,?)
+           (tenant_id, app_key, source_mode, fallback_allowed, required_for_device_install, notes, status, created_by, updated_by, source)
+         VALUES (?,?,?,?,?,?,'active',?,?,?)
          ON DUPLICATE KEY UPDATE
            source_mode = VALUES(source_mode),
            fallback_allowed = VALUES(fallback_allowed),
            required_for_device_install = VALUES(required_for_device_install),
+           notes = VALUES(notes),
            status = 'active',
            updated_by = VALUES(updated_by),
            source = VALUES(source),
@@ -142,6 +143,8 @@ export async function upsertTenantIntegrationPolicies({ tenantId, userId, integr
           policy.source_mode,
           policy.fallback_allowed ? 1 : 0,
           policy.required_for_device_install ? 1 : 0,
+          policy.notes || "",
+          userId || null,
           userId || null,
           source,
         ]
