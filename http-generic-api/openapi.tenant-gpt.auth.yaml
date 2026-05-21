@@ -198,7 +198,220 @@ paths:
                 tool_args:
                   type: object
                   additionalProperties: true
-                  description: Arguments matching the tool inputSchema.
+                  description: Arguments matching the selected tool inputSchema. Put tool fields here, never top-level.
+                  properties:
+                    mode:
+                      type: string
+                      enum:
+                        - managed
+                        - dedicated
+                      description: Activation mode for connect_activate.
+                    device_id:
+                      type: string
+                      pattern: '^[a-z0-9-]{2,32}
+      responses:
+        '200':
+          description: Upstream tool response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok:
+                    type: boolean
+                  result:
+                    description: Raw upstream tool response payload.
+        '400':
+          description: Missing name or path parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Tool not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+  /gpt/sessions/{id}/turn:
+    post:
+      x-openai-isConsequential: false
+      tags:
+        - session
+      operationId: writeSessionTurn
+      summary: Record a conversation turn (user, assistant, or tool message)
+      description: |
+        Persists a message turn to the active session. Call after every user or assistant exchange. role=user for human input, role=assistant for GPT reply, role=tool for tool-call results.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: session_id from activateSession.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - role
+                - content
+              properties:
+                role:
+                  type: string
+                  enum:
+                    - user
+                    - assistant
+                    - tool
+                content:
+                  type: string
+                action_key:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Turn written
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  session_id:
+                    type: string
+                  turn_index:
+                    type: integer
+        '400':
+          description: Missing fields
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Session not found
+        '409':
+          description: Session already closed
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+  /gpt/sessions/{id}/end:
+    post:
+      x-openai-isConsequential: false
+      tags:
+        - session
+      operationId: endSession
+      summary: Close the session and archive conversation to Google Drive
+      description: |
+        Marks the session completed and exports the full conversation JSON to Drive with hierarchical filing (year-month/day/user_time_id.json). Returns the Drive link. Call when the conversation is ending.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: session_id from activateSession.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                summary:
+                  type: string
+                  nullable: true
+                  description: One-paragraph summary of what was accomplished.
+      responses:
+        '200':
+          description: Session closed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  session_id:
+                    type: string
+                  drive_export:
+                    type: object
+                    nullable: true
+                    properties:
+                      drive_file_id:
+                        type: string
+                      drive_web_url:
+                        type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Session not found
+        '409':
+          description: Session already ended
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.activation
+            - https://auth.mad4b.com/scopes/tenant.install
+            - https://auth.mad4b.com/scopes/tenant.system-tools
+x-gpt-action-auth-preset:
+  authentication_type: OAuth
+  schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml
+  client_id: mad4b-tenant-gpt
+  client_secret: <stored-in-platform-runtime-config>
+  client_secret_config_key: tenant_gpt.oauth.client
+  authorization_url: https://auth.mad4b.com/auth/oauth/authorize
+  token_url: https://auth.mad4b.com/auth/oauth/token
+  token_exchange_method: Default (POST request)
+  callback_urls_to_allow:
+    - https://chat.openai.com/aip/g-d36db295032b9022dd77233041763f513e8ba5fa/oauth/callback
+    - https://chat.openai.com/aip/{g-GPT-ID}/oauth/callback
+    - https://chatgpt.com/aip/{g-GPT-ID}/oauth/callback
+  scope_links:
+    - https://auth.mad4b.com/scopes/tenant.links
+    - https://auth.mad4b.com/scopes/tenant.status
+    - https://auth.mad4b.com/scopes/tenant.activation
+    - https://auth.mad4b.com/scopes/tenant.install
+    - https://auth.mad4b.com/scopes/tenant.system-tools
+
+                      description: Stable lowercase device id for connect_device_install.
+                    workspace_name:
+                      type: string
+                    integration_modes:
+                      type: object
+                      additionalProperties: true
+                      description: Optional per-app managed/dedicated source policy.
+                    n8n_activation_mode:
+                      type: string
+                      enum:
+                        - managed_main_server
+                        - self_hosted_local
+                    provisioning_credential_mode:
+                      type: string
+                      enum:
+                        - managed
+                        - dedicated
+                    app_key:
+                      type: string
+                    auth_type:
+                      type: string
+                    display_label:
+                      type: string
       responses:
         '200':
           description: Upstream tool response
