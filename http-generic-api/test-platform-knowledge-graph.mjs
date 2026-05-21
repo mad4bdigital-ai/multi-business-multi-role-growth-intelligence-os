@@ -82,10 +82,19 @@ assert("graph service uses MariaDB-compatible JSON writes",
   service.includes("metadata_json=VALUES(metadata_json)") &&
   service.includes("results_json=?"));
 
+assert("graph memory resolver returns scoped asset summaries without raw payloads",
+  memoryService.includes("export async function resolvePlatformGraphMemory") &&
+  memoryService.includes("json_asset_subject_links") &&
+  memoryService.includes("included_payload: \"summary_only\"") &&
+  memoryService.includes("full_json_payload_included: false") &&
+  memoryService.includes("raw_secret_values_included: false") &&
+  !memoryService.includes("SELECT * FROM json_assets"));
+
 assert("routes expose admin-protected graph runtime endpoints",
   routes.includes("/platform/graph/project") &&
   routes.includes("/platform/graph/validate") &&
   routes.includes("/platform/graph/resolve-context") &&
+  routes.includes("/platform/graph/memory") &&
   routes.includes("/platform/graph/node/:node_id") &&
   routes.includes("/platform/graph/neighborhood") &&
   routes.includes("/platform/graph/status") &&
