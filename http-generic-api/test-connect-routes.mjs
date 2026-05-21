@@ -498,6 +498,12 @@ section("connect api auth scope");
       source.includes("n8n_restore_certify_probe") &&
       source.includes("Read-only n8n restore certification prerequisite probe") &&
       !source.includes("CONNECTOR_POWERSHELL_ENABLED=true"));
+    const connectorServerSource = readFileSync("../local-connector/server.mjs", "utf8");
+    assert("local connector normalizes n8n command paths and uses cmd-safe Windows script quoting",
+      connectorServerSource.includes("normalizeCommandPath") &&
+      connectorServerSource.includes("const N8N_COMMAND = normalizeCommandPath") &&
+      connectorServerSource.includes("s.replace(/\"/g, '\"\"')") &&
+      connectorServerSource.includes("isWindowsCommandScript"));
     assert("connector agent exposes heartbeat endpoint",
       source.includes('router.post("/connector-agent/heartbeat"'));
     assert("connector heartbeat writes recovery events and config metadata",
