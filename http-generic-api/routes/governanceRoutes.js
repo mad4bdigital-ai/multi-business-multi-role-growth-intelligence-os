@@ -404,6 +404,15 @@ export function buildGovernanceRoutes(deps) {
             authority_summary: graphContext.authority_summary || {},
             error: graphContext.error || null
           },
+          graph_memory: {
+            requested: Boolean(graphMemory.requested),
+            resolved: Boolean(graphMemory.resolved),
+            asset_count: graphMemory.asset_count || 0,
+            assets: graphMemory.assets || [],
+            selection_policy: graphMemory.selection_policy || {},
+            error: graphMemory.error || null,
+            secrets_included: false
+          },
           execution_target: {
             status: diagnosticTargetRow?.status || executionTarget.status || "",
             target_key: diagnosticTargetRow?.target_key || executionTarget.targetKey || "",
