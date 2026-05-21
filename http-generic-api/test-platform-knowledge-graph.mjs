@@ -12,6 +12,10 @@ function assert(name, condition) {
   }
 }
 
+function countOccurrences(text, needle) {
+  return String(text || "").split(needle).length - 1;
+}
+
 const service = readFileSync("services/platformKnowledgeGraphResolver.js", "utf8");
 const memoryService = readFileSync("services/platformGraphMemoryResolver.js", "utf8");
 const routes = readFileSync("routes/platformGraphRoutes.js", "utf8");
