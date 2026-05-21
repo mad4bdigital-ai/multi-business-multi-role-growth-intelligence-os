@@ -182,7 +182,7 @@ paths:
         - tools
       operationId: callTool
       summary: Execute any platform tool by name
-      description: Executes a tenant registry tool by name. Use listTools first. For connect_activate, pass tool_args.mode as managed or dedicated.
+      description: Executes a tenant registry tool by name. Use listTools first. For connect_activate, pass tool_args.mode managed/dedicated; mixed apps go in tool_args.integration_modes.
       requestBody:
         required: true
         content:
