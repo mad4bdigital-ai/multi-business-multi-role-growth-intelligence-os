@@ -875,6 +875,7 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
   assertRepoPatchBranchPolicy({ branch, defaultBranch, args });
 
   const token = await getGitHubAppInstallationToken({});
+  const branchState = await ensureRepoPatchBranch({ owner, repo, branch, defaultBranch, token });
   const existing = await githubContentsRequest({ method: "GET", owner, repo, filePath, branch, token });
 
   if (existing.status === 404 && action !== "write_file") {
