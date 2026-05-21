@@ -8045,6 +8045,55 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { description: Revocation failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
+  /connect/api/integration-policy:
+    post:
+      tags: [connect-api]
+      security: [userBearerAuth: []]
+      operationId: updateConnectIntegrationPolicy
+      summary: Update per-app managed/dedicated integration source policy
+      description: Keeps tenant activation mode canonical while allowing mixed per-app credential sources.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [integration_modes]
+              additionalProperties: false
+              properties:
+                integration_modes:
+                  type: object
+                  additionalProperties: true
+                  description: >
+                    Example: { cloudflare: dedicated, hostinger: dedicated, google_drive: managed }
+      responses:
+        "200":
+          description: Updated hybrid integration policy and readiness
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, hybrid_integration_readiness]
+                properties:
+                  ok: { type: boolean }
+                  hybrid_integration_readiness:
+                    type: object
+                    additionalProperties: true
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default:
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /connect/api/credential-intake/sessions:
     post:
       tags: [connect-api]

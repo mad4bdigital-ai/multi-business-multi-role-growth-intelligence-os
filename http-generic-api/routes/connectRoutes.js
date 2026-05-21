@@ -15,6 +15,11 @@ import {
   assessDedicatedIntegrationReadiness,
   dedicatedIntegrationCatalog,
 } from "../dedicatedIntegrationPolicy.js";
+import {
+  assessHybridIntegrationReadiness,
+  hybridIntegrationCatalog,
+  upsertTenantIntegrationPolicies,
+} from "../hybridIntegrationPolicy.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECT_STATIC = join(__dirname, "../public/connect");
@@ -204,6 +209,9 @@ async function resolveConnectState(userId, jwtTenantId = null) {
   const dedicatedIntegrationReadiness = resolvedTenantId
     ? await assessDedicatedIntegrationReadiness({ tenantId: resolvedTenantId, userId, connection })
     : null;
+  const hybridIntegrationReadiness = resolvedTenantId
+    ? await assessHybridIntegrationReadiness({ tenantId: resolvedTenantId, userId, connection })
+    : null;
   return {
     user,
     memberships,
@@ -212,6 +220,7 @@ async function resolveConnectState(userId, jwtTenantId = null) {
     connection,
     devices,
     dedicatedIntegrationReadiness,
+    hybridIntegrationReadiness,
     onboarding: buildOnboardingState({ resolvedTenantId, connection, devices }),
   };
 }
@@ -419,6 +428,8 @@ export function buildConnectRoutes(deps) {
       connection_modes: CANONICAL_CONNECTION_MODES,
       activation_mode_catalog: activationModeCatalog(),
       dedicated_integration_catalog: dedicatedIntegrationCatalog(),
+      hybrid_integration_catalog: hybridIntegrationCatalog(),
+      hybrid_integration_catalog: hybridIntegrationCatalog(),
       access_model: "Sign in via POST /auth/login, /auth/register, or /auth/google. Use the returned token as Authorization: Bearer <token> on all subsequent calls. For Google Sign-In, complete the flow at https://auth.mad4b.com/connect and use the token shown on the final step.",
       onboarding_url: "https://auth.mad4b.com/connect",
       activation_sequence: [
@@ -457,6 +468,8 @@ export function buildConnectRoutes(deps) {
         activation_mode_catalog: activationModeCatalog(),
         dedicated_integration_catalog: dedicatedIntegrationCatalog(),
         dedicated_integration_readiness: state.dedicatedIntegrationReadiness,
+        hybrid_integration_catalog: hybridIntegrationCatalog(),
+        hybrid_integration_readiness: state.hybridIntegrationReadiness,
         connection: state.connection ? {
           mode: state.connection.connection_mode,
           status: state.connection.status,
@@ -595,6 +608,8 @@ export function buildConnectRoutes(deps) {
         activation_mode_catalog: activationModeCatalog(),
         dedicated_integration_catalog: dedicatedIntegrationCatalog(),
         dedicated_integration_readiness: state.dedicatedIntegrationReadiness,
+        hybrid_integration_catalog: hybridIntegrationCatalog(),
+        hybrid_integration_readiness: state.hybridIntegrationReadiness,
       });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "capabilities_read_failed", message: err.message } });
@@ -660,8 +675,19 @@ export function buildConnectRoutes(deps) {
         [connectionId, resolvedTenantId, mode, cfMode, gaMode, n8n_activation_mode]
       );
 
+      await upsertTenantIntegrationPolicies({
+        tenantId: resolvedTenantId,
+        userId: user_id,
+        integrationModes: req.body?.integration_modes || {},
+        source: "connect_activate",
+      });
       const connection = await fetchTenantConnection(resolvedTenantId);
       const dedicatedIntegrationReadiness = await assessDedicatedIntegrationReadiness({
+        tenantId: resolvedTenantId,
+        userId: user_id,
+        connection,
+      });
+      const hybridIntegrationReadiness = await assessHybridIntegrationReadiness({
         tenantId: resolvedTenantId,
         userId: user_id,
         connection,
@@ -671,8 +697,10 @@ export function buildConnectRoutes(deps) {
         mode_policy: modePolicy,
         dedicated_integration_catalog: dedicatedIntegrationCatalog(),
         dedicated_integration_readiness: dedicatedIntegrationReadiness,
-        next_actions: dedicatedIntegrationReadiness?.ready === false
-          ? dedicatedIntegrationReadiness.next_actions
+        hybrid_integration_catalog: hybridIntegrationCatalog(),
+        hybrid_integration_readiness: hybridIntegrationReadiness,
+        next_actions: hybridIntegrationReadiness?.ready === false
+          ? hybridIntegrationReadiness.next_actions
           : ["connect_device_install"],
         connection: {
           mode: connection.connection_mode,
@@ -709,20 +737,19 @@ export function buildConnectRoutes(deps) {
       }
 
       const connection = await fetchTenantConnection(resolvedTenantId);
-      const useManagedProvisioning = (connection?.cloudflare_mode || "managed") === "managed";
-      if (!useManagedProvisioning) {
-        const readiness = await assessDedicatedIntegrationReadiness({ tenantId: resolvedTenantId, userId: user_id, connection });
-        if (!readiness.ready) {
-          return res.status(409).json({
-            ok: false,
-            error: {
-              code: "dedicated_integrations_required",
-              message: "Dedicated device install requires tenant-owned Cloudflare and Hostinger app connections before provisioning.",
-              details: readiness,
-            },
-            dedicated_integration_catalog: dedicatedIntegrationCatalog(),
-          });
-        }
+      const hybridReadiness = await assessHybridIntegrationReadiness({ tenantId: resolvedTenantId, userId: user_id, connection });
+      const useManagedProvisioning = hybridReadiness.provisioning_credential_mode !== "dedicated";
+      if (!useManagedProvisioning && !hybridReadiness.ready_for_device_install) {
+        return res.status(409).json({
+          ok: false,
+          error: {
+            code: "dedicated_integrations_required",
+            message: "Device install requires active tenant-owned app connections for integrations configured as dedicated.",
+            details: hybridReadiness,
+          },
+          dedicated_integration_catalog: dedicatedIntegrationCatalog(),
+          hybrid_integration_catalog: hybridIntegrationCatalog(),
+        });
       }
       const result = await provisionLocalConnectorInstall(req, {
         user_id,

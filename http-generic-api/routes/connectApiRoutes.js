@@ -8,6 +8,11 @@
 import { Router } from "express";
 import { randomUUID, createHash, randomBytes } from "node:crypto";
 import jwt from "jsonwebtoken";
+import {
+  assessHybridIntegrationReadiness,
+  hybridIntegrationCatalog,
+  upsertTenantIntegrationPolicies,
+} from "../hybridIntegrationPolicy.js";
 import { getPool } from "../db.js";
 import { encryptCredentials } from "../tokenEncryption.js";
 import {
@@ -130,6 +135,46 @@ export function buildConnectApiRoutes(deps = {}) {
         [req.auth.user_id, req.auth.tenant_id]
       );
       res.json({ ok: true, items: rows || [] });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // POST /connect/api/integration-policy — update per-app managed/dedicated source modes.
+  router.post("/connect/api/integration-policy", async (req, res, next) => {
+    try {
+      const integrationModes = req.body?.integration_modes || {};
+      if (!integrationModes || typeof integrationModes !== "object" || Array.isArray(integrationModes) || !Object.keys(integrationModes).length) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "integration_modes_required",
+            message: "integration_modes object is required. Example: { cloudflare: 'dedicated', google_drive: 'managed' }.",
+          },
+        });
+      }
+
+      const result = await upsertTenantIntegrationPolicies({
+        tenantId: req.auth.tenant_id,
+        userId: req.auth.user_id,
+        integrationModes,
+        source: "connect_api_policy_update",
+      });
+      const [connectionRows] = await pool.query(
+        `SELECT * FROM \`tenant_connections\` WHERE tenant_id = ? ORDER BY updated_at DESC LIMIT 1`,
+        [req.auth.tenant_id]
+      );
+      const readiness = await assessHybridIntegrationReadiness({
+        tenantId: req.auth.tenant_id,
+        userId: req.auth.user_id,
+        connection: connectionRows?.[0] || null,
+      });
+      return res.json({
+        ok: true,
+        update: result,
+        hybrid_integration_catalog: hybridIntegrationCatalog(),
+        hybrid_integration_readiness: readiness,
+      });
     } catch (err) {
       next(err);
     }
