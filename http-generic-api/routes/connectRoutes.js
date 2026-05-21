@@ -209,6 +209,9 @@ async function resolveConnectState(userId, jwtTenantId = null) {
   const dedicatedIntegrationReadiness = resolvedTenantId
     ? await assessDedicatedIntegrationReadiness({ tenantId: resolvedTenantId, userId, connection })
     : null;
+  const hybridIntegrationReadiness = resolvedTenantId
+    ? await assessHybridIntegrationReadiness({ tenantId: resolvedTenantId, userId, connection })
+    : null;
   return {
     user,
     memberships,
@@ -217,6 +220,7 @@ async function resolveConnectState(userId, jwtTenantId = null) {
     connection,
     devices,
     dedicatedIntegrationReadiness,
+    hybridIntegrationReadiness,
     onboarding: buildOnboardingState({ resolvedTenantId, connection, devices }),
   };
 }
