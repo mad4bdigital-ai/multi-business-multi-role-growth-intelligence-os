@@ -283,6 +283,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   const parentDoc = loadSchema("openapi.yaml");
   const parentSchema = readFileSync(resolve(__dirname, "openapi.yaml"), "utf8");
   const tenantInstructions = readFileSync(resolve(__dirname, "../GPT_Tenant_Connector_Instructions.md"), "utf8");
+  const tenantKnowledge = readFileSync(resolve(__dirname, "../GPT_Tenant_Connector_Knowledge.md"), "utf8");
   const activationModePolicy = readFileSync(resolve(__dirname, "activationModePolicy.js"), "utf8");
   const dedicatedPolicy = readFileSync(resolve(__dirname, "dedicatedIntegrationPolicy.js"), "utf8");
   const hybridPolicy = readFileSync(resolve(__dirname, "hybridIntegrationPolicy.js"), "utf8");
