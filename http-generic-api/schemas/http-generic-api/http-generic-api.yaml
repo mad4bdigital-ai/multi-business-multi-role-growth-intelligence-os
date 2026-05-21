@@ -1324,7 +1324,7 @@ paths:
                   graph_context:
                     $ref: "#/components/schemas/PlatformGraphContext"
                   graph_memory:
-                    $ref: "#/components/schemas/PlatformGraphMemory"
+                    $ref: "#/components/schemas/PlatformGraphMemoryResponse"
                   secrets_included: { type: boolean, enum: [false] }
 
   /platform/graph/node/{node_id}:
