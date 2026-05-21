@@ -207,12 +207,15 @@ async function resolveDeviceConfig({ req, args, isAdmin }) {
   const params = [deviceId];
   let sql = `${selectSql} AND device_id = ?`;
   if (requestedTenantId) {
-    sql += " AND tenant_id = ?";
+    sql += " AND (tenant_id = ? OR tenant_id = '00000000-0000-0000-0000-000000000000')";
     params.push(requestedTenantId);
+    sql += " ORDER BY CASE WHEN tenant_id = ? THEN 0 WHEN tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END, updated_at DESC LIMIT 2";
+    params.push(requestedTenantId);
+  } else {
+    sql += " ORDER BY updated_at DESC LIMIT 2";
   }
-  sql += " ORDER BY updated_at DESC LIMIT 2";
   const [rows] = await getPool().query(sql, params);
-  if (rows.length > 1) throw ambiguousDeviceError(deviceId, rows);
+  if (rows.length > 1 && String(rows[0].tenant_id || "") === String(rows[1].tenant_id || "")) throw ambiguousDeviceError(deviceId, rows);
   return rows[0] || null;
 }
 
