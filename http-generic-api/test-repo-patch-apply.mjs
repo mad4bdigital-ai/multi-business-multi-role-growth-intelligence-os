@@ -64,6 +64,8 @@ pass("missing commit_message is rejected with repo_patch_missing_message");
   assert.ok(source.includes("repo_patch_protected_branch"));
   assert.ok(source.includes("REPO_PATCH_ALLOW_PROTECTED_BRANCH"));
   assert.ok(source.includes("defaultRepoPatchBranch"));
+  assert.ok(source.includes("ensureRepoPatchBranch"));
+  assert.ok(source.includes("/git/refs"));
   assert.ok(source.includes("allow_protected_branch"));
   assert.ok(source.includes("break_glass_reason"));
   assert.ok(!source.includes("Defaults to main"));
