@@ -812,7 +812,9 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
   }
 
   const { owner, repo, defaultBranch } = await resolveRepoTarget();
-  const branch = String(args.branch || defaultBranch).trim() || defaultBranch;
+  const requestedBranch = String(args.branch || "").trim();
+  const branch = requestedBranch || defaultRepoPatchBranch({ filePath, commitMessage });
+  assertRepoPatchBranchPolicy({ branch, defaultBranch, args });
 
   const token = await getGitHubAppInstallationToken({});
   const existing = await githubContentsRequest({ method: "GET", owner, repo, filePath, branch, token });
