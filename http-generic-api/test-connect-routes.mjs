@@ -236,6 +236,33 @@ try {
       migrationSource.includes("connect_app_connection_revoke"));
   }
 
+  {
+    const routeSource = readFileSync("routes/connectRoutes.js", "utf8");
+    const apiSource = readFileSync("routes/connectApiRoutes.js", "utf8");
+    const hybridSource = readFileSync("hybridIntegrationPolicy.js", "utf8");
+    const migrationSource = readFileSync("migrations/106_sprint64_hybrid_integration_policy.sql", "utf8");
+    assert("hybrid policy keeps activation mode canonical while adding per-app modes",
+      hybridSource.includes("CANONICAL_INTEGRATION_SOURCE_MODES") &&
+      hybridSource.includes("mode: sourceModes.size > 1 ? \"mixed\"") &&
+      hybridSource.includes("Activation mode remains managed|dedicated"));
+    assert("connect activate persists optional integration_modes",
+      routeSource.includes("upsertTenantIntegrationPolicies") &&
+      routeSource.includes("req.body?.integration_modes"));
+    assert("connect status returns hybrid integration readiness",
+      routeSource.includes("hybrid_integration_catalog") &&
+      routeSource.includes("hybrid_integration_readiness"));
+    assert("device install uses hybrid readiness and provisioning mode",
+      routeSource.includes("ready_for_device_install") &&
+      routeSource.includes("hybridReadiness.provisioning_credential_mode"));
+    assert("connect API exposes integration policy update without secrets",
+      apiSource.includes('router.post("/connect/api/integration-policy"') &&
+      apiSource.includes("integration_modes_required") &&
+      apiSource.includes("hybrid_integration_readiness"));
+    assert("hybrid migration creates policy table and tenant tool",
+      migrationSource.includes("CREATE TABLE IF NOT EXISTS `tenant_integration_policies`") &&
+      migrationSource.includes("connect_integration_policy_update"));
+  }
+
   section("connect tenantless onboarding recovery");
 
   {
