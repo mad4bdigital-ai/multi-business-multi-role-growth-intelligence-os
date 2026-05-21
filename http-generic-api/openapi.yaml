@@ -2133,7 +2133,7 @@ paths:
       parameters:
         - name: section
           in: query
-          schema: { type: string, enum: [overview, routes, backups, settings], default: overview }
+          schema: { type: string, enum: [overview, routes, backups, repairs, settings], default: overview }
       responses:
         "200":
           description: Device control metadata for the requested section
