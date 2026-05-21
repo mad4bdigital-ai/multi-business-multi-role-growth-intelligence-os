@@ -53,7 +53,7 @@ jobs:
           Get-FileHash -Algorithm SHA256 -LiteralPath $target | ConvertTo-Json | Out-File -Encoding utf8 'dist/Mad4B-Local-Manager-Setup.exe.sha256.json'
 
       - name: Upload EXE artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Mad4B-Local-Manager-Windows-EXE
           path: |
