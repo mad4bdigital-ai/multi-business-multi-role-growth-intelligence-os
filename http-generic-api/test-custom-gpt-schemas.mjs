@@ -341,6 +341,21 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     assert(`parent OpenAPI operation ${operationId} is present`, parentSchema.includes(operationId));
   }
 
+  assert("tenant compact instructions stay under 8k characters",
+    tenantInstructions.length < 8000,
+    `got ${tenantInstructions.length}`);
+  assert("tenant compact instructions point long guidance to knowledge file",
+    tenantInstructions.includes("must stay **under 8,000 characters**") &&
+    tenantInstructions.includes("GPT_Tenant_Connector_Knowledge.md"));
+  assert("tenant knowledge file exists with detailed connector guidance",
+    tenantKnowledge.includes("Mad4B Tenant Connector Knowledge") &&
+    tenantKnowledge.includes("/connect frontend requirements"));
+  assert("tenant instructions forbid standalone connector action",
+    tenantInstructions.includes("Remove and never use a standalone `connector.mad4b.com` action") &&
+    tenantInstructions.includes("not valid tenant evidence"));
+  assert("tenant knowledge explains admin-hostname mismatch risk",
+    tenantKnowledge.includes("admin Windows hostname `Essam`") &&
+    tenantKnowledge.includes("not acceptable tenant evidence"));
   for (const toolKey of [
     "connect_activate",
     "connect_device_install",
