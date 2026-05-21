@@ -14,6 +14,7 @@ function assert(name, condition) {
 
 const service = readFileSync("services/platformKnowledgeGraphResolver.js", "utf8");
 const routes = readFileSync("routes/platformGraphRoutes.js", "utf8");
+const memoryService = readFileSync("services/platformGraphMemoryResolver.js", "utf8");
 const index = readFileSync("routes/index.js", "utf8");
 const governance = readFileSync("routes/governanceRoutes.js", "utf8");
 const migration = readFileSync("migrations/105_sprint62p_platform_knowledge_graph_runtime.sql", "utf8");
