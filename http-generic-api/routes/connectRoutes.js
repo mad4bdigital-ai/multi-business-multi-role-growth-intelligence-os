@@ -737,20 +737,19 @@ export function buildConnectRoutes(deps) {
       }
 
       const connection = await fetchTenantConnection(resolvedTenantId);
-      const useManagedProvisioning = (connection?.cloudflare_mode || "managed") === "managed";
-      if (!useManagedProvisioning) {
-        const readiness = await assessDedicatedIntegrationReadiness({ tenantId: resolvedTenantId, userId: user_id, connection });
-        if (!readiness.ready) {
-          return res.status(409).json({
-            ok: false,
-            error: {
-              code: "dedicated_integrations_required",
-              message: "Dedicated device install requires tenant-owned Cloudflare and Hostinger app connections before provisioning.",
-              details: readiness,
-            },
-            dedicated_integration_catalog: dedicatedIntegrationCatalog(),
-          });
-        }
+      const hybridReadiness = await assessHybridIntegrationReadiness({ tenantId: resolvedTenantId, userId: user_id, connection });
+      const useManagedProvisioning = hybridReadiness.provisioning_credential_mode !== "dedicated";
+      if (!useManagedProvisioning && !hybridReadiness.ready_for_device_install) {
+        return res.status(409).json({
+          ok: false,
+          error: {
+            code: "dedicated_integrations_required",
+            message: "Device install requires active tenant-owned app connections for integrations configured as dedicated.",
+            details: hybridReadiness,
+          },
+          dedicated_integration_catalog: dedicatedIntegrationCatalog(),
+          hybrid_integration_catalog: hybridIntegrationCatalog(),
+        });
       }
       const result = await provisionLocalConnectorInstall(req, {
         user_id,
