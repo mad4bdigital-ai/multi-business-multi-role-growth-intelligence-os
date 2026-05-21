@@ -325,9 +325,9 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     ["/connect/device-install", "postConnectDeviceInstall"],
     ["/connect/api/integration-policy", "updateConnectIntegrationPolicy"],
     ["/connect/api/credential-intake/sessions", "createConnectCredentialIntakeSession"],
-    ["/connect/api/app-integrations", "listConnectAppIntegrations"],
-    ["/connect/api/connections", "listConnectAppConnections"],
-    ["/connect/api/connections/{connection_id}", "deleteConnectAppConnection"],
+    ["/connect/api/app-integrations", "listConnectApiAppIntegrations"],
+    ["/connect/api/connections", "listConnectApiConnections"],
+    ["/connect/api/connections/{connection_id}", "deleteConnectApiConnection"],
   ]) {
     assert(`parent OpenAPI documents ${path}`, Boolean(parentDoc.paths?.[path]));
     assert(`parent OpenAPI operation ${operationId} is present`, parentSchema.includes(operationId));
