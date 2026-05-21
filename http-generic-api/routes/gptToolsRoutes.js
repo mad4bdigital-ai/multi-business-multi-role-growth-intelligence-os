@@ -707,6 +707,46 @@ async function resolveRepoTarget() {
   return { owner, repo, defaultBranch };
 }
 
+const REPO_PATCH_PROTECTED_BRANCHES = new Set(["main", "master", "production", "prod"]);
+
+function isProtectedRepoBranch(branch, defaultBranch) {
+  const normalized = String(branch || "").trim();
+  return normalized === String(defaultBranch || "").trim() || REPO_PATCH_PROTECTED_BRANCHES.has(normalized);
+}
+
+function sanitizeBranchSlug(value) {
+  return String(value || "patch")
+    .toLowerCase()
+    .replace(/[^a-z0-9._/-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "patch";
+}
+
+function defaultRepoPatchBranch({ filePath, commitMessage }) {
+  const stamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+  const fileHint = sanitizeBranchSlug(String(filePath || "file").split("/").pop()).slice(0, 24);
+  const slug = sanitizeBranchSlug(commitMessage).slice(0, 48);
+  return `gpt/repo-patch/${stamp}-${fileHint}-${slug}`;
+}
+
+function assertRepoPatchBranchPolicy({ branch, defaultBranch, args }) {
+  if (!isProtectedRepoBranch(branch, defaultBranch)) return;
+  const breakGlassAllowed =
+    process.env.REPO_PATCH_ALLOW_PROTECTED_BRANCH === "true" &&
+    args?.allow_protected_branch === true &&
+    String(args?.break_glass_reason || "").trim().length >= 10;
+  if (breakGlassAllowed) return;
+  const err = new Error(`Direct writes to protected branch '${branch}' are blocked. Use a work branch and merge only after CI passes.`);
+  err.status = 403;
+  err.code = "repo_patch_protected_branch";
+  err.details = {
+    branch,
+    default_branch: defaultBranch,
+    required_flow: "commit_to_work_branch_then_merge_after_required_ci",
+  };
+  throw err;
+}
+
 function validatePatchPath(relativePath) {
   if (!relativePath || typeof relativePath !== "string") {
     const err = new Error("path is required.");
