@@ -4,7 +4,7 @@ import { loadPathResolverRowsForRequest } from "../pathResolverRowsLoader.js";
 import { getPool } from "../db.js";
 import { TABLE_MAP, SHEET_COLUMNS } from "../sqlAdapter.js";
 import { resolvePlatformGraphContext } from "../services/platformKnowledgeGraphResolver.js";
-import { resolveGraphRelevantAssets } from "../services/platformGraphMemoryResolver.js";
+import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
 
 export function buildGovernanceRoutes(deps) {
   const {
