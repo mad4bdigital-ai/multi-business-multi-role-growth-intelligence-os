@@ -937,6 +937,63 @@ export function buildLocalConnectorInstallRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
 
+  // ── POST /local-connector/install/device-download-link ───────────────────
+  // Allows the signed-in Local Manager app to request a short-lived repair installer
+  // for its own linked device without requiring a platform/admin bearer token.
+  router.post("/local-connector/install/device-download-link", async (req, res) => {
+    try {
+      const device = await requireLocalManagerDevice(req);
+      const format = String(req.body?.format || "bat").trim().toLowerCase();
+      const ttl = Math.max(5, Math.min(60, Number(req.body?.ttl_minutes || 30)));
+      if (!["ps1", "bat"].includes(format)) return res.status(400).json({ ok: false, error: { code: "unsupported_format", message: "format must be ps1 or bat." }, secrets_included: false });
+      const [rows] = await getPool().query(
+        `SELECT c.config_id, c.tenant_id, c.device_id
+           FROM \`local_connector_user_configs\` c
+          WHERE c.user_id = ?
+            AND c.is_enabled = 1
+            AND (
+              c.device_id = ?
+              OR c.config_id IN (
+                SELECT a.canonical_config_id
+                  FROM \`local_connector_device_aliases\` a
+                 WHERE a.alias_device_id = ?
+                   AND a.user_id = ?
+                   AND a.status = 'active'
+              )
+            )
+          ORDER BY CASE WHEN c.device_id = ? THEN 0 ELSE 1 END,
+                   CASE WHEN c.tenant_id = ? THEN 0 WHEN c.tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END,
+                   COALESCE(c.last_health_at, c.updated_at, c.created_at) DESC
+          LIMIT 1`,
+        [device.user_id, device.device_id, device.device_id, device.user_id, device.device_id, device.tenant_id || ""]
+      );
+      const config = rows[0] || null;
+      if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found", message: "No active connector config was found for this linked device." }, secrets_included: false });
+      const token = signInstallerDownloadToken({
+        user_id: device.user_id,
+        tenant_id: config.tenant_id || device.tenant_id,
+        device_id: config.device_id,
+        format,
+        exp: Math.floor(Date.now() / 1000) + ttl * 60,
+      });
+      const path = format === "bat" ? "/local-connector/install/download" : "/connector-agent/installer.ps1";
+      const download_url = `${publicBaseUrl(req)}${path}?token=${encodeURIComponent(token)}`;
+      return res.status(200).json({
+        ok: true,
+        device_id: device.device_id,
+        canonical_device_id: config.device_id,
+        config_id: config.config_id,
+        format,
+        ttl_minutes: ttl,
+        download_url,
+        run_as_admin_required: true,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "device_download_link_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   // ── POST /local-connector/install/download-link ──────────────────────────
   // Creates a short-lived signed download link for install-local-connector.ps1 or .bat.
   // The token is HMAC-signed and contains no connector credentials itself.
