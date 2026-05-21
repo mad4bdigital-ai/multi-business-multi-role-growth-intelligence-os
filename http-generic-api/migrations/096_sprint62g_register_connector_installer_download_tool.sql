@@ -9,7 +9,7 @@ VALUES
    'POST',
    '/local-connector/install/download-link',
    NULL,
-   '{"type":"object","required":["user_id","tenant_id","device_id"],"properties":{"user_id":{"type":"string"},"tenant_id":{"type":"string"},"device_id":{"type":"string"},"ttl_minutes":{"type":"integer","minimum":5,"maximum":120}}}',
+   '{"type":"object","required":["user_id","tenant_id","device_id"],"properties":{"user_id":{"type":"string"},"tenant_id":{"type":"string"},"device_id":{"type":"string"},"ttl_minutes":{"type":"integer","minimum":5,"maximum":120},"format":{"type":"string","enum":["ps1","bat"],"default":"ps1"}}}',
    NULL,
    'local_connector,installer,download,admin',
    1,
