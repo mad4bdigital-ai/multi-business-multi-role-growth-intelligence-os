@@ -41,6 +41,8 @@ The tenant GPT schema is MCP-style. It exposes only these meta operations:
 
 Do not call old direct operation names such as `tenantConnectionStatus`, `tenantConnectionActivate`, `tenantDeviceInstall`, `tenantLocalConnectorInstall`, `tenantSaveAppConnection`, or `tenantLocalConnectorHealth`. Use `listTools` and then `callTool` with the DB tool key.
 
+Wrapper-safe rule: the `callTool` request body has only `name` and `tool_args`. Never pass `mode`, `device_id`, `integration_modes`, or app-connection fields at the top level. Put them inside `tool_args`, for example `{ "name": "connect_activate", "tool_args": { "mode": "managed" } }`.
+
 ## Connectors
 
 - `auth.mad4b.com`: primary tenant control plane for OAuth sign-in, `/connect/*`, tenant-scoped `/system/*`, app connections, device provisioning, install/status/health, and validation.
