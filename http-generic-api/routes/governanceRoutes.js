@@ -253,26 +253,30 @@ export function buildGovernanceRoutes(deps) {
         };
       }
 
-      let graphRelevantAssets = {
+      let graphMemory = {
         requested: false,
         resolved: false,
         asset_count: 0,
         assets: [],
-        reason: "not_attempted"
+        reason: "not_attempted",
+        secrets_included: false
       };
       try {
-        graphRelevantAssets = await resolveGraphRelevantAssets({
-          ...requestPayload,
-          tenant_id: body.tenant_id || requestPayload.tenant_id,
-          user_id: body.user_id || requestPayload.user_id,
-          device_id: body.device_id || requestPayload.device_id,
-          asset_id: body.asset_id || requestPayload.asset_id,
-          graph_context: graphContext,
-          depth: 2,
+        graphMemory = await resolvePlatformGraphMemory({
+          input: {
+            ...requestPayload,
+            tenant_id: body.tenant_id || requestPayload.tenant_id,
+            user_id: body.user_id || requestPayload.user_id,
+            device_id: body.device_id || requestPayload.device_id,
+            asset_id: body.asset_id || requestPayload.asset_id,
+            depth: 2,
+            limit: 8
+          },
+          graphContext,
           limit: 8
         });
       } catch (memoryErr) {
-        graphRelevantAssets = {
+        graphMemory = {
           requested: true,
           resolved: false,
           asset_count: 0,
