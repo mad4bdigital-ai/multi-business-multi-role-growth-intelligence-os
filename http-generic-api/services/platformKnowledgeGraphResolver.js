@@ -278,8 +278,34 @@ export async function projectPlatformKnowledgeGraph({ projectionKey = "runtime_p
     sourceCounts.execution_log_tail = logs.length;
     for (const r of logs) { const traceKey = r.execution_trace_id_writeback || `execution_log_${r.id}`; const tr = nodeId("execution_trace", traceKey); addNode(nodes, { node_id: tr, node_type: "execution_trace", node_label: traceKey, subject_ref: traceKey, source_table: "execution_log", source_pk: String(r.id), authority_status: "authoritative", lifecycle_status: lifecycle(r.execution_status), runtime_role: "audit_only", metadata_json: { entry_type: r.entry_type, execution_class: r.execution_class, execution_status: r.execution_status } }); if (r.artifact_json_asset_id) { const asset = nodeId("json_asset", r.artifact_json_asset_id); addNode(nodes, { node_id: asset, node_type: "json_asset", node_label: r.artifact_json_asset_id, source_table: "execution_log", source_pk: String(r.id), authority_status: "candidate" }); addEdge(edges, { source_node_id: tr, edge_type: "produced", target_node_id: asset, source_table: "execution_log", source_pk: String(r.id), authority_status: "authoritative", runtime_role: "audit_only" }); } if (r.target_workflow_writeback) { const wf = nodeId("workflow", r.target_workflow_writeback); addNode(nodes, { node_id: wf, node_type: "workflow", node_label: r.target_workflow_writeback, scope_type: "workflow", source_table: "execution_log", source_pk: String(r.id), authority_status: "candidate" }); addEdge(edges, { source_node_id: tr, edge_type: "uses", target_node_id: wf, source_table: "execution_log", source_pk: String(r.id), authority_status: "advisory", runtime_role: "audit_only" }); } if (r.target_module_writeback) { const mod = nodeId("module", r.target_module_writeback); addNode(nodes, { node_id: mod, node_type: "module", node_label: r.target_module_writeback, scope_type: "module", source_table: "execution_log", source_pk: String(r.id), authority_status: "candidate" }); addEdge(edges, { source_node_id: tr, edge_type: "uses", target_node_id: mod, source_table: "execution_log", source_pk: String(r.id), authority_status: "advisory", runtime_role: "audit_only" }); } }
 
+    let downgradedRuntimeEnforcedEdges = 0;
+    for (const edge of edges.values()) {
+      const sourceNode = nodes.get(edge.source_node_id);
+      const targetNode = nodes.get(edge.target_node_id);
+      const sourceActive = sourceNode?.lifecycle_status === "active";
+      const targetActive = targetNode?.lifecycle_status === "active";
+      if (Number(edge.runtime_enforced || 0) === 1 && (!sourceActive || !targetActive)) {
+        edge.runtime_enforced = 0;
+        edge.lifecycle_status = "archived";
+        edge.authority_status = edge.authority_status === "authoritative" ? "advisory" : edge.authority_status;
+        edge.metadata_json = {
+          ...(edge.metadata_json || {}),
+          projection_downgrade_reason: "runtime_enforced_edge_requires_active_source_and_target",
+          source_lifecycle_status: sourceNode?.lifecycle_status || "missing",
+          target_lifecycle_status: targetNode?.lifecycle_status || "missing",
+        };
+        downgradedRuntimeEnforcedEdges += 1;
+      }
+    }
+    if (downgradedRuntimeEnforcedEdges) {
+      warnings.push({
+        code: "downgraded_runtime_enforced_edges_with_inactive_nodes",
+        count: downgradedRuntimeEnforcedEdges,
+      });
+    }
+
     if (!dryRun) { await upsertNodes(pool, nodes); await upsertEdges(pool, edges); }
-    const resultCounts = { nodes: nodes.size, edges: edges.size, dry_run: Boolean(dryRun) };
+    const resultCounts = { nodes: nodes.size, edges: edges.size, dry_run: Boolean(dryRun), downgraded_runtime_enforced_edges: downgradedRuntimeEnforcedEdges };
     await pool.query(`UPDATE platform_graph_projection_runs SET status='completed', source_counts_json=?, result_counts_json=?, warnings_json=?, completed_at=NOW() WHERE run_id=?`, [safeJson(sourceCounts), safeJson(resultCounts), safeJson(warnings), runId]);
     return { ok: true, run_id: runId, source_counts: sourceCounts, result_counts: resultCounts, warnings };
   } catch (error) {

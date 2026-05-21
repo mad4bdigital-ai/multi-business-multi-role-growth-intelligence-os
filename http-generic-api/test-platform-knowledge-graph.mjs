@@ -62,6 +62,12 @@ assert("graph service has projection, validation, neighborhood, and resolver exp
   service.includes("export async function resolvePlatformGraphContext") &&
   service.includes("export async function logGraphQuery"));
 
+assert("graph projection downgrades runtime-enforced edges with inactive endpoints",
+  service.includes("downgraded_runtime_enforced_edges_with_inactive_nodes") &&
+  service.includes("runtime_enforced_edge_requires_active_source_and_target") &&
+  service.includes("source_lifecycle_status") &&
+  service.includes("target_lifecycle_status"));
+
 assert("graph service forbids raw secret terms and avoids raw secret columns",
   service.includes("FORBIDDEN_SECRET_TERMS") &&
   service.includes("api_key_value") &&
