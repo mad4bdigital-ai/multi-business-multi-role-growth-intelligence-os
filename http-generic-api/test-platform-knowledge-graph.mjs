@@ -105,9 +105,11 @@ assert("graph routes are registered",
   index.includes("buildPlatformGraphRoutes") &&
   index.includes("app.use(buildPlatformGraphRoutes"));
 
-assert("governance diagnostic includes graph_context",
+assert("governance diagnostic includes graph_context and graph_memory",
   governance.includes("resolvePlatformGraphContext") &&
+  governance.includes("resolvePlatformGraphMemory") &&
   governance.includes("graph_context") &&
+  governance.includes("graph_memory") &&
   governance.includes("authority_summary"));
 
 assert("parent and child OpenAPI expose platform graph tag, schemas, and paths",
