@@ -1297,6 +1297,36 @@ paths:
                     $ref: "#/components/schemas/PlatformGraphContext"
                   secrets_included: { type: boolean, enum: [false] }
 
+  /platform/graph/memory:
+    post:
+      tags: [platform-graph]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: resolvePlatformGraphMemory
+      summary: Resolve graph-scoped memory assets for a subject, route, workflow, device, user, tenant, or asset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformGraphResolveContextRequest"
+      responses:
+        "200":
+          description: Graph context plus scoped memory asset summaries
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  ok: { type: boolean }
+                  graph_context:
+                    $ref: "#/components/schemas/PlatformGraphContext"
+                  graph_memory:
+                    $ref: "#/components/schemas/PlatformGraphMemory"
+                  secrets_included: { type: boolean, enum: [false] }
+
   /platform/graph/node/{node_id}:
     get:
       tags: [platform-graph]
