@@ -265,6 +265,42 @@ components:
           items:
             $ref: "#/components/schemas/PlatformGraphEdge"
 
+    PlatformGraphMemoryAsset:
+      type: object
+      additionalProperties: true
+      properties:
+        asset_id: { type: string }
+        asset_key: { type: string }
+        asset_type: { type: string }
+        validation_status: { type: string }
+        active_status: { type: string }
+        attached_scope_count: { type: integer }
+        graph_rank: { type: integer }
+        payload_summary:
+          type: object
+          additionalProperties: true
+        notes_excerpt: { type: string, nullable: true }
+        updated_at: { type: string, nullable: true }
+
+    PlatformGraphMemory:
+      type: object
+      additionalProperties: true
+      properties:
+        requested: { type: boolean }
+        resolved: { type: boolean }
+        asset_count: { type: integer }
+        graph_node_ids:
+          type: array
+          items: { type: string }
+        assets:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformGraphMemoryAsset"
+        selection_policy:
+          type: object
+          additionalProperties: true
+        secrets_included: { type: boolean, enum: [false] }
+
     PlatformGraphProjectRequest:
       type: object
       additionalProperties: false
