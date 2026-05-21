@@ -54,7 +54,16 @@ const WIN_ENABLED = process.env.CONNECTOR_WIN_ENABLED === 'true';
 const N8N_ENABLED = process.env.CONNECTOR_N8N_ENABLED !== 'false';
 const N8N_BASE = (process.env.N8N_BASE_URL ?? 'http://localhost:5678').replace(/\/$/, '');
 const N8N_API_KEY = process.env.N8N_API_KEY ?? '';
-const N8N_COMMAND = process.env.N8N_COMMAND ?? (process.platform === 'win32' ? 'D:\\npm-global\\n8n.cmd' : 'n8n');
+function normalizeCommandPath(value) {
+  const raw = String(value ?? '').trim();
+  if (raw.length >= 2) {
+    const first = raw[0];
+    const last = raw[raw.length - 1];
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) return raw.slice(1, -1);
+  }
+  return raw;
+}
+const N8N_COMMAND = normalizeCommandPath(process.env.N8N_COMMAND ?? (process.platform === 'win32' ? 'D:\\npm-global\\n8n.cmd' : 'n8n'));
 const N8N_USER_FOLDER = process.env.N8N_USER_FOLDER ?? (process.platform === 'win32' ? 'D:\\n8n-data' : path.join(os.homedir(), '.n8n'));
 const N8N_PORT = String(process.env.N8N_PORT ?? '5678');
 const N8N_LISTEN_ADDRESS = process.env.N8N_LISTEN_ADDRESS ?? '127.0.0.1';
