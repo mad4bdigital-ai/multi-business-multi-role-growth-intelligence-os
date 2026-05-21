@@ -95,6 +95,7 @@ assert("routes expose admin-protected graph runtime endpoints",
   routes.includes("/platform/graph/project") &&
   routes.includes("/platform/graph/validate") &&
   routes.includes("/platform/graph/resolve-context") &&
+  routes.includes("/platform/graph/memory") &&
   routes.includes("/platform/graph/node/:node_id") &&
   routes.includes("/platform/graph/neighborhood") &&
   routes.includes("/platform/graph/status") &&
