@@ -569,12 +569,14 @@ export async function approveDeviceLinkSession(req, res) {
     if (row.status !== "pending") {
       const sameOwner = row.user_id === principal.user_id && (!row.tenant_id || !principal.tenant_id || row.tenant_id === principal.tenant_id);
       if (sameOwner && ["approved", "completed"].includes(row.status)) {
+        const connectorAlias = await ensureLocalConnectorAliasForDeviceLink({ session: row, principal });
         return res.status(200).json({
           ok: true,
           status: row.status,
           already_linked: true,
           user: principal,
           device: sanitizeSession(row),
+          connector_alias: connectorAlias,
           message: "This pairing code was already approved for your account.",
           secrets_included: false,
         });
