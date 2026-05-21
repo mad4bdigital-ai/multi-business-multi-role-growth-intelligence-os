@@ -400,6 +400,15 @@ export function buildGovernanceRoutes(deps) {
             authority_summary: graphContext.authority_summary || {},
             error: graphContext.error || null
           },
+          graph_relevant_assets: {
+            requested: Boolean(graphRelevantAssets.requested),
+            resolved: Boolean(graphRelevantAssets.resolved),
+            asset_count: graphRelevantAssets.asset_count || 0,
+            subject_node_ids: graphRelevantAssets.subject_node_ids || [],
+            assets: graphRelevantAssets.assets || [],
+            error: graphRelevantAssets.error || null,
+            secrets_included: false
+          },
           execution_target: {
             status: diagnosticTargetRow?.status || executionTarget.status || "",
             target_key: diagnosticTargetRow?.target_key || executionTarget.targetKey || "",
