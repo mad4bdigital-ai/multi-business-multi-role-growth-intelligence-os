@@ -19,7 +19,7 @@
     "verify": "node verify-runtime.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22 <23"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
