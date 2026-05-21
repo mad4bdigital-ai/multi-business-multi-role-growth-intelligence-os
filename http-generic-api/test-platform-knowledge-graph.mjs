@@ -137,5 +137,11 @@ assert("parent and child OpenAPI expose platform graph tag, schemas, and paths",
     schema.includes("/platform/graph/status:")
   ));
 
+assert("parent and child OpenAPI define graph memory path and schema exactly once",
+  [parentOpenapi, childOpenapi].every((schema) =>
+    countOccurrences(schema, "/platform/graph/memory:") === 1 &&
+    countOccurrences(schema, "PlatformGraphMemoryResponse:") === 1
+  ));
+
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
