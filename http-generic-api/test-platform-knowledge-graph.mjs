@@ -105,6 +105,10 @@ assert("routes expose admin-protected graph runtime endpoints",
   routes.includes("requireBackendApiKey") &&
   routes.includes("requireAdminPrincipal"));
 
+assert("graph memory route is registered exactly once",
+  countOccurrences(routes, "router.post(\"/platform/graph/memory\"") === 1 &&
+  countOccurrences(routes, "platform_graph_memory_failed") === 1);
+
 assert("graph routes are registered",
   index.includes("buildPlatformGraphRoutes") &&
   index.includes("app.use(buildPlatformGraphRoutes"));
