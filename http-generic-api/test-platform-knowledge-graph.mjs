@@ -14,6 +14,7 @@ function assert(name, condition) {
 
 const service = readFileSync("services/platformKnowledgeGraphResolver.js", "utf8");
 const routes = readFileSync("routes/platformGraphRoutes.js", "utf8");
+const memoryService = readFileSync("services/platformGraphMemoryResolver.js", "utf8");
 const index = readFileSync("routes/index.js", "utf8");
 const governance = readFileSync("routes/governanceRoutes.js", "utf8");
 const migration = readFileSync("migrations/105_sprint62p_platform_knowledge_graph_runtime.sql", "utf8");
@@ -76,6 +77,15 @@ assert("graph service forbids raw secret terms and avoids raw secret columns",
   !service.includes("SELECT oauth_client_secret") &&
   !service.includes("SELECT password_hash"));
 
+assert("graph memory service resolves scoped assets through graph attachments",
+  memoryService.includes("export async function resolveGraphRelevantAssets") &&
+  memoryService.includes("resolvePlatformGraphContext") &&
+  memoryService.includes("platform_graph_edges e") &&
+  memoryService.includes("json_asset_subject_links") &&
+  memoryService.includes("payload_summary") &&
+  memoryService.includes("redactSecrets") &&
+  memoryService.includes("secrets_included: false"));
+
 assert("graph service uses MariaDB-compatible JSON writes",
   !service.includes("CAST(? AS JSON)") &&
   service.includes("metadata_json=VALUES(metadata_json)") &&
@@ -85,6 +95,7 @@ assert("routes expose admin-protected graph runtime endpoints",
   routes.includes("/platform/graph/project") &&
   routes.includes("/platform/graph/validate") &&
   routes.includes("/platform/graph/resolve-context") &&
+  routes.includes("/platform/graph/memory") &&
   routes.includes("/platform/graph/node/:node_id") &&
   routes.includes("/platform/graph/neighborhood") &&
   routes.includes("/platform/graph/status") &&
@@ -95,9 +106,11 @@ assert("graph routes are registered",
   index.includes("buildPlatformGraphRoutes") &&
   index.includes("app.use(buildPlatformGraphRoutes"));
 
-assert("governance diagnostic includes graph_context",
+assert("governance diagnostic includes graph_context and graph_relevant_assets",
   governance.includes("resolvePlatformGraphContext") &&
+  governance.includes("resolveGraphRelevantAssets") &&
   governance.includes("graph_context") &&
+  governance.includes("graph_relevant_assets") &&
   governance.includes("authority_summary"));
 
 assert("parent and child OpenAPI expose platform graph tag, schemas, and paths",
@@ -109,6 +122,8 @@ assert("parent and child OpenAPI expose platform graph tag, schemas, and paths",
     schema.includes("/platform/graph/project:") &&
     schema.includes("/platform/graph/validate:") &&
     schema.includes("/platform/graph/resolve-context:") &&
+    schema.includes("/platform/graph/memory:") &&
+    schema.includes("PlatformGraphMemoryResponse:") &&
     schema.includes("/platform/graph/node/{node_id}:") &&
     schema.includes("/platform/graph/neighborhood:") &&
     schema.includes("/platform/graph/status:")

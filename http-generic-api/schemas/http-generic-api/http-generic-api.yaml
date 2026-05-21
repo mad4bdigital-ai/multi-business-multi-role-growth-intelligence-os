@@ -217,6 +217,35 @@ components:
         warning_count: { type: integer }
         secrets_included: { type: boolean, enum: [false] }
 
+    PlatformGraphMemoryAsset:
+      type: object
+      additionalProperties: true
+      properties:
+        asset_id: { type: string }
+        asset_key: { type: string, nullable: true }
+        asset_type: { type: string, nullable: true }
+        target_node_id: { type: string }
+        relevance_score: { type: integer }
+        payload_summary:
+          $ref: "#/components/schemas/JsonValue"
+
+    PlatformGraphMemoryResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        ok: { type: boolean }
+        requested: { type: boolean }
+        resolved: { type: boolean }
+        asset_count: { type: integer }
+        subject_node_ids:
+          type: array
+          items: { type: string }
+        assets:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformGraphMemoryAsset"
+        secrets_included: { type: boolean, enum: [false] }
+
     ExecuteHttpRequest:
       type: object
       additionalProperties: false
@@ -1266,6 +1295,28 @@ paths:
                   graph_context:
                     $ref: "#/components/schemas/PlatformGraphContext"
                   secrets_included: { type: boolean, enum: [false] }
+
+  /platform/graph/memory:
+    post:
+      tags: [platform-graph]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: resolvePlatformGraphMemory
+      summary: Resolve graph-relevant json_assets for a tenant, user, device, asset, route, workflow, action, endpoint, or business type
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformGraphResolveContextRequest"
+      responses:
+        "200":
+          description: Graph-relevant memory assets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformGraphMemoryResponse"
 
   /platform/graph/node/{node_id}:
     get:

@@ -8,6 +8,7 @@ import {
   resolvePlatformGraphContext,
   validatePlatformKnowledgeGraph,
 } from "../services/platformKnowledgeGraphResolver.js";
+import { resolveGraphRelevantAssets } from "../services/platformGraphMemoryResolver.js";
 
 function bool(value) {
   return value === true || ["true", "1", "yes"].includes(String(value ?? "").trim().toLowerCase());
@@ -58,6 +59,21 @@ export function buildPlatformGraphRoutes({ requireBackendApiKey, requireAdminPri
       return res.status(200).json({ ok: true, graph_context: result, secrets_included: false });
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "platform_graph_resolve_context_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/platform/graph/memory", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await resolveGraphRelevantAssets({
+        ...input,
+        depth: sanitizeInt(input.depth, 2, 0, 3),
+        limit: sanitizeInt(input.limit, 12, 1, 50),
+      });
+      await logGraphQuery({ queryType: "memory", input, result });
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "platform_graph_memory_failed", message: err.message }, secrets_included: false });
     }
   });
 
