@@ -2094,6 +2094,54 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /local-connector/install/device-download-link:
+    post:
+      tags: [local-manager]
+      security:
+        - localManagerBearerAuth: []
+      operationId: createLocalManagerDeviceInstallerDownloadLink
+      summary: Create a short-lived connector repair installer link for the current Local Manager device
+      description: >
+        Device-token scoped repair helper used by Mad4B Local Manager. Resolves the linked
+        app device through any registered alias to the canonical connector config, then returns
+        a short-lived signed installer download URL. The response includes no connector secret
+        or Cloudflare token; the downloaded installer must be executed locally with elevation.
+      x-openai-isConsequential: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                format: { type: string, enum: [ps1, bat], default: bat }
+                ttl_minutes: { type: integer, minimum: 5, maximum: 60, default: 30 }
+      responses:
+        "200":
+          description: Short-lived signed installer link for this linked device
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  device_id: { type: string }
+                  canonical_device_id: { type: string }
+                  config_id: { type: string }
+                  format: { type: string, enum: [ps1, bat] }
+                  ttl_minutes: { type: integer }
+                  download_url: { type: string, format: uri }
+                  run_as_admin_required: { type: boolean }
+                  secrets_included: { type: boolean, enum: [false] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Invalid linked-device session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /local-manager/device/session:
     get:
       tags: [local-manager]
