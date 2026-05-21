@@ -404,13 +404,23 @@ export function buildGovernanceRoutes(deps) {
             authority_summary: graphContext.authority_summary || {},
             error: graphContext.error || null
           },
+          graph_memory: {
+            requested: Boolean(graphMemory.requested),
+            resolved: Boolean(graphMemory.resolved),
+            asset_count: graphMemory.asset_count || 0,
+            graph_node_ids: graphMemory.graph_node_ids || [],
+            assets: graphMemory.assets || [],
+            selection_policy: graphMemory.selection_policy || {},
+            error: graphMemory.error || null,
+            secrets_included: false
+          },
           graph_relevant_assets: {
-            requested: Boolean(graphRelevantAssets.requested),
-            resolved: Boolean(graphRelevantAssets.resolved),
-            asset_count: graphRelevantAssets.asset_count || 0,
-            subject_node_ids: graphRelevantAssets.subject_node_ids || [],
-            assets: graphRelevantAssets.assets || [],
-            error: graphRelevantAssets.error || null,
+            requested: Boolean(graphMemory.requested),
+            resolved: Boolean(graphMemory.resolved),
+            asset_count: graphMemory.asset_count || 0,
+            subject_node_ids: graphMemory.graph_node_ids || [],
+            assets: graphMemory.assets || [],
+            error: graphMemory.error || null,
             secrets_included: false
           },
           execution_target: {
