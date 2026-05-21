@@ -15,6 +15,11 @@ import {
   assessDedicatedIntegrationReadiness,
   dedicatedIntegrationCatalog,
 } from "../dedicatedIntegrationPolicy.js";
+import {
+  assessHybridIntegrationReadiness,
+  hybridIntegrationCatalog,
+  upsertTenantIntegrationPolicies,
+} from "../hybridIntegrationPolicy.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECT_STATIC = join(__dirname, "../public/connect");
