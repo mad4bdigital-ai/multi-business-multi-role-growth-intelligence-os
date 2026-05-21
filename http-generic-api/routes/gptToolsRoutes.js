@@ -163,7 +163,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repo_patch_apply",
     displayName: "Repository Patch Apply",
-    description: "Apply a patch to the repository via the GitHub App, sidestepping the local connector. Actions: write_file (replace whole file), replace_block (single old_string to new_string), apply_unified_diff (single-file unified diff string). Path is repo-confined; secrets/build folders are blocked. Commits to the named branch (defaults to main) and returns the new commit SHA. Requires GITHUB_APP_ID, GITHUB_APP_INSTALLATION_ID, GITHUB_APP_PRIVATE_KEY env and an activation_bootstrap_config row with github_owner and github_repo.",
+    description: "Apply a patch to the repository via the GitHub App, sidestepping the local connector. Actions: write_file, replace_block, apply_unified_diff. Path is repo-confined; secrets/build folders are blocked. Runtime defaults to a generated non-protected work branch. Protected branches are blocked unless explicit break-glass policy is enabled and justified.",
     method: "VIRTUAL",
     path: "internal://repo-patch-apply",
     tags: ["repo", "mutation", "self_repair"],
