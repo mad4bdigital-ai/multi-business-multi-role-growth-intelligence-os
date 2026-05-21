@@ -62,6 +62,21 @@ export function buildPlatformGraphRoutes({ requireBackendApiKey, requireAdminPri
     }
   });
 
+  router.post("/platform/graph/memory", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await resolveGraphRelevantAssets({
+        ...input,
+        depth: sanitizeInt(input.depth, 2, 0, 3),
+        limit: sanitizeInt(input.limit, 12, 1, 50),
+      });
+      await logGraphQuery({ queryType: "memory", input, result });
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "platform_graph_memory_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   router.get("/platform/graph/node/:node_id", ...requireAdmin, async (req, res) => {
     try {
       await ensurePlatformGraphTables();
