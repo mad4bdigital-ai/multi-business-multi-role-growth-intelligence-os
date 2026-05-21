@@ -739,6 +739,12 @@ section("connect api auth scope");
       source.includes("last_success_at = NOW()") &&
       source.includes("last_failure_at = NOW()") &&
       source.includes("connector_all_routes_failed"));
+    assert("auth connector proxy resolves aliases and allows legacy all-zero canonical tenant fallback",
+      source.includes("local_connector_device_aliases") &&
+      source.includes("resolveCanonicalDeviceId") &&
+      source.includes("tenant_id = '00000000-0000-0000-0000-000000000000'") &&
+      source.includes("CASE WHEN tenant_id = ? THEN 0") &&
+      source.includes("ambiguousDeviceError"));
   }
 
 {
