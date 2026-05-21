@@ -621,6 +621,15 @@ export async function getDeviceControls(req, res) {
         write_actions_enabled: false,
         note: "Restore probes require upgraded local connector aliases before execution.",
       },
+      repairs: {
+        label: "Connector repairs",
+        actions: ["request_connector_upgrade_installer", "download_signed_installer", "run_installer_as_administrator", "verify_connector_policy"],
+        write_actions_enabled: true,
+        endpoint: "/local-connector/install/device-download-link",
+        default_format: "bat",
+        elevation_required: true,
+        note: "Local Manager should call the endpoint with its device token, download the signed installer, elevate locally, run it, then verify /policy and alias refresh.",
+      },
       settings: {
         label: "Settings",
         actions: ["view_device_identity", "view_token_storage_status", "open_account_settings"],
