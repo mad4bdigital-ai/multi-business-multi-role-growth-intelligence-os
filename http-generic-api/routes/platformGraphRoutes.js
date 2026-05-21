@@ -8,7 +8,7 @@ import {
   resolvePlatformGraphContext,
   validatePlatformKnowledgeGraph,
 } from "../services/platformKnowledgeGraphResolver.js";
-import { resolveGraphRelevantAssets } from "../services/platformGraphMemoryResolver.js";
+import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
 
 function bool(value) {
   return value === true || ["true", "1", "yes"].includes(String(value ?? "").trim().toLowerCase());
