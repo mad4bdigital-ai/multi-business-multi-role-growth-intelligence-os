@@ -63,18 +63,34 @@ jobs:
 
       - name: Publish public latest EXE release asset
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: local-manager-windows-latest
-          name: Mad4B Local Manager Windows Latest
-          body: |
-            Public Windows Local Manager launcher.
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'local-manager-windows-latest'
+          $title = 'Mad4B Local Manager Windows Latest'
+          $notes = @'
+          Public Windows Local Manager launcher.
 
-            This unsigned early bootstrap EXE contains no backend key, platform token, or device credential.
-            Users install it, open Local Manager, sign in, and link the device through the platform flow.
-          draft: false
-          prerelease: true
-          make_latest: false
-          files: |
-            dist/Mad4B-Local-Manager-Setup.exe
-            dist/Mad4B-Local-Manager-Setup.exe.sha256.json
+          This unsigned early bootstrap EXE contains no backend key, platform token, or device credential.
+          Users install it, open Local Manager, sign in, and link the device through the platform flow.
+          '@.Trim()
+
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release edit $tag --repo $env:GITHUB_REPOSITORY --title $title --notes $notes --prerelease --latest=false
+            gh release upload $tag `
+              'dist/Mad4B-Local-Manager-Setup.exe' `
+              'dist/Mad4B-Local-Manager-Setup.exe.sha256.json' `
+              --repo $env:GITHUB_REPOSITORY `
+              --clobber
+          } else {
+            gh release create $tag `
+              'dist/Mad4B-Local-Manager-Setup.exe' `
+              'dist/Mad4B-Local-Manager-Setup.exe.sha256.json' `
+              --repo $env:GITHUB_REPOSITORY `
+              --title $title `
+              --notes $notes `
+              --prerelease `
+              --latest=false
+          }
