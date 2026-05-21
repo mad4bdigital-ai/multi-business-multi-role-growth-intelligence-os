@@ -776,18 +776,76 @@ function validatePatchPath(relativePath) {
   return normalized;
 }
 
+function githubApiHeaders(token, method = "GET") {
+  return {
+    Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${token}`,
+    "X-GitHub-Api-Version": "2022-11-28",
+    "User-Agent": "mad4b-growth-os-repo-patch",
+    ...(method !== "GET" ? { "Content-Type": "application/json" } : {}),
+  };
+}
+
+function encodeGitRefBranch(branch) {
+  return String(branch || "").split("/").map(encodeURIComponent).join("/");
+}
+
+async function githubJsonRequest({ method, owner, repo, apiPath, body, token, fetchImpl = fetch }) {
+  const response = await fetchImpl(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${apiPath}`, {
+    method,
+    headers: githubApiHeaders(token, method),
+    body: method === "GET" ? undefined : JSON.stringify(body || {}),
+  });
+  const payload = await response.json().catch(() => ({}));
+  return { status: response.status, ok: response.ok, payload };
+}
+
+async function ensureRepoPatchBranch({ owner, repo, branch, defaultBranch, token }) {
+  if (branch === defaultBranch) return { created: false, branch };
+  const existing = await githubJsonRequest({ method: "GET", owner, repo, apiPath: `/git/ref/heads/${encodeGitRefBranch(branch)}`, token });
+  if (existing.ok) return { created: false, branch };
+  if (existing.status !== 404) {
+    const err = new Error("GitHub branch lookup failed.");
+    err.status = 502;
+    err.code = "repo_patch_branch_lookup_failed";
+    err.details = { upstream_status: existing.status, message: existing.payload?.message };
+    throw err;
+  }
+  const base = await githubJsonRequest({ method: "GET", owner, repo, apiPath: `/git/ref/heads/${encodeGitRefBranch(defaultBranch)}`, token });
+  if (!base.ok || !base.payload?.object?.sha) {
+    const err = new Error("GitHub default branch lookup failed.");
+    err.status = 502;
+    err.code = "repo_patch_default_branch_lookup_failed";
+    err.details = { upstream_status: base.status, message: base.payload?.message };
+    throw err;
+  }
+  const created = await githubJsonRequest({
+    method: "POST",
+    owner,
+    repo,
+    apiPath: "/git/refs",
+    token,
+    body: { ref: `refs/heads/${branch}`, sha: base.payload.object.sha },
+  });
+  if (created.status === 422 && String(created.payload?.message || "").toLowerCase().includes("reference already exists")) {
+    return { created: false, branch, raced: true };
+  }
+  if (!created.ok) {
+    const err = new Error("GitHub branch creation failed.");
+    err.status = 502;
+    err.code = "repo_patch_branch_create_failed";
+    err.details = { upstream_status: created.status, message: created.payload?.message };
+    throw err;
+  }
+  return { created: true, branch, base_sha: base.payload.object.sha };
+}
+
 async function githubContentsRequest({ method, owner, repo, filePath, branch, body, token, fetchImpl = fetch }) {
   const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${filePath.split("/").map(encodeURIComponent).join("/")}` +
     (method === "GET" && branch ? `?ref=${encodeURIComponent(branch)}` : "");
   const response = await fetchImpl(url, {
     method,
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "mad4b-growth-os-repo-patch",
-      ...(method !== "GET" ? { "Content-Type": "application/json" } : {}),
-    },
+    headers: githubApiHeaders(token, method),
     body: method === "GET" ? undefined : JSON.stringify(body || {}),
   });
   const payload = await response.json().catch(() => ({}));
