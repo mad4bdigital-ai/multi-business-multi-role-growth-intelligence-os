@@ -583,6 +583,8 @@ export async function getDeviceSession(req, res) {
         devices: "/local-manager/device/session",
         routes: "/local-manager/device/controls?section=routes",
         backups: "/local-manager/device/controls?section=backups",
+        repairs: "/local-manager/device/controls?section=repairs",
+        connector_repair_installer: "/local-connector/install/device-download-link",
         settings: "/local-manager/device/controls?section=settings",
       },
       secrets_included: false,
