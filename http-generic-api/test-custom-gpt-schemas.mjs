@@ -316,9 +316,16 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     `got ${Array.from(tenantOpIds).join(",")}`);
   assert("tenant OpenAI schema does not expose direct connect routes",
     !Object.keys(tenantDoc.paths || {}).some((path) => path.startsWith("/connect")));
+  const tenantCallToolSchema = tenantDoc.paths?.["/gpt/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
+  const tenantToolArgsSchema = tenantCallToolSchema?.properties?.tool_args;
   assert("tenant OpenAI schema tells GPT to pass activation mode and integration_modes through callTool",
     JSON.stringify(tenantDoc.info || {}).includes("connect_activate") &&
     JSON.stringify(tenantDoc.paths?.["/gpt/tools/call"] || {}).includes("integration_modes"));
+  assert("tenant callTool explicitly exposes wrapper-safe tool_args.mode",
+    tenantToolArgsSchema?.properties?.mode?.enum?.includes("managed") &&
+    tenantToolArgsSchema?.properties?.mode?.enum?.includes("dedicated"));
+  assert("tenant callTool explicitly exposes wrapper-safe tool_args.device_id",
+    tenantToolArgsSchema?.properties?.device_id?.pattern === "^[a-z0-9-]{2,32}$");
 
   for (const [path, operationId] of [
     ["/connect/activate", "postConnectActivate"],
