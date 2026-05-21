@@ -51,14 +51,9 @@ ON DUPLICATE KEY UPDATE
   `sort_order` = VALUES(`sort_order`);
 
 UPDATE `tenant_platform_endpoint_tools`
-   SET `input_schema` = JSON_SET(
-         `input_schema`,
-         '$.properties.integration_modes',
-         CAST('{"type":"object","description":"Optional per-app source policy. Example: {\"cloudflare\":\"dedicated\",\"google_drive\":\"managed\"}","additionalProperties":true}' AS JSON)
-       ),
-       `description` = 'Activate the tenant workspace in managed or dedicated mode, optionally with per-app mixed managed/dedicated integration_modes.'
- WHERE `tool_key` = 'connect_activate'
-   AND JSON_VALID(`input_schema`);
+   SET `description` = 'Activate the tenant workspace in managed or dedicated mode, optionally with per-app mixed managed/dedicated integration_modes.',
+       `input_schema` = '{"type":"object","required":["mode"],"properties":{"mode":{"type":"string","enum":["managed","dedicated"],"description":"Canonical activation mode. Hybrid behavior is configured per app through integration_modes."},"connection_mode":{"type":"string","enum":["managed","dedicated"],"description":"Alias accepted by the backend; prefer mode."},"activation_mode":{"type":"string","enum":["managed","dedicated"],"description":"Alias accepted by the backend; prefer mode."},"service_mode":{"type":"string","enum":["managed","dedicated"],"description":"Alias accepted by the backend; prefer mode."},"device_id":{"type":"string","description":"Optional existing device id for follow-up installation guidance."},"workspace_name":{"type":"string"},"cloudflare_mode":{"type":"string","enum":["managed","dedicated"]},"google_auth_mode":{"type":"string","enum":["managed","dedicated"]},"n8n_activation_mode":{"type":"string","enum":["managed_main_server","self_hosted_local"]},"integration_modes":{"type":"object","description":"Optional per-app source policy. Example: {\"cloudflare\":\"dedicated\",\"hostinger\":\"dedicated\",\"google_drive\":\"managed\"}","additionalProperties":true}}}'
+ WHERE `tool_key` = 'connect_activate';
 
 UPDATE `tenant_platform_endpoint_tools`
    SET `description` = 'Read connection status, onboarding state, registered devices, Dedicated readiness, and hybrid per-app managed/dedicated integration policy.'
