@@ -621,6 +621,15 @@ section("connect api auth scope");
       deviceLinkSource.includes("reauthorized_existing_device") &&
       !deviceLinkSource.includes("connector_secret") &&
       !deviceLinkSource.includes("cf_token"));
+    assert("local manager approval auto-writes non-secret connector aliases for app device identity",
+      deviceLinkSource.includes("ensureLocalConnectorAliasForDeviceLink") &&
+      deviceLinkSource.includes("resolveCanonicalConnectorConfig") &&
+      deviceLinkSource.includes("local_connector_device_aliases") &&
+      deviceLinkSource.includes("canonical_connector_config_not_found") &&
+      deviceLinkSource.includes("connector_alias: connectorAlias") &&
+      deviceLinkSource.includes("secrets_included: false") &&
+      !deviceLinkSource.includes("SELECT connector_secret") &&
+      !deviceLinkSource.includes("SELECT cf_token"));
     assert("local manager beta is read-only and redacts secrets",
       betaSource.includes("read_only: true") &&
       betaSource.includes("secrets_included: false") &&
