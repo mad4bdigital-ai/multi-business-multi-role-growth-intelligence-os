@@ -335,7 +335,7 @@ function runCommand(command, args, timeoutMs) {
     const quoteForCmd = (value) => {
       const s = String(value);
       if (!s) return '""';
-      return `"${s.replace(/"/g, '\\"')}"`;
+      return `"${s.replace(/"/g, '""')}"`;
     };
 
     const spawnCommand = isWindowsCommandScript
