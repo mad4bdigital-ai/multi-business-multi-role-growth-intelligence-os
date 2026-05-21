@@ -2,6 +2,9 @@
   "name": "multi-business-growth-intelligence-os",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22 <23"
+  },
   "scripts": {
     "start": "cd http-generic-api && npm start",
     "postinstall": "cd http-generic-api && npm ci --omit=dev",
