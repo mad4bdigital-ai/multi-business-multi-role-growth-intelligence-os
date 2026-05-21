@@ -521,10 +521,22 @@ section("connect api auth scope");
 
   {
     const source = readFileSync("routes/localConnectorInstallRoutes.js", "utf8");
+    const deviceLinkSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
     assert("local connector install effective route calls shared provisioning helper",
       source.includes('router.post("/local-connector/install"') &&
       source.includes("provisionLocalConnectorInstall(req, req.body || {})") &&
       source.includes("shared provisioning helper"));
+    assert("local connector supports device-scoped Local Manager repair installer links",
+      source.includes('router.post("/local-connector/install/device-download-link"') &&
+      source.includes("requireLocalManagerDevice(req)") &&
+      source.includes("canonical_device_id") &&
+      source.includes("run_as_admin_required: true") &&
+      source.includes("secrets_included: false"));
+    assert("Local Manager device controls advertise connector repair installer action",
+      deviceLinkSource.includes('connector_repair_installer: "/local-connector/install/device-download-link"') &&
+      deviceLinkSource.includes('allowedSections = new Set(["overview", "routes", "backups", "repairs", "settings"])') &&
+      deviceLinkSource.includes("request_connector_upgrade_installer") &&
+      deviceLinkSource.includes("verify_connector_policy"));
   }
 
   section("local manager beta read-only surface");
