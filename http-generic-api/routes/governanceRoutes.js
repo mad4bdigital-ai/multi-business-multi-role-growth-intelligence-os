@@ -253,6 +253,38 @@ export function buildGovernanceRoutes(deps) {
         };
       }
 
+      let graphRelevantAssets = {
+        requested: false,
+        resolved: false,
+        asset_count: 0,
+        assets: [],
+        reason: "not_attempted"
+      };
+      try {
+        graphRelevantAssets = await resolveGraphRelevantAssets({
+          ...requestPayload,
+          tenant_id: body.tenant_id || requestPayload.tenant_id,
+          user_id: body.user_id || requestPayload.user_id,
+          device_id: body.device_id || requestPayload.device_id,
+          asset_id: body.asset_id || requestPayload.asset_id,
+          graph_context: graphContext,
+          depth: 2,
+          limit: 8
+        });
+      } catch (memoryErr) {
+        graphRelevantAssets = {
+          requested: true,
+          resolved: false,
+          asset_count: 0,
+          assets: [],
+          error: {
+            code: memoryErr?.code || "graph_memory_resolution_failed",
+            message: memoryErr?.message || "Graph memory resolution failed."
+          },
+          secrets_included: false
+        };
+      }
+
       const pathResolution = governedExecutionContext.path_resolution || {};
       const businessType = pathResolution.businessType || {};
       const brand = pathResolution.brand || {};
