@@ -32,6 +32,8 @@ tags:
     description: AI generation resolvers for implementation plans and task manifests.
   - name: local-manager
     description: Local Manager device-code linking, device controls, and Windows update metadata.
+  - name: platform-graph
+    description: SQL-primary platform knowledge graph projection, validation, and context resolution.
 
 components:
   securitySchemes:
@@ -115,6 +117,105 @@ components:
         - type: integer
         - type: boolean
         - type: "null"
+
+    PlatformGraphNode:
+      type: object
+      additionalProperties: true
+      properties:
+        node_id: { type: string }
+        node_type: { type: string }
+        node_label: { type: string, nullable: true }
+        scope_type: { type: string }
+        subject_ref: { type: string, nullable: true }
+        authority_status: { type: string }
+        lifecycle_status: { type: string }
+        sensitivity: { type: string }
+        runtime_role: { type: string }
+        metadata_json: { $ref: "#/components/schemas/JsonValue" }
+
+    PlatformGraphEdge:
+      type: object
+      additionalProperties: true
+      properties:
+        edge_id: { type: string }
+        source_node_id: { type: string }
+        edge_type: { type: string }
+        target_node_id: { type: string }
+        runtime_enforced: { type: integer }
+        runtime_role: { type: string }
+        metadata_json: { $ref: "#/components/schemas/JsonValue" }
+
+    PlatformGraphResolveContextRequest:
+      type: object
+      additionalProperties: true
+      properties:
+        node_id: { type: string }
+        subject_type: { type: string }
+        subject_ref: { type: string }
+        tenant_id: { type: string }
+        user_id: { type: string }
+        device_id: { type: string }
+        asset_id: { type: string }
+        intent_key: { type: string }
+        route_id: { type: string }
+        workflow_key: { type: string }
+        action_key: { type: string }
+        endpoint_key: { type: string }
+        business_type_key: { type: string }
+        depth: { type: integer, minimum: 0, maximum: 3, default: 2 }
+        limit: { type: integer, minimum: 1, maximum: 500, default: 200 }
+
+    PlatformGraphContext:
+      type: object
+      additionalProperties: true
+      properties:
+        requested: { type: boolean }
+        resolved: { type: boolean }
+        node_count: { type: integer }
+        edge_count: { type: integer }
+        validation_state: { type: string }
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformGraphNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformGraphEdge"
+
+    PlatformGraphProjectRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        projection_key: { type: string, default: runtime_projection }
+        dry_run: { type: boolean, default: false }
+
+    PlatformGraphProjectResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        ok: { type: boolean }
+        run_id: { type: string }
+        source_counts:
+          type: object
+          additionalProperties: true
+        result_counts:
+          type: object
+          additionalProperties: true
+        secrets_included: { type: boolean, enum: [false] }
+
+    PlatformGraphValidationResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        ok: { type: boolean }
+        status: { type: string }
+        run_id: { type: string }
+        checked_nodes: { type: integer }
+        checked_edges: { type: integer }
+        failure_count: { type: integer }
+        warning_count: { type: integer }
+        secrets_included: { type: boolean, enum: [false] }
 
     ExecuteHttpRequest:
       type: object
@@ -1093,6 +1194,152 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+
+  /platform/graph/project:
+    post:
+      tags: [platform-graph]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: projectPlatformGraph
+      summary: Project platform registry/source tables into the SQL-primary graph
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformGraphProjectRequest"
+      responses:
+        "200":
+          description: Projection result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformGraphProjectResponse"
+
+  /platform/graph/validate:
+    get:
+      tags: [platform-graph]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: validatePlatformGraph
+      summary: Validate platform graph integrity and secret-safety constraints
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformGraphValidationResponse"
+        "409":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformGraphValidationResponse"
+
+  /platform/graph/resolve-context:
+    post:
+      tags: [platform-graph]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: resolvePlatformGraphContext
+      summary: Resolve graph context for a subject, route, workflow, action, endpoint, device, user, tenant, or asset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformGraphResolveContextRequest"
+      responses:
+        "200":
+          description: Graph context response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  ok: { type: boolean }
+                  graph_context:
+                    $ref: "#/components/schemas/PlatformGraphContext"
+                  secrets_included: { type: boolean, enum: [false] }
+
+  /platform/graph/node/{node_id}:
+    get:
+      tags: [platform-graph]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: getPlatformGraphNode
+      summary: Read one graph node by node_id
+      parameters:
+        - name: node_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Graph node
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  ok: { type: boolean }
+                  node:
+                    $ref: "#/components/schemas/PlatformGraphNode"
+                  secrets_included: { type: boolean, enum: [false] }
+
+  /platform/graph/neighborhood:
+    get:
+      tags: [platform-graph]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: getPlatformGraphNeighborhood
+      summary: Read graph neighborhood around one or more node IDs
+      parameters:
+        - name: node_id
+          in: query
+          schema: { type: string }
+        - name: node_ids
+          in: query
+          schema: { type: string }
+        - name: depth
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 3, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+      responses:
+        "200":
+          description: Graph neighborhood
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /platform/graph/status:
+    get:
+      tags: [platform-graph]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: getPlatformGraphStatus
+      summary: Get graph node/edge counts and latest projection/validation status
+      responses:
+        "200":
+          description: Graph status
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
 
   /local-manager/device-link/start:
     post:

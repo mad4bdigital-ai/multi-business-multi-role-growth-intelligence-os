@@ -3,6 +3,7 @@ import { buildGovernedExecutionContext } from "../governedContextResolution.js";
 import { loadPathResolverRowsForRequest } from "../pathResolverRowsLoader.js";
 import { getPool } from "../db.js";
 import { TABLE_MAP, SHEET_COLUMNS } from "../sqlAdapter.js";
+import { resolvePlatformGraphContext } from "../services/platformKnowledgeGraphResolver.js";
 
 export function buildGovernanceRoutes(deps) {
   const {
@@ -224,6 +225,33 @@ export function buildGovernanceRoutes(deps) {
         pathResolverRows: pathResolverLoad.rows || {}
       });
 
+      let graphContext = {
+        requested: false,
+        resolved: false,
+        reason: "not_attempted"
+      };
+      try {
+        graphContext = await resolvePlatformGraphContext({
+          ...requestPayload,
+          tenant_id: body.tenant_id || requestPayload.tenant_id,
+          user_id: body.user_id || requestPayload.user_id,
+          device_id: body.device_id || requestPayload.device_id,
+          asset_id: body.asset_id || requestPayload.asset_id,
+          depth: 2,
+          limit: 80
+        });
+      } catch (graphErr) {
+        graphContext = {
+          requested: true,
+          resolved: false,
+          validation_state: "degraded",
+          error: {
+            code: graphErr?.code || "graph_context_resolution_failed",
+            message: graphErr?.message || "Graph context resolution failed."
+          }
+        };
+      }
+
       const pathResolution = governedExecutionContext.path_resolution || {};
       const businessType = pathResolution.businessType || {};
       const brand = pathResolution.brand || {};
@@ -328,6 +356,16 @@ export function buildGovernanceRoutes(deps) {
             ready: pathValidationState === "ready" && hasBrandPathEvidence && hasValidationEvidence,
             validation_id: "",
             reason: pathResolution.blocked_reason || missingEvidenceReasons.join("|")
+          },
+          graph_context: {
+            requested: Boolean(graphContext.requested),
+            resolved: Boolean(graphContext.resolved),
+            validation_state: graphContext.validation_state || "not_attempted",
+            start_node_ids: graphContext.start_node_ids || [],
+            node_count: graphContext.node_count || 0,
+            edge_count: graphContext.edge_count || 0,
+            authority_summary: graphContext.authority_summary || {},
+            error: graphContext.error || null
           },
           execution_target: {
             status: diagnosticTargetRow?.status || executionTarget.status || "",
