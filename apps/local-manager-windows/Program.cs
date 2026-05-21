@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -15,17 +16,17 @@ internal static class Program
     private const string BaseUrl = "https://auth.mad4b.com";
     private const string LocalManagerUrl = BaseUrl + "/app/local-manager";
     private const string SignInUrl = BaseUrl + "/app/local-manager/link-device?mode=signin&source=windows-app";
-    private const string SignUpUrl = BaseUrl + "/app/local-manager/link-device?mode=signup&source=windows-app";
+    private const string UpdateUrl = BaseUrl + "/app/local-manager/download/windows";
+    private const string UpdateInfoUrl = BaseUrl + "/app/local-manager/update/windows";
     private const string DevicesUrl = BaseUrl + "/app/local-manager/devices?source=windows-app";
     private const string RoutesUrl = BaseUrl + "/app/local-manager/routes?source=windows-app";
     private const string BackupsUrl = BaseUrl + "/app/local-manager/backups?source=windows-app";
     private const string SettingsUrl = BaseUrl + "/app/local-manager/settings?source=windows-app";
-    private const string UpdateUrl = BaseUrl + "/app/local-manager/download/windows";
-    private const string UpdateInfoUrl = BaseUrl + "/app/local-manager/update/windows";
     private const string DeviceLinkStartUrl = BaseUrl + "/local-manager/device-link/start";
     private const string DeviceLinkPollUrl = BaseUrl + "/local-manager/device-link/poll";
     private const string DeviceSessionUrl = BaseUrl + "/local-manager/device/session";
     private const string DeviceControlsUrl = BaseUrl + "/local-manager/device/controls";
+    private const string DeviceRepairInstallerUrl = BaseUrl + "/local-connector/install/device-download-link";
 
     [STAThread]
     private static void Main()
@@ -45,7 +46,7 @@ internal static class Program
         public MainForm()
         {
             Text = "Mad4B Local Manager";
-            MinimumSize = new Size(860, 720);
+            MinimumSize = new Size(900, 780);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 10);
 
@@ -56,20 +57,19 @@ internal static class Program
                 AutoSize = true,
                 Location = new Point(24, 20)
             };
-
             var body = new Label
             {
                 Text = "Sign in with Mad4B, link this Windows device, then use the stored device-scoped token for controls.\n\nThe token is protected with Windows DPAPI for the current Windows user and is not written in plaintext.",
                 AutoSize = false,
                 Location = new Point(28, 72),
-                Size = new Size(780, 82)
+                Size = new Size(820, 82)
             };
 
             var signInButton = MakeButton("Sign in", 28, 164, 140, async (_, _) => await StartDeviceLinkAsync("signin"));
             var signUpButton = MakeButton("Create account", 184, 164, 150, async (_, _) => await StartDeviceLinkAsync("signup"));
             var linkButton = MakeButton("Link this device", 350, 164, 160, async (_, _) => await StartDeviceLinkAsync("link"));
             var openButton = MakeButton("Open web app", 526, 164, 140, (_, _) => OpenUrl(LocalManagerUrl));
-            var forgetButton = MakeButton("Forget device", 682, 164, 140, (_, _) => ForgetDeviceToken());
+            var forgetButton = MakeButton("Forget device", 682, 164, 150, (_, _) => ForgetDeviceToken());
 
             _pairingCode = new Label
             {
@@ -77,7 +77,7 @@ internal static class Program
                 Font = new Font("Segoe UI", 14, FontStyle.Bold),
                 AutoSize = false,
                 Location = new Point(28, 218),
-                Size = new Size(780, 38)
+                Size = new Size(820, 38)
             };
 
             var devicesButton = MakeButton("Device session", 28, 272, 150, async (_, _) => await LoadDeviceSessionAsync());
@@ -89,30 +89,31 @@ internal static class Program
             var shortcutButton = MakeButton("Create desktop shortcut", 28, 336, 210, (_, _) => CreateShortcut());
             var folderButton = MakeButton("Open local folder", 254, 336, 170, (_, _) => OpenLocalFolder());
             var updateButton = MakeButton("Check / install update", 440, 336, 200, async (_, _) => await CheckAndInstallUpdateAsync(true));
-            var tokenStatusButton = MakeButton("Token status", 656, 336, 160, (_, _) => ShowTokenStatus());
+            var tokenStatusButton = MakeButton("Token status", 656, 336, 166, (_, _) => ShowTokenStatus());
+
+            var repairButton = MakeButton("Repair connector", 28, 392, 210, async (_, _) => await RepairConnectorAsync());
+            var repairControlsButton = MakeButton("Repair controls", 254, 392, 170, async (_, _) => await LoadDeviceControlsAsync("repairs", LocalManagerUrl));
 
             _status = new Label
             {
                 Name = "StatusLabel",
-                Text = "Ready. No plaintext device token is stored.",
+                Text = "Ready.\nNo plaintext device token is stored.",
                 AutoSize = false,
-                Location = new Point(28, 406),
-                Size = new Size(780, 48)
+                Location = new Point(28, 450),
+                Size = new Size(820, 48)
             };
-
             _progress = new ProgressBar
             {
-                Location = new Point(28, 464),
-                Size = new Size(780, 22),
+                Location = new Point(28, 508),
+                Size = new Size(820, 22),
                 Minimum = 0,
                 Maximum = 100,
                 Value = 0
             };
-
             _output = new TextBox
             {
-                Location = new Point(28, 506),
-                Size = new Size(780, 150),
+                Location = new Point(28, 550),
+                Size = new Size(820, 150),
                 Multiline = true,
                 ScrollBars = ScrollBars.Vertical,
                 ReadOnly = true,
@@ -122,11 +123,9 @@ internal static class Program
 
             Controls.AddRange(new Control[]
             {
-                title, body,
-                signInButton, signUpButton, linkButton, openButton, forgetButton,
-                _pairingCode,
+                title, body, signInButton, signUpButton, linkButton, openButton, forgetButton, _pairingCode,
                 devicesButton, routesButton, backupsButton, settingsButton, webDevicesButton,
-                shortcutButton, folderButton, updateButton, tokenStatusButton,
+                shortcutButton, folderButton, updateButton, tokenStatusButton, repairButton, repairControlsButton,
                 _status, _progress, _output
             });
 
@@ -140,12 +139,7 @@ internal static class Program
 
         private static Button MakeButton(string text, int x, int y, int width, EventHandler onClick)
         {
-            var button = new Button
-            {
-                Text = text,
-                Location = new Point(x, y),
-                Size = new Size(width, 42)
-            };
+            var button = new Button { Text = text, Location = new Point(x, y), Size = new Size(width, 42) };
             button.Click += onClick;
             return button;
         }
@@ -222,10 +216,10 @@ internal static class Program
             var hasFile = File.Exists(ProtectedTokenPath);
             var token = LoadDeviceToken(false);
             _status.Text = token is not null
-                ? "Linked. Device token is available from DPAPI for this Windows user."
+                ? "Linked.\nDevice token is available from DPAPI for this Windows user."
                 : hasFile
                     ? "Device token file exists but could not be unprotected for this Windows user."
-                    : "Not linked. No DPAPI device token is stored.";
+                    : "Not linked.\nNo DPAPI device token is stored.";
             _output.Text = JsonSerializer.Serialize(new
             {
                 linked = token is not null,
@@ -244,7 +238,7 @@ internal static class Program
             _pairingCode.Text = "Pairing code: not started";
             _progress.Value = 0;
             _status.Text = "Device token removed from this Windows profile.";
-            _output.Text = "Device token removed. Link this device again to restore controls.";
+            _output.Text = "Device token removed.\r\nLink this device again to restore controls.";
         }
 
         private async Task StartDeviceLinkAsync(string mode = "link")
@@ -256,7 +250,6 @@ internal static class Program
                 _status.Text = "Creating pairing code…";
                 _pairingCode.Text = "Pairing code: creating…";
                 _output.Text = "Waiting for pairing code…";
-
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                 var payload = new
                 {
@@ -265,9 +258,7 @@ internal static class Program
                     platform = "windows",
                     app_version = Application.ProductVersion
                 };
-                using var response = await client.PostAsync(
-                    DeviceLinkStartUrl,
-                    new StringContent(JsonSerializer.Serialize(payload, _json), Encoding.UTF8, "application/json"));
+                using var response = await client.PostAsync(DeviceLinkStartUrl, JsonContent(payload));
                 var text = await response.Content.ReadAsStringAsync();
                 var start = JsonSerializer.Deserialize<DeviceLinkStartResponse>(text, _json);
                 if (!response.IsSuccessStatusCode || start?.Ok != true || string.IsNullOrWhiteSpace(start.UserCode) || string.IsNullOrWhiteSpace(start.PollToken))
@@ -279,7 +270,7 @@ internal static class Program
                 }
 
                 _pairingCode.Text = "Pairing code: " + start.UserCode;
-                _status.Text = "Pairing code created. Browser opened for approval.";
+                _status.Text = "Pairing code created.\nBrowser opened for approval.";
                 _progress.Value = 10;
                 _output.Text = JsonSerializer.Serialize(new { pairing_code = start.UserCode, expires_in = start.ExpiresIn, secrets_included = false }, _json);
                 var approvalUrl = start.VerificationUriComplete ?? start.VerificationUri ?? (BaseUrl + "/app/local-manager/link-device");
@@ -302,19 +293,11 @@ internal static class Program
                 await Task.Delay(TimeSpan.FromSeconds(intervalSeconds));
                 _status.Text = "Waiting for approval in browser…";
                 _progress.Value = Math.Min(90, _progress.Value + 5);
-
                 var payload = new { device_code = code, poll_token = pollToken };
-                using var response = await client.PostAsync(
-                    DeviceLinkPollUrl,
-                    new StringContent(JsonSerializer.Serialize(payload, _json), Encoding.UTF8, "application/json"));
+                using var response = await client.PostAsync(DeviceLinkPollUrl, JsonContent(payload));
                 var text = await response.Content.ReadAsStringAsync();
                 var poll = JsonSerializer.Deserialize<DeviceLinkPollResponse>(text, _json);
-
-                if ((int)response.StatusCode == 202 || string.Equals(poll?.Status, "pending", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
+                if ((int)response.StatusCode == 202 || string.Equals(poll?.Status, "pending", StringComparison.OrdinalIgnoreCase)) continue;
                 if (response.IsSuccessStatusCode && poll?.Ok == true && !string.IsNullOrWhiteSpace(poll.DeviceAccessToken))
                 {
                     SaveDeviceToken(poll.DeviceAccessToken, poll.Device?.DeviceId, poll.Status);
@@ -335,8 +318,7 @@ internal static class Program
                 _output.Text = text;
                 return;
             }
-
-            _status.Text = "Pairing timed out. Start a new code to try again.";
+            _status.Text = "Pairing timed out.\nStart a new code to try again.";
         }
 
         private async Task LoadDeviceSessionAsync()
@@ -344,7 +326,7 @@ internal static class Program
             var token = LoadDeviceToken();
             if (string.IsNullOrWhiteSpace(token))
             {
-                _output.Text = "No linked device token. Use 'Link this device' first.";
+                _output.Text = "No linked device token.\r\nUse 'Link this device' first.";
                 return;
             }
             await CallDeviceApiAsync(DeviceSessionUrl, token, "Device session");
@@ -369,7 +351,7 @@ internal static class Program
                 _status.Text = "Loading " + label + " using DPAPI-protected device token…";
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
                 using var req = new HttpRequestMessage(HttpMethod.Get, url);
-                req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 req.Headers.Accept.ParseAdd("application/json");
                 using var response = await client.SendAsync(req);
                 var text = await response.Content.ReadAsStringAsync();
@@ -380,6 +362,99 @@ internal static class Program
             {
                 _status.Text = label + " failed: " + ex.Message;
             }
+        }
+
+        private async Task RepairConnectorAsync()
+        {
+            var token = LoadDeviceToken();
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                _output.Text = "No linked device token.\r\nUse 'Link this device' first.";
+                return;
+            }
+
+            try
+            {
+                EnsureLocalFiles(_status);
+                _progress.Value = 0;
+                _status.Text = "Requesting device-scoped connector repair installer…";
+                using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+                using var req = new HttpRequestMessage(HttpMethod.Post, DeviceRepairInstallerUrl)
+                {
+                    Content = JsonContent(new { format = "bat", ttl_minutes = 30 })
+                };
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                req.Headers.Accept.ParseAdd("application/json");
+                using var response = await client.SendAsync(req);
+                var text = await response.Content.ReadAsStringAsync();
+                var link = JsonSerializer.Deserialize<DeviceInstallerLinkResponse>(text, _json);
+                if (!response.IsSuccessStatusCode || link?.Ok != true || string.IsNullOrWhiteSpace(link.DownloadUrl))
+                {
+                    _status.Text = "Repair link request failed: " + (link?.Error?.Message ?? response.ReasonPhrase ?? "unknown error");
+                    _output.Text = text;
+                    return;
+                }
+
+                _progress.Value = 25;
+                var safeDeviceId = SafeFileSegment(link.CanonicalDeviceId ?? link.DeviceId ?? Environment.MachineName);
+                var target = Path.Combine(UpdatesRoot, $"install-local-connector-{safeDeviceId}.bat");
+                _status.Text = "Downloading signed repair installer…";
+                using (var installerResponse = await client.GetAsync(link.DownloadUrl, HttpCompletionOption.ResponseHeadersRead))
+                {
+                    installerResponse.EnsureSuccessStatusCode();
+                    await using var source = await installerResponse.Content.ReadAsStreamAsync();
+                    await using var destination = File.Create(target);
+                    await source.CopyToAsync(destination);
+                }
+
+                var fileInfo = new FileInfo(target);
+                if (!fileInfo.Exists || fileInfo.Length < 64) throw new InvalidOperationException("Downloaded installer file is missing or too small.");
+                _progress.Value = 75;
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    repair_installer_downloaded = true,
+                    installer_path = target,
+                    canonical_device_id = link.CanonicalDeviceId,
+                    config_id = link.ConfigId,
+                    run_as_admin_required = link.RunAsAdminRequired,
+                    secrets_included = false
+                }, _json);
+
+                var result = MessageBox.Show(
+                    "A connector repair installer was downloaded. Run it as Administrator now?\n\nWindows will show a UAC prompt.",
+                    "Repair connector",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+                if (result != DialogResult.Yes)
+                {
+                    _status.Text = $"Repair installer downloaded: {target}. Run as Administrator when ready.";
+                    return;
+                }
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = target,
+                    UseShellExecute = true,
+                    WorkingDirectory = Path.GetDirectoryName(target) ?? UpdatesRoot,
+                    Verb = "runas"
+                });
+                _progress.Value = 100;
+                _status.Text = "Repair installer launched with elevation request. After it finishes, click Device session or Repair controls to verify.";
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Connector repair failed: " + ex.Message;
+                _output.Text = ex.ToString();
+            }
+        }
+
+        private static StringContent JsonContent(object payload) => new(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+        private static string SafeFileSegment(string value)
+        {
+            var chars = value.Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.' ? ch : '-').ToArray();
+            var safe = new string(chars).Trim('-');
+            return string.IsNullOrWhiteSpace(safe) ? "device" : safe;
         }
 
         private void CreateShortcut()
@@ -406,7 +481,6 @@ internal static class Program
                 using var response = await client.GetAsync(infoUrl);
                 var text = await response.Content.ReadAsStringAsync();
                 var info = JsonSerializer.Deserialize<WindowsUpdateInfo>(text, _json);
-
                 if (!response.IsSuccessStatusCode || info?.Ok != true)
                 {
                     if (userInitiated)
@@ -428,9 +502,8 @@ internal static class Program
                         release_notes = info.ReleaseNotes,
                         secrets_included = false
                     }, _json);
-
                     var result = MessageBox.Show(
-                        $"Mad4B Local Manager {info.LatestVersion} is available. Download and install now?",
+                        $"Mad4B Local Manager {info.LatestVersion} is available.\nDownload and install now?",
                         "Update available",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Information);
@@ -468,14 +541,11 @@ internal static class Program
                 EnsureLocalFiles(_status);
                 _status.Text = "Checking latest Windows app…";
                 _progress.Value = 0;
-
                 using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
                 using var response = await client.GetAsync(UpdateUrl, HttpCompletionOption.ResponseHeadersRead);
                 response.EnsureSuccessStatusCode();
-
                 var total = response.Content.Headers.ContentLength;
                 var target = Path.Combine(UpdatesRoot, "Mad4B-Local-Manager-Setup-latest.exe");
-
                 await using (var source = await response.Content.ReadAsStreamAsync())
                 await using (var destination = File.Create(target))
                 {
@@ -489,25 +559,21 @@ internal static class Program
                         readTotal += read;
                         if (total.HasValue && total.Value > 0)
                         {
-                            var pct = (int)Math.Min(100, (readTotal * 100L) / total.Value);
+                            var pct = (int)Math.Min(100, readTotal * 100L / total.Value);
                             _progress.Value = pct;
                         }
                     }
                 }
 
                 var fileInfo = new FileInfo(target);
-                if (!fileInfo.Exists || fileInfo.Length < 2)
-                {
-                    throw new InvalidOperationException("Downloaded installer file is missing or empty.");
-                }
+                if (!fileInfo.Exists || fileInfo.Length < 2) throw new InvalidOperationException("Downloaded installer file is missing or empty.");
                 var signature = File.ReadAllBytes(target).Take(2).ToArray();
                 if (signature.Length < 2 || signature[0] != (byte)'M' || signature[1] != (byte)'Z')
                 {
                     throw new InvalidOperationException("Downloaded file is not a valid Windows EXE. Please download again from the web app.");
                 }
-
                 _progress.Value = 100;
-                _status.Text = $"Latest installer downloaded: {target}. Launching…";
+                _status.Text = $"Latest installer downloaded: {target}.\nLaunching…";
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = target,
@@ -530,82 +596,56 @@ internal static class Program
 
     private sealed class WindowsUpdateInfo
     {
-        [JsonPropertyName("ok")]
-        public bool Ok { get; set; }
-
-        [JsonPropertyName("latest_version")]
-        public string? LatestVersion { get; set; }
-
-        [JsonPropertyName("current_version")]
-        public string? CurrentVersion { get; set; }
-
-        [JsonPropertyName("update_available")]
-        public bool? UpdateAvailable { get; set; }
-
-        [JsonPropertyName("release_notes")]
-        public string[]? ReleaseNotes { get; set; }
+        [JsonPropertyName("ok")] public bool Ok { get; set; }
+        [JsonPropertyName("latest_version")] public string? LatestVersion { get; set; }
+        [JsonPropertyName("current_version")] public string? CurrentVersion { get; set; }
+        [JsonPropertyName("update_available")] public bool? UpdateAvailable { get; set; }
+        [JsonPropertyName("release_notes")] public string[]? ReleaseNotes { get; set; }
     }
 
     private sealed class DeviceLinkError
     {
-        [JsonPropertyName("code")]
-        public string? Code { get; set; }
-
-        [JsonPropertyName("message")]
-        public string? Message { get; set; }
+        [JsonPropertyName("code")] public string? Code { get; set; }
+        [JsonPropertyName("message")] public string? Message { get; set; }
     }
 
     private sealed class DeviceLinkStartResponse
     {
-        [JsonPropertyName("ok")]
-        public bool Ok { get; set; }
-
-        [JsonPropertyName("device_code")]
-        public string? DeviceCode { get; set; }
-
-        [JsonPropertyName("user_code")]
-        public string? UserCode { get; set; }
-
-        [JsonPropertyName("verification_uri")]
-        public string? VerificationUri { get; set; }
-
-        [JsonPropertyName("verification_uri_complete")]
-        public string? VerificationUriComplete { get; set; }
-
-        [JsonPropertyName("poll_token")]
-        public string? PollToken { get; set; }
-
-        [JsonPropertyName("interval")]
-        public int Interval { get; set; } = 3;
-
-        [JsonPropertyName("expires_in")]
-        public int ExpiresIn { get; set; }
-
-        [JsonPropertyName("error")]
-        public DeviceLinkError? Error { get; set; }
+        [JsonPropertyName("ok")] public bool Ok { get; set; }
+        [JsonPropertyName("device_code")] public string? DeviceCode { get; set; }
+        [JsonPropertyName("user_code")] public string? UserCode { get; set; }
+        [JsonPropertyName("verification_uri")] public string? VerificationUri { get; set; }
+        [JsonPropertyName("verification_uri_complete")] public string? VerificationUriComplete { get; set; }
+        [JsonPropertyName("poll_token")] public string? PollToken { get; set; }
+        [JsonPropertyName("interval")] public int Interval { get; set; } = 3;
+        [JsonPropertyName("expires_in")] public int ExpiresIn { get; set; }
+        [JsonPropertyName("error")] public DeviceLinkError? Error { get; set; }
     }
 
     private sealed class DeviceLinkPollResponse
     {
-        [JsonPropertyName("ok")]
-        public bool Ok { get; set; }
-
-        [JsonPropertyName("status")]
-        public string? Status { get; set; }
-
-        [JsonPropertyName("device_access_token")]
-        public string? DeviceAccessToken { get; set; }
-
-        [JsonPropertyName("device")]
-        public DeviceLinkDevice? Device { get; set; }
-
-        [JsonPropertyName("error")]
-        public DeviceLinkError? Error { get; set; }
+        [JsonPropertyName("ok")] public bool Ok { get; set; }
+        [JsonPropertyName("status")] public string? Status { get; set; }
+        [JsonPropertyName("device_access_token")] public string? DeviceAccessToken { get; set; }
+        [JsonPropertyName("device")] public DeviceLinkDevice? Device { get; set; }
+        [JsonPropertyName("error")] public DeviceLinkError? Error { get; set; }
     }
 
     private sealed class DeviceLinkDevice
     {
-        [JsonPropertyName("device_id")]
-        public string? DeviceId { get; set; }
+        [JsonPropertyName("device_id")] public string? DeviceId { get; set; }
+    }
+
+    private sealed class DeviceInstallerLinkResponse
+    {
+        [JsonPropertyName("ok")] public bool Ok { get; set; }
+        [JsonPropertyName("device_id")] public string? DeviceId { get; set; }
+        [JsonPropertyName("canonical_device_id")] public string? CanonicalDeviceId { get; set; }
+        [JsonPropertyName("config_id")] public string? ConfigId { get; set; }
+        [JsonPropertyName("format")] public string? Format { get; set; }
+        [JsonPropertyName("ttl_minutes")] public int TtlMinutes { get; set; }
+        [JsonPropertyName("download_url")] public string? DownloadUrl { get; set; }
+        [JsonPropertyName("run_as_admin_required")] public bool RunAsAdminRequired { get; set; }
+        [JsonPropertyName("error")] public DeviceLinkError? Error { get; set; }
     }
 }
