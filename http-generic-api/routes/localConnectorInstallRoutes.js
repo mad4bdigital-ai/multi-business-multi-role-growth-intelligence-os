@@ -937,12 +937,14 @@ export function buildLocalConnectorInstallRoutes(deps) {
   const router = Router();
 
   // ── POST /local-connector/install/download-link ──────────────────────────
-  // Creates a short-lived signed download link for install-local-connector.ps1.
+  // Creates a short-lived signed download link for install-local-connector.ps1 or .bat.
   // The token is HMAC-signed and contains no connector credentials itself.
   router.post("/local-connector/install/download-link", requireBackendApiKey, async (req, res) => {
     try {
       const { user_id, tenant_id, device_id, ttl_minutes = 30 } = req.body || {};
+      const format = String(req.body?.format || "ps1").trim().toLowerCase();
       if (!device_id) return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "device_id is required." } });
+      if (!["ps1", "bat"].includes(format)) return res.status(400).json({ ok: false, error: { code: "unsupported_format", message: "format must be ps1 or bat." } });
       const principal = await resolveRequestedLocalPrincipal(req, { user_id, tenant_id });
       const [[config]] = await getPool().query(
         "SELECT config_id, tenant_id FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
@@ -954,11 +956,12 @@ export function buildLocalConnectorInstallRoutes(deps) {
         user_id: principal.userId,
         tenant_id: config.tenant_id || principal.tenantId,
         device_id,
-        format: "ps1",
+        format,
         exp: Math.floor(Date.now() / 1000) + ttl * 60,
       });
-      const download_url = `${publicBaseUrl(req)}/connector-agent/installer.ps1?token=${encodeURIComponent(token)}`;
-      return res.status(200).json({ ok: true, device_id, config_id: config.config_id, ttl_minutes: ttl, download_url, secrets_included: false });
+      const path = format === "bat" ? "/local-connector/install/download" : "/connector-agent/installer.ps1";
+      const download_url = `${publicBaseUrl(req)}${path}?token=${encodeURIComponent(token)}`;
+      return res.status(200).json({ ok: true, device_id, config_id: config.config_id, format, ttl_minutes: ttl, download_url, secrets_included: false });
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "download_link_failed", message: err.message } });
     }
