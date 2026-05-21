@@ -276,6 +276,102 @@ section("dispatcher contracts");
     Boolean(parentDoc.paths?.["/deployment-info"]) && Boolean(parentDoc.paths?.["/dev/db/status"]));
 }
 
+section("admin and tenant OpenAI schema coverage for tool additions");
+{
+  const adminDoc = loadSchema("openapi.custom-gpt.auth-dispatcher.yaml");
+  const tenantDoc = loadSchema("openapi.tenant-gpt.auth.yaml");
+  const parentDoc = loadSchema("openapi.yaml");
+  const parentSchema = readFileSync(resolve(__dirname, "openapi.yaml"), "utf8");
+  const tenantInstructions = readFileSync(resolve(__dirname, "../GPT_Tenant_Connector_Instructions.md"), "utf8");
+  const activationModePolicy = readFileSync(resolve(__dirname, "activationModePolicy.js"), "utf8");
+  const dedicatedPolicy = readFileSync(resolve(__dirname, "dedicatedIntegrationPolicy.js"), "utf8");
+  const hybridPolicy = readFileSync(resolve(__dirname, "hybridIntegrationPolicy.js"), "utf8");
+  const migration104 = readFileSync(resolve(__dirname, "migrations/104_sprint64_activation_mode_governance.sql"), "utf8");
+  const migration105 = readFileSync(resolve(__dirname, "migrations/105_sprint64_dedicated_integration_flow.sql"), "utf8");
+  const migration106 = readFileSync(resolve(__dirname, "migrations/106_sprint64_hybrid_integration_policy.sql"), "utf8");
+
+  const adminOps = collectOperations(adminDoc);
+  const adminOpIds = new Set(adminOps.map((op) => op.operation.operationId).filter(Boolean));
+  for (const operationId of [
+    "listAdminTools",
+    "callAdminTool",
+    "listAdminSystemTools",
+    "callAdminSystemTool",
+    "getPlatformDataSourceCensus",
+    "listDeviceTools",
+    "callDeviceTool",
+  ]) {
+    assert(`admin OpenAI schema exposes ${operationId}`, adminOpIds.has(operationId));
+  }
+  assert("admin OpenAI schema keeps direct DB diagnostics behind callAdminTool/admin_control",
+    adminOpIds.has("callAdminTool") && !adminOpIds.has("executeAdminControl"));
+  assert("admin OpenAI schema documents the direct SQL data-source census route",
+    Boolean(adminDoc.paths?.["/admin/cli/data-source/census"]));
+
+  const tenantOps = collectOperations(tenantDoc);
+  const tenantOpIds = new Set(tenantOps.map((op) => op.operation.operationId).filter(Boolean));
+  const expectedTenantMcpOps = ["activateSession", "listTools", "callTool", "writeSessionTurn", "endSession"];
+  assert("tenant OpenAI schema stays MCP-style with exactly five meta operations",
+    tenantOps.length === expectedTenantMcpOps.length && expectedTenantMcpOps.every((op) => tenantOpIds.has(op)),
+    `got ${Array.from(tenantOpIds).join(",")}`);
+  assert("tenant OpenAI schema does not expose direct connect routes",
+    !Object.keys(tenantDoc.paths || {}).some((path) => path.startsWith("/connect")));
+  assert("tenant OpenAI schema tells GPT to pass activation mode and integration_modes through callTool",
+    JSON.stringify(tenantDoc.info || {}).includes("connect_activate") &&
+    JSON.stringify(tenantDoc.paths?.["/gpt/tools/call"] || {}).includes("integration_modes"));
+
+  for (const [path, operationId] of [
+    ["/connect/activate", "postConnectActivate"],
+    ["/connect/device-install", "postConnectDeviceInstall"],
+    ["/connect/api/integration-policy", "updateConnectIntegrationPolicy"],
+    ["/connect/api/credential-intake/sessions", "createConnectCredentialIntakeSession"],
+    ["/connect/api/app-integrations", "listConnectAppIntegrations"],
+    ["/connect/api/connections", "listConnectAppConnections"],
+    ["/connect/api/connections/{connection_id}", "deleteConnectAppConnection"],
+  ]) {
+    assert(`parent OpenAPI documents ${path}`, Boolean(parentDoc.paths?.[path]));
+    assert(`parent OpenAPI operation ${operationId} is present`, parentSchema.includes(operationId));
+  }
+
+  for (const toolKey of [
+    "connect_activate",
+    "connect_device_install",
+    "connect_app_integrations_list",
+    "connect_app_connections_list",
+    "connect_credential_intake_create",
+    "connect_app_connection_revoke",
+    "connect_integration_policy_update",
+  ]) {
+    assert(`tenant instructions mention ${toolKey}`, tenantInstructions.includes(toolKey));
+  }
+  assert("tenant instructions preserve the no-third-hybrid-mode rule",
+    tenantInstructions.includes("There is no third activation mode named `hybrid`") &&
+    tenantInstructions.includes("integration_modes"));
+
+  assert("activation mode policy is canonical managed/dedicated only",
+    activationModePolicy.includes("CANONICAL_CONNECTION_MODES") &&
+    activationModePolicy.includes("managed") && activationModePolicy.includes("dedicated") &&
+    !activationModePolicy.includes('"hybrid"'));
+  assert("dedicated policy requires tenant-owned Cloudflare and Hostinger readiness",
+    dedicatedPolicy.includes('app_key: "cloudflare"') &&
+    dedicatedPolicy.includes('app_key: "hostinger"') &&
+    dedicatedPolicy.includes("user_app_connections"));
+  assert("hybrid policy keeps mixed behavior per-app",
+    hybridPolicy.includes("CANONICAL_INTEGRATION_SOURCE_MODES") &&
+    hybridPolicy.includes("integration_modes") &&
+    hybridPolicy.includes('mode: sourceModes.size > 1 ? "mixed"'));
+
+  assert("migration 104 governs activation mode tool schema",
+    migration104.includes("connect_activate") && migration104.includes('"required":["mode"]'));
+  assert("migration 105 adds dedicated integration tenant tools",
+    ["connect_app_integrations_list", "connect_credential_intake_create", "connect_app_connections_list", "connect_app_connection_revoke"]
+      .every((toolKey) => migration105.includes(toolKey)));
+  assert("migration 106 adds hybrid policy table and tenant update tool",
+    migration106.includes("CREATE TABLE IF NOT EXISTS `tenant_integration_policies`") &&
+    migration106.includes("connect_integration_policy_update") &&
+    migration106.includes("integration_modes"));
+}
+
 section("DB tool registry fixtures");
 {
   const migration = readFileSync(resolve(__dirname, "migrations/059_sprint54_local_connector_capability_tools.sql"), "utf8");
