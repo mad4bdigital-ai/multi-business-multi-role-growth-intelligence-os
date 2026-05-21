@@ -3,7 +3,7 @@ info:
   title: Mad4B Growth Intelligence - Tenant AI - MCP Actions
   version: 2.0.0-mcp
   summary: Tenant GPT schema. Five meta-operations; all platform tools discovered via listTools and called via callTool.
-  description: 'Tenant MCP schema. Start with activateSession, discover tools with listTools, execute through callTool, then archive turns/endSession. For activation call connect_activate with tool_args.mode managed or dedicated.'
+  description: 'Tenant MCP schema. Use activateSession, listTools, callTool, writeSessionTurn, endSession. Activate with connect_activate tool_args.mode managed/dedicated; mixed apps use integration_modes.'
 servers:
   - url: https://auth.mad4b.com
     description: Mad4B platform — auth subdomain
@@ -182,7 +182,7 @@ paths:
         - tools
       operationId: callTool
       summary: Execute any platform tool by name
-      description: Executes a tenant registry tool by name. Use listTools first. For connect_activate, pass tool_args.mode as managed or dedicated.
+      description: Executes a tenant registry tool by name. Use listTools first. For connect_activate, pass tool_args.mode managed/dedicated; mixed apps go in tool_args.integration_modes.
       requestBody:
         required: true
         content:
