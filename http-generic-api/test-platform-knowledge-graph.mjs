@@ -117,10 +117,11 @@ assert("graph routes are registered",
   index.includes("buildPlatformGraphRoutes") &&
   index.includes("app.use(buildPlatformGraphRoutes"));
 
-assert("governance diagnostic includes graph_context and graph_relevant_assets",
+assert("governance diagnostic includes graph_context, graph_memory, and graph_relevant_assets compatibility alias",
   governance.includes("resolvePlatformGraphContext") &&
-  governance.includes("resolveGraphRelevantAssets") &&
+  governance.includes("resolvePlatformGraphMemory") &&
   governance.includes("graph_context") &&
+  governance.includes("graph_memory") &&
   governance.includes("graph_relevant_assets") &&
   governance.includes("authority_summary"));
 
