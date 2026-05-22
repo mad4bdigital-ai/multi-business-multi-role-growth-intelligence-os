@@ -23,6 +23,7 @@ const index = readFileSync("routes/index.js", "utf8");
 const governance = readFileSync("routes/governanceRoutes.js", "utf8");
 const releaseReadiness = readFileSync("releaseReadiness.js", "utf8");
 const migration = readFileSync("migrations/105_sprint62p_platform_knowledge_graph_runtime.sql", "utf8");
+const rankRulesMigration = readFileSync("migrations/108_sprint62s_platform_graph_memory_rank_rules.sql", "utf8");
 const parentOpenapi = readFileSync("openapi.yaml", "utf8");
 const childOpenapi = readFileSync("schemas/http-generic-api/http-generic-api.yaml", "utf8");
 
