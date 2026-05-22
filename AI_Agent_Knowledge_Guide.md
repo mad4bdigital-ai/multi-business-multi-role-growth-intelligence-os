@@ -191,6 +191,18 @@ Customer agents must:
 - receive only scoped session history and transcripts; raw dumps must be bounded and same-user or explicitly authorized
 - report `authorization_gated`, `blocked`, or `degraded_contract` instead of trying admin recovery paths
 
+### Local Manager n8n runtime governance
+
+n8n runtime selection is DB-governed. `connected_systems.config_json` and linked `installations` rows are the source of truth for n8n command path, npm prefix, user folder, port, local URL, public URL, editor base URL, webhook URL, lifecycle mode, and exposure scope. Local Manager must load `/local-manager/device/controls?section=n8n` and generate its start script from the returned profile. Do not hard-code tenant n8n routes in the app or in GPT behavior.
+
+`https://n8n.mad4b.com/` is reserved for the platform-managed n8n runtime only. While the platform runtime is temporarily hosted on an admin workstation, it must be represented by a managed `connected_systems` row with `runtime_role: "platform_managed"`, `reserved_platform_domain: true`, `local_url: "http://127.0.0.1:5678/"`, and `public_url: "https://n8n.mad4b.com/"`. Tenant/user n8n profiles must use `runtime_role: "tenant_local"`, a tenant-specific data folder, and a non-platform port such as `5679` by default.
+
+Tenant public n8n exposure must be explicit and DB-backed. Use a tenant/device-specific hostname such as `https://n8n-<stable-opaque-id>.mad4b.com/`, not `n8n.mad4b.com` and not user email or tenant display names. Store `public_url`, `editor_base_url`, `webhook_url`, `public_tunnel_mode`, and `exposure_scope: "tenant_public_tunnel"` on the tenant n8n profile. Raw Cloudflare tokens, connector secrets, or n8n API keys must never be stored in `connected_systems.config_json`.
+
+Do not default n8n to `https://127.0.0.1:<port>`. Cloudflare should provide HTTPS at public hostnames while local origins remain HTTP on `127.0.0.1`, unless a specific certificate/key lifecycle is intentionally implemented and validated.
+
+See `docs/local-manager-n8n-runtime-governance.md` for the runbook.
+
 ### Local Windows app connections
 
 Local Windows app access is a device-side connector capability, not a Cloud Run execution capability. `api.mad4b.com` may act as the cloud control plane for registration, status, policy, tenant/user access checks, and request routing, but it must not directly launch apps on a customer device because Cloud Run has no access to the customer's local Windows session.
