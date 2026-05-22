@@ -93,6 +93,7 @@ export function registerRoutes(app, deps) {
   // Local Manager beta and installer download include public UI/token-gated paths.
   // Mount before root-level protected routers that can return missing_backend_api_key.
   app.use(buildLocalManagerBetaRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildLocalManagerDesktopCommandRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildLocalConnectorInstallRoutes(deps));
   // Public token-gated credential intake pages must mount before any root-level
   // protected routers that call router.use(requireBackendApiKey).
