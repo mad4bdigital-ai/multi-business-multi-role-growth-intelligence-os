@@ -734,7 +734,7 @@ internal static class Program
         public string UserFolder { get; init; } = N8nUserFolder;
         public string LocalUrl { get; init; } = "http://127.0.0.1:5679/";
         public string PublicUrl { get; init; } = N8nPublicUrl;
-        public int Port { get; init; } = 5678;
+        public int Port { get; init; } = 5679;
         public string ListenAddress { get; init; } = "127.0.0.1";
         public string EditorBaseUrl { get; init; } = "http://127.0.0.1:5679/";
         public string WebhookUrl { get; init; } = "http://127.0.0.1:5679/";
