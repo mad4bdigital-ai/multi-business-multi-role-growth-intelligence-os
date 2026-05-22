@@ -56,6 +56,105 @@ function getBaseUrl(req) {
   return (process.env.PUBLIC_BASE_URL || `${proto}://${host}`).replace(/\/$/, "");
 }
 
+function defaultN8nProfile({ device }) {
+  const tenantSlug = cleanId(device.tenant_id || "tenant", { fallback: "tenant", max: 64 });
+  const userSlug = cleanId(device.user_id || "user", { fallback: "user", max: 64 });
+  return {
+    profile_source: "default_local_profile",
+    lifecycle_mode: "local_manager_autopilot",
+    install_mode: "npm_global_if_missing",
+    local_only: true,
+    command_path: "D:\\npm-global\\n8n.cmd",
+    npm_prefix: "D:\\npm-global",
+    user_folder: `D:\\Mad4B\\Tenants\\${tenantSlug}\\Users\\${userSlug}\\n8n-data`,
+    local_url: "http://127.0.0.1:5678/",
+    public_url: "",
+    port: 5678,
+    listen_address: "127.0.0.1",
+    editor_base_url: "http://127.0.0.1:5678/",
+    webhook_url: "http://127.0.0.1:5678/",
+    secrets_included: false,
+  };
+}
+
+function sanitizeN8nProfileConfig(value, { device }) {
+  const fallback = defaultN8nProfile({ device });
+  const cfg = parseJson(value) || {};
+  const publicUrl = cleanText(cfg.public_url || cfg.tunnel_url || "", 255);
+  const localUrl = cleanText(cfg.local_url || fallback.local_url, 255) || fallback.local_url;
+  const port = Math.min(Math.max(parseInt(cfg.port || fallback.port, 10) || fallback.port, 1024), 65535);
+  const listenAddress = cleanText(cfg.listen_address || fallback.listen_address, 64) || fallback.listen_address;
+  const userFolder = cleanText(cfg.user_folder || fallback.user_folder, 260) || fallback.user_folder;
+  const commandPath = cleanText(cfg.command_path || fallback.command_path, 260) || fallback.command_path;
+  const editorBaseUrl = cleanText(cfg.editor_base_url || publicUrl || localUrl, 255) || localUrl;
+  const webhookUrl = cleanText(cfg.webhook_url || publicUrl || localUrl, 255) || localUrl;
+  return {
+    ...fallback,
+    profile_source: cfg.profile_source || "connected_systems",
+    lifecycle_mode: cleanText(cfg.lifecycle_mode || fallback.lifecycle_mode, 80) || fallback.lifecycle_mode,
+    install_mode: cleanText(cfg.install_mode || fallback.install_mode, 80) || fallback.install_mode,
+    local_only: cfg.local_only !== false,
+    command_path: commandPath,
+    npm_prefix: cleanText(cfg.npm_prefix || fallback.npm_prefix, 260) || fallback.npm_prefix,
+    user_folder: userFolder,
+    local_url: localUrl,
+    public_url: publicUrl,
+    port,
+    listen_address: listenAddress,
+    editor_base_url: editorBaseUrl,
+    webhook_url: webhookUrl,
+    secrets_included: false,
+  };
+}
+
+async function resolveOrCreateTenantN8nProfile(device) {
+  const pool = getPool();
+  const systemKey = `local_n8n:${cleanId(device.device_id, { fallback: "device", max: 64 })}`;
+  const [rows] = await pool.query(
+    `SELECT cs.*, i.installation_id, i.meta_json AS installation_meta_json
+       FROM \`connected_systems\` cs
+       LEFT JOIN \`installations\` i ON i.system_id = cs.system_id
+        AND i.tenant_id = cs.tenant_id
+        AND i.status = 'active'
+        AND JSON_UNQUOTE(JSON_EXTRACT(i.meta_json, '$.user_id')) = ?
+        AND JSON_UNQUOTE(JSON_EXTRACT(i.meta_json, '$.device_id')) = ?
+      WHERE cs.tenant_id = ?
+        AND cs.system_key = ?
+        AND cs.provider_family = 'n8n'
+        AND cs.status IN ('active','pending')
+      ORDER BY FIELD(cs.status, 'active', 'pending'), cs.updated_at DESC
+      LIMIT 1`,
+    [device.user_id, device.device_id, device.tenant_id || "", systemKey]
+  );
+  if (rows[0]) {
+    return {
+      system_id: rows[0].system_id,
+      installation_id: rows[0].installation_id || null,
+      display_name: rows[0].display_name,
+      status: rows[0].status,
+      profile: sanitizeN8nProfileConfig(rows[0].config_json, { device }),
+      created: false,
+    };
+  }
+
+  const systemId = crypto.randomUUID();
+  const installationId = crypto.randomUUID();
+  const profile = defaultN8nProfile({ device });
+  await pool.query(
+    `INSERT INTO \`connected_systems\`
+      (system_id, tenant_id, system_key, display_name, provider_family, provider_domain, connector_family, auth_type, service_mode, self_serve_capable, assisted_capable, managed_capable, status, config_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 'n8n', 'n8n.io', 'local_desktop', 'local_manual', 'self_serve', 1, 0, 0, 'active', ?, NOW(), NOW())`,
+    [systemId, device.tenant_id || "", systemKey, "Local n8n", jsonString(profile)]
+  );
+  await pool.query(
+    `INSERT INTO \`installations\`
+      (installation_id, system_id, tenant_id, scope, credential_ref, status, installed_at, expires_at, meta_json)
+     VALUES (?, ?, ?, 'local_device', NULL, 'active', NOW(), NULL, ?)`,
+    [installationId, systemId, device.tenant_id || "", jsonString({ user_id: device.user_id, device_id: device.device_id, autopilot_enabled: true, local_only: true, writes_local_files: true, secrets_included: false })]
+  );
+  return { system_id: systemId, installation_id: installationId, display_name: "Local n8n", status: "active", profile, created: true };
+}
+
 async function ensureDeviceLinkTable() {
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS \`local_manager_device_link_sessions\` (
@@ -584,6 +683,7 @@ export async function getDeviceSession(req, res) {
         routes: "/local-manager/device/controls?section=routes",
         backups: "/local-manager/device/controls?section=backups",
         repairs: "/local-manager/device/controls?section=repairs",
+        n8n: "/local-manager/device/controls?section=n8n",
         connector_repair_installer: "/local-connector/install/device-download-link",
         settings: "/local-manager/device/controls?section=settings",
       },
@@ -598,7 +698,7 @@ export async function getDeviceControls(req, res) {
   try {
     const device = await requireLocalManagerDevice(req);
     const section = cleanText(req.query.section || "overview", 32) || "overview";
-    const allowedSections = new Set(["overview", "routes", "backups", "repairs", "settings"]);
+    const allowedSections = new Set(["overview", "routes", "backups", "repairs", "n8n", "settings"]);
     if (!allowedSections.has(section)) {
       return res.status(400).json({ ok: false, error: { code: "invalid_control_section", message: "Unsupported device control section." }, secrets_included: false });
     }
@@ -639,6 +739,17 @@ export async function getDeviceControls(req, res) {
         elevation_required: true,
         note: "Local Manager should call the endpoint with its device token, download the signed installer, elevate locally, run it, then verify /policy and alias refresh.",
       },
+      n8n: {
+        label: "Local n8n",
+        actions: ["resolve_connected_system_profile", "install_node_if_missing", "install_n8n_if_missing", "write_tenant_start_script", "start_local_n8n", "open_local_or_public_url", "validate_local_reachability"],
+        write_actions_enabled: true,
+        autopilot_enabled: true,
+        local_only_default: true,
+        requires_device_token: true,
+        requires_tenant_membership: true,
+        credential_policy: "No n8n API key is required for local start. API keys are optional and must be stored separately as credential_refs.",
+        note: "Local Manager should use the returned profile. It may install Node/n8n locally, create the tenant data folder, write a start script, and launch n8n on 127.0.0.1.",
+      },
       settings: {
         label: "Settings",
         actions: ["view_device_identity", "view_token_storage_status", "open_account_settings"],
@@ -646,11 +757,13 @@ export async function getDeviceControls(req, res) {
       },
     };
 
+    const n8nConnector = section === "n8n" ? await resolveOrCreateTenantN8nProfile(device) : null;
     return res.status(200).json({
       ok: true,
       section,
       device,
       controls: baseControls[section],
+      n8n_connector: n8nConnector,
       token_scope: "local_manager.device",
       secrets_included: false,
     });

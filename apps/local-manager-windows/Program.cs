@@ -96,7 +96,7 @@ internal static class Program
 
             var repairButton = MakeButton("Repair connector", 28, 392, 210, async (_, _) => await RepairConnectorAsync());
             var repairControlsButton = MakeButton("Repair controls", 254, 392, 170, async (_, _) => await LoadDeviceControlsAsync("repairs", LocalManagerUrl));
-            var startN8nButton = MakeButton("Start n8n", 440, 392, 170, (_, _) => StartN8nLocal());
+            var startN8nButton = MakeButton("Start n8n", 440, 392, 170, async (_, _) => await StartN8nLocalAsync());
             var openN8nButton = MakeButton("Open n8n", 626, 392, 196, (_, _) => OpenUrl(N8nPublicUrl));
 
             _status = new Label
@@ -462,43 +462,59 @@ internal static class Program
             return string.IsNullOrWhiteSpace(safe) ? "device" : safe;
         }
 
-        private void StartN8nLocal()
+        private async Task StartN8nLocalAsync()
         {
             try
             {
                 EnsureLocalFiles(_status);
-                if (!File.Exists(N8nCommandPath))
-                {
-                    _status.Text = "n8n command was not found at " + N8nCommandPath;
-                    _output.Text = JsonSerializer.Serialize(new
-                    {
-                        n8n_start_requested = false,
-                        command_exists = false,
-                        command = N8nCommandPath,
-                        expected_user_folder = N8nUserFolder,
-                        secrets_included = false
-                    }, _json);
-                    return;
-                }
+                var profile = await LoadN8nProfileAsync();
+                var commandPath = profile.CommandPath;
+                var userFolder = profile.UserFolder;
+                var localUrl = profile.LocalUrl;
+                var publicUrl = profile.PublicUrl;
+                var openUrl = string.IsNullOrWhiteSpace(publicUrl) ? localUrl : publicUrl;
+                Directory.CreateDirectory(userFolder);
+                Directory.CreateDirectory(Path.GetDirectoryName(commandPath) ?? N8nUserFolder);
 
-                Directory.CreateDirectory(N8nUserFolder);
                 var scriptPath = Path.Combine(InstallRoot, "start-n8n-local.cmd");
                 var script = string.Join("\r\n", new[]
                 {
                     "@echo off",
                     "title Mad4B n8n Local Runtime",
-                    "setlocal",
-                    $"set N8N_USER_FOLDER={N8nUserFolder}",
-                    "set N8N_PORT=5678",
-                    "set N8N_LISTEN_ADDRESS=127.0.0.1",
-                    $"set N8N_EDITOR_BASE_URL={N8nPublicUrl}",
-                    $"set WEBHOOK_URL={N8nPublicUrl}",
-                    "cd /d " + N8nUserFolder,
-                    "echo Starting n8n for Mad4B...",
-                    "echo Local:  http://127.0.0.1:5678/",
-                    "echo Public: " + N8nPublicUrl,
+                    "setlocal EnableExtensions",
+                    "echo Mad4B Local n8n autopilot",
+                    "echo Profile source: " + profile.ProfileSource,
+                    "echo System ID: " + profile.SystemId,
+                    "echo.",
+                    "where node >nul 2>&1",
+                    "if errorlevel 1 (",
+                    "  echo Node.js was not found. Installing Node.js LTS with winget...",
+                    "  winget install OpenJS.NodeJS.LTS -e --silent",
+                    "  set PATH=%ProgramFiles%\\nodejs;%PATH%",
+                    ")",
+                    "where node >nul 2>&1",
+                    "if errorlevel 1 (echo ERROR: Node.js is still missing. Install Node.js LTS and run again. & pause & exit /b 1)",
+                    "if not exist \"" + userFolder + "\" mkdir \"" + userFolder + "\"",
+                    "if not exist \"" + (Path.GetDirectoryName(commandPath) ?? N8nUserFolder) + "\" mkdir \"" + (Path.GetDirectoryName(commandPath) ?? N8nUserFolder) + "\"",
+                    "set NPM_CONFIG_PREFIX=" + profile.NpmPrefix,
+                    "set PATH=" + profile.NpmPrefix + ";" + profile.NpmPrefix + "\\node_modules\\.bin;%PATH%",
+                    "if not exist \"" + commandPath + "\" (",
+                    "  echo n8n was not found. Installing n8n globally into %NPM_CONFIG_PREFIX%...",
+                    "  call npm config set prefix \"%NPM_CONFIG_PREFIX%\"",
+                    "  call npm install -g n8n",
+                    ")",
+                    "if not exist \"" + commandPath + "\" (echo ERROR: n8n command is still missing at " + commandPath + " & pause & exit /b 1)",
+                    "set N8N_USER_FOLDER=" + userFolder,
+                    "set N8N_PORT=" + profile.Port,
+                    "set N8N_LISTEN_ADDRESS=" + profile.ListenAddress,
+                    "set N8N_EDITOR_BASE_URL=" + profile.EditorBaseUrl,
+                    "set WEBHOOK_URL=" + profile.WebhookUrl,
+                    "cd /d \"" + userFolder + "\"",
+                    "echo Starting n8n...",
+                    "echo Local:  " + localUrl,
+                    "echo Public: " + (string.IsNullOrWhiteSpace(publicUrl) ? "not configured" : publicUrl),
                     "echo Keep this window open while using n8n.",
-                    $"call \"{N8nCommandPath}\"",
+                    "call \"" + commandPath + "\"",
                     "echo.",
                     "echo n8n stopped. Press any key to close this window.",
                     "pause >nul"
@@ -508,29 +524,50 @@ internal static class Program
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = scriptPath,
-                    WorkingDirectory = N8nUserFolder,
+                    WorkingDirectory = userFolder,
                     UseShellExecute = true
                 });
 
-                _status.Text = "n8n start script launched. Keep the terminal window open.";
+                _status.Text = "n8n autopilot launched. Keep the terminal window open.";
                 _output.Text = JsonSerializer.Serialize(new
                 {
                     n8n_start_requested = true,
-                    lifecycle = "manual_external_local_manager",
-                    command = N8nCommandPath,
-                    user_folder = N8nUserFolder,
-                    local_url = "http://127.0.0.1:5678/",
-                    public_url = N8nPublicUrl,
+                    lifecycle = profile.LifecycleMode,
+                    system_id = profile.SystemId,
+                    installation_id = profile.InstallationId,
+                    command = commandPath,
+                    user_folder = userFolder,
+                    local_url = localUrl,
+                    public_url = publicUrl,
+                    local_only = profile.LocalOnly,
                     script_path = scriptPath,
                     secrets_included = false
                 }, _json);
-                OpenUrl(N8nPublicUrl);
+                OpenUrl(openUrl);
             }
             catch (Exception ex)
             {
                 _status.Text = "Could not start n8n: " + ex.Message;
                 _output.Text = ex.ToString();
             }
+        }
+
+        private async Task<N8nLocalProfile> LoadN8nProfileAsync()
+        {
+            var token = LoadDeviceToken(false);
+            if (string.IsNullOrWhiteSpace(token)) return N8nLocalProfile.Default();
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            using var req = new HttpRequestMessage(HttpMethod.Get, DeviceControlsUrl + "?section=n8n");
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            req.Headers.Accept.ParseAdd("application/json");
+            using var response = await client.SendAsync(req);
+            var text = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode) return N8nLocalProfile.Default();
+            using var doc = JsonDocument.Parse(text);
+            var root = doc.RootElement;
+            var connector = root.TryGetProperty("n8n_connector", out var c) ? c : default;
+            var profile = connector.ValueKind == JsonValueKind.Object && connector.TryGetProperty("profile", out var p) ? p : default;
+            return N8nLocalProfile.FromJson(connector, profile);
         }
 
         private void CreateShortcut()
@@ -667,6 +704,83 @@ internal static class Program
         private static void OpenUrl(string url)
         {
             Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
+        }
+    }
+
+    private sealed class N8nLocalProfile
+    {
+        public string SystemId { get; init; } = "default-local-n8n";
+        public string? InstallationId { get; init; }
+        public string ProfileSource { get; init; } = "app_fallback";
+        public string LifecycleMode { get; init; } = "local_manager_autopilot";
+        public string InstallMode { get; init; } = "npm_global_if_missing";
+        public bool LocalOnly { get; init; } = true;
+        public string CommandPath { get; init; } = N8nCommandPath;
+        public string NpmPrefix { get; init; } = @"D:\npm-global";
+        public string UserFolder { get; init; } = N8nUserFolder;
+        public string LocalUrl { get; init; } = "http://127.0.0.1:5678/";
+        public string PublicUrl { get; init; } = N8nPublicUrl;
+        public int Port { get; init; } = 5678;
+        public string ListenAddress { get; init; } = "127.0.0.1";
+        public string EditorBaseUrl { get; init; } = N8nPublicUrl;
+        public string WebhookUrl { get; init; } = N8nPublicUrl;
+
+        public static N8nLocalProfile Default() => new();
+
+        public static N8nLocalProfile FromJson(JsonElement connector, JsonElement profile)
+        {
+            var fallback = Default();
+            return new N8nLocalProfile
+            {
+                SystemId = GetString(connector, "system_id", fallback.SystemId),
+                InstallationId = GetNullableString(connector, "installation_id"),
+                ProfileSource = GetString(profile, "profile_source", fallback.ProfileSource),
+                LifecycleMode = GetString(profile, "lifecycle_mode", fallback.LifecycleMode),
+                InstallMode = GetString(profile, "install_mode", fallback.InstallMode),
+                LocalOnly = GetBool(profile, "local_only", fallback.LocalOnly),
+                CommandPath = GetString(profile, "command_path", fallback.CommandPath),
+                NpmPrefix = GetString(profile, "npm_prefix", fallback.NpmPrefix),
+                UserFolder = GetString(profile, "user_folder", fallback.UserFolder),
+                LocalUrl = GetString(profile, "local_url", fallback.LocalUrl),
+                PublicUrl = GetString(profile, "public_url", fallback.PublicUrl),
+                Port = GetInt(profile, "port", fallback.Port),
+                ListenAddress = GetString(profile, "listen_address", fallback.ListenAddress),
+                EditorBaseUrl = GetString(profile, "editor_base_url", fallback.EditorBaseUrl),
+                WebhookUrl = GetString(profile, "webhook_url", fallback.WebhookUrl),
+            };
+        }
+
+        private static string GetString(JsonElement element, string name, string fallback)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value)) return fallback;
+            var text = value.ValueKind == JsonValueKind.String ? value.GetString() : value.ToString();
+            return string.IsNullOrWhiteSpace(text) ? fallback : text!;
+        }
+
+        private static string? GetNullableString(JsonElement element, string name)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null) return null;
+            var text = value.ValueKind == JsonValueKind.String ? value.GetString() : value.ToString();
+            return string.IsNullOrWhiteSpace(text) ? null : text;
+        }
+
+        private static bool GetBool(JsonElement element, string name, bool fallback)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value)) return fallback;
+            return value.ValueKind switch
+            {
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                JsonValueKind.String => bool.TryParse(value.GetString(), out var parsed) ? parsed : fallback,
+                _ => fallback,
+            };
+        }
+
+        private static int GetInt(JsonElement element, string name, int fallback)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value)) return fallback;
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number)) return number;
+            return int.TryParse(value.ToString(), out var parsed) ? parsed : fallback;
         }
     }
 
