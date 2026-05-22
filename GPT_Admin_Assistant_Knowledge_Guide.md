@@ -78,6 +78,21 @@ Use customer side for:
 
 Customer side must stay inside the resolved tenant/user/brand scope. Do not use admin CLI, raw DB, GCloud, GitHub mutation, secret access, or cross-tenant diagnostics for customer tasks. If access is missing, report `authorization_gated`, `blocked`, or `degraded_contract` instead of attempting an admin recovery path.
 
+## Local Manager n8n and Desktop Execution Governance
+
+n8n profiles and desktop execution are DB-governed. For n8n, `connected_systems.config_json` plus `installations` rows define the command path, npm prefix, user folder, port, local URL, public URL, editor base URL, webhook URL, lifecycle mode, and exposure scope. Local Manager must read `/local-manager/device/controls?section=n8n` and start n8n from that returned profile.
+
+`https://n8n.mad4b.com/` is reserved for platform-managed n8n only. Tenant/self-serve n8n must default to local-only on a separate port such as `5679`. Public tenant n8n exposure must use a tenant/device-specific hostname such as `https://n8n-<stable-opaque-id>.mad4b.com/`, stored in the tenant n8n profile as `public_url`, `editor_base_url`, and `webhook_url` with `exposure_scope: "tenant_public_tunnel"`.
+
+Local device work has two execution modes:
+
+- `background`: run through the local connector service for health, policy, shell aliases, file probes, n8n health, backups, and non-UI tasks.
+- `desktop`: run through foreground Local Manager polling for UI-visible actions such as `open_url`, `open_n8n`, `notify`, and `focus_local_manager`.
+
+GPT/admin callers should use `local_manager_desktop_command_enqueue` for desktop-visible actions and `local_manager_desktop_command_status` to read the result. Do not expect browser or UI actions launched from a Windows service to appear on the user's interactive desktop.
+
+See `docs/local-manager-n8n-runtime-governance.md` for the runtime governance runbook.
+
 ## Local Windows App Connections
 
 Local Windows app access has two planes:
