@@ -263,6 +263,24 @@ try {
       migrationSource.includes("connect_integration_policy_update"));
   }
 
+  {
+    const routeSource = readFileSync("routes/connectRoutes.js", "utf8");
+    const activationGraphSource = readFileSync("activationGraphContext.js", "utf8");
+    assert("connect status/capabilities/activate return activation graph context",
+      routeSource.includes("resolveActivationGraphContext") &&
+      routeSource.includes("activation_graph_context: state.activationGraphContext") &&
+      routeSource.includes("activation_graph_context: activationGraphContext") &&
+      routeSource.includes('surface: "connect_activate"'));
+    assert("activation graph context is advisory and secret-free",
+      activationGraphSource.includes("activation_resolver_advisory") &&
+      activationGraphSource.includes("applied_to_authority: false") &&
+      activationGraphSource.includes("resolvePlatformGraphMemory") &&
+      activationGraphSource.includes("policy_asset_keys") &&
+      activationGraphSource.includes("mode_hints") &&
+      activationGraphSource.includes("integration_summary") &&
+      activationGraphSource.includes("secrets_included: false"));
+  }
+
   section("connect tenantless onboarding recovery");
 
   {
