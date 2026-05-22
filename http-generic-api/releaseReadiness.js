@@ -16,6 +16,7 @@
 
 import { getPool } from "./db.js";
 import { randomUUID } from "node:crypto";
+import { resolvePlatformGraphMemory } from "./services/platformGraphMemoryResolver.js";
 
 // ── All platform tables that must exist ───────────────────────────────────────
 const REQUIRED_TABLES = [
@@ -123,6 +124,52 @@ async function checkMigrationInventorySafe() {
   }
 }
 
+function graphMemoryCheckResult(memory = {}) {
+  const assetCount = Number(memory.asset_count || 0);
+  const resolved = Boolean(memory.resolved);
+  return {
+    status: resolved ? "pass" : "warn",
+    detail: resolved
+      ? `Graph memory resolved ${assetCount} asset(s) for release readiness diagnostics.`
+      : memory.reason || "Graph memory returned no diagnostic assets.",
+    requested: Boolean(memory.requested),
+    resolved,
+    asset_count: assetCount,
+    asset_keys: Array.isArray(memory.assets)
+      ? memory.assets.map((asset) => asset?.asset_key).filter(Boolean).slice(0, 10)
+      : [],
+    selection_policy: memory.selection_policy || {},
+    secrets_included: false,
+  };
+}
+
+async function checkGraphMemoryDiagnostics() {
+  try {
+    const memory = await resolvePlatformGraphMemory({
+      input: {
+        node_id: "platform.global",
+        request_type: "release_readiness",
+        diagnostic_surface: "release_readiness",
+        depth: 1,
+        memory_limit: 5,
+      },
+      limit: 5,
+    });
+    return graphMemoryCheckResult(memory);
+  } catch (err) {
+    return {
+      status: "warn",
+      detail: `Graph memory diagnostics unavailable: ${err?.message || "unknown error"}`,
+      requested: true,
+      resolved: false,
+      asset_count: 0,
+      asset_keys: [],
+      selection_policy: {},
+      secrets_included: false,
+    };
+  }
+}
+
 async function checkLegacyTables() {
   const results = {};
   for (const table of LEGACY_TABLES) {
@@ -144,6 +191,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     legacy_tables: {},
     seed_data: {},
     migration_inventory: null,
+    graph_memory_diagnostics: null,
   };
 
   // DB connectivity
@@ -177,6 +225,9 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   report.migration_inventory = await checkMigrationInventorySafe();
   if (report.migration_inventory.status === "warn" && report.overall === "pass") report.overall = "warn";
 
+  // Graph memory diagnostics — non-blocking admin context enrichment.
+  report.graph_memory_diagnostics = await checkGraphMemoryDiagnostics();
+
   // Summary counts
   const allChecks = [
     report.db_connectivity,
@@ -184,6 +235,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     ...Object.values(report.legacy_tables),
     ...Object.values(report.seed_data),
     report.migration_inventory,
+    report.graph_memory_diagnostics,
   ];
   report.summary = {
     total: allChecks.length,
@@ -192,6 +244,9 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     fail: allChecks.filter((c) => c.status === "fail").length,
     platform_tables_total: REQUIRED_TABLES.length,
     platform_tables_ok: Object.values(report.platform_tables).filter((c) => c.status === "pass").length,
+    graph_memory_resolved: Boolean(report.graph_memory_diagnostics?.resolved),
+    graph_memory_asset_count: Number(report.graph_memory_diagnostics?.asset_count || 0),
+    secrets_included: false,
   };
 
   if (persist) {
@@ -203,6 +258,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
         ...Object.entries(report.legacy_tables).map(([k, v]) => [`legacy.${k}`, v]),
         ...Object.entries(report.seed_data),
         ["migration_inventory", report.migration_inventory],
+        ["graph_memory_diagnostics", report.graph_memory_diagnostics],
       ];
       await Promise.all(entries.map(([key, r]) =>
         pool.query(

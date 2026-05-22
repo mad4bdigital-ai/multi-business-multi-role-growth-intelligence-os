@@ -21,6 +21,7 @@ const routes = readFileSync("routes/platformGraphRoutes.js", "utf8");
 const memoryService = readFileSync("services/platformGraphMemoryResolver.js", "utf8");
 const index = readFileSync("routes/index.js", "utf8");
 const governance = readFileSync("routes/governanceRoutes.js", "utf8");
+const releaseReadiness = readFileSync("releaseReadiness.js", "utf8");
 const migration = readFileSync("migrations/105_sprint62p_platform_knowledge_graph_runtime.sql", "utf8");
 const parentOpenapi = readFileSync("openapi.yaml", "utf8");
 const childOpenapi = readFileSync("schemas/http-generic-api/http-generic-api.yaml", "utf8");
@@ -124,6 +125,15 @@ assert("governance diagnostic includes graph_context, graph_memory, and graph_re
   governance.includes("graph_memory") &&
   governance.includes("graph_relevant_assets") &&
   governance.includes("authority_summary"));
+
+assert("release readiness includes non-blocking graph memory diagnostics",
+  releaseReadiness.includes("resolvePlatformGraphMemory") &&
+  releaseReadiness.includes("checkGraphMemoryDiagnostics") &&
+  releaseReadiness.includes("graph_memory_diagnostics") &&
+  releaseReadiness.includes("graph_memory_resolved") &&
+  releaseReadiness.includes("graph_memory_asset_count") &&
+  releaseReadiness.includes("release_readiness") &&
+  releaseReadiness.includes("secrets_included: false"));
 
 assert("parent and child OpenAPI expose platform graph tag, schemas, and paths",
   [parentOpenapi, childOpenapi].every((schema) =>
