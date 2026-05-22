@@ -237,6 +237,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     ...Object.values(report.legacy_tables),
     ...Object.values(report.seed_data),
     report.migration_inventory,
+    report.graph_memory_diagnostics,
   ];
   report.summary = {
     total: allChecks.length,
