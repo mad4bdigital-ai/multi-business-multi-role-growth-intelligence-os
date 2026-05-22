@@ -613,6 +613,26 @@ async function executeGitHubRestFallback(args = []) {
     return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
   }
 
+  if (resource === "api" && command && hasCliFlag(args, ["-X", "--method"]) && parseCliFlag(args, ["-X", "--method"]).toUpperCase() === "DELETE") {
+    const apiTarget = String(command);
+    const refMarker = "/git/refs/heads/";
+    if (!apiTarget.includes(refMarker)) {
+      const err = new Error("GitHub REST delete fallback only supports deleting branch refs.");
+      err.status = 501;
+      err.code = "github_rest_delete_unsupported_path";
+      throw err;
+    }
+    const branchName = apiTarget.slice(apiTarget.indexOf(refMarker) + refMarker.length);
+    if (!branchName || ["main", "master", "production", "prod"].includes(branchName)) {
+      const err = new Error("Refusing to delete a protected/default branch through GitHub REST fallback.");
+      err.status = 403;
+      err.code = "github_rest_delete_protected_branch";
+      throw err;
+    }
+    await githubRestJson({ owner, repo, apiPath: `/git/refs/heads/${branchName.split("/").map(encodeURIComponent).join("/")}`, token, method: "DELETE" });
+    return { stdout: JSON.stringify({ deleted: true, branch: branchName }, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
   if (resource === "run" && command === "list") {
     const limit = Math.max(1, Math.min(100, Number(parseCliFlag(args, "--limit") || 20)));
     const branch = parseCliFlag(args, "--branch");
