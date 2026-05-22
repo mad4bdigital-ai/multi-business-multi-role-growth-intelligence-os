@@ -126,6 +126,15 @@ assert("governance diagnostic includes graph_context, graph_memory, and graph_re
   governance.includes("graph_relevant_assets") &&
   governance.includes("authority_summary"));
 
+assert("release readiness includes non-blocking graph memory diagnostics",
+  releaseReadiness.includes("resolvePlatformGraphMemory") &&
+  releaseReadiness.includes("checkGraphMemoryDiagnostics") &&
+  releaseReadiness.includes("graph_memory_diagnostics") &&
+  releaseReadiness.includes("graph_memory_resolved") &&
+  releaseReadiness.includes("graph_memory_asset_count") &&
+  releaseReadiness.includes("release_readiness") &&
+  releaseReadiness.includes("secrets_included: false"));
+
 assert("parent and child OpenAPI expose platform graph tag, schemas, and paths",
   [parentOpenapi, childOpenapi].every((schema) =>
     schema.includes("name: platform-graph") &&
