@@ -537,6 +537,45 @@ function healthBody() {
   };
 }
 
+function policyBody() {
+  return {
+    ok: true,
+    service: 'local-connector',
+    hostname: os.hostname(),
+    platform: process.platform,
+    shell: {
+      enabled: SHELL_ENABLED,
+      aliases: Object.entries(SHELL_ALLOWLIST).map(([alias, entry]) => ({
+        alias,
+        display_name: entry.display_name ?? alias,
+        allow_extra_args: entry.allow_extra_args === true,
+      })),
+    },
+    files: {
+      enabled: FILES_ENABLED,
+      allowed_paths: FILE_ALLOWLIST,
+    },
+    apps: {
+      enabled: APPS_ENABLED,
+      aliases: Object.keys(APP_ALLOWLIST),
+    },
+    n8n: {
+      enabled: N8N_ENABLED,
+      base_url: N8N_BASE,
+      public_url: N8N_PUBLIC_URL,
+      command_configured: Boolean(N8N_COMMAND),
+    },
+    restricted_ops: {
+      powershell_enabled: PS_ENABLED,
+      windows_control_enabled: WIN_ENABLED,
+      dependencies_enabled: DEPENDENCIES_ENABLED,
+      cloudflare_enabled: CF_ENABLED,
+      fetch_upload_enabled: FETCH_UPLOAD_ENABLED,
+    },
+    secrets_included: false,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // PowerShell helper
 // ---------------------------------------------------------------------------
