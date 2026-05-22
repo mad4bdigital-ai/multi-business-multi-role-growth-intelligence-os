@@ -824,6 +824,7 @@ export async function buildActivationSessionContext(req) {
       installations: installations.rows.map((row) => ({ ...row, scope: parseScopes(row.scope) }))
     },
     gpt_sessions: gptSessions.rows,
+    conversation_memory: conversationMemory,
     platform_access: platformAccess,
     pending_tasks: {
       summary: pendingTaskSummary,
