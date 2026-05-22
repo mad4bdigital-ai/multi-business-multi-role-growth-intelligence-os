@@ -246,6 +246,9 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     fail: allChecks.filter((c) => c.status === "fail").length,
     platform_tables_total: REQUIRED_TABLES.length,
     platform_tables_ok: Object.values(report.platform_tables).filter((c) => c.status === "pass").length,
+    graph_memory_resolved: Boolean(report.graph_memory_diagnostics?.resolved),
+    graph_memory_asset_count: Number(report.graph_memory_diagnostics?.asset_count || 0),
+    secrets_included: false,
   };
 
   if (persist) {
