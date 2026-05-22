@@ -633,6 +633,23 @@ async function executeGitHubRestFallback(args = []) {
     return { stdout: JSON.stringify({ deleted: true, branch: branchName }, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
   }
 
+  if (resource === "api" && command) {
+    let apiTarget = String(command);
+    const repoPrefix = `repos/${owner}/${repo}`;
+    if (apiTarget.startsWith(repoPrefix)) apiTarget = apiTarget.slice(repoPrefix.length);
+    if (!apiTarget.startsWith("/")) apiTarget = `/${apiTarget}`;
+    const allowed = apiTarget.startsWith("/compare/") || apiTarget.startsWith("/pulls") || apiTarget.startsWith("/commits/");
+    if (!allowed) {
+      const err = new Error("GitHub REST API fallback only supports repo-scoped compare, pulls, commits, branches, and branch-ref delete operations.");
+      err.status = 501;
+      err.code = "github_rest_api_unsupported_path";
+      err.details = { apiTarget };
+      throw err;
+    }
+    const payload = await githubRestJson({ owner, repo, apiPath: apiTarget, token });
+    return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
   if (resource === "run" && command === "list") {
     const limit = Math.max(1, Math.min(100, Number(parseCliFlag(args, "--limit") || 20)));
     const branch = parseCliFlag(args, "--branch");
