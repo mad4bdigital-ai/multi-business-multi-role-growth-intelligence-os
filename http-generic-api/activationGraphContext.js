@@ -75,6 +75,17 @@ export async function resolveActivationGraphContext({ user = null, tenantId = nu
   try {
     const memory = await resolvePlatformGraphMemory({ input, limit: 5 });
     const assets = Array.isArray(memory.assets) ? memory.assets.slice(0, 5).map(compactAsset) : [];
+    const hints = modeHints({ modePolicy, connection, hybridIntegrationReadiness });
+    await logGraphMemoryUsage({
+      eventType: memory.resolved ? "activation_graph_resolved" : "activation_graph_empty",
+      surface,
+      usage: "activation_resolver_advisory",
+      tenantId,
+      userId: user?.user_id,
+      deviceId: devices?.[0]?.device_id,
+      memory,
+      modeHints: hints,
+    });
     return {
       requested: Boolean(memory.requested),
       resolved: Boolean(memory.resolved),
