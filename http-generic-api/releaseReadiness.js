@@ -16,6 +16,7 @@
 
 import { getPool } from "./db.js";
 import { randomUUID } from "node:crypto";
+import { resolvePlatformGraphMemory } from "./services/platformGraphMemoryResolver.js";
 
 // ── All platform tables that must exist ───────────────────────────────────────
 const REQUIRED_TABLES = [
