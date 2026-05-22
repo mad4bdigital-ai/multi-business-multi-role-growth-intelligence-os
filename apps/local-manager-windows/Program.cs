@@ -727,7 +727,7 @@ internal static class Program
         public string PublicUrl { get; init; } = N8nPublicUrl;
         public int Port { get; init; } = 5678;
         public string ListenAddress { get; init; } = "127.0.0.1";
-        public string EditorBaseUrl { get; init; } = N8nPublicUrl;
+        public string EditorBaseUrl { get; init; } = "http://127.0.0.1:5678/";
         public string WebhookUrl { get; init; } = N8nPublicUrl;
 
         public static N8nLocalProfile Default() => new();
