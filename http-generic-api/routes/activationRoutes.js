@@ -779,6 +779,7 @@ export async function buildActivationSessionContext(req) {
   return {
     session_id: newSessionId,
     closed_sessions,
+    session_management: sessionOpen.session_management,
     subject,
     pagination: {
       limit,
