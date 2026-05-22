@@ -1398,7 +1398,7 @@ function spawnDetached(command, args = [], envPatch = {}) {
   };
   const spawnCommand = isWindowsCommandScript ? (process.env.ComSpec || 'cmd.exe') : command;
   const spawnArgs = isWindowsCommandScript
-    ? ['/d', '/s', '/c', ['call', quoteForCmd(command), ...args.map(quoteForCmd)].join(' ')]
+    ? ['/d', '/c', ['call', quoteForCmd(command), ...args.map(quoteForCmd)].join(' ')]
     : args;
   const child = spawn(spawnCommand, spawnArgs, {
     cwd: N8N_USER_FOLDER,
