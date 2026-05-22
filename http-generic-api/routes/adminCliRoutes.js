@@ -647,7 +647,18 @@ async function executeGitHubRestFallback(args = []) {
       throw err;
     }
     const payload = await githubRestJson({ owner, repo, apiPath: apiTarget, token });
-    return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+    const output = apiTarget.startsWith("/compare/")
+      ? {
+          url: payload.url,
+          html_url: payload.html_url,
+          status: payload.status,
+          ahead_by: payload.ahead_by,
+          behind_by: payload.behind_by,
+          total_commits: payload.total_commits,
+          files: (payload.files || []).map((file) => ({ filename: file.filename, status: file.status, changes: file.changes })),
+        }
+      : payload;
+    return { stdout: JSON.stringify(output, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
   }
 
   if (resource === "run" && command === "list") {
