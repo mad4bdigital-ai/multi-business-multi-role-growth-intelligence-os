@@ -234,7 +234,8 @@ async function resolveConnectState(userId, jwtTenantId = null) {
     devices,
     dedicatedIntegrationReadiness,
     hybridIntegrationReadiness,
-    onboarding: buildOnboardingState({ resolvedTenantId, connection, devices }),
+    activationGraphContext,
+    onboarding,
   };
 }
 
