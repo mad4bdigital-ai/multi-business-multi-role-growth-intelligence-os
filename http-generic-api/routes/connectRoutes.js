@@ -20,6 +20,7 @@ import {
   hybridIntegrationCatalog,
   upsertTenantIntegrationPolicies,
 } from "../hybridIntegrationPolicy.js";
+import { resolveActivationGraphContext } from "../activationGraphContext.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECT_STATIC = join(__dirname, "../public/connect");
