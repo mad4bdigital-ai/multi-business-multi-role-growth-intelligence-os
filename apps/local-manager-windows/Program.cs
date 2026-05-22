@@ -693,7 +693,7 @@ internal static class Program
                     throw new InvalidOperationException("Downloaded file is not a valid Windows EXE. Please download again from the web app.");
                 }
                 _progress.Value = 100;
-                _status.Text = $"Latest installer downloaded: {target}.\nLaunching…";
+                _status.Text = $"Latest installer downloaded: {target}.\nLaunching update handoff…"; LaunchUpdaterAndRestart(target); return;
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = target,
@@ -708,6 +708,7 @@ internal static class Program
             }
         }
 
+        private void LaunchUpdaterAndRestart(string installerPath) { var helperPath = Path.Combine(UpdatesRoot, "run-local-manager-update.cmd"); var appPath = Application.ExecutablePath; var currentPid = Environment.ProcessId; var script = string.Join("\r\n", new[] { "@echo off", "setlocal", "set \"INSTALLER=" + installerPath + "\"", "set \"APP=" + appPath + "\"", "set \"PID=" + currentPid + "\"", "echo Updating Mad4B Local Manager...", "timeout /t 1 /nobreak >nul", "taskkill /PID %PID% /T /F >nul 2>nul", "start \"\" /wait \"%INSTALLER%\"", "start \"\" \"%APP%\"" }) + "\r\n"; File.WriteAllText(helperPath, script, Encoding.ASCII); Process.Start(new ProcessStartInfo { FileName = "cmd.exe", Arguments = "/c \"" + helperPath + "\"", WorkingDirectory = UpdatesRoot, UseShellExecute = true, CreateNoWindow = true }); BeginInvoke(new Action(Close)); }
         private static void OpenUrl(string url)
         {
             Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
