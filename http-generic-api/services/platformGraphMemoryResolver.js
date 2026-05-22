@@ -6,6 +6,13 @@ import {
 } from "./platformKnowledgeGraphResolver.js";
 
 const MAX_MEMORY_ASSETS = 25;
+const DEFAULT_RANK_WEIGHTS = Object.freeze({
+  direct_asset_match: 100,
+  asset_graph_node_match: 60,
+  attached_scope_match: 40,
+  validated_asset: 10,
+  knowledge_asset_type: 5,
+});
 const FORBIDDEN_SECRET_TERMS = [
   "BACKEND_API_KEY",
   "JWT_SECRET",
@@ -42,16 +49,73 @@ function unique(values = []) {
   return [...new Set(values.map(normalize).filter(Boolean))];
 }
 
+function escapeRegExp(value = "") {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function redactSecretTerms(value = "") {
   let text = String(value ?? "");
   for (const term of FORBIDDEN_SECRET_TERMS) {
-    text = text.replace(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), "[redacted-secret-term]");
+    text = text.replace(new RegExp(escapeRegExp(term), "gi"), "[redacted-secret-term]");
   }
   return text;
 }
 
 function safeText(value = "", max = 500) {
   return redactSecretTerms(String(value ?? "").replace(/\s+/g, " ").trim()).slice(0, max);
+}
+
+async function tableExists(pool, tableName) {
+  try {
+    const [[row]] = await pool.query(
+      "SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?",
+      [tableName]
+    );
+    return Number(row?.cnt || 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function loadGraphMemoryRankWeights(pool) {
+  const weights = { ...DEFAULT_RANK_WEIGHTS };
+  const tableAvailable = await tableExists(pool, "platform_graph_memory_rank_rules");
+  if (!tableAvailable) {
+    return { weights, source: "fallback_code_defaults", table_available: false };
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT rule_key, weight
+         FROM platform_graph_memory_rank_rules
+        WHERE status = 'active'
+          AND rule_key IN (?)`,
+      [Object.keys(DEFAULT_RANK_WEIGHTS)]
+    );
+    for (const row of rows || []) {
+      if (!Object.prototype.hasOwnProperty.call(weights, row.rule_key)) continue;
+      weights[row.rule_key] = sanitizeInt(row.weight, weights[row.rule_key], 0, 1000);
+    }
+    return { weights, source: "db_rank_rules", table_available: true };
+  } catch (err) {
+    return {
+      weights,
+      source: "fallback_code_defaults",
+      table_available: true,
+      error: err?.message || "rank rule load failed",
+    };
+  }
+}
+
+function selectionPolicy({ limit, rankConfig }) {
+  return {
+    limit,
+    included_payload: "summary_only",
+    full_json_payload_included: false,
+    raw_secret_values_included: false,
+    rank_weights_source: rankConfig?.source || "fallback_code_defaults",
+    rank_weights: rankConfig?.weights || DEFAULT_RANK_WEIGHTS,
+  };
 }
 
 function collectGraphNodeIds({ input = {}, graphContext = {} } = {}) {
@@ -114,6 +178,7 @@ export async function resolvePlatformGraphMemory({ input = {}, graphContext = nu
   await ensurePlatformGraphTables();
 
   const maxLimit = sanitizeInt(limit ?? input.limit, 8, 1, MAX_MEMORY_ASSETS);
+  const rankConfig = await loadGraphMemoryRankWeights(pool);
   let effectiveGraphContext = graphContext;
   if (!effectiveGraphContext || !effectiveGraphContext.requested) {
     effectiveGraphContext = await resolvePlatformGraphContext({
@@ -141,18 +206,14 @@ export async function resolvePlatformGraphMemory({ input = {}, graphContext = nu
       graph_node_ids: [],
       asset_count: 0,
       assets: [],
-      selection_policy: {
-        limit: maxLimit,
-        included_payload: "summary_only",
-        full_json_payload_included: false,
-        raw_secret_values_included: false,
-      },
+      selection_policy: selectionPolicy({ limit: maxLimit, rankConfig }),
       secrets_included: false,
     };
   }
 
   const directIds = directAssetIds.length ? directAssetIds : ["__none__"];
   const nodeIds = graphNodeIds.length ? graphNodeIds : ["__none__"];
+  const weights = rankConfig.weights;
   const [rows] = await pool.query(
     `SELECT
         ja.asset_id,
@@ -171,11 +232,11 @@ export async function resolvePlatformGraphMemory({ input = {}, graphContext = nu
         COALESCE(JSON_LENGTH(JSON_EXTRACT(ja.json_payload, '$.generalized_rules')), 0) AS rule_count,
         COALESCE(JSON_LENGTH(JSON_EXTRACT(ja.json_payload, '$.regression_checklist')), 0) AS checklist_count,
         COUNT(DISTINCT l.link_id) AS attached_scope_count,
-        MAX(CASE WHEN ja.asset_id IN (?) THEN 100 ELSE 0 END)
-          + MAX(CASE WHEN asset_node.node_id IN (?) THEN 60 ELSE 0 END)
-          + MAX(CASE WHEN attached_edge.target_node_id IN (?) THEN 40 ELSE 0 END)
-          + CASE WHEN ja.validation_status = 'validated' THEN 10 ELSE 0 END
-          + CASE WHEN ja.asset_type LIKE '%doctrine%' OR ja.asset_type LIKE '%memory%' OR ja.asset_type LIKE '%knowledge%' THEN 5 ELSE 0 END
+        MAX(CASE WHEN ja.asset_id IN (?) THEN ? ELSE 0 END)
+          + MAX(CASE WHEN asset_node.node_id IN (?) THEN ? ELSE 0 END)
+          + MAX(CASE WHEN attached_edge.target_node_id IN (?) THEN ? ELSE 0 END)
+          + CASE WHEN ja.validation_status = 'validated' THEN ? ELSE 0 END
+          + CASE WHEN ja.asset_type LIKE '%doctrine%' OR ja.asset_type LIKE '%memory%' OR ja.asset_type LIKE '%knowledge%' THEN ? ELSE 0 END
           AS graph_rank,
         JSON_ARRAYAGG(DISTINCT JSON_OBJECT(
           'edge_id', attached_edge.edge_id,
@@ -204,7 +265,20 @@ export async function resolvePlatformGraphMemory({ input = {}, graphContext = nu
       GROUP BY ja.asset_id, ja.asset_key, ja.asset_type, ja.brand_name, ja.mapping_status, ja.validation_status, ja.active_status, ja.source_mode, ja.notes, ja.updated_at, ja.json_payload
       ORDER BY graph_rank DESC, ja.updated_at DESC
       LIMIT ?`,
-    [directIds, nodeIds, nodeIds, directIds, nodeIds, nodeIds, maxLimit]
+    [
+      directIds,
+      weights.direct_asset_match,
+      nodeIds,
+      weights.asset_graph_node_match,
+      nodeIds,
+      weights.attached_scope_match,
+      weights.validated_asset,
+      weights.knowledge_asset_type,
+      directIds,
+      nodeIds,
+      nodeIds,
+      maxLimit,
+    ]
   );
 
   const assets = Array.isArray(rows) ? rows.map(mapAssetRow) : [];
@@ -214,12 +288,7 @@ export async function resolvePlatformGraphMemory({ input = {}, graphContext = nu
     graph_node_ids: graphNodeIds,
     asset_count: assets.length,
     assets,
-    selection_policy: {
-      limit: maxLimit,
-      included_payload: "summary_only",
-      full_json_payload_included: false,
-      raw_secret_values_included: false,
-    },
+    selection_policy: selectionPolicy({ limit: maxLimit, rankConfig }),
     secrets_included: false,
   };
 }
