@@ -1,6 +1,11 @@
 import { getPool } from "../db.js";
-import { resolvePlatformGraphContext } from "./platformKnowledgeGraphResolver.js";
+import {
+  ensurePlatformGraphTables,
+  guessNodeIds,
+  resolvePlatformGraphContext,
+} from "./platformKnowledgeGraphResolver.js";
 
+const MAX_MEMORY_ASSETS = 25;
 const FORBIDDEN_SECRET_TERMS = [
   "BACKEND_API_KEY",
   "JWT_SECRET",
@@ -17,17 +22,13 @@ function normalize(value = "") {
   return String(value ?? "").trim();
 }
 
-function lower(value = "") {
-  return normalize(value).toLowerCase();
-}
-
-function clamp(value, fallback, min, max) {
+function sanitizeInt(value, fallback, min, max) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
   return Math.max(min, Math.min(max, Math.floor(n)));
 }
 
-function safeJsonParse(value, fallback = null) {
+function parseJson(value, fallback = null) {
   if (value == null || value === "") return fallback;
   if (typeof value === "object") return value;
   try {
@@ -37,7 +38,11 @@ function safeJsonParse(value, fallback = null) {
   }
 }
 
-function redactSecrets(value = "") {
+function unique(values = []) {
+  return [...new Set(values.map(normalize).filter(Boolean))];
+}
+
+function redactSecretTerms(value = "") {
   let text = String(value ?? "");
   for (const term of FORBIDDEN_SECRET_TERMS) {
     text = text.replace(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), "[redacted-secret-term]");
@@ -45,164 +50,180 @@ function redactSecrets(value = "") {
   return text;
 }
 
-function safeText(value = "", max = 700) {
-  return redactSecrets(String(value ?? "").replace(/\s+/g, " ").trim()).slice(0, max);
+function safeText(value = "", max = 500) {
+  return redactSecretTerms(String(value ?? "").replace(/\s+/g, " ").trim()).slice(0, max);
 }
 
-function isSensitiveKey(key = "") {
-  const k = lower(key);
-  return ["secret", "token", "password", "credential", "private_key", "api_key", "hash"].some((part) => k.includes(part));
+function collectGraphNodeIds({ input = {}, graphContext = {} } = {}) {
+  const nodeIds = [];
+  nodeIds.push(...guessNodeIds(input));
+  if (Array.isArray(graphContext.start_node_ids)) nodeIds.push(...graphContext.start_node_ids);
+  if (Array.isArray(graphContext.nodes)) nodeIds.push(...graphContext.nodes.map((node) => node?.node_id));
+  return unique(nodeIds).slice(0, 250);
 }
 
-function summarizeJson(value, depth = 0) {
-  if (value == null) return null;
-  if (depth > 2) return "[nested]";
-  if (typeof value === "string") return safeText(value, depth === 0 ? 900 : 350);
-  if (typeof value === "number" || typeof value === "boolean") return value;
-  if (Array.isArray(value)) {
-    return value.slice(0, 8).map((item) => summarizeJson(item, depth + 1));
+function summarizePayload(row = {}) {
+  const payload = parseJson(row.json_payload, null);
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return {
+      status: row.payload_status || null,
+      topic: row.payload_topic || null,
+      scope: row.payload_scope || null,
+      rule_count: Number(row.rule_count || 0),
+      checklist_count: Number(row.checklist_count || 0),
+    };
   }
-  if (typeof value === "object") {
-    const out = {};
-    for (const [key, item] of Object.entries(value).slice(0, 16)) {
-      if (isSensitiveKey(key)) {
-        out[key] = "[redacted]";
-      } else {
-        out[key] = summarizeJson(item, depth + 1);
-      }
-    }
-    return out;
-  }
-  return safeText(String(value));
+
+  return {
+    status: payload.status || row.payload_status || null,
+    topic: payload.topic || row.payload_topic || null,
+    scope: payload.scope || row.payload_scope || null,
+    rule_count: Array.isArray(payload.generalized_rules) ? payload.generalized_rules.length : Number(row.rule_count || 0),
+    checklist_count: Array.isArray(payload.regression_checklist) ? payload.regression_checklist.length : Number(row.checklist_count || 0),
+    evidence: payload.evidence && typeof payload.evidence === "object"
+      ? {
+          deployed_commit_sha: payload.evidence.deployed_commit_sha || null,
+          live_audit_failures: payload.evidence.live_audit_failures ?? null,
+          main_ci_conclusion: payload.evidence.main_ci_conclusion || null,
+        }
+      : null,
+  };
 }
 
-function assetScore(row = {}) {
-  const target = String(row.target_node_id || "");
-  const type = lower(row.asset_type);
-  let score = 0;
-  if (target.startsWith("user.")) score += 100;
-  else if (target.startsWith("device.")) score += 95;
-  else if (target.startsWith("tenant.")) score += 90;
-  else if (target.startsWith("brand.")) score += 80;
-  else if (target.startsWith("workflow.")) score += 75;
-  else if (target.startsWith("module.")) score += 70;
-  else if (target.startsWith("platform.")) score += 45;
-  if (type.includes("doctrine")) score += 20;
-  if (type.includes("memory")) score += 18;
-  if (type.includes("knowledge")) score += 12;
-  if (row.validation_status === "validated") score += 8;
-  if (Number(row.runtime_enforced || 0) === 1) score += 5;
-  return score;
-}
-
-function collectSubjectNodes(graphContext = {}, input = {}) {
-  const nodes = new Set(["platform.global"]);
-  for (const id of graphContext.start_node_ids || []) nodes.add(id);
-  for (const node of graphContext.nodes || []) {
-    const id = node?.node_id;
-    if (!id) continue;
-    if (/^(platform|tenant|user|device|brand|workflow|module|business_type|knowledge_profile)\./.test(id)) nodes.add(id);
-  }
-  if (input.node_id) nodes.add(String(input.node_id));
-  return [...nodes];
-}
-
-function sanitizeAsset(row = {}) {
-  const parsedPayload = safeJsonParse(row.json_payload, null);
+function mapAssetRow(row = {}) {
   return {
     asset_id: row.asset_id,
     asset_key: row.asset_key,
     asset_type: row.asset_type,
-    brand_name: row.brand_name,
-    source_mode: row.source_mode,
-    validation_status: row.validation_status,
-    transport_status: row.transport_status,
-    active_status: row.active_status,
-    target_node_id: row.target_node_id,
-    edge_id: row.edge_id,
-    edge_type: row.edge_type,
-    runtime_enforced: Boolean(Number(row.runtime_enforced || 0)),
-    relevance_score: row.relevance_score,
-    notes_excerpt: safeText(row.notes || "", 450),
-    payload_summary: summarizeJson(parsedPayload ?? row.json_payload),
-    updated_at: row.updated_at,
+    brand_name: row.brand_name || null,
+    mapping_status: row.mapping_status || null,
+    validation_status: row.validation_status || null,
+    active_status: row.active_status || null,
+    source_mode: row.source_mode || null,
+    attached_scope_count: Number(row.attached_scope_count || 0),
+    graph_rank: Number(row.graph_rank || 0),
+    graph_sources: parseJson(row.graph_sources_json, []),
+    payload_summary: summarizePayload(row),
+    notes_excerpt: safeText(row.notes_excerpt || "", 500),
+    updated_at: row.updated_at || null,
   };
 }
 
-export async function resolveGraphRelevantAssets(input = {}) {
+export async function resolvePlatformGraphMemory({ input = {}, graphContext = null, limit = 8 } = {}) {
   const pool = getPool();
-  const limit = clamp(input.limit, 12, 1, 50);
-  const depth = clamp(input.depth, 2, 0, 3);
-  const graphContext = input.graph_context || await resolvePlatformGraphContext({ ...input, depth, limit: 200 });
-  const subjectNodeIds = collectSubjectNodes(graphContext, input);
-  if (!subjectNodeIds.length) {
+  await ensurePlatformGraphTables();
+
+  const maxLimit = sanitizeInt(limit ?? input.limit, 8, 1, MAX_MEMORY_ASSETS);
+  let effectiveGraphContext = graphContext;
+  if (!effectiveGraphContext || !effectiveGraphContext.requested) {
+    effectiveGraphContext = await resolvePlatformGraphContext({
+      ...input,
+      depth: sanitizeInt(input.depth, 2, 0, 3),
+      limit: 120,
+    });
+  }
+
+  const graphNodeIds = collectGraphNodeIds({ input, graphContext: effectiveGraphContext });
+  const directAssetIds = unique([
+    input.asset_id,
+    ...(Array.isArray(effectiveGraphContext.nodes)
+      ? effectiveGraphContext.nodes
+          .filter((node) => node?.node_type === "json_asset" && node?.source_pk)
+          .map((node) => node.source_pk)
+      : []),
+  ]);
+
+  if (!graphNodeIds.length && !directAssetIds.length) {
     return {
-      ok: true,
-      requested: true,
+      requested: false,
       resolved: false,
-      reason: "no_subject_nodes",
-      graph_context_summary: {
-        resolved: Boolean(graphContext.resolved),
-        node_count: graphContext.node_count || 0,
-        edge_count: graphContext.edge_count || 0,
-      },
-      subject_node_ids: [],
-      assets: [],
+      reason: "no_graph_subject_for_memory_lookup",
+      graph_node_ids: [],
       asset_count: 0,
+      assets: [],
+      selection_policy: {
+        limit: maxLimit,
+        included_payload: "summary_only",
+        full_json_payload_included: false,
+        raw_secret_values_included: false,
+      },
       secrets_included: false,
     };
   }
 
+  const directIds = directAssetIds.length ? directAssetIds : ["__none__"];
+  const nodeIds = graphNodeIds.length ? graphNodeIds : ["__none__"];
   const [rows] = await pool.query(
-    `SELECT DISTINCT
-        e.edge_id,
-        e.edge_type,
-        e.target_node_id,
-        e.runtime_enforced,
+    `SELECT
         ja.asset_id,
         ja.asset_key,
         ja.asset_type,
         ja.brand_name,
-        ja.source_mode,
-        ja.transport_status,
+        ja.mapping_status,
         ja.validation_status,
         ja.active_status,
-        ja.notes,
-        ja.json_payload,
-        ja.updated_at
-      FROM platform_graph_edges e
-      JOIN platform_graph_nodes n ON n.node_id = e.source_node_id
-      LEFT JOIN json_asset_subject_links l ON l.link_id = e.source_pk OR l.asset_id = n.source_pk OR l.asset_id = n.subject_ref
-      JOIN json_assets ja ON ja.asset_id = COALESCE(l.asset_id, n.source_pk, n.subject_ref)
-      WHERE e.edge_type = 'attached_to'
-        AND e.lifecycle_status = 'active'
-        AND e.target_node_id IN (?)
-        AND COALESCE(ja.active_status, 'TRUE') IN ('TRUE','true','active','1')
-        AND COALESCE(ja.validation_status, '') NOT IN ('rejected','invalid')
-      ORDER BY e.runtime_enforced DESC, ja.updated_at DESC
+        ja.source_mode,
+        LEFT(COALESCE(ja.notes, ''), 500) AS notes_excerpt,
+        ja.updated_at,
+        JSON_UNQUOTE(JSON_EXTRACT(ja.json_payload, '$.status')) AS payload_status,
+        JSON_UNQUOTE(JSON_EXTRACT(ja.json_payload, '$.topic')) AS payload_topic,
+        JSON_UNQUOTE(JSON_EXTRACT(ja.json_payload, '$.scope')) AS payload_scope,
+        COALESCE(JSON_LENGTH(JSON_EXTRACT(ja.json_payload, '$.generalized_rules')), 0) AS rule_count,
+        COALESCE(JSON_LENGTH(JSON_EXTRACT(ja.json_payload, '$.regression_checklist')), 0) AS checklist_count,
+        COUNT(DISTINCT l.link_id) AS attached_scope_count,
+        MAX(CASE WHEN ja.asset_id IN (?) THEN 100 ELSE 0 END)
+          + MAX(CASE WHEN asset_node.node_id IN (?) THEN 60 ELSE 0 END)
+          + MAX(CASE WHEN attached_edge.target_node_id IN (?) THEN 40 ELSE 0 END)
+          + CASE WHEN ja.validation_status = 'validated' THEN 10 ELSE 0 END
+          + CASE WHEN ja.asset_type LIKE '%doctrine%' OR ja.asset_type LIKE '%memory%' OR ja.asset_type LIKE '%knowledge%' THEN 5 ELSE 0 END
+          AS graph_rank,
+        JSON_ARRAYAGG(DISTINCT JSON_OBJECT(
+          'edge_id', attached_edge.edge_id,
+          'edge_type', attached_edge.edge_type,
+          'target_node_id', attached_edge.target_node_id,
+          'scope_type', attached_edge.scope_type,
+          'runtime_role', attached_edge.runtime_role
+        )) AS graph_sources_json
+      FROM json_assets ja
+      LEFT JOIN platform_graph_nodes asset_node
+        ON asset_node.source_table = 'json_assets'
+       AND asset_node.source_pk = ja.asset_id
+      LEFT JOIN platform_graph_edges attached_edge
+        ON attached_edge.source_node_id = asset_node.node_id
+       AND attached_edge.edge_type = 'attached_to'
+       AND attached_edge.lifecycle_status = 'active'
+      LEFT JOIN json_asset_subject_links l
+        ON l.asset_id = ja.asset_id
+       AND l.status = 'active'
+      WHERE (ja.active_status IN ('TRUE','true','active','1') OR ja.active_status IS NULL)
+        AND (
+          ja.asset_id IN (?)
+          OR asset_node.node_id IN (?)
+          OR attached_edge.target_node_id IN (?)
+        )
+      GROUP BY ja.asset_id, ja.asset_key, ja.asset_type, ja.brand_name, ja.mapping_status, ja.validation_status, ja.active_status, ja.source_mode, ja.notes, ja.updated_at, ja.json_payload
+      ORDER BY graph_rank DESC, ja.updated_at DESC
       LIMIT ?`,
-    [subjectNodeIds, Math.max(limit * 4, limit)]
+    [directIds, nodeIds, nodeIds, directIds, nodeIds, nodeIds, maxLimit]
   );
 
-  const ranked = rows
-    .map((row) => ({ ...row, relevance_score: assetScore(row) }))
-    .sort((a, b) => b.relevance_score - a.relevance_score || String(b.updated_at || "").localeCompare(String(a.updated_at || "")))
-    .slice(0, limit)
-    .map(sanitizeAsset);
-
+  const assets = Array.isArray(rows) ? rows.map(mapAssetRow) : [];
   return {
-    ok: true,
     requested: true,
-    resolved: ranked.length > 0,
-    graph_context_summary: {
-      resolved: Boolean(graphContext.resolved),
-      node_count: graphContext.node_count || 0,
-      edge_count: graphContext.edge_count || 0,
-      authority_summary: graphContext.authority_summary || {},
+    resolved: assets.length > 0,
+    graph_node_ids: graphNodeIds,
+    asset_count: assets.length,
+    assets,
+    selection_policy: {
+      limit: maxLimit,
+      included_payload: "summary_only",
+      full_json_payload_included: false,
+      raw_secret_values_included: false,
     },
-    subject_node_ids: subjectNodeIds,
-    asset_count: ranked.length,
-    assets: ranked,
     secrets_included: false,
   };
+}
+
+export async function resolveGraphRelevantAssets(input = {}) {
+  return resolvePlatformGraphMemory({ input, limit: input.memory_limit || input.limit || 8 });
 }

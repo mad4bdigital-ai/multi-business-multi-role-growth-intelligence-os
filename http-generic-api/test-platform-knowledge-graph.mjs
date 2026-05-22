@@ -82,12 +82,15 @@ assert("graph service forbids raw secret terms and avoids raw secret columns",
   !service.includes("SELECT password_hash"));
 
 assert("graph memory service resolves scoped assets through graph attachments",
+  memoryService.includes("export async function resolvePlatformGraphMemory") &&
   memoryService.includes("export async function resolveGraphRelevantAssets") &&
   memoryService.includes("resolvePlatformGraphContext") &&
-  memoryService.includes("platform_graph_edges e") &&
+  memoryService.includes("platform_graph_edges") &&
   memoryService.includes("json_asset_subject_links") &&
   memoryService.includes("payload_summary") &&
-  memoryService.includes("redactSecrets") &&
+  memoryService.includes("summary_only") &&
+  memoryService.includes("FORBIDDEN_SECRET_TERMS") &&
+  memoryService.includes("raw_secret_values_included: false") &&
   memoryService.includes("secrets_included: false"));
 
 assert("graph service uses MariaDB-compatible JSON writes",
@@ -114,10 +117,11 @@ assert("graph routes are registered",
   index.includes("buildPlatformGraphRoutes") &&
   index.includes("app.use(buildPlatformGraphRoutes"));
 
-assert("governance diagnostic includes graph_context and graph_relevant_assets",
+assert("governance diagnostic includes graph_context, graph_memory, and graph_relevant_assets compatibility alias",
   governance.includes("resolvePlatformGraphContext") &&
-  governance.includes("resolveGraphRelevantAssets") &&
+  governance.includes("resolvePlatformGraphMemory") &&
   governance.includes("graph_context") &&
+  governance.includes("graph_memory") &&
   governance.includes("graph_relevant_assets") &&
   governance.includes("authority_summary"));
 
