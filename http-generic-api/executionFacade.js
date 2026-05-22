@@ -3,6 +3,7 @@ import { prepareExecutionRequest } from "./executionPreparation.js";
 import { dispatchPreparedExecution } from "./executionDispatch.js";
 import { validateAndShapeExecutionResponse } from "./executionResponse.js";
 import { buildPassiveExecutionReport } from "./executionControlResolvers.js";
+import { resolveExecutionGraphMemoryContext } from "./executionGraphMemoryContext.js";
 import {
   getExecutionJob,
   pollExecutionJobResult,
