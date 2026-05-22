@@ -571,6 +571,8 @@ components:
           additionalProperties: true
         request_url:
           type: string
+        graph_memory_context:
+          $ref: "#/components/schemas/GraphMemoryExecutionContext"
         response_headers:
           type: object
           additionalProperties: true
