@@ -634,7 +634,58 @@ async function executeGitHubRestFallback(args = []) {
     return { stdout: JSON.stringify(mapGithubRunForGhJson(run, fields), null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
   }
 
-  const err = new Error("gh CLI is missing and GitHub REST fallback currently supports: run list, run view <id>, run view <id> --log-failed.");
+  if (resource === "pr" && command === "create") {
+    const head = parseCliFlag(args, "--head");
+    const base = parseCliFlag(args, "--base") || "main";
+    const title = parseCliFlag(args, ["--title", "-t"]);
+    const body = parseCliFlag(args, ["--body", "-b"]);
+    if (!head || !title) {
+      const err = new Error("pr create fallback requires --head and --title.");
+      err.status = 400;
+      err.code = "github_pr_create_args_required";
+      throw err;
+    }
+    const pr = await githubRestJson({
+      owner,
+      repo,
+      apiPath: "/pulls",
+      token,
+      method: "POST",
+      body: { head, base, title, body, draft: hasCliFlag(args, "--draft") },
+    });
+    const stdout = fields.length ? JSON.stringify(mapGithubPullForGhJson(pr, fields), null, 2) : `${pr.html_url}\n`;
+    return { stdout, stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
+  if (resource === "pr" && command === "merge") {
+    if (hasCliFlag(args, "--auto")) {
+      const err = new Error("pr merge --auto is not supported by the GitHub REST fallback. Run after checks pass or use an explicit merge method.");
+      err.status = 501;
+      err.code = "github_rest_pr_auto_merge_unsupported";
+      throw err;
+    }
+    const prNumber = parseGithubPrNumber(firstGithubPositional(args, 2));
+    const mergeMethod = hasCliFlag(args, "--squash") ? "squash" : hasCliFlag(args, "--rebase") ? "rebase" : "merge";
+    const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
+    const mergeResult = await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/pulls/${encodeURIComponent(prNumber)}/merge`,
+      token,
+      method: "PUT",
+      body: {
+        merge_method: mergeMethod,
+        commit_title: parseCliFlag(args, ["--subject", "--title"]) || undefined,
+        commit_message: parseCliFlag(args, ["--body", "-b"]) || undefined,
+      },
+    });
+    if (hasCliFlag(args, "--delete-branch") && pr?.head?.ref && pr?.head?.repo?.full_name === `${owner}/${repo}`) {
+      await githubRestJson({ owner, repo, apiPath: `/git/refs/heads/${encodeGithubRefPath(pr.head.ref)}`, token, method: "DELETE" });
+    }
+    return { stdout: JSON.stringify({ number: Number(prNumber), merged: true, merge_method: mergeMethod, sha: mergeResult.sha || null, message: mergeResult.message || "Pull Request successfully merged" }, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
+  const err = new Error("gh CLI is missing and GitHub REST fallback currently supports: run list, run view <id>, run view <id> --log-failed, pr create, and pr merge <number|url>.");
   err.status = 501;
   err.code = "github_rest_fallback_unsupported_args";
   err.details = { args };
