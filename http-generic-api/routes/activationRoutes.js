@@ -767,6 +767,15 @@ export async function buildActivationSessionContext(req) {
     }, {})
   };
 
+  const conversationMemory = await loadConversationMemoryContext(pool, subject, {
+    limit,
+    include_turns: asBoolean(req.query.include_turns),
+    turns_limit: capLimit(req.query.turns_limit, 20, 100),
+    raw_max_chars: rawMaxChars,
+    gpt_sessions: gptSessions.rows,
+    pending_tasks: pendingTaskRows,
+  });
+
   return {
     session_id: newSessionId,
     closed_sessions,
