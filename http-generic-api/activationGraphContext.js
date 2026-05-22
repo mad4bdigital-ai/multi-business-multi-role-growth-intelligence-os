@@ -1,6 +1,5 @@
 import { resolvePlatformGraphMemory } from "./services/platformGraphMemoryResolver.js";
 import { logGraphMemoryUsage } from "./graphMemoryTelemetry.js";
-import { logGraphMemoryUsage } from "./graphMemoryTelemetry.js";
 
 function normalize(value = "") {
   return String(value ?? "").trim();
@@ -59,6 +58,21 @@ function buildActivationMemoryInput({ user = null, tenantId = null, membership =
   };
 }
 
+function baseContext({ tenantId, user, devices, modePolicy, connection, hybridIntegrationReadiness, onboarding, surface }) {
+  return {
+    source: "platform_graph_memory",
+    usage: "activation_resolver_advisory",
+    applied_to_authority: false,
+    surface,
+    tenant_node: tenantId ? `tenant.${tenantId}` : null,
+    user_node: user?.user_id ? `user.${user.user_id}` : null,
+    device_nodes: Array.isArray(devices) ? devices.map((device) => `device.${device.device_id}`).filter(Boolean).slice(0, 25) : [],
+    mode_hints: modeHints({ modePolicy, connection, hybridIntegrationReadiness }),
+    onboarding_state: onboarding?.state || null,
+    integration_summary: integrationSummary(hybridIntegrationReadiness),
+  };
+}
+
 export async function resolveActivationGraphContext({ user = null, tenantId = null, membership = null, connection = null, devices = [], modePolicy = null, dedicatedIntegrationReadiness = null, hybridIntegrationReadiness = null, onboarding = null, surface = "connect_status" } = {}) {
   const input = buildActivationMemoryInput({
     user,
@@ -71,11 +85,11 @@ export async function resolveActivationGraphContext({ user = null, tenantId = nu
     hybridIntegrationReadiness,
     surface,
   });
+  const base = baseContext({ tenantId, user, devices, modePolicy, connection, hybridIntegrationReadiness, onboarding, surface });
 
   try {
     const memory = await resolvePlatformGraphMemory({ input, limit: 5 });
     const assets = Array.isArray(memory.assets) ? memory.assets.slice(0, 5).map(compactAsset) : [];
-    const hints = modeHints({ modePolicy, connection, hybridIntegrationReadiness });
     await logGraphMemoryUsage({
       eventType: memory.resolved ? "activation_graph_resolved" : "activation_graph_empty",
       surface,
@@ -84,21 +98,12 @@ export async function resolveActivationGraphContext({ user = null, tenantId = nu
       userId: user?.user_id,
       deviceId: devices?.[0]?.device_id,
       memory,
-      modeHints: hints,
+      modeHints: base.mode_hints,
     });
     return {
       requested: Boolean(memory.requested),
       resolved: Boolean(memory.resolved),
-      source: "platform_graph_memory",
-      usage: "activation_resolver_advisory",
-      applied_to_authority: false,
-      surface,
-      tenant_node: tenantId ? `tenant.${tenantId}` : null,
-      user_node: user?.user_id ? `user.${user.user_id}` : null,
-      device_nodes: Array.isArray(devices) ? devices.map((device) => `device.${device.device_id}`).filter(Boolean).slice(0, 25) : [],
-      mode_hints: modeHints({ modePolicy, connection, hybridIntegrationReadiness }),
-      onboarding_state: onboarding?.state || null,
-      integration_summary: integrationSummary(hybridIntegrationReadiness),
+      ...base,
       graph_node_ids: memory.graph_node_ids || [],
       asset_count: Number(memory.asset_count || 0),
       policy_asset_keys: assets.map((asset) => asset.asset_key).filter(Boolean),
@@ -108,19 +113,10 @@ export async function resolveActivationGraphContext({ user = null, tenantId = nu
       secrets_included: false,
     };
   } catch (err) {
-    return {
+    const failure = {
       requested: true,
       resolved: false,
-      source: "platform_graph_memory",
-      usage: "activation_resolver_advisory",
-      applied_to_authority: false,
-      surface,
-      tenant_node: tenantId ? `tenant.${tenantId}` : null,
-      user_node: user?.user_id ? `user.${user.user_id}` : null,
-      device_nodes: Array.isArray(devices) ? devices.map((device) => `device.${device.device_id}`).filter(Boolean).slice(0, 25) : [],
-      mode_hints: modeHints({ modePolicy, connection, hybridIntegrationReadiness }),
-      onboarding_state: onboarding?.state || null,
-      integration_summary: integrationSummary(hybridIntegrationReadiness),
+      ...base,
       asset_count: 0,
       policy_asset_keys: [],
       assets: [],
@@ -131,5 +127,16 @@ export async function resolveActivationGraphContext({ user = null, tenantId = nu
       },
       secrets_included: false,
     };
+    await logGraphMemoryUsage({
+      eventType: "activation_graph_error",
+      surface,
+      usage: "activation_resolver_advisory",
+      tenantId,
+      userId: user?.user_id,
+      deviceId: devices?.[0]?.device_id,
+      memory: failure,
+      modeHints: base.mode_hints,
+    });
+    return failure;
   }
 }
