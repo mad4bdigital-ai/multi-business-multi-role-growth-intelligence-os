@@ -1063,14 +1063,16 @@ export function buildLocalConnectorInstallRoutes(deps) {
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
       if (!config.cf_token || !config.connector_secret) throw httpError(409, "connector_config_incomplete", "Connector config is missing recovery token or connector secret.");
+      const ps1Token = signInstallerDownloadToken({
+        user_id: payload.user_id,
+        tenant_id: payload.tenant_id,
+        device_id: payload.device_id,
+        format: "ps1",
+        exp: payload.exp,
+      });
+      const ps1Url = `${publicBaseUrl(req)}/connector-agent/installer.ps1?token=${encodeURIComponent(ps1Token)}`;
       const installer = payload.format === "bat"
-        ? buildInstallScript({
-            cfToken: config.cf_token,
-            connectorSecret: config.connector_secret,
-            tunnelUrl: config.tunnel_url,
-            aliases: DEFAULT_WINDOWS_ALIASES,
-            port: CONNECTOR_PORT,
-          })
+        ? buildInstallPowerShellBootstrapBat({ ps1Url, deviceId: config.device_id })
         : buildInstallPowerShell({
             cfToken: config.cf_token,
             connectorSecret: config.connector_secret,
