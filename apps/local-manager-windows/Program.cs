@@ -26,7 +26,7 @@ internal static class Program
     private const string DeviceLinkPollUrl = BaseUrl + "/local-manager/device-link/poll";
     private const string DeviceSessionUrl = BaseUrl + "/local-manager/device/session";
     private const string DeviceControlsUrl = BaseUrl + "/local-manager/device/controls";
-    private const string DeviceRepairInstallerUrl = BaseUrl + "/local-connector/install/device-download-link";
+    private const string DeviceRepairInstallerUrl = BaseUrl + "/local-connector/install/device-download-link"; private const string DesktopCommandsUrl = BaseUrl + "/local-manager/device/desktop-commands";
     private const string N8nPublicUrl = "";
     private const string N8nCommandPath = @"D:\npm-global\n8n.cmd";
     private const string N8nUserFolder = @"D:\n8n-data";
@@ -40,7 +40,7 @@ internal static class Program
 
     private sealed class MainForm : Form
     {
-        private readonly Label _status;
+        private readonly System.Windows.Forms.Timer _desktopCommandTimer = new() { Interval = 5000 }; private bool _desktopCommandPollRunning; private readonly Label _status;
         private readonly Label _pairingCode;
         private readonly ProgressBar _progress;
         private readonly TextBox _output;
@@ -138,7 +138,7 @@ internal static class Program
             {
                 EnsureLocalFiles(_status);
                 ShowTokenStatus();
-                await CheckAndInstallUpdateAsync(false);
+                await CheckAndInstallUpdateAsync(false); StartDesktopCommandPolling();
             };
         }
 
@@ -709,6 +709,11 @@ internal static class Program
         }
 
         private void LaunchUpdaterAndRestart(string installerPath) { var helperPath = Path.Combine(UpdatesRoot, "run-local-manager-update.cmd"); var appPath = Application.ExecutablePath; var currentPid = Environment.ProcessId; var script = string.Join("\r\n", new[] { "@echo off", "setlocal", "set \"INSTALLER=" + installerPath + "\"", "set \"APP=" + appPath + "\"", "set \"PID=" + currentPid + "\"", "echo Updating Mad4B Local Manager...", "timeout /t 1 /nobreak >nul", "taskkill /PID %PID% /T /F >nul 2>nul", "start \"\" /wait \"%INSTALLER%\"", "start \"\" \"%APP%\"" }) + "\r\n"; File.WriteAllText(helperPath, script, Encoding.ASCII); Process.Start(new ProcessStartInfo { FileName = "cmd.exe", Arguments = "/c \"" + helperPath + "\"", WorkingDirectory = UpdatesRoot, UseShellExecute = true, CreateNoWindow = true }); BeginInvoke(new Action(Close)); }
+        private void StartDesktopCommandPolling() { if (_desktopCommandTimer.Enabled) return; _desktopCommandTimer.Tick += async (_, _) => await PollDesktopCommandsAsync(); _desktopCommandTimer.Start(); _ = PollDesktopCommandsAsync(); }
+        private async Task PollDesktopCommandsAsync() { if (_desktopCommandPollRunning) return; var token = LoadDeviceToken(false); if (string.IsNullOrWhiteSpace(token)) return; _desktopCommandPollRunning = true; try { using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) }; using var req = new HttpRequestMessage(HttpMethod.Get, DesktopCommandsUrl + "/pending?limit=5"); req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token); req.Headers.Accept.ParseAdd("application/json"); using var response = await client.SendAsync(req); var text = await response.Content.ReadAsStringAsync(); if (!response.IsSuccessStatusCode) { if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized && response.StatusCode != System.Net.HttpStatusCode.Forbidden) _status.Text = "Desktop command poll failed: " + response.StatusCode; return; } using var doc = JsonDocument.Parse(text); if (!doc.RootElement.TryGetProperty("commands", out var commands) || commands.ValueKind != JsonValueKind.Array) return; foreach (var command in commands.EnumerateArray()) await ExecuteDesktopCommandAsync(client, token, command); } catch (Exception ex) { _status.Text = "Desktop command polling failed: " + ex.Message; } finally { _desktopCommandPollRunning = false; } }
+        private async Task ExecuteDesktopCommandAsync(HttpClient client, string token, JsonElement command) { var commandId = JsonValue(command, "command_id"); var action = JsonValue(command, "action"); command.TryGetProperty("payload", out var payload); try { if (string.Equals(action, "open_url", StringComparison.OrdinalIgnoreCase)) { var url = JsonValue(payload, "url"); if (string.IsNullOrWhiteSpace(url)) throw new InvalidOperationException("open_url command is missing url."); OpenUrl(url); _status.Text = "Desktop command opened URL."; await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, opened_url = url, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false }); return; } if (string.Equals(action, "open_n8n", StringComparison.OrdinalIgnoreCase)) { var profile = await LoadN8nProfileAsync(); var url = string.IsNullOrWhiteSpace(profile.PublicUrl) ? profile.LocalUrl : profile.PublicUrl; OpenUrl(url); _status.Text = "Desktop command opened n8n."; await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, opened_url = url, system_id = profile.SystemId, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false }); return; } if (string.Equals(action, "notify", StringComparison.OrdinalIgnoreCase)) { var title = JsonValue(payload, "title", "Mad4B"); var message = JsonValue(payload, "message", ""); MessageBox.Show(message, title, MessageBoxButtons.OK, MessageBoxIcon.Information); await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, shown = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false }); return; } if (string.Equals(action, "focus_local_manager", StringComparison.OrdinalIgnoreCase)) { if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal; Show(); Activate(); await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, focused = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false }); return; } throw new NotSupportedException("Unsupported desktop action: " + action); } catch (Exception ex) { await CompleteDesktopCommandAsync(client, token, commandId, false, new { action, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false }, "desktop_action_failed", ex.Message); } }
+        private async Task CompleteDesktopCommandAsync(HttpClient client, string token, string commandId, bool ok, object result, string? errorCode = null, string? errorMessage = null) { if (string.IsNullOrWhiteSpace(commandId)) return; using var req = new HttpRequestMessage(HttpMethod.Post, DesktopCommandsUrl + "/" + Uri.EscapeDataString(commandId) + "/complete") { Content = JsonContent(new { status = ok ? "completed" : "failed", result, error_code = errorCode, error_message = errorMessage }) }; req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token); req.Headers.Accept.ParseAdd("application/json"); using var response = await client.SendAsync(req); }
+        private static string JsonValue(JsonElement element, string name, string fallback = "") { if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null) return fallback; var text = value.ValueKind == JsonValueKind.String ? value.GetString() : value.ToString(); return string.IsNullOrWhiteSpace(text) ? fallback : text!; }
         private static void OpenUrl(string url)
         {
             Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
