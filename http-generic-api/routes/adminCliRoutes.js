@@ -608,6 +608,11 @@ async function executeGitHubRestFallback(args = []) {
   const token = await getGitHubAppInstallationToken({});
   const fields = parseGithubJsonFields(args);
 
+  if (resource === "api" && command && String(command).includes("/branches")) {
+    const payload = await githubRestJson({ owner, repo, apiPath: "/branches?per_page=100", token });
+    return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
   if (resource === "run" && command === "list") {
     const limit = Math.max(1, Math.min(100, Number(parseCliFlag(args, "--limit") || 20)));
     const branch = parseCliFlag(args, "--branch");
