@@ -260,6 +260,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
         ...Object.entries(report.legacy_tables).map(([k, v]) => [`legacy.${k}`, v]),
         ...Object.entries(report.seed_data),
         ["migration_inventory", report.migration_inventory],
+        ["graph_memory_diagnostics", report.graph_memory_diagnostics],
       ];
       await Promise.all(entries.map(([key, r]) =>
         pool.query(
