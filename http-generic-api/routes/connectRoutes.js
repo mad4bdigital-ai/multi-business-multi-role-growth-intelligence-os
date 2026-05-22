@@ -484,6 +484,7 @@ export function buildConnectRoutes(deps) {
         dedicated_integration_readiness: state.dedicatedIntegrationReadiness,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: state.hybridIntegrationReadiness,
+        activation_graph_context: state.activationGraphContext,
         connection: state.connection ? {
           mode: state.connection.connection_mode,
           status: state.connection.status,
