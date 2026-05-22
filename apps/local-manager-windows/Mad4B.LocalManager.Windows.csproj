@@ -8,10 +8,10 @@
     <AssemblyName>Mad4B-Local-Manager</AssemblyName>
     <RootNamespace>Mad4B.LocalManager.Windows</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.1.3</Version>
-    <AssemblyVersion>0.1.3.0</AssemblyVersion>
-    <FileVersion>0.1.3.0</FileVersion>
-    <InformationalVersion>0.1.3-connector-repair-flow</InformationalVersion>
+    <Version>0.1.4</Version>
+    <AssemblyVersion>0.1.4.0</AssemblyVersion>
+    <FileVersion>0.1.4.0</FileVersion>
+    <InformationalVersion>0.1.4-n8n-local-launcher</InformationalVersion>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

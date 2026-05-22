@@ -27,6 +27,9 @@ internal static class Program
     private const string DeviceSessionUrl = BaseUrl + "/local-manager/device/session";
     private const string DeviceControlsUrl = BaseUrl + "/local-manager/device/controls";
     private const string DeviceRepairInstallerUrl = BaseUrl + "/local-connector/install/device-download-link";
+    private const string N8nPublicUrl = "https://n8n.mad4b.com/";
+    private const string N8nCommandPath = @"D:\npm-global\n8n.cmd";
+    private const string N8nUserFolder = @"D:\n8n-data";
 
     [STAThread]
     private static void Main()
@@ -93,6 +96,8 @@ internal static class Program
 
             var repairButton = MakeButton("Repair connector", 28, 392, 210, async (_, _) => await RepairConnectorAsync());
             var repairControlsButton = MakeButton("Repair controls", 254, 392, 170, async (_, _) => await LoadDeviceControlsAsync("repairs", LocalManagerUrl));
+            var startN8nButton = MakeButton("Start n8n", 440, 392, 170, (_, _) => StartN8nLocal());
+            var openN8nButton = MakeButton("Open n8n", 626, 392, 196, (_, _) => OpenUrl(N8nPublicUrl));
 
             _status = new Label
             {
@@ -126,7 +131,7 @@ internal static class Program
                 title, body, signInButton, signUpButton, linkButton, openButton, forgetButton, _pairingCode,
                 devicesButton, routesButton, backupsButton, settingsButton, webDevicesButton,
                 shortcutButton, folderButton, updateButton, tokenStatusButton, repairButton, repairControlsButton,
-                _status, _progress, _output
+                startN8nButton, openN8nButton, _status, _progress, _output
             });
 
             Shown += async (_, _) =>
@@ -455,6 +460,77 @@ internal static class Program
             var chars = value.Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.' ? ch : '-').ToArray();
             var safe = new string(chars).Trim('-');
             return string.IsNullOrWhiteSpace(safe) ? "device" : safe;
+        }
+
+        private void StartN8nLocal()
+        {
+            try
+            {
+                EnsureLocalFiles(_status);
+                if (!File.Exists(N8nCommandPath))
+                {
+                    _status.Text = "n8n command was not found at " + N8nCommandPath;
+                    _output.Text = JsonSerializer.Serialize(new
+                    {
+                        n8n_start_requested = false,
+                        command_exists = false,
+                        command = N8nCommandPath,
+                        expected_user_folder = N8nUserFolder,
+                        secrets_included = false
+                    }, _json);
+                    return;
+                }
+
+                Directory.CreateDirectory(N8nUserFolder);
+                var scriptPath = Path.Combine(InstallRoot, "start-n8n-local.cmd");
+                var script = string.Join("\r\n", new[]
+                {
+                    "@echo off",
+                    "title Mad4B n8n Local Runtime",
+                    "setlocal",
+                    $"set N8N_USER_FOLDER={N8nUserFolder}",
+                    "set N8N_PORT=5678",
+                    "set N8N_LISTEN_ADDRESS=127.0.0.1",
+                    $"set N8N_EDITOR_BASE_URL={N8nPublicUrl}",
+                    $"set WEBHOOK_URL={N8nPublicUrl}",
+                    "cd /d " + N8nUserFolder,
+                    "echo Starting n8n for Mad4B...",
+                    "echo Local:  http://127.0.0.1:5678/",
+                    "echo Public: " + N8nPublicUrl,
+                    "echo Keep this window open while using n8n.",
+                    $"call \"{N8nCommandPath}\"",
+                    "echo.",
+                    "echo n8n stopped. Press any key to close this window.",
+                    "pause >nul"
+                }) + "\r\n";
+                File.WriteAllText(scriptPath, script, Encoding.ASCII);
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = scriptPath,
+                    WorkingDirectory = N8nUserFolder,
+                    UseShellExecute = true
+                });
+
+                _status.Text = "n8n start script launched. Keep the terminal window open.";
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    n8n_start_requested = true,
+                    lifecycle = "manual_external_local_manager",
+                    command = N8nCommandPath,
+                    user_folder = N8nUserFolder,
+                    local_url = "http://127.0.0.1:5678/",
+                    public_url = N8nPublicUrl,
+                    script_path = scriptPath,
+                    secrets_included = false
+                }, _json);
+                OpenUrl(N8nPublicUrl);
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Could not start n8n: " + ex.Message;
+                _output.Text = ex.ToString();
+            }
         }
 
         private void CreateShortcut()
