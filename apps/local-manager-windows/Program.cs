@@ -693,7 +693,7 @@ internal static class Program
                     throw new InvalidOperationException("Downloaded file is not a valid Windows EXE. Please download again from the web app.");
                 }
                 _progress.Value = 100;
-                _status.Text = $"Latest installer downloaded: {target}.\nLaunching…";
+                _status.Text = $"Latest installer downloaded: {target}.\nLaunching update handoff…"; LaunchUpdaterAndRestart(target); return;
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = target,
