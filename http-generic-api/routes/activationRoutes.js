@@ -359,26 +359,40 @@ async function loadActivationPendingTasks(subject = {}, maxLimit = 20) {
   };
 }
 
-async function autoOpenGptSession(pool, subject) {
+async function autoOpenGptSession(pool, subject, options = {}) {
   const userId = subject.user_id || null;
   const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const closePreviousSessions = options.close_previous_sessions === true;
 
-  const [closeResult] = await pool.query(
-    `UPDATE \`customer_sessions\`
-     SET session_status = 'closed', ended_at = NOW()
-     WHERE originator = 'gpt_action'
-       AND tenant_id = ?
-       AND (? IS NULL OR user_id = ?)
-       AND session_status NOT IN ('completed', 'closed')`,
+  const [[activeBeforeRow]] = await pool.query(
+    `SELECT COUNT(*) AS active_count
+       FROM \`customer_sessions\`
+      WHERE originator = 'gpt_action'
+        AND tenant_id = ?
+        AND (? IS NULL OR user_id = ?)
+        AND session_status IN ('pending', 'active')`,
     [tenantId, userId, userId]
   );
+
+  let closeResult = { affectedRows: 0 };
+  if (closePreviousSessions) {
+    [closeResult] = await pool.query(
+      `UPDATE \`customer_sessions\`
+       SET session_status = 'completed', ended_at = COALESCE(ended_at, NOW())
+       WHERE originator = 'gpt_action'
+         AND tenant_id = ?
+         AND (? IS NULL OR user_id = ?)
+         AND session_status IN ('pending', 'active')`,
+      [tenantId, userId, userId]
+    );
+  }
 
   const sessionId = randomUUID();
   const startedAt = new Date();
   await pool.query(
     `INSERT INTO \`customer_sessions\`
        (session_id, tenant_id, user_id, originator, session_status, started_at)
-     VALUES (?, ?, ?, 'gpt_action', 'open', ?)`,
+     VALUES (?, ?, ?, 'gpt_action', 'active', ?)`,
     [sessionId, tenantId, userId, startedAt]
   );
 
