@@ -85,9 +85,13 @@ function sanitizeN8nProfileConfig(value, { device }) {
   const fallback = defaultN8nProfile({ device });
   const cfg = parseJson(value) || {};
   const requestedPublicUrl = cleanText(cfg.public_url || cfg.tunnel_url || "", 255);
-  const publicUrl = requestedPublicUrl.replace(/\/$/, "") === PLATFORM_MANAGED_N8N_URL.replace(/\/$/, "") ? "" : requestedPublicUrl;
-  const localUrl = cleanText(cfg.local_url || fallback.local_url, 255) || fallback.local_url;
-  const port = Math.min(Math.max(parseInt(cfg.port || fallback.port, 10) || fallback.port, 1024), 65535);
+  const runtimeRole = cleanText(cfg.runtime_role || fallback.runtime_role || "tenant_local", 80) || "tenant_local";
+  const isPlatformManaged = runtimeRole === "platform_managed" || cfg.reserved_platform_domain === true;
+  const publicUrl = !isPlatformManaged && requestedPublicUrl.replace(/\/$/, "") === PLATFORM_MANAGED_N8N_URL.replace(/\/$/, "") ? "" : requestedPublicUrl;
+  const requestedPort = Math.min(Math.max(parseInt(cfg.port || fallback.port, 10) || fallback.port, 1024), 65535);
+  const port = !isPlatformManaged && requestedPort === 5678 ? fallback.port : requestedPort;
+  const requestedLocalUrl = cleanText(cfg.local_url || fallback.local_url, 255) || fallback.local_url;
+  const localUrl = !isPlatformManaged && requestedLocalUrl.includes("127.0.0.1:5678") ? fallback.local_url : requestedLocalUrl;
   const listenAddress = cleanText(cfg.listen_address || fallback.listen_address, 64) || fallback.listen_address;
   const userFolder = cleanText(cfg.user_folder || fallback.user_folder, 260) || fallback.user_folder;
   const commandPath = cleanText(cfg.command_path || fallback.command_path, 260) || fallback.command_path;
