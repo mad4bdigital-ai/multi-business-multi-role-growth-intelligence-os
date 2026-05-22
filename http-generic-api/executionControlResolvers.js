@@ -160,7 +160,7 @@ export function buildRuntimeReadiness({ action = {}, endpoint = {}, authPreview 
   return { status: "ready", can_execute: true };
 }
 
-export function buildPassiveExecutionReport({ requestPayload = {}, action = {}, endpoint = {}, brand = null, resolvedMethodPath = {}, resolvedProviderDomain = "", resolvedProviderDomainMode = "", placeholderResolutionSource = "", authContract = {}, schemaContract = {}, schemaSource = "", schemaContractFileId = "", schemaOperationInfo = {}, governedExecutionContext = null, pathResolverLoad = null, finalQuery = {}, baseUrl = "", requestUrl = "", principal = null } = {}) {
+export function buildPassiveExecutionReport({ requestPayload = {}, action = {}, endpoint = {}, brand = null, resolvedMethodPath = {}, resolvedProviderDomain = "", resolvedProviderDomainMode = "", placeholderResolutionSource = "", authContract = {}, schemaContract = {}, schemaSource = "", schemaContractFileId = "", schemaOperationInfo = {}, governedExecutionContext = null, pathResolverLoad = null, finalQuery = {}, baseUrl = "", requestUrl = "", principal = null, graphMemoryContext = null } = {}) {
   const credential_resolution = buildCredentialResolutionPreview(authContract, requestPayload);
   const schema_resolution = buildSchemaResolutionReport({ schemaContract, schemaSource, schemaContractFileId, schemaOperationInfo, action, endpoint });
   const risk = classifyEndpointRisk({ action, endpoint, method: resolvedMethodPath.method, path: resolvedMethodPath.path, principal });
@@ -214,6 +214,19 @@ export function buildPassiveExecutionReport({ requestPayload = {}, action = {}, 
       requested: Boolean(pathResolverLoad.requested),
       loaded: Boolean(pathResolverLoad.loaded),
       reason: normalize(pathResolverLoad.reason || ""),
+    } : null,
+    graph_memory_context: graphMemoryContext ? {
+      requested: Boolean(graphMemoryContext.requested),
+      resolved: Boolean(graphMemoryContext.resolved),
+      source: normalize(graphMemoryContext.source || ""),
+      usage: normalize(graphMemoryContext.usage || "execution_context_advisory"),
+      applied_to_transport: Boolean(graphMemoryContext.applied_to_transport),
+      asset_count: Number(graphMemoryContext.asset_count || 0),
+      asset_keys: Array.isArray(graphMemoryContext.assets)
+        ? graphMemoryContext.assets.map((asset) => normalize(asset?.asset_key || "")).filter(Boolean)
+        : [],
+      selection_policy: graphMemoryContext.selection_policy || {},
+      secrets_included: false,
     } : null,
   };
 }
