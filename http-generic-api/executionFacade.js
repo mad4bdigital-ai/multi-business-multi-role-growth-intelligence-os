@@ -323,6 +323,17 @@ export function createExecutionFacade(deps) {
           pathResolverLoad
         } = preparation;
 
+        const graphMemoryContext = await resolveExecutionGraphMemoryContext({
+          requestPayload,
+          action,
+          endpoint,
+          brand,
+          resolvedMethodPath,
+          providerDomain: resolvedProviderDomain,
+          parentActionKey: parent_action_key,
+          endpointKey: endpoint_key
+        });
+
         const dryRunRequested = requestPayload.dry_run === true || String(requestPayload.dry_run || "").trim().toLowerCase() === "true";
         if (dryRunRequested) {
           const report = buildPassiveExecutionReport({
