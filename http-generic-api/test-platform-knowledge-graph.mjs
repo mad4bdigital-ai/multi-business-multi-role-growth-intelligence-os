@@ -95,6 +95,26 @@ assert("graph memory service resolves scoped assets through graph attachments",
   memoryService.includes("raw_secret_values_included: false") &&
   memoryService.includes("secrets_included: false"));
 
+assert("graph memory ranking can be tuned from DB with code fallback",
+  memoryService.includes("DEFAULT_RANK_WEIGHTS") &&
+  memoryService.includes("loadGraphMemoryRankWeights") &&
+  memoryService.includes("platform_graph_memory_rank_rules") &&
+  memoryService.includes("fallback_code_defaults") &&
+  memoryService.includes("db_rank_rules") &&
+  memoryService.includes("rank_weights_source") &&
+  memoryService.includes("rank_weights") &&
+  memoryService.includes("direct_asset_match") &&
+  memoryService.includes("attached_scope_match"));
+
+assert("rank rules migration seeds graph memory ranking weights",
+  rankRulesMigration.includes("CREATE TABLE IF NOT EXISTS `platform_graph_memory_rank_rules`") &&
+  rankRulesMigration.includes("direct_asset_match") &&
+  rankRulesMigration.includes("asset_graph_node_match") &&
+  rankRulesMigration.includes("attached_scope_match") &&
+  rankRulesMigration.includes("validated_asset") &&
+  rankRulesMigration.includes("knowledge_asset_type") &&
+  rankRulesMigration.includes("ON DUPLICATE KEY UPDATE"));
+
 assert("graph service uses MariaDB-compatible JSON writes",
   !service.includes("CAST(? AS JSON)") &&
   service.includes("metadata_json=VALUES(metadata_json)") &&
