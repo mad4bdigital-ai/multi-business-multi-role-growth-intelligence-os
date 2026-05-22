@@ -461,6 +461,145 @@ async function linkSessionContinuity(body = {}) {
   };
 }
 
+function parseCliFlag(args, names) {
+  const set = new Set(Array.isArray(names) ? names : [names]);
+  for (let i = 0; i < args.length; i += 1) {
+    if (set.has(args[i])) return args[i + 1] || "";
+    for (const name of set) {
+      if (String(args[i]).startsWith(`${name}=`)) return String(args[i]).slice(name.length + 1);
+    }
+  }
+  return "";
+}
+
+function hasCliFlag(args, names) {
+  const set = new Set(Array.isArray(names) ? names : [names]);
+  return args.some((arg) => set.has(arg));
+}
+
+async function resolveGithubRepoFromArgs(args = []) {
+  const repoArg = parseCliFlag(args, ["--repo", "-R"]);
+  if (repoArg && repoArg.includes("/")) {
+    const [owner, repo] = repoArg.split("/", 2);
+    return { owner, repo };
+  }
+  const cfg = await resolveActivationBootstrapConfig({});
+  const owner = String(cfg?.config?.github_owner || "").trim();
+  const repo = String(cfg?.config?.github_repo || "").trim();
+  if (!owner || !repo) {
+    const err = new Error("GitHub repo is required. Pass --repo owner/repo or configure activation bootstrap github_owner/github_repo.");
+    err.status = 400;
+    err.code = "github_repo_required";
+    throw err;
+  }
+  return { owner, repo };
+}
+
+function parseGithubJsonFields(args = []) {
+  const raw = parseCliFlag(args, "--json");
+  return raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+}
+
+function mapGithubRunForGhJson(run, fields = []) {
+  const mapped = {
+    databaseId: run.id,
+    displayTitle: run.display_title,
+    headSha: run.head_sha,
+    conclusion: run.conclusion,
+    status: run.status,
+    workflowName: run.name,
+    createdAt: run.created_at,
+    updatedAt: run.updated_at,
+    url: run.html_url,
+    event: run.event,
+    branch: run.head_branch,
+  };
+  if (!fields.length) return mapped;
+  return Object.fromEntries(fields.map((field) => [field, mapped[field] ?? run[field] ?? null]));
+}
+
+async function githubRestJson({ owner, repo, apiPath, token, method = "GET", body = null }) {
+  const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${apiPath}`, {
+    method,
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "mad4b-admin-control-github-rest-fallback",
+      ...(method !== "GET" ? { "Content-Type": "application/json" } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err = new Error(payload?.message || `GitHub REST request failed with HTTP ${response.status}.`);
+    err.status = 502;
+    err.code = "github_rest_failed";
+    err.details = { status: response.status, apiPath };
+    throw err;
+  }
+  return payload;
+}
+
+async function githubRestText({ owner, repo, apiPath, token }) {
+  const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${apiPath}`, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "mad4b-admin-control-github-rest-fallback",
+    },
+  });
+  const text = await response.text().catch(() => "");
+  if (!response.ok) {
+    const err = new Error(text || `GitHub REST text request failed with HTTP ${response.status}.`);
+    err.status = 502;
+    err.code = "github_rest_failed";
+    err.details = { status: response.status, apiPath };
+    throw err;
+  }
+  return text;
+}
+
+async function executeGitHubRestFallback(args = []) {
+  const [resource, command, maybeId] = args;
+  const { owner, repo } = await resolveGithubRepoFromArgs(args);
+  const token = await getGitHubAppInstallationToken({});
+  const fields = parseGithubJsonFields(args);
+
+  if (resource === "run" && command === "list") {
+    const limit = Math.max(1, Math.min(100, Number(parseCliFlag(args, "--limit") || 20)));
+    const branch = parseCliFlag(args, "--branch");
+    const query = new URLSearchParams({ per_page: String(limit) });
+    if (branch) query.set("branch", branch);
+    const payload = await githubRestJson({ owner, repo, apiPath: `/actions/runs?${query}`, token });
+    const runs = (payload.workflow_runs || []).map((run) => mapGithubRunForGhJson(run, fields));
+    return { stdout: JSON.stringify(runs, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
+  if (resource === "run" && command === "view" && maybeId) {
+    const runId = encodeURIComponent(String(maybeId));
+    if (hasCliFlag(args, "--log-failed")) {
+      const jobs = await githubRestJson({ owner, repo, apiPath: `/actions/runs/${runId}/jobs?per_page=100`, token });
+      const failedJobs = (jobs.jobs || []).filter((job) => ["failure", "timed_out", "cancelled"].includes(job.conclusion));
+      const chunks = [];
+      for (const job of failedJobs) {
+        const logText = await githubRestText({ owner, repo, apiPath: `/actions/jobs/${encodeURIComponent(job.id)}/logs`, token });
+        chunks.push(`===== ${job.name} (${job.conclusion}) =====\n${logText}`);
+      }
+      return { stdout: chunks.join("\n\n") || "No failed job logs found.\n", stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+    }
+    const run = await githubRestJson({ owner, repo, apiPath: `/actions/runs/${runId}`, token });
+    return { stdout: JSON.stringify(mapGithubRunForGhJson(run, fields), null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
+  const err = new Error("gh CLI is missing and GitHub REST fallback currently supports: run list, run view <id>, run view <id> --log-failed.");
+  err.status = 501;
+  err.code = "github_rest_fallback_unsupported_args";
+  err.details = { args };
+  throw err;
+}
+
 async function executeCliTool(tool, body = {}) {
   const args = parseArgs(body.args);
 
@@ -472,7 +611,13 @@ async function executeCliTool(tool, body = {}) {
   }
 
   const command = tool === "github" ? "gh" : "gcloud";
-  return executeSafe(command, args, { timeout_ms: body.timeout_ms });
+  try {
+    return await executeSafe(command, args, { timeout_ms: body.timeout_ms });
+  } catch (err) {
+    const missingBinary = err?.code === "ENOENT" || /spawn\s+gh\s+ENOENT/i.test(String(err?.message || ""));
+    if (tool === "github" && missingBinary) return executeGitHubRestFallback(args);
+    throw err;
+  }
 }
 
 function loadShellAllowlist(env = process.env) {
