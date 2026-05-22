@@ -1,4 +1,5 @@
 import { resolvePlatformGraphMemory } from "./services/platformGraphMemoryResolver.js";
+import { logGraphMemoryUsage } from "./graphMemoryTelemetry.js";
 
 function normalize(value = "") {
   return String(value ?? "").trim();
