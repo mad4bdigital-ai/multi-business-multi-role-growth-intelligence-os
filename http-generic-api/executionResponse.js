@@ -357,6 +357,7 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
     resilience_applied: resilienceApplies,
     final_query: finalAttemptQuery,
     request_url: effectiveRequestUrl,
+    graph_memory_context: safeGraphMemoryContext,
     response_headers: responseHeaders,
     data
   };
