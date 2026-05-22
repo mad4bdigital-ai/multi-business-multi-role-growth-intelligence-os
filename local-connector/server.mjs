@@ -55,13 +55,23 @@ const N8N_ENABLED = process.env.CONNECTOR_N8N_ENABLED !== 'false';
 const N8N_BASE = (process.env.N8N_BASE_URL ?? 'http://localhost:5678').replace(/\/$/, '');
 const N8N_API_KEY = process.env.N8N_API_KEY ?? '';
 function normalizeCommandPath(value) {
-  const raw = String(value ?? '').trim();
-  if (raw.length >= 2) {
-    const first = raw[0];
-    const last = raw[raw.length - 1];
-    if ((first === '"' && last === '"') || (first === "'" && last === "'")) return raw.slice(1, -1);
+  let raw = String(value ?? '').trim();
+  for (let i = 0; i < 3; i += 1) {
+    if (raw.length >= 4 && raw.startsWith('\\"') && raw.endsWith('\\"')) {
+      raw = raw.slice(2, -2).trim();
+      continue;
+    }
+    if (raw.length >= 2) {
+      const first = raw[0];
+      const last = raw[raw.length - 1];
+      if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+        raw = raw.slice(1, -1).trim();
+        continue;
+      }
+    }
+    break;
   }
-  return raw;
+  return raw.replace(/^\\"|\\"$/g, '');
 }
 const N8N_COMMAND = normalizeCommandPath(process.env.N8N_COMMAND ?? (process.platform === 'win32' ? 'D:\\npm-global\\n8n.cmd' : 'n8n'));
 const N8N_USER_FOLDER = process.env.N8N_USER_FOLDER ?? (process.platform === 'win32' ? 'D:\\n8n-data' : path.join(os.homedir(), '.n8n'));
