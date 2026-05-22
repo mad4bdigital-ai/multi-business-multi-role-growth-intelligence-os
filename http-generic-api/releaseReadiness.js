@@ -227,8 +227,6 @@ export async function runReleaseReadiness({ persist = false } = {}) {
 
   // Graph memory diagnostics — non-blocking admin context enrichment.
   report.graph_memory_diagnostics = await checkGraphMemoryDiagnostics();
-  if (report.graph_memory_diagnostics.status === "fail" && report.overall !== "fail") report.overall = "fail";
-  else if (report.graph_memory_diagnostics.status === "warn" && report.overall === "pass") report.overall = "warn";
 
   // Summary counts
   const allChecks = [
