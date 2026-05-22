@@ -215,6 +215,19 @@ export function buildPassiveExecutionReport({ requestPayload = {}, action = {}, 
       loaded: Boolean(pathResolverLoad.loaded),
       reason: normalize(pathResolverLoad.reason || ""),
     } : null,
+    graph_memory_context: graphMemoryContext ? {
+      requested: Boolean(graphMemoryContext.requested),
+      resolved: Boolean(graphMemoryContext.resolved),
+      source: normalize(graphMemoryContext.source || ""),
+      usage: normalize(graphMemoryContext.usage || "execution_context_advisory"),
+      applied_to_transport: Boolean(graphMemoryContext.applied_to_transport),
+      asset_count: Number(graphMemoryContext.asset_count || 0),
+      asset_keys: Array.isArray(graphMemoryContext.assets)
+        ? graphMemoryContext.assets.map((asset) => normalize(asset?.asset_key || "")).filter(Boolean)
+        : [],
+      selection_policy: graphMemoryContext.selection_policy || {},
+      secrets_included: false,
+    } : null,
   };
 }
 
