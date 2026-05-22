@@ -45,7 +45,15 @@ function run(command, args = [], timeoutMs = 30000) {
     let stdout = '';
     let stderr = '';
     let settled = false;
-    const proc = spawn(command, args, { shell: false, windowsHide: true });
+    const isWindowsCommandScript = process.platform === 'win32' && /\.(cmd|bat)$/i.test(command);
+    const quoteForCmd = (value) => {
+      const s = String(value);
+      if (!s) return '""';
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const spawnCommand = isWindowsCommandScript ? (process.env.ComSpec || 'cmd.exe') : command;
+    const spawnArgs = isWindowsCommandScript ? ['/d', '/c', ['call', quoteForCmd(command), ...args.map(quoteForCmd)].join(' ')] : args;
+    const proc = spawn(spawnCommand, spawnArgs, { shell: false, windowsHide: true });
     const timer = setTimeout(() => {
       if (!settled) {
         settled = true;
