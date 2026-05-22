@@ -266,6 +266,9 @@ try {
   {
     const routeSource = readFileSync("routes/connectRoutes.js", "utf8");
     const activationGraphSource = readFileSync("activationGraphContext.js", "utf8");
+    const telemetrySource = readFileSync("graphMemoryTelemetry.js", "utf8");
+    const activationGraphMigration = readFileSync("migrations/109_sprint62t_activation_graph_docs_telemetry.sql", "utf8");
+    const parentOpenapi = readFileSync("openapi.yaml", "utf8");
     assert("connect status/capabilities/activate return activation graph context",
       routeSource.includes("resolveActivationGraphContext") &&
       routeSource.includes("activation_graph_context: state.activationGraphContext") &&
@@ -279,6 +282,28 @@ try {
       activationGraphSource.includes("mode_hints") &&
       activationGraphSource.includes("integration_summary") &&
       activationGraphSource.includes("secrets_included: false"));
+    assert("activation graph context emits non-blocking telemetry",
+      activationGraphSource.includes("logGraphMemoryUsage") &&
+      activationGraphSource.includes("activation_graph_resolved") &&
+      activationGraphSource.includes("activation_graph_empty") &&
+      telemetrySource.includes("graph_memory_usage_events") &&
+      telemetrySource.includes("Telemetry must never block activation or execution flows"));
+    assert("activation graph migration seeds doctrine assets and telemetry table",
+      activationGraphMigration.includes("CREATE TABLE IF NOT EXISTS `graph_memory_usage_events`") &&
+      activationGraphMigration.includes("activation_managed_flow_doctrine") &&
+      activationGraphMigration.includes("activation_dedicated_flow_doctrine") &&
+      activationGraphMigration.includes("activation_hybrid_integration_policy_doctrine") &&
+      activationGraphMigration.includes("activation_device_install_prerequisites_doctrine") &&
+      activationGraphMigration.includes("activation_graph_context_boundary_doctrine") &&
+      activationGraphMigration.includes("secrets_included"));
+    assert("parent OpenAPI documents graph and activation context envelopes",
+      parentOpenapi.includes("GraphMemorySelectionPolicy") &&
+      parentOpenapi.includes("GraphMemoryExecutionContext") &&
+      parentOpenapi.includes("ActivationGraphContext") &&
+      parentOpenapi.includes("activation_resolver_advisory") &&
+      parentOpenapi.includes("applied_to_authority") &&
+      parentOpenapi.includes("applied_to_transport") &&
+      parentOpenapi.includes("graph_memory_context"));
   }
 
   section("connect tenantless onboarding recovery");
