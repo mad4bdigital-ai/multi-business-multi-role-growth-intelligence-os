@@ -355,7 +355,8 @@ export function createExecutionFacade(deps) {
             finalQuery,
             baseUrl,
             requestUrl,
-            principal: requestPayload._principal || null
+            principal: requestPayload._principal || null,
+            graphMemoryContext
           });
 
           await performUniversalServerWriteback({
