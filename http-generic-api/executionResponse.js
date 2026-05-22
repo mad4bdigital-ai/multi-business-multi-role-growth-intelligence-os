@@ -294,6 +294,7 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
       resilience_applied: resilienceApplies,
       final_query: finalAttemptQuery,
       request_url: effectiveRequestUrl,
+      graph_memory_context: safeGraphMemoryContext,
       error: {
         code: "wordpress_request_failed",
         message: "WordPress did not confirm post creation.",
