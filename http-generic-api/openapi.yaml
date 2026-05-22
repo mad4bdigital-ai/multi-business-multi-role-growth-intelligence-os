@@ -338,6 +338,92 @@ components:
             $ref: "#/components/schemas/PlatformGraphMemoryAsset"
         secrets_included: { type: boolean, enum: [false] }
 
+    GraphMemorySelectionPolicy:
+      type: object
+      additionalProperties: true
+      description: Safe graph-memory selection metadata. Raw payload and secret values are never included.
+      properties:
+        limit: { type: integer }
+        included_payload:
+          type: string
+          enum: [summary_only]
+        full_json_payload_included: { type: boolean, enum: [false] }
+        raw_secret_values_included: { type: boolean, enum: [false] }
+        rank_weights_source:
+          type: string
+          enum: [db_rank_rules, fallback_code_defaults]
+        rank_weights:
+          type: object
+          additionalProperties: { type: integer }
+
+    GraphMemoryContextAsset:
+      type: object
+      additionalProperties: true
+      properties:
+        asset_id: { type: string, nullable: true }
+        asset_key: { type: string, nullable: true }
+        asset_type: { type: string, nullable: true }
+        graph_rank: { type: integer }
+        validation_status: { type: string, nullable: true }
+        payload_summary:
+          $ref: "#/components/schemas/JsonValue"
+
+    GraphMemoryExecutionContext:
+      type: object
+      additionalProperties: true
+      description: Advisory graph-memory context attached to endpoint execution responses. It never mutates transport.
+      properties:
+        requested: { type: boolean }
+        resolved: { type: boolean }
+        source: { type: string, enum: [platform_graph_memory] }
+        usage: { type: string, enum: [execution_context_advisory] }
+        applied_to_transport: { type: boolean, enum: [false] }
+        asset_count: { type: integer }
+        assets:
+          type: array
+          items: { $ref: "#/components/schemas/GraphMemoryContextAsset" }
+        selection_policy: { $ref: "#/components/schemas/GraphMemorySelectionPolicy" }
+        secrets_included: { type: boolean, enum: [false] }
+
+    ActivationGraphContext:
+      type: object
+      additionalProperties: true
+      description: Advisory graph-memory context attached to connect status, capabilities, and activation responses. Authority remains SQL tables plus same-cycle validation.
+      properties:
+        requested: { type: boolean }
+        resolved: { type: boolean }
+        source: { type: string, enum: [platform_graph_memory] }
+        usage: { type: string, enum: [activation_resolver_advisory] }
+        applied_to_authority: { type: boolean, enum: [false] }
+        surface: { type: string }
+        tenant_node: { type: string, nullable: true }
+        user_node: { type: string, nullable: true }
+        device_nodes:
+          type: array
+          items: { type: string }
+        mode_hints:
+          type: array
+          items: { type: string }
+        onboarding_state: { type: string, nullable: true }
+        integration_summary:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        graph_node_ids:
+          type: array
+          items: { type: string }
+        asset_count: { type: integer }
+        policy_asset_keys:
+          type: array
+          items: { type: string }
+        assets:
+          type: array
+          items: { $ref: "#/components/schemas/GraphMemoryContextAsset" }
+        selection_policy: { $ref: "#/components/schemas/GraphMemorySelectionPolicy" }
+        reason: { type: string, nullable: true }
+        secrets_included: { type: boolean, enum: [false] }
+
     ExecuteHttpRequest:
       type: object
       additionalProperties: false
