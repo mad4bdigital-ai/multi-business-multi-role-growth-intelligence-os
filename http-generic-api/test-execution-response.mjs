@@ -90,6 +90,8 @@ const result = await validateAndShapeExecutionResponse(
 assert("response returns success", result.status === 200, JSON.stringify(result));
 assert("runtime_callable uses effective eligibility", result.body.runtime_callable === true, JSON.stringify(result.body));
 assert("registry_runtime_callable preserves raw registry value", result.body.registry_runtime_callable === false, JSON.stringify(result.body));
+assert("execution response includes safe graph memory context", result.body.graph_memory_context?.resolved === true && result.body.graph_memory_context?.asset_count === 1, JSON.stringify(result.body));
+assert("execution graph memory context does not expose secrets", result.body.graph_memory_context?.secrets_included === false && result.body.graph_memory_context?.selection_policy?.raw_secret_values_included === false, JSON.stringify(result.body));
 
 console.log(`Results: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
