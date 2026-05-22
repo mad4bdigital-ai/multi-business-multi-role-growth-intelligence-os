@@ -3,6 +3,7 @@ import { Router } from "express";
 import { getPool } from "../db.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
 import { ensureSessionArchive } from "../sessionArchiveService.js";
+import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
 import {
   REGISTRY_SPREADSHEET_ID,
   ACTIVITY_SPREADSHEET_ID,
