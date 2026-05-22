@@ -236,6 +236,7 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
         resilience_applied: resilienceApplies,
         final_query: finalAttemptQuery,
         request_url: effectiveRequestUrl,
+        graph_memory_context: safeGraphMemoryContext,
         post_id: data.id,
         status: data.status,
         link: data.link || ""
