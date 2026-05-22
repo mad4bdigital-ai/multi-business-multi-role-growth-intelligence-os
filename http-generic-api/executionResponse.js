@@ -48,7 +48,8 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
     execution_trace_id,
     sync_execution_started_at,
     resolvedMethodPath,
-    policies
+    policies,
+    graphMemoryContext = null
   } = context;
 
   const {
