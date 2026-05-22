@@ -343,7 +343,7 @@ function runCommand(command, args, timeoutMs) {
       : command;
 
     const spawnArgs = isWindowsCommandScript
-      ? ['/d', '/s', '/c', [quoteForCmd(command), ...args.map(quoteForCmd)].join(' ')]
+      ? ['/d', '/s', '/c', ['call', quoteForCmd(command), ...args.map(quoteForCmd)].join(' ')]
       : args;
 
     const proc = spawn(spawnCommand, spawnArgs, { shell: false, windowsHide: true });
