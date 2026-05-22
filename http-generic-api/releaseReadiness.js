@@ -124,6 +124,52 @@ async function checkMigrationInventorySafe() {
   }
 }
 
+function graphMemoryCheckResult(memory = {}) {
+  const assetCount = Number(memory.asset_count || 0);
+  const resolved = Boolean(memory.resolved);
+  return {
+    status: resolved ? "pass" : "warn",
+    detail: resolved
+      ? `Graph memory resolved ${assetCount} asset(s) for release readiness diagnostics.`
+      : memory.reason || "Graph memory returned no diagnostic assets.",
+    requested: Boolean(memory.requested),
+    resolved,
+    asset_count: assetCount,
+    asset_keys: Array.isArray(memory.assets)
+      ? memory.assets.map((asset) => asset?.asset_key).filter(Boolean).slice(0, 10)
+      : [],
+    selection_policy: memory.selection_policy || {},
+    secrets_included: false,
+  };
+}
+
+async function checkGraphMemoryDiagnostics() {
+  try {
+    const memory = await resolvePlatformGraphMemory({
+      input: {
+        node_id: "platform.global",
+        request_type: "release_readiness",
+        diagnostic_surface: "release_readiness",
+        depth: 1,
+        memory_limit: 5,
+      },
+      limit: 5,
+    });
+    return graphMemoryCheckResult(memory);
+  } catch (err) {
+    return {
+      status: "warn",
+      detail: `Graph memory diagnostics unavailable: ${err?.message || "unknown error"}`,
+      requested: true,
+      resolved: false,
+      asset_count: 0,
+      asset_keys: [],
+      selection_policy: {},
+      secrets_included: false,
+    };
+  }
+}
+
 async function checkLegacyTables() {
   const results = {};
   for (const table of LEGACY_TABLES) {
