@@ -462,6 +462,8 @@ internal static class Program
             return string.IsNullOrWhiteSpace(safe) ? "device" : safe;
         }
 
+        private async Task OpenN8nLocalAsync() { try { var profile = await LoadN8nProfileAsync(); var url = string.IsNullOrWhiteSpace(profile.PublicUrl) ? profile.LocalUrl : profile.PublicUrl; OpenUrl(url); _status.Text = string.IsNullOrWhiteSpace(profile.PublicUrl) ? "Opening local n8n." : "Opening public n8n."; } catch (Exception ex) { _status.Text = "Could not open n8n: " + ex.Message; _output.Text = ex.ToString(); } }
+
         private async Task StartN8nLocalAsync()
         {
             try
