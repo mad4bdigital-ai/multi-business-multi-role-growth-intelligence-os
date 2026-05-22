@@ -707,6 +707,83 @@ internal static class Program
         }
     }
 
+    private sealed class N8nLocalProfile
+    {
+        public string SystemId { get; init; } = "default-local-n8n";
+        public string? InstallationId { get; init; }
+        public string ProfileSource { get; init; } = "app_fallback";
+        public string LifecycleMode { get; init; } = "local_manager_autopilot";
+        public string InstallMode { get; init; } = "npm_global_if_missing";
+        public bool LocalOnly { get; init; } = true;
+        public string CommandPath { get; init; } = N8nCommandPath;
+        public string NpmPrefix { get; init; } = @"D:\npm-global";
+        public string UserFolder { get; init; } = N8nUserFolder;
+        public string LocalUrl { get; init; } = "http://127.0.0.1:5678/";
+        public string PublicUrl { get; init; } = N8nPublicUrl;
+        public int Port { get; init; } = 5678;
+        public string ListenAddress { get; init; } = "127.0.0.1";
+        public string EditorBaseUrl { get; init; } = N8nPublicUrl;
+        public string WebhookUrl { get; init; } = N8nPublicUrl;
+
+        public static N8nLocalProfile Default() => new();
+
+        public static N8nLocalProfile FromJson(JsonElement connector, JsonElement profile)
+        {
+            var fallback = Default();
+            return new N8nLocalProfile
+            {
+                SystemId = GetString(connector, "system_id", fallback.SystemId),
+                InstallationId = GetNullableString(connector, "installation_id"),
+                ProfileSource = GetString(profile, "profile_source", fallback.ProfileSource),
+                LifecycleMode = GetString(profile, "lifecycle_mode", fallback.LifecycleMode),
+                InstallMode = GetString(profile, "install_mode", fallback.InstallMode),
+                LocalOnly = GetBool(profile, "local_only", fallback.LocalOnly),
+                CommandPath = GetString(profile, "command_path", fallback.CommandPath),
+                NpmPrefix = GetString(profile, "npm_prefix", fallback.NpmPrefix),
+                UserFolder = GetString(profile, "user_folder", fallback.UserFolder),
+                LocalUrl = GetString(profile, "local_url", fallback.LocalUrl),
+                PublicUrl = GetString(profile, "public_url", fallback.PublicUrl),
+                Port = GetInt(profile, "port", fallback.Port),
+                ListenAddress = GetString(profile, "listen_address", fallback.ListenAddress),
+                EditorBaseUrl = GetString(profile, "editor_base_url", fallback.EditorBaseUrl),
+                WebhookUrl = GetString(profile, "webhook_url", fallback.WebhookUrl),
+            };
+        }
+
+        private static string GetString(JsonElement element, string name, string fallback)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value)) return fallback;
+            var text = value.ValueKind == JsonValueKind.String ? value.GetString() : value.ToString();
+            return string.IsNullOrWhiteSpace(text) ? fallback : text!;
+        }
+
+        private static string? GetNullableString(JsonElement element, string name)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null) return null;
+            var text = value.ValueKind == JsonValueKind.String ? value.GetString() : value.ToString();
+            return string.IsNullOrWhiteSpace(text) ? null : text;
+        }
+
+        private static bool GetBool(JsonElement element, string name, bool fallback)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value)) return fallback;
+            return value.ValueKind switch
+            {
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                JsonValueKind.String => bool.TryParse(value.GetString(), out var parsed) ? parsed : fallback,
+                _ => fallback,
+            };
+        }
+
+        private static int GetInt(JsonElement element, string name, int fallback)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value)) return fallback;
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number)) return number;
+            return int.TryParse(value.ToString(), out var parsed) ? parsed : fallback;
+        }
+    }
+
     private sealed class WindowsUpdateInfo
     {
         [JsonPropertyName("ok")] public bool Ok { get; set; }
