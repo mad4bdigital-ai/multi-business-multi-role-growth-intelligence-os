@@ -739,6 +739,17 @@ export async function getDeviceControls(req, res) {
         elevation_required: true,
         note: "Local Manager should call the endpoint with its device token, download the signed installer, elevate locally, run it, then verify /policy and alias refresh.",
       },
+      n8n: {
+        label: "Local n8n",
+        actions: ["resolve_connected_system_profile", "install_node_if_missing", "install_n8n_if_missing", "write_tenant_start_script", "start_local_n8n", "open_local_or_public_url", "validate_local_reachability"],
+        write_actions_enabled: true,
+        autopilot_enabled: true,
+        local_only_default: true,
+        requires_device_token: true,
+        requires_tenant_membership: true,
+        credential_policy: "No n8n API key is required for local start. API keys are optional and must be stored separately as credential_refs.",
+        note: "Local Manager should use the returned profile. It may install Node/n8n locally, create the tenant data folder, write a start script, and launch n8n on 127.0.0.1.",
+      },
       settings: {
         label: "Settings",
         actions: ["view_device_identity", "view_token_storage_status", "open_account_settings"],
