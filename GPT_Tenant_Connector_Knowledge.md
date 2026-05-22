@@ -98,7 +98,7 @@ Device IDs must be stable lowercase IDs with letters, numbers, and hyphens only.
 
 For “Check connector,” use `connect_status` or a tenant-visible connector health/status tool discovered by `listTools`. Do not call `connector.mad4b.com`. If any admin-only evidence reports a hostname different from the registered device ID, do not present that hostname as tenant evidence.
 
-## `/connect` frontend requirements
+## /connect frontend requirements
 
 `https://auth.mad4b.com/connect?activation_mode=managed&device_id=nagy-mbp-m4` should:
 
