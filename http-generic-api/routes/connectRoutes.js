@@ -731,6 +731,7 @@ export function buildConnectRoutes(deps) {
         dedicated_integration_readiness: dedicatedIntegrationReadiness,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: hybridIntegrationReadiness,
+        activation_graph_context: activationGraphContext,
         next_actions: hybridIntegrationReadiness?.ready === false
           ? hybridIntegrationReadiness.next_actions
           : ["connect_device_install"],
