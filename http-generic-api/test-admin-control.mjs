@@ -31,6 +31,13 @@ try {
   assert("local connector JSON responses expose sanitized Drive handoff status",
     adminCliSource.includes("drive_upload_status") && adminCliSource.includes("sanitizeDriveUploadError"),
     "responses should distinguish uploaded, failed, and unconfigured Drive handoffs without exposing installer content");
+  assert("github admin control falls back to REST when gh is missing",
+    adminCliSource.includes("executeGitHubRestFallback") &&
+    adminCliSource.includes("gh CLI is not installed on host; used GitHub REST fallback") &&
+    adminCliSource.includes("getGitHubAppInstallationToken") &&
+    adminCliSource.includes("/actions/runs") &&
+    adminCliSource.includes("/actions/jobs/"),
+    "host GitHub control must not hard-fail when gh is absent");
 
   const repoList = await inspectRepoReadOnly({ action: "list", path: "http-generic-api", max_entries: 200 });
   assert("repo inspect can list repo files read-only", repoList.entries.some((entry) => entry.path === "http-generic-api/package.json"), JSON.stringify(repoList));
