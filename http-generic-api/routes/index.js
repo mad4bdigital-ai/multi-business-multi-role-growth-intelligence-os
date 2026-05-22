@@ -56,6 +56,7 @@ import { buildBackupArtifactRoutes } from "./backupArtifactRoutes.js";
 import { buildLocalGatewayToolsRoutes } from "./localGatewayToolsRoutes.js";
 import { buildLocalConnectorDeviceRouteRoutes } from "./localConnectorDeviceRouteRoutes.js";
 import { buildLocalManagerBetaRoutes } from "./localManagerBetaRoutes.js";
+import { buildLocalManagerDesktopCommandRoutes } from "./localManagerDesktopCommandRoutes.js";
 import { buildDeploymentInfoRoutes } from "./deploymentInfoRoutes.js";
 import { buildDevDbRestoreRoutes } from "./devDbRestoreRoutes.js";
 import { buildAdminOnboardingRoutes } from "./adminOnboardingRoutes.js";
