@@ -138,7 +138,7 @@ internal static class Program
             {
                 EnsureLocalFiles(_status);
                 ShowTokenStatus();
-                await CheckAndInstallUpdateAsync(false);
+                await CheckAndInstallUpdateAsync(false); StartDesktopCommandPolling();
             };
         }
 
