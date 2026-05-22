@@ -35,7 +35,7 @@ internal static class Program
     private static void Main()
     {
         ApplicationConfiguration.Initialize();
-        Application.Run(new MainForm());
+        using var singleInstanceMutex = new System.Threading.Mutex(true, "Mad4B.LocalManager.Windows.SingleInstance", out var isFirstInstance); if (!isFirstInstance) { MessageBox.Show("Mad4B Local Manager is already running. Close the existing window before starting another copy.", "Mad4B Local Manager", MessageBoxButtons.OK, MessageBoxIcon.Information); return; } Application.Run(new MainForm());
     }
 
     private sealed class MainForm : Form
