@@ -26,7 +26,7 @@ internal static class Program
     private const string DeviceLinkPollUrl = BaseUrl + "/local-manager/device-link/poll";
     private const string DeviceSessionUrl = BaseUrl + "/local-manager/device/session";
     private const string DeviceControlsUrl = BaseUrl + "/local-manager/device/controls";
-    private const string DeviceRepairInstallerUrl = BaseUrl + "/local-connector/install/device-download-link";
+    private const string DeviceRepairInstallerUrl = BaseUrl + "/local-connector/install/device-download-link"; private const string DesktopCommandsUrl = BaseUrl + "/local-manager/device/desktop-commands";
     private const string N8nPublicUrl = "";
     private const string N8nCommandPath = @"D:\npm-global\n8n.cmd";
     private const string N8nUserFolder = @"D:\n8n-data";
