@@ -160,7 +160,7 @@ export function buildRuntimeReadiness({ action = {}, endpoint = {}, authPreview 
   return { status: "ready", can_execute: true };
 }
 
-export function buildPassiveExecutionReport({ requestPayload = {}, action = {}, endpoint = {}, brand = null, resolvedMethodPath = {}, resolvedProviderDomain = "", resolvedProviderDomainMode = "", placeholderResolutionSource = "", authContract = {}, schemaContract = {}, schemaSource = "", schemaContractFileId = "", schemaOperationInfo = {}, governedExecutionContext = null, pathResolverLoad = null, finalQuery = {}, baseUrl = "", requestUrl = "", principal = null } = {}) {
+export function buildPassiveExecutionReport({ requestPayload = {}, action = {}, endpoint = {}, brand = null, resolvedMethodPath = {}, resolvedProviderDomain = "", resolvedProviderDomainMode = "", placeholderResolutionSource = "", authContract = {}, schemaContract = {}, schemaSource = "", schemaContractFileId = "", schemaOperationInfo = {}, governedExecutionContext = null, pathResolverLoad = null, finalQuery = {}, baseUrl = "", requestUrl = "", principal = null, graphMemoryContext = null } = {}) {
   const credential_resolution = buildCredentialResolutionPreview(authContract, requestPayload);
   const schema_resolution = buildSchemaResolutionReport({ schemaContract, schemaSource, schemaContractFileId, schemaOperationInfo, action, endpoint });
   const risk = classifyEndpointRisk({ action, endpoint, method: resolvedMethodPath.method, path: resolvedMethodPath.path, principal });
