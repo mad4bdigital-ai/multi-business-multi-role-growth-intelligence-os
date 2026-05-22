@@ -27,7 +27,7 @@ internal static class Program
     private const string DeviceSessionUrl = BaseUrl + "/local-manager/device/session";
     private const string DeviceControlsUrl = BaseUrl + "/local-manager/device/controls";
     private const string DeviceRepairInstallerUrl = BaseUrl + "/local-connector/install/device-download-link";
-    private const string N8nPublicUrl = "https://n8n.mad4b.com/";
+    private const string N8nPublicUrl = "";
     private const string N8nCommandPath = @"D:\npm-global\n8n.cmd";
     private const string N8nUserFolder = @"D:\n8n-data";
 
@@ -97,7 +97,7 @@ internal static class Program
             var repairButton = MakeButton("Repair connector", 28, 392, 210, async (_, _) => await RepairConnectorAsync());
             var repairControlsButton = MakeButton("Repair controls", 254, 392, 170, async (_, _) => await LoadDeviceControlsAsync("repairs", LocalManagerUrl));
             var startN8nButton = MakeButton("Start n8n", 440, 392, 170, async (_, _) => await StartN8nLocalAsync());
-            var openN8nButton = MakeButton("Open n8n", 626, 392, 196, (_, _) => OpenUrl(N8nPublicUrl));
+            var openN8nButton = MakeButton("Open n8n", 626, 392, 196, async (_, _) => await OpenN8nLocalAsync());
 
             _status = new Label
             {
@@ -462,6 +462,8 @@ internal static class Program
             return string.IsNullOrWhiteSpace(safe) ? "device" : safe;
         }
 
+        private async Task OpenN8nLocalAsync() { try { var profile = await LoadN8nProfileAsync(); var url = string.IsNullOrWhiteSpace(profile.PublicUrl) ? profile.LocalUrl : profile.PublicUrl; OpenUrl(url); _status.Text = string.IsNullOrWhiteSpace(profile.PublicUrl) ? "Opening local n8n." : "Opening public n8n."; } catch (Exception ex) { _status.Text = "Could not open n8n: " + ex.Message; _output.Text = ex.ToString(); } }
+
         private async Task StartN8nLocalAsync()
         {
             try
@@ -727,8 +729,8 @@ internal static class Program
         public string PublicUrl { get; init; } = N8nPublicUrl;
         public int Port { get; init; } = 5678;
         public string ListenAddress { get; init; } = "127.0.0.1";
-        public string EditorBaseUrl { get; init; } = N8nPublicUrl;
-        public string WebhookUrl { get; init; } = N8nPublicUrl;
+        public string EditorBaseUrl { get; init; } = "http://127.0.0.1:5678/";
+        public string WebhookUrl { get; init; } = "http://127.0.0.1:5678/";
 
         public static N8nLocalProfile Default() => new();
 

@@ -6,6 +6,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const DEVICE_LINK_TTL_SECONDS = 10 * 60;
 const POLL_INTERVAL_SECONDS = 3;
 const DEVICE_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
+const PLATFORM_MANAGED_N8N_URL = "https://n8n.mad4b.com/";
 
 function nowMs() {
   return Date.now();
@@ -80,7 +81,8 @@ function defaultN8nProfile({ device }) {
 function sanitizeN8nProfileConfig(value, { device }) {
   const fallback = defaultN8nProfile({ device });
   const cfg = parseJson(value) || {};
-  const publicUrl = cleanText(cfg.public_url || cfg.tunnel_url || "", 255);
+  const requestedPublicUrl = cleanText(cfg.public_url || cfg.tunnel_url || "", 255);
+  const publicUrl = requestedPublicUrl.replace(/\/$/, "") === PLATFORM_MANAGED_N8N_URL.replace(/\/$/, "") ? "" : requestedPublicUrl;
   const localUrl = cleanText(cfg.local_url || fallback.local_url, 255) || fallback.local_url;
   const port = Math.min(Math.max(parseInt(cfg.port || fallback.port, 10) || fallback.port, 1024), 65535);
   const listenAddress = cleanText(cfg.listen_address || fallback.listen_address, 64) || fallback.listen_address;
