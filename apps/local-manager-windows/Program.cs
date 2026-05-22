@@ -523,7 +523,8 @@ internal static class Program
 
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = scriptPath,
+                    FileName = "cmd.exe",
+                    Arguments = "/k \"" + scriptPath + "\"",
                     WorkingDirectory = userFolder,
                     UseShellExecute = true
                 });
@@ -658,7 +659,8 @@ internal static class Program
                 using var response = await client.GetAsync(UpdateUrl, HttpCompletionOption.ResponseHeadersRead);
                 response.EnsureSuccessStatusCode();
                 var total = response.Content.Headers.ContentLength;
-                var target = Path.Combine(UpdatesRoot, "Mad4B-Local-Manager-Setup-latest.exe");
+                var safeVersion = string.IsNullOrWhiteSpace(info.LatestVersion) ? DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmss") : info.LatestVersion.Replace(".", "-").Replace("+", "-").Replace(" ", "-");
+                var target = Path.Combine(UpdatesRoot, $"Mad4B-Local-Manager-Setup-{safeVersion}-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.exe");
                 await using (var source = await response.Content.ReadAsStreamAsync())
                 await using (var destination = File.Create(target))
                 {
