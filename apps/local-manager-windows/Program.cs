@@ -34,7 +34,7 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
-        ApplicationConfiguration.Initialize();
+        var currentProcess = Process.GetCurrentProcess(); foreach (var otherProcess in Process.GetProcessesByName(currentProcess.ProcessName)) { if (otherProcess.Id == currentProcess.Id) continue; try { if (otherProcess.MainWindowHandle != IntPtr.Zero) otherProcess.CloseMainWindow(); if (!otherProcess.WaitForExit(3000)) otherProcess.Kill(); } catch { } } ApplicationConfiguration.Initialize();
         using var singleInstanceMutex = new System.Threading.Mutex(true, "Mad4B.LocalManager.Windows.SingleInstance", out var isFirstInstance); if (!isFirstInstance) { MessageBox.Show("Mad4B Local Manager is already running. Close the existing window before starting another copy.", "Mad4B Local Manager", MessageBoxButtons.OK, MessageBoxIcon.Information); return; } Application.Run(new MainForm());
     }
 
