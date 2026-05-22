@@ -757,11 +757,13 @@ export async function getDeviceControls(req, res) {
       },
     };
 
+    const n8nConnector = section === "n8n" ? await resolveOrCreateTenantN8nProfile(device) : null;
     return res.status(200).json({
       ok: true,
       section,
       device,
       controls: baseControls[section],
+      n8n_connector: n8nConnector,
       token_scope: "local_manager.device",
       secrets_included: false,
     });
