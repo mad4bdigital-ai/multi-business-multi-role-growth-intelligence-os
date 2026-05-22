@@ -444,7 +444,8 @@ export function createExecutionFacade(deps) {
             execution_trace_id,
             sync_execution_started_at,
             resolvedMethodPath,
-            policies
+            policies,
+            graphMemoryContext
           },
           {
             policyValue,
