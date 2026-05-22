@@ -414,10 +414,18 @@ async function autoOpenGptSession(pool, subject, options = {}) {
     console.warn(`[activation] ensureSessionArchive failed for ${sessionId}, will lazy-allocate on first turn: ${err.message}`);
   }
 
+  const activeBefore = asCount(activeBeforeRow?.active_count);
   return {
     session_id: sessionId,
     closed_sessions: closeResult.affectedRows || 0,
     archive_status: archiveStatus,
+    session_management: {
+      parallel_sessions_allowed: true,
+      close_previous_sessions_requested: closePreviousSessions,
+      active_sessions_before_open: activeBefore,
+      active_sessions_after_open: closePreviousSessions ? 1 : activeBefore + 1,
+      status_written: "active",
+    },
   };
 }
 
