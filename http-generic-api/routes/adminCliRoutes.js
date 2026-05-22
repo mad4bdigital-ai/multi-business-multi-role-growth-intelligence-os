@@ -661,6 +661,35 @@ async function executeGitHubRestFallback(args = []) {
     return { stdout: JSON.stringify(output, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
   }
 
+  if (resource === "pr" && command === "close" && maybeId) {
+    const comment = parseCliFlag(args, "--comment");
+    const prNumber = encodeURIComponent(String(maybeId));
+    if (comment) {
+      await githubRestJson({
+        owner,
+        repo,
+        apiPath: `/issues/${prNumber}/comments`,
+        token,
+        method: "POST",
+        body: { body: comment },
+      });
+    }
+    const payload = await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/pulls/${prNumber}`,
+      token,
+      method: "PATCH",
+      body: { state: "closed" },
+    });
+    return {
+      stdout: JSON.stringify({ number: payload.number, state: payload.state, html_url: payload.html_url }, null, 2),
+      stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n",
+      exit_code: 0,
+      fallback: "github_rest",
+    };
+  }
+
   if (resource === "run" && command === "list") {
     const limit = Math.max(1, Math.min(100, Number(parseCliFlag(args, "--limit") || 20)));
     const branch = parseCliFlag(args, "--branch");
