@@ -534,7 +534,7 @@ section("connect api auth scope");
       source.includes("secrets_included: false"));
     assert("Local Manager device controls advertise connector repair installer action",
       deviceLinkSource.includes('connector_repair_installer: "/local-connector/install/device-download-link"') &&
-      deviceLinkSource.includes('allowedSections = new Set(["overview", "routes", "backups", "repairs", "settings"])') &&
+      deviceLinkSource.includes('allowedSections = new Set(["overview", "routes", "backups", "repairs", "n8n", "settings"])') &&
       deviceLinkSource.includes("request_connector_upgrade_installer") &&
       deviceLinkSource.includes("verify_connector_policy"));
   }
