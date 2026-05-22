@@ -433,7 +433,10 @@ export async function buildActivationSessionContext(req) {
   const pool = getPool();
   const subject = resolveSessionContextSubject(req);
 
-  const { session_id: newSessionId, closed_sessions } = await autoOpenGptSession(pool, subject);
+  const sessionOpen = await autoOpenGptSession(pool, subject, {
+    close_previous_sessions: asBoolean(req.query.close_previous_sessions) || asBoolean(req.query.close_previous),
+  });
+  const { session_id: newSessionId, closed_sessions } = sessionOpen;
 
   const limit = capLimit(req.query.limit, SESSION_CONTEXT_DEFAULT_LIMIT, SESSION_CONTEXT_MAX_LIMIT);
   const offset = normalizeOffset(req.query.offset);
