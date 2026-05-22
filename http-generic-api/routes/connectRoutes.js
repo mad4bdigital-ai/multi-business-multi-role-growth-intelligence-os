@@ -708,6 +708,22 @@ export function buildConnectRoutes(deps) {
         userId: user_id,
         connection,
       });
+      const [user, devices] = await Promise.all([
+        fetchUser(user_id),
+        fetchUserDevices(user_id, resolvedTenantId),
+      ]);
+      const activationGraphContext = await resolveActivationGraphContext({
+        user,
+        tenantId: resolvedTenantId,
+        membership,
+        connection,
+        devices,
+        modePolicy,
+        dedicatedIntegrationReadiness,
+        hybridIntegrationReadiness,
+        onboarding: buildOnboardingState({ resolvedTenantId, connection, devices }),
+        surface: "connect_activate",
+      });
       return res.json({
         ok: true,
         mode_policy: modePolicy,
