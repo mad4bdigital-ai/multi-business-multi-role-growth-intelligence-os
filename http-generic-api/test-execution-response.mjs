@@ -56,7 +56,18 @@ const result = await validateAndShapeExecutionResponse(
     execution_trace_id: "trace_1",
     sync_execution_started_at: "2026-04-26T00:00:00.000Z",
     resolvedMethodPath: { method: "GET", path: "/resource" },
-    policies: []
+    policies: [],
+    graphMemoryContext: {
+      requested: true,
+      resolved: true,
+      source: "platform_graph_memory",
+      usage: "execution_context_advisory",
+      applied_to_transport: false,
+      asset_count: 1,
+      assets: [{ asset_key: "example_execution_doctrine", payload_summary: { rule_count: 2 } }],
+      selection_policy: { included_payload: "summary_only", raw_secret_values_included: false },
+      secrets_included: false
+    }
   },
   {
     boolFromSheet,
