@@ -6,6 +6,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const DEVICE_LINK_TTL_SECONDS = 10 * 60;
 const POLL_INTERVAL_SECONDS = 3;
 const DEVICE_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
+const PLATFORM_MANAGED_N8N_URL = "https://n8n.mad4b.com/";
 
 function nowMs() {
   return Date.now();
