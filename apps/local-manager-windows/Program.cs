@@ -523,7 +523,8 @@ internal static class Program
 
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = scriptPath,
+                    FileName = "cmd.exe",
+                    Arguments = "/k \"" + scriptPath + "\"",
                     WorkingDirectory = userFolder,
                     UseShellExecute = true
                 });
