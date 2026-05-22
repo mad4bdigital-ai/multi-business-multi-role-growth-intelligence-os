@@ -20,6 +20,7 @@ import {
   hybridIntegrationCatalog,
   upsertTenantIntegrationPolicies,
 } from "../hybridIntegrationPolicy.js";
+import { resolveActivationGraphContext } from "../activationGraphContext.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECT_STATIC = join(__dirname, "../public/connect");
@@ -212,6 +213,18 @@ async function resolveConnectState(userId, jwtTenantId = null) {
   const hybridIntegrationReadiness = resolvedTenantId
     ? await assessHybridIntegrationReadiness({ tenantId: resolvedTenantId, userId, connection })
     : null;
+  const onboarding = buildOnboardingState({ resolvedTenantId, connection, devices });
+  const activationGraphContext = await resolveActivationGraphContext({
+    user,
+    tenantId: resolvedTenantId,
+    membership: activeMembership,
+    connection,
+    devices,
+    dedicatedIntegrationReadiness,
+    hybridIntegrationReadiness,
+    onboarding,
+    surface: "connect_status",
+  });
   return {
     user,
     memberships,
@@ -221,7 +234,8 @@ async function resolveConnectState(userId, jwtTenantId = null) {
     devices,
     dedicatedIntegrationReadiness,
     hybridIntegrationReadiness,
-    onboarding: buildOnboardingState({ resolvedTenantId, connection, devices }),
+    activationGraphContext,
+    onboarding,
   };
 }
 
@@ -470,6 +484,7 @@ export function buildConnectRoutes(deps) {
         dedicated_integration_readiness: state.dedicatedIntegrationReadiness,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: state.hybridIntegrationReadiness,
+        activation_graph_context: state.activationGraphContext,
         connection: state.connection ? {
           mode: state.connection.connection_mode,
           status: state.connection.status,
@@ -610,6 +625,7 @@ export function buildConnectRoutes(deps) {
         dedicated_integration_readiness: state.dedicatedIntegrationReadiness,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: state.hybridIntegrationReadiness,
+        activation_graph_context: state.activationGraphContext,
       });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "capabilities_read_failed", message: err.message } });
@@ -692,6 +708,22 @@ export function buildConnectRoutes(deps) {
         userId: user_id,
         connection,
       });
+      const [user, devices] = await Promise.all([
+        fetchUser(user_id),
+        fetchUserDevices(user_id, resolvedTenantId),
+      ]);
+      const activationGraphContext = await resolveActivationGraphContext({
+        user,
+        tenantId: resolvedTenantId,
+        membership,
+        connection,
+        devices,
+        modePolicy,
+        dedicatedIntegrationReadiness,
+        hybridIntegrationReadiness,
+        onboarding: buildOnboardingState({ resolvedTenantId, connection, devices }),
+        surface: "connect_activate",
+      });
       return res.json({
         ok: true,
         mode_policy: modePolicy,
@@ -699,6 +731,7 @@ export function buildConnectRoutes(deps) {
         dedicated_integration_readiness: dedicatedIntegrationReadiness,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: hybridIntegrationReadiness,
+        activation_graph_context: activationGraphContext,
         next_actions: hybridIntegrationReadiness?.ready === false
           ? hybridIntegrationReadiness.next_actions
           : ["connect_device_install"],
