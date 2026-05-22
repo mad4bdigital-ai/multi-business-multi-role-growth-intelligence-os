@@ -60,7 +60,7 @@ pass("missing commit_message is rejected with repo_patch_missing_message");
 
 // ── Protected branch policy static contract ───────────────────────────────────
 {
-  const source = readFileSync("./routes/gptToolsRoutes.js", "utf8");
+  const source = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
   assert.ok(source.includes("repo_patch_protected_branch"));
   assert.ok(source.includes("REPO_PATCH_ALLOW_PROTECTED_BRANCH"));
   assert.ok(source.includes("defaultRepoPatchBranch"));
