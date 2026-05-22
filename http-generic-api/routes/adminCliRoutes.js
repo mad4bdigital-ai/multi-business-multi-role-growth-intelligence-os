@@ -518,6 +518,47 @@ function mapGithubRunForGhJson(run, fields = []) {
   return Object.fromEntries(fields.map((field) => [field, mapped[field] ?? run[field] ?? null]));
 }
 
+function mapGithubPullForGhJson(pr, fields = []) {
+  const mapped = {
+    number: pr.number,
+    url: pr.html_url,
+    title: pr.title,
+    body: pr.body,
+    state: pr.state,
+    mergeable: pr.mergeable,
+    merged: pr.merged,
+    headRefName: pr.head?.ref || null,
+    headRepositoryOwner: pr.head?.repo?.owner?.login || null,
+    baseRefName: pr.base?.ref || null,
+    author: pr.user?.login || null,
+  };
+  if (!fields.length) return mapped;
+  return Object.fromEntries(fields.map((field) => [field, mapped[field] ?? pr[field] ?? null]));
+}
+
+function parseGithubPrNumber(value) {
+  const raw = String(value || "").trim();
+  if (/^\d+$/.test(raw)) return raw;
+  const match = raw.match(/\/pull\/(\d+)(?:$|[/?#])/i);
+  if (match) return match[1];
+  const err = new Error("Pull request number or URL is required.");
+  err.status = 400;
+  err.code = "github_pr_number_required";
+  throw err;
+}
+
+function firstGithubPositional(args = [], startIndex = 0) {
+  for (let i = startIndex; i < args.length; i += 1) {
+    const arg = String(args[i] || "");
+    if (arg && !arg.startsWith("-")) return arg;
+  }
+  return "";
+}
+
+function encodeGithubRefPath(refName) {
+  return String(refName || "").split("/").map((part) => encodeURIComponent(part)).join("/");
+}
+
 async function githubRestJson({ owner, repo, apiPath, token, method = "GET", body = null }) {
   const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${apiPath}`, {
     method,
