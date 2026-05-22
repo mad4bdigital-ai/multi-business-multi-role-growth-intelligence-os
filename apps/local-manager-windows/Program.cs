@@ -97,7 +97,7 @@ internal static class Program
             var repairButton = MakeButton("Repair connector", 28, 392, 210, async (_, _) => await RepairConnectorAsync());
             var repairControlsButton = MakeButton("Repair controls", 254, 392, 170, async (_, _) => await LoadDeviceControlsAsync("repairs", LocalManagerUrl));
             var startN8nButton = MakeButton("Start n8n", 440, 392, 170, async (_, _) => await StartN8nLocalAsync());
-            var openN8nButton = MakeButton("Open n8n", 626, 392, 196, (_, _) => OpenUrl(N8nPublicUrl));
+            var openN8nButton = MakeButton("Open n8n", 626, 392, 196, async (_, _) => await OpenN8nLocalAsync());
 
             _status = new Label
             {
