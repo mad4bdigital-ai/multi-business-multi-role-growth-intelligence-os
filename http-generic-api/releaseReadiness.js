@@ -191,6 +191,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     legacy_tables: {},
     seed_data: {},
     migration_inventory: null,
+    graph_memory_diagnostics: null,
   };
 
   // DB connectivity
