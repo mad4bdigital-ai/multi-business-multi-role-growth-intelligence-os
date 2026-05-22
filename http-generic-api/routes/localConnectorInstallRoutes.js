@@ -670,6 +670,32 @@ function buildStartConnectorBat() {
   ].join("\r\n");
 }
 
+function buildInstallPowerShellBootstrapBat({ ps1Url, deviceId }) {
+  const safeDeviceId = String(deviceId || "device").replace(/[^a-zA-Z0-9_-]+/g, "-");
+  const safeUrl = String(ps1Url || "").replace(/"/g, "");
+  return [
+    "@echo off",
+    "setlocal EnableExtensions",
+    "REM Mad4B Local Connector repair bootstrap.",
+    "REM Downloads the manifest-verified PowerShell installer and runs it elevated/current-admin.",
+    "",
+    "net session >nul 2>&1",
+    "if %ERRORLEVEL% neq 0 (echo ERROR: Run as Administrator. & pause & exit /b 1)",
+    "",
+    "set ROOT=%~dp0",
+    `set PS1=%ROOT%install-local-connector-${safeDeviceId}.ps1`,
+    `set PS1_URL=${safeUrl}`,
+    "echo Downloading current connector repair installer...",
+    "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Invoke-WebRequest -Uri '%PS1_URL%' -OutFile '%PS1%' -UseBasicParsing -TimeoutSec 90\"",
+    "if %ERRORLEVEL% neq 0 (echo ERROR: Failed to download PowerShell installer. & pause & exit /b 1)",
+    "echo Running current connector repair installer...",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File \"%PS1%\"",
+    "if %ERRORLEVEL% neq 0 (echo ERROR: PowerShell installer failed. & pause & exit /b 1)",
+    "echo Done. Connector repair bootstrap completed.",
+    "pause",
+  ].join("\r\n");
+}
+
 function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, port }) {
   const envText = buildConnectorEnv({ connectorSecret, aliases, port });
   return [
