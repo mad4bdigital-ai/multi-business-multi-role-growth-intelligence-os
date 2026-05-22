@@ -131,7 +131,7 @@ internal static class Program
                 title, body, signInButton, signUpButton, linkButton, openButton, forgetButton, _pairingCode,
                 devicesButton, routesButton, backupsButton, settingsButton, webDevicesButton,
                 shortcutButton, folderButton, updateButton, tokenStatusButton, repairButton, repairControlsButton,
-                _status, _progress, _output
+                startN8nButton, openN8nButton, _status, _progress, _output
             });
 
             Shown += async (_, _) =>
