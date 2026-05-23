@@ -1,8 +1,9 @@
 import { Router } from "express";
-import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
 import { exportSessionToDrive } from "../sessionExportPipeline.js";
 import { closeGptSessionArchive, recordGptSessionTurn } from "../sessionArchiveService.js";
+import { summarizeAndStoreSession } from "../sessionSummaryService.js";
+import { summarizeSessionIfNeeded, writeProvidedSessionSummary } from "../sessionSummaryService.js";
 
 async function resolveSessionForCaller(pool, sessionId, req) {
   const [rows] = await pool.query(
@@ -94,26 +95,26 @@ export function buildGptSessionRoutes(deps) {
         [session.session_id]
       );
 
-      if (summary) {
-        await pool.query(
-          `INSERT INTO \`session_summaries\`
-             (summary_id, session_id, tenant_id, user_id, workspace_key,
-              summary_text, session_model, turn_count, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-          [
-            randomUUID(),
-            session.session_id,
-            session.tenant_id,
-            session.user_id || null,
-            session.workspace_key || null,
-            summary,
-            session.model_name || null,
-            session.turn_count || null,
-          ]
-        );
-      }
-
       const archiveClose = await closeGptSessionArchive({ pool, session, summary });
+
+      const [[freshSession]] = await pool.query(
+        "SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1",
+        [session.session_id]
+      );
+      const sessionForSummary = freshSession || session;
+      let summaryResult = null;
+      try {
+        if (summary) {
+          summaryResult = await writeProvidedSessionSummary({ pool, session: sessionForSummary, summaryText: summary });
+        } else {
+          const callModel = deps.getCallModelForClass
+            ? deps.getCallModelForClass("standard")
+            : deps.callModel;
+          summaryResult = await summarizeSessionIfNeeded({ pool, session: sessionForSummary, callModel });
+        }
+      } catch (summaryErr) {
+        summaryResult = { ok: false, error: { code: "session_summary_failed", message: summaryErr.message } };
+      }
 
       let driveResult = null;
       try {
@@ -126,6 +127,7 @@ export function buildGptSessionRoutes(deps) {
         ok: true,
         session_id: session.session_id,
         archive: archiveClose,
+        session_summary: summaryResult,
         drive_export: driveResult
           ? { drive_file_id: driveResult.drive_file_id, drive_web_url: driveResult.drive_web_url }
           : null,
