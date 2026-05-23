@@ -779,7 +779,7 @@ if(restoreUser()) loadDevices();
 
 const LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.7";
 const LOCAL_MANAGER_WINDOWS_RELEASE_TAG = "local-manager-windows-latest";
-const LOCAL_MANAGER_WINDOWS_EXE_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.6.exe";
+const LOCAL_MANAGER_WINDOWS_EXE_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.7.exe";
 const LOCAL_MANAGER_WINDOWS_SHA256_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.6.exe.sha256.json";
 
 function normalizeVersion(value) {
