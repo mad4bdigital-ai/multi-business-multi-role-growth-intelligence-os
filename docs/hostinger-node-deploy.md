@@ -38,7 +38,7 @@ The repository root is Hostinger-ready:
 
 ## Hostinger hPanel setup
 
-For each Node.js app that should auto-deploy:
+For each Hostinger Node.js app that should auto-deploy. Do **not** configure `connector.mad4b.com` here; it is a Cloudflare Tunnel to the local Windows connector service and must remain independent of Hostinger app startup failures.
 
 1. Open hPanel.
 2. Go to the website/app, for example `auth.mad4b.com`.
