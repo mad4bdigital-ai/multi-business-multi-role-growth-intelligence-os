@@ -817,4 +817,4 @@ paths:
 
 x-gpt-action-auth-preset:
   authentication_type: Bearer
-  description: "Use the BACKEND_API_KEY from the connector .env file."
+  description: "Use the standalone CONNECTOR_SECRET from the connector .env file. Do not use BACKEND_API_KEY and do not configure this action in Tenant GPTs."
