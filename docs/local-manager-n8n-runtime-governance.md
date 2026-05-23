@@ -41,10 +41,14 @@ Required profile fields:
   "service_mode": "self_serve",
   "reserved_platform_domain": false,
   "local_only": true,
-  "local_url": "http://127.0.0.1:5679/",
+  "local_url": "http://127.0.0.1:5682/",
   "public_url": "",
-  "editor_base_url": "http://127.0.0.1:5679/",
-  "webhook_url": "http://127.0.0.1:5679/"
+  "port": 5682,
+  "task_broker_port": 5683,
+  "task_broker_url": "http://127.0.0.1:5683/",
+  "launcher_health_check_port": 5684,
+  "editor_base_url": "http://127.0.0.1:5682/",
+  "webhook_url": "http://127.0.0.1:5682/"
 }
 ```
 
