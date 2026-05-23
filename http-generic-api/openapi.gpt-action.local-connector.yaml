@@ -762,7 +762,7 @@ paths:
       summary: Call Cloudflare API using stored account credentials
       description: "Cloudflare API via stored token. Actions: list_zones, list_dns, create_dns, delete_dns, list_tunnels, tunnel_status, purge_cache. zone_id defaults to CF_ZONE_ID env. Requires CONNECTOR_CF_ENABLED=true."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
