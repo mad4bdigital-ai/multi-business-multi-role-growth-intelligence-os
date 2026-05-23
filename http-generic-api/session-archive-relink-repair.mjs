@@ -160,8 +160,8 @@ async function main() {
       `INSERT INTO gpt_session_turns
         (session_id, turn_id, turn_index, role, content, action_key, content_preview, content_sha256,
          drive_doc_id, drive_anchor, storage_mode, created_at)
-       SELECT ?, UUID(), (@relink_turn_idx := @relink_turn_idx + 1), role, content, action_key,
-              content_preview, content_sha256, ?, CONCAT('turn-', @relink_turn_idx), 'drive', created_at
+       SELECT ?, UUID(), (@relink_turn_idx := @relink_turn_idx + 1), role, NULL, action_key,
+              COALESCE(content_preview, LEFT(content, 512)), content_sha256, ?, CONCAT('turn-', @relink_turn_idx), 'drive', created_at
          FROM gpt_session_turns src
         WHERE src.session_id=?
           AND src.created_at > ?
