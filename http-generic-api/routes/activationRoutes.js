@@ -530,7 +530,7 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
       stored_turn_count: asCount(statsRow.turn_count),
       stored_session_count: asCount(statsRow.session_count),
       last_turn_at: statsRow.last_turn_at || null,
-      include_turns,
+      include_turns: includeTurns,
       turns_limit: includeTurns ? turnsLimit : 0,
     },
     recent_session_summaries: summaries.rows.map(compactSummary),
