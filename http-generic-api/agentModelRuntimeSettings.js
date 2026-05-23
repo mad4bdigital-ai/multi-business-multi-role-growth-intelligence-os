@@ -173,7 +173,10 @@ export function resolveAgentModelSelection({ execution_class = "standard", env =
   for (const provider of order) {
     const providerConfig = normalized.providers[provider];
     if (!providerConfig || providerConfig.enabled !== true) continue;
-    const credentialEnvVar = String(providerConfig.credential_env_var || "").trim();
+    const credentialEnvVars = [providerConfig.credential_env_var, ...(providerConfig.fallback_credential_env_vars || [])]
+      .map(v => String(v || "").trim())
+      .filter(Boolean);
+    const credentialEnvVar = credentialEnvVars.find(name => Boolean(env[name])) || credentialEnvVars[0] || "";
     const credentialConfigured = Boolean(credentialEnvVar && env[credentialEnvVar]);
     if (!credentialConfigured) continue;
     const model = String(env.AGENT_MODEL || providerConfig.models?.[cls] || providerConfig.default_model || "").trim();
