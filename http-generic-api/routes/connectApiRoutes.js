@@ -98,6 +98,19 @@ function normalizeCredentialSchema(authType, requestedSchema) {
   return defaultCredentialSchema(authType);
 }
 
+async function resolveActiveTenantId(pool, userId) {
+  if (!userId) return null;
+  const [rows] = await pool.query(
+    `SELECT tenant_id
+       FROM \`memberships\`
+      WHERE user_id = ? AND status = 'active'
+      ORDER BY granted_at ASC
+      LIMIT 1`,
+    [userId]
+  );
+  return rows?.[0]?.tenant_id || null;
+}
+
 export function buildConnectApiRoutes(deps = {}) {
   const router = Router();
   const pool = deps.pool || { query: (...args) => getPool().query(...args) };
@@ -105,6 +118,16 @@ export function buildConnectApiRoutes(deps = {}) {
   const fetchImpl = deps.fetchImpl || globalThis.fetch;
 
   router.use("/connect/api", requireUserJwt);
+  router.use("/connect/api", async (req, _res, next) => {
+    try {
+      if (!req.auth?.tenant_id && req.auth?.user_id) {
+        req.auth.tenant_id = await resolveActiveTenantId(pool, req.auth.user_id);
+      }
+      next();
+    } catch (err) {
+      next(err);
+    }
+  });
 
   // GET /connect/api/app-integrations — discover apps the user can connect.
   router.get("/connect/api/app-integrations", async (_req, res, next) => {
@@ -124,14 +147,24 @@ export function buildConnectApiRoutes(deps = {}) {
   // GET /connect/api/connections — list user's own connections (no secrets).
   router.get("/connect/api/connections", async (req, res, next) => {
     try {
+      if (!req.auth.tenant_id) {
+        return res.json({
+          ok: true,
+          items: [],
+          workspace_required: true,
+          next_actions: ["connect_workspace_create", "connect_escalate"],
+        });
+      }
       const [rows] = await pool.query(
         `SELECT connection_id, app_key, auth_type, display_label, status,
-                validation_status, last_validated_at, created_at, updated_at
+                validation_status, last_validated_at,
+                connected_at AS created_at,
+                COALESCE(last_used_at, last_validated_at, connected_at) AS updated_at
            FROM \`user_app_connections\`
           WHERE user_id = ?
             AND tenant_id = ?
-            AND status <> 'deleted'
-          ORDER BY updated_at DESC`,
+            AND status <> 'revoked'
+          ORDER BY COALESCE(last_used_at, last_validated_at, connected_at) DESC`,
         [req.auth.user_id, req.auth.tenant_id]
       );
       res.json({ ok: true, items: rows || [] });
@@ -361,11 +394,17 @@ export function buildConnectApiRoutes(deps = {}) {
   // DELETE /connect/api/connections/:connection_id — revoke and zero credentials.
   router.delete("/connect/api/connections/:connection_id", async (req, res, next) => {
     try {
+      if (!req.auth.tenant_id) {
+        return res.status(409).json({
+          ok: false,
+          error: { code: "workspace_required", message: "Create or select a workspace before revoking app connections." },
+        });
+      }
       await pool.query(
         `UPDATE \`user_app_connections\`
             SET status = 'revoked',
                 encrypted_credentials = NULL,
-                updated_at = NOW()
+                last_used_at = NOW()
           WHERE connection_id = ?
             AND user_id = ?
             AND tenant_id = ?`,
@@ -396,6 +435,19 @@ export function buildConnectApiRoutes(deps = {}) {
     } catch (err) {
       next(err);
     }
+  });
+
+  router.use("/connect/api", (err, _req, res, _next) => {
+    const status = Number(err?.status || err?.statusCode || 500);
+    return res.status(status >= 400 && status < 600 ? status : 500).json({
+      ok: false,
+      error: {
+        code: err?.code || "connect_api_failed",
+        message: err?.message || "Connect API request failed.",
+        sql_state: err?.sqlState || undefined,
+      },
+      secrets_included: false,
+    });
   });
 
   return router;

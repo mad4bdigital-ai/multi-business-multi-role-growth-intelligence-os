@@ -373,6 +373,19 @@ section("connect api auth scope");
     assert("connect api still requires user JWT", connectResponse.status === 401, JSON.stringify(connectBody));
     assert("connect api missing JWT code is stable", connectBody?.error?.code === "user_jwt_required", JSON.stringify(connectBody));
 
+    const apiSource = readFileSync("routes/connectApiRoutes.js", "utf8");
+    assert("connect app connections list uses live user_app_connections timestamp columns",
+      apiSource.includes("connected_at AS created_at") &&
+      apiSource.includes("COALESCE(last_used_at, last_validated_at, connected_at) AS updated_at") &&
+      !apiSource.includes("validation_status, last_validated_at, created_at, updated_at"));
+    assert("connect api resolves active tenant for older tenantless JWTs",
+      apiSource.includes("resolveActiveTenantId") &&
+      apiSource.includes("req.auth.tenant_id = await resolveActiveTenantId"));
+    assert("connect api serializes route errors as JSON for GPT tools",
+      apiSource.includes('router.use("/connect/api", (err') &&
+      apiSource.includes("secrets_included: false") &&
+      apiSource.includes("sql_state"));
+
     const toolsResponse = await fetch(`${scoped.baseUrl}/gpt/tools`);
     const toolsBody = await readJson(toolsResponse);
     assert("connect api middleware does not shadow GPT tools", toolsResponse.status === 200, JSON.stringify(toolsBody));

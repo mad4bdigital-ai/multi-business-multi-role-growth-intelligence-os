@@ -206,13 +206,15 @@ export async function assessHybridIntegrationReadiness({ tenantId, userId, conne
     const [rows] = await getPool().query(
       `SELECT connection_id, tenant_id, user_id, app_key, auth_type, display_label,
               account_label, validation_status, status, is_primary,
-              last_validated_at, last_used_at, updated_at
+              last_validated_at, last_used_at,
+              COALESCE(last_used_at, last_validated_at, connected_at) AS updated_at
          FROM \`user_app_connections\`
         WHERE tenant_id = ?
           AND app_key IN (?)
           AND status = 'active'
           AND (? = '' OR user_id = ? OR is_primary = 1)
-        ORDER BY app_key ASC, (user_id = ?) DESC, is_primary DESC, updated_at DESC`,
+        ORDER BY app_key ASC, (user_id = ?) DESC, is_primary DESC,
+                 COALESCE(last_used_at, last_validated_at, connected_at) DESC`,
       [tenantId, appKeys, userId || "", userId || "", userId || ""]
     );
     connectionRows = rows || [];
