@@ -42,6 +42,7 @@ function makePool() {
           turn_id: params[1],
           turn_index: params[2],
           role: params[3],
+          content: params[4],
           content_preview: params[6],
           content_sha256: params[7],
           drive_doc_id: params[8],
