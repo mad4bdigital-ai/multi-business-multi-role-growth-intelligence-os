@@ -57,6 +57,17 @@ import { buildCallModel } from "./modelAdapterRouter.js";
 }
 
 {
+  const config = normalizeAgentModelRuntimeConfig({ provider_order: ["gemini", "openrouter", "openai"] });
+  const candidates = resolveAgentModelCandidateChain({
+    execution_class: "standard",
+    env: { GEMINI_API_KEY: "present", OPENROUTER_API_KEY: "present", OPENAI_API_KEY: "present" },
+    config,
+  });
+  assert.deepEqual(candidates.map(c => c.provider), ["gemini", "openrouter", "openai"]);
+  assert.deepEqual(candidates.map(c => c.model), ["gemini-3.5-flash", "openrouter/free", "gpt-4o-mini"]);
+}
+
+{
   const config = normalizeAgentModelRuntimeConfig({
     provider_order: ["openrouter", "openai"],
     providers: {
