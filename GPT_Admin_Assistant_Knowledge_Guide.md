@@ -471,7 +471,13 @@ Every Admin GPT conversation must follow the session lifecycle to persist turns 
 
 `endSession` exports the full conversation JSON to `SESSIONS_DRIVE_FOLDER/{year-month}/{day}/{userSlug}_{HH-MM-SS}_{shortId}.json` and returns the Drive web URL. Sessions with `originator=gpt_action` use the hierarchical folder path; other originators get a flat filename.
 
-Do not skip `writeSessionTurn` or `endSession`. Skipping turns leaves the session incomplete; skipping end leaves it open and blocks the next `activateSession` auto-close from generating a Drive archive.
+Session persistence is SQL-plus-Drive. `customer_sessions` stores the session row and Drive pointers. `gpt_session_turns` stores role/index/action metadata, hashes, bounded previews, and Drive anchors. Full turn content should live in Drive doc/JSONL archives, not inline SQL. New code should not write full turn text to `gpt_session_turns.content` for `storage_mode='drive'`; keep the bounded preview in `content_preview` and use Drive for the full transcript.
+
+Session continuity should be summary-first. Use `conversation_memory` from `activateSession` to check whether `session_summaries`, referenced task contexts, and stored turns exist. Load turn previews only with `include_turns=true` and a bounded `turns_limit`. The backend cannot read native ChatGPT history unless it has been explicitly archived into platform tables or Drive.
+
+Summaries are written either by `endSession` when a `summary` is supplied or by the developer agent summarizer into `session_summaries`. Prefer tagged summaries and graph-memory hints before reading raw turn previews. See `docs/session-context-graph-memory-archive-notes.md` for the current policy and cleanup backlog.
+
+Do not skip `writeSessionTurn` or `endSession`. Skipping turns leaves the session incomplete; skipping end leaves sessions active. Parallel conversations are supported, so leaving one session active no longer blocks a new `activateSession`, but it still weakens archival and summarization quality.
 
 ## Local Connector Scope
 
