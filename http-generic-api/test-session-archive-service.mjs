@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   buildSessionArchivePath,
   previewText,
@@ -21,6 +22,14 @@ function flattenParams(value) {
   if (Array.isArray(value)) return value.flatMap(flattenParams);
   if (value && typeof value === "object") return Object.values(value).flatMap(flattenParams);
   return [value];
+}
+
+{
+  const migration = readFileSync("migrations/110_sprint62u_session_turn_sql_content_cleanup.sql", "utf8");
+  assert(migration.includes("MODIFY COLUMN `content` TEXT NULL"), "migration must allow null SQL content");
+  assert(migration.includes("'preview_only'"), "migration must add preview_only storage mode");
+  assert(migration.includes("SET `content` = NULL"), "migration must clear legacy SQL turn content");
+  assert(migration.includes("SET `storage_mode` = 'preview_only'"), "migration must convert legacy inline rows");
 }
 
 {
@@ -110,6 +119,11 @@ function flattenParams(value) {
   const sqlParamStrings = pool.calls.flatMap((call) => flattenParams(call.params)).filter((value) => typeof value === "string");
   assert(!sqlParamStrings.includes(fullContent), "SQL params must not contain the full turn content");
   assert(sqlParamStrings.some((value) => value.includes("...[truncated]")), "SQL should contain a bounded preview");
+  const turnInsert = pool.calls.find((call) => call.sql.includes("INSERT INTO `gpt_session_turns`"));
+  assert(turnInsert, "turn write should index gpt_session_turns");
+  assert.equal(turnInsert.params[4], null, "gpt_session_turns.content must stay null for Drive-mode archival");
+  assert.equal(turnInsert.params[6], previewText(fullContent), "bounded preview should live only in content_preview");
+  assert.equal(turnInsert.params[10], "drive", "Drive archive writes should keep storage_mode=drive");
   assert(
     pool.calls.some((call) => call.sql.includes("INSERT INTO `gpt_session_turns`")),
     "turn write should index gpt_session_turns"

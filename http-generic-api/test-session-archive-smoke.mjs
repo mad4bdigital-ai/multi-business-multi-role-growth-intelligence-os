@@ -42,6 +42,7 @@ function makePool() {
           turn_id: params[1],
           turn_index: params[2],
           role: params[3],
+          content: params[4],
           content_preview: params[6],
           content_sha256: params[7],
           drive_doc_id: params[8],
@@ -183,6 +184,8 @@ function makeDriveDeps() {
   assert(result.checks.every((item) => item.pass), "all smoke checks should pass");
   assert(drive.drive.docText.includes("### Runtime Event"), "doc readback should include runtime JSON");
   assert(JSON.parse(drive.drive.jsonl.trim().split(/\r?\n/)[0]).content.includes("SESSION_ARCHIVE_SMOKE"));
+  assert(pool.state.turns.every((turn) => turn.content === null), "SQL turn content must stay null; Drive carries the full transcript");
+  assert(pool.state.turns.every((turn) => turn.storage_mode === "drive"), "Drive smoke turns should be storage_mode=drive");
 
   // Sequestered subfolder: first folder created under the sessions root must be the smoke subfolder.
   assert.equal(drive.drive.foldersCreated[0], "root-folder/_smoke_archives", "smoke writes must land under _smoke_archives, not the production root");

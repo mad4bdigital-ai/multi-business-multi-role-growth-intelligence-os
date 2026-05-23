@@ -81,7 +81,7 @@ Current storage responsibilities:
 
 The intended policy is: SQL should store identifiers, bounded previews, hashes, tags, summaries, and Drive pointers. Full conversation text should live in Drive archives, not inline SQL rows.
 
-A small number of legacy `storage_mode='inline'` turn rows exist from smoke tests. They should be cleaned up. Current `storage_mode='drive'` rows may still place `content_preview` into the legacy `content` column; the next persistence cleanup should blank or null `content` for Drive-mode rows while preserving `content_preview`, hashes, and Drive pointers.
+A small number of legacy `storage_mode='inline'` turn rows existed from smoke tests and should be converted to `preview_only` by the cleanup migration. New writes must keep `gpt_session_turns.content` null, keep the bounded preview only in `content_preview`, and store the full transcript in Drive doc/JSONL archives.
 
 ### Session summaries
 
@@ -108,19 +108,17 @@ The desired retrieval behavior is summary-first:
 
 ### 1. Clean SQL turn storage
 
-Branch suggestion:
-
-```text
-fix/session-turns-sql-preview-cleanup
-```
+Status: implemented by `fix/session-turns-sql-preview-cleanup`.
 
 Required behavior:
 
 - `recordGptSessionTurn()` writes full turn content only to Drive doc / JSONL.
-- For `storage_mode='drive'`, `gpt_session_turns.content` should be blank or null.
-- `gpt_session_turns.content_preview` should keep the bounded preview.
-- Existing Drive-mode rows should be backfilled to clear `content` while preserving `content_preview`, `content_sha256`, and Drive pointers.
-- Regression tests should prevent assigning `contentPreview` to both `content` and `content_preview` again.
+- For `storage_mode='drive'`, `gpt_session_turns.content` is null.
+- If Drive archive is unavailable, new rows use `storage_mode='preview_only'`; they still keep only a bounded preview in SQL.
+- `gpt_session_turns.content_preview` keeps the bounded preview.
+- Existing Drive/hybrid/preview rows are backfilled to clear `content` while preserving `content_preview`, `content_sha256`, and Drive pointers.
+- Existing legacy `inline` rows are converted to `preview_only` after preserving a bounded preview.
+- Regression tests prevent assigning `contentPreview` to both `content` and `content_preview` again.
 
 ### 2. Autosummarize sessions
 
