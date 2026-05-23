@@ -57,6 +57,40 @@ function normalizeComplexity(value) {
   return ["low", "medium", "high"].includes(value) ? value : "medium";
 }
 
+function normalizeGraphIdPart(value = "") {
+  return String(value || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9_.:-]/g, "_")
+    .slice(0, 180);
+}
+
+function summaryAssetId(summaryId) {
+  return `session_summary_${normalizeGraphIdPart(summaryId)}`;
+}
+
+function summaryLinkId(summaryId) {
+  return `link_${normalizeGraphIdPart(summaryId).replace(/-/g, "")}`.slice(0, 64);
+}
+
+function buildSummaryJsonPayload({ session, summaryId, insight }) {
+  return JSON.stringify({
+    summary_id: summaryId,
+    session_id: session.session_id,
+    tenant_id: session.tenant_id || PLATFORM_TENANT_ID,
+    user_id: session.user_id || null,
+    workspace_key: session.workspace_key || null,
+    summary_text: insight.summary_text,
+    tasks_completed: normalizeArray(insight.tasks_completed),
+    blockers: normalizeArray(insight.blockers),
+    feature_requests: normalizeArray(insight.feature_requests),
+    integration_needs: normalizeArray(insight.integration_needs),
+    complexity: normalizeComplexity(insight.complexity),
+    turn_count: Number(session.turn_count || 0),
+    summary_scope: "summary_only",
+    secrets_included: false,
+  });
+}
+
 function normalizeModelText(response) {
   if (typeof response === "string") return response;
   if (typeof response?.content === "string") return response.content;
