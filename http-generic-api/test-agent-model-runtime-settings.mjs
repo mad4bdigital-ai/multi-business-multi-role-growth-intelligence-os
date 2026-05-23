@@ -18,7 +18,7 @@ import { buildCallModel } from "./modelAdapterRouter.js";
       },
     },
   });
-  assert.deepEqual(config.provider_order, ["openrouter", "openai"]);
+  assert.deepEqual(config.provider_order, ["gemini", "openrouter"]);
   assert.equal(config.providers.openrouter.models.standard, "openrouter/free");
   assert.equal(config.providers.openrouter.models.complex, "openrouter/free");
 }
