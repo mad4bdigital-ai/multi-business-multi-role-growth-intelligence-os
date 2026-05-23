@@ -31,6 +31,7 @@ const syntaxOnlyFiles = [
   "routes/gptSessionRoutes.js",
   "routes/devAgentRoutes.js",
   "sessionSummaryService.js",
+  "agentModelRuntimeSettings.js",
   "devAgentRunner.js"
 ];
 
