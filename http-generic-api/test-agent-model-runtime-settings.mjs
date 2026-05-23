@@ -36,16 +36,16 @@ import { buildCallModel } from "./modelAdapterRouter.js";
   });
   const selection = resolveAgentModelSelection({
     execution_class: "standard",
-    env: { OPENROUTER_API_KEY: "present", OPENAI_API_KEY: "present" },
+    env: { GEMINI_API_KEY: "present", OPENROUTER_API_KEY: "present", OPENAI_API_KEY: "present" },
     config,
   });
-  assert.equal(selection.provider, "openrouter");
-  assert.equal(selection.model, "openrouter/free");
+  assert.equal(selection.provider, "gemini");
+  assert.equal(selection.model, "gemini-3.5-flash");
   assert.equal(selection.source, "platform_runtime_config");
 }
 
 {
-  const config = normalizeAgentModelRuntimeConfig({ provider_order: ["openrouter", "openai"] });
+  const config = normalizeAgentModelRuntimeConfig({ provider_order: ["gemini", "openrouter", "openai"] });
   const selection = resolveAgentModelSelection({
     execution_class: "standard",
     env: { OPENAI_API_KEY: "present" },
