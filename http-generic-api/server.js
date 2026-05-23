@@ -3172,6 +3172,7 @@ registerRoutes(app, {
   resolveRequestedBy,
   getAgentDeps,
   getCallModelForClass,
+  resolveAgentModelProvider,
   callModel: getAgentDeps().callModel,
   localConnectorOrchestrator,
 });
