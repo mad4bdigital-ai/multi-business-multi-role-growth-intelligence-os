@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   normalizeAgentModelRuntimeConfig,
+  resolveAgentModelCandidateChain,
   resolveAgentModelSelection,
   summarizeModelRuntimeSettings,
 } from "./agentModelRuntimeSettings.js";
