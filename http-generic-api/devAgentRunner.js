@@ -112,54 +112,19 @@ async function summariseSession(session, events, callModel) {
 }
 
 async function runSummarisePhase(run_id, callModel, batchSize = 20) {
-  // Sessions completed but not yet summarised
-  const [sessions] = await getPool().query(
-    `SELECT cs.session_id, cs.tenant_id, cs.user_id, cs.workspace_key,
-            cs.model_name, cs.git_branch, cs.turn_count
-     FROM \`customer_sessions\` cs
-     LEFT JOIN \`session_summaries\` ss ON ss.session_id = cs.session_id
-     WHERE cs.session_status = 'completed'
-       AND ss.summary_id IS NULL
-     ORDER BY cs.ended_at DESC
-     LIMIT ?`,
-    [batchSize]
-  ).catch(() => [[]]);
-
-  let summariesCreated = 0;
-
-  for (const session of sessions) {
-    const events = await loadSessionEvents(session.session_id);
-    const insight = await summariseSession(session, events, callModel);
-
-    await getPool().query(
-      `INSERT INTO \`session_summaries\`
-         (summary_id, session_id, tenant_id, user_id, workspace_key,
-          summary_text, tasks_completed, blockers, feature_requests,
-          integration_needs, complexity, session_model, turn_count,
-          analyzed, dev_agent_run_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-      [
-        randomUUID(),
-        session.session_id,
-        session.tenant_id,
-        session.user_id || null,
-        session.workspace_key || null,
-        insight.summary_text,
-        JSON.stringify(insight.tasks_completed || []),
-        JSON.stringify(insight.blockers || []),
-        JSON.stringify(insight.feature_requests || []),
-        JSON.stringify(insight.integration_needs || []),
-        insight.complexity || "medium",
-        session.model_name || null,
-        session.turn_count || 0,
-        run_id,
-      ]
-    ).catch(() => {});
-
-    summariesCreated++;
-  }
-
-  return { sessions_analyzed: sessions.length, summaries_created: summariesCreated };
+  const result = await runSessionSummaryAutosweep({
+    pool: getPool(),
+    callModel,
+    limit: batchSize,
+    minTurnCount: 1,
+    includeActiveLong: true,
+    activeTurnThreshold: 80,
+    minNewTurns: 10,
+  });
+  return {
+    sessions_analyzed: result.scanned_sessions || 0,
+    summaries_created: result.summaries_created || 0,
+  };
 }
 
 // ── Phase 2: Generate proposals ───────────────────────────────────────────────
