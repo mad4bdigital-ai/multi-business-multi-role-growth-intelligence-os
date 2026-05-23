@@ -81,7 +81,7 @@ Current storage responsibilities:
 
 The intended policy is: SQL should store identifiers, bounded previews, hashes, tags, summaries, and Drive pointers. Full conversation text should live in Drive archives, not inline SQL rows.
 
-A small number of legacy `storage_mode='inline'` turn rows exist from smoke tests. They should be cleaned up. Current `storage_mode='drive'` rows may still place `content_preview` into the legacy `content` column; the next persistence cleanup should blank or null `content` for Drive-mode rows while preserving `content_preview`, hashes, and Drive pointers.
+A small number of legacy `storage_mode='inline'` turn rows existed from smoke tests and should be converted to `preview_only` by the cleanup migration. New writes must keep `gpt_session_turns.content` null, keep the bounded preview only in `content_preview`, and store the full transcript in Drive doc/JSONL archives.
 
 ### Session summaries
 
