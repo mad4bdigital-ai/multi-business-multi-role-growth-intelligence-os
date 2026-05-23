@@ -12,7 +12,7 @@ export const SUPPORTED_MODEL_PROVIDERS = Object.freeze([
 export const DEFAULT_AGENT_MODEL_RUNTIME_CONFIG = Object.freeze({
   version: 1,
   free_first: true,
-  provider_order: ["openrouter", "openai", "anthropic", "gemini"],
+  provider_order: ["gemini", "openrouter", "openai", "anthropic"],
   providers: {
     openrouter: {
       enabled: true,
