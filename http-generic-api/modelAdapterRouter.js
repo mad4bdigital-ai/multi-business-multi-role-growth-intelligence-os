@@ -95,6 +95,33 @@ async function callOpenAI(messages, tools, config = {}) {
   return normalizeOpenAIResponse(await res.json());
 }
 
+async function callOpenRouter(messages, tools, config = {}) {
+  const { fetch: _fetch = fetch } = config;
+  const apiKey = config.api_key || process.env.OPENROUTER_API_KEY;
+  const model = config.model || "openrouter/free";
+
+  const body = { model, messages };
+  if (tools.length) { body.tools = tools; body.tool_choice = "auto"; }
+  if (config.max_tokens) body.max_tokens = config.max_tokens;
+
+  const headers = {
+    authorization: `Bearer ${apiKey}`,
+    "content-type": "application/json",
+  };
+  const siteUrl = config.site_url || process.env.OPENROUTER_SITE_URL;
+  const appName = config.app_name || process.env.OPENROUTER_APP_NAME;
+  if (siteUrl) headers["HTTP-Referer"] = siteUrl;
+  if (appName) headers["X-Title"] = appName;
+
+  const res = await _fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`OpenRouter API ${res.status}: ${await res.text()}`);
+  return normalizeOpenAIResponse(await res.json());
+}
+
 async function callGemini(messages, tools, config = {}) {
   const { fetch: _fetch = fetch } = config;
   const apiKey = config.api_key || process.env.GOOGLE_AI_API_KEY;
