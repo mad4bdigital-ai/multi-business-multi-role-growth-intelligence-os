@@ -95,10 +95,37 @@ async function callOpenAI(messages, tools, config = {}) {
   return normalizeOpenAIResponse(await res.json());
 }
 
+async function callOpenRouter(messages, tools, config = {}) {
+  const { fetch: _fetch = fetch } = config;
+  const apiKey = config.api_key || process.env.OPENROUTER_API_KEY;
+  const model = config.model || "openrouter/free";
+
+  const body = { model, messages };
+  if (tools.length) { body.tools = tools; body.tool_choice = "auto"; }
+  if (config.max_tokens) body.max_tokens = config.max_tokens;
+
+  const headers = {
+    authorization: `Bearer ${apiKey}`,
+    "content-type": "application/json",
+  };
+  const siteUrl = config.site_url || process.env.OPENROUTER_SITE_URL;
+  const appName = config.app_name || process.env.OPENROUTER_APP_NAME;
+  if (siteUrl) headers["HTTP-Referer"] = siteUrl;
+  if (appName) headers["X-Title"] = appName;
+
+  const res = await _fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`OpenRouter API ${res.status}: ${await res.text()}`);
+  return normalizeOpenAIResponse(await res.json());
+}
+
 async function callGemini(messages, tools, config = {}) {
   const { fetch: _fetch = fetch } = config;
-  const apiKey = config.api_key || process.env.GOOGLE_AI_API_KEY;
-  const model  = config.model  || "gemini-1.5-pro";
+  const apiKey = config.api_key || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+  const model  = config.model  || "gemini-3.5-flash";
   const system = messages.find(m => m.role === "system")?.content;
   const contents = messages
     .filter(m => m.role !== "system")
@@ -108,23 +135,23 @@ async function callGemini(messages, tools, config = {}) {
   if (system) body.systemInstruction = { parts: [{ text: system }] };
   if (tools.length) body.tools = [{ functionDeclarations: toolsToGemini(tools) }];
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const res = await _fetch(url, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "x-goog-api-key": apiKey, "content-type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Gemini API ${res.status}: ${await res.text()}`);
   return normalizeGeminiResponse(await res.json());
 }
 
-const PROVIDERS = { anthropic: callAnthropic, openai: callOpenAI, gemini: callGemini };
+const PROVIDERS = { anthropic: callAnthropic, openai: callOpenAI, openrouter: callOpenRouter, gemini: callGemini };
 
 // Returns a callModel(messages, tools) function bound to the chosen provider.
-// provider: "anthropic" | "openai" | "gemini"  (default: anthropic)
+// provider: "anthropic" | "openai" | "openrouter" | "gemini"  (default: anthropic)
 export function buildCallModel(config = {}) {
   const provider = String(config.provider || process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase();
   const caller = PROVIDERS[provider];
-  if (!caller) throw new Error(`Unknown model provider: ${provider}. Use anthropic | openai | gemini`);
+  if (!caller) throw new Error(`Unknown model provider: ${provider}. Use anthropic | openai | openrouter | gemini`);
   return (messages, tools = []) => caller(messages, tools, config);
 }

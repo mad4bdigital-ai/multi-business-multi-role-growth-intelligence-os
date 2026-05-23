@@ -55,7 +55,7 @@ AI workflows run through:
 connectorExecutor -> runAgentLoop -> runLogicWithModel -> engineExecutorRegistry.dispatch -> [MCP | HTTP action | logic-as-engine]
 ```
 
-`workflows.execution_class` selects tier: `standard`, `complex`, or `authority`. `modelAdapterRouter` maps tiers to models. `AGENT_MODEL` and `AGENT_MODEL_PROVIDER` are runtime overrides.
+`workflows.execution_class` selects tier: `standard`, `complex`, or `authority`. `modelAdapterRouter` maps tiers to models across `openrouter`, `openai`, `anthropic`, and `gemini`. `platform_runtime_config.agent_model_runtime` is the governed model-routing setting for provider order, free-first behavior, env-var references, and class-to-model mappings. `AGENT_MODEL` and `AGENT_MODEL_PROVIDER` remain emergency/runtime overrides.
 
 When `workflow.review_required = 1`, run post-execution review on `standard`. Major failures trigger an automatic fix pass. Write the result to `step_runs.verify_pass`.
 

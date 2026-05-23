@@ -15,6 +15,11 @@ import { randomUUID }       from "node:crypto";
 import { getPool }          from "../db.js";
 import { runDevAgentSweep } from "../devAgentRunner.js";
 import { runSessionSummaryAutosweep } from "../sessionSummaryService.js";
+import {
+  loadAgentModelRuntimeSettings,
+  saveAgentModelRuntimeSettings,
+  summarizeModelRuntimeSettings,
+} from "../agentModelRuntimeSettings.js";
 
 // ── Discussion AI prompt ──────────────────────────────────────────────────────
 
@@ -61,6 +66,12 @@ function sanitizeModelReadinessError(error) {
   return { code: "model_readiness_failed", message: message.replace(/\{[\s\S]*\}/g, "[upstream_error_body_redacted]").slice(0, 240) };
 }
 
+async function resolveStandardCallModel(deps) {
+  if (deps.getCallModelForClassAsync) return await deps.getCallModelForClassAsync("standard");
+  if (deps.getCallModelForClass) return deps.getCallModelForClass("standard");
+  return deps.callModel || null;
+}
+
 async function loadUserContext(tenant_id) {
   const ctx = { tenant_id, connected_apps: [], recent_sessions: [], workspace_keys: [] };
 
@@ -104,12 +115,21 @@ export function buildDevAgentRoutes(deps) {
 
   // ── GET /dev-agent/model-readiness ────────────────────────────────────────
   router.get("/dev-agent/model-readiness", async (req, res) => {
-    const provider = deps.resolveAgentModelProvider
-      ? deps.resolveAgentModelProvider(process.env)
-      : String(process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase();
-    const explicit_provider = String(process.env.AGENT_MODEL_PROVIDER || "").trim().toLowerCase() || null;
+    const selection = deps.resolveAgentModelProviderAsync
+      ? await deps.resolveAgentModelProviderAsync("standard", process.env)
+      : {
+          provider: deps.resolveAgentModelProvider
+            ? deps.resolveAgentModelProvider(process.env)
+            : String(process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase(),
+          model: process.env.AGENT_MODEL || null,
+          source: "legacy_env",
+          explicit_provider: String(process.env.AGENT_MODEL_PROVIDER || "").trim().toLowerCase() || null,
+        };
+    const provider = selection.provider;
+    const explicit_provider = selection.explicit_provider || null;
     const modelOverride = Boolean(process.env.AGENT_MODEL);
     const envPresence = {
+      openrouter: Boolean(process.env.OPENROUTER_API_KEY),
       anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
       openai: Boolean(process.env.OPENAI_API_KEY),
       gemini: Boolean(process.env.GOOGLE_AI_API_KEY),
@@ -125,6 +145,8 @@ export function buildDevAgentRoutes(deps) {
           ok: false,
           readiness: "blocked",
           provider,
+          model: selection.model || null,
+          selection_source: selection.source || "unknown",
           explicit_provider,
           model_override: modelOverride,
           env_presence: envPresence,
@@ -162,12 +184,40 @@ export function buildDevAgentRoutes(deps) {
     }
   });
 
+  // ── GET/PATCH /dev-agent/model-settings ──────────────────────────────────
+  router.get("/dev-agent/model-settings", async (req, res) => {
+    try {
+      const state = await loadAgentModelRuntimeSettings({ force: req.query.force === "true" });
+      res.json({
+        ok: true,
+        source: state.source,
+        updated_at: state.updated_at || null,
+        settings: summarizeModelRuntimeSettings(state.config, process.env),
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "model_settings_read_failed", message: err.message } });
+    }
+  });
+
+  router.patch("/dev-agent/model-settings", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const payload = body.settings && typeof body.settings === "object" ? body.settings : body;
+      const result = await saveAgentModelRuntimeSettings({ config: payload });
+      res.json({
+        ok: true,
+        settings: summarizeModelRuntimeSettings(result.config, process.env),
+      });
+    } catch (err) {
+      const status = err.status || 400;
+      res.status(status).json({ ok: false, error: { code: err.code || "model_settings_update_failed", message: err.message } });
+    }
+  });
+
   // ── POST /dev-agent/run ───────────────────────────────────────────────────
   router.post("/dev-agent/run", async (req, res) => {
     try {
-      const callModel = deps.getCallModelForClass
-        ? deps.getCallModelForClass("standard")
-        : deps.callModel;
+      const callModel = await resolveStandardCallModel(deps);
 
       if (!callModel) return res.status(503).json({ ok: false, error: "callModel not configured" });
 
@@ -191,9 +241,7 @@ export function buildDevAgentRoutes(deps) {
   // ── POST /dev-agent/session-summaries/autosweep ─────────────────────────
   router.post("/dev-agent/session-summaries/autosweep", async (req, res) => {
     try {
-      const callModel = deps.getCallModelForClass
-        ? deps.getCallModelForClass("standard")
-        : deps.callModel;
+      const callModel = await resolveStandardCallModel(deps);
       const body = req.body || {};
       const result = await runSessionSummaryAutosweep({
         pool: getPool(),
@@ -366,9 +414,7 @@ export function buildDevAgentRoutes(deps) {
       ).catch(() => {});
 
       // Build LLM messages
-      const callModel = deps.getCallModelForClass
-        ? deps.getCallModelForClass("standard")
-        : deps.callModel;
+      const callModel = await resolveStandardCallModel(deps);
 
       if (!callModel) {
         return res.status(503).json({ ok: false, error: "callModel not configured" });

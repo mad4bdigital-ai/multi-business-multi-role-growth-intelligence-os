@@ -31,6 +31,7 @@ const syntaxOnlyFiles = [
   "routes/gptSessionRoutes.js",
   "routes/devAgentRoutes.js",
   "sessionSummaryService.js",
+  "agentModelRuntimeSettings.js",
   "devAgentRunner.js"
 ];
 
@@ -58,6 +59,10 @@ assert(
   devAgentRoutesSource.includes('/dev-agent/model-readiness'),
   "dev agent model readiness diagnostic route must stay registered"
 );
+assert(
+  devAgentRoutesSource.includes('/dev-agent/model-settings'),
+  "dev agent governed model settings routes must stay registered"
+);
 
 const modelReadinessMigration = readFileSync(
   join(__dirname, "migrations/114_sprint62y_register_model_readiness_tool.sql"),
@@ -69,6 +74,7 @@ assert(
 );
 
 await importModule("sessionSummaryService.js");
+await importModule("agentModelRuntimeSettings.js");
 await importModule("routes/activationRoutes.js");
 await importModule("routes/gptSessionRoutes.js");
 await importModule("routes/devAgentRoutes.js");
