@@ -65,8 +65,12 @@ Preferred shape:
   "runtime_role": "tenant_local",
   "exposure_scope": "tenant_public_tunnel",
   "public_tunnel_mode": "cloudflare_tenant_hostname",
-  "local_url": "http://127.0.0.1:5679/",
+  "local_url": "http://127.0.0.1:5682/",
   "public_url": "https://n8n-8db63b00.mad4b.com/",
+  "port": 5682,
+  "task_broker_port": 5683,
+  "task_broker_url": "http://127.0.0.1:5683/",
+  "launcher_health_check_port": 5684,
   "editor_base_url": "https://n8n-8db63b00.mad4b.com/",
   "webhook_url": "https://n8n-8db63b00.mad4b.com/"
 }
