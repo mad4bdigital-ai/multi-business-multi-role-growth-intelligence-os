@@ -25,10 +25,10 @@ Supported provider keys:
 
 | Provider | Transport | Primary use |
 |---|---|---|
-| `openrouter` | OpenAI-compatible Chat Completions at `https://openrouter.ai/api/v1/chat/completions` | Free-first or low-cost routing, including `openrouter/free` |
-| `openai` | OpenAI Chat Completions | Direct OpenAI fallback or paid production path |
+| `gemini` | Google AI Studio Gemini `generateContent` API | Primary provider for session summaries and standard background reasoning |
+| `openrouter` | OpenAI-compatible Chat Completions at `https://openrouter.ai/api/v1/chat/completions` | First fallback and free/low-cost routing, including `openrouter/free` |
+| `openai` | OpenAI Chat Completions | Paid direct fallback when configured |
 | `anthropic` | Anthropic Messages API | Claude direct path when configured |
-| `gemini` | Google Gemini generateContent | Google fallback path when configured |
 
 OpenRouter is treated as an OpenAI-compatible provider in `modelAdapterRouter.js`. The default free-first model is `openrouter/free`, which delegates to currently available free OpenRouter models. Do not assume the exact free model list is stable.
 
