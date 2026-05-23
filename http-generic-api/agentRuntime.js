@@ -66,7 +66,7 @@ export function getCallModelForClass(execution_class) {
     return _classCache[cls];
   }
 
-  const provider = (process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase();
+  const provider = resolveAgentModelProvider(process.env);
   const apiKeyByProvider = {
     anthropic: process.env.ANTHROPIC_API_KEY,
     openai:    process.env.OPENAI_API_KEY,
