@@ -38,7 +38,7 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ConnectorError' }
 security:
-  - backendBearerAuth: []
+  - connectorBearerAuth: []
 paths:
   /health:
     get:
