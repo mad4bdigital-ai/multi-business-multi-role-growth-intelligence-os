@@ -200,9 +200,7 @@ export function buildDevAgentRoutes(deps) {
   // ── POST /dev-agent/session-summaries/autosweep ─────────────────────────
   router.post("/dev-agent/session-summaries/autosweep", async (req, res) => {
     try {
-      const callModel = deps.getCallModelForClass
-        ? deps.getCallModelForClass("standard")
-        : deps.callModel;
+      const callModel = await resolveStandardCallModel(deps);
       const body = req.body || {};
       const result = await runSessionSummaryAutosweep({
         pool: getPool(),
