@@ -437,5 +437,18 @@ export function buildConnectApiRoutes(deps = {}) {
     }
   });
 
+  router.use("/connect/api", (err, _req, res, _next) => {
+    const status = Number(err?.status || err?.statusCode || 500);
+    return res.status(status >= 400 && status < 600 ? status : 500).json({
+      ok: false,
+      error: {
+        code: err?.code || "connect_api_failed",
+        message: err?.message || "Connect API request failed.",
+        sql_state: err?.sqlState || undefined,
+      },
+      secrets_included: false,
+    });
+  });
+
   return router;
 }
