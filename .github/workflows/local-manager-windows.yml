@@ -89,6 +89,8 @@ jobs:
             gh release upload $tag `
               'dist/Mad4B-Local-Manager-Setup.exe' `
               'dist/Mad4B-Local-Manager-Setup.exe.sha256.json' `
+              "dist/Mad4B-Local-Manager-Setup-$version.exe" `
+              "dist/Mad4B-Local-Manager-Setup-$version.exe.sha256.json" `
               --repo $env:GITHUB_REPOSITORY `
               --clobber
           } else {
