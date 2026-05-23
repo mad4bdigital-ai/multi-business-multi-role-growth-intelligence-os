@@ -736,7 +736,7 @@ internal static class Program
         public string CommandPath { get; init; } = N8nCommandPath;
         public string NpmPrefix { get; init; } = @"D:\npm-global";
         public string UserFolder { get; init; } = N8nUserFolder;
-        public string LocalUrl { get; init; } = "http://127.0.0.1:5679/";
+        public string LocalUrl { get; init; } = "http://127.0.0.1:5682/";
         public string PublicUrl { get; init; } = N8nPublicUrl;
         public int Port { get; init; } = 5679;
         public string ListenAddress { get; init; } = "127.0.0.1";
