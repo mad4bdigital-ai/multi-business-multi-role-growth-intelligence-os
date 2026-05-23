@@ -114,10 +114,11 @@ Runtime selection uses this order:
 
 1. If `AGENT_MODEL_PROVIDER` is set, it hard-selects that provider.
 2. Otherwise, load `platform_runtime_config.agent_model_runtime`.
-3. Iterate `provider_order` and choose the first enabled provider whose credential env var is present.
+3. Iterate `provider_order` and build a fallback candidate chain from enabled providers whose primary or fallback credential env var is present.
 4. Select model by `execution_class`: `standard`, `complex`, or `authority`.
 5. If `AGENT_MODEL` is set, it overrides the class model ID for the selected provider.
-6. If no provider has credentials, return a blocked readiness result rather than pretending model execution is active.
+6. Async runtime routes such as session summaries try the candidate chain in order: Gemini first, OpenRouter second by default.
+7. If no provider has credentials, return a blocked readiness result rather than pretending model execution is active.
 
 ## Governed routes and tools
 
