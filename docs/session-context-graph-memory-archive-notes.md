@@ -85,18 +85,24 @@ A small number of legacy `storage_mode='inline'` turn rows existed from smoke te
 
 ### Session summaries
 
-There are two known summary writers:
+Session summarization is Drive-first and SQL-preview-safe.
 
-1. `POST /gpt/sessions/{id}/end` may insert a caller-provided manual summary into `session_summaries`.
-2. `POST /dev-agent/run` executes `runDevAgentSweep()`, which can summarize completed sessions and extract:
-   - `summary_text`
-   - `tasks_completed`
-   - `blockers`
-   - `feature_requests`
-   - `integration_needs`
-   - `complexity`
+Known summary writers:
 
-The desired retrieval behavior is summary-first:
+1. `POST /gpt/sessions/{id}/end` inserts a caller-provided manual summary when supplied. If no manual summary is supplied and a standard model is configured, it runs `summarizeAndStoreSession()` after archive close/export.
+2. `POST /dev-agent/run` executes `runDevAgentSweep()`, which now delegates completed-session summarization to `runSessionSummaryAutosweep()` before proposal extraction.
+3. `sessionSummaryService.js` loads full transcript content from Drive JSONL when available, redacts sensitive token/password/key patterns before model input, and falls back only to bounded `gpt_session_turns.content_preview` rows when Drive JSONL is absent or unreadable.
+
+The generated summary extracts:
+
+- `summary_text`
+- `tasks_completed`
+- `blockers`
+- `feature_requests`
+- `integration_needs`
+- `complexity`
+
+The retrieval behavior is summary-first:
 
 1. Load `session_summaries` and their tags.
 2. Resolve task context references such as `gpt_session_turns:<session_id>`.
