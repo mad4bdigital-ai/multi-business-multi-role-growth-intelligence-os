@@ -65,7 +65,10 @@ Skills installed via `skillInstaller.mjs` must upsert `logic_definitions` rows w
 
 | Var | Purpose |
 |---|---|
-| `AGENT_MODEL_PROVIDER` | `anthropic` (default) / `openai` / `gemini` |
+| `AGENT_MODEL_PROVIDER` | Optional hard override: `openrouter` / `anthropic` / `openai` / `gemini` |
+| `OPENROUTER_API_KEY` | Required when provider is `openrouter` |
+| `OPENROUTER_SITE_URL` | Optional OpenRouter `HTTP-Referer` metadata |
+| `OPENROUTER_APP_NAME` | Optional OpenRouter `X-Title` metadata |
 | `ANTHROPIC_API_KEY` | Required when provider is `anthropic` |
 | `OPENAI_API_KEY` | Required when provider is `openai` |
 | `GOOGLE_AI_API_KEY` | Required when provider is `gemini` |
