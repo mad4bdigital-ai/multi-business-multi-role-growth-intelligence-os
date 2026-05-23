@@ -96,7 +96,7 @@ export function buildDevAgentRoutes(deps) {
       res.json({ ok: true, run_id, message: "Dev agent sweep started" });
 
       // Fire-and-forget (don't await — let it complete in background)
-      runDevAgentSweep({ ...deps, callModel })
+      runDevAgentSweep({ ...deps, callModel, run_id })
         .then(result => {
           console.log(`[devAgent] sweep ${result.run_id} done:`, result);
         })
