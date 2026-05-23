@@ -147,14 +147,24 @@ export function buildConnectApiRoutes(deps = {}) {
   // GET /connect/api/connections — list user's own connections (no secrets).
   router.get("/connect/api/connections", async (req, res, next) => {
     try {
+      if (!req.auth.tenant_id) {
+        return res.json({
+          ok: true,
+          items: [],
+          workspace_required: true,
+          next_actions: ["connect_workspace_create", "connect_escalate"],
+        });
+      }
       const [rows] = await pool.query(
         `SELECT connection_id, app_key, auth_type, display_label, status,
-                validation_status, last_validated_at, created_at, updated_at
+                validation_status, last_validated_at,
+                connected_at AS created_at,
+                COALESCE(last_used_at, last_validated_at, connected_at) AS updated_at
            FROM \`user_app_connections\`
           WHERE user_id = ?
             AND tenant_id = ?
-            AND status <> 'deleted'
-          ORDER BY updated_at DESC`,
+            AND status <> 'revoked'
+          ORDER BY COALESCE(last_used_at, last_validated_at, connected_at) DESC`,
         [req.auth.user_id, req.auth.tenant_id]
       );
       res.json({ ok: true, items: rows || [] });
