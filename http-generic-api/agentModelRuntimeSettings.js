@@ -110,6 +110,11 @@ export function normalizeAgentModelRuntimeConfig(input = {}) {
       ...candidate,
       enabled: candidate.enabled === undefined ? fallback.enabled !== false : candidate.enabled === true,
       credential_env_var: String(candidate.credential_env_var || fallback.credential_env_var || "").trim(),
+      fallback_credential_env_vars: Array.isArray(candidate.fallback_credential_env_vars)
+        ? candidate.fallback_credential_env_vars.map(v => String(v || "").trim()).filter(Boolean)
+        : Array.isArray(fallback.fallback_credential_env_vars)
+          ? fallback.fallback_credential_env_vars.map(v => String(v || "").trim()).filter(Boolean)
+          : [],
       default_model: String(candidate.default_model || fallback.default_model || "").trim(),
       models: normalizeModelMap(candidate.models, fallback.models),
     };
