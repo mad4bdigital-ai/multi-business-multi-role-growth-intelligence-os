@@ -136,9 +136,7 @@ export function buildDevAgentRoutes(deps) {
     };
 
     try {
-      const callModel = deps.getCallModelForClass
-        ? deps.getCallModelForClass("standard")
-        : deps.callModel;
+      const callModel = await resolveStandardCallModel(deps);
 
       if (!callModel) {
         return res.status(503).json({
