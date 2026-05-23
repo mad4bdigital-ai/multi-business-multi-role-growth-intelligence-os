@@ -132,7 +132,7 @@ export function buildDevAgentRoutes(deps) {
       openrouter: Boolean(process.env.OPENROUTER_API_KEY),
       anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
       openai: Boolean(process.env.OPENAI_API_KEY),
-      gemini: Boolean(process.env.GOOGLE_AI_API_KEY),
+      gemini: Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY),
     };
 
     try {
