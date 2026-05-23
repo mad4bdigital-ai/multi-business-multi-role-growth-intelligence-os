@@ -489,6 +489,17 @@ export async function writeSessionSummary({ pool = getPool(), session, insight, 
       run_id,
     ]
   );
+
+  try {
+    await attachSessionSummaryToGraph({ pool, session, summaryId, insight });
+  } catch (err) {
+    console.warn("[sessionSummary] graph attachment failed", {
+      session_id: session.session_id,
+      summary_id: summaryId,
+      message: err?.message || String(err),
+    });
+  }
+
   return summaryId;
 }
 
