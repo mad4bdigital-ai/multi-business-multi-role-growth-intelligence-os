@@ -184,6 +184,36 @@ export function buildDevAgentRoutes(deps) {
     }
   });
 
+  // ── GET/PATCH /dev-agent/model-settings ──────────────────────────────────
+  router.get("/dev-agent/model-settings", async (req, res) => {
+    try {
+      const state = await loadAgentModelRuntimeSettings({ force: req.query.force === "true" });
+      res.json({
+        ok: true,
+        source: state.source,
+        updated_at: state.updated_at || null,
+        settings: summarizeModelRuntimeSettings(state.config, process.env),
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "model_settings_read_failed", message: err.message } });
+    }
+  });
+
+  router.patch("/dev-agent/model-settings", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const payload = body.settings && typeof body.settings === "object" ? body.settings : body;
+      const result = await saveAgentModelRuntimeSettings({ config: payload });
+      res.json({
+        ok: true,
+        settings: summarizeModelRuntimeSettings(result.config, process.env),
+      });
+    } catch (err) {
+      const status = err.status || 400;
+      res.status(status).json({ ok: false, error: { code: err.code || "model_settings_update_failed", message: err.message } });
+    }
+  });
+
   // ── POST /dev-agent/run ───────────────────────────────────────────────────
   router.post("/dev-agent/run", async (req, res) => {
     try {
