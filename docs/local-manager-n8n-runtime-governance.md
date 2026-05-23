@@ -30,7 +30,7 @@ Required profile fields:
 
 ### Tenant local n8n
 
-Tenant/user n8n is self-serve by default and runs locally from Local Manager. It must use a tenant-specific data folder and a non-platform port. The default tenant local port is `5679` so it cannot accidentally become the origin for `https://n8n.mad4b.com/`.
+Tenant/user n8n is self-serve by default and runs locally from Local Manager. It must use a tenant-specific data folder and a non-platform port. The default tenant local web port is `5682` so it cannot accidentally become the origin for `https://n8n.mad4b.com/` and does not conflict with n8n's default Task Broker port `5679`. Tenant profiles should explicitly set a separate task broker port such as `5683` and launcher health check port such as `5684`.
 
 Required profile fields:
 
