@@ -1,19 +1,19 @@
 openapi: 3.1.0
 info:
-  title: Growth Intelligence Platform - Local Windows Connector
+  title: Growth Intelligence Platform - Admin Break-Glass Local Connector
   version: 1.0.0
-  summary: Break-glass local device connector reachable via Cloudflare Tunnel.
-  description: "Local connector on the active admin Windows device via connector.mad4b.com. Use for break-glass local evidence, allowlisted shell, and file operations. GitHub CLI and gcloud require device PATH availability; verify with gh_status and gcloud_version before /github or /gcloud."
+  summary: Admin-only break-glass local device connector reachable via Cloudflare Tunnel.
+  description: "Admin-only standalone local connector on the active admin Windows device via connector.mad4b.com. This schema must not be used in Tenant GPTs. The host routes to local-connector/server.mjs over Cloudflare Tunnel and must not depend on auth.mad4b.com or Hostinger http-generic-api/server.js. Use only for break-glass local evidence, allowlisted shell, and file operations. GitHub CLI and gcloud require device PATH availability; verify with gh_status and gcloud_version before /github or /gcloud."
 servers:
   - url: https://connector.mad4b.com
-    description: Local Windows device via Cloudflare Tunnel
+    description: Admin Windows local-connector/server.mjs via Cloudflare Tunnel
 components:
   securitySchemes:
-    backendBearerAuth:
+    connectorBearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: Backend API Key
-      description: "Authorization: Bearer <BACKEND_API_KEY>"
+      bearerFormat: Connector Secret
+      description: "Authorization: Bearer <CONNECTOR_SECRET> or x-connector-secret: <CONNECTOR_SECRET>. This standalone admin break-glass credential is independent of auth.mad4b.com."
   schemas:
     CliResult:
       type: object
