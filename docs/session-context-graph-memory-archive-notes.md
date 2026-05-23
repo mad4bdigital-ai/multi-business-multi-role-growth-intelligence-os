@@ -158,6 +158,12 @@ Future graph behavior:
 - Use graph ranking to pick summary IDs before turn IDs.
 - Load actual transcript turns only after a selected summary or task context reference proves relevance.
 
+### Database collation boundary
+
+The live Hostinger database contains both `utf8mb4_uca1400_ai_ci` application/session tables and `utf8mb4_unicode_ci` graph/json registry tables. Do not fix cross-family joins with broad production `ALTER TABLE` conversions unless a dedicated migration plan validates indexes, foreign keys, and rollback.
+
+For session summary graph lookups, use the canonical `v_session_summary_graph_attachments` view. It keeps the required `summary_id` collation cast local to the session-summary-to-json-asset boundary and prevents ad-hoc joins from reintroducing `ER_CANT_AGGREGATE_2COLLATIONS` failures.
+
 ## Documentation update rule
 
 When any of the above behavior changes, update this file together with:
