@@ -176,9 +176,7 @@ export function buildDevAgentRoutes(deps) {
   // ── POST /dev-agent/run ───────────────────────────────────────────────────
   router.post("/dev-agent/run", async (req, res) => {
     try {
-      const callModel = deps.getCallModelForClass
-        ? deps.getCallModelForClass("standard")
-        : deps.callModel;
+      const callModel = await resolveStandardCallModel(deps);
 
       if (!callModel) return res.status(503).json({ ok: false, error: "callModel not configured" });
 
