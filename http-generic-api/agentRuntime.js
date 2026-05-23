@@ -55,10 +55,10 @@ const CLASS_MODELS = {
 
 function apiKeyByProvider(env = process.env) {
   return {
+    gemini:    env.GEMINI_API_KEY || env.GOOGLE_AI_API_KEY,
     openrouter: env.OPENROUTER_API_KEY,
-    anthropic: env.ANTHROPIC_API_KEY,
     openai:    env.OPENAI_API_KEY,
-    gemini:    env.GOOGLE_AI_API_KEY,
+    anthropic: env.ANTHROPIC_API_KEY,
   };
 }
 
