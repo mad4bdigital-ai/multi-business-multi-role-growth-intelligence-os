@@ -101,6 +101,15 @@ try {
   }
 
   {
+    const response = await fetch(`http://127.0.0.1:${port}/policy`, {
+      headers: { 'x-connector-secret': localApiKey },
+    });
+    const body = await response.json();
+    assert.equal(response.status, 401);
+    assert.equal(body.error.code, 'UNAUTHORIZED');
+  }
+
+  {
     const result = await callFiles({ action: 'list', path: root });
     assert.equal(result.status, 200);
     assert.equal(result.body.path, root);
