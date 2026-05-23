@@ -346,6 +346,123 @@ async function existingSummary(pool, sessionId) {
   return rows[0] || null;
 }
 
+async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }) {
+  const tenantId = session.tenant_id || PLATFORM_TENANT_ID;
+  const userId = session.user_id || null;
+  const assetId = summaryAssetId(summaryId);
+  const assetKey = `session_summary_${normalizeGraphIdPart(session.session_id)}`;
+  const linkId = summaryLinkId(summaryId);
+  const conversationNodeId = `conversation.${normalizeGraphIdPart(session.session_id)}`;
+  const assetNodeId = `json_asset.${normalizeGraphIdPart(assetId)}`;
+  const edgeId = `edge.session_summary.${normalizeGraphIdPart(summaryId)}`;
+  const payload = buildSummaryJsonPayload({ session, summaryId, insight });
+
+  await pool.query(
+    `INSERT INTO \`json_assets\`
+       (asset_id, brand_name, asset_key, asset_type, mapping_status,
+        mapping_version, storage_format, source_mode, source_asset_ref,
+        json_payload, transport_status, validation_status, last_validated_at,
+        notes, active_status)
+     VALUES (?, 'platform', ?, 'session_summary', 'mapped', 'session_summary_v1',
+             'json', 'session_summary_autosweep', ?, ?, 'summary_only',
+             'validated', DATE_FORMAT(NOW(), '%Y-%m-%dT%H:%i:%sZ'),
+             'Summary-only GPT session memory asset; no raw transcript or secrets included.', 'active')
+     ON DUPLICATE KEY UPDATE
+       asset_key = VALUES(asset_key),
+       json_payload = VALUES(json_payload),
+       validation_status = VALUES(validation_status),
+       notes = VALUES(notes),
+       active_status = VALUES(active_status),
+       updated_at = CURRENT_TIMESTAMP`,
+    [assetId, assetKey, summaryId, payload]
+  );
+
+  await pool.query(
+    `INSERT INTO \`json_asset_subject_links\`
+       (link_id, asset_id, asset_key, subject_type, subject_ref, tenant_id,
+        user_id, subject_key, linkage_type, scope_label, metadata_json, status)
+     VALUES (?, ?, ?, 'conversation', ?, ?, ?, ?, 'summary_attachment',
+             'session_summary', ?, 'active')
+     ON DUPLICATE KEY UPDATE
+       asset_id = VALUES(asset_id),
+       asset_key = VALUES(asset_key),
+       tenant_id = VALUES(tenant_id),
+       user_id = VALUES(user_id),
+       subject_key = VALUES(subject_key),
+       metadata_json = VALUES(metadata_json),
+       status = VALUES(status),
+       updated_at = CURRENT_TIMESTAMP`,
+    [
+      linkId,
+      assetId,
+      assetKey,
+      session.session_id,
+      tenantId,
+      userId,
+      `session.${session.session_id}`,
+      JSON.stringify({ summary_id: summaryId, source_table: "session_summaries", secrets_included: false }),
+    ]
+  );
+
+  await pool.query(
+    `INSERT INTO \`platform_graph_nodes\`
+       (node_id, node_type, node_label, scope_type, subject_ref, source_table,
+        source_pk, authority_status, lifecycle_status, visibility_scope,
+        sensitivity, evidence_level, runtime_role, source_system, metadata_json)
+     VALUES
+       (?, 'conversation', ?, 'platform', ?, 'customer_sessions', ?,
+        'authoritative', 'active', 'platform_admin', 'internal', 'system',
+        'memory_subject', 'sql', ?),
+       (?, 'json_asset', ?, 'platform', ?, 'json_assets', ?,
+        'authoritative', 'active', 'platform_admin', 'internal', 'system',
+        'resolver_input', 'sql', ?)
+     ON DUPLICATE KEY UPDATE
+       node_label = VALUES(node_label),
+       lifecycle_status = VALUES(lifecycle_status),
+       runtime_role = VALUES(runtime_role),
+       metadata_json = VALUES(metadata_json),
+       updated_at = CURRENT_TIMESTAMP`,
+    [
+      conversationNodeId,
+      `GPT session ${session.session_id}`,
+      session.session_id,
+      session.session_id,
+      JSON.stringify({ tenant_id: tenantId, user_id: userId, turn_count: Number(session.turn_count || 0) }),
+      assetNodeId,
+      assetKey,
+      assetId,
+      assetId,
+      JSON.stringify({ asset_key: assetKey, asset_type: "session_summary", summary_id: summaryId }),
+    ]
+  );
+
+  await pool.query(
+    `INSERT INTO \`platform_graph_edges\`
+       (edge_id, source_node_id, edge_type, target_node_id, scope_type,
+        authority_status, lifecycle_status, visibility_scope, sensitivity,
+        evidence_level, runtime_role, runtime_enforced, source_table,
+        source_pk, metadata_json)
+     VALUES (?, ?, 'attached_to', ?, 'platform', 'authoritative', 'active',
+             'platform_admin', 'internal', 'system', 'resolver_input', 1,
+             'json_asset_subject_links', ?, ?)
+     ON DUPLICATE KEY UPDATE
+       lifecycle_status = VALUES(lifecycle_status),
+       runtime_role = VALUES(runtime_role),
+       runtime_enforced = VALUES(runtime_enforced),
+       metadata_json = VALUES(metadata_json),
+       updated_at = CURRENT_TIMESTAMP`,
+    [
+      edgeId,
+      assetNodeId,
+      conversationNodeId,
+      linkId,
+      JSON.stringify({ summary_id: summaryId, linkage_type: "summary_attachment", secrets_included: false }),
+    ]
+  );
+
+  return { asset_id: assetId, asset_key: assetKey, link_id: linkId, edge_id: edgeId };
+}
+
 export async function writeSessionSummary({ pool = getPool(), session, insight, run_id = null }) {
   const summaryId = randomUUID();
   await pool.query(
