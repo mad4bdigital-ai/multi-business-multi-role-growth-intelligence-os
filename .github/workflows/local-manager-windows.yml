@@ -64,8 +64,8 @@ jobs:
         with:
           name: Mad4B-Local-Manager-Windows-EXE
           path: |
-            dist/Mad4B-Local-Manager-Setup.exe
-            dist/Mad4B-Local-Manager-Setup.exe.sha256.json
+            dist/Mad4B-Local-Manager-Setup*.exe
+            dist/Mad4B-Local-Manager-Setup*.sha256.json
           if-no-files-found: error
 
       - name: Publish public latest EXE release asset
