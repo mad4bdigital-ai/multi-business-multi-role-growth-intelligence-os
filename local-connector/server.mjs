@@ -45,8 +45,9 @@ loadEnv(path.join(__dirname, '.env'));
 
 const PORT = parseInt(process.env.CONNECTOR_PORT ?? '7070', 10);
 const CONNECTOR_SECRET = String(process.env.CONNECTOR_SECRET ?? '').trim();
+const CONNECTOR_LOCAL_API_KEY = String(process.env.CONNECTOR_LOCAL_API_KEY ?? '').trim();
 const LEGACY_BACKEND_API_KEY = String(process.env.BACKEND_API_KEY ?? '').trim();
-const CONNECTOR_AUTH_SECRET = CONNECTOR_SECRET || LEGACY_BACKEND_API_KEY;
+const CONNECTOR_AUTH_SECRET = CONNECTOR_SECRET || CONNECTOR_LOCAL_API_KEY || LEGACY_BACKEND_API_KEY;
 const SHELL_ENABLED = process.env.CONNECTOR_SHELL_ENABLED === 'true';
 const FILES_ENABLED = process.env.CONNECTOR_FILES_ENABLED === 'true';
 const DEFAULT_TIMEOUT_MS = 120_000;
