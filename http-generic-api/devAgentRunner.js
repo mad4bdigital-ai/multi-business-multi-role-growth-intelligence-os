@@ -292,10 +292,10 @@ async function runProposalPhase(run_id, callModel, maxSummariesPerTenant = 30) {
 // ── Public entry point ────────────────────────────────────────────────────────
 
 export async function runDevAgentSweep(deps = {}) {
-  const { callModel } = deps;
+  const { callModel, run_id: providedRunId = null } = deps;
   if (!callModel) throw new Error("devAgentRunner: callModel is required in deps");
 
-  const run_id = randomUUID();
+  const run_id = providedRunId || randomUUID();
   await createRunRecord(run_id);
 
   const stats = { sessions_analyzed: 0, summaries_created: 0, proposals_created: 0, proposals_updated: 0 };
