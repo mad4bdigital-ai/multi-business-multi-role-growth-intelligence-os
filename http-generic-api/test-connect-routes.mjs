@@ -394,12 +394,14 @@ section("connect api auth scope");
         .map(([method, operation]) => ({ pathKey, method, operation }));
     });
     const postOps = allOperations.filter(({ method }) => method === "post");
-    const securityScheme = doc.components?.securitySchemes?.backendBearerAuth;
+    const securityScheme = doc.components?.securitySchemes?.connectorBearerAuth;
 
     assert("local connector schema uses OpenAPI 3.1", doc.openapi === "3.1.0", doc.openapi);
     assert("local connector schema has connector.mad4b.com server", doc.servers?.[0]?.url === "https://connector.mad4b.com", doc.servers?.[0]?.url);
-    assert("local connector schema uses backendBearerAuth", securityScheme?.type === "http" && securityScheme?.scheme === "bearer");
-    assert("local connector schema has root security", "backendBearerAuth" in (doc.security?.[0] ?? {}));
+    assert("local connector schema is admin-only break-glass", /Admin-only/i.test(doc.info?.summary || "") && /must not be used in Tenant GPTs/i.test(doc.info?.description || ""));
+    assert("local connector schema uses connectorBearerAuth", securityScheme?.type === "http" && securityScheme?.scheme === "bearer" && /CONNECTOR_SECRET/.test(securityScheme?.description || ""));
+    assert("local connector schema has root connector security", "connectorBearerAuth" in (doc.security?.[0] ?? {}));
+    assert("local connector schema does not use backendBearerAuth", !doc.components?.securitySchemes?.backendBearerAuth && !JSON.stringify(doc).includes("BACKEND_API_KEY"));
 
     assert("local connector schema exposes /health", exposedPaths.includes("/health"));
     assert("local connector schema exposes /github", exposedPaths.includes("/github"));
