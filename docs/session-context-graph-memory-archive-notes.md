@@ -108,19 +108,17 @@ The desired retrieval behavior is summary-first:
 
 ### 1. Clean SQL turn storage
 
-Branch suggestion:
-
-```text
-fix/session-turns-sql-preview-cleanup
-```
+Status: implemented by `fix/session-turns-sql-preview-cleanup`.
 
 Required behavior:
 
 - `recordGptSessionTurn()` writes full turn content only to Drive doc / JSONL.
-- For `storage_mode='drive'`, `gpt_session_turns.content` should be blank or null.
-- `gpt_session_turns.content_preview` should keep the bounded preview.
-- Existing Drive-mode rows should be backfilled to clear `content` while preserving `content_preview`, `content_sha256`, and Drive pointers.
-- Regression tests should prevent assigning `contentPreview` to both `content` and `content_preview` again.
+- For `storage_mode='drive'`, `gpt_session_turns.content` is null.
+- If Drive archive is unavailable, new rows use `storage_mode='preview_only'`; they still keep only a bounded preview in SQL.
+- `gpt_session_turns.content_preview` keeps the bounded preview.
+- Existing Drive/hybrid/preview rows are backfilled to clear `content` while preserving `content_preview`, `content_sha256`, and Drive pointers.
+- Existing legacy `inline` rows are converted to `preview_only` after preserving a bounded preview.
+- Regression tests prevent assigning `contentPreview` to both `content` and `content_preview` again.
 
 ### 2. Autosummarize sessions
 
