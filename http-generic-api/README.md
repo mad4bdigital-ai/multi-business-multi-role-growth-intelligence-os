@@ -78,10 +78,14 @@ node migrate-platform-tables.mjs --dry-run
 ## Required env
 - `REGISTRY_SPREADSHEET_ID`
 - **Agent execution:**
-  - `AGENT_MODEL_PROVIDER` — `anthropic` (default) / `openai` / `gemini`
-  - `ANTHROPIC_API_KEY` — required when provider is `anthropic`
+  - `AGENT_MODEL_PROVIDER` — optional hard override: `gemini` / `openrouter` / `openai` / `anthropic`
+  - `GEMINI_API_KEY` — Google AI Studio Gemini key; primary for default session-summary routing
+  - `GOOGLE_AI_API_KEY` — legacy Gemini key alias, still supported as fallback
+  - `OPENROUTER_API_KEY` — OpenRouter key; default fallback provider after Gemini
+  - `OPENROUTER_SITE_URL` — optional OpenRouter `HTTP-Referer` metadata
+  - `OPENROUTER_APP_NAME` — optional OpenRouter `X-Title` metadata
   - `OPENAI_API_KEY` — required when provider is `openai`
-  - `GOOGLE_AI_API_KEY` — required when provider is `gemini`
+  - `ANTHROPIC_API_KEY` — required when provider is `anthropic`
   - `AGENT_MODEL` — override: forces a specific model string, bypasses class routing
 - **Google auth (for Sheets, Drive, Analytics):**
   - Default production path: Cloud Run Application Default Credentials from the managed service account.
