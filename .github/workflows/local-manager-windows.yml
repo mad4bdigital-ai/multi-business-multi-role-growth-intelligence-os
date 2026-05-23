@@ -47,18 +47,25 @@ jobs:
         shell: pwsh
         run: |
           $source = 'dist/local-manager-windows/Mad4B-Local-Manager.exe'
+          $projectPath = 'apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj'
+          [xml]$project = Get-Content -LiteralPath $projectPath
+          $version = ($project.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          if ([string]::IsNullOrWhiteSpace($version)) { throw "Expected <Version> in $projectPath" }
           $target = 'dist/Mad4B-Local-Manager-Setup.exe'
+          $versionedTarget = "dist/Mad4B-Local-Manager-Setup-$version.exe"
           if (!(Test-Path $source)) { throw "Expected EXE not found: $source" }
           Copy-Item -LiteralPath $source -Destination $target -Force
+          Copy-Item -LiteralPath $source -Destination $versionedTarget -Force
           Get-FileHash -Algorithm SHA256 -LiteralPath $target | ConvertTo-Json | Out-File -Encoding utf8 'dist/Mad4B-Local-Manager-Setup.exe.sha256.json'
+          Get-FileHash -Algorithm SHA256 -LiteralPath $versionedTarget | ConvertTo-Json | Out-File -Encoding utf8 "dist/Mad4B-Local-Manager-Setup-$version.exe.sha256.json"
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v6
         with:
           name: Mad4B-Local-Manager-Windows-EXE
           path: |
-            dist/Mad4B-Local-Manager-Setup.exe
-            dist/Mad4B-Local-Manager-Setup.exe.sha256.json
+            dist/Mad4B-Local-Manager-Setup*.exe
+            dist/Mad4B-Local-Manager-Setup*.sha256.json
           if-no-files-found: error
 
       - name: Publish public latest EXE release asset
@@ -82,12 +89,16 @@ jobs:
             gh release upload $tag `
               'dist/Mad4B-Local-Manager-Setup.exe' `
               'dist/Mad4B-Local-Manager-Setup.exe.sha256.json' `
+              "dist/Mad4B-Local-Manager-Setup-$version.exe" `
+              "dist/Mad4B-Local-Manager-Setup-$version.exe.sha256.json" `
               --repo $env:GITHUB_REPOSITORY `
               --clobber
           } else {
             gh release create $tag `
               'dist/Mad4B-Local-Manager-Setup.exe' `
               'dist/Mad4B-Local-Manager-Setup.exe.sha256.json' `
+              "dist/Mad4B-Local-Manager-Setup-$version.exe" `
+              "dist/Mad4B-Local-Manager-Setup-$version.exe.sha256.json" `
               --repo $env:GITHUB_REPOSITORY `
               --title $title `
               --notes $notes `
