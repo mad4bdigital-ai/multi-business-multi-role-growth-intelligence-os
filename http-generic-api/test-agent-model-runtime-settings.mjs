@@ -100,6 +100,28 @@ import { buildCallModel } from "./modelAdapterRouter.js";
 {
   const calls = [];
   const callModel = buildCallModel({
+    provider: "gemini",
+    model: "gemini-3.5-flash",
+    api_key: "gemini-key",
+    fetch: async (url, options) => {
+      calls.push({ url, options });
+      return {
+        ok: true,
+        async json() {
+          return { candidates: [{ content: { parts: [{ text: "gemini-ok" }] } }], usageMetadata: { totalTokenCount: 2 } };
+        },
+      };
+    },
+  });
+  const response = await callModel([{ role: "user", content: "ping" }], []);
+  assert.equal(response.content, "gemini-ok");
+  assert.equal(calls[0].url, "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent");
+  assert.equal(calls[0].options.headers["x-goog-api-key"], "gemini-key");
+}
+
+{
+  const calls = [];
+  const callModel = buildCallModel({
     provider: "openrouter",
     model: "openrouter/free",
     api_key: "test-key",
