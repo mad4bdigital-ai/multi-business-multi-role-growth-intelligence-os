@@ -153,4 +153,18 @@ function makePool() {
   assert(query.includes("ss.summary_id IS NULL"));
 }
 
+{
+  const pool = makePool();
+  const result = await runSessionSummaryAutosweep({ pool, callModel: null, limit: 1, minAgeSeconds: 0 });
+  assert.equal(result.ok, true);
+  assert.equal(result.sessions_considered, 1);
+  assert.equal(result.summaries_created, 1);
+  assert(pool.state.insertedSummary, "fallback summary should be inserted without model deps");
+  assert.match(
+    pool.state.insertedSummary.params[5],
+    /deterministic fallback summary/,
+    "fallback summary should record model configuration warning"
+  );
+}
+
 console.log("session summary service tests passed");
