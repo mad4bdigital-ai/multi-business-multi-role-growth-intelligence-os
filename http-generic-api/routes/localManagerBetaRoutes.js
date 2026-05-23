@@ -787,6 +787,17 @@ function normalizeVersion(value) {
   return raw.split(/[+-]/)[0] || raw;
 }
 
+function compareVersions(left, right) {
+  const leftParts = normalizeVersion(left).split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const rightParts = normalizeVersion(right).split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const maxLength = Math.max(leftParts.length, rightParts.length);
+  for (let i = 0; i < maxLength; i += 1) {
+    const delta = (leftParts[i] || 0) - (rightParts[i] || 0);
+    if (delta !== 0) return delta > 0 ? 1 : -1;
+  }
+  return 0;
+}
+
 async function ensureLocalAppReleasesTable() {
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS \`local_app_releases\` (
