@@ -629,6 +629,7 @@ export async function buildActivationSessionContext(req) {
   const pool = getPool();
   const subject = resolveSessionContextSubject(req);
 
+  // Parallel conversations are the default; explicit close_previous_sessions preserves the old single-session behavior when needed.
   const sessionOpen = await autoOpenGptSession(pool, subject, {
     close_previous_sessions: asBoolean(req.query.close_previous_sessions) || asBoolean(req.query.close_previous),
   });
