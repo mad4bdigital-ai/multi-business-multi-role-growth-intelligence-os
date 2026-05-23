@@ -247,7 +247,7 @@ paths:
       summary: Classified local browser control
       description: "Classified browser control for allowlisted browser aliases. Supports list, open_url, and screenshot with capability/risk metadata. URLs must be absolute http or https."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
