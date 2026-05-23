@@ -37,7 +37,7 @@ On every new GPT session, run hard activation once before normal platform work:
 
 1. Announce: `Connecting to Growth Intelligence Platform...`
 2. Confirm the Custom GPT Action connection is signed in.
-3. Call `activateSession` (`GET /activation/session-context`). This opens a new session (auto-closing any previous open session), returns `session_id` for use in all subsequent `writeSessionTurn` and `endSession` calls, plus `gpt_sessions`, `platform_access` counts, and related scopes.
+3. Call `activateSession` (`GET /activation/session-context`). This opens a new platform GPT session without closing other active conversations by default, returns `session_id` for all subsequent `writeSessionTurn` and `endSession` calls, plus `session_management`, `conversation_memory`, `gpt_sessions`, `platform_access` counts, and related scopes. Use `close_previous_sessions=true` only when the user explicitly wants the old single-session behavior.
 4. Save `session_id` from the response. All turn writes and session-end calls require it.
 5. Read `platform_access` from the response. If missing or stale, call `callTool` with `name: "activation_platform_access"` via the tool registry.
 6. Call `callTool` with `name: "activation_provider_bootstrap_validate"` to run the same-cycle Drive probe, Sheets bootstrap row read, and GitHub validation through the auth-host system layer. Use the individual tools `activation_drive_probe`, `activation_sheets_bootstrap_read`, and `activation_github_validate` only for targeted recovery evidence.
