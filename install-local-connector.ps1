@@ -6,9 +6,10 @@
 # Run as Administrator.
 
 param(
-    [string]$TunnelToken  = $env:CLOUDFLARE_TUNNEL_TOKEN,
-    [string]$BackendKey   = $env:BACKEND_API_KEY,
-    [string]$ConnectorDir = (Split-Path -Parent $MyInvocation.MyCommand.Definition),
+    [string]$TunnelToken     = $env:CLOUDFLARE_TUNNEL_TOKEN,
+    [string]$ConnectorSecret = $env:CONNECTOR_SECRET,
+    [string]$BackendKey      = $env:BACKEND_API_KEY, # legacy fallback for older devices only
+    [string]$ConnectorDir    = (Split-Path -Parent $MyInvocation.MyCommand.Definition),
     [switch]$Uninstall,
     [switch]$SkipNode      # skip Node service setup (cloudflared only)
 )
