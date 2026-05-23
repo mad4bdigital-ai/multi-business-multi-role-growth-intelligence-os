@@ -98,6 +98,19 @@ function normalizeCredentialSchema(authType, requestedSchema) {
   return defaultCredentialSchema(authType);
 }
 
+async function resolveActiveTenantId(pool, userId) {
+  if (!userId) return null;
+  const [rows] = await pool.query(
+    `SELECT tenant_id
+       FROM \`memberships\`
+      WHERE user_id = ? AND status = 'active'
+      ORDER BY granted_at ASC
+      LIMIT 1`,
+    [userId]
+  );
+  return rows?.[0]?.tenant_id || null;
+}
+
 export function buildConnectApiRoutes(deps = {}) {
   const router = Router();
   const pool = deps.pool || { query: (...args) => getPool().query(...args) };
