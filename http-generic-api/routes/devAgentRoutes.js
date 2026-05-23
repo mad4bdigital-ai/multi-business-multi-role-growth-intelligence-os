@@ -41,6 +41,26 @@ Be concrete and actionable. If the user confirms the proposal, acknowledge and s
 If they want to refine it, help narrow scope and priority. Keep replies focused and under 300 words.`;
 }
 
+function sanitizeModelReadinessError(error) {
+  const message = String(error?.message || error || "model_readiness_failed");
+  const providerMatch = message.match(/\b(Anthropic|OpenAI|Gemini) API\s+(\d{3})/i);
+  if (providerMatch) {
+    return {
+      code: "model_provider_error",
+      provider: providerMatch[1].toLowerCase(),
+      upstream_status: Number(providerMatch[2]),
+      message: `${providerMatch[1]} API returned ${providerMatch[2]}`,
+    };
+  }
+  if (/invalid\s+(x-api-key|api key|authorization|credentials?)/i.test(message)) {
+    return { code: "invalid_model_credentials", message: "Model credentials are invalid." };
+  }
+  if (/missing\s+.*(api key|credential|token)/i.test(message)) {
+    return { code: "missing_model_credentials", message: "Model credentials are missing." };
+  }
+  return { code: "model_readiness_failed", message: message.replace(/\{[\s\S]*\}/g, "[upstream_error_body_redacted]").slice(0, 240) };
+}
+
 async function loadUserContext(tenant_id) {
   const ctx = { tenant_id, connected_apps: [], recent_sessions: [], workspace_keys: [] };
 
