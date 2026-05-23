@@ -34,9 +34,108 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
-        var currentProcess = Process.GetCurrentProcess(); foreach (var otherProcess in Process.GetProcessesByName(currentProcess.ProcessName)) { if (otherProcess.Id == currentProcess.Id) continue; try { if (otherProcess.MainWindowHandle != IntPtr.Zero) otherProcess.CloseMainWindow(); if (!otherProcess.WaitForExit(3000)) otherProcess.Kill(); } catch { } } ApplicationConfiguration.Initialize();
-        using var singleInstanceMutex = new System.Threading.Mutex(true, "Mad4B.LocalManager.Windows.SingleInstance", out var isFirstInstance); if (!isFirstInstance) { MessageBox.Show("Mad4B Local Manager is already running. Close the existing window before starting another copy.", "Mad4B Local Manager", MessageBoxButtons.OK, MessageBoxIcon.Information); return; } Application.Run(new MainForm());
+        ApplicationConfiguration.Initialize();
+        if (TryBootstrapInstallFromPortablePath()) return;
+
+        CloseExistingLocalManagerProcesses();
+        using var singleInstanceMutex = new System.Threading.Mutex(true, "Mad4B.LocalManager.Windows.SingleInstance", out var isFirstInstance);
+        if (!isFirstInstance)
+        {
+            CloseExistingLocalManagerProcesses();
+            System.Threading.Thread.Sleep(750);
+            using var retryMutex = new System.Threading.Mutex(true, "Mad4B.LocalManager.Windows.SingleInstance", out var retryIsFirstInstance);
+            if (!retryIsFirstInstance)
+            {
+                MessageBox.Show("Mad4B Local Manager is already running. Close the existing window before starting another copy.", "Mad4B Local Manager", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            Application.Run(new MainForm());
+            return;
+        }
+
+        Application.Run(new MainForm());
     }
+
+    private static string ProgramInstallRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mad4B", "LocalManager");
+
+    private static string InstalledExePath => Path.Combine(ProgramInstallRoot, "Mad4B-Local-Manager.exe");
+
+    private static bool TryBootstrapInstallFromPortablePath()
+    {
+        var currentPath = Path.GetFullPath(Application.ExecutablePath);
+        var installedPath = Path.GetFullPath(InstalledExePath);
+        if (PathsEqual(currentPath, installedPath)) return false;
+
+        try
+        {
+            Directory.CreateDirectory(ProgramInstallRoot);
+            CloseExistingLocalManagerProcesses();
+
+            Exception? lastError = null;
+            for (var attempt = 1; attempt <= 5; attempt++)
+            {
+                try
+                {
+                    File.Copy(currentPath, installedPath, true);
+                    lastError = null;
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                    System.Threading.Thread.Sleep(500);
+                }
+            }
+
+            if (lastError is not null) throw lastError;
+            Process.Start(new ProcessStartInfo { FileName = installedPath, UseShellExecute = true, WorkingDirectory = ProgramInstallRoot, Verb = "open" });
+            return true;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Could not install Mad4B Local Manager to the local app folder. " + ex.Message, "Mad4B Local Manager", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return true;
+        }
+    }
+
+    private static bool PathsEqual(string left, string right) => string.Equals(Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
+
+    private static void CloseExistingLocalManagerProcesses()
+    {
+        var currentProcessId = Environment.ProcessId;
+        foreach (var process in Process.GetProcesses())
+        {
+            try
+            {
+                if (process.Id == currentProcessId || !LooksLikeLocalManagerProcess(process)) continue;
+                if (process.MainWindowHandle != IntPtr.Zero) process.CloseMainWindow();
+                if (!process.WaitForExit(3000)) process.Kill(true);
+            }
+            catch { }
+            finally { process.Dispose(); }
+        }
+    }
+
+    private static bool LooksLikeLocalManagerProcess(Process process)
+    {
+        try
+        {
+            var title = process.MainWindowTitle ?? "";
+            if (title.Contains("Mad4B Local Manager", StringComparison.OrdinalIgnoreCase)) return true;
+            var name = process.ProcessName ?? "";
+            if (LooksLikeLocalManagerText(name)) return true;
+            var module = process.MainModule;
+            var modulePath = module?.FileName ?? "";
+            if (LooksLikeLocalManagerText(modulePath)) return true;
+            var versionInfo = module?.FileVersionInfo;
+            var metadata = string.Join(" ", new[] { versionInfo?.ProductName, versionInfo?.FileDescription, versionInfo?.OriginalFilename });
+            return LooksLikeLocalManagerText(metadata);
+        }
+        catch { return false; }
+    }
+
+    private static bool LooksLikeLocalManagerText(string value) => value.Contains("Mad4B", StringComparison.OrdinalIgnoreCase) && (value.Contains("LocalManager", StringComparison.OrdinalIgnoreCase) || value.Contains("Local-Manager", StringComparison.OrdinalIgnoreCase) || value.Contains("Local Manager", StringComparison.OrdinalIgnoreCase));
 
     private sealed class MainForm : Form
     {
