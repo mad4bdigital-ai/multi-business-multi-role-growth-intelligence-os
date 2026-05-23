@@ -70,6 +70,53 @@ function openRouterOptionalConfig(env = process.env) {
   };
 }
 
+function isRetryableModelProviderError(error) {
+  const message = String(error?.message || error || "");
+  return /\b(401|403|408|409|425|429|500|502|503|504)\b/.test(message) ||
+    /rate|quota|timeout|temporar|unavailable|invalid\s+(api key|x-api-key|credential)/i.test(message);
+}
+
+function buildProviderCallModel(candidate, env = process.env) {
+  const keys = apiKeyByProvider(env);
+  return buildCallModel({
+    provider: candidate.provider,
+    model: candidate.model,
+    api_key: keys[candidate.provider],
+    ...openRouterOptionalConfig(env),
+  });
+}
+
+function buildFallbackCallModel(candidates = [], env = process.env) {
+  const usable = Array.isArray(candidates) ? candidates.filter(Boolean) : [];
+  if (!usable.length) return null;
+  return async function callModelWithProviderFallback(messages, tools = []) {
+    const failures = [];
+    for (const candidate of usable) {
+      try {
+        const callModel = buildProviderCallModel(candidate, env);
+        const response = await callModel(messages, tools);
+        return {
+          ...response,
+          model_provider: candidate.provider,
+          model_used: candidate.model,
+          fallback_attempts: failures,
+        };
+      } catch (err) {
+        failures.push({
+          provider: candidate.provider,
+          model: candidate.model,
+          message: String(err?.message || err || "model_call_failed").replace(/\{[\s\S]*\}/g, "[upstream_error_body_redacted]").slice(0, 240),
+        });
+        if (!isRetryableModelProviderError(err)) throw err;
+      }
+    }
+    const finalError = new Error(`all_model_providers_failed: ${failures.map(f => `${f.provider}:${f.message}`).join(" | ")}`);
+    finalError.code = "all_model_providers_failed";
+    finalError.failures = failures;
+    throw finalError;
+  };
+}
+
 export function resolveAgentModelProvider(env = process.env) {
   const explicit = String(env.AGENT_MODEL_PROVIDER || "").trim().toLowerCase();
   if (explicit) return explicit;
