@@ -21,6 +21,8 @@ function buildAgentDeps(config = {}) {
     provider: config.provider,
     model:    config.model,
     api_key:  config.api_key,
+    site_url: config.site_url,
+    app_name: config.app_name,
   });
 
   function boundRunLogic(input, extraDeps = {}) {
@@ -43,12 +45,29 @@ function buildAgentDeps(config = {}) {
   };
 }
 
-// Models per execution_class per provider.
+// Legacy env-only fallback models. Governed runtime selection should use
+// platform_runtime_config.agent_model_runtime through getCallModelForClassAsync.
 const CLASS_MODELS = {
   standard:  { openrouter: "openrouter/free", anthropic: "claude-haiku-4-5-20251001", openai: "gpt-4o-mini",  gemini: "gemini-1.5-flash" },
   complex:   { openrouter: "openrouter/free", anthropic: "claude-sonnet-4-6",          openai: "gpt-4o",       gemini: "gemini-1.5-pro"  },
   authority: { openrouter: "openrouter/free", anthropic: "claude-opus-4-7",            openai: "gpt-4o",       gemini: "gemini-1.5-pro"  },
 };
+
+function apiKeyByProvider(env = process.env) {
+  return {
+    openrouter: env.OPENROUTER_API_KEY,
+    anthropic: env.ANTHROPIC_API_KEY,
+    openai:    env.OPENAI_API_KEY,
+    gemini:    env.GOOGLE_AI_API_KEY,
+  };
+}
+
+function openRouterOptionalConfig(env = process.env) {
+  return {
+    site_url: env.OPENROUTER_SITE_URL,
+    app_name: env.OPENROUTER_APP_NAME,
+  };
+}
 
 export function resolveAgentModelProvider(env = process.env) {
   const explicit = String(env.AGENT_MODEL_PROVIDER || "").trim().toLowerCase();
@@ -60,29 +79,49 @@ export function resolveAgentModelProvider(env = process.env) {
   return "anthropic";
 }
 
+export async function resolveAgentModelProviderAsync(execution_class = "standard", env = process.env) {
+  const settings = await loadAgentModelRuntimeSettings();
+  return resolveAgentModelSelection({ execution_class, env, config: settings.config });
+}
+
 let _classCache = {};
 
 export function getCallModelForClass(execution_class) {
   const cls = execution_class || "standard";
-  if (_classCache[cls]) return _classCache[cls];
-
-  // AGENT_MODEL env var opts out of class routing for all classes.
-  if (process.env.AGENT_MODEL) {
-    _classCache[cls] = getAgentDeps().callModel;
-    return _classCache[cls];
-  }
-
   const provider = resolveAgentModelProvider(process.env);
-  const apiKeyByProvider = {
-    anthropic: process.env.ANTHROPIC_API_KEY,
-    openai:    process.env.OPENAI_API_KEY,
-    gemini:    process.env.GOOGLE_AI_API_KEY,
-  };
   const table = CLASS_MODELS[cls] || CLASS_MODELS.standard;
-  const model = table[provider] || table.anthropic;
+  const model = process.env.AGENT_MODEL || table[provider] || table.anthropic;
+  const cacheKey = `${cls}:${provider}:${model}:sync`;
+  if (_classCache[cacheKey]) return _classCache[cacheKey];
 
-  _classCache[cls] = buildCallModel({ provider, model, api_key: apiKeyByProvider[provider] });
-  return _classCache[cls];
+  const keys = apiKeyByProvider(process.env);
+  _classCache[cacheKey] = buildCallModel({
+    provider,
+    model,
+    api_key: keys[provider],
+    ...openRouterOptionalConfig(process.env),
+  });
+  return _classCache[cacheKey];
+}
+
+export async function getCallModelForClassAsync(execution_class = "standard") {
+  const settings = await loadAgentModelRuntimeSettings();
+  const selection = resolveAgentModelSelection({
+    execution_class,
+    env: process.env,
+    config: settings.config || DEFAULT_AGENT_MODEL_RUNTIME_CONFIG,
+  });
+  const cacheKey = `${selection.execution_class}:${selection.provider}:${selection.model}:async`;
+  if (_classCache[cacheKey]) return _classCache[cacheKey];
+
+  const keys = apiKeyByProvider(process.env);
+  _classCache[cacheKey] = buildCallModel({
+    provider: selection.provider,
+    model: selection.model,
+    api_key: keys[selection.provider],
+    ...openRouterOptionalConfig(process.env),
+  });
+  return _classCache[cacheKey];
 }
 
 let _singleton = null;
@@ -90,23 +129,22 @@ let _singleton = null;
 export function getAgentDeps() {
   if (_singleton) return _singleton;
 
-  // Provider resolution order: explicit AGENT_MODEL_PROVIDER, then first provider
-  // with a configured key. This keeps Hostinger stable when only one model
-  // provider secret is present.
   const provider = resolveAgentModelProvider(process.env);
-  const apiKeyByProvider = {
-    anthropic: process.env.ANTHROPIC_API_KEY,
-    openai:    process.env.OPENAI_API_KEY,
-    gemini:    process.env.GOOGLE_AI_API_KEY,
-  };
+  const table = CLASS_MODELS.standard;
+  const model = process.env.AGENT_MODEL || table[provider] || table.anthropic;
+  const keys = apiKeyByProvider(process.env);
 
   _singleton = {
     ...buildAgentDeps({
       provider,
-      model:   process.env.AGENT_MODEL,
-      api_key: apiKeyByProvider[provider],
+      model,
+      api_key: keys[provider],
+      ...openRouterOptionalConfig(process.env),
     }),
     getCallModelForClass,
+    getCallModelForClassAsync,
+    resolveAgentModelProvider,
+    resolveAgentModelProviderAsync,
   };
 
   return _singleton;
