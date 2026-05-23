@@ -264,12 +264,14 @@ export async function recordGptSessionTurn({
   }
 
   const archive = archiveResult.archive || {};
+  const storageMode = archive.drive_doc_id ? "drive" : "preview_only";
+  const sqlContent = null;
   const eventPayload = {
     role,
     action_key,
     content_preview: contentPreview,
     content_sha256: contentHash,
-    storage_mode: archive.drive_doc_id ? "drive" : "inline_preview",
+    storage_mode: storageMode,
     drive_doc_id: archive.drive_doc_id || null,
     drive_anchor: archive.drive_doc_id ? driveAnchor : null,
   };
@@ -284,13 +286,13 @@ export async function recordGptSessionTurn({
       turnId,
       turnIndex,
       role,
-      contentPreview,
+      sqlContent,
       action_key,
       contentPreview,
       contentHash,
       archive.drive_doc_id || null,
       archive.drive_doc_id ? driveAnchor : null,
-      archive.drive_doc_id ? "drive" : "inline",
+      storageMode,
     ]
   );
 
