@@ -15,6 +15,11 @@ import { randomUUID }       from "node:crypto";
 import { getPool }          from "../db.js";
 import { runDevAgentSweep } from "../devAgentRunner.js";
 import { runSessionSummaryAutosweep } from "../sessionSummaryService.js";
+import {
+  loadAgentModelRuntimeSettings,
+  saveAgentModelRuntimeSettings,
+  summarizeModelRuntimeSettings,
+} from "../agentModelRuntimeSettings.js";
 
 // ── Discussion AI prompt ──────────────────────────────────────────────────────
 
