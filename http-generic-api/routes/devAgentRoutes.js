@@ -115,12 +115,21 @@ export function buildDevAgentRoutes(deps) {
 
   // ── GET /dev-agent/model-readiness ────────────────────────────────────────
   router.get("/dev-agent/model-readiness", async (req, res) => {
-    const provider = deps.resolveAgentModelProvider
-      ? deps.resolveAgentModelProvider(process.env)
-      : String(process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase();
-    const explicit_provider = String(process.env.AGENT_MODEL_PROVIDER || "").trim().toLowerCase() || null;
+    const selection = deps.resolveAgentModelProviderAsync
+      ? await deps.resolveAgentModelProviderAsync("standard", process.env)
+      : {
+          provider: deps.resolveAgentModelProvider
+            ? deps.resolveAgentModelProvider(process.env)
+            : String(process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase(),
+          model: process.env.AGENT_MODEL || null,
+          source: "legacy_env",
+          explicit_provider: String(process.env.AGENT_MODEL_PROVIDER || "").trim().toLowerCase() || null,
+        };
+    const provider = selection.provider;
+    const explicit_provider = selection.explicit_provider || null;
     const modelOverride = Boolean(process.env.AGENT_MODEL);
     const envPresence = {
+      openrouter: Boolean(process.env.OPENROUTER_API_KEY),
       anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
       openai: Boolean(process.env.OPENAI_API_KEY),
       gemini: Boolean(process.env.GOOGLE_AI_API_KEY),
