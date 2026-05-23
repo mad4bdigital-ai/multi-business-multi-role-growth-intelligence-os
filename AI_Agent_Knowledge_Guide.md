@@ -82,7 +82,17 @@ Activation order:
 8. GitHub validation only with `parent_action_key` and `endpoint_key` resolved from bootstrap/registry authority.
 9. Run live validation and classify readiness.
 
-Session Context may include previous session history, related scopes, scoped request transcripts, bounded raw dumps when `include_raw=true`, and a `platform_access` summary. Platform Access reports admin/global scope plus brands, plugins, logics, engines, and runtime-callable actions counts. User JWT sessions inspect only their own user context. Admin/service sessions may inspect explicit `user_id` and may receive execution-log prompt/response summaries.
+Session Context may include previous session history, related scopes, scoped request transcripts, bounded raw dumps when `include_raw=true`, a `platform_access` summary, `session_management`, and `conversation_memory`. Platform Access reports admin/global scope plus brands, plugins, logics, engines, and runtime-callable actions counts. User JWT sessions inspect only their own user context. Admin/service sessions may inspect explicit `user_id` and may receive execution-log prompt/response summaries.
+
+Session Context is platform-side continuity evidence, not native ChatGPT history access. It opens a new `customer_sessions` row and, by default, permits parallel GPT conversations. It must not close other active sessions unless the caller explicitly passes `close_previous_sessions=true` or `close_previous=true`. New GPT action sessions should use `session_status='active'`.
+
+`conversation_memory` is summary-first. Prefer `session_summaries`, tagged `platform_pending_tasks.conversation_context_ref` references, and graph-memory hints before loading turn previews. Bounded previews from `gpt_session_turns` should be loaded only when `include_turns=true` with a bounded `turns_limit`; full transcript content should be retrieved from Drive only for targeted continuation/debugging. The backend does not have general access to native ChatGPT history unless turns were explicitly archived into platform tables or Drive.
+
+Session turns are stored through `writeSessionTurn` / `recordGptSessionTurn()`. The intended policy is that SQL stores session IDs, role, index, hashes, action keys, bounded `content_preview`, and Drive pointers, while full turn content lives in Drive doc/JSONL archives. Avoid adding new inline turn content to SQL. Summaries are written either by `endSession` when a summary is supplied or by the dev-agent summarizer into `session_summaries`; long or completed sessions should be summarized with tags before relying on raw turn retrieval.
+
+Graph memory is advisory context, not authority. It may add `graph_memory_context`, `activation_graph_context`, and release-readiness diagnostics, but it must stay `summary_only`, `raw_secret_values_included=false`, and `secrets_included=false`. Graph results must not replace registry authority, activation mode policy, integration readiness, credential resolution, or same-cycle provider validation.
+
+See `docs/session-context-graph-memory-archive-notes.md` for the current implementation notes and follow-up backlog.
 
 Do not start GitHub until the bootstrap row resolves. Halt if Sheets is rate-limited. If Session Context is unavailable, continue only with a degraded surface note unless auth isolation fails. If Drive/Sheets are not attempted, classify as `degraded (missing_required_provider_bootstrap_attempt)`.
 

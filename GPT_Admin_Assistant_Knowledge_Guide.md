@@ -37,7 +37,7 @@ On every new GPT session, run hard activation once before normal platform work:
 
 1. Announce: `Connecting to Growth Intelligence Platform...`
 2. Confirm the Custom GPT Action connection is signed in.
-3. Call `activateSession` (`GET /activation/session-context`). This opens a new session (auto-closing any previous open session), returns `session_id` for use in all subsequent `writeSessionTurn` and `endSession` calls, plus `gpt_sessions`, `platform_access` counts, and related scopes.
+3. Call `activateSession` (`GET /activation/session-context`). This opens a new platform GPT session without closing other active conversations by default, returns `session_id` for all subsequent `writeSessionTurn` and `endSession` calls, plus `session_management`, `conversation_memory`, `gpt_sessions`, `platform_access` counts, and related scopes. Use `close_previous_sessions=true` only when the user explicitly wants the old single-session behavior.
 4. Save `session_id` from the response. All turn writes and session-end calls require it.
 5. Read `platform_access` from the response. If missing or stale, call `callTool` with `name: "activation_platform_access"` via the tool registry.
 6. Call `callTool` with `name: "activation_provider_bootstrap_validate"` to run the same-cycle Drive probe, Sheets bootstrap row read, and GitHub validation through the auth-host system layer. Use the individual tools `activation_drive_probe`, `activation_sheets_bootstrap_read`, and `activation_github_validate` only for targeted recovery evidence.
@@ -263,7 +263,7 @@ The auth-dispatcher exposes 19 ops, generated from `openapi.yaml` by `scripts/sp
 
 | Operation | Path | Use |
 |---|---|---|
-| `activateSession` | `GET /activation/session-context` | Open session (auto-closes prior open session), return `session_id` + `platform_access` + `gpt_sessions`. Call once per conversation. |
+| `activateSession` | `GET /activation/session-context` | Open a platform GPT session without closing parallel conversations by default; return `session_id`, `session_management`, `conversation_memory`, `platform_access`, and `gpt_sessions`. Call once per conversation. Use `close_previous_sessions=true` only for explicit single-session cleanup. |
 | `listTools` | `GET /gpt/tools` | Discover all available platform tools from the DB registry. Returns tool names, descriptions, methods, paths, and inputSchemas. |
 | `callTool` | `POST /gpt/tools/call` | Execute any registered tool by name. Pass `name` (from `listTools`) and `tool_args` (not `arguments` — reserved by OpenAI). Path params substituted automatically. Returns raw upstream response. |
 | `writeSessionTurn` | `POST /gpt/sessions/{id}/turn` | Persist a conversation turn (user, assistant, or tool). Requires `session_id` from `activateSession`. Call after every exchange. |
@@ -471,7 +471,13 @@ Every Admin GPT conversation must follow the session lifecycle to persist turns 
 
 `endSession` exports the full conversation JSON to `SESSIONS_DRIVE_FOLDER/{year-month}/{day}/{userSlug}_{HH-MM-SS}_{shortId}.json` and returns the Drive web URL. Sessions with `originator=gpt_action` use the hierarchical folder path; other originators get a flat filename.
 
-Do not skip `writeSessionTurn` or `endSession`. Skipping turns leaves the session incomplete; skipping end leaves it open and blocks the next `activateSession` auto-close from generating a Drive archive.
+Session persistence is SQL-plus-Drive. `customer_sessions` stores the session row and Drive pointers. `gpt_session_turns` stores role/index/action metadata, hashes, bounded previews, and Drive anchors. Full turn content should live in Drive doc/JSONL archives, not inline SQL. New code should not write full turn text to `gpt_session_turns.content` for `storage_mode='drive'`; keep the bounded preview in `content_preview` and use Drive for the full transcript.
+
+Session continuity should be summary-first. Use `conversation_memory` from `activateSession` to check whether `session_summaries`, referenced task contexts, and stored turns exist. Load turn previews only with `include_turns=true` and a bounded `turns_limit`. The backend cannot read native ChatGPT history unless it has been explicitly archived into platform tables or Drive.
+
+Summaries are written either by `endSession` when a `summary` is supplied or by the developer agent summarizer into `session_summaries`. Prefer tagged summaries and graph-memory hints before reading raw turn previews. See `docs/session-context-graph-memory-archive-notes.md` for the current policy and cleanup backlog.
+
+Do not skip `writeSessionTurn` or `endSession`. Skipping turns leaves the session incomplete; skipping end leaves sessions active. Parallel conversations are supported, so leaving one session active no longer blocks a new `activateSession`, but it still weakens archival and summarization quality.
 
 ## Local Connector Scope
 
