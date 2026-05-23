@@ -341,7 +341,7 @@ export async function summarizeSessionTranscript({ session, transcript, callMode
     }
     return await consolidateSummaries({ session, chunkSummaries, callModel });
   } catch (err) {
-    return fallbackInsight(session, transcript?.source || "unknown", err.message);
+    return fallbackInsight(session, transcript?.source || "unknown", sanitizeModelError(err));
   }
 }
 
