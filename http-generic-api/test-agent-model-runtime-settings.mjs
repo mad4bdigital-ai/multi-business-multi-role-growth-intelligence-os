@@ -56,7 +56,17 @@ import { buildCallModel } from "./modelAdapterRouter.js";
 }
 
 {
-  const config = normalizeAgentModelRuntimeConfig({ provider_order: ["openrouter", "openai"] });
+  const config = normalizeAgentModelRuntimeConfig({
+    provider_order: ["openrouter", "openai"],
+    providers: {
+      gemini: {
+        enabled: true,
+        credential_env_var: "GOOGLE_AI_API_KEY",
+        default_model: "gemini-1.5-flash",
+        models: { standard: "gemini-1.5-flash" },
+      },
+    },
+  });
   const selection = resolveAgentModelSelection({
     execution_class: "standard",
     env: { AGENT_MODEL_PROVIDER: "gemini", GOOGLE_AI_API_KEY: "present" },
