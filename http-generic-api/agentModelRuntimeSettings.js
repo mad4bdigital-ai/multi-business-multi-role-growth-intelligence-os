@@ -50,12 +50,13 @@ export const DEFAULT_AGENT_MODEL_RUNTIME_CONFIG = Object.freeze({
     },
     gemini: {
       enabled: true,
-      credential_env_var: "GOOGLE_AI_API_KEY",
-      default_model: "gemini-1.5-flash",
+      credential_env_var: "GEMINI_API_KEY",
+      fallback_credential_env_vars: ["GOOGLE_AI_API_KEY"],
+      default_model: "gemini-3.5-flash",
       models: {
-        standard: "gemini-1.5-flash",
-        complex: "gemini-1.5-pro",
-        authority: "gemini-1.5-pro",
+        standard: "gemini-3.5-flash",
+        complex: "gemini-3.5-flash",
+        authority: "gemini-3.5-flash",
       },
     },
   },
