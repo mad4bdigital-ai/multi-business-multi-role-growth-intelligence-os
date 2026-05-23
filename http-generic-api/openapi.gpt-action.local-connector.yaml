@@ -141,7 +141,7 @@ paths:
       summary: Install allowlisted recovery dependencies on the local device
       description: "Installs only packages from CONNECTOR_DEPENDENCY_ALLOWLIST and only when CONNECTOR_DEPENDENCIES_ENABLED=true. Default recovery packages are gh and googlecloudsdk."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
