@@ -394,11 +394,17 @@ export function buildConnectApiRoutes(deps = {}) {
   // DELETE /connect/api/connections/:connection_id — revoke and zero credentials.
   router.delete("/connect/api/connections/:connection_id", async (req, res, next) => {
     try {
+      if (!req.auth.tenant_id) {
+        return res.status(409).json({
+          ok: false,
+          error: { code: "workspace_required", message: "Create or select a workspace before revoking app connections." },
+        });
+      }
       await pool.query(
         `UPDATE \`user_app_connections\`
             SET status = 'revoked',
                 encrypted_credentials = NULL,
-                updated_at = NOW()
+                last_used_at = NOW()
           WHERE connection_id = ?
             AND user_id = ?
             AND tenant_id = ?`,
