@@ -325,7 +325,7 @@ function localManagerAppPage() {
     </header>
 
     <section id="download" class="grid">
-      <div class="card"><h2>Windows</h2><p>Download the Local Manager Windows app, then sign in after installation.</p><p><a class="button" href="/app/local-manager/download/windows">Download for Windows (.exe)</a></p><p>This app contains no device credentials and no platform secrets.</p></div>
+      <div class="card"><h2>Windows</h2><p>Download the Local Manager Windows app, then sign in after installation.</p><p><a class="button" href="/app/local-manager/download/windows">Download for Windows ${LOCAL_MANAGER_WINDOWS_LATEST_VERSION} (.exe)</a></p><p>This app contains no device credentials and no platform secrets.</p></div>
       <div class="card"><h2>macOS</h2><p>Desktop packaging is planned after the Windows connector flow is completed.</p><p><button disabled>Planned</button></p></div>
       <div class="card"><h2>Linux</h2><p>Agent packaging is planned for server and workstation installs.</p><p><button disabled>Planned</button></p></div>
     </section>
