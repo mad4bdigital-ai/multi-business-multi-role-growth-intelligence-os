@@ -74,8 +74,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $projectPath = 'apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj'
+          [xml]$project = Get-Content -LiteralPath $projectPath
+          $version = ($project.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          if ([string]::IsNullOrWhiteSpace($version)) { throw "Expected <Version> in $projectPath" }
           $tag = 'local-manager-windows-latest'
-          $title = 'Mad4B Local Manager Windows Latest'
+          $title = "Mad4B Local Manager Windows Latest ($version)"
           $notes = @'
           Public Windows Local Manager launcher.
 
