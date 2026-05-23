@@ -48,9 +48,9 @@ function buildAgentDeps(config = {}) {
 // Legacy env-only fallback models. Governed runtime selection should use
 // platform_runtime_config.agent_model_runtime through getCallModelForClassAsync.
 const CLASS_MODELS = {
-  standard:  { openrouter: "openrouter/free", anthropic: "claude-haiku-4-5-20251001", openai: "gpt-4o-mini",  gemini: "gemini-1.5-flash" },
-  complex:   { openrouter: "openrouter/free", anthropic: "claude-sonnet-4-6",          openai: "gpt-4o",       gemini: "gemini-1.5-pro"  },
-  authority: { openrouter: "openrouter/free", anthropic: "claude-opus-4-7",            openai: "gpt-4o",       gemini: "gemini-1.5-pro"  },
+  standard:  { gemini: "gemini-3.5-flash", openrouter: "openrouter/free", openai: "gpt-4o-mini", anthropic: "claude-haiku-4-5-20251001" },
+  complex:   { gemini: "gemini-3.5-flash", openrouter: "openrouter/free", openai: "gpt-4o",      anthropic: "claude-sonnet-4-6" },
+  authority: { gemini: "gemini-3.5-flash", openrouter: "openrouter/free", openai: "gpt-4o",      anthropic: "claude-opus-4-7" },
 };
 
 function apiKeyByProvider(env = process.env) {
