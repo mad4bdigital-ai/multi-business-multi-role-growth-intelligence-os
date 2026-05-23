@@ -20,7 +20,11 @@ If `execution_class` is absent on the workflow row, `standard` is applied.
 
 If `AGENT_MODEL` env var is set, it overrides all class routing for all workflows in that process.
 
-Model selection must not be hardcoded in routes or connectors. All routing goes through `getCallModelForClass(execution_class)` and `modelAdapterRouter` maps the selected tier to the configured provider.
+Model selection must not be hardcoded in routes or connectors. All routing goes through `getCallModelForClass(execution_class)` / `getCallModelForClassAsync(execution_class)` and `modelAdapterRouter` maps the selected tier to the configured provider.
+
+Provider routing is governed by `platform_runtime_config.config_key = agent_model_runtime` when available. This row may define `provider_order`, `free_first`, provider enabled flags, env-var names, and class-to-model mappings. It must never store raw API keys, tokens, private keys, passwords, or provider secrets.
+
+Supported provider keys are `openrouter`, `openai`, `anthropic`, and `gemini`. `openrouter` uses the OpenAI-compatible OpenRouter endpoint and may default low-cost/background work to `openrouter/free` when `OPENROUTER_API_KEY` is configured.
 
 ## Verify Pass Enforcement
 
