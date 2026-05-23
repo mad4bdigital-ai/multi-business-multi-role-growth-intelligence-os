@@ -72,10 +72,10 @@ function openRouterOptionalConfig(env = process.env) {
 export function resolveAgentModelProvider(env = process.env) {
   const explicit = String(env.AGENT_MODEL_PROVIDER || "").trim().toLowerCase();
   if (explicit) return explicit;
+  if (env.GEMINI_API_KEY || env.GOOGLE_AI_API_KEY) return "gemini";
   if (env.OPENROUTER_API_KEY) return "openrouter";
-  if (env.ANTHROPIC_API_KEY) return "anthropic";
   if (env.OPENAI_API_KEY) return "openai";
-  if (env.GOOGLE_AI_API_KEY) return "gemini";
+  if (env.ANTHROPIC_API_KEY) return "anthropic";
   return "anthropic";
 }
 
