@@ -483,7 +483,7 @@ Do not skip `writeSessionTurn` or `endSession`. Skipping turns leaves the sessio
 
 Use `http-generic-api/openapi.gpt-action.local-connector.yaml` for break-glass operations or real-time direct device ops when the primary Cloud Run API is unavailable or when lower-latency direct access is preferred.
 
-The connector runs on the active admin Windows machine and is reachable via Cloudflare Tunnel at `connector.mad4b.com`. It binds only to `127.0.0.1` — Cloudflare Tunnel is the sole internet entry point. Auth: `Authorization: Bearer <BACKEND_API_KEY>`. `/health` is unauthenticated.
+The connector runs on the active admin Windows machine and is reachable via Cloudflare Tunnel at `connector.mad4b.com`. It binds only to `127.0.0.1` — Cloudflare Tunnel is the sole internet entry point. It must not be deployed as, or depend on, the Hostinger `http-generic-api/server.js` app. Auth for sensitive endpoints is the standalone `CONNECTOR_SECRET`, sent as `Authorization: Bearer <CONNECTOR_SECRET>` or `x-connector-secret: <CONNECTOR_SECRET>`. `/health` is unauthenticated.
 
 **Device:** mohammedlap | **Tunnel:** 95e4ba8c-782b-4819-9f80-04af4457ce73 | **Port:** 7070
 
