@@ -620,7 +620,7 @@ paths:
       summary: Control Windows UI and apps on the local device
       description: "Windows app and UI control. Actions: open_url (browser), open_vscode (editor), screenshot (base64 JPEG), process_list, process_kill, notify (toast), service_list, service_action. Requires CONNECTOR_WIN_ENABLED=true."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
