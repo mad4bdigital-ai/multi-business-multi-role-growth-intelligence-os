@@ -105,7 +105,7 @@ paths:
       summary: Run a gcloud CLI command on the local device
       description: "Runs gcloud on the local Windows machine for Cloud Run restarts, logs, or redeployments. First verify gcloud_version; if it reports spawn gcloud ENOENT, use auth-host Google Cloud REST or bootstrap tools."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
