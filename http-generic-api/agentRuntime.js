@@ -84,9 +84,10 @@ let _singleton = null;
 export function getAgentDeps() {
   if (_singleton) return _singleton;
 
-  // Provider resolution order: AGENT_MODEL_PROVIDER → "anthropic"
-  // API key resolution: whichever key matches the chosen provider.
-  const provider = process.env.AGENT_MODEL_PROVIDER || "anthropic";
+  // Provider resolution order: explicit AGENT_MODEL_PROVIDER, then first provider
+  // with a configured key. This keeps Hostinger stable when only one model
+  // provider secret is present.
+  const provider = resolveAgentModelProvider(process.env);
   const apiKeyByProvider = {
     anthropic: process.env.ANTHROPIC_API_KEY,
     openai:    process.env.OPENAI_API_KEY,
