@@ -23,18 +23,20 @@ All AI-driven workflow execution must flow through this layer — no workflow ca
 
 The `execution_class` column on the `workflows` table controls which model tier is selected per workflow run.
 
-| Class | Anthropic | OpenAI | Gemini |
-|---|---|---|---|
-| `standard` | `claude-haiku-4-5-20251001` | `gpt-4o-mini` | `gemini-1.5-flash` |
-| `complex` | `claude-sonnet-4-6` | `gpt-4o` | `gemini-1.5-pro` |
-| `authority` | `claude-opus-4-7` | `gpt-4o` | `gemini-1.5-pro` |
+| Class | OpenRouter | Anthropic | OpenAI | Gemini |
+|---|---|---|---|---|
+| `standard` | `openrouter/free` | `claude-haiku-4-5-20251001` | `gpt-4o-mini` | `gemini-1.5-flash` |
+| `complex` | `openrouter/free` | `claude-sonnet-4-6` | `gpt-4o` | `gemini-1.5-pro` |
+| `authority` | `openrouter/free` | `claude-opus-4-7` | `gpt-4o` | `gemini-1.5-pro` |
 
 Resolution order:
-1. If `AGENT_MODEL` env var is set, all classes use the singleton `getAgentDeps().callModel` — class routing is bypassed.
-2. Otherwise `AGENT_MODEL_PROVIDER` selects the provider column (default: `anthropic`).
-3. `execution_class` selects the row. Missing class falls back to `standard`.
+1. If `AGENT_MODEL_PROVIDER` env var is set, it hard-selects that provider.
+2. Otherwise load `platform_runtime_config.config_key = agent_model_runtime` and iterate its `provider_order`.
+3. Pick the first enabled provider whose credential env var is present.
+4. `execution_class` selects the model. Missing class falls back to `standard`.
+5. If `AGENT_MODEL` env var is set, it overrides the selected class model for the selected provider.
 
-Class routing is cached per class per process via `_classCache`.
+Class routing is cached per class/provider/model per process via `_classCache`. DB settings are cached briefly by `agentModelRuntimeSettings.js` and can be refreshed through the governed settings route.
 
 ## Verify Pass
 
