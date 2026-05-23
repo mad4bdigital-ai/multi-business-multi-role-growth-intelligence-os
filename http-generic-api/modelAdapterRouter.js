@@ -145,13 +145,13 @@ async function callGemini(messages, tools, config = {}) {
   return normalizeGeminiResponse(await res.json());
 }
 
-const PROVIDERS = { anthropic: callAnthropic, openai: callOpenAI, gemini: callGemini };
+const PROVIDERS = { anthropic: callAnthropic, openai: callOpenAI, openrouter: callOpenRouter, gemini: callGemini };
 
 // Returns a callModel(messages, tools) function bound to the chosen provider.
-// provider: "anthropic" | "openai" | "gemini"  (default: anthropic)
+// provider: "anthropic" | "openai" | "openrouter" | "gemini"  (default: anthropic)
 export function buildCallModel(config = {}) {
   const provider = String(config.provider || process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase();
   const caller = PROVIDERS[provider];
-  if (!caller) throw new Error(`Unknown model provider: ${provider}. Use anthropic | openai | gemini`);
+  if (!caller) throw new Error(`Unknown model provider: ${provider}. Use anthropic | openai | openrouter | gemini`);
   return (messages, tools = []) => caller(messages, tools, config);
 }
