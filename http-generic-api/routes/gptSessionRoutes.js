@@ -127,6 +127,7 @@ export function buildGptSessionRoutes(deps) {
         ok: true,
         session_id: session.session_id,
         archive: archiveClose,
+        session_summary: summaryResult,
         drive_export: driveResult
           ? { drive_file_id: driveResult.drive_file_id, drive_web_url: driveResult.drive_web_url }
           : null,
