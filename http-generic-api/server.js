@@ -3170,6 +3170,9 @@ registerRoutes(app, {
   resolveAiIntentMaturation,
   formatIntentMaturationForPrompt,
   resolveRequestedBy,
+  getAgentDeps,
+  getCallModelForClass,
+  callModel: getAgentDeps().callModel,
   localConnectorOrchestrator,
 });
 
