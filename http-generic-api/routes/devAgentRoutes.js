@@ -125,6 +125,7 @@ export function buildDevAgentRoutes(deps) {
           ok: false,
           readiness: "blocked",
           provider,
+          explicit_provider,
           model_override: modelOverride,
           env_presence: envPresence,
           error: { code: "call_model_not_configured", message: "callModel is not wired into route dependencies." },
