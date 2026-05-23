@@ -33,7 +33,7 @@ import { buildCallModel } from "./modelAdapterRouter.js";
 
 {
   const config = normalizeAgentModelRuntimeConfig({
-    provider_order: ["openrouter", "openai", "anthropic", "gemini"],
+    provider_order: ["gemini", "openrouter", "openai", "anthropic"],
   });
   const selection = resolveAgentModelSelection({
     execution_class: "standard",
