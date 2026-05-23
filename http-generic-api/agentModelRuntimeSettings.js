@@ -162,6 +162,41 @@ export function summarizeModelRuntimeSettings(config = DEFAULT_AGENT_MODEL_RUNTI
   };
 }
 
+export function resolveAgentModelCandidateChain({ execution_class = "standard", env = process.env, config = DEFAULT_AGENT_MODEL_RUNTIME_CONFIG } = {}) {
+  const cls = String(execution_class || "standard").trim() || "standard";
+  const normalized = normalizeAgentModelRuntimeConfig(config);
+  const explicitProvider = normalizeProviderKey(env.AGENT_MODEL_PROVIDER || "");
+  const order = explicitProvider && SUPPORTED_MODEL_PROVIDERS.includes(explicitProvider)
+    ? [explicitProvider]
+    : normalized.provider_order;
+  const candidates = [];
+
+  for (const provider of order) {
+    const providerConfig = normalized.providers[provider];
+    if (!providerConfig || providerConfig.enabled !== true) continue;
+    const credentialEnvVars = [providerConfig.credential_env_var, ...(providerConfig.fallback_credential_env_vars || [])]
+      .map(v => String(v || "").trim())
+      .filter(Boolean);
+    const credentialEnvVar = credentialEnvVars.find(name => Boolean(env[name])) || credentialEnvVars[0] || "";
+    const credentialConfigured = Boolean(credentialEnvVar && env[credentialEnvVar]);
+    if (!credentialConfigured) continue;
+    const model = String(env.AGENT_MODEL || providerConfig.models?.[cls] || providerConfig.default_model || "").trim();
+    if (!model) continue;
+    candidates.push({
+      provider,
+      model,
+      execution_class: cls,
+      credential_env_var: credentialEnvVar,
+      credential_configured: true,
+      source: explicitProvider ? "env_provider" : "platform_runtime_config",
+      explicit_provider: explicitProvider || null,
+      free_first: normalized.free_first,
+    });
+  }
+
+  return candidates;
+}
+
 export function resolveAgentModelSelection({ execution_class = "standard", env = process.env, config = DEFAULT_AGENT_MODEL_RUNTIME_CONFIG } = {}) {
   const cls = String(execution_class || "standard").trim() || "standard";
   const normalized = normalizeAgentModelRuntimeConfig(config);
