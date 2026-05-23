@@ -17,9 +17,9 @@ push/merge to main -> Hostinger Auto Deploy -> auth.mad4b.com production validat
 |---|---|---|
 | `dev.mad4b.com` | Development/staging runtime for branch deployment tests before production | GitHub repo `dev` or the governed active development branch |
 | `auth.mad4b.com` | Production control plane and `/connector-agent/server.mjs` distributor | GitHub repo `main` |
-| `connector.mad4b.com` | Hostinger Node app entry if kept in hPanel. Note: live DNS currently points to the Cloudflare Tunnel for the local connector. | GitHub repo `main` or disabled if unused |
+| `connector.mad4b.com` | Admin-only break-glass Cloudflare Tunnel to the active admin Windows `local-connector/server.mjs` on port 7070. It is not a Hostinger Node app and must not run `http-generic-api/server.js`. | Managed by Cloudflare Tunnel + local Windows service, not Hostinger Auto Deploy |
 
-`dev.mad4b.com` must expose `/deployment-info` with branch and commit evidence. `auth.mad4b.com` is the production app and remains the critical distributor for `/connector-agent/version`.
+`dev.mad4b.com` must expose `/deployment-info` with branch and commit evidence. `auth.mad4b.com` is the production app and remains the critical distributor for `/connector-agent/version`. `connector.mad4b.com/health` must identify `service: local-connector`, a Windows hostname, and `platform: win32`; if it identifies `http_generic_api_connector`, DNS or hPanel routing has drifted and break-glass recovery is compromised.
 
 ## Repository readiness
 
