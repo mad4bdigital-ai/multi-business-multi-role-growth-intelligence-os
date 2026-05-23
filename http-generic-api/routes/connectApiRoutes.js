@@ -118,6 +118,16 @@ export function buildConnectApiRoutes(deps = {}) {
   const fetchImpl = deps.fetchImpl || globalThis.fetch;
 
   router.use("/connect/api", requireUserJwt);
+  router.use("/connect/api", async (req, _res, next) => {
+    try {
+      if (!req.auth?.tenant_id && req.auth?.user_id) {
+        req.auth.tenant_id = await resolveActiveTenantId(pool, req.auth.user_id);
+      }
+      next();
+    } catch (err) {
+      next(err);
+    }
+  });
 
   // GET /connect/api/app-integrations — discover apps the user can connect.
   router.get("/connect/api/app-integrations", async (_req, res, next) => {
