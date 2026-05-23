@@ -95,6 +95,7 @@ GPT/admin desktop actions should use the DB-backed desktop command queue. The Lo
 
 - Tenant profiles must not use `https://n8n.mad4b.com/`.
 - Tenant profiles must not use port `5678` unless explicitly marked `runtime_role: platform_managed` and `reserved_platform_domain: true`.
+- Tenant profiles should not use web port `5679` because n8n's task broker defaults to `5679`. Use web port `5682`, broker port `5683`, and launcher health check port `5684` unless a DB profile explicitly reserves another non-conflicting range.
 - Every n8n profile must include `secrets_included: false` in returned payloads.
 - Raw secrets, n8n API keys, Cloudflare tokens, or connector secrets must not be stored inside `connected_systems.config_json`.
 - Public exposure must be auditable through DB state and must be reversible.
