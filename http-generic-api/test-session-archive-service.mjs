@@ -110,6 +110,11 @@ function flattenParams(value) {
   const sqlParamStrings = pool.calls.flatMap((call) => flattenParams(call.params)).filter((value) => typeof value === "string");
   assert(!sqlParamStrings.includes(fullContent), "SQL params must not contain the full turn content");
   assert(sqlParamStrings.some((value) => value.includes("...[truncated]")), "SQL should contain a bounded preview");
+  const turnInsert = pool.calls.find((call) => call.sql.includes("INSERT INTO `gpt_session_turns`"));
+  assert(turnInsert, "turn write should index gpt_session_turns");
+  assert.equal(turnInsert.params[4], null, "gpt_session_turns.content must stay null for Drive-mode archival");
+  assert.equal(turnInsert.params[6], previewText(fullContent), "bounded preview should live only in content_preview");
+  assert.equal(turnInsert.params[10], "drive", "Drive archive writes should keep storage_mode=drive");
   assert(
     pool.calls.some((call) => call.sql.includes("INSERT INTO `gpt_session_turns`")),
     "turn write should index gpt_session_turns"
