@@ -205,6 +205,18 @@ Call `platform_self_repair_diagnose` to run a bootstrap config check — returns
 
 The platform runs in `DATA_SOURCE=sql` mode on Hostinger. In this mode, all Sheets/Drive I/O is skipped during execution and writeback — no Google Sheets calls are made even if Sheets env vars are present. Activation passes Drive and Sheets steps as `skipped/ok` and proceeds to GitHub validation. Do not attempt to repair `ACTIVITY_SPREADSHEET_ID` or `EXECUTION_LOG_UNIFIED_SPREADSHEET_ID` in SQL mode — they are unused.
 
+### Model runtime settings
+
+Agent/dev-agent model routing is governed by `platform_runtime_config.agent_model_runtime`. This config stores provider order, model IDs, and credential env-var names only; it must not store raw provider keys. Supported providers are `openrouter`, `openai`, `anthropic`, and `gemini`. OpenRouter can be used as the free-first path through `openrouter/free` when `OPENROUTER_API_KEY` is configured.
+
+Use these governed tools instead of editing route code:
+
+| Tool | Purpose |
+|---|---|
+| `dev_agent_model_readiness` | Probe selected model provider and return sanitized readiness evidence. |
+| `dev_agent_model_settings_get` | Read sanitized model runtime settings and credential presence flags. |
+| `dev_agent_model_settings_update` | Update non-secret provider/model settings. Secret-like fields are rejected. |
+
 ## Native Browser Plugin Tier
 
 Browser automation should be added as native platform plugins, not as direct GPT access to package APIs.
