@@ -145,6 +145,8 @@ export function buildDevAgentRoutes(deps) {
           ok: false,
           readiness: "blocked",
           provider,
+          model: selection.model || null,
+          selection_source: selection.source || "unknown",
           explicit_provider,
           model_override: modelOverride,
           env_presence: envPresence,
