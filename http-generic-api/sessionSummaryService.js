@@ -461,7 +461,6 @@ export async function runSessionSummaryAutosweep({
   run_id = null,
   injectedDeps = {},
 } = {}) {
-  if (!callModel) throw new Error("session_summary_model_not_configured");
   const sessions = await findSessionsNeedingSummary({ pool, batchSize: limit || batchSize, minAgeSeconds });
   const results = [];
   for (const session of sessions) {
