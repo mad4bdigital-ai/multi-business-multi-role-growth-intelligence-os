@@ -513,17 +513,18 @@ function err(res, status, code, message) {
  * @returns {boolean} true if authenticated
  */
 function requireAuth(req, res) {
-  if (!API_KEY) {
-    err(res, 500, 'NO_API_KEY', 'BACKEND_API_KEY is not configured on this connector');
+  if (!CONNECTOR_AUTH_SECRET) {
+    err(res, 503, 'CONNECTOR_SECRET_NOT_CONFIGURED', 'CONNECTOR_SECRET is not configured on this connector');
     return false;
   }
-  const header = req.headers['authorization'] ?? '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-  if (token !== API_KEY) {
-    err(res, 401, 'UNAUTHORIZED', 'Missing or invalid Bearer token');
-    return false;
+  const header = String(req.headers['authorization'] ?? '');
+  const bearer = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  const headerSecret = String(req.headers['x-connector-secret'] ?? '').trim();
+  if (bearer === CONNECTOR_AUTH_SECRET || headerSecret === CONNECTOR_AUTH_SECRET) {
+    return true;
   }
-  return true;
+  err(res, 401, 'UNAUTHORIZED', 'Missing or invalid connector credential');
+  return false;
 }
 
 // ---------------------------------------------------------------------------
