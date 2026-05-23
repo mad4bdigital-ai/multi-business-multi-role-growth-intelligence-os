@@ -263,7 +263,7 @@ The auth-dispatcher exposes 19 ops, generated from `openapi.yaml` by `scripts/sp
 
 | Operation | Path | Use |
 |---|---|---|
-| `activateSession` | `GET /activation/session-context` | Open session (auto-closes prior open session), return `session_id` + `platform_access` + `gpt_sessions`. Call once per conversation. |
+| `activateSession` | `GET /activation/session-context` | Open a platform GPT session without closing parallel conversations by default; return `session_id`, `session_management`, `conversation_memory`, `platform_access`, and `gpt_sessions`. Call once per conversation. Use `close_previous_sessions=true` only for explicit single-session cleanup. |
 | `listTools` | `GET /gpt/tools` | Discover all available platform tools from the DB registry. Returns tool names, descriptions, methods, paths, and inputSchemas. |
 | `callTool` | `POST /gpt/tools/call` | Execute any registered tool by name. Pass `name` (from `listTools`) and `tool_args` (not `arguments` — reserved by OpenAI). Path params substituted automatically. Returns raw upstream response. |
 | `writeSessionTurn` | `POST /gpt/sessions/{id}/turn` | Persist a conversation turn (user, assistant, or tool). Requires `session_id` from `activateSession`. Call after every exchange. |
