@@ -74,6 +74,7 @@ assert(
 );
 
 await importModule("sessionSummaryService.js");
+await importModule("agentModelRuntimeSettings.js");
 await importModule("routes/activationRoutes.js");
 await importModule("routes/gptSessionRoutes.js");
 await importModule("routes/devAgentRoutes.js");
