@@ -154,21 +154,13 @@ export function getCallModelForClass(execution_class) {
 
 export async function getCallModelForClassAsync(execution_class = "standard") {
   const settings = await loadAgentModelRuntimeSettings();
-  const selection = resolveAgentModelSelection({
-    execution_class,
-    env: process.env,
-    config: settings.config || DEFAULT_AGENT_MODEL_RUNTIME_CONFIG,
-  });
-  const cacheKey = `${selection.execution_class}:${selection.provider}:${selection.model}:async`;
+  const config = settings.config || DEFAULT_AGENT_MODEL_RUNTIME_CONFIG;
+  const candidates = resolveAgentModelCandidateChain({ execution_class, env: process.env, config });
+  const selection = candidates[0] || resolveAgentModelSelection({ execution_class, env: process.env, config });
+  const cacheKey = `${selection.execution_class}:${candidates.map(c => `${c.provider}:${c.model}`).join(">") || `${selection.provider}:${selection.model}`}:async`;
   if (_classCache[cacheKey]) return _classCache[cacheKey];
 
-  const keys = apiKeyByProvider(process.env);
-  _classCache[cacheKey] = buildCallModel({
-    provider: selection.provider,
-    model: selection.model,
-    api_key: keys[selection.provider],
-    ...openRouterOptionalConfig(process.env),
-  });
+  _classCache[cacheKey] = buildFallbackCallModel(candidates.length ? candidates : [selection], process.env);
   return _classCache[cacheKey];
 }
 
