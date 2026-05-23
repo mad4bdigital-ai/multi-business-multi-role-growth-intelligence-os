@@ -8,7 +8,7 @@ import { buildCallModel } from "./modelAdapterRouter.js";
 
 {
   const config = normalizeAgentModelRuntimeConfig({
-    provider_order: ["openrouter", "openai", "unknown"],
+    provider_order: ["gemini", "openrouter", "unknown"],
     providers: {
       openrouter: {
         enabled: true,
