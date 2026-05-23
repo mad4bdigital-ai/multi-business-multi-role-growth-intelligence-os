@@ -104,7 +104,10 @@ export function buildDevAgentRoutes(deps) {
 
   // ── GET /dev-agent/model-readiness ────────────────────────────────────────
   router.get("/dev-agent/model-readiness", async (req, res) => {
-    const provider = String(process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase();
+    const provider = deps.resolveAgentModelProvider
+      ? deps.resolveAgentModelProvider(process.env)
+      : String(process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase();
+    const explicit_provider = String(process.env.AGENT_MODEL_PROVIDER || "").trim().toLowerCase() || null;
     const modelOverride = Boolean(process.env.AGENT_MODEL);
     const envPresence = {
       anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
