@@ -53,6 +53,7 @@ const CLASS_MODELS = {
 export function resolveAgentModelProvider(env = process.env) {
   const explicit = String(env.AGENT_MODEL_PROVIDER || "").trim().toLowerCase();
   if (explicit) return explicit;
+  if (env.OPENROUTER_API_KEY) return "openrouter";
   if (env.ANTHROPIC_API_KEY) return "anthropic";
   if (env.OPENAI_API_KEY) return "openai";
   if (env.GOOGLE_AI_API_KEY) return "gemini";
