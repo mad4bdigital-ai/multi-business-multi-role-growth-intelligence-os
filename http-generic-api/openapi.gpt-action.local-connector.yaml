@@ -69,7 +69,7 @@ paths:
       summary: Run a gh CLI command on the local device
       description: "Runs GitHub CLI on the local Windows machine for recovery commits, workflow status, or deployment triggers. First verify gh_status; if it reports spawn gh ENOENT, use the auth-host GitHub REST connector instead."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
