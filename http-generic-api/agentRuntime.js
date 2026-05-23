@@ -45,6 +45,15 @@ const CLASS_MODELS = {
   authority: { anthropic: "claude-opus-4-7",            openai: "gpt-4o",       gemini: "gemini-1.5-pro"  },
 };
 
+function resolveAgentModelProvider(env = process.env) {
+  const explicit = String(env.AGENT_MODEL_PROVIDER || "").trim().toLowerCase();
+  if (explicit) return explicit;
+  if (env.ANTHROPIC_API_KEY) return "anthropic";
+  if (env.OPENAI_API_KEY) return "openai";
+  if (env.GOOGLE_AI_API_KEY) return "gemini";
+  return "anthropic";
+}
+
 let _classCache = {};
 
 export function getCallModelForClass(execution_class) {
@@ -57,7 +66,7 @@ export function getCallModelForClass(execution_class) {
     return _classCache[cls];
   }
 
-  const provider = (process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase();
+  const provider = resolveAgentModelProvider(process.env);
   const apiKeyByProvider = {
     anthropic: process.env.ANTHROPIC_API_KEY,
     openai:    process.env.OPENAI_API_KEY,
@@ -75,9 +84,10 @@ let _singleton = null;
 export function getAgentDeps() {
   if (_singleton) return _singleton;
 
-  // Provider resolution order: AGENT_MODEL_PROVIDER → "anthropic"
-  // API key resolution: whichever key matches the chosen provider.
-  const provider = process.env.AGENT_MODEL_PROVIDER || "anthropic";
+  // Provider resolution order: explicit AGENT_MODEL_PROVIDER, then first provider
+  // with a configured key. This keeps Hostinger stable when only one model
+  // provider secret is present.
+  const provider = resolveAgentModelProvider(process.env);
   const apiKeyByProvider = {
     anthropic: process.env.ANTHROPIC_API_KEY,
     openai:    process.env.OPENAI_API_KEY,
