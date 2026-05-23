@@ -97,6 +97,10 @@ function sanitizeN8nProfileConfig(value, { device }) {
   const requestedLocalUrl = cleanText(cfg.local_url || fallback.local_url, 255) || fallback.local_url;
   const localUrl = !isPlatformManaged && requestedLocalUrl.includes("127.0.0.1:5678") ? fallback.local_url : requestedLocalUrl;
   const listenAddress = cleanText(cfg.listen_address || fallback.listen_address, 64) || fallback.listen_address;
+  const taskBrokerPort = Math.min(Math.max(parseInt(cfg.task_broker_port || fallback.task_broker_port, 10) || fallback.task_broker_port, 1024), 65535);
+  const taskBrokerUrl = cleanText(cfg.task_broker_url || `http://127.0.0.1:${taskBrokerPort}/`, 255) || `http://127.0.0.1:${taskBrokerPort}/`;
+  const taskBrokerListenAddress = cleanText(cfg.task_broker_listen_address || fallback.task_broker_listen_address || listenAddress, 64) || listenAddress;
+  const launcherHealthCheckPort = Math.min(Math.max(parseInt(cfg.launcher_health_check_port || fallback.launcher_health_check_port, 10) || fallback.launcher_health_check_port, 1024), 65535);
   const userFolder = cleanText(cfg.user_folder || fallback.user_folder, 260) || fallback.user_folder;
   const commandPath = cleanText(cfg.command_path || fallback.command_path, 260) || fallback.command_path;
   const editorBaseUrl = cleanText(cfg.editor_base_url || publicUrl || localUrl, 255) || localUrl;
