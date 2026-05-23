@@ -71,12 +71,16 @@ function defaultN8nProfile({ device }) {
     runtime_role: "tenant_local",
     exposure_scope: "local_only",
     reserved_platform_domain: false,
-    local_url: "http://127.0.0.1:5679/",
+    local_url: "http://127.0.0.1:5682/",
     public_url: "",
-    port: 5679,
+    port: 5682,
     listen_address: "127.0.0.1",
-    editor_base_url: "http://127.0.0.1:5679/",
-    webhook_url: "http://127.0.0.1:5679/",
+    task_broker_port: 5683,
+    task_broker_url: "http://127.0.0.1:5683/",
+    task_broker_listen_address: "127.0.0.1",
+    launcher_health_check_port: 5684,
+    editor_base_url: "http://127.0.0.1:5682/",
+    webhook_url: "http://127.0.0.1:5682/",
     secrets_included: false,
   };
 }
@@ -93,6 +97,10 @@ function sanitizeN8nProfileConfig(value, { device }) {
   const requestedLocalUrl = cleanText(cfg.local_url || fallback.local_url, 255) || fallback.local_url;
   const localUrl = !isPlatformManaged && requestedLocalUrl.includes("127.0.0.1:5678") ? fallback.local_url : requestedLocalUrl;
   const listenAddress = cleanText(cfg.listen_address || fallback.listen_address, 64) || fallback.listen_address;
+  const taskBrokerPort = Math.min(Math.max(parseInt(cfg.task_broker_port || fallback.task_broker_port, 10) || fallback.task_broker_port, 1024), 65535);
+  const taskBrokerUrl = cleanText(cfg.task_broker_url || `http://127.0.0.1:${taskBrokerPort}/`, 255) || `http://127.0.0.1:${taskBrokerPort}/`;
+  const taskBrokerListenAddress = cleanText(cfg.task_broker_listen_address || fallback.task_broker_listen_address || listenAddress, 64) || listenAddress;
+  const launcherHealthCheckPort = Math.min(Math.max(parseInt(cfg.launcher_health_check_port || fallback.launcher_health_check_port, 10) || fallback.launcher_health_check_port, 1024), 65535);
   const userFolder = cleanText(cfg.user_folder || fallback.user_folder, 260) || fallback.user_folder;
   const commandPath = cleanText(cfg.command_path || fallback.command_path, 260) || fallback.command_path;
   const editorBaseUrl = cleanText(cfg.editor_base_url || publicUrl || localUrl, 255) || localUrl;
@@ -113,6 +121,10 @@ function sanitizeN8nProfileConfig(value, { device }) {
     public_url: publicUrl,
     port,
     listen_address: listenAddress,
+    task_broker_port: taskBrokerPort,
+    task_broker_url: taskBrokerUrl,
+    task_broker_listen_address: taskBrokerListenAddress,
+    launcher_health_check_port: launcherHealthCheckPort,
     editor_base_url: editorBaseUrl,
     webhook_url: webhookUrl,
     secrets_included: false,

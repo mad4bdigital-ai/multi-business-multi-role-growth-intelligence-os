@@ -512,6 +512,10 @@ internal static class Program
                     "set \"N8N_USER_FOLDER=" + userFolder + "\"",
                     "set \"N8N_PORT=" + profile.Port + "\"",
                     "set \"N8N_LISTEN_ADDRESS=" + profile.ListenAddress + "\"",
+                    "set \"N8N_RUNNERS_BROKER_PORT=" + profile.TaskBrokerPort + "\"",
+                    "set \"N8N_RUNNERS_BROKER_LISTEN_ADDRESS=" + profile.TaskBrokerListenAddress + "\"",
+                    "set \"N8N_RUNNERS_TASK_BROKER_URI=" + profile.TaskBrokerUrl.TrimEnd('/') + "\"",
+                    "set \"N8N_RUNNERS_LAUNCHER_HEALTH_CHECK_PORT=" + profile.LauncherHealthCheckPort + "\"",
                     "set \"N8N_EDITOR_BASE_URL=" + profile.EditorBaseUrl + "\"",
                     "set \"WEBHOOK_URL=" + profile.WebhookUrl + "\"",
                     "cd /d \"" + userFolder + "\"",
@@ -736,7 +740,7 @@ internal static class Program
         public string PublicUrl { get; init; } = N8nPublicUrl;
         public int Port { get; init; } = 5679;
         public string ListenAddress { get; init; } = "127.0.0.1";
-        public string EditorBaseUrl { get; init; } = "http://127.0.0.1:5679/";
+        public int TaskBrokerPort { get; init; } = 5683; public string TaskBrokerUrl { get; init; } = "http://127.0.0.1:5683/"; public string TaskBrokerListenAddress { get; init; } = "127.0.0.1"; public int LauncherHealthCheckPort { get; init; } = 5684; public string EditorBaseUrl { get; init; } = "http://127.0.0.1:5679/";
         public string WebhookUrl { get; init; } = "http://127.0.0.1:5679/";
 
         public static N8nLocalProfile Default() => new();
@@ -758,7 +762,7 @@ internal static class Program
                 LocalUrl = GetString(profile, "local_url", fallback.LocalUrl),
                 PublicUrl = GetString(profile, "public_url", fallback.PublicUrl),
                 Port = GetInt(profile, "port", fallback.Port),
-                ListenAddress = GetString(profile, "listen_address", fallback.ListenAddress),
+                ListenAddress = GetString(profile, "listen_address", fallback.ListenAddress), TaskBrokerPort = GetInt(profile, "task_broker_port", fallback.TaskBrokerPort), TaskBrokerUrl = GetString(profile, "task_broker_url", fallback.TaskBrokerUrl), TaskBrokerListenAddress = GetString(profile, "task_broker_listen_address", fallback.TaskBrokerListenAddress), LauncherHealthCheckPort = GetInt(profile, "launcher_health_check_port", fallback.LauncherHealthCheckPort),
                 EditorBaseUrl = GetString(profile, "editor_base_url", fallback.EditorBaseUrl),
                 WebhookUrl = GetString(profile, "webhook_url", fallback.WebhookUrl),
             };

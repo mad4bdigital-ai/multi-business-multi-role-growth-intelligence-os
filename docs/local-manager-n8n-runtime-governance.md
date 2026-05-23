@@ -30,7 +30,7 @@ Required profile fields:
 
 ### Tenant local n8n
 
-Tenant/user n8n is self-serve by default and runs locally from Local Manager. It must use a tenant-specific data folder and a non-platform port. The default tenant local port is `5679` so it cannot accidentally become the origin for `https://n8n.mad4b.com/`.
+Tenant/user n8n is self-serve by default and runs locally from Local Manager. It must use a tenant-specific data folder and a non-platform port. The default tenant local web port is `5682` so it cannot accidentally become the origin for `https://n8n.mad4b.com/` and does not conflict with n8n's default Task Broker port `5679`. Tenant profiles should explicitly set a separate task broker port such as `5683` and launcher health check port such as `5684`.
 
 Required profile fields:
 
@@ -41,10 +41,14 @@ Required profile fields:
   "service_mode": "self_serve",
   "reserved_platform_domain": false,
   "local_only": true,
-  "local_url": "http://127.0.0.1:5679/",
+  "local_url": "http://127.0.0.1:5682/",
   "public_url": "",
-  "editor_base_url": "http://127.0.0.1:5679/",
-  "webhook_url": "http://127.0.0.1:5679/"
+  "port": 5682,
+  "task_broker_port": 5683,
+  "task_broker_url": "http://127.0.0.1:5683/",
+  "launcher_health_check_port": 5684,
+  "editor_base_url": "http://127.0.0.1:5682/",
+  "webhook_url": "http://127.0.0.1:5682/"
 }
 ```
 
@@ -61,8 +65,12 @@ Preferred shape:
   "runtime_role": "tenant_local",
   "exposure_scope": "tenant_public_tunnel",
   "public_tunnel_mode": "cloudflare_tenant_hostname",
-  "local_url": "http://127.0.0.1:5679/",
+  "local_url": "http://127.0.0.1:5682/",
   "public_url": "https://n8n-8db63b00.mad4b.com/",
+  "port": 5682,
+  "task_broker_port": 5683,
+  "task_broker_url": "http://127.0.0.1:5683/",
+  "launcher_health_check_port": 5684,
   "editor_base_url": "https://n8n-8db63b00.mad4b.com/",
   "webhook_url": "https://n8n-8db63b00.mad4b.com/"
 }
@@ -87,6 +95,7 @@ GPT/admin desktop actions should use the DB-backed desktop command queue. The Lo
 
 - Tenant profiles must not use `https://n8n.mad4b.com/`.
 - Tenant profiles must not use port `5678` unless explicitly marked `runtime_role: platform_managed` and `reserved_platform_domain: true`.
+- Tenant profiles should not use web port `5679` because n8n's task broker defaults to `5679`. Use web port `5682`, broker port `5683`, and launcher health check port `5684` unless a DB profile explicitly reserves another non-conflicting range.
 - Every n8n profile must include `secrets_included: false` in returned payloads.
 - Raw secrets, n8n API keys, Cloudflare tokens, or connector secrets must not be stored inside `connected_systems.config_json`.
 - Public exposure must be auditable through DB state and must be reversible.
