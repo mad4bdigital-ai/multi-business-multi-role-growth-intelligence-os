@@ -87,6 +87,7 @@ assert.equal(normalizeOffset(40), 40);
   assert.equal(source.includes("native_chatgpt_history_available: false"), true);
   assert.equal(source.includes("prefer_session_summaries_and_tags_then_load_turn_previews_on_demand"), true);
   assert.equal(source.includes("include_turns: asBoolean(req.query.include_turns)"), true);
+  assert.equal(source.includes("include_turns: includeTurns"), true);
   assert.equal(source.includes("platform_pending_tasks.conversation_context_ref"), true);
   assert.equal(source.includes("resolvePlatformGraphMemory"), true);
 }
