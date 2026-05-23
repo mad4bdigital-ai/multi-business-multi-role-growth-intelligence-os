@@ -189,7 +189,7 @@ paths:
       summary: Classified local app control
       description: "Classified app control from CONNECTOR_APP_ALLOWLIST when CONNECTOR_APPS_ENABLED=true. Supports status, list, launch, status_app, and close by app_alias with capability/risk metadata."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
