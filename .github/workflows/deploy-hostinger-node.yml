@@ -150,7 +150,7 @@ jobs:
     name: Fallback deploy auth.mad4b.com app
     runs-on: ubuntu-latest
     needs: build
-    if: inputs.target == 'auth' || inputs.target == 'both'
+    if: inputs.target == 'auth'
     environment: hostinger-auth
     steps:
       - name: Download artifact
