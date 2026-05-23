@@ -585,7 +585,7 @@ paths:
       summary: Execute a PowerShell script on the local Windows device
       description: "Run any PowerShell script — repairs, config changes, process management, file ops, calling APIs via Invoke-RestMethod. Returns stdout/stderr/exit_code. Requires CONNECTOR_POWERSHELL_ENABLED=true."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
