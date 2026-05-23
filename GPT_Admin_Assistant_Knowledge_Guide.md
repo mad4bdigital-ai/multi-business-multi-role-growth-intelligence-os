@@ -21,13 +21,13 @@ Use this guide together with:
 
 ## GPT Action Auth
 
-Configure every Custom GPT Action connection with one auth scheme:
+Configure each Custom GPT Action connection with the credential for that host:
 
-- Preferred admin/service auth: `Authorization: Bearer <BACKEND_API_KEY>`
-- Alternative backend header for direct clients: `x-api-key: <BACKEND_API_KEY>`
-- User auth, when needed: `Authorization: Bearer <USER_JWT>` from `/auth/login` or `/auth/google`
+- Platform/auth dispatcher: `Authorization: Bearer <BACKEND_API_KEY>` for admin/service access, or `x-api-key: <BACKEND_API_KEY>` for direct backend clients.
+- Tenant auth dispatcher: `Authorization: Bearer <USER_JWT>` from `/auth/login`, `/auth/google`, or the OAuth popup.
+- Standalone local connector: `Authorization: Bearer <CONNECTOR_SECRET>` or `x-connector-secret: <CONNECTOR_SECRET>`. This is an Admin-only break-glass credential and is independent of `auth.mad4b.com`.
 
-Do not place credentials inside request bodies. Treat the backend API key as the admin/service identity for the platform owner. User-level JWTs should be scoped per user and should not replace the admin backend key for platform-wide administration.
+Do not place credentials inside request bodies. Treat the backend API key as the admin/service identity for the platform owner. Treat the connector secret as an admin local-device recovery credential only; never configure it in Tenant GPTs. User-level JWTs should be scoped per user and should not replace the admin backend key for platform-wide administration.
 
 Tenant `/connect/*` routes reject backend/service auth with `user_jwt_required`. For admin-assisted activation checks, first call `POST /auth/platform-jwt/issue` through the platform connector to issue a short-lived JWT for an existing active user, then use that JWT as `Authorization: Bearer <USER_JWT>` on tenant `/connect/status`, `/connect/activate`, or `/connect/device-install`. Do not relax tenant guards or send the admin backend key to tenant-only operations.
 
