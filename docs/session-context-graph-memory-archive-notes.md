@@ -122,19 +122,19 @@ Required behavior:
 
 ### 2. Autosummarize sessions
 
-Branch suggestion:
+Status: implemented by `feature/session-summary-autosweep`.
 
-```text
-feature/session-summary-autosweep
-```
+Implemented behavior:
 
-Required behavior:
-
-- Summarize sessions when they close or exceed a configurable turn threshold.
-- Keep summaries compact and tag-rich.
-- Populate blockers, completed tasks, feature requests, integration needs, complexity, and graph subject hints.
-- Avoid summarizing raw secrets or sensitive provider outputs.
-- Link summaries to graph nodes/assets so activation context can retrieve summary-level memory without loading full turns.
+- `endSession` triggers `summarizeSessionIfNeeded()` after Drive archive close.
+- Manual summaries supplied to `endSession` are written through the same summary service and graph attachment path.
+- `POST /dev-agent/session-summaries/autosweep` runs a governed manual autosweep.
+- `POST /dev-agent/run` uses the Drive-backed autosweep for phase 1 before proposal extraction.
+- The summarizer loads Drive JSONL first, falls back to SQL `content_preview` only when Drive JSONL is unavailable, and never reads SQL `content` as a full transcript source.
+- Large transcripts are chunked before model summarization.
+- Secret-like values are redacted before summarization.
+- `session_summaries` stores compact tags and source metadata such as `tags_json`, `summary_sha256`, `summary_version`, `summary_source`, `source_turn_count`, `source_last_turn_at`, `source_drive_jsonl_id`, and `source_drive_doc_id`.
+- Each summary is also attached as a summary-only `json_assets` record and graph memory node/edge so activation/context retrieval can find summaries without loading full turns.
 
 ### 3. Graph-assisted transcript retrieval
 
