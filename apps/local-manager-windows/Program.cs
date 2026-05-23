@@ -762,7 +762,7 @@ internal static class Program
                 LocalUrl = GetString(profile, "local_url", fallback.LocalUrl),
                 PublicUrl = GetString(profile, "public_url", fallback.PublicUrl),
                 Port = GetInt(profile, "port", fallback.Port),
-                ListenAddress = GetString(profile, "listen_address", fallback.ListenAddress),
+                ListenAddress = GetString(profile, "listen_address", fallback.ListenAddress), TaskBrokerPort = GetInt(profile, "task_broker_port", fallback.TaskBrokerPort), TaskBrokerUrl = GetString(profile, "task_broker_url", fallback.TaskBrokerUrl), TaskBrokerListenAddress = GetString(profile, "task_broker_listen_address", fallback.TaskBrokerListenAddress), LauncherHealthCheckPort = GetInt(profile, "launcher_health_check_port", fallback.LauncherHealthCheckPort),
                 EditorBaseUrl = GetString(profile, "editor_base_url", fallback.EditorBaseUrl),
                 WebhookUrl = GetString(profile, "webhook_url", fallback.WebhookUrl),
             };
