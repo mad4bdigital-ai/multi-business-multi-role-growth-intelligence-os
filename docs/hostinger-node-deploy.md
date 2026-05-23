@@ -141,7 +141,7 @@ The repository contains:
 .github/workflows/deploy-hostinger-node.yml
 ```
 
-This workflow is manual-only. It is not triggered by push and should be used only if Hostinger Auto Deploy is degraded.
+This workflow is manual-only. It is not triggered by push and should be used only if Hostinger Auto Deploy is degraded. Do not use it to deploy `connector.mad4b.com`; that hostname must stay on the Cloudflare Tunnel/local-service path so it can recover Hostinger/auth outages.
 
 ## Security notes
 
