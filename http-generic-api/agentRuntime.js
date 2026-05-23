@@ -13,6 +13,7 @@ import { buildEngineExecutorRegistry } from "./engineExecutorRegistry.js";
 import {
   DEFAULT_AGENT_MODEL_RUNTIME_CONFIG,
   loadAgentModelRuntimeSettings,
+  resolveAgentModelCandidateChain,
   resolveAgentModelSelection,
 } from "./agentModelRuntimeSettings.js";
 
