@@ -25,6 +25,14 @@ function flattenParams(value) {
 }
 
 {
+  const migration = readFileSync("migrations/110_sprint62u_session_turn_sql_content_cleanup.sql", "utf8");
+  assert(migration.includes("MODIFY COLUMN `content` TEXT NULL"), "migration must allow null SQL content");
+  assert(migration.includes("'preview_only'"), "migration must add preview_only storage mode");
+  assert(migration.includes("SET `content` = NULL"), "migration must clear legacy SQL turn content");
+  assert(migration.includes("SET `storage_mode` = 'preview_only'"), "migration must convert legacy inline rows");
+}
+
+{
   const path = buildSessionArchivePath(
     {
       session_id: "sess-1",
