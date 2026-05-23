@@ -38,6 +38,17 @@ for (const file of syntaxOnlyFiles) {
   checkSyntax(file);
 }
 
+const serverSource = readFileSync(join(__dirname, "server.js"), "utf8");
+assert(
+  serverSource.includes("getAgentDeps, getCallModelForClass") ||
+    serverSource.includes("getCallModelForClass, getAgentDeps"),
+  "server.js must import agent model dependency wiring"
+);
+assert(
+  serverSource.includes("getCallModelForClass,") && serverSource.includes("callModel: getAgentDeps().callModel"),
+  "server.js must pass model deps into registerRoutes for dev-agent/session-summary routes"
+);
+
 await importModule("sessionSummaryService.js");
 await importModule("routes/activationRoutes.js");
 await importModule("routes/gptSessionRoutes.js");
