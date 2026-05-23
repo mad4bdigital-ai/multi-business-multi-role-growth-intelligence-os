@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -36,6 +37,17 @@ const syntaxOnlyFiles = [
 for (const file of syntaxOnlyFiles) {
   checkSyntax(file);
 }
+
+const serverSource = readFileSync(join(__dirname, "server.js"), "utf8");
+assert(
+  serverSource.includes("getAgentDeps, getCallModelForClass") ||
+    serverSource.includes("getCallModelForClass, getAgentDeps"),
+  "server.js must import agent model dependency wiring"
+);
+assert(
+  serverSource.includes("getCallModelForClass,") && serverSource.includes("callModel: getAgentDeps().callModel"),
+  "server.js must pass model deps into registerRoutes for dev-agent/session-summary routes"
+);
 
 await importModule("sessionSummaryService.js");
 await importModule("routes/activationRoutes.js");
