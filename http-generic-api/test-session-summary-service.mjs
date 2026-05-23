@@ -6,6 +6,7 @@ import {
   redactSensitiveText,
   summarizeAndStoreSession,
   summarizeSessionIfNeeded,
+  runSessionSummaryAutosweep,
   writeProvidedSessionSummary,
 } from "./sessionSummaryService.js";
 
