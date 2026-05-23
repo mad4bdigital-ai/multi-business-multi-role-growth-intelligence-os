@@ -103,16 +103,6 @@ Default config:
         "complex": "claude-sonnet-4-6",
         "authority": "claude-opus-4-7"
       }
-    },
-    "gemini": {
-      "enabled": true,
-      "credential_env_var": "GOOGLE_AI_API_KEY",
-      "default_model": "gemini-1.5-flash",
-      "models": {
-        "standard": "gemini-1.5-flash",
-        "complex": "gemini-1.5-pro",
-        "authority": "gemini-1.5-pro"
-      }
     }
   }
 }
