@@ -95,26 +95,26 @@ export function buildGptSessionRoutes(deps) {
         [session.session_id]
       );
 
-      if (summary) {
-        await pool.query(
-          `INSERT INTO \`session_summaries\`
-             (summary_id, session_id, tenant_id, user_id, workspace_key,
-              summary_text, session_model, turn_count, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-          [
-            randomUUID(),
-            session.session_id,
-            session.tenant_id,
-            session.user_id || null,
-            session.workspace_key || null,
-            summary,
-            session.model_name || null,
-            session.turn_count || null,
-          ]
-        );
-      }
-
       const archiveClose = await closeGptSessionArchive({ pool, session, summary });
+
+      const [[freshSession]] = await pool.query(
+        "SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1",
+        [session.session_id]
+      );
+      const sessionForSummary = freshSession || session;
+      let summaryResult = null;
+      try {
+        if (summary) {
+          summaryResult = await writeProvidedSessionSummary({ pool, session: sessionForSummary, summaryText: summary });
+        } else {
+          const callModel = deps.getCallModelForClass
+            ? deps.getCallModelForClass("standard")
+            : deps.callModel;
+          summaryResult = await summarizeSessionIfNeeded({ pool, session: sessionForSummary, callModel });
+        }
+      } catch (summaryErr) {
+        summaryResult = { ok: false, error: { code: "session_summary_failed", message: summaryErr.message } };
+      }
 
       let driveResult = null;
       try {
