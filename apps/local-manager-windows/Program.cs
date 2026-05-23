@@ -511,7 +511,7 @@ internal static class Program
                     "if not exist \"" + commandPath + "\" (echo ERROR: n8n command is still missing at " + commandPath + " & pause & exit /b 1)",
                     "set \"N8N_USER_FOLDER=" + userFolder + "\"",
                     "set \"N8N_PORT=" + profile.Port + "\"",
-                    "set \"N8N_LISTEN_ADDRESS=" + profile.ListenAddress + "\"",
+                    "set \"N8N_LISTEN_ADDRESS=" + profile.ListenAddress + "\"", "set \"N8N_RUNNERS_BROKER_PORT=" + profile.TaskBrokerPort + "\"", "set \"N8N_RUNNERS_BROKER_LISTEN_ADDRESS=" + profile.TaskBrokerListenAddress + "\"", "set \"N8N_RUNNERS_TASK_BROKER_URI=" + profile.TaskBrokerUrl.TrimEnd('/') + "\"", "set \"N8N_RUNNERS_LAUNCHER_HEALTH_CHECK_PORT=" + profile.LauncherHealthCheckPort + "\"",
                     "set \"N8N_RUNNERS_BROKER_PORT=" + profile.TaskBrokerPort + "\"",
                     "set \"N8N_RUNNERS_BROKER_LISTEN_ADDRESS=" + profile.TaskBrokerListenAddress + "\"",
                     "set \"N8N_RUNNERS_TASK_BROKER_URI=" + profile.TaskBrokerUrl.TrimEnd('/') + "\"",
