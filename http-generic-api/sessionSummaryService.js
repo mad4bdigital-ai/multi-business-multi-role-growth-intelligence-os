@@ -370,6 +370,60 @@ export async function summarizeAndStoreSession({
   };
 }
 
+export async function summarizeSessionIfNeeded({
+  pool = getPool(),
+  session,
+  callModel,
+  run_id = null,
+  fallbackTurnsLimit = DEFAULT_FALLBACK_TURNS_LIMIT,
+  injectedDeps = {},
+} = {}) {
+  return summarizeAndStoreSession({
+    pool,
+    session,
+    callModel,
+    run_id,
+    fallbackTurnsLimit,
+    injectedDeps,
+  });
+}
+
+export async function writeProvidedSessionSummary({
+  pool = getPool(),
+  session,
+  summaryText,
+  run_id = null,
+} = {}) {
+  if (!session?.session_id) {
+    return { ok: false, skipped: true, reason: "session_not_found" };
+  }
+
+  const found = await existingSummary(pool, session.session_id);
+  if (found?.summary_id) {
+    return { ok: true, skipped: true, reason: "summary_exists", session_id: session.session_id, summary_id: found.summary_id };
+  }
+
+  const insight = {
+    summary_text: redactSensitiveText(summaryText || ""),
+    tasks_completed: [],
+    blockers: [],
+    feature_requests: [],
+    integration_needs: [],
+    complexity: "medium",
+  };
+  const summaryId = await writeSessionSummary({ pool, session, insight, run_id });
+  return {
+    ok: true,
+    skipped: false,
+    session_id: session.session_id,
+    summary_id: summaryId,
+    transcript_source: "provided_summary",
+    fallback_used: false,
+    events_loaded: 0,
+    warning: null,
+  };
+}
+
 export async function findSessionsNeedingSummary({ pool = getPool(), batchSize = DEFAULT_BATCH_SIZE, minAgeSeconds = DEFAULT_MIN_AGE_SECONDS } = {}) {
   const safeBatchSize = Math.max(1, Math.min(Number(batchSize) || DEFAULT_BATCH_SIZE, 100));
   const safeMinAge = Math.max(0, Math.min(Number(minAgeSeconds) || 0, 86400));

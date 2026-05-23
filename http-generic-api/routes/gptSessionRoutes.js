@@ -2,7 +2,6 @@ import { Router } from "express";
 import { getPool } from "../db.js";
 import { exportSessionToDrive } from "../sessionExportPipeline.js";
 import { closeGptSessionArchive, recordGptSessionTurn } from "../sessionArchiveService.js";
-import { summarizeAndStoreSession } from "../sessionSummaryService.js";
 import { summarizeSessionIfNeeded, writeProvidedSessionSummary } from "../sessionSummaryService.js";
 
 async function resolveSessionForCaller(pool, sessionId, req) {

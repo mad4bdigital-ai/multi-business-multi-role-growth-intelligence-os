@@ -5,6 +5,8 @@ import {
   parseSessionJsonl,
   redactSensitiveText,
   summarizeAndStoreSession,
+  summarizeSessionIfNeeded,
+  writeProvidedSessionSummary,
 } from "./sessionSummaryService.js";
 
 function makePool() {
@@ -47,6 +49,11 @@ function makePool() {
       return [[]];
     },
   };
+}
+
+{
+  assert.equal(typeof summarizeSessionIfNeeded, "function");
+  assert.equal(typeof writeProvidedSessionSummary, "function");
 }
 
 {
