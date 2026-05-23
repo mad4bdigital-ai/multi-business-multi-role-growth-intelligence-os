@@ -49,6 +49,21 @@ assert(
   "server.js must pass model deps into registerRoutes for dev-agent/session-summary routes"
 );
 
+const devAgentRoutesSource = readFileSync(join(__dirname, "routes/devAgentRoutes.js"), "utf8");
+assert(
+  devAgentRoutesSource.includes('/dev-agent/model-readiness'),
+  "dev agent model readiness diagnostic route must stay registered"
+);
+
+const modelReadinessMigration = readFileSync(
+  join(__dirname, "migrations/114_sprint62y_register_model_readiness_tool.sql"),
+  "utf8"
+);
+assert(
+  modelReadinessMigration.includes("dev_agent_model_readiness"),
+  "model readiness admin tool must stay registered through migration"
+);
+
 await importModule("sessionSummaryService.js");
 await importModule("routes/activationRoutes.js");
 await importModule("routes/gptSessionRoutes.js");

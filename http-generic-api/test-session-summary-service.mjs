@@ -6,6 +6,7 @@ import {
   redactSensitiveText,
   summarizeAndStoreSession,
   summarizeSessionIfNeeded,
+  summarizeSessionTranscript,
   runSessionSummaryAutosweep,
   writeProvidedSessionSummary,
 } from "./sessionSummaryService.js";
@@ -181,6 +182,22 @@ function makePool() {
     /deterministic fallback summary/,
     "fallback summary should record model configuration warning"
   );
+}
+
+{
+  const insight = await summarizeSessionTranscript({
+    session: { session_id: "sess-model-error", turn_count: 1 },
+    transcript: {
+      source: "sql_preview",
+      events: [{ turn_index: 0, role: "user", content: "summarize" }],
+    },
+    async callModel() {
+      throw new Error('Anthropic API 401: {"type":"error","error":{"message":"invalid x-api-key"},"request_id":"req_secret"}');
+    },
+  });
+  assert.match(insight.summary_text, /model_call_failed: Anthropic API 401/);
+  assert(!insight.summary_text.includes("invalid x-api-key"));
+  assert(!JSON.stringify(insight.blockers).includes("req_secret"));
 }
 
 console.log("session summary service tests passed");

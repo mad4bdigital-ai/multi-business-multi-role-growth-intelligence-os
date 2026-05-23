@@ -41,6 +41,26 @@ Be concrete and actionable. If the user confirms the proposal, acknowledge and s
 If they want to refine it, help narrow scope and priority. Keep replies focused and under 300 words.`;
 }
 
+function sanitizeModelReadinessError(error) {
+  const message = String(error?.message || error || "model_readiness_failed");
+  const providerMatch = message.match(/\b(Anthropic|OpenAI|Gemini) API\s+(\d{3})/i);
+  if (providerMatch) {
+    return {
+      code: "model_provider_error",
+      provider: providerMatch[1].toLowerCase(),
+      upstream_status: Number(providerMatch[2]),
+      message: `${providerMatch[1]} API returned ${providerMatch[2]}`,
+    };
+  }
+  if (/invalid\s+(x-api-key|api key|authorization|credentials?)/i.test(message)) {
+    return { code: "invalid_model_credentials", message: "Model credentials are invalid." };
+  }
+  if (/missing\s+.*(api key|credential|token)/i.test(message)) {
+    return { code: "missing_model_credentials", message: "Model credentials are missing." };
+  }
+  return { code: "model_readiness_failed", message: message.replace(/\{[\s\S]*\}/g, "[upstream_error_body_redacted]").slice(0, 240) };
+}
+
 async function loadUserContext(tenant_id) {
   const ctx = { tenant_id, connected_apps: [], recent_sessions: [], workspace_keys: [] };
 
@@ -81,6 +101,62 @@ export function buildDevAgentRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
   router.use(requireBackendApiKey);
+
+  // ── GET /dev-agent/model-readiness ────────────────────────────────────────
+  router.get("/dev-agent/model-readiness", async (req, res) => {
+    const provider = String(process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase();
+    const modelOverride = Boolean(process.env.AGENT_MODEL);
+    const envPresence = {
+      anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
+      openai: Boolean(process.env.OPENAI_API_KEY),
+      gemini: Boolean(process.env.GOOGLE_AI_API_KEY),
+    };
+
+    try {
+      const callModel = deps.getCallModelForClass
+        ? deps.getCallModelForClass("standard")
+        : deps.callModel;
+
+      if (!callModel) {
+        return res.status(503).json({
+          ok: false,
+          readiness: "blocked",
+          provider,
+          model_override: modelOverride,
+          env_presence: envPresence,
+          error: { code: "call_model_not_configured", message: "callModel is not wired into route dependencies." },
+        });
+      }
+
+      const response = await callModel([
+        { role: "system", content: "Return only JSON." },
+        { role: "user", content: "Return {\"ok\":true,\"purpose\":\"model_readiness\"}." },
+      ], []);
+
+      return res.json({
+        ok: true,
+        readiness: "active",
+        provider,
+        model_override: modelOverride,
+        env_presence: envPresence,
+        response_shape: {
+          has_content: typeof response?.content === "string" && response.content.length > 0,
+          has_tool_calls: Array.isArray(response?.tool_calls),
+          tokens_used: Number(response?.tokens_used || 0),
+        },
+      });
+    } catch (err) {
+      const error = sanitizeModelReadinessError(err);
+      return res.status(error.upstream_status === 401 ? 401 : 503).json({
+        ok: false,
+        readiness: "blocked",
+        provider,
+        model_override: modelOverride,
+        env_presence: envPresence,
+        error,
+      });
+    }
+  });
 
   // ── POST /dev-agent/run ───────────────────────────────────────────────────
   router.post("/dev-agent/run", async (req, res) => {
