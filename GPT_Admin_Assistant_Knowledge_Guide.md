@@ -82,7 +82,7 @@ Customer side must stay inside the resolved tenant/user/brand scope. Do not use 
 
 n8n profiles and desktop execution are DB-governed. For n8n, `connected_systems.config_json` plus `installations` rows define the command path, npm prefix, user folder, port, local URL, public URL, editor base URL, webhook URL, lifecycle mode, and exposure scope. Local Manager must read `/local-manager/device/controls?section=n8n` and start n8n from that returned profile.
 
-`https://n8n.mad4b.com/` is reserved for platform-managed n8n only. Tenant/self-serve n8n must default to local-only on a separate port such as `5679`. Public tenant n8n exposure must use a tenant/device-specific hostname such as `https://n8n-<stable-opaque-id>.mad4b.com/`, stored in the tenant n8n profile as `public_url`, `editor_base_url`, and `webhook_url` with `exposure_scope: "tenant_public_tunnel"`.
+`https://n8n.mad4b.com/` is reserved for platform-managed n8n only. Tenant/self-serve n8n must default to local-only on a broker-safe separate port range. Do not use web port `5679` for tenant n8n because n8n's Task Broker defaults to `5679`; use web port `5682`, broker port `5683`, and launcher health check port `5684` unless a DB profile explicitly reserves another non-conflicting range. Public tenant n8n exposure must use a tenant/device-specific hostname such as `https://n8n-<stable-opaque-id>.mad4b.com/`, stored in the tenant n8n profile as `public_url`, `editor_base_url`, and `webhook_url` with `exposure_scope: "tenant_public_tunnel"`.
 
 Local device work has two execution modes:
 
