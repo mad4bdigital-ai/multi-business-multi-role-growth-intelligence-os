@@ -372,7 +372,7 @@ paths:
       summary: Fetch a URL and push the content to the platform upload system
       description: "Fetches a URL using Node fetch and forwards content to POST /uploads via the connector API key. Returns upload_id. For auth-required or JS-rendered pages use /shell-fetch-upload instead."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
