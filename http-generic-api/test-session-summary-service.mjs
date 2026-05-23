@@ -126,6 +126,22 @@ function makePool() {
   assert(pool.state.insertedSummary, "session summary should be inserted");
   assert.equal(pool.state.insertedSummary.params[5], "Implemented Drive-first autosummary for GPT sessions.");
   assert.equal(pool.state.insertedSummary.params[10], "high");
+  assert(
+    pool.state.calls.some((call) => String(call.sql).includes("INSERT INTO `json_assets`")),
+    "summary write should create a summary-only json asset"
+  );
+  assert(
+    pool.state.calls.some((call) => String(call.sql).includes("INSERT INTO `json_asset_subject_links`")),
+    "summary write should attach the asset to the conversation subject"
+  );
+  assert(
+    pool.state.calls.some((call) => String(call.sql).includes("INSERT INTO `platform_graph_nodes`")),
+    "summary write should upsert graph nodes"
+  );
+  assert(
+    pool.state.calls.some((call) => String(call.sql).includes("INSERT INTO `platform_graph_edges`")),
+    "summary write should upsert graph edges"
+  );
 }
 
 {

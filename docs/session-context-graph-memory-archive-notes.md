@@ -144,10 +144,17 @@ Implemented behavior:
 
 ### 3. Graph-assisted transcript retrieval
 
+Status: partially implemented by `feature/session-summary-graph-attachment`.
+
+Implemented behavior:
+
+- Every new `session_summaries` write attempts a fail-open graph attachment.
+- The attachment creates a summary-only `json_assets` row, a `json_asset_subject_links` conversation link, a conversation graph node, a JSON asset graph node, and an `attached_to` graph edge.
+- The JSON payload contains only compact summary fields, tags, IDs, turn count, and `secrets_included=false`; it does not contain raw transcript turns.
+
 Future graph behavior:
 
-- Represent session summaries as graph nodes when stable.
-- Attach summaries to platform, tenant, task, device, endpoint, and activation policy nodes.
+- Attach summaries to task, device, endpoint, and activation policy nodes when those references are available.
 - Use graph ranking to pick summary IDs before turn IDs.
 - Load actual transcript turns only after a selected summary or task context reference proves relevance.
 
