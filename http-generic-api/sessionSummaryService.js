@@ -274,9 +274,15 @@ async function consolidateSummaries({ session, chunkSummaries, callModel }) {
 }
 
 export async function summarizeSessionTranscript({ session, transcript, callModel }) {
-  if (!callModel) throw new Error("session_summary_model_not_configured");
   const events = transcript?.events || [];
   if (!events.length) return fallbackInsight(session, transcript?.source || "none", "no transcript events available");
+  if (!callModel) {
+    return fallbackInsight(
+      session,
+      transcript?.source || "none",
+      "session summary model not configured; stored deterministic fallback summary"
+    );
+  }
 
   try {
     const chunks = chunkTranscriptEvents(session, events);
