@@ -19,8 +19,12 @@ assert(
 );
 
 assert(
+  source.indexOf("env.OPENROUTER_API_KEY") < source.indexOf("env.ANTHROPIC_API_KEY"),
+  "provider auto-selection should prefer OpenRouter first when its key exists"
+);
+assert(
   source.indexOf("env.ANTHROPIC_API_KEY") < source.indexOf("env.OPENAI_API_KEY"),
-  "provider auto-selection should prefer Anthropic only when its key exists before falling back to OpenAI"
+  "provider auto-selection should fall back from Anthropic to OpenAI when configured"
 );
 
 assert(
