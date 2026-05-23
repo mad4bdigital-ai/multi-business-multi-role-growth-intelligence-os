@@ -4,15 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: "Fallback deployment target: dev, auth, connector, or both"
+        description: "Fallback deployment target: dev or auth. connector.mad4b.com is Cloudflare Tunnel/local-only and must not be deployed to Hostinger."
         required: true
         default: "auth"
         type: choice
         options:
           - dev
           - auth
-          - connector
-          - both
       run_runtime_verify:
         description: "Run runtime verification after deploy"
         required: false
