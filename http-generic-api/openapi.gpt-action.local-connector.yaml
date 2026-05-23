@@ -481,7 +481,7 @@ paths:
       summary: Discover drives, locate repos, or read/write allowlisted files
       description: "Restricted to CONNECTOR_FILE_PATHS. list_drives shows device roots and allowlisted roots per drive. locate_repo finds project candidates under allowlisted roots by markers such as .git, AGENTS.md, and openapi.yaml. read/write stay inside allowlisted paths."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
