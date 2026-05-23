@@ -314,7 +314,7 @@ paths:
       summary: Run an allowlisted shell command on the local device
       description: "Executes commands from CONNECTOR_SHELL_ALLOWLIST. action=status checks if enabled, action=list returns available aliases, action=run executes by alias name."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
