@@ -99,7 +99,7 @@ function buildAllowlistEnvValue(aliases) {
 
 function buildConnectorEnv({ connectorSecret, aliases, port }) {
   return [
-    `BACKEND_API_KEY=${connectorSecret}`,
+    `CONNECTOR_SECRET=${connectorSecret}`,
     "MAIN_API_URL=https://api.mad4b.com",
     `CONNECTOR_PORT=${port}`,
     "CONNECTOR_SHELL_ENABLED=true",

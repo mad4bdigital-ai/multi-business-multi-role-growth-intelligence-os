@@ -1,19 +1,19 @@
 openapi: 3.1.0
 info:
-  title: Growth Intelligence Platform - Local Windows Connector
+  title: Growth Intelligence Platform - Admin Break-Glass Local Connector
   version: 1.0.0
-  summary: Break-glass local device connector reachable via Cloudflare Tunnel.
-  description: "Local connector on the active admin Windows device via connector.mad4b.com. Use for break-glass local evidence, allowlisted shell, and file operations. GitHub CLI and gcloud require device PATH availability; verify with gh_status and gcloud_version before /github or /gcloud."
+  summary: Admin-only break-glass local device connector reachable via Cloudflare Tunnel.
+  description: "Admin-only standalone connector for break-glass access to the active admin Windows local-connector/server.mjs via Cloudflare Tunnel. Do not use in Tenant GPTs. It is independent of auth.mad4b.com and Hostinger http-generic-api/server.js."
 servers:
   - url: https://connector.mad4b.com
-    description: Local Windows device via Cloudflare Tunnel
+    description: Admin Windows local-connector/server.mjs via Cloudflare Tunnel
 components:
   securitySchemes:
-    backendBearerAuth:
+    connectorBearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: Backend API Key
-      description: "Authorization: Bearer <BACKEND_API_KEY>"
+      bearerFormat: Connector Secret
+      description: "Authorization: Bearer <CONNECTOR_SECRET> or x-connector-secret: <CONNECTOR_SECRET>. This standalone admin break-glass credential is independent of auth.mad4b.com."
   schemas:
     CliResult:
       type: object
@@ -38,7 +38,7 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ConnectorError' }
 security:
-  - backendBearerAuth: []
+  - connectorBearerAuth: []
 paths:
   /health:
     get:
@@ -69,7 +69,7 @@ paths:
       summary: Run a gh CLI command on the local device
       description: "Runs GitHub CLI on the local Windows machine for recovery commits, workflow status, or deployment triggers. First verify gh_status; if it reports spawn gh ENOENT, use the auth-host GitHub REST connector instead."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
@@ -105,7 +105,7 @@ paths:
       summary: Run a gcloud CLI command on the local device
       description: "Runs gcloud on the local Windows machine for Cloud Run restarts, logs, or redeployments. First verify gcloud_version; if it reports spawn gcloud ENOENT, use auth-host Google Cloud REST or bootstrap tools."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
@@ -141,7 +141,7 @@ paths:
       summary: Install allowlisted recovery dependencies on the local device
       description: "Installs only packages from CONNECTOR_DEPENDENCY_ALLOWLIST and only when CONNECTOR_DEPENDENCIES_ENABLED=true. Default recovery packages are gh and googlecloudsdk."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
@@ -189,7 +189,7 @@ paths:
       summary: Classified local app control
       description: "Classified app control from CONNECTOR_APP_ALLOWLIST when CONNECTOR_APPS_ENABLED=true. Supports status, list, launch, status_app, and close by app_alias with capability/risk metadata."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
@@ -247,7 +247,7 @@ paths:
       summary: Classified local browser control
       description: "Classified browser control for allowlisted browser aliases. Supports list, open_url, and screenshot with capability/risk metadata. URLs must be absolute http or https."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
@@ -314,7 +314,7 @@ paths:
       summary: Run an allowlisted shell command on the local device
       description: "Executes commands from CONNECTOR_SHELL_ALLOWLIST. action=status checks if enabled, action=list returns available aliases, action=run executes by alias name."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
@@ -372,7 +372,7 @@ paths:
       summary: Fetch a URL and push the content to the platform upload system
       description: "Fetches a URL using Node fetch and forwards content to POST /uploads via the connector API key. Returns upload_id. For auth-required or JS-rendered pages use /shell-fetch-upload instead."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
@@ -427,7 +427,7 @@ paths:
       summary: Download a URL via curl and push the content to the platform upload system
       description: "Downloads via curl on the local device and forwards to POST /uploads. Handles self-signed certs and unusual redirects. URL is validated against shell metacharacters before execution."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
@@ -481,7 +481,7 @@ paths:
       summary: Discover drives, locate repos, or read/write allowlisted files
       description: "Restricted to CONNECTOR_FILE_PATHS. list_drives shows device roots and allowlisted roots per drive. locate_repo finds project candidates under allowlisted roots by markers such as .git, AGENTS.md, and openapi.yaml. read/write stay inside allowlisted paths."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
@@ -585,7 +585,7 @@ paths:
       summary: Execute a PowerShell script on the local Windows device
       description: "Run any PowerShell script — repairs, config changes, process management, file ops, calling APIs via Invoke-RestMethod. Returns stdout/stderr/exit_code. Requires CONNECTOR_POWERSHELL_ENABLED=true."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
@@ -620,7 +620,7 @@ paths:
       summary: Control Windows UI and apps on the local device
       description: "Windows app and UI control. Actions: open_url (browser), open_vscode (editor), screenshot (base64 JPEG), process_list, process_kill, notify (toast), service_list, service_action. Requires CONNECTOR_WIN_ENABLED=true."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
@@ -715,7 +715,7 @@ paths:
       summary: Control the local n8n automation instance
       description: "Governed local n8n control. Actions: status, diagnose, start, open, stop, restart, health, list_workflows, get_workflow, activate_workflow, deactivate_workflow, run_workflow, list_executions. Lifecycle actions do not require generic PowerShell; workflow API actions use N8N_API_KEY when configured."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
@@ -762,7 +762,7 @@ paths:
       summary: Call Cloudflare API using stored account credentials
       description: "Cloudflare API via stored token. Actions: list_zones, list_dns, create_dns, delete_dns, list_tunnels, tunnel_status, purge_cache. zone_id defaults to CF_ZONE_ID env. Requires CONNECTOR_CF_ENABLED=true."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
@@ -817,4 +817,4 @@ paths:
 
 x-gpt-action-auth-preset:
   authentication_type: Bearer
-  description: "Use the BACKEND_API_KEY from the connector .env file."
+  description: "Use the standalone CONNECTOR_SECRET from the connector .env file. Do not use the platform backend key and do not configure this action in Tenant GPTs."

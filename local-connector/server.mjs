@@ -44,7 +44,9 @@ loadEnv(path.join(__dirname, '.env'));
 // ---------------------------------------------------------------------------
 
 const PORT = parseInt(process.env.CONNECTOR_PORT ?? '7070', 10);
-const API_KEY = process.env.BACKEND_API_KEY ?? '';
+const CONNECTOR_SECRET = String(process.env.CONNECTOR_SECRET ?? '').trim();
+const LEGACY_BACKEND_API_KEY = String(process.env.BACKEND_API_KEY ?? '').trim();
+const CONNECTOR_AUTH_SECRET = CONNECTOR_SECRET || LEGACY_BACKEND_API_KEY;
 const SHELL_ENABLED = process.env.CONNECTOR_SHELL_ENABLED === 'true';
 const FILES_ENABLED = process.env.CONNECTOR_FILES_ENABLED === 'true';
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -511,17 +513,18 @@ function err(res, status, code, message) {
  * @returns {boolean} true if authenticated
  */
 function requireAuth(req, res) {
-  if (!API_KEY) {
-    err(res, 500, 'NO_API_KEY', 'BACKEND_API_KEY is not configured on this connector');
+  if (!CONNECTOR_AUTH_SECRET) {
+    err(res, 503, 'CONNECTOR_SECRET_NOT_CONFIGURED', 'CONNECTOR_SECRET is not configured on this connector');
     return false;
   }
-  const header = req.headers['authorization'] ?? '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-  if (token !== API_KEY) {
-    err(res, 401, 'UNAUTHORIZED', 'Missing or invalid Bearer token');
-    return false;
+  const header = String(req.headers['authorization'] ?? '');
+  const bearer = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  const headerSecret = String(req.headers['x-connector-secret'] ?? '').trim();
+  if (bearer === CONNECTOR_AUTH_SECRET || headerSecret === CONNECTOR_AUTH_SECRET) {
+    return true;
   }
-  return true;
+  err(res, 401, 'UNAUTHORIZED', 'Missing or invalid connector credential');
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -551,8 +554,14 @@ function policyBody() {
   return {
     ok: true,
     service: 'local-connector',
+    principal_scope: 'platform_admin_break_glass_only',
     hostname: os.hostname(),
     platform: process.platform,
+    auth: {
+      credential: 'CONNECTOR_SECRET',
+      supported_headers: ['Authorization: Bearer <CONNECTOR_SECRET>', 'x-connector-secret'],
+      legacy_backend_api_key_fallback_enabled: !CONNECTOR_SECRET && Boolean(LEGACY_BACKEND_API_KEY),
+    },
     shell: {
       enabled: SHELL_ENABLED,
       aliases: Object.entries(SHELL_ALLOWLIST).map(([alias, entry]) => ({

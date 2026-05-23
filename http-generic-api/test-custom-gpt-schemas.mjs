@@ -35,7 +35,7 @@ const ACTIVE_SCHEMAS = {
   },
   "openapi.gpt-action.local-connector.yaml": {
     serverUrl: "https://connector.mad4b.com",
-    securityScheme: "backendBearerAuth",
+    securityScheme: "connectorBearerAuth",
     maxOperations: 30,
     requiredOperations: ["connectorHealth", "connectorShell", "connectorCf"],
   },

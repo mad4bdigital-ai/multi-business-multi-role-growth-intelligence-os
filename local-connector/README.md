@@ -88,7 +88,7 @@ Get-EventLog -LogName System -Source cloudflared -Newest 10
 
 All error responses use the shape `{ ok: false, error: { code, message } }`.
 
-Authentication: send `Authorization: Bearer <BACKEND_API_KEY>` on every authenticated request.
+Authentication: send `Authorization: Bearer <CONNECTOR_SECRET>` or `x-connector-secret: <CONNECTOR_SECRET>` on every authenticated request. `CONNECTOR_SECRET` is an Admin-only break-glass credential and is independent of `auth.mad4b.com`; do not use `BACKEND_API_KEY` for the standalone connector except during an explicitly documented legacy-device migration window.
 
 ---
 

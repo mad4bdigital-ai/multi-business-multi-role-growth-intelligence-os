@@ -22,7 +22,7 @@ const server = spawn(process.execPath, ['server.mjs'], {
   cwd: connectorDir,
   env: {
     ...process.env,
-    BACKEND_API_KEY: apiKey,
+    CONNECTOR_SECRET: apiKey,
     CONNECTOR_PORT: String(port),
     CONNECTOR_FILES_ENABLED: 'true',
     CONNECTOR_FILE_PATHS: root,
@@ -81,6 +81,16 @@ async function callConnector(pathname, body) {
 
 try {
   await waitForServer();
+
+  {
+    const response = await fetch(`http://127.0.0.1:${port}/policy`, {
+      headers: { 'x-connector-secret': apiKey },
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.principal_scope, 'platform_admin_break_glass_only');
+    assert.equal(body.auth?.credential, 'CONNECTOR_SECRET');
+  }
 
   {
     const result = await callFiles({ action: 'list' });
