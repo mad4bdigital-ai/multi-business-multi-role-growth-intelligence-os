@@ -45,9 +45,9 @@ function buildAgentDeps(config = {}) {
 
 // Models per execution_class per provider.
 const CLASS_MODELS = {
-  standard:  { anthropic: "claude-haiku-4-5-20251001", openai: "gpt-4o-mini",  gemini: "gemini-1.5-flash" },
-  complex:   { anthropic: "claude-sonnet-4-6",          openai: "gpt-4o",       gemini: "gemini-1.5-pro"  },
-  authority: { anthropic: "claude-opus-4-7",            openai: "gpt-4o",       gemini: "gemini-1.5-pro"  },
+  standard:  { openrouter: "openrouter/free", anthropic: "claude-haiku-4-5-20251001", openai: "gpt-4o-mini",  gemini: "gemini-1.5-flash" },
+  complex:   { openrouter: "openrouter/free", anthropic: "claude-sonnet-4-6",          openai: "gpt-4o",       gemini: "gemini-1.5-pro"  },
+  authority: { openrouter: "openrouter/free", anthropic: "claude-opus-4-7",            openai: "gpt-4o",       gemini: "gemini-1.5-pro"  },
 };
 
 export function resolveAgentModelProvider(env = process.env) {
