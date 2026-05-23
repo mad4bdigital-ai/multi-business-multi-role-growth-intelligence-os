@@ -309,6 +309,33 @@ export function resolveSessionContextSubject(req) {
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 
+async function getPlatformPendingTaskColumnFlags() {
+  const result = await safeQuery(
+    `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'platform_pending_tasks'
+        AND COLUMN_NAME IN ('brief', 'activation_prompt', 'conversation_context_ref')`,
+    []
+  );
+
+  if (!result.ok) {
+    console.warn("[activation] failed to inspect platform_pending_tasks columns", result.error);
+  }
+
+  const columns = new Set(
+    result.rows
+      .map((row) => row.COLUMN_NAME || row.column_name)
+      .filter(Boolean)
+  );
+
+  return {
+    hasBrief: columns.has("brief"),
+    hasActivationPrompt: columns.has("activation_prompt"),
+    hasConversationContextRef: columns.has("conversation_context_ref")
+  };
+}
+
 async function loadActivationPendingTasks(subject = {}, maxLimit = 20) {
   const limit = Math.min(Math.max(Number(maxLimit) || 20, 1), 50);
   const params = [];
@@ -332,11 +359,20 @@ async function loadActivationPendingTasks(subject = {}, maxLimit = 20) {
     scopeWhere = `AND (${scopeParts.join(" OR ")})`;
   }
 
+  const pendingTaskColumns = await getPlatformPendingTaskColumnFlags();
+  const briefSelect = pendingTaskColumns.hasBrief ? "brief" : "NULL AS brief";
+  const activationPromptSelect = pendingTaskColumns.hasActivationPrompt
+    ? "activation_prompt"
+    : "NULL AS activation_prompt";
+  const conversationContextRefSelect = pendingTaskColumns.hasConversationContextRef
+    ? "conversation_context_ref"
+    : "NULL AS conversation_context_ref";
+
   const result = await safeQuery(
-    `SELECT task_id, task_key, title, description, brief, activation_prompt,
+    `SELECT task_id, task_key, title, description, ${briefSelect}, ${activationPromptSelect},
             task_type, priority, status, blocker_level, owner_scope,
             tenant_id, user_id, device_id, source_surface, source_ref,
-            conversation_context_ref, activation_visibility, context_json,
+            ${conversationContextRefSelect}, activation_visibility, context_json,
             due_at, completed_at, created_at, updated_at
        FROM \`platform_pending_tasks\`
       WHERE activation_visibility = 1
@@ -1026,4 +1062,3 @@ export function buildActivationRoutes(deps) {
 
   return router;
 }
-
