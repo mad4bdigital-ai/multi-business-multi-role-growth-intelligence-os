@@ -144,10 +144,11 @@ Provider keys remain environment/vault secrets:
 
 | Env var | Provider |
 |---|---|
+| `GEMINI_API_KEY` | Gemini API key from Google AI Studio |
+| `GOOGLE_AI_API_KEY` | Legacy Gemini env alias, supported as fallback |
 | `OPENROUTER_API_KEY` | OpenRouter |
 | `OPENAI_API_KEY` | OpenAI |
 | `ANTHROPIC_API_KEY` | Anthropic |
-| `GOOGLE_AI_API_KEY` | Gemini |
 
 Optional OpenRouter metadata:
 
