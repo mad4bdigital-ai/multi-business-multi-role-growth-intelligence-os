@@ -740,7 +740,7 @@ internal static class Program
         public string PublicUrl { get; init; } = N8nPublicUrl;
         public int Port { get; init; } = 5682;
         public string ListenAddress { get; init; } = "127.0.0.1";
-        public int TaskBrokerPort { get; init; } = 5683; public string TaskBrokerUrl { get; init; } = "http://127.0.0.1:5683/"; public string TaskBrokerListenAddress { get; init; } = "127.0.0.1"; public int LauncherHealthCheckPort { get; init; } = 5684; public string EditorBaseUrl { get; init; } = "http://127.0.0.1:5679/";
+        public int TaskBrokerPort { get; init; } = 5683; public string TaskBrokerUrl { get; init; } = "http://127.0.0.1:5683/"; public string TaskBrokerListenAddress { get; init; } = "127.0.0.1"; public int LauncherHealthCheckPort { get; init; } = 5684; public string EditorBaseUrl { get; init; } = "http://127.0.0.1:5682/";
         public string WebhookUrl { get; init; } = "http://127.0.0.1:5679/";
 
         public static N8nLocalProfile Default() => new();
