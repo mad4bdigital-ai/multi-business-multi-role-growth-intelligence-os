@@ -23,11 +23,11 @@ All AI-driven workflow execution must flow through this layer — no workflow ca
 
 The `execution_class` column on the `workflows` table controls which model tier is selected per workflow run.
 
-| Class | OpenRouter | Anthropic | OpenAI | Gemini |
+| Class | Gemini primary | OpenRouter fallback | OpenAI fallback | Anthropic fallback |
 |---|---|---|---|---|
-| `standard` | `openrouter/free` | `claude-haiku-4-5-20251001` | `gpt-4o-mini` | `gemini-1.5-flash` |
-| `complex` | `openrouter/free` | `claude-sonnet-4-6` | `gpt-4o` | `gemini-1.5-pro` |
-| `authority` | `openrouter/free` | `claude-opus-4-7` | `gpt-4o` | `gemini-1.5-pro` |
+| `standard` | `gemini-3.5-flash` | `openrouter/free` | `gpt-4o-mini` | `claude-haiku-4-5-20251001` |
+| `complex` | `gemini-3.5-flash` | `openrouter/free` | `gpt-4o` | `claude-sonnet-4-6` |
+| `authority` | `gemini-3.5-flash` | `openrouter/free` | `gpt-4o` | `claude-opus-4-7` |
 
 Resolution order:
 1. If `AGENT_MODEL_PROVIDER` env var is set, it hard-selects that provider.
