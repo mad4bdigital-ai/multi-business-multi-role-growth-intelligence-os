@@ -603,7 +603,7 @@ function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port
     "sc query %CF_SERVICE% >nul 2>&1 && net start %CF_SERVICE% >nul 2>&1",
     "",
     "REM ── 2. Write .env ──",
-    `echo BACKEND_API_KEY=${connectorSecret}> "%~dp0.env"`,
+    `echo CONNECTOR_SECRET=${connectorSecret}> "%~dp0.env"`,
     `echo CONNECTOR_PORT=${port}>> "%~dp0.env"`,
     "echo MAIN_API_URL=https://api.mad4b.com>> \"%~dp0.env\"",
     "echo CONNECTOR_SHELL_ENABLED=true>> \"%~dp0.env\"",
