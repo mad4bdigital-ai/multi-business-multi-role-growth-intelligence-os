@@ -554,8 +554,14 @@ function policyBody() {
   return {
     ok: true,
     service: 'local-connector',
+    principal_scope: 'platform_admin_break_glass_only',
     hostname: os.hostname(),
     platform: process.platform,
+    auth: {
+      credential: 'CONNECTOR_SECRET',
+      supported_headers: ['Authorization: Bearer <CONNECTOR_SECRET>', 'x-connector-secret'],
+      legacy_backend_api_key_fallback_enabled: !CONNECTOR_SECRET && Boolean(LEGACY_BACKEND_API_KEY),
+    },
     shell: {
       enabled: SHELL_ENABLED,
       aliases: Object.entries(SHELL_ALLOWLIST).map(([alias, entry]) => ({
