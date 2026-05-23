@@ -427,7 +427,7 @@ paths:
       summary: Download a URL via curl and push the content to the platform upload system
       description: "Downloads via curl on the local device and forwards to POST /uploads. Handles self-signed certs and unusual redirects. URL is validated against shell metacharacters before execution."
       security:
-        - backendBearerAuth: []
+        - connectorBearerAuth: []
       requestBody:
         required: true
         content:
