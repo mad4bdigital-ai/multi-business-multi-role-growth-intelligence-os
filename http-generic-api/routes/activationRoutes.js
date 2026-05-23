@@ -3,6 +3,7 @@ import { Router } from "express";
 import { getPool } from "../db.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
 import { ensureSessionArchive } from "../sessionArchiveService.js";
+import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
 import {
   REGISTRY_SPREADSHEET_ID,
   ACTIVITY_SPREADSHEET_ID,
@@ -358,26 +359,236 @@ async function loadActivationPendingTasks(subject = {}, maxLimit = 20) {
   };
 }
 
-async function autoOpenGptSession(pool, subject) {
-  const userId = subject.user_id || null;
-  const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+function parseConversationContextRefs(value = "") {
+  const refs = [];
+  const text = String(value || "");
+  for (const part of text.split(/[;,\n]/)) {
+    const trimmed = part.trim();
+    const match = trimmed.match(/^(?:(?<label>[a-z0-9_-]+):)?gpt_session_turns:(?<sessionId>[a-f0-9-]{36})$/i);
+    if (match?.groups?.sessionId) {
+      refs.push({
+        label: match.groups.label || "session",
+        source: "gpt_session_turns",
+        session_id: match.groups.sessionId,
+      });
+    }
+  }
+  return refs;
+}
 
-  const [closeResult] = await pool.query(
-    `UPDATE \`customer_sessions\`
-     SET session_status = 'closed', ended_at = NOW()
-     WHERE originator = 'gpt_action'
-       AND tenant_id = ?
-       AND (? IS NULL OR user_id = ?)
-       AND session_status NOT IN ('completed', 'closed')`,
+function compactSummary(row = {}) {
+  return {
+    summary_id: row.summary_id,
+    session_id: row.session_id,
+    tenant_id: row.tenant_id,
+    user_id: row.user_id,
+    workspace_key: row.workspace_key,
+    summary_preview: truncateText(row.summary_text, 1200),
+    tags: {
+      tasks_completed: truncateText(row.tasks_completed, 500),
+      blockers: truncateText(row.blockers, 500),
+      feature_requests: truncateText(row.feature_requests, 500),
+      integration_needs: truncateText(row.integration_needs, 500),
+      complexity: row.complexity || null,
+    },
+    turn_count: asCount(row.turn_count),
+    created_at: row.created_at,
+  };
+}
+
+function compactTurn(row = {}, rawMaxChars = 1200) {
+  return {
+    session_id: row.session_id,
+    turn_id: row.turn_id,
+    turn_index: asCount(row.turn_index),
+    role: row.role,
+    action_key: row.action_key,
+    content_preview: truncateText(row.content_preview || row.content, rawMaxChars),
+    content_sha256: row.content_sha256 || null,
+    storage_mode: row.storage_mode || null,
+    drive_doc_id: row.drive_doc_id || null,
+    drive_anchor: row.drive_anchor || null,
+    created_at: row.created_at,
+  };
+}
+
+async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
+  const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const userId = subject.user_id || null;
+  const limit = capLimit(options.limit, 10, 25);
+  const includeTurns = options.include_turns === true;
+  const turnsLimit = capLimit(options.turns_limit, includeTurns ? 20 : 0, 100);
+  const rawMaxChars = capLimit(options.raw_max_chars, 1200, 6000);
+  const pendingTasks = Array.isArray(options.pending_tasks) ? options.pending_tasks : [];
+  const gptSessions = Array.isArray(options.gpt_sessions) ? options.gpt_sessions : [];
+  const gptSessionIds = gptSessions.map((row) => row.session_id).filter(Boolean);
+
+  const summaries = await safeQuery(
+    `SELECT summary_id, session_id, tenant_id, user_id, workspace_key, summary_text,
+            tasks_completed, blockers, feature_requests, integration_needs,
+            complexity, turn_count, created_at
+       FROM \`session_summaries\`
+      WHERE tenant_id = ?
+        AND (? IS NULL OR user_id = ?)
+      ORDER BY created_at DESC
+      LIMIT ${limit}`,
     [tenantId, userId, userId]
   );
+
+  const referencedRefs = [];
+  for (const task of pendingTasks) {
+    const refs = parseConversationContextRefs(task.conversation_context_ref || task.context_json?.conversation_context_ref || "");
+    for (const ref of refs) {
+      referencedRefs.push({
+        ...ref,
+        task_key: task.task_key,
+        task_title: task.title,
+      });
+    }
+  }
+  const referencedSessionIds = [...new Set(referencedRefs.map((ref) => ref.session_id))];
+  const allRelevantSessionIds = [...new Set([...gptSessionIds, ...referencedSessionIds])].slice(0, 50);
+
+  const turnStats = allRelevantSessionIds.length
+    ? await safeQuery(
+        `SELECT COUNT(*) AS turn_count,
+                COUNT(DISTINCT session_id) AS session_count,
+                MAX(created_at) AS last_turn_at
+           FROM \`gpt_session_turns\`
+          WHERE session_id IN (?)`,
+        [allRelevantSessionIds]
+      )
+    : { ok: true, rows: [{ turn_count: 0, session_count: 0, last_turn_at: null }] };
+
+  const storedTurnPreviews = includeTurns && allRelevantSessionIds.length
+    ? await safeQuery(
+        `SELECT session_id, turn_id, turn_index, role, content, content_preview,
+                content_sha256, storage_mode, action_key, drive_doc_id, drive_anchor, created_at
+           FROM \`gpt_session_turns\`
+          WHERE session_id IN (?)
+          ORDER BY created_at DESC, turn_index DESC
+          LIMIT ${turnsLimit}`,
+        [allRelevantSessionIds]
+      )
+    : { ok: true, rows: [], skipped: true, reason: "include_turns=false" };
+
+  let graphMemory = {
+    requested: false,
+    resolved: false,
+    asset_count: 0,
+    assets: [],
+    selection_policy: {},
+    reason: "not_requested",
+    secrets_included: false,
+  };
+  try {
+    graphMemory = await resolvePlatformGraphMemory({
+      input: {
+        request_type: "activation_session_context",
+        diagnostic_surface: "conversation_memory_context",
+        node_id: "platform.global",
+        tenant_id: tenantId,
+        user_id: userId,
+        depth: 1,
+        memory_limit: 5,
+      },
+      limit: 5,
+    });
+  } catch (err) {
+    graphMemory = {
+      requested: true,
+      resolved: false,
+      asset_count: 0,
+      assets: [],
+      error: { code: err.code || "session_context_graph_memory_failed", message: err.message },
+      selection_policy: {},
+      secrets_included: false,
+    };
+  }
+
+  const statsRow = turnStats.rows[0] || {};
+  return {
+    status: {
+      session_context_reachable: true,
+      new_session_opened: true,
+      parallel_sessions_allowed: true,
+      native_chatgpt_history_available: false,
+      platform_stored_sessions_available: gptSessions.length > 0,
+      stored_turns_available: asCount(statsRow.turn_count) > 0,
+      turn_content_loaded: includeTurns,
+      summary_strategy: "prefer_session_summaries_and_tags_then_load_turn_previews_on_demand",
+      graph_assisted_lookup: Boolean(graphMemory.requested),
+      sources_checked: [
+        "customer_sessions",
+        "gpt_session_turns",
+        "session_summaries",
+        "platform_pending_tasks.conversation_context_ref",
+        "platform_graph_memory",
+      ],
+    },
+    turn_availability: {
+      stored_turn_count: asCount(statsRow.turn_count),
+      stored_session_count: asCount(statsRow.session_count),
+      last_turn_at: statsRow.last_turn_at || null,
+      include_turns,
+      turns_limit: includeTurns ? turnsLimit : 0,
+    },
+    recent_session_summaries: summaries.rows.map(compactSummary),
+    referenced_contexts: referencedRefs.slice(0, 50),
+    stored_turn_previews: storedTurnPreviews.rows.map((row) => compactTurn(row, rawMaxChars)),
+    graph_memory: {
+      requested: Boolean(graphMemory.requested),
+      resolved: Boolean(graphMemory.resolved),
+      asset_count: Number(graphMemory.asset_count || 0),
+      asset_keys: Array.isArray(graphMemory.assets) ? graphMemory.assets.map((asset) => asset.asset_key).filter(Boolean) : [],
+      selection_policy: graphMemory.selection_policy || {},
+      error: graphMemory.error || null,
+      secrets_included: false,
+    },
+    degraded_surfaces: [
+      ["session_summaries", summaries],
+      ["gpt_session_turns", turnStats],
+      ["gpt_session_turn_previews", storedTurnPreviews],
+    ]
+      .filter(([, result]) => !result.ok)
+      .map(([surface, result]) => ({ surface, error: result.error })),
+  };
+}
+
+async function autoOpenGptSession(pool, subject, options = {}) {
+  const userId = subject.user_id || null;
+  const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const closePreviousSessions = options.close_previous_sessions === true;
+
+  const [[activeBeforeRow]] = await pool.query(
+    `SELECT COUNT(*) AS active_count
+       FROM \`customer_sessions\`
+      WHERE originator = 'gpt_action'
+        AND tenant_id = ?
+        AND (? IS NULL OR user_id = ?)
+        AND session_status IN ('pending', 'active')`,
+    [tenantId, userId, userId]
+  );
+
+  let closeResult = { affectedRows: 0 };
+  if (closePreviousSessions) {
+    [closeResult] = await pool.query(
+      `UPDATE \`customer_sessions\`
+       SET session_status = 'completed', ended_at = COALESCE(ended_at, NOW())
+       WHERE originator = 'gpt_action'
+         AND tenant_id = ?
+         AND (? IS NULL OR user_id = ?)
+         AND session_status IN ('pending', 'active')`,
+      [tenantId, userId, userId]
+    );
+  }
 
   const sessionId = randomUUID();
   const startedAt = new Date();
   await pool.query(
     `INSERT INTO \`customer_sessions\`
        (session_id, tenant_id, user_id, originator, session_status, started_at)
-     VALUES (?, ?, ?, 'gpt_action', 'open', ?)`,
+     VALUES (?, ?, ?, 'gpt_action', 'active', ?)`,
     [sessionId, tenantId, userId, startedAt]
   );
 
@@ -399,10 +610,18 @@ async function autoOpenGptSession(pool, subject) {
     console.warn(`[activation] ensureSessionArchive failed for ${sessionId}, will lazy-allocate on first turn: ${err.message}`);
   }
 
+  const activeBefore = asCount(activeBeforeRow?.active_count);
   return {
     session_id: sessionId,
     closed_sessions: closeResult.affectedRows || 0,
     archive_status: archiveStatus,
+    session_management: {
+      parallel_sessions_allowed: true,
+      close_previous_sessions_requested: closePreviousSessions,
+      active_sessions_before_open: activeBefore,
+      active_sessions_after_open: closePreviousSessions ? 1 : activeBefore + 1,
+      status_written: "active",
+    },
   };
 }
 
@@ -410,7 +629,11 @@ export async function buildActivationSessionContext(req) {
   const pool = getPool();
   const subject = resolveSessionContextSubject(req);
 
-  const { session_id: newSessionId, closed_sessions } = await autoOpenGptSession(pool, subject);
+  // Parallel conversations are the default; explicit close_previous_sessions preserves the old single-session behavior when needed.
+  const sessionOpen = await autoOpenGptSession(pool, subject, {
+    close_previous_sessions: asBoolean(req.query.close_previous_sessions) || asBoolean(req.query.close_previous),
+  });
+  const { session_id: newSessionId, closed_sessions } = sessionOpen;
 
   const limit = capLimit(req.query.limit, SESSION_CONTEXT_DEFAULT_LIMIT, SESSION_CONTEXT_MAX_LIMIT);
   const offset = normalizeOffset(req.query.offset);
@@ -545,9 +768,19 @@ export async function buildActivationSessionContext(req) {
     }, {})
   };
 
+  const conversationMemory = await loadConversationMemoryContext(pool, subject, {
+    limit,
+    include_turns: asBoolean(req.query.include_turns),
+    turns_limit: capLimit(req.query.turns_limit, 20, 100),
+    raw_max_chars: rawMaxChars,
+    gpt_sessions: gptSessions.rows,
+    pending_tasks: pendingTaskRows,
+  });
+
   return {
     session_id: newSessionId,
     closed_sessions,
+    session_management: sessionOpen.session_management,
     subject,
     pagination: {
       limit,
@@ -592,6 +825,7 @@ export async function buildActivationSessionContext(req) {
       installations: installations.rows.map((row) => ({ ...row, scope: parseScopes(row.scope) }))
     },
     gpt_sessions: gptSessions.rows,
+    conversation_memory: conversationMemory,
     platform_access: platformAccess,
     pending_tasks: {
       summary: pendingTaskSummary,
@@ -606,6 +840,7 @@ export async function buildActivationSessionContext(req) {
       ["execution_log", executionTranscript],
       ["gpt_sessions", gptSessions],
       ["pending_tasks", pendingTasks],
+      ["conversation_memory", { ok: conversationMemory.degraded_surfaces.length === 0, error: { code: "conversation_memory_degraded", details: conversationMemory.degraded_surfaces } }],
       ["platform_access", { ok: platformAccess.degraded_surfaces.length === 0, error: { code: "platform_access_degraded", details: platformAccess.degraded_surfaces } }]
     ]
       .filter(([, result]) => !result.ok)
