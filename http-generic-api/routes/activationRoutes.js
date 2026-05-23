@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+﻿import { randomUUID } from "crypto";
 import { Router } from "express";
 import { getPool } from "../db.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
@@ -1026,3 +1026,4 @@ export function buildActivationRoutes(deps) {
 
   return router;
 }
+
