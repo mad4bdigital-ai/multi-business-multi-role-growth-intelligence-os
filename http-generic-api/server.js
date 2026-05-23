@@ -324,7 +324,7 @@ import { createExecutionFacade } from "./executionFacade.js";
 import { generateImplementationPlan } from "./services/planningResolver.js";
 import { generateTaskManifest } from "./services/taskResolver.js";
 import { createGovernanceValidationEngine } from "./services/governanceValidationEngine.js";
-import { getAgentDeps, getCallModelForClass, resolveAgentModelProvider } from "./agentRuntime.js";
+import { getAgentDeps, getCallModelForClass, getCallModelForClassAsync, resolveAgentModelProvider, resolveAgentModelProviderAsync } from "./agentRuntime.js";
 import {
   formatIntentMaturationForPrompt,
   resolveAiIntentMaturation
