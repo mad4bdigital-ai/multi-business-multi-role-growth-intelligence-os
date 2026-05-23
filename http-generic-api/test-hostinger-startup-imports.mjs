@@ -59,6 +59,10 @@ assert(
   devAgentRoutesSource.includes('/dev-agent/model-readiness'),
   "dev agent model readiness diagnostic route must stay registered"
 );
+assert(
+  devAgentRoutesSource.includes('/dev-agent/model-settings'),
+  "dev agent governed model settings routes must stay registered"
+);
 
 const modelReadinessMigration = readFileSync(
   join(__dirname, "migrations/114_sprint62y_register_model_readiness_tool.sql"),
