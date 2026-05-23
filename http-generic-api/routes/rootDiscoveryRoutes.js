@@ -82,8 +82,8 @@ const SCOPES_BY_HOST = {
     primary_paths: ["/status.html", "/status", "/status/incidents"]
   },
   "connector.mad4b.com": {
-    scope: "connector",
-    schema_file: "openapi.custom-gpt.connector.yaml",
+    scope: "admin-break-glass-connector",
+    schema_file: "openapi.gpt-action.local-connector.yaml",
     primary_paths: ["/health", "/github", "/gcloud", "/shell", "/files"]
   }
 };
