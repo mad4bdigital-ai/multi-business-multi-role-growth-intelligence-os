@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
 import { exportSessionToDrive } from "../sessionExportPipeline.js";
 import { closeGptSessionArchive, recordGptSessionTurn } from "../sessionArchiveService.js";
+import { summarizeSessionIfNeeded, writeProvidedSessionSummary } from "../sessionSummaryService.js";
 
 async function resolveSessionForCaller(pool, sessionId, req) {
   const [rows] = await pool.query(
