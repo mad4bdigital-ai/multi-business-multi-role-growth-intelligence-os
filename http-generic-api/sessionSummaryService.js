@@ -38,6 +38,21 @@ function boundedText(value = "", limit = 2000) {
   return `${text.slice(0, limit)}...[truncated]`;
 }
 
+function sanitizeModelError(error) {
+  const message = redactSensitiveText(error?.message || String(error || "model_call_failed"));
+  const providerMatch = message.match(/\b(Anthropic|OpenAI|Gemini) API\s+(\d{3})/i);
+  if (providerMatch) {
+    return `model_call_failed: ${providerMatch[1]} API ${providerMatch[2]}`;
+  }
+  if (/invalid\s+(x-api-key|api key|authorization|credentials?)/i.test(message)) {
+    return "model_call_failed: invalid model credentials";
+  }
+  if (/missing\s+.*(api key|credential|token)/i.test(message)) {
+    return "model_call_failed: missing model credentials";
+  }
+  return boundedText(message.replace(/\{[\s\S]*\}/g, "[upstream_error_body_redacted]"), 240);
+}
+
 function safeJsonParse(value, fallback = null) {
   if (value && typeof value === "object") return value;
   try {
