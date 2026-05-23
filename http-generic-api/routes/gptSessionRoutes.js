@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
 import { exportSessionToDrive } from "../sessionExportPipeline.js";
 import { closeGptSessionArchive, recordGptSessionTurn } from "../sessionArchiveService.js";
