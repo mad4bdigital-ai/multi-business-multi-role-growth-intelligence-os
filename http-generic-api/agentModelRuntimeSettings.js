@@ -143,10 +143,13 @@ export function summarizeModelRuntimeSettings(config = DEFAULT_AGENT_MODEL_RUNTI
   const providers = {};
   for (const provider of SUPPORTED_MODEL_PROVIDERS) {
     const item = normalized.providers[provider];
+    const credentialEnvVars = [item.credential_env_var, ...(item.fallback_credential_env_vars || [])].filter(Boolean);
     providers[provider] = {
       enabled: item.enabled === true,
       credential_env_var: item.credential_env_var,
-      credential_configured: Boolean(env[item.credential_env_var]),
+      fallback_credential_env_vars: item.fallback_credential_env_vars || [],
+      credential_configured: credentialEnvVars.some(name => Boolean(env[name])),
+      configured_credential_env_var: credentialEnvVars.find(name => Boolean(env[name])) || null,
       default_model: item.default_model,
       models: item.models,
     };
