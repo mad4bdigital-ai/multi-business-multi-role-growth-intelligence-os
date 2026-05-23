@@ -9,6 +9,7 @@
 
 import { randomUUID }  from "node:crypto";
 import { getPool }     from "./db.js";
+import { runSessionSummaryAutosweep } from "./sessionSummaryService.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
