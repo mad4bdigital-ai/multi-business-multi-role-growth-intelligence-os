@@ -133,7 +133,7 @@ async function loadDriveJsonlEvents(session, injectedDeps = {}) {
 async function loadSqlPreviewEvents(pool, sessionId, limit = DEFAULT_FALLBACK_TURNS_LIMIT) {
   const safeLimit = Math.max(1, Math.min(Number(limit) || DEFAULT_FALLBACK_TURNS_LIMIT, 500));
   const [rows] = await pool.query(
-    `SELECT turn_index, role, action_key, content_preview, content_sha256, created_at
+    `SELECT turn_id, turn_index, role, action_key, content_preview, content_sha256, created_at
      FROM \`gpt_session_turns\`
      WHERE session_id = ?
      ORDER BY turn_index ASC
