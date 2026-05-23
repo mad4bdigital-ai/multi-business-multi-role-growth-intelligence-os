@@ -48,6 +48,10 @@ assert(
   serverSource.includes("getCallModelForClass,") && serverSource.includes("callModel: getAgentDeps().callModel"),
   "server.js must pass model deps into registerRoutes for dev-agent/session-summary routes"
 );
+assert(
+  serverSource.includes("resolveAgentModelProvider"),
+  "server.js must pass the effective model provider resolver into routes"
+);
 
 const devAgentRoutesSource = readFileSync(join(__dirname, "routes/devAgentRoutes.js"), "utf8");
 assert(
