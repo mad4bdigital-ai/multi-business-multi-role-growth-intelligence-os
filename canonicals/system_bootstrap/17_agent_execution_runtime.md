@@ -32,9 +32,10 @@ The `execution_class` column on the `workflows` table controls which model tier 
 Resolution order:
 1. If `AGENT_MODEL_PROVIDER` env var is set, it hard-selects that provider.
 2. Otherwise load `platform_runtime_config.config_key = agent_model_runtime` and iterate its `provider_order`.
-3. Pick the first enabled provider whose credential env var is present.
+3. Build an ordered fallback candidate chain from enabled providers whose primary or fallback credential env var is present.
 4. `execution_class` selects the model. Missing class falls back to `standard`.
 5. If `AGENT_MODEL` env var is set, it overrides the selected class model for the selected provider.
+6. Async runtime routes, including dev-agent session summaries, try the candidate chain in order. By default this means Gemini first, OpenRouter second, then OpenAI and Anthropic if configured.
 
 Class routing is cached per class/provider/model per process via `_classCache`. DB settings are cached briefly by `agentModelRuntimeSettings.js` and can be refreshed through the governed settings route.
 
