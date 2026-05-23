@@ -511,7 +511,7 @@ internal static class Program
                     "if not exist \"" + commandPath + "\" (echo ERROR: n8n command is still missing at " + commandPath + " & pause & exit /b 1)",
                     "set \"N8N_USER_FOLDER=" + userFolder + "\"",
                     "set \"N8N_PORT=" + profile.Port + "\"",
-                    "set \"N8N_LISTEN_ADDRESS=" + profile.ListenAddress + "\"",
+                    "set \"N8N_LISTEN_ADDRESS=" + profile.ListenAddress + "\"", "set \"N8N_RUNNERS_BROKER_PORT=" + profile.TaskBrokerPort + "\"", "set \"N8N_RUNNERS_BROKER_LISTEN_ADDRESS=" + profile.TaskBrokerListenAddress + "\"", "set \"N8N_RUNNERS_TASK_BROKER_URI=" + profile.TaskBrokerUrl.TrimEnd('/') + "\"", "set \"N8N_RUNNERS_LAUNCHER_HEALTH_CHECK_PORT=" + profile.LauncherHealthCheckPort + "\"",
                     "set \"N8N_RUNNERS_BROKER_PORT=" + profile.TaskBrokerPort + "\"",
                     "set \"N8N_RUNNERS_BROKER_LISTEN_ADDRESS=" + profile.TaskBrokerListenAddress + "\"",
                     "set \"N8N_RUNNERS_TASK_BROKER_URI=" + profile.TaskBrokerUrl.TrimEnd('/') + "\"",
@@ -712,7 +712,7 @@ internal static class Program
             }
         }
 
-        private void LaunchUpdaterAndRestart(string installerPath) { var helperPath = Path.Combine(UpdatesRoot, "run-local-manager-update.cmd"); var appPath = Application.ExecutablePath; var currentPid = Environment.ProcessId; var script = string.Join("\r\n", new[] { "@echo off", "setlocal", "set \"INSTALLER=" + installerPath + "\"", "set \"APP=" + appPath + "\"", "set \"PID=" + currentPid + "\"", "echo Updating Mad4B Local Manager...", "timeout /t 1 /nobreak >nul", "taskkill /PID %PID% /T /F >nul 2>nul", "start \"\" \"%INSTALLER%\"", "timeout /t 8 /nobreak >nul", "start \"\" \"%APP%\"", "exit /b 0" }) + "\r\n"; File.WriteAllText(helperPath, script, Encoding.ASCII); Process.Start(new ProcessStartInfo { FileName = "cmd.exe", Arguments = "/c \"" + helperPath + "\"", WorkingDirectory = UpdatesRoot, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden }); BeginInvoke(new Action(Close)); }
+        private void LaunchUpdaterAndRestart(string installerPath) { var helperPath = Path.Combine(UpdatesRoot, "run-local-manager-update.cmd"); var appPath = Application.ExecutablePath; var currentPid = Environment.ProcessId; var script = string.Join("\r\n", new[] { "@echo off", "setlocal", "set \"INSTALLER=" + installerPath + "\"", "set \"APP=" + appPath + "\"", "set \"PID=" + currentPid + "\"", "echo Updating Mad4B Local Manager...", "timeout /t 1 /nobreak >nul", "taskkill /PID %PID% /T /F >nul 2>nul", "for /l %%i in (1,1,30) do ( tasklist /fi \"PID eq %PID%\" | find \"%PID%\" >nul || goto app_stopped & timeout /t 1 /nobreak >nul )", ":app_stopped", "copy /y \"%INSTALLER%\" \"%APP%\" >nul", "if errorlevel 1 ( echo ERROR: Could not replace Local Manager executable. & pause & exit /b 1 )", "start \"\" \"%APP%\"", "exit /b 0" }) + "\r\n"; File.WriteAllText(helperPath, script, Encoding.ASCII); Process.Start(new ProcessStartInfo { FileName = "cmd.exe", Arguments = "/c \"" + helperPath + "\"", WorkingDirectory = UpdatesRoot, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden }); BeginInvoke(new Action(Close)); }
         private void ShowTopMostMessage(string title, string message) { var previousTopMost = TopMost; try { if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal; Show(); Activate(); TopMost = true; MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Information); } finally { TopMost = previousTopMost; } }
         private void StartDesktopCommandPolling() { if (_desktopCommandTimer.Enabled) return; _desktopCommandTimer.Tick += async (_, _) => await PollDesktopCommandsAsync(); _desktopCommandTimer.Start(); _ = PollDesktopCommandsAsync(); }
         private async Task PollDesktopCommandsAsync() { if (_desktopCommandPollRunning) return; var token = LoadDeviceToken(false); if (string.IsNullOrWhiteSpace(token)) return; _desktopCommandPollRunning = true; try { using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) }; using var req = new HttpRequestMessage(HttpMethod.Get, DesktopCommandsUrl + "/pending?limit=5"); req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token); req.Headers.Accept.ParseAdd("application/json"); using var response = await client.SendAsync(req); var text = await response.Content.ReadAsStringAsync(); if (!response.IsSuccessStatusCode) { if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized && response.StatusCode != System.Net.HttpStatusCode.Forbidden) _status.Text = "Desktop command poll failed: " + response.StatusCode; return; } using var doc = JsonDocument.Parse(text); if (!doc.RootElement.TryGetProperty("commands", out var commands) || commands.ValueKind != JsonValueKind.Array) return; foreach (var command in commands.EnumerateArray()) await ExecuteDesktopCommandAsync(client, token, command); } catch (Exception ex) { _status.Text = "Desktop command polling failed: " + ex.Message; } finally { _desktopCommandPollRunning = false; } }
@@ -736,12 +736,12 @@ internal static class Program
         public string CommandPath { get; init; } = N8nCommandPath;
         public string NpmPrefix { get; init; } = @"D:\npm-global";
         public string UserFolder { get; init; } = N8nUserFolder;
-        public string LocalUrl { get; init; } = "http://127.0.0.1:5679/";
+        public string LocalUrl { get; init; } = "http://127.0.0.1:5682/";
         public string PublicUrl { get; init; } = N8nPublicUrl;
-        public int Port { get; init; } = 5679;
+        public int Port { get; init; } = 5682;
         public string ListenAddress { get; init; } = "127.0.0.1";
-        public int TaskBrokerPort { get; init; } = 5683; public string TaskBrokerUrl { get; init; } = "http://127.0.0.1:5683/"; public string TaskBrokerListenAddress { get; init; } = "127.0.0.1"; public int LauncherHealthCheckPort { get; init; } = 5684; public string EditorBaseUrl { get; init; } = "http://127.0.0.1:5679/";
-        public string WebhookUrl { get; init; } = "http://127.0.0.1:5679/";
+        public int TaskBrokerPort { get; init; } = 5683; public string TaskBrokerUrl { get; init; } = "http://127.0.0.1:5683/"; public string TaskBrokerListenAddress { get; init; } = "127.0.0.1"; public int LauncherHealthCheckPort { get; init; } = 5684; public string EditorBaseUrl { get; init; } = "http://127.0.0.1:5682/";
+        public string WebhookUrl { get; init; } = "http://127.0.0.1:5682/";
 
         public static N8nLocalProfile Default() => new();
 
