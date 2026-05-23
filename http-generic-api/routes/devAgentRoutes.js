@@ -108,6 +108,28 @@ export function buildDevAgentRoutes(deps) {
     }
   });
 
+  // ── POST /dev-agent/session-summaries/autosweep ─────────────────────────
+  router.post("/dev-agent/session-summaries/autosweep", async (req, res) => {
+    try {
+      const callModel = deps.getCallModelForClass
+        ? deps.getCallModelForClass("standard")
+        : deps.callModel;
+      const body = req.body || {};
+      const result = await runSessionSummaryAutosweep({
+        pool: getPool(),
+        callModel: callModel || null,
+        limit: Math.min(Number(body.limit || req.query.limit || 20), 100),
+        minTurnCount: Math.max(Number(body.min_turn_count || req.query.min_turn_count || 1), 1),
+        includeActiveLong: body.include_active_long === true || req.query.include_active_long === "true",
+        activeTurnThreshold: Math.max(Number(body.active_turn_threshold || req.query.active_turn_threshold || 80), 1),
+        minNewTurns: Math.max(Number(body.min_new_turns || req.query.min_new_turns || 10), 1),
+      });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "session_summary_autosweep_failed", message: err.message } });
+    }
+  });
+
   // ── GET /dev-agent/runs ───────────────────────────────────────────────────
   router.get("/dev-agent/runs", async (req, res) => {
     try {
