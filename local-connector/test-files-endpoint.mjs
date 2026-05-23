@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 const root = await mkdtemp(path.join(tmpdir(), 'mad4b-connector-files-'));
 const port = 17170 + Math.floor(Math.random() * 1000);
 const apiKey = 'test-secret';
+const localApiKey = 'local-api-key-secret';
 const childPath = path.join(root, 'nested', 'hello.txt');
 const projectPath = path.join(root, 'repos', 'growth-os');
 const connectorDir = path.dirname(fileURLToPath(import.meta.url));
