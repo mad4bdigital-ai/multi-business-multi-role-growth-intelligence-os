@@ -45,6 +45,15 @@ const CLASS_MODELS = {
   authority: { anthropic: "claude-opus-4-7",            openai: "gpt-4o",       gemini: "gemini-1.5-pro"  },
 };
 
+function resolveAgentModelProvider(env = process.env) {
+  const explicit = String(env.AGENT_MODEL_PROVIDER || "").trim().toLowerCase();
+  if (explicit) return explicit;
+  if (env.ANTHROPIC_API_KEY) return "anthropic";
+  if (env.OPENAI_API_KEY) return "openai";
+  if (env.GOOGLE_AI_API_KEY) return "gemini";
+  return "anthropic";
+}
+
 let _classCache = {};
 
 export function getCallModelForClass(execution_class) {
