@@ -22,7 +22,7 @@ const server = spawn(process.execPath, ['server.mjs'], {
   cwd: connectorDir,
   env: {
     ...process.env,
-    BACKEND_API_KEY: apiKey,
+    CONNECTOR_SECRET: apiKey,
     CONNECTOR_PORT: String(port),
     CONNECTOR_FILES_ENABLED: 'true',
     CONNECTOR_FILE_PATHS: root,
