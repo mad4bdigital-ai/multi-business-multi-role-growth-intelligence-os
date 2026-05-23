@@ -124,8 +124,8 @@ async function callOpenRouter(messages, tools, config = {}) {
 
 async function callGemini(messages, tools, config = {}) {
   const { fetch: _fetch = fetch } = config;
-  const apiKey = config.api_key || process.env.GOOGLE_AI_API_KEY;
-  const model  = config.model  || "gemini-1.5-pro";
+  const apiKey = config.api_key || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+  const model  = config.model  || "gemini-3.5-flash";
   const system = messages.find(m => m.role === "system")?.content;
   const contents = messages
     .filter(m => m.role !== "system")
