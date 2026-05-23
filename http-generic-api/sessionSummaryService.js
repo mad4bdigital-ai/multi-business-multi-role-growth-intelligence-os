@@ -152,15 +152,26 @@ async function loadSqlPreviewEvents(pool, sessionId, limit = DEFAULT_FALLBACK_TU
   }));
 }
 
-export async function loadSessionTranscript({ pool = getPool(), session, fallbackTurnsLimit = DEFAULT_FALLBACK_TURNS_LIMIT, injectedDeps = {} }) {
-  const drive = await loadDriveJsonlEvents(session, injectedDeps);
+export async function loadSessionTranscript({
+  pool = getPool(),
+  session,
+  fallbackTurnsLimit = DEFAULT_FALLBACK_TURNS_LIMIT,
+  injectedDeps = {},
+  fetchDriveContentFn = null,
+} = {}) {
+  const effectiveDeps = fetchDriveContentFn
+    ? { ...injectedDeps, fetchDriveContent: fetchDriveContentFn }
+    : injectedDeps;
+  const drive = await loadDriveJsonlEvents(session, effectiveDeps);
   if (drive.events.length) {
     return {
       source: "drive_jsonl",
       source_ok: drive.ok,
       warning: drive.warning,
       events: drive.events,
+      turns: drive.events,
       fallback_used: false,
+      drive_error: null,
     };
   }
 
@@ -170,7 +181,11 @@ export async function loadSessionTranscript({ pool = getPool(), session, fallbac
     source_ok: fallback.length > 0,
     warning: drive.warning,
     events: fallback,
+    turns: fallback,
     fallback_used: true,
+    drive_error: drive.warning
+      ? { code: "drive_jsonl_read_failed", message: drive.warning }
+      : null,
   };
 }
 
