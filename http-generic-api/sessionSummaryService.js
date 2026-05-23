@@ -274,9 +274,15 @@ async function consolidateSummaries({ session, chunkSummaries, callModel }) {
 }
 
 export async function summarizeSessionTranscript({ session, transcript, callModel }) {
-  if (!callModel) throw new Error("session_summary_model_not_configured");
   const events = transcript?.events || [];
   if (!events.length) return fallbackInsight(session, transcript?.source || "none", "no transcript events available");
+  if (!callModel) {
+    return fallbackInsight(
+      session,
+      transcript?.source || "none",
+      "session summary model not configured; stored deterministic fallback summary"
+    );
+  }
 
   try {
     const chunks = chunkTranscriptEvents(session, events);
@@ -455,7 +461,6 @@ export async function runSessionSummaryAutosweep({
   run_id = null,
   injectedDeps = {},
 } = {}) {
-  if (!callModel) throw new Error("session_summary_model_not_configured");
   const sessions = await findSessionsNeedingSummary({ pool, batchSize: limit || batchSize, minAgeSeconds });
   const results = [];
   for (const session of sessions) {

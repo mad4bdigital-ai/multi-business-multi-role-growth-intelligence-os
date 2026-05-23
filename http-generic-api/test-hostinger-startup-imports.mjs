@@ -1,0 +1,46 @@
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { dirname, join } from "node:path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+function checkSyntax(relativePath) {
+  const absolutePath = join(__dirname, relativePath);
+  const result = spawnSync(process.execPath, ["--check", absolutePath], {
+    encoding: "utf8"
+  });
+
+  assert.equal(
+    result.status,
+    0,
+    `${relativePath} must pass node --check.\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`
+  );
+}
+
+async function importModule(relativePath) {
+  const absolutePath = join(__dirname, relativePath);
+  await import(pathToFileURL(absolutePath).href);
+}
+
+const syntaxOnlyFiles = [
+  "server.js",
+  "routes/activationRoutes.js",
+  "routes/gptSessionRoutes.js",
+  "routes/devAgentRoutes.js",
+  "sessionSummaryService.js",
+  "devAgentRunner.js"
+];
+
+for (const file of syntaxOnlyFiles) {
+  checkSyntax(file);
+}
+
+await importModule("sessionSummaryService.js");
+await importModule("routes/activationRoutes.js");
+await importModule("routes/gptSessionRoutes.js");
+await importModule("routes/devAgentRoutes.js");
+await importModule("devAgentRunner.js");
+
+console.log("✓ Hostinger startup import guard passed");
