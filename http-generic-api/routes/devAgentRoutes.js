@@ -102,6 +102,62 @@ export function buildDevAgentRoutes(deps) {
   const router = Router();
   router.use(requireBackendApiKey);
 
+  // ── GET /dev-agent/model-readiness ────────────────────────────────────────
+  router.get("/dev-agent/model-readiness", async (req, res) => {
+    const provider = String(process.env.AGENT_MODEL_PROVIDER || "anthropic").toLowerCase();
+    const modelOverride = Boolean(process.env.AGENT_MODEL);
+    const envPresence = {
+      anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
+      openai: Boolean(process.env.OPENAI_API_KEY),
+      gemini: Boolean(process.env.GOOGLE_AI_API_KEY),
+    };
+
+    try {
+      const callModel = deps.getCallModelForClass
+        ? deps.getCallModelForClass("standard")
+        : deps.callModel;
+
+      if (!callModel) {
+        return res.status(503).json({
+          ok: false,
+          readiness: "blocked",
+          provider,
+          model_override: modelOverride,
+          env_presence: envPresence,
+          error: { code: "call_model_not_configured", message: "callModel is not wired into route dependencies." },
+        });
+      }
+
+      const response = await callModel([
+        { role: "system", content: "Return only JSON." },
+        { role: "user", content: "Return {\"ok\":true,\"purpose\":\"model_readiness\"}." },
+      ], []);
+
+      return res.json({
+        ok: true,
+        readiness: "active",
+        provider,
+        model_override: modelOverride,
+        env_presence: envPresence,
+        response_shape: {
+          has_content: typeof response?.content === "string" && response.content.length > 0,
+          has_tool_calls: Array.isArray(response?.tool_calls),
+          tokens_used: Number(response?.tokens_used || 0),
+        },
+      });
+    } catch (err) {
+      const error = sanitizeModelReadinessError(err);
+      return res.status(error.upstream_status === 401 ? 401 : 503).json({
+        ok: false,
+        readiness: "blocked",
+        provider,
+        model_override: modelOverride,
+        env_presence: envPresence,
+        error,
+      });
+    }
+  });
+
   // ── POST /dev-agent/run ───────────────────────────────────────────────────
   router.post("/dev-agent/run", async (req, res) => {
     try {
