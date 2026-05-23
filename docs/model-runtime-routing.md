@@ -57,8 +57,19 @@ Default config:
 {
   "version": 1,
   "free_first": true,
-  "provider_order": ["openrouter", "openai", "anthropic", "gemini"],
+  "provider_order": ["gemini", "openrouter", "openai", "anthropic"],
   "providers": {
+    "gemini": {
+      "enabled": true,
+      "credential_env_var": "GEMINI_API_KEY",
+      "fallback_credential_env_vars": ["GOOGLE_AI_API_KEY"],
+      "default_model": "gemini-3.5-flash",
+      "models": {
+        "standard": "gemini-3.5-flash",
+        "complex": "gemini-3.5-flash",
+        "authority": "gemini-3.5-flash"
+      }
+    },
     "openrouter": {
       "enabled": true,
       "credential_env_var": "OPENROUTER_API_KEY",
