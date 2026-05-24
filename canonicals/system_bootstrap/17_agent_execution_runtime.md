@@ -16,6 +16,7 @@ All AI-driven workflow execution must flow through this layer — no workflow ca
 | `modelAdapter.js` | `runLogicWithModel` — executes the ReAct tool-calling loop with iteration cap and tool dispatch |
 | `engineExecutorRegistry.js` | `buildEngineExecutorRegistry` — routes tool-call dispatch to MCP, HTTP action, or logic-as-engine by name |
 | `connectorExecutor.js` | `dispatchContentWorkflow` — calls `runAgentLoop` with `getAgentDeps()` injected |
+| `n8nWorkflowRuntime.js` | Governed visual workflow adapter — resolves `workflow_runtime_bindings`, validates input/output schemas, calls n8n webhooks, records `workflow_runs`, and keeps secrets in env/vault |
 | `skillInstaller.mjs` | CLI — fetches `skill.json` from GitHub, upserts `logic_definitions` + `skill_packages` rows |
 | `skillManifest.js` | Manifest normaliser for skill installation |
 

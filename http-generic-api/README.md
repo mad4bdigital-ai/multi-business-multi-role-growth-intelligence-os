@@ -37,6 +37,7 @@ Policy-enforced HTTP executor with governed agent execution runtime.
 - `modelAdapter.js` — `runLogicWithModel`: ReAct tool-calling loop with iteration cap
 - `engineExecutorRegistry.js` — routes tool dispatch to MCP / HTTP action / logic-as-engine
 - `connectorExecutor.js` — `dispatchContentWorkflow` injects `getAgentDeps()`; also handles WordPress and MCP connector dispatch
+- `n8nWorkflowRuntime.js` — governed n8n runtime adapter; loads `workflow_runtime_bindings`, validates input/output schemas, calls n8n webhooks, records `workflow_runs`, and keeps secrets in env/vault
 - `skillInstaller.mjs` — CLI: install/list/enable/disable skills from GitHub (`skill.json` → `logic_definitions` + `skill_packages`)
 - `skillManifest.js` — manifest normalizer for skill installation
 

@@ -16,6 +16,7 @@ import { buildPlannerRoutes } from "./plannerRoutes.js";
 import { buildBootstrapRoutes } from "./bootstrapRoutes.js";
 import { buildLogicRoutes } from "./logicRoutes.js";
 import { buildWorkflowOrchestrationRoutes } from "./workflowOrchestrationRoutes.js";
+import { buildN8nWorkflowRuntimeRoutes } from "./n8nWorkflowRuntimeRoutes.js";
 import { buildObservabilityRoutes } from "./observabilityRoutes.js";
 import { buildSecurityRoutes } from "./securityRoutes.js";
 import { buildDeveloperApiRoutes } from "./developerApiRoutes.js";
@@ -132,6 +133,7 @@ export function registerRoutes(app, deps) {
   app.use(buildBootstrapRoutes(deps));
   app.use(buildLogicRoutes(deps));
   app.use(buildWorkflowOrchestrationRoutes(deps));
+  app.use(buildN8nWorkflowRuntimeRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildObservabilityRoutes(deps));
   app.use(buildSecurityRoutes(deps));
   app.use(buildDeveloperApiRoutes(deps));

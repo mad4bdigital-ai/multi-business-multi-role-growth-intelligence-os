@@ -32,6 +32,8 @@ const syntaxOnlyFiles = [
   "routes/devAgentRoutes.js",
   "sessionSummaryService.js",
   "agentModelRuntimeSettings.js",
+  "n8nWorkflowRuntime.js",
+  "routes/n8nWorkflowRuntimeRoutes.js",
   "devAgentRunner.js"
 ];
 
@@ -66,6 +68,11 @@ assert(
 assert(
   devAgentRoutesSource.includes('/dev-agent/model-settings'),
   "dev agent governed model settings routes must stay registered"
+);
+const routesIndexSource = readFileSync(join(__dirname, "routes/index.js"), "utf8");
+assert(
+  routesIndexSource.includes("buildN8nWorkflowRuntimeRoutes"),
+  "n8n workflow runtime routes must stay mounted"
 );
 
 const modelReadinessMigration = readFileSync(
