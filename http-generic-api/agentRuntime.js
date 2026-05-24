@@ -153,11 +153,16 @@ export function getCallModelForClass(execution_class) {
 }
 
 export async function getCallModelForClassAsync(execution_class = "standard") {
+  return getCallModelForTaskAsync(null, execution_class);
+}
+
+export async function getCallModelForTaskAsync(task_class = null, execution_class = "standard") {
   const settings = await loadAgentModelRuntimeSettings();
   const config = settings.config || DEFAULT_AGENT_MODEL_RUNTIME_CONFIG;
-  const candidates = resolveAgentModelCandidateChain({ execution_class, env: process.env, config });
-  const selection = candidates[0] || resolveAgentModelSelection({ execution_class, env: process.env, config });
-  const cacheKey = `${selection.execution_class}:${candidates.map(c => `${c.provider}:${c.model}`).join(">") || `${selection.provider}:${selection.model}`}:async`;
+  const candidates = resolveAgentModelCandidateChain({ execution_class, task_class, env: process.env, config });
+  const selection = candidates[0] || resolveAgentModelSelection({ execution_class, task_class, env: process.env, config });
+  const taskKey = selection.task_class || task_class || "class";
+  const cacheKey = `${taskKey}:${selection.execution_class}:${candidates.map(c => `${c.provider}:${c.model}`).join(">") || `${selection.provider}:${selection.model}`}:async`;
   if (_classCache[cacheKey]) return _classCache[cacheKey];
 
   _classCache[cacheKey] = buildFallbackCallModel(candidates.length ? candidates : [selection], process.env);
