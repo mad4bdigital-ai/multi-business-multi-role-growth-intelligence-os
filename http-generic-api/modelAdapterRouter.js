@@ -196,13 +196,18 @@ async function callGemini(messages, tools, config = {}) {
   if (tools.length) body.tools = [{ functionDeclarations: toolsToGemini(tools) }];
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-  const res = await _fetch(url, {
-    method: "POST",
-    headers: { "x-goog-api-key": apiKey, "content-type": "application/json" },
-    body: JSON.stringify(body),
+  return fetchModelJsonWithRetry({
+    provider: "Gemini",
+    fetchFn: _fetch,
+    url,
+    request: {
+      method: "POST",
+      headers: { "x-goog-api-key": apiKey, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    normalize: normalizeGeminiResponse,
+    config,
   });
-  if (!res.ok) throw new Error(`Gemini API ${res.status}: ${await res.text()}`);
-  return normalizeGeminiResponse(await res.json());
 }
 
 const PROVIDERS = { anthropic: callAnthropic, openai: callOpenAI, openrouter: callOpenRouter, gemini: callGemini };
