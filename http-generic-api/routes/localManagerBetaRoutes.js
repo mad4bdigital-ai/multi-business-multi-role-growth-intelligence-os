@@ -899,7 +899,7 @@ async function localManagerWindowsUpdateInfo(req) {
     app: "mad4b-local-manager",
     latest_version: latestVersion,
     current_version: currentVersion || null,
-    update_available: currentVersion ? currentVersion !== latestVersion : null,
+    update_available: currentVersion ? compareVersions(latestVersion, currentVersion) > 0 : null,
     required: Boolean(Number(release.update_required || 0)),
     minimum_supported_version: release.minimum_supported_version || null,
     release_channel: release.release_channel || "latest-prerelease",
