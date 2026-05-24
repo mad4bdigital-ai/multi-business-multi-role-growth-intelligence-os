@@ -213,24 +213,32 @@ async function fetchConnectorJson(url, options) {
   return { response, data };
 }
 
+async function listRegisteredRoutes(device, { includeDown = false } = {}) {
+  if (!device?.config_id) return [];
+  const healthClause = includeDown
+    ? "AND health_status IN ('healthy','unknown','degraded','down')"
+    : "AND health_status IN ('healthy','unknown','degraded')";
+  const [rows] = await getPool().query(
+    `SELECT route_id, config_id, route_type, route_label, endpoint_url, priority,
+            tls_mode, auth_mode, health_status, last_success_at, last_failure_at,
+            last_error_code, last_error_message, updated_at
+       FROM \`local_connector_device_routes\`
+      WHERE config_id = ?
+        AND is_enabled = 1
+        ${healthClause}
+      ORDER BY priority ASC,
+               FIELD(health_status, 'healthy','unknown','degraded','down') ASC,
+               FIELD(route_type, 'vpn_private_ip','lan_private_ip','direct_public_ip','dynamic_public_ip','cloudflare_tunnel','admin_recovery'),
+               updated_at DESC`,
+    [device.config_id]
+  );
+  return rows;
+}
+
 async function listCandidateRoutes(device) {
   const routes = [];
   if (device?.config_id) {
-    const [rows] = await getPool().query(
-      `SELECT route_id, config_id, route_type, route_label, endpoint_url, priority,
-              tls_mode, auth_mode, health_status, last_success_at, last_failure_at,
-              last_error_code, last_error_message, updated_at
-         FROM \`local_connector_device_routes\`
-        WHERE config_id = ?
-          AND is_enabled = 1
-          AND health_status IN ('healthy','unknown','degraded')
-        ORDER BY priority ASC,
-                 FIELD(health_status, 'healthy','unknown','degraded') ASC,
-                 FIELD(route_type, 'vpn_private_ip','lan_private_ip','direct_public_ip','dynamic_public_ip','cloudflare_tunnel','admin_recovery'),
-                 updated_at DESC`,
-      [device.config_id]
-    );
-    routes.push(...rows);
+    routes.push(...await listRegisteredRoutes(device));
   }
 
   const deviceRuntimeUrl = String(device?.device_runtime_url || device?.tunnel_url || "").trim();
