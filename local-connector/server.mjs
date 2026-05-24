@@ -1337,7 +1337,7 @@ async function handleN8n(req, res) {
   const n8nFetch = async (method, path, data) => {
     const opts = { method, headers: n8nHeaders };
     if (data !== undefined) opts.body = JSON.stringify(data);
-    const r = await fetch(`${N8N_BASE}${path}`, opts);
+    const r = await fetch(`${effectiveN8nBase}${path}`, opts);
     return r.json();
   };
 
