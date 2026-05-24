@@ -32,7 +32,18 @@ The retry path logs only sanitized metadata: provider, status, attempt number, m
 
 ## Operation logging
 
-Each summary run now returns an `operation_log` array with sanitized per-step events. Session-level steps include:
+The SQL-primary `execution_log` table is the durable execution record. Each completed summary write creates a high-level `execution_log` row with:
+
+- `entry_type = session_summary_autosweep`
+- `execution_class = summary`
+- `source_layer = sessionSummaryService`
+- `route_keys = dev_agent_session_summary_autosweep`
+- `selected_workflows = session_summary_autosweep`
+- `execution_trace_id_writeback = run_id || summary_id`
+- `artifact_json_asset_id = session_summary_<summary_id>` when graph attachment exists
+- `output_summary` containing sanitized verification evidence and step status metadata
+
+The returned `operation_log` array remains a bounded, per-step debug trace in the API response. It is not a separate database authority and must not replace `execution_log`. Session-level steps include:
 
 - `load_session`
 - `check_existing_summary`
@@ -40,13 +51,14 @@ Each summary run now returns an `operation_log` array with sanitized per-step ev
 - `summarize_transcript`
 - `write_session_summary`
 - `verify_session_summary_write`
+- `write_execution_log`
 
 Autosweep-level steps include:
 
 - `autosweep`
 - `find_sessions_needing_summary`
 
-The manual autosweep route returns a `run_id` so logs and created `session_summaries.dev_agent_run_id` rows can be correlated.
+The manual autosweep route returns a `run_id` so `operation_log`, created `session_summaries.dev_agent_run_id` rows, and `execution_log.execution_trace_id_writeback` can be correlated.
 
 ## Continuous verification
 
