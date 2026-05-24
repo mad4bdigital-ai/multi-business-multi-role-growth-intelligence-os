@@ -20,7 +20,7 @@ const ALLOWED_AUTH_TYPES = new Set([
 ]);
 
 const ALLOWED_FIELD_TARGETS = new Set(["credentials", "connection", "metadata"]);
-const ALLOWED_FIELD_TYPES = new Set(["text", "password", "url", "email", "number", "textarea", "select", "checkbox"]);
+const ALLOWED_FIELD_TYPES = new Set(["text", "password", "url", "email", "number", "textarea", "json", "select", "checkbox"]);
 
 function sha256(value) {
   return createHash("sha256").update(String(value || "")).digest("hex");
