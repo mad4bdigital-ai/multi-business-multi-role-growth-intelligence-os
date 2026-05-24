@@ -219,10 +219,12 @@ Behavior:
 
 ## Current validated admin device paths
 
-As of 2026-05-17, the following Essam device paths are registered and validated in SQL:
+As of 2026-05-24, platform admin local working copies are split by runtime role.
+
+Essam remains the primary n8n runtime/control origin:
 
 ```text
-device_id = Essam
+device_id = Essam / essam-pc
 project_key = growth-intelligence-os
 current_path = D:\\Nagy\\Multi-Business-Multi-Role-Growth-Intelligence-OS
 status = active / valid
@@ -232,7 +234,30 @@ current_path = C:\\mad4b-connector
 status = active / valid
 ```
 
-The paths were verified with the governed local shell aliases `local_dir_list` and `local_file_search` before being marked valid.
+Nagy's local admin/control device is registered as a separate connector device and must not replace Essam as the n8n primary runtime:
+
+```text
+device_id = DESKTOP-91FDEFP
+aliases = nagyxs, nagy pc, nagy
+project_key = growth-intelligence-os
+current_path = C:\\Users\\nagyx\\source\\repos\\multi-business-multi-role-growth-intelligence-os
+status = active / valid
+allowed connector file root = C:\\Users\\nagyx\\source\\repos\\multi-business-multi-role-growth-intelligence-os
+```
+
+The Nagy device repo path was validated through the auth-host device facade with `connector_files locate_repo` and the safe shell aliases:
+
+```text
+repo_status
+repo_branch
+repo_log_latest
+repo_compare_origin_main
+repo_pull_ff_only
+```
+
+`repo_pull_ff_only` is intentionally state-changing and may only run as `git pull --ff-only origin main`. It must not be replaced with an unrestricted shell or PowerShell pull command.
+
+The original Essam paths were verified with the governed local shell aliases `local_dir_list` and `local_file_search` before being marked valid.
 
 ## Validation checklist
 
