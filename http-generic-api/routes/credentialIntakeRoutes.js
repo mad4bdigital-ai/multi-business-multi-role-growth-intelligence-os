@@ -20,7 +20,7 @@ const ALLOWED_AUTH_TYPES = new Set([
 ]);
 
 const ALLOWED_FIELD_TARGETS = new Set(["credentials", "connection", "metadata"]);
-const ALLOWED_FIELD_TYPES = new Set(["text", "password", "url", "email", "number", "textarea", "select", "checkbox"]);
+const ALLOWED_FIELD_TYPES = new Set(["text", "password", "url", "email", "number", "textarea", "json", "select", "checkbox"]);
 
 function sha256(value) {
   return createHash("sha256").update(String(value || "")).digest("hex");
@@ -175,8 +175,12 @@ function normalizeCredentialSchema(authType, schema) {
 
 function inputHtml(field, value = "") {
   const common = `name="${htmlEscape(field.name)}" ${field.required ? "required" : ""} autocomplete="${htmlEscape(field.autocomplete)}" placeholder="${htmlEscape(field.placeholder)}"`;
-  if (field.type === "textarea") {
-    return `<textarea ${common}>${htmlEscape(value)}</textarea>`;
+  if (field.type === "textarea" || field.type === "json") {
+    const rows = field.type === "json" ? "10" : "";
+    const accept = field.type === "json"
+      ? `<input class="json-file" type="file" accept="application/json,.json" data-target="${htmlEscape(field.name)}">`
+      : "";
+    return `${accept}<textarea ${common} ${rows ? `rows="${rows}"` : ""}>${htmlEscape(value)}</textarea>`;
   }
   if (field.type === "select") {
     const options = field.options.map((opt) => `<option value="${htmlEscape(opt.value)}">${htmlEscape(opt.label)}</option>`).join("");
@@ -229,6 +233,55 @@ function sessionSchema(session) {
   return normalizeCredentialSchema(session.auth_type, safeJsonParse(session.credential_schema_json, null));
 }
 
+function parseJsonCredentialField(value, fieldName) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  if (raw.length > 64 * 1024) {
+    const err = new Error(`${fieldName} is too large. Maximum size is 64KB.`);
+    err.status = 400;
+    err.code = "json_credential_too_large";
+    throw err;
+  }
+  try { return JSON.parse(raw); }
+  catch {
+    const err = new Error(`${fieldName} must be valid JSON.`);
+    err.status = 400;
+    err.code = "invalid_json_credential";
+    throw err;
+  }
+}
+
+function extractMcpServersConfig(value) {
+  const parsed = parseJsonCredentialField(value, "mcp_servers_json");
+  if (!parsed) return null;
+  const servers = parsed.mcpServers && typeof parsed.mcpServers === "object" && !Array.isArray(parsed.mcpServers)
+    ? parsed.mcpServers
+    : null;
+  if (!servers || !Object.keys(servers).length) {
+    const err = new Error("mcp_servers_json must contain an mcpServers object.");
+    err.status = 400;
+    err.code = "invalid_mcp_servers_json";
+    throw err;
+  }
+  const [serverName, server] = Object.entries(servers)[0];
+  if (!server || typeof server !== "object" || !server.url) {
+    const err = new Error("mcpServers entries must include a url.");
+    err.status = 400;
+    err.code = "invalid_mcp_server_entry";
+    throw err;
+  }
+  const auth = String(server.headers?.Authorization || server.headers?.authorization || "").trim();
+  const bearer = auth.replace(/^Bearer\s+/i, "").trim();
+  return {
+    raw: parsed,
+    serverName,
+    server,
+    endpoint: String(server.url || "").trim(),
+    transport: String(server.type || "http").trim() || "http",
+    bearer,
+  };
+}
+
 function collectSubmission({ authType, schema, body = {}, session = {} }) {
   const credentials = {};
   const metadata = safeJsonParse(session.metadata_json, {}) || {};
@@ -247,6 +300,28 @@ function collectSubmission({ authType, schema, body = {}, session = {} }) {
       throw err;
     }
     if (!rawValue) continue;
+
+    if (authType === "mcp" && field.name === "mcp_servers_json") {
+      const config = extractMcpServersConfig(rawValue);
+      credentials.mcp_servers_json = JSON.stringify(config.raw);
+      credentials.mcp_servers = config.raw.mcpServers;
+      if (config.bearer) {
+        credentials.mcp_bearer = config.bearer;
+        credentials.bearer_token = config.bearer;
+      }
+      connection.mcp_endpoint = config.endpoint;
+      metadata.mcp_server_name = config.serverName;
+      metadata.mcp_transport = config.transport;
+      continue;
+    }
+
+    if (field.type === "json") {
+      const parsedJson = parseJsonCredentialField(rawValue, field.name);
+      if (field.target === "credentials") credentials[field.name] = parsedJson;
+      else if (field.target === "metadata") metadata[field.name] = parsedJson;
+      else metadata[field.name] = parsedJson;
+      continue;
+    }
 
     if (field.target === "credentials") credentials[field.name] = rawValue;
     else if (field.target === "connection") {
@@ -301,6 +376,7 @@ function renderCredentialForm({ session, app, error = "" }) {
     input, textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 14px; padding: 13px 14px; font: inherit; margin-top: 7px; }
     textarea { min-height: 96px; resize: vertical; }
     button { width: 100%; margin-top: 22px; border: 0; border-radius: 16px; padding: 14px 18px; font-weight: 700; background: #2563eb; color: white; cursor: pointer; }
+    .json-file { background: #f8fafc; margin-top: 7px; }
     .meta { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px 14px; margin: 18px 0; }
     .error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 14px; padding: 12px; }
     .optional, small { color: #64748b; font-weight: 500; font-size: 12px; display:block; margin-top:4px; }
@@ -325,6 +401,18 @@ function renderCredentialForm({ session, app, error = "" }) {
     </form>
     <p class="fine">This page is single-use and short-lived. The URL contains a one-time token; do not share it after submission.</p>
   </main>
+  <script>
+    document.querySelectorAll('.json-file').forEach((input) => {
+      input.addEventListener('change', async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        if (file.size > 64 * 1024) { alert('JSON file is too large. Maximum size is 64KB.'); input.value = ''; return; }
+        const target = document.querySelector('textarea[name="' + input.dataset.target + '"]');
+        if (!target) return;
+        target.value = await file.text();
+      });
+    });
+  </script>
 </body>
 </html>`;
 }
