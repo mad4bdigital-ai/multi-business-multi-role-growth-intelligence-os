@@ -1535,7 +1535,7 @@ async function handleN8nV2(req, res) {
     }
 
     // Fall through to the API-control implementation for workflow operations.
-    return await handleN8n(req, res);
+    return await handleN8n(req, res, body);
   } catch (e) {
     return err(res, 500, e.code || 'N8N_CONTROL_ERROR', e.message);
   }
