@@ -12,6 +12,10 @@ const ROUTE_TYPE_ORDER = [
 ];
 
 const ROUTE_LEVEL_FAILURE_STATUSES = new Set([502, 503, 504, 520, 521, 522, 523, 524, 525, 526, 527, 530]);
+const CONNECTOR_PROXY_TIMEOUT_MS = Math.min(
+  Math.max(Number(process.env.CONNECTOR_PROXY_TIMEOUT_MS) || 12000, 1000),
+  25000,
+);
 
 function httpError(status, code, message, details = null) {
   const err = new Error(message || code);
