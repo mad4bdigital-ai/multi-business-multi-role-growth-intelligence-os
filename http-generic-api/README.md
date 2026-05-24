@@ -31,7 +31,7 @@ Policy-enforced HTTP executor with governed agent execution runtime.
 
 **Agent execution runtime:**
 - `agentRuntime.js` — singleton composing `callModel` + `runLogicWithModel` + `engineExecutorRegistry` + sync/async `getCallModelForClass`; async model routing uses governed provider fallback chains
-- `agentModelRuntimeSettings.js` — validates `platform_runtime_config.agent_model_runtime`; default routing is Gemini primary with OpenRouter fallback
+- `agentModelRuntimeSettings.js` — validates `platform_runtime_config.agent_model_runtime`; default routing is Gemini primary with OpenRouter fallback and task-specific profiles for `summary`, `classification`, and `image_edit`
 - `agentLoopRunner.js` — `runAgentLoop(plan, deps)`: loads workflow + logic definition, runs ReAct loop, verify pass (when `review_required=1`), writes results to DB
 - `modelAdapterRouter.js` — `buildCallModel`: normalizes Anthropic / OpenAI / OpenRouter / Gemini shapes
 - `modelAdapter.js` — `runLogicWithModel`: ReAct tool-calling loop with iteration cap

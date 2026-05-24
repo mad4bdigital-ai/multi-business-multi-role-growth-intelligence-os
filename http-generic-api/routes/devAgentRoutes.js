@@ -66,7 +66,8 @@ function sanitizeModelReadinessError(error) {
   return { code: "model_readiness_failed", message: message.replace(/\{[\s\S]*\}/g, "[upstream_error_body_redacted]").slice(0, 240) };
 }
 
-async function resolveStandardCallModel(deps) {
+async function resolveStandardCallModel(deps, taskClass = "summary") {
+  if (deps.getCallModelForTaskAsync) return await deps.getCallModelForTaskAsync(taskClass, "standard");
   if (deps.getCallModelForClassAsync) return await deps.getCallModelForClassAsync("standard");
   if (deps.getCallModelForClass) return deps.getCallModelForClass("standard");
   return deps.callModel || null;
@@ -115,8 +116,9 @@ export function buildDevAgentRoutes(deps) {
 
   // ── GET /dev-agent/model-readiness ────────────────────────────────────────
   router.get("/dev-agent/model-readiness", async (req, res) => {
+    const taskClass = String(req.query.task_class || "summary").trim() || "summary";
     const selection = deps.resolveAgentModelProviderAsync
-      ? await deps.resolveAgentModelProviderAsync("standard", process.env)
+      ? await deps.resolveAgentModelProviderAsync("standard", process.env, taskClass)
       : {
           provider: deps.resolveAgentModelProvider
             ? deps.resolveAgentModelProvider(process.env)
@@ -144,6 +146,7 @@ export function buildDevAgentRoutes(deps) {
           readiness: "blocked",
           provider,
           model: selection.model || null,
+          task_class: selection.task_class || taskClass,
           selection_source: selection.source || "unknown",
           explicit_provider,
           model_override: modelOverride,

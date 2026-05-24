@@ -68,6 +68,35 @@ import { buildCallModel } from "./modelAdapterRouter.js";
 }
 
 {
+  const config = normalizeAgentModelRuntimeConfig({});
+  const summaryCandidates = resolveAgentModelCandidateChain({
+    task_class: "summary",
+    env: { GEMINI_API_KEY: "present", OPENROUTER_API_KEY: "present", OPENAI_API_KEY: "present" },
+    config,
+  });
+  assert.deepEqual(summaryCandidates.map(c => c.provider), ["gemini", "openrouter", "openai"]);
+  assert.deepEqual(summaryCandidates.map(c => c.model), ["gemini-3.5-flash", "openrouter/free", "gpt-4o-mini"]);
+
+  const classification = resolveAgentModelSelection({
+    task_class: "classification",
+    env: { GEMINI_API_KEY: "present", OPENROUTER_API_KEY: "present" },
+    config,
+  });
+  assert.equal(classification.provider, "gemini");
+  assert.equal(classification.model, "gemini-2.5-flash-lite");
+  assert.equal(classification.source, "task_profile");
+
+  const imageEdit = resolveAgentModelSelection({
+    task_class: "image_edit",
+    env: { GEMINI_API_KEY: "present", OPENROUTER_API_KEY: "present" },
+    config,
+  });
+  assert.equal(imageEdit.provider, "gemini");
+  assert.equal(imageEdit.model, "gemini-3.1-flash-image-preview");
+  assert.equal(imageEdit.execution_class, "image_edit");
+}
+
+{
   const config = normalizeAgentModelRuntimeConfig({
     provider_order: ["openrouter", "openai"],
     providers: {

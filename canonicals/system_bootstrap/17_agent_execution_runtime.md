@@ -39,6 +39,18 @@ Resolution order:
 
 Class routing is cached per class/provider/model per process via `_classCache`. DB settings are cached briefly by `agentModelRuntimeSettings.js` and can be refreshed through the governed settings route.
 
+## Task-specific model profiles
+
+`platform_runtime_config.agent_model_runtime.task_profiles` assigns specific models to job types before generic class routing applies.
+
+| Task class | Primary model | Purpose |
+|---|---|---|
+| `summary` | `gemini-3.5-flash` | Session summaries and background summarization |
+| `classification` | `gemini-2.5-flash-lite` | Cheap intent/task classification and routing |
+| `image_edit` | `gemini-3.1-flash-image-preview` | Future image editing/generation requests using Nano Banana |
+
+Routes that know the task should use `getCallModelForTaskAsync(task_class, execution_class)`. Routes that only know workflow class may continue using `getCallModelForClassAsync(execution_class)`.
+
 ## Verify Pass
 
 When `workflow.review_required = 1` (or `TRUE` or `'1'`), `agentLoopRunner` runs a post-execution quality review after the primary model loop completes.

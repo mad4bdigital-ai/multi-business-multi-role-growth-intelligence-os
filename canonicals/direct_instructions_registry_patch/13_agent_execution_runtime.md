@@ -22,7 +22,9 @@ If `AGENT_MODEL` env var is set, it overrides all class routing for all workflow
 
 Model selection must not be hardcoded in routes or connectors. All routing goes through `getCallModelForClass(execution_class)` / `getCallModelForClassAsync(execution_class)` and `modelAdapterRouter` maps the selected tier to the configured provider.
 
-Provider routing is governed by `platform_runtime_config.config_key = agent_model_runtime` when available. This row may define `provider_order`, `free_first`, provider enabled flags, env-var names, and class-to-model mappings. It must never store raw API keys, tokens, private keys, passwords, or provider secrets.
+Provider routing is governed by `platform_runtime_config.config_key = agent_model_runtime` when available. This row may define `provider_order`, `free_first`, provider enabled flags, env-var names, class-to-model mappings, and task-specific profiles. It must never store raw API keys, tokens, private keys, passwords, or provider secrets.
+
+Known task profiles are `summary`, `classification`, and `image_edit`. Routes with a known task must prefer `getCallModelForTaskAsync(task_class, execution_class)`. `summary` defaults to Gemini 3.5 Flash, `classification` defaults to Gemini 2.5 Flash-Lite, and `image_edit` defaults to the Nano Banana image model `gemini-3.1-flash-image-preview`.
 
 Supported provider keys are `gemini`, `openrouter`, `openai`, and `anthropic`. By default, session summaries and async standard-class background work prefer Gemini through Google AI Studio, then fall back to OpenRouter. `openrouter` uses the OpenAI-compatible OpenRouter endpoint and may default fallback work to `openrouter/free` when `OPENROUTER_API_KEY` is configured.
 

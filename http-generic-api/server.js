@@ -324,7 +324,7 @@ import { createExecutionFacade } from "./executionFacade.js";
 import { generateImplementationPlan } from "./services/planningResolver.js";
 import { generateTaskManifest } from "./services/taskResolver.js";
 import { createGovernanceValidationEngine } from "./services/governanceValidationEngine.js";
-import { getAgentDeps, getCallModelForClass, getCallModelForClassAsync, resolveAgentModelProvider, resolveAgentModelProviderAsync } from "./agentRuntime.js";
+import { getAgentDeps, getCallModelForClass, getCallModelForClassAsync, getCallModelForTaskAsync, resolveAgentModelProvider, resolveAgentModelProviderAsync } from "./agentRuntime.js";
 import {
   formatIntentMaturationForPrompt,
   resolveAiIntentMaturation
@@ -3173,6 +3173,7 @@ registerRoutes(app, {
   getAgentDeps,
   getCallModelForClass,
   getCallModelForClassAsync,
+  getCallModelForTaskAsync,
   resolveAgentModelProvider,
   resolveAgentModelProviderAsync,
   callModel: getAgentDeps().callModel,

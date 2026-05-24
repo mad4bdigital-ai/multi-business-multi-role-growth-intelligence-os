@@ -108,6 +108,59 @@ Default config:
 }
 ```
 
+## Assigning a specific model
+
+A model is assigned by editing `platform_runtime_config.agent_model_runtime`, not by changing route code.
+
+There are two assignment levels:
+
+1. `providers.<provider>.models.<execution_class>` sets the default model for a provider and class such as `standard`, `complex`, or `authority`.
+2. `task_profiles.<task_class>.models.<provider>` overrides the model for a specific job type.
+
+Default task profiles:
+
+| Task class | Purpose | Primary model | Fallback |
+|---|---|---|---|
+| `summary` | GPT session summaries and background summarization | `gemini-3.5-flash` | `openrouter/free`, then OpenAI/Anthropic if configured |
+| `classification` | Cheap routing/classification before choosing a specialist workflow | `gemini-2.5-flash-lite` | `openrouter/free`, then OpenAI if configured |
+| `image_edit` | Future image editing/generation requests | `gemini-3.1-flash-image-preview` | none by default; add another Gemini image model explicitly if needed |
+
+Example update payload:
+
+```json
+{
+  "settings": {
+    "task_profiles": {
+      "summary": {
+        "execution_class": "standard",
+        "provider_order": ["gemini", "openrouter", "openai"],
+        "models": {
+          "gemini": "gemini-3.5-flash",
+          "openrouter": "openrouter/free",
+          "openai": "gpt-4o-mini"
+        }
+      },
+      "classification": {
+        "execution_class": "standard",
+        "provider_order": ["gemini", "openrouter", "openai"],
+        "models": {
+          "gemini": "gemini-2.5-flash-lite",
+          "openrouter": "openrouter/free",
+          "openai": "gpt-4o-mini"
+        }
+      },
+      "image_edit": {
+        "execution_class": "image_edit",
+        "provider_order": ["gemini"],
+        "models": {
+          "gemini": "gemini-3.1-flash-image-preview"
+        }
+      }
+    }
+  }
+}
+```
+
 ## Selection order
 
 Runtime selection uses this order:
