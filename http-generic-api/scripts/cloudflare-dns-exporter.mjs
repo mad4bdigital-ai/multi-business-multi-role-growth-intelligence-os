@@ -310,6 +310,10 @@ async function upsertTunnelIngressHostname(args) {
     nextIngress.splice(insertAt, 0, desiredRule);
   }
 
+  if (!nextIngress.some((rule) => !rule.hostname && !rule.path)) {
+    nextIngress.push({ service: "http_status:404" });
+  }
+
   const nextConfig = { ...currentConfig, ingress: nextIngress };
   let appliedResult = null;
   if (apply && !alreadyCorrect) {
