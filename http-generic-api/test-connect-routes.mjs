@@ -512,6 +512,10 @@ section("connect api auth scope");
       proxySource.includes('router.get("/connector/:device_id/diagnostics"') && proxySource.includes("connectorRouteDiagnostics"));
     assert("auth-host connector proxy includes degraded routes as fallback candidates",
       proxySource.includes("health_status IN ('healthy','unknown','degraded')"));
+    assert("auth-host connector diagnostics can report down registered routes without selecting them for execution",
+      proxySource.includes("includeDown = false") &&
+      proxySource.includes("includeDown: true") &&
+      proxySource.includes("registered_routes: registeredRoutes.map(routeResponseMeta)"));
     assert("auth-host connector proxy rejects wrong-device recovery responses",
       proxySource.includes("wrong_device_response") && proxySource.includes("isWrongDeviceHealthResponse"));
     assert("auth-host connector proxy has bounded route timeout",
