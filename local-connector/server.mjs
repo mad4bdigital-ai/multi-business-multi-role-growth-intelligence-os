@@ -56,6 +56,7 @@ const PS_ENABLED = process.env.CONNECTOR_POWERSHELL_ENABLED === 'true';
 const WIN_ENABLED = process.env.CONNECTOR_WIN_ENABLED === 'true';
 const N8N_ENABLED = process.env.CONNECTOR_N8N_ENABLED !== 'false';
 const N8N_BASE = (process.env.N8N_BASE_URL ?? 'http://localhost:5678').replace(/\/$/, '');
+const N8N_LOCAL_BASE = (process.env.N8N_LOCAL_BASE_URL ?? process.env.N8N_BASE_URL ?? 'http://localhost:5678').replace(/\/$/, '');
 const N8N_API_KEY = process.env.N8N_API_KEY ?? '';
 function normalizeCommandPath(value) {
   let raw = String(value ?? '').trim();
@@ -583,8 +584,10 @@ function policyBody() {
     n8n: {
       enabled: N8N_ENABLED,
       base_url: N8N_BASE,
+      local_base_url: N8N_LOCAL_BASE,
       public_url: N8N_PUBLIC_URL,
       command_configured: Boolean(N8N_COMMAND),
+      env_api_key_configured: Boolean(N8N_API_KEY),
     },
     restricted_ops: {
       powershell_enabled: PS_ENABLED,
@@ -1329,12 +1332,12 @@ async function handleN8n(req, res) {
   if (!action) return err(res, 400, 'MISSING_ACTION', 'action is required');
   audit(req, { action: `n8n:${action}` });
 
-  const n8nHeaders = { 'Content-Type': 'application/json', ...(N8N_API_KEY ? { 'X-N8N-API-KEY': N8N_API_KEY } : {}) };
+  const requestN8nApiKey = String(body._platform_n8n_api_key || '').trim(); const requestLocalBase = String(body._platform_n8n_local_base_url || '').trim().replace(/\/$/, ''); const requestPublicBase = String(body._platform_n8n_public_base_url || '').trim().replace(/\/$/, ''); const effectiveN8nApiKey = requestN8nApiKey || N8N_API_KEY; const effectiveN8nBase = requestLocalBase || N8N_LOCAL_BASE || requestPublicBase || N8N_BASE; const n8nHeaders = { 'Content-Type': 'application/json', ...(effectiveN8nApiKey ? { 'X-N8N-API-KEY': effectiveN8nApiKey } : {}) };
 
   const n8nFetch = async (method, path, data) => {
     const opts = { method, headers: n8nHeaders };
     if (data !== undefined) opts.body = JSON.stringify(data);
-    const r = await fetch(`${N8N_BASE}${path}`, opts);
+    const r = await fetch(`${effectiveN8nBase}${path}`, opts);
     return r.json();
   };
 

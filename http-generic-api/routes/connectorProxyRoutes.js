@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
+import { resolveEffectiveCredential } from "../credentialResolver.js";
+import { decryptCredentials } from "../tokenEncryption.js";
 
 const ROUTE_TYPE_ORDER = [
   "vpn_private_ip",
@@ -308,7 +310,55 @@ async function markRouteFailure(route, code, message, { terminal = false } = {})
   }
 }
 
-function buildForwardOptions(req) {
+function pickFirstString(values = []) {
+  for (const value of values) {
+    const clean = String(value || "").trim();
+    if (clean) return clean;
+  }
+  return "";
+}
+
+async function loadPreferredN8nApiConnection({ tenantId, userId }) {
+  if (!tenantId || !userId) return null;
+  const [rows] = await getPool().query(
+    `SELECT * FROM \`user_app_connections\`
+      WHERE tenant_id = ?
+        AND user_id = ?
+        AND app_key = 'n8n'
+        AND auth_type = 'api_key'
+        AND status = 'active'
+      ORDER BY is_primary DESC, connected_at DESC
+      LIMIT 1`,
+    [tenantId, userId]
+  ).catch(() => [[]]);
+  return rows[0] || null;
+}
+
+async function resolveN8nApiBridge({ tenantId, userId }) {
+  const conn = await loadPreferredN8nApiConnection({ tenantId, userId });
+  if (!conn) return null;
+  const resolved = await resolveEffectiveCredential({
+    tenantId,
+    userId,
+    connectionId: conn.connection_id,
+    credentialRole: "n8n_api_key",
+    includeSecret: true,
+    allowPlatformFallback: false,
+  }).catch(() => null);
+  if (resolved?.status !== "resolved" || !resolved.secret) return null;
+
+  let credentials = {};
+  try { credentials = decryptCredentials(conn.encrypted_credentials) || {}; } catch { credentials = {}; }
+  return {
+    apiKey: resolved.secret,
+    publicBaseUrl: pickFirstString([credentials.N8N_BASE_URL, credentials.n8n_base_url, conn.api_base_url]),
+    localBaseUrl: pickFirstString([credentials.N8N_LOCAL_BASE_URL, credentials.n8n_local_base_url]),
+    webhookBaseUrl: pickFirstString([credentials.N8N_WEBHOOK_BASE_URL, credentials.n8n_webhook_base_url]),
+    connectionId: conn.connection_id,
+  };
+}
+
+async function buildForwardOptions(req, targetPath, context = {}) {
   const baseOptions = {
     method: req.method,
     headers: { "Content-Type": "application/json" },
@@ -319,6 +369,15 @@ function buildForwardOptions(req) {
     const forwardedBody = { ...req.body };
     delete forwardedBody.user_id;
     delete forwardedBody.tenant_id;
+    if (targetPath === "/n8n") {
+      const bridge = await resolveN8nApiBridge({ tenantId: context.tenantId, userId: context.userId });
+      if (bridge?.apiKey) {
+        forwardedBody._platform_n8n_api_key = bridge.apiKey;
+        forwardedBody._platform_n8n_local_base_url = bridge.localBaseUrl || "";
+        forwardedBody._platform_n8n_public_base_url = bridge.publicBaseUrl || "";
+        forwardedBody._platform_n8n_connection_id = bridge.connectionId || "";
+      }
+    }
     baseOptions.body = JSON.stringify(forwardedBody);
   }
 
@@ -446,7 +505,7 @@ async function proxyToDevice(req, res, deviceId, targetPath) {
   delete forwardedQuery.user_id;
   delete forwardedQuery.tenant_id;
   const queryString = Object.keys(forwardedQuery).length ? "?" + new URLSearchParams(forwardedQuery).toString() : "";
-  const baseOptions = buildForwardOptions(req);
+  const baseOptions = await buildForwardOptions(req, targetPath, { tenantId, userId });
   const routes = await listCandidateRoutes(device);
 
   if (!routes.length) {
