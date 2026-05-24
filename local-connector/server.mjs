@@ -1332,7 +1332,7 @@ async function handleN8n(req, res) {
   if (!action) return err(res, 400, 'MISSING_ACTION', 'action is required');
   audit(req, { action: `n8n:${action}` });
 
-  const requestN8nApiKey = String(body._platform_n8n_api_key || '').trim(); const requestLocalBase = String(body._platform_n8n_local_base_url || '').trim().replace(/\/$/, ''); const requestPublicBase = String(body._platform_n8n_public_base_url || '').trim().replace(/\/$/, ''); const effectiveN8nApiKey = requestN8nApiKey || N8N_API_KEY; const effectiveN8nBase = requestLocalBase || N8N_LOCAL_BASE || requestPublicBase || N8N_BASE; const n8nHeaders = { 'Content-Type': 'application/json', ...(N8N_API_KEY ? { 'X-N8N-API-KEY': N8N_API_KEY } : {}) };
+  const requestN8nApiKey = String(body._platform_n8n_api_key || '').trim(); const requestLocalBase = String(body._platform_n8n_local_base_url || '').trim().replace(/\/$/, ''); const requestPublicBase = String(body._platform_n8n_public_base_url || '').trim().replace(/\/$/, ''); const effectiveN8nApiKey = requestN8nApiKey || N8N_API_KEY; const effectiveN8nBase = requestLocalBase || N8N_LOCAL_BASE || requestPublicBase || N8N_BASE; const n8nHeaders = { 'Content-Type': 'application/json', ...(effectiveN8nApiKey ? { 'X-N8N-API-KEY': effectiveN8nApiKey } : {}) };
 
   const n8nFetch = async (method, path, data) => {
     const opts = { method, headers: n8nHeaders };
