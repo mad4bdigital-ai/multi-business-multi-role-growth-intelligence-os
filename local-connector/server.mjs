@@ -1322,11 +1322,11 @@ Start-Sleep -Milliseconds 500;$n.Dispose()`;
   return err(res, 400, 'UNKNOWN_ACTION', 'action must be: open_url, open_vscode, screenshot, process_list, process_kill, notify, service_list, service_action, disk_list, dir_list, file_search');
 }
 
-async function handleN8n(req, res) {
+async function handleN8n(req, res, preloadedBody = null) {
   if (!N8N_ENABLED) return err(res, 403, 'DISABLED', 'n8n endpoint is disabled — set CONNECTOR_N8N_ENABLED=true');
   if (!requireAuth(req, res)) return;
   let body;
-  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
+  try { body = preloadedBody ?? await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
 
   const { action } = body;
   if (!action) return err(res, 400, 'MISSING_ACTION', 'action is required');
@@ -1535,7 +1535,7 @@ async function handleN8nV2(req, res) {
     }
 
     // Fall through to the API-control implementation for workflow operations.
-    return await handleN8n(req, res);
+    return await handleN8n(req, res, body);
   } catch (e) {
     return err(res, 500, e.code || 'N8N_CONTROL_ERROR', e.message);
   }
