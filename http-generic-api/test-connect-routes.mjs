@@ -586,6 +586,13 @@ section("connect api auth scope");
       source.includes("last_health_at = NOW()") &&
       source.includes("watchdog_version") &&
       source.includes("last_repair_status"));
+    assert("connector heartbeat syncs primary route health metadata",
+      source.includes("syncPrimaryRouteFromHeartbeat") &&
+      source.includes("local_connector_device_routes") &&
+      source.includes("route_type = 'cloudflare_tunnel'") &&
+      source.includes("last_success_at = NOW()") &&
+      source.includes("last_failure_at = NOW()") &&
+      source.includes("heartbeat_failed"));
     assert("connector heartbeat strips secret-like metadata",
       source.includes("safeJsonObject") &&
       source.includes("authorization") &&
