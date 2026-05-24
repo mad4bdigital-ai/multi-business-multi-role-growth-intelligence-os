@@ -147,6 +147,16 @@ function routeResponseMeta(route) {
   };
 }
 
+function normalizeDeviceLabel(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isWrongDeviceHealthResponse(data, device) {
+  const expected = normalizeDeviceLabel(device?.device_id);
+  const actual = normalizeDeviceLabel(data?.hostname);
+  return Boolean(expected && actual && expected !== actual);
+}
+
 async function fetchConnectorJson(url, options) {
   const response = await fetch(url, options);
   const text = await response.text().catch(() => "");
@@ -182,6 +192,24 @@ async function listCandidateRoutes(device) {
       [device.config_id]
     );
     routes.push(...rows);
+  }
+
+  const deviceRuntimeUrl = String(device?.device_runtime_url || device?.tunnel_url || "").trim();
+  const hasDeviceRuntimeRoute = routes.some((route) =>
+    String(route.endpoint_url || "").replace(/\/$/, "") === deviceRuntimeUrl.replace(/\/$/, "")
+  );
+  if (deviceRuntimeUrl && !hasDeviceRuntimeRoute) {
+    routes.push({
+      route_id: null,
+      config_id: device.config_id || null,
+      route_type: "cloudflare_tunnel",
+      route_label: "Device runtime URL",
+      endpoint_url: deviceRuntimeUrl,
+      priority: 25,
+      tls_mode: "required",
+      auth_mode: "bearer_connector_secret",
+      health_status: "unknown",
+    });
   }
 
   if (!routes.length && device?.tunnel_url) {
@@ -355,6 +383,12 @@ async function proxyToDevice(req, res, deviceId, targetPath) {
 
       if (isRouteLevelFailure(attempt.response, attempt.data)) {
         await markRouteFailure(route, errorCode || `http_${status}`, errorMessage || `Route returned HTTP ${status}.`, { terminal: status === 530 || status === 503 });
+        continue;
+      }
+
+      if (targetPath === "/health" && isWrongDeviceHealthResponse(attempt.data, device)) {
+        await markRouteFailure(route, "wrong_device_response", `Route returned health for '${attempt.data.hostname}' instead of '${device.device_id}'.`);
+        attempts[attempts.length - 1].error_code = "wrong_device_response";
         continue;
       }
 
