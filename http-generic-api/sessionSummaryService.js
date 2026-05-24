@@ -249,6 +249,136 @@ export async function verifySessionSummaryWrite({ pool = getPool(), session, sum
   };
 }
 
+function modelWarningFromInsight(insight = {}) {
+  return Array.isArray(insight.blockers)
+    ? insight.blockers.find(item => /^model_call_failed:|^all_model_providers_failed:/i.test(String(item || ""))) || null
+    : null;
+}
+
+function summarizeStagesForExecutionLog(operationLog = []) {
+  return (Array.isArray(operationLog) ? operationLog : [])
+    .filter(event => event?.stage && event?.status)
+    .map(event => ({
+      stage: event.stage,
+      status: event.status,
+      duration_ms: event.duration_ms ?? null,
+      warning: event.warning || event.error || event.reason || null,
+    }))
+    .slice(-20);
+}
+
+function buildExecutionLogOutputSummary({ session, summaryId, transcript, insight, verification, operationLog }) {
+  return boundedText(JSON.stringify({
+    session_id: session.session_id,
+    summary_id: summaryId,
+    transcript_source: transcript?.source || null,
+    fallback_used: Boolean(transcript?.fallback_used),
+    events_loaded: Array.isArray(transcript?.events) ? transcript.events.length : 0,
+    summary_text_chars: String(insight?.summary_text || "").length,
+    verification: {
+      ok: Boolean(verification?.ok),
+      summary_row_present: Boolean(verification?.summary_row_present),
+      graph_asset_present: Boolean(verification?.graph_asset_present),
+      graph_validation_status: verification?.graph_validation_status || null,
+      graph_active_status: verification?.graph_active_status || null,
+    },
+    stages: summarizeStagesForExecutionLog(operationLog),
+    secrets_included: false,
+  }), 6000);
+}
+
+export async function writeSessionSummaryExecutionLog({
+  pool = getPool(),
+  session,
+  run_id = null,
+  summary_id = null,
+  transcript = null,
+  insight = null,
+  verification = null,
+  operation_log = [],
+} = {}) {
+  if (!session?.session_id || !summary_id) {
+    return { ok: false, skipped: true, reason: "missing_session_or_summary_id" };
+  }
+
+  const startedAt = operation_log?.[0]?.at || new Date().toISOString();
+  const endedAt = new Date().toISOString();
+  const durationSeconds = Math.max(0, Math.round((Date.parse(endedAt) - Date.parse(startedAt)) / 1000));
+  const modelWarning = modelWarningFromInsight(insight);
+  const graphWarning = verification?.summary_row_present && !verification?.graph_asset_present
+    ? "summary_graph_asset_missing"
+    : null;
+  const failureReason = verification?.ok
+    ? null
+    : (verification?.reason || "session_summary_write_verification_failed");
+  const executionStatus = verification?.ok
+    ? (modelWarning || graphWarning ? "success_with_warnings" : "success")
+    : "failed";
+  const outputSummary = buildExecutionLogOutputSummary({ session, summaryId: summary_id, transcript, insight, verification, operationLog: operation_log });
+  const artifactAssetId = verification?.graph_asset_present ? summaryAssetId(summary_id) : null;
+  const traceId = run_id || summary_id;
+
+  const [insertResult] = await pool.query(
+    `INSERT INTO \`execution_log\`
+       (run_date, start_time, end_time, duration_seconds,
+        entry_type, execution_class, source_layer, user_input,
+        route_keys, selected_workflows, execution_mode,
+        execution_status, output_summary, recovery_status, recovery_notes,
+        route_status, intake_validation_status, execution_ready_status,
+        failure_reason, artifact_json_asset_id, target_module_writeback,
+        target_workflow_writeback, execution_trace_id_writeback,
+        log_source_writeback, created_at)
+     VALUES (?, ?, ?, ?,
+        'session_summary_autosweep', 'summary', 'sessionSummaryService', ?,
+        'dev_agent_session_summary_autosweep', 'session_summary_autosweep', 'model_summary',
+        ?, ?, ?, ?,
+        'resolved', 'validated', 'ready',
+        ?, ?, 'sessionSummaryService',
+        'session_summary_autosweep', ?,
+        'sql_primary', CURRENT_TIMESTAMP)`,
+    [
+      startedAt.slice(0, 10),
+      startedAt,
+      endedAt,
+      String(durationSeconds),
+      `session_id=${session.session_id}`,
+      executionStatus,
+      outputSummary,
+      modelWarning ? "fallback_summary_used" : "not_required",
+      modelWarning || graphWarning || null,
+      failureReason,
+      artifactAssetId,
+      traceId,
+    ]
+  );
+
+  const executionLogId = insertResult?.insertId || null;
+  let readback = { ok: false, execution_log_id: executionLogId };
+  if (executionLogId) {
+    const [rows] = await pool.query(
+      `SELECT id, execution_status, execution_trace_id_writeback
+       FROM \`execution_log\`
+       WHERE id = ?
+       LIMIT 1`,
+      [executionLogId]
+    ).catch(() => [[]]);
+    readback = {
+      ok: Boolean(rows?.[0]),
+      execution_log_id: executionLogId,
+      execution_status: rows?.[0]?.execution_status || null,
+      execution_trace_id: rows?.[0]?.execution_trace_id_writeback || null,
+    };
+  }
+
+  return {
+    ok: Boolean(readback.ok),
+    execution_log_id: executionLogId,
+    execution_status: executionStatus,
+    execution_trace_id: traceId,
+    readback,
+  };
+}
+
 export function parseSessionJsonl(content = "") {
   const events = [];
   for (const [lineIndex, line] of String(content || "").split(/\r?\n/).entries()) {
