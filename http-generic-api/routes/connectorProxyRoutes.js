@@ -147,6 +147,16 @@ function routeResponseMeta(route) {
   };
 }
 
+function normalizeDeviceLabel(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isWrongDeviceHealthResponse(data, device) {
+  const expected = normalizeDeviceLabel(device?.device_id);
+  const actual = normalizeDeviceLabel(data?.hostname);
+  return Boolean(expected && actual && expected !== actual);
+}
+
 async function fetchConnectorJson(url, options) {
   const response = await fetch(url, options);
   const text = await response.text().catch(() => "");
