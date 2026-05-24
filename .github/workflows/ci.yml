@@ -16,6 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Guard schema/docs coverage for runtime changes
+        run: node http-generic-api/scripts/schema-docs-change-guard.mjs
 
       - uses: actions/setup-node@v6
         with:
