@@ -490,6 +490,11 @@ export function buildConnectorProxyRoutes(deps) {
     });
   }
 
+  router.get("/connector/:device_id/diagnostics", requireBackendApiKey, async (req, res) => {
+    try { await connectorRouteDiagnostics(req, res, req.params.device_id); }
+    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_diagnostics_failed", message: err.message } }); }
+  });
+
   router.get("/connector/:device_id/policy", requireBackendApiKey, async (req, res) => {
     try { await proxyToDevice(req, res, req.params.device_id, "/policy"); }
     catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
