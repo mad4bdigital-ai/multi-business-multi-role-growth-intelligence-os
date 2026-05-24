@@ -32,6 +32,8 @@ const syntaxOnlyFiles = [
   "routes/devAgentRoutes.js",
   "sessionSummaryService.js",
   "agentModelRuntimeSettings.js",
+  "n8nWorkflowRuntime.js",
+  "routes/n8nWorkflowRuntimeRoutes.js",
   "devAgentRunner.js"
 ];
 
