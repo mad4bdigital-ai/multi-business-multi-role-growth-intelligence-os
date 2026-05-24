@@ -133,6 +133,7 @@ export function registerRoutes(app, deps) {
   app.use(buildBootstrapRoutes(deps));
   app.use(buildLogicRoutes(deps));
   app.use(buildWorkflowOrchestrationRoutes(deps));
+  app.use(buildN8nWorkflowRuntimeRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildObservabilityRoutes(deps));
   app.use(buildSecurityRoutes(deps));
   app.use(buildDeveloperApiRoutes(deps));
