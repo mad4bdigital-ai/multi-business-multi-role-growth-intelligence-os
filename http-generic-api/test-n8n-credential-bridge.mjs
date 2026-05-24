@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+// Guards both platform credential bridge and local env fallback paths.
 const proxySource = readFileSync("routes/connectorProxyRoutes.js", "utf8");
 const connectorSource = readFileSync("../local-connector/server.mjs", "utf8");
 
