@@ -3,17 +3,34 @@ import { getPool } from "./db.js";
 export const MODEL_RUNTIME_CONFIG_KEY = "agent_model_runtime";
 
 export const SUPPORTED_MODEL_PROVIDERS = Object.freeze([
+  "gemini",
   "openrouter",
   "openai",
   "anthropic",
-  "gemini",
+]);
+
+export const SUPPORTED_MODEL_TASK_CLASSES = Object.freeze([
+  "summary",
+  "classification",
+  "image_edit",
 ]);
 
 export const DEFAULT_AGENT_MODEL_RUNTIME_CONFIG = Object.freeze({
-  version: 1,
+  version: 2,
   free_first: true,
   provider_order: ["gemini", "openrouter", "openai", "anthropic"],
   providers: {
+    gemini: {
+      enabled: true,
+      credential_env_var: "GEMINI_API_KEY",
+      fallback_credential_env_vars: ["GOOGLE_AI_API_KEY"],
+      default_model: "gemini-3.5-flash",
+      models: {
+        standard: "gemini-3.5-flash",
+        complex: "gemini-3.5-flash",
+        authority: "gemini-3.5-flash",
+      },
+    },
     openrouter: {
       enabled: true,
       credential_env_var: "OPENROUTER_API_KEY",
@@ -48,15 +65,32 @@ export const DEFAULT_AGENT_MODEL_RUNTIME_CONFIG = Object.freeze({
         authority: "claude-opus-4-7",
       },
     },
-    gemini: {
-      enabled: true,
-      credential_env_var: "GEMINI_API_KEY",
-      fallback_credential_env_vars: ["GOOGLE_AI_API_KEY"],
-      default_model: "gemini-3.5-flash",
+  },
+  task_profiles: {
+    summary: {
+      execution_class: "standard",
+      provider_order: ["gemini", "openrouter", "openai", "anthropic"],
       models: {
-        standard: "gemini-3.5-flash",
-        complex: "gemini-3.5-flash",
-        authority: "gemini-3.5-flash",
+        gemini: "gemini-3.5-flash",
+        openrouter: "openrouter/free",
+        openai: "gpt-4o-mini",
+        anthropic: "claude-haiku-4-5-20251001",
+      },
+    },
+    classification: {
+      execution_class: "standard",
+      provider_order: ["gemini", "openrouter", "openai"],
+      models: {
+        gemini: "gemini-2.5-flash-lite",
+        openrouter: "openrouter/free",
+        openai: "gpt-4o-mini",
+      },
+    },
+    image_edit: {
+      execution_class: "image_edit",
+      provider_order: ["gemini"],
+      models: {
+        gemini: "gemini-3.1-flash-image-preview",
       },
     },
   },
@@ -73,6 +107,10 @@ function normalizeProviderKey(value = "") {
   return String(value || "").trim().toLowerCase();
 }
 
+function normalizeTaskClass(value = "") {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+}
+
 function normalizeModelMap(value = {}, fallback = {}) {
   const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   return {
@@ -80,6 +118,23 @@ function normalizeModelMap(value = {}, fallback = {}) {
     complex: String(source.complex || fallback.complex || source.standard || fallback.standard || "").trim(),
     authority: String(source.authority || fallback.authority || source.complex || fallback.complex || source.standard || fallback.standard || "").trim(),
   };
+}
+
+function normalizeTaskModelMap(value = {}, fallback = {}) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const normalized = {};
+  for (const provider of SUPPORTED_MODEL_PROVIDERS) {
+    const model = String(source[provider] || fallback[provider] || "").trim();
+    if (model) normalized[provider] = model;
+  }
+  return normalized;
+}
+
+function normalizeProviderOrder(value, fallback) {
+  const order = Array.isArray(value)
+    ? value.map(normalizeProviderKey).filter(p => SUPPORTED_MODEL_PROVIDERS.includes(p))
+    : fallback;
+  return order?.length ? [...new Set(order)] : fallback;
 }
 
 function assertNoSecretFields(value, path = "settings") {
@@ -94,6 +149,31 @@ function assertNoSecretFields(value, path = "settings") {
     }
     if (nested && typeof nested === "object") assertNoSecretFields(nested, `${path}.${key}`);
   }
+}
+
+function normalizeTaskProfiles(sourceProfiles = {}, fallbackProfiles = {}) {
+  const profiles = {};
+  const keys = new Set([
+    ...SUPPORTED_MODEL_TASK_CLASSES,
+    ...Object.keys(fallbackProfiles || {}),
+    ...Object.keys(sourceProfiles || {}).map(normalizeTaskClass),
+  ]);
+
+  for (const rawKey of keys) {
+    const taskClass = normalizeTaskClass(rawKey);
+    if (!taskClass) continue;
+    const fallback = fallbackProfiles[taskClass] || {};
+    const candidate = sourceProfiles?.[taskClass] || sourceProfiles?.[rawKey] || {};
+    const executionClass = String(candidate.execution_class || fallback.execution_class || "standard").trim() || "standard";
+    profiles[taskClass] = {
+      execution_class: executionClass,
+      provider_order: normalizeProviderOrder(candidate.provider_order, fallback.provider_order || DEFAULT_AGENT_MODEL_RUNTIME_CONFIG.provider_order),
+      models: normalizeTaskModelMap(candidate.models, fallback.models),
+      description: String(candidate.description || fallback.description || "").trim(),
+    };
+  }
+
+  return profiles;
 }
 
 export function normalizeAgentModelRuntimeConfig(input = {}) {
@@ -126,15 +206,15 @@ export function normalizeAgentModelRuntimeConfig(input = {}) {
     }
   }
 
-  const providerOrder = Array.isArray(source.provider_order)
-    ? source.provider_order.map(normalizeProviderKey).filter(p => SUPPORTED_MODEL_PROVIDERS.includes(p))
-    : defaults.provider_order;
+  const providerOrder = normalizeProviderOrder(source.provider_order, defaults.provider_order);
+  const taskProfiles = normalizeTaskProfiles(source.task_profiles || {}, defaults.task_profiles || {});
 
   return {
     version: Number(source.version || defaults.version || 1),
     free_first: source.free_first === undefined ? defaults.free_first === true : source.free_first === true,
-    provider_order: providerOrder.length ? [...new Set(providerOrder)] : defaults.provider_order,
+    provider_order: providerOrder,
     providers,
+    task_profiles: taskProfiles,
   };
 }
 
@@ -158,17 +238,27 @@ export function summarizeModelRuntimeSettings(config = DEFAULT_AGENT_MODEL_RUNTI
     version: normalized.version,
     free_first: normalized.free_first,
     provider_order: normalized.provider_order,
+    task_profiles: normalized.task_profiles,
     providers,
   };
 }
 
-export function resolveAgentModelCandidateChain({ execution_class = "standard", env = process.env, config = DEFAULT_AGENT_MODEL_RUNTIME_CONFIG } = {}) {
-  const cls = String(execution_class || "standard").trim() || "standard";
+function resolveTaskProfile({ task_class = null, config }) {
+  const normalizedTaskClass = normalizeTaskClass(task_class || "");
+  if (!normalizedTaskClass) return null;
+  return config.task_profiles?.[normalizedTaskClass]
+    ? { task_class: normalizedTaskClass, ...config.task_profiles[normalizedTaskClass] }
+    : null;
+}
+
+export function resolveAgentModelCandidateChain({ execution_class = "standard", task_class = null, env = process.env, config = DEFAULT_AGENT_MODEL_RUNTIME_CONFIG } = {}) {
   const normalized = normalizeAgentModelRuntimeConfig(config);
+  const profile = resolveTaskProfile({ task_class, config: normalized });
+  const cls = String(profile?.execution_class || execution_class || "standard").trim() || "standard";
   const explicitProvider = normalizeProviderKey(env.AGENT_MODEL_PROVIDER || "");
   const order = explicitProvider && SUPPORTED_MODEL_PROVIDERS.includes(explicitProvider)
     ? [explicitProvider]
-    : normalized.provider_order;
+    : (profile?.provider_order || normalized.provider_order);
   const candidates = [];
 
   for (const provider of order) {
@@ -180,15 +270,17 @@ export function resolveAgentModelCandidateChain({ execution_class = "standard", 
     const credentialEnvVar = credentialEnvVars.find(name => Boolean(env[name])) || credentialEnvVars[0] || "";
     const credentialConfigured = Boolean(credentialEnvVar && env[credentialEnvVar]);
     if (!credentialConfigured) continue;
-    const model = String(env.AGENT_MODEL || providerConfig.models?.[cls] || providerConfig.default_model || "").trim();
+    const taskModel = profile?.models?.[provider];
+    const model = String(env.AGENT_MODEL || taskModel || providerConfig.models?.[cls] || providerConfig.default_model || "").trim();
     if (!model) continue;
     candidates.push({
       provider,
       model,
       execution_class: cls,
+      task_class: profile?.task_class || null,
       credential_env_var: credentialEnvVar,
       credential_configured: true,
-      source: explicitProvider ? "env_provider" : "platform_runtime_config",
+      source: explicitProvider ? "env_provider" : profile ? "task_profile" : "platform_runtime_config",
       explicit_provider: explicitProvider || null,
       free_first: normalized.free_first,
     });
@@ -197,24 +289,26 @@ export function resolveAgentModelCandidateChain({ execution_class = "standard", 
   return candidates;
 }
 
-export function resolveAgentModelSelection({ execution_class = "standard", env = process.env, config = DEFAULT_AGENT_MODEL_RUNTIME_CONFIG } = {}) {
-  const cls = String(execution_class || "standard").trim() || "standard";
+export function resolveAgentModelSelection({ execution_class = "standard", task_class = null, env = process.env, config = DEFAULT_AGENT_MODEL_RUNTIME_CONFIG } = {}) {
   const normalized = normalizeAgentModelRuntimeConfig(config);
+  const profile = resolveTaskProfile({ task_class, config: normalized });
+  const cls = String(profile?.execution_class || execution_class || "standard").trim() || "standard";
   const explicitProvider = normalizeProviderKey(env.AGENT_MODEL_PROVIDER || "");
-  const candidates = resolveAgentModelCandidateChain({ execution_class: cls, env, config: normalized });
+  const candidates = resolveAgentModelCandidateChain({ execution_class: cls, task_class, env, config: normalized });
   if (candidates[0]) return candidates[0];
 
   const fallbackProvider = explicitProvider && SUPPORTED_MODEL_PROVIDERS.includes(explicitProvider)
     ? explicitProvider
-    : (normalized.provider_order[0] || "anthropic");
-  const fallbackConfig = normalized.providers[fallbackProvider] || normalized.providers.anthropic;
+    : ((profile?.provider_order || normalized.provider_order)[0] || "gemini");
+  const fallbackConfig = normalized.providers[fallbackProvider] || normalized.providers.gemini;
   return {
     provider: fallbackProvider,
-    model: String(env.AGENT_MODEL || fallbackConfig?.models?.[cls] || fallbackConfig?.default_model || "").trim(),
+    model: String(env.AGENT_MODEL || profile?.models?.[fallbackProvider] || fallbackConfig?.models?.[cls] || fallbackConfig?.default_model || "").trim(),
     execution_class: cls,
+    task_class: profile?.task_class || null,
     credential_env_var: String(fallbackConfig?.credential_env_var || "").trim(),
     credential_configured: false,
-    source: explicitProvider ? "env_provider_missing_credentials" : "platform_runtime_config_missing_credentials",
+    source: explicitProvider ? "env_provider_missing_credentials" : profile ? "task_profile_missing_credentials" : "platform_runtime_config_missing_credentials",
     explicit_provider: explicitProvider || null,
     free_first: normalized.free_first,
   };
