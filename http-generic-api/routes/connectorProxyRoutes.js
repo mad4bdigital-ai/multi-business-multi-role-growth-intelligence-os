@@ -312,6 +312,17 @@ async function markRouteSuccess(route) {
         WHERE route_id = ?`,
       [route.route_id]
     );
+    if (route.config_id) {
+      await getPool().query(
+        `UPDATE \`local_connector_user_configs\`
+            SET last_health_at = NOW(),
+                last_error_code = NULL,
+                last_error_message = NULL,
+                updated_at = NOW()
+          WHERE config_id = ?`,
+        [route.config_id]
+      );
+    }
   } catch {
     // Health metadata must not break the proxy response.
   }
