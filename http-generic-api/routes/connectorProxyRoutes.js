@@ -494,7 +494,7 @@ async function proxyToDevice(req, res, deviceId, targetPath) {
   delete forwardedQuery.user_id;
   delete forwardedQuery.tenant_id;
   const queryString = Object.keys(forwardedQuery).length ? "?" + new URLSearchParams(forwardedQuery).toString() : "";
-  const baseOptions = buildForwardOptions(req);
+  const baseOptions = await buildForwardOptions(req, targetPath, { tenantId, userId });
   const routes = await listCandidateRoutes(device);
 
   if (!routes.length) {
