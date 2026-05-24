@@ -6,6 +6,8 @@ All AI-driven workflow execution must use `runAgentLoop` from `agentLoopRunner.j
 
 Direct model calls from routes, connectors, or workflow handlers outside this chain are forbidden.
 
+Visual workflows may run through n8n only via the governed `workflow_runtime_bindings` and `n8nWorkflowRuntime.js` adapter. n8n must not bypass platform auth, registry scope, model routing, secrets policy, or execution logging.
+
 ## Model Tier Selection
 
 The `execution_class` field on the `workflows` table row is authoritative for model tier selection.
