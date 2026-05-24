@@ -99,9 +99,12 @@ function makePool(rows = []) {
   assert(serviceSource.includes("content_preview"), "SQL fallback must use previews only");
   assert(serviceSource.includes("json_assets"), "summaries should become graph-memory assets");
   assert(serviceSource.includes("platform_graph_edges"), "summaries should attach to graph context");
+  assert(serviceSource.includes("verifySessionSummaryWrite"), "autosweep must verify summary write/readback after persistence");
+  assert(serviceSource.includes("operation_log"), "autosweep results must include sanitized per-step operation logs");
   assert(gptRoutes.includes("summarizeSessionIfNeeded"), "endSession must trigger autosummary");
   assert(gptRoutes.includes("session_summary: summaryResult"), "endSession response must expose summary result");
   assert(devRoutes.includes("/dev-agent/session-summaries/autosweep"), "manual autosweep route must exist");
+  assert(devRoutes.includes("run_id") && devRoutes.includes("randomUUID"), "manual autosweep route must return a run_id for trace correlation");
   assert(devRunner.includes("runSessionSummaryAutosweep"), "dev-agent phase 1 must use Drive-backed autosweep");
   assert(migration.includes("tags_json") && migration.includes("summary_sha256") && migration.includes("source_drive_jsonl_id"));
   assert(docs.includes("Status: implemented by `feature/session-summary-autosweep`"));
