@@ -144,6 +144,10 @@ function routeResponseMeta(route) {
     priority: route.priority ?? 1000,
     endpoint_url: route.endpoint_url ? redactUrlForError(route.endpoint_url) : null,
     health_status: route.health_status || "unknown",
+    last_success_at: route.last_success_at || null,
+    last_failure_at: route.last_failure_at || null,
+    last_error_code: route.last_error_code || null,
+    last_error_message: route.last_error_message || null,
   };
 }
 
