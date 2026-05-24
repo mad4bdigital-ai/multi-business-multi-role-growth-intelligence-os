@@ -68,6 +68,37 @@ For repo changes, record:
 - tests or checks run
 - GitHub Actions run id and final conclusion
 
+## CI schema/docs change guard
+
+CI runs `http-generic-api/scripts/schema-docs-change-guard.mjs` in the syntax job. The guard compares the PR or push diff and fails when guarded runtime authority files change without matching schema, tests, docs, or canonical guidance.
+
+Guarded files include:
+
+```text
+http-generic-api/routes/**
+http-generic-api/migrations/**
+registry/tool/workflow/credential runtime files
+src/services/execution/**
+src/services/connectors/**
+src/store/registries/**
+```
+
+Coverage files include:
+
+```text
+http-generic-api/openapi*.yaml
+http-generic-api/test-*.mjs
+tests/**
+docs/**
+canonicals/**
+schemas/**
+AI_Agent_Knowledge_Guide.md
+GPT_Admin_Assistant_Knowledge_Guide.md
+other canonical guide/checklist files
+```
+
+This CI gate is the enforcement layer; database rows such as `agent_supervision_policy` are advisory/operational policy unless a runtime gate explicitly reads and enforces them.
+
 ## Post-push verification
 
 After every push:
