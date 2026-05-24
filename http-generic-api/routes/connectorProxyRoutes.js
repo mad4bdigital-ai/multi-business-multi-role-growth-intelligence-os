@@ -331,6 +331,8 @@ async function markRouteSuccess(route) {
 async function markRouteFailure(route, code, message, { terminal = false } = {}) {
   if (!route?.route_id) return;
   const health = terminal ? "down" : "degraded";
+  const errorCode = String(code || "route_failed").slice(0, 128);
+  const errorMessage = String(message || "Route dispatch failed.").slice(0, 1000);
   try {
     await getPool().query(
       `UPDATE \`local_connector_device_routes\`
@@ -341,8 +343,30 @@ async function markRouteFailure(route, code, message, { terminal = false } = {})
               last_error_message = ?,
               updated_at = NOW()
         WHERE route_id = ?`,
-      [health, String(code || "route_failed").slice(0, 128), String(message || "Route dispatch failed.").slice(0, 1000), route.route_id]
+      [health, errorCode, errorMessage, route.route_id]
     );
+
+    if (route.config_id) {
+      const [healthyRows] = await getPool().query(
+        `SELECT COUNT(*) AS healthy_count
+           FROM \`local_connector_device_routes\`
+          WHERE config_id = ?
+            AND is_enabled = 1
+            AND health_status = 'healthy'`,
+        [route.config_id]
+      );
+      const healthyCount = Number(healthyRows?.[0]?.healthy_count || 0);
+      if (healthyCount === 0) {
+        await getPool().query(
+          `UPDATE \`local_connector_user_configs\`
+              SET last_error_code = ?,
+                  last_error_message = ?,
+                  updated_at = NOW()
+            WHERE config_id = ?`,
+          [errorCode, errorMessage, route.config_id]
+        );
+      }
+    }
   } catch {
     // Health metadata must not break fallback.
   }
