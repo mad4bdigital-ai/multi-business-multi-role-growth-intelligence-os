@@ -836,9 +836,15 @@ section("connect api auth scope");
       source.includes("health_status IN ('healthy','unknown','degraded')") &&
       source.includes("FIELD(health_status, 'healthy','unknown','degraded','down')") &&
       source.includes("ORDER BY priority ASC"));
-    assert("auth connector proxy writes route health metadata",
+    assert("auth connector proxy writes route and config health metadata without stale config errors",
       source.includes("last_success_at = NOW()") &&
       source.includes("last_failure_at = NOW()") &&
+      source.includes("local_connector_user_configs") &&
+      source.includes("last_health_at = NOW()") &&
+      source.includes("healthy_count") &&
+      source.includes("config_last_health_at") &&
+      source.includes("failure_after_success") &&
+      source.includes("health_age_seconds") &&
       source.includes("connector_all_routes_failed"));
     assert("auth connector proxy resolves aliases and allows legacy all-zero canonical tenant fallback",
       source.includes("local_connector_device_aliases") &&
