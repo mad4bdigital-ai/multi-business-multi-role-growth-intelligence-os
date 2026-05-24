@@ -365,6 +365,15 @@ async function markRouteFailure(route, code, message, { terminal = false } = {})
             WHERE config_id = ?`,
           [errorCode, errorMessage, route.config_id]
         );
+      } else {
+        await getPool().query(
+          `UPDATE \`local_connector_user_configs\`
+              SET last_error_code = NULL,
+                  last_error_message = NULL,
+                  updated_at = NOW()
+            WHERE config_id = ?`,
+          [route.config_id]
+        );
       }
     }
   } catch {
