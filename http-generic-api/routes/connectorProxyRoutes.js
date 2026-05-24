@@ -239,7 +239,7 @@ async function listRegisteredRoutes(device, { includeDown = false } = {}) {
     : "AND health_status IN ('healthy','unknown','degraded')";
   const [rows] = await getPool().query(
     `SELECT route_id, config_id, route_type, route_label, endpoint_url, priority,
-            tls_mode, auth_mode, health_status, last_success_at, last_failure_at,
+            tls_mode, auth_mode, health_status, last_health_at, last_success_at, last_failure_at,
             last_error_code, last_error_message, updated_at
        FROM \`local_connector_device_routes\`
       WHERE config_id = ?
