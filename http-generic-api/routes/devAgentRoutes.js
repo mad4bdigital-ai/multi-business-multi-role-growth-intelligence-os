@@ -116,8 +116,9 @@ export function buildDevAgentRoutes(deps) {
 
   // ── GET /dev-agent/model-readiness ────────────────────────────────────────
   router.get("/dev-agent/model-readiness", async (req, res) => {
+    const taskClass = String(req.query.task_class || "summary").trim() || "summary";
     const selection = deps.resolveAgentModelProviderAsync
-      ? await deps.resolveAgentModelProviderAsync("standard", process.env)
+      ? await deps.resolveAgentModelProviderAsync("standard", process.env, taskClass)
       : {
           provider: deps.resolveAgentModelProvider
             ? deps.resolveAgentModelProvider(process.env)
