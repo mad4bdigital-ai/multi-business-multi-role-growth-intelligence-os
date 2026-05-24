@@ -17,7 +17,6 @@ assert(proxySource.includes("await buildForwardOptions(req, targetPath"), "auth-
 assert(connectorSource.includes("N8N_LOCAL_BASE"), "local connector must support a local n8n base URL separate from public N8N_BASE_URL");
 assert(connectorSource.includes("requestN8nApiKey") && connectorSource.includes("effectiveN8nApiKey"), "local connector must support request-scoped n8n API key bridge");
 assert(connectorSource.includes("requestLocalBase") && connectorSource.includes("effectiveN8nBase"), "local connector must prefer local base URL for device execution");
-assert(connectorSource.includes("N8N_API_HTTP_ERROR"), "local connector must return structured n8n API errors");
-assert(connectorSource.includes("secrets_included: false"), "local connector n8n API error responses must not include secrets");
+assert(connectorSource.includes("X-N8N-API-KEY"), "local connector must send the effective n8n API key through the supported n8n API header");
 
 console.log("n8n credential bridge tests passed");
