@@ -328,6 +328,56 @@ async function attemptRoute({ req, route, url, baseOptions, candidateTokens }) {
   return last;
 }
 
+async function connectorRouteDiagnostics(req, res, deviceId) {
+  const isUserAuth = req.auth?.mode === "user_jwt" || req.auth?.mode === "api_credential";
+  const isAdmin = req.auth?.mode === "backend_api_key" || req.auth?.is_admin === true;
+  let userId = isUserAuth ? req.auth.user_id : null;
+  const tenantId = req.auth?.tenant_id || req.query.tenant_id || null;
+  if (!userId && isAdmin) {
+    userId = (req.query.user_id || "").trim() || null;
+  }
+  if (!userId && !isAdmin) {
+    return res.status(401).json({ ok: false, error: { code: "user_identity_required", message: "Sign-in or pass user_id for admin callers." } });
+  }
+
+  let device;
+  try {
+    device = await resolveDeviceConfig(userId, deviceId, { isAdmin, tenantId });
+  } catch (err) {
+    return res.status(err.status || 500).json({
+      ok: false,
+      error: { code: err.code || "device_config_resolution_failed", message: err.message, details: err.details || undefined },
+    });
+  }
+  if (!device) {
+    return res.status(404).json({ ok: false, error: { code: "device_not_found", message: `No active connector found for device '${deviceId}'.` } });
+  }
+
+  const routes = await listCandidateRoutes(device);
+  const candidateTokens = isAdmin
+    ? uniqueTruthy([device.connector_secret, process.env.BACKEND_API_KEY])
+    : uniqueTruthy([device.connector_secret]);
+
+  return res.status(200).json({
+    ok: true,
+    device: {
+      config_id: device.config_id,
+      device_id: device.device_id,
+      user_id: device.user_id,
+      tenant_id: device.tenant_id,
+      device_runtime_url: device.device_runtime_url ? redactUrlForError(device.device_runtime_url) : null,
+      tunnel_url: device.tunnel_url ? redactUrlForError(device.tunnel_url) : null,
+      admin_recovery_url: device.admin_recovery_url ? redactUrlForError(device.admin_recovery_url) : null,
+      connector_auth_configured: candidateTokens.length > 0,
+    },
+    route_count: routes.length,
+    selected_route: routes[0] ? routeResponseMeta(routes[0]) : null,
+    candidate_routes: routes.map(routeResponseMeta),
+    proxy_timeout_ms: CONNECTOR_PROXY_TIMEOUT_MS,
+    secrets_included: false,
+  });
+}
+
 async function proxyToDevice(req, res, deviceId, targetPath) {
   const isUserAuth = req.auth?.mode === "user_jwt" || req.auth?.mode === "api_credential";
   const isAdmin = req.auth?.mode === "backend_api_key" || req.auth?.is_admin === true;
