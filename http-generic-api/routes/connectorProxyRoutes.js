@@ -397,8 +397,10 @@ async function connectorRouteDiagnostics(req, res, deviceId) {
       connector_auth_configured: candidateTokens.length > 0,
     },
     route_count: routes.length,
+    registered_route_count: registeredRoutes.length,
     selected_route: routes[0] ? routeResponseMeta(routes[0]) : null,
     candidate_routes: routes.map(routeResponseMeta),
+    registered_routes: registeredRoutes.map(routeResponseMeta),
     proxy_timeout_ms: CONNECTOR_PROXY_TIMEOUT_MS,
     secrets_included: false,
   });
