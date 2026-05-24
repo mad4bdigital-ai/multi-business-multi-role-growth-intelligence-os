@@ -3173,6 +3173,7 @@ registerRoutes(app, {
   getAgentDeps,
   getCallModelForClass,
   getCallModelForClassAsync,
+  getCallModelForTaskAsync,
   resolveAgentModelProvider,
   resolveAgentModelProviderAsync,
   callModel: getAgentDeps().callModel,
