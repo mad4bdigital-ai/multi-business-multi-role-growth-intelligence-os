@@ -834,7 +834,7 @@ section("connect api auth scope");
       source.includes("legacy_config"));
     assert("auth connector proxy route selector prefers healthy/unknown and allows degraded fallback routes",
       source.includes("health_status IN ('healthy','unknown','degraded')") &&
-      source.includes("FIELD(health_status, 'healthy','unknown','degraded')") &&
+      source.includes("FIELD(health_status, 'healthy','unknown','degraded','down')") &&
       source.includes("ORDER BY priority ASC"));
     assert("auth connector proxy writes route health metadata",
       source.includes("last_success_at = NOW()") &&
