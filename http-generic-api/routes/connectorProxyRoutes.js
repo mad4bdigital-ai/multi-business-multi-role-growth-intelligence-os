@@ -85,7 +85,10 @@ async function resolveDeviceConfig(userId, deviceId, { isAdmin = false, tenantId
                            connector_secret,
                            user_id,
                            tenant_id,
-                           device_id
+                           device_id,
+                           last_health_at,
+                           last_error_code,
+                           last_error_message
                       FROM \`local_connector_user_configs\`
                      WHERE is_enabled = 1`;
 
