@@ -285,7 +285,7 @@ function buildForwardOptions(req) {
   const baseOptions = {
     method: req.method,
     headers: { "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(CONNECTOR_PROXY_TIMEOUT_MS),
   };
 
   if (["POST", "PUT", "PATCH"].includes(req.method) && req.body && Object.keys(req.body).length) {
