@@ -463,7 +463,7 @@ async function proxyToDevice(req, res, deviceId, targetPath) {
         continue;
       }
 
-      if (targetPath === "/health" && isWrongDeviceHealthResponse(attempt.data, device)) {
+      if (targetPath === "/health" && await isWrongDeviceHealthResponse(attempt.data, device)) {
         await markRouteFailure(route, "wrong_device_response", `Route returned health for '${attempt.data.hostname}' instead of '${device.device_id}'.`);
         attempts[attempts.length - 1].error_code = "wrong_device_response";
         continue;
