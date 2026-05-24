@@ -401,6 +401,18 @@ function renderCredentialForm({ session, app, error = "" }) {
     </form>
     <p class="fine">This page is single-use and short-lived. The URL contains a one-time token; do not share it after submission.</p>
   </main>
+  <script>
+    document.querySelectorAll('.json-file').forEach((input) => {
+      input.addEventListener('change', async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        if (file.size > 64 * 1024) { alert('JSON file is too large. Maximum size is 64KB.'); input.value = ''; return; }
+        const target = document.querySelector('textarea[name="' + input.dataset.target + '"]');
+        if (!target) return;
+        target.value = await file.text();
+      });
+    });
+  </script>
 </body>
 </html>`;
 }
