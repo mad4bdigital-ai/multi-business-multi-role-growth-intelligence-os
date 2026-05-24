@@ -16,6 +16,7 @@ import { buildPlannerRoutes } from "./plannerRoutes.js";
 import { buildBootstrapRoutes } from "./bootstrapRoutes.js";
 import { buildLogicRoutes } from "./logicRoutes.js";
 import { buildWorkflowOrchestrationRoutes } from "./workflowOrchestrationRoutes.js";
+import { buildN8nWorkflowRuntimeRoutes } from "./n8nWorkflowRuntimeRoutes.js";
 import { buildObservabilityRoutes } from "./observabilityRoutes.js";
 import { buildSecurityRoutes } from "./securityRoutes.js";
 import { buildDeveloperApiRoutes } from "./developerApiRoutes.js";
