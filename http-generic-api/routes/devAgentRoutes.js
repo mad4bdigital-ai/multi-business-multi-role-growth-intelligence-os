@@ -132,13 +132,11 @@ export function buildDevAgentRoutes(deps) {
       openrouter: Boolean(process.env.OPENROUTER_API_KEY),
       anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
       openai: Boolean(process.env.OPENAI_API_KEY),
-      gemini: Boolean(process.env.GOOGLE_AI_API_KEY),
+      gemini: Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY),
     };
 
     try {
-      const callModel = deps.getCallModelForClass
-        ? deps.getCallModelForClass("standard")
-        : deps.callModel;
+      const callModel = await resolveStandardCallModel(deps);
 
       if (!callModel) {
         return res.status(503).json({

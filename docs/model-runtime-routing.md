@@ -25,10 +25,10 @@ Supported provider keys:
 
 | Provider | Transport | Primary use |
 |---|---|---|
-| `openrouter` | OpenAI-compatible Chat Completions at `https://openrouter.ai/api/v1/chat/completions` | Free-first or low-cost routing, including `openrouter/free` |
-| `openai` | OpenAI Chat Completions | Direct OpenAI fallback or paid production path |
+| `gemini` | Google AI Studio Gemini `generateContent` API | Primary provider for session summaries and standard background reasoning |
+| `openrouter` | OpenAI-compatible Chat Completions at `https://openrouter.ai/api/v1/chat/completions` | First fallback and free/low-cost routing, including `openrouter/free` |
+| `openai` | OpenAI Chat Completions | Paid direct fallback when configured |
 | `anthropic` | Anthropic Messages API | Claude direct path when configured |
-| `gemini` | Google Gemini generateContent | Google fallback path when configured |
 
 OpenRouter is treated as an OpenAI-compatible provider in `modelAdapterRouter.js`. The default free-first model is `openrouter/free`, which delegates to currently available free OpenRouter models. Do not assume the exact free model list is stable.
 
@@ -57,8 +57,19 @@ Default config:
 {
   "version": 1,
   "free_first": true,
-  "provider_order": ["openrouter", "openai", "anthropic", "gemini"],
+  "provider_order": ["gemini", "openrouter", "openai", "anthropic"],
   "providers": {
+    "gemini": {
+      "enabled": true,
+      "credential_env_var": "GEMINI_API_KEY",
+      "fallback_credential_env_vars": ["GOOGLE_AI_API_KEY"],
+      "default_model": "gemini-3.5-flash",
+      "models": {
+        "standard": "gemini-3.5-flash",
+        "complex": "gemini-3.5-flash",
+        "authority": "gemini-3.5-flash"
+      }
+    },
     "openrouter": {
       "enabled": true,
       "credential_env_var": "OPENROUTER_API_KEY",
@@ -92,16 +103,6 @@ Default config:
         "complex": "claude-sonnet-4-6",
         "authority": "claude-opus-4-7"
       }
-    },
-    "gemini": {
-      "enabled": true,
-      "credential_env_var": "GOOGLE_AI_API_KEY",
-      "default_model": "gemini-1.5-flash",
-      "models": {
-        "standard": "gemini-1.5-flash",
-        "complex": "gemini-1.5-pro",
-        "authority": "gemini-1.5-pro"
-      }
     }
   }
 }
@@ -113,10 +114,11 @@ Runtime selection uses this order:
 
 1. If `AGENT_MODEL_PROVIDER` is set, it hard-selects that provider.
 2. Otherwise, load `platform_runtime_config.agent_model_runtime`.
-3. Iterate `provider_order` and choose the first enabled provider whose credential env var is present.
+3. Iterate `provider_order` and build a fallback candidate chain from enabled providers whose primary or fallback credential env var is present.
 4. Select model by `execution_class`: `standard`, `complex`, or `authority`.
 5. If `AGENT_MODEL` is set, it overrides the class model ID for the selected provider.
-6. If no provider has credentials, return a blocked readiness result rather than pretending model execution is active.
+6. Async runtime routes such as session summaries try the candidate chain in order: Gemini first, OpenRouter second by default.
+7. If no provider has credentials, return a blocked readiness result rather than pretending model execution is active.
 
 ## Governed routes and tools
 
@@ -142,10 +144,11 @@ Provider keys remain environment/vault secrets:
 
 | Env var | Provider |
 |---|---|
+| `GEMINI_API_KEY` | Gemini API key from Google AI Studio |
+| `GOOGLE_AI_API_KEY` | Legacy Gemini env alias, supported as fallback |
 | `OPENROUTER_API_KEY` | OpenRouter |
 | `OPENAI_API_KEY` | OpenAI |
 | `ANTHROPIC_API_KEY` | Anthropic |
-| `GOOGLE_AI_API_KEY` | Gemini |
 
 Optional OpenRouter metadata:
 

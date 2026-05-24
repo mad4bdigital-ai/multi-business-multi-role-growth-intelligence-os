@@ -30,9 +30,10 @@ Policy-enforced HTTP executor with governed agent execution runtime.
 - `wordpress/` — 16 phase modules (A–P) for governed site migration
 
 **Agent execution runtime:**
-- `agentRuntime.js` — singleton composing `callModel` + `runLogicWithModel` + `engineExecutorRegistry` + `getCallModelForClass`; model tier routing via `execution_class` (standard→Haiku, complex→Sonnet, authority→Opus)
+- `agentRuntime.js` — singleton composing `callModel` + `runLogicWithModel` + `engineExecutorRegistry` + sync/async `getCallModelForClass`; async model routing uses governed provider fallback chains
+- `agentModelRuntimeSettings.js` — validates `platform_runtime_config.agent_model_runtime`; default routing is Gemini primary with OpenRouter fallback
 - `agentLoopRunner.js` — `runAgentLoop(plan, deps)`: loads workflow + logic definition, runs ReAct loop, verify pass (when `review_required=1`), writes results to DB
-- `modelAdapterRouter.js` — `buildCallModel`: normalizes Anthropic / OpenAI / Gemini shapes
+- `modelAdapterRouter.js` — `buildCallModel`: normalizes Anthropic / OpenAI / OpenRouter / Gemini shapes
 - `modelAdapter.js` — `runLogicWithModel`: ReAct tool-calling loop with iteration cap
 - `engineExecutorRegistry.js` — routes tool dispatch to MCP / HTTP action / logic-as-engine
 - `connectorExecutor.js` — `dispatchContentWorkflow` injects `getAgentDeps()`; also handles WordPress and MCP connector dispatch
@@ -78,10 +79,14 @@ node migrate-platform-tables.mjs --dry-run
 ## Required env
 - `REGISTRY_SPREADSHEET_ID`
 - **Agent execution:**
-  - `AGENT_MODEL_PROVIDER` — `anthropic` (default) / `openai` / `gemini`
-  - `ANTHROPIC_API_KEY` — required when provider is `anthropic`
+  - `AGENT_MODEL_PROVIDER` — optional hard override: `gemini` / `openrouter` / `openai` / `anthropic`
+  - `GEMINI_API_KEY` — Google AI Studio Gemini key; primary for default session-summary routing
+  - `GOOGLE_AI_API_KEY` — legacy Gemini key alias, still supported as fallback
+  - `OPENROUTER_API_KEY` — OpenRouter key; default fallback provider after Gemini
+  - `OPENROUTER_SITE_URL` — optional OpenRouter `HTTP-Referer` metadata
+  - `OPENROUTER_APP_NAME` — optional OpenRouter `X-Title` metadata
   - `OPENAI_API_KEY` — required when provider is `openai`
-  - `GOOGLE_AI_API_KEY` — required when provider is `gemini`
+  - `ANTHROPIC_API_KEY` — required when provider is `anthropic`
   - `AGENT_MODEL` — override: forces a specific model string, bypasses class routing
 - **Google auth (for Sheets, Drive, Analytics):**
   - Default production path: Cloud Run Application Default Credentials from the managed service account.

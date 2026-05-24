@@ -12,7 +12,7 @@ All AI-driven workflow execution must flow through this layer — no workflow ca
 | `agentRuntime.js` | Singleton factory — composes `callModel`, `runLogicWithModel`, `engineExecutorRegistry`, and `getCallModelForClass` into a single `deps` object |
 | `agentLoopRunner.js` | Entry point — `runAgentLoop(plan, deps)` loads the workflow row, loads the logic definition, runs the ReAct model loop, and optionally runs the verify pass |
 | `modelAdapterRouter.js` | `buildCallModel(config)` — normalises Anthropic / OpenAI / OpenRouter / Gemini request and response shapes to the common internal format |
-| `agentModelRuntimeSettings.js` | Loads and validates `platform_runtime_config.agent_model_runtime`; resolves provider order, free-first routing, env-var references, and class-to-model settings without storing secrets |
+| `agentModelRuntimeSettings.js` | Loads and validates `platform_runtime_config.agent_model_runtime`; resolves Gemini-primary/OpenRouter-fallback provider order, env-var references, and class-to-model mappings without storing secrets |
 | `modelAdapter.js` | `runLogicWithModel` — executes the ReAct tool-calling loop with iteration cap and tool dispatch |
 | `engineExecutorRegistry.js` | `buildEngineExecutorRegistry` — routes tool-call dispatch to MCP, HTTP action, or logic-as-engine by name |
 | `connectorExecutor.js` | `dispatchContentWorkflow` — calls `runAgentLoop` with `getAgentDeps()` injected |
@@ -23,18 +23,19 @@ All AI-driven workflow execution must flow through this layer — no workflow ca
 
 The `execution_class` column on the `workflows` table controls which model tier is selected per workflow run.
 
-| Class | OpenRouter | Anthropic | OpenAI | Gemini |
+| Class | Gemini primary | OpenRouter fallback | OpenAI fallback | Anthropic fallback |
 |---|---|---|---|---|
-| `standard` | `openrouter/free` | `claude-haiku-4-5-20251001` | `gpt-4o-mini` | `gemini-1.5-flash` |
-| `complex` | `openrouter/free` | `claude-sonnet-4-6` | `gpt-4o` | `gemini-1.5-pro` |
-| `authority` | `openrouter/free` | `claude-opus-4-7` | `gpt-4o` | `gemini-1.5-pro` |
+| `standard` | `gemini-3.5-flash` | `openrouter/free` | `gpt-4o-mini` | `claude-haiku-4-5-20251001` |
+| `complex` | `gemini-3.5-flash` | `openrouter/free` | `gpt-4o` | `claude-sonnet-4-6` |
+| `authority` | `gemini-3.5-flash` | `openrouter/free` | `gpt-4o` | `claude-opus-4-7` |
 
 Resolution order:
 1. If `AGENT_MODEL_PROVIDER` env var is set, it hard-selects that provider.
 2. Otherwise load `platform_runtime_config.config_key = agent_model_runtime` and iterate its `provider_order`.
-3. Pick the first enabled provider whose credential env var is present.
+3. Build an ordered fallback candidate chain from enabled providers whose primary or fallback credential env var is present.
 4. `execution_class` selects the model. Missing class falls back to `standard`.
 5. If `AGENT_MODEL` env var is set, it overrides the selected class model for the selected provider.
+6. Async runtime routes, including dev-agent session summaries, try the candidate chain in order. By default this means Gemini first, OpenRouter second, then OpenAI and Anthropic if configured.
 
 Class routing is cached per class/provider/model per process via `_classCache`. DB settings are cached briefly by `agentModelRuntimeSettings.js` and can be refreshed through the governed settings route.
 

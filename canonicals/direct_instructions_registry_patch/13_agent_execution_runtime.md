@@ -24,7 +24,7 @@ Model selection must not be hardcoded in routes or connectors. All routing goes 
 
 Provider routing is governed by `platform_runtime_config.config_key = agent_model_runtime` when available. This row may define `provider_order`, `free_first`, provider enabled flags, env-var names, and class-to-model mappings. It must never store raw API keys, tokens, private keys, passwords, or provider secrets.
 
-Supported provider keys are `openrouter`, `openai`, `anthropic`, and `gemini`. `openrouter` uses the OpenAI-compatible OpenRouter endpoint and may default low-cost/background work to `openrouter/free` when `OPENROUTER_API_KEY` is configured.
+Supported provider keys are `gemini`, `openrouter`, `openai`, and `anthropic`. By default, session summaries and async standard-class background work prefer Gemini through Google AI Studio, then fall back to OpenRouter. `openrouter` uses the OpenAI-compatible OpenRouter endpoint and may default fallback work to `openrouter/free` when `OPENROUTER_API_KEY` is configured.
 
 ## Verify Pass Enforcement
 
@@ -65,13 +65,14 @@ Skills installed via `skillInstaller.mjs` must upsert `logic_definitions` rows w
 
 | Var | Purpose |
 |---|---|
-| `AGENT_MODEL_PROVIDER` | Optional hard override: `openrouter` / `anthropic` / `openai` / `gemini` |
+| `AGENT_MODEL_PROVIDER` | Optional hard override: `gemini` / `openrouter` / `openai` / `anthropic` |
+| `GEMINI_API_KEY` | Required when provider is `gemini`; generated from Google AI Studio |
+| `GOOGLE_AI_API_KEY` | Legacy Gemini key alias, supported as fallback |
 | `OPENROUTER_API_KEY` | Required when provider is `openrouter` |
 | `OPENROUTER_SITE_URL` | Optional OpenRouter `HTTP-Referer` metadata |
 | `OPENROUTER_APP_NAME` | Optional OpenRouter `X-Title` metadata |
-| `ANTHROPIC_API_KEY` | Required when provider is `anthropic` |
 | `OPENAI_API_KEY` | Required when provider is `openai` |
-| `GOOGLE_AI_API_KEY` | Required when provider is `gemini` |
+| `ANTHROPIC_API_KEY` | Required when provider is `anthropic` |
 | `AGENT_MODEL` | Override: forces a specific model for all classes |
 | `GOOGLE_CLIENT_ID` | Required for user-owned Google OAuth token generation |
 | `GOOGLE_CLIENT_SECRET` | Required for user-owned Google OAuth token generation |

@@ -19,17 +19,23 @@ assert(
 );
 
 assert(
-  source.includes("env.OPENROUTER_API_KEY") && source.includes('return "openrouter"'),
-  "provider auto-selection should support OpenRouter when its key exists"
-);
-assert(
-  source.includes("env.OPENAI_API_KEY") && source.includes('return "openai"'),
-  "provider auto-selection should support OpenAI fallback when configured"
+  source.indexOf("env.GEMINI_API_KEY || env.GOOGLE_AI_API_KEY") < source.indexOf("env.OPENROUTER_API_KEY"),
+  "provider auto-selection should prefer Gemini first when a Gemini key exists"
 );
 
 assert(
-  source.includes("const provider = resolveAgentModelProvider(process.env);"),
-  "class and singleton model deps must use auto-selected provider"
+  source.indexOf("env.OPENROUTER_API_KEY") < source.indexOf("env.OPENAI_API_KEY"),
+  "provider auto-selection should fall back from Gemini to OpenRouter and then OpenAI when configured"
+);
+
+assert(
+  source.includes("getCallModelForClassAsync"),
+  "async model class selection must remain available for DB-governed provider routing"
+);
+
+assert(
+  source.includes("buildFallbackCallModel"),
+  "async model class selection must support provider fallback chains"
 );
 
 console.log("agent runtime provider selection tests passed");
