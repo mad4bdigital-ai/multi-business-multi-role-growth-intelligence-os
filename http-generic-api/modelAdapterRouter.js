@@ -58,6 +58,66 @@ function toolsToAnthropic(tools = []) {
   }));
 }
 
+function sanitizeUpstreamErrorBody(text = "") {
+  return String(text || "")
+    .replace(/(authorization\s*:\s*bearer\s+)[^\s\"'`]+/gi, "$1[REDACTED]")
+    .replace(/(x-api-key\s*:\s*)[^\s\"'`]+/gi, "$1[REDACTED]")
+    .replace(/((?:api[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|token|password|secret|private[_-]?key)\s*[=:]\s*)[^\s,;\"'`]+/gi, "$1[REDACTED]")
+    .replace(/((?:api[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|token|password|secret|private[_-]?key)\"\s*:\s*\")[^\"]+/gi, "$1[REDACTED]")
+    .slice(0, 500);
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function parseRetryAfterMs(headers, attempt, config = {}) {
+  const retryAfter = headers?.get?.("retry-after");
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds)) return Math.max(0, Math.min(seconds * 1000, 30_000));
+    const retryAt = Date.parse(retryAfter);
+    if (!Number.isNaN(retryAt)) return Math.max(0, Math.min(retryAt - Date.now(), 30_000));
+  }
+  const base = Math.max(250, Math.min(Number(config.retry_base_ms || process.env.MODEL_PROVIDER_RETRY_BASE_MS || 1000), 10_000));
+  return Math.min(base * (2 ** attempt), 30_000);
+}
+
+function shouldRetryModelStatus(status) {
+  return [429, 500, 502, 503, 504].includes(Number(status));
+}
+
+async function fetchModelJsonWithRetry({ provider, fetchFn, url, request, normalize, config = {} }) {
+  const maxRetries = Math.max(0, Math.min(Number(config.max_retries ?? process.env.MODEL_PROVIDER_MAX_RETRIES ?? 1), 5));
+  let lastError = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    const res = await fetchFn(url, request);
+    if (res.ok) return normalize(await res.json());
+
+    const body = sanitizeUpstreamErrorBody(await res.text().catch(() => ""));
+    lastError = new Error(`${provider} API ${res.status}: ${body}`);
+    lastError.status = res.status;
+
+    if (attempt < maxRetries && shouldRetryModelStatus(res.status)) {
+      const delayMs = parseRetryAfterMs(res.headers, attempt, config);
+      console.warn("[modelAdapter] retrying model provider request", {
+        provider: String(provider || "").toLowerCase(),
+        status: res.status,
+        attempt: attempt + 1,
+        max_retries: maxRetries,
+        delay_ms: delayMs,
+      });
+      await sleep(delayMs);
+      continue;
+    }
+
+    throw lastError;
+  }
+
+  throw lastError || new Error(`${provider} API request failed`);
+}
+
 async function callAnthropic(messages, tools, config = {}) {
   const { fetch: _fetch = fetch } = config;
   const apiKey = config.api_key || process.env.ANTHROPIC_API_KEY;
