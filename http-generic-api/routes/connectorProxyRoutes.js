@@ -400,7 +400,8 @@ async function connectorRouteDiagnostics(req, res, deviceId) {
     route_count: routes.length,
     selected_route: routes[0] ? routeResponseMeta(routes[0]) : null,
     candidate_routes: routes.map(routeResponseMeta),
-    proxy_timeout_ms: CONNECTOR_PROXY_TIMEOUT_MS,
+    proxy_default_timeout_ms: CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS,
+    proxy_max_timeout_ms: CONNECTOR_PROXY_MAX_TIMEOUT_MS,
     secrets_included: false,
   });
 }
