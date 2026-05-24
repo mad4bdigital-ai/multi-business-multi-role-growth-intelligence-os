@@ -144,6 +144,241 @@ function fallbackInsight(session, source, warning = null) {
   };
 }
 
+function compactOperationDetail(detail = {}) {
+  const allowed = {};
+  for (const [key, value] of Object.entries(detail || {})) {
+    if (value === undefined) continue;
+    if (/secret|token|password|key|credential/i.test(key)) continue;
+    if (typeof value === "string") allowed[key] = boundedText(redactSensitiveText(value), 180);
+    else if (typeof value === "number" || typeof value === "boolean" || value === null) allowed[key] = value;
+    else if (Array.isArray(value)) allowed[key] = value.slice(0, 5).map(item => typeof item === "string" ? boundedText(redactSensitiveText(item), 120) : item);
+    else allowed[key] = JSON.parse(JSON.stringify(value));
+  }
+  return allowed;
+}
+
+function recordOperation(operationLog, event) {
+  const entry = {
+    at: new Date().toISOString(),
+    ...compactOperationDetail(event),
+  };
+  if (Array.isArray(operationLog)) operationLog.push(entry);
+  console.info("[sessionSummary] operation", entry);
+  return entry;
+}
+
+function summarizeOperationResult(stage, result) {
+  if (!result || typeof result !== "object") return {};
+  if (stage === "check_existing_summary") {
+    return { summary_exists: Boolean(result.summary_id), summary_id: result.summary_id || null };
+  }
+  if (stage === "load_transcript") {
+    return {
+      transcript_source: result.source,
+      events_loaded: Array.isArray(result.events) ? result.events.length : 0,
+      fallback_used: Boolean(result.fallback_used),
+      warning: result.warning || null,
+    };
+  }
+  if (stage === "summarize_transcript") {
+    return {
+      summary_text_chars: String(result.summary_text || "").length,
+      blockers: Array.isArray(result.blockers) ? result.blockers.length : 0,
+      model_warning: Array.isArray(result.blockers) && result.blockers.some(item => /^model_call_failed:|^all_model_providers_failed:/i.test(String(item || ""))),
+    };
+  }
+  if (stage === "write_session_summary") return { summary_id: result };
+  if (stage === "verify_session_summary_write") return result;
+  return {};
+}
+
+async function withOperationStep(operationLog, stage, fn, detail = {}) {
+  const startedAt = Date.now();
+  recordOperation(operationLog, { stage, status: "started", ...detail });
+  try {
+    const result = await fn();
+    recordOperation(operationLog, {
+      stage,
+      status: "succeeded",
+      duration_ms: Date.now() - startedAt,
+      ...summarizeOperationResult(stage, result),
+    });
+    return result;
+  } catch (err) {
+    recordOperation(operationLog, {
+      stage,
+      status: "failed",
+      duration_ms: Date.now() - startedAt,
+      error: sanitizeModelError(err),
+    });
+    throw err;
+  }
+}
+
+export async function verifySessionSummaryWrite({ pool = getPool(), session, summary_id }) {
+  if (!session?.session_id || !summary_id) {
+    return { ok: false, summary_row_present: false, graph_asset_present: false, reason: "missing_session_or_summary_id" };
+  }
+
+  const [summaryRows] = await pool.query(
+    `SELECT summary_id, session_id, tenant_id, turn_count, created_at
+     FROM \`session_summaries\`
+     WHERE summary_id = ? AND session_id = ?
+     LIMIT 1`,
+    [summary_id, session.session_id]
+  ).catch(() => [[]]);
+
+  const [assetRows] = await pool.query(
+    `SELECT asset_id, validation_status, active_status
+     FROM \`json_assets\`
+     WHERE source_asset_ref = ? AND asset_type = 'session_summary'
+     LIMIT 1`,
+    [summary_id]
+  ).catch(() => [[]]);
+
+  const summaryRow = summaryRows[0] || null;
+  const assetRow = assetRows[0] || null;
+  return {
+    ok: Boolean(summaryRow),
+    summary_row_present: Boolean(summaryRow),
+    graph_asset_present: Boolean(assetRow),
+    graph_validation_status: assetRow?.validation_status || null,
+    graph_active_status: assetRow?.active_status || null,
+    summary_id,
+    session_id: session.session_id,
+  };
+}
+
+function modelWarningFromInsight(insight = {}) {
+  return Array.isArray(insight.blockers)
+    ? insight.blockers.find(item => /^model_call_failed:|^all_model_providers_failed:/i.test(String(item || ""))) || null
+    : null;
+}
+
+function summarizeStagesForExecutionLog(operationLog = []) {
+  return (Array.isArray(operationLog) ? operationLog : [])
+    .filter(event => event?.stage && event?.status)
+    .map(event => ({
+      stage: event.stage,
+      status: event.status,
+      duration_ms: event.duration_ms ?? null,
+      warning: event.warning || event.error || event.reason || null,
+    }))
+    .slice(-20);
+}
+
+function buildExecutionLogOutputSummary({ session, summaryId, transcript, insight, verification, operationLog }) {
+  return boundedText(JSON.stringify({
+    session_id: session.session_id,
+    summary_id: summaryId,
+    transcript_source: transcript?.source || null,
+    fallback_used: Boolean(transcript?.fallback_used),
+    events_loaded: Array.isArray(transcript?.events) ? transcript.events.length : 0,
+    summary_text_chars: String(insight?.summary_text || "").length,
+    verification: {
+      ok: Boolean(verification?.ok),
+      summary_row_present: Boolean(verification?.summary_row_present),
+      graph_asset_present: Boolean(verification?.graph_asset_present),
+      graph_validation_status: verification?.graph_validation_status || null,
+      graph_active_status: verification?.graph_active_status || null,
+    },
+    stages: summarizeStagesForExecutionLog(operationLog),
+    secrets_included: false,
+  }), 6000);
+}
+
+export async function writeSessionSummaryExecutionLog({
+  pool = getPool(),
+  session,
+  run_id = null,
+  summary_id = null,
+  transcript = null,
+  insight = null,
+  verification = null,
+  operation_log = [],
+} = {}) {
+  if (!session?.session_id || !summary_id) {
+    return { ok: false, skipped: true, reason: "missing_session_or_summary_id" };
+  }
+
+  const startedAt = operation_log?.[0]?.at || new Date().toISOString();
+  const endedAt = new Date().toISOString();
+  const durationSeconds = Math.max(0, Math.round((Date.parse(endedAt) - Date.parse(startedAt)) / 1000));
+  const modelWarning = modelWarningFromInsight(insight);
+  const graphWarning = verification?.summary_row_present && !verification?.graph_asset_present
+    ? "summary_graph_asset_missing"
+    : null;
+  const failureReason = verification?.ok
+    ? null
+    : (verification?.reason || "session_summary_write_verification_failed");
+  const executionStatus = verification?.ok
+    ? (modelWarning || graphWarning ? "success_with_warnings" : "success")
+    : "failed";
+  const outputSummary = buildExecutionLogOutputSummary({ session, summaryId: summary_id, transcript, insight, verification, operationLog: operation_log });
+  const artifactAssetId = verification?.graph_asset_present ? summaryAssetId(summary_id) : null;
+  const traceId = run_id || summary_id;
+
+  const [insertResult] = await pool.query(
+    `INSERT INTO \`execution_log\`
+       (run_date, start_time, end_time, duration_seconds,
+        entry_type, execution_class, source_layer, user_input,
+        route_keys, selected_workflows, execution_mode,
+        execution_status, output_summary, recovery_status, recovery_notes,
+        route_status, intake_validation_status, execution_ready_status,
+        failure_reason, artifact_json_asset_id, target_module_writeback,
+        target_workflow_writeback, execution_trace_id_writeback,
+        log_source_writeback, created_at)
+     VALUES (?, ?, ?, ?,
+        'session_summary_autosweep', 'summary', 'sessionSummaryService', ?,
+        'dev_agent_session_summary_autosweep', 'session_summary_autosweep', 'model_summary',
+        ?, ?, ?, ?,
+        'resolved', 'validated', 'ready',
+        ?, ?, 'sessionSummaryService',
+        'session_summary_autosweep', ?,
+        'sql_primary', CURRENT_TIMESTAMP)`,
+    [
+      startedAt.slice(0, 10),
+      startedAt,
+      endedAt,
+      String(durationSeconds),
+      `session_id=${session.session_id}`,
+      executionStatus,
+      outputSummary,
+      modelWarning ? "fallback_summary_used" : "not_required",
+      modelWarning || graphWarning || null,
+      failureReason,
+      artifactAssetId,
+      traceId,
+    ]
+  );
+
+  const executionLogId = insertResult?.insertId || null;
+  let readback = { ok: false, execution_log_id: executionLogId };
+  if (executionLogId) {
+    const [rows] = await pool.query(
+      `SELECT id, execution_status, execution_trace_id_writeback
+       FROM \`execution_log\`
+       WHERE id = ?
+       LIMIT 1`,
+      [executionLogId]
+    ).catch(() => [[]]);
+    readback = {
+      ok: Boolean(rows?.[0]),
+      execution_log_id: executionLogId,
+      execution_status: rows?.[0]?.execution_status || null,
+      execution_trace_id: rows?.[0]?.execution_trace_id_writeback || null,
+    };
+  }
+
+  return {
+    ok: Boolean(readback.ok),
+    execution_log_id: executionLogId,
+    execution_status: executionStatus,
+    execution_trace_id: traceId,
+    readback,
+  };
+}
+
 export function parseSessionJsonl(content = "") {
   const events = [];
   for (const [lineIndex, line] of String(content || "").split(/\r?\n/).entries()) {
@@ -527,29 +762,100 @@ export async function summarizeAndStoreSession({
   fallbackTurnsLimit = DEFAULT_FALLBACK_TURNS_LIMIT,
   injectedDeps = {},
 } = {}) {
-  const resolvedSession = session || await loadSessionById(pool, session_id);
+  const operation_log = [];
+  recordOperation(operation_log, { stage: "session_summary", status: "started", run_id, session_id: session?.session_id || session_id || null });
+
+  const resolvedSession = await withOperationStep(
+    operation_log,
+    "load_session",
+    async () => session || await loadSessionById(pool, session_id),
+    { run_id, session_id: session?.session_id || session_id || null }
+  );
   if (!resolvedSession) {
-    return { ok: false, skipped: true, reason: "session_not_found", session_id };
+    recordOperation(operation_log, { stage: "session_summary", status: "skipped", reason: "session_not_found", session_id: session_id || null });
+    return { ok: false, skipped: true, reason: "session_not_found", session_id, operation_log };
   }
 
-  const found = await existingSummary(pool, resolvedSession.session_id);
+  const found = await withOperationStep(
+    operation_log,
+    "check_existing_summary",
+    async () => existingSummary(pool, resolvedSession.session_id),
+    { run_id, session_id: resolvedSession.session_id }
+  );
   if (found?.summary_id) {
-    return { ok: true, skipped: true, reason: "summary_exists", session_id: resolvedSession.session_id, summary_id: found.summary_id };
+    recordOperation(operation_log, { stage: "session_summary", status: "skipped", reason: "summary_exists", summary_id: found.summary_id });
+    return { ok: true, skipped: true, reason: "summary_exists", session_id: resolvedSession.session_id, summary_id: found.summary_id, operation_log };
   }
 
-  const transcript = await loadSessionTranscript({ pool, session: resolvedSession, fallbackTurnsLimit, injectedDeps });
-  const insight = await summarizeSessionTranscript({ session: resolvedSession, transcript, callModel });
-  const summaryId = await writeSessionSummary({ pool, session: resolvedSession, insight, run_id });
+  const transcript = await withOperationStep(
+    operation_log,
+    "load_transcript",
+    async () => loadSessionTranscript({ pool, session: resolvedSession, fallbackTurnsLimit, injectedDeps }),
+    { run_id, session_id: resolvedSession.session_id }
+  );
+  const insight = await withOperationStep(
+    operation_log,
+    "summarize_transcript",
+    async () => summarizeSessionTranscript({ session: resolvedSession, transcript, callModel }),
+    { run_id, session_id: resolvedSession.session_id, transcript_source: transcript.source }
+  );
+  const summaryId = await withOperationStep(
+    operation_log,
+    "write_session_summary",
+    async () => writeSessionSummary({ pool, session: resolvedSession, insight, run_id }),
+    { run_id, session_id: resolvedSession.session_id }
+  );
+  const verification = await withOperationStep(
+    operation_log,
+    "verify_session_summary_write",
+    async () => verifySessionSummaryWrite({ pool, session: resolvedSession, summary_id: summaryId }),
+    { run_id, session_id: resolvedSession.session_id, summary_id: summaryId }
+  );
+
+  let executionLog = null;
+  try {
+    executionLog = await withOperationStep(
+      operation_log,
+      "write_execution_log",
+      async () => writeSessionSummaryExecutionLog({
+        pool,
+        session: resolvedSession,
+        run_id,
+        summary_id: summaryId,
+        transcript,
+        insight,
+        verification,
+        operation_log,
+      }),
+      { run_id, session_id: resolvedSession.session_id, summary_id: summaryId }
+    );
+  } catch (err) {
+    executionLog = { ok: false, error: sanitizeModelError(err) };
+  }
+
+  const modelWarning = modelWarningFromInsight(insight);
+
+  recordOperation(operation_log, {
+    stage: "session_summary",
+    status: verification.ok ? "succeeded" : "verification_failed",
+    run_id,
+    session_id: resolvedSession.session_id,
+    summary_id: summaryId,
+    execution_log_id: executionLog?.execution_log_id || null,
+  });
 
   return {
-    ok: true,
+    ok: verification.ok,
     skipped: false,
     session_id: resolvedSession.session_id,
     summary_id: summaryId,
     transcript_source: transcript.source,
     fallback_used: transcript.fallback_used,
     events_loaded: transcript.events.length,
-    warning: transcript.warning || null,
+    warning: modelWarning || transcript.warning || null,
+    verification,
+    execution_log: executionLog,
+    operation_log,
   };
 }
 
@@ -638,16 +944,35 @@ export async function runSessionSummaryAutosweep({
   run_id = null,
   injectedDeps = {},
 } = {}) {
-  const sessions = await findSessionsNeedingSummary({ pool, batchSize: limit || batchSize, minAgeSeconds });
+  const operation_log = [];
+  recordOperation(operation_log, { stage: "autosweep", status: "started", run_id, limit: limit || batchSize, min_age_seconds: minAgeSeconds });
+  const sessions = await withOperationStep(
+    operation_log,
+    "find_sessions_needing_summary",
+    async () => findSessionsNeedingSummary({ pool, batchSize: limit || batchSize, minAgeSeconds }),
+    { run_id }
+  );
   const results = [];
   for (const session of sessions) {
     results.push(await summarizeAndStoreSession({ pool, session, callModel, run_id, injectedDeps }));
   }
   const summariesCreated = results.filter((result) => result.ok && !result.skipped).length;
-  return {
-    ok: true,
+  const verificationFailures = results.filter((result) => result.verification && result.verification.ok === false).length;
+  recordOperation(operation_log, {
+    stage: "autosweep",
+    status: verificationFailures ? "completed_with_verification_warnings" : "completed",
+    run_id,
     sessions_considered: sessions.length,
     summaries_created: summariesCreated,
+    verification_failures: verificationFailures,
+  });
+  return {
+    ok: verificationFailures === 0,
+    run_id,
+    sessions_considered: sessions.length,
+    summaries_created: summariesCreated,
+    verification_failures: verificationFailures,
+    operation_log,
     results,
   };
 }

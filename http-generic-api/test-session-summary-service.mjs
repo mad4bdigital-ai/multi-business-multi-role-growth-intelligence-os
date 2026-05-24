@@ -35,6 +35,7 @@ function makePool() {
         turn_count: 2,
       },
     ],
+    insertedExecutionLog: null,
   };
   return {
     state,
@@ -42,11 +43,44 @@ function makePool() {
       state.calls.push({ sql, params });
       const compact = String(sql).replace(/\s+/g, " ").trim();
       if (compact.startsWith("SELECT summary_id FROM `session_summaries`")) return [[]];
+      if (compact.startsWith("SELECT summary_id, session_id, tenant_id, turn_count, created_at FROM `session_summaries`")) {
+        if (state.insertedSummary && params[0] === state.insertedSummary.params[0]) {
+          return [[{
+            summary_id: state.insertedSummary.params[0],
+            session_id: state.insertedSummary.params[1],
+            tenant_id: state.insertedSummary.params[2],
+            turn_count: state.insertedSummary.params[12],
+            created_at: "2026-05-24T00:00:00.000Z",
+          }]];
+        }
+        return [[]];
+      }
+      if (compact.startsWith("SELECT asset_id, validation_status, active_status FROM `json_assets`")) {
+        const assetInsert = state.calls.find((call) => String(call.sql).includes("INSERT INTO `json_assets`"));
+        if (assetInsert && params[0] === assetInsert.params[2]) {
+          return [[{ asset_id: assetInsert.params[0], validation_status: "validated", active_status: "active" }]];
+        }
+        return [[]];
+      }
       if (compact.startsWith("SELECT turn_index, role, action_key, content_preview")) return [state.fallbackTurns];
       if (compact.startsWith("SELECT cs.* FROM `customer_sessions`")) return [state.sessionsNeedingSummary];
       if (compact.startsWith("INSERT INTO `session_summaries`")) {
         state.insertedSummary = { sql, params };
         return [{ affectedRows: 1 }];
+      }
+      if (compact.startsWith("INSERT INTO `execution_log`")) {
+        state.insertedExecutionLog = { sql, params, id: 42 };
+        return [{ affectedRows: 1, insertId: 42 }];
+      }
+      if (compact.startsWith("SELECT id, execution_status, execution_trace_id_writeback FROM `execution_log`")) {
+        if (state.insertedExecutionLog && params[0] === state.insertedExecutionLog.id) {
+          return [[{
+            id: state.insertedExecutionLog.id,
+            execution_status: state.insertedExecutionLog.params[5],
+            execution_trace_id_writeback: state.insertedExecutionLog.params[11],
+          }]];
+        }
+        return [[]];
       }
       return [[]];
     },
@@ -142,6 +176,14 @@ function makePool() {
   assert(
     pool.state.calls.some((call) => String(call.sql).includes("INSERT INTO `platform_graph_edges`")),
     "summary write should upsert graph edges"
+  );
+  assert(pool.state.insertedExecutionLog, "summary write should create a durable execution_log row");
+  assert.equal(result.execution_log.ok, true);
+  assert.equal(result.execution_log.execution_log_id, 42);
+  assert.equal(result.execution_log.execution_trace_id, result.summary_id);
+  assert(
+    pool.state.insertedExecutionLog.params[6].includes("summary_row_present"),
+    "execution_log output_summary should include verification evidence"
   );
 }
 
