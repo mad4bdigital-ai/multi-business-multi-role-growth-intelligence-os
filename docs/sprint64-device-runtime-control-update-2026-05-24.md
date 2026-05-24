@@ -43,6 +43,15 @@ Avoid using raw PowerShell for long scripts through auth-host. Long-running or r
 
 When a setup action must restart `local-connector`, schedule the restart and return quickly instead of blocking the active proxy request.
 
+## Route/config health metadata sync
+
+Connector route health is the operational source of truth. To avoid stale database state:
+
+- A successful registered route probe must update `local_connector_device_routes.health_status = 'healthy'` and also update `local_connector_user_configs.last_health_at` while clearing config-level errors.
+- A route failure must update that route, but it must not mark the whole config failed when another enabled route for the same config is still healthy.
+- Diagnostics must expose route freshness fields such as `last_health_at`, `health_age_seconds`, and `failure_after_success`, plus config freshness fields such as `config_last_health_at` and `config_health_age_seconds`.
+- Fallback/admin-recovery route failures must not pollute the primary device status when a device-specific Cloudflare route is healthy.
+
 ## Schema and guide alignment
 
 The auth-host OpenAPI schema must document `/connector/{device_id}/diagnostics`. Agent instructions must direct agents to use diagnostics before long device calls and to prefer bounded aliases over raw PowerShell.

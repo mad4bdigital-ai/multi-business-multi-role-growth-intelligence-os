@@ -85,7 +85,10 @@ async function resolveDeviceConfig(userId, deviceId, { isAdmin = false, tenantId
                            connector_secret,
                            user_id,
                            tenant_id,
-                           device_id
+                           device_id,
+                           last_health_at,
+                           last_error_code,
+                           last_error_message
                       FROM \`local_connector_user_configs\`
                      WHERE is_enabled = 1`;
 
@@ -152,7 +155,20 @@ function routeTypeRank(routeType) {
   return idx === -1 ? ROUTE_TYPE_ORDER.length : idx;
 }
 
+function secondsSince(value) {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  if (!Number.isFinite(time)) return null;
+  return Math.max(0, Math.floor((Date.now() - time) / 1000));
+}
+
+function isFailureAfterSuccess(route) {
+  if (!route?.last_failure_at || !route?.last_success_at) return false;
+  return new Date(route.last_failure_at).getTime() > new Date(route.last_success_at).getTime();
+}
+
 function routeResponseMeta(route) {
+  const lastHealthAt = route.last_health_at || route.last_success_at || route.updated_at || null;
   return {
     route_id: route.route_id || null,
     route_type: route.route_type || "legacy_config",
@@ -160,10 +176,13 @@ function routeResponseMeta(route) {
     priority: route.priority ?? 1000,
     endpoint_url: route.endpoint_url ? redactUrlForError(route.endpoint_url) : null,
     health_status: route.health_status || "unknown",
+    last_health_at: route.last_health_at || null,
     last_success_at: route.last_success_at || null,
     last_failure_at: route.last_failure_at || null,
     last_error_code: route.last_error_code || null,
     last_error_message: route.last_error_message || null,
+    health_age_seconds: secondsSince(lastHealthAt),
+    failure_after_success: isFailureAfterSuccess(route),
   };
 }
 
@@ -220,7 +239,7 @@ async function listRegisteredRoutes(device, { includeDown = false } = {}) {
     : "AND health_status IN ('healthy','unknown','degraded')";
   const [rows] = await getPool().query(
     `SELECT route_id, config_id, route_type, route_label, endpoint_url, priority,
-            tls_mode, auth_mode, health_status, last_success_at, last_failure_at,
+            tls_mode, auth_mode, health_status, last_health_at, last_success_at, last_failure_at,
             last_error_code, last_error_message, updated_at
        FROM \`local_connector_device_routes\`
       WHERE config_id = ?
@@ -293,6 +312,17 @@ async function markRouteSuccess(route) {
         WHERE route_id = ?`,
       [route.route_id]
     );
+    if (route.config_id) {
+      await getPool().query(
+        `UPDATE \`local_connector_user_configs\`
+            SET last_health_at = NOW(),
+                last_error_code = NULL,
+                last_error_message = NULL,
+                updated_at = NOW()
+          WHERE config_id = ?`,
+        [route.config_id]
+      );
+    }
   } catch {
     // Health metadata must not break the proxy response.
   }
@@ -301,6 +331,8 @@ async function markRouteSuccess(route) {
 async function markRouteFailure(route, code, message, { terminal = false } = {}) {
   if (!route?.route_id) return;
   const health = terminal ? "down" : "degraded";
+  const errorCode = String(code || "route_failed").slice(0, 128);
+  const errorMessage = String(message || "Route dispatch failed.").slice(0, 1000);
   try {
     await getPool().query(
       `UPDATE \`local_connector_device_routes\`
@@ -311,8 +343,39 @@ async function markRouteFailure(route, code, message, { terminal = false } = {})
               last_error_message = ?,
               updated_at = NOW()
         WHERE route_id = ?`,
-      [health, String(code || "route_failed").slice(0, 128), String(message || "Route dispatch failed.").slice(0, 1000), route.route_id]
+      [health, errorCode, errorMessage, route.route_id]
     );
+
+    if (route.config_id) {
+      const [healthyRows] = await getPool().query(
+        `SELECT COUNT(*) AS healthy_count
+           FROM \`local_connector_device_routes\`
+          WHERE config_id = ?
+            AND is_enabled = 1
+            AND health_status = 'healthy'`,
+        [route.config_id]
+      );
+      const healthyCount = Number(healthyRows?.[0]?.healthy_count || 0);
+      if (healthyCount === 0) {
+        await getPool().query(
+          `UPDATE \`local_connector_user_configs\`
+              SET last_error_code = ?,
+                  last_error_message = ?,
+                  updated_at = NOW()
+            WHERE config_id = ?`,
+          [errorCode, errorMessage, route.config_id]
+        );
+      } else {
+        await getPool().query(
+          `UPDATE \`local_connector_user_configs\`
+              SET last_error_code = NULL,
+                  last_error_message = NULL,
+                  updated_at = NOW()
+            WHERE config_id = ?`,
+          [route.config_id]
+        );
+      }
+    }
   } catch {
     // Health metadata must not break fallback.
   }
@@ -463,6 +526,10 @@ async function connectorRouteDiagnostics(req, res, deviceId) {
       device_runtime_url: device.device_runtime_url ? redactUrlForError(device.device_runtime_url) : null,
       tunnel_url: device.tunnel_url ? redactUrlForError(device.tunnel_url) : null,
       admin_recovery_url: device.admin_recovery_url ? redactUrlForError(device.admin_recovery_url) : null,
+      config_last_health_at: device.last_health_at || null,
+      config_health_age_seconds: secondsSince(device.last_health_at),
+      config_last_error_code: device.last_error_code || null,
+      config_last_error_message: device.last_error_message || null,
       connector_auth_configured: candidateTokens.length > 0,
     },
     route_count: routes.length,
