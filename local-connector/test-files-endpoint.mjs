@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 const root = await mkdtemp(path.join(tmpdir(), 'mad4b-connector-files-'));
 const port = 17170 + Math.floor(Math.random() * 1000);
 const apiKey = 'test-secret';
+const localApiKey = 'local-api-key-secret';
 const childPath = path.join(root, 'nested', 'hello.txt');
 const projectPath = path.join(root, 'repos', 'growth-os');
 const connectorDir = path.dirname(fileURLToPath(import.meta.url));
@@ -23,6 +24,7 @@ const server = spawn(process.execPath, ['server.mjs'], {
   env: {
     ...process.env,
     CONNECTOR_SECRET: apiKey,
+    CONNECTOR_LOCAL_API_KEY: localApiKey,
     CONNECTOR_PORT: String(port),
     CONNECTOR_FILES_ENABLED: 'true',
     CONNECTOR_FILE_PATHS: root,
@@ -96,6 +98,15 @@ try {
     const result = await callFiles({ action: 'list' });
     assert.equal(result.status, 200);
     assert.deepEqual(result.body.allowed_paths, [root]);
+  }
+
+  {
+    const response = await fetch(`http://127.0.0.1:${port}/policy`, {
+      headers: { 'x-connector-secret': localApiKey },
+    });
+    const body = await response.json();
+    assert.equal(response.status, 401);
+    assert.equal(body.error.code, 'UNAUTHORIZED');
   }
 
   {
