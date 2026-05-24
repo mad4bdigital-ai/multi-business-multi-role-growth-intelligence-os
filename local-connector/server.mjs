@@ -584,8 +584,10 @@ function policyBody() {
     n8n: {
       enabled: N8N_ENABLED,
       base_url: N8N_BASE,
+      local_base_url: N8N_LOCAL_BASE,
       public_url: N8N_PUBLIC_URL,
       command_configured: Boolean(N8N_COMMAND),
+      env_api_key_configured: Boolean(N8N_API_KEY),
     },
     restricted_ops: {
       powershell_enabled: PS_ENABLED,
