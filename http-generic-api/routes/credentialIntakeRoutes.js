@@ -301,6 +301,28 @@ function collectSubmission({ authType, schema, body = {}, session = {} }) {
     }
     if (!rawValue) continue;
 
+    if (authType === "mcp" && field.name === "mcp_servers_json") {
+      const config = extractMcpServersConfig(rawValue);
+      credentials.mcp_servers_json = JSON.stringify(config.raw);
+      credentials.mcp_servers = config.raw.mcpServers;
+      if (config.bearer) {
+        credentials.mcp_bearer = config.bearer;
+        credentials.bearer_token = config.bearer;
+      }
+      connection.mcp_endpoint = config.endpoint;
+      metadata.mcp_server_name = config.serverName;
+      metadata.mcp_transport = config.transport;
+      continue;
+    }
+
+    if (field.type === "json") {
+      const parsedJson = parseJsonCredentialField(rawValue, field.name);
+      if (field.target === "credentials") credentials[field.name] = parsedJson;
+      else if (field.target === "metadata") metadata[field.name] = parsedJson;
+      else metadata[field.name] = parsedJson;
+      continue;
+    }
+
     if (field.target === "credentials") credentials[field.name] = rawValue;
     else if (field.target === "connection") {
       if (["mcp_endpoint", "webhook_url", "api_base_url"].includes(field.name)) connection[field.name] = rawValue;
