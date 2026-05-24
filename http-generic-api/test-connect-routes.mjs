@@ -514,8 +514,11 @@ section("connect api auth scope");
       proxySource.includes("health_status IN ('healthy','unknown','degraded')"));
     assert("auth-host connector proxy rejects wrong-device recovery responses",
       proxySource.includes("wrong_device_response") && proxySource.includes("isWrongDeviceHealthResponse"));
-    assert("auth-host connector proxy has bounded route timeout",
-      proxySource.includes("CONNECTOR_PROXY_TIMEOUT_MS") && proxySource.includes("AbortSignal.timeout(CONNECTOR_PROXY_TIMEOUT_MS)"));
+    assert("auth-host connector proxy has bounded request-aware route timeout",
+      proxySource.includes("CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS") &&
+      proxySource.includes("CONNECTOR_PROXY_MAX_TIMEOUT_MS") &&
+      proxySource.includes("requestedConnectorProxyTimeout") &&
+      proxySource.includes("AbortSignal.timeout(requestedConnectorProxyTimeout(req))"));
 
     const browserScale = doc.paths?.["/connector/{device_id}/browser"]?.post?.requestBody?.content?.["application/json"]?.schema?.properties?.scale;
     assert("auth-host browser scale stays in fraction units (0.1..1.0)",
