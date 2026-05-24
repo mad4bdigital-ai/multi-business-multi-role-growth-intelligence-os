@@ -632,29 +632,79 @@ export async function summarizeAndStoreSession({
   fallbackTurnsLimit = DEFAULT_FALLBACK_TURNS_LIMIT,
   injectedDeps = {},
 } = {}) {
-  const resolvedSession = session || await loadSessionById(pool, session_id);
+  const operation_log = [];
+  recordOperation(operation_log, { stage: "session_summary", status: "started", run_id, session_id: session?.session_id || session_id || null });
+
+  const resolvedSession = await withOperationStep(
+    operation_log,
+    "load_session",
+    async () => session || await loadSessionById(pool, session_id),
+    { run_id, session_id: session?.session_id || session_id || null }
+  );
   if (!resolvedSession) {
-    return { ok: false, skipped: true, reason: "session_not_found", session_id };
+    recordOperation(operation_log, { stage: "session_summary", status: "skipped", reason: "session_not_found", session_id: session_id || null });
+    return { ok: false, skipped: true, reason: "session_not_found", session_id, operation_log };
   }
 
-  const found = await existingSummary(pool, resolvedSession.session_id);
+  const found = await withOperationStep(
+    operation_log,
+    "check_existing_summary",
+    async () => existingSummary(pool, resolvedSession.session_id),
+    { run_id, session_id: resolvedSession.session_id }
+  );
   if (found?.summary_id) {
-    return { ok: true, skipped: true, reason: "summary_exists", session_id: resolvedSession.session_id, summary_id: found.summary_id };
+    recordOperation(operation_log, { stage: "session_summary", status: "skipped", reason: "summary_exists", summary_id: found.summary_id });
+    return { ok: true, skipped: true, reason: "summary_exists", session_id: resolvedSession.session_id, summary_id: found.summary_id, operation_log };
   }
 
-  const transcript = await loadSessionTranscript({ pool, session: resolvedSession, fallbackTurnsLimit, injectedDeps });
-  const insight = await summarizeSessionTranscript({ session: resolvedSession, transcript, callModel });
-  const summaryId = await writeSessionSummary({ pool, session: resolvedSession, insight, run_id });
+  const transcript = await withOperationStep(
+    operation_log,
+    "load_transcript",
+    async () => loadSessionTranscript({ pool, session: resolvedSession, fallbackTurnsLimit, injectedDeps }),
+    { run_id, session_id: resolvedSession.session_id }
+  );
+  const insight = await withOperationStep(
+    operation_log,
+    "summarize_transcript",
+    async () => summarizeSessionTranscript({ session: resolvedSession, transcript, callModel }),
+    { run_id, session_id: resolvedSession.session_id, transcript_source: transcript.source }
+  );
+  const summaryId = await withOperationStep(
+    operation_log,
+    "write_session_summary",
+    async () => writeSessionSummary({ pool, session: resolvedSession, insight, run_id }),
+    { run_id, session_id: resolvedSession.session_id }
+  );
+  const verification = await withOperationStep(
+    operation_log,
+    "verify_session_summary_write",
+    async () => verifySessionSummaryWrite({ pool, session: resolvedSession, summary_id: summaryId }),
+    { run_id, session_id: resolvedSession.session_id, summary_id: summaryId }
+  );
+
+  const modelWarning = Array.isArray(insight.blockers)
+    ? insight.blockers.find(item => /^model_call_failed:|^all_model_providers_failed:/i.test(String(item || ""))) || null
+    : null;
+
+  recordOperation(operation_log, {
+    stage: "session_summary",
+    status: verification.ok ? "succeeded" : "verification_failed",
+    run_id,
+    session_id: resolvedSession.session_id,
+    summary_id: summaryId,
+  });
 
   return {
-    ok: true,
+    ok: verification.ok,
     skipped: false,
     session_id: resolvedSession.session_id,
     summary_id: summaryId,
     transcript_source: transcript.source,
     fallback_used: transcript.fallback_used,
     events_loaded: transcript.events.length,
-    warning: transcript.warning || null,
+    warning: modelWarning || transcript.warning || null,
+    verification,
+    operation_log,
   };
 }
 
