@@ -56,6 +56,7 @@ const PS_ENABLED = process.env.CONNECTOR_POWERSHELL_ENABLED === 'true';
 const WIN_ENABLED = process.env.CONNECTOR_WIN_ENABLED === 'true';
 const N8N_ENABLED = process.env.CONNECTOR_N8N_ENABLED !== 'false';
 const N8N_BASE = (process.env.N8N_BASE_URL ?? 'http://localhost:5678').replace(/\/$/, '');
+const N8N_LOCAL_BASE = (process.env.N8N_LOCAL_BASE_URL ?? process.env.N8N_BASE_URL ?? 'http://localhost:5678').replace(/\/$/, '');
 const N8N_API_KEY = process.env.N8N_API_KEY ?? '';
 function normalizeCommandPath(value) {
   let raw = String(value ?? '').trim();
