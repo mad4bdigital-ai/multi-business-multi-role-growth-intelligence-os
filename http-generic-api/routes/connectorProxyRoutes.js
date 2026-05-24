@@ -159,10 +159,27 @@ function normalizeDeviceLabel(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function isWrongDeviceHealthResponse(data, device) {
+async function isWrongDeviceHealthResponse(data, device) {
   const expected = normalizeDeviceLabel(device?.device_id);
   const actual = normalizeDeviceLabel(data?.hostname);
-  return Boolean(expected && actual && expected !== actual);
+  if (!expected || !actual || expected === actual) return false;
+  try {
+    const [rows] = await getPool().query(
+      `SELECT 1
+         FROM \`local_connector_device_aliases\`
+        WHERE status = 'active'
+          AND LOWER(alias_device_id) = ?
+          AND LOWER(canonical_device_id) = ?
+          AND (user_id = ? OR user_id IS NULL)
+          AND (tenant_id = ? OR tenant_id IS NULL OR tenant_id = '00000000-0000-0000-0000-000000000000')
+        LIMIT 1`,
+      [actual, expected, device?.user_id || null, device?.tenant_id || null]
+    );
+    if (rows.length) return false;
+  } catch {
+    // Fall through to strict mismatch when alias lookup fails.
+  }
+  return true;
 }
 
 async function fetchConnectorJson(url, options) {
