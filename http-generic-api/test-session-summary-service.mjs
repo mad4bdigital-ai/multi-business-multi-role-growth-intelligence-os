@@ -68,6 +68,20 @@ function makePool() {
         state.insertedSummary = { sql, params };
         return [{ affectedRows: 1 }];
       }
+      if (compact.startsWith("INSERT INTO `execution_log`")) {
+        state.insertedExecutionLog = { sql, params, id: 42 };
+        return [{ affectedRows: 1, insertId: 42 }];
+      }
+      if (compact.startsWith("SELECT id, execution_status, execution_trace_id_writeback FROM `execution_log`")) {
+        if (state.insertedExecutionLog && params[0] === state.insertedExecutionLog.id) {
+          return [[{
+            id: state.insertedExecutionLog.id,
+            execution_status: state.insertedExecutionLog.params[5],
+            execution_trace_id_writeback: state.insertedExecutionLog.params[11],
+          }]];
+        }
+        return [[]];
+      }
       return [[]];
     },
   };
