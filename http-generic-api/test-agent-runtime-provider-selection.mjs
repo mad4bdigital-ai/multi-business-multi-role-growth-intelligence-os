@@ -43,4 +43,14 @@ assert(
   "async model class selection must support provider fallback chains"
 );
 
+const adapterSource = readFileSync(join(__dirname, "modelAdapterRouter.js"), "utf8");
+assert(
+  adapterSource.includes("fetchModelJsonWithRetry") && adapterSource.includes("MODEL_PROVIDER_MAX_RETRIES"),
+  "Gemini model adapter must support bounded retry configuration for 429/5xx provider errors"
+);
+assert(
+  adapterSource.includes("[modelAdapter] retrying model provider request"),
+  "Gemini retry path must emit sanitized operational logs"
+);
+
 console.log("agent runtime provider selection tests passed");
