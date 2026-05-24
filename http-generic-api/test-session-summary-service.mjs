@@ -35,6 +35,7 @@ function makePool() {
         turn_count: 2,
       },
     ],
+    insertedExecutionLog: null,
   };
   return {
     state,
