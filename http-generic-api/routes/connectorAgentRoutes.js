@@ -256,6 +256,37 @@ async function resolveHeartbeatConfig(req, body = {}) {
   throw httpError(403, "connector_auth_failed", "Connector heartbeat auth failed.");
 }
 
+async function syncPrimaryRouteFromHeartbeat(config, { status, errorCode = null, errorMessage = null } = {}) {
+  const primaryUrl = String(config?.device_runtime_url || config?.tunnel_url || "").trim().replace(/\/$/, "");
+  if (!config?.config_id || !primaryUrl) return;
+  const routeHealth = status === "failed" ? "degraded" : "healthy";
+  const params = status === "failed"
+    ? [routeHealth, String(errorCode || "heartbeat_failed").slice(0, 128), String(errorMessage || "Connector heartbeat reported failure.").slice(0, 1000), config.config_id, primaryUrl]
+    : [routeHealth, config.config_id, primaryUrl];
+  const sql = status === "failed"
+    ? `UPDATE \`local_connector_device_routes\`
+          SET health_status = ?,
+              last_health_at = NOW(),
+              last_failure_at = NOW(),
+              last_error_code = ?,
+              last_error_message = ?,
+              updated_at = NOW()
+        WHERE config_id = ?
+          AND route_type = 'cloudflare_tunnel'
+          AND REPLACE(TRIM(TRAILING '/' FROM endpoint_url), '\\n', '') = ?`
+    : `UPDATE \`local_connector_device_routes\`
+          SET health_status = ?,
+              last_health_at = NOW(),
+              last_success_at = NOW(),
+              last_error_code = NULL,
+              last_error_message = NULL,
+              updated_at = NOW()
+        WHERE config_id = ?
+          AND route_type = 'cloudflare_tunnel'
+          AND REPLACE(TRIM(TRAILING '/' FROM endpoint_url), '\\n', '') = ?`;
+  await getPool().query(sql, params).catch(() => {});
+}
+
 async function writeHeartbeat(config, body = {}) {
   const eventType = enumValue(body.event_type, ["health_ok", "health_failed", "service_restart", "cloudflared_restart", "safe_upgrade", "rollback", "repair_bundle", "manual_recovery", "watchdog_install"], body.status === "failed" ? "health_failed" : "health_ok");
   const status = enumValue(body.status, ["started", "ok", "failed", "skipped"], eventType === "health_failed" ? "failed" : "ok");
@@ -297,6 +328,8 @@ async function writeHeartbeat(config, body = {}) {
       config.config_id,
     ]
   );
+
+  await syncPrimaryRouteFromHeartbeat(config, { status, errorCode, errorMessage });
 
   const eventId = crypto.randomUUID();
   await getPool().query(

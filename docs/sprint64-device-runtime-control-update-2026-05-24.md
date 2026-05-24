@@ -51,6 +51,7 @@ Connector route health is the operational source of truth. To avoid stale databa
 - A route failure must update that route, but it must not mark the whole config failed when another enabled route for the same config is still healthy.
 - Diagnostics must expose route freshness fields such as `last_health_at`, `health_age_seconds`, and `failure_after_success`, plus config freshness fields such as `config_last_health_at` and `config_health_age_seconds`.
 - Fallback/admin-recovery route failures must not pollute the primary device status when a device-specific Cloudflare route is healthy.
+- Connector agent heartbeat must also sync the primary Cloudflare route. A successful heartbeat marks the primary registered route healthy; a failed heartbeat degrades the primary registered route instead of leaving config and route metadata divergent.
 
 ## Schema and guide alignment
 
