@@ -7425,6 +7425,24 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { description: Census query failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
+  /connector/{device_id}/diagnostics:
+    get:
+      tags: [connector-proxy]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: getConnectorDeviceDiagnostics
+      summary: Read structured connector route diagnostics
+      description: "Returns selected device config, candidate routes, route health metadata, and proxy timeout bounds without forwarding a device command or exposing connector secrets. Use this before long-running device calls to avoid opaque proxy timeouts."
+      parameters:
+        - { name: device_id, in: path, required: true, schema: { type: string } }
+        - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only - target user id. }
+        - { name: tenant_id, in: query, required: false, schema: { type: string }, description: Optional tenant context for alias/config disambiguation. }
+      responses:
+        "200": { description: Connector route diagnostics payload, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Device not found or not enabled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: Ambiguous device identity, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "502": { description: Diagnostics route failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
   /connector/{device_id}/policy:
     get:
       tags: [connector-proxy]
