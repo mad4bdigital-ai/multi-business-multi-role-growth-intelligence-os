@@ -329,6 +329,8 @@ async function writeHeartbeat(config, body = {}) {
     ]
   );
 
+  await syncPrimaryRouteFromHeartbeat(config, { status, errorCode, errorMessage });
+
   const eventId = crypto.randomUUID();
   await getPool().query(
     `INSERT INTO \`local_connector_recovery_events\`
