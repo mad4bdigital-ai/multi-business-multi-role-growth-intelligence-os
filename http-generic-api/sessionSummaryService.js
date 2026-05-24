@@ -793,16 +793,35 @@ export async function runSessionSummaryAutosweep({
   run_id = null,
   injectedDeps = {},
 } = {}) {
-  const sessions = await findSessionsNeedingSummary({ pool, batchSize: limit || batchSize, minAgeSeconds });
+  const operation_log = [];
+  recordOperation(operation_log, { stage: "autosweep", status: "started", run_id, limit: limit || batchSize, min_age_seconds: minAgeSeconds });
+  const sessions = await withOperationStep(
+    operation_log,
+    "find_sessions_needing_summary",
+    async () => findSessionsNeedingSummary({ pool, batchSize: limit || batchSize, minAgeSeconds }),
+    { run_id }
+  );
   const results = [];
   for (const session of sessions) {
     results.push(await summarizeAndStoreSession({ pool, session, callModel, run_id, injectedDeps }));
   }
   const summariesCreated = results.filter((result) => result.ok && !result.skipped).length;
-  return {
-    ok: true,
+  const verificationFailures = results.filter((result) => result.verification && result.verification.ok === false).length;
+  recordOperation(operation_log, {
+    stage: "autosweep",
+    status: verificationFailures ? "completed_with_verification_warnings" : "completed",
+    run_id,
     sessions_considered: sessions.length,
     summaries_created: summariesCreated,
+    verification_failures: verificationFailures,
+  });
+  return {
+    ok: verificationFailures === 0,
+    run_id,
+    sessions_considered: sessions.length,
+    summaries_created: summariesCreated,
+    verification_failures: verificationFailures,
+    operation_log,
     results,
   };
 }
