@@ -127,9 +127,9 @@ export function resolveAgentModelProvider(env = process.env) {
   return "anthropic";
 }
 
-export async function resolveAgentModelProviderAsync(execution_class = "standard", env = process.env) {
+export async function resolveAgentModelProviderAsync(execution_class = "standard", env = process.env, task_class = null) {
   const settings = await loadAgentModelRuntimeSettings();
-  return resolveAgentModelSelection({ execution_class, env, config: settings.config });
+  return resolveAgentModelSelection({ execution_class, task_class, env, config: settings.config });
 }
 
 let _classCache = {};
