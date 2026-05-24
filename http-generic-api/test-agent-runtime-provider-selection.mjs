@@ -34,6 +34,11 @@ assert(
 );
 
 assert(
+  source.includes("getCallModelForTaskAsync"),
+  "task-specific async model selection must remain available for summary/classification/image_edit routing"
+);
+
+assert(
   source.includes("buildFallbackCallModel"),
   "async model class selection must support provider fallback chains"
 );
