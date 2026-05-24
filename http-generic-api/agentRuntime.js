@@ -188,6 +188,7 @@ export function getAgentDeps() {
     }),
     getCallModelForClass,
     getCallModelForClassAsync,
+    getCallModelForTaskAsync,
     resolveAgentModelProvider,
     resolveAgentModelProviderAsync,
   };
