@@ -50,6 +50,10 @@ assert(
   "server.js must pass model deps into registerRoutes for dev-agent/session-summary routes"
 );
 assert(
+  serverSource.includes("getCallModelForTaskAsync"),
+  "server.js must pass task-specific model deps into registerRoutes"
+);
+assert(
   serverSource.includes("resolveAgentModelProvider"),
   "server.js must pass the effective model provider resolver into routes"
 );
