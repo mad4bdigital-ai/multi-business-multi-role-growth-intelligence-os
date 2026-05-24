@@ -144,6 +144,111 @@ function fallbackInsight(session, source, warning = null) {
   };
 }
 
+function compactOperationDetail(detail = {}) {
+  const allowed = {};
+  for (const [key, value] of Object.entries(detail || {})) {
+    if (value === undefined) continue;
+    if (/secret|token|password|key|credential/i.test(key)) continue;
+    if (typeof value === "string") allowed[key] = boundedText(redactSensitiveText(value), 180);
+    else if (typeof value === "number" || typeof value === "boolean" || value === null) allowed[key] = value;
+    else if (Array.isArray(value)) allowed[key] = value.slice(0, 5).map(item => typeof item === "string" ? boundedText(redactSensitiveText(item), 120) : item);
+    else allowed[key] = JSON.parse(JSON.stringify(value));
+  }
+  return allowed;
+}
+
+function recordOperation(operationLog, event) {
+  const entry = {
+    at: new Date().toISOString(),
+    ...compactOperationDetail(event),
+  };
+  if (Array.isArray(operationLog)) operationLog.push(entry);
+  console.info("[sessionSummary] operation", entry);
+  return entry;
+}
+
+function summarizeOperationResult(stage, result) {
+  if (!result || typeof result !== "object") return {};
+  if (stage === "check_existing_summary") {
+    return { summary_exists: Boolean(result.summary_id), summary_id: result.summary_id || null };
+  }
+  if (stage === "load_transcript") {
+    return {
+      transcript_source: result.source,
+      events_loaded: Array.isArray(result.events) ? result.events.length : 0,
+      fallback_used: Boolean(result.fallback_used),
+      warning: result.warning || null,
+    };
+  }
+  if (stage === "summarize_transcript") {
+    return {
+      summary_text_chars: String(result.summary_text || "").length,
+      blockers: Array.isArray(result.blockers) ? result.blockers.length : 0,
+      model_warning: Array.isArray(result.blockers) && result.blockers.some(item => /^model_call_failed:|^all_model_providers_failed:/i.test(String(item || ""))),
+    };
+  }
+  if (stage === "write_session_summary") return { summary_id: result };
+  if (stage === "verify_session_summary_write") return result;
+  return {};
+}
+
+async function withOperationStep(operationLog, stage, fn, detail = {}) {
+  const startedAt = Date.now();
+  recordOperation(operationLog, { stage, status: "started", ...detail });
+  try {
+    const result = await fn();
+    recordOperation(operationLog, {
+      stage,
+      status: "succeeded",
+      duration_ms: Date.now() - startedAt,
+      ...summarizeOperationResult(stage, result),
+    });
+    return result;
+  } catch (err) {
+    recordOperation(operationLog, {
+      stage,
+      status: "failed",
+      duration_ms: Date.now() - startedAt,
+      error: sanitizeModelError(err),
+    });
+    throw err;
+  }
+}
+
+export async function verifySessionSummaryWrite({ pool = getPool(), session, summary_id }) {
+  if (!session?.session_id || !summary_id) {
+    return { ok: false, summary_row_present: false, graph_asset_present: false, reason: "missing_session_or_summary_id" };
+  }
+
+  const [summaryRows] = await pool.query(
+    `SELECT summary_id, session_id, tenant_id, turn_count, created_at
+     FROM \`session_summaries\`
+     WHERE summary_id = ? AND session_id = ?
+     LIMIT 1`,
+    [summary_id, session.session_id]
+  ).catch(() => [[]]);
+
+  const [assetRows] = await pool.query(
+    `SELECT asset_id, validation_status, active_status
+     FROM \`json_assets\`
+     WHERE source_asset_ref = ? AND asset_type = 'session_summary'
+     LIMIT 1`,
+    [summary_id]
+  ).catch(() => [[]]);
+
+  const summaryRow = summaryRows[0] || null;
+  const assetRow = assetRows[0] || null;
+  return {
+    ok: Boolean(summaryRow),
+    summary_row_present: Boolean(summaryRow),
+    graph_asset_present: Boolean(assetRow),
+    graph_validation_status: assetRow?.validation_status || null,
+    graph_active_status: assetRow?.active_status || null,
+    summary_id,
+    session_id: session.session_id,
+  };
+}
+
 export function parseSessionJsonl(content = "") {
   const events = [];
   for (const [lineIndex, line] of String(content || "").split(/\r?\n/).entries()) {
