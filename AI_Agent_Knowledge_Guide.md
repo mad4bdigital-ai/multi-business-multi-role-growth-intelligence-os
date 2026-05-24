@@ -100,6 +100,14 @@ Do not start GitHub until the bootstrap row resolves. Halt if Sheets is rate-lim
 
 Every execution must validate surface bindings, route/workflow authority, dependency readiness, and credential resolution. Recovered classification is forbidden without same-cycle validation.
 
+### Local connector device proxy governance
+
+Local connector device operations go through `auth.mad4b.com` `/connector/{device_id}/...` proxy routes, not direct connector hosts, except for explicit break-glass reachability checks. Use `/connector/{device_id}/diagnostics` before long-running device actions to confirm selected config, candidate routes, hostname alias handling, and route health metadata.
+
+Device alias rows in `local_connector_device_aliases` are authority for friendly names and hostname mismatch exceptions. As of 2026-05-24, Nagy's admin/control device is `DESKTOP-91FDEFP` with aliases `nagyxs`, `nagy pc`, and `nagy`; Essam/`essam-pc` remains the primary n8n runtime. Do not promote `DESKTOP-91FDEFP` to primary n8n runtime without an explicit runtime migration record and same-cycle validation.
+
+Prefer short, allowlisted local connector shell aliases for repo and runtime maintenance (`repo_status`, `repo_branch`, `repo_log_latest`, `repo_compare_origin_main`, `repo_pull_ff_only`) instead of raw PowerShell. Raw PowerShell through auth-host should be reserved for bounded setup/recovery because long scripts and service restarts can surface Cloudflare/Passenger 502 or ChatGPT message-delivery timeouts. `repo_pull_ff_only` must remain `git pull --ff-only origin main` and must not be replaced by an unrestricted pull/merge command.
+
 ### Tenant activation mode governance
 
 Managed and dedicated activation modes are governed by `activationModePolicy.js`. Tenant GPTs must call `connect_activate` with `tool_args.mode` set to `managed` or `dedicated`; aliases may be normalized server-side, but stored mode is canonical. Managed uses platform-managed infrastructure and credentials. Dedicated uses tenant-owned credentials/local runtime defaults, including `self_hosted_local` n8n where applicable. Mixed/hybrid behavior is per-app, not a third activation mode: use `integration_modes` or `connect_integration_policy_update` to set apps like Cloudflare/Hostinger to `dedicated` while keeping Google apps `managed`. Dedicated app secrets must be entered only through OAuth or credential intake, never pasted into GPT chat. Device install must not proceed until all integrations configured as dedicated and required for device install are active.
