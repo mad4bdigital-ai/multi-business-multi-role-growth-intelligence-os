@@ -175,8 +175,12 @@ function normalizeCredentialSchema(authType, schema) {
 
 function inputHtml(field, value = "") {
   const common = `name="${htmlEscape(field.name)}" ${field.required ? "required" : ""} autocomplete="${htmlEscape(field.autocomplete)}" placeholder="${htmlEscape(field.placeholder)}"`;
-  if (field.type === "textarea") {
-    return `<textarea ${common}>${htmlEscape(value)}</textarea>`;
+  if (field.type === "textarea" || field.type === "json") {
+    const rows = field.type === "json" ? "10" : "";
+    const accept = field.type === "json"
+      ? `<input class="json-file" type="file" accept="application/json,.json" data-target="${htmlEscape(field.name)}">`
+      : "";
+    return `${accept}<textarea ${common} ${rows ? `rows="${rows}"` : ""}>${htmlEscape(value)}</textarea>`;
   }
   if (field.type === "select") {
     const options = field.options.map((opt) => `<option value="${htmlEscape(opt.value)}">${htmlEscape(opt.label)}</option>`).join("");
