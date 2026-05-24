@@ -497,6 +497,7 @@ section("connect api auth scope");
 
   {
     const doc = yaml.load(readFileSync("openapi.yaml", "utf8"));
+    const proxySource = readFileSync("routes/connectorProxyRoutes.js", "utf8");
     const proxyPaths = Object.keys(doc.paths || {}).filter((pathKey) => pathKey.startsWith("/connector/{device_id}/"));
     for (const pathKey of ["/connector/{device_id}/dependencies", "/connector/{device_id}/apps", "/connector/{device_id}/browser", "/connector/{device_id}/ps", "/connector/{device_id}/win", "/connector/{device_id}/n8n", "/connector/{device_id}/cf"]) {
       assert(`auth-host schema exposes ${pathKey}`, proxyPaths.includes(pathKey), proxyPaths.join(", "));
@@ -507,6 +508,14 @@ section("connect api auth scope");
       doc.paths?.["/connector/{device_id}/win"]?.post?.requestBody?.content?.["application/json"]?.schema?.properties?.action?.enum?.includes("service_action"));
     assert("auth-host cf proxy exposes tunnel_status",
       doc.paths?.["/connector/{device_id}/cf"]?.post?.requestBody?.content?.["application/json"]?.schema?.properties?.action?.enum?.includes("tunnel_status"));
+    assert("auth-host connector proxy exposes structured diagnostics endpoint",
+      proxySource.includes('router.get("/connector/:device_id/diagnostics"') && proxySource.includes("connectorRouteDiagnostics"));
+    assert("auth-host connector proxy includes degraded routes as fallback candidates",
+      proxySource.includes("health_status IN ('healthy','unknown','degraded')"));
+    assert("auth-host connector proxy rejects wrong-device recovery responses",
+      proxySource.includes("wrong_device_response") && proxySource.includes("isWrongDeviceHealthResponse"));
+    assert("auth-host connector proxy has bounded route timeout",
+      proxySource.includes("CONNECTOR_PROXY_TIMEOUT_MS") && proxySource.includes("AbortSignal.timeout(CONNECTOR_PROXY_TIMEOUT_MS)"));
 
     const browserScale = doc.paths?.["/connector/{device_id}/browser"]?.post?.requestBody?.content?.["application/json"]?.schema?.properties?.scale;
     assert("auth-host browser scale stays in fraction units (0.1..1.0)",
@@ -815,8 +824,9 @@ section("connect api auth scope");
       source.includes("local_connector_device_routes") &&
       source.includes("listCandidateRoutes") &&
       source.includes("legacy_config"));
-    assert("auth connector proxy route selector prefers healthy or unknown routes",
-      source.includes("health_status IN ('healthy','unknown')") &&
+    assert("auth connector proxy route selector prefers healthy/unknown and allows degraded fallback routes",
+      source.includes("health_status IN ('healthy','unknown','degraded')") &&
+      source.includes("FIELD(health_status, 'healthy','unknown','degraded')") &&
       source.includes("ORDER BY priority ASC"));
     assert("auth connector proxy writes route health metadata",
       source.includes("last_success_at = NOW()") &&

@@ -12,6 +12,10 @@ const ROUTE_TYPE_ORDER = [
 ];
 
 const ROUTE_LEVEL_FAILURE_STATUSES = new Set([502, 503, 504, 520, 521, 522, 523, 524, 525, 526, 527, 530]);
+const CONNECTOR_PROXY_TIMEOUT_MS = Math.min(
+  Math.max(Number(process.env.CONNECTOR_PROXY_TIMEOUT_MS) || 12000, 1000),
+  25000,
+);
 
 function httpError(status, code, message, details = null) {
   const err = new Error(message || code);
@@ -144,6 +148,10 @@ function routeResponseMeta(route) {
     priority: route.priority ?? 1000,
     endpoint_url: route.endpoint_url ? redactUrlForError(route.endpoint_url) : null,
     health_status: route.health_status || "unknown",
+    last_success_at: route.last_success_at || null,
+    last_failure_at: route.last_failure_at || null,
+    last_error_code: route.last_error_code || null,
+    last_error_message: route.last_error_message || null,
   };
 }
 
@@ -181,12 +189,14 @@ async function listCandidateRoutes(device) {
   if (device?.config_id) {
     const [rows] = await getPool().query(
       `SELECT route_id, config_id, route_type, route_label, endpoint_url, priority,
-              tls_mode, auth_mode, health_status, last_failure_at, updated_at
+              tls_mode, auth_mode, health_status, last_success_at, last_failure_at,
+              last_error_code, last_error_message, updated_at
          FROM \`local_connector_device_routes\`
         WHERE config_id = ?
           AND is_enabled = 1
-          AND health_status IN ('healthy','unknown')
+          AND health_status IN ('healthy','unknown','degraded')
         ORDER BY priority ASC,
+                 FIELD(health_status, 'healthy','unknown','degraded') ASC,
                  FIELD(route_type, 'vpn_private_ip','lan_private_ip','direct_public_ip','dynamic_public_ip','cloudflare_tunnel','admin_recovery'),
                  updated_at DESC`,
       [device.config_id]
@@ -275,7 +285,7 @@ function buildForwardOptions(req) {
   const baseOptions = {
     method: req.method,
     headers: { "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(CONNECTOR_PROXY_TIMEOUT_MS),
   };
 
   if (["POST", "PUT", "PATCH"].includes(req.method) && req.body && Object.keys(req.body).length) {
@@ -316,6 +326,56 @@ async function attemptRoute({ req, route, url, baseOptions, candidateTokens }) {
     if (![401, 403].includes(attempt.response.status)) return attempt;
   }
   return last;
+}
+
+async function connectorRouteDiagnostics(req, res, deviceId) {
+  const isUserAuth = req.auth?.mode === "user_jwt" || req.auth?.mode === "api_credential";
+  const isAdmin = req.auth?.mode === "backend_api_key" || req.auth?.is_admin === true;
+  let userId = isUserAuth ? req.auth.user_id : null;
+  const tenantId = req.auth?.tenant_id || req.query.tenant_id || null;
+  if (!userId && isAdmin) {
+    userId = (req.query.user_id || "").trim() || null;
+  }
+  if (!userId && !isAdmin) {
+    return res.status(401).json({ ok: false, error: { code: "user_identity_required", message: "Sign-in or pass user_id for admin callers." } });
+  }
+
+  let device;
+  try {
+    device = await resolveDeviceConfig(userId, deviceId, { isAdmin, tenantId });
+  } catch (err) {
+    return res.status(err.status || 500).json({
+      ok: false,
+      error: { code: err.code || "device_config_resolution_failed", message: err.message, details: err.details || undefined },
+    });
+  }
+  if (!device) {
+    return res.status(404).json({ ok: false, error: { code: "device_not_found", message: `No active connector found for device '${deviceId}'.` } });
+  }
+
+  const routes = await listCandidateRoutes(device);
+  const candidateTokens = isAdmin
+    ? uniqueTruthy([device.connector_secret, process.env.BACKEND_API_KEY])
+    : uniqueTruthy([device.connector_secret]);
+
+  return res.status(200).json({
+    ok: true,
+    device: {
+      config_id: device.config_id,
+      device_id: device.device_id,
+      user_id: device.user_id,
+      tenant_id: device.tenant_id,
+      device_runtime_url: device.device_runtime_url ? redactUrlForError(device.device_runtime_url) : null,
+      tunnel_url: device.tunnel_url ? redactUrlForError(device.tunnel_url) : null,
+      admin_recovery_url: device.admin_recovery_url ? redactUrlForError(device.admin_recovery_url) : null,
+      connector_auth_configured: candidateTokens.length > 0,
+    },
+    route_count: routes.length,
+    selected_route: routes[0] ? routeResponseMeta(routes[0]) : null,
+    candidate_routes: routes.map(routeResponseMeta),
+    proxy_timeout_ms: CONNECTOR_PROXY_TIMEOUT_MS,
+    secrets_included: false,
+  });
 }
 
 async function proxyToDevice(req, res, deviceId, targetPath) {
@@ -429,6 +489,11 @@ export function buildConnectorProxyRoutes(deps) {
       },
     });
   }
+
+  router.get("/connector/:device_id/diagnostics", requireBackendApiKey, async (req, res) => {
+    try { await connectorRouteDiagnostics(req, res, req.params.device_id); }
+    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_diagnostics_failed", message: err.message } }); }
+  });
 
   router.get("/connector/:device_id/policy", requireBackendApiKey, async (req, res) => {
     try { await proxyToDevice(req, res, req.params.device_id, "/policy"); }
