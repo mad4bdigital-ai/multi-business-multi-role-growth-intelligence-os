@@ -508,6 +508,14 @@ section("connect api auth scope");
       doc.paths?.["/connector/{device_id}/win"]?.post?.requestBody?.content?.["application/json"]?.schema?.properties?.action?.enum?.includes("service_action"));
     assert("auth-host cf proxy exposes tunnel_status",
       doc.paths?.["/connector/{device_id}/cf"]?.post?.requestBody?.content?.["application/json"]?.schema?.properties?.action?.enum?.includes("tunnel_status"));
+    assert("auth-host connector proxy exposes structured diagnostics endpoint",
+      proxySource.includes('router.get("/connector/:device_id/diagnostics"') && proxySource.includes("connectorRouteDiagnostics"));
+    assert("auth-host connector proxy includes degraded routes as fallback candidates",
+      proxySource.includes("health_status IN ('healthy','unknown','degraded')"));
+    assert("auth-host connector proxy rejects wrong-device recovery responses",
+      proxySource.includes("wrong_device_response") && proxySource.includes("isWrongDeviceHealthResponse"));
+    assert("auth-host connector proxy has bounded route timeout",
+      proxySource.includes("CONNECTOR_PROXY_TIMEOUT_MS") && proxySource.includes("AbortSignal.timeout(CONNECTOR_PROXY_TIMEOUT_MS)"));
 
     const browserScale = doc.paths?.["/connector/{device_id}/browser"]?.post?.requestBody?.content?.["application/json"]?.schema?.properties?.scale;
     assert("auth-host browser scale stays in fraction units (0.1..1.0)",
