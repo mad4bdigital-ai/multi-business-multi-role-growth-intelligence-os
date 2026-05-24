@@ -514,6 +514,11 @@ section("connect api auth scope");
       proxySource.includes("health_status IN ('healthy','unknown','degraded')"));
     assert("auth-host connector proxy rejects wrong-device recovery responses",
       proxySource.includes("wrong_device_response") && proxySource.includes("isWrongDeviceHealthResponse"));
+    assert("auth-host connector diagnostics exposes registered routes including down routes",
+      proxySource.includes("listRegisteredRoutes") &&
+      proxySource.includes("includeDown") &&
+      proxySource.includes("registered_routes") &&
+      proxySource.includes("registered_route_count"));
     assert("auth-host connector proxy has bounded request-aware route timeout",
       proxySource.includes("CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS") &&
       proxySource.includes("CONNECTOR_PROXY_MAX_TIMEOUT_MS") &&
@@ -829,7 +834,7 @@ section("connect api auth scope");
       source.includes("legacy_config"));
     assert("auth connector proxy route selector prefers healthy/unknown and allows degraded fallback routes",
       source.includes("health_status IN ('healthy','unknown','degraded')") &&
-      source.includes("FIELD(health_status, 'healthy','unknown','degraded')") &&
+      source.includes("FIELD(health_status, 'healthy','unknown','degraded','down')") &&
       source.includes("ORDER BY priority ASC"));
     assert("auth connector proxy writes route health metadata",
       source.includes("last_success_at = NOW()") &&

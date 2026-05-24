@@ -28,6 +28,10 @@ Required profile fields:
 
 `https://n8n.mad4b.com/` is reserved for the platform-managed n8n only. Tenant and user n8n profiles must never use this hostname.
 
+As of 2026-05-24, the platform n8n primary runtime remains on the Essam connector device. The Nagy admin device (`DESKTOP-91FDEFP`, aliases `nagyxs`, `nagy pc`, `nagy`) is an admin/control and repo working-copy device only. It may run diagnostics, repo sync aliases, files, PowerShell, and Windows service control, but must not be promoted to the n8n primary runtime without an explicit runtime migration record and same-cycle validation.
+
+Before any n8n remote-control call through `/connector/{device_id}/n8n`, use `/connector/{device_id}/diagnostics` and `/connector/{device_id}/health` to confirm the selected route and hostname alias resolution. Long-running n8n or repair actions should be exposed as short, allowlisted connector aliases or queued Local Manager commands; avoid sending long raw PowerShell scripts through auth-host because they increase the risk of Cloudflare/Passenger 502 and ChatGPT message-delivery timeouts.
+
 ### Tenant local n8n
 
 Tenant/user n8n is self-serve by default and runs locally from Local Manager. It must use a tenant-specific data folder and a non-platform port. The default tenant local web port is `5682` so it cannot accidentally become the origin for `https://n8n.mad4b.com/` and does not conflict with n8n's default Task Broker port `5679`. Tenant profiles should explicitly set a separate task broker port such as `5683` and launcher health check port such as `5684`.
