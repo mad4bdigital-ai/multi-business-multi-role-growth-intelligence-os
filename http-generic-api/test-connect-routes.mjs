@@ -499,7 +499,7 @@ section("connect api auth scope");
     const doc = yaml.load(readFileSync("openapi.yaml", "utf8"));
     const proxySource = readFileSync("routes/connectorProxyRoutes.js", "utf8");
     const proxyPaths = Object.keys(doc.paths || {}).filter((pathKey) => pathKey.startsWith("/connector/{device_id}/"));
-    for (const pathKey of ["/connector/{device_id}/dependencies", "/connector/{device_id}/apps", "/connector/{device_id}/browser", "/connector/{device_id}/ps", "/connector/{device_id}/win", "/connector/{device_id}/n8n", "/connector/{device_id}/cf"]) {
+    for (const pathKey of ["/connector/{device_id}/diagnostics", "/connector/{device_id}/dependencies", "/connector/{device_id}/apps", "/connector/{device_id}/browser", "/connector/{device_id}/ps", "/connector/{device_id}/win", "/connector/{device_id}/n8n", "/connector/{device_id}/cf"]) {
       assert(`auth-host schema exposes ${pathKey}`, proxyPaths.includes(pathKey), proxyPaths.join(", "));
     }
     assert("auth-host ps proxy requires script",
@@ -514,8 +514,11 @@ section("connect api auth scope");
       proxySource.includes("health_status IN ('healthy','unknown','degraded')"));
     assert("auth-host connector proxy rejects wrong-device recovery responses",
       proxySource.includes("wrong_device_response") && proxySource.includes("isWrongDeviceHealthResponse"));
-    assert("auth-host connector proxy has bounded route timeout",
-      proxySource.includes("CONNECTOR_PROXY_TIMEOUT_MS") && proxySource.includes("AbortSignal.timeout(CONNECTOR_PROXY_TIMEOUT_MS)"));
+    assert("auth-host connector proxy has bounded request-aware route timeout",
+      proxySource.includes("CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS") &&
+      proxySource.includes("CONNECTOR_PROXY_MAX_TIMEOUT_MS") &&
+      proxySource.includes("requestedConnectorProxyTimeout") &&
+      proxySource.includes("AbortSignal.timeout(requestedConnectorProxyTimeout(req))"));
 
     const browserScale = doc.paths?.["/connector/{device_id}/browser"]?.post?.requestBody?.content?.["application/json"]?.schema?.properties?.scale;
     assert("auth-host browser scale stays in fraction units (0.1..1.0)",

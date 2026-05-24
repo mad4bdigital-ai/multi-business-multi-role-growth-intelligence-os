@@ -234,6 +234,42 @@ status = active / valid
 
 The paths were verified with the governed local shell aliases `local_dir_list` and `local_file_search` before being marked valid.
 
+As of 2026-05-24, the Nagy admin/control device is available as a separate managed connector. It is not the n8n primary runtime; n8n remains on Essam. The Nagy device is for admin control, repository inspection, and local development verification.
+
+```text
+device_id = DESKTOP-91FDEFP
+aliases = nagyxs, nagy pc, nagy
+project_key = growth-intelligence-os
+current_path = C:\\Users\\nagyx\\source\\repos\\multi-business-multi-role-growth-intelligence-os
+status = active / valid
+repo_branch = main
+repo_remote = https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os.git
+```
+
+Safe connector aliases configured on the Nagy device:
+
+```text
+repo_status
+repo_branch
+repo_log_latest
+repo_compare_origin_main
+repo_pull_ff_only
+```
+
+`repo_pull_ff_only` is intentionally state-changing but constrained to `git pull --ff-only origin main`; it must fail rather than merge when the local branch has divergent commits or unresolved local changes.
+
+## Connector proxy diagnostics and timeouts
+
+The auth-host device facade exposes:
+
+```text
+GET /connector/{device_id}/diagnostics
+```
+
+Use diagnostics before long-running device calls. It returns the selected config, candidate routes, route health metadata, and connector proxy timeout bounds without forwarding a device command or exposing connector secrets.
+
+The connector proxy keeps a short default timeout for health and policy calls, but honors bounded `timeout_ms` from the request body/query for legitimate longer operations such as repo sync, file discovery, PowerShell, and n8n diagnostics. This avoids opaque client-side message delivery timeouts while keeping a maximum bounded proxy wait.
+
 ## Validation checklist
 
 For each registered path:

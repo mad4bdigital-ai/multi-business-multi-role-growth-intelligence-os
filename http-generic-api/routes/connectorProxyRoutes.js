@@ -12,10 +12,20 @@ const ROUTE_TYPE_ORDER = [
 ];
 
 const ROUTE_LEVEL_FAILURE_STATUSES = new Set([502, 503, 504, 520, 521, 522, 523, 524, 525, 526, 527, 530]);
-const CONNECTOR_PROXY_TIMEOUT_MS = Math.min(
+const CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS = Math.min(
   Math.max(Number(process.env.CONNECTOR_PROXY_TIMEOUT_MS) || 12000, 1000),
   25000,
 );
+const CONNECTOR_PROXY_MAX_TIMEOUT_MS = Math.min(
+  Math.max(Number(process.env.CONNECTOR_PROXY_MAX_TIMEOUT_MS) || 120000, CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS),
+  600000,
+);
+
+function requestedConnectorProxyTimeout(req) {
+  const requested = Number(req?.body?.timeout_ms || req?.query?.timeout_ms || 0);
+  if (!Number.isFinite(requested) || requested <= 0) return CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS;
+  return Math.min(Math.max(requested, 1000), CONNECTOR_PROXY_MAX_TIMEOUT_MS);
+}
 
 function httpError(status, code, message, details = null) {
   const err = new Error(message || code);
@@ -302,7 +312,7 @@ function buildForwardOptions(req) {
   const baseOptions = {
     method: req.method,
     headers: { "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(CONNECTOR_PROXY_TIMEOUT_MS),
+    signal: AbortSignal.timeout(requestedConnectorProxyTimeout(req)),
   };
 
   if (["POST", "PUT", "PATCH"].includes(req.method) && req.body && Object.keys(req.body).length) {
@@ -390,7 +400,8 @@ async function connectorRouteDiagnostics(req, res, deviceId) {
     route_count: routes.length,
     selected_route: routes[0] ? routeResponseMeta(routes[0]) : null,
     candidate_routes: routes.map(routeResponseMeta),
-    proxy_timeout_ms: CONNECTOR_PROXY_TIMEOUT_MS,
+    proxy_default_timeout_ms: CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS,
+    proxy_max_timeout_ms: CONNECTOR_PROXY_MAX_TIMEOUT_MS,
     secrets_included: false,
   });
 }
