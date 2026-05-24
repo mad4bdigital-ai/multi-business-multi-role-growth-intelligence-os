@@ -66,7 +66,8 @@ function sanitizeModelReadinessError(error) {
   return { code: "model_readiness_failed", message: message.replace(/\{[\s\S]*\}/g, "[upstream_error_body_redacted]").slice(0, 240) };
 }
 
-async function resolveStandardCallModel(deps) {
+async function resolveStandardCallModel(deps, taskClass = "summary") {
+  if (deps.getCallModelForTaskAsync) return await deps.getCallModelForTaskAsync(taskClass, "standard");
   if (deps.getCallModelForClassAsync) return await deps.getCallModelForClassAsync("standard");
   if (deps.getCallModelForClass) return deps.getCallModelForClass("standard");
   return deps.callModel || null;
