@@ -376,6 +376,7 @@ function renderCredentialForm({ session, app, error = "" }) {
     input, textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 14px; padding: 13px 14px; font: inherit; margin-top: 7px; }
     textarea { min-height: 96px; resize: vertical; }
     button { width: 100%; margin-top: 22px; border: 0; border-radius: 16px; padding: 14px 18px; font-weight: 700; background: #2563eb; color: white; cursor: pointer; }
+    .json-file { background: #f8fafc; margin-top: 7px; }
     .meta { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px 14px; margin: 18px 0; }
     .error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 14px; padding: 12px; }
     .optional, small { color: #64748b; font-weight: 500; font-size: 12px; display:block; margin-top:4px; }
