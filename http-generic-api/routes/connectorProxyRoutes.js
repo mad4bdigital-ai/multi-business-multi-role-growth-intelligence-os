@@ -155,7 +155,20 @@ function routeTypeRank(routeType) {
   return idx === -1 ? ROUTE_TYPE_ORDER.length : idx;
 }
 
+function secondsSince(value) {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  if (!Number.isFinite(time)) return null;
+  return Math.max(0, Math.floor((Date.now() - time) / 1000));
+}
+
+function isFailureAfterSuccess(route) {
+  if (!route?.last_failure_at || !route?.last_success_at) return false;
+  return new Date(route.last_failure_at).getTime() > new Date(route.last_success_at).getTime();
+}
+
 function routeResponseMeta(route) {
+  const lastHealthAt = route.last_health_at || route.last_success_at || route.updated_at || null;
   return {
     route_id: route.route_id || null,
     route_type: route.route_type || "legacy_config",
@@ -163,10 +176,13 @@ function routeResponseMeta(route) {
     priority: route.priority ?? 1000,
     endpoint_url: route.endpoint_url ? redactUrlForError(route.endpoint_url) : null,
     health_status: route.health_status || "unknown",
+    last_health_at: route.last_health_at || null,
     last_success_at: route.last_success_at || null,
     last_failure_at: route.last_failure_at || null,
     last_error_code: route.last_error_code || null,
     last_error_message: route.last_error_message || null,
+    health_age_seconds: secondsSince(lastHealthAt),
+    failure_after_success: isFailureAfterSuccess(route),
   };
 }
 
