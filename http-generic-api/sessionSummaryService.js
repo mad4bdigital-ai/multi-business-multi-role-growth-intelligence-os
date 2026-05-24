@@ -812,9 +812,28 @@ export async function summarizeAndStoreSession({
     { run_id, session_id: resolvedSession.session_id, summary_id: summaryId }
   );
 
-  const modelWarning = Array.isArray(insight.blockers)
-    ? insight.blockers.find(item => /^model_call_failed:|^all_model_providers_failed:/i.test(String(item || ""))) || null
-    : null;
+  let executionLog = null;
+  try {
+    executionLog = await withOperationStep(
+      operation_log,
+      "write_execution_log",
+      async () => writeSessionSummaryExecutionLog({
+        pool,
+        session: resolvedSession,
+        run_id,
+        summary_id: summaryId,
+        transcript,
+        insight,
+        verification,
+        operation_log,
+      }),
+      { run_id, session_id: resolvedSession.session_id, summary_id: summaryId }
+    );
+  } catch (err) {
+    executionLog = { ok: false, error: sanitizeModelError(err) };
+  }
+
+  const modelWarning = modelWarningFromInsight(insight);
 
   recordOperation(operation_log, {
     stage: "session_summary",
@@ -822,6 +841,7 @@ export async function summarizeAndStoreSession({
     run_id,
     session_id: resolvedSession.session_id,
     summary_id: summaryId,
+    execution_log_id: executionLog?.execution_log_id || null,
   });
 
   return {
@@ -834,6 +854,7 @@ export async function summarizeAndStoreSession({
     events_loaded: transcript.events.length,
     warning: modelWarning || transcript.warning || null,
     verification,
+    execution_log: executionLog,
     operation_log,
   };
 }
