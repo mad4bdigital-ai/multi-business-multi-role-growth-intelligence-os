@@ -447,6 +447,7 @@ async function connectorRouteDiagnostics(req, res, deviceId) {
     return res.status(404).json({ ok: false, error: { code: "device_not_found", message: `No active connector found for device '${deviceId}'.` } });
   }
 
+  const registeredRoutes = await listRegisteredRoutes(device, { includeDown: true });
   const routes = await listCandidateRoutes(device);
   const candidateTokens = isAdmin
     ? uniqueTruthy([device.connector_secret, process.env.BACKEND_API_KEY])
