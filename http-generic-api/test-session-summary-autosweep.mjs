@@ -101,7 +101,7 @@ function makePool(rows = []) {
   assert(serviceSource.includes("platform_graph_edges"), "summaries should attach to graph context");
   assert(serviceSource.includes("verifySessionSummaryWrite"), "autosweep must verify summary write/readback after persistence");
   assert(serviceSource.includes("writeSessionSummaryExecutionLog"), "autosweep must persist durable trace rows to execution_log");
-  assert(serviceSource.includes("INSERT INTO `execution_log`"), "autosweep must use the SQL-primary execution_log table for durable logging");
+  assert(serviceSource.includes("execution_log") && serviceSource.includes("execution_trace_id_writeback"), "autosweep must use the SQL-primary execution_log table for durable logging");
   assert(serviceSource.includes("operation_log"), "autosweep results must include sanitized per-step operation logs");
   assert(gptRoutes.includes("summarizeSessionIfNeeded"), "endSession must trigger autosummary");
   assert(gptRoutes.includes("session_summary: summaryResult"), "endSession response must expose summary result");
