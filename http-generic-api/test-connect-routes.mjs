@@ -519,6 +519,11 @@ section("connect api auth scope");
       proxySource.includes("includeDown") &&
       proxySource.includes("registered_routes") &&
       proxySource.includes("registered_route_count"));
+    assert("auth-host connector proxy retries down registered primary routes before synthetic fallback",
+      proxySource.includes("registeredRoutesIncludingDown") &&
+      proxySource.includes("recoverableRegisteredRoute") &&
+      proxySource.includes("hasRecoverableDeviceRuntimeRoute") &&
+      proxySource.includes("route_type === \"cloudflare_tunnel\""));
     assert("auth-host connector proxy has bounded request-aware route timeout",
       proxySource.includes("CONNECTOR_PROXY_DEFAULT_TIMEOUT_MS") &&
       proxySource.includes("CONNECTOR_PROXY_MAX_TIMEOUT_MS") &&

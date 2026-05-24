@@ -256,15 +256,31 @@ async function listRegisteredRoutes(device, { includeDown = false } = {}) {
 
 async function listCandidateRoutes(device) {
   const routes = [];
+  let registeredRoutes = [];
+  let registeredRoutesIncludingDown = [];
   if (device?.config_id) {
-    routes.push(...await listRegisteredRoutes(device));
+    registeredRoutes = await listRegisteredRoutes(device);
+    routes.push(...registeredRoutes);
   }
 
   const deviceRuntimeUrl = String(device?.device_runtime_url || device?.tunnel_url || "").trim();
+  const normalizedDeviceRuntimeUrl = deviceRuntimeUrl.replace(/\/$/, "");
   const hasDeviceRuntimeRoute = routes.some((route) =>
-    String(route.endpoint_url || "").replace(/\/$/, "") === deviceRuntimeUrl.replace(/\/$/, "")
+    String(route.endpoint_url || "").replace(/\/$/, "") === normalizedDeviceRuntimeUrl
   );
-  if (deviceRuntimeUrl && !hasDeviceRuntimeRoute) {
+  if (deviceRuntimeUrl && !hasDeviceRuntimeRoute && device?.config_id) {
+    registeredRoutesIncludingDown = await listRegisteredRoutes(device, { includeDown: true });
+    const recoverableRegisteredRoute = registeredRoutesIncludingDown.find((route) =>
+      String(route.endpoint_url || "").replace(/\/$/, "") === normalizedDeviceRuntimeUrl &&
+      route.route_type === "cloudflare_tunnel" &&
+      route.route_id
+    );
+    if (recoverableRegisteredRoute) routes.push({ ...recoverableRegisteredRoute, priority: Math.min(Number(recoverableRegisteredRoute.priority ?? 50), 25) });
+  }
+  const hasRecoverableDeviceRuntimeRoute = routes.some((route) =>
+    String(route.endpoint_url || "").replace(/\/$/, "") === normalizedDeviceRuntimeUrl
+  );
+  if (deviceRuntimeUrl && !hasRecoverableDeviceRuntimeRoute) {
     routes.push({
       route_id: null,
       config_id: device.config_id || null,
