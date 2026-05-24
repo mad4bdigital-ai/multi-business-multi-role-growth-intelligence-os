@@ -233,6 +233,55 @@ function sessionSchema(session) {
   return normalizeCredentialSchema(session.auth_type, safeJsonParse(session.credential_schema_json, null));
 }
 
+function parseJsonCredentialField(value, fieldName) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  if (raw.length > 64 * 1024) {
+    const err = new Error(`${fieldName} is too large. Maximum size is 64KB.`);
+    err.status = 400;
+    err.code = "json_credential_too_large";
+    throw err;
+  }
+  try { return JSON.parse(raw); }
+  catch {
+    const err = new Error(`${fieldName} must be valid JSON.`);
+    err.status = 400;
+    err.code = "invalid_json_credential";
+    throw err;
+  }
+}
+
+function extractMcpServersConfig(value) {
+  const parsed = parseJsonCredentialField(value, "mcp_servers_json");
+  if (!parsed) return null;
+  const servers = parsed.mcpServers && typeof parsed.mcpServers === "object" && !Array.isArray(parsed.mcpServers)
+    ? parsed.mcpServers
+    : null;
+  if (!servers || !Object.keys(servers).length) {
+    const err = new Error("mcp_servers_json must contain an mcpServers object.");
+    err.status = 400;
+    err.code = "invalid_mcp_servers_json";
+    throw err;
+  }
+  const [serverName, server] = Object.entries(servers)[0];
+  if (!server || typeof server !== "object" || !server.url) {
+    const err = new Error("mcpServers entries must include a url.");
+    err.status = 400;
+    err.code = "invalid_mcp_server_entry";
+    throw err;
+  }
+  const auth = String(server.headers?.Authorization || server.headers?.authorization || "").trim();
+  const bearer = auth.replace(/^Bearer\s+/i, "").trim();
+  return {
+    raw: parsed,
+    serverName,
+    server,
+    endpoint: String(server.url || "").trim(),
+    transport: String(server.type || "http").trim() || "http",
+    bearer,
+  };
+}
+
 function collectSubmission({ authType, schema, body = {}, session = {} }) {
   const credentials = {};
   const metadata = safeJsonParse(session.metadata_json, {}) || {};
