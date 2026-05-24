@@ -888,7 +888,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   const runtimeHost = new URL(runtimeUrl).hostname;
   const localAppRoutes = buildDefaultLocalAppRoutes({
     hostname: runtimeHost,
-    localApps,
+    localApps: local_apps,
   });
   if (tunnelId) {
     await upsertCloudflareCnameRecord(runtimeHost, tunnelId, provisioningCredentials.cloudflareToken);
