@@ -194,6 +194,24 @@ async function listCandidateRoutes(device) {
     routes.push(...rows);
   }
 
+  const deviceRuntimeUrl = String(device?.device_runtime_url || device?.tunnel_url || "").trim();
+  const hasDeviceRuntimeRoute = routes.some((route) =>
+    String(route.endpoint_url || "").replace(/\/$/, "") === deviceRuntimeUrl.replace(/\/$/, "")
+  );
+  if (deviceRuntimeUrl && !hasDeviceRuntimeRoute) {
+    routes.push({
+      route_id: null,
+      config_id: device.config_id || null,
+      route_type: "cloudflare_tunnel",
+      route_label: "Device runtime URL",
+      endpoint_url: deviceRuntimeUrl,
+      priority: 25,
+      tls_mode: "required",
+      auth_mode: "bearer_connector_secret",
+      health_status: "unknown",
+    });
+  }
+
   if (!routes.length && device?.tunnel_url) {
     routes.push({
       route_id: null,
