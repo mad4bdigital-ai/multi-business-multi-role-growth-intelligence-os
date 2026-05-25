@@ -109,7 +109,7 @@ export const n8nAdapter = {
       case "list_workflows": {
         if (!base) throw new Error("api_base_url required");
         const limit = args.limit || 50;
-        const data = await n8nReq(base, creds, `/workflows?limit=${limit}`);
+        const data = await n8nReq(base, normalized, `/workflows?limit=${limit}`);
         return { ok: true, result: data.data || data };
       }
 
