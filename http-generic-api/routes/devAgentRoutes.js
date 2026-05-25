@@ -107,6 +107,91 @@ async function loadUserContext(tenant_id) {
   return ctx;
 }
 
+function boundedPositiveInt(value, fallback, min = 1, max = 100) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(parsed, max));
+}
+
+async function loadSessionSummaryHealth({ pool = getPool(), lookbackDays = 7, limit = 20 } = {}) {
+  const [status_breakdown] = await pool.query(
+    `SELECT execution_status, recovery_status, recovery_notes, COUNT(*) AS count, MAX(created_at) AS last_seen
+     FROM \`execution_log\`
+     WHERE entry_type = 'session_summary_autosweep'
+       AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+     GROUP BY execution_status, recovery_status, recovery_notes
+     ORDER BY count DESC, last_seen DESC`,
+    [lookbackDays]
+  );
+
+  const [daily_breakdown] = await pool.query(
+    `SELECT DATE(created_at) AS day, execution_status, recovery_status, COUNT(*) AS count
+     FROM \`execution_log\`
+     WHERE entry_type = 'session_summary_autosweep'
+       AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+     GROUP BY DATE(created_at), execution_status, recovery_status
+     ORDER BY day DESC, execution_status, recovery_status`,
+    [lookbackDays]
+  );
+
+  const [archive_coverage] = await pool.query(
+    `SELECT archive_status,
+            COUNT(*) AS sessions,
+            SUM(CASE WHEN drive_jsonl_id IS NULL OR drive_jsonl_id = '' THEN 1 ELSE 0 END) AS missing_drive_jsonl,
+            SUM(CASE WHEN drive_jsonl_id IS NOT NULL AND drive_jsonl_id <> '' THEN 1 ELSE 0 END) AS has_drive_jsonl
+     FROM \`customer_sessions\`
+     WHERE originator = 'gpt_action'
+       AND session_status IN ('completed', 'closed')
+       AND started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+     GROUP BY archive_status
+     ORDER BY sessions DESC`,
+    [lookbackDays]
+  );
+
+  const [[summary_backlog]] = await pool.query(
+    `SELECT COUNT(*) AS unsummarized_completed_sessions
+     FROM \`customer_sessions\` cs
+     LEFT JOIN \`session_summaries\` ss ON ss.session_id = cs.session_id
+     WHERE cs.originator = 'gpt_action'
+       AND cs.session_status IN ('completed', 'closed')
+       AND cs.turn_count >= 1
+       AND ss.summary_id IS NULL`
+  );
+
+  const [recent_runs] = await pool.query(
+    `SELECT id, execution_status, recovery_status, recovery_notes, failure_reason,
+            artifact_json_asset_id, execution_trace_id_writeback, created_at
+     FROM \`execution_log\`
+     WHERE entry_type = 'session_summary_autosweep'
+     ORDER BY created_at DESC
+     LIMIT ?`,
+    [limit]
+  );
+
+  const totalRuns = status_breakdown.reduce((sum, row) => sum + Number(row.count || 0), 0);
+  const warningRuns = status_breakdown
+    .filter(row => String(row.execution_status || '').includes('warning') || (row.recovery_status && row.recovery_status !== 'not_required'))
+    .reduce((sum, row) => sum + Number(row.count || 0), 0);
+  const failedRuns = status_breakdown
+    .filter(row => String(row.execution_status || '').toLowerCase() === 'failed')
+    .reduce((sum, row) => sum + Number(row.count || 0), 0);
+
+  return {
+    ok: true,
+    lookback_days: lookbackDays,
+    totals: {
+      summary_runs: totalRuns,
+      warning_runs: warningRuns,
+      failed_runs: failedRuns,
+      unsummarized_completed_sessions: Number(summary_backlog?.unsummarized_completed_sessions || 0),
+    },
+    status_breakdown,
+    daily_breakdown,
+    archive_coverage,
+    recent_runs,
+  };
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export function buildDevAgentRoutes(deps) {
@@ -258,6 +343,18 @@ export function buildDevAgentRoutes(deps) {
       res.status(result.ok ? 200 : 207).json(result);
     } catch (err) {
       res.status(500).json({ ok: false, error: { code: "session_summary_autosweep_failed", message: err.message } });
+    }
+  });
+
+  // ── GET /dev-agent/session-summaries/health ──────────────────────────────
+  router.get("/dev-agent/session-summaries/health", async (req, res) => {
+    try {
+      const lookbackDays = boundedPositiveInt(req.query.lookback_days, 7, 1, 90);
+      const limit = boundedPositiveInt(req.query.limit, 20, 1, 100);
+      const health = await loadSessionSummaryHealth({ pool: getPool(), lookbackDays, limit });
+      res.json(health);
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "session_summary_health_failed", message: err.message } });
     }
   });
 

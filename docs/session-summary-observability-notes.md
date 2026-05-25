@@ -60,6 +60,18 @@ Autosweep-level steps include:
 
 The manual autosweep route returns a `run_id` so `operation_log`, created `session_summaries.dev_agent_run_id` rows, and `execution_log.execution_trace_id_writeback` can be correlated.
 
+## Health monitoring
+
+The governed read-only admin tool `dev_agent_session_summary_health` reads `/dev-agent/session-summaries/health` and reports:
+
+- `execution_log` status breakdown for `session_summary_autosweep`
+- `success_with_warnings` counts for transcript fallback such as `missing_drive_jsonl_id`
+- recent durable summary runs and trace IDs
+- archive coverage from `customer_sessions.drive_jsonl_id`
+- unsummarized completed-session backlog
+
+Use this health view before increasing autosweep batch size or changing model retry settings.
+
 ## Continuous verification
 
 After each summary write, `verifySessionSummaryWrite` performs readback against `session_summaries` and checks for the linked `json_assets` session-summary asset. The returned verification object reports:

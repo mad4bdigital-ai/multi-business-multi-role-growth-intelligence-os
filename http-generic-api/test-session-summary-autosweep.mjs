@@ -92,6 +92,8 @@ function makePool(rows = []) {
   const devRoutes = readFileSync("routes/devAgentRoutes.js", "utf8");
   const devRunner = readFileSync("devAgentRunner.js", "utf8");
   const migration = readFileSync("migrations/111_sprint62v_session_summary_autosweep.sql", "utf8");
+  const autosweepToolMigration = readFileSync("migrations/112_sprint62w_register_session_summary_autosweep_tool.sql", "utf8");
+  const healthToolMigration = readFileSync("migrations/118_sprint63c_register_session_summary_health_tool.sql", "utf8");
   const docs = readFileSync("../docs/session-context-graph-memory-archive-notes.md", "utf8");
 
   assert(serviceSource.includes("fetchDriveContent"), "autosweep must use Drive archive as primary transcript source");
@@ -106,9 +108,15 @@ function makePool(rows = []) {
   assert(gptRoutes.includes("summarizeSessionIfNeeded"), "endSession must trigger autosummary");
   assert(gptRoutes.includes("session_summary: summaryResult"), "endSession response must expose summary result");
   assert(devRoutes.includes("/dev-agent/session-summaries/autosweep"), "manual autosweep route must exist");
+  assert(devRoutes.includes("/dev-agent/session-summaries/health"), "session summary health route must exist");
+  assert(devRoutes.includes("loadSessionSummaryHealth"), "health route must use a bounded SQL-primary health helper");
+  assert(devRoutes.includes("entry_type = 'session_summary_autosweep'"), "health route must read summary execution rows from execution_log");
+  assert(devRoutes.includes("archive_coverage"), "health route must report Drive archive coverage");
   assert(devRoutes.includes("run_id") && devRoutes.includes("randomUUID"), "manual autosweep route must return a run_id for trace correlation");
   assert(devRunner.includes("runSessionSummaryAutosweep"), "dev-agent phase 1 must use Drive-backed autosweep");
   assert(migration.includes("tags_json") && migration.includes("summary_sha256") && migration.includes("source_drive_jsonl_id"));
+  assert(autosweepToolMigration.includes("dev_agent_session_summary_autosweep"));
+  assert(healthToolMigration.includes("dev_agent_session_summary_health") && healthToolMigration.includes("read_only"));
   assert(docs.includes("Status: implemented by `feature/session-summary-autosweep`"));
 }
 
