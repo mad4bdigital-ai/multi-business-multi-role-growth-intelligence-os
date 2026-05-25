@@ -210,6 +210,14 @@ export async function runAgentLoop(plan, deps = {}) {
 
   if (pathRows) context.path_resolver_rows = pathRows;
 
+  const brandCoreEvidence = await loadBrandCoreEvidence(plan.brand_key || plan.target_key).catch(() => null);
+  if (brandCoreEvidence) {
+    context.brand_core = brandCoreEvidence;
+    context.brand_core_resolved = true;
+  } else {
+    context.brand_core_resolved = false;
+  }
+
   // Inject workspace app-connection context when a workspace_key is present.
   // connected_apps lists metadata + allowed_actions per connection — no tokens.
   if (plan.workspace_key && plan.tenant_id) {
