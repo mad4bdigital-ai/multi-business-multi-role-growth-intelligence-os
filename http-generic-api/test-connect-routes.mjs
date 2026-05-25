@@ -500,7 +500,11 @@ section("connect api auth scope");
       sessionSummarySource.includes("SURFACE_KEYS.JSON_ASSET_REGISTRY") &&
       sessionSummarySource.includes("surface_authority") &&
       sessionSummarySource.indexOf("assertSurfaceAuthority") < sessionSummarySource.indexOf("json_assets") &&
-      sessionSummarySource.includes("requireExecution: false"));
+      sessionSummarySource.includes("requireExecution: true"));
+    assert("JSON Asset Registry is promoted to a required execution surface",
+      readFileSync("migrations/133_sprint65_json_asset_registry_required_execution.sql", "utf8").includes("surface.json_asset_registry_sheet") &&
+      readFileSync("migrations/133_sprint65_json_asset_registry_required_execution.sql", "utf8").includes("required_for_execution` = 'TRUE'") &&
+      readFileSync("migrations/133_sprint65_json_asset_registry_required_execution.sql", "utf8").includes("legacy_alias"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
