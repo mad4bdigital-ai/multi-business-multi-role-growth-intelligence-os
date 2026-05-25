@@ -35,6 +35,10 @@ assert(approvalsMigration.includes("approval_mode ENUM('repo_analysis_read_only'
 assert(approvalToolMigration.includes('dev_agent_summary_development_repo_analysis_approve'));
 assert(approvalToolMigration.includes('APPROVE_OPENCLAUDE_READ_ONLY_REPO_ANALYSIS'));
 assert(approvalToolMigration.includes('does not execute the local agent'));
+assert(executionEnvelopeToolMigration.includes('dev_agent_summary_development_execution_envelope'));
+assert(executionEnvelopeToolMigration.includes('create a traceable execution envelope'));
+assert(executionEnvelopeToolMigration.includes('Does not execute the local agent'));
+assert(executionEnvelopeToolMigration.includes('no_repo_mutation'));
 
 assert(routes.includes('/dev-agent/summary-development/runtimes'));
 assert(routes.includes('/dev-agent/summary-development/signals'));
