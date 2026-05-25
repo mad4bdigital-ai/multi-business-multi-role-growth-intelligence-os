@@ -178,6 +178,8 @@ const VIRTUAL_ADMIN_TOOLS = [
         branch: { type: "string", description: "Target work branch. If omitted, runtime generates a non-protected gpt/repo-patch/* branch. Protected branches are blocked by default." },
         allow_protected_branch: { type: "boolean", description: "Break-glass only. Requires REPO_PATCH_ALLOW_PROTECTED_BRANCH=true and break_glass_reason." },
         break_glass_reason: { type: "string", description: "Required for protected-branch break-glass mutation." },
+        allow_stale_branch_patch: { type: "boolean", description: "Break-glass only. Allows patching an existing branch that is behind/diverged from the default branch." },
+        stale_branch_reason: { type: "string", description: "Required explanation when allow_stale_branch_patch is true." },
         content: { type: "string", description: "Full new file content. Required for write_file." },
         old_string: { type: "string", description: "Exact substring to replace. Must occur exactly once. Required for replace_block." },
         new_string: { type: "string", description: "Replacement substring. Required for replace_block." },
