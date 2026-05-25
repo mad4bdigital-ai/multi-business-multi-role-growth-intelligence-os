@@ -21,6 +21,7 @@ import { makecomMcpAdapter } from "./makecomMcp.js";
 import { wordpressRestAdapter } from "./wordpressRest.js";
 import { decryptCredentials, encryptCredentials } from "../tokenEncryption.js";
 import { getPool }             from "../db.js";
+import { evaluateAppActionPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 
 const REGISTRY = {
   google_drive: googleDriveAdapter,
@@ -101,6 +102,13 @@ export async function executeAppAction(connection, action_key, args = {}) {
   if (!adapter) throw new Error(`No adapter for app '${connection.app_key}'`);
 
   const creds = await ensureFreshCredentials(connection);
+
+  assertPreflightAllowed(await evaluateAppActionPreflight({
+    connection,
+    appKey: connection.app_key,
+    actionKey: action_key,
+    args,
+  }));
 
   const result = await adapter.call(action_key, args, creds, connection);
 

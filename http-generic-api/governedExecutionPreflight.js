@@ -230,6 +230,30 @@ export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", 
   });
 }
 
+export async function evaluateAppActionPreflight({ connection = {}, appKey = "", actionKey = "", args = {} } = {}, deps = {}) {
+  const resolvedAppKey = String(appKey || connection?.app_key || "").trim();
+  const policies = await loadActiveExecutionPolicies({
+    execution_scope: ["app_action", "external_app_action", resolvedAppKey, actionKey].filter(Boolean),
+    affects_layer: ["appAdapters", "appAdapters/index.js", resolvedAppKey].filter(Boolean),
+  }, deps);
+  if (!policies.length) {
+    return makePreflightResult({ evidence: { operation: "app_action", app_key: resolvedAppKey, action_key: actionKey, reason: "no_matching_active_execution_policy" } });
+  }
+  const blockingPolicies = policies.filter(policyAllowsBlocking);
+  return makePreflightResult({
+    classification: blockingPolicies.length ? "requires_policy_specific_evaluation" : "allow_with_policy_advisory",
+    policies,
+    warnings: blockingPolicies.length ? ["matching_blocking_app_action_policies_require_specific_evaluation"] : [],
+    evidence: {
+      operation: "app_action",
+      app_key: resolvedAppKey,
+      action_key: actionKey,
+      connection_id: connection?.connection_id || null,
+      matching_policy_count: policies.length,
+    },
+  });
+}
+
 export function assertPreflightAllowed(preflight) {
   if (preflight?.ok !== false) return preflight;
   const err = new Error(`Governed execution preflight blocked operation: ${(preflight.errors || []).join(", ") || "policy_block"}`);

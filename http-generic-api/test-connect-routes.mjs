@@ -379,11 +379,20 @@ section("connect api auth scope");
       apiSource.includes("COALESCE(last_used_at, last_validated_at, connected_at) AS updated_at") &&
       !apiSource.includes("validation_status, last_validated_at, created_at, updated_at"));
     const appAdapterSource = readFileSync("appAdapters/index.js", "utf8");
+    const appActionPolicyMigrationSource = readFileSync("migrations/124_sprint64_app_action_policy_preflight.sql", "utf8");
     assert("successful app connection use self-heals validation status",
       appAdapterSource.includes("validation_status = 'validated'") &&
       appAdapterSource.includes("last_validated_at = NOW()") &&
       appAdapterSource.includes("if (result?.ok)") &&
       appAdapterSource.includes("UPDATE `user_app_connections` SET last_used_at = NOW()"));
+    assert("app actions call governed policy preflight before adapter execution",
+      appAdapterSource.includes("evaluateAppActionPreflight") &&
+      appAdapterSource.includes("assertPreflightAllowed") &&
+      appAdapterSource.indexOf("evaluateAppActionPreflight") < appAdapterSource.indexOf("adapter.call(action_key") &&
+      appActionPolicyMigrationSource.includes("External App Action Governance") &&
+      appActionPolicyMigrationSource.includes("External App Action Preflight Visibility") &&
+      appActionPolicyMigrationSource.includes("blocking`, `notes") &&
+      appActionPolicyMigrationSource.includes("'FALSE'"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
