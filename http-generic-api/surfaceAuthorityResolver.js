@@ -169,4 +169,5 @@ export const SURFACE_KEYS = Object.freeze({
   EXECUTION_LOG: "surface.operations_log_unified_sheet",
   JSON_ASSET_REGISTRY: "surface.json_asset_registry_sheet",
   PLATFORM_GRAPH_MEMORY: "surface.platform_graph_memory",
+  SESSION_SUMMARY_MEMORY: "surface.session_summary_memory",
 });
