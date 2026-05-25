@@ -49,6 +49,8 @@ assert(routes.includes('req_[redacted]'));
 assert(!routes.includes('safeParseArr(summary.'), 'route must use its local JSON array parser');
 assert(routes.includes('openclaude_essam_local_v1'));
 assert(!routes.includes('openclaude --write'), 'summary development automation must not invoke OpenClaude writes directly');
-assert(!routes.includes('git push'), 'summary development automation must not push code directly');
+assert(routes.includes('"git push"'), 'repo analysis should explicitly deny git push');
+assert(!routes.includes('Bash(git push'), 'summary development automation must not invoke git push directly');
+assert(!routes.includes('git push origin'), 'summary development automation must not push code directly');
 
 console.log('summary development automation contract tests passed');
