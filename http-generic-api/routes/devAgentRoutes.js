@@ -587,6 +587,31 @@ export function buildDevAgentRoutes(deps) {
         params
       );
 
+      const [preferredOutputBreakdown] = await getPool().query(
+        `SELECT COALESCE(preferred_output, 'unreviewed') AS preferred_output,
+                COUNT(*) AS count,
+                ROUND(AVG(quality_score_model), 2) AS avg_quality_score_model,
+                ROUND(AVG(quality_score_n8n), 2) AS avg_quality_score_n8n
+         FROM \`summary_comparison_runs\`
+         WHERE ${whereSql}
+         GROUP BY COALESCE(preferred_output, 'unreviewed')
+         ORDER BY count DESC, preferred_output ASC`,
+        params
+      );
+
+      const [useCaseFitBreakdown] = await getPool().query(
+        `SELECT COALESCE(use_case_fit, 'unreviewed') AS use_case_fit,
+                COALESCE(preferred_output, 'unreviewed') AS preferred_output,
+                COUNT(*) AS count,
+                ROUND(AVG(quality_score_model), 2) AS avg_quality_score_model,
+                ROUND(AVG(quality_score_n8n), 2) AS avg_quality_score_n8n
+         FROM \`summary_comparison_runs\`
+         WHERE ${whereSql}
+         GROUP BY COALESCE(use_case_fit, 'unreviewed'), COALESCE(preferred_output, 'unreviewed')
+         ORDER BY use_case_fit ASC, count DESC, preferred_output ASC`,
+        params
+      );
+
       const [recentRuns] = await getPool().query(
         `SELECT comparison_id, tenant_id, user_id, n8n_binding_key,
                 input_text_chars, input_turn_count,
