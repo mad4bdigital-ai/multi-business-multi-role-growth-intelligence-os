@@ -5343,6 +5343,7 @@ paths:
       tags: [admin-control]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: revokeAdminScopeGrant
+      x-custom-gpt-exclude: true
       summary: Revoke an active scope grant
       description: "Sets revoked_at and revoked_by on admin_scope_grants. The row is not deleted so audit history stays intact. Subsequent dispatches matching this grant will fall back to tool_not_found."
       parameters:
