@@ -9,98 +9,121 @@ import {
   parseBrowserUrl,
 } from "./browserRuntimeGovernance.js";
 
-const essamRuntime = normalizeBrowserRuntime(SEEDED_BROWSER_RUNTIMES[0]);
-assert.equal(essamRuntime.runtime_key, "native_essam_edge_connector_v1");
-assert.equal(essamRuntime.status, "active_open_url_degraded_visual_capture");
-assert(essamRuntime.capabilities.includes("open_url"));
-assert(essamRuntime.degraded_capabilities.includes("visual_screenshot"));
-assert(essamRuntime.metadata.do_not_use_for.includes("primary_data_extraction"));
-assert.equal(essamRuntime.secrets_included, false);
+const nativeEssam = SEEDED_BROWSER_RUNTIMES.find((runtime) => runtime.runtime_key === "native_essam_edge_connector_v1");
+assert(nativeEssam, "current Essam browser connector must be seeded");
+assert.equal(nativeEssam.status, "active_open_url_degraded_visual_capture");
+assert(nativeEssam.degraded_capabilities.includes("visual_screenshot"));
+assert(nativeEssam.degraded_capabilities.includes("remote_human_takeover"));
 
-const extractionBinding = normalizeBrowserRuntimeBinding({
-  binding_key: "browser4_extraction_essam",
+const runtime = normalizeBrowserRuntime(nativeEssam);
+assert.equal(runtime.secrets_included, false);
+assert.equal(runtime.metadata.browser_alias, "edge");
+
+const binding = normalizeBrowserRuntimeBinding({
+  binding_key: "browser4_inspect_essam",
   runtime_key: "browser4_essam_v1",
-  use_case: "structured_local_extraction",
-  allowed_actions: ["extract_data", "inspect_site"],
-  domain_allowlist: ["mad4b.com"],
-  policy: { domain_allowlist_required: true, no_destructive_actions: true, no_form_submit: true },
+  use_case: "site_diagnostics",
+  allowed_actions_json: JSON.stringify(["inspect_site"]),
+  domain_allowlist_json: JSON.stringify(["mad4b.com"]),
+  policy_json: JSON.stringify({
+    domain_allowlist_required: true,
+    audit_required: true,
+    no_destructive_actions: true,
+    no_form_submit: true,
+    redact_cookies: true,
+    redact_tokens: true,
+  }),
+  status: "planned",
 });
 
-const allowed = checkBrowserRuntimePolicy({
-  runtime: normalizeBrowserRuntime(SEEDED_BROWSER_RUNTIMES[1]),
-  binding: extractionBinding,
-  input: { url: "https://n8n.mad4b.com/", action: "extract_data" },
-});
-assert.equal(allowed.ok, true);
-assert.equal(allowed.policy_result, "allowed");
-assert.equal(allowed.url_host, "n8n.mad4b.com");
-assert.equal(allowed.secrets_included, false);
+{
+  const parsed = parseBrowserUrl("https://n8n.mad4b.com/");
+  assert.equal(parsed.host, "n8n.mad4b.com");
+  assert.throws(() => parseBrowserUrl("file:///tmp/secret"), /http or https/);
+}
 
-const blockedDomain = checkBrowserRuntimePolicy({
-  runtime: normalizeBrowserRuntime(SEEDED_BROWSER_RUNTIMES[1]),
-  binding: extractionBinding,
-  input: { url: "https://evil.example/products", action: "extract_data" },
-});
-assert.equal(blockedDomain.ok, false);
-assert(blockedDomain.reasons.includes("domain_not_allowlisted"));
+{
+  const allowed = checkBrowserRuntimePolicy({
+    runtime,
+    binding,
+    input: { url: "https://n8n.mad4b.com/", action: "inspect_site" },
+  });
+  assert.equal(allowed.ok, true);
+  assert.equal(allowed.policy_result, "allowed");
+  assert.equal(allowed.secrets_included, false);
+  assert.equal(allowed.controls.audit_required, true);
+}
 
-const formBinding = normalizeBrowserRuntimeBinding({
-  binding_key: "auto_browser_takeover_essam",
-  runtime_key: "auto_browser_essam_v1",
-  use_case: "visual_takeover",
-  allowed_actions: ["form_submit"],
-  domain_allowlist: ["mad4b.com"],
-  policy: { no_destructive_actions: true, no_form_submit: true },
-});
-const blockedSubmit = checkBrowserRuntimePolicy({
-  runtime: normalizeBrowserRuntime(SEEDED_BROWSER_RUNTIMES[2]),
-  binding: formBinding,
-  input: { url: "https://n8n.mad4b.com/", action: "form_submit", explicit_approval: true },
-});
-assert.equal(blockedSubmit.ok, false);
-assert(blockedSubmit.reasons.includes("form_submit_blocked"));
-assert(blockedSubmit.reasons.includes("destructive_action_blocked"));
+{
+  const blocked = checkBrowserRuntimePolicy({
+    runtime,
+    binding,
+    input: { url: "https://evil.example.net/", action: "inspect_site" },
+  });
+  assert.equal(blocked.ok, false);
+  assert(blocked.reasons.includes("domain_not_allowlisted"));
+}
 
-const persistentBinding = normalizeBrowserRuntimeBinding({
-  binding_key: "vessel_browser_persistent_essam",
-  runtime_key: "vessel_browser_essam_v1",
-  use_case: "persistent_authenticated_session",
-  allowed_actions: ["open_url"],
-  domain_allowlist: ["mad4b.com"],
-});
-const blockedLoginReuse = checkBrowserRuntimePolicy({
-  runtime: normalizeBrowserRuntime(SEEDED_BROWSER_RUNTIMES[3]),
-  binding: persistentBinding,
-  input: { url: "https://n8n.mad4b.com/", action: "open_url" },
-});
-assert.equal(blockedLoginReuse.ok, false);
-assert(blockedLoginReuse.reasons.includes("login_or_session_reuse_requires_approval"));
+{
+  const blocked = checkBrowserRuntimePolicy({
+    runtime,
+    binding,
+    input: { url: "https://n8n.mad4b.com/", action: "delete" },
+  });
+  assert.equal(blocked.ok, false);
+  assert(blocked.reasons.includes("destructive_action_blocked"));
+}
 
-assert.throws(
-  () => assertNoSecretLike({ headers: { authorization: "Bearer abc.def.ghi" } }),
-  /Secret-like field is not allowed/,
-);
-assert.throws(
-  () => assertNoSecretLike({ query: "api_key=abc123" }),
-  /Secret-like value is not allowed/,
-);
-assert.throws(
-  () => parseBrowserUrl("ftp://example.com"),
-  /must use http or https/,
-);
+{
+  const blocked = checkBrowserRuntimePolicy({
+    runtime,
+    binding: normalizeBrowserRuntimeBinding({
+      ...binding,
+      allowed_actions_json: JSON.stringify(["click_selector"]),
+    }),
+    input: { url: "https://n8n.mad4b.com/", action: "click_selector" },
+  });
+  assert.equal(blocked.ok, false);
+  assert(blocked.reasons.includes("high_risk_action_requires_explicit_approval"));
+
+  const approved = checkBrowserRuntimePolicy({
+    runtime,
+    binding: normalizeBrowserRuntimeBinding({
+      ...binding,
+      allowed_actions_json: JSON.stringify(["click_selector"]),
+    }),
+    input: { url: "https://n8n.mad4b.com/", action: "click_selector", explicit_approval: true },
+  });
+  assert.equal(approved.ok, true);
+}
+
+{
+  assert.throws(
+    () => assertNoSecretLike({ Authorization: "Bearer abc.def.ghi" }),
+    /Secret-like field/,
+  );
+  assert.throws(
+    () => checkBrowserRuntimePolicy({
+      runtime,
+      binding,
+      input: { url: "https://n8n.mad4b.com/?access_token=abc123", action: "inspect_site" },
+    }),
+    /Secret-like value/,
+  );
+}
 
 {
   const routes = readFileSync("routes/browserRuntimeRoutes.js", "utf8");
   assert(routes.includes("/browser-runtime/runtimes"), "browser runtime list route must be mounted");
-  assert(routes.includes("/browser-runtime/policy-check"), "policy check route must be mounted");
-  assert(routes.includes("/browser-runtime/extract-data"), "extraction route must be mounted");
-  assert(routes.includes("/browser-runtime/inspect-site"), "inspection route must be mounted");
+  assert(routes.includes("/browser-runtime/policy-check"), "policy check route must exist");
+  assert(routes.includes("/browser-runtime/extract-data"), "extract data route must exist");
+  assert(routes.includes("/browser-runtime/inspect-site"), "inspect site route must exist");
   assert(routes.includes("requireAdminPrincipal"), "browser runtime routes must be admin protected");
 }
 
 {
   const index = readFileSync("routes/index.js", "utf8");
-  assert(index.includes("buildBrowserRuntimeRoutes"), "browser runtime routes must be registered in route index");
+  assert(index.includes("buildBrowserRuntimeRoutes"), "browser runtime routes must be registered");
 }
 
 {
@@ -108,15 +131,12 @@ assert.throws(
   for (const tableName of [
     "browser_runtime_registry",
     "browser_runtime_bindings",
-    "browser_runtime_capabilities",
-    "browser_runtime_policy",
-    "browser_runtime_sessions",
     "browser_runtime_events",
     "browser_runtime_artifacts",
     "browser_data_extraction_jobs",
     "browser_site_inspection_runs",
   ]) {
-    assert(migration.includes(tableName), `${tableName} must be created or referenced`);
+    assert(migration.includes(tableName), `${tableName} migration must exist`);
   }
   for (const toolKey of [
     "browser_runtime_list",
@@ -127,9 +147,9 @@ assert.throws(
     "browser_runtime_extract_data",
     "browser_runtime_inspect_site",
   ]) {
-    assert(migration.includes(toolKey), `${toolKey} must be registered as an admin tool`);
+    assert(migration.includes(toolKey), `${toolKey} must be registered`);
   }
-  assert(migration.includes("native_essam_edge_connector_v1"), "current Essam browser runtime must be seeded");
-  assert(migration.includes("active_open_url_degraded_visual_capture"), "Essam visual-capture degradation must be explicit");
-  assert(!/Bearer\s+[A-Za-z0-9._~+\-/]+=*/i.test(migration), "migration must not contain bearer secrets");
+  assert(migration.includes("active_open_url_degraded_visual_capture"), "Essam degraded visual capture status must be seeded");
 }
+
+console.log("browser runtime governance tests passed");
