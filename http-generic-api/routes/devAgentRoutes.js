@@ -923,7 +923,7 @@ export function buildDevAgentRoutes(deps) {
             evidence: `${item}\n\nSummary: ${summary.summary_text || ""}`,
           }));
         }
-        for (const item of safeParseArr(summary.integration_needs)) {
+        for (const item of safeParseJsonArray(summary.integration_needs)) {
           signals.push(buildSummaryDevelopmentSignal({
             source_surface: "session_summary",
             source_ref: sourceRef,
