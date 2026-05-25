@@ -176,7 +176,9 @@ function buildDocFromOperationIds(sourceDoc, sourceOperations, operationIds, { h
   const byId = new Map();
   for (const op of sourceOperations) {
     const operationId = op.operation?.operationId;
+    const tenantOperationId = op.operation?.["x-tenant-gpt-operationId"];
     if (operationId) byId.set(operationId, op);
+    if (tenantOperationId) byId.set(tenantOperationId, op);
   }
   const missing = operationIds.filter((id) => !byId.has(id));
   if (missing.length > 0) {
