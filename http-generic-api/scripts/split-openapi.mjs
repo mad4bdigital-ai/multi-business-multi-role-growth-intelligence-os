@@ -208,7 +208,11 @@ function buildDoc(sourceDoc, operations, { host, title, summary, description }) 
 }
 
 function generateAuthDispatcher(sourceDoc, sourceOperations) {
-  const operations = sourceOperations.filter((op) => AUTH_DISPATCHER_TAGS.has(op.primaryTag));
+  const operations = sourceOperations.filter((op) =>
+    AUTH_DISPATCHER_TAGS.has(op.primaryTag) &&
+    op.operation?.["x-custom-gpt-exclude"] !== true &&
+    op.operation?.["x-gpt-action-exclude"] !== true
+  );
   if (operations.length === 0) {
     console.warn("No admin-control/activation/system-layer operations found — auth-dispatcher not generated.");
     return;
