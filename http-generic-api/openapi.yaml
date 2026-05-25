@@ -4846,6 +4846,7 @@ paths:
       tags: [admin-control]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listAdminTools
+      x-tenant-gpt-operationId: listTools
       summary: List all admin platform tools from the DB registry
       description: "Returns the full catalog of admin platform operations from admin_platform_endpoint_tools. Each tool has a name (pass to callAdminTool), description, and inputSchema. Call this to discover available operations before using callAdminTool."
       responses:
