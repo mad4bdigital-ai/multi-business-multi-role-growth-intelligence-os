@@ -9,6 +9,7 @@ import {
   listPlatformPluginContributions,
   resolvePrivatePlatformPluginContribution,
 } from "../platformPluginContribution.js";
+import { dispatchPrivatePlatformPluginRestAction } from "../platformPluginPrivateRestDispatch.js";
 
 function bool(value) {
   return value === true || ["true", "1", "yes"].includes(String(value ?? "").trim().toLowerCase());
@@ -170,6 +171,58 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         ok: false,
         error: {
           code: err.code || "platform_plugin_contribution_private_resolve_failed",
+          message: err.message,
+        },
+        secrets_included: false,
+      });
+    }
+  });
+
+  router.post("/platform/plugins/contributions/dispatch-rest", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await dispatchPrivatePlatformPluginRestAction({
+        contributionId: input.contribution_id || input.contributionId,
+        actionKey: input.action_key || input.actionKey,
+        tenantId: input.tenant_id || input.tenantId,
+        userId: input.user_id || input.userId,
+        requestedCredentialScope: input.requested_credential_scope || input.requestedCredentialScope || "tenant_connection",
+        input: input.input || {},
+        dryRun: input.dry_run === true || input.dryRun === true,
+        timeoutMs: input.timeout_ms || input.timeoutMs || 10000,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "platform_plugin_private_rest_dispatch_failed",
+          message: err.message,
+        },
+        secrets_included: false,
+      });
+    }
+  });
+
+  router.post("/platform/plugins/contributions/dispatch-rest", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await dispatchPrivatePlatformPluginRestAction({
+        contributionId: input.contribution_id || input.contributionId,
+        actionKey: input.action_key || input.actionKey,
+        tenantId: input.tenant_id || input.tenantId,
+        userId: input.user_id || input.userId,
+        requestedCredentialScope: input.requested_credential_scope || input.requestedCredentialScope || "tenant_connection",
+        input: input.input || {},
+        dryRun: input.dry_run === true || input.dryRun === true,
+        timeoutMs: input.timeout_ms || input.timeoutMs || 10000,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "platform_plugin_private_rest_dispatch_failed",
           message: err.message,
         },
         secrets_included: false,
