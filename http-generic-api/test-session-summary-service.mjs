@@ -64,6 +64,17 @@ function makePool() {
         }
         return [[]];
       }
+      if (compact.startsWith("SELECT node_id, node_type, lifecycle_status FROM `platform_graph_nodes`")) {
+        const wanted = new Set(params);
+        return [state.insertedGraphNodes.filter((row) => wanted.has(row.node_id))];
+      }
+      if (compact.startsWith("SELECT edge_id, source_node_id, target_node_id, lifecycle_status FROM `platform_graph_edges`")) {
+        const edge = state.insertedGraphEdge;
+        if (edge && edge.edge_id === params[0] && edge.source_node_id === params[1] && edge.target_node_id === params[2]) {
+          return [[edge]];
+        }
+        return [[]];
+      }
       if (compact.startsWith("SELECT turn_index, role, action_key, content_preview")) return [state.fallbackTurns];
       if (compact.startsWith("SELECT cs.* FROM `customer_sessions`")) return [state.sessionsNeedingSummary];
       if (compact.startsWith("INSERT INTO `session_summaries`")) {
