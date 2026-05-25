@@ -316,7 +316,7 @@ paths:
         - platform-plugins
       operationId: tenantPlatformPluginInstall
       summary: Install a Platform Base plugin for this tenant
-      description: Tenant self-serve install. Writes only tenant/user overlay state and optional no-secret connection metadata. The server derives tenant_id and user_id from the signed-in OAuth/JWT context and ignores body tenant/user IDs.
+      description: Installs a Platform Base plugin for the signed-in tenant. Tenant/user IDs come from auth; no secrets are accepted.
       requestBody:
         required: true
         content:
