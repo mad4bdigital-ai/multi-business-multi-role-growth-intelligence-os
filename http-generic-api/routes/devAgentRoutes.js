@@ -177,6 +177,104 @@ function normalizePreferredOutput(value) {
   return preferred;
 }
 
+function stableSignalKey(parts = []) {
+  return parts
+    .map((part) => String(part || "").trim().toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g, "_").replace(/^_+|_+$/g, ""))
+    .filter(Boolean)
+    .join(":")
+    .slice(0, 190);
+}
+
+function clampText(value, limit = 1000) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text.length > limit ? `${text.slice(0, limit - 3)}...` : text;
+}
+
+function inferSignalPriority(type, evidence = "") {
+  const text = String(evidence || "").toLowerCase();
+  if (/security|secret|token|credential|auth|blocked|critical|production|canonical|فشل|خطر|سري/.test(text)) return "high";
+  if (["blocker", "security_need", "runtime_gap"].includes(type)) return "high";
+  if (["automation_need", "browser_need", "integration_need"].includes(type)) return "medium";
+  return "medium";
+}
+
+function recommendedRuntimeForSignal(type, evidence = "") {
+  const text = String(evidence || "").toLowerCase();
+  if (/openclaude|coding agent|repo|patch|code|branch|pull request|pr\b/.test(text)) return "openclaude_essam_local_v1";
+  if (/browser|inspect|screenshot|extract|scrap|crawl|dom|network|console|متصفح|استخراج|تشخيص/.test(text)) return null;
+  if (/fallback|rate limit|429|openrouter/.test(text)) return "platform_openrouter_dev_agent_v1";
+  return "platform_gemini_dev_agent_v1";
+}
+
+function buildSummaryDevelopmentSignal({ source_surface, source_ref, tenant_id, user_id, type, title, description, evidence, source_summary_id = null, source_comparison_id = null }) {
+  const signalType = type || "feature_request";
+  const safeTitle = clampText(title || evidence || signalType, 240);
+  return {
+    signal_id: randomUUID(),
+    signal_key: stableSignalKey([source_surface, source_ref, signalType, safeTitle]),
+    tenant_id: tenant_id || null,
+    user_id: user_id || null,
+    source_surface,
+    source_ref: source_ref || null,
+    source_summary_id,
+    source_comparison_id,
+    signal_type: signalType,
+    title: safeTitle,
+    description: clampText(description || evidence, 2000),
+    evidence_text: clampText(evidence, 4000),
+    recommended_runtime_key: recommendedRuntimeForSignal(signalType, evidence || description || title),
+    recommended_action: "human_review",
+    priority: inferSignalPriority(signalType, evidence || description || title),
+    policy_json: JSON.stringify({
+      auto_execute_code: false,
+      auto_mutate_repo: false,
+      requires_human_approval: true,
+      agent_runtime_may_dry_run_only: true,
+      secrets_included: false,
+    }),
+    metadata_json: JSON.stringify({ extracted_by: "summary_development_automation_v1" }),
+  };
+}
+
+async function insertSummaryDevelopmentSignal(pool, signal) {
+  const [result] = await pool.query(
+    `INSERT INTO \`summary_development_signals\`
+       (signal_id, signal_key, tenant_id, user_id, source_surface, source_ref,
+        source_summary_id, source_comparison_id, signal_type, title, description,
+        evidence_text, recommended_runtime_key, recommended_action, priority,
+        status, policy_json, metadata_json, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, 'summary_development_automation_v1')
+     ON DUPLICATE KEY UPDATE
+       description = VALUES(description),
+       evidence_text = VALUES(evidence_text),
+       recommended_runtime_key = VALUES(recommended_runtime_key),
+       priority = VALUES(priority),
+       policy_json = VALUES(policy_json),
+       metadata_json = VALUES(metadata_json),
+       updated_at = CURRENT_TIMESTAMP`,
+    [
+      signal.signal_id,
+      signal.signal_key,
+      signal.tenant_id,
+      signal.user_id,
+      signal.source_surface,
+      signal.source_ref,
+      signal.source_summary_id,
+      signal.source_comparison_id,
+      signal.signal_type,
+      signal.title,
+      signal.description,
+      signal.evidence_text,
+      signal.recommended_runtime_key,
+      signal.recommended_action,
+      signal.priority,
+      signal.policy_json,
+      signal.metadata_json,
+    ]
+  );
+  return result.affectedRows === 1 ? "created" : "updated";
+}
+
 async function persistSummaryComparisonRun({ pool = getPool(), payload, tenant_id = null, user_id = null, n8nBindingKey = "summary_n8n_experiment_v1" } = {}) {
   if (!payload?.comparison_id) return { ok: false, skipped: true, reason: "missing_comparison_id" };
   const modelShape = payload.current_model_summary?.shape || {};
