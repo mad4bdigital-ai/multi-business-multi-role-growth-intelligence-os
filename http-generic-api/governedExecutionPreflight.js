@@ -191,7 +191,8 @@ export async function evaluateRepoPatchApplyPreflight({ args = {}, repo = {}, br
 
     if (branchExists && compare) {
       const staleBranch = Number(compare.behind_by || 0) > 0 || String(compare.status || "").toLowerCase() === "diverged";
-      if (staleBranch && !args.allow_stale_branch_patch && parseBoolean(cfg.block_stale_branch_patch, true) && blockingAllowed) {
+      const staleBranchOverride = args.allow_stale_branch_patch === true && String(args.stale_branch_reason || "").trim().length >= 10;
+      if (staleBranch && !staleBranchOverride && parseBoolean(cfg.block_stale_branch_patch, true) && blockingAllowed) {
         errors.push("repo_patch_stale_branch_requires_explicit_override");
         blockingPolicies.push(policy);
         continue;
