@@ -38,5 +38,30 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
     }
   });
 
+  router.post("/platform/plugins/resolve", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await resolvePlatformPluginExecution({
+        pluginKey: input.plugin_key || input.pluginKey,
+        actionKey: input.action_key || input.actionKey || null,
+        toolKey: input.tool_key || input.toolKey || null,
+        tenantId: input.tenant_id || input.tenantId || null,
+        userId: input.user_id || input.userId || null,
+        agentId: input.agent_id || input.agentId || null,
+        requestedCredentialScope: input.requested_credential_scope || input.requestedCredentialScope || null,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "platform_plugin_resolve_failed",
+          message: err.message,
+        },
+        secrets_included: false,
+      });
+    }
+  });
+
   return router;
 }
