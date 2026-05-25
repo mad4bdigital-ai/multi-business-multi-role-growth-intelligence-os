@@ -499,7 +499,7 @@ section("connect api auth scope");
       sessionSummarySource.includes("assertSurfaceAuthority") &&
       sessionSummarySource.includes("SURFACE_KEYS.JSON_ASSET_REGISTRY") &&
       sessionSummarySource.includes("surface_authority") &&
-      sessionSummarySource.indexOf("assertSurfaceAuthority") < sessionSummarySource.indexOf("INSERT INTO `json_assets`") &&
+      sessionSummarySource.indexOf("assertSurfaceAuthority") < sessionSummarySource.indexOf("json_assets") &&
       sessionSummarySource.includes("requireExecution: false"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
