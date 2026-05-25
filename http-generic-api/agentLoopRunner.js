@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { loadWorkspaceAppContext } from "./appConnectionResolver.js";
 import { evaluateAgentLoopPreflight, assertPreflightAllowed } from "./governedExecutionPreflight.js";
+import { resolveSurfaceAuthority, SURFACE_KEYS } from "./surfaceAuthorityResolver.js";
 
 function isTruthy(val) {
   return val === true || val === 1 || val === "1" || val === "TRUE";
