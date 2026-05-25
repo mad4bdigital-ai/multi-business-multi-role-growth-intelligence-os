@@ -91,7 +91,7 @@ export const n8nAdapter = {
 
       case "trigger_webhook": {
         // POST to an n8n webhook path — works without API key
-        const url = args.webhook_url || connection.webhook_url;
+        const url = args.webhook_url || normalized.webhook_url;
         if (!url) throw new Error("webhook_url required for trigger_webhook");
         const payload = args.payload || {};
         const res = await fetch(url, {
