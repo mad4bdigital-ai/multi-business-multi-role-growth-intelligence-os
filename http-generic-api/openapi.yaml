@@ -8135,6 +8135,138 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { description: Device list read failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
+  /tenant/platform/plugins/catalog:
+    get:
+      tags: [platform-plugins]
+      operationId: tenantPlatformPluginCatalog
+      summary: List installable Platform Base plugins for this tenant
+      description: Tenant-facing catalog. Tenant/user IDs come from auth; no secrets are returned.
+      parameters:
+        - name: include_bindings
+          in: query
+          schema: { type: boolean, default: true }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 250, default: 100 }
+      responses:
+        "200":
+          description: Tenant-scoped Platform Plugin catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  tenant_facing: { type: boolean }
+                  plugins:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  secrets_included: { type: boolean, enum: [false] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+      security:
+        - backendBearerAuth: []
+
+  /tenant/platform/plugins/install:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      operationId: tenantPlatformPluginInstall
+      summary: Install a Platform Base plugin for this tenant
+      description: Installs a Platform Base plugin for the signed-in tenant. Tenant/user IDs come from auth; no secrets are accepted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [plugin_key]
+              properties:
+                plugin_key: { type: string }
+                source_mode: { type: string, enum: [managed, dedicated], default: dedicated }
+                fallback_allowed: { type: boolean, default: false }
+                required_for_device_install: { type: boolean, default: false }
+                notes: { type: string, maxLength: 1000 }
+                connection:
+                  type: object
+                  additionalProperties: false
+                  description: Optional metadata-only connection. Do not include secrets.
+                  properties:
+                    connection_scope: { type: string, enum: [tenant_connection, user_connection], default: tenant_connection }
+                    api_base_url: { type: string, description: HTTPS base URL only. No credentials. }
+                    mcp_endpoint: { type: string, description: HTTPS endpoint only. No credentials. }
+                    webhook_url: { type: string, description: HTTPS webhook URL only. No credentials. }
+                    account_label: { type: string }
+                    display_label: { type: string }
+                    account_metadata:
+                      type: object
+                      additionalProperties: true
+      responses:
+        "200":
+          description: Plugin installed for tenant
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  tenant_facing: { type: boolean }
+                  platform_base_mutated: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400":
+          description: Invalid install payload
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+      security:
+        - backendBearerAuth: []
+
+  /tenant/platform/plugins/resolve:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      operationId: tenantPlatformPluginResolve
+      summary: Resolve tenant readiness for a Platform Plugin action/tool
+      description: Checks tenant plugin readiness without executing actions or returning secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [plugin_key]
+              properties:
+                plugin_key: { type: string }
+                action_key: { type: string }
+                tool_key: { type: string }
+                agent_id: { type: string }
+                requested_credential_scope:
+                  type: string
+                  enum: [user_connection, tenant_connection, platform_managed, device_connector, none]
+      responses:
+        "200":
+          description: Tenant-scoped plugin readiness result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  allowed: { type: boolean }
+                  reason: { type: string }
+                  tenant_facing: { type: boolean }
+                  secrets_included: { type: boolean, enum: [false] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+      security:
+        - backendBearerAuth: []
+
   /gpt/sessions/{id}/turn:
     post:
       tags: [session-archive]
