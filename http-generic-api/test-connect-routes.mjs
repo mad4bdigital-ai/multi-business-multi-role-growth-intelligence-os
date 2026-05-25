@@ -512,7 +512,8 @@ section("connect api auth scope");
       readFileSync("surfaceAuthorityResolver.js", "utf8").includes("PLATFORM_GRAPH_MEMORY") &&
       readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("surface.platform_graph_memory") &&
       readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("platform_graph_nodes|platform_graph_edges") &&
-      readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("required_for_execution`)"));
+      readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("required_for_execution") &&
+      readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("'TRUE'"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
