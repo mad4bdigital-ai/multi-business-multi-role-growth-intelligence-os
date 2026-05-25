@@ -31,5 +31,21 @@ assert(
   !source.match(/summary-comparison[\s\S]{0,4000}writeSessionSummary\(/),
   'summary comparison route must not call writeSessionSummary',
 );
+assert(
+  source.includes('persistSummaryComparisonRun'),
+  'summary comparison route should persist diagnostics to summary_comparison_runs',
+);
+assert(
+  source.includes('summary_comparison_runs'),
+  'summary comparison diagnostics should use the isolated comparison table',
+);
+assert(
+  !source.match(/INSERT INTO\s+`session_summaries`[\s\S]{0,2000}summary-comparison/),
+  'summary comparison route must not insert into session_summaries',
+);
+
+const migration = fs.readFileSync(new URL('./migrations/123_sprint64_summary_comparison_runs.sql', import.meta.url), 'utf8');
+assert(migration.includes('CREATE TABLE IF NOT EXISTS `summary_comparison_runs`'), 'migration should create summary_comparison_runs');
+assert(migration.includes('dev_agent_summary_comparison_run'), 'migration should register admin comparison tool');
 
 console.log('summary comparison route guard tests passed');
