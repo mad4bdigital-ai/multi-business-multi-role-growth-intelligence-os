@@ -68,8 +68,7 @@ function sqlDate(iso) {
   return String(iso || isoNow()).slice(0, 10);
 }
 
-async function writePolicyExecutionLog({ pool, traceId, tenantId, userId, pluginKey, policy, readback }) {
-  const now = isoNow();
+async function writePolicyExecutionLog({ pool, traceId, tenantId, userId, pluginKey, policy, readback, skipSurfaceAuthority = false }) {
   const output = {
     tenant_id: tenantId,
     user_id: userId || null,
@@ -86,49 +85,28 @@ async function writePolicyExecutionLog({ pool, traceId, tenantId, userId, plugin
     } : null,
     secrets_included: false,
   };
-
-  await pool.query(
-    `INSERT INTO execution_log
-       (run_date, start_time, end_time, entry_type, execution_class, source_layer,
-        user_input, route_keys, selected_workflows, execution_mode, decision_trigger,
-        execution_status, output_summary, recovery_status, route_status, route_source,
-        intake_validation_status, execution_ready_status, execution_trace_id_writeback,
-        log_source_writeback, created_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
-    [
-      sqlDate(now),
-      now,
-      now,
-      "platform_plugin_policy_upsert",
-      "platform_plugin_policy",
-      "platformPluginPolicy",
-      `upsert policy for ${pluginKey}`,
-      "platform_plugin_policy_upsert",
-      "platform_plugin_policy_overlay",
-      "registry_policy_mutation",
-      "admin_tool",
-      readback ? "success" : "failed_readback",
-      JSON.stringify(output),
-      "not_required",
-      "resolved",
-      "sql_primary",
-      "validated",
-      readback ? "ready" : "degraded",
-      traceId,
-      "sql_primary",
-    ]
-  );
-
-  const rows = await safeQuery(
+  const evidence = await writeExecutionEvidence({
     pool,
-    `SELECT id, execution_status, execution_trace_id_writeback
-       FROM execution_log
-      WHERE execution_trace_id_writeback = ?
-      ORDER BY id DESC
-      LIMIT 1`,
-    [traceId]
-  );
-  return rows[0] || null;
+    traceId,
+    entryType: "platform_plugin_policy_upsert",
+    executionClass: "platform_plugin_policy",
+    sourceLayer: "platformPluginPolicy",
+    userInput: `upsert policy for ${pluginKey}`,
+    routeKeys: "platform_plugin_policy_upsert",
+    selectedWorkflows: "platform_plugin_policy_overlay",
+    executionMode: "registry_policy_mutation",
+    decisionTrigger: "admin_tool",
+    executionStatus: readback ? "success" : "failed_readback",
+    outputSummary: output,
+    recoveryStatus: "not_required",
+    routeStatus: "resolved",
+    routeSource: "sql_primary",
+    intakeValidationStatus: "validated",
+    executionReadyStatus: readback ? "ready" : "degraded",
+    logSource: "sql_primary",
+    skipSurfaceAuthority,
+  });
+  return evidence.row || null;
 }
 
 export async function upsertPlatformPluginPolicy({
