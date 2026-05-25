@@ -5312,7 +5312,6 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listAdminScopeGrants
       x-custom-gpt-exclude: true
-      x-custom-gpt-exclude: true
       summary: List admin scope grants with optional filters
       description: "Lists rows from admin_scope_grants. By default returns only active grants. Use active_only=false to include revoked or expired rows."
       parameters:
