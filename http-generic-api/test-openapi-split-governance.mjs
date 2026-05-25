@@ -25,7 +25,11 @@ const admin = loadYaml("openapi.custom-gpt.auth-dispatcher.yaml");
 const splitScript = readFileSync("scripts/split-openapi.mjs", "utf8");
 
 const sourcePairs = new Set(collectOperations(main).map((op) => `${op.method.toUpperCase()} ${op.pathKey}`));
-const sourceOperationIds = new Set(collectOperations(main).map((op) => op.operation?.operationId).filter(Boolean));
+const sourceOperationIds = new Set(
+  collectOperations(main)
+    .flatMap((op) => [op.operation?.operationId, op.operation?.["x-tenant-gpt-operationId"]])
+    .filter(Boolean)
+);
 
 function assertSplitDerivedFromMain(label, doc) {
   for (const op of collectOperations(doc)) {
