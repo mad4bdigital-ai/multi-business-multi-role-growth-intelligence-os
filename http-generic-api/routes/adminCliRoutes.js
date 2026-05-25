@@ -917,6 +917,15 @@ function builtInShellAllowlist() {
       timeout_ms: 120000,
       built_in: true
     },
+    runtime_surface_coverage_audit: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/runtime-surface-coverage-audit.mjs"],
+      display_name: "Runtime surface coverage audit",
+      allow_extra_args: true,
+      max_extra_args: 4,
+      timeout_ms: 120000,
+      built_in: true
+    },
     local_gateway_hostinger_proxy: {
       command: process.execPath,
       args: ["http-generic-api/scripts/local-gateway-hostinger-proxy.mjs"],
