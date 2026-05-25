@@ -260,7 +260,7 @@ function main() {
   const sourceOperations = collectOperations(sourceDoc);
 
   generateAuthDispatcher(sourceDoc, sourceOperations);
-  generateTenantAuthSchema(sourceDoc);
+  generateTenantAuthSchema(sourceDoc, sourceOperations);
 
   console.log("\nDone. Active GPT schemas:");
   console.log("  openapi.custom-gpt.auth-dispatcher.yaml  — admin dispatcher (auth.mad4b.com)");
