@@ -24,7 +24,11 @@ import { _testingTenantPlatformPluginRoutes } from "./routes/tenantPlatformPlugi
 {
   const index = readFileSync("routes/index.js", "utf8");
   assert(index.includes("buildTenantPlatformPluginRoutes"), "tenant Platform Plugin routes must be imported and mounted");
-  assert(index.indexOf("buildTenantPlatformPluginRoutes") < index.indexOf("buildPlatformPluginRoutes"), "tenant routes should mount before admin platform plugin routes");
+  const tenantMount = index.indexOf("app.use(buildTenantPlatformPluginRoutes())");
+  const adminMount = index.indexOf("app.use(buildPlatformPluginRoutes");
+  assert(tenantMount !== -1, "tenant Platform Plugin routes must be mounted");
+  assert(adminMount !== -1, "admin Platform Plugin routes must be mounted");
+  assert(tenantMount < adminMount, "tenant routes should mount before admin platform plugin routes");
 }
 
 console.log("tenant platform plugin route tests passed");
