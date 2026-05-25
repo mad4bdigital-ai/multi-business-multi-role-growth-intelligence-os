@@ -474,7 +474,10 @@ section("connect api auth scope");
       executionEvidenceLoggerSource.includes("secrets_included: false") &&
       pluginPolicySource.includes("writeExecutionEvidence") &&
       pluginPolicySource.includes("writePolicyExecutionLog") &&
-      !pluginPolicySource.includes("await pool.query(\n    `INSERT INTO execution_log"));
+      !pluginPolicySource.includes("await pool.query(\n    `INSERT INTO execution_log") &&
+      pluginInstallSource.includes("writeExecutionEvidence") &&
+      pluginInstallSource.includes("writeInstallExecutionLog") &&
+      !pluginInstallSource.includes("await pool.query(\n    `INSERT INTO execution_log"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
