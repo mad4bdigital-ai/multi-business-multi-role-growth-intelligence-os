@@ -99,8 +99,6 @@ The older Workbook/Sheet governance canonicals treated `Execution Policy Registr
 
 ## Next enforcement targets
 
-- `repo_patch_apply`
-- generic `/gpt/tools/call` dispatch
 - `appAdapters/index.js` before external app actions
 - `connectorExecutor.js` before workflow dispatch
 - `agentLoopRunner.js` before model/tool loops
