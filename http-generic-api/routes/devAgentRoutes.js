@@ -187,9 +187,9 @@ function stableSignalKey(parts = []) {
 
 function redactSensitiveText(value = "") {
   return String(value || "")
-    .replace(/(?i)(api[_-]?key|x-api-key|token|secret|authorization|bearer)\s*[:=]\s*[^\s,;}]+/g, "$1=[redacted]")
-    .replace(/(?i)(invalid\s+x-api-key|invalid\s+api\s+key|authentication_error)/g, "credential_error")
-    .replace(/(?i)(request_id|request-id)\s*[:=]\s*[A-Za-z0-9_\-]+/g, "$1=[redacted]")
+    .replace(/(api[_-]?key|x-api-key|token|secret|authorization|bearer)\s*[:=]\s*[^\s,;}]+/gi, "$1=[redacted]")
+    .replace(/(invalid\s+x-api-key|invalid\s+api\s+key|authentication_error)/gi, "credential_error")
+    .replace(/(request_id|request-id)\s*[:=]\s*[A-Za-z0-9_\-]+/gi, "$1=[redacted]")
     .replace(/req_[A-Za-z0-9_\-]+/g, "req_[redacted]");
 }
 
