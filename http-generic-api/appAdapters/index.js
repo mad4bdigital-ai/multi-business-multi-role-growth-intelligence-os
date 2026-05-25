@@ -102,10 +102,19 @@ export async function executeAppAction(connection, action_key, args = {}) {
 
   const creds = await ensureFreshCredentials(connection);
 
-  await getPool().query(
-    "UPDATE `user_app_connections` SET last_used_at = NOW() WHERE connection_id = ?",
-    [connection.connection_id]
-  ).catch(() => {});
+  const result = await adapter.call(action_key, args, creds, connection);
 
-  return adapter.call(action_key, args, creds, connection);
+  if (result?.ok) {
+    await getPool().query(
+      "UPDATE `user_app_connections` SET last_used_at = NOW(), last_validated_at = NOW(), validation_status = 'validated' WHERE connection_id = ?",
+      [connection.connection_id]
+    ).catch(() => {});
+  } else {
+    await getPool().query(
+      "UPDATE `user_app_connections` SET last_used_at = NOW() WHERE connection_id = ?",
+      [connection.connection_id]
+    ).catch(() => {});
+  }
+
+  return result;
 }
