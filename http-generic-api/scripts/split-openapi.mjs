@@ -221,6 +221,7 @@ function validateSplitOperationsComeFromSource(splitDoc, sourceDoc, schemaName) 
   for (const op of collectOperations(sourceDoc)) {
     sourcePairs.add(`${op.method.toUpperCase()} ${op.pathKey}`);
     if (op.operation?.operationId) sourceOperationIds.add(op.operation.operationId);
+    if (op.operation?.["x-tenant-gpt-operationId"]) sourceOperationIds.add(op.operation["x-tenant-gpt-operationId"]);
   }
   const failures = [];
   for (const op of collectOperations(splitDoc)) {
