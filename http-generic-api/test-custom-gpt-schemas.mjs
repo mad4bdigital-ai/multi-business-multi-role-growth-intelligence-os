@@ -25,7 +25,16 @@ const ACTIVE_SCHEMAS = {
     serverUrl: "https://auth.mad4b.com",
     securityScheme: "userBearerAuth",
     maxOperations: 30,
-    requiredOperations: ["activateSession", "listTools", "callTool", "writeSessionTurn", "endSession"],
+    requiredOperations: [
+      "activateSession",
+      "listTools",
+      "callTool",
+      "tenantPlatformPluginCatalog",
+      "tenantPlatformPluginInstall",
+      "tenantPlatformPluginResolve",
+      "writeSessionTurn",
+      "endSession",
+    ],
   },
   "openapi.gpt-action.dev-dispatcher.yaml": {
     serverUrl: "https://dev.mad4b.com",
