@@ -29,6 +29,11 @@ assert(repoAnalysisToolMigration.includes('dev_agent_summary_development_repo_an
 assert(repoAnalysisToolMigration.includes('Read/Grep/Glob/LS'));
 assert(repoAnalysisToolMigration.includes('does not execute the local agent'));
 assert(repoAnalysisToolMigration.includes('no_repo_mutation'));
+assert(approvalsMigration.includes('CREATE TABLE IF NOT EXISTS summary_development_agent_approvals'));
+assert(approvalsMigration.includes("approval_mode ENUM('repo_analysis_read_only')"));
+assert(approvalToolMigration.includes('dev_agent_summary_development_repo_analysis_approve'));
+assert(approvalToolMigration.includes('APPROVE_OPENCLAUDE_READ_ONLY_REPO_ANALYSIS'));
+assert(approvalToolMigration.includes('does not execute the local agent'));
 
 assert(routes.includes('/dev-agent/summary-development/runtimes'));
 assert(routes.includes('/dev-agent/summary-development/signals'));
