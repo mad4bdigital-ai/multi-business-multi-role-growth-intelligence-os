@@ -436,6 +436,11 @@ section("connect api auth scope");
       runtimePolicyMigrationSource.includes("Stale Duplicate Branch Merge Guard") &&
       runtimePolicyMigrationSource.includes("block_unmerged_branch_delete") &&
       runtimePolicyMigrationSource.includes("block_risky_file_statuses"));
+    assert("GPT tools policy migration extends repository mutation guard",
+      gptToolsPolicyMigrationSource.includes("gpt_tools_call|tool_dispatch") &&
+      gptToolsPolicyMigrationSource.includes("gptToolsRoutes|repo_patch_apply") &&
+      gptToolsPolicyMigrationSource.includes("block_stale_branch_patch") &&
+      gptToolsPolicyMigrationSource.includes("require_stale_branch_reason"));
     assert("admin shell exposes runtime surface coverage audit alias",
       adminCliSource.includes("runtime_surface_coverage_audit") &&
       adminCliSource.includes("runtime-surface-coverage-audit.mjs") &&
