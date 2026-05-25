@@ -57,6 +57,9 @@ assert(providerToolMigration.includes('Read-only and never returns secrets'));
 
 assert(routes.includes('/dev-agent/summary-development/runtimes'));
 assert(routes.includes('/dev-agent/summary-development/signals'));
+assert(routes.includes('/dev-agent/summary-development/providers'));
+assert(routes.includes('dev_agent_provider_registry'));
+assert(routes.includes('dev_agent_runtime_provider_profiles'));
 assert(routes.includes('/dev-agent/summary-development/extract'));
 assert(routes.includes('/dev-agent/summary-development/agent-dry-run'));
 assert(routes.includes('/dev-agent/summary-development/repo-analysis-dry-run'));
