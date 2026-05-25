@@ -114,6 +114,45 @@ function boundedPositiveInt(value, fallback, min = 1, max = 100) {
   return Math.max(min, Math.min(parsed, max));
 }
 
+function normalizeComparisonText(value = "", limit = 12000) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text.length > limit ? `${text.slice(0, limit)}...[truncated]` : text;
+}
+
+function normalizeComparisonTurns(body = {}) {
+  if (Array.isArray(body.turns) && body.turns.length) {
+    return body.turns.slice(0, 80).map((turn, index) => ({
+      turn_index: Number.isFinite(Number(turn.turn_index)) ? Number(turn.turn_index) : index,
+      role: String(turn.role || "user"),
+      content: normalizeComparisonText(turn.content || turn.text || ""),
+      action_key: turn.action_key || null,
+    })).filter((turn) => turn.content);
+  }
+  const text = normalizeComparisonText(body.text || body.content || body.input?.text || "");
+  return text ? [{ turn_index: 0, role: "user", content: text, action_key: null }] : [];
+}
+
+function summarizeComparisonShape(result = {}) {
+  const text = String(result.summary_text || result.summary || "");
+  const bullets = Array.isArray(result.bullets) ? result.bullets : [];
+  return {
+    summary_chars: text.length,
+    bullet_count: bullets.length,
+    source: result.source || "current_model_summary",
+    method: result.method || "model_backed",
+  };
+}
+
+async function timedStep(fn) {
+  const started = Date.now();
+  try {
+    const result = await fn();
+    return { ok: true, latency_ms: Date.now() - started, result };
+  } catch (err) {
+    return { ok: false, latency_ms: Date.now() - started, error: { code: err.code || "summary_comparison_step_failed", message: String(err.message || err).slice(0, 240) } };
+  }
+}
+
 async function loadSessionSummaryHealth({ pool = getPool(), lookbackDays = 7, limit = 20 } = {}) {
   const [status_breakdown] = await pool.query(
     `SELECT execution_status, recovery_status, recovery_notes, COUNT(*) AS count, MAX(created_at) AS last_seen
