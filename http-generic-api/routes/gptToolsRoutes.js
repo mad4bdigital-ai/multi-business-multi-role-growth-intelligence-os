@@ -853,6 +853,18 @@ async function githubContentsRequest({ method, owner, repo, filePath, branch, bo
   return { status: response.status, ok: response.ok, payload };
 }
 
+async function loadRepoPatchBranchCompare({ owner, repo, defaultBranch, branch, token }) {
+  try {
+    const ref = await githubJsonRequest({ method: "GET", owner, repo, apiPath: `/git/ref/heads/${encodeGitRefBranch(branch)}`, token });
+    if (ref.status === 404) return { branch_exists: false, compare: null };
+    if (!ref.ok) return { branch_exists: null, compare: null, error_code: "repo_patch_branch_lookup_failed" };
+    const compare = await githubJsonRequest({ method: "GET", owner, repo, apiPath: `/compare/${encodeURIComponent(defaultBranch)}...${encodeURIComponent(branch)}`, token });
+    return { branch_exists: true, compare: compare.ok ? compare.payload : null, compare_status: compare.status };
+  } catch {
+    return { branch_exists: null, compare: null, error_code: "repo_patch_compare_failed" };
+  }
+}
+
 export async function applyRepoPatch(args = {}, ctx = {}) {
   const action = String(args.action || "").trim().toLowerCase();
   if (!["write_file", "replace_block", "apply_unified_diff"].includes(action)) {
