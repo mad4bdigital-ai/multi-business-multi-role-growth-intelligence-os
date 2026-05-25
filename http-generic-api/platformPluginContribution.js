@@ -4,6 +4,7 @@ import { getPool } from "./db.js";
 const VALID_OWNER_SCOPES = new Set(["tenant", "user"]);
 const VALID_TARGETS = new Set(["tenant_private", "user_private", "marketplace_candidate", "platform_base_candidate"]);
 const VALID_STATUSES = new Set(["draft", "submitted", "validation_failed", "certified", "rejected", "archived"]);
+const EXECUTABLE_PRIVATE_STATUSES = new Set(["draft", "submitted", "validation_failed", "certified"]);
 const SECRET_KEY_HINTS = [
   "password", "passwd", "secret", "token", "private_key", "api_key",
   "apikey", "auth_key", "access_token", "refresh_token", "client_secret",
