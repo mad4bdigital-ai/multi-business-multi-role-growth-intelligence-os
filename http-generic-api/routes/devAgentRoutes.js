@@ -170,10 +170,10 @@ async function loadSessionSummaryHealth({ pool = getPool(), lookbackDays = 7, li
 
   const totalRuns = status_breakdown.reduce((sum, row) => sum + Number(row.count || 0), 0);
   const warningRuns = status_breakdown
-    .filter(row => String(row.execution_status || '').includes('warning') || row.recovery_status)
+    .filter(row => String(row.execution_status || '').includes('warning') || (row.recovery_status && row.recovery_status !== 'not_required'))
     .reduce((sum, row) => sum + Number(row.count || 0), 0);
   const failedRuns = status_breakdown
-    .filter(row => String(row.execution_status || '').toLowerCase() === 'failed' || row.failure_reason)
+    .filter(row => String(row.execution_status || '').toLowerCase() === 'failed')
     .reduce((sum, row) => sum + Number(row.count || 0), 0);
 
   return {
