@@ -406,6 +406,15 @@ section("connect api auth scope");
       n8nWorkflowGuardMigrationSource.includes("execute_workflow") &&
       n8nWorkflowGuardMigrationSource.includes("'TRUE'") &&
       n8nWorkflowGuardMigrationSource.includes("min_reason_chars"));
+    assert("connector dispatch calls governed policy preflight before execution state changes",
+      governedPreflightSource.includes("evaluateConnectorDispatchPreflight") &&
+      governedPreflightSource.includes("Connector Dispatch Governance") &&
+      governedPreflightSource.includes("WordPress Apply Requires Explicit Reason") &&
+      connectorExecutorSource.includes("evaluateConnectorDispatchPreflight") &&
+      connectorExecutorSource.indexOf("evaluateConnectorDispatchPreflight") < connectorExecutorSource.indexOf("await createWorkflowRun") &&
+      connectorDispatchPolicyMigrationSource.includes("Connector Dispatch Preflight Visibility") &&
+      connectorDispatchPolicyMigrationSource.includes("connector_dispatch|workflow_dispatch") &&
+      connectorDispatchPolicyMigrationSource.includes("'FALSE'"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
