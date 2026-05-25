@@ -54,6 +54,7 @@ Connector route health is the operational source of truth. To avoid stale databa
 - Connector agent heartbeat must also sync the primary Cloudflare route. A successful heartbeat marks the primary registered route healthy; a failed heartbeat degrades the primary registered route instead of leaving config and route metadata divergent.
 - If a registered primary Cloudflare route is marked `down` but still matches the device runtime URL, the proxy must retry that registered route as a recoverable candidate before falling back to a synthetic runtime URL. This lets `markRouteSuccess()` heal the real database row instead of succeeding through an untracked synthetic route.
 - Successful app-connection use must also heal validation metadata. When `executeAppAction()` returns `ok: true`, `user_app_connections.validation_status` becomes `validated` and `last_validated_at` is refreshed. Failed app actions should not automatically mark credentials failed because the failure may be payload/business logic rather than credential validity.
+- n8n app credentials may be stored with environment-style keys (`N8N_API_KEY`, `N8N_BASE_URL`, `N8N_LOCAL_BASE_URL`, `N8N_WEBHOOK_BASE_URL`). The n8n adapter must normalize these aliases before testing or running app actions so pending validation can self-heal on successful use.
 
 ## Schema and guide alignment
 
