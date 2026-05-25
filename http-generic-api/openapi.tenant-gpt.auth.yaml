@@ -3,7 +3,7 @@ info:
   title: Mad4B Growth Intelligence - Tenant AI - MCP Actions
   version: 2.0.2-platform-plugins
   summary: Tenant GPT schema with MCP meta-operations plus tenant self-serve Platform Plugin routes.
-  description: Tenant MCP schema with self-serve Platform Plugin catalog, install, and resolve actions.
+  description: Tenant MCP schema. Use connect_activate with tool_args.mode and integration_modes. Also supports Platform Plugin catalog, install, and resolve.
 servers:
   - url: https://auth.mad4b.com
     description: Mad4B platform auth subdomain
