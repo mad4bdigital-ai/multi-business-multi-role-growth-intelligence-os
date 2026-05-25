@@ -73,18 +73,25 @@ require_mergeability_check=true
 - GitHub REST fallback `pr merge`
 - GitHub REST fallback branch-ref delete
 
+`gptToolsRoutes.js` now calls governed preflight in two places:
+
+- generic `/gpt/tools/call` dispatch path via `evaluateGptToolDispatchPreflight`
+- `repo_patch_apply` before branch creation, branch reuse, or GitHub Contents writes
+
 The preflight fetches PR/branch compare evidence through the GitHub App token and blocks clear unsafe conditions:
 
 - protected/default branch delete
 - branch delete while the branch still has commits ahead of `main`
 - non-mergeable PRs when GitHub reports `mergeable=false`
 - PRs that contain risky removed-file statuses under the active policy
+- repo patch attempts against an existing branch that is behind/diverged from the default branch unless `allow_stale_branch_patch=true` and `stale_branch_reason` is supplied
 
 Warnings are preserved for conditions that should be visible but not always blocking:
 
 - PR branch is behind base
 - compare status is diverged
 - mergeability is not final yet
+- existing repo patch branch already has commits ahead of `main`
 
 ## Why this matters
 
