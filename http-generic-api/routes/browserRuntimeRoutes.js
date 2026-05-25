@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { runBrowser4InspectionAdapter } from "../browser4InspectionAdapter.js";
 import {
   checkBrowserRuntimePolicyFromDb,
   createBrowserDataExtractionJob,
