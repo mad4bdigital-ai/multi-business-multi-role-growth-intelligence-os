@@ -190,6 +190,17 @@ function clampText(value, limit = 1000) {
   return text.length > limit ? `${text.slice(0, limit - 3)}...` : text;
 }
 
+function safeParseJsonArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value === undefined || value === null || value === "") return [];
+  try {
+    const parsed = JSON.parse(String(value));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function inferSignalPriority(type, evidence = "") {
   const text = String(evidence || "").toLowerCase();
   if (/security|secret|token|credential|auth|blocked|critical|production|canonical|فشل|خطر|سري/.test(text)) return "high";
