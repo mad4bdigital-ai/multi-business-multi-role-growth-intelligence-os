@@ -153,6 +153,30 @@ async function timedStep(fn) {
   }
 }
 
+function normalizeQualityScore(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const score = Number(value);
+  if (!Number.isFinite(score) || score < 1 || score > 5) {
+    const err = new Error("quality scores must be integers between 1 and 5.");
+    err.code = "summary_comparison_quality_score_invalid";
+    err.status = 400;
+    throw err;
+  }
+  return Math.round(score);
+}
+
+function normalizePreferredOutput(value) {
+  const preferred = String(value || "").trim();
+  const allowed = new Set(["current_model_summary", "n8n_experiment", "tie", "neither"]);
+  if (!allowed.has(preferred)) {
+    const err = new Error("preferred_output must be current_model_summary, n8n_experiment, tie, or neither.");
+    err.code = "summary_comparison_preferred_output_invalid";
+    err.status = 400;
+    throw err;
+  }
+  return preferred;
+}
+
 async function persistSummaryComparisonRun({ pool = getPool(), payload, tenant_id = null, user_id = null, n8nBindingKey = "summary_n8n_experiment_v1" } = {}) {
   if (!payload?.comparison_id) return { ok: false, skipped: true, reason: "missing_comparison_id" };
   const modelShape = payload.current_model_summary?.shape || {};
