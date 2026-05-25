@@ -2,6 +2,11 @@ import { Router } from "express";
 import { loadPlatformPluginCatalog } from "../platformPluginCatalog.js";
 import { resolvePlatformPluginExecution } from "../platformPluginResolver.js";
 import { upsertPlatformPluginPolicy } from "../platformPluginPolicy.js";
+import {
+  createPlatformPluginContribution,
+  getPlatformPluginContribution,
+  listPlatformPluginContributions,
+} from "../platformPluginContribution.js";
 
 function bool(value) {
   return value === true || ["true", "1", "yes"].includes(String(value ?? "").trim().toLowerCase());
@@ -84,6 +89,76 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         ok: false,
         error: {
           code: err.code || "platform_plugin_policy_upsert_failed",
+          message: err.message,
+        },
+        secrets_included: false,
+      });
+    }
+  });
+
+  router.post("/platform/plugins/contributions", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await createPlatformPluginContribution({
+        tenantId: input.tenant_id || input.tenantId || null,
+        userId: input.user_id || input.userId || null,
+        ownerScope: input.owner_scope || input.ownerScope || "tenant",
+        target: input.target || null,
+        pluginKey: input.plugin_key || input.pluginKey,
+        displayName: input.display_name || input.displayName,
+        pluginType: input.plugin_type || input.pluginType || "rest_api",
+        basePluginKey: input.base_plugin_key || input.basePluginKey || null,
+        manifest: input.manifest || {},
+        protocolBindings: input.protocol_bindings || input.protocolBindings || [],
+        actionBindings: input.action_bindings || input.actionBindings || [],
+        credentialPolicy: input.credential_policy || input.credentialPolicy || {},
+        notes: input.notes || "",
+        submit: input.submit === true,
+        rawPayload: input,
+      });
+      return res.status(result.ok ? 201 : 409).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "platform_plugin_contribution_create_failed",
+          message: err.message,
+        },
+        secrets_included: false,
+      });
+    }
+  });
+
+  router.get("/platform/plugins/contributions", ...requireAdmin, async (req, res) => {
+    try {
+      const result = await listPlatformPluginContributions({
+        tenantId: req.query.tenant_id || null,
+        userId: req.query.user_id || null,
+        status: req.query.status || null,
+        limit: boundedInt(req.query.limit, 50, 1, 200),
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "platform_plugin_contribution_list_failed",
+          message: err.message,
+        },
+        secrets_included: false,
+      });
+    }
+  });
+
+  router.get("/platform/plugins/contributions/:contribution_id", ...requireAdmin, async (req, res) => {
+    try {
+      const result = await getPlatformPluginContribution({ contributionId: req.params.contribution_id });
+      return res.status(result.ok ? 200 : 404).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "platform_plugin_contribution_get_failed",
           message: err.message,
         },
         secrets_included: false,
