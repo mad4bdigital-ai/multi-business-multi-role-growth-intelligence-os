@@ -62,8 +62,8 @@ function payloadContainsSecret(value) {
     const current = stack.pop();
     if (!current || typeof current !== "object") continue;
     for (const [key, nested] of Object.entries(current)) {
-      const lowerKey = String(key || "").toLowerCase();
-      if (SECRET_KEY_HINTS.some((hint) => lowerKey.includes(hint))) return true;
+      const lowerKey = String(key || "").toLowerCase().replace(/[^a-z0-9_]/g, "");
+      if (!SAFE_POLICY_METADATA_KEYS.has(lowerKey) && SECRET_KEY_HINTS.some((hint) => lowerKey.includes(hint))) return true;
       if (nested && typeof nested === "object") stack.push(nested);
     }
   }
