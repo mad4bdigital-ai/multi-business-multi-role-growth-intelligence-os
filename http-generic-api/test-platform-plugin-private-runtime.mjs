@@ -39,10 +39,13 @@ function makePool({ privateEnabled = true, ownerTenant = "tenant-1" } = {}) {
     calls,
     async query(sql, params = []) {
       calls.push({ sql, params });
-      if (sql.includes("FROM platform_plugin_contributions")) {
-        return [[{ ...baseContributionRow, private_execution_enabled: privateEnabled ? 1 : 0, owner_tenant_id: ownerTenant }]];
+      if (sql.includes("UPDATE platform_plugin_contributions")) {
+        currentPrivateEnabled = true;
+        return [{ affectedRows: 1 }];
       }
-      if (sql.includes("UPDATE platform_plugin_contributions")) return [{ affectedRows: 1 }];
+      if (sql.includes("FROM platform_plugin_contributions")) {
+        return [[{ ...baseContributionRow, private_execution_enabled: currentPrivateEnabled ? 1 : 0, owner_tenant_id: ownerTenant }]];
+      }
       if (sql.includes("INSERT INTO execution_log")) return [{ affectedRows: 1, insertId: 44 }];
       if (sql.includes("FROM execution_log")) return [[{ id: 44, execution_status: "success", execution_trace_id_writeback: params[0] }]];
       return [[]];
