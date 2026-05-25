@@ -1044,6 +1044,153 @@ export function buildDevAgentRoutes(deps) {
     }
   });
 
+  router.post("/dev-agent/summary-development/agent-dry-run", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const runId = randomUUID();
+    const runtimeKey = String(body.runtime_key || "openclaude_essam_local_v1").trim();
+    const signalId = String(body.signal_id || "").trim();
+    const signalKey = String(body.signal_key || "").trim();
+    const requestedBy = String(body.requested_by || body.user_id || "").trim() || null;
+    const mode = String(body.mode || "plan_only").trim();
+
+    if (!signalId && !signalKey) {
+      return res.status(400).json({ ok: false, error: { code: "summary_development_signal_required", message: "signal_id or signal_key is required." } });
+    }
+    if (mode !== "plan_only") {
+      return res.status(403).json({
+        ok: false,
+        blocked: true,
+        error: { code: "summary_development_agent_execution_blocked", message: "Only plan_only dry-run mode is currently allowed." },
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        secrets_included: false,
+      });
+    }
+
+    try {
+      const [runtimeRows] = await pool.query(
+        `SELECT runtime_key, display_name, runtime_type, provider_key, execution_surface,
+                device_id, command_hint, capabilities_json, policy_json, status, notes
+         FROM \`dev_agent_runtime_registry\`
+         WHERE runtime_key = ?
+         LIMIT 1`,
+        [runtimeKey]
+      );
+      const runtime = runtimeRows[0];
+      if (!runtime) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_runtime_not_found", message: "runtime_key was not found." } });
+      }
+
+      const signalWhere = signalId ? "signal_id = ?" : "signal_key = ?";
+      const [signalRows] = await pool.query(
+        `SELECT signal_id, signal_key, tenant_id, user_id, source_surface, source_ref,
+                signal_type, title, description, evidence_text, recommended_runtime_key,
+                recommended_action, priority, status, policy_json
+         FROM \`summary_development_signals\`
+         WHERE ${signalWhere}
+         LIMIT 1`,
+        [signalId || signalKey]
+      );
+      const signal = signalRows[0];
+      if (!signal) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_signal_not_found", message: "signal was not found." } });
+      }
+
+      const runtimePolicy = typeof runtime.policy_json === "string" ? JSON.parse(runtime.policy_json || "{}") : (runtime.policy_json || {});
+      const signalPolicy = typeof signal.policy_json === "string" ? JSON.parse(signal.policy_json || "{}") : (signal.policy_json || {});
+      const localRuntimeReady = runtime.status === "active" || runtime.status === "available";
+      const localExecutionAllowed = false;
+      const plan = {
+        objective: signal.title,
+        source: {
+          surface: signal.source_surface,
+          ref: signal.source_ref,
+          signal_type: signal.signal_type,
+          priority: signal.priority,
+        },
+        recommended_runtime: runtime.runtime_key,
+        runtime_status: runtime.status,
+        local_runtime_ready: localRuntimeReady,
+        local_execution_attempted: false,
+        local_execution_allowed: localExecutionAllowed,
+        dry_run_mode: "plan_only",
+        proposed_steps: [
+          "Review the signal evidence and confirm the intended platform change.",
+          "Inspect relevant routes, migrations, tests, and registry rows before editing.",
+          "Prepare a minimal patch plan with files, migrations, tests, and rollback notes.",
+          "Run CI and live smoke only after a human approves repository mutation.",
+        ],
+        likely_files_or_surfaces: [
+          "http-generic-api/routes/devAgentRoutes.js",
+          "http-generic-api/migrations/",
+          "admin_platform_endpoint_tools registry rows",
+          "tests covering the affected runtime/policy contract",
+        ],
+        acceptance_criteria: [
+          "No secrets are printed or persisted in outputs.",
+          "No code is executed during this dry run.",
+          "No repository files are modified by this dry run.",
+          "Any future patch must be on a non-protected branch with CI evidence.",
+          "A human must approve before OpenClaude or another coding agent can write files.",
+        ],
+        blockers: runtime.status === "planned"
+          ? [`Runtime ${runtime.runtime_key} is planned and not installed/activated yet.`]
+          : [],
+        evidence_excerpt: clampText(signal.evidence_text || signal.description || "", 1000),
+      };
+
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, tenant_id, requested_by, runtime_key,
+            source_filter_json, policy_json, status, scanned_count,
+            signals_created, signals_updated, tasks_created, result_json,
+            started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, ?, ?, ?, 'completed', 1, 0, 0, 0, ?, NOW(), NOW())`,
+        [
+          runId,
+          `summary_dev_agent_dry_run_${runId}`,
+          signal.tenant_id || null,
+          requestedBy,
+          runtime.runtime_key,
+          JSON.stringify({ signal_id: signal.signal_id, signal_key: signal.signal_key, mode }),
+          JSON.stringify({
+            ...runtimePolicy,
+            ...signalPolicy,
+            auto_execute_code: false,
+            auto_mutate_repo: false,
+            local_execution_allowed: false,
+            secrets_included: false,
+          }),
+          JSON.stringify(plan),
+        ]
+      );
+
+      res.json({
+        ok: true,
+        run_id: runId,
+        signal_id: signal.signal_id,
+        signal_key: signal.signal_key,
+        runtime_key: runtime.runtime_key,
+        runtime_status: runtime.status,
+        plan,
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        local_execution_attempted: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, requested_by, runtime_key, status, error_json, started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, 'failed', ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE status = 'failed', error_json = VALUES(error_json), completed_at = NOW()`,
+        [runId, `summary_dev_agent_dry_run_${runId}`, requestedBy, runtimeKey, JSON.stringify({ code: err.code || "summary_development_agent_dry_run_failed", message: String(err.message || err).slice(0, 240) })]
+      ).catch(() => {});
+      res.status(500).json({ ok: false, error: { code: err.code || "summary_development_agent_dry_run_failed", message: err.message } });
+    }
+  });
+
   // ── GET/PATCH /dev-agent/model-settings ──────────────────────────────────
   router.get("/dev-agent/model-settings", async (req, res) => {
     try {
