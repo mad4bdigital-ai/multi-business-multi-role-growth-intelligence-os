@@ -36,6 +36,8 @@ function makePool() {
       },
     ],
     insertedExecutionLog: null,
+    insertedGraphNodes: [],
+    insertedGraphEdge: null,
   };
   return {
     state,
@@ -62,10 +64,37 @@ function makePool() {
         }
         return [[]];
       }
+      if (compact.startsWith("SELECT node_id, node_type, lifecycle_status FROM `platform_graph_nodes`")) {
+        const wanted = new Set(params);
+        return [state.insertedGraphNodes.filter((row) => wanted.has(row.node_id))];
+      }
+      if (compact.startsWith("SELECT edge_id, source_node_id, target_node_id, lifecycle_status FROM `platform_graph_edges`")) {
+        const edge = state.insertedGraphEdge;
+        if (edge && edge.edge_id === params[0] && edge.source_node_id === params[1] && edge.target_node_id === params[2]) {
+          return [[edge]];
+        }
+        return [[]];
+      }
       if (compact.startsWith("SELECT turn_index, role, action_key, content_preview")) return [state.fallbackTurns];
       if (compact.startsWith("SELECT cs.* FROM `customer_sessions`")) return [state.sessionsNeedingSummary];
       if (compact.startsWith("INSERT INTO `session_summaries`")) {
         state.insertedSummary = { sql, params };
+        return [{ affectedRows: 1 }];
+      }
+      if (compact.startsWith("INSERT INTO `platform_graph_nodes`")) {
+        state.insertedGraphNodes = [
+          { node_id: params[0], node_type: "conversation", lifecycle_status: "active" },
+          { node_id: params[5], node_type: "json_asset", lifecycle_status: "active" },
+        ];
+        return [{ affectedRows: 2 }];
+      }
+      if (compact.startsWith("INSERT INTO `platform_graph_edges`")) {
+        state.insertedGraphEdge = {
+          edge_id: params[0],
+          source_node_id: params[1],
+          target_node_id: params[2],
+          lifecycle_status: "active",
+        };
         return [{ affectedRows: 1 }];
       }
       if (compact.includes("FROM `registry_surfaces_catalog`")) {
@@ -244,6 +273,10 @@ function makePool() {
     "summary write should upsert graph edges"
   );
   assert(pool.state.insertedExecutionLog, "summary write should create a durable execution_log row");
+  assert.equal(result.verification.graph_conversation_node_present, true);
+  assert.equal(result.verification.graph_asset_node_present, true);
+  assert.equal(result.verification.graph_edge_present, true);
+  assert.equal(result.verification.graph_topology_present, true);
   assert.equal(result.execution_log.ok, true);
   assert.equal(result.execution_log.execution_log_id, 42);
   assert.equal(result.execution_log.execution_trace_id, result.summary_id);

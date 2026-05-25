@@ -508,12 +508,22 @@ section("connect api auth scope");
     assert("Platform Graph memory writes require registry surface authority",
       sessionSummarySource.includes("SURFACE_KEYS.PLATFORM_GRAPH_MEMORY") &&
       sessionSummarySource.includes("platform_graph_memory") &&
-      sessionSummarySource.indexOf("SURFACE_KEYS.PLATFORM_GRAPH_MEMORY") < sessionSummarySource.indexOf("platform_graph_nodes") &&
+      sessionSummarySource.includes("platformGraphSurfaceAuthority") &&
+      sessionSummarySource.indexOf("SURFACE_KEYS.PLATFORM_GRAPH_MEMORY") < sessionSummarySource.indexOf("platformGraphSurfaceAuthority.ok") &&
       readFileSync("surfaceAuthorityResolver.js", "utf8").includes("PLATFORM_GRAPH_MEMORY") &&
       readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("surface.platform_graph_memory") &&
       readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("platform_graph_nodes|platform_graph_edges") &&
       readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("required_for_execution") &&
       readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("'TRUE'"));
+    assert("session summary verification reads back Platform Graph topology",
+      sessionSummarySource.includes("graph_conversation_node_present") &&
+      sessionSummarySource.includes("graph_asset_node_present") &&
+      sessionSummarySource.includes("graph_edge_present") &&
+      sessionSummarySource.includes("graph_topology_present") &&
+      sessionSummarySource.includes("summary_graph_topology_missing") &&
+      sessionSummarySource.includes("platform_graph_nodes") &&
+      sessionSummarySource.includes("platform_graph_edges") &&
+      sessionSummarySource.indexOf("platform_graph_nodes") < sessionSummarySource.indexOf("graph_topology_present"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
