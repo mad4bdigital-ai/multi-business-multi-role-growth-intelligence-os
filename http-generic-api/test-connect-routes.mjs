@@ -386,6 +386,7 @@ section("connect api auth scope");
     const n8nWorkflowGuardMigrationSource = readFileSync("migrations/125_sprint64_n8n_workflow_execution_guard.sql", "utf8");
     const connectorDispatchPolicyMigrationSource = readFileSync("migrations/126_sprint64_connector_dispatch_preflight.sql", "utf8");
     const agentLoopPolicyMigrationSource = readFileSync("migrations/127_sprint64_agent_loop_preflight.sql", "utf8");
+    const brandCoreAgentLoopGuardMigrationSource = readFileSync("migrations/128_sprint64_brand_core_agent_loop_guard.sql", "utf8");
     assert("successful app connection use self-heals validation status",
       appAdapterSource.includes("validation_status = 'validated'") &&
       appAdapterSource.includes("last_validated_at = NOW()") &&
