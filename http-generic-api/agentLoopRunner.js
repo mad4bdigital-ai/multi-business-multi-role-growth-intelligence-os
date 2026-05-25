@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { loadWorkspaceAppContext } from "./appConnectionResolver.js";
+import { evaluateAgentLoopPreflight, assertPreflightAllowed } from "./governedExecutionPreflight.js";
 
 function isTruthy(val) {
   return val === true || val === 1 || val === "1" || val === "TRUE";
@@ -192,6 +193,16 @@ export async function runAgentLoop(plan, deps = {}) {
 
   const tools = buildToolsFromEngines(workflow.mapped_engines || "");
 
+  const execution_class = workflow.execution_class || "standard";
+  assertPreflightAllowed(await evaluateAgentLoopPreflight({
+    plan,
+    workflow,
+    logicKey: logic_key,
+    executionClass: execution_class,
+    toolCount: tools.length,
+    context,
+  }));
+
   const engineRegistry = deps.engineExecutorRegistry;
 
   async function dispatchTool(toolName, args, ctx) {
@@ -200,7 +211,6 @@ export async function runAgentLoop(plan, deps = {}) {
   }
 
   // Use class-aware callModel when available; fall back to deps.callModel.
-  const execution_class = workflow.execution_class || "standard";
 
   // rule_based: bypass LLM entirely — dispatch directly to engineExecutorRegistry.
   // Loads the agent's bound pack definitions so the engine receives the full rule set,
