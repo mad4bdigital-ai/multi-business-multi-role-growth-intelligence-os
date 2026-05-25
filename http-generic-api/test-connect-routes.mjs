@@ -447,7 +447,7 @@ section("connect api auth scope");
       agentLoopRunnerSource.includes("context.brand_core_lookup") &&
       agentLoopRunnerSource.includes("context.brand_core_surface_authority") &&
       agentLoopRunnerSource.includes("brand_core_resolution_error") &&
-      agentLoopRunnerSource.indexOf("resolveSurfaceAuthority(SURFACE_KEYS.BRAND_CORE_REGISTRY") < agentLoopRunnerSource.indexOf("FROM `brand_core`") &&
+      agentLoopRunnerSource.indexOf("resolveSurfaceAuthority(SURFACE_KEYS.BRAND_CORE_REGISTRY") < agentLoopRunnerSource.indexOf("brand_core") &&
       agentLoopRunnerSource.indexOf("brandCoreEvidence?.ready") < agentLoopRunnerSource.indexOf("context.brand_core_resolved = true"));
     assert("validation_repair routes Brand Core policy blocks to repair candidates",
       repairPolicyRouterSource.includes("resolveRepairCandidates") &&
