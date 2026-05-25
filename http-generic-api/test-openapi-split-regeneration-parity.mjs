@@ -19,13 +19,13 @@ const sourceRoot = process.cwd();
 const tempRoot = mkdtempSync(join(tmpdir(), "openapi-split-parity-"));
 
 try {
-  cpSync(process.cwd(), tempRoot, {
+  cpSync(sourceRoot, tempRoot, {
     recursive: true,
     filter: (source) => !source.includes("/node_modules") && !source.includes("/.git"),
   });
 
   const before = readGeneratedFiles(tempRoot);
-  execFileSync(process.execPath, [join(sourceRoot, "scripts/split-openapi.mjs")], {
+  execFileSync(process.execPath, [join(sourceRoot, "scripts", "split-openapi.mjs")], {
     cwd: tempRoot,
     stdio: "pipe",
     env: { ...process.env, CI: "true" },
