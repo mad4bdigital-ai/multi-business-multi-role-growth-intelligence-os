@@ -392,6 +392,10 @@ section("connect api auth scope");
       n8nAdapterSource.includes("creds.N8N_LOCAL_BASE_URL") &&
       n8nAdapterSource.includes("normalized.webhook_url") &&
       n8nAdapterSource.includes("n8nReq(base, normalized"));
+    const credentialDiagnosticsSource = readFileSync("scripts/credential-diagnostics.mjs", "utf8");
+    assert("credential diagnostics recognizes uppercase credential aliases",
+      credentialDiagnosticsSource.includes("creds.N8N_API_KEY") &&
+      credentialDiagnosticsSource.includes("creds.HOSTINGER_API_KEY"));
     assert("connect api resolves active tenant for older tenantless JWTs",
       apiSource.includes("resolveActiveTenantId") &&
       apiSource.includes("req.auth.tenant_id = await resolveActiveTenantId"));
