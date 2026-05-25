@@ -189,6 +189,7 @@ function parseArgs(argv) {
     json: args.has("--json"),
     markdown: args.has("--markdown"),
     includeSamples: !args.has("--no-samples"),
+    codeOnly: args.has("--code-only"),
   };
 }
 
