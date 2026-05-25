@@ -379,7 +379,9 @@ section("connect api auth scope");
       apiSource.includes("COALESCE(last_used_at, last_validated_at, connected_at) AS updated_at") &&
       !apiSource.includes("validation_status, last_validated_at, created_at, updated_at"));
     const appAdapterSource = readFileSync("appAdapters/index.js", "utf8");
+    const governedPreflightSource = readFileSync("governedExecutionPreflight.js", "utf8");
     const appActionPolicyMigrationSource = readFileSync("migrations/124_sprint64_app_action_policy_preflight.sql", "utf8");
+    const n8nWorkflowGuardMigrationSource = readFileSync("migrations/125_sprint64_n8n_workflow_execution_guard.sql", "utf8");
     assert("successful app connection use self-heals validation status",
       appAdapterSource.includes("validation_status = 'validated'") &&
       appAdapterSource.includes("last_validated_at = NOW()") &&
@@ -393,6 +395,15 @@ section("connect api auth scope");
       appActionPolicyMigrationSource.includes("External App Action Preflight Visibility") &&
       appActionPolicyMigrationSource.includes("blocking`, `notes") &&
       appActionPolicyMigrationSource.includes("'FALSE'"));
+    assert("n8n execute_workflow has a blocking app action policy guard",
+      governedPreflightSource.includes("n8n Workflow Execution Guard") &&
+      governedPreflightSource.includes("allow_n8n_workflow_execution") &&
+      governedPreflightSource.includes("n8n_execution_reason") &&
+      governedPreflightSource.includes("n8n_workflow_execution_requires_explicit_reason") &&
+      n8nWorkflowGuardMigrationSource.includes("n8n Workflow Execution Guard") &&
+      n8nWorkflowGuardMigrationSource.includes("execute_workflow") &&
+      n8nWorkflowGuardMigrationSource.includes("'TRUE'") &&
+      n8nWorkflowGuardMigrationSource.includes("min_reason_chars"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
@@ -415,7 +426,6 @@ section("connect api auth scope");
       runtimeCoverageAuditSource.includes("toolManifestBuilder") &&
       runtimeCoverageAuditSource.includes("governedToolUseLoop"));
     const runtimePolicyLoaderSource = readFileSync("runtimePolicyLoader.js", "utf8");
-    const governedPreflightSource = readFileSync("governedExecutionPreflight.js", "utf8");
     const gptToolsSource = readFileSync("routes/gptToolsRoutes.js", "utf8");
     const runtimePolicyMigrationSource = readFileSync("migrations/122_sprint64_runtime_policy_preflight.sql", "utf8");
     const gptToolsPolicyMigrationSource = readFileSync("migrations/123_sprint64_gpt_tools_policy_preflight.sql", "utf8");

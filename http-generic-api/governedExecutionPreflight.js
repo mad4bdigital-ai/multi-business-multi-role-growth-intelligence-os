@@ -232,25 +232,63 @@ export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", 
 
 export async function evaluateAppActionPreflight({ connection = {}, appKey = "", actionKey = "", args = {} } = {}, deps = {}) {
   const resolvedAppKey = String(appKey || connection?.app_key || "").trim();
+  const resolvedActionKey = String(actionKey || "").trim();
   const policies = await loadActiveExecutionPolicies({
-    execution_scope: ["app_action", "external_app_action", resolvedAppKey, actionKey].filter(Boolean),
+    execution_scope: ["app_action", "external_app_action", resolvedAppKey, resolvedActionKey].filter(Boolean),
     affects_layer: ["appAdapters", "appAdapters/index.js", resolvedAppKey].filter(Boolean),
   }, deps);
   if (!policies.length) {
-    return makePreflightResult({ evidence: { operation: "app_action", app_key: resolvedAppKey, action_key: actionKey, reason: "no_matching_active_execution_policy" } });
+    return makePreflightResult({ evidence: { operation: "app_action", app_key: resolvedAppKey, action_key: resolvedActionKey, reason: "no_matching_active_execution_policy" } });
   }
-  const blockingPolicies = policies.filter(policyAllowsBlocking);
+
+  const warnings = [];
+  const errors = [];
+  const enforcedBlockingPolicies = [];
+  const genericBlockingPolicies = [];
+  const evidence = {
+    operation: "app_action",
+    app_key: resolvedAppKey,
+    action_key: resolvedActionKey,
+    connection_id: connection?.connection_id || null,
+    matching_policy_count: policies.length,
+  };
+
+  for (const policy of policies) {
+    if (!policyAllowsBlocking(policy)) continue;
+    const group = String(policy.policy_group || "").trim();
+    const key = String(policy.policy_key || "").trim();
+    const cfg = policyJson(policy);
+
+    if (group === "External App Action Governance" && key === "n8n Workflow Execution Guard") {
+      if (resolvedAppKey !== "n8n" || resolvedActionKey !== "execute_workflow") continue;
+      const reason = String(args.n8n_execution_reason || args.execution_reason || "").trim();
+      const allowed = args.allow_n8n_workflow_execution === true && reason.length >= Number(cfg.min_reason_chars || 10);
+      evidence.workflow_id = args.workflow_id || null;
+      evidence.reason_supplied = Boolean(reason);
+      if (!allowed) {
+        errors.push("n8n_workflow_execution_requires_explicit_reason");
+        enforcedBlockingPolicies.push(policy);
+      }
+      continue;
+    }
+
+    genericBlockingPolicies.push(policy);
+  }
+
+  if (enforcedBlockingPolicies.length) {
+    return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence });
+  }
+
+  if (genericBlockingPolicies.length) {
+    warnings.push("matching_blocking_app_action_policies_require_specific_evaluator");
+  }
+
   return makePreflightResult({
-    classification: blockingPolicies.length ? "requires_policy_specific_evaluation" : "allow_with_policy_advisory",
+    classification: warnings.length ? "allow_with_policy_warnings" : "allow_with_policy_advisory",
     policies,
-    warnings: blockingPolicies.length ? ["matching_blocking_app_action_policies_require_specific_evaluation"] : [],
-    evidence: {
-      operation: "app_action",
-      app_key: resolvedAppKey,
-      action_key: actionKey,
-      connection_id: connection?.connection_id || null,
-      matching_policy_count: policies.length,
-    },
+    warnings,
+    errors,
+    evidence,
   });
 }
 
