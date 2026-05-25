@@ -46,6 +46,8 @@ assert(routes.includes('/dev-agent/summary-development/extract'));
 assert(routes.includes('/dev-agent/summary-development/agent-dry-run'));
 assert(routes.includes('/dev-agent/summary-development/repo-analysis-dry-run'));
 assert(routes.includes('/dev-agent/summary-development/repo-analysis-approve'));
+assert(routes.includes('/dev-agent/summary-development/repo-analysis-execution-envelope'));
+assert(routes.includes('buildOpenClaudeReadOnlyExecutionEnvelope'));
 assert(routes.includes('buildOpenClaudeRepoAnalysisCommandPlan'));
 assert(routes.includes('normalizeRepoAnalysisScope'));
 assert(routes.includes('normalizeApprovalPhrase'));
