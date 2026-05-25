@@ -6,6 +6,25 @@
 //   api_base_url  — n8n instance base, e.g. https://your-n8n.com/api/v1
 //   webhook_url   — default webhook URL for trigger_webhook action
 
+function pickFirstString(values = []) {
+  for (const value of values) {
+    const text = String(value || "").trim();
+    if (text) return text;
+  }
+  return "";
+}
+
+function normalizeN8nCredentials(creds = {}, connection = {}) {
+  return {
+    ...creds,
+    api_key: pickFirstString([creds.api_key, creds.N8N_API_KEY, creds.n8n_api_key, creds.token, creds.bearer_token]),
+    username: pickFirstString([creds.username, creds.N8N_USERNAME]),
+    password: pickFirstString([creds.password, creds.N8N_PASSWORD]),
+    base_url: pickFirstString([connection.api_base_url, creds.N8N_BASE_URL, creds.N8N_LOCAL_BASE_URL]),
+    webhook_url: pickFirstString([connection.webhook_url, creds.N8N_WEBHOOK_BASE_URL]),
+  };
+}
+
 async function n8nReq(base, creds, path, { method = "GET", body } = {}) {
   const url = `${base.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
   const headers = { "Content-Type": "application/json" };
