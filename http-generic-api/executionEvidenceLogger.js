@@ -91,16 +91,20 @@ export async function writeExecutionEvidence({
 
   await pool.query(
     `INSERT INTO execution_log
-       (run_date, start_time, end_time, entry_type, execution_class, source_layer,
-        user_input, route_keys, selected_workflows, execution_mode, decision_trigger,
-        execution_status, output_summary, recovery_status, route_status, route_source,
-        intake_validation_status, execution_ready_status, execution_trace_id_writeback,
+       (run_date, start_time, end_time, duration_seconds,
+        entry_type, execution_class, source_layer, user_input,
+        route_keys, selected_workflows, execution_mode, decision_trigger,
+        execution_status, output_summary, recovery_status, recovery_notes,
+        route_status, route_source, intake_validation_status, execution_ready_status,
+        failure_reason, artifact_json_asset_id, target_module_writeback,
+        target_workflow_writeback, execution_trace_id_writeback,
         log_source_writeback, created_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
     [
       sqlDate(now),
       now,
-      now,
+      end,
+      durationSeconds === null || durationSeconds === undefined ? null : String(durationSeconds),
       compact(entryType, 255),
       compact(executionClass, 255),
       compact(sourceLayer, 255),
@@ -112,10 +116,15 @@ export async function writeExecutionEvidence({
       compact(executionStatus, 255),
       safeJson(output),
       compact(recoveryStatus, 255),
+      recoveryNotes === null || recoveryNotes === undefined ? null : compact(recoveryNotes, 1000),
       compact(routeStatus, 255),
       compact(routeSource, 255),
       compact(intakeValidationStatus, 255),
       compact(executionReadyStatus, 255),
+      failureReason === null || failureReason === undefined ? null : compact(failureReason, 1000),
+      artifactJsonAssetId === null || artifactJsonAssetId === undefined ? null : compact(artifactJsonAssetId, 255),
+      targetModuleWriteback === null || targetModuleWriteback === undefined ? null : compact(targetModuleWriteback, 255),
+      targetWorkflowWriteback === null || targetWorkflowWriteback === undefined ? null : compact(targetWorkflowWriteback, 255),
       compact(traceId, 255),
       compact(logSource, 255),
     ]
