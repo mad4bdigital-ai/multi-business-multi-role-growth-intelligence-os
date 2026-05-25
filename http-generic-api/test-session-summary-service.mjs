@@ -81,6 +81,22 @@ function makePool() {
         state.insertedSummary = { sql, params };
         return [{ affectedRows: 1 }];
       }
+      if (compact.startsWith("INSERT INTO `platform_graph_nodes`")) {
+        state.insertedGraphNodes = [
+          { node_id: params[0], node_type: "conversation", lifecycle_status: "active" },
+          { node_id: params[5], node_type: "json_asset", lifecycle_status: "active" },
+        ];
+        return [{ affectedRows: 2 }];
+      }
+      if (compact.startsWith("INSERT INTO `platform_graph_edges`")) {
+        state.insertedGraphEdge = {
+          edge_id: params[0],
+          source_node_id: params[1],
+          target_node_id: params[2],
+          lifecycle_status: "active",
+        };
+        return [{ affectedRows: 1 }];
+      }
       if (compact.includes("FROM `registry_surfaces_catalog`")) {
         const key = params[0];
         const common = {
