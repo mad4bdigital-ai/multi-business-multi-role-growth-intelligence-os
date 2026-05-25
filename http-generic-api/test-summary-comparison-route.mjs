@@ -48,4 +48,20 @@ const migration = fs.readFileSync(new URL('./migrations/123_sprint64_summary_com
 assert(migration.includes('CREATE TABLE IF NOT EXISTS `summary_comparison_runs`'), 'migration should create summary_comparison_runs');
 assert(migration.includes('dev_agent_summary_comparison_run'), 'migration should register admin comparison tool');
 
+assert(
+  source.includes('router.get("/dev-agent/summary-comparison/report"'),
+  'summary comparison report route should be registered',
+);
+assert(
+  source.includes('summary_comparison_runs') && source.includes('n8n_speed_win_rate'),
+  'summary comparison report should aggregate persisted comparison runs',
+);
+assert(
+  source.includes('reads_only: true'),
+  'summary comparison report should declare read-only behavior',
+);
+const reportMigration = fs.readFileSync(new URL('./migrations/124_sprint64_summary_comparison_report_tool.sql', import.meta.url), 'utf8');
+assert(reportMigration.includes('dev_agent_summary_comparison_report'), 'report migration should register admin report tool');
+assert(reportMigration.includes('read_only'), 'report tool should be tagged read_only');
+
 console.log('summary comparison route guard tests passed');
