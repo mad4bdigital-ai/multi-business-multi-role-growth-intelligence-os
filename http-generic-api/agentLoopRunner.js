@@ -193,6 +193,16 @@ export async function runAgentLoop(plan, deps = {}) {
 
   const tools = buildToolsFromEngines(workflow.mapped_engines || "");
 
+  const execution_class = workflow.execution_class || "standard";
+  assertPreflightAllowed(await evaluateAgentLoopPreflight({
+    plan,
+    workflow,
+    logicKey: logic_key,
+    executionClass: execution_class,
+    toolCount: tools.length,
+    context,
+  }));
+
   const engineRegistry = deps.engineExecutorRegistry;
 
   async function dispatchTool(toolName, args, ctx) {
