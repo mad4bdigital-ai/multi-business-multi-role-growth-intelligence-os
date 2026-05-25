@@ -29,12 +29,24 @@ function normalize(value = "") {
   return String(value || "").trim();
 }
 
+function normalizeLower(value = "") {
+  return normalize(value).toLowerCase();
+}
+
 function normalizeKey(value = "") {
   return normalize(value).toLowerCase().replace(/[\s-]+/g, "_").replace(/[^a-z0-9_:.]/g, "_");
 }
 
 function compactString(value = "", max = 1000) {
   return normalize(value).slice(0, max);
+}
+
+function boolValue(value, fallback = false) {
+  if (value === true || value === false) return value;
+  const normalized = normalizeLower(value);
+  if (["true", "1", "yes", "y"].includes(normalized)) return true;
+  if (["false", "0", "no", "n"].includes(normalized)) return false;
+  return fallback;
 }
 
 function safeJsonObject(value, fallback = {}) {
@@ -109,7 +121,7 @@ async function writeContributionExecutionLog({ pool, traceId, entryType, status,
       payload?.plugin_key ? `platform plugin contribution ${payload.plugin_key}` : "platform plugin contribution",
       entryType,
       "platform_plugin_contribution_intake",
-      "registry_contribution_intake",
+      payload?.execution_mode || "registry_contribution_intake",
       "admin_tool",
       status,
       JSON.stringify({ ...payload, secrets_included: false }),
@@ -195,6 +207,32 @@ async function assertTenantAndUser({ pool, tenantId, userId, ownerScope }) {
     err.status = 400;
     throw err;
   }
+}
+
+function assertContributionOwnerScope(contribution, { tenantId = null, userId = null } = {}) {
+  if (!contribution) return false;
+  if (contribution.owner_scope === "tenant") return Boolean(tenantId && contribution.owner_tenant_id === tenantId);
+  if (contribution.owner_scope === "user") return Boolean(userId && contribution.owner_user_id === userId);
+  return false;
+}
+
+function findContributionAction(contribution, actionKey = null) {
+  const actions = safeJsonArray(contribution.action_bindings_json, []);
+  if (!actionKey) return actions[0] || null;
+  return actions.find((action) => String(action.action_key || "") === String(actionKey)) || null;
+}
+
+function contributionProtocols(contribution) {
+  return safeJsonArray(contribution.protocol_bindings_json, [])
+    .map((binding) => binding.protocol)
+    .filter(Boolean);
+}
+
+function contributionCredentialScopes(contribution) {
+  const policy = safeJsonObject(contribution.credential_policy_json, {});
+  const allowed = Array.isArray(policy.allowed_scopes) ? policy.allowed_scopes : [];
+  const supported = Array.isArray(policy.supported_scopes) ? policy.supported_scopes : [];
+  return [...new Set([...allowed, ...supported].map((scope) => String(scope || "").trim()).filter(Boolean))];
 }
 
 export async function createPlatformPluginContribution({
@@ -340,6 +378,188 @@ export async function createPlatformPluginContribution({
       execution_status: executionLog.execution_status,
       trace_id: executionLog.execution_trace_id_writeback,
     } : { ok: false, trace_id: traceId },
+    secrets_included: false,
+  };
+}
+
+export async function activatePrivatePlatformPluginContribution({
+  pool = getPool(),
+  contributionId,
+  tenantId = null,
+  userId = null,
+  notes = "",
+} = {}) {
+  const normalizedId = compactString(contributionId, 64);
+  if (!normalizedId) {
+    const err = new Error("contribution_id is required.");
+    err.code = "missing_contribution_id";
+    err.status = 400;
+    throw err;
+  }
+  const rows = await safeQuery(pool, `SELECT * FROM platform_plugin_contributions WHERE contribution_id = ? LIMIT 1`, [normalizedId]);
+  const contribution = rows[0] ? toSafeContribution(rows[0]) : null;
+  if (!contribution) {
+    const err = new Error("Platform Plugin contribution not found.");
+    err.code = "contribution_not_found";
+    err.status = 404;
+    throw err;
+  }
+  if (!assertContributionOwnerScope(contribution, { tenantId, userId })) {
+    const err = new Error("Contribution is not owned by the supplied tenant/user scope.");
+    err.code = "owner_scope_mismatch";
+    err.status = 403;
+    throw err;
+  }
+  if (!EXECUTABLE_PRIVATE_STATUSES.has(contribution.status)) {
+    const err = new Error("Contribution status cannot be privately activated.");
+    err.code = "contribution_not_executable";
+    err.status = 409;
+    throw err;
+  }
+  if (!contribution.action_bindings_json.length) {
+    const err = new Error("At least one action binding is required for private execution activation.");
+    err.code = "missing_action_bindings";
+    err.status = 400;
+    throw err;
+  }
+  if (!contribution.protocol_bindings_json.length) {
+    const err = new Error("At least one protocol binding is required for private execution activation.");
+    err.code = "missing_protocol_bindings";
+    err.status = 400;
+    throw err;
+  }
+
+  await pool.query(
+    `UPDATE platform_plugin_contributions
+        SET private_execution_enabled = 1,
+            private_activated_at = CURRENT_TIMESTAMP,
+            validation_report_json = JSON_SET(COALESCE(validation_report_json, JSON_OBJECT()), '$.private_activation', JSON_OBJECT('enabled', true, 'checked_at', ?, 'scope', owner_scope, 'secrets_included', false)),
+            notes = CASE WHEN ? = '' THEN notes ELSE CONCAT(COALESCE(notes,''), '\n', ?) END,
+            updated_by = COALESCE(?, updated_by)
+      WHERE contribution_id = ?`,
+    [isoNow(), compactString(notes, 1000), compactString(notes, 1000), userId || null, normalizedId]
+  );
+
+  const readbackRows = await safeQuery(pool, `SELECT * FROM platform_plugin_contributions WHERE contribution_id = ? LIMIT 1`, [normalizedId]);
+  const readback = readbackRows[0] ? toSafeContribution(readbackRows[0]) : null;
+  const traceId = `platform_plugin_private_activate_${normalizedId}`;
+  const executionLog = await writeContributionExecutionLog({
+    pool,
+    traceId,
+    entryType: "platform_plugin_contribution_private_activate",
+    status: readback?.private_execution_enabled ? "success" : "failed_readback",
+    payload: {
+      contribution_id: normalizedId,
+      plugin_key: contribution.plugin_key,
+      owner_scope: contribution.owner_scope,
+      tenant_id: tenantId || null,
+      user_id: userId || null,
+      private_execution_enabled: Boolean(readback?.private_execution_enabled),
+      execution_mode: "owner_scoped_private_runtime",
+    },
+  });
+
+  return {
+    ok: Boolean(readback?.private_execution_enabled),
+    contribution: readback,
+    private_runtime: {
+      executable_within_owner_scope: Boolean(readback?.private_execution_enabled),
+      promotion_required_for_other_users: true,
+      platform_base_mutated: false,
+    },
+    execution_log: executionLog ? {
+      ok: true,
+      id: executionLog.id,
+      execution_status: executionLog.execution_status,
+      trace_id: executionLog.execution_trace_id_writeback,
+    } : { ok: false, trace_id: traceId },
+    secrets_included: false,
+  };
+}
+
+export async function resolvePrivatePlatformPluginContribution({
+  pool = getPool(),
+  contributionId = null,
+  pluginKey = null,
+  actionKey = null,
+  tenantId = null,
+  userId = null,
+  requestedCredentialScope = null,
+} = {}) {
+  const where = [];
+  const params = [];
+  if (contributionId) { where.push("contribution_id = ?"); params.push(compactString(contributionId, 64)); }
+  if (pluginKey) { where.push("plugin_key = ?"); params.push(normalizeKey(pluginKey)); }
+  if (!where.length) {
+    const err = new Error("contribution_id or plugin_key is required.");
+    err.code = "missing_contribution_selector";
+    err.status = 400;
+    throw err;
+  }
+  const rows = await safeQuery(
+    pool,
+    `SELECT * FROM platform_plugin_contributions WHERE ${where.join(" AND ")} ORDER BY created_at DESC LIMIT 1`,
+    params
+  );
+  const contribution = rows[0] ? toSafeContribution(rows[0]) : null;
+  if (!contribution) {
+    return { ok: true, allowed: false, reason: "contribution_not_found", secrets_included: false };
+  }
+
+  const ownerOk = assertContributionOwnerScope(contribution, { tenantId, userId });
+  const action = findContributionAction(contribution, actionKey);
+  const protocols = contributionProtocols(contribution);
+  const credentialScopes = contributionCredentialScopes(contribution);
+  const requestedScope = requestedCredentialScope ? normalizeKey(requestedCredentialScope) : null;
+  const credentialOk = !credentialScopes.length || !requestedScope || credentialScopes.includes(requestedScope);
+  const allowed = Boolean(ownerOk && contribution.private_execution_enabled && action && credentialOk && EXECUTABLE_PRIVATE_STATUSES.has(contribution.status));
+  const denialReasons = [];
+  if (!ownerOk) denialReasons.push("owner_scope_mismatch");
+  if (!contribution.private_execution_enabled) denialReasons.push("private_execution_not_enabled");
+  if (!EXECUTABLE_PRIVATE_STATUSES.has(contribution.status)) denialReasons.push("contribution_status_not_executable");
+  if (!action) denialReasons.push("action_binding_not_found");
+  if (!credentialOk) denialReasons.push("credential_scope_not_allowed_by_contribution_policy");
+
+  return {
+    ok: true,
+    allowed,
+    reason: allowed ? "owner_scoped_private_runtime_resolved" : denialReasons.join("|") || "not_allowed",
+    mode: "owner_scoped_private_runtime",
+    contribution_id: contribution.contribution_id,
+    plugin_key: contribution.plugin_key,
+    plugin: {
+      plugin_key: contribution.plugin_key,
+      display_name: contribution.display_name,
+      plugin_type: contribution.plugin_type,
+      source: "tenant_user_contribution",
+      owner_scope: contribution.owner_scope,
+      status: contribution.status,
+      certification_status: contribution.certification_status,
+      private_execution_enabled: contribution.private_execution_enabled,
+      protocols,
+    },
+    binding: action ? {
+      action_key: action.action_key || null,
+      risk_level: action.risk_level || null,
+      status: action.status || "active_by_contribution",
+    } : null,
+    credential_resolution: {
+      ok: credentialOk,
+      requested_scope: requestedScope || null,
+      allowed_scopes: credentialScopes,
+      reason: credentialOk ? "credential_policy_allows_scope" : "credential_scope_not_allowed_by_contribution_policy",
+      secrets_included: false,
+    },
+    execution: {
+      will_execute: allowed,
+      next_step: allowed ? "owner_scoped_private_adapter_dispatch" : "resolve_denials_before_private_execution",
+      promotion_required_for_other_users: true,
+      platform_base_mutated: false,
+    },
+    audit: {
+      secrets_included: false,
+      read_model_tables: ["platform_plugin_contributions"],
+    },
     secrets_included: false,
   };
 }
