@@ -310,6 +310,103 @@ export function buildDevAgentRoutes(deps) {
     }
   });
 
+  // ── POST /dev-agent/summary-comparison/run ───────────────────────────────
+  router.post("/dev-agent/summary-comparison/run", async (req, res) => {
+    const body = req.body || {};
+    const comparison_id = randomUUID();
+    const tenant_id = body.tenant_id || null;
+    const user_id = body.user_id || null;
+    const turns = normalizeComparisonTurns(body);
+    if (!turns.length) {
+      return res.status(400).json({
+        ok: false,
+        error: { code: "summary_comparison_input_required", message: "Provide text, content, input.text, or turns[]." },
+      });
+    }
+
+    const text = turns.map((turn) => turn.content).join("\n\n");
+    const n8nBindingKey = String(body.n8n_binding_key || "summary_n8n_experiment_v1").trim();
+    const session = {
+      session_id: `summary_comparison_${comparison_id}`,
+      tenant_id: tenant_id || "00000000-0000-0000-0000-000000000000",
+      user_id,
+      turn_count: turns.length,
+      workspace_key: "summary_comparison",
+    };
+
+    const modelStep = await timedStep(async () => {
+      const callModel = await resolveStandardCallModel(deps, "summary");
+      if (!callModel) {
+        const err = new Error("callModel is not configured for summary comparison.");
+        err.code = "call_model_not_configured";
+        throw err;
+      }
+      const insight = await summarizeTranscriptWithModel({ session, turns, callModel });
+      return {
+        summary: insight.summary_text,
+        tasks_completed: insight.tasks_completed || [],
+        blockers: insight.blockers || [],
+        feature_requests: insight.feature_requests || [],
+        integration_needs: insight.integration_needs || [],
+        complexity: insight.complexity || "medium",
+        source: "current_model_summary",
+        method: "sessionSummaryService.summarizeTranscriptWithModel",
+      };
+    });
+
+    const n8nStep = await timedStep(async () => {
+      const runtime = await runN8nWorkflowRuntime({
+        pool: getPool(),
+        binding_key: n8nBindingKey,
+        tenant_id,
+        user_id,
+        input: {
+          text,
+          max_bullets: Number(body.max_bullets || 5),
+          max_chars: Number(body.max_chars || 900),
+        },
+      });
+      if (!runtime.ok) {
+        const err = new Error(runtime.error?.message || "n8n summary experiment failed");
+        err.code = runtime.error?.code || "n8n_summary_experiment_failed";
+        throw err;
+      }
+      return runtime.result;
+    });
+
+    const statusCode = modelStep.ok && n8nStep.ok ? 200 : 207;
+    return res.status(statusCode).json({
+      ok: modelStep.ok && n8nStep.ok,
+      comparison_id,
+      production_route_unchanged: true,
+      writes_session_summaries: false,
+      input: {
+        turn_count: turns.length,
+        text_chars: text.length,
+      },
+      current_model_summary: {
+        ...modelStep,
+        shape: modelStep.ok ? summarizeComparisonShape(modelStep.result) : null,
+      },
+      n8n_experiment: {
+        binding_key: n8nBindingKey,
+        ...n8nStep,
+        shape: n8nStep.ok ? summarizeComparisonShape(n8nStep.result) : null,
+      },
+      comparison: {
+        model_latency_ms: modelStep.latency_ms,
+        n8n_latency_ms: n8nStep.latency_ms,
+        faster_path: modelStep.ok && n8nStep.ok
+          ? (modelStep.latency_ms <= n8nStep.latency_ms ? "current_model_summary" : "n8n_experiment")
+          : null,
+        source_difference: modelStep.ok && n8nStep.ok
+          ? `${modelStep.result.source || "current_model_summary"} vs ${n8nStep.result.source || "n8n_experiment"}`
+          : null,
+      },
+      secrets_included: false,
+    });
+  });
+
   // ── GET/PATCH /dev-agent/model-settings ──────────────────────────────────
   router.get("/dev-agent/model-settings", async (req, res) => {
     try {
