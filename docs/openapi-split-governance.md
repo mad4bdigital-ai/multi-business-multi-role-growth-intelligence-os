@@ -33,4 +33,4 @@ CI enforcement is implemented by:
 
 ## Failure class
 
-Any split-only endpoint or operation is classified as `degraded_contract` and must block schema/runtime contract changes.
+Any split-only endpoint or operation, or duplicate split alias key inside a source operation, is classified as `degraded_contract` and must block schema/runtime contract changes.
