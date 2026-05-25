@@ -459,6 +459,7 @@ section("connect api auth scope");
       runtimeCoverageAuditSource.includes("toolManifestBuilder") &&
       runtimeCoverageAuditSource.includes("governedToolUseLoop"));
     const runtimePolicyLoaderSource = readFileSync("runtimePolicyLoader.js", "utf8");
+    const surfaceAuthorityResolverSource = readFileSync("surfaceAuthorityResolver.js", "utf8");
     const gptToolsSource = readFileSync("routes/gptToolsRoutes.js", "utf8");
     const runtimePolicyMigrationSource = readFileSync("migrations/122_sprint64_runtime_policy_preflight.sql", "utf8");
     const gptToolsPolicyMigrationSource = readFileSync("migrations/123_sprint64_gpt_tools_policy_preflight.sql", "utf8");
