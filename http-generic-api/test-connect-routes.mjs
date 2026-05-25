@@ -122,8 +122,8 @@ try {
   section("auth openapi contract");
 
   {
-    // MCP-style tenant schema: five meta-operations replace all explicit paths.
-    // Connect/system operations are now accessed via callTool (discovered through listTools).
+    // MCP-style tenant schema plus direct tenant Platform Plugin self-serve actions.
+    // Connect/system operations are still accessed via callTool (discovered through listTools).
     const doc = yaml.load(readFileSync("openapi.tenant-gpt.auth.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const securityScheme = doc.components?.securitySchemes?.userBearerAuth;
