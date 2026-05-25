@@ -209,6 +209,53 @@ function safeParseJsonArray(value) {
   }
 }
 
+function normalizeRepoAnalysisScope(value = "platform_repo") {
+  const scope = String(value || "platform_repo").trim();
+  const allowed = new Set(["platform_repo"]);
+  if (!allowed.has(scope)) {
+    const err = new Error("Only platform_repo is currently allowed for repo-analysis dry runs.");
+    err.code = "summary_development_repo_scope_blocked";
+    err.status = 403;
+    throw err;
+  }
+  return scope;
+}
+
+function buildOpenClaudeRepoAnalysisCommandPlan({ runtime = {}, signal = {}, repoScope = "platform_repo", analysisGoal = "" } = {}) {
+  const prompt = [
+    "You are running a read-only repository analysis dry run for the Growth Intelligence Platform.",
+    "Do not edit files. Do not run shell commands. Do not write patches. Do not reveal secrets.",
+    "Produce a concise patch plan only: relevant files, likely migration/tests, risks, and acceptance criteria.",
+    `Signal: ${signal.title || signal.signal_key || "unknown"}`,
+    `Signal type: ${signal.signal_type || "unknown"}`,
+    `Priority: ${signal.priority || "medium"}`,
+    `Evidence: ${clampText(signal.evidence_text || signal.description || "", 1200)}`,
+    analysisGoal ? `User analysis goal: ${clampText(analysisGoal, 500)}` : "",
+  ].filter(Boolean).join("\n");
+
+  return {
+    adapter: "openclaude_repo_analysis_command_plan_v1",
+    repo_scope: repoScope,
+    runtime_key: runtime.runtime_key || "openclaude_essam_local_v1",
+    runtime_command_hint: runtime.command_hint || "openclaude",
+    allowed_tools: ["Read", "Grep", "Glob", "LS"],
+    denied_tools: ["Edit", "Write", "MultiEdit", "NotebookEdit", "Bash", "git push", "git commit", "apply_patch"],
+    suggested_args: [
+      "--print",
+      "--bare",
+      "--allowedTools",
+      "Read,Grep,Glob,LS",
+      prompt,
+    ],
+    prompt_preview: prompt,
+    local_execution_allowed: false,
+    local_execution_attempted: false,
+    auto_execute_code: false,
+    auto_mutate_repo: false,
+    secrets_included: false,
+  };
+}
+
 function inferSignalPriority(type, evidence = "") {
   const text = String(evidence || "").toLowerCase();
   if (/security|secret|token|credential|auth|blocked|critical|production|canonical|فشل|خطر|سري/.test(text)) return "high";
