@@ -238,14 +238,47 @@ export async function verifySessionSummaryWrite({ pool = getPool(), session, sum
     [summary_id]
   ).catch(() => [[]]);
 
+  const assetId = summaryAssetId(summary_id);
+  const conversationNodeId = `conversation.${normalizeGraphIdPart(session.session_id)}`;
+  const assetNodeId = `json_asset.${normalizeGraphIdPart(assetId)}`;
+  const edgeId = `edge.session_summary.${normalizeGraphIdPart(summary_id)}`;
+
+  const [nodeRows] = await pool.query(
+    `SELECT node_id, node_type, lifecycle_status
+     FROM \`platform_graph_nodes\`
+     WHERE node_id IN (?, ?)
+     LIMIT 2`,
+    [conversationNodeId, assetNodeId]
+  ).catch(() => [[]]);
+
+  const [edgeRows] = await pool.query(
+    `SELECT edge_id, source_node_id, target_node_id, lifecycle_status
+     FROM \`platform_graph_edges\`
+     WHERE edge_id = ?
+       AND source_node_id = ?
+       AND target_node_id = ?
+     LIMIT 1`,
+    [edgeId, assetNodeId, conversationNodeId]
+  ).catch(() => [[]]);
+
   const summaryRow = summaryRows[0] || null;
   const assetRow = assetRows[0] || null;
+  const nodeIds = new Set((nodeRows || []).map(row => row.node_id));
+  const graphConversationNodePresent = nodeIds.has(conversationNodeId);
+  const graphAssetNodePresent = nodeIds.has(assetNodeId);
+  const graphEdgePresent = Boolean(edgeRows?.[0]);
+  const graphTopologyPresent = graphConversationNodePresent && graphAssetNodePresent && graphEdgePresent;
   return {
-    ok: Boolean(summaryRow),
+    ok: Boolean(summaryRow) && graphTopologyPresent,
     summary_row_present: Boolean(summaryRow),
     graph_asset_present: Boolean(assetRow),
     graph_validation_status: assetRow?.validation_status || null,
     graph_active_status: assetRow?.active_status || null,
+    graph_conversation_node_present: graphConversationNodePresent,
+    graph_asset_node_present: graphAssetNodePresent,
+    graph_edge_present: graphEdgePresent,
+    graph_topology_present: graphTopologyPresent,
+    graph_edge_id: graphEdgePresent ? edgeRows[0].edge_id : null,
     summary_id,
     session_id: session.session_id,
   };
