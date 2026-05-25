@@ -428,6 +428,15 @@ section("connect api auth scope");
       agentLoopPolicyMigrationSource.includes("Agent Loop Preflight Visibility") &&
       agentLoopPolicyMigrationSource.includes("agent_loop|model_tool_loop") &&
       agentLoopPolicyMigrationSource.includes("'FALSE'"));
+    assert("Brand Core is loaded before agent-loop writing governance is enforced",
+      agentLoopRunnerSource.includes("loadBrandCoreEvidence") &&
+      agentLoopRunnerSource.includes("context.brand_core") &&
+      agentLoopRunnerSource.includes("context.brand_core_resolved") &&
+      agentLoopRunnerSource.indexOf("loadBrandCoreEvidence") < agentLoopRunnerSource.indexOf("evaluateAgentLoopPreflight") &&
+      governedPreflightSource.includes("brand_writing_requires_brand_core") &&
+      brandCoreAgentLoopGuardMigrationSource.includes("Brand Writing Requires Brand Core") &&
+      brandCoreAgentLoopGuardMigrationSource.includes("blocking`, `notes") &&
+      brandCoreAgentLoopGuardMigrationSource.includes("'TRUE'"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
