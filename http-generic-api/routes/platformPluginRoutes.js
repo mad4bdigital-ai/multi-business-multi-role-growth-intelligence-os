@@ -85,6 +85,24 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
     } catch (err) { return errorResponse(res, err, "platform_plugin_policy_upsert_failed"); }
   });
 
+  router.post("/platform/plugins/install", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await installPlatformPluginForTenant({
+        tenantId: input.tenant_id || input.tenantId,
+        userId: input.user_id || input.userId || null,
+        pluginKey: input.plugin_key || input.pluginKey,
+        sourceMode: input.source_mode || input.sourceMode || "dedicated",
+        fallbackAllowed: input.fallback_allowed ?? input.fallbackAllowed ?? false,
+        requiredForDeviceInstall: input.required_for_device_install ?? input.requiredForDeviceInstall ?? false,
+        notes: input.notes || "",
+        connection: input.connection || null,
+        rawPayload: input,
+      });
+      return res.status(result.ok ? 200 : 409).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_plugin_install_failed"); }
+  });
+
   router.post("/platform/plugins/contributions", ...requireAdmin, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
