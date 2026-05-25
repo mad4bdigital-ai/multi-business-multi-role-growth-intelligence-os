@@ -5251,6 +5251,7 @@ paths:
       tags: [admin-control]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: createAdminScopeGrant
+      x-custom-gpt-exclude: true
       summary: Issue a scope grant lending a tenant user a normally admin-only DB tool
       description: "Records a time-bounded scope grant in admin_scope_grants. When the named tenant user calls /gpt/tools/call with source_tool_key, the dispatcher consults this row before returning tool_not_found, validates args against allowed_actions and allowed_args, and dispatches the admin tool. Every dispatch is written to audit_log with grant_id as resource_id."
       requestBody:
