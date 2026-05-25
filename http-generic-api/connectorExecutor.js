@@ -346,6 +346,13 @@ export async function dispatchPlan(plan_id, {
   const connector_type = isWordpress ? "wordpress" : isMcp ? "mcp_connector" : "content_workflow";
   const service_mode   = plan.service_mode || "self_serve";
 
+  assertPreflightAllowed(await evaluateConnectorDispatchPreflight({
+    plan,
+    connectorType: connector_type,
+    workflowDef,
+    apply,
+  }));
+
   await createWorkflowRun(run_id, plan, service_mode);
   await getPool().query(
     "UPDATE `execution_plans` SET plan_status = 'executing' WHERE plan_id = ?",
