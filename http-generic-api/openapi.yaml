@@ -8275,6 +8275,7 @@ paths:
       tags: [session-archive]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: writeGptSessionTurn
+      x-tenant-gpt-operationId: writeSessionTurn
       summary: Append one turn to a customer_sessions archive
       description: "Append one conversation turn to the active customer_sessions row. Writes the full content to the Drive transcript Doc and JSONL sidecar, and stores a bounded preview, sha256 hash, and Drive anchor in gpt_session_turns. Registered as the admin tool gpt_session_turn_write."
       parameters:
