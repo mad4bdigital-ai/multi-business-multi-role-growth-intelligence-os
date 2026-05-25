@@ -103,6 +103,13 @@ export async function executeAppAction(connection, action_key, args = {}) {
 
   const creds = await ensureFreshCredentials(connection);
 
+  assertPreflightAllowed(await evaluateAppActionPreflight({
+    connection,
+    appKey: connection.app_key,
+    actionKey: action_key,
+    args,
+  }));
+
   const result = await adapter.call(action_key, args, creds, connection);
 
   if (result?.ok) {
