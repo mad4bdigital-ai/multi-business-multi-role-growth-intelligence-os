@@ -53,6 +53,7 @@ Connector route health is the operational source of truth. To avoid stale databa
 - Fallback/admin-recovery route failures must not pollute the primary device status when a device-specific Cloudflare route is healthy.
 - Connector agent heartbeat must also sync the primary Cloudflare route. A successful heartbeat marks the primary registered route healthy; a failed heartbeat degrades the primary registered route instead of leaving config and route metadata divergent.
 - If a registered primary Cloudflare route is marked `down` but still matches the device runtime URL, the proxy must retry that registered route as a recoverable candidate before falling back to a synthetic runtime URL. This lets `markRouteSuccess()` heal the real database row instead of succeeding through an untracked synthetic route.
+- Successful app-connection use must also heal validation metadata. When `executeAppAction()` returns `ok: true`, `user_app_connections.validation_status` becomes `validated` and `last_validated_at` is refreshed. Failed app actions should not automatically mark credentials failed because the failure may be payload/business logic rather than credential validity.
 
 ## Schema and guide alignment
 
