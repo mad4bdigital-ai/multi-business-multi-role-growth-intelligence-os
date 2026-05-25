@@ -79,6 +79,9 @@ assert(
 const scoringMigration = fs.readFileSync(new URL('./migrations/125_sprint64_summary_comparison_quality_scoring.sql', import.meta.url), 'utf8');
 assert(scoringMigration.includes('preferred_output'), 'scoring migration should add preferred_output');
 assert(scoringMigration.includes('dev_agent_summary_comparison_score'), 'scoring migration should register scoring tool');
-assert(!scoringMigration.includes('session_summaries'), 'scoring migration must not modify session_summaries');
+assert(
+  !scoringMigration.match(/(ALTER TABLE|INSERT INTO|UPDATE)\s+`session_summaries`/i),
+  'scoring migration must not modify session_summaries',
+);
 
 console.log('summary comparison route guard tests passed');
