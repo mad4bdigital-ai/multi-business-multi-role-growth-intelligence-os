@@ -1720,6 +1720,12 @@ components:
 security: []
 
 x-tenant-gpt-auth:
+  schema_info:
+    title: Mad4B Growth Intelligence - Tenant AI - MCP Actions
+    version: 2.0.2-platform-plugins
+    summary: Tenant GPT schema with MCP meta-operations plus tenant self-serve Platform Plugin routes.
+    description: Tenant MCP schema. Use connect_activate with tool_args.mode and integration_modes. Also supports Platform Plugin catalog, install, and resolve.
+  server_description: Mad4B platform auth subdomain
   security_scheme_name: userBearerAuth
   action_auth_preset:
     authentication_type: OAuth
@@ -5245,6 +5251,7 @@ paths:
       tags: [admin-control]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: createAdminScopeGrant
+      x-custom-gpt-exclude: true
       summary: Issue a scope grant lending a tenant user a normally admin-only DB tool
       description: "Records a time-bounded scope grant in admin_scope_grants. When the named tenant user calls /gpt/tools/call with source_tool_key, the dispatcher consults this row before returning tool_not_found, validates args against allowed_actions and allowed_args, and dispatches the admin tool. Every dispatch is written to audit_log with grant_id as resource_id."
       requestBody:
@@ -5304,6 +5311,7 @@ paths:
       tags: [admin-control]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listAdminScopeGrants
+      x-custom-gpt-exclude: true
       summary: List admin scope grants with optional filters
       description: "Lists rows from admin_scope_grants. By default returns only active grants. Use active_only=false to include revoked or expired rows."
       parameters:
@@ -5334,6 +5342,7 @@ paths:
       tags: [admin-control]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: revokeAdminScopeGrant
+      x-custom-gpt-exclude: true
       summary: Revoke an active scope grant
       description: "Sets revoked_at and revoked_by on admin_scope_grants. The row is not deleted so audit history stays intact. Subsequent dispatches matching this grant will fall back to tool_not_found."
       parameters:
