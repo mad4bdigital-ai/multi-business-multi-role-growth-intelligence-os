@@ -68,16 +68,45 @@ function makePool() {
         state.insertedSummary = { sql, params };
         return [{ affectedRows: 1 }];
       }
-      if (compact.startsWith("INSERT INTO `execution_log`")) {
+      if (compact.includes("FROM `registry_surfaces_catalog`")) {
+        return [[{
+          surface_id: "surface.operations_log_unified_sheet",
+          logical_surface_key: "surface.operations_log_unified_sheet",
+          surface_name: "Execution Log Unified",
+          surface_type: "registry",
+          surface_scope: "runtime",
+          storage_type: "workbook_sheet",
+          active_status: "active",
+          authority_status: "authoritative",
+          required_for_execution: "TRUE",
+          resolution_rule: "sql_primary",
+          owner_layer: "runtime_audit",
+          schema_ref: null,
+          schema_version: null,
+          binding_mode: "sql_runtime_authority",
+          sheet_role: "append_only_log",
+          source_surface_id: null,
+          source_surface_role: null,
+          retired_replacement_surface_id: null,
+          backend_type: "sql",
+          backend_adapter: "executionEvidenceLogger",
+          authority_model: "sql_runtime_authority",
+          portability_class: "runtime_evidence",
+          repair_candidate_types: null,
+          repair_priority: "medium",
+          updated_at: "2026-05-25T00:00:00.000Z",
+        }]];
+      }
+      if (compact.startsWith("INSERT INTO execution_log") || compact.startsWith("INSERT INTO `execution_log`")) {
         state.insertedExecutionLog = { sql, params, id: 42 };
         return [{ affectedRows: 1, insertId: 42 }];
       }
-      if (compact.startsWith("SELECT id, execution_status, execution_trace_id_writeback FROM `execution_log`")) {
-        if (state.insertedExecutionLog && params[0] === state.insertedExecutionLog.id) {
+      if (compact.includes("FROM execution_log") || compact.includes("FROM `execution_log`")) {
+        if (state.insertedExecutionLog && params[0] === state.insertedExecutionLog.params[24]) {
           return [[{
             id: state.insertedExecutionLog.id,
-            execution_status: state.insertedExecutionLog.params[5],
-            execution_trace_id_writeback: state.insertedExecutionLog.params[11],
+            execution_status: state.insertedExecutionLog.params[12],
+            execution_trace_id_writeback: state.insertedExecutionLog.params[24],
           }]];
         }
         return [[]];
@@ -182,7 +211,7 @@ function makePool() {
   assert.equal(result.execution_log.execution_log_id, 42);
   assert.equal(result.execution_log.execution_trace_id, result.summary_id);
   assert(
-    pool.state.insertedExecutionLog.params[6].includes("summary_row_present"),
+    pool.state.insertedExecutionLog.params[13].includes("summary_row_present"),
     "execution_log output_summary should include verification evidence"
   );
 }
@@ -229,8 +258,8 @@ function makePool() {
     "success_with_warnings",
     "preview-only transcript fallback should be visible in durable execution_log status"
   );
-  assert.equal(pool.state.insertedExecutionLog.params[7], "transcript_fallback_used");
-  assert.equal(pool.state.insertedExecutionLog.params[8], "missing_drive_jsonl_id");
+  assert.equal(pool.state.insertedExecutionLog.params[14], "transcript_fallback_used");
+  assert.equal(pool.state.insertedExecutionLog.params[15], "missing_drive_jsonl_id");
 }
 
 {
