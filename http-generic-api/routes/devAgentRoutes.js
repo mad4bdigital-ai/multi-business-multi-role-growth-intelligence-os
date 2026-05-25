@@ -462,6 +462,96 @@ export function buildDevAgentRoutes(deps) {
     return res.status(statusCode).json({ ...payload, persistence });
   });
 
+  // ── GET /dev-agent/summary-comparison/report ─────────────────────────────
+  router.get("/dev-agent/summary-comparison/report", async (req, res) => {
+    try {
+      const lookbackDays = boundedPositiveInt(req.query.lookback_days, 7, 1, 90);
+      const limit = boundedPositiveInt(req.query.limit, 20, 1, 100);
+      const bindingKey = String(req.query.n8n_binding_key || "").trim();
+      const where = ["created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)"];
+      const params = [lookbackDays];
+      if (bindingKey) {
+        where.push("n8n_binding_key = ?");
+        params.push(bindingKey);
+      }
+      const whereSql = where.join(" AND ");
+
+      const [[totals]] = await getPool().query(
+        `SELECT COUNT(*) AS total_runs,
+                SUM(CASE WHEN current_model_ok = 1 THEN 1 ELSE 0 END) AS current_model_ok_runs,
+                SUM(CASE WHEN n8n_ok = 1 THEN 1 ELSE 0 END) AS n8n_ok_runs,
+                AVG(current_model_latency_ms) AS avg_model_latency_ms,
+                AVG(n8n_latency_ms) AS avg_n8n_latency_ms,
+                AVG(current_model_summary_chars) AS avg_model_summary_chars,
+                AVG(n8n_summary_chars) AS avg_n8n_summary_chars,
+                SUM(CASE WHEN faster_path = 'n8n_experiment' THEN 1 ELSE 0 END) AS n8n_faster_runs,
+                SUM(CASE WHEN faster_path = 'current_model_summary' THEN 1 ELSE 0 END) AS model_faster_runs,
+                SUM(CASE WHEN writes_session_summaries = 1 THEN 1 ELSE 0 END) AS session_summary_write_violations,
+                SUM(CASE WHEN production_route_unchanged = 0 THEN 1 ELSE 0 END) AS production_route_change_violations
+         FROM \`summary_comparison_runs\`
+         WHERE ${whereSql}`,
+        params
+      );
+
+      const [byBinding] = await getPool().query(
+        `SELECT n8n_binding_key,
+                COUNT(*) AS total_runs,
+                AVG(current_model_latency_ms) AS avg_model_latency_ms,
+                AVG(n8n_latency_ms) AS avg_n8n_latency_ms,
+                SUM(CASE WHEN faster_path = 'n8n_experiment' THEN 1 ELSE 0 END) AS n8n_faster_runs,
+                MAX(created_at) AS last_seen
+         FROM \`summary_comparison_runs\`
+         WHERE ${whereSql}
+         GROUP BY n8n_binding_key
+         ORDER BY total_runs DESC, last_seen DESC`,
+        params
+      );
+
+      const [recentRuns] = await getPool().query(
+        `SELECT comparison_id, tenant_id, user_id, n8n_binding_key,
+                input_text_chars, input_turn_count,
+                current_model_ok, current_model_latency_ms, current_model_summary_chars,
+                n8n_ok, n8n_latency_ms, n8n_summary_chars,
+                faster_path, production_route_unchanged, writes_session_summaries,
+                created_at
+         FROM \`summary_comparison_runs\`
+         WHERE ${whereSql}
+         ORDER BY created_at DESC
+         LIMIT ?`,
+        [...params, limit]
+      );
+
+      const totalRuns = Number(totals?.total_runs || 0);
+      const n8nFasterRuns = Number(totals?.n8n_faster_runs || 0);
+      res.json({
+        ok: true,
+        lookback_days: lookbackDays,
+        filter: { n8n_binding_key: bindingKey || null },
+        totals: {
+          total_runs: totalRuns,
+          current_model_ok_runs: Number(totals?.current_model_ok_runs || 0),
+          n8n_ok_runs: Number(totals?.n8n_ok_runs || 0),
+          avg_model_latency_ms: Math.round(Number(totals?.avg_model_latency_ms || 0)),
+          avg_n8n_latency_ms: Math.round(Number(totals?.avg_n8n_latency_ms || 0)),
+          avg_model_summary_chars: Math.round(Number(totals?.avg_model_summary_chars || 0)),
+          avg_n8n_summary_chars: Math.round(Number(totals?.avg_n8n_summary_chars || 0)),
+          n8n_faster_runs: n8nFasterRuns,
+          model_faster_runs: Number(totals?.model_faster_runs || 0),
+          n8n_speed_win_rate: totalRuns ? Number((n8nFasterRuns / totalRuns).toFixed(3)) : 0,
+          session_summary_write_violations: Number(totals?.session_summary_write_violations || 0),
+          production_route_change_violations: Number(totals?.production_route_change_violations || 0),
+        },
+        by_binding: byBinding,
+        recent_runs: recentRuns,
+        production_route_unchanged: true,
+        reads_only: true,
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "summary_comparison_report_failed", message: err.message } });
+    }
+  });
+
   // ── GET/PATCH /dev-agent/model-settings ──────────────────────────────────
   router.get("/dev-agent/model-settings", async (req, res) => {
     try {
