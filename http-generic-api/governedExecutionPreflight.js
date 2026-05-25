@@ -292,6 +292,76 @@ export async function evaluateAppActionPreflight({ connection = {}, appKey = "",
   });
 }
 
+export async function evaluateConnectorDispatchPreflight({ plan = {}, connectorType = "", workflowDef = null, apply = false } = {}, deps = {}) {
+  const resolvedConnectorType = String(connectorType || "").trim();
+  const policies = await loadActiveExecutionPolicies({
+    execution_scope: [
+      "connector_dispatch",
+      "workflow_dispatch",
+      resolvedConnectorType,
+      plan.workflow_key,
+      plan.intent_key,
+    ].filter(Boolean),
+    affects_layer: ["connectorExecutor", "connectorExecutor.js", resolvedConnectorType].filter(Boolean),
+  }, deps);
+  if (!policies.length) {
+    return makePreflightResult({ evidence: { operation: "connector_dispatch", connector_type: resolvedConnectorType, reason: "no_matching_active_execution_policy" } });
+  }
+
+  const warnings = [];
+  const errors = [];
+  const enforcedBlockingPolicies = [];
+  const genericBlockingPolicies = [];
+  const evidence = {
+    operation: "connector_dispatch",
+    plan_id: plan.plan_id || null,
+    tenant_id: plan.tenant_id || null,
+    workflow_key: plan.workflow_key || null,
+    intent_key: plan.intent_key || null,
+    brand_key: plan.brand_key || null,
+    connector_type: resolvedConnectorType,
+    workflow_execution_class: workflowDef?.execution_class || null,
+    workflow_review_required: workflowDef?.review_required ?? null,
+    apply: Boolean(apply),
+    matching_policy_count: policies.length,
+  };
+
+  for (const policy of policies) {
+    if (!policyAllowsBlocking(policy)) continue;
+    const group = String(policy.policy_group || "").trim();
+    const key = String(policy.policy_key || "").trim();
+
+    if (group === "Connector Dispatch Governance" && key === "WordPress Apply Requires Explicit Reason") {
+      if (resolvedConnectorType !== "wordpress" || !apply) continue;
+      const reason = String(plan.apply_reason || plan.execution_reason || plan.reason || "").trim();
+      evidence.reason_supplied = Boolean(reason);
+      if (reason.length < 10) {
+        errors.push("wordpress_apply_requires_explicit_reason");
+        enforcedBlockingPolicies.push(policy);
+      }
+      continue;
+    }
+
+    genericBlockingPolicies.push(policy);
+  }
+
+  if (enforcedBlockingPolicies.length) {
+    return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence });
+  }
+
+  if (genericBlockingPolicies.length) {
+    warnings.push("matching_blocking_connector_dispatch_policies_require_specific_evaluator");
+  }
+
+  return makePreflightResult({
+    classification: warnings.length ? "allow_with_policy_warnings" : "allow_with_policy_advisory",
+    policies,
+    warnings,
+    errors,
+    evidence,
+  });
+}
+
 export function assertPreflightAllowed(preflight) {
   if (preflight?.ok !== false) return preflight;
   const err = new Error(`Governed execution preflight blocked operation: ${(preflight.errors || []).join(", ") || "policy_block"}`);
