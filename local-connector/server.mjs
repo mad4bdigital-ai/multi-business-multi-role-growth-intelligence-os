@@ -1038,6 +1038,88 @@ $scaled.Save($m,[System.Drawing.Imaging.ImageFormat]::Jpeg)
   return err(res, 400, 'UNKNOWN_ACTION', 'action must be "list", "open_url", or "screenshot"');
 }
 
+async function handleBrowser4(req, res) {
+  if (!BROWSER4_ENABLED) return err(res, 403, 'DISABLED', 'Browser4 endpoint is disabled on this connector');
+  if (!requireAuth(req, res)) return;
+  let body;
+  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
+
+  const { action, url, checks = ['snapshot'], inspection_key, timeout_ms } = body;
+
+  if (action === 'status') {
+    audit(req, { action: 'browser4:status' });
+    const timeoutMs = clampTimeout(timeout_ms, 30000);
+    const javaScript = BROWSER4_JAVA_HOME
+      ? `$env:JAVA_HOME=${JSON.stringify(BROWSER4_JAVA_HOME)};$env:PATH=(Join-Path $env:JAVA_HOME 'bin')+';'+$env:PATH; java -version 2>&1 | Select-Object -First 1`
+      : `java -version 2>&1 | Select-Object -First 1`;
+    const cliScript = `npx -y browser4-cli --version 2>&1 | Select-Object -First 1`;
+    try {
+      const java = await runPs(javaScript, timeoutMs);
+      const cli = await runPs(cliScript, timeoutMs);
+      return ok(res, {
+        browser4_enabled: true,
+        work_dir: BROWSER4_WORK_DIR,
+        java_home: BROWSER4_JAVA_HOME || null,
+        server_url: BROWSER4_SERVER_URL,
+        allowed_hosts: BROWSER4_ALLOWED_HOSTS,
+        java_version: String(java.stdout || java.stderr || '').trim().slice(0, 500),
+        browser4_cli_version: String(cli.stdout || cli.stderr || '').trim().slice(0, 500),
+        secrets_included: false,
+      });
+    } catch (e) {
+      return err(res, 500, 'BROWSER4_STATUS_ERROR', e.message);
+    }
+  }
+
+  if (action === 'inspect_site') {
+    let target;
+    let sanitizedChecks;
+    try {
+      target = validateBrowser4Url(url, BROWSER4_ALLOWED_HOSTS);
+      sanitizedChecks = sanitizeBrowser4Checks(checks);
+    } catch (e) {
+      return json(res, e.status || 400, { ok: false, error: { code: e.code || 'BROWSER4_VALIDATION_ERROR', message: e.message, details: e.details || null }, secrets_included: false });
+    }
+
+    const runKey = inspection_key || `browser4_${Date.now()}`;
+    const timeoutMs = clampTimeout(timeout_ms, 180000);
+    audit(req, { action: 'browser4:inspect_site', host: target.host, checks: sanitizedChecks, run_key: runKey });
+
+    const built = buildBrowser4InspectionScript({
+      url: target.url,
+      checks: sanitizedChecks,
+      runKey,
+      workDir: BROWSER4_WORK_DIR,
+      javaHome: BROWSER4_JAVA_HOME,
+      serverUrl: BROWSER4_SERVER_URL,
+    });
+
+    try {
+      const result = await runPs(built.script, timeoutMs);
+      const statusPath = built.artifacts.status_path;
+      let statusJson = null;
+      try { statusJson = JSON.parse(fs.readFileSync(statusPath, 'utf8').replace(/^\uFEFF/, '')); } catch { statusJson = null; }
+      return ok(res, {
+        action: 'inspect_site',
+        run_key: built.run_key,
+        target_host: target.host,
+        checks: built.checks,
+        exit_code: result.exitCode,
+        status: result.exitCode === 0 ? 'completed' : 'failed',
+        status_json: statusJson,
+        artifacts: built.artifacts,
+        stdout_preview: String(result.stdout || '').slice(0, 2000),
+        stderr_preview: String(result.stderr || '').slice(0, 2000),
+        secrets_included: false,
+      });
+    } catch (e) {
+      return err(res, 500, 'BROWSER4_INSPECT_ERROR', e.message);
+    }
+  }
+
+  return err(res, 400, 'UNKNOWN_ACTION', 'action must be "status" or "inspect_site"');
+}
+
 async function handleFiles(req, res) {
   if (!FILES_ENABLED) return err(res, 403, 'DISABLED', 'Files endpoint is disabled on this connector');
   if (!requireAuth(req, res)) return;
