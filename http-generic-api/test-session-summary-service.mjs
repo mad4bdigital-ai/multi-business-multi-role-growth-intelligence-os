@@ -211,7 +211,7 @@ function makePool() {
   assert.equal(result.execution_log.execution_log_id, 42);
   assert.equal(result.execution_log.execution_trace_id, result.summary_id);
   assert(
-    pool.state.insertedExecutionLog.params[6].includes("summary_row_present"),
+    pool.state.insertedExecutionLog.params[13].includes("summary_row_present"),
     "execution_log output_summary should include verification evidence"
   );
 }
