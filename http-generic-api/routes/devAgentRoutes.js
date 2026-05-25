@@ -153,6 +153,46 @@ async function timedStep(fn) {
   }
 }
 
+async function persistSummaryComparisonRun({ pool = getPool(), payload, tenant_id = null, user_id = null, n8nBindingKey = "summary_n8n_experiment_v1" } = {}) {
+  if (!payload?.comparison_id) return { ok: false, skipped: true, reason: "missing_comparison_id" };
+  const modelShape = payload.current_model_summary?.shape || {};
+  const n8nShape = payload.n8n_experiment?.shape || {};
+  await pool.query(
+    `INSERT INTO \`summary_comparison_runs\`
+       (comparison_id, tenant_id, user_id, n8n_binding_key,
+        input_text_chars, input_turn_count,
+        current_model_ok, current_model_latency_ms, current_model_summary_chars,
+        current_model_bullet_count, current_model_source, current_model_method,
+        n8n_ok, n8n_latency_ms, n8n_summary_chars, n8n_bullet_count,
+        n8n_source, n8n_method, faster_path,
+        production_route_unchanged, writes_session_summaries, result_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?)`,
+    [
+      payload.comparison_id,
+      tenant_id,
+      user_id,
+      n8nBindingKey,
+      Number(payload.input?.text_chars || 0),
+      Number(payload.input?.turn_count || 0),
+      payload.current_model_summary?.ok ? 1 : 0,
+      payload.current_model_summary?.latency_ms ?? null,
+      modelShape.summary_chars ?? null,
+      modelShape.bullet_count ?? null,
+      modelShape.source || null,
+      modelShape.method || null,
+      payload.n8n_experiment?.ok ? 1 : 0,
+      payload.n8n_experiment?.latency_ms ?? null,
+      n8nShape.summary_chars ?? null,
+      n8nShape.bullet_count ?? null,
+      n8nShape.source || null,
+      n8nShape.method || null,
+      payload.comparison?.faster_path || null,
+      JSON.stringify(payload),
+    ]
+  );
+  return { ok: true, comparison_id: payload.comparison_id };
+}
+
 async function loadSessionSummaryHealth({ pool = getPool(), lookbackDays = 7, limit = 20 } = {}) {
   const [status_breakdown] = await pool.query(
     `SELECT execution_status, recovery_status, recovery_notes, COUNT(*) AS count, MAX(created_at) AS last_seen
@@ -374,8 +414,7 @@ export function buildDevAgentRoutes(deps) {
       return runtime.result;
     });
 
-    const statusCode = modelStep.ok && n8nStep.ok ? 200 : 207;
-    return res.status(statusCode).json({
+    const payload = {
       ok: modelStep.ok && n8nStep.ok,
       comparison_id,
       production_route_unchanged: true,
@@ -404,7 +443,23 @@ export function buildDevAgentRoutes(deps) {
           : null,
       },
       secrets_included: false,
-    });
+    };
+
+    let persistence = { ok: false, skipped: true };
+    try {
+      persistence = await persistSummaryComparisonRun({
+        pool: getPool(),
+        payload,
+        tenant_id,
+        user_id,
+        n8nBindingKey,
+      });
+    } catch (err) {
+      persistence = { ok: false, error: { code: "summary_comparison_persist_failed", message: String(err.message || err).slice(0, 240) } };
+    }
+
+    const statusCode = modelStep.ok && n8nStep.ok ? 200 : 207;
+    return res.status(statusCode).json({ ...payload, persistence });
   });
 
   // ── GET/PATCH /dev-agent/model-settings ──────────────────────────────────
