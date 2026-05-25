@@ -69,32 +69,69 @@ function makePool() {
         return [{ affectedRows: 1 }];
       }
       if (compact.includes("FROM `registry_surfaces_catalog`")) {
-        return [[{
-          surface_id: "surface.operations_log_unified_sheet",
-          logical_surface_key: "surface.operations_log_unified_sheet",
-          surface_name: "Execution Log Unified",
+        const key = params[0];
+        const common = {
           surface_type: "registry",
           surface_scope: "runtime",
-          storage_type: "workbook_sheet",
+          storage_type: "sql_tables",
           active_status: "active",
           authority_status: "authoritative",
           required_for_execution: "TRUE",
           resolution_rule: "sql_primary",
+          source_surface_id: null,
+          source_surface_role: null,
+          retired_replacement_surface_id: null,
+          backend_type: "sql",
+          authority_model: "sql_runtime_authority",
+          repair_priority: "medium",
+          updated_at: "2026-05-25T00:00:00.000Z",
+        };
+        if (key === "surface.json_asset_registry_sheet") {
+          return [[{
+            ...common,
+            surface_id: "surface.json_asset_registry_sheet",
+            logical_surface_key: "surface.json_asset_registry_sheet",
+            surface_name: "JSON Asset Registry",
+            owner_layer: "artifact_memory_runtime",
+            schema_ref: "json_assets",
+            schema_version: "1",
+            binding_mode: "sql_runtime_authority",
+            sheet_role: "artifact_memory",
+            backend_adapter: "json_assets_readback_artifact_layer",
+            portability_class: "runtime_memory_artifact",
+            repair_candidate_types: "surface_authority|readback|artifact_integrity",
+          }]];
+        }
+        if (key === "surface.platform_graph_memory") {
+          return [[{
+            ...common,
+            surface_id: "surface.platform_graph_memory",
+            logical_surface_key: "surface.platform_graph_memory",
+            surface_name: "Platform Graph Memory",
+            owner_layer: "memory_graph_runtime",
+            schema_ref: "platform_graph_nodes|platform_graph_edges",
+            schema_version: "1",
+            binding_mode: "sql_runtime_authority",
+            sheet_role: "memory_graph_nodes_edges",
+            backend_adapter: "platform_graph_memory_writer",
+            portability_class: "runtime_memory_graph",
+            repair_candidate_types: "surface_authority|readback|graph_integrity",
+          }]];
+        }
+        return [[{
+          ...common,
+          surface_id: "surface.operations_log_unified_sheet",
+          logical_surface_key: "surface.operations_log_unified_sheet",
+          surface_name: "Execution Log Unified",
+          storage_type: "workbook_sheet",
           owner_layer: "runtime_audit",
           schema_ref: null,
           schema_version: null,
           binding_mode: "sql_runtime_authority",
           sheet_role: "append_only_log",
-          source_surface_id: null,
-          source_surface_role: null,
-          retired_replacement_surface_id: null,
-          backend_type: "sql",
           backend_adapter: "executionEvidenceLogger",
-          authority_model: "sql_runtime_authority",
           portability_class: "runtime_evidence",
           repair_candidate_types: null,
-          repair_priority: "medium",
-          updated_at: "2026-05-25T00:00:00.000Z",
         }]];
       }
       if (compact.startsWith("INSERT INTO execution_log") || compact.startsWith("INSERT INTO `execution_log`")) {
