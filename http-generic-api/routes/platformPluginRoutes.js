@@ -9,6 +9,7 @@ import {
   listPlatformPluginContributions,
   resolvePrivatePlatformPluginContribution,
 } from "../platformPluginContribution.js";
+import { dispatchPrivatePlatformPluginRestAction } from "../platformPluginPrivateRestDispatch.js";
 
 function bool(value) {
   return value === true || ["true", "1", "yes"].includes(String(value ?? "").trim().toLowerCase());
