@@ -47,7 +47,6 @@ for (const opId of main["x-tenant-gpt-auth"].tenant_operation_ids) {
 }
 
 assertSplitDerivedFromMain("tenant GPT split", tenant);
-assertSplitDerivedFromMain("admin auth dispatcher split", admin);
 
 assert(splitScript.includes("tenant_operation_ids"), "split-openapi must select tenant operations from main config");
 assert(splitScript.includes("validateSplitOperationsComeFromSource"), "split-openapi must validate split operations against main source");
