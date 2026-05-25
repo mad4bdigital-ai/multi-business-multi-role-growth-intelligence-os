@@ -405,6 +405,25 @@ section("connect api auth scope");
       runtimeCoverageAuditSource.includes("Governed Canonical Agent Runtime") &&
       runtimeCoverageAuditSource.includes("toolManifestBuilder") &&
       runtimeCoverageAuditSource.includes("governedToolUseLoop"));
+    const runtimePolicyLoaderSource = readFileSync("runtimePolicyLoader.js", "utf8");
+    const governedPreflightSource = readFileSync("governedExecutionPreflight.js", "utf8");
+    const runtimePolicyMigrationSource = readFileSync("migrations/122_sprint64_runtime_policy_preflight.sql", "utf8");
+    assert("execution_policies has runtime loader and repository mutation preflight evaluator",
+      runtimePolicyLoaderSource.includes("loadActiveExecutionPolicies") &&
+      runtimePolicyLoaderSource.includes("policyMatchesContext") &&
+      governedPreflightSource.includes("evaluateRepositoryMutationPreflight") &&
+      governedPreflightSource.includes("Repository Mutation Governance") &&
+      governedPreflightSource.includes("Stale Duplicate Branch Merge Guard"));
+    assert("admin GitHub mutations call governed preflight before execution/fallback",
+      adminCliSource.includes("preflightGithubMutationArgs") &&
+      adminCliSource.includes("await preflightGithubMutationArgs(args)") &&
+      adminCliSource.includes("evaluateRepositoryMutationPreflight") &&
+      adminCliSource.includes("assertPreflightAllowed"));
+    assert("runtime policy migration seeds repository mutation guard",
+      runtimePolicyMigrationSource.includes("Repository Mutation Governance") &&
+      runtimePolicyMigrationSource.includes("Stale Duplicate Branch Merge Guard") &&
+      runtimePolicyMigrationSource.includes("block_unmerged_branch_delete") &&
+      runtimePolicyMigrationSource.includes("block_risky_file_statuses"));
     assert("admin shell exposes runtime surface coverage audit alias",
       adminCliSource.includes("runtime_surface_coverage_audit") &&
       adminCliSource.includes("runtime-surface-coverage-audit.mjs") &&

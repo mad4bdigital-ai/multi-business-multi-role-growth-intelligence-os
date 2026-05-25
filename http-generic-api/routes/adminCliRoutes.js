@@ -5,6 +5,7 @@ import { getPool } from "../db.js";
 import { decryptCredentials } from "../tokenEncryption.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
+import { evaluateRepositoryMutationPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
 const MAX_COMMAND_TIMEOUT_MS = 600000;
@@ -602,6 +603,69 @@ async function githubRestText({ owner, repo, apiPath, token }) {
   return text;
 }
 
+function encodeCompareRef(refName) {
+  return encodeURIComponent(String(refName || "").trim());
+}
+
+async function loadGithubCompareForRefs({ owner, repo, token, baseRef, headRef }) {
+  if (!baseRef || !headRef) return null;
+  try {
+    return await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/compare/${encodeCompareRef(baseRef)}...${encodeCompareRef(headRef)}`,
+      token,
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function preflightGithubMutationArgs(args = []) {
+  const [resource, command] = args;
+  if (resource !== "pr" && resource !== "api") return null;
+  if (!(resource === "pr" && command === "merge") && !(resource === "api" && hasCliFlag(args, ["-X", "--method"]) && parseCliFlag(args, ["-X", "--method"]).toUpperCase() === "DELETE")) return null;
+
+  const { owner, repo } = await resolveGithubRepoFromArgs(args);
+  const token = await getGitHubAppInstallationToken({});
+
+  if (resource === "pr" && command === "merge") {
+    const prNumber = parseGithubPrNumber(firstGithubPositional(args, 2));
+    const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
+    const headRef = pr?.head?.repo?.full_name === `${owner}/${repo}`
+      ? pr?.head?.ref
+      : pr?.head?.repo?.owner?.login && pr?.head?.ref
+        ? `${pr.head.repo.owner.login}:${pr.head.ref}`
+        : pr?.head?.ref;
+    const compare = await loadGithubCompareForRefs({ owner, repo, token, baseRef: pr?.base?.ref || "main", headRef });
+    const preflight = await evaluateRepositoryMutationPreflight({
+      operation: "github_pr_merge",
+      args,
+      repo: { owner, repo },
+      pr,
+      compare,
+    });
+    return assertPreflightAllowed(preflight);
+  }
+
+  if (resource === "api" && command) {
+    const refMarker = "/git/refs/heads/";
+    const apiTarget = String(command);
+    if (!apiTarget.includes(refMarker)) return null;
+    const branchName = apiTarget.slice(apiTarget.indexOf(refMarker) + refMarker.length);
+    const compare = await loadGithubCompareForRefs({ owner, repo, token, baseRef: "main", headRef: branchName });
+    const preflight = await evaluateRepositoryMutationPreflight({
+      operation: "github_branch_delete",
+      args,
+      repo: { owner, repo },
+      branch: branchName,
+      compare,
+    });
+    return assertPreflightAllowed(preflight);
+  }
+  return null;
+}
+
 async function executeGitHubRestFallback(args = []) {
   const [resource, command, maybeId] = args;
   const { owner, repo } = await resolveGithubRepoFromArgs(args);
@@ -782,6 +846,10 @@ async function executeCliTool(tool, body = {}) {
     err.status = 400;
     err.code = "missing_args";
     throw err;
+  }
+
+  if (tool === "github") {
+    await preflightGithubMutationArgs(args);
   }
 
   const command = tool === "github" ? "gh" : "gcloud";
