@@ -21,7 +21,6 @@ function loadYaml(path) {
 
 const main = loadYaml("openapi.yaml");
 const tenant = loadYaml("openapi.tenant-gpt.auth.yaml");
-const admin = loadYaml("openapi.custom-gpt.auth-dispatcher.yaml");
 const splitScript = readFileSync("scripts/split-openapi.mjs", "utf8");
 
 const sourcePairs = new Set(collectOperations(main).map((op) => `${op.method.toUpperCase()} ${op.pathKey}`));
