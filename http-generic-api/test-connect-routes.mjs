@@ -164,9 +164,9 @@ try {
     assert("tenant GPT schema exposes tenant Platform Plugin resolve", exposedPaths.includes("/tenant/platform/plugins/resolve"), exposedPaths.join(", "));
 
     assert("tenant GPT callTool body requires name", Array.isArray(callToolSchema?.required) && callToolSchema.required.includes("name"));
-    assert("tenant GPT all POST operations are non-consequential",
-      postOps.every(({ operation }) => operation["x-openai-isConsequential"] === false),
-      postOps.filter(({ operation }) => operation["x-openai-isConsequential"] !== false).map(({ pathKey }) => pathKey).join(", "));
+    assert("tenant GPT POST operations are non-consequential except plugin install consent",
+      postOps.every(({ operation }) => operation["x-openai-isConsequential"] === false || operation.operationId === "tenantPlatformPluginInstall"),
+      postOps.filter(({ operation }) => operation["x-openai-isConsequential"] !== false && operation.operationId !== "tenantPlatformPluginInstall").map(({ pathKey }) => pathKey).join(", "));
     assert("tenant GPT schema does not expose admin provider-bootstrap paths", !exposedPaths.some((p) => p.startsWith("/admin/")), exposedPaths.join(", "));
   }
 
