@@ -384,6 +384,14 @@ section("connect api auth scope");
       appAdapterSource.includes("last_validated_at = NOW()") &&
       appAdapterSource.includes("if (result?.ok)") &&
       appAdapterSource.includes("UPDATE `user_app_connections` SET last_used_at = NOW()"));
+    const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
+    assert("n8n adapter accepts stored N8N_* credential aliases",
+      n8nAdapterSource.includes("normalizeN8nCredentials") &&
+      n8nAdapterSource.includes("creds.N8N_API_KEY") &&
+      n8nAdapterSource.includes("creds.N8N_BASE_URL") &&
+      n8nAdapterSource.includes("creds.N8N_LOCAL_BASE_URL") &&
+      n8nAdapterSource.includes("normalized.webhook_url") &&
+      n8nAdapterSource.includes("n8nReq(base, normalized"));
     assert("connect api resolves active tenant for older tenantless JWTs",
       apiSource.includes("resolveActiveTenantId") &&
       apiSource.includes("req.auth.tenant_id = await resolveActiveTenantId"));
