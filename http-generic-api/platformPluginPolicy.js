@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
+import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 
 const VALID_SOURCE_MODES = new Set(["managed", "dedicated"]);
 const SECRET_KEY_HINTS = [
