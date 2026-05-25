@@ -153,6 +153,30 @@ async function timedStep(fn) {
   }
 }
 
+function normalizeQualityScore(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const score = Number(value);
+  if (!Number.isFinite(score) || score < 1 || score > 5) {
+    const err = new Error("quality scores must be integers between 1 and 5.");
+    err.code = "summary_comparison_quality_score_invalid";
+    err.status = 400;
+    throw err;
+  }
+  return Math.round(score);
+}
+
+function normalizePreferredOutput(value) {
+  const preferred = String(value || "").trim();
+  const allowed = new Set(["current_model_summary", "n8n_experiment", "tie", "neither"]);
+  if (!allowed.has(preferred)) {
+    const err = new Error("preferred_output must be current_model_summary, n8n_experiment, tie, or neither.");
+    err.code = "summary_comparison_preferred_output_invalid";
+    err.status = 400;
+    throw err;
+  }
+  return preferred;
+}
+
 async function persistSummaryComparisonRun({ pool = getPool(), payload, tenant_id = null, user_id = null, n8nBindingKey = "summary_n8n_experiment_v1" } = {}) {
   if (!payload?.comparison_id) return { ok: false, skipped: true, reason: "missing_comparison_id" };
   const modelShape = payload.current_model_summary?.shape || {};
@@ -462,6 +486,59 @@ export function buildDevAgentRoutes(deps) {
     return res.status(statusCode).json({ ...payload, persistence });
   });
 
+  // ── POST /dev-agent/summary-comparison/score ─────────────────────────────
+  router.post("/dev-agent/summary-comparison/score", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const comparisonId = String(body.comparison_id || "").trim();
+      if (!comparisonId) {
+        return res.status(400).json({ ok: false, error: { code: "comparison_id_required", message: "comparison_id is required." } });
+      }
+      const preferredOutput = normalizePreferredOutput(body.preferred_output);
+      const qualityScoreModel = normalizeQualityScore(body.quality_score_model);
+      const qualityScoreN8n = normalizeQualityScore(body.quality_score_n8n);
+      const qualityNotes = String(body.quality_notes || "").trim().slice(0, 1000) || null;
+      const useCaseFit = String(body.use_case_fit || "").trim().slice(0, 128) || null;
+      const reviewedBy = String(body.reviewed_by || body.user_id || "").trim().slice(0, 64) || null;
+
+      const [updateResult] = await getPool().query(
+        `UPDATE \`summary_comparison_runs\`
+         SET preferred_output = ?,
+             quality_score_model = ?,
+             quality_score_n8n = ?,
+             quality_notes = ?,
+             use_case_fit = ?,
+             reviewed_by = ?,
+             reviewed_at = NOW()
+         WHERE comparison_id = ?`,
+        [preferredOutput, qualityScoreModel, qualityScoreN8n, qualityNotes, useCaseFit, reviewedBy, comparisonId]
+      );
+      if (!updateResult.affectedRows) {
+        return res.status(404).json({ ok: false, error: { code: "summary_comparison_not_found", message: "comparison_id was not found." } });
+      }
+      const [rows] = await getPool().query(
+        `SELECT comparison_id, n8n_binding_key, preferred_output,
+                quality_score_model, quality_score_n8n, quality_notes,
+                use_case_fit, reviewed_by, reviewed_at,
+                production_route_unchanged, writes_session_summaries
+         FROM \`summary_comparison_runs\`
+         WHERE comparison_id = ?
+         LIMIT 1`,
+        [comparisonId]
+      );
+      res.json({
+        ok: true,
+        comparison_id: comparisonId,
+        score: rows[0] || null,
+        production_route_unchanged: true,
+        writes_session_summaries: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(err.status || 500).json({ ok: false, error: { code: err.code || "summary_comparison_score_failed", message: err.message } });
+    }
+  });
+
   // ── GET /dev-agent/summary-comparison/report ─────────────────────────────
   router.get("/dev-agent/summary-comparison/report", async (req, res) => {
     try {
@@ -487,7 +564,10 @@ export function buildDevAgentRoutes(deps) {
                 SUM(CASE WHEN faster_path = 'n8n_experiment' THEN 1 ELSE 0 END) AS n8n_faster_runs,
                 SUM(CASE WHEN faster_path = 'current_model_summary' THEN 1 ELSE 0 END) AS model_faster_runs,
                 SUM(CASE WHEN writes_session_summaries = 1 THEN 1 ELSE 0 END) AS session_summary_write_violations,
-                SUM(CASE WHEN production_route_unchanged = 0 THEN 1 ELSE 0 END) AS production_route_change_violations
+                SUM(CASE WHEN production_route_unchanged = 0 THEN 1 ELSE 0 END) AS production_route_change_violations,
+                SUM(CASE WHEN preferred_output IS NOT NULL THEN 1 ELSE 0 END) AS reviewed_runs,
+                AVG(quality_score_model) AS avg_quality_score_model,
+                AVG(quality_score_n8n) AS avg_quality_score_n8n
          FROM \`summary_comparison_runs\`
          WHERE ${whereSql}`,
         params
@@ -540,6 +620,9 @@ export function buildDevAgentRoutes(deps) {
           n8n_speed_win_rate: totalRuns ? Number((n8nFasterRuns / totalRuns).toFixed(3)) : 0,
           session_summary_write_violations: Number(totals?.session_summary_write_violations || 0),
           production_route_change_violations: Number(totals?.production_route_change_violations || 0),
+          reviewed_runs: Number(totals?.reviewed_runs || 0),
+          avg_quality_score_model: Number(Number(totals?.avg_quality_score_model || 0).toFixed(2)),
+          avg_quality_score_n8n: Number(Number(totals?.avg_quality_score_n8n || 0).toFixed(2)),
         },
         by_binding: byBinding,
         recent_runs: recentRuns,
