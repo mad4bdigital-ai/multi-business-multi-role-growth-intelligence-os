@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { fetchDriveContent } from "./uploadPipeline.js";
 import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
+import { assertSurfaceAuthority, SURFACE_KEYS } from "./surfaceAuthorityResolver.js";
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const DEFAULT_BATCH_SIZE = 20;
@@ -586,6 +587,11 @@ async function existingSummary(pool, sessionId) {
 }
 
 async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }) {
+  const jsonAssetSurfaceAuthority = await assertSurfaceAuthority(
+    SURFACE_KEYS.JSON_ASSET_REGISTRY,
+    { requireExecution: false },
+    { pool }
+  );
   const tenantId = session.tenant_id || PLATFORM_TENANT_ID;
   const userId = session.user_id || null;
   const assetId = summaryAssetId(summaryId);
@@ -699,7 +705,19 @@ async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }
     ]
   );
 
-  return { asset_id: assetId, asset_key: assetKey, link_id: linkId, edge_id: edgeId };
+  return {
+    asset_id: assetId,
+    asset_key: assetKey,
+    link_id: linkId,
+    edge_id: edgeId,
+    surface_authority: {
+      ok: jsonAssetSurfaceAuthority.ok,
+      resolved_surface_key: jsonAssetSurfaceAuthority.resolved_surface_key,
+      classification: jsonAssetSurfaceAuthority.classification,
+      code: jsonAssetSurfaceAuthority.code,
+      secrets_included: false,
+    },
+  };
 }
 
 export async function writeSessionSummary({ pool = getPool(), session, insight, run_id = null }) {
