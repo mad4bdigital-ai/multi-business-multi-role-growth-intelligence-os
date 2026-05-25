@@ -64,6 +64,7 @@ import { buildAdminOnboardingRoutes } from "./adminOnboardingRoutes.js";
 import { buildPlatformGraphRoutes } from "./platformGraphRoutes.js";
 import { buildPlatformPluginRoutes } from "./platformPluginRoutes.js";
 import { buildTenantPlatformPluginRoutes } from "./tenantPlatformPluginRoutes.js";
+import { buildBrowserRuntimeRoutes } from "./browserRuntimeRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -116,6 +117,7 @@ export function registerRoutes(app, deps) {
   app.use(buildPlatformGraphRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildTenantPlatformPluginRoutes());
   app.use(buildPlatformPluginRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildBrowserRuntimeRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildGithubRoutes(deps));
   app.use(buildJobRoutes(deps));
   app.use(buildAiResolverRoutes(deps));
