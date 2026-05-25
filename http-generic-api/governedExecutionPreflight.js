@@ -62,6 +62,7 @@ export async function evaluateRepositoryMutationPreflight({ operation, args = []
     execution_scope: ["repo_mutation", "github_pr_merge", "branch_delete", operation].filter(Boolean),
     affects_layer: ["adminCliRoutes", "github_rest_fallback", "repo_patch_apply"],
     policy_group: "Repository Mutation Governance",
+    policy_key: "Stale Duplicate Branch Merge Guard",
   }, deps);
 
   if (!policies.length) {
