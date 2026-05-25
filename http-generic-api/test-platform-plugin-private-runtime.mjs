@@ -34,6 +34,7 @@ const baseContributionRow = {
 
 function makePool({ privateEnabled = true, ownerTenant = "tenant-1" } = {}) {
   const calls = [];
+  let currentPrivateEnabled = privateEnabled;
   return {
     calls,
     async query(sql, params = []) {
