@@ -1720,6 +1720,12 @@ components:
 security: []
 
 x-tenant-gpt-auth:
+  schema_info:
+    title: Mad4B Growth Intelligence - Tenant AI - MCP Actions
+    version: 2.0.2-platform-plugins
+    summary: Tenant GPT schema with MCP meta-operations plus tenant self-serve Platform Plugin routes.
+    description: Tenant MCP schema. Use connect_activate with tool_args.mode and integration_modes. Also supports Platform Plugin catalog, install, and resolve.
+  server_description: Mad4B platform auth subdomain
   security_scheme_name: userBearerAuth
   action_auth_preset:
     authentication_type: OAuth
