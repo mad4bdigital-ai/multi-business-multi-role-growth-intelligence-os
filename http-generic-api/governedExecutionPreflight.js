@@ -362,6 +362,81 @@ export async function evaluateConnectorDispatchPreflight({ plan = {}, connectorT
   });
 }
 
+export async function evaluateAgentLoopPreflight({ plan = {}, workflow = null, logicKey = "", executionClass = "standard", toolCount = 0, context = {} } = {}, deps = {}) {
+  const policies = await loadActiveExecutionPolicies({
+    execution_scope: [
+      "agent_loop",
+      "model_tool_loop",
+      "logic_execution",
+      executionClass,
+      workflow?.workflow_key,
+      plan.workflow_key,
+      plan.intent_key,
+      logicKey,
+    ].filter(Boolean),
+    affects_layer: ["agentLoopRunner", "agentLoopRunner.js", executionClass].filter(Boolean),
+  }, deps);
+
+  if (!policies.length) {
+    return makePreflightResult({ evidence: { operation: "agent_loop", workflow_key: plan.workflow_key || null, reason: "no_matching_active_execution_policy" } });
+  }
+
+  const warnings = [];
+  const errors = [];
+  const enforcedBlockingPolicies = [];
+  const genericBlockingPolicies = [];
+  const evidence = {
+    operation: "agent_loop",
+    plan_id: plan.plan_id || null,
+    tenant_id: plan.tenant_id || null,
+    agent_id: plan.agent_id || null,
+    workflow_key: plan.workflow_key || workflow?.workflow_key || null,
+    intent_key: plan.intent_key || null,
+    brand_key: plan.brand_key || null,
+    logic_key: logicKey || null,
+    execution_class: executionClass,
+    tool_count: Number(toolCount || 0),
+    review_required: workflow?.review_required ?? null,
+    workspace_app_connection_count: context?.workspace_app_connection_count ?? null,
+    matching_policy_count: policies.length,
+  };
+
+  for (const policy of policies) {
+    if (!policyAllowsBlocking(policy)) continue;
+    const group = String(policy.policy_group || "").trim();
+    const key = String(policy.policy_key || "").trim();
+
+    if (group === "Agent Loop Governance" && key === "Brand Writing Requires Brand Core") {
+      const writingLike = /write|content|seo|publish|strategy/i.test(String(plan.intent_key || plan.workflow_key || ""));
+      const hasBrandCoreEvidence = Boolean(context?.brand_core || context?.brand_core_resolved || context?.brandCore);
+      evidence.brand_core_evidence = hasBrandCoreEvidence;
+      if (writingLike && !hasBrandCoreEvidence) {
+        errors.push("brand_writing_requires_brand_core");
+        enforcedBlockingPolicies.push(policy);
+      }
+      continue;
+    }
+
+    genericBlockingPolicies.push(policy);
+  }
+
+  if (enforcedBlockingPolicies.length) {
+    return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence });
+  }
+
+  if (genericBlockingPolicies.length) {
+    warnings.push("matching_blocking_agent_loop_policies_require_specific_evaluator");
+  }
+
+  return makePreflightResult({
+    classification: warnings.length ? "allow_with_policy_warnings" : "allow_with_policy_advisory",
+    policies,
+    warnings,
+    errors,
+    evidence,
+  });
+}
+
 export function assertPreflightAllowed(preflight) {
   if (preflight?.ok !== false) return preflight;
   const err = new Error(`Governed execution preflight blocked operation: ${(preflight.errors || []).join(", ") || "policy_block"}`);
