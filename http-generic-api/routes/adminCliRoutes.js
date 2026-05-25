@@ -848,6 +848,10 @@ async function executeCliTool(tool, body = {}) {
     throw err;
   }
 
+  if (tool === "github") {
+    await preflightGithubMutationArgs(args);
+  }
+
   const command = tool === "github" ? "gh" : "gcloud";
   try {
     return await executeSafe(command, args, { timeout_ms: body.timeout_ms });
