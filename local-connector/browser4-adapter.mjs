@@ -137,7 +137,7 @@ export function buildBrowser4InspectionScript({
   if (wantsSnapshot) {
     lines.push(
       `@{ status='running'; step='snapshot'; open_exit=$openExit; goto_exit=$gotoExit; updated_at=(Get-Date).ToString('o'); secrets_included=$false } | ConvertTo-Json -Compress | Set-Content $statusFile -Encoding UTF8`,
-      `"`n## browser4 snapshot" | Out-File $outFile -Append -Encoding UTF8`,
+      '"`n## browser4 snapshot" | Out-File $outFile -Append -Encoding UTF8',
       `& npx -y browser4-cli snapshot 1> $snapshotFile 2>> $errFile`,
       `$snapshotExit = $LASTEXITCODE`,
     );
