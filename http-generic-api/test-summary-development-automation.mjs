@@ -8,6 +8,8 @@ const repoAnalysisToolMigration = fs.readFileSync(new URL('./migrations/133_spri
 const approvalsMigration = fs.readFileSync(new URL('./migrations/134_sprint64_summary_development_agent_approvals.sql', import.meta.url), 'utf8');
 const approvalToolMigration = fs.readFileSync(new URL('./migrations/135_sprint64_summary_development_agent_approval_tool.sql', import.meta.url), 'utf8');
 const executionEnvelopeToolMigration = fs.readFileSync(new URL('./migrations/136_sprint64_summary_development_execution_envelope_tool.sql', import.meta.url), 'utf8');
+const providerRegistryMigration = fs.readFileSync(new URL('./migrations/137_sprint64_openclaude_provider_registry.sql', import.meta.url), 'utf8');
+const providerToolMigration = fs.readFileSync(new URL('./migrations/138_sprint64_openclaude_provider_tools.sql', import.meta.url), 'utf8');
 const routes = fs.readFileSync(new URL('./routes/devAgentRoutes.js', import.meta.url), 'utf8');
 
 assert(migration.includes('CREATE TABLE IF NOT EXISTS dev_agent_runtime_registry'));
@@ -39,9 +41,25 @@ assert(executionEnvelopeToolMigration.includes('dev_agent_summary_development_ex
 assert(executionEnvelopeToolMigration.includes('create a traceable execution envelope'));
 assert(executionEnvelopeToolMigration.includes('Does not execute the local agent'));
 assert(executionEnvelopeToolMigration.includes('no_repo_mutation'));
+assert(providerRegistryMigration.includes('CREATE TABLE IF NOT EXISTS dev_agent_provider_registry'));
+assert(providerRegistryMigration.includes('CREATE TABLE IF NOT EXISTS dev_agent_runtime_provider_profiles'));
+assert(providerRegistryMigration.includes('openclaude_anthropic_env'));
+assert(providerRegistryMigration.includes('openclaude_openai_env'));
+assert(providerRegistryMigration.includes('openclaude_gemini_env'));
+assert(providerRegistryMigration.includes('openclaude_github_env'));
+assert(providerRegistryMigration.includes('openclaude_bedrock_env'));
+assert(providerRegistryMigration.includes('openclaude_vertex_env'));
+assert(providerRegistryMigration.includes('openclaude_ollama_local'));
+assert(providerRegistryMigration.includes('platform_model_provider_bridge'));
+assert(providerRegistryMigration.includes('copy_platform_secret_to_device":false'));
+assert(providerToolMigration.includes('dev_agent_summary_development_providers'));
+assert(providerToolMigration.includes('Read-only and never returns secrets'));
 
 assert(routes.includes('/dev-agent/summary-development/runtimes'));
 assert(routes.includes('/dev-agent/summary-development/signals'));
+assert(routes.includes('/dev-agent/summary-development/providers'));
+assert(routes.includes('dev_agent_provider_registry'));
+assert(routes.includes('dev_agent_runtime_provider_profiles'));
 assert(routes.includes('/dev-agent/summary-development/extract'));
 assert(routes.includes('/dev-agent/summary-development/agent-dry-run'));
 assert(routes.includes('/dev-agent/summary-development/repo-analysis-dry-run'));
