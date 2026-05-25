@@ -117,6 +117,7 @@ export function registerRoutes(app, deps) {
   app.use(buildPlatformGraphRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildTenantPlatformPluginRoutes());
   app.use(buildPlatformPluginRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildBrowserRuntimeRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildGithubRoutes(deps));
   app.use(buildJobRoutes(deps));
   app.use(buildAiResolverRoutes(deps));
