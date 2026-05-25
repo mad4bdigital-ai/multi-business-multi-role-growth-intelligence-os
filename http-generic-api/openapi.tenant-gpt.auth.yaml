@@ -405,7 +405,7 @@ paths:
         - platform-plugins
       operationId: tenantPlatformPluginResolve
       summary: Resolve tenant readiness for a Platform Plugin action/tool
-      description: Tenant-facing resolver. Evaluates Platform Base definition, tenant overlay policy, connection state, and skill-gate preview without executing the action or returning secrets.
+      description: Checks tenant plugin readiness without executing actions or returning secrets.
       requestBody:
         required: true
         content:
