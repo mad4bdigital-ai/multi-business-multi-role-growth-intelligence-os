@@ -778,6 +778,261 @@ export function buildDevAgentRoutes(deps) {
     }
   });
 
+  // ── Summary development automation ───────────────────────────────────────
+  router.get("/dev-agent/summary-development/runtimes", async (req, res) => {
+    try {
+      const status = String(req.query.status || "").trim();
+      const where = [];
+      const params = [];
+      if (status) {
+        where.push("status = ?");
+        params.push(status);
+      }
+      const [runtimes] = await getPool().query(
+        `SELECT runtime_key, display_name, runtime_type, provider_key,
+                execution_surface, device_id, endpoint_url, command_hint,
+                supported_use_cases_json, capabilities_json, policy_json,
+                status, notes, updated_at
+         FROM \`dev_agent_runtime_registry\`
+         ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+         ORDER BY FIELD(status, 'active', 'available', 'planned', 'degraded', 'disabled'), runtime_key`,
+        params
+      );
+      res.json({ ok: true, runtimes, secrets_included: false, reads_only: true });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "summary_development_runtimes_failed", message: err.message } });
+    }
+  });
+
+  router.get("/dev-agent/summary-development/signals", async (req, res) => {
+    try {
+      const status = String(req.query.status || "").trim();
+      const signalType = String(req.query.signal_type || "").trim();
+      const limit = boundedPositiveInt(req.query.limit, 50, 1, 200);
+      const where = ["1=1"];
+      const params = [];
+      if (status) { where.push("status = ?"); params.push(status); }
+      if (signalType) { where.push("signal_type = ?"); params.push(signalType); }
+      const [signals] = await getPool().query(
+        `SELECT signal_id, signal_key, tenant_id, user_id, source_surface, source_ref,
+                source_summary_id, source_comparison_id, signal_type, title,
+                description, recommended_runtime_key, recommended_action,
+                priority, status, converted_task_id, created_at, updated_at
+         FROM \`summary_development_signals\`
+         WHERE ${where.join(" AND ")}
+         ORDER BY FIELD(priority, 'critical', 'high', 'medium', 'low'), created_at DESC
+         LIMIT ?`,
+        [...params, limit]
+      );
+      res.json({ ok: true, signals, count: signals.length, secrets_included: false, reads_only: true });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "summary_development_signals_failed", message: err.message } });
+    }
+  });
+
+  router.post("/dev-agent/summary-development/extract", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const runId = randomUUID();
+    const runKey = `summary_dev_extract_${runId}`;
+    const lookbackDays = boundedPositiveInt(body.lookback_days || req.query.lookback_days, 14, 1, 90);
+    const limit = boundedPositiveInt(body.limit || req.query.limit, 80, 1, 250);
+    const tenantId = body.tenant_id || null;
+    const createPendingTasks = body.create_pending_tasks === true || req.query.create_pending_tasks === "true";
+    const sourceFilter = { lookback_days: lookbackDays, limit, tenant_id: tenantId, create_pending_tasks: createPendingTasks };
+
+    await pool.query(
+      `INSERT INTO \`summary_development_automation_runs\`
+         (run_id, run_key, mode, tenant_id, requested_by, source_filter_json, policy_json, status, started_at)
+       VALUES (?, ?, 'extract_signals', ?, ?, ?, ?, 'running', NOW())`,
+      [
+        runId,
+        runKey,
+        tenantId,
+        body.requested_by || body.user_id || null,
+        JSON.stringify(sourceFilter),
+        JSON.stringify({ auto_execute_code: false, auto_mutate_repo: false, create_pending_tasks: createPendingTasks, secrets_included: false }),
+      ]
+    ).catch(() => {});
+
+    try {
+      const where = ["created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)"];
+      const params = [lookbackDays];
+      if (tenantId) { where.push("tenant_id = ?"); params.push(tenantId); }
+
+      const [summaries] = await pool.query(
+        `SELECT summary_id, session_id, tenant_id, user_id, summary_text,
+                blockers, feature_requests, integration_needs, created_at
+         FROM \`session_summaries\`
+         WHERE ${where.join(" AND ")}
+         ORDER BY created_at DESC
+         LIMIT ?`,
+        [...params, limit]
+      );
+
+      const [comparisons] = await pool.query(
+        `SELECT comparison_id, tenant_id, user_id, n8n_binding_key,
+                preferred_output, quality_score_model, quality_score_n8n,
+                quality_notes, use_case_fit, faster_path, created_at
+         FROM \`summary_comparison_runs\`
+         WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+           ${tenantId ? "AND tenant_id = ?" : ""}
+           AND (preferred_output IS NOT NULL OR faster_path = 'n8n_experiment')
+         ORDER BY created_at DESC
+         LIMIT ?`,
+        tenantId ? [lookbackDays, tenantId, Math.min(limit, 80)] : [lookbackDays, Math.min(limit, 80)]
+      ).catch(() => [[]]);
+
+      const signals = [];
+      for (const summary of summaries) {
+        const sourceRef = summary.summary_id || summary.session_id;
+        for (const item of safeParseArr(summary.feature_requests)) {
+          signals.push(buildSummaryDevelopmentSignal({
+            source_surface: "session_summary",
+            source_ref: sourceRef,
+            source_summary_id: summary.summary_id,
+            tenant_id: summary.tenant_id,
+            user_id: summary.user_id,
+            type: "feature_request",
+            title: item,
+            description: `Feature request extracted from session summary ${summary.summary_id}.`,
+            evidence: `${item}\n\nSummary: ${summary.summary_text || ""}`,
+          }));
+        }
+        for (const item of safeParseArr(summary.blockers)) {
+          signals.push(buildSummaryDevelopmentSignal({
+            source_surface: "session_summary",
+            source_ref: sourceRef,
+            source_summary_id: summary.summary_id,
+            tenant_id: summary.tenant_id,
+            user_id: summary.user_id,
+            type: "blocker",
+            title: item,
+            description: `Blocker extracted from session summary ${summary.summary_id}.`,
+            evidence: `${item}\n\nSummary: ${summary.summary_text || ""}`,
+          }));
+        }
+        for (const item of safeParseArr(summary.integration_needs)) {
+          signals.push(buildSummaryDevelopmentSignal({
+            source_surface: "session_summary",
+            source_ref: sourceRef,
+            source_summary_id: summary.summary_id,
+            tenant_id: summary.tenant_id,
+            user_id: summary.user_id,
+            type: "integration_need",
+            title: item,
+            description: `Integration need extracted from session summary ${summary.summary_id}.`,
+            evidence: `${item}\n\nSummary: ${summary.summary_text || ""}`,
+          }));
+        }
+      }
+
+      for (const comparison of comparisons) {
+        const modelScore = Number(comparison.quality_score_model || 0);
+        const n8nScore = Number(comparison.quality_score_n8n || 0);
+        const preferred = String(comparison.preferred_output || "");
+        if (preferred === "current_model_summary" || (modelScore && n8nScore && modelScore > n8nScore)) {
+          signals.push(buildSummaryDevelopmentSignal({
+            source_surface: "summary_comparison",
+            source_ref: comparison.comparison_id,
+            source_comparison_id: comparison.comparison_id,
+            tenant_id: comparison.tenant_id,
+            user_id: comparison.user_id,
+            type: "quality_gap",
+            title: `Improve ${comparison.n8n_binding_key || "n8n summary experiment"} for ${comparison.use_case_fit || "summary quality"}`,
+            description: "Summary comparison preferred the current model path; keep this as evidence for n8n summary runtime improvement.",
+            evidence: comparison.quality_notes || `preferred_output=${preferred}; model=${modelScore}; n8n=${n8nScore}`,
+          }));
+        }
+        if (preferred === "n8n_experiment" || comparison.faster_path === "n8n_experiment") {
+          signals.push(buildSummaryDevelopmentSignal({
+            source_surface: "summary_comparison",
+            source_ref: comparison.comparison_id,
+            source_comparison_id: comparison.comparison_id,
+            tenant_id: comparison.tenant_id,
+            user_id: comparison.user_id,
+            type: "runtime_gap",
+            title: `Evaluate ${comparison.n8n_binding_key || "n8n runtime"} for preview/fallback expansion`,
+            description: "Summary comparison showed n8n can provide useful fast preview/fallback behavior; keep this as routing policy evidence, not production promotion.",
+            evidence: comparison.quality_notes || `preferred_output=${preferred}; faster_path=${comparison.faster_path}`,
+          }));
+        }
+      }
+
+      let created = 0;
+      let updated = 0;
+      let tasksCreated = 0;
+      for (const signal of signals.slice(0, 300)) {
+        const action = await insertSummaryDevelopmentSignal(pool, signal);
+        if (action === "created") created += 1;
+        else updated += 1;
+
+        if (createPendingTasks && ["high", "critical"].includes(signal.priority)) {
+          const taskId = randomUUID();
+          const taskKey = stableSignalKey(["summary_dev_signal", signal.signal_key]);
+          const [taskResult] = await pool.query(
+            `INSERT INTO \`platform_pending_tasks\`
+               (task_id, task_key, title, description, brief, activation_prompt,
+                task_type, priority, status, blocker_level, owner_scope,
+                tenant_id, user_id, source_surface, source_ref,
+                activation_visibility, context_json, created_by)
+             VALUES (?, ?, ?, ?, ?, ?, 'automation', ?, 'pending', 'soft', 'platform', ?, ?, 'summary_development_signal', ?, 1, ?, 'summary_development_automation_v1')
+             ON DUPLICATE KEY UPDATE
+               description = VALUES(description),
+               brief = VALUES(brief),
+               activation_prompt = VALUES(activation_prompt),
+               priority = VALUES(priority),
+               updated_at = CURRENT_TIMESTAMP`,
+            [
+              taskId,
+              taskKey,
+              signal.title,
+              signal.description,
+              `Summary-derived ${signal.signal_type}: ${signal.title}`,
+              `Review this summary-derived development signal. Do not execute code automatically. Recommended runtime: ${signal.recommended_runtime_key || "human_review"}. Evidence: ${signal.evidence_text}`,
+              signal.priority,
+              signal.tenant_id,
+              signal.user_id,
+              signal.signal_key,
+              JSON.stringify({ signal_key: signal.signal_key, signal_type: signal.signal_type, policy: JSON.parse(signal.policy_json) }),
+            ]
+          );
+          if (taskResult.affectedRows === 1) tasksCreated += 1;
+        }
+      }
+
+      await pool.query(
+        `UPDATE \`summary_development_automation_runs\`
+           SET status = 'completed', scanned_count = ?, signals_created = ?,
+               signals_updated = ?, tasks_created = ?, result_json = ?, completed_at = NOW()
+         WHERE run_id = ?`,
+        [summaries.length + comparisons.length, created, updated, tasksCreated, JSON.stringify({ signals_considered: signals.length }), runId]
+      ).catch(() => {});
+
+      res.json({
+        ok: true,
+        run_id: runId,
+        scanned_count: summaries.length + comparisons.length,
+        signals_considered: signals.length,
+        signals_created: created,
+        signals_updated: updated,
+        tasks_created: tasksCreated,
+        create_pending_tasks: createPendingTasks,
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      await pool.query(
+        `UPDATE \`summary_development_automation_runs\`
+           SET status = 'failed', error_json = ?, completed_at = NOW()
+         WHERE run_id = ?`,
+        [JSON.stringify({ code: err.code || "summary_development_extract_failed", message: String(err.message || err).slice(0, 240) }), runId]
+      ).catch(() => {});
+      res.status(500).json({ ok: false, error: { code: err.code || "summary_development_extract_failed", message: err.message } });
+    }
+  });
+
   // ── GET/PATCH /dev-agent/model-settings ──────────────────────────────────
   router.get("/dev-agent/model-settings", async (req, res) => {
     try {
