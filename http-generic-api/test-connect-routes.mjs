@@ -380,6 +380,7 @@ section("connect api auth scope");
       !apiSource.includes("validation_status, last_validated_at, created_at, updated_at"));
     const appAdapterSource = readFileSync("appAdapters/index.js", "utf8");
     const appActionPolicyMigrationSource = readFileSync("migrations/124_sprint64_app_action_policy_preflight.sql", "utf8");
+    const n8nWorkflowGuardMigrationSource = readFileSync("migrations/125_sprint64_n8n_workflow_execution_guard.sql", "utf8");
     assert("successful app connection use self-heals validation status",
       appAdapterSource.includes("validation_status = 'validated'") &&
       appAdapterSource.includes("last_validated_at = NOW()") &&
