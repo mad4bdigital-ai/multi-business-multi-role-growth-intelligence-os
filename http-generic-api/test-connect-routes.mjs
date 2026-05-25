@@ -421,6 +421,16 @@ section("connect api auth scope");
       adminCliSource.includes("await preflightGithubMutationArgs(args)") &&
       adminCliSource.includes("evaluateRepositoryMutationPreflight") &&
       adminCliSource.includes("assertPreflightAllowed"));
+    assert("GPT tools dispatch calls governed policy preflight",
+      gptToolsSource.includes("evaluateGptToolDispatchPreflight") &&
+      gptToolsSource.includes("assertPreflightAllowed(await evaluateGptToolDispatchPreflight") &&
+      gptToolsSource.includes("dispatchToolImpl(callerType, toolKey, args, req)"));
+    assert("repo_patch_apply runs policy preflight before GitHub writes",
+      gptToolsSource.includes("evaluateRepoPatchApplyPreflight") &&
+      gptToolsSource.includes("loadRepoPatchBranchCompare") &&
+      gptToolsSource.includes("allow_stale_branch_patch") &&
+      governedPreflightSource.includes("evaluateRepoPatchApplyPreflight") &&
+      governedPreflightSource.includes("repo_patch_stale_branch_requires_explicit_override"));
     assert("runtime policy migration seeds repository mutation guard",
       runtimePolicyMigrationSource.includes("Repository Mutation Governance") &&
       runtimePolicyMigrationSource.includes("Stale Duplicate Branch Merge Guard") &&
