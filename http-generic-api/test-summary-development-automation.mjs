@@ -41,6 +41,19 @@ assert(executionEnvelopeToolMigration.includes('dev_agent_summary_development_ex
 assert(executionEnvelopeToolMigration.includes('create a traceable execution envelope'));
 assert(executionEnvelopeToolMigration.includes('Does not execute the local agent'));
 assert(executionEnvelopeToolMigration.includes('no_repo_mutation'));
+assert(providerRegistryMigration.includes('CREATE TABLE IF NOT EXISTS dev_agent_provider_registry'));
+assert(providerRegistryMigration.includes('CREATE TABLE IF NOT EXISTS dev_agent_runtime_provider_profiles'));
+assert(providerRegistryMigration.includes('openclaude_anthropic_env'));
+assert(providerRegistryMigration.includes('openclaude_openai_env'));
+assert(providerRegistryMigration.includes('openclaude_gemini_env'));
+assert(providerRegistryMigration.includes('openclaude_github_env'));
+assert(providerRegistryMigration.includes('openclaude_bedrock_env'));
+assert(providerRegistryMigration.includes('openclaude_vertex_env'));
+assert(providerRegistryMigration.includes('openclaude_ollama_local'));
+assert(providerRegistryMigration.includes('platform_model_provider_bridge'));
+assert(providerRegistryMigration.includes('copy_platform_secret_to_device":false'));
+assert(providerToolMigration.includes('dev_agent_summary_development_providers'));
+assert(providerToolMigration.includes('Read-only and never returns secrets'));
 
 assert(routes.includes('/dev-agent/summary-development/runtimes'));
 assert(routes.includes('/dev-agent/summary-development/signals'));
