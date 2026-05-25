@@ -40,7 +40,7 @@ async function main() {
   const keys = Object.keys(creds).sort();
   const diagnostics = {};
   for (const key of keys) diagnostics[key] = maskShape(creds[key]);
-  const selected = creds.bearer_token || creds.api_key || creds.token || "";
+  const selected = creds.bearer_token || creds.api_key || creds.token || creds.N8N_API_KEY || creds.HOSTINGER_API_KEY || "";
   console.log(JSON.stringify({
     ok: true,
     connection_id: row.connection_id,
