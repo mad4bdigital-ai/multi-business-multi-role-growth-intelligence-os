@@ -3,15 +3,16 @@ import { mkdtempSync, cpSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
+import yaml from "js-yaml";
 
 const GENERATED_SPLIT_FILES = [
   "openapi.tenant-gpt.auth.yaml",
   "openapi.custom-gpt.auth-dispatcher.yaml",
 ];
 
-function readGeneratedFiles(root) {
+function readGeneratedSpecs(root) {
   return Object.fromEntries(
-    GENERATED_SPLIT_FILES.map((file) => [file, readFileSync(join(root, file), "utf8")])
+    GENERATED_SPLIT_FILES.map((file) => [file, yaml.load(readFileSync(join(root, file), "utf8"))])
   );
 }
 
@@ -24,19 +25,19 @@ try {
     filter: (source) => !source.includes("/node_modules") && !source.includes("/.git"),
   });
 
-  const before = readGeneratedFiles(tempRoot);
+  const before = readGeneratedSpecs(tempRoot);
   execFileSync(process.execPath, [join(sourceRoot, "scripts", "split-openapi.mjs")], {
     cwd: tempRoot,
     stdio: "pipe",
     env: { ...process.env, CI: "true" },
   });
-  const after = readGeneratedFiles(tempRoot);
+  const after = readGeneratedSpecs(tempRoot);
 
   for (const file of GENERATED_SPLIT_FILES) {
-    assert.equal(
+    assert.deepStrictEqual(
       after[file],
       before[file],
-      `${file} is not regenerated from openapi.yaml. Run node scripts/split-openapi.mjs and commit the generated artifact.`
+      `${file} is not semantically regenerated from openapi.yaml. Run node scripts/split-openapi.mjs and commit the generated artifact.`
     );
   }
 } finally {
