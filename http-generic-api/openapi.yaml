@@ -2380,7 +2380,6 @@ paths:
         - backendApiKeyAuth: []
       operationId: getActivationSessionContext
       x-tenant-gpt-operationId: activateSession
-      x-tenant-gpt-operationId: activateSession
       summary: Read previous session history and platform scope context
       description: >
         Hard activation layer that reads prior user session envelopes as a
