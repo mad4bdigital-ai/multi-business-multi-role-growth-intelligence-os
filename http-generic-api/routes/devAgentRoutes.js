@@ -233,6 +233,39 @@ function normalizeApprovalPhrase(value = "") {
   return phrase;
 }
 
+function buildOpenClaudeReadOnlyExecutionEnvelope({ approval = {}, runtime = {}, signal = {}, analysisGoal = "" } = {}) {
+  const commandPlan = buildOpenClaudeRepoAnalysisCommandPlan({
+    runtime,
+    signal,
+    repoScope: approval.repo_scope || "platform_repo",
+    analysisGoal,
+  });
+  return {
+    adapter: "openclaude_repo_analysis_read_only_execution_envelope_v1",
+    approval_id: approval.approval_id,
+    approval_key: approval.approval_key,
+    approval_status: approval.approval_status,
+    approval_mode: approval.approval_mode,
+    repo_scope: approval.repo_scope || "platform_repo",
+    runtime_key: runtime.runtime_key || approval.runtime_key,
+    device_id: runtime.device_id || null,
+    command_path: runtime.command_hint || "openclaude",
+    argv: commandPlan.suggested_args,
+    allowed_tools: commandPlan.allowed_tools,
+    denied_tools: commandPlan.denied_tools,
+    execution_ready: true,
+    execution_attempted: false,
+    execution_status: "approved_envelope_only",
+    stdout: null,
+    stderr: null,
+    exit_code: null,
+    auto_execute_code: false,
+    auto_mutate_repo: false,
+    secrets_included: false,
+    command_plan: commandPlan,
+  };
+}
+
 function buildOpenClaudeRepoAnalysisCommandPlan({ runtime = {}, signal = {}, repoScope = "platform_repo", analysisGoal = "" } = {}) {
   const prompt = [
     "You are running a read-only repository analysis dry run for the Growth Intelligence Platform.",
@@ -1498,6 +1531,139 @@ export function buildDevAgentRoutes(deps) {
       });
     } catch (err) {
       res.status(500).json({ ok: false, error: { code: err.code || "summary_development_repo_analysis_approval_failed", message: err.message } });
+    }
+  });
+
+  router.post("/dev-agent/summary-development/repo-analysis-execution-envelope", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const runId = randomUUID();
+    const approvalId = String(body.approval_id || "").trim();
+    const requestedBy = String(body.requested_by || body.user_id || "").trim() || null;
+    const analysisGoal = String(body.analysis_goal || "").trim();
+
+    if (!approvalId) {
+      return res.status(400).json({ ok: false, error: { code: "summary_development_approval_id_required", message: "approval_id is required." } });
+    }
+
+    try {
+      const [approvalRows] = await pool.query(
+        `SELECT approval_id, approval_key, signal_id, signal_key, runtime_key,
+                repo_scope, approval_mode, approval_status,
+                approved_tools_json, denied_tools_json, approved_by,
+                approved_at, expires_at, policy_json
+         FROM \`summary_development_agent_approvals\`
+         WHERE approval_id = ?
+         LIMIT 1`,
+        [approvalId]
+      );
+      const approval = approvalRows[0];
+      if (!approval) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_approval_not_found", message: "approval_id was not found." } });
+      }
+      if (approval.approval_status !== "approved") {
+        return res.status(409).json({ ok: false, blocked: true, error: { code: "summary_development_approval_not_approved", message: "approval is not in approved status." }, approval_status: approval.approval_status, secrets_included: false });
+      }
+      if (new Date(approval.expires_at).getTime() <= Date.now()) {
+        await pool.query(
+          `UPDATE \`summary_development_agent_approvals\`
+           SET approval_status = 'expired', updated_at = CURRENT_TIMESTAMP
+           WHERE approval_id = ? AND approval_status = 'approved'`,
+          [approval.approval_id]
+        ).catch(() => {});
+        return res.status(409).json({ ok: false, blocked: true, error: { code: "summary_development_approval_expired", message: "approval has expired." }, secrets_included: false });
+      }
+      if (approval.approval_mode !== "repo_analysis_read_only") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "summary_development_approval_mode_blocked", message: "Only repo_analysis_read_only approvals are supported." }, secrets_included: false });
+      }
+
+      const [runtimeRows] = await pool.query(
+        `SELECT runtime_key, display_name, runtime_type, provider_key, execution_surface,
+                device_id, command_hint, policy_json, status
+         FROM \`dev_agent_runtime_registry\`
+         WHERE runtime_key = ?
+         LIMIT 1`,
+        [approval.runtime_key]
+      );
+      const runtime = runtimeRows[0];
+      if (!runtime || runtime.provider_key !== "openclaude") {
+        return res.status(409).json({ ok: false, blocked: true, error: { code: "summary_development_runtime_invalid", message: "approval runtime is not a valid OpenClaude runtime." }, secrets_included: false });
+      }
+      if (runtime.status !== "available" && runtime.status !== "active") {
+        return res.status(409).json({ ok: false, blocked: true, error: { code: "summary_development_runtime_not_ready", message: "runtime is not available for read-only execution." }, runtime_status: runtime.status, secrets_included: false });
+      }
+
+      const [signalRows] = await pool.query(
+        `SELECT signal_id, signal_key, tenant_id, user_id, source_surface, source_ref,
+                signal_type, title, description, evidence_text, priority, status
+         FROM \`summary_development_signals\`
+         WHERE signal_id = ?
+         LIMIT 1`,
+        [approval.signal_id]
+      );
+      const signal = signalRows[0];
+      if (!signal) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_signal_not_found", message: "approval signal was not found." } });
+      }
+
+      const envelope = buildOpenClaudeReadOnlyExecutionEnvelope({ approval, runtime, signal, analysisGoal });
+      const result = {
+        approval_id: approval.approval_id,
+        approval_key: approval.approval_key,
+        signal_id: signal.signal_id,
+        signal_key: signal.signal_key,
+        runtime_key: runtime.runtime_key,
+        repo_scope: approval.repo_scope,
+        execution_envelope: envelope,
+        execution_status: "approved_envelope_only",
+        next_required_step: "local_connector_read_only_execution",
+      };
+
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, tenant_id, requested_by, runtime_key,
+            source_filter_json, policy_json, status, scanned_count,
+            signals_created, signals_updated, tasks_created, result_json,
+            started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, ?, ?, ?, 'completed', 1, 0, 0, 0, ?, NOW(), NOW())`,
+        [
+          runId,
+          `summary_dev_execution_envelope_${runId}`,
+          signal.tenant_id || null,
+          requestedBy,
+          runtime.runtime_key,
+          JSON.stringify({ approval_id: approval.approval_id, signal_id: signal.signal_id, repo_scope: approval.repo_scope }),
+          JSON.stringify({
+            adapter: envelope.adapter,
+            approved_tools: envelope.allowed_tools,
+            denied_tools: envelope.denied_tools,
+            execution_attempted: false,
+            auto_execute_code: false,
+            auto_mutate_repo: false,
+            secrets_included: false,
+          }),
+          JSON.stringify(result),
+        ]
+      );
+
+      res.json({
+        ok: true,
+        run_id: runId,
+        ...result,
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        local_execution_attempted: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, requested_by, status, error_json, started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, 'failed', ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE status = 'failed', error_json = VALUES(error_json), completed_at = NOW()`,
+        [runId, `summary_dev_execution_envelope_${runId}`, requestedBy, JSON.stringify({ code: err.code || "summary_development_execution_envelope_failed", message: String(err.message || err).slice(0, 240) })]
+      ).catch(() => {});
+      res.status(500).json({ ok: false, error: { code: err.code || "summary_development_execution_envelope_failed", message: err.message } });
     }
   });
 

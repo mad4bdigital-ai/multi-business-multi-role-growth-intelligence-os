@@ -7,6 +7,7 @@ const dryRunToolMigration = fs.readFileSync(new URL('./migrations/132_sprint64_s
 const repoAnalysisToolMigration = fs.readFileSync(new URL('./migrations/133_sprint64_summary_development_repo_analysis_tool.sql', import.meta.url), 'utf8');
 const approvalsMigration = fs.readFileSync(new URL('./migrations/134_sprint64_summary_development_agent_approvals.sql', import.meta.url), 'utf8');
 const approvalToolMigration = fs.readFileSync(new URL('./migrations/135_sprint64_summary_development_agent_approval_tool.sql', import.meta.url), 'utf8');
+const executionEnvelopeToolMigration = fs.readFileSync(new URL('./migrations/136_sprint64_summary_development_execution_envelope_tool.sql', import.meta.url), 'utf8');
 const routes = fs.readFileSync(new URL('./routes/devAgentRoutes.js', import.meta.url), 'utf8');
 
 assert(migration.includes('CREATE TABLE IF NOT EXISTS dev_agent_runtime_registry'));
@@ -34,6 +35,10 @@ assert(approvalsMigration.includes("approval_mode ENUM('repo_analysis_read_only'
 assert(approvalToolMigration.includes('dev_agent_summary_development_repo_analysis_approve'));
 assert(approvalToolMigration.includes('APPROVE_OPENCLAUDE_READ_ONLY_REPO_ANALYSIS'));
 assert(approvalToolMigration.includes('does not execute the local agent'));
+assert(executionEnvelopeToolMigration.includes('dev_agent_summary_development_execution_envelope'));
+assert(executionEnvelopeToolMigration.includes('create a traceable execution envelope'));
+assert(executionEnvelopeToolMigration.includes('Does not execute the local agent'));
+assert(executionEnvelopeToolMigration.includes('no_repo_mutation'));
 
 assert(routes.includes('/dev-agent/summary-development/runtimes'));
 assert(routes.includes('/dev-agent/summary-development/signals'));
@@ -41,6 +46,8 @@ assert(routes.includes('/dev-agent/summary-development/extract'));
 assert(routes.includes('/dev-agent/summary-development/agent-dry-run'));
 assert(routes.includes('/dev-agent/summary-development/repo-analysis-dry-run'));
 assert(routes.includes('/dev-agent/summary-development/repo-analysis-approve'));
+assert(routes.includes('/dev-agent/summary-development/repo-analysis-execution-envelope'));
+assert(routes.includes('buildOpenClaudeReadOnlyExecutionEnvelope'));
 assert(routes.includes('buildOpenClaudeRepoAnalysisCommandPlan'));
 assert(routes.includes('normalizeRepoAnalysisScope'));
 assert(routes.includes('normalizeApprovalPhrase'));
