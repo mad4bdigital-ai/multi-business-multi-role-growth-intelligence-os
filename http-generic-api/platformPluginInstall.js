@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { upsertPlatformPluginPolicy } from "./platformPluginPolicy.js";
+import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 
 const VALID_SOURCE_MODES = new Set(["managed", "dedicated"]);
 const VALID_CONNECTION_SCOPES = new Set(["tenant_connection", "user_connection"]);
