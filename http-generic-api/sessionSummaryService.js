@@ -716,10 +716,20 @@ async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }
     link_id: linkId,
     edge_id: edgeId,
     surface_authority: {
-      ok: jsonAssetSurfaceAuthority.ok,
-      resolved_surface_key: jsonAssetSurfaceAuthority.resolved_surface_key,
-      classification: jsonAssetSurfaceAuthority.classification,
-      code: jsonAssetSurfaceAuthority.code,
+      json_asset_registry: {
+        ok: jsonAssetSurfaceAuthority.ok,
+        resolved_surface_key: jsonAssetSurfaceAuthority.resolved_surface_key,
+        classification: jsonAssetSurfaceAuthority.classification,
+        code: jsonAssetSurfaceAuthority.code,
+        secrets_included: false,
+      },
+      platform_graph_memory: {
+        ok: platformGraphSurfaceAuthority.ok,
+        resolved_surface_key: platformGraphSurfaceAuthority.resolved_surface_key,
+        classification: platformGraphSurfaceAuthority.classification,
+        code: platformGraphSurfaceAuthority.code,
+        secrets_included: false,
+      },
       secrets_included: false,
     },
   };
