@@ -73,6 +73,8 @@ tags:
     description: Local Manager device-code linking, device controls, and Windows update metadata.
   - name: platform-graph
     description: SQL-primary platform knowledge graph projection, validation, and context resolution.
+  - name: platform-plugins
+    description: Tenant-facing and admin-governed Platform Plugin catalog, install, resolve, contribution, and promotion surfaces.
 
 components:
   securitySchemes:
