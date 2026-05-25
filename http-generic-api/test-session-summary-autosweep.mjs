@@ -92,6 +92,8 @@ function makePool(rows = []) {
   const devRoutes = readFileSync("routes/devAgentRoutes.js", "utf8");
   const devRunner = readFileSync("devAgentRunner.js", "utf8");
   const migration = readFileSync("migrations/111_sprint62v_session_summary_autosweep.sql", "utf8");
+  const autosweepToolMigration = readFileSync("migrations/112_sprint62w_register_session_summary_autosweep_tool.sql", "utf8");
+  const healthToolMigration = readFileSync("migrations/118_sprint63c_register_session_summary_health_tool.sql", "utf8");
   const docs = readFileSync("../docs/session-context-graph-memory-archive-notes.md", "utf8");
 
   assert(serviceSource.includes("fetchDriveContent"), "autosweep must use Drive archive as primary transcript source");
