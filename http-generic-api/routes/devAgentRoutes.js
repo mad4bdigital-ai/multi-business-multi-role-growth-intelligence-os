@@ -14,7 +14,8 @@ import { Router }           from "express";
 import { randomUUID }       from "node:crypto";
 import { getPool }          from "../db.js";
 import { runDevAgentSweep } from "../devAgentRunner.js";
-import { runSessionSummaryAutosweep } from "../sessionSummaryService.js";
+import { runSessionSummaryAutosweep, summarizeTranscriptWithModel } from "../sessionSummaryService.js";
+import { runN8nWorkflowRuntime } from "../n8nWorkflowRuntime.js";
 import {
   loadAgentModelRuntimeSettings,
   saveAgentModelRuntimeSettings,
