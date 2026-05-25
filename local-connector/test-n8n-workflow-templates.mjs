@@ -4,6 +4,7 @@ import fs from 'node:fs';
 const templatePaths = [
   new URL('./n8n-workflows/platform-classification-v1.template.json', import.meta.url),
   new URL('./n8n-workflows/platform-summary-experiment-v1.template.json', import.meta.url),
+  new URL('./n8n-workflows/platform-summary-experiment-v2.template.json', import.meta.url),
 ];
 
 for (const templatePath of templatePaths) {
