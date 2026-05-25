@@ -57,13 +57,17 @@ function statusBlocksMerge(status = "") {
   return ["error", "failure", "timed_out", "cancelled"].includes(String(status || "").toLowerCase());
 }
 
-export async function evaluateRepositoryMutationPreflight({ operation, args = [], repo = {}, pr = null, compare = null, branch = "" } = {}, deps = {}) {
-  const policies = await loadActiveExecutionPolicies({
-    execution_scope: ["repo_mutation", "github_pr_merge", "branch_delete", operation].filter(Boolean),
-    affects_layer: ["adminCliRoutes", "github_rest_fallback", "repo_patch_apply"],
+async function loadRepositoryMutationPolicies(operation, affectsLayer, deps = {}) {
+  return loadActiveExecutionPolicies({
+    execution_scope: ["repo_mutation", "github_pr_merge", "branch_delete", "repo_patch_apply", operation].filter(Boolean),
+    affects_layer: ["adminCliRoutes", "github_rest_fallback", "gptToolsRoutes", "repo_patch_apply", affectsLayer].filter(Boolean),
     policy_group: "Repository Mutation Governance",
     policy_key: "Stale Duplicate Branch Merge Guard",
   }, deps);
+}
+
+export async function evaluateRepositoryMutationPreflight({ operation, args = [], repo = {}, pr = null, compare = null, branch = "" } = {}, deps = {}) {
+  const policies = await loadRepositoryMutationPolicies(operation, "adminCliRoutes", deps);
 
   if (!policies.length) {
     return makePreflightResult({ evidence: { operation, reason: "repository_mutation_policy_not_configured" } });
