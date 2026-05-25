@@ -211,7 +211,6 @@ export async function runAgentLoop(plan, deps = {}) {
   }
 
   // Use class-aware callModel when available; fall back to deps.callModel.
-  const execution_class = workflow.execution_class || "standard";
 
   // rule_based: bypass LLM entirely — dispatch directly to engineExecutorRegistry.
   // Loads the agent's bound pack definitions so the engine receives the full rule set,
