@@ -352,13 +352,13 @@ function toMarkdown(report) {
 
 async function main() {
   const options = parseArgs(process.argv);
-  const pool = getPool();
+  const pool = options.codeOnly ? null : getPool();
   const files = await collectCodeFiles();
   const surfaces = [];
 
   for (const surface of LEGACY_SURFACES) {
     const [stats, refs] = await Promise.all([
-      tableStats(pool, surface.table),
+      pool ? tableStats(pool, surface.table) : Promise.resolve({ exists: null, row_count: null, last_write_at: null, columns: [] }),
       collectRefs(files, surface.table),
     ]);
     surfaces.push({
