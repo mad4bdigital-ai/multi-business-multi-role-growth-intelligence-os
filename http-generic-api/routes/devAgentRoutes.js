@@ -414,8 +414,7 @@ export function buildDevAgentRoutes(deps) {
       return runtime.result;
     });
 
-    const statusCode = modelStep.ok && n8nStep.ok ? 200 : 207;
-    return res.status(statusCode).json({
+    const payload = {
       ok: modelStep.ok && n8nStep.ok,
       comparison_id,
       production_route_unchanged: true,
@@ -444,7 +443,23 @@ export function buildDevAgentRoutes(deps) {
           : null,
       },
       secrets_included: false,
-    });
+    };
+
+    let persistence = { ok: false, skipped: true };
+    try {
+      persistence = await persistSummaryComparisonRun({
+        pool: getPool(),
+        payload,
+        tenant_id,
+        user_id,
+        n8nBindingKey,
+      });
+    } catch (err) {
+      persistence = { ok: false, error: { code: "summary_comparison_persist_failed", message: String(err.message || err).slice(0, 240) } };
+    }
+
+    const statusCode = modelStep.ok && n8nStep.ok ? 200 : 207;
+    return res.status(statusCode).json({ ...payload, persistence });
   });
 
   // ── GET/PATCH /dev-agent/model-settings ──────────────────────────────────
