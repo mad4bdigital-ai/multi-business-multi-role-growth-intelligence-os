@@ -159,6 +159,76 @@ export async function evaluateRepositoryMutationPreflight({ operation, args = []
   });
 }
 
+export async function evaluateRepoPatchApplyPreflight({ args = {}, repo = {}, branch = "", defaultBranch = "main", branchExists = false, compare = null } = {}, deps = {}) {
+  const policies = await loadRepositoryMutationPolicies("repo_patch_apply", "gptToolsRoutes", deps);
+  if (!policies.length) {
+    return makePreflightResult({ evidence: { operation: "repo_patch_apply", reason: "repository_mutation_policy_not_configured" } });
+  }
+
+  const blockingPolicies = [];
+  const warnings = [];
+  const errors = [];
+  const evidence = {
+    operation: "repo_patch_apply",
+    repo: repo.owner && repo.repo ? `${repo.owner}/${repo.repo}` : null,
+    branch,
+    default_branch: defaultBranch,
+    branch_exists: Boolean(branchExists),
+    compare_status: compare?.status || null,
+    compare_ahead_by: compare?.ahead_by ?? null,
+    compare_behind_by: compare?.behind_by ?? null,
+  };
+
+  for (const policy of policies) {
+    const cfg = policyJson(policy);
+    const blockingAllowed = policyAllowsBlocking(policy);
+    const protectedNames = new Set(["main", "master", "production", "prod", String(defaultBranch || "main")]);
+    if (protectedNames.has(String(branch || "").trim()) && blockingAllowed) {
+      errors.push("repo_patch_protected_branch_blocked_by_policy");
+      blockingPolicies.push(policy);
+      continue;
+    }
+
+    if (branchExists && compare) {
+      const staleBranch = Number(compare.behind_by || 0) > 0 || String(compare.status || "").toLowerCase() === "diverged";
+      if (staleBranch && !args.allow_stale_branch_patch && parseBoolean(cfg.block_stale_branch_patch, true) && blockingAllowed) {
+        errors.push("repo_patch_stale_branch_requires_explicit_override");
+        blockingPolicies.push(policy);
+        continue;
+      }
+      if (Number(compare.ahead_by || 0) > 0) warnings.push("repo_patch_existing_branch_has_unmerged_commits");
+    }
+  }
+
+  if (blockingPolicies.length) {
+    return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence });
+  }
+  return makePreflightResult({
+    classification: warnings.length ? "allow_with_policy_warnings" : "allow",
+    policies,
+    warnings,
+    errors,
+    evidence,
+  });
+}
+
+export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", toolKey = "", args = {} } = {}, deps = {}) {
+  const policies = await loadActiveExecutionPolicies({
+    execution_scope: ["gpt_tools_call", "tool_dispatch", toolKey].filter(Boolean),
+    affects_layer: ["gptToolsRoutes", callerType].filter(Boolean),
+  }, deps);
+  if (!policies.length) {
+    return makePreflightResult({ evidence: { operation: "gpt_tools_call", tool_key: toolKey, reason: "no_matching_active_execution_policy" } });
+  }
+  const blockingPolicies = policies.filter(policyAllowsBlocking);
+  return makePreflightResult({
+    classification: blockingPolicies.length ? "requires_policy_specific_evaluation" : "allow_with_policy_advisory",
+    policies,
+    warnings: blockingPolicies.length ? ["matching_blocking_tool_dispatch_policies_require_specific_evaluation"] : [],
+    evidence: { operation: "gpt_tools_call", caller_type: callerType, tool_key: toolKey, matching_policy_count: policies.length },
+  });
+}
+
 export function assertPreflightAllowed(preflight) {
   if (preflight?.ok !== false) return preflight;
   const err = new Error(`Governed execution preflight blocked operation: ${(preflight.errors || []).join(", ") || "policy_block"}`);
