@@ -23,6 +23,10 @@ assert(toolsMigration.includes('This does not execute code or mutate repositorie
 assert(dryRunToolMigration.includes('dev_agent_summary_development_agent_dry_run'));
 assert(dryRunToolMigration.includes('Does not execute OpenClaude'));
 assert(dryRunToolMigration.includes('no_code_execution'));
+assert(repoAnalysisToolMigration.includes('dev_agent_summary_development_repo_analysis_dry_run'));
+assert(repoAnalysisToolMigration.includes('Read/Grep/Glob/LS'));
+assert(repoAnalysisToolMigration.includes('does not execute the local agent'));
+assert(repoAnalysisToolMigration.includes('no_repo_mutation'));
 
 assert(routes.includes('/dev-agent/summary-development/runtimes'));
 assert(routes.includes('/dev-agent/summary-development/signals'));
