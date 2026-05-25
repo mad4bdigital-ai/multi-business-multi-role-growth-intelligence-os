@@ -324,12 +324,23 @@ section("admin and tenant OpenAI schema coverage for tool additions");
 
   const tenantOps = collectOperations(tenantDoc);
   const tenantOpIds = new Set(tenantOps.map((op) => op.operation.operationId).filter(Boolean));
-  const expectedTenantMcpOps = ["activateSession", "listTools", "callTool", "writeSessionTurn", "endSession"];
-  assert("tenant OpenAI schema stays MCP-style with exactly five meta operations",
-    tenantOps.length === expectedTenantMcpOps.length && expectedTenantMcpOps.every((op) => tenantOpIds.has(op)),
+  const expectedTenantOps = [
+    "activateSession",
+    "listTools",
+    "callTool",
+    "tenantPlatformPluginCatalog",
+    "tenantPlatformPluginInstall",
+    "tenantPlatformPluginResolve",
+    "writeSessionTurn",
+    "endSession",
+  ];
+  assert("tenant OpenAI schema exposes MCP meta operations plus tenant Platform Plugin self-serve operations",
+    tenantOps.length === expectedTenantOps.length && expectedTenantOps.every((op) => tenantOpIds.has(op)),
     `got ${Array.from(tenantOpIds).join(",")}`);
   assert("tenant OpenAI schema does not expose direct connect routes",
     !Object.keys(tenantDoc.paths || {}).some((path) => path.startsWith("/connect")));
+  assert("tenant OpenAI schema exposes tenant Platform Plugin routes only under /tenant/platform/plugins",
+    ["/tenant/platform/plugins/catalog", "/tenant/platform/plugins/install", "/tenant/platform/plugins/resolve"].every((path) => Boolean(tenantDoc.paths?.[path])));
   const tenantCallToolSchema = tenantDoc.paths?.["/gpt/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
   const tenantToolArgsSchema = tenantCallToolSchema?.properties?.tool_args;
   assert("tenant OpenAI schema tells GPT to pass activation mode and integration_modes through callTool",
