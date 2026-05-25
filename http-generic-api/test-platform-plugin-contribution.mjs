@@ -69,7 +69,11 @@ function makePool({ existingBase = false, basePluginExists = true } = {}) {
     actionBindings: [{ action_key: "crm.contact.list" }],
     credentialPolicy: { allowed_scopes: ["tenant_connection"] },
     notes: "draft contribution",
-    rawPayload: { plugin_key: "tenant.custom_crm", display_name: "Tenant Custom CRM" },
+    rawPayload: {
+      plugin_key: "tenant.custom_crm",
+      display_name: "Tenant Custom CRM",
+      credential_policy: { allowed_scopes: ["tenant_connection"], fallback_allowed: false },
+    },
   });
   assert.equal(result.ok, true);
   assert.equal(result.contribution.plugin_key, "tenant.custom_crm");
