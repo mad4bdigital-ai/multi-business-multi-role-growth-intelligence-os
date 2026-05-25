@@ -25,7 +25,16 @@ const ACTIVE_SCHEMAS = {
     serverUrl: "https://auth.mad4b.com",
     securityScheme: "userBearerAuth",
     maxOperations: 30,
-    requiredOperations: ["activateSession", "listTools", "callTool", "writeSessionTurn", "endSession"],
+    requiredOperations: [
+      "activateSession",
+      "listTools",
+      "callTool",
+      "tenantPlatformPluginCatalog",
+      "tenantPlatformPluginInstall",
+      "tenantPlatformPluginResolve",
+      "writeSessionTurn",
+      "endSession",
+    ],
   },
   "openapi.gpt-action.dev-dispatcher.yaml": {
     serverUrl: "https://dev.mad4b.com",
@@ -263,9 +272,13 @@ section("dispatcher contracts");
       .join(", "));
 
   const tenantPostOps = collectOperations(tenantDoc).filter((op) => op.method === "post");
-  assert("tenant dispatcher POST operations are non-consequential",
-    tenantPostOps.every((op) => op.operation["x-openai-isConsequential"] === false),
-    tenantPostOps.filter((op) => op.operation["x-openai-isConsequential"] !== false).map((op) => op.pathKey).join(", "));
+  const tenantAllowedConsequentialOps = new Set(["tenantPlatformPluginInstall"]);
+  assert("tenant dispatcher POST operations are non-consequential except explicit install consent surfaces",
+    tenantPostOps.every((op) => op.operation["x-openai-isConsequential"] === false || tenantAllowedConsequentialOps.has(op.operation.operationId)),
+    tenantPostOps
+      .filter((op) => op.operation["x-openai-isConsequential"] !== false && !tenantAllowedConsequentialOps.has(op.operation.operationId))
+      .map((op) => op.pathKey)
+      .join(", "));
 
   const devOps = collectOperations(devDoc);
   const devOperationIds = new Set(devOps.map((op) => op.operation.operationId).filter(Boolean));
@@ -311,12 +324,23 @@ section("admin and tenant OpenAI schema coverage for tool additions");
 
   const tenantOps = collectOperations(tenantDoc);
   const tenantOpIds = new Set(tenantOps.map((op) => op.operation.operationId).filter(Boolean));
-  const expectedTenantMcpOps = ["activateSession", "listTools", "callTool", "writeSessionTurn", "endSession"];
-  assert("tenant OpenAI schema stays MCP-style with exactly five meta operations",
-    tenantOps.length === expectedTenantMcpOps.length && expectedTenantMcpOps.every((op) => tenantOpIds.has(op)),
+  const expectedTenantOps = [
+    "activateSession",
+    "listTools",
+    "callTool",
+    "tenantPlatformPluginCatalog",
+    "tenantPlatformPluginInstall",
+    "tenantPlatformPluginResolve",
+    "writeSessionTurn",
+    "endSession",
+  ];
+  assert("tenant OpenAI schema exposes MCP meta operations plus tenant Platform Plugin self-serve operations",
+    expectedTenantOps.every((op) => tenantOpIds.has(op)) && tenantOps.length <= ACTIVE_SCHEMAS["openapi.tenant-gpt.auth.yaml"].maxOperations,
     `got ${Array.from(tenantOpIds).join(",")}`);
   assert("tenant OpenAI schema does not expose direct connect routes",
     !Object.keys(tenantDoc.paths || {}).some((path) => path.startsWith("/connect")));
+  assert("tenant OpenAI schema exposes tenant Platform Plugin routes only under /tenant/platform/plugins",
+    ["/tenant/platform/plugins/catalog", "/tenant/platform/plugins/install", "/tenant/platform/plugins/resolve"].every((path) => Boolean(tenantDoc.paths?.[path])));
   const tenantCallToolSchema = tenantDoc.paths?.["/gpt/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
   const tenantToolArgsSchema = tenantCallToolSchema?.properties?.tool_args;
   assert("tenant OpenAI schema tells GPT to pass activation mode and integration_modes through callTool",

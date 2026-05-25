@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: Mad4B Growth Intelligence - Tenant AI - MCP Actions
-  version: 2.0.1-mcp
-  summary: Tenant GPT schema. Five meta-operations; all platform tools discovered via listTools and called via callTool.
-  description: Tenant MCP schema. Use activateSession, listTools, callTool, writeSessionTurn, endSession. Activate with connect_activate tool_args.mode managed/dedicated; mixed apps use integration_modes.
+  version: 2.0.2-platform-plugins
+  summary: Tenant GPT schema with MCP meta-operations plus tenant self-serve Platform Plugin routes.
+  description: Tenant MCP schema. Use connect_activate with tool_args.mode and integration_modes. Also supports Platform Plugin catalog, install, and resolve.
 servers:
   - url: https://auth.mad4b.com
     description: Mad4B platform auth subdomain
@@ -261,6 +261,203 @@ paths:
             - https://auth.mad4b.com/scopes/tenant.activation
             - https://auth.mad4b.com/scopes/tenant.install
             - https://auth.mad4b.com/scopes/tenant.system-tools
+  /tenant/platform/plugins/catalog:
+    get:
+      tags:
+        - platform-plugins
+      operationId: tenantPlatformPluginCatalog
+      summary: List installable Platform Base plugins for this tenant
+      description: Tenant-facing catalog. The server derives tenant_id and user_id from the signed-in OAuth/JWT context and returns no secrets.
+      parameters:
+        - name: include_bindings
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 250
+            default: 100
+      responses:
+        '200':
+          description: Tenant-scoped Platform Plugin catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok:
+                    type: boolean
+                  tenant_facing:
+                    type: boolean
+                  plugins:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  secrets_included:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.install
+
+  /tenant/platform/plugins/install:
+    post:
+      x-openai-isConsequential: true
+      tags:
+        - platform-plugins
+      operationId: tenantPlatformPluginInstall
+      summary: Install a Platform Base plugin for this tenant
+      description: Installs a Platform Base plugin for the signed-in tenant. Tenant/user IDs come from auth; no secrets are accepted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - plugin_key
+              properties:
+                plugin_key:
+                  type: string
+                source_mode:
+                  type: string
+                  enum:
+                    - managed
+                    - dedicated
+                  default: dedicated
+                fallback_allowed:
+                  type: boolean
+                  default: false
+                required_for_device_install:
+                  type: boolean
+                  default: false
+                notes:
+                  type: string
+                  maxLength: 1000
+                connection:
+                  type: object
+                  description: Optional metadata-only connection. Do not include secrets.
+                  properties:
+                    connection_scope:
+                      type: string
+                      enum:
+                        - tenant_connection
+                        - user_connection
+                      default: tenant_connection
+                    api_base_url:
+                      type: string
+                      description: HTTPS base URL only. No credentials.
+                    mcp_endpoint:
+                      type: string
+                      description: HTTPS endpoint only. No credentials.
+                    webhook_url:
+                      type: string
+                      description: HTTPS webhook URL only. No credentials.
+                    account_label:
+                      type: string
+                    display_label:
+                      type: string
+                    account_metadata:
+                      type: object
+                      additionalProperties: true
+      responses:
+        '200':
+          description: Plugin installed for tenant
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok:
+                    type: boolean
+                  tenant_facing:
+                    type: boolean
+                  platform_base_mutated:
+                    type: boolean
+                  secrets_included:
+                    type: boolean
+        '400':
+          description: Invalid install payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.install
+
+  /tenant/platform/plugins/resolve:
+    post:
+      x-openai-isConsequential: false
+      tags:
+        - platform-plugins
+      operationId: tenantPlatformPluginResolve
+      summary: Resolve tenant readiness for a Platform Plugin action/tool
+      description: Checks tenant plugin readiness without executing actions or returning secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - plugin_key
+              properties:
+                plugin_key:
+                  type: string
+                action_key:
+                  type: string
+                tool_key:
+                  type: string
+                agent_id:
+                  type: string
+                requested_credential_scope:
+                  type: string
+                  enum:
+                    - user_connection
+                    - tenant_connection
+                    - platform_managed
+                    - device_connector
+                    - none
+      responses:
+        '200':
+          description: Tenant-scoped plugin readiness result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok:
+                    type: boolean
+                  allowed:
+                    type: boolean
+                  reason:
+                    type: string
+                  tenant_facing:
+                    type: boolean
+                  secrets_included:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      security:
+        - userBearerAuth:
+            - https://auth.mad4b.com/scopes/tenant.links
+            - https://auth.mad4b.com/scopes/tenant.status
+            - https://auth.mad4b.com/scopes/tenant.install
+
   /gpt/sessions/{id}/turn:
     post:
       x-openai-isConsequential: false

@@ -122,8 +122,8 @@ try {
   section("auth openapi contract");
 
   {
-    // MCP-style tenant schema: five meta-operations replace all explicit paths.
-    // Connect/system operations are now accessed via callTool (discovered through listTools).
+    // MCP-style tenant schema plus direct tenant Platform Plugin self-serve actions.
+    // Connect/system operations are still accessed via callTool (discovered through listTools).
     const doc = yaml.load(readFileSync("openapi.tenant-gpt.auth.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const securityScheme = doc.components?.securitySchemes?.userBearerAuth;
@@ -159,11 +159,14 @@ try {
     assert("tenant GPT schema exposes callTool", exposedPaths.includes("/gpt/tools/call"), exposedPaths.join(", "));
     assert("tenant GPT schema exposes writeSessionTurn", exposedPaths.includes("/gpt/sessions/{id}/turn"), exposedPaths.join(", "));
     assert("tenant GPT schema exposes endSession", exposedPaths.includes("/gpt/sessions/{id}/end"), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes tenant Platform Plugin catalog", exposedPaths.includes("/tenant/platform/plugins/catalog"), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes tenant Platform Plugin install", exposedPaths.includes("/tenant/platform/plugins/install"), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes tenant Platform Plugin resolve", exposedPaths.includes("/tenant/platform/plugins/resolve"), exposedPaths.join(", "));
 
     assert("tenant GPT callTool body requires name", Array.isArray(callToolSchema?.required) && callToolSchema.required.includes("name"));
-    assert("tenant GPT all POST operations are non-consequential",
-      postOps.every(({ operation }) => operation["x-openai-isConsequential"] === false),
-      postOps.filter(({ operation }) => operation["x-openai-isConsequential"] !== false).map(({ pathKey }) => pathKey).join(", "));
+    assert("tenant GPT POST operations are non-consequential except plugin install consent",
+      postOps.every(({ operation }) => operation["x-openai-isConsequential"] === false || operation.operationId === "tenantPlatformPluginInstall"),
+      postOps.filter(({ operation }) => operation["x-openai-isConsequential"] !== false && operation.operationId !== "tenantPlatformPluginInstall").map(({ pathKey }) => pathKey).join(", "));
     assert("tenant GPT schema does not expose admin provider-bootstrap paths", !exposedPaths.some((p) => p.startsWith("/admin/")), exposedPaths.join(", "));
   }
 
