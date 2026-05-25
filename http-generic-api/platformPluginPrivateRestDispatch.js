@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
+import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 import { resolvePrivatePlatformPluginContribution } from "./platformPluginContribution.js";
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
