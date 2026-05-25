@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { fetchDriveContent } from "./uploadPipeline.js";
+import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const DEFAULT_BATCH_SIZE = 20;
