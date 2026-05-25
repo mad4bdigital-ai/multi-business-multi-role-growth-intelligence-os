@@ -172,37 +172,95 @@ function generateAuthDispatcher(sourceDoc, sourceOperations) {
   console.log(`Generated ${outPath} (${count} operations) -> https://${AUTH_DISPATCHER_HOST}`);
 }
 
-function generateTenantAuthSchema(sourceDoc) {
-  const tenantPath = path.resolve(`./${TENANT_AUTH_SCHEMA_FILE}`);
-  if (!fs.existsSync(tenantPath)) { console.warn(`${TENANT_AUTH_SCHEMA_FILE} not found — skipped.`); return; }
+function buildDocFromOperationIds(sourceDoc, sourceOperations, operationIds, { host, title, summary, description }) {
+  const byId = new Map();
+  for (const op of sourceOperations) {
+    const operationId = op.operation?.operationId;
+    const tenantOperationId = op.operation?.["x-tenant-gpt-operationId"];
+    if (operationId) byId.set(operationId, op);
+    if (tenantOperationId) byId.set(tenantOperationId, op);
+  }
+  const missing = operationIds.filter((id) => !byId.has(id));
+  if (missing.length > 0) {
+    throw new Error(`Configured split operationIds are missing from ${SOURCE_OPENAPI_FILE}: ${missing.join(", ")}`);
+  }
+  const operations = operationIds.map((id) => {
+    const op = byId.get(id);
+    const operation = clone(op.operation);
+    if (op.operation?.["x-tenant-gpt-operationId"] === id) {
+      operation.operationId = id;
+    }
+    delete operation["x-tenant-gpt-operationId"];
+    return { ...op, operation };
+  });
+  return buildDoc(sourceDoc, operations, { host, title, summary, description });
+}
 
+function normalizeTenantDoc(doc, sourceDoc, config) {
+  const schemeName = String(config.security_scheme_name || "userBearerAuth").trim();
+  doc.components = doc.components || {};
+  doc.components.securitySchemes = { [schemeName]: clone(config.security_scheme) };
+  doc.security = clone(config.security);
+  if (config.action_auth_preset && typeof config.action_auth_preset === "object") {
+    doc["x-gpt-action-auth-preset"] = clone(config.action_auth_preset);
+  }
+  for (const pathItem of Object.values(doc.paths || {})) {
+    for (const [method, operation] of Object.entries(pathItem || {})) {
+      if (!METHOD_NAMES.has(method) || !operation || typeof operation !== "object") continue;
+      operation.security = clone(config.security);
+      normalizeRequestBody(sourceDoc, operation);
+    }
+  }
+  normalizeDescriptions(doc);
+  normalizeObjects(doc);
+}
+
+function validateSplitOperationsComeFromSource(splitDoc, sourceDoc, schemaName) {
+  const sourcePairs = new Set();
+  const sourceOperationIds = new Set();
+  for (const op of collectOperations(sourceDoc)) {
+    sourcePairs.add(`${op.method.toUpperCase()} ${op.pathKey}`);
+    if (op.operation?.operationId) sourceOperationIds.add(op.operation.operationId);
+    if (op.operation?.["x-tenant-gpt-operationId"]) sourceOperationIds.add(op.operation["x-tenant-gpt-operationId"]);
+  }
+  const failures = [];
+  for (const op of collectOperations(splitDoc)) {
+    const pair = `${op.method.toUpperCase()} ${op.pathKey}`;
+    const operationId = op.operation?.operationId;
+    if (!sourcePairs.has(pair)) failures.push(`${schemaName}: split-only path/method ${pair}`);
+    if (operationId && !sourceOperationIds.has(operationId)) failures.push(`${schemaName}: split-only operationId ${operationId}`);
+  }
+  if (failures.length > 0) {
+    throw new Error(`OpenAPI split governance failed: ${failures.join("; ")}`);
+  }
+}
+
+function generateTenantAuthSchema(sourceDoc, sourceOperations) {
   const config = sourceDoc["x-tenant-gpt-auth"];
   if (!config || typeof config !== "object") throw new Error("x-tenant-gpt-auth missing from openapi.yaml.");
 
   const schemeName = String(config.security_scheme_name || "userBearerAuth").trim();
   if (!config.security_scheme || typeof config.security_scheme !== "object") throw new Error("x-tenant-gpt-auth.security_scheme required.");
   if (!Array.isArray(config.security) || config.security.length === 0) throw new Error("x-tenant-gpt-auth.security required.");
-
-  const doc = yaml.load(fs.readFileSync(tenantPath, "utf8"));
-  const normalized = clone(doc);
-  normalized.components = normalized.components || {};
-  normalized.components.securitySchemes = { [schemeName]: clone(config.security_scheme) };
-  normalized.security = clone(config.security);
-  if (config.action_auth_preset && typeof config.action_auth_preset === "object") {
-    normalized["x-gpt-action-auth-preset"] = clone(config.action_auth_preset);
+  if (!Array.isArray(config.tenant_operation_ids) || config.tenant_operation_ids.length === 0) {
+    throw new Error("x-tenant-gpt-auth.tenant_operation_ids required. Tenant split schemas must be generated from main openapi.yaml operationIds.");
   }
-  for (const pathItem of Object.values(normalized.paths || {})) {
-    for (const [method, operation] of Object.entries(pathItem || {})) {
-      if (!METHOD_NAMES.has(method) || !operation || typeof operation !== "object") continue;
-      if (Array.isArray(operation.security) && operation.security.length === 0) continue;
-      operation.security = clone(config.security);
-    }
-  }
-  normalizeDescriptions(normalized);
 
-  const count = countOperations(normalized.paths);
-  fs.writeFileSync(tenantPath, yaml.dump(normalized, { lineWidth: -1, noRefs: true }), "utf8");
-  console.log(`Generated ${tenantPath} (${count} operations) -> ${normalized.servers?.[0]?.url || "tenant auth"}`);
+  const tenantOperationIds = config.tenant_operation_ids.map((id) => String(id).trim()).filter(Boolean);
+  const doc = buildDocFromOperationIds(sourceDoc, sourceOperations, tenantOperationIds, {
+    host: AUTH_DISPATCHER_HOST,
+    title: `${sourceDoc.info?.title || "Platform API"} - Tenant GPT Auth Actions`,
+    summary: "Tenant GPT schema generated from main OpenAPI using tenant_operation_ids.",
+    description: "Tenant MCP schema. Use connect_activate with tool_args.mode and integration_modes. Also supports Platform Plugin catalog, install, and resolve."
+  });
+  normalizeTenantDoc(doc, sourceDoc, config);
+  validateSplitOperationsComeFromSource(doc, sourceDoc, TENANT_AUTH_SCHEMA_FILE);
+
+  const count = countOperations(doc.paths);
+  if (count > MAX_OPERATIONS) throw new Error(`${TENANT_AUTH_SCHEMA_FILE} has ${count} operations; max is ${MAX_OPERATIONS}.`);
+  const tenantPath = path.resolve(`./${TENANT_AUTH_SCHEMA_FILE}`);
+  fs.writeFileSync(tenantPath, yaml.dump(doc, { lineWidth: -1, noRefs: true }), "utf8");
+  console.log(`Generated ${tenantPath} (${count} operations) -> ${doc.servers?.[0]?.url || "tenant auth"}`);
 }
 
 function main() {
@@ -213,7 +271,7 @@ function main() {
   const sourceOperations = collectOperations(sourceDoc);
 
   generateAuthDispatcher(sourceDoc, sourceOperations);
-  generateTenantAuthSchema(sourceDoc);
+  generateTenantAuthSchema(sourceDoc, sourceOperations);
 
   console.log("\nDone. Active GPT schemas:");
   console.log("  openapi.custom-gpt.auth-dispatcher.yaml  — admin dispatcher (auth.mad4b.com)");
