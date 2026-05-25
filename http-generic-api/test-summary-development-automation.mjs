@@ -19,6 +19,9 @@ assert(toolsMigration.includes('dev_agent_summary_development_runtimes'));
 assert(toolsMigration.includes('dev_agent_summary_development_signals'));
 assert(toolsMigration.includes('dev_agent_summary_development_extract'));
 assert(toolsMigration.includes('This does not execute code or mutate repositories'));
+assert(dryRunToolMigration.includes('dev_agent_summary_development_agent_dry_run'));
+assert(dryRunToolMigration.includes('Does not execute OpenClaude'));
+assert(dryRunToolMigration.includes('no_code_execution'));
 
 assert(routes.includes('/dev-agent/summary-development/runtimes'));
 assert(routes.includes('/dev-agent/summary-development/signals'));
