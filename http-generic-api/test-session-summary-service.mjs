@@ -258,8 +258,8 @@ function makePool() {
     "success_with_warnings",
     "preview-only transcript fallback should be visible in durable execution_log status"
   );
-  assert.equal(pool.state.insertedExecutionLog.params[7], "transcript_fallback_used");
-  assert.equal(pool.state.insertedExecutionLog.params[8], "missing_drive_jsonl_id");
+  assert.equal(pool.state.insertedExecutionLog.params[14], "transcript_fallback_used");
+  assert.equal(pool.state.insertedExecutionLog.params[15], "missing_drive_jsonl_id");
 }
 
 {
