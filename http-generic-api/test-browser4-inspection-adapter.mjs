@@ -52,4 +52,14 @@ assert.equal(
   assert(migration.includes('/browser-runtime/inspect-site/run'));
 }
 
+{
+  const connectorAgentRoutes = readFileSync('routes/connectorAgentRoutes.js', 'utf8');
+  const localInstallRoutes = readFileSync('routes/localConnectorInstallRoutes.js', 'utf8');
+  for (const source of [connectorAgentRoutes, localInstallRoutes]) {
+    assert(source.includes('CONNECTOR_BROWSER4_ENABLED=true'));
+    assert(source.includes('BROWSER4_ALLOWED_HOSTS=mad4b.com,n8n.mad4b.com'));
+    assert(source.includes('BROWSER4_JAVA_HOME=D:\\\\n8n-data\\\\browser-runtime\\\\jre17\\\\jdk-17.0.19+10-jre'));
+  }
+}
+
 console.log('browser4 inspection adapter tests passed');
