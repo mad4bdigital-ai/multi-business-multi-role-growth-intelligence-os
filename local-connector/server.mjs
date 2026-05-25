@@ -1492,7 +1492,11 @@ async function handleN8nV2(req, res) {
     if (action === 'status' || action === 'diagnose') {
       const [health, processStatus] = await Promise.all([n8nHealthProbe(), n8nProcessProbe()]);
       let version = null;
-      try { version = await runCommand(N8N_COMMAND, ['--version'], clampTimeout(timeout_ms, 15000)); } catch (e) { version = { error: e.message }; }
+      try {
+        version = process.platform === 'win32' && /\.(cmd|bat)$/i.test(N8N_COMMAND)
+          ? await runPs(`& '${N8N_COMMAND.replace(/'/g, "''")}' --version`, clampTimeout(timeout_ms, 15000))
+          : await runCommand(N8N_COMMAND, ['--version'], clampTimeout(timeout_ms, 15000));
+      } catch (e) { version = { error: e.message }; }
       return ok(res, { n8n: n8nRuntimeInfo({ health, process: processStatus, command_exists: n8nCommandExists(), version }) });
     }
 
