@@ -407,7 +407,9 @@ section("connect api auth scope");
       runtimeCoverageAuditSource.includes("governedToolUseLoop"));
     const runtimePolicyLoaderSource = readFileSync("runtimePolicyLoader.js", "utf8");
     const governedPreflightSource = readFileSync("governedExecutionPreflight.js", "utf8");
+    const gptToolsSource = readFileSync("routes/gptToolsRoutes.js", "utf8");
     const runtimePolicyMigrationSource = readFileSync("migrations/122_sprint64_runtime_policy_preflight.sql", "utf8");
+    const gptToolsPolicyMigrationSource = readFileSync("migrations/123_sprint64_gpt_tools_policy_preflight.sql", "utf8");
     assert("execution_policies has runtime loader and repository mutation preflight evaluator",
       runtimePolicyLoaderSource.includes("loadActiveExecutionPolicies") &&
       runtimePolicyLoaderSource.includes("policyMatchesContext") &&
@@ -419,11 +421,26 @@ section("connect api auth scope");
       adminCliSource.includes("await preflightGithubMutationArgs(args)") &&
       adminCliSource.includes("evaluateRepositoryMutationPreflight") &&
       adminCliSource.includes("assertPreflightAllowed"));
+    assert("GPT tools dispatch calls governed policy preflight",
+      gptToolsSource.includes("evaluateGptToolDispatchPreflight") &&
+      gptToolsSource.includes("assertPreflightAllowed(await evaluateGptToolDispatchPreflight") &&
+      gptToolsSource.includes("dispatchToolImpl(callerType, toolKey, args, req)"));
+    assert("repo_patch_apply runs policy preflight before GitHub writes",
+      gptToolsSource.includes("evaluateRepoPatchApplyPreflight") &&
+      gptToolsSource.includes("loadRepoPatchBranchCompare") &&
+      gptToolsSource.includes("allow_stale_branch_patch") &&
+      governedPreflightSource.includes("evaluateRepoPatchApplyPreflight") &&
+      governedPreflightSource.includes("repo_patch_stale_branch_requires_explicit_override"));
     assert("runtime policy migration seeds repository mutation guard",
       runtimePolicyMigrationSource.includes("Repository Mutation Governance") &&
       runtimePolicyMigrationSource.includes("Stale Duplicate Branch Merge Guard") &&
       runtimePolicyMigrationSource.includes("block_unmerged_branch_delete") &&
       runtimePolicyMigrationSource.includes("block_risky_file_statuses"));
+    assert("GPT tools policy migration extends repository mutation guard",
+      gptToolsPolicyMigrationSource.includes("gpt_tools_call|tool_dispatch") &&
+      gptToolsPolicyMigrationSource.includes("gptToolsRoutes|repo_patch_apply") &&
+      gptToolsPolicyMigrationSource.includes("block_stale_branch_patch") &&
+      gptToolsPolicyMigrationSource.includes("require_stale_branch_reason"));
     assert("admin shell exposes runtime surface coverage audit alias",
       adminCliSource.includes("runtime_surface_coverage_audit") &&
       adminCliSource.includes("runtime-surface-coverage-audit.mjs") &&

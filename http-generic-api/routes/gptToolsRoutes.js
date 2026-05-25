@@ -12,6 +12,7 @@ import {
   recordGrantUse,
 } from "../scopeGrantsService.js";
 import { cachedSqlRead, sqlCacheKey, toolCacheTtl } from "../sqlCache.js";
+import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const SENSITIVE_ARG_SUBSTRINGS = [
@@ -177,6 +178,8 @@ const VIRTUAL_ADMIN_TOOLS = [
         branch: { type: "string", description: "Target work branch. If omitted, runtime generates a non-protected gpt/repo-patch/* branch. Protected branches are blocked by default." },
         allow_protected_branch: { type: "boolean", description: "Break-glass only. Requires REPO_PATCH_ALLOW_PROTECTED_BRANCH=true and break_glass_reason." },
         break_glass_reason: { type: "string", description: "Required for protected-branch break-glass mutation." },
+        allow_stale_branch_patch: { type: "boolean", description: "Break-glass only. Allows patching an existing branch that is behind/diverged from the default branch." },
+        stale_branch_reason: { type: "string", description: "Required explanation when allow_stale_branch_patch is true." },
         content: { type: "string", description: "Full new file content. Required for write_file." },
         old_string: { type: "string", description: "Exact substring to replace. Must occur exactly once. Required for replace_block." },
         new_string: { type: "string", description: "Replacement substring. Required for replace_block." },
@@ -269,6 +272,7 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
 }
 
 async function dispatchTool(callerType, toolKey, args, req) {
+  assertPreflightAllowed(await evaluateGptToolDispatchPreflight({ callerType, toolKey, args }));
   const result = await dispatchToolImpl(callerType, toolKey, args, req);
   // Best-effort: archive the dispatch as a tool turn so admin GPT sessions get a
   // complete transcript without depending on the GPT calling writeSessionTurn.
@@ -852,6 +856,18 @@ async function githubContentsRequest({ method, owner, repo, filePath, branch, bo
   return { status: response.status, ok: response.ok, payload };
 }
 
+async function loadRepoPatchBranchCompare({ owner, repo, defaultBranch, branch, token }) {
+  try {
+    const ref = await githubJsonRequest({ method: "GET", owner, repo, apiPath: `/git/ref/heads/${encodeGitRefBranch(branch)}`, token });
+    if (ref.status === 404) return { branch_exists: false, compare: null };
+    if (!ref.ok) return { branch_exists: null, compare: null, error_code: "repo_patch_branch_lookup_failed" };
+    const compare = await githubJsonRequest({ method: "GET", owner, repo, apiPath: `/compare/${encodeURIComponent(defaultBranch)}...${encodeURIComponent(branch)}`, token });
+    return { branch_exists: true, compare: compare.ok ? compare.payload : null, compare_status: compare.status };
+  } catch {
+    return { branch_exists: null, compare: null, error_code: "repo_patch_compare_failed" };
+  }
+}
+
 export async function applyRepoPatch(args = {}, ctx = {}) {
   const action = String(args.action || "").trim().toLowerCase();
   if (!["write_file", "replace_block", "apply_unified_diff"].includes(action)) {
@@ -875,6 +891,15 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
   assertRepoPatchBranchPolicy({ branch, defaultBranch, args });
 
   const token = await getGitHubAppInstallationToken({});
+  const branchCompare = await loadRepoPatchBranchCompare({ owner, repo, defaultBranch, branch, token });
+  assertPreflightAllowed(await evaluateRepoPatchApplyPreflight({
+    args,
+    repo: { owner, repo },
+    branch,
+    defaultBranch,
+    branchExists: branchCompare.branch_exists === true,
+    compare: branchCompare.compare,
+  }));
   const branchState = await ensureRepoPatchBranch({ owner, repo, branch, defaultBranch, token });
   const existing = await githubContentsRequest({ method: "GET", owner, repo, filePath, branch, token });
 
