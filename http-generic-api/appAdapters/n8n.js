@@ -117,7 +117,7 @@ export const n8nAdapter = {
         if (!base) throw new Error("api_base_url required");
         const { workflow_id } = args;
         if (!workflow_id) throw new Error("workflow_id required");
-        const data = await n8nReq(base, creds, `/workflows/${workflow_id}`);
+        const data = await n8nReq(base, normalized, `/workflows/${workflow_id}`);
         return { ok: true, result: data };
       }
 
