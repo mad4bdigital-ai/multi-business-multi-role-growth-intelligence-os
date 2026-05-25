@@ -610,6 +610,8 @@ function policyBody() {
       dependencies_enabled: DEPENDENCIES_ENABLED,
       cloudflare_enabled: CF_ENABLED,
       fetch_upload_enabled: FETCH_UPLOAD_ENABLED,
+      browser4_enabled: BROWSER4_ENABLED,
+      browser4_allowed_hosts: BROWSER4_ALLOWED_HOSTS,
     },
     secrets_included: false,
   };
