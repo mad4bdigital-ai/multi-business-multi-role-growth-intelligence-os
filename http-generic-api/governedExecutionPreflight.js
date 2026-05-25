@@ -414,6 +414,20 @@ export async function evaluateAgentLoopPreflight({ plan = {}, workflow = null, l
       if (writingLike && !hasBrandCoreEvidence) {
         errors.push("brand_writing_requires_brand_core");
         enforcedBlockingPolicies.push(policy);
+        const brandKey = plan.brand_key || plan.target_key || context?.brand_key || context?.target_key || "";
+        if (brandKey) {
+          try {
+            evidence.repair_policy = await resolveBrandCoreRepairCandidates(brandKey, ["brand_writing_requires_brand_core"], deps);
+          } catch (repairError) {
+            evidence.repair_policy = {
+              ok: false,
+              classification: "repair_policy_lookup_failed",
+              error: repairError?.code || "repair_policy_lookup_failed",
+              message: repairError?.message || "Unable to resolve Brand Core repair candidates.",
+              secrets_included: false,
+            };
+          }
+        }
       }
       continue;
     }
