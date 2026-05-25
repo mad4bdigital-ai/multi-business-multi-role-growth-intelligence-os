@@ -705,7 +705,19 @@ async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }
     ]
   );
 
-  return { asset_id: assetId, asset_key: assetKey, link_id: linkId, edge_id: edgeId };
+  return {
+    asset_id: assetId,
+    asset_key: assetKey,
+    link_id: linkId,
+    edge_id: edgeId,
+    surface_authority: {
+      ok: jsonAssetSurfaceAuthority.ok,
+      resolved_surface_key: jsonAssetSurfaceAuthority.resolved_surface_key,
+      classification: jsonAssetSurfaceAuthority.classification,
+      code: jsonAssetSurfaceAuthority.code,
+      secrets_included: false,
+    },
+  };
 }
 
 export async function writeSessionSummary({ pool = getPool(), session, insight, run_id = null }) {
