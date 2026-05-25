@@ -109,6 +109,10 @@ function flattenParams(value) {
 
   assert.equal(result.archive_status, "ready");
   assert.equal(result.drive_doc_id, "doc-1");
+  assert(
+    pool.calls.some((call) => call.sql.includes("archive_status = ?") && call.params[0] === "ready" && call.params[1] === null),
+    "successful Drive writes should self-heal stale archive write_failed status"
+  );
   assert(driveWrites.docText.includes(fullContent), "full content should be written to Drive doc");
   assert(driveWrites.docText.includes("### Runtime Event"), "Drive doc should include runtime event metadata");
   assert(driveWrites.docText.includes('"action_key": "example_action"'), "Drive doc should include action metadata");
