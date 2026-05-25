@@ -486,6 +486,59 @@ export function buildDevAgentRoutes(deps) {
     return res.status(statusCode).json({ ...payload, persistence });
   });
 
+  // ── POST /dev-agent/summary-comparison/score ─────────────────────────────
+  router.post("/dev-agent/summary-comparison/score", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const comparisonId = String(body.comparison_id || "").trim();
+      if (!comparisonId) {
+        return res.status(400).json({ ok: false, error: { code: "comparison_id_required", message: "comparison_id is required." } });
+      }
+      const preferredOutput = normalizePreferredOutput(body.preferred_output);
+      const qualityScoreModel = normalizeQualityScore(body.quality_score_model);
+      const qualityScoreN8n = normalizeQualityScore(body.quality_score_n8n);
+      const qualityNotes = String(body.quality_notes || "").trim().slice(0, 1000) || null;
+      const useCaseFit = String(body.use_case_fit || "").trim().slice(0, 128) || null;
+      const reviewedBy = String(body.reviewed_by || body.user_id || "").trim().slice(0, 64) || null;
+
+      const [updateResult] = await getPool().query(
+        `UPDATE \`summary_comparison_runs\`
+         SET preferred_output = ?,
+             quality_score_model = ?,
+             quality_score_n8n = ?,
+             quality_notes = ?,
+             use_case_fit = ?,
+             reviewed_by = ?,
+             reviewed_at = NOW()
+         WHERE comparison_id = ?`,
+        [preferredOutput, qualityScoreModel, qualityScoreN8n, qualityNotes, useCaseFit, reviewedBy, comparisonId]
+      );
+      if (!updateResult.affectedRows) {
+        return res.status(404).json({ ok: false, error: { code: "summary_comparison_not_found", message: "comparison_id was not found." } });
+      }
+      const [rows] = await getPool().query(
+        `SELECT comparison_id, n8n_binding_key, preferred_output,
+                quality_score_model, quality_score_n8n, quality_notes,
+                use_case_fit, reviewed_by, reviewed_at,
+                production_route_unchanged, writes_session_summaries
+         FROM \`summary_comparison_runs\`
+         WHERE comparison_id = ?
+         LIMIT 1`,
+        [comparisonId]
+      );
+      res.json({
+        ok: true,
+        comparison_id: comparisonId,
+        score: rows[0] || null,
+        production_route_unchanged: true,
+        writes_session_summaries: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(err.status || 500).json({ ok: false, error: { code: err.code || "summary_comparison_score_failed", message: err.message } });
+    }
+  });
+
   // ── GET /dev-agent/summary-comparison/report ─────────────────────────────
   router.get("/dev-agent/summary-comparison/report", async (req, res) => {
     try {
