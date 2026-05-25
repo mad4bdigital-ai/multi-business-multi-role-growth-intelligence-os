@@ -305,14 +305,16 @@ export async function writeSessionSummaryExecutionLog({
   const endedAt = new Date().toISOString();
   const durationSeconds = Math.max(0, Math.round((Date.parse(endedAt) - Date.parse(startedAt)) / 1000));
   const modelWarning = modelWarningFromInsight(insight);
+  const transcriptWarning = transcript?.warning || (transcript?.fallback_used ? "transcript_fallback_used" : null);
   const graphWarning = verification?.summary_row_present && !verification?.graph_asset_present
     ? "summary_graph_asset_missing"
     : null;
+  const warningNote = modelWarning || transcriptWarning || graphWarning || null;
   const failureReason = verification?.ok
     ? null
     : (verification?.reason || "session_summary_write_verification_failed");
   const executionStatus = verification?.ok
-    ? (modelWarning || graphWarning ? "success_with_warnings" : "success")
+    ? (warningNote ? "success_with_warnings" : "success")
     : "failed";
   const outputSummary = buildExecutionLogOutputSummary({ session, summaryId: summary_id, transcript, insight, verification, operationLog: operation_log });
   const artifactAssetId = verification?.graph_asset_present ? summaryAssetId(summary_id) : null;
@@ -344,8 +346,8 @@ export async function writeSessionSummaryExecutionLog({
       `session_id=${session.session_id}`,
       executionStatus,
       outputSummary,
-      modelWarning ? "fallback_summary_used" : "not_required",
-      modelWarning || graphWarning || null,
+      modelWarning ? "fallback_summary_used" : transcriptWarning ? "transcript_fallback_used" : "not_required",
+      warningNote,
       failureReason,
       artifactAssetId,
       traceId,
