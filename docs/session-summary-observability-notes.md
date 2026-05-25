@@ -32,7 +32,7 @@ The retry path logs only sanitized metadata: provider, status, attempt number, m
 
 ## Operation logging
 
-The SQL-primary `execution_log` table is the durable execution record. Each completed summary write creates a high-level `execution_log` row with:
+The SQL-primary `execution_log` table is the durable execution record. Each completed summary write creates a high-level `execution_log` row with. Transcript fallback paths such as `missing_drive_jsonl_id` are classified as `success_with_warnings` rather than plain `success`, so legacy/preview-only summaries are visible in monitoring:
 
 - `entry_type = session_summary_autosweep`
 - `execution_class = summary`
