@@ -147,6 +147,8 @@ function toSafeContribution(row = {}) {
     base_plugin_key: row.base_plugin_key || null,
     status: row.status,
     certification_status: row.certification_status || "not_started",
+    private_execution_enabled: Boolean(row.private_execution_enabled),
+    private_activated_at: row.private_activated_at || null,
     manifest_json: parseStoredJson(row.manifest_json, {}),
     protocol_bindings_json: parseStoredJson(row.protocol_bindings_json, []),
     action_bindings_json: parseStoredJson(row.action_bindings_json, []),
