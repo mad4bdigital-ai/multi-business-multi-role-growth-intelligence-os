@@ -387,6 +387,7 @@ section("connect api auth scope");
     const executionEvidenceLoggerSource = readFileSync("executionEvidenceLogger.js", "utf8");
     const pluginPolicySource = readFileSync("platformPluginPolicy.js", "utf8");
     const pluginInstallSource = readFileSync("platformPluginInstall.js", "utf8");
+    const pluginContributionSource = readFileSync("platformPluginContribution.js", "utf8");
     const connectorExecutorSource = readFileSync("connectorExecutor.js", "utf8");
     const agentLoopRunnerSource = readFileSync("agentLoopRunner.js", "utf8");
     const appActionPolicyMigrationSource = readFileSync("migrations/124_sprint64_app_action_policy_preflight.sql", "utf8");
