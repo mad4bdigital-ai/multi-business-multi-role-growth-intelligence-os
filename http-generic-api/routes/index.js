@@ -63,6 +63,7 @@ import { buildDevDbRestoreRoutes } from "./devDbRestoreRoutes.js";
 import { buildAdminOnboardingRoutes } from "./adminOnboardingRoutes.js";
 import { buildPlatformGraphRoutes } from "./platformGraphRoutes.js";
 import { buildPlatformPluginRoutes } from "./platformPluginRoutes.js";
+import { buildTenantPlatformPluginRoutes } from "./tenantPlatformPluginRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -113,6 +114,7 @@ export function registerRoutes(app, deps) {
   app.use(buildMcpRoutes(deps));
   app.use(buildGovernanceRoutes(deps));
   app.use(buildPlatformGraphRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildTenantPlatformPluginRoutes());
   app.use(buildPlatformPluginRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildGithubRoutes(deps));
   app.use(buildJobRoutes(deps));
