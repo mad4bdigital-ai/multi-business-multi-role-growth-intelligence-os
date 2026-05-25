@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { loadWorkspaceAppContext } from "./appConnectionResolver.js";
 import { evaluateAgentLoopPreflight, assertPreflightAllowed } from "./governedExecutionPreflight.js";
+import { resolveSurfaceAuthority, SURFACE_KEYS } from "./surfaceAuthorityResolver.js";
 
 function isTruthy(val) {
   return val === true || val === 1 || val === "1" || val === "TRUE";
@@ -84,6 +85,30 @@ async function loadWorkflow(workflow_key) {
 
 async function loadBrandCoreEvidence(brand_key) {
   if (!brand_key) return null;
+  const surfaceAuthority = await resolveSurfaceAuthority(SURFACE_KEYS.BRAND_CORE_REGISTRY, { requireExecution: true });
+  const surfaceEvidence = {
+    ok: surfaceAuthority.ok,
+    resolved_surface_key: surfaceAuthority.resolved_surface_key,
+    classification: surfaceAuthority.classification,
+    code: surfaceAuthority.code,
+    authority_status: surfaceAuthority.surface?.authority_status || null,
+    required_for_execution: surfaceAuthority.surface?.required_for_execution || null,
+    backend_type: surfaceAuthority.surface?.backend_type || null,
+    backend_adapter: surfaceAuthority.surface?.backend_adapter || null,
+    secrets_included: false,
+  };
+  if (!surfaceAuthority.ok) {
+    return {
+      ready: false,
+      brand_key,
+      document_count: 0,
+      active_document_count: 0,
+      valid_document_count: 0,
+      surface_authority: surfaceEvidence,
+      resolution_error: surfaceAuthority.code || "brand_core_surface_authority_failed",
+      secrets_included: false,
+    };
+  }
   const [rows] = await getPool().query(
     `SELECT brand_key, brand_name, asset_key, asset_type, core_function,
             status, active_status, validation_status, priority, updated_at
@@ -94,10 +119,22 @@ async function loadBrandCoreEvidence(brand_key) {
       LIMIT 25`,
     [brand_key]
   ).catch(() => [[]]);
-  if (!rows.length) return null;
+  if (!rows.length) {
+    return {
+      ready: false,
+      brand_key,
+      document_count: 0,
+      active_document_count: 0,
+      valid_document_count: 0,
+      surface_authority: surfaceEvidence,
+      resolution_error: "brand_core_rows_not_found",
+      secrets_included: false,
+    };
+  }
   const activeRows = rows.filter(row => isTruthy(row.active_status) || isTruthy(row.status) || ['active', 'valid', 'validated'].includes(String(row.active_status || row.status || '').toLowerCase()));
   const validRows = rows.filter(row => ['active', 'valid', 'validated'].includes(String(row.validation_status || '').toLowerCase()));
   return {
+    ready: true,
     brand_key,
     brand_name: rows[0]?.brand_name || null,
     document_count: rows.length,
@@ -107,6 +144,7 @@ async function loadBrandCoreEvidence(brand_key) {
     asset_types: [...new Set(rows.map(row => String(row.asset_type || '').trim()).filter(Boolean))].slice(0, 12),
     core_functions: [...new Set(rows.map(row => String(row.core_function || '').trim()).filter(Boolean))].slice(0, 12),
     latest_updated_at: rows[0]?.updated_at || null,
+    surface_authority: surfaceEvidence,
     secrets_included: false,
   };
 }
@@ -210,11 +248,19 @@ export async function runAgentLoop(plan, deps = {}) {
 
   if (pathRows) context.path_resolver_rows = pathRows;
 
-  const brandCoreEvidence = await loadBrandCoreEvidence(plan.brand_key || plan.target_key).catch(() => null);
-  if (brandCoreEvidence) {
+  const brandCoreEvidence = await loadBrandCoreEvidence(plan.brand_key || plan.target_key).catch((error) => ({
+    ready: false,
+    brand_key: plan.brand_key || plan.target_key || null,
+    resolution_error: error?.code || "brand_core_evidence_lookup_failed",
+    secrets_included: false,
+  }));
+  context.brand_core_lookup = brandCoreEvidence;
+  if (brandCoreEvidence?.ready) {
     context.brand_core = brandCoreEvidence;
     context.brand_core_resolved = true;
   } else {
+    context.brand_core_surface_authority = brandCoreEvidence?.surface_authority || null;
+    context.brand_core_resolution_error = brandCoreEvidence?.resolution_error || "brand_core_evidence_not_resolved";
     context.brand_core_resolved = false;
   }
 
