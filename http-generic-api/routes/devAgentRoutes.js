@@ -221,6 +221,18 @@ function normalizeRepoAnalysisScope(value = "platform_repo") {
   return scope;
 }
 
+function normalizeApprovalPhrase(value = "") {
+  const phrase = String(value || "").trim();
+  const required = "APPROVE_OPENCLAUDE_READ_ONLY_REPO_ANALYSIS";
+  if (phrase !== required) {
+    const err = new Error(`approval_phrase must be exactly ${required}.`);
+    err.code = "summary_development_approval_phrase_invalid";
+    err.status = 403;
+    throw err;
+  }
+  return phrase;
+}
+
 function buildOpenClaudeRepoAnalysisCommandPlan({ runtime = {}, signal = {}, repoScope = "platform_repo", analysisGoal = "" } = {}) {
   const prompt = [
     "You are running a read-only repository analysis dry run for the Growth Intelligence Platform.",
@@ -1359,6 +1371,133 @@ export function buildDevAgentRoutes(deps) {
         [runId, `summary_dev_repo_analysis_dry_run_${runId}`, requestedBy, runtimeKey, JSON.stringify({ code: err.code || "summary_development_repo_analysis_dry_run_failed", message: String(err.message || err).slice(0, 240) })]
       ).catch(() => {});
       res.status(500).json({ ok: false, error: { code: err.code || "summary_development_repo_analysis_dry_run_failed", message: err.message } });
+    }
+  });
+
+  router.post("/dev-agent/summary-development/repo-analysis-approve", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const approvalId = randomUUID();
+    const runtimeKey = String(body.runtime_key || "openclaude_essam_local_v1").trim();
+    const signalId = String(body.signal_id || "").trim();
+    const signalKey = String(body.signal_key || "").trim();
+    const approvedBy = String(body.approved_by || body.requested_by || body.user_id || "").trim() || null;
+    const ttlMinutes = boundedPositiveInt(body.ttl_minutes, 30, 5, 120);
+    let repoScope;
+    let approvalPhrase;
+
+    try {
+      repoScope = normalizeRepoAnalysisScope(body.repo_scope || "platform_repo");
+      approvalPhrase = normalizeApprovalPhrase(body.approval_phrase || "");
+    } catch (err) {
+      return res.status(err.status || 403).json({
+        ok: false,
+        blocked: true,
+        error: { code: err.code, message: err.message },
+        approval_created: false,
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        secrets_included: false,
+      });
+    }
+
+    if (!signalId && !signalKey) {
+      return res.status(400).json({ ok: false, error: { code: "summary_development_signal_required", message: "signal_id or signal_key is required." } });
+    }
+
+    try {
+      const [runtimeRows] = await pool.query(
+        `SELECT runtime_key, display_name, runtime_type, provider_key, execution_surface,
+                device_id, command_hint, policy_json, status
+         FROM \`dev_agent_runtime_registry\`
+         WHERE runtime_key = ?
+         LIMIT 1`,
+        [runtimeKey]
+      );
+      const runtime = runtimeRows[0];
+      if (!runtime) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_runtime_not_found", message: "runtime_key was not found." } });
+      }
+      if (runtime.provider_key !== "openclaude") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "summary_development_repo_analysis_runtime_blocked", message: "Only OpenClaude local runtime can receive this approval." }, secrets_included: false });
+      }
+      if (runtime.status !== "available" && runtime.status !== "active") {
+        return res.status(409).json({ ok: false, blocked: true, error: { code: "summary_development_runtime_not_ready", message: "Runtime must be available or active before approval." }, runtime_status: runtime.status, secrets_included: false });
+      }
+
+      const signalWhere = signalId ? "signal_id = ?" : "signal_key = ?";
+      const [signalRows] = await pool.query(
+        `SELECT signal_id, signal_key, tenant_id, user_id, source_surface, source_ref,
+                signal_type, title, priority, status
+         FROM \`summary_development_signals\`
+         WHERE ${signalWhere}
+         LIMIT 1`,
+        [signalId || signalKey]
+      );
+      const signal = signalRows[0];
+      if (!signal) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_signal_not_found", message: "signal was not found." } });
+      }
+
+      const approvalKey = stableSignalKey(["repo_analysis_approval", signal.signal_id, runtime.runtime_key, repoScope, approvalId]);
+      const approvedTools = ["Read", "Grep", "Glob", "LS"];
+      const deniedTools = ["Edit", "Write", "MultiEdit", "NotebookEdit", "Bash", "git push", "git commit", "apply_patch"];
+      const policy = {
+        approval_mode: "repo_analysis_read_only",
+        local_execution_allowed_after_approval: true,
+        allowed_tools: approvedTools,
+        denied_tools: deniedTools,
+        auto_mutate_repo: false,
+        write_tools_allowed: false,
+        shell_allowed: false,
+        requires_new_approval_per_signal: true,
+        secrets_included: false,
+      };
+
+      await pool.query(
+        `INSERT INTO \`summary_development_agent_approvals\`
+           (approval_id, approval_key, signal_id, signal_key, runtime_key,
+            repo_scope, approval_mode, approval_status, approved_tools_json,
+            denied_tools_json, approval_phrase, approved_by, expires_at,
+            policy_json, metadata_json)
+         VALUES (?, ?, ?, ?, ?, ?, 'repo_analysis_read_only', 'approved', ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), ?, ?)`,
+        [
+          approvalId,
+          approvalKey,
+          signal.signal_id,
+          signal.signal_key,
+          runtime.runtime_key,
+          repoScope,
+          JSON.stringify(approvedTools),
+          JSON.stringify(deniedTools),
+          approvalPhrase,
+          approvedBy,
+          ttlMinutes,
+          JSON.stringify(policy),
+          JSON.stringify({ source_surface: signal.source_surface, source_ref: signal.source_ref, signal_type: signal.signal_type, title: signal.title }),
+        ]
+      );
+
+      res.json({
+        ok: true,
+        approval_id: approvalId,
+        approval_key: approvalKey,
+        signal_id: signal.signal_id,
+        signal_key: signal.signal_key,
+        runtime_key: runtime.runtime_key,
+        repo_scope: repoScope,
+        approval_mode: "repo_analysis_read_only",
+        approval_status: "approved",
+        approved_tools: approvedTools,
+        denied_tools: deniedTools,
+        ttl_minutes: ttlMinutes,
+        execution_allowed: "read_only_repo_analysis_after_approval",
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: err.code || "summary_development_repo_analysis_approval_failed", message: err.message } });
     }
   });
 

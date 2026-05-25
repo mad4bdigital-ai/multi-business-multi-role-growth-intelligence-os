@@ -5,6 +5,8 @@ const migration = fs.readFileSync(new URL('./migrations/130_sprint64_summary_dev
 const toolsMigration = fs.readFileSync(new URL('./migrations/131_sprint64_summary_development_automation_tools.sql', import.meta.url), 'utf8');
 const dryRunToolMigration = fs.readFileSync(new URL('./migrations/132_sprint64_summary_development_agent_dry_run_tool.sql', import.meta.url), 'utf8');
 const repoAnalysisToolMigration = fs.readFileSync(new URL('./migrations/133_sprint64_summary_development_repo_analysis_tool.sql', import.meta.url), 'utf8');
+const approvalsMigration = fs.readFileSync(new URL('./migrations/134_sprint64_summary_development_agent_approvals.sql', import.meta.url), 'utf8');
+const approvalToolMigration = fs.readFileSync(new URL('./migrations/135_sprint64_summary_development_agent_approval_tool.sql', import.meta.url), 'utf8');
 const routes = fs.readFileSync(new URL('./routes/devAgentRoutes.js', import.meta.url), 'utf8');
 
 assert(migration.includes('CREATE TABLE IF NOT EXISTS dev_agent_runtime_registry'));
@@ -27,14 +29,22 @@ assert(repoAnalysisToolMigration.includes('dev_agent_summary_development_repo_an
 assert(repoAnalysisToolMigration.includes('Read/Grep/Glob/LS'));
 assert(repoAnalysisToolMigration.includes('does not execute the local agent'));
 assert(repoAnalysisToolMigration.includes('no_repo_mutation'));
+assert(approvalsMigration.includes('CREATE TABLE IF NOT EXISTS summary_development_agent_approvals'));
+assert(approvalsMigration.includes("approval_mode ENUM('repo_analysis_read_only')"));
+assert(approvalToolMigration.includes('dev_agent_summary_development_repo_analysis_approve'));
+assert(approvalToolMigration.includes('APPROVE_OPENCLAUDE_READ_ONLY_REPO_ANALYSIS'));
+assert(approvalToolMigration.includes('does not execute the local agent'));
 
 assert(routes.includes('/dev-agent/summary-development/runtimes'));
 assert(routes.includes('/dev-agent/summary-development/signals'));
 assert(routes.includes('/dev-agent/summary-development/extract'));
 assert(routes.includes('/dev-agent/summary-development/agent-dry-run'));
 assert(routes.includes('/dev-agent/summary-development/repo-analysis-dry-run'));
+assert(routes.includes('/dev-agent/summary-development/repo-analysis-approve'));
 assert(routes.includes('buildOpenClaudeRepoAnalysisCommandPlan'));
 assert(routes.includes('normalizeRepoAnalysisScope'));
+assert(routes.includes('normalizeApprovalPhrase'));
+assert(routes.includes('APPROVE_OPENCLAUDE_READ_ONLY_REPO_ANALYSIS'));
 assert(routes.includes('"Read", "Grep", "Glob", "LS"'));
 assert(routes.includes('"Edit", "Write", "MultiEdit", "NotebookEdit", "Bash", "git push", "git commit", "apply_patch"'));
 assert(routes.includes('auto_execute_code: false'));
