@@ -915,6 +915,57 @@ export function buildDevAgentRoutes(deps) {
     }
   });
 
+  router.get("/dev-agent/summary-development/providers", async (req, res) => {
+    try {
+      const status = String(req.query.status || "").trim();
+      const runtimeKey = String(req.query.runtime_key || "").trim();
+      const where = [];
+      const params = [];
+      if (status) { where.push("p.status = ?"); params.push(status); }
+      const [providers] = await getPool().query(
+        `SELECT p.provider_key, p.display_name, p.provider_family,
+                p.openclaude_provider_key, p.credential_mode, p.execution_surface,
+                p.supported_runtime_types_json, p.required_env_names_json,
+                p.capabilities_json, p.policy_json, p.status, p.notes, p.updated_at
+         FROM \`dev_agent_provider_registry\` p
+         ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+         ORDER BY FIELD(p.status, 'active', 'available', 'planned', 'degraded', 'disabled'),
+                  p.provider_family, p.provider_key`,
+        params
+      );
+      let profiles = [];
+      if (runtimeKey) {
+        const [profileRows] = await getPool().query(
+          `SELECT rp.profile_key, rp.runtime_key, rp.provider_key,
+                  p.display_name AS provider_display_name,
+                  p.openclaude_provider_key, rp.profile_name, rp.selection_mode,
+                  rp.credential_mode, rp.model_hint, rp.endpoint_url,
+                  rp.status, rp.policy_json, rp.metadata_json, rp.notes, rp.updated_at
+           FROM \`dev_agent_runtime_provider_profiles\` rp
+           JOIN \`dev_agent_provider_registry\` p ON p.provider_key = rp.provider_key
+           WHERE rp.runtime_key = ?
+           ORDER BY FIELD(rp.selection_mode, 'preferred', 'fallback', 'manual', 'disabled'),
+                    FIELD(rp.status, 'active', 'available', 'planned', 'degraded', 'disabled'),
+                    rp.profile_key`,
+          [runtimeKey]
+        );
+        profiles = profileRows;
+      }
+      res.json({
+        ok: true,
+        providers,
+        runtime_key: runtimeKey || null,
+        profiles,
+        provider_count: providers.length,
+        profile_count: profiles.length,
+        reads_only: true,
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "summary_development_providers_failed", message: err.message } });
+    }
+  });
+
   router.get("/dev-agent/summary-development/signals", async (req, res) => {
     try {
       const status = String(req.query.status || "").trim();
