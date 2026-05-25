@@ -184,7 +184,15 @@ function buildDocFromOperationIds(sourceDoc, sourceOperations, operationIds, { h
   if (missing.length > 0) {
     throw new Error(`Configured split operationIds are missing from ${SOURCE_OPENAPI_FILE}: ${missing.join(", ")}`);
   }
-  const operations = operationIds.map((id) => byId.get(id));
+  const operations = operationIds.map((id) => {
+    const op = byId.get(id);
+    const operation = clone(op.operation);
+    if (op.operation?.["x-tenant-gpt-operationId"] === id) {
+      operation.operationId = id;
+    }
+    delete operation["x-tenant-gpt-operationId"];
+    return { ...op, operation };
+  });
   return buildDoc(sourceDoc, operations, { host, title, summary, description });
 }
 
