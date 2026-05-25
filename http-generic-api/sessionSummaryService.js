@@ -347,7 +347,9 @@ export async function writeSessionSummaryExecutionLog({
   const transcriptWarning = transcript?.warning || (transcript?.fallback_used ? "transcript_fallback_used" : null);
   const graphWarning = verification?.summary_row_present && !verification?.graph_asset_present
     ? "summary_graph_asset_missing"
-    : null;
+    : verification?.summary_row_present && !verification?.graph_topology_present
+      ? "summary_graph_topology_missing"
+      : null;
   const warningNote = modelWarning || transcriptWarning || graphWarning || null;
   const failureReason = verification?.ok
     ? null
