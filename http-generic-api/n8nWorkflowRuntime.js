@@ -73,6 +73,46 @@ function coerceJsonSchema(schema) {
   return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
 }
 
+function normalizeUseCase(value = "") {
+  return String(value || "").trim().toLowerCase();
+}
+
+function arrayIncludesNormalized(values = [], target = "") {
+  const normalizedTarget = normalizeUseCase(target);
+  return Array.isArray(values) && values.some((value) => normalizeUseCase(value) === normalizedTarget);
+}
+
+export function validateWorkflowExperimentPolicy(binding = {}, input = {}) {
+  const policy = binding?.metadata_json?.experiment_policy;
+  if (!policy || policy.enabled === false) {
+    return { ok: true, skipped: true };
+  }
+  const requestedUseCase = normalizeUseCase(
+    input?.use_case || input?.summary_use_case || input?.governance?.use_case || policy.default_use_case || "",
+  );
+  if (!requestedUseCase) {
+    return { ok: true, skipped: false, use_case: null, policy };
+  }
+  if (arrayIncludesNormalized(policy.blocked_use_cases, requestedUseCase)) {
+    return {
+      ok: false,
+      error: {
+        code: "workflow_runtime_use_case_blocked",
+        message: `Workflow binding ${binding.binding_key || "unknown"} is not allowed for use_case=${requestedUseCase}.`,
+        use_case: requestedUseCase,
+        promotion_status: policy.promotion_status || null,
+      },
+    };
+  }
+  return {
+    ok: true,
+    skipped: false,
+    use_case: requestedUseCase,
+    allowed: arrayIncludesNormalized(policy.allowed_use_cases, requestedUseCase),
+    promotion_status: policy.promotion_status || null,
+  };
+}
+
 function typeMatches(expected, value) {
   if (expected === "array") return Array.isArray(value);
   if (expected === "integer") return Number.isInteger(value);
@@ -228,6 +268,14 @@ export async function callN8nWorkflowBinding({ binding, input = {}, run_id = ran
     const err = new Error(inputValidation.error.message);
     err.code = inputValidation.error.code;
     err.status = 400;
+    throw err;
+  }
+  const policyValidation = validateWorkflowExperimentPolicy(binding, input);
+  if (!policyValidation.ok) {
+    const err = new Error(policyValidation.error.message);
+    err.code = policyValidation.error.code;
+    err.status = 403;
+    err.result = { policy: policyValidation.error, secrets_included: false };
     throw err;
   }
 

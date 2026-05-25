@@ -6,6 +6,7 @@ import {
   runN8nWorkflowRuntime,
   upsertWorkflowRuntimeBinding,
   validateBasicJsonSchema,
+  validateWorkflowExperimentPolicy,
 } from "./n8nWorkflowRuntime.js";
 
 function makePool(bindingRows = []) {
@@ -37,6 +38,40 @@ function makePool(bindingRows = []) {
   assert.equal(validateBasicJsonSchema(schema, { prompt: "x", count: 1 }).ok, true);
   assert.equal(validateBasicJsonSchema(schema, { count: 1 }).ok, false);
   assert.equal(validateBasicJsonSchema(schema, { prompt: "x", count: 1.5 }).error.code, "input_schema_property_type_mismatch");
+}
+
+{
+  const binding = normalizeWorkflowRuntimeBinding({
+    binding_key: "summary_n8n_experiment_v1",
+    workflow_key: "summary_experiment",
+    runtime_type: "n8n",
+    task_class: "summary",
+    n8n_webhook_url: "https://n8n.test/webhook/summary",
+    auth_mode: "none",
+    input_schema_json: { type: "object", required: ["text"], properties: { text: { type: "string" }, use_case: { type: "string" } } },
+    output_schema_json: { type: "object", required: ["summary"] },
+    metadata_json: {
+      experiment_policy: {
+        enabled: true,
+        allowed_use_cases: ["quick_preview", "fallback_candidate"],
+        blocked_use_cases: ["canonical_summary_write", "production_session_memory"],
+        default_use_case: "quick_preview",
+        promotion_status: "not_promoted",
+      },
+    },
+  });
+  assert.equal(validateWorkflowExperimentPolicy(binding, { text: "preview", use_case: "quick_preview" }).ok, true);
+  assert.equal(validateWorkflowExperimentPolicy(binding, { text: "write", use_case: "canonical_summary_write" }).ok, false);
+  let called = false;
+  await assert.rejects(
+    () => callN8nWorkflowBinding({
+      binding,
+      input: { text: "write this", use_case: "canonical_summary_write" },
+      fetchImpl: async () => { called = true; return { ok: true, status: 200, text: async () => JSON.stringify({ summary: "x" }) }; },
+    }),
+    /not allowed for use_case=canonical_summary_write/,
+  );
+  assert.equal(called, false, "blocked policy must stop before n8n webhook fetch");
 }
 
 {
