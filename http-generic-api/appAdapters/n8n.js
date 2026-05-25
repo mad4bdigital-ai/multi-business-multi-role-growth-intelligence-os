@@ -65,13 +65,14 @@ export const n8nAdapter = {
   async refreshAccessToken() { return {}; },
 
   async testConnection(creds, connection) {
-    const base = connection.api_base_url;
+    const normalized = normalizeN8nCredentials(creds, connection);
+    const base = normalized.base_url;
     if (!base) return { ok: false, account_label: null, account_metadata: { error: "api_base_url not set" } };
-    if (!creds.api_key && !(creds.username && creds.password)) {
+    if (!normalized.api_key && !(normalized.username && normalized.password)) {
       return { ok: false, account_label: base, account_metadata: { error: "api_key or username/password required" } };
     }
     try {
-      const data = await n8nReq(base, creds, "/workflows?limit=1");
+      const data = await n8nReq(base, normalized, "/workflows?limit=1");
       return {
         ok: true,
         account_label: base,
