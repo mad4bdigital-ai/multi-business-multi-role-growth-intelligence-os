@@ -3,6 +3,10 @@ import { readFileSync } from "node:fs";
 import yaml from "js-yaml";
 
 const METHOD_NAMES = new Set(["get", "post", "put", "delete", "patch", "options", "head", "trace"]);
+const SPLIT_SCHEMA_FILES = [
+  "openapi.tenant-gpt.auth.yaml",
+  "openapi.custom-gpt.auth-dispatcher.yaml",
+];
 
 function collectOperations(doc) {
   const operations = [];
@@ -19,12 +23,34 @@ function loadYaml(path) {
   return yaml.load(readFileSync(path, "utf8"));
 }
 
+function resolveJsonPointer(doc, pointer) {
+  if (typeof pointer !== "string" || !pointer.startsWith("#/")) return undefined;
+  return pointer
+    .slice(2)
+    .split("/")
+    .map((part) => part.replace(/~1/g, "/").replace(/~0/g, "~"))
+    .reduce((current, part) => current && current[part], doc);
+}
+
+function collectRefs(value, refs = new Set()) {
+  if (!value || typeof value !== "object") return refs;
+  if (Array.isArray(value)) {
+    for (const item of value) collectRefs(item, refs);
+    return refs;
+  }
+  if (typeof value.$ref === "string") refs.add(value.$ref);
+  for (const child of Object.values(value)) collectRefs(child, refs);
+  return refs;
+}
+
 const main = loadYaml("openapi.yaml");
 const splitScript = readFileSync("scripts/split-openapi.mjs", "utf8");
 
+const sourcePairs = new Set();
 const sourceOperationIds = new Set();
 const sourceTenantAliases = new Set();
 for (const op of collectOperations(main)) {
+  sourcePairs.add(`${op.method.toUpperCase()} ${op.pathKey}`);
   if (op.operation?.operationId) sourceOperationIds.add(op.operation.operationId);
   if (op.operation?.["x-tenant-gpt-operationId"]) {
     sourceOperationIds.add(op.operation["x-tenant-gpt-operationId"]);
@@ -48,6 +74,28 @@ for (const requiredPath of [
 
 for (const requiredAlias of ["activateSession", "listTools", "callTool", "writeSessionTurn", "endSession"]) {
   assert(sourceTenantAliases.has(requiredAlias), `tenant alias must be declared in main OpenAPI via x-tenant-gpt-operationId: ${requiredAlias}`);
+}
+
+for (const splitFile of SPLIT_SCHEMA_FILES) {
+  const splitDoc = loadYaml(splitFile);
+  const splitOps = collectOperations(splitDoc);
+  assert(splitOps.length > 0, `${splitFile} must contain operations`);
+
+  for (const op of splitOps) {
+    const pair = `${op.method.toUpperCase()} ${op.pathKey}`;
+    assert(sourcePairs.has(pair), `${splitFile} contains split-only path/method not present in main OpenAPI: ${pair}`);
+    if (op.operation?.operationId) {
+      assert(sourceOperationIds.has(op.operation.operationId), `${splitFile} contains split-only operationId not present or aliased in main OpenAPI: ${op.operation.operationId}`);
+    }
+  }
+
+  for (const ref of collectRefs(splitDoc)) {
+    assert(ref.startsWith("#/"), `${splitFile} contains non-local ref: ${ref}`);
+    assert(resolveJsonPointer(splitDoc, ref) !== undefined, `${splitFile} contains unresolved local ref: ${ref}`);
+    if (ref.startsWith("#/components/") && ref !== "#/components/securitySchemes/userBearerAuth") {
+      assert(resolveJsonPointer(main, ref) !== undefined, `${splitFile} contains component ref not declared in main OpenAPI: ${ref}`);
+    }
+  }
 }
 
 assert(splitScript.includes("tenant_operation_ids"), "split-openapi must select tenant operations from main config");

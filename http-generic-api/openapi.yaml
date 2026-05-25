@@ -936,6 +936,46 @@ components:
         execution_guardrail:
           type: boolean
 
+    ToolItem:
+      type: object
+      additionalProperties: true
+      properties:
+        name:
+          type: string
+          description: Tool key; pass this as name to callTool.
+        displayName:
+          type: string
+        description:
+          type: string
+        method:
+          type: string
+        path:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        inputSchema:
+          type: object
+          additionalProperties: true
+
+    GptSession:
+      type: object
+      additionalProperties: true
+      properties:
+        session_id:
+          type: string
+        session_status:
+          type: string
+        turn_count:
+          type: integer
+        started_at:
+          type: string
+        ended_at:
+          type: string
+        drive_export_url:
+          type: string
+
     # -- Local Manager schemas ------------------------------------------------
 
     LocalManagerDeviceLinkSession:
