@@ -2,6 +2,11 @@ import { Router } from "express";
 import { loadPlatformPluginCatalog } from "../platformPluginCatalog.js";
 import { resolvePlatformPluginExecution } from "../platformPluginResolver.js";
 import { upsertPlatformPluginPolicy } from "../platformPluginPolicy.js";
+import {
+  createPlatformPluginContribution,
+  getPlatformPluginContribution,
+  listPlatformPluginContributions,
+} from "../platformPluginContribution.js";
 
 function bool(value) {
   return value === true || ["true", "1", "yes"].includes(String(value ?? "").trim().toLowerCase());
