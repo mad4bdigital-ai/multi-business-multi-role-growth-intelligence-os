@@ -129,7 +129,7 @@ export function buildBrowser4InspectionScript({
     `& npx -y browser4-cli open --server $serverUrl 1>> $outFile 2>> $errFile`,
     `$openExit = $LASTEXITCODE`,
     `@{ status='running'; step='goto'; open_exit=$openExit; updated_at=(Get-Date).ToString('o'); secrets_included=$false } | ConvertTo-Json -Compress | Set-Content $statusFile -Encoding UTF8`,
-    `"`n## browser4 goto" | Out-File $outFile -Append -Encoding UTF8`,
+    '"`n## browser4 goto" | Out-File $outFile -Append -Encoding UTF8',
     `& npx -y browser4-cli goto $targetUrl 1>> $outFile 2>> $errFile`,
     `$gotoExit = $LASTEXITCODE`,
   );
