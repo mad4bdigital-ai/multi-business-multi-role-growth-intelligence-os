@@ -52,6 +52,13 @@ export async function writeExecutionEvidence({
   executionReadyStatus = "ready",
   logSource = "sql_primary",
   createdAt = null,
+  endedAt = null,
+  durationSeconds = null,
+  recoveryNotes = null,
+  failureReason = null,
+  artifactJsonAssetId = null,
+  targetModuleWriteback = null,
+  targetWorkflowWriteback = null,
   skipSurfaceAuthority = false,
 } = {}) {
   if (!traceId) {
