@@ -514,6 +514,15 @@ section("connect api auth scope");
       readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("platform_graph_nodes|platform_graph_edges") &&
       readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("required_for_execution") &&
       readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("'TRUE'"));
+    assert("session summary verification reads back Platform Graph topology",
+      sessionSummarySource.includes("graph_conversation_node_present") &&
+      sessionSummarySource.includes("graph_asset_node_present") &&
+      sessionSummarySource.includes("graph_edge_present") &&
+      sessionSummarySource.includes("graph_topology_present") &&
+      sessionSummarySource.includes("summary_graph_topology_missing") &&
+      sessionSummarySource.includes("FROM `platform_graph_nodes`") &&
+      sessionSummarySource.includes("FROM `platform_graph_edges`") &&
+      sessionSummarySource.indexOf("FROM `platform_graph_nodes`") < sessionSummarySource.indexOf("graph_topology_present"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
