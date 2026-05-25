@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
+import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 
 const VALID_OWNER_SCOPES = new Set(["tenant", "user"]);
 const VALID_TARGETS = new Set(["tenant_private", "user_private", "marketplace_candidate", "platform_base_candidate"]);
@@ -101,49 +102,29 @@ function sqlDate(iso) {
   return String(iso || isoNow()).slice(0, 10);
 }
 
-async function writeContributionExecutionLog({ pool, traceId, entryType, status, payload }) {
-  const now = isoNow();
-  await pool.query(
-    `INSERT INTO execution_log
-       (run_date, start_time, end_time, entry_type, execution_class, source_layer,
-        user_input, route_keys, selected_workflows, execution_mode, decision_trigger,
-        execution_status, output_summary, recovery_status, route_status, route_source,
-        intake_validation_status, execution_ready_status, execution_trace_id_writeback,
-        log_source_writeback, created_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
-    [
-      sqlDate(now),
-      now,
-      now,
-      entryType,
-      "platform_plugin_contribution",
-      "platformPluginContribution",
-      payload?.plugin_key ? `platform plugin contribution ${payload.plugin_key}` : "platform plugin contribution",
-      entryType,
-      "platform_plugin_contribution_intake",
-      payload?.execution_mode || "registry_contribution_intake",
-      "admin_tool",
-      status,
-      JSON.stringify({ ...payload, secrets_included: false }),
-      "not_required",
-      "resolved",
-      "sql_primary",
-      "validated",
-      status === "success" ? "ready" : "degraded",
-      traceId,
-      "sql_primary",
-    ]
-  );
-  const rows = await safeQuery(
+async function writeContributionExecutionLog({ pool, traceId, entryType, status, payload, skipSurfaceAuthority = false }) {
+  const evidence = await writeExecutionEvidence({
     pool,
-    `SELECT id, execution_status, execution_trace_id_writeback
-       FROM execution_log
-      WHERE execution_trace_id_writeback = ?
-      ORDER BY id DESC
-      LIMIT 1`,
-    [traceId]
-  );
-  return rows[0] || null;
+    traceId,
+    entryType,
+    executionClass: "platform_plugin_contribution",
+    sourceLayer: "platformPluginContribution",
+    userInput: payload?.plugin_key ? `platform plugin contribution ${payload.plugin_key}` : "platform plugin contribution",
+    routeKeys: entryType,
+    selectedWorkflows: "platform_plugin_contribution_intake",
+    executionMode: payload?.execution_mode || "registry_contribution_intake",
+    decisionTrigger: "admin_tool",
+    executionStatus: status,
+    outputSummary: { ...payload, secrets_included: false },
+    recoveryStatus: "not_required",
+    routeStatus: "resolved",
+    routeSource: "sql_primary",
+    intakeValidationStatus: "validated",
+    executionReadyStatus: status === "success" ? "ready" : "degraded",
+    logSource: "sql_primary",
+    skipSurfaceAuthority,
+  });
+  return evidence.row || null;
 }
 
 function toSafeContribution(row = {}) {

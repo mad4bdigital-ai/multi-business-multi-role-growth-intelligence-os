@@ -387,6 +387,7 @@ section("connect api auth scope");
     const executionEvidenceLoggerSource = readFileSync("executionEvidenceLogger.js", "utf8");
     const pluginPolicySource = readFileSync("platformPluginPolicy.js", "utf8");
     const pluginInstallSource = readFileSync("platformPluginInstall.js", "utf8");
+    const pluginContributionSource = readFileSync("platformPluginContribution.js", "utf8");
     const connectorExecutorSource = readFileSync("connectorExecutor.js", "utf8");
     const agentLoopRunnerSource = readFileSync("agentLoopRunner.js", "utf8");
     const appActionPolicyMigrationSource = readFileSync("migrations/124_sprint64_app_action_policy_preflight.sql", "utf8");
@@ -477,7 +478,10 @@ section("connect api auth scope");
       !pluginPolicySource.includes("await pool.query(\n    `INSERT INTO execution_log") &&
       pluginInstallSource.includes("writeExecutionEvidence") &&
       pluginInstallSource.includes("writeInstallExecutionLog") &&
-      !pluginInstallSource.includes("await pool.query(\n    `INSERT INTO execution_log"));
+      !pluginInstallSource.includes("await pool.query(\n    `INSERT INTO execution_log") &&
+      pluginContributionSource.includes("writeExecutionEvidence") &&
+      pluginContributionSource.includes("writeContributionExecutionLog") &&
+      !pluginContributionSource.includes("await pool.query(\n    `INSERT INTO execution_log"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
