@@ -5,9 +5,24 @@ const VALID_OWNER_SCOPES = new Set(["tenant", "user"]);
 const VALID_TARGETS = new Set(["tenant_private", "user_private", "marketplace_candidate", "platform_base_candidate"]);
 const VALID_STATUSES = new Set(["draft", "submitted", "validation_failed", "certified", "rejected", "archived"]);
 const SECRET_KEY_HINTS = [
-  "password", "passwd", "secret", "token", "credential", "private_key", "api_key",
+  "password", "passwd", "secret", "token", "private_key", "api_key",
   "apikey", "auth_key", "access_token", "refresh_token", "client_secret",
 ];
+const SAFE_POLICY_METADATA_KEYS = new Set([
+  "credential_policy",
+  "credentialpolicy",
+  "credential_policy_json",
+  "credentialpolicyjson",
+  "credential_source",
+  "credentialsource",
+  "credential_scope",
+  "credentialscope",
+  "requested_credential_scope",
+  "requestedcredentialscope",
+  "allowed_scopes",
+  "supported_scopes",
+  "fallback_allowed",
+]);
 
 function normalize(value = "") {
   return String(value || "").trim();
@@ -47,8 +62,8 @@ function payloadContainsSecret(value) {
     const current = stack.pop();
     if (!current || typeof current !== "object") continue;
     for (const [key, nested] of Object.entries(current)) {
-      const lowerKey = String(key || "").toLowerCase();
-      if (SECRET_KEY_HINTS.some((hint) => lowerKey.includes(hint))) return true;
+      const lowerKey = String(key || "").toLowerCase().replace(/[^a-z0-9_]/g, "");
+      if (!SAFE_POLICY_METADATA_KEYS.has(lowerKey) && SECRET_KEY_HINTS.some((hint) => lowerKey.includes(hint))) return true;
       if (nested && typeof nested === "object") stack.push(nested);
     }
   }
