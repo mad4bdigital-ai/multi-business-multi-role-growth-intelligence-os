@@ -257,6 +257,7 @@ export async function recordGptSessionTurn({
         JSON.stringify(jsonlRuntimeEvent),
         deps
       );
+      await updateArchiveStatus(pool, session.session_id, "ready");
     }
   } catch (err) {
     archiveError = err;
