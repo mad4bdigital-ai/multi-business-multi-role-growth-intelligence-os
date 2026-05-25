@@ -82,7 +82,11 @@ export async function ensureFreshCredentials(connection) {
 
   await getPool().query(
     `UPDATE \`user_app_connections\`
-       SET encrypted_credentials = ?, token_expires_at = ?, last_used_at = NOW()
+       SET encrypted_credentials = ?,
+           token_expires_at = ?,
+           last_used_at = NOW(),
+           last_validated_at = NOW(),
+           validation_status = 'validated'
      WHERE connection_id = ?`,
     [encryptCredentials(newCreds), newExpiry?.toISOString().slice(0, 19).replace("T", " ") || null, connection.connection_id]
   ).catch(() => {}); // non-blocking — don't fail the call if DB update fails
