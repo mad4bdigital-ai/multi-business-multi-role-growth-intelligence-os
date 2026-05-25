@@ -221,6 +221,18 @@ function normalizeRepoAnalysisScope(value = "platform_repo") {
   return scope;
 }
 
+function normalizeApprovalPhrase(value = "") {
+  const phrase = String(value || "").trim();
+  const required = "APPROVE_OPENCLAUDE_READ_ONLY_REPO_ANALYSIS";
+  if (phrase !== required) {
+    const err = new Error(`approval_phrase must be exactly ${required}.`);
+    err.code = "summary_development_approval_phrase_invalid";
+    err.status = 403;
+    throw err;
+  }
+  return phrase;
+}
+
 function buildOpenClaudeRepoAnalysisCommandPlan({ runtime = {}, signal = {}, repoScope = "platform_repo", analysisGoal = "" } = {}) {
   const prompt = [
     "You are running a read-only repository analysis dry run for the Growth Intelligence Platform.",
