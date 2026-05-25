@@ -177,6 +177,7 @@ function generateAuthDispatcher(sourceDoc, sourceOperations) {
     description: `Single-host admin GPT schema generated from ${SOURCE_OPENAPI_FILE}. Dispatches activation, admin-control, and system-layer routes via ${AUTH_DISPATCHER_HOST}.`
   });
 
+  validateSplitOperationsComeFromSource(doc, sourceDoc, AUTH_DISPATCHER_SCHEMA_FILE);
   const count = countOperations(doc.paths);
   const outPath = path.resolve(`./${AUTH_DISPATCHER_SCHEMA_FILE}`);
   fs.writeFileSync(outPath, yaml.dump(doc, { lineWidth: -1, noRefs: true }), "utf8");
