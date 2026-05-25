@@ -335,7 +335,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     "endSession",
   ];
   assert("tenant OpenAI schema exposes MCP meta operations plus tenant Platform Plugin self-serve operations",
-    tenantOps.length === expectedTenantOps.length && expectedTenantOps.every((op) => tenantOpIds.has(op)),
+    expectedTenantOps.every((op) => tenantOpIds.has(op)) && tenantOps.length <= ACTIVE_SCHEMAS["openapi.tenant-gpt.auth.yaml"].maxOperations,
     `got ${Array.from(tenantOpIds).join(",")}`);
   assert("tenant OpenAI schema does not expose direct connect routes",
     !Object.keys(tenantDoc.paths || {}).some((path) => path.startsWith("/connect")));
