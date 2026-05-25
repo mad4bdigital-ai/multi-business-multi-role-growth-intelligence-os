@@ -125,7 +125,7 @@ export const n8nAdapter = {
         if (!base) throw new Error("api_base_url required");
         const { workflow_id, run_data = {} } = args;
         if (!workflow_id) throw new Error("workflow_id required");
-        const data = await n8nReq(base, creds, `/workflows/${workflow_id}/run`, {
+        const data = await n8nReq(base, normalized, `/workflows/${workflow_id}/run`, {
           method: "POST",
           body: { runData: run_data },
         });
