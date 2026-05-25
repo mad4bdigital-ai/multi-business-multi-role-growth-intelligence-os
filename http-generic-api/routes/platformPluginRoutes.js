@@ -3,9 +3,11 @@ import { loadPlatformPluginCatalog } from "../platformPluginCatalog.js";
 import { resolvePlatformPluginExecution } from "../platformPluginResolver.js";
 import { upsertPlatformPluginPolicy } from "../platformPluginPolicy.js";
 import {
+  activatePrivatePlatformPluginContribution,
   createPlatformPluginContribution,
   getPlatformPluginContribution,
   listPlatformPluginContributions,
+  resolvePrivatePlatformPluginContribution,
 } from "../platformPluginContribution.js";
 
 function bool(value) {
@@ -122,6 +124,52 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         ok: false,
         error: {
           code: err.code || "platform_plugin_contribution_create_failed",
+          message: err.message,
+        },
+        secrets_included: false,
+      });
+    }
+  });
+
+  router.post("/platform/plugins/contributions/activate-private", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await activatePrivatePlatformPluginContribution({
+        contributionId: input.contribution_id || input.contributionId,
+        tenantId: input.tenant_id || input.tenantId || null,
+        userId: input.user_id || input.userId || null,
+        notes: input.notes || "",
+      });
+      return res.status(result.ok ? 200 : 409).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "platform_plugin_contribution_private_activate_failed",
+          message: err.message,
+        },
+        secrets_included: false,
+      });
+    }
+  });
+
+  router.post("/platform/plugins/contributions/resolve-private", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await resolvePrivatePlatformPluginContribution({
+        contributionId: input.contribution_id || input.contributionId || null,
+        pluginKey: input.plugin_key || input.pluginKey || null,
+        actionKey: input.action_key || input.actionKey || null,
+        tenantId: input.tenant_id || input.tenantId || null,
+        userId: input.user_id || input.userId || null,
+        requestedCredentialScope: input.requested_credential_scope || input.requestedCredentialScope || null,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "platform_plugin_contribution_private_resolve_failed",
           message: err.message,
         },
         secrets_included: false,
