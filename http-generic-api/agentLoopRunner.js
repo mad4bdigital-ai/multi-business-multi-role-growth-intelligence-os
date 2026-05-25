@@ -248,11 +248,19 @@ export async function runAgentLoop(plan, deps = {}) {
 
   if (pathRows) context.path_resolver_rows = pathRows;
 
-  const brandCoreEvidence = await loadBrandCoreEvidence(plan.brand_key || plan.target_key).catch(() => null);
-  if (brandCoreEvidence) {
+  const brandCoreEvidence = await loadBrandCoreEvidence(plan.brand_key || plan.target_key).catch((error) => ({
+    ready: false,
+    brand_key: plan.brand_key || plan.target_key || null,
+    resolution_error: error?.code || "brand_core_evidence_lookup_failed",
+    secrets_included: false,
+  }));
+  context.brand_core_lookup = brandCoreEvidence;
+  if (brandCoreEvidence?.ready) {
     context.brand_core = brandCoreEvidence;
     context.brand_core_resolved = true;
   } else {
+    context.brand_core_surface_authority = brandCoreEvidence?.surface_authority || null;
+    context.brand_core_resolution_error = brandCoreEvidence?.resolution_error || "brand_core_evidence_not_resolved";
     context.brand_core_resolved = false;
   }
 
