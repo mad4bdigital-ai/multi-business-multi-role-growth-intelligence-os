@@ -233,6 +233,39 @@ function normalizeApprovalPhrase(value = "") {
   return phrase;
 }
 
+function buildOpenClaudeReadOnlyExecutionEnvelope({ approval = {}, runtime = {}, signal = {}, analysisGoal = "" } = {}) {
+  const commandPlan = buildOpenClaudeRepoAnalysisCommandPlan({
+    runtime,
+    signal,
+    repoScope: approval.repo_scope || "platform_repo",
+    analysisGoal,
+  });
+  return {
+    adapter: "openclaude_repo_analysis_read_only_execution_envelope_v1",
+    approval_id: approval.approval_id,
+    approval_key: approval.approval_key,
+    approval_status: approval.approval_status,
+    approval_mode: approval.approval_mode,
+    repo_scope: approval.repo_scope || "platform_repo",
+    runtime_key: runtime.runtime_key || approval.runtime_key,
+    device_id: runtime.device_id || null,
+    command_path: runtime.command_hint || "openclaude",
+    argv: commandPlan.suggested_args,
+    allowed_tools: commandPlan.allowed_tools,
+    denied_tools: commandPlan.denied_tools,
+    execution_ready: true,
+    execution_attempted: false,
+    execution_status: "approved_envelope_only",
+    stdout: null,
+    stderr: null,
+    exit_code: null,
+    auto_execute_code: false,
+    auto_mutate_repo: false,
+    secrets_included: false,
+    command_plan: commandPlan,
+  };
+}
+
 function buildOpenClaudeRepoAnalysisCommandPlan({ runtime = {}, signal = {}, repoScope = "platform_repo", analysisGoal = "" } = {}) {
   const prompt = [
     "You are running a read-only repository analysis dry run for the Growth Intelligence Platform.",
