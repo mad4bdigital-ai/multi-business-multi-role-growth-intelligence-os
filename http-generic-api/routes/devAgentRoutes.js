@@ -346,6 +346,18 @@ export function buildDevAgentRoutes(deps) {
     }
   });
 
+  // ── GET /dev-agent/session-summaries/health ──────────────────────────────
+  router.get("/dev-agent/session-summaries/health", async (req, res) => {
+    try {
+      const lookbackDays = boundedPositiveInt(req.query.lookback_days, 7, 1, 90);
+      const limit = boundedPositiveInt(req.query.limit, 20, 1, 100);
+      const health = await loadSessionSummaryHealth({ pool: getPool(), lookbackDays, limit });
+      res.json(health);
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "session_summary_health_failed", message: err.message } });
+    }
+  });
+
   // ── GET /dev-agent/runs ───────────────────────────────────────────────────
   router.get("/dev-agent/runs", async (req, res) => {
     try {
