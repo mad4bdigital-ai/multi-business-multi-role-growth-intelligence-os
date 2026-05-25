@@ -29,6 +29,7 @@ CI enforcement is implemented by:
 
 - `http-generic-api/scripts/split-openapi.mjs`
 - `http-generic-api/test-openapi-split-governance.mjs`
+- source-declared tenant aliases through `x-tenant-gpt-operationId` in `http-generic-api/openapi.yaml`
 
 ## Failure class
 
