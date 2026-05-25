@@ -380,8 +380,10 @@ section("connect api auth scope");
       !apiSource.includes("validation_status, last_validated_at, created_at, updated_at"));
     const appAdapterSource = readFileSync("appAdapters/index.js", "utf8");
     const governedPreflightSource = readFileSync("governedExecutionPreflight.js", "utf8");
+    const connectorExecutorSource = readFileSync("connectorExecutor.js", "utf8");
     const appActionPolicyMigrationSource = readFileSync("migrations/124_sprint64_app_action_policy_preflight.sql", "utf8");
     const n8nWorkflowGuardMigrationSource = readFileSync("migrations/125_sprint64_n8n_workflow_execution_guard.sql", "utf8");
+    const connectorDispatchPolicyMigrationSource = readFileSync("migrations/126_sprint64_connector_dispatch_preflight.sql", "utf8");
     assert("successful app connection use self-heals validation status",
       appAdapterSource.includes("validation_status = 'validated'") &&
       appAdapterSource.includes("last_validated_at = NOW()") &&
@@ -404,6 +406,15 @@ section("connect api auth scope");
       n8nWorkflowGuardMigrationSource.includes("execute_workflow") &&
       n8nWorkflowGuardMigrationSource.includes("'TRUE'") &&
       n8nWorkflowGuardMigrationSource.includes("min_reason_chars"));
+    assert("connector dispatch calls governed policy preflight before execution state changes",
+      governedPreflightSource.includes("evaluateConnectorDispatchPreflight") &&
+      governedPreflightSource.includes("Connector Dispatch Governance") &&
+      governedPreflightSource.includes("WordPress Apply Requires Explicit Reason") &&
+      connectorExecutorSource.includes("evaluateConnectorDispatchPreflight") &&
+      connectorExecutorSource.indexOf("evaluateConnectorDispatchPreflight") < connectorExecutorSource.indexOf("await createWorkflowRun") &&
+      connectorDispatchPolicyMigrationSource.includes("Connector Dispatch Preflight Visibility") &&
+      connectorDispatchPolicyMigrationSource.includes("connector_dispatch|workflow_dispatch") &&
+      connectorDispatchPolicyMigrationSource.includes("'FALSE'"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&

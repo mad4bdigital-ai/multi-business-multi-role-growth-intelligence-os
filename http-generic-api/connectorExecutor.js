@@ -18,6 +18,7 @@ import { writeAuditLogAsync } from "./auditLogger.js";
 import { runAgentLoop } from "./agentLoopRunner.js";
 import { getAgentDeps } from "./agentRuntime.js";
 import { routeOutput }  from "./outputSinkRouter.js";
+import { evaluateConnectorDispatchPreflight, assertPreflightAllowed } from "./governedExecutionPreflight.js";
 
 const EXECUTABLE_DECISIONS = new Set([
   "ALLOW_SELF_SERVE",
@@ -344,6 +345,13 @@ export async function dispatchPlan(plan_id, {
 
   const connector_type = isWordpress ? "wordpress" : isMcp ? "mcp_connector" : "content_workflow";
   const service_mode   = plan.service_mode || "self_serve";
+
+  assertPreflightAllowed(await evaluateConnectorDispatchPreflight({
+    plan,
+    connectorType: connector_type,
+    workflowDef,
+    apply,
+  }));
 
   await createWorkflowRun(run_id, plan, service_mode);
   await getPool().query(
