@@ -508,7 +508,8 @@ section("connect api auth scope");
     assert("Platform Graph memory writes require registry surface authority",
       sessionSummarySource.includes("SURFACE_KEYS.PLATFORM_GRAPH_MEMORY") &&
       sessionSummarySource.includes("platform_graph_memory") &&
-      sessionSummarySource.indexOf("SURFACE_KEYS.PLATFORM_GRAPH_MEMORY") < sessionSummarySource.indexOf("platform_graph_nodes") &&
+      sessionSummarySource.includes("platformGraphSurfaceAuthority") &&
+      sessionSummarySource.indexOf("SURFACE_KEYS.PLATFORM_GRAPH_MEMORY") < sessionSummarySource.indexOf("platformGraphSurfaceAuthority.ok") &&
       readFileSync("surfaceAuthorityResolver.js", "utf8").includes("PLATFORM_GRAPH_MEMORY") &&
       readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("surface.platform_graph_memory") &&
       readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("platform_graph_nodes|platform_graph_edges") &&
