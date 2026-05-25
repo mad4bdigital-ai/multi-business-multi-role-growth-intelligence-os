@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
+import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 
 const VALID_AUTH_TYPES = new Set(["oauth2", "api_key", "webhook", "mcp", "basic_auth", "bearer_token"]);
 const VALID_CREDENTIAL_SOURCES = new Set(["user_connection", "tenant_connection", "platform_managed", "target_resolved", "none", "mixed"]);
