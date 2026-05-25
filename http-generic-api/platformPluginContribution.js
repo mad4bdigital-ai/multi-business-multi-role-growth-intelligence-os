@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
+import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 
 const VALID_OWNER_SCOPES = new Set(["tenant", "user"]);
 const VALID_TARGETS = new Set(["tenant_private", "user_private", "marketplace_candidate", "platform_base_candidate"]);
