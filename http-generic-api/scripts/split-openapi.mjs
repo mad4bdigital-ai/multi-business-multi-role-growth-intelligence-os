@@ -298,12 +298,15 @@ function generateTenantAuthSchema(sourceDoc, sourceOperations) {
   }
 
   const tenantOperationIds = config.tenant_operation_ids.map((id) => String(id).trim()).filter(Boolean);
+  const schemaInfo = config.schema_info && typeof config.schema_info === "object" ? config.schema_info : {};
   const doc = buildDocFromTenantOperationIds(sourceDoc, sourceOperations, tenantOperationIds, {
     host: AUTH_DISPATCHER_HOST,
-    title: `${sourceDoc.info?.title || "Platform API"} - Tenant GPT Auth Actions`,
-    summary: "Tenant GPT schema generated from main OpenAPI using x-tenant-gpt-auth.tenant_operation_ids.",
-    description: "Tenant MCP schema. Use connect_activate with tool_args.mode and integration_modes. Also supports Platform Plugin catalog, install, and resolve."
+    title: schemaInfo.title || `${sourceDoc.info?.title || "Platform API"} - Tenant GPT Auth Actions`,
+    summary: schemaInfo.summary || "Tenant GPT schema generated from main OpenAPI using x-tenant-gpt-auth.tenant_operation_ids.",
+    description: schemaInfo.description || "Tenant MCP schema. Use connect_activate with tool_args.mode and integration_modes. Also supports Platform Plugin catalog, install, and resolve."
   });
+  if (schemaInfo.version) doc.info.version = schemaInfo.version;
+  if (config.server_description && doc.servers?.[0]) doc.servers[0].description = String(config.server_description);
   normalizeTenantDoc(doc, sourceDoc, config);
   validateSplitOperationsComeFromSource(doc, sourceDoc, TENANT_AUTH_SCHEMA_FILE);
 
