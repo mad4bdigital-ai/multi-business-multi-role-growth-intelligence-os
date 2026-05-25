@@ -888,6 +888,15 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
   assertRepoPatchBranchPolicy({ branch, defaultBranch, args });
 
   const token = await getGitHubAppInstallationToken({});
+  const branchCompare = await loadRepoPatchBranchCompare({ owner, repo, defaultBranch, branch, token });
+  assertPreflightAllowed(await evaluateRepoPatchApplyPreflight({
+    args,
+    repo: { owner, repo },
+    branch,
+    defaultBranch,
+    branchExists: branchCompare.branch_exists === true,
+    compare: branchCompare.compare,
+  }));
   const branchState = await ensureRepoPatchBranch({ owner, repo, branch, defaultBranch, token });
   const existing = await githubContentsRequest({ method: "GET", owner, repo, filePath, branch, token });
 
