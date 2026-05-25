@@ -159,6 +159,9 @@ try {
     assert("tenant GPT schema exposes callTool", exposedPaths.includes("/gpt/tools/call"), exposedPaths.join(", "));
     assert("tenant GPT schema exposes writeSessionTurn", exposedPaths.includes("/gpt/sessions/{id}/turn"), exposedPaths.join(", "));
     assert("tenant GPT schema exposes endSession", exposedPaths.includes("/gpt/sessions/{id}/end"), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes tenant Platform Plugin catalog", exposedPaths.includes("/tenant/platform/plugins/catalog"), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes tenant Platform Plugin install", exposedPaths.includes("/tenant/platform/plugins/install"), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes tenant Platform Plugin resolve", exposedPaths.includes("/tenant/platform/plugins/resolve"), exposedPaths.join(", "));
 
     assert("tenant GPT callTool body requires name", Array.isArray(callToolSchema?.required) && callToolSchema.required.includes("name"));
     assert("tenant GPT all POST operations are non-consequential",
