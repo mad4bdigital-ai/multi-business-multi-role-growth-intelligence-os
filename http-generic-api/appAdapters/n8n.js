@@ -84,7 +84,8 @@ export const n8nAdapter = {
   },
 
   async call(action_key, args, creds, connection) {
-    const base = connection.api_base_url;
+    const normalized = normalizeN8nCredentials(creds, connection);
+    const base = normalized.base_url;
 
     switch (action_key) {
 
