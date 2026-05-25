@@ -4882,6 +4882,7 @@ paths:
       tags: [admin-control]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: callAdminTool
+      x-tenant-gpt-operationId: callTool
       x-openai-isConsequential: false
       summary: Execute any admin platform tool by name
       description: "Executes a tool from admin_platform_endpoint_tools. Use listAdminTools to get tool names and inputSchema. Pass tool arguments in tool_args. Path params are substituted automatically. Returns the raw upstream response."
