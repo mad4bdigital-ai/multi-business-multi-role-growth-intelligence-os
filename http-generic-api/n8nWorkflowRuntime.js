@@ -270,6 +270,14 @@ export async function callN8nWorkflowBinding({ binding, input = {}, run_id = ran
     err.status = 400;
     throw err;
   }
+  const policyValidation = validateWorkflowExperimentPolicy(binding, input);
+  if (!policyValidation.ok) {
+    const err = new Error(policyValidation.error.message);
+    err.code = policyValidation.error.code;
+    err.status = 403;
+    err.result = { policy: policyValidation.error, secrets_included: false };
+    throw err;
+  }
 
   const url = buildN8nWebhookUrl(binding, env);
   const authHeaders = headerForAuth(binding, env);
