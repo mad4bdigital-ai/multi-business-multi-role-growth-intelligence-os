@@ -8324,7 +8324,6 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: endGptSession
       x-tenant-gpt-operationId: endSession
-      x-tenant-gpt-operationId: endSession
       summary: Close a customer_sessions archive
       description: "Close the active customer_sessions row. Optionally writes a session_summaries row, finalizes the Drive transcript through closeGptSessionArchive, and triggers the exportSessionToDrive pipeline so drive_export_url is populated for activation readback. Registered as the admin tool gpt_session_end."
       parameters:
