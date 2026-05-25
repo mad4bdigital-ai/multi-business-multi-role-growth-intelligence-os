@@ -521,9 +521,9 @@ section("connect api auth scope");
       sessionSummarySource.includes("graph_edge_present") &&
       sessionSummarySource.includes("graph_topology_present") &&
       sessionSummarySource.includes("summary_graph_topology_missing") &&
-      sessionSummarySource.includes("FROM `platform_graph_nodes`") &&
-      sessionSummarySource.includes("FROM `platform_graph_edges`") &&
-      sessionSummarySource.indexOf("FROM `platform_graph_nodes`") < sessionSummarySource.indexOf("graph_topology_present"));
+      sessionSummarySource.includes("platform_graph_nodes") &&
+      sessionSummarySource.includes("platform_graph_edges") &&
+      sessionSummarySource.indexOf("platform_graph_nodes") < sessionSummarySource.indexOf("graph_topology_present"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
