@@ -91,39 +91,29 @@ async function loadOwnerConnection(pool, { pluginKey, tenantId, userId, requeste
   return connection;
 }
 
-async function writeExecutionLog({ pool, traceId, status, payload }) {
-  const now = isoNow();
-  await pool.query(
-    `INSERT INTO execution_log
-       (run_date, start_time, end_time, entry_type, execution_class, source_layer,
-        user_input, route_keys, selected_workflows, execution_mode, decision_trigger,
-        execution_status, output_summary, recovery_status, route_status, route_source,
-        intake_validation_status, execution_ready_status, execution_trace_id_writeback,
-        log_source_writeback, created_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
-    [
-      sqlDate(now), now, now,
-      "platform_plugin_private_rest_dispatch",
-      "platform_plugin_private_runtime",
-      "platformPluginPrivateRestDispatch",
-      payload?.plugin_key ? `private rest dispatch ${payload.plugin_key}` : "private rest dispatch",
-      "platform_plugin_contribution_private_dispatch_rest",
-      "platform_plugin_owner_scoped_rest_adapter",
-      "owner_scoped_private_rest_dispatch",
-      "admin_tool",
-      status,
-      JSON.stringify({ ...payload, secrets_included: false }),
-      "not_required",
-      "resolved",
-      "sql_primary",
-      "validated",
-      status === "success" ? "ready" : "degraded",
-      traceId,
-      "sql_primary",
-    ]
-  );
-  const rows = await safeQuery(pool, `SELECT id, execution_status, execution_trace_id_writeback FROM execution_log WHERE execution_trace_id_writeback = ? ORDER BY id DESC LIMIT 1`, [traceId]);
-  return rows[0] || null;
+async function writeExecutionLog({ pool, traceId, status, payload, skipSurfaceAuthority = false }) {
+  const evidence = await writeExecutionEvidence({
+    pool,
+    traceId,
+    entryType: "platform_plugin_private_rest_dispatch",
+    executionClass: "platform_plugin_private_runtime",
+    sourceLayer: "platformPluginPrivateRestDispatch",
+    userInput: payload?.plugin_key ? `private rest dispatch ${payload.plugin_key}` : "private rest dispatch",
+    routeKeys: "platform_plugin_contribution_private_dispatch_rest",
+    selectedWorkflows: "platform_plugin_owner_scoped_rest_adapter",
+    executionMode: "owner_scoped_private_rest_dispatch",
+    decisionTrigger: "admin_tool",
+    executionStatus: status,
+    outputSummary: { ...payload, secrets_included: false },
+    recoveryStatus: "not_required",
+    routeStatus: "resolved",
+    routeSource: "sql_primary",
+    intakeValidationStatus: "validated",
+    executionReadyStatus: status === "success" ? "ready" : "degraded",
+    logSource: "sql_primary",
+    skipSurfaceAuthority,
+  });
+  return evidence.row || null;
 }
 
 export async function dispatchPrivatePlatformPluginRestAction({
