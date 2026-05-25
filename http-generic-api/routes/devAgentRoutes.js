@@ -628,6 +628,16 @@ export function buildDevAgentRoutes(deps) {
 
       const totalRuns = Number(totals?.total_runs || 0);
       const n8nFasterRuns = Number(totals?.n8n_faster_runs || 0);
+      const reviewedRuns = Number(totals?.reviewed_runs || 0);
+      const avgModelQuality = Number(Number(totals?.avg_quality_score_model || 0).toFixed(2));
+      const avgN8nQuality = Number(Number(totals?.avg_quality_score_n8n || 0).toFixed(2));
+      const modelPreferredRuns = Number(preferredOutputBreakdown.find(row => row.preferred_output === "current_model_summary")?.count || 0);
+      const n8nPreferredRuns = Number(preferredOutputBreakdown.find(row => row.preferred_output === "n8n_experiment")?.count || 0);
+      const qualityDecisionHint = reviewedRuns < 10
+        ? "needs_more_reviewed_samples"
+        : (avgModelQuality > avgN8nQuality && modelPreferredRuns >= n8nPreferredRuns
+          ? "keep_current_model_as_default_use_n8n_for_preview_or_fallback"
+          : "review_for_possible_preview_expansion_only");
       res.json({
         ok: true,
         lookback_days: lookbackDays,
