@@ -564,7 +564,10 @@ export function buildDevAgentRoutes(deps) {
                 SUM(CASE WHEN faster_path = 'n8n_experiment' THEN 1 ELSE 0 END) AS n8n_faster_runs,
                 SUM(CASE WHEN faster_path = 'current_model_summary' THEN 1 ELSE 0 END) AS model_faster_runs,
                 SUM(CASE WHEN writes_session_summaries = 1 THEN 1 ELSE 0 END) AS session_summary_write_violations,
-                SUM(CASE WHEN production_route_unchanged = 0 THEN 1 ELSE 0 END) AS production_route_change_violations
+                SUM(CASE WHEN production_route_unchanged = 0 THEN 1 ELSE 0 END) AS production_route_change_violations,
+                SUM(CASE WHEN preferred_output IS NOT NULL THEN 1 ELSE 0 END) AS reviewed_runs,
+                AVG(quality_score_model) AS avg_quality_score_model,
+                AVG(quality_score_n8n) AS avg_quality_score_n8n
          FROM \`summary_comparison_runs\`
          WHERE ${whereSql}`,
         params
