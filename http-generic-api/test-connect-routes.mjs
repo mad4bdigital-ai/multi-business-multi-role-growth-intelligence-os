@@ -437,6 +437,16 @@ section("connect api auth scope");
       brandCoreAgentLoopGuardMigrationSource.includes("Brand Writing Requires Brand Core") &&
       brandCoreAgentLoopGuardMigrationSource.includes("blocking`, `notes") &&
       brandCoreAgentLoopGuardMigrationSource.includes("'TRUE'"));
+    assert("validation_repair routes Brand Core policy blocks to repair candidates",
+      repairPolicyRouterSource.includes("resolveRepairCandidates") &&
+      repairPolicyRouterSource.includes("resolveBrandCoreRepairCandidates") &&
+      repairPolicyRouterSource.includes("SURFACE_KEYS.VALIDATION_REPAIR_REGISTRY") &&
+      repairPolicyRouterSource.includes("validation_repair") &&
+      repairPolicyRouterSource.includes("add_brand_core_assets") &&
+      repairPolicyRouterSource.includes("secrets_included: false") &&
+      governedPreflightSource.includes("resolveBrandCoreRepairCandidates") &&
+      governedPreflightSource.includes("evidence.repair_policy") &&
+      governedPreflightSource.includes("repair_policy_lookup_failed"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
