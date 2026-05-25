@@ -272,6 +272,7 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
 }
 
 async function dispatchTool(callerType, toolKey, args, req) {
+  assertPreflightAllowed(await evaluateGptToolDispatchPreflight({ callerType, toolKey, args }));
   const result = await dispatchToolImpl(callerType, toolKey, args, req);
   // Best-effort: archive the dispatch as a tool turn so admin GPT sessions get a
   // complete transcript without depending on the GPT calling writeSessionTurn.
