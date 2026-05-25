@@ -185,8 +185,16 @@ function stableSignalKey(parts = []) {
     .slice(0, 190);
 }
 
+function redactSensitiveText(value = "") {
+  return String(value || "")
+    .replace(/(?i)(api[_-]?key|x-api-key|token|secret|authorization|bearer)\s*[:=]\s*[^\s,;}]+/g, "$1=[redacted]")
+    .replace(/(?i)(invalid\s+x-api-key|invalid\s+api\s+key|authentication_error)/g, "credential_error")
+    .replace(/(?i)(request_id|request-id)\s*[:=]\s*[A-Za-z0-9_\-]+/g, "$1=[redacted]")
+    .replace(/req_[A-Za-z0-9_\-]+/g, "req_[redacted]");
+}
+
 function clampText(value, limit = 1000) {
-  const text = String(value || "").replace(/\s+/g, " ").trim();
+  const text = redactSensitiveText(value).replace(/\s+/g, " ").trim();
   return text.length > limit ? `${text.slice(0, limit - 3)}...` : text;
 }
 
