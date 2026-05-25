@@ -82,6 +82,35 @@ async function loadWorkflow(workflow_key) {
   return rows[0] || null;
 }
 
+async function loadBrandCoreEvidence(brand_key) {
+  if (!brand_key) return null;
+  const [rows] = await getPool().query(
+    `SELECT brand_key, brand_name, asset_key, asset_type, core_function,
+            status, active_status, validation_status, priority, updated_at
+       FROM \`brand_core\`
+      WHERE brand_key = ?
+        AND COALESCE(active_status, status, 'active') NOT IN ('archived','inactive','disabled','archived_placeholder')
+      ORDER BY CAST(COALESCE(NULLIF(priority,''), '0') AS UNSIGNED) DESC, updated_at DESC
+      LIMIT 25`,
+    [brand_key]
+  ).catch(() => [[]]);
+  if (!rows.length) return null;
+  const activeRows = rows.filter(row => isTruthy(row.active_status) || isTruthy(row.status) || ['active', 'valid', 'validated'].includes(String(row.active_status || row.status || '').toLowerCase()));
+  const validRows = rows.filter(row => ['active', 'valid', 'validated'].includes(String(row.validation_status || '').toLowerCase()));
+  return {
+    brand_key,
+    brand_name: rows[0]?.brand_name || null,
+    document_count: rows.length,
+    active_document_count: activeRows.length || rows.length,
+    valid_document_count: validRows.length,
+    validation_statuses: [...new Set(rows.map(row => String(row.validation_status || '').trim()).filter(Boolean))].slice(0, 8),
+    asset_types: [...new Set(rows.map(row => String(row.asset_type || '').trim()).filter(Boolean))].slice(0, 12),
+    core_functions: [...new Set(rows.map(row => String(row.core_function || '').trim()).filter(Boolean))].slice(0, 12),
+    latest_updated_at: rows[0]?.updated_at || null,
+    secrets_included: false,
+  };
+}
+
 async function loadLogicDefinition(logic_key) {
   if (!logic_key) return null;
   const [rows] = await getPool().query(
