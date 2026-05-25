@@ -84,6 +84,7 @@ export async function writeExecutionEvidence({
   }
 
   const now = createdAt || isoNow();
+  const end = endedAt || now;
   const output = typeof outputSummary === "object" && outputSummary !== null && !Array.isArray(outputSummary)
     ? { ...outputSummary, secrets_included: outputSummary.secrets_included === true ? true : false }
     : outputSummary;
