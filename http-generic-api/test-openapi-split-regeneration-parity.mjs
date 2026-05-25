@@ -25,7 +25,7 @@ try {
   });
 
   const before = readGeneratedFiles(tempRoot);
-  execFileSync(process.execPath, ["scripts/split-openapi.mjs"], {
+  execFileSync(process.execPath, [join(sourceRoot, "scripts/split-openapi.mjs")], {
     cwd: tempRoot,
     stdio: "pipe",
     env: { ...process.env, CI: "true" },
