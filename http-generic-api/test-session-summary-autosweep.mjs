@@ -108,9 +108,15 @@ function makePool(rows = []) {
   assert(gptRoutes.includes("summarizeSessionIfNeeded"), "endSession must trigger autosummary");
   assert(gptRoutes.includes("session_summary: summaryResult"), "endSession response must expose summary result");
   assert(devRoutes.includes("/dev-agent/session-summaries/autosweep"), "manual autosweep route must exist");
+  assert(devRoutes.includes("/dev-agent/session-summaries/health"), "session summary health route must exist");
+  assert(devRoutes.includes("loadSessionSummaryHealth"), "health route must use a bounded SQL-primary health helper");
+  assert(devRoutes.includes("entry_type = 'session_summary_autosweep'"), "health route must read summary execution rows from execution_log");
+  assert(devRoutes.includes("archive_coverage"), "health route must report Drive archive coverage");
   assert(devRoutes.includes("run_id") && devRoutes.includes("randomUUID"), "manual autosweep route must return a run_id for trace correlation");
   assert(devRunner.includes("runSessionSummaryAutosweep"), "dev-agent phase 1 must use Drive-backed autosweep");
   assert(migration.includes("tags_json") && migration.includes("summary_sha256") && migration.includes("source_drive_jsonl_id"));
+  assert(autosweepToolMigration.includes("dev_agent_session_summary_autosweep"));
+  assert(healthToolMigration.includes("dev_agent_session_summary_health") && healthToolMigration.includes("read_only"));
   assert(docs.includes("Status: implemented by `feature/session-summary-autosweep`"));
 }
 
