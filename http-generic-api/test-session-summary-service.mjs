@@ -36,6 +36,8 @@ function makePool() {
       },
     ],
     insertedExecutionLog: null,
+    insertedGraphNodes: [],
+    insertedGraphEdge: null,
   };
   return {
     state,
