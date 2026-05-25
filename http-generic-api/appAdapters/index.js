@@ -21,6 +21,7 @@ import { makecomMcpAdapter } from "./makecomMcp.js";
 import { wordpressRestAdapter } from "./wordpressRest.js";
 import { decryptCredentials, encryptCredentials } from "../tokenEncryption.js";
 import { getPool }             from "../db.js";
+import { evaluateAppActionPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 
 const REGISTRY = {
   google_drive: googleDriveAdapter,
