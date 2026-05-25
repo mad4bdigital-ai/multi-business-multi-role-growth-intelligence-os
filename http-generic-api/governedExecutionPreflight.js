@@ -1,4 +1,5 @@
 import { loadActiveExecutionPolicies, summarizePolicies } from "./runtimePolicyLoader.js";
+import { resolveBrandCoreRepairCandidates } from "./repairPolicyRouter.js";
 
 function parseBoolean(value, fallback = false) {
   if (typeof value === "boolean") return value;
