@@ -15,6 +15,7 @@ function readGeneratedFiles(root) {
   );
 }
 
+const sourceRoot = process.cwd();
 const tempRoot = mkdtempSync(join(tmpdir(), "openapi-split-parity-"));
 
 try {
