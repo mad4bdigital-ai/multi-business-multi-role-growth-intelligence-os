@@ -29,7 +29,8 @@ CI enforcement is implemented by:
 
 - `http-generic-api/scripts/split-openapi.mjs`
 - `http-generic-api/test-openapi-split-governance.mjs`
+- source-declared tenant aliases through `x-tenant-gpt-operationId` in `http-generic-api/openapi.yaml`
 
 ## Failure class
 
-Any split-only endpoint or operation is classified as `degraded_contract` and must block schema/runtime contract changes.
+Any split-only endpoint or operation, or duplicate split alias key inside a source operation, is classified as `degraded_contract` and must block schema/runtime contract changes.

@@ -4498,6 +4498,7 @@ paths:
       tags: [system-layer]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listSystemTools
+      x-tenant-gpt-operationId: listTools
       summary: List MCP-style system tools visible to the current principal
       description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context.
       responses:
@@ -4525,6 +4526,7 @@ paths:
       tags: [system-layer]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: callSystemTool
+      x-tenant-gpt-operationId: callTool
       x-openai-isConsequential: false
       summary: Call a governed MCP-style system tool
       description: Calls a fixed system-layer tool through principal-aware runtime validation. Tenant principals are scoped to their tenant; admin principals can inspect all connector registry records and run provider-bootstrap probes.
