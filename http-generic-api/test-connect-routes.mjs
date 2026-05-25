@@ -505,6 +505,14 @@ section("connect api auth scope");
       readFileSync("migrations/133_sprint65_json_asset_registry_required_execution.sql", "utf8").includes("surface.json_asset_registry_sheet") &&
       readFileSync("migrations/133_sprint65_json_asset_registry_required_execution.sql", "utf8").includes("required_for_execution` = 'TRUE'") &&
       readFileSync("migrations/133_sprint65_json_asset_registry_required_execution.sql", "utf8").includes("legacy_alias"));
+    assert("Platform Graph memory writes require registry surface authority",
+      sessionSummarySource.includes("SURFACE_KEYS.PLATFORM_GRAPH_MEMORY") &&
+      sessionSummarySource.includes("platform_graph_memory") &&
+      sessionSummarySource.indexOf("SURFACE_KEYS.PLATFORM_GRAPH_MEMORY") < sessionSummarySource.indexOf("platform_graph_nodes") &&
+      readFileSync("surfaceAuthorityResolver.js", "utf8").includes("PLATFORM_GRAPH_MEMORY") &&
+      readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("surface.platform_graph_memory") &&
+      readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("platform_graph_nodes|platform_graph_edges") &&
+      readFileSync("migrations/134_sprint65_platform_graph_memory_surface.sql", "utf8").includes("required_for_execution`)"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
