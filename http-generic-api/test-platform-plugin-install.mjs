@@ -12,6 +12,35 @@ function makePool({ existingConnection = false } = {}) {
       if (sql.includes("FROM tenants")) return [[{ tenant_id: "tenant-1", display_name: "Tenant One", status: "active" }]];
       if (sql.includes("INSERT INTO tenant_integration_policies")) return [{ affectedRows: 1 }];
       if (sql.includes("FROM tenant_integration_policies")) return [[{ tenant_id: "tenant-1", app_key: "tenant.nagy_sample_crm_20260525", source_mode: "dedicated", fallback_allowed: 0, required_for_device_install: 0, notes: "install", status: "active", source: "platform_plugin_tenant_install", updated_at: "2026-05-25T00:00:00.000Z" }]];
+      if (sql.includes("FROM `registry_surfaces_catalog`")) {
+        return [[{
+          surface_id: "surface.operations_log_unified_sheet",
+          logical_surface_key: "surface.operations_log_unified_sheet",
+          surface_name: "Execution Log Unified",
+          surface_type: "registry",
+          surface_scope: "runtime",
+          storage_type: "workbook_sheet",
+          active_status: "active",
+          authority_status: "authoritative",
+          required_for_execution: "TRUE",
+          resolution_rule: "sql_primary",
+          owner_layer: "runtime_audit",
+          schema_ref: null,
+          schema_version: null,
+          binding_mode: "sql_runtime_authority",
+          sheet_role: "append_only_log",
+          source_surface_id: null,
+          source_surface_role: null,
+          retired_replacement_surface_id: null,
+          backend_type: "sql",
+          backend_adapter: "executionEvidenceLogger",
+          authority_model: "sql_runtime_authority",
+          portability_class: "runtime_evidence",
+          repair_candidate_types: null,
+          repair_priority: "medium",
+          updated_at: "2026-05-25T00:00:00.000Z",
+        }]];
+      }
       if (sql.includes("FROM user_app_connections")) return existingConnection ? [[{ connection_id: "conn-existing" }]] : [[]];
       if (sql.includes("INSERT INTO user_app_connections")) return [{ affectedRows: 1 }];
       if (sql.includes("UPDATE user_app_connections")) return [{ affectedRows: 1 }];
