@@ -587,6 +587,11 @@ async function existingSummary(pool, sessionId) {
 }
 
 async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }) {
+  const jsonAssetSurfaceAuthority = await assertSurfaceAuthority(
+    SURFACE_KEYS.JSON_ASSET_REGISTRY,
+    { requireExecution: false },
+    { pool }
+  );
   const tenantId = session.tenant_id || PLATFORM_TENANT_ID;
   const userId = session.user_id || null;
   const assetId = summaryAssetId(summaryId);
