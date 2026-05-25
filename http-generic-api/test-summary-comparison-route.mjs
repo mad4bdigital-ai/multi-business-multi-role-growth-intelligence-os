@@ -60,6 +60,14 @@ assert(
   source.includes('reads_only: true'),
   'summary comparison report should declare read-only behavior',
 );
+assert(
+  source.includes('preferred_output_breakdown') && source.includes('use_case_fit_breakdown'),
+  'summary comparison report should include preference and use-case breakdowns',
+);
+assert(
+  source.includes('quality_decision_hint') && source.includes('recommended_default'),
+  'summary comparison report should return decision hint metadata',
+);
 const reportMigration = fs.readFileSync(new URL('./migrations/124_sprint64_summary_comparison_report_tool.sql', import.meta.url), 'utf8');
 assert(reportMigration.includes('dev_agent_summary_comparison_report'), 'report migration should register admin report tool');
 assert(reportMigration.includes('read_only'), 'report tool should be tagged read_only');

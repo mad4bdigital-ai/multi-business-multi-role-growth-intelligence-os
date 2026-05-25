@@ -587,6 +587,31 @@ export function buildDevAgentRoutes(deps) {
         params
       );
 
+      const [preferredOutputBreakdown] = await getPool().query(
+        `SELECT COALESCE(preferred_output, 'unreviewed') AS preferred_output,
+                COUNT(*) AS count,
+                ROUND(AVG(quality_score_model), 2) AS avg_quality_score_model,
+                ROUND(AVG(quality_score_n8n), 2) AS avg_quality_score_n8n
+         FROM \`summary_comparison_runs\`
+         WHERE ${whereSql}
+         GROUP BY COALESCE(preferred_output, 'unreviewed')
+         ORDER BY count DESC, preferred_output ASC`,
+        params
+      );
+
+      const [useCaseFitBreakdown] = await getPool().query(
+        `SELECT COALESCE(use_case_fit, 'unreviewed') AS use_case_fit,
+                COALESCE(preferred_output, 'unreviewed') AS preferred_output,
+                COUNT(*) AS count,
+                ROUND(AVG(quality_score_model), 2) AS avg_quality_score_model,
+                ROUND(AVG(quality_score_n8n), 2) AS avg_quality_score_n8n
+         FROM \`summary_comparison_runs\`
+         WHERE ${whereSql}
+         GROUP BY COALESCE(use_case_fit, 'unreviewed'), COALESCE(preferred_output, 'unreviewed')
+         ORDER BY use_case_fit ASC, count DESC, preferred_output ASC`,
+        params
+      );
+
       const [recentRuns] = await getPool().query(
         `SELECT comparison_id, tenant_id, user_id, n8n_binding_key,
                 input_text_chars, input_turn_count,
@@ -603,6 +628,16 @@ export function buildDevAgentRoutes(deps) {
 
       const totalRuns = Number(totals?.total_runs || 0);
       const n8nFasterRuns = Number(totals?.n8n_faster_runs || 0);
+      const reviewedRuns = Number(totals?.reviewed_runs || 0);
+      const avgModelQuality = Number(Number(totals?.avg_quality_score_model || 0).toFixed(2));
+      const avgN8nQuality = Number(Number(totals?.avg_quality_score_n8n || 0).toFixed(2));
+      const modelPreferredRuns = Number(preferredOutputBreakdown.find(row => row.preferred_output === "current_model_summary")?.count || 0);
+      const n8nPreferredRuns = Number(preferredOutputBreakdown.find(row => row.preferred_output === "n8n_experiment")?.count || 0);
+      const qualityDecisionHint = reviewedRuns < 10
+        ? "needs_more_reviewed_samples"
+        : (avgModelQuality > avgN8nQuality && modelPreferredRuns >= n8nPreferredRuns
+          ? "keep_current_model_as_default_use_n8n_for_preview_or_fallback"
+          : "review_for_possible_preview_expansion_only");
       res.json({
         ok: true,
         lookback_days: lookbackDays,
@@ -620,9 +655,19 @@ export function buildDevAgentRoutes(deps) {
           n8n_speed_win_rate: totalRuns ? Number((n8nFasterRuns / totalRuns).toFixed(3)) : 0,
           session_summary_write_violations: Number(totals?.session_summary_write_violations || 0),
           production_route_change_violations: Number(totals?.production_route_change_violations || 0),
-          reviewed_runs: Number(totals?.reviewed_runs || 0),
-          avg_quality_score_model: Number(Number(totals?.avg_quality_score_model || 0).toFixed(2)),
-          avg_quality_score_n8n: Number(Number(totals?.avg_quality_score_n8n || 0).toFixed(2)),
+          reviewed_runs: reviewedRuns,
+          avg_quality_score_model: avgModelQuality,
+          avg_quality_score_n8n: avgN8nQuality,
+        },
+        preferred_output_breakdown: preferredOutputBreakdown,
+        use_case_fit_breakdown: useCaseFitBreakdown,
+        quality_decision_hint: {
+          status: qualityDecisionHint,
+          model_preferred_runs: modelPreferredRuns,
+          n8n_preferred_runs: n8nPreferredRuns,
+          reviewed_runs: reviewedRuns,
+          recommended_default: qualityDecisionHint === "keep_current_model_as_default_use_n8n_for_preview_or_fallback" ? "current_model_summary" : null,
+          recommended_n8n_role: qualityDecisionHint === "keep_current_model_as_default_use_n8n_for_preview_or_fallback" ? "quick_preview_or_limited_fallback_candidate" : "needs_more_review",
         },
         by_binding: byBinding,
         recent_runs: recentRuns,
