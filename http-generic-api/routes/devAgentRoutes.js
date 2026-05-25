@@ -897,7 +897,7 @@ export function buildDevAgentRoutes(deps) {
       const signals = [];
       for (const summary of summaries) {
         const sourceRef = summary.summary_id || summary.session_id;
-        for (const item of safeParseArr(summary.feature_requests)) {
+        for (const item of safeParseJsonArray(summary.feature_requests)) {
           signals.push(buildSummaryDevelopmentSignal({
             source_surface: "session_summary",
             source_ref: sourceRef,
