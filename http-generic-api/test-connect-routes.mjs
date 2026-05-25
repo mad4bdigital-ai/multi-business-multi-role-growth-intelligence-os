@@ -380,6 +380,7 @@ section("connect api auth scope");
       !apiSource.includes("validation_status, last_validated_at, created_at, updated_at"));
     const appAdapterSource = readFileSync("appAdapters/index.js", "utf8");
     const governedPreflightSource = readFileSync("governedExecutionPreflight.js", "utf8");
+    const repairPolicyRouterSource = readFileSync("repairPolicyRouter.js", "utf8");
     const connectorExecutorSource = readFileSync("connectorExecutor.js", "utf8");
     const agentLoopRunnerSource = readFileSync("agentLoopRunner.js", "utf8");
     const appActionPolicyMigrationSource = readFileSync("migrations/124_sprint64_app_action_policy_preflight.sql", "utf8");
