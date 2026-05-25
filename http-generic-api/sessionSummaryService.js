@@ -321,57 +321,43 @@ export async function writeSessionSummaryExecutionLog({
   const artifactAssetId = verification?.graph_asset_present ? summaryAssetId(summary_id) : null;
   const traceId = run_id || summary_id;
 
-  const [insertResult] = await pool.query(
-    `INSERT INTO \`execution_log\`
-       (run_date, start_time, end_time, duration_seconds,
-        entry_type, execution_class, source_layer, user_input,
-        route_keys, selected_workflows, execution_mode,
-        execution_status, output_summary, recovery_status, recovery_notes,
-        route_status, intake_validation_status, execution_ready_status,
-        failure_reason, artifact_json_asset_id, target_module_writeback,
-        target_workflow_writeback, execution_trace_id_writeback,
-        log_source_writeback, created_at)
-     VALUES (?, ?, ?, ?,
-        'session_summary_autosweep', 'summary', 'sessionSummaryService', ?,
-        'dev_agent_session_summary_autosweep', 'session_summary_autosweep', 'model_summary',
-        ?, ?, ?, ?,
-        'resolved', 'validated', 'ready',
-        ?, ?, 'sessionSummaryService',
-        'session_summary_autosweep', ?,
-        'sql_primary', CURRENT_TIMESTAMP)`,
-    [
-      startedAt.slice(0, 10),
-      startedAt,
-      endedAt,
-      String(durationSeconds),
-      `session_id=${session.session_id}`,
-      executionStatus,
-      outputSummary,
-      modelWarning ? "fallback_summary_used" : transcriptWarning ? "transcript_fallback_used" : "not_required",
-      warningNote,
-      failureReason,
-      artifactAssetId,
-      traceId,
-    ]
-  );
+  const evidence = await writeExecutionEvidence({
+    pool,
+    traceId,
+    entryType: "session_summary_autosweep",
+    executionClass: "summary",
+    sourceLayer: "sessionSummaryService",
+    userInput: `session_id=${session.session_id}`,
+    routeKeys: "dev_agent_session_summary_autosweep",
+    selectedWorkflows: "session_summary_autosweep",
+    executionMode: "model_summary",
+    decisionTrigger: "runtime",
+    executionStatus,
+    outputSummary,
+    recoveryStatus: modelWarning ? "fallback_summary_used" : transcriptWarning ? "transcript_fallback_used" : "not_required",
+    recoveryNotes: warningNote,
+    routeStatus: "resolved",
+    routeSource: "sql_primary",
+    intakeValidationStatus: "validated",
+    executionReadyStatus: "ready",
+    failureReason,
+    artifactJsonAssetId: artifactAssetId,
+    targetModuleWriteback: "sessionSummaryService",
+    targetWorkflowWriteback: "session_summary_autosweep",
+    logSource: "sql_primary",
+    createdAt: startedAt,
+    endedAt,
+    durationSeconds,
+  });
 
-  const executionLogId = insertResult?.insertId || null;
-  let readback = { ok: false, execution_log_id: executionLogId };
-  if (executionLogId) {
-    const [rows] = await pool.query(
-      `SELECT id, execution_status, execution_trace_id_writeback
-       FROM \`execution_log\`
-       WHERE id = ?
-       LIMIT 1`,
-      [executionLogId]
-    ).catch(() => [[]]);
-    readback = {
-      ok: Boolean(rows?.[0]),
-      execution_log_id: executionLogId,
-      execution_status: rows?.[0]?.execution_status || null,
-      execution_trace_id: rows?.[0]?.execution_trace_id_writeback || null,
-    };
-  }
+  const row = evidence.row || null;
+  const executionLogId = row?.id || null;
+  const readback = {
+    ok: Boolean(row),
+    execution_log_id: executionLogId,
+    execution_status: row?.execution_status || null,
+    execution_trace_id: row?.execution_trace_id_writeback || null,
+  };
 
   return {
     ok: Boolean(readback.ok),
