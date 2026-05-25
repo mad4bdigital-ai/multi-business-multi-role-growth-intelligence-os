@@ -64,4 +64,21 @@ const reportMigration = fs.readFileSync(new URL('./migrations/124_sprint64_summa
 assert(reportMigration.includes('dev_agent_summary_comparison_report'), 'report migration should register admin report tool');
 assert(reportMigration.includes('read_only'), 'report tool should be tagged read_only');
 
+assert(
+  source.includes('router.post("/dev-agent/summary-comparison/score"'),
+  'summary comparison score route should be registered',
+);
+assert(
+  source.includes('preferred_output') && source.includes('quality_score_model') && source.includes('quality_score_n8n'),
+  'summary comparison score route should support manual quality scoring fields',
+);
+assert(
+  source.includes('reviewed_at = NOW()'),
+  'summary comparison score route should record review timestamp',
+);
+const scoringMigration = fs.readFileSync(new URL('./migrations/125_sprint64_summary_comparison_quality_scoring.sql', import.meta.url), 'utf8');
+assert(scoringMigration.includes('preferred_output'), 'scoring migration should add preferred_output');
+assert(scoringMigration.includes('dev_agent_summary_comparison_score'), 'scoring migration should register scoring tool');
+assert(!scoringMigration.includes('session_summaries'), 'scoring migration must not modify session_summaries');
+
 console.log('summary comparison route guard tests passed');
