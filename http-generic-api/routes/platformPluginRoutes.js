@@ -3,9 +3,11 @@ import { loadPlatformPluginCatalog } from "../platformPluginCatalog.js";
 import { resolvePlatformPluginExecution } from "../platformPluginResolver.js";
 import { upsertPlatformPluginPolicy } from "../platformPluginPolicy.js";
 import {
+  activatePrivatePlatformPluginContribution,
   createPlatformPluginContribution,
   getPlatformPluginContribution,
   listPlatformPluginContributions,
+  resolvePrivatePlatformPluginContribution,
 } from "../platformPluginContribution.js";
 
 function bool(value) {
