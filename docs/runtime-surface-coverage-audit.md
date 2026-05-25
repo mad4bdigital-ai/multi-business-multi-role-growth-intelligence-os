@@ -87,7 +87,10 @@ Recommended calls:
 ```text
 admin_control shell run runtime_surface_coverage_audit --json
 admin_control shell run runtime_surface_coverage_audit --markdown
+node http-generic-api/scripts/runtime-surface-coverage-audit.mjs --json --code-only
 ```
+
+Use `--code-only` for local development environments that do not have DB credentials. Auth-host diagnostics should run without `--code-only` so row counts and last-write timestamps are included.
 
 The script is read-only and returns `secrets_included: false`.
 
