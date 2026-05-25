@@ -25,6 +25,8 @@ assert(routes.includes('/dev-agent/summary-development/extract'));
 assert(routes.includes('auto_execute_code: false'));
 assert(routes.includes('auto_mutate_repo: false'));
 assert(routes.includes('create_pending_tasks'));
+assert(routes.includes('safeParseJsonArray'));
+assert(!routes.includes('safeParseArr(summary.'), 'route must use its local JSON array parser');
 assert(routes.includes('openclaude_essam_local_v1'));
 assert(!routes.includes('openclaude --write'), 'summary development automation must not invoke OpenClaude writes directly');
 assert(!routes.includes('git push'), 'summary development automation must not push code directly');

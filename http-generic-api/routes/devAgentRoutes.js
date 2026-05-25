@@ -190,6 +190,17 @@ function clampText(value, limit = 1000) {
   return text.length > limit ? `${text.slice(0, limit - 3)}...` : text;
 }
 
+function safeParseJsonArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value === undefined || value === null || value === "") return [];
+  try {
+    const parsed = JSON.parse(String(value));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function inferSignalPriority(type, evidence = "") {
   const text = String(evidence || "").toLowerCase();
   if (/security|secret|token|credential|auth|blocked|critical|production|canonical|فشل|خطر|سري/.test(text)) return "high";
@@ -886,7 +897,7 @@ export function buildDevAgentRoutes(deps) {
       const signals = [];
       for (const summary of summaries) {
         const sourceRef = summary.summary_id || summary.session_id;
-        for (const item of safeParseArr(summary.feature_requests)) {
+        for (const item of safeParseJsonArray(summary.feature_requests)) {
           signals.push(buildSummaryDevelopmentSignal({
             source_surface: "session_summary",
             source_ref: sourceRef,
@@ -899,7 +910,7 @@ export function buildDevAgentRoutes(deps) {
             evidence: `${item}\n\nSummary: ${summary.summary_text || ""}`,
           }));
         }
-        for (const item of safeParseArr(summary.blockers)) {
+        for (const item of safeParseJsonArray(summary.blockers)) {
           signals.push(buildSummaryDevelopmentSignal({
             source_surface: "session_summary",
             source_ref: sourceRef,
@@ -912,7 +923,7 @@ export function buildDevAgentRoutes(deps) {
             evidence: `${item}\n\nSummary: ${summary.summary_text || ""}`,
           }));
         }
-        for (const item of safeParseArr(summary.integration_needs)) {
+        for (const item of safeParseJsonArray(summary.integration_needs)) {
           signals.push(buildSummaryDevelopmentSignal({
             source_surface: "session_summary",
             source_ref: sourceRef,
