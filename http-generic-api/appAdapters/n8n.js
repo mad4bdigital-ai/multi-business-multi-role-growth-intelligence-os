@@ -138,7 +138,7 @@ export const n8nAdapter = {
         let path = `/executions?limit=${limit}`;
         if (workflow_id) path += `&workflowId=${workflow_id}`;
         if (status)      path += `&status=${status}`;
-        const data = await n8nReq(base, creds, path);
+        const data = await n8nReq(base, normalized, path);
         return { ok: true, result: data.data || data };
       }
 
