@@ -378,6 +378,12 @@ section("connect api auth scope");
       apiSource.includes("connected_at AS created_at") &&
       apiSource.includes("COALESCE(last_used_at, last_validated_at, connected_at) AS updated_at") &&
       !apiSource.includes("validation_status, last_validated_at, created_at, updated_at"));
+    const appAdapterSource = readFileSync("appAdapters/index.js", "utf8");
+    assert("successful app connection use self-heals validation status",
+      appAdapterSource.includes("validation_status = 'validated'") &&
+      appAdapterSource.includes("last_validated_at = NOW()") &&
+      appAdapterSource.includes("if (result?.ok)") &&
+      appAdapterSource.includes("UPDATE `user_app_connections` SET last_used_at = NOW()"));
     assert("connect api resolves active tenant for older tenantless JWTs",
       apiSource.includes("resolveActiveTenantId") &&
       apiSource.includes("req.auth.tenant_id = await resolveActiveTenantId"));
