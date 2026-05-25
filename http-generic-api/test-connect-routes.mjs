@@ -381,6 +381,8 @@ section("connect api auth scope");
     const appAdapterSource = readFileSync("appAdapters/index.js", "utf8");
     const governedPreflightSource = readFileSync("governedExecutionPreflight.js", "utf8");
     const repairPolicyRouterSource = readFileSync("repairPolicyRouter.js", "utf8");
+    const executionEvidenceLoggerSource = readFileSync("executionEvidenceLogger.js", "utf8");
+    const pluginPolicySource = readFileSync("platformPluginPolicy.js", "utf8");
     const connectorExecutorSource = readFileSync("connectorExecutor.js", "utf8");
     const agentLoopRunnerSource = readFileSync("agentLoopRunner.js", "utf8");
     const appActionPolicyMigrationSource = readFileSync("migrations/124_sprint64_app_action_policy_preflight.sql", "utf8");
@@ -459,6 +461,16 @@ section("connect api auth scope");
       governedPreflightSource.includes("resolveBrandCoreRepairCandidates") &&
       governedPreflightSource.includes("evidence.repair_policy") &&
       governedPreflightSource.includes("repair_policy_lookup_failed"));
+    assert("execution_log writes use surface-gated execution evidence logger",
+      executionEvidenceLoggerSource.includes("writeExecutionEvidence") &&
+      executionEvidenceLoggerSource.includes("SURFACE_KEYS.EXECUTION_LOG") &&
+      executionEvidenceLoggerSource.includes("assertSurfaceAuthority") &&
+      executionEvidenceLoggerSource.indexOf("assertSurfaceAuthority") < executionEvidenceLoggerSource.indexOf("INSERT INTO execution_log") &&
+      executionEvidenceLoggerSource.includes("execution_trace_id_writeback") &&
+      executionEvidenceLoggerSource.includes("secrets_included: false") &&
+      pluginPolicySource.includes("writeExecutionEvidence") &&
+      pluginPolicySource.includes("writePolicyExecutionLog") &&
+      !pluginPolicySource.includes("await pool.query(\n    `INSERT INTO execution_log"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
