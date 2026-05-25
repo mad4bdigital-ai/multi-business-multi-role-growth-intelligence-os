@@ -4499,6 +4499,7 @@ paths:
       tags: [system-layer]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listSystemTools
+      x-tenant-gpt-operationId: listTools
       summary: List MCP-style system tools visible to the current principal
       description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context.
       responses:
