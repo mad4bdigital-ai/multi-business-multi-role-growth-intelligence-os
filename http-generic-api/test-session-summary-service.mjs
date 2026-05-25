@@ -273,6 +273,10 @@ function makePool() {
     "summary write should upsert graph edges"
   );
   assert(pool.state.insertedExecutionLog, "summary write should create a durable execution_log row");
+  assert.equal(result.verification.graph_conversation_node_present, true);
+  assert.equal(result.verification.graph_asset_node_present, true);
+  assert.equal(result.verification.graph_edge_present, true);
+  assert.equal(result.verification.graph_topology_present, true);
   assert.equal(result.execution_log.ok, true);
   assert.equal(result.execution_log.execution_log_id, 42);
   assert.equal(result.execution_log.execution_trace_id, result.summary_id);
