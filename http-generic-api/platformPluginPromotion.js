@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
+import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 
 const VALID_AUTH_TYPES = new Set(["oauth2", "api_key", "webhook", "mcp", "basic_auth", "bearer_token"]);
 const VALID_CREDENTIAL_SOURCES = new Set(["user_connection", "tenant_connection", "platform_managed", "target_resolved", "none", "mixed"]);
@@ -47,24 +48,29 @@ function toSafeContribution(row = {}) {
   };
 }
 
-async function writeExecutionLog({ pool, traceId, entryType, status, payload }) {
-  const now = isoNow();
-  await pool.query(
-    `INSERT INTO execution_log
-       (run_date, start_time, end_time, entry_type, execution_class, source_layer,
-        user_input, route_keys, selected_workflows, execution_mode, decision_trigger,
-        execution_status, output_summary, recovery_status, route_status, route_source,
-        intake_validation_status, execution_ready_status, execution_trace_id_writeback,
-        log_source_writeback, created_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
-    [sqlDate(now), now, now, entryType, "platform_plugin_promotion", "platformPluginPromotion",
-      payload?.plugin_key ? `platform plugin promotion ${payload.plugin_key}` : "platform plugin promotion",
-      entryType, "platform_plugin_certification_promotion", payload?.execution_mode || "promotion_preview",
-      "admin_tool", status, JSON.stringify({ ...payload, secrets_included: false }), "not_required", "resolved",
-      "sql_primary", "validated", status === "success" ? "ready" : "degraded", traceId, "sql_primary"]
-  );
-  const rows = await safeQuery(pool, `SELECT id, execution_status, execution_trace_id_writeback FROM execution_log WHERE execution_trace_id_writeback = ? ORDER BY id DESC LIMIT 1`, [traceId]);
-  return rows[0] || null;
+async function writeExecutionLog({ pool, traceId, entryType, status, payload, skipSurfaceAuthority = false }) {
+  const evidence = await writeExecutionEvidence({
+    pool,
+    traceId,
+    entryType,
+    executionClass: "platform_plugin_promotion",
+    sourceLayer: "platformPluginPromotion",
+    userInput: payload?.plugin_key ? `platform plugin promotion ${payload.plugin_key}` : "platform plugin promotion",
+    routeKeys: entryType,
+    selectedWorkflows: "platform_plugin_certification_promotion",
+    executionMode: payload?.execution_mode || "promotion_preview",
+    decisionTrigger: "admin_tool",
+    executionStatus: status,
+    outputSummary: { ...payload, secrets_included: false },
+    recoveryStatus: "not_required",
+    routeStatus: "resolved",
+    routeSource: "sql_primary",
+    intakeValidationStatus: "validated",
+    executionReadyStatus: status === "success" ? "ready" : "degraded",
+    logSource: "sql_primary",
+    skipSurfaceAuthority,
+  });
+  return evidence.row || null;
 }
 
 async function loadContribution(pool, contributionId) {
