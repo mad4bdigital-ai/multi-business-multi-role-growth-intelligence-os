@@ -64,5 +64,32 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
     }
   });
 
+  router.post("/platform/plugins/install-policy", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await upsertPlatformPluginPolicy({
+        tenantId: input.tenant_id || input.tenantId,
+        pluginKey: input.plugin_key || input.pluginKey,
+        sourceMode: input.source_mode || input.sourceMode || input.mode || "managed",
+        fallbackAllowed: input.fallback_allowed ?? input.fallbackAllowed ?? false,
+        requiredForDeviceInstall: input.required_for_device_install ?? input.requiredForDeviceInstall ?? false,
+        notes: input.notes || "",
+        userId: input.user_id || input.userId || null,
+        source: "platform_plugin_policy_upsert",
+        rawPayload: input,
+      });
+      return res.status(result.ok ? 200 : 409).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "platform_plugin_policy_upsert_failed",
+          message: err.message,
+        },
+        secrets_included: false,
+      });
+    }
+  });
+
   return router;
 }
