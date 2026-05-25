@@ -128,6 +128,49 @@ function normalizeObjects(value) {
   for (const child of Object.values(value)) normalizeObjects(child);
 }
 
+function collectLocalRefs(value, refs = new Set()) {
+  if (!value || typeof value !== "object") return refs;
+  if (Array.isArray(value)) {
+    for (const item of value) collectLocalRefs(item, refs);
+    return refs;
+  }
+  if (typeof value.$ref === "string" && value.$ref.startsWith("#/")) refs.add(value.$ref);
+  for (const child of Object.values(value)) collectLocalRefs(child, refs);
+  return refs;
+}
+
+function refName(ref, prefix) {
+  return ref.startsWith(prefix) ? ref.slice(prefix.length).split("/")[0] : null;
+}
+
+function pruneComponents(doc) {
+  const refs = collectLocalRefs({ paths: doc.paths, components: { responses: doc.components?.responses || {} } });
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const ref of Array.from(refs)) {
+      const target = resolveLocalRef(doc, ref);
+      const before = refs.size;
+      collectLocalRefs(target, refs);
+      if (refs.size !== before) changed = true;
+    }
+  }
+
+  const keepSchemas = new Set(Array.from(refs).map((ref) => refName(ref, "#/components/schemas/")).filter(Boolean));
+  const keepResponses = new Set(Array.from(refs).map((ref) => refName(ref, "#/components/responses/")).filter(Boolean));
+
+  if (doc.components?.schemas) {
+    doc.components.schemas = Object.fromEntries(
+      Object.entries(doc.components.schemas).filter(([key]) => keepSchemas.has(key))
+    );
+  }
+  if (doc.components?.responses) {
+    doc.components.responses = Object.fromEntries(
+      Object.entries(doc.components.responses).filter(([key]) => keepResponses.has(key))
+    );
+  }
+}
+
 function normalizeDoc(doc, sourceDoc) {
   if (doc.components?.securitySchemes) {
     doc.components.securitySchemes = { [CUSTOM_GPT_SECURITY_SCHEME]: doc.components.securitySchemes[CUSTOM_GPT_SECURITY_SCHEME] };
@@ -140,6 +183,7 @@ function normalizeDoc(doc, sourceDoc) {
       normalizeRequestBody(sourceDoc || doc, operation);
     }
   }
+  pruneComponents(doc);
   normalizeDescriptions(doc);
   normalizeObjects(doc);
 }
