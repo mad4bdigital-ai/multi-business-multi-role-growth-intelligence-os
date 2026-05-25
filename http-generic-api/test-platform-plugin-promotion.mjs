@@ -46,6 +46,35 @@ function makePool({ existingBase = false, certified = false } = {}) {
         return [[{ action_key: "crm.contact.list", binding_role: "primary_api", credential_source: "tenant_connection", exposure_default: "runtime_only", status: "active" }]];
       }
       if (sql.includes("UPDATE platform_plugin_contributions")) return [{ affectedRows: 1 }];
+      if (sql.includes("FROM `registry_surfaces_catalog`")) {
+        return [[{
+          surface_id: "surface.operations_log_unified_sheet",
+          logical_surface_key: "surface.operations_log_unified_sheet",
+          surface_name: "Execution Log Unified",
+          surface_type: "registry",
+          surface_scope: "runtime",
+          storage_type: "workbook_sheet",
+          active_status: "active",
+          authority_status: "authoritative",
+          required_for_execution: "TRUE",
+          resolution_rule: "sql_primary",
+          owner_layer: "runtime_audit",
+          schema_ref: null,
+          schema_version: null,
+          binding_mode: "sql_runtime_authority",
+          sheet_role: "append_only_log",
+          source_surface_id: null,
+          source_surface_role: null,
+          retired_replacement_surface_id: null,
+          backend_type: "sql",
+          backend_adapter: "executionEvidenceLogger",
+          authority_model: "sql_runtime_authority",
+          portability_class: "runtime_evidence",
+          repair_candidate_types: null,
+          repair_priority: "medium",
+          updated_at: "2026-05-25T00:00:00.000Z",
+        }]];
+      }
       if (sql.includes("INSERT INTO execution_log")) return [{ affectedRows: 1, insertId: 46 }];
       if (sql.includes("FROM execution_log")) return [[{ id: 46, execution_status: "success", execution_trace_id_writeback: params[0] }]];
       return [[]];
