@@ -394,6 +394,15 @@ section("connect api auth scope");
       appActionPolicyMigrationSource.includes("External App Action Preflight Visibility") &&
       appActionPolicyMigrationSource.includes("blocking`, `notes") &&
       appActionPolicyMigrationSource.includes("'FALSE'"));
+    assert("n8n execute_workflow has a blocking app action policy guard",
+      governedPreflightSource.includes("n8n Workflow Execution Guard") &&
+      governedPreflightSource.includes("allow_n8n_workflow_execution") &&
+      governedPreflightSource.includes("n8n_execution_reason") &&
+      governedPreflightSource.includes("n8n_workflow_execution_requires_explicit_reason") &&
+      n8nWorkflowGuardMigrationSource.includes("n8n Workflow Execution Guard") &&
+      n8nWorkflowGuardMigrationSource.includes("execute_workflow") &&
+      n8nWorkflowGuardMigrationSource.includes("'TRUE'") &&
+      n8nWorkflowGuardMigrationSource.includes("min_reason_chars"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
