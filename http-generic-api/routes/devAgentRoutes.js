@@ -1246,6 +1246,122 @@ export function buildDevAgentRoutes(deps) {
     }
   });
 
+  router.post("/dev-agent/summary-development/repo-analysis-dry-run", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const runId = randomUUID();
+    const runtimeKey = String(body.runtime_key || "openclaude_essam_local_v1").trim();
+    const signalId = String(body.signal_id || "").trim();
+    const signalKey = String(body.signal_key || "").trim();
+    const requestedBy = String(body.requested_by || body.user_id || "").trim() || null;
+    const analysisGoal = String(body.analysis_goal || "").trim();
+    let repoScope;
+
+    try {
+      repoScope = normalizeRepoAnalysisScope(body.repo_scope || "platform_repo");
+    } catch (err) {
+      return res.status(err.status || 403).json({ ok: false, blocked: true, error: { code: err.code, message: err.message }, secrets_included: false });
+    }
+
+    if (!signalId && !signalKey) {
+      return res.status(400).json({ ok: false, error: { code: "summary_development_signal_required", message: "signal_id or signal_key is required." } });
+    }
+
+    try {
+      const [runtimeRows] = await pool.query(
+        `SELECT runtime_key, display_name, runtime_type, provider_key, execution_surface,
+                device_id, command_hint, capabilities_json, policy_json, status, notes
+         FROM \`dev_agent_runtime_registry\`
+         WHERE runtime_key = ?
+         LIMIT 1`,
+        [runtimeKey]
+      );
+      const runtime = runtimeRows[0];
+      if (!runtime) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_runtime_not_found", message: "runtime_key was not found." } });
+      }
+      if (runtime.provider_key !== "openclaude") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "summary_development_repo_analysis_runtime_blocked", message: "Repo-analysis dry run currently allows only the OpenClaude local runtime." }, secrets_included: false });
+      }
+      if (runtime.status !== "available" && runtime.status !== "active") {
+        return res.status(409).json({ ok: false, blocked: true, error: { code: "summary_development_runtime_not_ready", message: "Runtime must be available or active before repo-analysis planning." }, runtime_status: runtime.status, secrets_included: false });
+      }
+
+      const signalWhere = signalId ? "signal_id = ?" : "signal_key = ?";
+      const [signalRows] = await pool.query(
+        `SELECT signal_id, signal_key, tenant_id, user_id, source_surface, source_ref,
+                signal_type, title, description, evidence_text, recommended_runtime_key,
+                recommended_action, priority, status, policy_json
+         FROM \`summary_development_signals\`
+         WHERE ${signalWhere}
+         LIMIT 1`,
+        [signalId || signalKey]
+      );
+      const signal = signalRows[0];
+      if (!signal) {
+        return res.status(404).json({ ok: false, error: { code: "summary_development_signal_not_found", message: "signal was not found." } });
+      }
+
+      const commandPlan = buildOpenClaudeRepoAnalysisCommandPlan({ runtime, signal, repoScope, analysisGoal });
+      const result = {
+        signal_id: signal.signal_id,
+        signal_key: signal.signal_key,
+        runtime_key: runtime.runtime_key,
+        repo_scope: repoScope,
+        analysis_goal: clampText(analysisGoal, 500),
+        command_plan: commandPlan,
+        execution_status: "not_executed_plan_only",
+        approval_required_for_execution: true,
+      };
+
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, tenant_id, requested_by, runtime_key,
+            source_filter_json, policy_json, status, scanned_count,
+            signals_created, signals_updated, tasks_created, result_json,
+            started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, ?, ?, ?, 'completed', 1, 0, 0, 0, ?, NOW(), NOW())`,
+        [
+          runId,
+          `summary_dev_repo_analysis_dry_run_${runId}`,
+          signal.tenant_id || null,
+          requestedBy,
+          runtime.runtime_key,
+          JSON.stringify({ signal_id: signal.signal_id, signal_key: signal.signal_key, repo_scope: repoScope }),
+          JSON.stringify({
+            repo_analysis_adapter: "openclaude_repo_analysis_command_plan_v1",
+            allowed_tools: commandPlan.allowed_tools,
+            denied_tools: commandPlan.denied_tools,
+            local_execution_allowed: false,
+            auto_execute_code: false,
+            auto_mutate_repo: false,
+            secrets_included: false,
+          }),
+          JSON.stringify(result),
+        ]
+      );
+
+      res.json({
+        ok: true,
+        run_id: runId,
+        ...result,
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        local_execution_attempted: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, requested_by, runtime_key, status, error_json, started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, 'failed', ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE status = 'failed', error_json = VALUES(error_json), completed_at = NOW()`,
+        [runId, `summary_dev_repo_analysis_dry_run_${runId}`, requestedBy, runtimeKey, JSON.stringify({ code: err.code || "summary_development_repo_analysis_dry_run_failed", message: String(err.message || err).slice(0, 240) })]
+      ).catch(() => {});
+      res.status(500).json({ ok: false, error: { code: err.code || "summary_development_repo_analysis_dry_run_failed", message: err.message } });
+    }
+  });
+
   // ── GET/PATCH /dev-agent/model-settings ──────────────────────────────────
   router.get("/dev-agent/model-settings", async (req, res) => {
     try {
