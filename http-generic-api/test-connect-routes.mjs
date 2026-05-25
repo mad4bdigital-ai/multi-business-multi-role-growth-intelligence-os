@@ -396,6 +396,19 @@ section("connect api auth scope");
     assert("credential diagnostics recognizes uppercase credential aliases",
       credentialDiagnosticsSource.includes("creds.N8N_API_KEY") &&
       credentialDiagnosticsSource.includes("creds.HOSTINGER_API_KEY"));
+    const runtimeCoverageAuditSource = readFileSync("scripts/runtime-surface-coverage-audit.mjs", "utf8");
+    const adminCliSource = readFileSync("routes/adminCliRoutes.js", "utf8");
+    assert("runtime surface coverage audit maps legacy registry tables to governed runtime recovery services",
+      runtimeCoverageAuditSource.includes("execution_policies") &&
+      runtimeCoverageAuditSource.includes("registry_surfaces_catalog") &&
+      runtimeCoverageAuditSource.includes("validation_repair") &&
+      runtimeCoverageAuditSource.includes("Governed Canonical Agent Runtime") &&
+      runtimeCoverageAuditSource.includes("toolManifestBuilder") &&
+      runtimeCoverageAuditSource.includes("governedToolUseLoop"));
+    assert("admin shell exposes runtime surface coverage audit alias",
+      adminCliSource.includes("runtime_surface_coverage_audit") &&
+      adminCliSource.includes("runtime-surface-coverage-audit.mjs") &&
+      adminCliSource.includes("Runtime surface coverage audit"));
     assert("connect api resolves active tenant for older tenantless JWTs",
       apiSource.includes("resolveActiveTenantId") &&
       apiSource.includes("req.auth.tenant_id = await resolveActiveTenantId"));
