@@ -386,6 +386,7 @@ section("connect api auth scope");
     const n8nWorkflowGuardMigrationSource = readFileSync("migrations/125_sprint64_n8n_workflow_execution_guard.sql", "utf8");
     const connectorDispatchPolicyMigrationSource = readFileSync("migrations/126_sprint64_connector_dispatch_preflight.sql", "utf8");
     const agentLoopPolicyMigrationSource = readFileSync("migrations/127_sprint64_agent_loop_preflight.sql", "utf8");
+    const brandCoreAgentLoopGuardMigrationSource = readFileSync("migrations/128_sprint64_brand_core_agent_loop_guard.sql", "utf8");
     assert("successful app connection use self-heals validation status",
       appAdapterSource.includes("validation_status = 'validated'") &&
       appAdapterSource.includes("last_validated_at = NOW()") &&
@@ -427,6 +428,15 @@ section("connect api auth scope");
       agentLoopPolicyMigrationSource.includes("Agent Loop Preflight Visibility") &&
       agentLoopPolicyMigrationSource.includes("agent_loop|model_tool_loop") &&
       agentLoopPolicyMigrationSource.includes("'FALSE'"));
+    assert("Brand Core is loaded before agent-loop writing governance is enforced",
+      agentLoopRunnerSource.includes("loadBrandCoreEvidence") &&
+      agentLoopRunnerSource.includes("context.brand_core") &&
+      agentLoopRunnerSource.includes("context.brand_core_resolved") &&
+      agentLoopRunnerSource.indexOf("const brandCoreEvidence = await loadBrandCoreEvidence") < agentLoopRunnerSource.indexOf("evaluateAgentLoopPreflight({") &&
+      governedPreflightSource.includes("brand_writing_requires_brand_core") &&
+      brandCoreAgentLoopGuardMigrationSource.includes("Brand Writing Requires Brand Core") &&
+      brandCoreAgentLoopGuardMigrationSource.includes("blocking`, `notes") &&
+      brandCoreAgentLoopGuardMigrationSource.includes("'TRUE'"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
