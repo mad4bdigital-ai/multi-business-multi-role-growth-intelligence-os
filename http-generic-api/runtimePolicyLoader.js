@@ -1,4 +1,5 @@
 import { getPool } from "./db.js";
+import { assertSurfaceAuthority, SURFACE_KEYS } from "./surfaceAuthorityResolver.js";
 
 function normalizeToken(value = "") {
   return String(value || "").trim().toLowerCase();
