@@ -459,9 +459,20 @@ section("connect api auth scope");
       runtimeCoverageAuditSource.includes("toolManifestBuilder") &&
       runtimeCoverageAuditSource.includes("governedToolUseLoop"));
     const runtimePolicyLoaderSource = readFileSync("runtimePolicyLoader.js", "utf8");
+    const surfaceAuthorityResolverSource = readFileSync("surfaceAuthorityResolver.js", "utf8");
     const gptToolsSource = readFileSync("routes/gptToolsRoutes.js", "utf8");
     const runtimePolicyMigrationSource = readFileSync("migrations/122_sprint64_runtime_policy_preflight.sql", "utf8");
     const gptToolsPolicyMigrationSource = readFileSync("migrations/123_sprint64_gpt_tools_policy_preflight.sql", "utf8");
+    assert("registry surface catalog gates execution policy loading",
+      surfaceAuthorityResolverSource.includes("resolveSurfaceAuthority") &&
+      surfaceAuthorityResolverSource.includes("assertSurfaceAuthority") &&
+      surfaceAuthorityResolverSource.includes("EXECUTION_POLICY_REGISTRY") &&
+      surfaceAuthorityResolverSource.includes("retired_replacement_surface_id") &&
+      !surfaceAuthorityResolverSource.includes("file_id:") &&
+      !surfaceAuthorityResolverSource.includes("folder_id:") &&
+      runtimePolicyLoaderSource.includes("assertSurfaceAuthority") &&
+      runtimePolicyLoaderSource.includes("SURFACE_KEYS.EXECUTION_POLICY_REGISTRY") &&
+      runtimePolicyLoaderSource.indexOf("assertSurfaceAuthority") < runtimePolicyLoaderSource.indexOf("SELECT id, policy_group"));
     assert("execution_policies has runtime loader and repository mutation preflight evaluator",
       runtimePolicyLoaderSource.includes("loadActiveExecutionPolicies") &&
       runtimePolicyLoaderSource.includes("policyMatchesContext") &&

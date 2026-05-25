@@ -1,4 +1,5 @@
 import { getPool } from "./db.js";
+import { assertSurfaceAuthority, SURFACE_KEYS } from "./surfaceAuthorityResolver.js";
 
 function normalizeToken(value = "") {
   return String(value || "").trim().toLowerCase();
@@ -72,6 +73,9 @@ export function policyMatchesContext(policy, context = {}) {
 
 export async function loadActiveExecutionPolicies(context = {}, deps = {}) {
   const pool = deps.pool || getPool();
+  if (deps.skipSurfaceAuthority !== true) {
+    await assertSurfaceAuthority(SURFACE_KEYS.EXECUTION_POLICY_REGISTRY, { requireExecution: true }, { pool });
+  }
   const [rows] = await pool.query(
     `SELECT id, policy_group, policy_key, policy_value, active, execution_scope, affects_layer, blocking, notes
        FROM \`execution_policies\`
