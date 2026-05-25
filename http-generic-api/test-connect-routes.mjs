@@ -432,7 +432,7 @@ section("connect api auth scope");
       agentLoopRunnerSource.includes("loadBrandCoreEvidence") &&
       agentLoopRunnerSource.includes("context.brand_core") &&
       agentLoopRunnerSource.includes("context.brand_core_resolved") &&
-      agentLoopRunnerSource.indexOf("loadBrandCoreEvidence") < agentLoopRunnerSource.indexOf("evaluateAgentLoopPreflight") &&
+      agentLoopRunnerSource.indexOf("const brandCoreEvidence = await loadBrandCoreEvidence") < agentLoopRunnerSource.indexOf("evaluateAgentLoopPreflight({") &&
       governedPreflightSource.includes("brand_writing_requires_brand_core") &&
       brandCoreAgentLoopGuardMigrationSource.includes("Brand Writing Requires Brand Core") &&
       brandCoreAgentLoopGuardMigrationSource.includes("blocking`, `notes") &&
