@@ -606,8 +606,10 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
       platform_stored_sessions_available: gptSessions.length > 0,
       stored_turns_available: asCount(statsRow.turn_count) > 0,
       turn_content_loaded: includeTurns,
-      summary_strategy: "prefer_session_summaries_and_tags_then_load_turn_previews_on_demand",
+      summary_strategy: "prefer_graph_backed_session_summary_memory_then_sql_fallback",
       graph_assisted_lookup: Boolean(graphMemory.requested),
+      graph_backed_session_summaries: summaries.source === "session_summary_graph_memory",
+      session_summary_fallback_used: summaries.fallback_used === true,
       sources_checked: [
         "customer_sessions",
         "gpt_session_turns",
