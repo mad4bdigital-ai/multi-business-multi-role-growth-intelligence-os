@@ -55,6 +55,9 @@ assert(providerRegistryMigration.includes('platform_model_provider_bridge'));
 assert(providerRegistryMigration.includes('copy_platform_secret_to_device":false'));
 assert(providerToolMigration.includes('dev_agent_summary_development_providers'));
 assert(providerToolMigration.includes('Read-only and never returns secrets'));
+assert(providerBridgeToolMigration.includes('dev_agent_provider_bridge_dry_run'));
+assert(providerBridgeToolMigration.includes('Does not copy secrets to Essam'));
+assert(providerBridgeToolMigration.includes('no_local_execution'));
 
 assert(routes.includes('/dev-agent/summary-development/runtimes'));
 assert(routes.includes('/dev-agent/summary-development/signals'));
