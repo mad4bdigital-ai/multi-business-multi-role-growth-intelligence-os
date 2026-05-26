@@ -1701,6 +1701,7 @@ const server = http.createServer(async (req, res) => {
     if (method === 'POST' && url === '/shell') return await handleShell(req, res);
     if (method === 'POST' && url === '/apps') return await handleApps(req, res);
     if (method === 'POST' && url === '/browser') return await handleBrowser(req, res);
+    if (method === 'POST' && url === '/browser4') return await handleBrowser4(req, res);
     if (method === 'POST' && url === '/files') return await handleFiles(req, res);
     if (method === 'POST' && url === '/fetch-upload') return await handleFetchUpload(req, res);
     if (method === 'POST' && url === '/shell-fetch-upload') return await handleShellFetchUpload(req, res);
