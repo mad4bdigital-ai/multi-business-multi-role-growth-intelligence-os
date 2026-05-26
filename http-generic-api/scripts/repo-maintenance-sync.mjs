@@ -69,7 +69,10 @@ function main() {
     changed_files: after,
     changed_count: after.length,
   };
-  fs.writeFileSync(path.join(REPO_ROOT, "repo-maintenance-sync-result.json"), `${JSON.stringify(report, null, 2)}\n`);
+  if (reportFile) {
+    fs.mkdirSync(path.dirname(path.resolve(REPO_ROOT, reportFile)), { recursive: true });
+    fs.writeFileSync(path.resolve(REPO_ROOT, reportFile), `${JSON.stringify(report, null, 2)}\n`);
+  }
   console.log(JSON.stringify(report, null, 2));
 
   if (check && after.length > 0) {
