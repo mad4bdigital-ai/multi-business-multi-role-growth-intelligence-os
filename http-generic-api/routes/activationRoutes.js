@@ -626,6 +626,15 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
       turns_limit: includeTurns ? turnsLimit : 0,
     },
     recent_session_summaries: summaries.rows.map(compactSummary),
+    session_summary_memory: {
+      source: summaries.source || "unknown",
+      graph_backed: summaries.source === "session_summary_graph_memory",
+      fallback_used: summaries.fallback_used === true,
+      fallback_reason: summaries.fallback_reason || null,
+      count: summaries.rows.length,
+      surface_authority: summaryMemory.surface_authority || null,
+      secrets_included: false,
+    },
     referenced_contexts: referencedRefs.slice(0, 50),
     stored_turn_previews: storedTurnPreviews.rows.map((row) => compactTurn(row, rawMaxChars)),
     graph_memory: {
