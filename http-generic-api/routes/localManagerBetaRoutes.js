@@ -309,8 +309,8 @@ function localManagerAppPage() {
     <header>
       <section>
         <span class="badge">Public Local Manager</span>
-        <h1>Download, sign in, and link this device.</h1>
-        <p>Mad4B Local Manager is installed first. Authentication happens inside the installed app when the user signs in and chooses to link the current device.</p>
+        <h1>Download, sign in, link this device, and keep platform tools installed.</h1>
+        <p>Mad4B Local Manager is the local release owner for platform tools. It installs and upgrades the connector agent, Browser4 adapter, diagnostics probes, and future allowlisted local tools from the signed platform manifest.</p>
         <div class="actions">
           <a class="button" href="#download">Download Local Manager</a>
           <a class="button secondary" href="#how-it-works">How linking works</a>
@@ -336,7 +336,7 @@ function localManagerAppPage() {
         <div class="step"><div><strong>Install</strong><p>User downloads and installs Local Manager. No admin token is typed into this web page.</p></div></div>
         <div class="step"><div><strong>Sign in</strong><p>The installed app opens Mad4B login using OAuth, device-code login, or a one-time pairing code.</p></div></div>
         <div class="step"><div><strong>Link device</strong><p>The app asks the user to link the current machine. The backend creates scoped credentials for that device only.</p></div></div>
-        <div class="step"><div><strong>Manage</strong><p>The device appears in Local Manager with route health, backup probes, and recovery actions governed by the signed-in user role.</p></div></div>
+        <div class="step"><div><strong>Manage and upgrade tools</strong><p>The device appears in Local Manager with route health, backup probes, recovery actions, and manifest-driven local tool installation governed by the signed-in user role.</p></div></div>
       </div>
     </section>
 
@@ -390,8 +390,8 @@ function localManagerAdminPage() {
   <main>
     <header>
       <div>
-        <h1>Mad4B Local Manager</h1>
-        <p>Public app shell with platform-auth actions. No platform secrets are sent to the browser.</p>
+        <h1>Mad4B Local Manager Admin Tools</h1>
+        <p>Generate governed install/upgrade links for the Local Manager connector agent. The agent owns local platform tool releases through the signed manifest; no platform secrets are sent to the browser.</p>
       </div>
       <span class="pill">public app · auth required for actions</span>
     </header>

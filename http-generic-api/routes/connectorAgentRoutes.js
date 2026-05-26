@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getPool } from "../db.js";
 
-const AGENT_VERSION = "2026.05.18.1";
+const AGENT_VERSION = "2026.05.26.1";
 const ROOT = process.cwd();
 const CONNECTOR_PORT = 7070;
 
@@ -34,7 +34,37 @@ const FILES = {
     contentType: "text/javascript; charset=utf-8",
     executable: false,
   },
+  "browser4-adapter.mjs": {
+    relativePath: "local-connector/browser4-adapter.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
 };
+
+const LOCAL_TOOL_RELEASES = [
+  {
+    tool_key: "browser4",
+    display_name: "Browser4 Local Adapter",
+    owner_app: "mad4b-local-manager",
+    install_kind: "connector_agent_manifest",
+    status: "active",
+    platform: "windows",
+    files: ["browser4-adapter.mjs", "server.mjs"],
+    env: {
+      CONNECTOR_BROWSER4_ENABLED: "true",
+      BROWSER4_ALLOWED_HOSTS: "mad4b.com,n8n.mad4b.com",
+      BROWSER4_WORK_DIR: "D:\\n8n-data\\browser-runtime-artifacts",
+      BROWSER4_JAVA_HOME: "D:\\n8n-data\\browser-runtime\\jre17\\jdk-17.0.19+10-jre",
+      BROWSER4_SERVER_URL: "http://localhost:8182",
+    },
+    install_policy: {
+      allowlisted_domains_only: true,
+      no_raw_shell_surface: true,
+      no_secret_return: true,
+      governed_runtime_binding_required: true,
+    },
+  },
+];
 
 const DEFAULT_WINDOWS_ALIASES = [
   { alias: "node_ver", cmd: "node", args: ["--version"], allow_extra_args: false, description: "Node.js version" },
@@ -107,6 +137,11 @@ function buildConnectorEnv({ connectorSecret, aliases, port }) {
     "CONNECTOR_APPS_ENABLED=true",
     "CONNECTOR_FETCH_UPLOAD_ENABLED=true",
     "CONNECTOR_N8N_ENABLED=true",
+    "CONNECTOR_BROWSER4_ENABLED=true",
+    "BROWSER4_ALLOWED_HOSTS=mad4b.com,n8n.mad4b.com",
+    "BROWSER4_WORK_DIR=D:\\n8n-data\\browser-runtime-artifacts",
+    "BROWSER4_JAVA_HOME=D:\\n8n-data\\browser-runtime\\jre17\\jdk-17.0.19+10-jre",
+    "BROWSER4_SERVER_URL=http://localhost:8182",
     "N8N_COMMAND=D:\\npm-global\\n8n.cmd",
     "N8N_USER_FOLDER=D:\\n8n-data",
     "N8N_PORT=5678",
@@ -156,6 +191,7 @@ function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, 
     "Get-Mad4BManifestFile -Name 'connector-safe-upgrade.ps1' -OutFile $SafeUpgradePs1",
     "Get-Mad4BManifestFile -Name 'db-restore-certifier.mjs' -OutFile $DbRestoreCertifier",
     "Get-Mad4BManifestFile -Name 'n8n-restore-certifier.mjs' -OutFile $N8nRestoreCertifier",
+    "if ($Manifest.files.'browser4-adapter.mjs') { Get-Mad4BManifestFile -Name 'browser4-adapter.mjs' -OutFile (Join-Path $Root 'browser4-adapter.mjs') }",
     "Copy-Item -LiteralPath $ServerMjs -Destination (Join-Path $Root 'server.mjs.stable') -Force",
     "",
     "$EnvText = @'",
@@ -362,6 +398,8 @@ export function buildConnectorAgentRoutes() {
           has_watchdog: true,
           has_safe_upgrade: true,
           has_n8n_lifecycle: true,
+          has_local_tool_releases: true,
+          local_tool_count: LOCAL_TOOL_RELEASES.length,
         },
         secrets_included: false,
       });
@@ -393,12 +431,19 @@ export function buildConnectorAgentRoutes() {
         minimum_watchdog_version: "2026.05.18.1",
         generated_at: new Date().toISOString(),
         files,
+        local_tools: {
+          owner_app: "mad4b-local-manager",
+          release_model: "manifest_driven_allowlisted_tools",
+          install_scope: "per_user_device",
+          tools: LOCAL_TOOL_RELEASES,
+        },
         upgrade_policy: {
           verify_sha256: true,
           node_check_required: true,
           backup_before_replace: true,
           health_check_required: true,
           rollback_on_failed_health: true,
+          local_tool_release_owner: "mad4b-local-manager",
         },
       });
     } catch (err) {
