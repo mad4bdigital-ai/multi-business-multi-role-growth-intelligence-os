@@ -460,17 +460,70 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
   const gptSessions = Array.isArray(options.gpt_sessions) ? options.gpt_sessions : [];
   const gptSessionIds = gptSessions.map((row) => row.session_id).filter(Boolean);
 
-  const summaries = await safeQuery(
-    `SELECT summary_id, session_id, tenant_id, user_id, workspace_key, summary_text,
-            tasks_completed, blockers, feature_requests, integration_needs,
-            complexity, turn_count, created_at
-       FROM \`session_summaries\`
-      WHERE tenant_id = ?
-        AND (? IS NULL OR user_id = ?)
-      ORDER BY created_at DESC
-      LIMIT ${limit}`,
-    [tenantId, userId, userId]
-  );
+  let summaryMemory = {
+    ok: false,
+    count: 0,
+    items: [],
+    source: "session_summary_graph_memory",
+    fallback_used: false,
+    error: null,
+    secrets_included: false,
+  };
+  let summaries = { ok: true, rows: [], source: "session_summary_graph_memory" };
+  try {
+    summaryMemory = await loadSessionSummaryGraphMemory({
+      pool,
+      tenant_id: tenantId,
+      user_id: userId,
+      limit,
+    });
+    summaries = {
+      ok: summaryMemory.ok !== false,
+      rows: (summaryMemory.items || []).map((item) => ({
+        summary_id: item.summary_id,
+        session_id: item.session_id,
+        tenant_id: item.tenant_id,
+        user_id: item.user_id,
+        workspace_key: item.workspace_key,
+        summary_text: item.summary_text,
+        tasks_completed: JSON.stringify(item.tasks_completed || []),
+        blockers: JSON.stringify(item.blockers || []),
+        feature_requests: JSON.stringify(item.feature_requests || []),
+        integration_needs: JSON.stringify(item.integration_needs || []),
+        complexity: item.complexity || null,
+        turn_count: item.turn_count || 0,
+        created_at: item.created_at,
+        graph_edge_id: item.graph_edge_id || null,
+        graph_topology_present: item.graph_topology_present === true,
+      })),
+      source: "session_summary_graph_memory",
+      graph_memory: summaryMemory,
+    };
+  } catch (err) {
+    summaryMemory = {
+      ok: false,
+      count: 0,
+      items: [],
+      source: "session_summary_graph_memory",
+      fallback_used: true,
+      error: { code: err.code || "session_summary_graph_memory_failed", message: err.message },
+      secrets_included: false,
+    };
+    summaries = await safeQuery(
+      `SELECT summary_id, session_id, tenant_id, user_id, workspace_key, summary_text,
+              tasks_completed, blockers, feature_requests, integration_needs,
+              complexity, turn_count, created_at
+         FROM \`session_summaries\`
+        WHERE tenant_id = ?
+          AND (? IS NULL OR user_id = ?)
+        ORDER BY created_at DESC
+        LIMIT ${limit}`,
+      [tenantId, userId, userId]
+    );
+    summaries.source = "session_summaries_sql_fallback";
+    summaries.fallback_used = true;
+    summaries.fallback_reason = summaryMemory.error;
+  }
 
   const referencedRefs = [];
   for (const task of pendingTasks) {
