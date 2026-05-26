@@ -11,6 +11,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import {
+  buildBrowser4InspectionScript,
+  parseBrowser4AllowedHosts,
+  sanitizeBrowser4Checks,
+  validateBrowser4Url,
+} from './browser4-adapter.mjs';
 
 // ---------------------------------------------------------------------------
 // Bootstrap â€” manual .env parse (no dotenv dependency)
@@ -89,6 +95,15 @@ const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID ?? '';
 const CF_ZONE_ID = process.env.CF_ZONE_ID ?? '';
 const DEPENDENCIES_ENABLED = process.env.CONNECTOR_DEPENDENCIES_ENABLED === 'true';
 const APPS_ENABLED = process.env.CONNECTOR_APPS_ENABLED === 'true';
+const BROWSER4_ENABLED = process.env.CONNECTOR_BROWSER4_ENABLED === 'true';
+const BROWSER4_WORK_DIR = process.env.BROWSER4_WORK_DIR ?? (process.platform === 'win32'
+  ? 'D:\\n8n-data\\browser-runtime-artifacts'
+  : path.join(os.homedir(), '.browser4-runtime-artifacts'));
+const BROWSER4_JAVA_HOME = process.env.BROWSER4_JAVA_HOME ?? (process.platform === 'win32'
+  ? 'D:\\n8n-data\\browser-runtime\\jre17\\jdk-17.0.19+10-jre'
+  : '');
+const BROWSER4_SERVER_URL = process.env.BROWSER4_SERVER_URL ?? 'http://localhost:8182';
+const BROWSER4_ALLOWED_HOSTS = parseBrowser4AllowedHosts(process.env.BROWSER4_ALLOWED_HOSTS ?? 'mad4b.com,n8n.mad4b.com');
 
 const DEFAULT_DEPENDENCY_ALLOWLIST = {
   gh: {
@@ -595,6 +610,8 @@ function policyBody() {
       dependencies_enabled: DEPENDENCIES_ENABLED,
       cloudflare_enabled: CF_ENABLED,
       fetch_upload_enabled: FETCH_UPLOAD_ENABLED,
+      browser4_enabled: BROWSER4_ENABLED,
+      browser4_allowed_hosts: BROWSER4_ALLOWED_HOSTS,
     },
     secrets_included: false,
   };
@@ -1019,6 +1036,43 @@ $scaled.Save($m,[System.Drawing.Imaging.ImageFormat]::Jpeg)
   }
 
   return err(res, 400, 'UNKNOWN_ACTION', 'action must be "list", "open_url", or "screenshot"');
+}
+
+async function handleBrowser4(req, res) {
+  if (!BROWSER4_ENABLED) return err(res, 403, 'DISABLED', 'Browser4 endpoint is disabled on this connector');
+  if (!requireAuth(req, res)) return;
+  let body;
+  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
+  const { action, url, checks = ['snapshot'], inspection_key, timeout_ms } = body;
+  if (action === 'status') {
+    audit(req, { action: 'browser4:status' });
+    const timeoutMs = clampTimeout(timeout_ms, 30000);
+    const javaScript = BROWSER4_JAVA_HOME
+      ? `$env:JAVA_HOME=${JSON.stringify(BROWSER4_JAVA_HOME)};$env:PATH=(Join-Path $env:JAVA_HOME 'bin')+';'+$env:PATH; java -version 2>&1 | Select-Object -First 1`
+      : `java -version 2>&1 | Select-Object -First 1`;
+    const cliScript = `npx -y browser4-cli --version 2>&1 | Select-Object -First 1`;
+    try {
+      const java = await runPs(javaScript, timeoutMs);
+      const cli = await runPs(cliScript, timeoutMs);
+      return ok(res, { browser4_enabled: true, work_dir: BROWSER4_WORK_DIR, java_home: BROWSER4_JAVA_HOME || null, server_url: BROWSER4_SERVER_URL, allowed_hosts: BROWSER4_ALLOWED_HOSTS, java_version: String(java.stdout || java.stderr || '').trim().slice(0, 500), browser4_cli_version: String(cli.stdout || cli.stderr || '').trim().slice(0, 500), secrets_included: false });
+    } catch (e) { return err(res, 500, 'BROWSER4_STATUS_ERROR', e.message); }
+  }
+  if (action === 'inspect_site') {
+    let target; let sanitizedChecks;
+    try { target = validateBrowser4Url(url, BROWSER4_ALLOWED_HOSTS); sanitizedChecks = sanitizeBrowser4Checks(checks); }
+    catch (e) { return json(res, e.status || 400, { ok: false, error: { code: e.code || 'BROWSER4_VALIDATION_ERROR', message: e.message, details: e.details || null }, secrets_included: false }); }
+    const runKey = inspection_key || `browser4_${Date.now()}`;
+    const timeoutMs = clampTimeout(timeout_ms, 180000);
+    audit(req, { action: 'browser4:inspect_site', host: target.host, checks: sanitizedChecks, run_key: runKey });
+    const built = buildBrowser4InspectionScript({ url: target.url, checks: sanitizedChecks, runKey, workDir: BROWSER4_WORK_DIR, javaHome: BROWSER4_JAVA_HOME, serverUrl: BROWSER4_SERVER_URL });
+    try {
+      const result = await runPs(built.script, timeoutMs);
+      let statusJson = null;
+      try { statusJson = JSON.parse(fs.readFileSync(built.artifacts.status_path, 'utf8').replace(/^\uFEFF/, '')); } catch { statusJson = null; }
+      return ok(res, { action: 'inspect_site', run_key: built.run_key, target_host: target.host, checks: built.checks, exit_code: result.exitCode, status: result.exitCode === 0 ? 'completed' : 'failed', status_json: statusJson, artifacts: built.artifacts, stdout_preview: String(result.stdout || '').slice(0, 2000), stderr_preview: String(result.stderr || '').slice(0, 2000), secrets_included: false });
+    } catch (e) { return err(res, 500, 'BROWSER4_INSPECT_ERROR', e.message); }
+  }
+  return err(res, 400, 'UNKNOWN_ACTION', 'action must be "status" or "inspect_site"');
 }
 
 async function handleFiles(req, res) {
@@ -1647,6 +1701,7 @@ const server = http.createServer(async (req, res) => {
     if (method === 'POST' && url === '/shell') return await handleShell(req, res);
     if (method === 'POST' && url === '/apps') return await handleApps(req, res);
     if (method === 'POST' && url === '/browser') return await handleBrowser(req, res);
+    if (method === 'POST' && url === '/browser4') return await handleBrowser4(req, res);
     if (method === 'POST' && url === '/files') return await handleFiles(req, res);
     if (method === 'POST' && url === '/fetch-upload') return await handleFetchUpload(req, res);
     if (method === 'POST' && url === '/shell-fetch-upload') return await handleShellFetchUpload(req, res);

@@ -21,7 +21,8 @@
     "GET /healthz",
     "GET /readyz",
     "GET /favicon.ico",
-    "GET /robots.txt"
+    "GET /robots.txt",
+    "POST /connector/{device_id}/browser4"
   ],
   "prefixes": [
     "/oauth",
