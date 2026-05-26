@@ -107,7 +107,7 @@ ${markdownList(keyTests.slice(0, 80).map((name) => `\`http-generic-api/${name}\`
 
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
   fs.writeFileSync(OUTPUT_PATH, content);
-  console.log(JSON.stringify({ ok: true, output: path.relative(REPO_ROOT, OUTPUT_PATH), generated_at: generatedAt }, null, 2));
+  console.log(JSON.stringify({ ok: true, output: path.relative(REPO_ROOT, OUTPUT_PATH), deterministic: true }, null, 2));
 }
 
 main();
