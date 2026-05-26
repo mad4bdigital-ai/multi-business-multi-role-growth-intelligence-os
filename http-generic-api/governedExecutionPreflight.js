@@ -116,7 +116,8 @@ export async function evaluateRepositoryMutationPreflight({ operation, args = []
 
     if (operation === "github_pr_merge") {
       if (pr?.mergeable === false && blockingAllowed) {
-        errors.push("pull_request_not_mergeable");
+        const mergeableState = String(pr?.mergeable_state || "").toLowerCase();
+        errors.push(mergeableState === "dirty" ? "pull_request_mergeable_state_dirty" : "pull_request_not_mergeable");
         blockingPolicies.push(policy);
         continue;
       }
