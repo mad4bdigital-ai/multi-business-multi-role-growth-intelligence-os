@@ -12,6 +12,7 @@ import {
   resolvePrivatePlatformPluginContribution,
 } from "../platformPluginContribution.js";
 import { dispatchPrivatePlatformPluginRestAction } from "../platformPluginPrivateRestDispatch.js";
+import { dispatchPlatformPluginRestAction } from "../platformPluginRestDispatch.js";
 import {
   certifyPlatformPluginContribution,
   promotePlatformPluginContribution,
