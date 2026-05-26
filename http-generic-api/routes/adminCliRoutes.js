@@ -575,9 +575,13 @@ async function githubRestJson({ owner, repo, apiPath, token, method = "GET", bod
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const err = new Error(payload?.message || `GitHub REST request failed with HTTP ${response.status}.`);
-    err.status = 502;
-    err.code = "github_rest_failed";
-    err.details = { status: response.status, apiPath };
+    err.status = response.status >= 400 && response.status < 500 ? response.status : 502;
+    err.code = response.status === 409
+      ? "github_rest_conflict"
+      : response.status === 422
+        ? "github_rest_validation_failed"
+        : "github_rest_failed";
+    err.details = { status: response.status, apiPath, github_error: payload || null };
     throw err;
   }
   return payload;
