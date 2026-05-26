@@ -136,6 +136,22 @@ function makePool() {
           repair_priority: "medium",
           updated_at: "2026-05-25T00:00:00.000Z",
         };
+        if (key === "surface.session_summary_memory") {
+          return [[{
+            ...common,
+            surface_id: "surface.session_summary_memory",
+            logical_surface_key: "surface.session_summary_memory",
+            surface_name: "Session Summary Memory",
+            owner_layer: "session_summary_runtime",
+            schema_ref: "session_summaries",
+            schema_version: "1",
+            binding_mode: "sql_runtime_authority",
+            sheet_role: "summary_memory_rows",
+            backend_adapter: "sessionSummaryService",
+            portability_class: "runtime_memory_summary",
+            repair_candidate_types: "surface_authority|summary_readback|graph_integrity",
+          }]];
+        }
         if (key === "surface.json_asset_registry_sheet") {
           return [[{
             ...common,
