@@ -336,7 +336,7 @@ function localManagerAppPage() {
         <div class="step"><div><strong>Install</strong><p>User downloads and installs Local Manager. No admin token is typed into this web page.</p></div></div>
         <div class="step"><div><strong>Sign in</strong><p>The installed app opens Mad4B login using OAuth, device-code login, or a one-time pairing code.</p></div></div>
         <div class="step"><div><strong>Link device</strong><p>The app asks the user to link the current machine. The backend creates scoped credentials for that device only.</p></div></div>
-        <div class="step"><div><strong>Manage</strong><p>The device appears in Local Manager with route health, backup probes, and recovery actions governed by the signed-in user role.</p></div></div>
+        <div class="step"><div><strong>Manage and upgrade tools</strong><p>The device appears in Local Manager with route health, backup probes, recovery actions, and manifest-driven local tool installation governed by the signed-in user role.</p></div></div>
       </div>
     </section>
 
