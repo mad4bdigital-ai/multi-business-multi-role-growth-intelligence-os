@@ -71,6 +71,14 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
     } catch (err) { return errorResponse(res, err, "platform_plugin_resolve_failed"); }
   });
 
+  router.post("/platform/action-manifest/resolve", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await resolveActionManifestDiagnostic(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "action_manifest_resolve_failed"); }
+  });
+
   router.post("/platform/plugins/install-policy", ...requireAdmin, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
