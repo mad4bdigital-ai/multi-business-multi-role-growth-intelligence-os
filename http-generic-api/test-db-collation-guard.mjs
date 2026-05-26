@@ -30,6 +30,14 @@ const pluginCollationMigration = readFileSync(
   join(__dirname, "migrations/142_sprint65_platform_plugin_collation_normalization.sql"),
   "utf8"
 );
+const pluginCollationHardeningMigration = readFileSync(
+  join(__dirname, "migrations/143_sprint65_platform_plugin_collation_hardening.sql"),
+  "utf8"
+);
+const pluginCollationHardeningWithoutComments = pluginCollationHardeningMigration
+  .split("\n")
+  .filter((line) => !line.trim().startsWith("--"))
+  .join("\n");
 
 for (const backupTable of [
   "collation_backup_app_integrations_20260526",
@@ -76,6 +84,32 @@ assert(
   "diagnostic view must detect non-canonical collations"
 );
 
+assert(
+  /ALTER\s+DATABASE\s+CHARACTER\s+SET\s+utf8mb4\s+COLLATE\s+utf8mb4_unicode_ci/i.test(pluginCollationHardeningMigration),
+  "hardening migration must set the database default for future plugin DDL"
+);
+assert(
+  pluginCollationHardeningMigration.includes("collation_backup_workspace_app_links_20260526"),
+  "hardening migration must snapshot workspace_app_links before mutation"
+);
+assert(
+  /ALTER\s+TABLE\s+workspace_app_links/i.test(pluginCollationHardeningMigration),
+  "hardening migration must normalize workspace_app_links"
+);
+for (const column of ["workspace_id", "workspace_key", "connection_id", "app_key", "tenant_id", "status"]) {
+  assert(pluginCollationHardeningMigration.includes(column), `hardening migration must mention workspace join key ${column}`);
+}
+assert(
+  pluginCollationHardeningMigration.includes("'workspace_app_links'") &&
+    pluginCollationHardeningMigration.includes("'connection_id'") &&
+    pluginCollationHardeningMigration.includes("'workspace_id'"),
+  "hardening diagnostic view must cover workspace app links and connection/workspace keys"
+);
+assert(
+  !/ALTER\s+TABLE[\s\S]*CONVERT\s+TO\s+CHARACTER\s+SET/i.test(pluginCollationHardeningWithoutComments),
+  "hardening migration must avoid broad ALTER TABLE CONVERT TO so JSON utf8mb4_bin columns stay intact"
+);
+
 for (const forbidden of [
   "encrypted_credentials",
   "api_key_value",
@@ -84,6 +118,7 @@ for (const forbidden of [
   "client_secret",
 ]) {
   assert(!pluginCollationMigration.toLowerCase().includes(forbidden.toLowerCase()), `migration must not alter secret payload fields: ${forbidden}`);
+  assert(!pluginCollationHardeningMigration.toLowerCase().includes(forbidden.toLowerCase()), `hardening migration must not alter secret payload fields: ${forbidden}`);
 }
 
 console.log("db collation guard tests passed");
