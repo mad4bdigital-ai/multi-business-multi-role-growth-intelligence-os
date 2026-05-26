@@ -167,6 +167,7 @@ export const SURFACE_KEYS = Object.freeze({
   WORKFLOW_REGISTRY: "surface.workflow_registry_sheet",
   ACTION_REGISTRY: "surface.actions_registry_sheet",
   ENDPOINT_REGISTRY: "surface.endpoint_registry_sheet",
+  TOOL_MANIFEST: "surface.platform_tool_manifest",
   EXECUTION_LOG: "surface.operations_log_unified_sheet",
   JSON_ASSET_REGISTRY: "surface.json_asset_registry_sheet",
   PLATFORM_GRAPH_MEMORY: "surface.platform_graph_memory",
