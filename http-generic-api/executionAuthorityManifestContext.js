@@ -39,7 +39,7 @@ function summarizeManifestResult(result = {}) {
   const summaries = manifests.map(summarizeManifestItem);
   const blockedReasons = summaries.flatMap((item) => item.action_reasons || []);
   return {
-    requested: result.requested || {},
+    manifest_requested: result.requested || {},
     resolver: result.resolver || null,
     mode: result.mode || null,
     count: Number(result.count || manifests.length || 0),
