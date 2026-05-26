@@ -397,6 +397,8 @@ export function buildConnectorAgentRoutes() {
           has_watchdog: true,
           has_safe_upgrade: true,
           has_n8n_lifecycle: true,
+          has_local_tool_releases: true,
+          local_tool_count: LOCAL_TOOL_RELEASES.length,
         },
         secrets_included: false,
       });
