@@ -8189,6 +8189,396 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { description: Device list read failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
+  /admin/connector-taxonomy/summary:
+    get:
+      tags: [admin-control]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: connectorTaxonomySummary
+      summary: Read connector taxonomy coverage summary
+      description: Read-only summary of connector family registry, app-action bindings, app-tool bindings, coverage counts, and taxonomy quality checks.
+      responses:
+        "200":
+          description: Connector taxonomy summary
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /admin/connector-taxonomy/app-map:
+    get:
+      tags: [admin-control]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: connectorTaxonomyAppMap
+      summary: Read app integration action capability map
+      parameters:
+        - { name: app_key, in: query, schema: { type: string } }
+        - { name: app_category, in: query, schema: { type: string } }
+        - { name: action_key, in: query, schema: { type: string } }
+        - { name: credential_source, in: query, schema: { type: string } }
+        - { name: exposure_default, in: query, schema: { type: string } }
+        - { name: only_unbound, in: query, schema: { type: boolean } }
+        - { name: only_connected, in: query, schema: { type: boolean } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+      responses:
+        "200":
+          description: Connector app map
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /admin/connector-taxonomy/tool-map:
+    get:
+      tags: [admin-control]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: connectorTaxonomyToolMap
+      summary: Read app integration governed tool binding map
+      parameters:
+        - { name: app_key, in: query, schema: { type: string } }
+        - { name: app_category, in: query, schema: { type: string } }
+        - { name: tool_key, in: query, schema: { type: string } }
+        - { name: tool_surface, in: query, schema: { type: string } }
+        - { name: binding_role, in: query, schema: { type: string } }
+        - { name: credential_source, in: query, schema: { type: string } }
+        - { name: exposure_scope, in: query, schema: { type: string } }
+        - { name: only_bound, in: query, schema: { type: boolean } }
+        - { name: only_connected, in: query, schema: { type: boolean } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+      responses:
+        "200":
+          description: Connector tool map
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /admin/connector-taxonomy/family-coverage:
+    get:
+      tags: [admin-control]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: connectorTaxonomyFamilyCoverage
+      summary: Read connector family coverage report
+      parameters:
+        - { name: connector_family, in: query, schema: { type: string } }
+        - { name: provider_family, in: query, schema: { type: string } }
+        - { name: protocol_type, in: query, schema: { type: string } }
+        - { name: runtime_layer, in: query, schema: { type: string } }
+        - { name: registry_status, in: query, schema: { type: string } }
+        - { name: only_in_use, in: query, schema: { type: boolean } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+      responses:
+        "200":
+          description: Connector family coverage
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /platform/plugins/catalog:
+    get:
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginCatalog
+      summary: Read Platform Plugin catalog
+      parameters:
+        - { name: tenant_id, in: query, schema: { type: string } }
+        - { name: user_id, in: query, schema: { type: string } }
+        - { name: include_inactive, in: query, schema: { type: boolean, default: false } }
+        - { name: include_bindings, in: query, schema: { type: boolean, default: true } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
+      responses:
+        "200":
+          description: Platform Plugin catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /platform/plugins/resolve:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginResolve
+      summary: Resolve Platform Plugin execution preview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plugin_key]
+              additionalProperties: true
+              properties:
+                plugin_key: { type: string }
+                action_key: { type: string }
+                tool_key: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                agent_id: { type: string }
+                requested_credential_scope: { type: string }
+      responses:
+        "200":
+          description: Platform Plugin resolver preview
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /platform/plugins/install-policy:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginPolicyUpsert
+      summary: Upsert Platform Plugin tenant policy overlay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, plugin_key]
+              additionalProperties: true
+              properties:
+                tenant_id: { type: string }
+                plugin_key: { type: string }
+                source_mode: { type: string, enum: [managed, dedicated], default: managed }
+                fallback_allowed: { type: boolean, default: false }
+                required_for_device_install: { type: boolean, default: false }
+                notes: { type: string, maxLength: 1000 }
+                user_id: { type: string }
+      responses:
+        "200":
+          description: Tenant policy overlay upserted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /platform/plugins/install:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginInstall
+      summary: Install Platform Plugin for tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, plugin_key]
+              additionalProperties: true
+              properties:
+                tenant_id: { type: string }
+                user_id: { type: string }
+                plugin_key: { type: string }
+                source_mode: { type: string, enum: [managed, dedicated], default: dedicated }
+                fallback_allowed: { type: boolean, default: false }
+                required_for_device_install: { type: boolean, default: false }
+                notes: { type: string, maxLength: 1000 }
+                connection: { type: object, additionalProperties: true }
+      responses:
+        "200":
+          description: Plugin installed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /platform/plugins/contributions:
+    get:
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionList
+      summary: List Platform Plugin contributions
+      parameters:
+        - { name: tenant_id, in: query, schema: { type: string } }
+        - { name: user_id, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+      responses:
+        "200":
+          description: Contribution list
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionCreate
+      summary: Create Platform Plugin contribution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plugin_key, display_name]
+              additionalProperties: true
+      responses:
+        "200":
+          description: Contribution created
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
+  /platform/plugins/contributions/{contribution_id}:
+    get:
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionGet
+      summary: Get Platform Plugin contribution
+      parameters:
+        - name: contribution_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Contribution detail
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
+  /platform/plugins/contributions/certify:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionCertify
+      summary: Certify Platform Plugin contribution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [contribution_id], additionalProperties: true }
+      responses:
+        "200":
+          description: Contribution certified
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
+  /platform/plugins/contributions/promote:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionPromote
+      summary: Promote Platform Plugin contribution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [contribution_id], additionalProperties: true }
+      responses:
+        "200":
+          description: Contribution promoted
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
+  /platform/plugins/contributions/activate-private:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionPrivateActivate
+      summary: Activate private Platform Plugin contribution runtime
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [contribution_id], additionalProperties: true }
+      responses:
+        "200":
+          description: Private runtime activated
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
+  /platform/plugins/contributions/resolve-private:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionPrivateResolve
+      summary: Resolve private Platform Plugin contribution runtime
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200":
+          description: Private runtime resolved
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
+  /platform/plugins/contributions/dispatch-rest:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionPrivateDispatchRest
+      summary: Dispatch private Platform Plugin REST action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [contribution_id, action_key, tenant_id, user_id], additionalProperties: true }
+      responses:
+        "200":
+          description: Private REST dispatch result
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
   /tenant/platform/plugins/catalog:
     get:
       tags: [platform-plugins]
