@@ -34,7 +34,37 @@ const FILES = {
     contentType: "text/javascript; charset=utf-8",
     executable: false,
   },
+  "browser4-adapter.mjs": {
+    relativePath: "local-connector/browser4-adapter.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
 };
+
+const LOCAL_TOOL_RELEASES = [
+  {
+    tool_key: "browser4",
+    display_name: "Browser4 Local Adapter",
+    owner_app: "mad4b-local-manager",
+    install_kind: "connector_agent_manifest",
+    status: "active",
+    platform: "windows",
+    files: ["browser4-adapter.mjs", "server.mjs"],
+    env: {
+      CONNECTOR_BROWSER4_ENABLED: "true",
+      BROWSER4_ALLOWED_HOSTS: "mad4b.com,n8n.mad4b.com",
+      BROWSER4_WORK_DIR: "D:\\n8n-data\\browser-runtime-artifacts",
+      BROWSER4_JAVA_HOME: "D:\\n8n-data\\browser-runtime\\jre17\\jdk-17.0.19+10-jre",
+      BROWSER4_SERVER_URL: "http://localhost:8182",
+    },
+    install_policy: {
+      allowlisted_domains_only: true,
+      no_raw_shell_surface: true,
+      no_secret_return: true,
+      governed_runtime_binding_required: true,
+    },
+  },
+];
 
 const DEFAULT_WINDOWS_ALIASES = [
   { alias: "node_ver", cmd: "node", args: ["--version"], allow_extra_args: false, description: "Node.js version" },
