@@ -26,7 +26,7 @@ assert(docsScript.includes("Maintenance Contract"), "planning docs updater must 
 assert(workflow.includes("repo-maintenance-sync.mjs --write"), "OpenAPI auto-sync workflow must call maintenance sync orchestrator");
 assert(workflow.includes("--report-file \"$RUNNER_TEMP/repo-maintenance-sync-result.json\""), "workflow must keep maintenance reports out of the repository diff");
 assert(!workflow.includes("repo-maintenance-sync-result.json; then"), "workflow must not include root report file in generated diff check");
-assert(!workflow.includes("http-generic-api/openapi.*.yaml \\\"), "workflow must not auto-commit split schemas by default");
+assert(!workflow.includes("http-generic-api/openapi.*.yaml"), "workflow must not auto-commit split schemas by default");
 assert(workflow.includes("docs/**/*.md"), "workflow must react to docs markdown maintenance files");
 assert(workflow.includes("REPO_AUTOSYNC_TOKEN"), "workflow must support an optional stronger PR creation token");
 assert(workflow.includes("continue-on-error: true"), "workflow must not fail when repository settings block Actions-created PRs");
