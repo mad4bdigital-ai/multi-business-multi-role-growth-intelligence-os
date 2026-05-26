@@ -775,6 +775,11 @@ async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }
 }
 
 export async function writeSessionSummary({ pool = getPool(), session, insight, run_id = null }) {
+  const summarySurfaceAuthority = await assertSurfaceAuthority(
+    SURFACE_KEYS.SESSION_SUMMARY_MEMORY,
+    { requireExecution: true },
+    { pool }
+  );
   const summaryId = randomUUID();
   await pool.query(
     `INSERT INTO \`session_summaries\`
