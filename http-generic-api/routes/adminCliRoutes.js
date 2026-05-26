@@ -501,6 +501,36 @@ function parseGithubJsonFields(args = []) {
   return raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [];
 }
 
+function parseGithubApiMethod(args = []) {
+  return String(parseCliFlag(args, ["-X", "--method"]) || "GET").trim().toUpperCase() || "GET";
+}
+
+function parseGithubFieldValues(args = []) {
+  const values = {};
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] !== "-f" && args[i] !== "--field") continue;
+    const raw = String(args[i + 1] || "");
+    if (!raw) continue;
+    let key;
+    let value;
+    if (raw.includes("=")) {
+      const idx = raw.indexOf("=");
+      key = raw.slice(0, idx);
+      value = raw.slice(idx + 1);
+    } else {
+      key = raw;
+      value = String(args[i + 2] || "");
+      i += 1;
+    }
+    if (!key) continue;
+    if (value === "true") values[key] = true;
+    else if (value === "false") values[key] = false;
+    else values[key] = value;
+    i += 1;
+  }
+  return values;
+}
+
 function mapGithubRunForGhJson(run, fields = []) {
   const mapped = {
     databaseId: run.id,
@@ -575,9 +605,13 @@ async function githubRestJson({ owner, repo, apiPath, token, method = "GET", bod
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const err = new Error(payload?.message || `GitHub REST request failed with HTTP ${response.status}.`);
-    err.status = 502;
-    err.code = "github_rest_failed";
-    err.details = { status: response.status, apiPath };
+    err.status = response.status >= 400 && response.status < 500 ? response.status : 502;
+    err.code = response.status === 409
+      ? "github_rest_conflict"
+      : response.status === 422
+        ? "github_rest_validation_failed"
+        : "github_rest_failed";
+    err.details = { status: response.status, apiPath, github_error: payload || null };
     throw err;
   }
   return payload;
@@ -702,15 +736,29 @@ async function executeGitHubRestFallback(args = []) {
     const repoPrefix = `repos/${owner}/${repo}`;
     if (apiTarget.startsWith(repoPrefix)) apiTarget = apiTarget.slice(repoPrefix.length);
     if (!apiTarget.startsWith("/")) apiTarget = `/${apiTarget}`;
-    const allowed = apiTarget.startsWith("/compare/") || apiTarget.startsWith("/pulls") || apiTarget.startsWith("/commits/");
-    if (!allowed) {
-      const err = new Error("GitHub REST API fallback only supports repo-scoped compare, pulls, commits, branches, and branch-ref delete operations.");
+    const method = parseGithubApiMethod(args);
+    const fieldValues = parseGithubFieldValues(args);
+    const allowedRead = method === "GET" && (apiTarget.startsWith("/compare/") || apiTarget.startsWith("/pulls") || apiTarget.startsWith("/commits/"));
+    const allowedMutation = ["POST", "PUT", "PATCH"].includes(method) && (
+      /^\/pulls\/\d+\/update-branch$/.test(apiTarget)
+      || /^\/pulls\/\d+\/merge$/.test(apiTarget)
+      || apiTarget === "/merges"
+    );
+    if (!allowedRead && !allowedMutation) {
+      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, and repo merges mutations.");
       err.status = 501;
       err.code = "github_rest_api_unsupported_path";
-      err.details = { apiTarget };
+      err.details = { apiTarget, method };
       throw err;
     }
-    const payload = await githubRestJson({ owner, repo, apiPath: apiTarget, token });
+    const payload = await githubRestJson({
+      owner,
+      repo,
+      apiPath: apiTarget,
+      token,
+      method,
+      body: allowedMutation ? fieldValues : null,
+    });
     const output = apiTarget.startsWith("/compare/")
       ? {
           url: payload.url,
@@ -813,6 +861,21 @@ async function executeGitHubRestFallback(args = []) {
     const prNumber = parseGithubPrNumber(firstGithubPositional(args, 2));
     const mergeMethod = hasCliFlag(args, "--squash") ? "squash" : hasCliFlag(args, "--rebase") ? "rebase" : "merge";
     const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
+    if (pr?.mergeable === false || String(pr?.mergeable_state || "").toLowerCase() === "dirty") {
+      const err = new Error("Pull request is not mergeable. Resolve conflicts or recreate the branch from the current base before merging.");
+      err.status = 409;
+      err.code = "github_pr_not_mergeable_dirty";
+      err.details = {
+        number: Number(prNumber),
+        mergeable: pr?.mergeable ?? null,
+        mergeable_state: pr?.mergeable_state || null,
+        head_ref: pr?.head?.ref || null,
+        head_sha: pr?.head?.sha || null,
+        base_ref: pr?.base?.ref || null,
+        base_sha: pr?.base?.sha || null,
+      };
+      throw err;
+    }
     const mergeResult = await githubRestJson({
       owner,
       repo,
