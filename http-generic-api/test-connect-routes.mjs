@@ -538,6 +538,20 @@ section("connect api auth scope");
           readFileSync("migrations/139_sprint65_session_summary_memory_surface.sql", "utf8").includes("required_for_execution") &&
           readFileSync("migrations/139_sprint65_session_summary_memory_surface.sql", "utf8").includes("'TRUE'");
       })());
+    assert("activation session context uses graph-backed session summary memory",
+      (() => {
+        const activationSource = readFileSync("routes/activationRoutes.js", "utf8");
+        const contextIndex = activationSource.indexOf("async function loadConversationMemoryContext");
+        const resolverIndex = activationSource.indexOf("loadSessionSummaryGraphMemory", contextIndex);
+        const fallbackIndex = activationSource.indexOf("session_summaries_sql_fallback", contextIndex);
+        return activationSource.includes("import { loadSessionSummaryGraphMemory }") &&
+          contextIndex >= 0 && resolverIndex > contextIndex && fallbackIndex > resolverIndex &&
+          activationSource.includes("prefer_graph_backed_session_summary_memory_then_sql_fallback") &&
+          activationSource.includes("session_summary_memory") &&
+          activationSource.includes("graph_backed_session_summaries") &&
+          activationSource.includes("session_summary_fallback_used") &&
+          activationSource.includes("secrets_included: false");
+      })());
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
