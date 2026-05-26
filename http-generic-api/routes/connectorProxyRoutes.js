@@ -617,6 +617,24 @@ async function proxyToDevice(req, res, deviceId, targetPath) {
       const errorMessage = attempt?.data?.error?.message || null;
       attempts.push({ ...meta, status, error_code: errorCode });
 
+      if (status === 403 && errorCode === "DISABLED") {
+        // The route is reachable and connector auth was sufficient to get a structured
+        // capability response. Optional break-glass capabilities such as /ps or /win
+        // may be intentionally disabled. Treat that as a capability state, not a
+        // route/auth failure, so Browser4 or health-capable routes are not marked
+        // degraded by a disabled optional endpoint.
+        await markRouteSuccess(route);
+        if (attempt.data && typeof attempt.data === "object" && !Array.isArray(attempt.data)) {
+          return res.status(status).json({
+            ...attempt.data,
+            connector_route: meta,
+            connector_route_attempts: attempts,
+            connector_capability_status: "disabled",
+          });
+        }
+        return res.status(status).send(attempt.data);
+      }
+
       if ([401, 403].includes(status)) {
         await markRouteFailure(route, "connector_auth_failed", errorMessage || "Connector rejected all configured auth tokens.");
         continue;
