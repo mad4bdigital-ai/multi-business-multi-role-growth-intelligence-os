@@ -5,6 +5,7 @@ const syncScript = readFileSync("scripts/repo-maintenance-sync.mjs", "utf8");
 const docsScript = readFileSync("scripts/update-repo-planning-docs.mjs", "utf8");
 const autofillTest = readFileSync("test-openapi-autofill-missing-routes.mjs", "utf8");
 const workflow = readFileSync("../.github/workflows/openapi-auto-sync.yml", "utf8");
+const permissionRunbook = readFileSync("../docs/repo-autosync-permissions.md", "utf8");
 
 assert(syncScript.includes("openapi-autofill-missing-routes.mjs"), "maintenance sync must run OpenAPI autofill");
 assert(syncScript.includes("split-openapi.mjs"), "maintenance sync must know how to regenerate split OpenAPI schemas");
