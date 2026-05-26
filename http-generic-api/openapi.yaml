@@ -2239,6 +2239,75 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /local-connector/install/download-link:
+    post:
+      tags: [local-manager]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: createAdminLocalConnectorInstallerDownloadLink
+      summary: Create admin Local Connector installer download link
+      description: >
+        Creates a short-lived signed installer download URL for a user/device
+        without returning live tunnel or backend credentials in the response.
+        Use this from Local Manager admin tools or governed GPT admin surfaces,
+        not by opening a raw unauthenticated URL in a browser.
+      x-openai-isConsequential: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [user_id, tenant_id, device_id]
+              properties:
+                user_id: { type: string }
+                tenant_id: { type: string }
+                device_id: { type: string }
+                ttl_minutes:
+                  type: integer
+                  minimum: 5
+                  maximum: 120
+                  default: 30
+                format:
+                  type: string
+                  enum: [ps1, bat]
+                  default: ps1
+      responses:
+        "200":
+          description: Signed installer download link with sanitized metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  download_url: { type: string }
+                  expires_at: { type: string, format: date-time }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400":
+          description: Invalid installer download request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Admin authentication required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Admin authorization required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Installer link creation failure
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /local-connector/install/device-download-link:
     post:
       tags: [local-manager]
