@@ -209,6 +209,42 @@ async function checkSkillGrant({ pool, agentId, tenantId, requiredSkillKey }) {
   };
 }
 
+async function checkActionGrant({ pool, pluginKey, actionKey, agentId, credential }) {
+  if (!actionKey) return { required: false, granted: true, grant_id: null, reason: "no_action_requested" };
+  if (!credential?.connection_id) {
+    return {
+      required: true,
+      granted: false,
+      grant_id: null,
+      reason: "connection_id_required_for_action_grant",
+    };
+  }
+  const rows = await safeQuery(
+    pool,
+    `SELECT grant_id, grant_mode, agent_id, expires_at
+       FROM app_action_grants
+      WHERE connection_id = ?
+        AND app_key = ?
+        AND action_key = ?
+        AND status = 'active'
+        AND (expires_at IS NULL OR expires_at > NOW())
+        AND (? IS NULL OR agent_id IS NULL OR agent_id = ?)
+      ORDER BY CASE WHEN agent_id = ? THEN 0 ELSE 1 END, created_at DESC
+      LIMIT 1`,
+    [credential.connection_id, pluginKey, actionKey, agentId || null, agentId || null, agentId || null]
+  );
+  const grant = rows[0] || null;
+  return {
+    required: true,
+    granted: Boolean(grant),
+    grant_id: grant?.grant_id || null,
+    grant_mode: grant?.grant_mode || null,
+    agent_id: grant?.agent_id || null,
+    expires_at: grant?.expires_at || null,
+    reason: grant ? "action_grant_active" : "action_grant_required",
+  };
+}
+
 async function loadPluginRows({ pool, pluginKey, tenantId, userId }) {
   const pluginRows = await safeQuery(
     pool,
