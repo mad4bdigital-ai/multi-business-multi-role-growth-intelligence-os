@@ -90,7 +90,10 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
 
   router.post("/platform/plugins/action-templates", ...requireAdmin, async (req, res) => {
     try {
-      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const body = req.body && typeof req.body === "object" ? req.body : {};
+      const input = body.tool_args && typeof body.tool_args === "object"
+        ? body.tool_args
+        : (body.arguments && typeof body.arguments === "object" ? body.arguments : body);
       const result = await upsertPlatformPluginActionTemplate({
         contributionId: input.contribution_id || input.contributionId || null,
         pluginKey: input.plugin_key || input.pluginKey || null,
