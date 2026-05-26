@@ -312,6 +312,74 @@ function buildOpenClaudeRepoAnalysisCommandPlan({ runtime = {}, signal = {}, rep
   };
 }
 
+function safeParseJsonObject(value) {
+  if (!value) return {};
+  if (typeof value === "object" && !Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function buildCodexInteractiveReadOnlyExecutionEnvelope({ runtime = {}, profile = {}, signal = {}, prompt = "", repoPath = "" } = {}) {
+  const runtimePolicy = safeParseJsonObject(runtime.policy_json);
+  const profilePolicy = safeParseJsonObject(profile.policy_json);
+  const resolvedRepoPath = repoPath || runtimePolicy.repo_path || "D:\\mad4b-agent-workspaces\\growth-intelligence-os-readonly";
+  const resolvedPrompt = clampText(prompt || [
+    "Run a read-only Codex repo analysis for the Growth Intelligence Platform.",
+    "Do not edit files. Do not run commands that mutate state. Do not reveal secrets.",
+    "Return a concise patch plan only: relevant files, likely migration/tests, risks, and acceptance criteria.",
+    signal?.title ? `Signal: ${signal.title}` : "Signal: none",
+    signal?.evidence_text ? `Evidence: ${clampText(signal.evidence_text, 1200)}` : "",
+  ].filter(Boolean).join("\n"), 4000);
+  return {
+    adapter: "codex_interactive_user_read_only_execution_envelope_v1",
+    runtime_key: runtime.runtime_key || "codex_essam_chatgpt_v1",
+    profile_key: profile.profile_key || "codex_essam_chatgpt_oauth_v1",
+    device_id: runtime.device_id || "essam-pc",
+    interactive_user: runtimePolicy.interactive_user || "essam\\it",
+    auth_mode: runtimePolicy.auth_mode || "chatgpt_oauth",
+    auth_status: runtimePolicy.auth_status || "unknown",
+    command_path: runtime.command_hint || runtimePolicy.interactive_command_path || "C:\\Users\\IT\\AppData\\Roaming\\npm\\codex.cmd",
+    working_directory: resolvedRepoPath,
+    argv: [
+      "exec",
+      "--cd",
+      resolvedRepoPath,
+      "--sandbox",
+      "read-only",
+      "--ask-for-approval",
+      "never",
+      "--color",
+      "never",
+      "--ephemeral",
+      resolvedPrompt,
+    ],
+    powershell_example: `& "${runtime.command_hint || runtimePolicy.interactive_command_path || "C:\\Users\\IT\\AppData\\Roaming\\npm\\codex.cmd"}" exec --cd "${resolvedRepoPath}" --sandbox read-only --ask-for-approval never --color never --ephemeral "${resolvedPrompt.replace(/"/g, '\\"')}"`,
+    allowed_capabilities: ["repo_read", "analysis", "patch_plan"],
+    denied_capabilities: ["file_write", "shell_mutation", "git_push", "git_commit", "apply_patch", "secret_read"],
+    execution_ready: runtimePolicy.auth_status === "logged_in_user_verified" || profile.status === "available",
+    execution_attempted: false,
+    execution_status: "approved_envelope_only",
+    stdout: null,
+    stderr: null,
+    exit_code: null,
+    auto_execute_code: false,
+    auto_mutate_repo: false,
+    local_execution_attempted: false,
+    copy_platform_secret_to_device: false,
+    secrets_included: false,
+    policy: {
+      runtime_can_mutate_repo: Boolean(runtimePolicy.can_mutate_repo),
+      profile_can_mutate_repo: Boolean(profilePolicy.can_mutate_repo),
+      requires_interactive_user_context: true,
+      connector_service_context_supported: false,
+    },
+  };
+}
+
 function inferSignalPriority(type, evidence = "") {
   const text = String(evidence || "").toLowerCase();
   if (/security|secret|token|credential|auth|blocked|critical|production|canonical|فشل|خطر|سري/.test(text)) return "high";
@@ -1119,6 +1187,127 @@ export function buildDevAgentRoutes(deps) {
         [runId, `summary_dev_provider_bridge_dry_run_${runId}`, requestedBy, JSON.stringify({ code: err.code || "provider_bridge_dry_run_failed", message: String(err.message || err).slice(0, 240) })]
       ).catch(() => {});
       return res.status(500).json({ ok: false, error: { code: err.code || "provider_bridge_dry_run_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/dev-agent/summary-development/codex-interactive-execution-envelope", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const runId = randomUUID();
+    const runtimeKey = String(body.runtime_key || "codex_essam_chatgpt_v1").trim();
+    const profileKey = String(body.profile_key || "codex_essam_chatgpt_oauth_v1").trim();
+    const signalId = String(body.signal_id || "").trim() || null;
+    const requestedBy = String(body.requested_by || body.user_id || "").trim() || null;
+    const repoPath = String(body.repo_path || "").trim();
+    const prompt = normalizeProviderBridgePrompt(body.prompt || body.analysis_goal || "Create a read-only Codex patch plan for the current platform repository.");
+
+    try {
+      const [runtimeRows] = await pool.query(
+        `SELECT runtime_key, display_name, runtime_type, provider_key, execution_surface,
+                device_id, command_hint, policy_json, status, notes
+         FROM \`dev_agent_runtime_registry\`
+         WHERE runtime_key = ?
+         LIMIT 1`,
+        [runtimeKey]
+      );
+      const runtime = runtimeRows[0];
+      if (!runtime) {
+        return res.status(404).json({ ok: false, error: { code: "codex_runtime_not_found", message: "runtime_key was not found." }, secrets_included: false });
+      }
+      if (runtime.provider_key !== "codex" || runtime.runtime_type !== "local_coding_agent") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "codex_runtime_required", message: "Only Codex local coding-agent runtimes are supported." }, secrets_included: false });
+      }
+
+      const [profileRows] = await pool.query(
+        `SELECT rp.profile_key, rp.runtime_key, rp.provider_key, rp.profile_name,
+                rp.selection_mode, rp.credential_mode, rp.status, rp.policy_json,
+                rp.metadata_json, p.provider_family, p.credential_mode AS provider_credential_mode
+         FROM \`dev_agent_runtime_provider_profiles\` rp
+         JOIN \`dev_agent_provider_registry\` p ON p.provider_key = rp.provider_key
+         WHERE rp.profile_key = ? AND rp.runtime_key = ?
+         LIMIT 1`,
+        [profileKey, runtimeKey]
+      );
+      const profile = profileRows[0];
+      if (!profile) {
+        return res.status(404).json({ ok: false, error: { code: "codex_profile_not_found", message: "profile_key was not found for runtime_key." }, secrets_included: false });
+      }
+      if (profile.provider_key !== "codex_chatgpt_oauth") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "codex_profile_not_interactive_oauth", message: "Interactive execution envelope currently supports Codex ChatGPT OAuth only." }, secrets_included: false });
+      }
+
+      const runtimePolicy = safeParseJsonObject(runtime.policy_json);
+      if (runtimePolicy.auth_status !== "logged_in_user_verified" && profile.status !== "available") {
+        return res.status(409).json({
+          ok: false,
+          blocked: true,
+          error: { code: "codex_interactive_login_required", message: "Codex ChatGPT OAuth must be verified under the interactive Windows user before creating an execution envelope." },
+          auth_status: runtimePolicy.auth_status || "unknown",
+          secrets_included: false,
+        });
+      }
+
+      let signal = null;
+      if (signalId) {
+        const [signalRows] = await pool.query(
+          `SELECT signal_id, signal_key, tenant_id, user_id, signal_type, title,
+                  description, evidence_text, priority, source_surface, source_ref
+           FROM \`summary_development_signals\`
+           WHERE signal_id = ?
+           LIMIT 1`,
+          [signalId]
+        );
+        signal = signalRows[0] || null;
+      }
+
+      const envelope = buildCodexInteractiveReadOnlyExecutionEnvelope({ runtime, profile, signal, prompt, repoPath });
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, tenant_id, requested_by, runtime_key,
+            source_filter_json, policy_json, status, scanned_count,
+            signals_created, signals_updated, tasks_created, result_json,
+            started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, ?, ?, ?, 'completed', ?, 0, 0, 0, ?, NOW(), NOW())`,
+        [
+          runId,
+          `summary_dev_codex_interactive_envelope_${runId}`,
+          signal?.tenant_id || null,
+          requestedBy,
+          runtime.runtime_key,
+          JSON.stringify({ profile_key: profile.profile_key, signal_id: signal?.signal_id || null, repo_path: envelope.working_directory }),
+          JSON.stringify({
+            adapter: envelope.adapter,
+            execution_status: envelope.execution_status,
+            requires_interactive_user_context: true,
+            connector_service_context_supported: false,
+            read_only: true,
+            auto_execute_code: false,
+            auto_mutate_repo: false,
+            copy_platform_secret_to_device: false,
+            secrets_included: false,
+          }),
+          signal ? 1 : 0,
+          JSON.stringify(envelope),
+        ]
+      );
+
+      return res.json({
+        ok: true,
+        run_id: runId,
+        ...envelope,
+        no_code_execution_by_platform: true,
+        no_repo_mutation: true,
+        secrets_included: false,
+      });
+    } catch (err) {
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, requested_by, status, error_json, started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, 'failed', ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE status = 'failed', error_json = VALUES(error_json), completed_at = NOW()`,
+        [runId, `summary_dev_codex_interactive_envelope_${runId}`, requestedBy, JSON.stringify({ code: err.code || "codex_interactive_execution_envelope_failed", message: String(err.message || err).slice(0, 240) })]
+      ).catch(() => {});
+      return res.status(500).json({ ok: false, error: { code: err.code || "codex_interactive_execution_envelope_failed", message: err.message }, secrets_included: false });
     }
   });
 

@@ -12,6 +12,7 @@ const providerRegistryMigration = fs.readFileSync(new URL('./migrations/137_spri
 const providerToolMigration = fs.readFileSync(new URL('./migrations/138_sprint64_openclaude_provider_tools.sql', import.meta.url), 'utf8');
 const providerBridgeToolMigration = fs.readFileSync(new URL('./migrations/139_sprint64_provider_bridge_dry_run_tool.sql', import.meta.url), 'utf8');
 const codexRuntimeMigration = fs.readFileSync(new URL('./migrations/140_sprint64_codex_runtime_and_provider_profiles.sql', import.meta.url), 'utf8');
+const codexExecutionEnvelopeToolMigration = fs.readFileSync(new URL('./migrations/141_sprint64_codex_interactive_execution_envelope_tool.sql', import.meta.url), 'utf8');
 const routes = fs.readFileSync(new URL('./routes/devAgentRoutes.js', import.meta.url), 'utf8');
 
 assert(migration.includes('CREATE TABLE IF NOT EXISTS dev_agent_runtime_registry'));
@@ -66,11 +67,25 @@ assert(codexRuntimeMigration.includes('codex_gemini_custom_provider'));
 assert(codexRuntimeMigration.includes('codex_ollama_local'));
 assert(codexRuntimeMigration.includes('copy_platform_secret_to_device":false'));
 assert(codexRuntimeMigration.includes('codex login --device-auth'));
+assert(codexExecutionEnvelopeToolMigration.includes('dev_agent_codex_interactive_execution_envelope'));
+assert(codexExecutionEnvelopeToolMigration.includes('/dev-agent/summary-development/codex-interactive-execution-envelope'));
+assert(codexExecutionEnvelopeToolMigration.includes('Does not execute Codex'));
+assert(codexExecutionEnvelopeToolMigration.includes('no_repo_mutation'));
 
 assert(routes.includes('/dev-agent/summary-development/runtimes'));
 assert(routes.includes('/dev-agent/summary-development/signals'));
 assert(routes.includes('/dev-agent/summary-development/providers'));
 assert(routes.includes('/dev-agent/summary-development/provider-bridge-dry-run'));
+assert(routes.includes('/dev-agent/summary-development/codex-interactive-execution-envelope'));
+assert(routes.includes('buildCodexInteractiveReadOnlyExecutionEnvelope'));
+assert(routes.includes('codex_interactive_user_read_only_execution_envelope_v1'));
+assert(routes.includes('codex_chatgpt_oauth'));
+assert(routes.includes('requires_interactive_user_context: true'));
+assert(routes.includes('connector_service_context_supported: false'));
+assert(routes.includes('"--sandbox"'));
+assert(routes.includes('"read-only"'));
+assert(routes.includes('"--ask-for-approval"'));
+assert(routes.includes('"never"'));
 assert(routes.includes('dev_agent_provider_registry'));
 assert(routes.includes('dev_agent_runtime_provider_profiles'));
 assert(routes.includes('normalizeProviderBridgePrompt'));
