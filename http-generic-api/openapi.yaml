@@ -7845,6 +7845,90 @@ paths:
         "502": { description: Proxy failure to device tunnel, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "503": { description: Device tunnel not provisioned, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
+  /connector/{device_id}/browser4:
+    post:
+      tags: [connector-proxy]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: postConnectorDeviceBrowser4
+      summary: Governed Browser4 local connector adapter
+      description: >
+        Proxies POST /browser4 to a linked local connector device. Supports
+        status and inspect_site actions. The connector enforces its host
+        allowlist and returns sanitized artifact metadata only; no secrets or
+        raw credential values are returned.
+      x-openai-isConsequential: true
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [status, inspect_site]
+                url:
+                  type: string
+                  format: uri
+                checks:
+                  type: array
+                  items:
+                    type: string
+                    enum: [snapshot, screenshot, console, network, dom_snapshot, seo_metadata]
+                inspection_key: { type: string }
+                timeout_ms:
+                  type: integer
+                  minimum: 1000
+                  maximum: 300000
+                user_id: { type: string }
+      responses:
+        "200":
+          description: Browser4 connector response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  action: { type: string }
+                  run_key: { type: string }
+                  target_host: { type: string }
+                  status: { type: string }
+                  artifacts:
+                    type: object
+                    additionalProperties: true
+                  secrets_included: { type: boolean, enum: [false] }
+        "400":
+          description: Invalid Browser4 request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Browser4 disabled or domain not allowlisted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "502":
+          description: Connector proxy or local Browser4 failure
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "503":
+          description: Device tunnel not provisioned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /connector/{device_id}/ps:
     post:
       tags: [connector-proxy]
