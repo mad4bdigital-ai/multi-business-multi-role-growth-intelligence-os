@@ -211,16 +211,18 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
       await expireOldCommands();
       const device = await requireLocalManagerDevice(req);
       const limit = Math.max(1, Math.min(Number(req.query.limit || 5), 20));
+      const deviceIds = await resolveDesktopCommandDeviceIds(device);
+      const devicePlaceholders = deviceIds.map(() => "?").join(", ");
       const [rows] = await getPool().query(
         `SELECT * FROM \`local_manager_desktop_commands\`
           WHERE user_id = ?
-            AND device_id = ?
+            AND device_id IN (${devicePlaceholders})
             AND (? IS NULL OR tenant_id = ? OR tenant_id IS NULL)
             AND execution_mode = 'desktop'
             AND status = 'queued'
           ORDER BY priority ASC, created_at ASC
           LIMIT ?`,
-        [device.user_id, device.device_id, device.tenant_id, device.tenant_id, limit]
+        [device.user_id, ...deviceIds, device.tenant_id, device.tenant_id, limit]
       );
       const ids = rows.map((row) => row.command_id);
       if (ids.length) {
