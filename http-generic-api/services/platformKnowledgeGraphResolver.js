@@ -493,8 +493,21 @@ export function guessNodeIds(input = {}) {
   if (input.workflow_key || input.workflow_id) add(nodeId("workflow", input.workflow_key || input.workflow_id));
   if (input.action_key) add(nodeId("action", input.action_key));
   if (input.endpoint_key) add(nodeId("endpoint", input.endpoint_key));
+  if (input.brand_key || input.target_key || input.brand_name) add(nodeId("brand", input.brand_key || input.target_key || input.brand_name));
+  if (input.brand_core_asset_key || input.asset_key || input.doc_key) add(nodeId("brand_core_asset", input.brand_core_asset_key || input.asset_key || input.doc_key));
   if (input.business_type_key) add(nodeId("business_type", input.business_type_key));
+  if (input.business_activity_type_key || input.activity_key) add(nodeId("business_activity", input.business_activity_type_key || input.activity_key));
   if (input.knowledge_profile_key) add(nodeId("knowledge_profile", input.knowledge_profile_key));
+  if (input.logic_key || input.logic_id) add(nodeId("logic", input.logic_key || input.logic_id));
+  if (input.logic_pack_key || input.pack_key || input.pack_id) add(nodeId("logic_pack", input.logic_pack_key || input.pack_key || input.pack_id));
+  if (input.agent_id || input.agent_key) add(nodeId("agent", input.agent_id || input.agent_key));
+  if (input.skill_key || input.skill_id) add(nodeId("skill", input.skill_key || input.skill_id));
+  if (input.plugin_key || input.app_key) add(nodeId("plugin", input.plugin_key || input.app_key));
+  if (input.tool_key) add(nodeId("tool", input.tool_key));
+  if (input.connection_id) add(nodeId("connection", input.connection_id));
+  if (input.tenant_policy_key) add(nodeId("tenant_policy", input.tenant_policy_key));
+  if (input.grant_id) add(nodeId("action_grant", input.grant_id));
+  if (input.request_id) add(nodeId("action_request", input.request_id));
   return ids;
 }
 
