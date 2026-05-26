@@ -2353,6 +2353,56 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /app/local-manager:
+    get:
+      tags: [local-manager]
+      security: []
+      operationId: getLocalManagerApp
+      summary: Open Local Manager public app shell
+      description: >
+        Serves the public Local Manager app shell. Users sign in inside the app
+        and link the current device. No backend API key or platform secret is
+        embedded in this page.
+      x-openai-isConsequential: false
+      responses:
+        "200":
+          description: Local Manager app HTML
+          content:
+            text/html:
+              schema:
+                type: string
+        "500":
+          description: Local Manager app render failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /app/local-manager/admin:
+    get:
+      tags: [local-manager]
+      security: []
+      operationId: getLocalManagerAdminTools
+      summary: Open Local Manager admin installer tools
+      description: >
+        Serves the admin helper page for generating governed Local Manager
+        install or upgrade links. The page does not expose backend credentials;
+        privileged calls still require admin/service authentication.
+      x-openai-isConsequential: false
+      responses:
+        "200":
+          description: Local Manager admin tools HTML
+          content:
+            text/html:
+              schema:
+                type: string
+        "500":
+          description: Local Manager admin page render failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /app/local-manager/update/windows:
     get:
       tags: [local-manager]
