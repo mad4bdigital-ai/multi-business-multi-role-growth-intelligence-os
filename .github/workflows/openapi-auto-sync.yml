@@ -48,6 +48,17 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
+      - name: Report auto-sync PR credential mode
+        shell: bash
+        env:
+          REPO_AUTOSYNC_TOKEN_PRESENT: ${{ secrets.REPO_AUTOSYNC_TOKEN != '' }}
+        run: |
+          if [ "$REPO_AUTOSYNC_TOKEN_PRESENT" = "true" ]; then
+            echo "Auto-sync PR credential mode: REPO_AUTOSYNC_TOKEN secret is configured."
+          else
+            echo "Auto-sync PR credential mode: using default GITHUB_TOKEN. Repository Actions settings must allow PR creation."
+          fi
+
       - name: Run repository contract maintenance sync
         id: maintenance
         working-directory: http-generic-api
