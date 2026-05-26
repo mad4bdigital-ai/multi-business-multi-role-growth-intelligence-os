@@ -8215,6 +8215,7 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: connectorTaxonomyAppMap
+      x-custom-gpt-exclude: true
       summary: Read app integration action capability map
       parameters:
         - { name: app_key, in: query, schema: { type: string } }
