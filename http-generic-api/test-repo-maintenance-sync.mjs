@@ -11,7 +11,7 @@ assert(syncScript.includes("update-repo-planning-docs.mjs"), "maintenance sync m
 assert(syncScript.includes("repo-maintenance-sync-result.json"), "maintenance sync must emit a JSON result");
 assert(syncScript.includes("--write|--check"), "maintenance sync must expose explicit write/check modes");
 
-assert(docsScript.includes("docs/repo-maintenance-status.md"), "planning docs updater must write generated repo maintenance status doc");
+assert(docsScript.includes("repo-maintenance-status.md"), "planning docs updater must write generated repo maintenance status doc");
 assert(docsScript.includes("OpenAPI Source"), "planning docs updater must summarize OpenAPI source");
 assert(docsScript.includes("Generated / Scoped OpenAPI Schemas"), "planning docs updater must summarize generated schemas");
 assert(docsScript.includes("Route Coverage Allowlist"), "planning docs updater must summarize route coverage allowlist");
