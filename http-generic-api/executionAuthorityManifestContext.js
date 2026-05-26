@@ -148,6 +148,7 @@ export async function resolveExecutionAuthorityManifestContext(input = {}, deps 
       action_key: actionKey || null,
       endpoint_key: endpointKey || null,
       plugin_key: pluginKey || null,
+      tool_key: toolKey || null,
       tenant_id: firstNonEmpty(requestPayload.tenant_id, requestPayload.auth_context?.tenant_id),
       user_id: firstNonEmpty(requestPayload.user_id, requestPayload.auth_context?.user_id),
       actor_role: firstNonEmpty(requestPayload.actor_role, requestPayload.auth_context?.actor_role),
