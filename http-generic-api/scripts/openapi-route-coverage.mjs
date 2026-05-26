@@ -60,7 +60,10 @@ function collectRoutesFromSource(filePath, source, indexPrefixes) {
   const rel = path.relative(ROOT, filePath).replace(/\\/g, "/");
   const localPrefixes = new Set([""]);
   let match;
-  while ((match = ROUTER_USE_RE.exec(source)) !== null) localPrefixes.add(normalizeExpressPath(match[2]));
+  while ((match = ROUTER_USE_RE.exec(source)) !== null) {
+    const handlerName = String(match[3] || "");
+    if (/(Router|Routes)$/i.test(handlerName)) localPrefixes.add(normalizeExpressPath(match[2]));
+  }
 
   const routes = [];
   while ((match = ROUTE_FILE_RE.exec(source)) !== null) {
