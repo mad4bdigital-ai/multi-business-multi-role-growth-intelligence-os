@@ -488,6 +488,7 @@ export function buildConnectRoutes(deps) {
         "   OR: direct user to https://auth.mad4b.com/connect for Google Sign-In",
         "3. GET /connect/status — verify tenant connection with user JWT",
         "4. If not connected: POST /connect/activate with mode managed or dedicated",
+        "5. Use local_manager_activation_binding to open /app/local-manager or /app/local-manager/admin for device install and local tool releases",
       ],
     });
   });
