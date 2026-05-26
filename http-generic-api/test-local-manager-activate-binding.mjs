@@ -14,6 +14,7 @@ assert(connectRoutes.includes('managed_tools: ["browser4"]'), 'binding must incl
 assert(connectRoutes.includes('local_manager_activation_binding: localManagerActivationBinding()'), 'policy/status/capabilities/activate responses must expose Local Manager binding');
 assert(connectRoutes.includes('["open_local_manager", "connect_device_install"]'), 'activate success must route users to Local Manager before device install fallback');
 assert(connectRoutes.includes('local_manager_activation_binding'), 'connect activate response must be bound to Local Manager');
-assert(tenantSchema.includes('/connect/activate'), 'tenant GPT schema must expose connect activate');
+assert(connectRoutes.includes('connect.activate — activate managed or dedicated backend connection'), 'policy must document connect.activate');
+assert(connectRoutes.includes('Use local_manager_activation_binding'), 'policy activation sequence must point activate callers to Local Manager binding');
 
 console.log('local manager activate binding tests passed');
