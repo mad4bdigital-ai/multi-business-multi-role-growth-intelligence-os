@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { resolveActionEndpointToolManifest } from "./actionEndpointToolManifestResolver.js";
+import { resolveActionManifestDiagnostic } from "./actionManifestDiagnostic.js";
 
 function surfaceRow(surfaceId, name, schemaRef) {
   return {
