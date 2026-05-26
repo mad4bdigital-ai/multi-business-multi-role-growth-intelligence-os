@@ -12,6 +12,7 @@ const providerRegistryMigration = fs.readFileSync(new URL('./migrations/137_spri
 const providerToolMigration = fs.readFileSync(new URL('./migrations/138_sprint64_openclaude_provider_tools.sql', import.meta.url), 'utf8');
 const providerBridgeToolMigration = fs.readFileSync(new URL('./migrations/139_sprint64_provider_bridge_dry_run_tool.sql', import.meta.url), 'utf8');
 const codexRuntimeMigration = fs.readFileSync(new URL('./migrations/140_sprint64_codex_runtime_and_provider_profiles.sql', import.meta.url), 'utf8');
+const codexExecutionEnvelopeToolMigration = fs.readFileSync(new URL('./migrations/141_sprint64_codex_interactive_execution_envelope_tool.sql', import.meta.url), 'utf8');
 const routes = fs.readFileSync(new URL('./routes/devAgentRoutes.js', import.meta.url), 'utf8');
 
 assert(migration.includes('CREATE TABLE IF NOT EXISTS dev_agent_runtime_registry'));
