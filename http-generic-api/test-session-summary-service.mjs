@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   findSessionsNeedingSummary,
+  loadSessionSummaryGraphMemory,
   loadSessionTranscript,
   parseSessionJsonl,
   redactSensitiveText,
@@ -51,6 +52,26 @@ function makePool() {
             summary_id: state.insertedSummary.params[0],
             session_id: state.insertedSummary.params[1],
             tenant_id: state.insertedSummary.params[2],
+            turn_count: state.insertedSummary.params[12],
+            created_at: "2026-05-24T00:00:00.000Z",
+          }]];
+        }
+        return [[]];
+      }
+      if (compact.startsWith("SELECT summary_id, session_id, tenant_id, user_id, workspace_key,")) {
+        if (state.insertedSummary && (!params[0] || params[0] === state.insertedSummary.params[1])) {
+          return [[{
+            summary_id: state.insertedSummary.params[0],
+            session_id: state.insertedSummary.params[1],
+            tenant_id: state.insertedSummary.params[2],
+            user_id: state.insertedSummary.params[3],
+            workspace_key: state.insertedSummary.params[4],
+            summary_text: state.insertedSummary.params[5],
+            tasks_completed: state.insertedSummary.params[6],
+            blockers: state.insertedSummary.params[7],
+            feature_requests: state.insertedSummary.params[8],
+            integration_needs: state.insertedSummary.params[9],
+            complexity: state.insertedSummary.params[10],
             turn_count: state.insertedSummary.params[12],
             created_at: "2026-05-24T00:00:00.000Z",
           }]];
@@ -115,6 +136,22 @@ function makePool() {
           repair_priority: "medium",
           updated_at: "2026-05-25T00:00:00.000Z",
         };
+        if (key === "surface.session_summary_memory") {
+          return [[{
+            ...common,
+            surface_id: "surface.session_summary_memory",
+            logical_surface_key: "surface.session_summary_memory",
+            surface_name: "Session Summary Memory",
+            owner_layer: "session_summary_runtime",
+            schema_ref: "session_summaries",
+            schema_version: "1",
+            binding_mode: "sql_runtime_authority",
+            sheet_role: "summary_memory_rows",
+            backend_adapter: "sessionSummaryService",
+            portability_class: "runtime_memory_summary",
+            repair_candidate_types: "surface_authority|summary_readback|graph_integrity",
+          }]];
+        }
         if (key === "surface.json_asset_registry_sheet") {
           return [[{
             ...common,
@@ -284,6 +321,20 @@ function makePool() {
     pool.state.insertedExecutionLog.params[13].includes("summary_row_present"),
     "execution_log output_summary should include verification evidence"
   );
+  const memory = await loadSessionSummaryGraphMemory({
+    pool,
+    session_id: session.session_id,
+    tenant_id: session.tenant_id,
+    user_id: session.user_id,
+    limit: 5,
+  });
+  assert.equal(memory.ok, true);
+  assert.equal(memory.count, 1);
+  assert.equal(memory.items[0].summary_id, result.summary_id);
+  assert.equal(memory.items[0].graph_topology_present, true);
+  assert.equal(memory.items[0].secrets_included, false);
+  assert.equal(memory.surface_authority.session_summary_memory.ok, true);
+  assert.equal(memory.surface_authority.platform_graph_memory.ok, true);
 }
 
 {
