@@ -816,9 +816,148 @@ internal static class Program
         private void ShowTopMostMessage(string title, string message) { var previousTopMost = TopMost; try { if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal; Show(); Activate(); TopMost = true; MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Information); } finally { TopMost = previousTopMost; } }
         private void StartDesktopCommandPolling() { if (_desktopCommandTimer.Enabled) return; _desktopCommandTimer.Tick += async (_, _) => await PollDesktopCommandsAsync(); _desktopCommandTimer.Start(); _ = PollDesktopCommandsAsync(); }
         private async Task PollDesktopCommandsAsync() { if (_desktopCommandPollRunning) return; var token = LoadDeviceToken(false); if (string.IsNullOrWhiteSpace(token)) return; _desktopCommandPollRunning = true; try { using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) }; using var req = new HttpRequestMessage(HttpMethod.Get, DesktopCommandsUrl + "/pending?limit=5"); req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token); req.Headers.Accept.ParseAdd("application/json"); using var response = await client.SendAsync(req); var text = await response.Content.ReadAsStringAsync(); if (!response.IsSuccessStatusCode) { if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized && response.StatusCode != System.Net.HttpStatusCode.Forbidden) _status.Text = "Desktop command poll failed: " + response.StatusCode; return; } using var doc = JsonDocument.Parse(text); if (!doc.RootElement.TryGetProperty("commands", out var commands) || commands.ValueKind != JsonValueKind.Array) return; foreach (var command in commands.EnumerateArray()) await ExecuteDesktopCommandAsync(client, token, command); } catch (Exception ex) { _status.Text = "Desktop command polling failed: " + ex.Message; } finally { _desktopCommandPollRunning = false; } }
-        private async Task ExecuteDesktopCommandAsync(HttpClient client, string token, JsonElement command) { var commandId = JsonValue(command, "command_id"); var action = JsonValue(command, "action"); command.TryGetProperty("payload", out var payload); try { if (string.Equals(action, "open_url", StringComparison.OrdinalIgnoreCase)) { var url = JsonValue(payload, "url"); if (string.IsNullOrWhiteSpace(url)) throw new InvalidOperationException("open_url command is missing url."); OpenUrl(url); _status.Text = "Desktop command opened URL."; await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, opened_url = url, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false }); return; } if (string.Equals(action, "open_n8n", StringComparison.OrdinalIgnoreCase)) { var profile = await LoadN8nProfileAsync(); var url = string.IsNullOrWhiteSpace(profile.PublicUrl) ? profile.LocalUrl : profile.PublicUrl; OpenUrl(url); _status.Text = "Desktop command opened n8n."; await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, opened_url = url, system_id = profile.SystemId, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false }); return; } if (string.Equals(action, "notify", StringComparison.OrdinalIgnoreCase)) { var title = JsonValue(payload, "title", "Mad4B"); var message = JsonValue(payload, "message", ""); ShowTopMostMessage(title, message); await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, shown = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false }); return; } if (string.Equals(action, "focus_local_manager", StringComparison.OrdinalIgnoreCase)) { if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal; Show(); Activate(); await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, focused = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false }); return; } throw new NotSupportedException("Unsupported desktop action: " + action); } catch (Exception ex) { await CompleteDesktopCommandAsync(client, token, commandId, false, new { action, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false }, "desktop_action_failed", ex.Message); } }
+        private async Task ExecuteDesktopCommandAsync(HttpClient client, string token, JsonElement command)
+        {
+            var commandId = JsonValue(command, "command_id");
+            var action = JsonValue(command, "action");
+            command.TryGetProperty("payload", out var payload);
+            try
+            {
+                if (string.Equals(action, "open_url", StringComparison.OrdinalIgnoreCase))
+                {
+                    var url = JsonValue(payload, "url");
+                    if (string.IsNullOrWhiteSpace(url)) throw new InvalidOperationException("open_url command is missing url.");
+                    OpenUrl(url);
+                    _status.Text = "Desktop command opened URL.";
+                    await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, opened_url = url, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
+                    return;
+                }
+                if (string.Equals(action, "open_n8n", StringComparison.OrdinalIgnoreCase))
+                {
+                    var profile = await LoadN8nProfileAsync();
+                    var url = string.IsNullOrWhiteSpace(profile.PublicUrl) ? profile.LocalUrl : profile.PublicUrl;
+                    OpenUrl(url);
+                    _status.Text = "Desktop command opened n8n.";
+                    await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, opened_url = url, system_id = profile.SystemId, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
+                    return;
+                }
+                if (string.Equals(action, "notify", StringComparison.OrdinalIgnoreCase))
+                {
+                    var title = JsonValue(payload, "title", "Mad4B");
+                    var message = JsonValue(payload, "message", "");
+                    ShowTopMostMessage(title, message);
+                    await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, shown = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
+                    return;
+                }
+                if (string.Equals(action, "focus_local_manager", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+                    Show();
+                    Activate();
+                    await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, focused = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
+                    return;
+                }
+                if (string.Equals(action, "codex_exec_readonly", StringComparison.OrdinalIgnoreCase))
+                {
+                    await ExecuteCodexReadOnlyCommandAsync(client, token, commandId, payload);
+                    return;
+                }
+                throw new NotSupportedException("Unsupported desktop action: " + action);
+            }
+            catch (Exception ex)
+            {
+                await CompleteDesktopCommandAsync(client, token, commandId, false, new { action, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false }, "desktop_action_failed", ex.Message);
+            }
+        }
+
+        private async Task ExecuteCodexReadOnlyCommandAsync(HttpClient client, string token, string commandId, JsonElement payload)
+        {
+            var action = "codex_exec_readonly";
+            var commandPath = JsonValue(payload, "command_path", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "npm", "codex.cmd"));
+            var workingDirectory = JsonValue(payload, "working_directory", @"D:\mad4b-agent-workspaces\growth-intelligence-os-readonly");
+            var prompt = JsonValue(payload, "prompt");
+            var sandbox = JsonValue(payload, "sandbox", "read-only");
+            var timeoutSeconds = Math.Clamp(JsonInt(payload, "timeout_seconds", 300), 30, 1800);
+            var outputMaxChars = Math.Clamp(JsonInt(payload, "output_max_chars", 5000), 500, 20000);
+
+            if (string.IsNullOrWhiteSpace(prompt)) throw new InvalidOperationException("codex_exec_readonly is missing prompt.");
+            if (!string.Equals(sandbox, "read-only", StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("codex_exec_readonly requires sandbox=read-only.");
+            if (!File.Exists(commandPath)) throw new FileNotFoundException("Codex command was not found.", commandPath);
+            if (!Directory.Exists(workingDirectory)) throw new DirectoryNotFoundException("Codex working directory was not found: " + workingDirectory);
+
+            Directory.CreateDirectory(Path.Combine(InstallRoot, "codex-runs"));
+            var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss");
+            var outputPath = Path.Combine(InstallRoot, "codex-runs", $"codex-readonly-output-{stamp}.txt");
+            var lastMessagePath = Path.Combine(InstallRoot, "codex-runs", $"codex-readonly-last-message-{stamp}.txt");
+            var startedAt = DateTimeOffset.UtcNow;
+            _status.Text = "Running Codex read-only analysis…";
+
+            using var process = new Process();
+            process.StartInfo.FileName = commandPath;
+            process.StartInfo.WorkingDirectory = workingDirectory;
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.CreateNoWindow = true;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardError = true;
+            process.StartInfo.ArgumentList.Add("exec");
+            process.StartInfo.ArgumentList.Add("--cd");
+            process.StartInfo.ArgumentList.Add(workingDirectory);
+            process.StartInfo.ArgumentList.Add("--sandbox");
+            process.StartInfo.ArgumentList.Add("read-only");
+            process.StartInfo.ArgumentList.Add("--color");
+            process.StartInfo.ArgumentList.Add("never");
+            process.StartInfo.ArgumentList.Add("--ephemeral");
+            process.StartInfo.ArgumentList.Add("-o");
+            process.StartInfo.ArgumentList.Add(lastMessagePath);
+            process.StartInfo.ArgumentList.Add(prompt);
+
+            process.Start();
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+            var completed = await Task.WhenAny(process.WaitForExitAsync(), Task.Delay(TimeSpan.FromSeconds(timeoutSeconds))) != null && process.HasExited;
+            if (!completed)
+            {
+                try { process.Kill(true); } catch { }
+            }
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
+            File.WriteAllText(outputPath, stdout + Environment.NewLine + stderr, Encoding.UTF8);
+            var lastMessage = File.Exists(lastMessagePath) ? await File.ReadAllTextAsync(lastMessagePath, Encoding.UTF8) : "";
+            var exitCode = completed ? process.ExitCode : -1;
+            var ok = completed && exitCode == 0;
+            var durationMs = (long)(DateTimeOffset.UtcNow - startedAt).TotalMilliseconds;
+            var safeStdout = TailText(RedactLocalCommandOutput(stdout), outputMaxChars);
+            var safeStderr = TailText(RedactLocalCommandOutput(stderr), Math.Min(outputMaxChars, 5000));
+            var safeLastMessage = TailText(RedactLocalCommandOutput(lastMessage), outputMaxChars);
+            _status.Text = ok ? "Codex read-only analysis completed." : "Codex read-only analysis failed.";
+            _output.Text = JsonSerializer.Serialize(new { ok, exit_code = exitCode, duration_ms = durationMs, output_path = outputPath, last_message_path = lastMessagePath, secrets_included = false }, _json);
+            await CompleteDesktopCommandAsync(client, token, commandId, ok, new
+            {
+                action,
+                handled_by = "local_manager_windows",
+                visible_desktop = true,
+                command_path = commandPath,
+                working_directory = workingDirectory,
+                sandbox = "read-only",
+                ephemeral = true,
+                exit_code = exitCode,
+                timed_out = !completed,
+                duration_ms = durationMs,
+                output_path = outputPath,
+                last_message_path = lastMessagePath,
+                stdout_tail = safeStdout,
+                stderr_tail = safeStderr,
+                last_message = safeLastMessage,
+                auto_mutate_repo = false,
+                secrets_included = false
+            }, ok ? null : "codex_exec_readonly_failed", ok ? null : (completed ? "Codex exited with code " + exitCode : "Codex timed out."));
+        }
+
         private async Task CompleteDesktopCommandAsync(HttpClient client, string token, string commandId, bool ok, object result, string? errorCode = null, string? errorMessage = null) { if (string.IsNullOrWhiteSpace(commandId)) return; using var req = new HttpRequestMessage(HttpMethod.Post, DesktopCommandsUrl + "/" + Uri.EscapeDataString(commandId) + "/complete") { Content = JsonContent(new { status = ok ? "completed" : "failed", result, error_code = errorCode, error_message = errorMessage }) }; req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token); req.Headers.Accept.ParseAdd("application/json"); using var response = await client.SendAsync(req); }
         private static string JsonValue(JsonElement element, string name, string fallback = "") { if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null) return fallback; var text = value.ValueKind == JsonValueKind.String ? value.GetString() : value.ToString(); return string.IsNullOrWhiteSpace(text) ? fallback : text!; }
+        private static int JsonInt(JsonElement element, string name, int fallback) { if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value)) return fallback; return value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number) ? number : (int.TryParse(value.ToString(), out var parsed) ? parsed : fallback); }
+        private static string RedactLocalCommandOutput(string value) => Regex.Replace(value ?? "", @"(?i)(access[_-]?token|refresh[_-]?token|id[_-]?token|api[_-]?key|secret|authorization|bearer|password)\s*[:=]\s*\S+", "$1=[redacted]");
+        private static string TailText(string value, int maxChars) { var text = value ?? ""; if (text.Length <= maxChars) return text; return "...[truncated]\n" + text.Substring(text.Length - maxChars); }
         private static void OpenUrl(string url)
         {
             Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
