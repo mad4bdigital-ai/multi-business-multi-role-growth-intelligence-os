@@ -85,6 +85,8 @@ export async function evaluateRepositoryMutationPreflight({ operation, args = []
     pr_head_ref: pr?.head?.ref || branch || null,
     pr_base_ref: pr?.base?.ref || null,
     pr_mergeable: pr?.mergeable ?? null,
+    pr_mergeable_state: pr?.mergeable_state || null,
+    pr_maintainer_can_modify: pr?.maintainer_can_modify ?? null,
     compare_status: compare?.status || null,
     compare_ahead_by: compare?.ahead_by ?? null,
     compare_behind_by: compare?.behind_by ?? null,
