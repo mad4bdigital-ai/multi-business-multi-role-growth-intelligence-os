@@ -425,12 +425,12 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
         `SELECT * FROM \`local_manager_desktop_commands\`
           WHERE user_id = ?
             AND device_id IN (${devicePlaceholders})
-            AND (? IS NULL OR tenant_id = ? OR tenant_id IS NULL)
+            AND (? IS NULL OR tenant_id = ? OR tenant_id IS NULL OR tenant_id = ?)
             AND execution_mode = 'desktop'
             AND status = 'queued'
           ORDER BY priority ASC, created_at ASC
           LIMIT ?`,
-        [device.user_id, ...deviceIds, device.tenant_id, device.tenant_id, limit]
+        [device.user_id, ...deviceIds, device.tenant_id, device.tenant_id, ALL_ZERO_TENANT_ID, limit]
       );
       const ids = rows.map((row) => row.command_id);
       if (ids.length) {
