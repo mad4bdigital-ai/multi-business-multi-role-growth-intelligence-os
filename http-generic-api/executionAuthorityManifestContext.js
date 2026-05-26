@@ -15,6 +15,14 @@ function bool(value) {
   return ["true", "1", "yes", "y", "enabled", "active"].includes(String(value || "").trim().toLowerCase());
 }
 
+function normalize(value = "") {
+  return String(value || "").trim().toLowerCase();
+}
+
+function unique(values = []) {
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
 function summarizeManifestItem(item = {}) {
   const endpoints = Array.isArray(item.endpoints) ? item.endpoints : [];
   const tools = Array.isArray(item.tools) ? item.tools : [];
