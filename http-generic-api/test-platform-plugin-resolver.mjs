@@ -28,7 +28,7 @@ function makePool({ withConnection = true, withSkill = true, tenantDedicated = f
           action_key: "github.repo.read",
           binding_role: "primary_api",
           credential_source: "user_connection",
-          exposure_default: "curated_exports",
+          exposure_default: runtimeOnly ? "runtime_only" : "curated_exports",
           status: "active",
           notes: null,
         }]];
