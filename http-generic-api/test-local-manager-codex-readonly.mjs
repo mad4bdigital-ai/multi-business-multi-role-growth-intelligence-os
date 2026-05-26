@@ -13,7 +13,7 @@ assert(desktopRoutes.includes('secrets_included = false'));
 
 assert(program.includes('ExecuteCodexReadOnlyCommandAsync'));
 assert(program.includes('codex_exec_readonly'));
-assert(program.includes('ProcessStartInfo.ArgumentList'));
+assert(program.includes('process.StartInfo.ArgumentList'));
 assert(program.includes('ArgumentList.Add("exec")'));
 assert(program.includes('ArgumentList.Add("--sandbox")'));
 assert(program.includes('ArgumentList.Add("read-only")'));
