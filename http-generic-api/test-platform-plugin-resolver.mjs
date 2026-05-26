@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolvePlatformPluginExecution } from "./platformPluginResolver.js";
 
-function makePool({ withConnection = true, withSkill = true, tenantDedicated = false } = {}) {
+function makePool({ withConnection = true, withSkill = true, tenantDedicated = false, withActionGrant = false, runtimeOnly = false } = {}) {
   const calls = [];
   return {
     calls,
