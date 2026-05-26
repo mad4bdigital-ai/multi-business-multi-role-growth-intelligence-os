@@ -419,11 +419,13 @@ export async function resolvePlatformPluginExecution({
     skill_resolution: skill,
     approval: {
       approval_required: approvalRequired,
-      reason: approvalRequired ? "runtime_or_default_grant_requires_review" : "no_review_required_by_preview",
+      base_required: baseApprovalRequired,
+      grant: actionGrant,
+      reason: approvalRequired ? actionGrant.reason : "action_grant_or_preview_policy_allows_dispatch",
     },
     execution: {
-      will_execute: false,
-      next_step: allowed ? "dispatch_or_tool_call_may_be_evaluated_by_runtime" : "resolve_denials_before_execution",
+      will_execute: dispatchReady,
+      next_step: dispatchReady ? "dispatch_ready" : (allowed ? "action_grant_required_before_dispatch" : "resolve_denials_before_execution"),
     },
     audit: {
       secrets_included: false,
