@@ -3,7 +3,7 @@ import { Router } from "express";
 import { getPool } from "../db.js";
 import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkService.js";
 
-const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_manager"]);
+const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_manager", "codex_exec_readonly"]);
 const ALLOWED_MODES = new Set(["desktop", "background"]);
 
 function cleanText(value, max = 255) {
