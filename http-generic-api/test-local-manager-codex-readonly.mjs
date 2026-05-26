@@ -11,6 +11,15 @@ assert(desktopRoutes.includes('codex_prompt_required'));
 assert(desktopRoutes.includes('codex_command_path_blocked'));
 assert(desktopRoutes.includes('sandbox=read-only'));
 assert(desktopRoutes.includes('secrets_included = false'));
+assert(desktopRoutes.includes('resolveDesktopCommandDeviceIds'));
+assert(desktopRoutes.includes('local_connector_device_aliases'));
+assert(desktopRoutes.includes('device_id IN (${devicePlaceholders})'));
+
+assert(aliasMigration.includes("`device_id` = 'essam-pc'"));
+assert(aliasMigration.includes("'ESSAM'"));
+assert(aliasMigration.includes("'Essam'"));
+assert(aliasMigration.includes("'essam-pc'"));
+assert(aliasMigration.includes('ON DUPLICATE KEY UPDATE'));
 
 assert(program.includes('ExecuteCodexReadOnlyCommandAsync'));
 assert(program.includes('codex_exec_readonly'));
