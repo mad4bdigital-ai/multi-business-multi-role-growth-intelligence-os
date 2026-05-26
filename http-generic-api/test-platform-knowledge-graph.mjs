@@ -60,7 +60,68 @@ assert("graph service projects all first-slice source tables",
     "platform_contract_nodes",
     "platform_contract_relationships",
     "execution_log",
+    "brands",
+    "brand_core",
+    "brand_paths",
+    "business_activity_types",
+    "logic_definitions",
+    "logic_packs",
+    "agents",
+    "agent_skills",
+    "agent_skill_grants",
+    "agent_workflow_bindings",
+    "app_integrations",
+    "app_integration_action_bindings",
+    "admin_platform_endpoint_tools",
+    "app_integration_tool_bindings",
+    "tenant_integration_policies",
+    "user_app_connections",
+    "app_action_grants",
+    "app_action_requests",
   ].every((table) => service.includes(table)));
+
+assert("graph service projects expanded execution authority node types",
+  [
+    'node_type: "brand"',
+    'node_type: "brand_core_asset"',
+    'node_type: "business_activity"',
+    'node_type: "logic"',
+    'node_type: "logic_pack"',
+    'node_type: "agent"',
+    'node_type: "skill"',
+    'node_type: "plugin"',
+    'node_type: "tool"',
+    'node_type: "connection"',
+    'node_type: "tenant_policy"',
+    'node_type: "action_grant"',
+    'node_type: "action_request"',
+  ].every((needle) => service.includes(needle)));
+
+assert("graph service projects expanded execution authority edge types",
+  [
+    'edge_type: "has_brand_core"',
+    'edge_type: "has_business_type"',
+    'edge_type: "has_business_activity"',
+    'edge_type: "requires_brand_core"',
+    'edge_type: "uses_logic"',
+    'edge_type: "grants_skill"',
+    'edge_type: "bound_to_workflow"',
+    'edge_type: "binds_action"',
+    'edge_type: "binds_tool"',
+    'edge_type: "allows_plugin"',
+    'edge_type: "connects_plugin"',
+    'edge_type: "grants_action"',
+    'edge_type: "requests_action"',
+  ].every((needle) => service.includes(needle)));
+
+assert("expanded execution authority graph taxonomy migration is present",
+  readFileSync("migrations/148_sprint65_execution_authority_graph_taxonomy.sql", "utf8").includes("node_type.brand") &&
+  readFileSync("migrations/148_sprint65_execution_authority_graph_taxonomy.sql", "utf8").includes("node_type.business_activity") &&
+  readFileSync("migrations/148_sprint65_execution_authority_graph_taxonomy.sql", "utf8").includes("node_type.skill") &&
+  readFileSync("migrations/148_sprint65_execution_authority_graph_taxonomy.sql", "utf8").includes("node_type.plugin") &&
+  readFileSync("migrations/148_sprint65_execution_authority_graph_taxonomy.sql", "utf8").includes("edge_type.binds_action") &&
+  readFileSync("migrations/148_sprint65_execution_authority_graph_taxonomy.sql", "utf8").includes("edge_type.grants_skill") &&
+  readFileSync("migrations/148_sprint65_execution_authority_graph_taxonomy.sql", "utf8").includes("ON DUPLICATE KEY UPDATE"));
 
 assert("graph service has projection, validation, neighborhood, and resolver exports",
   service.includes("export async function projectPlatformKnowledgeGraph") &&
