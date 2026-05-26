@@ -56,7 +56,6 @@ function main() {
   steps.push("update-repo-planning-docs");
 
   const after = gitDiffNameOnly();
-  const changed = after.filter((file) => !before.includes(file) || true);
 
   const report = {
     ok: true,
