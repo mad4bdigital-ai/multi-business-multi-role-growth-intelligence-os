@@ -8958,37 +8958,6 @@ paths:
       responses:
         "200": { description: Platform Plugin REST dispatch result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
 
-  /platform/plugins/dispatch-rest:
-    post:
-      x-openai-isConsequential: true
-      tags: [platform-plugins]
-      security:
-        - backendBearerAuth: []
-        - backendApiKeyAuth: []
-      operationId: platformPluginDispatchRest
-      summary: Dispatch Platform Plugin REST action
-      description: Execute a promoted or tenant-installed Platform Plugin REST action after resolver approval gates pass. Requires dispatch_ready resolution, an active connection with api_base_url, and an action template from plugin contribution metadata. Credentials remain server-side and secrets are never returned.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [plugin_key, action_key, tenant_id, user_id]
-              additionalProperties: true
-              properties:
-                plugin_key: { type: string }
-                action_key: { type: string }
-                tenant_id: { type: string }
-                user_id: { type: string }
-                agent_id: { type: string }
-                requested_credential_scope: { type: string, default: tenant_connection }
-                input: { type: object, additionalProperties: true }
-                dry_run: { type: boolean, default: false }
-                timeout_ms: { type: integer, minimum: 1000, maximum: 30000, default: 10000 }
-      responses:
-        "200": { description: Platform Plugin REST dispatch result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
-
   /platform/plugins/action-grants:
     post:
       x-openai-isConsequential: true
