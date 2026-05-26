@@ -63,7 +63,7 @@ export function sanitizeBrowser4Checks(checks = DEFAULT_CHECKS) {
   return sanitized.length ? sanitized : DEFAULT_CHECKS;
 }
 
-function psString(value) {
+function psLiteral(value) {
   return JSON.stringify(String(value ?? ''));
 }
 
@@ -71,27 +71,33 @@ function safeRunKey(value) {
   return String(value || `browser4_${Date.now()}`).replace(/[^A-Za-z0-9_.-]+/g, '_').slice(0, 120) || `browser4_${Date.now()}`;
 }
 
-function normalizeWindowsPath(value) {
+function windowsPath(value) {
   return String(value || '').replace(/\\/g, '\\\\');
 }
 
-export function buildBrowser4InspectionScript({ url, checks = DEFAULT_CHECKS, runKey, workDir, javaHome = '', serverUrl = 'http://localhost:8182' } = {}) {
+export function buildBrowser4InspectionScript({
+  url,
+  checks = DEFAULT_CHECKS,
+  runKey,
+  workDir,
+  javaHome = '',
+  serverUrl = 'http://localhost:8182',
+} = {}) {
   const normalizedChecks = sanitizeBrowser4Checks(checks);
   const key = safeRunKey(runKey);
-  const safeWorkDir = normalizeWindowsPath(workDir || path.join(process.cwd(), 'browser4-artifacts'));
-  const safeJavaHome = normalizeWindowsPath(javaHome || '');
-  const safeServerUrl = String(serverUrl || 'http://localhost:8182');
+  const safeWorkDir = windowsPath(workDir || path.join(process.cwd(), 'browser4-artifacts'));
+  const safeJavaHome = windowsPath(javaHome || '');
   const wantsSnapshot = normalizedChecks.includes('snapshot') || normalizedChecks.includes('dom_snapshot');
   const wantsScreenshot = normalizedChecks.includes('screenshot');
 
   const lines = [
     "$ErrorActionPreference = 'Continue'",
-    `$work = ${psString(safeWorkDir)}`,
+    `$work = ${psLiteral(safeWorkDir)}`,
     'New-Item -ItemType Directory -Force -Path $work | Out-Null',
     'Set-Location $work',
-    `$runKey = ${psString(key)}`,
-    `$targetUrl = ${psString(url)}`,
-    `$serverUrl = ${psString(safeServerUrl)}`,
+    `$runKey = ${psLiteral(key)}`,
+    `$targetUrl = ${psLiteral(url)}`,
+    `$serverUrl = ${psLiteral(serverUrl || 'http://localhost:8182')}`,
     "$statusFile = Join-Path $work ($runKey + '.status.json')",
     "$outFile = Join-Path $work ($runKey + '.out.txt')",
     "$errFile = Join-Path $work ($runKey + '.err.txt')",
@@ -101,16 +107,16 @@ export function buildBrowser4InspectionScript({ url, checks = DEFAULT_CHECKS, ru
   ];
 
   if (safeJavaHome) {
-    lines.push(`$env:JAVA_HOME = ${psString(safeJavaHome)}`);
-    lines.push(`$env:PATH = (Join-Path ${psString(safeJavaHome)} 'bin') + ';' + $env:PATH`);
+    lines.push(`$env:JAVA_HOME = ${psLiteral(safeJavaHome)}`);
+    lines.push("$env:PATH = (Join-Path $env:JAVA_HOME 'bin') + ';' + $env:PATH");
   }
 
   lines.push(
-    '"## browser4 open" | Out-File $outFile -Encoding UTF8',
+    "'## browser4 open' | Out-File $outFile -Encoding UTF8",
     '& npx -y browser4-cli open --server $serverUrl 1>> $outFile 2>> $errFile',
     '$openExit = $LASTEXITCODE',
     "@{ status='running'; step='goto'; open_exit=$openExit; updated_at=(Get-Date).ToString('o'); secrets_included=$false } | ConvertTo-Json -Compress | Set-Content $statusFile -Encoding UTF8",
-    '"`n## browser4 goto" | Out-File $outFile -Append -Encoding UTF8',
+    "'## browser4 goto' | Out-File $outFile -Append -Encoding UTF8",
     '& npx -y browser4-cli goto $targetUrl 1>> $outFile 2>> $errFile',
     '$gotoExit = $LASTEXITCODE',
   );
@@ -118,7 +124,7 @@ export function buildBrowser4InspectionScript({ url, checks = DEFAULT_CHECKS, ru
   if (wantsSnapshot) {
     lines.push(
       "@{ status='running'; step='snapshot'; open_exit=$openExit; goto_exit=$gotoExit; updated_at=(Get-Date).ToString('o'); secrets_included=$false } | ConvertTo-Json -Compress | Set-Content $statusFile -Encoding UTF8",
-      '"`n## browser4 snapshot" | Out-File $outFile -Append -Encoding UTF8',
+      "'## browser4 snapshot' | Out-File $outFile -Append -Encoding UTF8",
       '& npx -y browser4-cli snapshot 1> $snapshotFile 2>> $errFile',
       '$snapshotExit = $LASTEXITCODE',
     );
@@ -129,7 +135,7 @@ export function buildBrowser4InspectionScript({ url, checks = DEFAULT_CHECKS, ru
   if (wantsScreenshot) {
     lines.push(
       "@{ status='running'; step='screenshot'; open_exit=$openExit; goto_exit=$gotoExit; snapshot_exit=$snapshotExit; updated_at=(Get-Date).ToString('o'); secrets_included=$false } | ConvertTo-Json -Compress | Set-Content $statusFile -Encoding UTF8",
-      '"`n## browser4 screenshot" | Out-File $outFile -Append -Encoding UTF8',
+      "'## browser4 screenshot' | Out-File $outFile -Append -Encoding UTF8",
       '& npx -y browser4-cli screenshot 1> $screenshotFile 2>> $errFile',
       '$screenshotExit = $LASTEXITCODE',
     );
