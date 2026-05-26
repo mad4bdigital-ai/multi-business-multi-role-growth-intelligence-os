@@ -3,6 +3,7 @@ import { loadPlatformPluginCatalog } from "../platformPluginCatalog.js";
 import { resolvePlatformPluginExecution } from "../platformPluginResolver.js";
 import { upsertPlatformPluginPolicy } from "../platformPluginPolicy.js";
 import { upsertPlatformPluginActionGrant } from "../platformPluginActionGrant.js";
+import { upsertPlatformPluginActionTemplate } from "../platformPluginActionTemplate.js";
 import { installPlatformPluginForTenant } from "../platformPluginInstall.js";
 import {
   activatePrivatePlatformPluginContribution,
