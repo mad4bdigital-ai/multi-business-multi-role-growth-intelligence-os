@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolvePlatformPluginExecution } from "./platformPluginResolver.js";
 
-function makePool({ withConnection = true, withSkill = true, tenantDedicated = false } = {}) {
+function makePool({ withConnection = true, withSkill = true, tenantDedicated = false, withActionGrant = false, runtimeOnly = false } = {}) {
   const calls = [];
   return {
     calls,
@@ -28,7 +28,7 @@ function makePool({ withConnection = true, withSkill = true, tenantDedicated = f
           action_key: "github.repo.read",
           binding_role: "primary_api",
           credential_source: "user_connection",
-          exposure_default: "curated_exports",
+          exposure_default: runtimeOnly ? "runtime_only" : "curated_exports",
           status: "active",
           notes: null,
         }]];
@@ -61,8 +61,16 @@ function makePool({ withConnection = true, withSkill = true, tenantDedicated = f
       }
       if (sql.includes("FROM agent_skill_grants")) {
         return withSkill ? [[{
-          grant_id: "grant-1",
+          grant_id: "skill-grant-1",
           skill_key: "code.repository_automation",
+        }]] : [[]];
+      }
+      if (sql.includes("FROM app_action_grants")) {
+        return withActionGrant ? [[{
+          grant_id: "action-grant-1",
+          grant_mode: "explicit",
+          agent_id: null,
+          expires_at: null,
         }]] : [[]];
       }
       return [[]];
@@ -82,10 +90,51 @@ function makePool({ withConnection = true, withSkill = true, tenantDedicated = f
   });
   assert.equal(result.ok, true);
   assert.equal(result.allowed, true);
-  assert.equal(result.mode, "preview_only");
+  assert.equal(result.mode, "dispatch_ready");
   assert.equal(result.credential_resolution.credential_source, "user_connection");
   assert.equal(result.skill_resolution.granted, true);
+  assert.equal(result.approval.approval_required, false);
+  assert.equal(result.execution.will_execute, true);
+  assert.equal(result.secrets_included, false);
+}
+
+{
+  const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true, runtimeOnly: true });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.allowed, true);
+  assert.equal(result.mode, "preview_only");
+  assert.equal(result.approval.approval_required, true);
+  assert.equal(result.approval.grant.granted, false);
   assert.equal(result.execution.will_execute, false);
+  assert.equal(result.execution.next_step, "action_grant_required_before_dispatch");
+}
+
+{
+  const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true, runtimeOnly: true, withActionGrant: true });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.allowed, true);
+  assert.equal(result.mode, "dispatch_ready");
+  assert.equal(result.approval.approval_required, false);
+  assert.equal(result.approval.grant.granted, true);
+  assert.equal(result.approval.grant.grant_id, "action-grant-1");
+  assert.equal(result.execution.will_execute, true);
+  assert.equal(result.execution.next_step, "dispatch_ready");
   assert.equal(result.secrets_included, false);
 }
 

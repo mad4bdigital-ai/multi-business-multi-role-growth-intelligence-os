@@ -209,6 +209,42 @@ async function checkSkillGrant({ pool, agentId, tenantId, requiredSkillKey }) {
   };
 }
 
+async function checkActionGrant({ pool, pluginKey, actionKey, agentId, credential }) {
+  if (!actionKey) return { required: false, granted: true, grant_id: null, reason: "no_action_requested" };
+  if (!credential?.connection_id) {
+    return {
+      required: true,
+      granted: false,
+      grant_id: null,
+      reason: "connection_id_required_for_action_grant",
+    };
+  }
+  const rows = await safeQuery(
+    pool,
+    `SELECT grant_id, grant_mode, agent_id, expires_at
+       FROM app_action_grants
+      WHERE connection_id = ?
+        AND app_key = ?
+        AND action_key = ?
+        AND status = 'active'
+        AND (expires_at IS NULL OR expires_at > NOW())
+        AND (? IS NULL OR agent_id IS NULL OR agent_id = ?)
+      ORDER BY CASE WHEN agent_id = ? THEN 0 ELSE 1 END, created_at DESC
+      LIMIT 1`,
+    [credential.connection_id, pluginKey, actionKey, agentId || null, agentId || null, agentId || null]
+  );
+  const grant = rows[0] || null;
+  return {
+    required: true,
+    granted: Boolean(grant),
+    grant_id: grant?.grant_id || null,
+    grant_mode: grant?.grant_mode || null,
+    agent_id: grant?.agent_id || null,
+    expires_at: grant?.expires_at || null,
+    reason: grant ? "action_grant_active" : "action_grant_required",
+  };
+}
+
 async function loadPluginRows({ pool, pluginKey, tenantId, userId }) {
   const pluginRows = await safeQuery(
     pool,
@@ -335,16 +371,21 @@ export async function resolvePlatformPluginExecution({
   if (!skill.granted) denialReasons.push(skill.reason);
 
   const defaultGrants = parseJsonArray(rows.plugin.default_action_grants, []);
-  const approvalRequired = Boolean(
+  const baseApprovalRequired = Boolean(
     defaultGrants.find((grant) => grant?.action_key === actionKey)?.auto_approve === false ||
     normalize(binding?.exposure_default || "") === "runtime_only"
   );
+  const actionGrant = baseApprovalRequired && allowed
+    ? await checkActionGrant({ pool, pluginKey: normalizedPluginKey, actionKey, agentId, credential })
+    : { required: baseApprovalRequired, granted: !baseApprovalRequired, grant_id: null, reason: baseApprovalRequired ? "resolve_denials_before_action_grant" : "no_review_required_by_preview" };
+  const approvalRequired = Boolean(baseApprovalRequired && !actionGrant.granted);
+  const dispatchReady = Boolean(allowed && !approvalRequired);
 
   return {
     ok: true,
     allowed,
     reason: allowed ? "resolved" : unique(denialReasons).join("|") || "not_allowed",
-    mode: "preview_only",
+    mode: dispatchReady ? "dispatch_ready" : "preview_only",
     plugin_key: normalizedPluginKey,
     requested_action_key: actionKey || null,
     requested_tool_key: toolKey || null,
@@ -378,11 +419,13 @@ export async function resolvePlatformPluginExecution({
     skill_resolution: skill,
     approval: {
       approval_required: approvalRequired,
-      reason: approvalRequired ? "runtime_or_default_grant_requires_review" : "no_review_required_by_preview",
+      base_required: baseApprovalRequired,
+      grant: actionGrant,
+      reason: approvalRequired ? actionGrant.reason : "action_grant_or_preview_policy_allows_dispatch",
     },
     execution: {
-      will_execute: false,
-      next_step: allowed ? "dispatch_or_tool_call_may_be_evaluated_by_runtime" : "resolve_denials_before_execution",
+      will_execute: dispatchReady,
+      next_step: dispatchReady ? "dispatch_ready" : (allowed ? "action_grant_required_before_dispatch" : "resolve_denials_before_execution"),
     },
     audit: {
       secrets_included: false,
@@ -392,6 +435,7 @@ export async function resolvePlatformPluginExecution({
         "app_integration_tool_bindings",
         "tenant_integration_policies",
         "user_app_connections",
+        "app_action_grants",
         "agent_skills",
         "agent_skill_grants",
       ],
