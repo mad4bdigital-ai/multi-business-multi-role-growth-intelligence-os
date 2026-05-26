@@ -22,6 +22,15 @@
     "/local-manager",
     "/local-gateway"
   ],
+  "required_files": [
+    "routes/platformPluginRoutes.js",
+    "routes/tenantPlatformPluginRoutes.js",
+    "routes/platformGraphRoutes.js",
+    "routes/schemaImportRoutes.js",
+    "routes/gptToolsRoutes.js",
+    "routes/systemLayerRoutes.js",
+    "routes/connectorTaxonomyRoutes.js"
+  ],
   "files": [
     "routes/rootDiscoveryRoutes.js",
     "routes/legalRoutes.js",
