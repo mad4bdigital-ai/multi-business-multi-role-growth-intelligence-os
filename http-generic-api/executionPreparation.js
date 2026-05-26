@@ -3,6 +3,7 @@ import { buildGovernedExecutionContext } from "./governedContextResolution.js";
 import { loadPathResolverRowsForRequest } from "./pathResolverRowsLoader.js";
 import { resolveEndpointLocalSchemaContract } from "./endpointSchemaResolver.js";
 import { resolveExecutionAuthorityManifestContext } from "./executionAuthorityManifestContext.js";
+import { enforceExecutionAuthorityManifestGuard } from "./executionAuthorityManifestGuard.js";
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
@@ -247,6 +248,17 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     blocked_reasons: governedExecutionContext.execution_authority_manifest?.blocked_reasons || [],
     secrets_included: false,
   }));
+
+  governedExecutionContext.execution_authority_guard = enforceExecutionAuthorityManifestGuard(
+    {
+      requestPayload,
+      policies,
+      manifest: governedExecutionContext.execution_authority_manifest,
+    },
+    deps
+  );
+
+  debugLog("EXECUTION_AUTHORITY_MANIFEST_GUARD:", JSON.stringify(governedExecutionContext.execution_authority_guard));
 
   // Conditionally resolve knowledge surfaces for brand/business-type requests
   {
