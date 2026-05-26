@@ -114,6 +114,14 @@ export function buildBrowserRuntimeRoutes({ requireBackendApiKey, requireAdminPr
     } catch (err) { return errorResponse(res, err, "browser_runtime_inspect_site_failed"); }
   });
 
+  router.post("/browser-runtime/inspect-site/run", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await runBrowser4InspectionAdapter({ input });
+      return res.status(result.ok ? 200 : 502).json(result);
+    } catch (err) { return errorResponse(res, err, "browser_runtime_inspect_site_run_failed"); }
+  });
+
   return router;
 }
 
