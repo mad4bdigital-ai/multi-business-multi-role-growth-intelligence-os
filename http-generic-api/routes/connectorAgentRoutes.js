@@ -430,12 +430,19 @@ export function buildConnectorAgentRoutes() {
         minimum_watchdog_version: "2026.05.18.1",
         generated_at: new Date().toISOString(),
         files,
+        local_tools: {
+          owner_app: "mad4b-local-manager",
+          release_model: "manifest_driven_allowlisted_tools",
+          install_scope: "per_user_device",
+          tools: LOCAL_TOOL_RELEASES,
+        },
         upgrade_policy: {
           verify_sha256: true,
           node_check_required: true,
           backup_before_replace: true,
           health_check_required: true,
           rollback_on_failed_health: true,
+          local_tool_release_owner: "mad4b-local-manager",
         },
       });
     } catch (err) {
