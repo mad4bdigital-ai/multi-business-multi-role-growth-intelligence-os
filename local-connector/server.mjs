@@ -95,6 +95,15 @@ const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID ?? '';
 const CF_ZONE_ID = process.env.CF_ZONE_ID ?? '';
 const DEPENDENCIES_ENABLED = process.env.CONNECTOR_DEPENDENCIES_ENABLED === 'true';
 const APPS_ENABLED = process.env.CONNECTOR_APPS_ENABLED === 'true';
+const BROWSER4_ENABLED = process.env.CONNECTOR_BROWSER4_ENABLED === 'true';
+const BROWSER4_WORK_DIR = process.env.BROWSER4_WORK_DIR ?? (process.platform === 'win32'
+  ? 'D:\\n8n-data\\browser-runtime-artifacts'
+  : path.join(os.homedir(), '.browser4-runtime-artifacts'));
+const BROWSER4_JAVA_HOME = process.env.BROWSER4_JAVA_HOME ?? (process.platform === 'win32'
+  ? 'D:\\n8n-data\\browser-runtime\\jre17\\jdk-17.0.19+10-jre'
+  : '');
+const BROWSER4_SERVER_URL = process.env.BROWSER4_SERVER_URL ?? 'http://localhost:8182';
+const BROWSER4_ALLOWED_HOSTS = parseBrowser4AllowedHosts(process.env.BROWSER4_ALLOWED_HOSTS ?? 'mad4b.com,n8n.mad4b.com');
 
 const DEFAULT_DEPENDENCY_ALLOWLIST = {
   gh: {
