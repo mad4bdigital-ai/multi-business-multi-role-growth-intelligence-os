@@ -390,8 +390,8 @@ function localManagerAdminPage() {
   <main>
     <header>
       <div>
-        <h1>Mad4B Local Manager</h1>
-        <p>Public app shell with platform-auth actions. No platform secrets are sent to the browser.</p>
+        <h1>Mad4B Local Manager Admin Tools</h1>
+        <p>Generate governed install/upgrade links for the Local Manager connector agent. The agent owns local platform tool releases through the signed manifest; no platform secrets are sent to the browser.</p>
       </div>
       <span class="pill">public app · auth required for actions</span>
     </header>
