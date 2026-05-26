@@ -136,7 +136,7 @@ const REPO_INSPECT_DENY_FILE_PATTERNS = [
   /\.(?:key|p12|pem|pfx)$/i,
 ];
 const REPO_INSPECT_TEXT_EXTENSIONS = new Set([
-  ".cjs", ".css", ".csv", ".env.example", ".gitignore", ".html", ".js", ".json",
+  ".cjs", ".cs", ".css", ".csv", ".env.example", ".gitignore", ".html", ".js", ".json",
   ".jsx", ".md", ".mjs", ".ps1", ".sql", ".ts", ".tsx", ".txt", ".yaml", ".yml",
 ]);
 
