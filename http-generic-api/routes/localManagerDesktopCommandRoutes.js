@@ -245,15 +245,17 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
       const status = cleanText(req.body?.status || "completed", 24);
       const finalStatus = status === "completed" ? "completed" : "failed";
       const result = { ...(req.body?.result || {}), secrets_included: false };
+      const deviceIds = await resolveDesktopCommandDeviceIds(device);
+      const devicePlaceholders = deviceIds.map(() => "?").join(", ");
       const [resultRows] = await getPool().query(
         `UPDATE \`local_manager_desktop_commands\`
             SET status = ?, result_json = ?, error_code = ?, error_message = ?, completed_at = NOW()
           WHERE command_id = ?
             AND user_id = ?
-            AND device_id = ?
+            AND device_id IN (${devicePlaceholders})
             AND (? IS NULL OR tenant_id = ? OR tenant_id IS NULL)
           LIMIT 1`,
-        [finalStatus, jsonString(result), cleanText(req.body?.error_code, 96) || null, cleanText(req.body?.error_message, 1000) || null, commandId, device.user_id, device.device_id, device.tenant_id, device.tenant_id]
+        [finalStatus, jsonString(result), cleanText(req.body?.error_code, 96) || null, cleanText(req.body?.error_message, 1000) || null, commandId, device.user_id, ...deviceIds, device.tenant_id, device.tenant_id]
       );
       if (!Number(resultRows?.affectedRows || 0)) return res.status(404).json({ ok: false, error: { code: "desktop_command_not_found", message: "Command was not found for this device." }, secrets_included: false });
       return res.status(200).json({ ok: true, command_id: commandId, status: finalStatus, secrets_included: false });
