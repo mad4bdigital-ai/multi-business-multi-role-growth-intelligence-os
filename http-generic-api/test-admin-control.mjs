@@ -38,6 +38,22 @@ try {
     adminCliSource.includes("/actions/runs") &&
     adminCliSource.includes("/actions/jobs/"),
     "host GitHub control must not hard-fail when gh is absent");
+  assert("github REST fallback preserves mutation error classes",
+    adminCliSource.includes("github_rest_conflict") &&
+    adminCliSource.includes("github_rest_validation_failed") &&
+    adminCliSource.includes("github_error"),
+    "GitHub 409/422 responses must remain structured and must not be flattened into opaque 502s");
+  assert("github REST fallback supports PR mutation methods",
+    adminCliSource.includes("parseGithubApiMethod") &&
+    adminCliSource.includes("parseGithubFieldValues") &&
+    adminCliSource.includes("/update-branch") &&
+    adminCliSource.includes("/merge"),
+    "gh api -X PUT/POST fallback should support PR update-branch and merge endpoints");
+  assert("github merge fallback classifies dirty pull requests before merge",
+    adminCliSource.includes("github_pr_not_mergeable_dirty") &&
+    adminCliSource.includes("mergeable_state") &&
+    adminCliSource.includes("Resolve conflicts or recreate the branch"),
+    "dirty PRs should produce actionable 409 diagnostics before attempting merge");
 
   const repoList = await inspectRepoReadOnly({ action: "list", path: "http-generic-api", max_entries: 200 });
   assert("repo inspect can list repo files read-only", repoList.entries.some((entry) => entry.path === "http-generic-api/package.json"), JSON.stringify(repoList));
