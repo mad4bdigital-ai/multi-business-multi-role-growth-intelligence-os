@@ -31,7 +31,16 @@ async function upsertInspectionRun(pool, input, status) {
        binding_key = VALUES(binding_key), tenant_id = VALUES(tenant_id), user_id = VALUES(user_id),
        target_url = VALUES(target_url), checks_json = VALUES(checks_json), policy_json = VALUES(policy_json),
        status = VALUES(status), updated_at = CURRENT_TIMESTAMP`,
-    [input.inspection_key, input.binding_key, input.tenant_id || null, input.user_id || null, input.url || input.target_url, JSON.stringify(Array.isArray(input.checks) ? input.checks : []), JSON.stringify(input.policy || {}), status],
+    [
+      input.inspection_key,
+      input.binding_key,
+      input.tenant_id || null,
+      input.user_id || null,
+      input.url || input.target_url,
+      JSON.stringify(Array.isArray(input.checks) ? input.checks : []),
+      JSON.stringify(input.policy || {}),
+      status,
+    ],
   );
 }
 
@@ -49,14 +58,26 @@ async function recordBrowserRuntimeEvent(pool, event) {
     `INSERT INTO \`browser_runtime_events\`
        (event_id, session_id, runtime_key, binding_key, tenant_id, user_id, event_type, url_host, actor, policy_result, event_json)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [event.event_id || randomUUID(), event.session_id || null, event.runtime_key || null, event.binding_key || null, event.tenant_id || null, event.user_id || null, event.event_type, event.url_host || null, event.actor || "browser_runtime_adapter", event.policy_result || null, JSON.stringify(event.event_json || {})],
+    [
+      event.event_id || randomUUID(),
+      event.session_id || null,
+      event.runtime_key || null,
+      event.binding_key || null,
+      event.tenant_id || null,
+      event.user_id || null,
+      event.event_type,
+      event.url_host || null,
+      event.actor || "browser_runtime_adapter",
+      event.policy_result || null,
+      JSON.stringify(event.event_json || {}),
+    ],
   ).catch(() => null);
 }
 
 function internalHeaders() {
   return {
     "Content-Type": "application/json",
-    Authorization: process.env.BACKEND_API_KEY ? `Bearer ${process.env.BACKEND_API_KEY}` : "",
+    ...(process.env.BACKEND_API_KEY ? { Authorization: `Bearer ${process.env.BACKEND_API_KEY}` } : {}),
   };
 }
 
@@ -84,7 +105,12 @@ function sanitizeConnectorResult(data) {
   };
 }
 
-export async function runBrowser4InspectionAdapter({ pool = getPool(), fetchImpl = fetch, input = {}, internalBaseUrl = null } = {}) {
+export async function runBrowser4InspectionAdapter({
+  pool = getPool(),
+  fetchImpl = fetch,
+  input = {},
+  internalBaseUrl = null,
+} = {}) {
   assertNoSecretLike(input, "browser4_inspection_adapter_input");
   const inspectionKey = input.inspection_key || input.inspectionKey || `browser4_inspect_${randomUUID()}`;
   const bindingKey = input.binding_key || input.bindingKey;
@@ -121,14 +147,31 @@ export async function runBrowser4InspectionAdapter({ pool = getPool(), fetchImpl
   });
 
   if (!policy.ok) {
-    await upsertInspectionRun(pool, { inspection_key: inspectionKey, binding_key: bindingKey, url: targetUrl, checks, policy: input.policy || {}, tenant_id: input.tenant_id || input.tenantId || null, user_id: input.user_id || input.userId || null }, "policy_blocked");
-    const result = { ok: false, inspection_key: inspectionKey, policy, error: { code: "browser_runtime_policy_blocked", message: "Browser4 inspection blocked by policy preflight." }, secrets_included: false };
-    await updateInspectionResult(pool, inspectionKey, "policy_blocked", null, result.error);
+    await upsertInspectionRun(pool, {
+      inspection_key: inspectionKey,
+      binding_key: bindingKey,
+      url: targetUrl,
+      checks,
+      policy: input.policy || {},
+      tenant_id: input.tenant_id || input.tenantId || null,
+      user_id: input.user_id || input.userId || null,
+    }, "policy_blocked");
+    const error = { code: "browser_runtime_policy_blocked", message: "Browser4 inspection blocked by policy preflight." };
+    const result = { ok: false, inspection_key: inspectionKey, policy, error, secrets_included: false };
+    await updateInspectionResult(pool, inspectionKey, "policy_blocked", null, error);
     await recordBrowserRuntimeEvent(pool, { runtime_key: runtime.runtime_key, binding_key: bindingKey, event_type: "policy_block", url_host: policy.url_host, policy_result: policy.policy_result, event_json: result });
     return result;
   }
 
-  await upsertInspectionRun(pool, { inspection_key: inspectionKey, binding_key: bindingKey, url: targetUrl, checks, policy: input.policy || {}, tenant_id: input.tenant_id || input.tenantId || null, user_id: input.user_id || input.userId || null }, "running");
+  await upsertInspectionRun(pool, {
+    inspection_key: inspectionKey,
+    binding_key: bindingKey,
+    url: targetUrl,
+    checks,
+    policy: input.policy || {},
+    tenant_id: input.tenant_id || input.tenantId || null,
+    user_id: input.user_id || input.userId || null,
+  }, "running");
   await recordBrowserRuntimeEvent(pool, { runtime_key: runtime.runtime_key, binding_key: bindingKey, event_type: "inspect_site_started", url_host: policy.url_host, policy_result: policy.policy_result, event_json: { inspection_key: inspectionKey, checks } });
 
   const response = await fetchImpl(connectorEndpoint(runtime.device_id, internalBaseUrl), {
