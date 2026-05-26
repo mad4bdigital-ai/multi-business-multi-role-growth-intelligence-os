@@ -7,14 +7,22 @@
     "routes/schemaImportRoutes.js",
     "routes/gptToolsRoutes.js",
     "routes/systemLayerRoutes.js",
-    "routes/connectorTaxonomyRoutes.js"
+    "routes/connectorTaxonomyRoutes.js",
+    "routes/credentialRoutes.js",
+    "routes/credentialIntakeRoutes.js",
+    "routes/appIntegrationRoutes.js",
+    "routes/connectRoutes.js",
+    "routes/connectApiRoutes.js",
+    "routes/connectorProxyRoutes.js",
+    "routes/connectorAgentRoutes.js"
   ],
   "exact": [
     "GET /",
     "GET /healthz",
     "GET /readyz",
     "GET /favicon.ico",
-    "GET /robots.txt"
+    "GET /robots.txt",
+    "POST /connector/{device_id}/browser4"
   ],
   "prefixes": [
     "/oauth",
@@ -28,6 +36,7 @@
     "/debug",
     "/dev-only",
     "/connect/oauth",
+    "/connect/assets",
     "/local-manager",
     "/local-gateway"
   ],
