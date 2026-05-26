@@ -736,15 +736,29 @@ async function executeGitHubRestFallback(args = []) {
     const repoPrefix = `repos/${owner}/${repo}`;
     if (apiTarget.startsWith(repoPrefix)) apiTarget = apiTarget.slice(repoPrefix.length);
     if (!apiTarget.startsWith("/")) apiTarget = `/${apiTarget}`;
-    const allowed = apiTarget.startsWith("/compare/") || apiTarget.startsWith("/pulls") || apiTarget.startsWith("/commits/");
-    if (!allowed) {
-      const err = new Error("GitHub REST API fallback only supports repo-scoped compare, pulls, commits, branches, and branch-ref delete operations.");
+    const method = parseGithubApiMethod(args);
+    const fieldValues = parseGithubFieldValues(args);
+    const allowedRead = method === "GET" && (apiTarget.startsWith("/compare/") || apiTarget.startsWith("/pulls") || apiTarget.startsWith("/commits/"));
+    const allowedMutation = ["POST", "PUT", "PATCH"].includes(method) && (
+      /^\/pulls\/\d+\/update-branch$/.test(apiTarget)
+      || /^\/pulls\/\d+\/merge$/.test(apiTarget)
+      || apiTarget === "/merges"
+    );
+    if (!allowedRead && !allowedMutation) {
+      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, and repo merges mutations.");
       err.status = 501;
       err.code = "github_rest_api_unsupported_path";
-      err.details = { apiTarget };
+      err.details = { apiTarget, method };
       throw err;
     }
-    const payload = await githubRestJson({ owner, repo, apiPath: apiTarget, token });
+    const payload = await githubRestJson({
+      owner,
+      repo,
+      apiPath: apiTarget,
+      token,
+      method,
+      body: allowedMutation ? fieldValues : null,
+    });
     const output = apiTarget.startsWith("/compare/")
       ? {
           url: payload.url,
