@@ -10,7 +10,11 @@
     "routes/connectorTaxonomyRoutes.js",
     "routes/credentialRoutes.js",
     "routes/credentialIntakeRoutes.js",
-    "routes/appIntegrationRoutes.js"
+    "routes/appIntegrationRoutes.js",
+    "routes/connectRoutes.js",
+    "routes/connectApiRoutes.js",
+    "routes/connectorProxyRoutes.js",
+    "routes/connectorAgentRoutes.js"
   ],
   "exact": [
     "GET /",
