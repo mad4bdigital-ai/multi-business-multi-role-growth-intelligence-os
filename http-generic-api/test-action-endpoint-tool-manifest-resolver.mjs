@@ -202,4 +202,123 @@ function createPool() {
   assert(result.authority_chain.includes("platform_tool_manifest"));
 }
 
+{
+  const result = await resolveActionManifestDiagnostic(
+    {
+      action_key: "crm.contact.list",
+      endpoint_key: "crm_contact_list",
+      plugin_key: "tenant.nagy_sample_crm_20260525",
+      tool_key: "admin_app_connection_create",
+      tenant_id: "tenant_1",
+      user_id: "user_1",
+      actor_role: "member",
+      governance_level: "standard",
+      preview_enforce: true,
+      require_plugin_connection: true,
+    },
+    {
+      async resolveActionEndpointToolManifest(args) {
+        assert.equal(args.action_key, "crm.contact.list");
+        assert.equal(args.endpoint_key, "crm_contact_list");
+        assert.equal(args.plugin_key, "tenant.nagy_sample_crm_20260525");
+        assert.equal(args.tool_key, "admin_app_connection_create");
+        return {
+          ok: true,
+          resolver: "shared_action_endpoint_tool_manifest_resolver",
+          mode: "read_model_only",
+          requested: args,
+          count: 1,
+          surface_authority: {
+            action_registry: { ok: true, resolved_surface_key: "surface.actions_registry_sheet", secrets_included: false },
+            endpoint_registry: { ok: true, resolved_surface_key: "surface.endpoint_registry_sheet", secrets_included: false },
+            tool_manifest: { ok: true, resolved_surface_key: "surface.platform_tool_manifest", secrets_included: false },
+          },
+          authority_chain: ["action_registry_authority_resolver", "endpoint_registry", "platform_tool_manifest"],
+          manifests: [
+            {
+              action: {
+                action_key: "crm.contact.list",
+                plugin: {
+                  plugin_key: "tenant.nagy_sample_crm_20260525",
+                  binding: { status: "active", credential_source: "tenant_connection" },
+                  tenant_policy: { status: "active" },
+                  connection_summary: { active_connection_count: 1, primary_connection_available: true },
+                },
+                evaluation: { allowed: true, reasons: [] },
+              },
+              endpoints: [{ endpoint_key: "crm_contact_list", readiness: { active: true, execution_readiness: "ready" } }],
+              tools: [{ tool_key: "admin_app_connection_create", is_enabled: true, binding: { active: true } }],
+              readiness: { action_allowed: true, endpoint_count: 1, tool_count: 1, manifest_complete: true },
+              secrets_included: false,
+            },
+          ],
+          secrets_included: false,
+        };
+      },
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.mode, "dry_run_readiness_only");
+  assert.equal(result.will_execute, false);
+  assert.equal(result.requested.tool_key, "admin_app_connection_create");
+  assert.equal(result.execution_authority_manifest.tool_key, "admin_app_connection_create");
+  assert.equal(result.execution_authority_guard_preview.guard_status, "passed");
+  assert.equal(result.execution_authority_guard_preview.would_dispatch, true);
+  assert.equal(result.next_step, "dispatch_would_be_allowed_by_manifest_guard");
+  assert.equal(result.secrets_included, false);
+}
+
+{
+  const result = await resolveActionManifestDiagnostic(
+    { action_key: "denied.action", endpoint_key: "denied_endpoint", preview_enforce: true },
+    {
+      async resolveActionEndpointToolManifest(args) {
+        return {
+          ok: true,
+          resolver: "shared_action_endpoint_tool_manifest_resolver",
+          mode: "read_model_only",
+          requested: args,
+          count: 1,
+          surface_authority: {
+            action_registry: { ok: true, resolved_surface_key: "surface.actions_registry_sheet", secrets_included: false },
+            endpoint_registry: { ok: true, resolved_surface_key: "surface.endpoint_registry_sheet", secrets_included: false },
+            tool_manifest: { ok: true, resolved_surface_key: "surface.platform_tool_manifest", secrets_included: false },
+          },
+          authority_chain: ["action_registry_authority_resolver", "endpoint_registry", "platform_tool_manifest"],
+          manifests: [
+            {
+              action: {
+                action_key: "denied.action",
+                evaluation: { allowed: false, reasons: ["actor_role_not_allowed"] },
+              },
+              endpoints: [{ endpoint_key: "denied_endpoint", readiness: { active: true, execution_readiness: "ready" } }],
+              tools: [],
+              readiness: { action_allowed: false, endpoint_count: 1, tool_count: 0, manifest_complete: false },
+              secrets_included: false,
+            },
+          ],
+          secrets_included: false,
+        };
+      },
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.execution_authority_guard_preview.guard_status, "blocked");
+  assert.equal(result.execution_authority_guard_preview.would_dispatch, false);
+  assert.equal(result.execution_authority_guard_preview.error.code, "execution_authority_action_not_allowed");
+  assert.equal(result.next_step, "dispatch_would_be_blocked_by_manifest_guard");
+}
+
+{
+  const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
+  assert(routes.includes("/platform/action-manifest/resolve"), "action manifest diagnostic route must be mounted");
+  assert(routes.includes("resolveActionManifestDiagnostic"), "route must call diagnostic resolver");
+  const migration = readFileSync("migrations/147_sprint65_action_manifest_diagnostic_tool.sql", "utf8");
+  assert(migration.includes("action_manifest_resolve"), "tool registry migration must register action manifest resolver tool");
+  assert(migration.includes("/platform/action-manifest/resolve"), "tool registry migration must point at diagnostic route");
+  assert(migration.includes("dry-run"), "tool description must declare dry-run behavior");
+}
+
 console.log("action endpoint tool manifest resolver tests passed");
