@@ -8,6 +8,9 @@ const REPO_ROOT = path.resolve(API_ROOT, "..");
 const write = process.argv.includes("--write");
 const check = process.argv.includes("--check");
 const skipOpenapiAutofill = process.argv.includes("--skip-openapi-autofill");
+const writeSplitSchemas = process.argv.includes("--write-split-schemas");
+const reportFileIndex = process.argv.indexOf("--report-file");
+const reportFile = reportFileIndex >= 0 ? process.argv[reportFileIndex + 1] : "";
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
