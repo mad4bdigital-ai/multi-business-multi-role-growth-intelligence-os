@@ -14,7 +14,7 @@ INSERT INTO `admin_platform_endpoint_tools` (
   NULL,
   '{"type":"object","required":["connection_id","plugin_key","action_key"],"properties":{"connection_id":{"type":"string"},"plugin_key":{"type":"string"},"action_key":{"type":"string"},"agent_id":{"type":"string"},"workspace_id":{"type":"string"},"tenant_id":{"type":"string"},"user_id":{"type":"string"},"grant_mode":{"type":"string","enum":["explicit","default_permissive","auto_approved"],"default":"explicit"},"granted_by":{"type":"string"},"expires_at":{"type":"string","format":"date-time"}}}',
   NULL,
-  'admin,platform-plugin,action-grant,state_changing,audited,no_secrets,approval_gate',
+  'admin,platform-plugin,platform-plugins,action-grant,state_changing,audited,no_secrets,approval_gate',
   1,
   130
 )
