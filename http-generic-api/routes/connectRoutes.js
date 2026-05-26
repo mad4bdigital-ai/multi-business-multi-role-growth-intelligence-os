@@ -770,10 +770,11 @@ export function buildConnectRoutes(deps) {
         dedicated_integration_readiness: dedicatedIntegrationReadiness,
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: hybridIntegrationReadiness,
+        local_manager_activation_binding: localManagerActivationBinding(),
         activation_graph_context: activationGraphContext,
         next_actions: hybridIntegrationReadiness?.ready === false
           ? hybridIntegrationReadiness.next_actions
-          : ["connect_device_install"],
+          : ["open_local_manager", "connect_device_install"],
         connection: {
           mode: connection.connection_mode,
           status: connection.status,
