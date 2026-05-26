@@ -59,6 +59,13 @@ assert(providerToolMigration.includes('Read-only and never returns secrets'));
 assert(providerBridgeToolMigration.includes('dev_agent_provider_bridge_dry_run'));
 assert(providerBridgeToolMigration.includes('Does not copy secrets to Essam'));
 assert(providerBridgeToolMigration.includes('no_local_execution'));
+assert(codexRuntimeMigration.includes('codex_essam_chatgpt_v1'));
+assert(codexRuntimeMigration.includes('codex_chatgpt_oauth'));
+assert(codexRuntimeMigration.includes('codex_openrouter_custom_provider'));
+assert(codexRuntimeMigration.includes('codex_gemini_custom_provider'));
+assert(codexRuntimeMigration.includes('codex_ollama_local'));
+assert(codexRuntimeMigration.includes('copy_platform_secret_to_device":false'));
+assert(codexRuntimeMigration.includes('codex login --device-auth'));
 
 assert(routes.includes('/dev-agent/summary-development/runtimes'));
 assert(routes.includes('/dev-agent/summary-development/signals'));
