@@ -11,6 +11,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import {
+  buildBrowser4InspectionScript,
+  parseBrowser4AllowedHosts,
+  sanitizeBrowser4Checks,
+  validateBrowser4Url,
+} from './browser4-adapter.mjs';
 
 // ---------------------------------------------------------------------------
 // Bootstrap â€” manual .env parse (no dotenv dependency)
