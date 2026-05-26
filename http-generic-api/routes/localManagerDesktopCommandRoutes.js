@@ -5,6 +5,16 @@ import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkSer
 
 const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_manager", "codex_exec_readonly"]);
 const ALLOWED_MODES = new Set(["desktop", "background"]);
+const ALL_ZERO_TENANT_ID = "00000000-0000-0000-0000-000000000000";
+
+function isWildcardTenantId(value) {
+  const tenantId = cleanText(value, 64);
+  return !tenantId || tenantId === ALL_ZERO_TENANT_ID;
+}
+
+function uniqueStrings(values, max = 50) {
+  return [...new Set((values || []).map((value) => cleanText(value, 128)).filter(Boolean))].slice(0, max);
+}
 
 function cleanText(value, max = 255) {
   return String(value || "").trim().slice(0, max);
@@ -140,36 +150,217 @@ async function expireOldCommands() {
   );
 }
 
-async function resolveDesktopCommandDeviceIds(device = {}) {
-  const primaryDeviceId = cleanText(device.device_id, 128);
-  const userId = cleanText(device.user_id, 64);
-  const tenantId = cleanText(device.tenant_id, 64) || null;
-  const ids = new Set(primaryDeviceId ? [primaryDeviceId] : []);
-  if (!primaryDeviceId || !userId) return [...ids];
-
+async function loadActiveDeviceAliasRows({ userId, tenantId, deviceId } = {}) {
+  const primaryDeviceId = cleanText(deviceId, 128);
+  const scopedUserId = cleanText(userId, 64);
+  const scopedTenantId = cleanText(tenantId, 64) || null;
+  if (!primaryDeviceId || !scopedUserId) return [];
+  const wildcardTenant = isWildcardTenantId(scopedTenantId);
   try {
     const [rows] = await getPool().query(
-      `SELECT alias_device_id, canonical_device_id
+      `SELECT alias_device_id, canonical_device_id, user_id, tenant_id, updated_at
          FROM \`local_connector_device_aliases\`
         WHERE status = 'active'
           AND (alias_device_id = ? OR canonical_device_id = ?)
           AND (user_id = ? OR user_id IS NULL)
-          AND (? IS NULL OR tenant_id = ? OR tenant_id IS NULL)
+          AND (? = 1 OR tenant_id = ? OR tenant_id IS NULL)
+        ORDER BY
+          CASE WHEN tenant_id IS NOT NULL AND tenant_id <> ? THEN 0 ELSE 1 END,
+          updated_at DESC
         LIMIT 50`,
-      [primaryDeviceId, primaryDeviceId, userId, tenantId, tenantId]
+      [primaryDeviceId, primaryDeviceId, scopedUserId, wildcardTenant ? 1 : 0, scopedTenantId, ALL_ZERO_TENANT_ID]
     );
-    for (const row of rows) {
-      const alias = cleanText(row.alias_device_id, 128);
-      const canonical = cleanText(row.canonical_device_id, 128);
-      if (alias) ids.add(alias);
-      if (canonical) ids.add(canonical);
+    return rows || [];
+  } catch {
+    return [];
+  }
+}
+
+function deviceIdsFromAliasRows(primaryDeviceId, aliasRows = []) {
+  const values = [primaryDeviceId];
+  for (const row of aliasRows) {
+    values.push(row.alias_device_id, row.canonical_device_id);
+  }
+  return uniqueStrings(values);
+}
+
+function canonicalDeviceIdFromAliasRows(primaryDeviceId, aliasRows = []) {
+  const primary = cleanText(primaryDeviceId, 128);
+  const exactAlias = aliasRows.find((row) => cleanText(row.alias_device_id, 128) === primary && cleanText(row.canonical_device_id, 128));
+  if (exactAlias) return cleanText(exactAlias.canonical_device_id, 128);
+  const exactCanonical = aliasRows.find((row) => cleanText(row.canonical_device_id, 128) === primary);
+  if (exactCanonical) return cleanText(exactCanonical.canonical_device_id, 128);
+  return primary;
+}
+
+async function resolveEffectiveDesktopCommandTarget({ userId, tenantId, deviceId, requestContext = {} } = {}) {
+  const requestedUserId = cleanText(userId, 64);
+  const requestedTenantId = cleanText(tenantId, 64) || null;
+  const requestedDeviceId = cleanText(deviceId, 128);
+  const fallback = {
+    user_id: requestedUserId,
+    tenant_id: requestedTenantId,
+    device_id: requestedDeviceId,
+    request_context: {
+      ...(requestContext || {}),
+      desktop_identity_resolution: {
+        requested_user_id: requestedUserId,
+        requested_tenant_id: requestedTenantId,
+        requested_device_id: requestedDeviceId,
+        effective_tenant_id: requestedTenantId,
+        effective_device_id: requestedDeviceId,
+        canonical_device_id: requestedDeviceId,
+        identity_resolution_source: "requested_identity",
+        identity_resolution_status: "fallback_requested_identity",
+        secrets_included: false,
+      },
+    },
+  };
+  if (!requestedUserId || !requestedDeviceId) return fallback;
+
+  const wildcardTenant = isWildcardTenantId(requestedTenantId);
+  const aliasRows = await loadActiveDeviceAliasRows({ userId: requestedUserId, tenantId: requestedTenantId, deviceId: requestedDeviceId });
+  const candidateDeviceIds = deviceIdsFromAliasRows(requestedDeviceId, aliasRows);
+  const canonicalDeviceId = canonicalDeviceIdFromAliasRows(requestedDeviceId, aliasRows);
+  const placeholders = candidateDeviceIds.map(() => "?").join(", ");
+
+  try {
+    const [recentRows] = await getPool().query(
+      `SELECT tenant_id, device_id, status, claimed_at, completed_at, created_at
+         FROM \`local_manager_desktop_commands\`
+        WHERE user_id = ?
+          AND device_id IN (${placeholders})
+          AND status IN ('claimed','completed')
+          AND (? = 1 OR tenant_id = ? OR tenant_id IS NULL)
+        ORDER BY COALESCE(completed_at, claimed_at, created_at) DESC
+        LIMIT 1`,
+      [requestedUserId, ...candidateDeviceIds, wildcardTenant ? 1 : 0, requestedTenantId]
+    );
+    if (recentRows?.[0]?.device_id) {
+      const effectiveTenantId = cleanText(recentRows[0].tenant_id, 64) || requestedTenantId;
+      const effectiveDeviceId = cleanText(recentRows[0].device_id, 128);
+      return {
+        user_id: requestedUserId,
+        tenant_id: effectiveTenantId,
+        device_id: effectiveDeviceId,
+        request_context: {
+          ...(requestContext || {}),
+          desktop_identity_resolution: {
+            requested_user_id: requestedUserId,
+            requested_tenant_id: requestedTenantId,
+            requested_device_id: requestedDeviceId,
+            effective_tenant_id: effectiveTenantId,
+            effective_device_id: effectiveDeviceId,
+            canonical_device_id: canonicalDeviceId,
+            candidate_device_ids: candidateDeviceIds,
+            identity_resolution_source: "recent_claimed_or_completed_desktop_command",
+            identity_resolution_status: "resolved",
+            secrets_included: false,
+          },
+        },
+      };
     }
   } catch {
-    // Alias resolution is best-effort. If the alias table is unavailable,
-    // polling remains scoped to the device_id embedded in the device token.
+    // Recent polling history is an optimization. Alias/config fallback still applies.
   }
 
-  return [...ids].filter(Boolean).slice(0, 50);
+  const activeAlias = aliasRows.find((row) => {
+    const alias = cleanText(row.alias_device_id, 128);
+    const canonical = cleanText(row.canonical_device_id, 128);
+    const rowTenant = cleanText(row.tenant_id, 64) || null;
+    if (!alias && !canonical) return false;
+    if (!wildcardTenant && rowTenant && rowTenant !== requestedTenantId) return false;
+    return true;
+  });
+  if (activeAlias) {
+    const aliasDeviceId = cleanText(activeAlias.alias_device_id, 128);
+    const canonical = cleanText(activeAlias.canonical_device_id, 128) || canonicalDeviceId;
+    const rowTenant = cleanText(activeAlias.tenant_id, 64) || requestedTenantId;
+    const effectiveDeviceId = aliasDeviceId || requestedDeviceId;
+    return {
+      user_id: requestedUserId,
+      tenant_id: rowTenant,
+      device_id: effectiveDeviceId,
+      request_context: {
+        ...(requestContext || {}),
+        desktop_identity_resolution: {
+          requested_user_id: requestedUserId,
+          requested_tenant_id: requestedTenantId,
+          requested_device_id: requestedDeviceId,
+          effective_tenant_id: rowTenant,
+          effective_device_id: effectiveDeviceId,
+          canonical_device_id: canonical,
+          candidate_device_ids: candidateDeviceIds,
+          identity_resolution_source: "active_device_alias",
+          identity_resolution_status: "resolved",
+          secrets_included: false,
+        },
+      },
+    };
+  }
+
+  try {
+    const [configRows] = await getPool().query(
+      `SELECT tenant_id, device_id, hostname, last_health_at, updated_at
+         FROM \`local_connector_user_configs\`
+        WHERE is_enabled = 1
+          AND user_id = ?
+          AND device_id IN (${placeholders})
+          AND (? = 1 OR tenant_id = ? OR tenant_id IS NULL)
+        ORDER BY COALESCE(last_health_at, updated_at) DESC
+        LIMIT 1`,
+      [requestedUserId, ...candidateDeviceIds, wildcardTenant ? 1 : 0, requestedTenantId]
+    );
+    if (configRows?.[0]?.device_id) {
+      const effectiveTenantId = cleanText(configRows[0].tenant_id, 64) || requestedTenantId;
+      const effectiveDeviceId = cleanText(configRows[0].device_id, 128);
+      return {
+        user_id: requestedUserId,
+        tenant_id: effectiveTenantId,
+        device_id: effectiveDeviceId,
+        request_context: {
+          ...(requestContext || {}),
+          desktop_identity_resolution: {
+            requested_user_id: requestedUserId,
+            requested_tenant_id: requestedTenantId,
+            requested_device_id: requestedDeviceId,
+            effective_tenant_id: effectiveTenantId,
+            effective_device_id: effectiveDeviceId,
+            canonical_device_id: canonicalDeviceId,
+            candidate_device_ids: candidateDeviceIds,
+            identity_resolution_source: "active_connector_config",
+            identity_resolution_status: "resolved",
+            secrets_included: false,
+          },
+        },
+      };
+    }
+  } catch {
+    // Config fallback is best-effort. New devices must still be able to enqueue.
+  }
+
+  return {
+    ...fallback,
+    request_context: {
+      ...(requestContext || {}),
+      desktop_identity_resolution: {
+        ...fallback.request_context.desktop_identity_resolution,
+        canonical_device_id: canonicalDeviceId,
+        candidate_device_ids: candidateDeviceIds,
+        identity_resolution_source: "requested_identity_no_mapping_found",
+        identity_resolution_status: "fallback_new_or_unlinked_device",
+        secrets_included: false,
+      },
+    },
+  };
+}
+
+async function resolveDesktopCommandDeviceIds(device = {}) {
+  const primaryDeviceId = cleanText(device.device_id, 128);
+  const userId = cleanText(device.user_id, 64);
+  const tenantId = cleanText(device.tenant_id, 64) || null;
+  const aliasRows = await loadActiveDeviceAliasRows({ userId, tenantId, deviceId: primaryDeviceId });
+  return deviceIdsFromAliasRows(primaryDeviceId, aliasRows);
 }
 
 export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, requireAdminPrincipal } = {}) {
@@ -189,6 +380,7 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
       const deviceId = cleanText(body.device_id, 128);
       if (!userId || !deviceId) return res.status(400).json({ ok: false, error: { code: "missing_target", message: "user_id and device_id are required." }, secrets_included: false });
       const payload = normalizePayload(action, body.payload || {});
+      const target = await resolveEffectiveDesktopCommandTarget({ userId, tenantId, deviceId, requestContext: body.request_context || {} });
       const commandId = crypto.randomUUID();
       const ttlSeconds = Math.max(30, Math.min(Number(body.ttl_seconds || 300), 3600));
       const priority = Math.max(1, Math.min(Number(body.priority || 100), 1000));
@@ -197,9 +389,25 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
         `INSERT INTO \`local_manager_desktop_commands\`
           (command_id, tenant_id, user_id, device_id, execution_mode, action, status, priority, requires_user_confirmation, payload_json, requested_by, request_context_json, expires_at)
          VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))`,
-        [commandId, tenantId, userId, deviceId, executionMode, action, priority, requiresUserConfirmation ? 1 : 0, jsonString(payload), cleanText(body.requested_by || "gpt", 128), jsonString(body.request_context || {}), ttlSeconds]
+        [commandId, target.tenant_id, target.user_id, target.device_id, executionMode, action, priority, requiresUserConfirmation ? 1 : 0, jsonString(payload), cleanText(body.requested_by || "gpt", 128), jsonString(target.request_context || {}), ttlSeconds]
       );
-      return res.status(201).json({ ok: true, command: { command_id: commandId, execution_mode: executionMode, action, status: "queued", expires_in: ttlSeconds }, secrets_included: false });
+      return res.status(201).json({
+        ok: true,
+        command: {
+          command_id: commandId,
+          execution_mode: executionMode,
+          action,
+          status: "queued",
+          expires_in: ttlSeconds,
+          target: {
+            user_id: target.user_id,
+            tenant_id: target.tenant_id,
+            device_id: target.device_id,
+            identity_resolution: target.request_context?.desktop_identity_resolution || null,
+          },
+        },
+        secrets_included: false,
+      });
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "desktop_command_enqueue_failed", message: err.message }, secrets_included: false });
     }
@@ -217,12 +425,12 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
         `SELECT * FROM \`local_manager_desktop_commands\`
           WHERE user_id = ?
             AND device_id IN (${devicePlaceholders})
-            AND (? IS NULL OR tenant_id = ? OR tenant_id IS NULL)
+            AND (? IS NULL OR tenant_id = ? OR tenant_id IS NULL OR tenant_id = ?)
             AND execution_mode = 'desktop'
             AND status = 'queued'
           ORDER BY priority ASC, created_at ASC
           LIMIT ?`,
-        [device.user_id, ...deviceIds, device.tenant_id, device.tenant_id, limit]
+        [device.user_id, ...deviceIds, device.tenant_id, device.tenant_id, ALL_ZERO_TENANT_ID, limit]
       );
       const ids = rows.map((row) => row.command_id);
       if (ids.length) {
@@ -253,9 +461,9 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
           WHERE command_id = ?
             AND user_id = ?
             AND device_id IN (${devicePlaceholders})
-            AND (? IS NULL OR tenant_id = ? OR tenant_id IS NULL)
+            AND (? IS NULL OR tenant_id = ? OR tenant_id IS NULL OR tenant_id = ?)
           LIMIT 1`,
-        [finalStatus, jsonString(result), cleanText(req.body?.error_code, 96) || null, cleanText(req.body?.error_message, 1000) || null, commandId, device.user_id, ...deviceIds, device.tenant_id, device.tenant_id]
+        [finalStatus, jsonString(result), cleanText(req.body?.error_code, 96) || null, cleanText(req.body?.error_message, 1000) || null, commandId, device.user_id, ...deviceIds, device.tenant_id, device.tenant_id, ALL_ZERO_TENANT_ID]
       );
       if (!Number(resultRows?.affectedRows || 0)) return res.status(404).json({ ok: false, error: { code: "desktop_command_not_found", message: "Command was not found for this device." }, secrets_included: false });
       return res.status(200).json({ ok: true, command_id: commandId, status: finalStatus, secrets_included: false });
