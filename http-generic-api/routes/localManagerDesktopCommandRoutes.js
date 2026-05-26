@@ -3,7 +3,7 @@ import { Router } from "express";
 import { getPool } from "../db.js";
 import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkService.js";
 
-const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_manager"]);
+const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_manager", "codex_exec_readonly"]);
 const ALLOWED_MODES = new Set(["desktop", "background"]);
 
 function cleanText(value, max = 255) {
@@ -69,6 +69,34 @@ function normalizePayload(action, payload = {}) {
   if (action === "notify") {
     clean.title = cleanText(clean.title || "Mad4B", 120) || "Mad4B";
     clean.message = cleanText(clean.message || "", 1000);
+  }
+  if (action === "codex_exec_readonly") {
+    clean.runtime_key = cleanText(clean.runtime_key || "codex_essam_chatgpt_v1", 128);
+    clean.profile_key = cleanText(clean.profile_key || "codex_essam_chatgpt_oauth_v1", 128);
+    clean.command_path = cleanText(clean.command_path || "C:\\Users\\IT\\AppData\\Roaming\\npm\\codex.cmd", 512);
+    clean.working_directory = cleanText(clean.working_directory || clean.repo_path || "D:\\mad4b-agent-workspaces\\growth-intelligence-os-readonly", 512);
+    clean.prompt = cleanText(clean.prompt || clean.analysis_goal || "", 4000);
+    clean.sandbox = cleanText(clean.sandbox || "read-only", 64);
+    clean.output_max_chars = Math.max(500, Math.min(Number(clean.output_max_chars || 5000), 20000));
+    clean.timeout_seconds = Math.max(30, Math.min(Number(clean.timeout_seconds || 300), 1800));
+    if (!clean.prompt) {
+      const err = new Error("codex_exec_readonly requires a prompt.");
+      err.status = 400;
+      err.code = "codex_prompt_required";
+      throw err;
+    }
+    if (clean.sandbox !== "read-only") {
+      const err = new Error("codex_exec_readonly requires sandbox=read-only.");
+      err.status = 403;
+      err.code = "codex_readonly_sandbox_required";
+      throw err;
+    }
+    if (!/codex(?:\.cmd)?$/i.test(clean.command_path)) {
+      const err = new Error("codex_exec_readonly command_path must point to codex or codex.cmd.");
+      err.status = 403;
+      err.code = "codex_command_path_blocked";
+      throw err;
+    }
   }
   clean.secrets_included = false;
   return clean;

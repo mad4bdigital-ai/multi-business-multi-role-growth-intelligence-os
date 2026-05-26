@@ -1311,6 +1311,175 @@ export function buildDevAgentRoutes(deps) {
     }
   });
 
+  router.post("/dev-agent/summary-development/codex-interactive-execution-request", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const runId = randomUUID();
+    const runtimeKey = String(body.runtime_key || "codex_essam_chatgpt_v1").trim();
+    const profileKey = String(body.profile_key || "codex_essam_chatgpt_oauth_v1").trim();
+    const userId = String(body.user_id || body.target_user_id || "").trim();
+    const tenantId = String(body.tenant_id || "").trim() || null;
+    const requestedBy = String(body.requested_by || body.user_id || "gpt_admin_assistant").trim();
+    const prompt = normalizeProviderBridgePrompt(body.prompt || body.analysis_goal || "Create a read-only Codex patch plan for the current platform repository.");
+    if (!userId) {
+      return res.status(400).json({ ok: false, error: { code: "codex_execution_user_id_required", message: "user_id is required to enqueue a Local Manager desktop command." }, secrets_included: false });
+    }
+    try {
+      const [runtimeRows] = await pool.query(
+        `SELECT runtime_key, display_name, runtime_type, provider_key, execution_surface,
+                device_id, command_hint, policy_json, status, notes
+         FROM \`dev_agent_runtime_registry\`
+         WHERE runtime_key = ?
+         LIMIT 1`,
+        [runtimeKey]
+      );
+      const runtime = runtimeRows[0];
+      if (!runtime) return res.status(404).json({ ok: false, error: { code: "codex_runtime_not_found", message: "runtime_key was not found." }, secrets_included: false });
+      if (runtime.provider_key !== "codex" || runtime.runtime_type !== "local_coding_agent") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "codex_runtime_required", message: "Only Codex local coding-agent runtimes are supported." }, secrets_included: false });
+      }
+      const [profileRows] = await pool.query(
+        `SELECT rp.profile_key, rp.runtime_key, rp.provider_key, rp.profile_name,
+                rp.selection_mode, rp.credential_mode, rp.status, rp.policy_json,
+                rp.metadata_json
+         FROM \`dev_agent_runtime_provider_profiles\` rp
+         WHERE rp.profile_key = ? AND rp.runtime_key = ?
+         LIMIT 1`,
+        [profileKey, runtimeKey]
+      );
+      const profile = profileRows[0];
+      if (!profile) return res.status(404).json({ ok: false, error: { code: "codex_profile_not_found", message: "profile_key was not found for runtime_key." }, secrets_included: false });
+      if (profile.provider_key !== "codex_chatgpt_oauth") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "codex_profile_not_interactive_oauth", message: "Only Codex ChatGPT OAuth profile is supported for interactive execution." }, secrets_included: false });
+      }
+      const runtimePolicy = safeParseJsonObject(runtime.policy_json);
+      if (runtimePolicy.auth_status !== "logged_in_user_verified" && profile.status !== "available") {
+        return res.status(409).json({ ok: false, blocked: true, error: { code: "codex_interactive_login_required", message: "Codex ChatGPT OAuth must be verified under the interactive Windows user before execution." }, secrets_included: false });
+      }
+      const envelope = buildCodexInteractiveReadOnlyExecutionEnvelope({ runtime, profile, prompt, repoPath: String(body.repo_path || "").trim() });
+      const commandId = randomUUID();
+      const commandPayload = {
+        runtime_key: runtime.runtime_key,
+        profile_key: profile.profile_key,
+        command_path: envelope.command_path,
+        working_directory: envelope.working_directory,
+        prompt,
+        sandbox: "read-only",
+        timeout_seconds: Math.max(30, Math.min(Number(body.timeout_seconds || 600), 1800)),
+        output_max_chars: Math.max(500, Math.min(Number(body.output_max_chars || 8000), 20000)),
+        run_id: runId,
+        secrets_included: false,
+      };
+      await pool.query(
+        `INSERT INTO \`local_manager_desktop_commands\`
+          (command_id, tenant_id, user_id, device_id, execution_mode, action, status, priority, requires_user_confirmation,
+           payload_json, requested_by, request_context_json, expires_at)
+         VALUES (?, ?, ?, ?, 'desktop', 'codex_exec_readonly', 'queued', ?, 0, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))`,
+        [
+          commandId,
+          tenantId,
+          userId,
+          runtime.device_id || "essam-pc",
+          Math.max(1, Math.min(Number(body.priority || 50), 1000)),
+          JSON.stringify(commandPayload),
+          requestedBy,
+          JSON.stringify({ run_id: runId, adapter: "codex_interactive_execution_request_v1", secrets_included: false }),
+          Math.max(60, Math.min(Number(body.ttl_seconds || 900), 3600)),
+        ]
+      );
+      const result = {
+        adapter: "codex_interactive_execution_request_v1",
+        run_id: runId,
+        command_id: commandId,
+        runtime_key: runtime.runtime_key,
+        profile_key: profile.profile_key,
+        device_id: runtime.device_id || "essam-pc",
+        user_id: userId,
+        tenant_id: tenantId,
+        execution_status: "queued_local_manager_desktop_command",
+        local_manager_action: "codex_exec_readonly",
+        envelope,
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        copy_platform_secret_to_device: false,
+        secrets_included: false,
+      };
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, tenant_id, requested_by, runtime_key,
+            source_filter_json, policy_json, status, scanned_count,
+            signals_created, signals_updated, tasks_created, result_json,
+            started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, ?, ?, ?, 'queued', 0, 0, 0, 0, ?, NOW(), NOW())`,
+        [
+          runId,
+          `summary_dev_codex_execution_request_${runId}`,
+          tenantId,
+          requestedBy,
+          runtime.runtime_key,
+          JSON.stringify({ command_id: commandId, profile_key: profile.profile_key, user_id: userId }),
+          JSON.stringify({ read_only: true, local_manager_action: "codex_exec_readonly", auto_mutate_repo: false, secrets_included: false }),
+          JSON.stringify(result),
+        ]
+      );
+      return res.status(202).json({ ok: true, ...result });
+    } catch (err) {
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, requested_by, status, error_json, started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, 'failed', ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE status = 'failed', error_json = VALUES(error_json), completed_at = NOW()`,
+        [runId, `summary_dev_codex_execution_request_${runId}`, requestedBy, JSON.stringify({ code: err.code || "codex_execution_request_failed", message: String(err.message || err).slice(0, 240) })]
+      ).catch(() => {});
+      return res.status(500).json({ ok: false, error: { code: err.code || "codex_execution_request_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.get("/dev-agent/summary-development/codex-interactive-execution/:runId", async (req, res) => {
+    try {
+      const runId = String(req.params.runId || "").trim();
+      if (!runId) return res.status(400).json({ ok: false, error: { code: "run_id_required", message: "runId is required." }, secrets_included: false });
+      const [[run]] = await getPool().query(
+        `SELECT run_id, run_key, status, result_json, error_json, created_at, updated_at
+         FROM \`summary_development_automation_runs\`
+         WHERE run_id = ?
+         LIMIT 1`,
+        [runId]
+      );
+      if (!run) return res.status(404).json({ ok: false, error: { code: "codex_execution_run_not_found", message: "run_id was not found." }, secrets_included: false });
+      const result = safeParseJsonObject(run.result_json);
+      const commandId = result.command_id || null;
+      let command = null;
+      if (commandId) {
+        const [[row]] = await getPool().query(
+          `SELECT command_id, action, status, result_json, error_code, error_message, created_at, claimed_at, completed_at, expires_at
+           FROM \`local_manager_desktop_commands\`
+           WHERE command_id = ?
+           LIMIT 1`,
+          [commandId]
+        );
+        if (row) {
+          command = {
+            command_id: row.command_id,
+            action: row.action,
+            status: row.status,
+            result: safeParseJsonObject(row.result_json),
+            error_code: row.error_code,
+            error_message: row.error_message,
+            created_at: row.created_at,
+            claimed_at: row.claimed_at,
+            completed_at: row.completed_at,
+            expires_at: row.expires_at,
+            secrets_included: false,
+          };
+        }
+      }
+      return res.json({ ok: true, run_id: runId, run_status: run.status, command, result, error: safeParseJsonObject(run.error_json), secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "codex_execution_status_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   router.get("/dev-agent/summary-development/signals", async (req, res) => {
     try {
       const status = String(req.query.status || "").trim();
