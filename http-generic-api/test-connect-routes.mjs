@@ -569,6 +569,24 @@ section("connect api auth scope");
           source.includes("secrets_included: false") &&
           packageSource.includes("test-task-route-authority-resolver.mjs");
       })());
+    assert("shared workflow registry resolver is registry-driven and customization-aware",
+      (() => {
+        const source = readFileSync("workflowRegistryAuthorityResolver.js", "utf8");
+        const packageSource = readFileSync("package.json", "utf8");
+        return source.includes("resolveWorkflowCandidates") &&
+          source.includes("SURFACE_KEYS.WORKFLOW_REGISTRY") &&
+          source.includes("assertSurfaceAuthority") &&
+          source.includes("brand_or_activity_specialization") &&
+          source.includes("client_specialization") &&
+          source.includes("team_specialization") &&
+          source.includes("model_capability_specialization") &&
+          source.includes("governance_requirement_specialization") &&
+          source.includes("engine_order") &&
+          source.includes("registry_row_layered_customization") &&
+          source.includes("future_override_layers") &&
+          source.includes("secrets_included: false") &&
+          packageSource.includes("test-workflow-registry-authority-resolver.mjs");
+      })());
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
