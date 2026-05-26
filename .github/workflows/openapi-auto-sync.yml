@@ -85,9 +85,9 @@ jobs:
 
             This PR may update:
             - OpenAPI route stubs for newly detected Express routes.
-            - Generated/scoped OpenAPI schemas derived from `http-generic-api/openapi.yaml`.
             - Generated repository maintenance planning docs such as `docs/repo-maintenance-status.md`.
-            - `repo-maintenance-sync-result.json` with the generation report.
+
+            Generated/scoped OpenAPI schema files are not committed by this default automation. Use `repo-maintenance-sync.mjs --write --write-split-schemas` in a reviewed PR when split schema artifacts need to change.
 
             Review checklist:
             - Replace `TODO document ...` summaries with precise summaries.
