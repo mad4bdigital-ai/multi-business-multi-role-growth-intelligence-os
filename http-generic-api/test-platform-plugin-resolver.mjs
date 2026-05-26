@@ -90,10 +90,51 @@ function makePool({ withConnection = true, withSkill = true, tenantDedicated = f
   });
   assert.equal(result.ok, true);
   assert.equal(result.allowed, true);
-  assert.equal(result.mode, "preview_only");
+  assert.equal(result.mode, "dispatch_ready");
   assert.equal(result.credential_resolution.credential_source, "user_connection");
   assert.equal(result.skill_resolution.granted, true);
+  assert.equal(result.approval.approval_required, false);
+  assert.equal(result.execution.will_execute, true);
+  assert.equal(result.secrets_included, false);
+}
+
+{
+  const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true, runtimeOnly: true });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.allowed, true);
+  assert.equal(result.mode, "preview_only");
+  assert.equal(result.approval.approval_required, true);
+  assert.equal(result.approval.grant.granted, false);
   assert.equal(result.execution.will_execute, false);
+  assert.equal(result.execution.next_step, "action_grant_required_before_dispatch");
+}
+
+{
+  const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true, runtimeOnly: true, withActionGrant: true });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.allowed, true);
+  assert.equal(result.mode, "dispatch_ready");
+  assert.equal(result.approval.approval_required, false);
+  assert.equal(result.approval.grant.granted, true);
+  assert.equal(result.approval.grant.grant_id, "action-grant-1");
+  assert.equal(result.execution.will_execute, true);
+  assert.equal(result.execution.next_step, "dispatch_ready");
   assert.equal(result.secrets_included, false);
 }
 
