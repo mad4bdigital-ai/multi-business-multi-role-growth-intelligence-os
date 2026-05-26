@@ -60,7 +60,8 @@ for (const tableName of [
   "app_action_grants",
   "app_action_requests",
 ]) {
-  const tableAlter = new RegExp(`ALTER\\s+TABLE\\s+\\`${tableName}\\`[\\s\\S]*?DEFAULT\\s+CHARACTER\\s+SET\\s+utf8mb4\\s+COLLATE\\s+utf8mb4_unicode_ci`, "i");
+  const tableAlterPattern = "ALTER\\s+TABLE\\s+`" + tableName + "`[\\s\\S]*?DEFAULT\\s+CHARACTER\\s+SET\\s+utf8mb4\\s+COLLATE\\s+utf8mb4_unicode_ci";
+  const tableAlter = new RegExp(tableAlterPattern, "i");
   assert(tableAlter.test(pluginRegistryMigration), `${tableName} must be reset to utf8mb4_unicode_ci by default`);
 }
 
