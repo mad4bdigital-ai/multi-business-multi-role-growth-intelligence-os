@@ -8271,6 +8271,7 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: connectorTaxonomyFamilyCoverage
+      x-custom-gpt-exclude: true
       summary: Read connector family coverage report
       parameters:
         - { name: connector_family, in: query, schema: { type: string } }
