@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 const script = readFileSync('scripts/openapi-autofill-missing-routes.mjs', 'utf8');
 const workflow = readFileSync('../.github/workflows/openapi-auto-sync.yml', 'utf8');
 
-assert(script.includes('openapi-autofill-missing-routes'), 'script path should be identifiable from workflow usage');
+assert(workflow.includes('openapi-autofill-missing-routes.mjs'), 'workflow should call the autofill generator by path');
 assert(script.includes('ROUTE_FILE_RE'), 'autofill must parse express route declarations');
 assert(script.includes('ALLOWLIST_PATH'), 'autofill must honor openapi route coverage allowlist');
 assert(script.includes('operationIdFor'), 'autofill must create stable operationIds');
