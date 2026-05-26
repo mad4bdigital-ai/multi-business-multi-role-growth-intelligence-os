@@ -321,6 +321,20 @@ function makePool() {
     pool.state.insertedExecutionLog.params[13].includes("summary_row_present"),
     "execution_log output_summary should include verification evidence"
   );
+  const memory = await loadSessionSummaryGraphMemory({
+    pool,
+    session_id: session.session_id,
+    tenant_id: session.tenant_id,
+    user_id: session.user_id,
+    limit: 5,
+  });
+  assert.equal(memory.ok, true);
+  assert.equal(memory.count, 1);
+  assert.equal(memory.items[0].summary_id, result.summary_id);
+  assert.equal(memory.items[0].graph_topology_present, true);
+  assert.equal(memory.items[0].secrets_included, false);
+  assert.equal(memory.surface_authority.session_summary_memory.ok, true);
+  assert.equal(memory.surface_authority.platform_graph_memory.ok, true);
 }
 
 {
