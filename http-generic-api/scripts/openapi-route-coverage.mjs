@@ -9,7 +9,7 @@ const ALLOWLIST_PATH = path.join(ROOT, "openapi-route-coverage.allowlist.json");
 const HTTP_METHODS = new Set(["get", "post", "put", "patch", "delete"]);
 const ROUTE_FILE_RE = /(?:router|app)\.(get|post|put|patch|delete)\s*\(\s*([`'\"])(.*?)\2/gs;
 const APP_USE_RE = /app\.use\s*\(\s*([`'\"])(.*?)\1\s*,/gs;
-const ROUTER_USE_RE = /router\.use\s*\(\s*([`'\"])(.*?)\1\s*,/gs;
+const ROUTER_USE_RE = /router\.use\s*\(\s*([`'\"])(.*?)\1\s*,\s*([A-Za-z0-9_$]+)/gs;
 
 function loadJson(filePath, fallback) {
   if (!fs.existsSync(filePath)) return fallback;
