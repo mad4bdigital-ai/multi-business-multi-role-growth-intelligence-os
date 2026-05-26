@@ -53,7 +53,7 @@ assert(
 );
 
 assert(
-  !/ALTER\s+TABLE[\s\S]*CONVERT\s+TO\s+CHARACTER\s+SET/i.test(pluginRegistryMigration),
+  !/ALTER\s+TABLE[\s\S]*CONVERT\s+TO\s+CHARACTER\s+SET/i.test(pluginRegistryMigrationWithoutComments),
   "plugin collation repair must avoid broad ALTER TABLE CONVERT TO so JSON utf8mb4_bin columns stay intact"
 );
 
