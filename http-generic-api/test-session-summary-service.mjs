@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   findSessionsNeedingSummary,
+  loadSessionSummaryGraphMemory,
   loadSessionTranscript,
   parseSessionJsonl,
   redactSensitiveText,
