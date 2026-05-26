@@ -942,7 +942,7 @@ section("connect api auth scope");
       betaSource.includes('router.get("/local-manager/beta"') &&
       betaSource.includes('router.get("/local-manager/beta/status", requireBackendApiKey, requireAdminPrincipal'));
     assert("local manager public app is true public UX while admin bridge holds token installer flow",
-      betaSource.includes("Download, sign in, and link this device") &&
+      betaSource.includes("keep platform tools installed") &&
       betaSource.includes("No token fields here") &&
       betaSource.includes("Download for Windows (.exe)") &&
       betaSource.includes("function localManagerAdminPage") &&
