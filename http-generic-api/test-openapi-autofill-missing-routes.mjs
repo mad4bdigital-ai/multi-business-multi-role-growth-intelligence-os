@@ -38,7 +38,7 @@ try {
   writeFileSync(join(tempRoot, 'openapi-route-coverage.allowlist.json'), JSON.stringify({ exact: [], prefixes: [], files: [], required_files: [] }, null, 2));
   writeFileSync(join(tempRoot, 'openapi.yaml'), 'openapi: 3.1.0\ninfo:\n  title: Fixture\n  version: 1.0.0\npaths: {}\ncomponents:\n  schemas:\n    ErrorResponse:\n      type: object\n      additionalProperties: true\n');
 
-  const checkOutput = execFileSync(process.execPath, ['scripts/openapi-autofill-missing-routes.mjs'], { cwd: tempRoot, encoding: 'utf8' });
+  const checkOutput = execFileSync(process.execPath, [autofillScriptPath], { cwd: tempRoot, encoding: 'utf8' });
   const checkJson = JSON.parse(checkOutput);
   assert.equal(checkJson.ok, false, 'fixture should report missing route before write');
   assert.equal(checkJson.missing_count, 1, 'fixture should detect one missing route');
