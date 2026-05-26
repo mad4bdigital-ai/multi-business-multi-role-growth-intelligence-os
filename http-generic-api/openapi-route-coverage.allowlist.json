@@ -1,0 +1,32 @@
+{
+  "notes": "OpenAPI route coverage allowlist. Use exact entries or narrow prefixes only for internal, callback, health, compatibility, or route families intentionally excluded from the public main OpenAPI contract. Prefer documenting platform/admin/tenant routes in openapi.yaml instead of adding allowlist entries.",
+  "exact": [
+    "GET /",
+    "GET /healthz",
+    "GET /readyz",
+    "GET /favicon.ico",
+    "GET /robots.txt"
+  ],
+  "prefixes": [
+    "/oauth",
+    "/auth/google",
+    "/auth/callback",
+    "/uploads",
+    "/assets",
+    "/static",
+    "/api/internal",
+    "/internal",
+    "/debug",
+    "/dev-only",
+    "/connect/oauth",
+    "/local-manager",
+    "/local-gateway"
+  ],
+  "files": [
+    "routes/rootDiscoveryRoutes.js",
+    "routes/legalRoutes.js",
+    "routes/mcpRoutes.js",
+    "routes/executeRoutes.js",
+    "routes/onboardingRoutes.js"
+  ]
+}
