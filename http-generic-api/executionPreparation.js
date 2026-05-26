@@ -2,6 +2,7 @@ import { enforceBrandLiveMutationPreflight } from "./brandLiveMutationPreflight.
 import { buildGovernedExecutionContext } from "./governedContextResolution.js";
 import { loadPathResolverRowsForRequest } from "./pathResolverRowsLoader.js";
 import { resolveEndpointLocalSchemaContract } from "./endpointSchemaResolver.js";
+import { resolveExecutionAuthorityManifestContext } from "./executionAuthorityManifestContext.js";
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
