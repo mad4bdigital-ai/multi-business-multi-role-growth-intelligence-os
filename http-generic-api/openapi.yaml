@@ -8927,6 +8927,38 @@ paths:
             application/json:
               schema: { type: object, additionalProperties: true }
 
+  /platform/plugins/action-grants:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginActionGrantUpsert
+      summary: Upsert Platform Plugin action grant
+      description: Create or update an active action grant for a Platform Plugin connection. This clears resolver approval gates for matching action, connection, and optional agent/workspace scopes without accepting secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [connection_id, plugin_key, action_key]
+              additionalProperties: true
+              properties:
+                connection_id: { type: string }
+                plugin_key: { type: string }
+                action_key: { type: string }
+                agent_id: { type: string }
+                workspace_id: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                grant_mode: { type: string, enum: [explicit, default_permissive, auto_approved], default: explicit }
+                granted_by: { type: string }
+                expires_at: { type: string, format: date-time }
+      responses:
+        "200": { description: Action grant upserted, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
   /platform/plugins/install:
     post:
       x-openai-isConsequential: true
