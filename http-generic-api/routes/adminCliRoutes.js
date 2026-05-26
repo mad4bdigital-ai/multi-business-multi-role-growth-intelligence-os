@@ -501,6 +501,36 @@ function parseGithubJsonFields(args = []) {
   return raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [];
 }
 
+function parseGithubApiMethod(args = []) {
+  return String(parseCliFlag(args, ["-X", "--method"]) || "GET").trim().toUpperCase() || "GET";
+}
+
+function parseGithubFieldValues(args = []) {
+  const values = {};
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] !== "-f" && args[i] !== "--field") continue;
+    const raw = String(args[i + 1] || "");
+    if (!raw) continue;
+    let key;
+    let value;
+    if (raw.includes("=")) {
+      const idx = raw.indexOf("=");
+      key = raw.slice(0, idx);
+      value = raw.slice(idx + 1);
+    } else {
+      key = raw;
+      value = String(args[i + 2] || "");
+      i += 1;
+    }
+    if (!key) continue;
+    if (value === "true") values[key] = true;
+    else if (value === "false") values[key] = false;
+    else values[key] = value;
+    i += 1;
+  }
+  return values;
+}
+
 function mapGithubRunForGhJson(run, fields = []) {
   const mapped = {
     databaseId: run.id,
