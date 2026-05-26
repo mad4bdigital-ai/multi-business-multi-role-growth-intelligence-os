@@ -3,6 +3,7 @@ import fs from 'node:fs';
 
 const desktopRoutes = fs.readFileSync(new URL('./routes/localManagerDesktopCommandRoutes.js', import.meta.url), 'utf8');
 const program = fs.readFileSync(new URL('../apps/local-manager-windows/Program.cs', import.meta.url), 'utf8');
+const aliasMigration = fs.readFileSync(new URL('./migrations/143_sprint64_local_manager_desktop_device_aliases.sql', import.meta.url), 'utf8');
 
 assert(desktopRoutes.includes('codex_exec_readonly'));
 assert(desktopRoutes.includes('codex_readonly_sandbox_required'));
@@ -10,6 +11,15 @@ assert(desktopRoutes.includes('codex_prompt_required'));
 assert(desktopRoutes.includes('codex_command_path_blocked'));
 assert(desktopRoutes.includes('sandbox=read-only'));
 assert(desktopRoutes.includes('secrets_included = false'));
+assert(desktopRoutes.includes('resolveDesktopCommandDeviceIds'));
+assert(desktopRoutes.includes('local_connector_device_aliases'));
+assert(desktopRoutes.includes('device_id IN (${devicePlaceholders})'));
+
+assert(aliasMigration.includes("`device_id` = 'essam-pc'"));
+assert(aliasMigration.includes("'ESSAM'"));
+assert(aliasMigration.includes("'Essam'"));
+assert(aliasMigration.includes("'essam-pc'"));
+assert(aliasMigration.includes('ON DUPLICATE KEY UPDATE'));
 
 assert(program.includes('ExecuteCodexReadOnlyCommandAsync'));
 assert(program.includes('codex_exec_readonly'));
