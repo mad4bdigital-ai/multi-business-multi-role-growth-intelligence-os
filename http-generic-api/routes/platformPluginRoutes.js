@@ -88,6 +88,26 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
     } catch (err) { return errorResponse(res, err, "platform_plugin_policy_upsert_failed"); }
   });
 
+  router.post("/platform/plugins/action-templates", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await upsertPlatformPluginActionTemplate({
+        contributionId: input.contribution_id || input.contributionId || null,
+        pluginKey: input.plugin_key || input.pluginKey || null,
+        actionKey: input.action_key || input.actionKey,
+        method: input.method || input.http_method || input.httpMethod,
+        path: input.path || input.http_path || input.httpPath,
+        headers: input.headers || {},
+        bodyTemplate: input.body_template || input.bodyTemplate || null,
+        tenantId: input.tenant_id || input.tenantId || null,
+        userId: input.user_id || input.userId || null,
+        updatedBy: input.updated_by || input.updatedBy || input.user_id || input.userId || null,
+        rawPayload: input,
+      });
+      return res.status(result.ok ? 200 : 409).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_plugin_action_template_upsert_failed"); }
+  });
+
   router.post("/platform/plugins/dispatch-rest", ...requireAdmin, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
