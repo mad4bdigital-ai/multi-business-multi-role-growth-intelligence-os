@@ -7609,6 +7609,90 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { description: Census query failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
+  /browser-runtime/inspect-site/run:
+    post:
+      tags: [browser-runtime]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: postBrowserRuntimeInspectSiteRun
+      summary: Run Browser4 site inspection through browser runtime policy
+      description: >
+        Runs a governed Browser4 site inspection through browser runtime policy
+        and the local connector adapter. The server validates binding policy and
+        domain allowlists before dispatching to the device. Results contain
+        sanitized artifact metadata and previews only; secrets are never returned.
+      x-openai-isConsequential: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [binding_key, url]
+              properties:
+                inspection_key: { type: string }
+                binding_key: { type: string }
+                url:
+                  type: string
+                  format: uri
+                checks:
+                  type: array
+                  items:
+                    type: string
+                    enum: [snapshot, screenshot, console, network, dom_snapshot, seo_metadata]
+                tenant_id: { type: string }
+                user_id: { type: string }
+                policy:
+                  type: object
+                  additionalProperties: true
+                timeout_ms:
+                  type: integer
+                  minimum: 1000
+                  maximum: 300000
+      responses:
+        "200":
+          description: Browser4 inspection result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  inspection_key: { type: string }
+                  status: { type: string }
+                  runtime_key: { type: string }
+                  binding_key: { type: string }
+                  policy:
+                    type: object
+                    additionalProperties: true
+                  connector:
+                    type: object
+                    additionalProperties: true
+                  secrets_included: { type: boolean, enum: [false] }
+        "400":
+          description: Missing or invalid Browser4 inspection request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Browser runtime policy blocked the request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Binding does not resolve to a Browser4 runtime
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "502":
+          description: Connector dispatch or Browser4 runtime failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /connector/{device_id}/diagnostics:
     get:
       tags: [connector-proxy]
