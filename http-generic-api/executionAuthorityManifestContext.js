@@ -19,15 +19,29 @@ function summarizeManifestItem(item = {}) {
   const endpoints = Array.isArray(item.endpoints) ? item.endpoints : [];
   const tools = Array.isArray(item.tools) ? item.tools : [];
   const action = item.action || null;
+  const plugin = action?.plugin || null;
+  const endpointReadinessStates = unique(endpoints.map((endpoint) => endpoint.readiness?.execution_readiness || endpoint.status || "unknown"));
+  const endpointsActive = endpoints.length ? endpoints.every((endpoint) => endpoint.readiness?.active !== false) : false;
+  const toolsActive = tools.length ? tools.every((tool) => tool.binding?.active !== false && tool.is_enabled !== false) : true;
   return {
     action_key: action?.action_key || null,
-    plugin_key: action?.plugin?.plugin_key || null,
+    plugin_key: plugin?.plugin_key || null,
     action_allowed: action?.evaluation?.allowed === true,
     action_reasons: action?.evaluation?.reasons || [],
+    plugin_binding_status: plugin?.binding?.status || null,
+    plugin_binding_active: plugin?.binding?.status ? plugin.binding.status === "active" : null,
+    plugin_credential_source: plugin?.binding?.credential_source || null,
+    tenant_policy_status: plugin?.tenant_policy?.status || null,
+    tenant_policy_active: plugin?.tenant_policy?.status ? plugin.tenant_policy.status === "active" : null,
+    active_connection_count: Number(plugin?.connection_summary?.active_connection_count || 0),
+    primary_connection_available: plugin?.connection_summary?.primary_connection_available === true,
     endpoint_count: endpoints.length,
     endpoint_keys: endpoints.map((endpoint) => endpoint.endpoint_key).filter(Boolean).slice(0, 20),
+    endpoint_readiness_states: endpointReadinessStates,
+    endpoints_active: endpointsActive,
     tool_count: tools.length,
     tool_keys: tools.map((tool) => tool.tool_key).filter(Boolean).slice(0, 20),
+    tools_active: toolsActive,
     manifest_complete: item.readiness?.manifest_complete === true,
     secrets_included: false,
   };
