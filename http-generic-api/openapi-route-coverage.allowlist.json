@@ -35,6 +35,7 @@
     "/debug",
     "/dev-only",
     "/connect/oauth",
+    "/connect/assets",
     "/local-manager",
     "/local-gateway"
   ],
