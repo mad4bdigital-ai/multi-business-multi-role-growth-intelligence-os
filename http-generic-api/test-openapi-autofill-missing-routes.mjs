@@ -44,7 +44,7 @@ try {
   assert.equal(checkJson.missing_count, 1, 'fixture should detect one missing route');
   assert.equal(checkJson.missing[0].signature, 'POST /auto-sync-fixture/{id}');
 
-  const writeOutput = execFileSync(process.execPath, ['scripts/openapi-autofill-missing-routes.mjs', '--write'], { cwd: tempRoot, encoding: 'utf8' });
+  const writeOutput = execFileSync(process.execPath, [autofillScriptPath, '--write'], { cwd: tempRoot, encoding: 'utf8' });
   const writeJson = JSON.parse(writeOutput);
   assert.equal(writeJson.changed, true, 'write mode should change fixture openapi');
 
