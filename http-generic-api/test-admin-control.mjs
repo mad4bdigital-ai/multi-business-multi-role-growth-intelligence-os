@@ -59,6 +59,8 @@ try {
   assert("repo inspect can list repo files read-only", repoList.entries.some((entry) => entry.path === "http-generic-api/package.json"), JSON.stringify(repoList));
   const repoRead = await inspectRepoReadOnly({ action: "read", path: "http-generic-api/package.json", max_chars: 4000 });
   assert("repo inspect can read allowlisted text files", repoRead.content.includes("\"scripts\""), repoRead.content.slice(0, 200));
+  const csharpRead = await inspectRepoReadOnly({ action: "read", path: "apps/local-manager-windows/Program.cs", max_chars: 4000 });
+  assert("repo inspect can read C# source files", csharpRead.content.includes("Program") || csharpRead.content.includes("class"), csharpRead.content.slice(0, 200));
   const repoSearch = await inspectRepoReadOnly({ action: "search", path: "http-generic-api/routes", query: "buildGptToolsRoutes", max_entries: 5 });
   assert("repo inspect can search repository text", repoSearch.matches.some((match) => match.path.endsWith("gptToolsRoutes.js")), JSON.stringify(repoSearch));
   try {
