@@ -290,6 +290,112 @@ function modelWarningFromInsight(insight = {}) {
     : null;
 }
 
+function summaryListFromStoredValue(value) {
+  return normalizeArray(safeJsonParse(value, value));
+}
+
+function surfaceEvidence(result) {
+  return {
+    ok: Boolean(result?.ok),
+    resolved_surface_key: result?.resolved_surface_key || null,
+    classification: result?.classification || null,
+    code: result?.code || null,
+    secrets_included: false,
+  };
+}
+
+export async function loadSessionSummaryGraphMemory({
+  pool = getPool(),
+  session_id = null,
+  tenant_id = null,
+  user_id = null,
+  limit = 10,
+} = {}) {
+  const summarySurfaceAuthority = await assertSurfaceAuthority(
+    SURFACE_KEYS.SESSION_SUMMARY_MEMORY,
+    { requireExecution: true },
+    { pool }
+  );
+  const jsonAssetSurfaceAuthority = await assertSurfaceAuthority(
+    SURFACE_KEYS.JSON_ASSET_REGISTRY,
+    { requireExecution: true },
+    { pool }
+  );
+  const platformGraphSurfaceAuthority = await assertSurfaceAuthority(
+    SURFACE_KEYS.PLATFORM_GRAPH_MEMORY,
+    { requireExecution: true },
+    { pool }
+  );
+
+  const clauses = [];
+  const params = [];
+  if (session_id) {
+    clauses.push("session_id = ?");
+    params.push(session_id);
+  }
+  if (tenant_id) {
+    clauses.push("tenant_id = ?");
+    params.push(tenant_id);
+  }
+  if (user_id) {
+    clauses.push("user_id = ?");
+    params.push(user_id);
+  }
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 10, 50));
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  const [rows] = await pool.query(
+    `SELECT summary_id, session_id, tenant_id, user_id, workspace_key,
+            summary_text, tasks_completed, blockers, feature_requests,
+            integration_needs, complexity, turn_count, created_at
+       FROM \`session_summaries\`
+       ${where}
+      ORDER BY created_at DESC
+      LIMIT ?`,
+    [...params, safeLimit]
+  ).catch(() => [[]]);
+
+  const items = [];
+  for (const row of rows || []) {
+    const verification = await verifySessionSummaryWrite({
+      pool,
+      session: { session_id: row.session_id },
+      summary_id: row.summary_id,
+    });
+    if (!verification?.ok || !verification.graph_topology_present) continue;
+    items.push({
+      summary_id: row.summary_id,
+      session_id: row.session_id,
+      tenant_id: row.tenant_id || null,
+      user_id: row.user_id || null,
+      workspace_key: row.workspace_key || null,
+      summary_text: boundedText(redactSensitiveText(row.summary_text || ""), 1600),
+      tasks_completed: summaryListFromStoredValue(row.tasks_completed),
+      blockers: summaryListFromStoredValue(row.blockers),
+      feature_requests: summaryListFromStoredValue(row.feature_requests),
+      integration_needs: summaryListFromStoredValue(row.integration_needs),
+      complexity: normalizeComplexity(row.complexity),
+      turn_count: Number(row.turn_count || 0),
+      created_at: row.created_at || null,
+      graph_edge_id: verification.graph_edge_id || null,
+      graph_topology_present: true,
+      secrets_included: false,
+    });
+  }
+
+  return {
+    ok: true,
+    count: items.length,
+    items,
+    surface_authority: {
+      session_summary_memory: surfaceEvidence(summarySurfaceAuthority),
+      json_asset_registry: surfaceEvidence(jsonAssetSurfaceAuthority),
+      platform_graph_memory: surfaceEvidence(platformGraphSurfaceAuthority),
+      secrets_included: false,
+    },
+    secrets_included: false,
+  };
+}
+
 function summarizeStagesForExecutionLog(operationLog = []) {
   return (Array.isArray(operationLog) ? operationLog : [])
     .filter(event => event?.stage && event?.status)
