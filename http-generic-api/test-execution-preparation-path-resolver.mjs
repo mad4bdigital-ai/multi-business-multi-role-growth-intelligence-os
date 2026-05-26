@@ -384,60 +384,133 @@ const baseInput = {
 }
 
 {
-  const result = await prepareExecutionRequest(baseInput, {
-    ...makeDeps(),
-    async resolveActionEndpointToolManifest(args) {
-      assert.equal(args.action_key, "test_action");
-      assert.equal(args.endpoint_key, "testEndpoint");
-      assert.equal(args.include_denied, true);
-      return {
-        ok: true,
-        resolver: "shared_action_endpoint_tool_manifest_resolver",
-        mode: "read_model_only",
-        requested: args,
-        count: 1,
-        surface_authority: {
-          action_registry: { ok: true, resolved_surface_key: "surface.actions_registry_sheet", secrets_included: false },
-          endpoint_registry: { ok: true, resolved_surface_key: "surface.endpoint_registry_sheet", secrets_included: false },
-          tool_manifest: { ok: true, resolved_surface_key: "surface.platform_tool_manifest", secrets_included: false },
-        },
-        authority_chain: [
-          "task_route_authority_resolver",
-          "workflow_registry_authority_resolver",
-          "action_registry_authority_resolver",
-          "endpoint_registry",
-          "platform_tool_manifest",
-        ],
-        manifests: [
-          {
-            action: {
-              action_key: "test_action",
-              plugin: { plugin_key: "test_plugin" },
-              evaluation: { allowed: true, reasons: [] },
-            },
-            endpoints: [{ endpoint_key: "testEndpoint" }],
-            tools: [{ tool_key: "test_tool" }],
-            readiness: {
-              endpoint_count: 1,
-              tool_count: 1,
-              manifest_complete: true,
-            },
-            secrets_included: false,
-          },
-        ],
-        secrets_included: false,
-      };
+  const result = await prepareExecutionRequest(
+    {
+      ...baseInput,
+      requestPayload: {
+        ...baseInput.requestPayload,
+        execution_authority_manifest_enforce: true
+      }
     },
-  });
+    {
+      ...makeDeps(),
+      async resolveActionEndpointToolManifest(args) {
+        assert.equal(args.action_key, "test_action");
+        assert.equal(args.endpoint_key, "testEndpoint");
+        assert.equal(args.include_denied, true);
+        return {
+          ok: true,
+          resolver: "shared_action_endpoint_tool_manifest_resolver",
+          mode: "read_model_only",
+          requested: args,
+          count: 1,
+          surface_authority: {
+            action_registry: { ok: true, resolved_surface_key: "surface.actions_registry_sheet", secrets_included: false },
+            endpoint_registry: { ok: true, resolved_surface_key: "surface.endpoint_registry_sheet", secrets_included: false },
+            tool_manifest: { ok: true, resolved_surface_key: "surface.platform_tool_manifest", secrets_included: false },
+          },
+          authority_chain: [
+            "task_route_authority_resolver",
+            "workflow_registry_authority_resolver",
+            "action_registry_authority_resolver",
+            "endpoint_registry",
+            "platform_tool_manifest",
+          ],
+          manifests: [
+            {
+              action: {
+                action_key: "test_action",
+                plugin: {
+                  plugin_key: "test_plugin",
+                  binding: { status: "active", credential_source: "tenant_connection" },
+                  tenant_policy: { status: "active" },
+                  connection_summary: { active_connection_count: 1, primary_connection_available: true },
+                },
+                evaluation: { allowed: true, reasons: [] },
+              },
+              endpoints: [{ endpoint_key: "testEndpoint", readiness: { active: true, execution_readiness: "ready" } }],
+              tools: [{ tool_key: "test_tool", is_enabled: true, binding: { active: true } }],
+              readiness: {
+                endpoint_count: 1,
+                tool_count: 1,
+                manifest_complete: true,
+              },
+              secrets_included: false,
+            },
+          ],
+          secrets_included: false,
+        };
+      },
+    }
+  );
 
   assert.equal(result.ok, true);
-  assert.equal(result.governedExecutionContext.execution_authority_manifest.requested, true);
-  assert.equal(result.governedExecutionContext.execution_authority_manifest.attempted, true);
-  assert.equal(result.governedExecutionContext.execution_authority_manifest.resolution_status, "ready");
-  assert.equal(result.governedExecutionContext.execution_authority_manifest.first_manifest_complete, true);
-  assert.equal(result.governedExecutionContext.execution_authority_manifest.manifests[0].action_key, "test_action");
-  assert.equal(result.governedExecutionContext.execution_authority_manifest.manifests[0].tool_keys[0], "test_tool");
-  assert.equal(result.governedExecutionContext.execution_authority_manifest.secrets_included, false);
+  assert.equal(result.governedExecutionContext.execution_authority_guard.enforced, true);
+  assert.equal(result.governedExecutionContext.execution_authority_guard.guard_status, "passed");
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.manifests[0].endpoints_active, true);
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.manifests[0].tools_active, true);
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.manifests[0].plugin_binding_active, true);
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.manifests[0].tenant_policy_active, true);
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.manifests[0].active_connection_count, 1);
+}
+
+{
+  await assert.rejects(
+    () => prepareExecutionRequest(
+      {
+        ...baseInput,
+        requestPayload: {
+          ...baseInput.requestPayload,
+          execution_authority_manifest_enforce: true
+        }
+      },
+      {
+        ...makeDeps(),
+        async resolveActionEndpointToolManifest(args) {
+          return {
+            ok: true,
+            resolver: "shared_action_endpoint_tool_manifest_resolver",
+            mode: "read_model_only",
+            requested: args,
+            count: 1,
+            surface_authority: {
+              action_registry: { ok: true, resolved_surface_key: "surface.actions_registry_sheet", secrets_included: false },
+              endpoint_registry: { ok: true, resolved_surface_key: "surface.endpoint_registry_sheet", secrets_included: false },
+              tool_manifest: { ok: true, resolved_surface_key: "surface.platform_tool_manifest", secrets_included: false },
+            },
+            authority_chain: ["action_registry_authority_resolver", "endpoint_registry", "platform_tool_manifest"],
+            manifests: [
+              {
+                action: {
+                  action_key: "test_action",
+                  plugin: { plugin_key: "test_plugin", binding: { status: "active" } },
+                  evaluation: { allowed: false, reasons: ["actor_role_not_allowed"] },
+                },
+                endpoints: [{ endpoint_key: "testEndpoint", readiness: { active: true, execution_readiness: "ready" } }],
+                tools: [],
+                readiness: {
+                  action_allowed: false,
+                  endpoint_count: 1,
+                  tool_count: 0,
+                  manifest_complete: false,
+                },
+                secrets_included: false,
+              },
+            ],
+            secrets_included: false,
+          };
+        },
+      }
+    ),
+    (err) => {
+      assert.equal(err.code, "execution_authority_action_not_allowed");
+      assert.equal(err.status, 403);
+      assert.equal(err.details.guard_status, "blocked");
+      assert(err.details.block_codes.includes("execution_authority_action_not_allowed"));
+      assert.equal(err.details.secrets_included, false);
+      return true;
+    }
+  );
 }
 
 console.log("execution preparation path resolver tests passed");
