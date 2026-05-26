@@ -50,8 +50,12 @@ function main() {
   }
 
   if (fileExists("http-generic-api/scripts/split-openapi.mjs")) {
-    run("node", ["scripts/split-openapi.mjs"]);
-    steps.push("split-openapi");
+    if (writeSplitSchemas) {
+      run("node", ["scripts/split-openapi.mjs"]);
+      steps.push("split-openapi-write");
+    } else {
+      steps.push("split-openapi-write-skipped-explicit-flag-required");
+    }
   }
 
   run("node", ["scripts/update-repo-planning-docs.mjs"]);
