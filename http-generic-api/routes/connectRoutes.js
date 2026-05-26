@@ -28,6 +28,42 @@ const CONNECT_STATIC = join(__dirname, "../public/connect");
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 
+const LOCAL_MANAGER_ACTIVATION_BINDING = {
+  app_key: "mad4b-local-manager",
+  role: "local_tool_release_owner",
+  public_app_url: "/app/local-manager",
+  admin_tools_url: "/app/local-manager/admin",
+  device_link_url: "/app/local-manager/link-device",
+  devices_url: "/app/local-manager/devices",
+  manifest_url: "/connector-agent/manifest.json",
+  installer_download_link_endpoint: "/local-connector/install/download-link",
+  connector_agent_version_endpoint: "/connector-agent/version",
+  release_model: "manifest_driven_allowlisted_tools",
+  install_scope: "per_user_device",
+  managed_tools: ["browser4"],
+  security_model: {
+    no_browser_backend_key: true,
+    no_raw_secret_display: true,
+    device_scoped_credentials: true,
+    manifest_sha256_verification: true,
+    governed_tool_allowlist_required: true,
+  },
+};
+
+function localManagerActivationBinding() {
+  return {
+    ...LOCAL_MANAGER_ACTIVATION_BINDING,
+    urls: {
+      public_app: LOCAL_MANAGER_ACTIVATION_BINDING.public_app_url,
+      admin_tools: LOCAL_MANAGER_ACTIVATION_BINDING.admin_tools_url,
+      device_link: LOCAL_MANAGER_ACTIVATION_BINDING.device_link_url,
+      devices: LOCAL_MANAGER_ACTIVATION_BINDING.devices_url,
+      manifest: LOCAL_MANAGER_ACTIVATION_BINDING.manifest_url,
+      installer_download_link: LOCAL_MANAGER_ACTIVATION_BINDING.installer_download_link_endpoint,
+    },
+  };
+}
+
 // Fields accepted by POST /connect/preferences. Anything outside this list is
 // dropped server-side, so a frontend regression cannot start saving arbitrary
 // blobs to tenants.metadata_json.onboarding_preferences. Add new keys here.
