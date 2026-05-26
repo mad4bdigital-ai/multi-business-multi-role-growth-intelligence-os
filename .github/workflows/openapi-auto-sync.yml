@@ -60,11 +60,9 @@ jobs:
         run: |
           if git diff --quiet -- \
             http-generic-api/openapi.yaml \
-            http-generic-api/openapi.*.yaml \
             docs/**/*.md \
             canonicals/**/*.md \
-            '*.md' \
-            repo-maintenance-sync-result.json; then
+            '*.md'; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
