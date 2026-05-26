@@ -4,6 +4,7 @@ import { dispatchPreparedExecution } from "./executionDispatch.js";
 import { validateAndShapeExecutionResponse } from "./executionResponse.js";
 import { buildPassiveExecutionReport } from "./executionControlResolvers.js";
 import { resolveExecutionGraphMemoryContext } from "./executionGraphMemoryContext.js";
+import { resolveActionEndpointToolManifest } from "./actionEndpointToolManifestResolver.js";
 import {
   getExecutionJob,
   pollExecutionJobResult,
