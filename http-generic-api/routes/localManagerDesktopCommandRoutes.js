@@ -5,6 +5,16 @@ import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkSer
 
 const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_manager", "codex_exec_readonly"]);
 const ALLOWED_MODES = new Set(["desktop", "background"]);
+const ALL_ZERO_TENANT_ID = "00000000-0000-0000-0000-000000000000";
+
+function isWildcardTenantId(value) {
+  const tenantId = cleanText(value, 64);
+  return !tenantId || tenantId === ALL_ZERO_TENANT_ID;
+}
+
+function uniqueStrings(values, max = 50) {
+  return [...new Set((values || []).map((value) => cleanText(value, 128)).filter(Boolean))].slice(0, max);
+}
 
 function cleanText(value, max = 255) {
   return String(value || "").trim().slice(0, max);
