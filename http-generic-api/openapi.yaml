@@ -9193,6 +9193,44 @@ paths:
             application/json:
               schema: { type: object, additionalProperties: true }
 
+  /platform/action-manifest/resolve:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: actionManifestResolve
+      summary: Resolve Action Endpoint Tool authority manifest
+      description: Read-only dry-run diagnostic for Action → Endpoint → Tool authority. Returns manifest readiness and guard preview without executing providers or exposing secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                action_key: { type: string }
+                endpoint_key: { type: string }
+                plugin_key: { type: string }
+                tool_key: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                actor_role: { type: string }
+                governance_level: { type: string }
+                client_key: { type: string }
+                team_key: { type: string }
+                preview_enforce: { type: boolean, default: false }
+                require_plugin_connection: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Action manifest diagnostic preview
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
   /platform/plugins/install-policy:
     post:
       x-openai-isConsequential: true
