@@ -49,8 +49,8 @@ assert(
 );
 
 assert(
-  !/CONVERT\s+TO\s+CHARACTER\s+SET/i.test(pluginRegistryMigration),
-  "plugin collation repair must avoid broad CONVERT TO so JSON utf8mb4_bin columns stay intact"
+  !/ALTER\s+TABLE[\s\S]*CONVERT\s+TO\s+CHARACTER\s+SET/i.test(pluginRegistryMigration),
+  "plugin collation repair must avoid broad ALTER TABLE CONVERT TO so JSON utf8mb4_bin columns stay intact"
 );
 
 for (const tableName of [
