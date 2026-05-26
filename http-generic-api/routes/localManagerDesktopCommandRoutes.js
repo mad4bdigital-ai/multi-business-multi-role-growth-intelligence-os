@@ -380,6 +380,7 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
       const deviceId = cleanText(body.device_id, 128);
       if (!userId || !deviceId) return res.status(400).json({ ok: false, error: { code: "missing_target", message: "user_id and device_id are required." }, secrets_included: false });
       const payload = normalizePayload(action, body.payload || {});
+      const target = await resolveEffectiveDesktopCommandTarget({ userId, tenantId, deviceId, requestContext: body.request_context || {} });
       const commandId = crypto.randomUUID();
       const ttlSeconds = Math.max(30, Math.min(Number(body.ttl_seconds || 300), 3600));
       const priority = Math.max(1, Math.min(Number(body.priority || 100), 1000));
@@ -388,9 +389,25 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
         `INSERT INTO \`local_manager_desktop_commands\`
           (command_id, tenant_id, user_id, device_id, execution_mode, action, status, priority, requires_user_confirmation, payload_json, requested_by, request_context_json, expires_at)
          VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))`,
-        [commandId, tenantId, userId, deviceId, executionMode, action, priority, requiresUserConfirmation ? 1 : 0, jsonString(payload), cleanText(body.requested_by || "gpt", 128), jsonString(body.request_context || {}), ttlSeconds]
+        [commandId, target.tenant_id, target.user_id, target.device_id, executionMode, action, priority, requiresUserConfirmation ? 1 : 0, jsonString(payload), cleanText(body.requested_by || "gpt", 128), jsonString(target.request_context || {}), ttlSeconds]
       );
-      return res.status(201).json({ ok: true, command: { command_id: commandId, execution_mode: executionMode, action, status: "queued", expires_in: ttlSeconds }, secrets_included: false });
+      return res.status(201).json({
+        ok: true,
+        command: {
+          command_id: commandId,
+          execution_mode: executionMode,
+          action,
+          status: "queued",
+          expires_in: ttlSeconds,
+          target: {
+            user_id: target.user_id,
+            tenant_id: target.tenant_id,
+            device_id: target.device_id,
+            identity_resolution: target.request_context?.desktop_identity_resolution || null,
+          },
+        },
+        secrets_included: false,
+      });
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "desktop_command_enqueue_failed", message: err.message }, secrets_included: false });
     }
