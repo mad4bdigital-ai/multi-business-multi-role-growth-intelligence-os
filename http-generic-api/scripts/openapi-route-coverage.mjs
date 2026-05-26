@@ -74,13 +74,20 @@ function collectRoutesFromSource(filePath, source, indexPrefixes) {
   return routes;
 }
 
-function collectRoutes() {
+function collectRoutes(requiredFiles = null) {
   const indexPath = path.join(ROUTES_DIR, "index.js");
   const indexSource = fs.existsSync(indexPath) ? fs.readFileSync(indexPath, "utf8") : "";
   const indexPrefixes = collectMountPrefixes(indexSource);
-  return routeFilePaths().flatMap((filePath) =>
-    collectRoutesFromSource(filePath, fs.readFileSync(filePath, "utf8"), indexPrefixes)
-  );
+  const required = Array.isArray(requiredFiles) && requiredFiles.length > 0
+    ? new Set(requiredFiles.map((p) => p.replace(/\\/g, "/")))
+    : null;
+  return routeFilePaths()
+    .filter((filePath) => {
+      if (!required) return true;
+      const rel = path.relative(ROOT, filePath).replace(/\\/g, "/");
+      return required.has(rel);
+    })
+    .flatMap((filePath) => collectRoutesFromSource(filePath, fs.readFileSync(filePath, "utf8"), indexPrefixes));
 }
 
 function allowlistMatchers(allowlist) {
