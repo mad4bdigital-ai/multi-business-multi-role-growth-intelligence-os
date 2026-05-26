@@ -61,8 +61,16 @@ function makePool({ withConnection = true, withSkill = true, tenantDedicated = f
       }
       if (sql.includes("FROM agent_skill_grants")) {
         return withSkill ? [[{
-          grant_id: "grant-1",
+          grant_id: "skill-grant-1",
           skill_key: "code.repository_automation",
+        }]] : [[]];
+      }
+      if (sql.includes("FROM app_action_grants")) {
+        return withActionGrant ? [[{
+          grant_id: "action-grant-1",
+          grant_mode: "explicit",
+          agent_id: null,
+          expires_at: null,
         }]] : [[]];
       }
       return [[]];
