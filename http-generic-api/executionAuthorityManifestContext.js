@@ -185,6 +185,7 @@ export async function resolveExecutionAuthorityManifestContext(input = {}, deps 
       action_key: actionKey || null,
       endpoint_key: endpointKey || null,
       plugin_key: pluginKey || null,
+      tool_key: toolKey || null,
       error_code: compact(err?.code || "execution_authority_manifest_resolution_failed", 160),
       error_message: compact(err?.message || "Execution authority manifest resolution failed.", 1000),
       error_status: err?.status || null,
