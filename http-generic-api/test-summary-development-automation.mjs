@@ -67,6 +67,10 @@ assert(codexRuntimeMigration.includes('codex_gemini_custom_provider'));
 assert(codexRuntimeMigration.includes('codex_ollama_local'));
 assert(codexRuntimeMigration.includes('copy_platform_secret_to_device":false'));
 assert(codexRuntimeMigration.includes('codex login --device-auth'));
+assert(codexExecutionEnvelopeToolMigration.includes('dev_agent_codex_interactive_execution_envelope'));
+assert(codexExecutionEnvelopeToolMigration.includes('/dev-agent/summary-development/codex-interactive-execution-envelope'));
+assert(codexExecutionEnvelopeToolMigration.includes('Does not execute Codex'));
+assert(codexExecutionEnvelopeToolMigration.includes('no_repo_mutation'));
 
 assert(routes.includes('/dev-agent/summary-development/runtimes'));
 assert(routes.includes('/dev-agent/summary-development/signals'));
