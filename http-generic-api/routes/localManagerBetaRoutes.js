@@ -309,8 +309,8 @@ function localManagerAppPage() {
     <header>
       <section>
         <span class="badge">Public Local Manager</span>
-        <h1>Download, sign in, and link this device.</h1>
-        <p>Mad4B Local Manager is installed first. Authentication happens inside the installed app when the user signs in and chooses to link the current device.</p>
+        <h1>Download, sign in, link this device, and keep platform tools installed.</h1>
+        <p>Mad4B Local Manager is the local release owner for platform tools. It installs and upgrades the connector agent, Browser4 adapter, diagnostics probes, and future allowlisted local tools from the signed platform manifest.</p>
         <div class="actions">
           <a class="button" href="#download">Download Local Manager</a>
           <a class="button secondary" href="#how-it-works">How linking works</a>
