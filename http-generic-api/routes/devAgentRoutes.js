@@ -233,6 +233,17 @@ function normalizeApprovalPhrase(value = "") {
   return phrase;
 }
 
+function normalizeProviderBridgePrompt(value = "", limit = 4000) {
+  const prompt = clampText(value, limit);
+  if (!prompt) {
+    const err = new Error("prompt is required for provider bridge dry run.");
+    err.code = "provider_bridge_prompt_required";
+    err.status = 400;
+    throw err;
+  }
+  return prompt;
+}
+
 function buildOpenClaudeReadOnlyExecutionEnvelope({ approval = {}, runtime = {}, signal = {}, analysisGoal = "" } = {}) {
   const commandPlan = buildOpenClaudeRepoAnalysisCommandPlan({
     runtime,
