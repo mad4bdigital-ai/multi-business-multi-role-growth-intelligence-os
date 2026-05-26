@@ -11,6 +11,7 @@ const executionEnvelopeToolMigration = fs.readFileSync(new URL('./migrations/136
 const providerRegistryMigration = fs.readFileSync(new URL('./migrations/137_sprint64_openclaude_provider_registry.sql', import.meta.url), 'utf8');
 const providerToolMigration = fs.readFileSync(new URL('./migrations/138_sprint64_openclaude_provider_tools.sql', import.meta.url), 'utf8');
 const providerBridgeToolMigration = fs.readFileSync(new URL('./migrations/139_sprint64_provider_bridge_dry_run_tool.sql', import.meta.url), 'utf8');
+const codexRuntimeMigration = fs.readFileSync(new URL('./migrations/140_sprint64_codex_runtime_and_provider_profiles.sql', import.meta.url), 'utf8');
 const routes = fs.readFileSync(new URL('./routes/devAgentRoutes.js', import.meta.url), 'utf8');
 
 assert(migration.includes('CREATE TABLE IF NOT EXISTS dev_agent_runtime_registry'));
@@ -58,6 +59,13 @@ assert(providerToolMigration.includes('Read-only and never returns secrets'));
 assert(providerBridgeToolMigration.includes('dev_agent_provider_bridge_dry_run'));
 assert(providerBridgeToolMigration.includes('Does not copy secrets to Essam'));
 assert(providerBridgeToolMigration.includes('no_local_execution'));
+assert(codexRuntimeMigration.includes('codex_essam_chatgpt_v1'));
+assert(codexRuntimeMigration.includes('codex_chatgpt_oauth'));
+assert(codexRuntimeMigration.includes('codex_openrouter_custom_provider'));
+assert(codexRuntimeMigration.includes('codex_gemini_custom_provider'));
+assert(codexRuntimeMigration.includes('codex_ollama_local'));
+assert(codexRuntimeMigration.includes('copy_platform_secret_to_device":false'));
+assert(codexRuntimeMigration.includes('codex login --device-auth'));
 
 assert(routes.includes('/dev-agent/summary-development/runtimes'));
 assert(routes.includes('/dev-agent/summary-development/signals'));
