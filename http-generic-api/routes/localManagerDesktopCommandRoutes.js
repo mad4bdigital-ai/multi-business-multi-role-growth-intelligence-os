@@ -461,9 +461,9 @@ export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, re
           WHERE command_id = ?
             AND user_id = ?
             AND device_id IN (${devicePlaceholders})
-            AND (? IS NULL OR tenant_id = ? OR tenant_id IS NULL)
+            AND (? IS NULL OR tenant_id = ? OR tenant_id IS NULL OR tenant_id = ?)
           LIMIT 1`,
-        [finalStatus, jsonString(result), cleanText(req.body?.error_code, 96) || null, cleanText(req.body?.error_message, 1000) || null, commandId, device.user_id, ...deviceIds, device.tenant_id, device.tenant_id]
+        [finalStatus, jsonString(result), cleanText(req.body?.error_code, 96) || null, cleanText(req.body?.error_message, 1000) || null, commandId, device.user_id, ...deviceIds, device.tenant_id, device.tenant_id, ALL_ZERO_TENANT_ID]
       );
       if (!Number(resultRows?.affectedRows || 0)) return res.status(404).json({ ok: false, error: { code: "desktop_command_not_found", message: "Command was not found for this device." }, secrets_included: false });
       return res.status(200).json({ ok: true, command_id: commandId, status: finalStatus, secrets_included: false });
