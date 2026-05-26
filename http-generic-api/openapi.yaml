@@ -9214,6 +9214,38 @@ paths:
             application/json:
               schema: { type: object, additionalProperties: true }
 
+  /platform/plugins/action-templates:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginActionTemplateUpsert
+      summary: Upsert Platform Plugin REST action template
+      description: Create or update a non-secret REST action template for a Platform Plugin contribution action. Stores method, path, headers, and optional body_template metadata in action_bindings_json so dispatch paths can execute only from governed templates.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action_key, method, path]
+              additionalProperties: true
+              properties:
+                contribution_id: { type: string }
+                plugin_key: { type: string }
+                action_key: { type: string }
+                method: { type: string, enum: [GET, POST, PUT, PATCH, DELETE] }
+                path: { type: string }
+                headers: { type: object, additionalProperties: true }
+                body_template: { type: object, additionalProperties: true }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                updated_by: { type: string }
+      responses:
+        "200": { description: Action template upserted, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
   /platform/plugins/dispatch-rest:
     post:
       x-openai-isConsequential: true
