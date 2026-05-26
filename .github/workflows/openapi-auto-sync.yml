@@ -52,7 +52,7 @@ jobs:
         id: maintenance
         working-directory: http-generic-api
         run: |
-          node scripts/repo-maintenance-sync.mjs --write | tee ../repo-maintenance-sync-result.json
+          node scripts/repo-maintenance-sync.mjs --write --report-file "$RUNNER_TEMP/repo-maintenance-sync-result.json" | tee "$RUNNER_TEMP/repo-maintenance-sync-output.log"
 
       - name: Check generated diff
         id: diff
