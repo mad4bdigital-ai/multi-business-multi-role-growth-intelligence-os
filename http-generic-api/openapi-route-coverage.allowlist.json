@@ -1,0 +1,41 @@
+{
+  "notes": "OpenAPI route coverage allowlist. Stage 1 checks critical platform/admin/tenant route families. Prefer documenting platform/admin/tenant routes in openapi.yaml instead of adding allowlist entries.",
+  "required_files": [
+    "routes/platformPluginRoutes.js",
+    "routes/tenantPlatformPluginRoutes.js",
+    "routes/platformGraphRoutes.js",
+    "routes/schemaImportRoutes.js",
+    "routes/gptToolsRoutes.js",
+    "routes/systemLayerRoutes.js",
+    "routes/connectorTaxonomyRoutes.js"
+  ],
+  "exact": [
+    "GET /",
+    "GET /healthz",
+    "GET /readyz",
+    "GET /favicon.ico",
+    "GET /robots.txt"
+  ],
+  "prefixes": [
+    "/oauth",
+    "/auth/google",
+    "/auth/callback",
+    "/uploads",
+    "/assets",
+    "/static",
+    "/api/internal",
+    "/internal",
+    "/debug",
+    "/dev-only",
+    "/connect/oauth",
+    "/local-manager",
+    "/local-gateway"
+  ],
+  "files": [
+    "routes/rootDiscoveryRoutes.js",
+    "routes/legalRoutes.js",
+    "routes/mcpRoutes.js",
+    "routes/executeRoutes.js",
+    "routes/onboardingRoutes.js"
+  ]
+}
