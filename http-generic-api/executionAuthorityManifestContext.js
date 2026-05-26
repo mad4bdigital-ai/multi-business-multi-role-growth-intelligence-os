@@ -173,6 +173,7 @@ export async function resolveExecutionAuthorityManifestContext(input = {}, deps 
       action_key: actionKey || null,
       endpoint_key: endpointKey || null,
       plugin_key: pluginKey || null,
+      tool_key: toolKey || null,
       ...summary,
       secrets_included: false,
     };
