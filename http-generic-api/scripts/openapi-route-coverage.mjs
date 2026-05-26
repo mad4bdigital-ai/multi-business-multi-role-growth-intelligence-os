@@ -105,8 +105,8 @@ function allowlistMatchers(allowlist) {
 
 function main() {
   const openapiOps = collectOpenApiOperations();
-  const routes = collectRoutes();
-  const allowlist = loadJson(ALLOWLIST_PATH, { exact: [], prefixes: [], files: [] });
+  const allowlist = loadJson(ALLOWLIST_PATH, { exact: [], prefixes: [], files: [], required_files: [] });
+  const routes = collectRoutes(allowlist.required_files);
   const isAllowed = allowlistMatchers(allowlist);
   const missing = [];
   const seen = new Set();
