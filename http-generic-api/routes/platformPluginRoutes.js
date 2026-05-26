@@ -12,6 +12,7 @@ import {
   resolvePrivatePlatformPluginContribution,
 } from "../platformPluginContribution.js";
 import { dispatchPrivatePlatformPluginRestAction } from "../platformPluginPrivateRestDispatch.js";
+import { dispatchPlatformPluginRestAction } from "../platformPluginRestDispatch.js";
 import {
   certifyPlatformPluginContribution,
   promotePlatformPluginContribution,
@@ -84,6 +85,24 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
       });
       return res.status(result.ok ? 200 : 409).json(result);
     } catch (err) { return errorResponse(res, err, "platform_plugin_policy_upsert_failed"); }
+  });
+
+  router.post("/platform/plugins/dispatch-rest", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await dispatchPlatformPluginRestAction({
+        pluginKey: input.plugin_key || input.pluginKey,
+        actionKey: input.action_key || input.actionKey,
+        tenantId: input.tenant_id || input.tenantId,
+        userId: input.user_id || input.userId,
+        agentId: input.agent_id || input.agentId || null,
+        requestedCredentialScope: input.requested_credential_scope || input.requestedCredentialScope || "tenant_connection",
+        input: input.input || {},
+        dryRun: input.dry_run === true || input.dryRun === true,
+        timeoutMs: input.timeout_ms || input.timeoutMs || 10000,
+      });
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_plugin_rest_dispatch_failed"); }
   });
 
   router.post("/platform/plugins/action-grants", ...requireAdmin, async (req, res) => {
