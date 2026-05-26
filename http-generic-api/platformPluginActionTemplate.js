@@ -177,7 +177,23 @@ export async function upsertPlatformPluginActionTemplate({
       LIMIT 1`,
     params
   );
-  const contribution = rows[0] || null;
+  let contribution = rows[0] || null;
+  if (!contribution) {
+    const fallbackRows = await safeQuery(
+      pool,
+      `SELECT * FROM platform_plugin_contributions
+        WHERE JSON_SEARCH(action_bindings_json, 'one', ?, NULL, '$[*].action_key') IS NOT NULL
+        ORDER BY promoted_at DESC, certified_at DESC, updated_at DESC, created_at DESC
+        LIMIT 20`,
+      [normalizedActionKey]
+    );
+    const fallbackMatches = fallbackRows.filter((row) => {
+      if (normalizedContributionId && row.contribution_id === normalizedContributionId) return true;
+      if (normalizedPluginKey && row.plugin_key === normalizedPluginKey) return true;
+      return false;
+    });
+    contribution = fallbackMatches[0] || (fallbackRows.length === 1 ? fallbackRows[0] : null);
+  }
   if (!contribution) {
     const err = new Error("Platform Plugin contribution not found for template update.");
     err.code = "contribution_not_found";

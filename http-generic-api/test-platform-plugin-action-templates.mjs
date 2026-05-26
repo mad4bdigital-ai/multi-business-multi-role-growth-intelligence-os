@@ -9,6 +9,7 @@ const openapi = readFileSync("openapi.yaml", "utf8");
 assert(service.includes("upsertPlatformPluginActionTemplate"), "service must export action template upsert");
 assert(service.includes("platform_plugin_contributions"), "service must mutate contribution action metadata");
 assert(service.includes("action_bindings_json"), "service must update action_bindings_json");
+assert(service.includes("JSON_SEARCH(action_bindings_json"), "service must fallback-select contribution by action binding JSON when the primary selector misses");
 assert(service.includes("payloadContainsSecret"), "service must reject secret-bearing payloads");
 assert(service.includes("BLOCKED_HEADER_KEYS"), "service must block auth/cookie headers");
 assert(service.includes("ALLOWED_METHODS"), "service must restrict HTTP methods");
