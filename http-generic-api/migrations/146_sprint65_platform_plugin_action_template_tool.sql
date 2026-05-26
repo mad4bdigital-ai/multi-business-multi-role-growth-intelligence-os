@@ -14,7 +14,7 @@ INSERT INTO `admin_platform_endpoint_tools` (
   NULL,
   '{"type":"object","required":["action_key","method","path"],"properties":{"contribution_id":{"type":"string"},"plugin_key":{"type":"string"},"action_key":{"type":"string"},"method":{"type":"string","enum":["GET","POST","PUT","PATCH","DELETE"]},"path":{"type":"string"},"headers":{"type":"object","additionalProperties":true},"body_template":{"type":"object","additionalProperties":true},"tenant_id":{"type":"string"},"user_id":{"type":"string"},"updated_by":{"type":"string"}}}',
   NULL,
-  'admin,platform-plugin,action-template,rest,state_changing,audited,no_secrets,dispatch_template',
+  'admin,platform-plugin,platform-plugins,action-template,rest,state_changing,audited,no_secrets,dispatch_template',
   1,
   132
 )
