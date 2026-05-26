@@ -8,6 +8,9 @@ const REPO_ROOT = path.resolve(API_ROOT, "..");
 const write = process.argv.includes("--write");
 const check = process.argv.includes("--check");
 const skipOpenapiAutofill = process.argv.includes("--skip-openapi-autofill");
+const writeSplitSchemas = process.argv.includes("--write-split-schemas");
+const reportFileIndex = process.argv.indexOf("--report-file");
+const reportFile = reportFileIndex >= 0 ? process.argv[reportFileIndex + 1] : "";
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -47,8 +50,12 @@ function main() {
   }
 
   if (fileExists("http-generic-api/scripts/split-openapi.mjs")) {
-    run("node", ["scripts/split-openapi.mjs"]);
-    steps.push("split-openapi");
+    if (writeSplitSchemas) {
+      run("node", ["scripts/split-openapi.mjs"]);
+      steps.push("split-openapi-write");
+    } else {
+      steps.push("split-openapi-write-skipped-explicit-flag-required");
+    }
   }
 
   run("node", ["scripts/update-repo-planning-docs.mjs"]);
@@ -62,7 +69,10 @@ function main() {
     changed_files: after,
     changed_count: after.length,
   };
-  fs.writeFileSync(path.join(REPO_ROOT, "repo-maintenance-sync-result.json"), `${JSON.stringify(report, null, 2)}\n`);
+  if (reportFile) {
+    fs.mkdirSync(path.dirname(path.resolve(REPO_ROOT, reportFile)), { recursive: true });
+    fs.writeFileSync(path.resolve(REPO_ROOT, reportFile), `${JSON.stringify(report, null, 2)}\n`);
+  }
   console.log(JSON.stringify(report, null, 2));
 
   if (check && after.length > 0) {
