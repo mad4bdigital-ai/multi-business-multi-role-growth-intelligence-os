@@ -7,7 +7,10 @@
     "routes/schemaImportRoutes.js",
     "routes/gptToolsRoutes.js",
     "routes/systemLayerRoutes.js",
-    "routes/connectorTaxonomyRoutes.js"
+    "routes/connectorTaxonomyRoutes.js",
+    "routes/credentialRoutes.js",
+    "routes/credentialIntakeRoutes.js",
+    "routes/appIntegrationRoutes.js"
   ],
   "exact": [
     "GET /",
