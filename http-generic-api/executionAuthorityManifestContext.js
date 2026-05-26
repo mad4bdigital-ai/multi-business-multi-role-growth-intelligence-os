@@ -112,8 +112,14 @@ export async function resolveExecutionAuthorityManifestContext(input = {}, deps 
     action.plugin_key,
     endpoint.plugin_key
   );
+  const toolKey = firstNonEmpty(
+    requestPayload.tool_key,
+    requestPayload.toolKey,
+    endpoint.tool_key,
+    action.tool_key
+  );
 
-  if (!actionKey && !endpointKey && !pluginKey) {
+  if (!actionKey && !endpointKey && !pluginKey && !toolKey) {
     return {
       requested: false,
       attempted: false,
