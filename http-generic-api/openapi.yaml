@@ -8189,6 +8189,190 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { description: Device list read failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
+  /connect:
+    get:
+      tags: [connected-systems]
+      security: []
+      operationId: getConnectAppShell
+      summary: Render the Connect onboarding app shell
+      responses:
+        "200":
+          description: Connect app HTML
+          content:
+            text/html:
+              schema: { type: string }
+
+  /connect/onboarding-state:
+    get:
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+      operationId: getConnectOnboardingState
+      summary: Read Connect onboarding state for the signed-in user
+      responses:
+        "200": { description: Connect onboarding state, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /connect/workspace:
+    post:
+      x-openai-isConsequential: true
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+      operationId: createConnectWorkspace
+      summary: Create or select a workspace during Connect onboarding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Connect workspace updated, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /connect/escalate:
+    post:
+      x-openai-isConsequential: true
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+      operationId: escalateConnectRequest
+      summary: Escalate a Connect onboarding or access request
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Connect escalation result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /me:
+    get:
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+      operationId: getCurrentConnectUser
+      summary: Read the current user profile for Connect surfaces
+      responses:
+        "200": { description: Current user profile, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /me/workspaces:
+    get:
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+      operationId: listCurrentUserWorkspaces
+      summary: List workspaces available to the current user
+      responses:
+        "200": { description: Current user workspaces, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+    post:
+      x-openai-isConsequential: true
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+      operationId: createCurrentUserWorkspace
+      summary: Create a workspace for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Workspace created, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /me/capabilities:
+    get:
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+      operationId: getCurrentUserCapabilities
+      summary: Read current user capability flags
+      responses:
+        "200": { description: Current user capabilities, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /connect/preferences:
+    post:
+      x-openai-isConsequential: true
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+      operationId: updateConnectPreferences
+      summary: Update Connect user preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Connect preferences updated, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /connect/profile:
+    post:
+      x-openai-isConsequential: true
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+      operationId: updateConnectProfile
+      summary: Update Connect user profile metadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Connect profile updated, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /connector-agent/version:
+    get:
+      tags: [local-connector]
+      security: []
+      operationId: getConnectorAgentVersion
+      summary: Read current connector agent version manifest
+      responses:
+        "200": { description: Connector agent version, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /connector-agent/manifest.json:
+    get:
+      tags: [local-connector]
+      security: []
+      operationId: getConnectorAgentManifest
+      summary: Read connector agent install manifest
+      responses:
+        "200": { description: Connector agent manifest, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /connector-agent/installer.ps1:
+    get:
+      tags: [local-connector]
+      security: []
+      operationId: getConnectorAgentInstallerScript
+      summary: Download connector agent PowerShell installer
+      responses:
+        "200": { description: Connector agent installer script, content: { text/plain: { schema: { type: string } } } }
+
+  /connector-agent/files/{fileName}:
+    get:
+      tags: [local-connector]
+      security: []
+      operationId: getConnectorAgentFile
+      summary: Download a connector agent release file
+      parameters:
+        - { name: fileName, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Connector agent file, content: { application/octet-stream: { schema: { type: string, format: binary } } } }
+
+  /connector-agent/heartbeat:
+    post:
+      x-openai-isConsequential: false
+      tags: [local-connector]
+      security: []
+      operationId: postConnectorAgentHeartbeat
+      summary: Receive connector agent heartbeat
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Connector agent heartbeat accepted, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
   /app-integrations:
     get:
       tags: [connected-systems]
