@@ -326,4 +326,118 @@ const baseInput = {
   );
 }
 
+{
+  const result = await prepareExecutionRequest(baseInput, {
+    ...makeDeps(),
+    async resolveActionEndpointToolManifest(args) {
+      assert.equal(args.action_key, "test_action");
+      assert.equal(args.endpoint_key, "testEndpoint");
+      assert.equal(args.include_denied, true);
+      return {
+        ok: true,
+        resolver: "shared_action_endpoint_tool_manifest_resolver",
+        mode: "read_model_only",
+        requested: args,
+        count: 1,
+        surface_authority: {
+          action_registry: { ok: true, resolved_surface_key: "surface.actions_registry_sheet", secrets_included: false },
+          endpoint_registry: { ok: true, resolved_surface_key: "surface.endpoint_registry_sheet", secrets_included: false },
+          tool_manifest: { ok: true, resolved_surface_key: "surface.platform_tool_manifest", secrets_included: false },
+        },
+        authority_chain: [
+          "task_route_authority_resolver",
+          "workflow_registry_authority_resolver",
+          "action_registry_authority_resolver",
+          "endpoint_registry",
+          "platform_tool_manifest",
+        ],
+        manifests: [
+          {
+            action: {
+              action_key: "test_action",
+              plugin: { plugin_key: "test_plugin" },
+              evaluation: { allowed: true, reasons: [] },
+            },
+            endpoints: [{ endpoint_key: "testEndpoint" }],
+            tools: [{ tool_key: "test_tool" }],
+            readiness: {
+              endpoint_count: 1,
+              tool_count: 1,
+              manifest_complete: true,
+            },
+            secrets_included: false,
+          },
+        ],
+        secrets_included: false,
+      };
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.requested, true);
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.attempted, true);
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.resolution_status, "ready");
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.first_manifest_complete, true);
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.manifests[0].action_key, "test_action");
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.manifests[0].tool_keys[0], "test_tool");
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.secrets_included, false);
+}
+
+{
+  const result = await prepareExecutionRequest(baseInput, {
+    ...makeDeps(),
+    async resolveActionEndpointToolManifest(args) {
+      assert.equal(args.action_key, "test_action");
+      assert.equal(args.endpoint_key, "testEndpoint");
+      assert.equal(args.include_denied, true);
+      return {
+        ok: true,
+        resolver: "shared_action_endpoint_tool_manifest_resolver",
+        mode: "read_model_only",
+        requested: args,
+        count: 1,
+        surface_authority: {
+          action_registry: { ok: true, resolved_surface_key: "surface.actions_registry_sheet", secrets_included: false },
+          endpoint_registry: { ok: true, resolved_surface_key: "surface.endpoint_registry_sheet", secrets_included: false },
+          tool_manifest: { ok: true, resolved_surface_key: "surface.platform_tool_manifest", secrets_included: false },
+        },
+        authority_chain: [
+          "task_route_authority_resolver",
+          "workflow_registry_authority_resolver",
+          "action_registry_authority_resolver",
+          "endpoint_registry",
+          "platform_tool_manifest",
+        ],
+        manifests: [
+          {
+            action: {
+              action_key: "test_action",
+              plugin: { plugin_key: "test_plugin" },
+              evaluation: { allowed: true, reasons: [] },
+            },
+            endpoints: [{ endpoint_key: "testEndpoint" }],
+            tools: [{ tool_key: "test_tool" }],
+            readiness: {
+              endpoint_count: 1,
+              tool_count: 1,
+              manifest_complete: true,
+            },
+            secrets_included: false,
+          },
+        ],
+        secrets_included: false,
+      };
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.requested, true);
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.attempted, true);
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.resolution_status, "ready");
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.first_manifest_complete, true);
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.manifests[0].action_key, "test_action");
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.manifests[0].tool_keys[0], "test_tool");
+  assert.equal(result.governedExecutionContext.execution_authority_manifest.secrets_included, false);
+}
+
 console.log("execution preparation path resolver tests passed");

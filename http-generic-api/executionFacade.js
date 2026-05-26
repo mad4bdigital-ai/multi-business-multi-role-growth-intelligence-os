@@ -4,6 +4,7 @@ import { dispatchPreparedExecution } from "./executionDispatch.js";
 import { validateAndShapeExecutionResponse } from "./executionResponse.js";
 import { buildPassiveExecutionReport } from "./executionControlResolvers.js";
 import { resolveExecutionGraphMemoryContext } from "./executionGraphMemoryContext.js";
+import { resolveActionEndpointToolManifest } from "./actionEndpointToolManifestResolver.js";
 import {
   getExecutionJob,
   pollExecutionJobResult,
@@ -295,7 +296,8 @@ export function createExecutionFacade(deps) {
             fetchChunkedTable,
             headerMap,
             getCell,
-            REGISTRY_SPREADSHEET_ID
+            REGISTRY_SPREADSHEET_ID,
+            resolveActionEndpointToolManifest
           }
         );
         if (!preparation.ok) {
