@@ -224,6 +224,30 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     taskRouteRows
   });
 
+  governedExecutionContext.execution_authority_manifest = await resolveExecutionAuthorityManifestContext(
+    {
+      requestPayload,
+      action,
+      endpoint,
+      parent_action_key,
+      endpoint_key,
+    },
+    deps
+  );
+
+  debugLog("EXECUTION_AUTHORITY_MANIFEST_CONTEXT:", JSON.stringify({
+    requested: governedExecutionContext.execution_authority_manifest?.requested,
+    attempted: governedExecutionContext.execution_authority_manifest?.attempted,
+    resolution_status: governedExecutionContext.execution_authority_manifest?.resolution_status,
+    action_key: governedExecutionContext.execution_authority_manifest?.action_key,
+    endpoint_key: governedExecutionContext.execution_authority_manifest?.endpoint_key,
+    plugin_key: governedExecutionContext.execution_authority_manifest?.plugin_key,
+    manifest_count: governedExecutionContext.execution_authority_manifest?.count,
+    first_manifest_complete: governedExecutionContext.execution_authority_manifest?.first_manifest_complete,
+    blocked_reasons: governedExecutionContext.execution_authority_manifest?.blocked_reasons || [],
+    secrets_included: false,
+  }));
+
   // Conditionally resolve knowledge surfaces for brand/business-type requests
   {
     const { isBrandOrBusinessTypeRequest, resolveKnowledgeSurfaces } = await import("./knowledgeSurfaceResolver.js");
