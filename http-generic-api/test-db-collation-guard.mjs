@@ -14,6 +14,10 @@ const pluginRegistryMigration = readFileSync(
   join(__dirname, "migrations/141_sprint65_plugin_registry_collation_repair.sql"),
   "utf8"
 );
+const pluginRegistryMigrationWithoutComments = pluginRegistryMigration
+  .split("\n")
+  .filter((line) => !line.trim().startsWith("--"))
+  .join("\n");
 
 assert(
   sessionSummaryMigration.includes("v_session_summary_graph_attachments"),
