@@ -8196,6 +8196,7 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: connectorTaxonomySummary
+      x-custom-gpt-exclude: true
       summary: Read connector taxonomy coverage summary
       description: Read-only summary of connector family registry, app-action bindings, app-tool bindings, coverage counts, and taxonomy quality checks.
       responses:
