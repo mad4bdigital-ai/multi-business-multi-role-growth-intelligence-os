@@ -19,6 +19,8 @@ assert(service.includes("secrets_included: false"), "service responses must expl
 assert(routes.includes("upsertPlatformPluginActionTemplate"), "route must call action template service");
 assert(routes.includes("/platform/plugins/action-templates"), "route must expose action template endpoint");
 assert(routes.includes("platform_plugin_action_template_upsert_failed"), "route must use structured error code");
+assert(routes.includes("body.tool_args"), "route must unwrap dispatcher tool_args payloads");
+assert(routes.includes("body.arguments"), "route must unwrap dispatcher arguments payloads");
 
 assert(migration.includes("platform_plugin_action_template_upsert"), "migration must register admin tool key");
 assert(migration.includes("/platform/plugins/action-templates"), "migration must bind route path");
