@@ -112,8 +112,14 @@ export async function resolveExecutionAuthorityManifestContext(input = {}, deps 
     action.plugin_key,
     endpoint.plugin_key
   );
+  const toolKey = firstNonEmpty(
+    requestPayload.tool_key,
+    requestPayload.toolKey,
+    endpoint.tool_key,
+    action.tool_key
+  );
 
-  if (!actionKey && !endpointKey && !pluginKey) {
+  if (!actionKey && !endpointKey && !pluginKey && !toolKey) {
     return {
       requested: false,
       attempted: false,
@@ -132,6 +138,7 @@ export async function resolveExecutionAuthorityManifestContext(input = {}, deps 
       action_key: actionKey || null,
       endpoint_key: endpointKey || null,
       plugin_key: pluginKey || null,
+      tool_key: toolKey || null,
       secrets_included: false,
     };
   }
@@ -141,6 +148,7 @@ export async function resolveExecutionAuthorityManifestContext(input = {}, deps 
       action_key: actionKey || null,
       endpoint_key: endpointKey || null,
       plugin_key: pluginKey || null,
+      tool_key: toolKey || null,
       tenant_id: firstNonEmpty(requestPayload.tenant_id, requestPayload.auth_context?.tenant_id),
       user_id: firstNonEmpty(requestPayload.user_id, requestPayload.auth_context?.user_id),
       actor_role: firstNonEmpty(requestPayload.actor_role, requestPayload.auth_context?.actor_role),
@@ -165,6 +173,7 @@ export async function resolveExecutionAuthorityManifestContext(input = {}, deps 
       action_key: actionKey || null,
       endpoint_key: endpointKey || null,
       plugin_key: pluginKey || null,
+      tool_key: toolKey || null,
       ...summary,
       secrets_included: false,
     };
@@ -176,6 +185,7 @@ export async function resolveExecutionAuthorityManifestContext(input = {}, deps 
       action_key: actionKey || null,
       endpoint_key: endpointKey || null,
       plugin_key: pluginKey || null,
+      tool_key: toolKey || null,
       error_code: compact(err?.code || "execution_authority_manifest_resolution_failed", 160),
       error_message: compact(err?.message || "Execution authority manifest resolution failed.", 1000),
       error_status: err?.status || null,
