@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const connectRoutes = readFileSync('routes/connectRoutes.js', 'utf8');
-const tenantSchema = readFileSync('openapi.tenant-gpt.auth.yaml', 'utf8');
 
 assert(connectRoutes.includes('LOCAL_MANAGER_ACTIVATION_BINDING'), 'connect routes must define Local Manager activation binding');
 assert(connectRoutes.includes('role: "local_tool_release_owner"'), 'Local Manager binding must identify local tool release owner role');
