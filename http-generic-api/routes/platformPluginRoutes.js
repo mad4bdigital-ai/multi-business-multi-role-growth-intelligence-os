@@ -86,6 +86,26 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
     } catch (err) { return errorResponse(res, err, "platform_plugin_policy_upsert_failed"); }
   });
 
+  router.post("/platform/plugins/action-grants", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await upsertPlatformPluginActionGrant({
+        connectionId: input.connection_id || input.connectionId,
+        pluginKey: input.plugin_key || input.pluginKey,
+        actionKey: input.action_key || input.actionKey,
+        agentId: input.agent_id || input.agentId || null,
+        workspaceId: input.workspace_id || input.workspaceId || null,
+        grantMode: input.grant_mode || input.grantMode || "explicit",
+        grantedBy: input.granted_by || input.grantedBy || input.user_id || input.userId || null,
+        expiresAt: input.expires_at || input.expiresAt || null,
+        tenantId: input.tenant_id || input.tenantId || null,
+        userId: input.user_id || input.userId || null,
+        rawPayload: input,
+      });
+      return res.status(result.ok ? 200 : 409).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_plugin_action_grant_upsert_failed"); }
+  });
+
   router.post("/platform/plugins/install", ...requireAdmin, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
