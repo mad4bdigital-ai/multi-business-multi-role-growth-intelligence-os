@@ -249,6 +249,17 @@ export async function prepareExecutionRequest(input = {}, deps = {}) {
     secrets_included: false,
   }));
 
+  governedExecutionContext.execution_authority_guard = enforceExecutionAuthorityManifestGuard(
+    {
+      requestPayload,
+      policies,
+      manifest: governedExecutionContext.execution_authority_manifest,
+    },
+    deps
+  );
+
+  debugLog("EXECUTION_AUTHORITY_MANIFEST_GUARD:", JSON.stringify(governedExecutionContext.execution_authority_guard));
+
   // Conditionally resolve knowledge surfaces for brand/business-type requests
   {
     const { isBrandOrBusinessTypeRequest, resolveKnowledgeSurfaces } = await import("./knowledgeSurfaceResolver.js");
