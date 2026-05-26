@@ -371,16 +371,21 @@ export async function resolvePlatformPluginExecution({
   if (!skill.granted) denialReasons.push(skill.reason);
 
   const defaultGrants = parseJsonArray(rows.plugin.default_action_grants, []);
-  const approvalRequired = Boolean(
+  const baseApprovalRequired = Boolean(
     defaultGrants.find((grant) => grant?.action_key === actionKey)?.auto_approve === false ||
     normalize(binding?.exposure_default || "") === "runtime_only"
   );
+  const actionGrant = baseApprovalRequired && allowed
+    ? await checkActionGrant({ pool, pluginKey: normalizedPluginKey, actionKey, agentId, credential })
+    : { required: baseApprovalRequired, granted: !baseApprovalRequired, grant_id: null, reason: baseApprovalRequired ? "resolve_denials_before_action_grant" : "no_review_required_by_preview" };
+  const approvalRequired = Boolean(baseApprovalRequired && !actionGrant.granted);
+  const dispatchReady = Boolean(allowed && !approvalRequired);
 
   return {
     ok: true,
     allowed,
     reason: allowed ? "resolved" : unique(denialReasons).join("|") || "not_allowed",
-    mode: "preview_only",
+    mode: dispatchReady ? "dispatch_ready" : "preview_only",
     plugin_key: normalizedPluginKey,
     requested_action_key: actionKey || null,
     requested_tool_key: toolKey || null,
