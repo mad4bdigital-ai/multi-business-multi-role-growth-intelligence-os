@@ -307,7 +307,7 @@ function createPool() {
   assert.equal(result.ok, true);
   assert.equal(result.execution_authority_guard_preview.guard_status, "blocked");
   assert.equal(result.execution_authority_guard_preview.would_dispatch, false);
-  assert.equal(result.execution_authority_guard_preview.error.code, "execution_authority_action_not_allowed");
+  assert(result.execution_authority_guard_preview.error.details.block_codes.includes("execution_authority_action_not_allowed"));
   assert.equal(result.next_step, "dispatch_would_be_blocked_by_manifest_guard");
 }
 
