@@ -30,10 +30,9 @@ assert(workflow.includes('Do not merge this PR as-is'), 'workflow PR body must r
 assert(!workflow.includes('git push origin main'), 'workflow must not push generated stubs directly to main');
 
 const tempRoot = join(tmpdir(), `openapi-autofill-${process.pid}-${Date.now()}`);
+const autofillScriptPath = resolve('scripts/openapi-autofill-missing-routes.mjs');
 try {
   mkdirSync(join(tempRoot, 'routes'), { recursive: true });
-  mkdirSync(join(tempRoot, 'scripts'), { recursive: true });
-  cpSync('scripts/openapi-autofill-missing-routes.mjs', join(tempRoot, 'scripts/openapi-autofill-missing-routes.mjs'));
   writeFileSync(join(tempRoot, 'routes/index.js'), '');
   writeFileSync(join(tempRoot, 'routes/exampleRoutes.js'), 'import express from "express";\nconst router = express.Router();\nrouter.post("/auto-sync-fixture/:id", (req, res) => res.json({ ok: true }));\nexport default router;\n');
   writeFileSync(join(tempRoot, 'openapi-route-coverage.allowlist.json'), JSON.stringify({ exact: [], prefixes: [], files: [], required_files: [] }, null, 2));
