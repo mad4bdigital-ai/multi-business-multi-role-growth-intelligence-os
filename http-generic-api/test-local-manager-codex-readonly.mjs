@@ -3,6 +3,7 @@ import fs from 'node:fs';
 
 const desktopRoutes = fs.readFileSync(new URL('./routes/localManagerDesktopCommandRoutes.js', import.meta.url), 'utf8');
 const program = fs.readFileSync(new URL('../apps/local-manager-windows/Program.cs', import.meta.url), 'utf8');
+const aliasMigration = fs.readFileSync(new URL('./migrations/143_sprint64_local_manager_desktop_device_aliases.sql', import.meta.url), 'utf8');
 
 assert(desktopRoutes.includes('codex_exec_readonly'));
 assert(desktopRoutes.includes('codex_readonly_sandbox_required'));
