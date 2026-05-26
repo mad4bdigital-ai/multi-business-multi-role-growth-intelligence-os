@@ -9,7 +9,7 @@ const ALLOWLIST_PATH = path.join(ROOT, "openapi-route-coverage.allowlist.json");
 const HTTP_METHODS = new Set(["get", "post", "put", "patch", "delete"]);
 const ROUTE_FILE_RE = /(?:router|app)\.(get|post|put|patch|delete)\s*\(\s*([`'\"])(.*?)\2/gs;
 const APP_USE_RE = /app\.use\s*\(\s*([`'\"])(.*?)\1\s*,/gs;
-const ROUTER_USE_RE = /router\.use\s*\(\s*([`'\"])(.*?)\1\s*,/gs;
+const ROUTER_USE_RE = /router\.use\s*\(\s*([`'\"])(.*?)\1\s*,\s*([A-Za-z0-9_$]+)/gs;
 
 function loadJson(filePath, fallback) {
   if (!fs.existsSync(filePath)) return fallback;
@@ -60,7 +60,10 @@ function collectRoutesFromSource(filePath, source, indexPrefixes) {
   const rel = path.relative(ROOT, filePath).replace(/\\/g, "/");
   const localPrefixes = new Set([""]);
   let match;
-  while ((match = ROUTER_USE_RE.exec(source)) !== null) localPrefixes.add(normalizeExpressPath(match[2]));
+  while ((match = ROUTER_USE_RE.exec(source)) !== null) {
+    const handlerName = String(match[3] || "");
+    if (/(Router|Routes)$/i.test(handlerName)) localPrefixes.add(normalizeExpressPath(match[2]));
+  }
 
   const routes = [];
   while ((match = ROUTE_FILE_RE.exec(source)) !== null) {

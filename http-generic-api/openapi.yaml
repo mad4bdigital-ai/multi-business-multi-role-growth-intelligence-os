@@ -8189,6 +8189,394 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { description: Device list read failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
+  /app-integrations:
+    get:
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: listAppIntegrations
+      summary: List platform app integrations
+      parameters:
+        - { name: category, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: auth_type, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+      responses:
+        "200": { description: App integration list, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /app-integrations/{app_key}:
+    get:
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: getAppIntegration
+      summary: Get one platform app integration
+      parameters:
+        - { name: app_key, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: App integration detail, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /app-integrations/{app_key}/authorize:
+    get:
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: authorizeAppIntegration
+      summary: Start app integration authorization flow
+      parameters:
+        - { name: app_key, in: path, required: true, schema: { type: string } }
+        - { name: user_id, in: query, schema: { type: string } }
+        - { name: tenant_id, in: query, schema: { type: string } }
+      responses:
+        "302": { description: Redirect to upstream authorization page }
+        "200": { description: Authorization bootstrap response, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /app-integrations/{app_key}/callback:
+    get:
+      tags: [connected-systems]
+      security: []
+      operationId: callbackAppIntegration
+      summary: Receive app integration authorization callback
+      parameters:
+        - { name: app_key, in: path, required: true, schema: { type: string } }
+        - { name: code, in: query, schema: { type: string } }
+        - { name: state, in: query, schema: { type: string } }
+        - { name: error, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Callback processed, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "302": { description: Redirect after callback }
+
+  /app-connections:
+    post:
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: createAppConnection
+      summary: Create a user app connection metadata or encrypted credential connection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "201": { description: App connection created, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /users/{id}/connections:
+    get:
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: listUserAppConnections
+      summary: List app connections for a user
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: User app connections, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /users/{id}/connections/{cid}:
+    get:
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: getUserAppConnection
+      summary: Get a user app connection
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: cid, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: User app connection detail, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+    delete:
+      x-openai-isConsequential: true
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: deleteUserAppConnection
+      summary: Delete or disconnect a user app connection
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: cid, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Connection deleted, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /users/{id}/connections/{cid}/test:
+    post:
+      x-openai-isConsequential: false
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: testUserAppConnection
+      summary: Test a user app connection without exposing secrets
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: cid, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Connection test result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /workspaces/{id}/app-links:
+    get:
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: listWorkspaceAppLinks
+      summary: List workspace app links
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Workspace app links, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+    post:
+      x-openai-isConsequential: true
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: createWorkspaceAppLink
+      summary: Link an app connection to a workspace
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "201": { description: Workspace app link created, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /workspaces/{id}/app-links/{link_id}:
+    delete:
+      x-openai-isConsequential: true
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: deleteWorkspaceAppLink
+      summary: Remove a workspace app link
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: link_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Workspace app link removed, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /app-connections/{id}/grants:
+    get:
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: listAppConnectionGrants
+      summary: List app connection grants
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: App connection grants, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+    post:
+      x-openai-isConsequential: true
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: createAppConnectionGrant
+      summary: Create an app connection grant
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "201": { description: App connection grant created, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /app-connections/{id}/grants/{gid}:
+    delete:
+      x-openai-isConsequential: true
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: deleteAppConnectionGrant
+      summary: Delete an app connection grant
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: gid, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: App connection grant deleted, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /app-connections/{id}/grant-requests:
+    get:
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: listAppConnectionGrantRequests
+      summary: List app connection grant requests
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: App connection grant requests, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+    post:
+      x-openai-isConsequential: true
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: createAppConnectionGrantRequest
+      summary: Create an app connection grant request
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "201": { description: App connection grant request created, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /app-connections/{id}/grant-requests/{rid}:
+    patch:
+      x-openai-isConsequential: true
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: updateAppConnectionGrantRequest
+      summary: Update an app connection grant request
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: rid, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Grant request updated, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /app-connections/{id}/execute:
+    post:
+      x-openai-isConsequential: true
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: executeAppConnectionAction
+      summary: Execute a governed action through an app connection
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: App connection execution result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /credential-intake/sessions:
+    post:
+      x-openai-isConsequential: true
+      tags: [security]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: createCredentialIntakeSession
+      summary: Create a short-lived secure credential intake session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [user_id, tenant_id, app_key, auth_type], additionalProperties: true }
+      responses:
+        "201": { description: Credential intake session created, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /credential-intake/{token}/schema:
+    get:
+      tags: [security]
+      security: []
+      operationId: getCredentialIntakeSchema
+      summary: Read credential intake form schema for one-time token
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Credential intake schema, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /credential-intake/{token}:
+    get:
+      tags: [security]
+      security: []
+      operationId: getCredentialIntakeForm
+      summary: Render credential intake HTML form
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Credential intake HTML form, content: { text/html: { schema: { type: string } } } }
+    post:
+      x-openai-isConsequential: true
+      tags: [security]
+      security: []
+      operationId: submitCredentialIntakeForm
+      summary: Submit credential intake form and create encrypted user app connection
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        "201": { description: Credential intake submitted, content: { text/html: { schema: { type: string } } } }
+
+  /credentials/effective/status:
+    post:
+      x-openai-isConsequential: false
+      tags: [security]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: credentialEffectiveStatus
+      summary: Resolve effective credential status without returning secrets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Effective credential status, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /credentials/secrets/upsert:
+    post:
+      x-openai-isConsequential: true
+      tags: [security]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: upsertCredentialSecret
+      summary: Upsert encrypted credential secret material through governed backend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Credential secret upserted, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /credentials/bindings:
+    get:
+      tags: [security]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: listCredentialBindings
+      summary: List credential bindings without returning secret values
+      parameters:
+        - { name: app_key, in: query, schema: { type: string } }
+        - { name: tenant_id, in: query, schema: { type: string } }
+        - { name: user_id, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Credential bindings, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
   /admin/connector-taxonomy/summary:
     get:
       tags: [admin-control]
