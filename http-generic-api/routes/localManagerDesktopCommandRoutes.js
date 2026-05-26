@@ -140,6 +140,38 @@ async function expireOldCommands() {
   );
 }
 
+async function resolveDesktopCommandDeviceIds(device = {}) {
+  const primaryDeviceId = cleanText(device.device_id, 128);
+  const userId = cleanText(device.user_id, 64);
+  const tenantId = cleanText(device.tenant_id, 64) || null;
+  const ids = new Set(primaryDeviceId ? [primaryDeviceId] : []);
+  if (!primaryDeviceId || !userId) return [...ids];
+
+  try {
+    const [rows] = await getPool().query(
+      `SELECT alias_device_id, canonical_device_id
+         FROM \`local_connector_device_aliases\`
+        WHERE status = 'active'
+          AND (alias_device_id = ? OR canonical_device_id = ?)
+          AND (user_id = ? OR user_id IS NULL)
+          AND (? IS NULL OR tenant_id = ? OR tenant_id IS NULL)
+        LIMIT 50`,
+      [primaryDeviceId, primaryDeviceId, userId, tenantId, tenantId]
+    );
+    for (const row of rows) {
+      const alias = cleanText(row.alias_device_id, 128);
+      const canonical = cleanText(row.canonical_device_id, 128);
+      if (alias) ids.add(alias);
+      if (canonical) ids.add(canonical);
+    }
+  } catch {
+    // Alias resolution is best-effort. If the alias table is unavailable,
+    // polling remains scoped to the device_id embedded in the device token.
+  }
+
+  return [...ids].filter(Boolean).slice(0, 50);
+}
+
 export function buildLocalManagerDesktopCommandRoutes({ requireBackendApiKey, requireAdminPrincipal } = {}) {
   const router = Router();
 
