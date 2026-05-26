@@ -312,6 +312,74 @@ function buildOpenClaudeRepoAnalysisCommandPlan({ runtime = {}, signal = {}, rep
   };
 }
 
+function safeParseJsonObject(value) {
+  if (!value) return {};
+  if (typeof value === "object" && !Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function buildCodexInteractiveReadOnlyExecutionEnvelope({ runtime = {}, profile = {}, signal = {}, prompt = "", repoPath = "" } = {}) {
+  const runtimePolicy = safeParseJsonObject(runtime.policy_json);
+  const profilePolicy = safeParseJsonObject(profile.policy_json);
+  const resolvedRepoPath = repoPath || runtimePolicy.repo_path || "D:\\mad4b-agent-workspaces\\growth-intelligence-os-readonly";
+  const resolvedPrompt = clampText(prompt || [
+    "Run a read-only Codex repo analysis for the Growth Intelligence Platform.",
+    "Do not edit files. Do not run commands that mutate state. Do not reveal secrets.",
+    "Return a concise patch plan only: relevant files, likely migration/tests, risks, and acceptance criteria.",
+    signal?.title ? `Signal: ${signal.title}` : "Signal: none",
+    signal?.evidence_text ? `Evidence: ${clampText(signal.evidence_text, 1200)}` : "",
+  ].filter(Boolean).join("\n"), 4000);
+  return {
+    adapter: "codex_interactive_user_read_only_execution_envelope_v1",
+    runtime_key: runtime.runtime_key || "codex_essam_chatgpt_v1",
+    profile_key: profile.profile_key || "codex_essam_chatgpt_oauth_v1",
+    device_id: runtime.device_id || "essam-pc",
+    interactive_user: runtimePolicy.interactive_user || "essam\\it",
+    auth_mode: runtimePolicy.auth_mode || "chatgpt_oauth",
+    auth_status: runtimePolicy.auth_status || "unknown",
+    command_path: runtime.command_hint || runtimePolicy.interactive_command_path || "C:\\Users\\IT\\AppData\\Roaming\\npm\\codex.cmd",
+    working_directory: resolvedRepoPath,
+    argv: [
+      "exec",
+      "--cd",
+      resolvedRepoPath,
+      "--sandbox",
+      "read-only",
+      "--ask-for-approval",
+      "never",
+      "--color",
+      "never",
+      "--ephemeral",
+      resolvedPrompt,
+    ],
+    powershell_example: `& "${runtime.command_hint || runtimePolicy.interactive_command_path || "C:\\Users\\IT\\AppData\\Roaming\\npm\\codex.cmd"}" exec --cd "${resolvedRepoPath}" --sandbox read-only --ask-for-approval never --color never --ephemeral "${resolvedPrompt.replace(/"/g, '\\"')}"`,
+    allowed_capabilities: ["repo_read", "analysis", "patch_plan"],
+    denied_capabilities: ["file_write", "shell_mutation", "git_push", "git_commit", "apply_patch", "secret_read"],
+    execution_ready: runtimePolicy.auth_status === "logged_in_user_verified" || profile.status === "available",
+    execution_attempted: false,
+    execution_status: "approved_envelope_only",
+    stdout: null,
+    stderr: null,
+    exit_code: null,
+    auto_execute_code: false,
+    auto_mutate_repo: false,
+    local_execution_attempted: false,
+    copy_platform_secret_to_device: false,
+    secrets_included: false,
+    policy: {
+      runtime_can_mutate_repo: Boolean(runtimePolicy.can_mutate_repo),
+      profile_can_mutate_repo: Boolean(profilePolicy.can_mutate_repo),
+      requires_interactive_user_context: true,
+      connector_service_context_supported: false,
+    },
+  };
+}
+
 function inferSignalPriority(type, evidence = "") {
   const text = String(evidence || "").toLowerCase();
   if (/security|secret|token|credential|auth|blocked|critical|production|canonical|فشل|خطر|سري/.test(text)) return "high";
