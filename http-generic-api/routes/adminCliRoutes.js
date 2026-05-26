@@ -861,6 +861,21 @@ async function executeGitHubRestFallback(args = []) {
     const prNumber = parseGithubPrNumber(firstGithubPositional(args, 2));
     const mergeMethod = hasCliFlag(args, "--squash") ? "squash" : hasCliFlag(args, "--rebase") ? "rebase" : "merge";
     const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
+    if (pr?.mergeable === false || String(pr?.mergeable_state || "").toLowerCase() === "dirty") {
+      const err = new Error("Pull request is not mergeable. Resolve conflicts or recreate the branch from the current base before merging.");
+      err.status = 409;
+      err.code = "github_pr_not_mergeable_dirty";
+      err.details = {
+        number: Number(prNumber),
+        mergeable: pr?.mergeable ?? null,
+        mergeable_state: pr?.mergeable_state || null,
+        head_ref: pr?.head?.ref || null,
+        head_sha: pr?.head?.sha || null,
+        base_ref: pr?.base?.ref || null,
+        base_sha: pr?.base?.sha || null,
+      };
+      throw err;
+    }
     const mergeResult = await githubRestJson({
       owner,
       repo,
