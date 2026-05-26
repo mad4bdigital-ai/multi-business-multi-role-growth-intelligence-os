@@ -296,7 +296,8 @@ export function createExecutionFacade(deps) {
             fetchChunkedTable,
             headerMap,
             getCell,
-            REGISTRY_SPREADSHEET_ID
+            REGISTRY_SPREADSHEET_ID,
+            resolveActionEndpointToolManifest
           }
         );
         if (!preparation.ok) {
