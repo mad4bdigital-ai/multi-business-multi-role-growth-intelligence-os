@@ -977,6 +977,151 @@ export function buildDevAgentRoutes(deps) {
     }
   });
 
+  router.post("/dev-agent/summary-development/provider-bridge-dry-run", async (req, res) => {
+    const pool = getPool();
+    const body = req.body || {};
+    const runId = randomUUID();
+    const profileKey = String(body.profile_key || "openclaude_essam_platform_bridge_v1").trim();
+    const requestedBy = String(body.requested_by || body.user_id || "").trim() || null;
+    const signalId = String(body.signal_id || "").trim() || null;
+    const taskClass = String(body.task_class || "summary").trim() || "summary";
+    let prompt;
+
+    try {
+      prompt = normalizeProviderBridgePrompt(body.prompt || body.input?.prompt || "");
+    } catch (err) {
+      return res.status(err.status || 400).json({ ok: false, error: { code: err.code, message: err.message }, secrets_included: false });
+    }
+
+    try {
+      const [profileRows] = await pool.query(
+        `SELECT rp.profile_key, rp.runtime_key, rp.provider_key, rp.profile_name,
+                rp.selection_mode, rp.credential_mode, rp.status, rp.policy_json,
+                p.provider_family, p.openclaude_provider_key, p.execution_surface,
+                p.policy_json AS provider_policy_json
+         FROM \`dev_agent_runtime_provider_profiles\` rp
+         JOIN \`dev_agent_provider_registry\` p ON p.provider_key = rp.provider_key
+         WHERE rp.profile_key = ?
+         LIMIT 1`,
+        [profileKey]
+      );
+      const profile = profileRows[0];
+      if (!profile) {
+        return res.status(404).json({ ok: false, error: { code: "provider_bridge_profile_not_found", message: "profile_key was not found." } });
+      }
+      if (profile.credential_mode !== "platform_managed") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "provider_bridge_profile_not_platform_managed", message: "Provider bridge dry run only supports platform_managed profiles." }, secrets_included: false });
+      }
+      if (profile.provider_key !== "platform_model_provider_bridge" && profile.provider_key !== "openclaude_openrouter_openai_compatible") {
+        return res.status(403).json({ ok: false, blocked: true, error: { code: "provider_bridge_profile_blocked", message: "Profile is not approved for platform bridge dry run." }, secrets_included: false });
+      }
+
+      let signal = null;
+      if (signalId) {
+        const [signalRows] = await pool.query(
+          `SELECT signal_id, signal_key, tenant_id, user_id, signal_type, title,
+                  description, evidence_text, priority, source_surface, source_ref
+           FROM \`summary_development_signals\`
+           WHERE signal_id = ?
+           LIMIT 1`,
+          [signalId]
+        );
+        signal = signalRows[0] || null;
+      }
+
+      const callModel = await resolveStandardCallModel(deps, taskClass);
+      if (!callModel) {
+        return res.status(503).json({ ok: false, error: { code: "provider_bridge_call_model_not_configured", message: "Platform model resolver is not configured." }, secrets_included: false });
+      }
+
+      const started = Date.now();
+      const response = await callModel([
+        {
+          role: "system",
+          content: "You are a guarded provider bridge for a local coding agent. Return a concise read-only analysis plan. Do not ask for secrets. Do not include credentials. Do not propose direct repo mutation.",
+        },
+        {
+          role: "user",
+          content: [
+            "Provider bridge dry run request.",
+            `Profile: ${profile.profile_key}`,
+            `Runtime: ${profile.runtime_key}`,
+            signal ? `Signal: ${signal.title} (${signal.signal_type}, ${signal.priority})` : "Signal: none",
+            `Prompt: ${prompt}`,
+            "Return: objective, relevant files/surfaces, risks, acceptance criteria, and next gated step.",
+          ].join("\n"),
+        },
+      ], []);
+      const latencyMs = Date.now() - started;
+      const result = {
+        adapter: "platform_model_provider_bridge_dry_run_v1",
+        profile_key: profile.profile_key,
+        provider_key: profile.provider_key,
+        runtime_key: profile.runtime_key,
+        task_class: taskClass,
+        signal_id: signal?.signal_id || null,
+        response_text: clampText(response?.content || "", 4000),
+        response_shape: {
+          has_content: typeof response?.content === "string" && response.content.length > 0,
+          has_tool_calls: Array.isArray(response?.tool_calls) && response.tool_calls.length > 0,
+          tokens_used: Number(response?.tokens_used || 0),
+        },
+        latency_ms: latencyMs,
+        local_execution_attempted: false,
+        openclaude_execution_attempted: false,
+        secrets_included: false,
+      };
+
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, tenant_id, requested_by, runtime_key,
+            source_filter_json, policy_json, status, scanned_count,
+            signals_created, signals_updated, tasks_created, result_json,
+            started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, ?, ?, ?, ?, 'completed', ?, 0, 0, 0, ?, NOW(), NOW())`,
+        [
+          runId,
+          `summary_dev_provider_bridge_dry_run_${runId}`,
+          signal?.tenant_id || null,
+          requestedBy,
+          profile.runtime_key,
+          JSON.stringify({ profile_key: profile.profile_key, signal_id: signal?.signal_id || null, task_class: taskClass }),
+          JSON.stringify({
+            adapter: result.adapter,
+            platform_managed_credentials: true,
+            copy_platform_secret_to_device: false,
+            local_execution_attempted: false,
+            openclaude_execution_attempted: false,
+            auto_mutate_repo: false,
+            secrets_included: false,
+          }),
+          signal ? 1 : 0,
+          JSON.stringify(result),
+        ]
+      );
+
+      return res.json({
+        ok: true,
+        run_id: runId,
+        ...result,
+        copy_platform_secret_to_device: false,
+        auto_execute_code: false,
+        auto_mutate_repo: false,
+        local_execution_attempted: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      await pool.query(
+        `INSERT INTO \`summary_development_automation_runs\`
+           (run_id, run_key, mode, requested_by, status, error_json, started_at, completed_at)
+         VALUES (?, ?, 'agent_dry_run', ?, 'failed', ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE status = 'failed', error_json = VALUES(error_json), completed_at = NOW()`,
+        [runId, `summary_dev_provider_bridge_dry_run_${runId}`, requestedBy, JSON.stringify({ code: err.code || "provider_bridge_dry_run_failed", message: String(err.message || err).slice(0, 240) })]
+      ).catch(() => {});
+      return res.status(500).json({ ok: false, error: { code: err.code || "provider_bridge_dry_run_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   router.get("/dev-agent/summary-development/signals", async (req, res) => {
     try {
       const status = String(req.query.status || "").trim();
