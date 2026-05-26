@@ -72,6 +72,11 @@ assert(codexExecutionEnvelopeToolMigration.includes('dev_agent_codex_interactive
 assert(codexExecutionEnvelopeToolMigration.includes('/dev-agent/summary-development/codex-interactive-execution-envelope'));
 assert(codexExecutionEnvelopeToolMigration.includes('Does not execute Codex'));
 assert(codexExecutionEnvelopeToolMigration.includes('no_repo_mutation'));
+assert(codexExecutionRequestToolMigration.includes('dev_agent_codex_interactive_execution_request'));
+assert(codexExecutionRequestToolMigration.includes('dev_agent_codex_interactive_execution_status'));
+assert(codexExecutionRequestToolMigration.includes('codex_exec_readonly'));
+assert(codexExecutionRequestToolMigration.includes('no_repo_mutation'));
+assert(codexExecutionRequestToolMigration.includes('no_secrets'));
 
 assert(routes.includes('/dev-agent/summary-development/runtimes'));
 assert(routes.includes('/dev-agent/summary-development/signals'));
