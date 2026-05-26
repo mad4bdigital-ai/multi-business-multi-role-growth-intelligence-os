@@ -524,6 +524,16 @@ section("connect api auth scope");
       sessionSummarySource.includes("platform_graph_nodes") &&
       sessionSummarySource.includes("platform_graph_edges") &&
       sessionSummarySource.indexOf("platform_graph_nodes") < sessionSummarySource.indexOf("graph_topology_present"));
+    assert("Session Summary Memory is a required execution surface",
+      sessionSummarySource.includes("SURFACE_KEYS.SESSION_SUMMARY_MEMORY") &&
+      sessionSummarySource.includes("loadSessionSummaryGraphMemory") &&
+      sessionSummarySource.includes("session_summary_memory") &&
+      sessionSummarySource.indexOf("SURFACE_KEYS.SESSION_SUMMARY_MEMORY") < sessionSummarySource.indexOf("INSERT INTO `session_summaries`") &&
+      readFileSync("surfaceAuthorityResolver.js", "utf8").includes("SESSION_SUMMARY_MEMORY") &&
+      readFileSync("migrations/139_sprint65_session_summary_memory_surface.sql", "utf8").includes("surface.session_summary_memory") &&
+      readFileSync("migrations/139_sprint65_session_summary_memory_surface.sql", "utf8").includes("session_summaries") &&
+      readFileSync("migrations/139_sprint65_session_summary_memory_surface.sql", "utf8").includes("required_for_execution") &&
+      readFileSync("migrations/139_sprint65_session_summary_memory_surface.sql", "utf8").includes("'TRUE'"));
     const n8nAdapterSource = readFileSync("appAdapters/n8n.js", "utf8");
     assert("n8n adapter accepts stored N8N_* credential aliases",
       n8nAdapterSource.includes("normalizeN8nCredentials") &&
