@@ -58,6 +58,26 @@ function makePool() {
         }
         return [[]];
       }
+      if (compact.startsWith("SELECT summary_id, session_id, tenant_id, user_id, workspace_key,")) {
+        if (state.insertedSummary && (!params[0] || params[0] === state.insertedSummary.params[1])) {
+          return [[{
+            summary_id: state.insertedSummary.params[0],
+            session_id: state.insertedSummary.params[1],
+            tenant_id: state.insertedSummary.params[2],
+            user_id: state.insertedSummary.params[3],
+            workspace_key: state.insertedSummary.params[4],
+            summary_text: state.insertedSummary.params[5],
+            tasks_completed: state.insertedSummary.params[6],
+            blockers: state.insertedSummary.params[7],
+            feature_requests: state.insertedSummary.params[8],
+            integration_needs: state.insertedSummary.params[9],
+            complexity: state.insertedSummary.params[10],
+            turn_count: state.insertedSummary.params[12],
+            created_at: "2026-05-24T00:00:00.000Z",
+          }]];
+        }
+        return [[]];
+      }
       if (compact.startsWith("SELECT asset_id, validation_status, active_status FROM `json_assets`")) {
         const assetInsert = state.calls.find((call) => String(call.sql).includes("INSERT INTO `json_assets`"));
         if (assetInsert && params[0] === assetInsert.params[2]) {
