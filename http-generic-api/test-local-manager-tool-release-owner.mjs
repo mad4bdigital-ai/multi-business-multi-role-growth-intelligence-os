@@ -24,8 +24,12 @@ assert(localManager.includes('Mad4B Local Manager Admin Tools'), 'admin page mus
 assert(installRoutes.includes('LOCAL_CONNECTOR_CAPABILITY_FLAGS'), 'installer route must define explicit capability flag mapping');
 assert(installRoutes.includes('powershell_admin: "CONNECTOR_POWERSHELL_ENABLED"'), 'PowerShell capability must map only through explicit opt-in');
 assert(installRoutes.includes('windows_control: "CONNECTOR_WIN_ENABLED"'), 'Windows control capability must map only through explicit opt-in');
-assert(installRoutes.includes('normalizeRequestedCapabilities(req.body?.capabilities || [])'), 'device-scoped installer link must normalize requested capabilities');
-assert(installRoutes.includes('capabilities,\n        exp: payload.exp'), 'installer download token must propagate capabilities without secrets');
+assert(installRoutes.includes('normalizePermissionGrants'), 'installer route must normalize dynamic permission grants');
+assert(installRoutes.includes('CONNECTOR_APP_ALLOWLIST'), 'installer route must support dynamic app allowlist grants');
+assert(installRoutes.includes('CONNECTOR_FILE_PATHS'), 'installer route must support dynamic file path grants');
+assert(installRoutes.includes('shell_aliases'), 'installer route must support dynamic helper shell alias grants');
+assert(installRoutes.includes('normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] })'), 'device-scoped installer link must normalize requested permission grants');
+assert(installRoutes.includes('permission_grants: permissionGrants'), 'installer download token must propagate permission grants without secrets');
 assert(!installRoutes.includes('CONNECTOR_POWERSHELL_ENABLED=true",'), 'PowerShell must not be enabled by default in base connector env');
 assert(!installRoutes.includes('CONNECTOR_WIN_ENABLED=true",'), 'Windows control must not be enabled by default in base connector env');
 
