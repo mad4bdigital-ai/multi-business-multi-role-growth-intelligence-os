@@ -141,7 +141,11 @@ internal static class Program
 
     private sealed class MainForm : Form
     {
-        private readonly System.Windows.Forms.Timer _desktopCommandTimer = new() { Interval = 5000 }; private bool _desktopCommandPollRunning; private readonly Label _status;
+        private readonly System.Windows.Forms.Timer _desktopCommandTimer = new() { Interval = 5000 };
+        private bool _desktopCommandPollRunning;
+        private int _desktopCommandPollFailureCount;
+        private DateTimeOffset _desktopCommandPollBackoffUntil = DateTimeOffset.MinValue;
+        private readonly Label _status;
         private readonly Label _pairingCode;
         private readonly ProgressBar _progress;
         private readonly TextBox _output;
@@ -1145,7 +1149,76 @@ internal static class Program
         private void LaunchUpdaterAndRestart(string installerPath) { var helperPath = Path.Combine(UpdatesRoot, "run-local-manager-update.cmd"); var appPath = Application.ExecutablePath; var currentPid = Environment.ProcessId; var script = string.Join("\r\n", new[] { "@echo off", "setlocal", "set \"INSTALLER=" + installerPath + "\"", "set \"APP=" + appPath + "\"", "set \"PID=" + currentPid + "\"", "echo Updating Mad4B Local Manager...", "timeout /t 1 /nobreak >nul", "taskkill /PID %PID% /T /F >nul 2>nul", "for /l %%i in (1,1,30) do ( tasklist /fi \"PID eq %PID%\" | find \"%PID%\" >nul || goto app_stopped & timeout /t 1 /nobreak >nul )", ":app_stopped", "copy /y \"%INSTALLER%\" \"%APP%\" >nul", "if errorlevel 1 ( echo ERROR: Could not replace Local Manager executable. & pause & exit /b 1 )", "start \"\" \"%APP%\"", "exit /b 0" }) + "\r\n"; File.WriteAllText(helperPath, script, Encoding.ASCII); Process.Start(new ProcessStartInfo { FileName = "cmd.exe", Arguments = "/c \"" + helperPath + "\"", WorkingDirectory = UpdatesRoot, UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden }); BeginInvoke(new Action(Close)); }
         private void ShowTopMostMessage(string title, string message) { var previousTopMost = TopMost; try { if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal; Show(); Activate(); TopMost = true; MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Information); } finally { TopMost = previousTopMost; } }
         private void StartDesktopCommandPolling() { if (_desktopCommandTimer.Enabled) return; _desktopCommandTimer.Tick += async (_, _) => await PollDesktopCommandsAsync(); _desktopCommandTimer.Start(); _ = PollDesktopCommandsAsync(); }
-        private async Task PollDesktopCommandsAsync() { if (_desktopCommandPollRunning) return; var token = LoadDeviceToken(false); if (string.IsNullOrWhiteSpace(token)) return; _desktopCommandPollRunning = true; try { using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) }; using var req = new HttpRequestMessage(HttpMethod.Get, DesktopCommandsUrl + "/pending?limit=5"); req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token); req.Headers.Accept.ParseAdd("application/json"); using var response = await client.SendAsync(req); var text = await response.Content.ReadAsStringAsync(); if (!response.IsSuccessStatusCode) { if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized && response.StatusCode != System.Net.HttpStatusCode.Forbidden) _status.Text = "Desktop command poll failed: " + response.StatusCode; return; } using var doc = JsonDocument.Parse(text); if (!doc.RootElement.TryGetProperty("commands", out var commands) || commands.ValueKind != JsonValueKind.Array) return; foreach (var command in commands.EnumerateArray()) await ExecuteDesktopCommandAsync(client, token, command); } catch (Exception ex) { _status.Text = "Desktop command polling failed: " + ex.Message; } finally { _desktopCommandPollRunning = false; } }
+        private async Task PollDesktopCommandsAsync()
+        {
+            if (_desktopCommandPollRunning) return;
+            if (DateTimeOffset.UtcNow < _desktopCommandPollBackoffUntil) return;
+            var token = LoadDeviceToken(false);
+            if (string.IsNullOrWhiteSpace(token)) return;
+            _desktopCommandPollRunning = true;
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                using var req = new HttpRequestMessage(HttpMethod.Get, DesktopCommandsUrl + "/pending?limit=5");
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                req.Headers.Accept.ParseAdd("application/json");
+                using var response = await client.SendAsync(req);
+                var text = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized && response.StatusCode != System.Net.HttpStatusCode.Forbidden)
+                    {
+                        RegisterDesktopCommandPollFailure("HTTP " + (int)response.StatusCode + " " + response.StatusCode, text);
+                    }
+                    return;
+                }
+                _desktopCommandPollFailureCount = 0;
+                _desktopCommandPollBackoffUntil = DateTimeOffset.MinValue;
+                using var doc = JsonDocument.Parse(text);
+                if (!doc.RootElement.TryGetProperty("commands", out var commands) || commands.ValueKind != JsonValueKind.Array) return;
+                foreach (var command in commands.EnumerateArray()) await ExecuteDesktopCommandAsync(client, token, command);
+            }
+            catch (Exception ex)
+            {
+                RegisterDesktopCommandPollFailure(ex.Message, ex.GetBaseException().Message);
+            }
+            finally
+            {
+                _desktopCommandPollRunning = false;
+            }
+        }
+        private void RegisterDesktopCommandPollFailure(string message, string? diagnostic = null)
+        {
+            _desktopCommandPollFailureCount += 1;
+            var backoffSeconds = Math.Min(300, _desktopCommandPollFailureCount switch
+            {
+                <= 1 => 15,
+                2 => 30,
+                3 => 60,
+                _ => 120
+            });
+            _desktopCommandPollBackoffUntil = DateTimeOffset.UtcNow.AddSeconds(backoffSeconds);
+
+            // Desktop command polling is a background convenience path. Do not keep
+            // overwriting the main status every timer tick for transient TLS/network
+            // failures; show only the first and periodic failures, and write a
+            // sanitized diagnostic payload with no token or command payload secrets.
+            if (_desktopCommandPollFailureCount == 1 || _desktopCommandPollFailureCount % 5 == 0)
+            {
+                _status.Text = $"Desktop command polling paused for {backoffSeconds}s: {message}";
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    desktop_command_polling = "paused",
+                    failure_count = _desktopCommandPollFailureCount,
+                    backoff_seconds = backoffSeconds,
+                    message,
+                    diagnostic,
+                    token_plaintext_shown = false,
+                    secrets_included = false
+                }, _json);
+            }
+        }
+
         private async Task ExecuteDesktopCommandAsync(HttpClient client, string token, JsonElement command)
         {
             var commandId = JsonValue(command, "command_id");
