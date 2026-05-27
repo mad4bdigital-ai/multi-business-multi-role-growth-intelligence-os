@@ -239,11 +239,11 @@ async function checkSmokeCertification({ pool, pluginKey, actionKey, allowExpire
   );
   const row = rows[0] || null;
   const expired = Boolean(row?.certification_expires_at && new Date(row.certification_expires_at).getTime() <= Date.now());
-  const certified = Boolean(row && !expired);
+  const certified = Boolean(row && (!expired || allowExpiredForRecertification));
   return {
     required: true,
     certified,
-    reason: row ? (expired ? "smoke_certification_expired" : "smoke_certification_active") : "smoke_certification_required",
+    reason: row ? (expired ? (allowExpiredForRecertification ? "smoke_certification_expired_recertification_allowed" : "smoke_certification_expired") : "smoke_certification_active") : "smoke_certification_required",
     certification: row ? {
       certification_id: row.certification_id,
       mock_provider: row.mock_provider,
