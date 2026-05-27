@@ -959,6 +959,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     app_routes: await loadLocalAppRoutes(pool, finalConfigId),
     installation: {
       aliases: allAliases.map((a) => a.alias),
+      capabilities: requestedCapabilities,
       install_bat: installScript,
       install_ps1: installPowerShell,
       files: {
