@@ -591,16 +591,53 @@ internal static class Program
                 Location = new Point(22, 122),
                 Size = new Size(480, 28)
             };
+            var appLabel = new Label { Text = "Optional app executable grant", Location = new Point(22, 160), Size = new Size(690, 22) };
+            var appAlias = new TextBox { PlaceholderText = "app alias e.g. photoshop", Location = new Point(22, 188), Size = new Size(180, 28) };
+            var appPath = new TextBox { PlaceholderText = "C:\\Path\\To\\App.exe", Location = new Point(212, 188), Size = new Size(390, 28) };
+            var browseApp = new Button { Text = "Browse", Location = new Point(614, 186), Size = new Size(90, 32) };
+            browseApp.Click += (_, _) =>
+            {
+                using var dialog = new OpenFileDialog { Title = "Choose application executable", Filter = "Applications (*.exe;*.cmd;*.bat)|*.exe;*.cmd;*.bat|All files (*.*)|*.*" };
+                if (dialog.ShowDialog(form) == DialogResult.OK)
+                {
+                    appPath.Text = dialog.FileName;
+                    if (string.IsNullOrWhiteSpace(appAlias.Text)) appAlias.Text = SafeFileSegment(Path.GetFileNameWithoutExtension(dialog.FileName)).ToLowerInvariant();
+                }
+            };
+
+            var folderLabel = new Label { Text = "Optional allowed folder/path grant", Location = new Point(22, 230), Size = new Size(690, 22) };
+            var allowedPath = new TextBox { PlaceholderText = "Allowed folder for read/write/list operations", Location = new Point(22, 258), Size = new Size(580, 28) };
+            var browseFolder = new Button { Text = "Browse", Location = new Point(614, 256), Size = new Size(90, 32) };
+            browseFolder.Click += (_, _) =>
+            {
+                using var dialog = new FolderBrowserDialog { Description = "Choose an allowed folder for this connector" };
+                if (dialog.ShowDialog(form) == DialogResult.OK) allowedPath.Text = dialog.SelectedPath;
+            };
+
+            var helperLabel = new Label { Text = "Optional helper command grant", Location = new Point(22, 300), Size = new Size(690, 22) };
+            var helperAlias = new TextBox { PlaceholderText = "helper alias e.g. app_status", Location = new Point(22, 328), Size = new Size(180, 28) };
+            var helperPath = new TextBox { PlaceholderText = "C:\\Path\\To\\Helper.exe or .cmd", Location = new Point(212, 328), Size = new Size(390, 28) };
+            var browseHelper = new Button { Text = "Browse", Location = new Point(614, 326), Size = new Size(90, 32) };
+            browseHelper.Click += (_, _) =>
+            {
+                using var dialog = new OpenFileDialog { Title = "Choose helper command", Filter = "Executables/scripts (*.exe;*.cmd;*.bat)|*.exe;*.cmd;*.bat|All files (*.*)|*.*" };
+                if (dialog.ShowDialog(form) == DialogResult.OK)
+                {
+                    helperPath.Text = dialog.FileName;
+                    if (string.IsNullOrWhiteSpace(helperAlias.Text)) helperAlias.Text = SafeFileSegment(Path.GetFileNameWithoutExtension(dialog.FileName)).ToLowerInvariant();
+                }
+            };
+
             var warning = new Label
             {
-                Text = "These options are for explicit break-glass/local automation use. Leave unchecked unless you need them now.",
-                Location = new Point(22, 160),
-                Size = new Size(500, 42),
+                Text = "These options are explicit local grants. They become connector allowlists only after this app downloads a short-lived installer and you approve UAC.",
+                Location = new Point(22, 380),
+                Size = new Size(690, 60),
                 ForeColor = Color.DarkOrange
             };
-            var ok = new Button { Text = "Create installer", DialogResult = DialogResult.OK, Location = new Point(300, 214), Size = new Size(130, 34) };
-            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(438, 214), Size = new Size(82, 34) };
-            form.Controls.AddRange(new Control[] { intro, powershell, windowsControl, warning, ok, cancel });
+            var ok = new Button { Text = "Create installer", DialogResult = DialogResult.OK, Location = new Point(488, 508), Size = new Size(130, 34) };
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(626, 508), Size = new Size(82, 34) };
+            form.Controls.AddRange(new Control[] { intro, powershell, windowsControl, appLabel, appAlias, appPath, browseApp, folderLabel, allowedPath, browseFolder, helperLabel, helperAlias, helperPath, browseHelper, warning, ok, cancel });
             form.AcceptButton = ok;
             form.CancelButton = cancel;
 
