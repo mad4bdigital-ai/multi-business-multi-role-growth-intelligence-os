@@ -142,6 +142,22 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         input: input.input || {},
         dryRun: input.dry_run === true || input.dryRun === true,
         timeoutMs: input.timeout_ms || input.timeoutMs || 10000,
+        enforceExecutionReadiness: input.enforce_execution_readiness === undefined
+          ? input.enforceExecutionReadiness !== false
+          : input.enforce_execution_readiness !== false,
+        brandKey: input.brand_key || input.brandKey || input.target_key || input.targetKey || null,
+        businessTypeKey: input.business_type_key || input.businessTypeKey || null,
+        businessActivityTypeKey: input.business_activity_type_key || input.businessActivityTypeKey || input.activity_key || input.activityKey || null,
+        workflowKey: input.workflow_key || input.workflowKey || null,
+        logicKey: input.logic_key || input.logicKey || null,
+        logicPackKey: input.logic_pack_key || input.logicPackKey || null,
+        skillKey: input.skill_key || input.skillKey || null,
+        actorRole: input.actor_role || input.actorRole || null,
+        governanceLevel: input.governance_level || input.governanceLevel || null,
+        graphDepth: input.graph_depth || input.graphDepth || 1,
+        graphLimit: input.graph_limit || input.graphLimit || 120,
+        detailLimit: input.detail_limit || input.detailLimit || 10,
+        edgeDetailLimit: input.edge_detail_limit || input.edgeDetailLimit || 10,
       });
       return res.status(200).json(result);
     } catch (err) { return errorResponse(res, err, "platform_plugin_rest_dispatch_failed"); }
