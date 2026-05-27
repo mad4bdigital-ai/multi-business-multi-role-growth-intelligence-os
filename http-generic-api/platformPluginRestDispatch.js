@@ -57,7 +57,14 @@ function isBlockedUrl(url) {
 
 function buildUrl({ baseUrl, path }) {
   const base = new URL(baseUrl);
-  return new URL(path || "/", base);
+  const rawPath = compactString(path || "/", 1000) || "/";
+  if (/^https:\/\//i.test(rawPath)) return new URL(rawPath);
+  const basePath = base.pathname && base.pathname !== "/"
+    ? `/${base.pathname.replace(/^\/+|\/+$/g, "")}`
+    : "";
+  const actionPath = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+  const joinedPath = `${basePath}${actionPath}`.replace(/\/+/g, "/");
+  return new URL(joinedPath || "/", base.origin);
 }
 
 function extractActionTemplate(action) {

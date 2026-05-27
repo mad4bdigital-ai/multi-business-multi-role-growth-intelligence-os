@@ -18,6 +18,9 @@ assert(service.includes("resolution.execution?.will_execute !== true"), "dispatc
 assert(service.includes("dispatch_template_missing"), "dispatcher must fail closed when REST action template is missing");
 assert(service.includes("platform_plugin_contributions.action_bindings_json"), "dispatcher must use contribution action template source");
 assert(service.includes("function normalize(value"), "dispatcher must define normalize helper for endpoint fallback readiness checks");
+assert(service.includes("buildUrl({ baseUrl, path })"), "dispatcher must centralize URL construction");
+assert(service.includes("basePath"), "dispatcher must preserve connection api_base_url path prefixes");
+assert(service.includes("joinedPath"), "dispatcher must join base path and endpoint path safely");
 assert(service.includes("loadEndpointRegistryActionTemplate"), "dispatcher must support endpoint registry template fallback");
 assert(service.includes("endpoints.endpoint_path_or_function"), "dispatcher must use endpoint registry path fallback when contribution template is missing");
 assert(service.includes("endpoint_key: endpoint?.endpoint_key"), "dispatcher must include endpoint fallback evidence in request summary");
