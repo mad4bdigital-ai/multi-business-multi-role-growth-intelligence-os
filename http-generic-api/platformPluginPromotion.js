@@ -205,6 +205,14 @@ export async function promotePlatformPluginContribution({ pool = getPool(), cont
   if (existing[0]) { const err = new Error("Platform Base already contains this plugin_key."); err.code = "platform_base_conflict"; err.status = 409; throw err; }
   const report = validateContributionForCertification(contribution);
   if (!report.ok) { const err = new Error("Contribution no longer passes certification checks."); err.code = "certification_recheck_failed"; err.status = 409; err.details = report; throw err; }
+  const smokeCertification = await checkContributionSmokeCertifications({ pool, contribution });
+  if (!smokeCertification.ok) {
+    const err = new Error("Contribution requires successful smoke certification before promotion.");
+    err.code = "smoke_certification_required";
+    err.status = 409;
+    err.details = smokeCertification;
+    throw err;
+  }
   const manifest = contribution.manifest_json || {};
   const actions = contribution.action_bindings_json || [];
   const baseStatus = status === "active" ? "active" : "beta";
