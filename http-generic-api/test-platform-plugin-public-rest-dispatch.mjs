@@ -50,12 +50,21 @@ assert(migration.includes("state_changing"), "dispatch tool must be state-changi
 assert(migration.includes("no_secrets"), "dispatch tool must be tagged no-secrets");
 assert(migration.includes("ON DUPLICATE KEY UPDATE"), "dispatch tool registration must be idempotent");
 
-assert(smokeRoutes.includes("/platform/mock-crm/contacts"), "platform smoke routes must expose mock CRM contacts endpoint");
-assert(smokeRoutes.includes("smoke_read_only"), "mock CRM contacts endpoint must declare smoke read-only mode");
-assert(smokeRoutes.includes("will_mutate: false"), "mock CRM contacts endpoint must declare non-mutating behavior");
-assert(smokeRoutes.includes("secrets_included: false"), "mock CRM contacts endpoint must be secret-free");
+assert(smokeRoutes.includes("MOCK_PROVIDER_REGISTRY"), "platform smoke routes must define a reusable mock provider registry");
+assert(smokeRoutes.includes("/platform/mock-providers"), "platform smoke routes must expose mock provider registry endpoint");
+assert(smokeRoutes.includes("/platform/mock-providers/:provider/:resource"), "platform smoke routes must expose dynamic provider/resource endpoint");
+assert(smokeRoutes.includes("/platform/mock-crm/contacts"), "platform smoke routes must keep legacy mock CRM contacts endpoint");
+assert(smokeRoutes.includes("platform_mock_crm"), "mock provider registry must include CRM provider");
+assert(smokeRoutes.includes("platform_mock_analytics"), "mock provider registry must include analytics provider");
+assert(smokeRoutes.includes("smoke_read_only"), "mock provider resources must declare smoke read-only mode");
+assert(smokeRoutes.includes("will_mutate: false"), "mock provider resources must declare non-mutating behavior");
+assert(smokeRoutes.includes("secrets_included: false"), "mock provider resources must be secret-free");
 assert(routeIndex.includes("buildPlatformSmokeRoutes"), "platform smoke routes must be registered");
-assert(openapi.includes("/platform/mock-crm/contacts:"), "OpenAPI must document mock CRM contacts smoke endpoint");
+assert(openapi.includes("/platform/mock-providers:"), "OpenAPI must document mock provider registry endpoint");
+assert(openapi.includes("operationId: platformMockProvidersList"), "mock provider registry OpenAPI operationId must be stable");
+assert(openapi.includes("/platform/mock-providers/{provider}/{resource}:"), "OpenAPI must document dynamic mock provider resource endpoint");
+assert(openapi.includes("operationId: platformMockProviderResource"), "mock provider resource OpenAPI operationId must be stable");
+assert(openapi.includes("/platform/mock-crm/contacts:"), "OpenAPI must document legacy mock CRM contacts smoke endpoint");
 assert(openapi.includes("operationId: platformMockCrmContacts"), "mock CRM OpenAPI operationId must be stable");
 assert(openapi.includes("Public read-only mock CRM contacts endpoint"), "mock CRM OpenAPI description must document public read-only smoke behavior");
 

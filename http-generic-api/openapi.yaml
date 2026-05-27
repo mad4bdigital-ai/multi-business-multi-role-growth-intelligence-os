@@ -9172,6 +9172,52 @@ paths:
                 type: object
                 additionalProperties: true
 
+  /platform/mock-providers:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      operationId: platformMockProvidersList
+      summary: List platform-owned mock provider smoke resources
+      description: Public read-only registry of deterministic mock provider resources for guarded provider smoke tests. Returns non-sensitive metadata and never mutates state.
+      responses:
+        "200":
+          description: Mock provider smoke registry
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/mock-providers/{provider}/{resource}:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      operationId: platformMockProviderResource
+      summary: Resolve a platform-owned mock provider resource
+      description: Public read-only deterministic mock provider resource endpoint for guarded provider smoke tests. Returns non-sensitive test data and never mutates state.
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string }
+        - name: resource
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Mock provider resource smoke response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "404":
+          description: Mock provider resource not found
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
   /platform/mock-crm/contacts:
     get:
       x-openai-isConsequential: false
