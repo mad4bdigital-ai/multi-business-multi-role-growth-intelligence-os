@@ -93,7 +93,20 @@ function classifyCertification(row, { policy = null, expiresSoonDays = 14 } = {}
     drift_reasons: driftReasons,
     recertification_required: reasons.some((reason) => reason !== "expires_soon"),
     recertification_due_soon: reasons.includes("expires_soon") && driftReasons.length === 0,
-    automatic_recertification_supported: driftReasons.length === 0 && Boolean(row.tenant_id && row.user_id && row.expected_origin),
+    automatic_recertification_supported: driftReasons.length === 0
+      && Boolean(row.tenant_id && row.user_id && row.expected_origin)
+      && effectivePolicy.auto_recertification_enabled === true,
+    policy: {
+      policy_id: effectivePolicy.policy_id || null,
+      source: effectivePolicy.source || null,
+      certification_ttl_days: effectivePolicy.certification_ttl_days,
+      expires_soon_days: effectiveExpiresSoonDays,
+      max_batch_size: effectivePolicy.max_batch_size,
+      auto_recertification_enabled: effectivePolicy.auto_recertification_enabled === true,
+      provider_smoke_required: effectivePolicy.provider_smoke_required !== false,
+      allowed_expected_origin: effectivePolicy.allowed_expected_origin || null,
+      secrets_included: false,
+    },
     secrets_included: false,
   };
 }
