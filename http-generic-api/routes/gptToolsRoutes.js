@@ -172,7 +172,7 @@ const VIRTUAL_ADMIN_TOOLS = [
       type: "object",
       required: ["action", "path", "commit_message"],
       properties: {
-        action: { type: "string", enum: ["write_file", "replace_block", "apply_unified_diff"] },
+        action: { type: "string", enum: ["write_file", "replace_block", "apply_unified_diff", "delete_file"] },
         path: { type: "string", description: "Repository-relative path of the single file to modify, e.g. http-generic-api/pathResolverDbLoader.js." },
         commit_message: { type: "string", minLength: 5, maxLength: 200 },
         branch: { type: "string", description: "Target work branch. If omitted, runtime generates a non-protected gpt/repo-patch/* branch. Protected branches are blocked by default." },
