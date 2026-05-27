@@ -143,6 +143,41 @@ function psQuote(value) {
   return String(value ?? "").replace(/'/g, "''");
 }
 
+function normalizeGrantAlias(value, fallback = "item") {
+  const clean = String(value || "").trim().toLowerCase().replace(/[^a-z0-9_.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 48);
+  return clean || fallback;
+}
+
+function normalizeWindowsPath(value, max = 260) {
+  const raw = String(value || "").trim().replace(/^\"|\"$/g, "").slice(0, max);
+  if (!raw) return "";
+  if (!/^[a-zA-Z]:\\/.test(raw) && !raw.startsWith("\\\\")) return "";
+  if (/[\n\r<>|?*&^%!]/.test(raw)) return "";
+  return raw;
+}
+
+function normalizePermissionGrants(value = {}) {
+  const grants = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const shellAliases = [];
+  for (const item of Array.isArray(grants.shell_aliases || grants.helpers) ? (grants.shell_aliases || grants.helpers) : []) {
+    const alias = normalizeGrantAlias(item?.alias || item?.display_name, "helper");
+    const command = normalizeWindowsPath(item?.command || item?.command_path || item?.cmd, 260);
+    if (!alias || !command) continue;
+    const args = Array.isArray(item?.args)
+      ? item.args.map((arg) => String(arg || "").slice(0, 200)).filter((arg) => !/[;&|`$<>\n\r]/.test(arg)).slice(0, 20)
+      : [];
+    shellAliases.push({
+      alias,
+      cmd: command,
+      args,
+      allow_extra_args: item?.allow_extra_args === true,
+      description: String(item?.description || item?.display_name || alias).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 160) || alias,
+    });
+    if (shellAliases.length >= 50) break;
+  }
+  return { shell_aliases: shellAliases };
+}
+
 function buildAllowlistEnvValue(aliases) {
   const obj = {};
   for (const a of aliases) {
@@ -151,7 +186,9 @@ function buildAllowlistEnvValue(aliases) {
   return JSON.stringify(obj);
 }
 
-function buildConnectorEnv({ connectorSecret, aliases, port }) {
+function buildConnectorEnv({ connectorSecret, aliases, port, permissionGrants = {} }) {
+  const grants = normalizePermissionGrants(permissionGrants);
+  const allAliases = [...aliases, ...grants.shell_aliases];
   return [
     `CONNECTOR_SECRET=${connectorSecret}`,
     "MAIN_API_URL=https://api.mad4b.com",
@@ -175,12 +212,12 @@ function buildConnectorEnv({ connectorSecret, aliases, port }) {
     "N8N_PORT=5678",
     "N8N_LISTEN_ADDRESS=127.0.0.1",
     "N8N_PUBLIC_URL=https://n8n.mad4b.com/",
-    `CONNECTOR_SHELL_ALLOWLIST=${buildAllowlistEnvValue(aliases)}`,
+    `CONNECTOR_SHELL_ALLOWLIST=${buildAllowlistEnvValue(allAliases)}`,
   ].join("\r\n");
 }
 
-function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, port }) {
-  const envText = buildConnectorEnv({ connectorSecret, aliases, port });
+function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, port, permissionGrants = {} }) {
+  const envText = buildConnectorEnv({ connectorSecret, aliases, port, permissionGrants });
   return [
     "# Mad4B Local Connector — run once as Administrator",
     "$ErrorActionPreference = 'Stop'",
@@ -495,6 +532,7 @@ export function buildConnectorAgentRoutes() {
         tunnelUrl: config.tunnel_url,
         aliases: DEFAULT_WINDOWS_ALIASES,
         port: CONNECTOR_PORT,
+        permissionGrants: payload.permission_grants || {},
       });
       const filename = `install-local-connector-${String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-")}.ps1`;
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
