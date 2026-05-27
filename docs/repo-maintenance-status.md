@@ -10,9 +10,9 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 275
-- Operations: 327
-- Top-level tags: 25
+- Paths: 282
+- Operations: 334
+- Top-level tags: 26
 
 ## Top Operation Tags
 
@@ -32,10 +32,10 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `planner`: 8
 - `tenants`: 8
 - `local-connector`: 7
+- `platform-evolution`: 7
 - `platform-graph`: 7
 - `workflows`: 7
 - `release`: 6
-- `bootstrap`: 4
 
 ## Generated / Scoped OpenAPI Schemas
 
@@ -47,8 +47,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Route Coverage Allowlist
 
-- Required files: 15
-- Exact allowlist entries: 14
+- Required files: 14
+- Exact allowlist entries: 10
 - Prefix allowlist entries: 14
 - File allowlist entries: 5
 
@@ -81,6 +81,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-openapi-route-coverage.mjs`
 - `http-generic-api/test-openapi-split-governance.mjs`
 - `http-generic-api/test-openapi-split-regeneration-parity.mjs`
+- `http-generic-api/test-platform-evolution-openapi-docs.mjs`
 - `http-generic-api/test-platform-plugin-action-grants.mjs`
 - `http-generic-api/test-platform-plugin-action-templates.mjs`
 - `http-generic-api/test-platform-plugin-catalog.mjs`
