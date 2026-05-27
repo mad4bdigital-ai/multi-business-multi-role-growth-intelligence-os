@@ -75,6 +75,8 @@ tags:
     description: SQL-primary platform knowledge graph projection, validation, and context resolution.
   - name: platform-plugins
     description: Tenant-facing and admin-governed Platform Plugin catalog, install, resolve, contribution, and promotion surfaces.
+  - name: platform-evolution
+    description: Brand, tenant, and user scoped Platform Evolution checkpoints, thread maps, and linked evidence surfaces.
 
 components:
   securitySchemes:
