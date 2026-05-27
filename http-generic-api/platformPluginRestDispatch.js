@@ -351,6 +351,18 @@ export async function dispatchPlatformPluginRestAction({
   const blocked = isBlockedUrl(url);
   if (blocked) return { ok: true, dispatched: false, reason: blocked, url: url.origin, secrets_included: false };
 
+  const smokeCertificationDrift = validateSmokeCertificationDrift({ resolution, url, method: template.method });
+  if (!smokeCertificationDrift.ok) {
+    return {
+      ok: true,
+      dispatched: false,
+      reason: "smoke_certification_recertification_required",
+      smoke_certification_drift: smokeCertificationDrift,
+      resolution,
+      secrets_included: false,
+    };
+  }
+
   const isProviderSmoke = providerSmoke === true;
   if (isProviderSmoke) {
     const expectedOrigin = compactString(providerSmokeExpectedOrigin || "", 300);
