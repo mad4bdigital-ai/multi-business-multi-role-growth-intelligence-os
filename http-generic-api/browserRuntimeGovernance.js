@@ -296,6 +296,9 @@ export function checkBrowserRuntimePolicy({ runtime = null, binding = null, inpu
   if (HIGH_RISK_BROWSER_ACTIONS.has(action) && input.explicit_approval !== true && input.approved !== true) {
     reasons.push("high_risk_action_requires_explicit_approval");
   }
+  if ((policy.requires_approval === true || policy.human_takeover_approval === true) && input.explicit_approval !== true && input.approved !== true) {
+    reasons.push("explicit_approval_required");
+  }
   if (["login_reuse", "persistent_authenticated_session", "authenticated_extraction"].includes(useCase) && policy.explicit_approval_required_for_login_reuse !== false && input.session_reuse_approved !== true) {
     reasons.push("login_or_session_reuse_requires_approval");
   }
