@@ -48,6 +48,27 @@ function errorResponse(res, err, fallbackCode) {
   });
 }
 
+async function resolveRemoteRuntimeCanonicalDeviceId({ deviceId, tenantId = null, userId = null }) {
+  const requested = String(deviceId || "").trim();
+  if (!requested) return "";
+  try {
+    const [rows] = await getPool().query(
+      `SELECT canonical_device_id
+         FROM local_connector_device_aliases
+        WHERE alias_device_id = ?
+          AND status = 'active'
+          AND (tenant_id = ? OR tenant_id IS NULL)
+          AND (user_id = ? OR user_id IS NULL)
+        ORDER BY (tenant_id IS NOT NULL) DESC, (user_id IS NOT NULL) DESC, updated_at DESC
+        LIMIT 1`,
+      [requested, tenantId || null, userId || null]
+    );
+    return rows[0]?.canonical_device_id || requested;
+  } catch {
+    return requested;
+  }
+}
+
 export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPrincipal }) {
   const router = Router();
   const requireAdmin = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
