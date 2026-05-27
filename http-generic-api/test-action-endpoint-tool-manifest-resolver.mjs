@@ -327,4 +327,28 @@ function createPool() {
   assert(!resolverSource.includes("runtime_binding_profile, review_required"), "endpoint manifest resolver must avoid direct review_required select from endpoints");
 }
 
+{
+  const dryRunSource = readFileSync("executionReadinessDryRun.js", "utf8");
+  assert(dryRunSource.includes("resolveActionManifestDiagnostic"), "execution readiness dry-run must include action manifest diagnostic");
+  assert(dryRunSource.includes("resolvePlatformGraphContext"), "execution readiness dry-run must include graph context");
+  assert(dryRunSource.includes("loadBrandReadiness"), "execution readiness dry-run must include Brand readiness");
+  assert(dryRunSource.includes("loadBusinessReadiness"), "execution readiness dry-run must include Business Activity readiness");
+  assert(dryRunSource.includes("loadWorkflowLogicReadiness"), "execution readiness dry-run must include Workflow/Logic readiness");
+  assert(dryRunSource.includes("loadSkillReadiness"), "execution readiness dry-run must include Skill readiness");
+  assert(dryRunSource.includes("will_execute: false"), "execution readiness dry-run must never execute");
+  assert(dryRunSource.includes("secrets_included: false"), "execution readiness dry-run must be secret-free");
+
+  const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
+  assert(routes.includes("/platform/execution-readiness/dry-run"), "execution readiness dry-run route must be mounted");
+  assert(routes.includes("resolveExecutionReadinessDryRun"), "execution readiness dry-run route must call resolver");
+
+  const migration = readFileSync("migrations/149_sprint65_execution_readiness_dry_run_tool.sql", "utf8");
+  assert(migration.includes("execution_readiness_dry_run"), "execution readiness dry-run admin tool must be registered");
+  assert(migration.includes("/platform/execution-readiness/dry-run"), "execution readiness dry-run tool must point to route");
+
+  const openapi = readFileSync("openapi.yaml", "utf8");
+  assert(openapi.includes("/platform/execution-readiness/dry-run:"), "execution readiness dry-run route must be documented in OpenAPI");
+  assert(openapi.includes("operationId: executionReadinessDryRun"), "execution readiness dry-run OpenAPI operationId must be stable");
+}
+
 console.log("action endpoint tool manifest resolver tests passed");
