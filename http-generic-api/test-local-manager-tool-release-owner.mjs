@@ -25,6 +25,7 @@ assert(installRoutes.includes('LOCAL_CONNECTOR_CAPABILITY_FLAGS'), 'installer ro
 assert(installRoutes.includes('powershell_admin: "CONNECTOR_POWERSHELL_ENABLED"'), 'PowerShell capability must map only through explicit opt-in');
 assert(installRoutes.includes('windows_control: "CONNECTOR_WIN_ENABLED"'), 'Windows control capability must map only through explicit opt-in');
 assert(installRoutes.includes('normalizePermissionGrants'), 'installer route must normalize dynamic permission grants');
+assert(installRoutes.includes('/[\\n\\r<>|?*&^%!]/.test(raw)'), 'dynamic Windows paths must reject CMD metacharacters before installer rendering');
 assert(installRoutes.includes('CONNECTOR_APP_ALLOWLIST'), 'installer route must support dynamic app allowlist grants');
 assert(installRoutes.includes('CONNECTOR_FILE_PATHS'), 'installer route must support dynamic file path grants');
 assert(installRoutes.includes('shell_aliases'), 'installer route must support dynamic helper shell alias grants');
