@@ -1043,6 +1043,7 @@ export async function buildActivationSessionContext(req) {
     gpt_sessions: gptSessions.rows,
     conversation_memory: conversationMemory,
     platform_access: platformAccess,
+    platform_evolution: platformEvolution,
     pending_tasks: {
       summary: pendingTaskSummary,
       items: pendingTaskRows
