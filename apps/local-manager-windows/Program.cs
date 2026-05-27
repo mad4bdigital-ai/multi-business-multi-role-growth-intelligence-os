@@ -775,6 +775,114 @@ internal static class Program
             }
         }
 
+        private sealed record InstalledAppChoice(string DisplayName, string ExecutablePath)
+        {
+            public override string ToString() => $"{DisplayName} — {ExecutablePath}";
+        }
+
+        private static InstalledAppChoice? PickInstalledApp(IWin32Window owner)
+        {
+            var apps = DiscoverInstalledApps().OrderBy(app => app.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+            if (apps.Count == 0)
+            {
+                MessageBox.Show(owner, "No installed applications with executable paths were discovered. Use Browse instead.", "Installed apps", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return null;
+            }
+
+            using var form = new Form
+            {
+                Text = "Choose installed app",
+                StartPosition = FormStartPosition.CenterParent,
+                Size = new Size(760, 520),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                Font = new Font("Segoe UI", 10)
+            };
+            var filter = new TextBox { PlaceholderText = "Search installed apps…", Location = new Point(16, 16), Size = new Size(710, 30) };
+            var list = new ListBox { Location = new Point(16, 56), Size = new Size(710, 360), HorizontalScrollbar = true };
+            var ok = new Button { Text = "Use selected", DialogResult = DialogResult.OK, Location = new Point(500, 430), Size = new Size(130, 34) };
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(642, 430), Size = new Size(82, 34) };
+            void RefreshList()
+            {
+                var q = filter.Text.Trim();
+                list.Items.Clear();
+                foreach (var app in apps.Where(app => string.IsNullOrWhiteSpace(q) || app.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase) || app.ExecutablePath.Contains(q, StringComparison.OrdinalIgnoreCase)).Take(300))
+                {
+                    list.Items.Add(app);
+                }
+                if (list.Items.Count > 0 && list.SelectedIndex < 0) list.SelectedIndex = 0;
+            }
+            filter.TextChanged += (_, _) => RefreshList();
+            list.DoubleClick += (_, _) => { if (list.SelectedItem is not null) form.DialogResult = DialogResult.OK; };
+            form.Controls.AddRange(new Control[] { filter, list, ok, cancel });
+            form.AcceptButton = ok;
+            form.CancelButton = cancel;
+            RefreshList();
+            return form.ShowDialog(owner) == DialogResult.OK ? list.SelectedItem as InstalledAppChoice : null;
+        }
+
+        private static IEnumerable<InstalledAppChoice> DiscoverInstalledApps()
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var root in new[] { Registry.CurrentUser, Registry.LocalMachine })
+            foreach (var subkeyPath in new[] { @"Software\Microsoft\Windows\CurrentVersion\Uninstall", @"Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall" })
+            {
+                using var rootKey = root.OpenSubKey(subkeyPath);
+                if (rootKey is null) continue;
+                foreach (var name in rootKey.GetSubKeyNames())
+                {
+                    using var key = rootKey.OpenSubKey(name);
+                    var displayName = Convert.ToString(key?.GetValue("DisplayName"))?.Trim();
+                    if (string.IsNullOrWhiteSpace(displayName)) continue;
+                    var exe = ResolveInstalledAppExecutable(
+                        Convert.ToString(key?.GetValue("DisplayIcon")),
+                        Convert.ToString(key?.GetValue("InstallLocation")),
+                        Convert.ToString(key?.GetValue("UninstallString")));
+                    if (string.IsNullOrWhiteSpace(exe) || !File.Exists(exe) || !seen.Add(exe)) continue;
+                    yield return new InstalledAppChoice(displayName, exe);
+                }
+            }
+        }
+
+        private static string ResolveInstalledAppExecutable(string? displayIcon, string? installLocation, string? uninstallString)
+        {
+            foreach (var candidate in new[] { displayIcon, uninstallString })
+            {
+                var exe = ExtractExecutablePath(candidate);
+                if (!string.IsNullOrWhiteSpace(exe) && File.Exists(exe)) return exe;
+            }
+            var folder = (installLocation ?? "").Trim().Trim('"');
+            if (Directory.Exists(folder))
+            {
+                foreach (var exe in Directory.EnumerateFiles(folder, "*.exe", SearchOption.TopDirectoryOnly).OrderBy(path => Path.GetFileName(path).Length).Take(5))
+                {
+                    if (File.Exists(exe)) return exe;
+                }
+            }
+            return "";
+        }
+
+        private static string ExtractExecutablePath(string? raw)
+        {
+            var value = (raw ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(value)) return "";
+            if (value.StartsWith("\""))
+            {
+                var end = value.IndexOf('"', 1);
+                if (end > 1) value = value.Substring(1, end - 1);
+            }
+            else
+            {
+                var exeIndex = value.IndexOf(".exe", StringComparison.OrdinalIgnoreCase);
+                if (exeIndex >= 0) value = value.Substring(0, exeIndex + 4);
+                else value = value.Split(',', ' ').FirstOrDefault() ?? "";
+            }
+            value = value.Trim().Trim('"');
+            if (value.Contains(',')) value = value.Split(',')[0].Trim().Trim('"');
+            return value.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? value : "";
+        }
+
         private static StringContent JsonContent(object payload) => new(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
         private static string SafeFileSegment(string value)
