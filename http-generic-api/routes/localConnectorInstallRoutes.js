@@ -718,8 +718,12 @@ function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port
   ].join("\r\n");
 }
 
-function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [] }) {
-  const allowlistVal = buildAllowlistEnvValue(aliases);
+function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [], permissionGrants = {} }) {
+  const grants = normalizePermissionGrants(permissionGrants);
+  const allAliases = [...aliases, ...grants.shell_aliases];
+  const allowlistVal = buildAllowlistEnvValue(allAliases);
+  const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
+  const filePathLine = grants.allowed_paths.length ? [`CONNECTOR_FILE_PATHS=${grants.allowed_paths.join(",")}`] : [];
   return [
     `BACKEND_API_KEY=${connectorSecret}`,
     "MAIN_API_URL=https://api.mad4b.com",
@@ -729,7 +733,9 @@ function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [] }
     "CONNECTOR_APPS_ENABLED=true",
     "CONNECTOR_FETCH_UPLOAD_ENABLED=true",
     "CONNECTOR_N8N_ENABLED=true",
-    ...connectorCapabilityEnvLines(capabilities),
+    ...connectorCapabilityEnvLines([...capabilities, ...grants.capabilities]),
+    ...appAllowlistLine,
+    ...filePathLine,
     "N8N_COMMAND=D:\\npm-global\\n8n.cmd",
     "N8N_USER_FOLDER=D:\\n8n-data",
     "N8N_PORT=5678",
