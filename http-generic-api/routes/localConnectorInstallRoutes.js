@@ -761,9 +761,11 @@ function buildStartConnectorBat() {
   ].join("\r\n");
 }
 
-function buildInstallPowerShellBootstrapBat({ ps1Url, deviceId }) {
+function buildInstallPowerShellBootstrapBat({ ps1Url, deviceId, appManaged = false }) {
   const safeDeviceId = String(deviceId || "device").replace(/[^a-zA-Z0-9_-]+/g, "-");
   const safeUrl = String(ps1Url || "").replace(/"/g, "");
+  const failSuffix = appManaged ? "exit /b 1" : "pause & exit /b 1";
+  const doneSuffix = appManaged ? "exit /b 0" : "pause";
   return [
     "@echo off",
     "setlocal EnableExtensions",
@@ -771,19 +773,19 @@ function buildInstallPowerShellBootstrapBat({ ps1Url, deviceId }) {
     "REM Downloads the manifest-verified PowerShell installer and runs it elevated/current-admin.",
     "",
     "net session >nul 2>&1",
-    "if %ERRORLEVEL% neq 0 (echo ERROR: Run as Administrator. & pause & exit /b 1)",
+    `if %ERRORLEVEL% neq 0 (echo ERROR: Run as Administrator. & ${failSuffix})`,
     "",
     "set ROOT=%~dp0",
     `set PS1=%ROOT%install-local-connector-${safeDeviceId}.ps1`,
     `set PS1_URL=${safeUrl}`,
     "echo Downloading current connector repair installer...",
     "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Invoke-WebRequest -Uri '%PS1_URL%' -OutFile '%PS1%' -UseBasicParsing -TimeoutSec 90\"",
-    "if %ERRORLEVEL% neq 0 (echo ERROR: Failed to download PowerShell installer. & pause & exit /b 1)",
+    `if %ERRORLEVEL% neq 0 (echo ERROR: Failed to download PowerShell installer. & ${failSuffix})`,
     "echo Running current connector repair installer...",
     "powershell -NoProfile -ExecutionPolicy Bypass -File \"%PS1%\"",
-    "if %ERRORLEVEL% neq 0 (echo ERROR: PowerShell installer failed. & pause & exit /b 1)",
+    `if %ERRORLEVEL% neq 0 (echo ERROR: PowerShell installer failed. & ${failSuffix})`,
     "echo Done. Connector repair bootstrap completed.",
-    "pause",
+    doneSuffix,
   ].join("\r\n");
 }
 
@@ -1079,6 +1081,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
       const ttl = Math.max(5, Math.min(60, Number(req.body?.ttl_minutes || 30)));
       const permissionGrants = normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] });
       const capabilities = permissionGrants.capabilities;
+      const appManaged = req.body?.app_managed === true || req.body?.suppress_pause === true || req.body?.no_pause === true;
       if (!["ps1", "bat"].includes(format)) return res.status(400).json({ ok: false, error: { code: "unsupported_format", message: "format must be ps1 or bat." }, secrets_included: false });
       const [rows] = await getPool().query(
         `SELECT c.config_id, c.tenant_id, c.device_id
@@ -1110,6 +1113,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
         format,
         capabilities,
         permission_grants: permissionGrants,
+        app_managed: appManaged,
         exp: Math.floor(Date.now() / 1000) + ttl * 60,
       });
       const path = format === "bat" ? "/local-connector/install/download" : "/connector-agent/installer.ps1";
@@ -1128,6 +1132,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
         },
         ttl_minutes: ttl,
         download_url,
+        app_managed: appManaged,
         run_as_admin_required: true,
         secrets_included: false,
       });
@@ -1210,7 +1215,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
       });
       const ps1Url = `${publicBaseUrl(req)}/connector-agent/installer.ps1?token=${encodeURIComponent(ps1Token)}`;
       const installer = payload.format === "bat"
-        ? buildInstallPowerShellBootstrapBat({ ps1Url, deviceId: config.device_id })
+        ? buildInstallPowerShellBootstrapBat({ ps1Url, deviceId: config.device_id, appManaged: payload.app_managed === true || payload.suppress_pause === true || payload.no_pause === true })
         : buildInstallPowerShell({
             cfToken: config.cf_token,
             connectorSecret: config.connector_secret,

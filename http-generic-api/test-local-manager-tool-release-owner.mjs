@@ -21,12 +21,12 @@ assert(connectorAgent.includes('local_tool_release_owner: "mad4b-local-manager"'
 assert(localManager.includes('local release owner for platform tools'), 'public app page must explain Local Manager tool release ownership');
 assert(localManager.includes('manifest-driven local tool installation'), 'link flow must explain manifest-driven local tool installation');
 assert(localManager.includes('Mad4B Local Manager Admin Tools'), 'admin page must distinguish governed installer tools');
-assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.11"'), 'public Local Manager update route must advertise Windows 0.2.11');
-assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.11.exe'), 'public Local Manager download route must point at Windows 0.2.11 assets');
-assert(localManagerProject.includes('<Version>0.2.11</Version>'), 'Windows project Version must match advertised release');
-assert(localManagerProject.includes('<AssemblyVersion>0.2.11.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
-assert(localManagerProject.includes('<FileVersion>0.2.11.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
-assert(localManagerProject.includes('<InformationalVersion>0.2.11-installer-apply-workflow</InformationalVersion>'), 'Windows project InformationalVersion must identify the installer apply workflow fix');
+assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.12"'), 'public Local Manager update route must advertise Windows 0.2.12');
+assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.12.exe'), 'public Local Manager download route must point at Windows 0.2.12 assets');
+assert(localManagerProject.includes('<Version>0.2.12</Version>'), 'Windows project Version must match advertised release');
+assert(localManagerProject.includes('<AssemblyVersion>0.2.12.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
+assert(localManagerProject.includes('<FileVersion>0.2.12.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
+assert(localManagerProject.includes('<InformationalVersion>0.2.12-app-managed-installer-bootstrap</InformationalVersion>'), 'Windows project InformationalVersion must identify the app-managed installer bootstrap fix');
 
 assert(installRoutes.includes('LOCAL_CONNECTOR_CAPABILITY_FLAGS'), 'installer route must define explicit capability flag mapping');
 assert(installRoutes.includes('powershell_admin: "CONNECTOR_POWERSHELL_ENABLED"'), 'PowerShell capability must map only through explicit opt-in');
@@ -44,6 +44,12 @@ assert(!installRoutes.includes('CONNECTOR_WIN_ENABLED=true",'), 'Windows control
 assert(proxyRoutes.includes('code: "DISABLED"'), 'connector proxy must preserve disabled capability errors');
 assert(proxyRoutes.includes('connector_capability_status: "disabled"'), 'connector proxy response must classify disabled capability state');
 
+assert(localManagerWindows.includes('app_managed = true'), 'Windows app must request app-managed installer bootstraps');
+assert(localManagerWindows.includes('suppress_pause = true'), 'Windows app must request no-pause installer bootstraps');
+assert(installRoutes.includes('app_managed: appManaged'), 'installer route must sign app-managed mode into download tokens');
+assert(installRoutes.includes('appManaged: payload.app_managed === true'), 'download route must pass app-managed mode into bootstrap BAT generation');
+assert(installRoutes.includes('const doneSuffix = appManaged ? "exit /b 0" : "pause"'), 'app-managed bootstrap BAT must exit instead of pausing');
+assert(installRoutes.includes('const failSuffix = appManaged ? "exit /b 1" : "pause & exit /b 1"'), 'app-managed bootstrap BAT failures must exit instead of pausing');
 assert(localManagerWindows.includes('RunElevatedInstallerAndVerifyAsync'), 'Windows app must run connector installers through an in-app elevated workflow');
 assert(localManagerWindows.includes('RefreshDeviceControlsAfterInstallerAsync'), 'Windows app must refresh device controls after installer execution');
 assert(localManagerWindows.includes('WaitForExitAsync'), 'Windows app must wait for elevated installer completion when possible');
