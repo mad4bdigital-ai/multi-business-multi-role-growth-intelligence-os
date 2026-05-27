@@ -9,6 +9,11 @@ const allowlist = readFileSync('openapi-route-coverage.allowlist.json', 'utf8');
 
 assert(connector.includes('CONNECTOR_AUTO_BROWSER_ENABLED'), 'local connector must define Auto Browser enablement flag');
 assert(connector.includes('AUTO_BROWSER_BASE_URL'), 'local connector must define Auto Browser base URL');
+assert(connector.includes("http://127.0.0.1:8000"), 'Auto Browser controller default must match upstream API port 8000');
+assert(agent.includes('AUTO_BROWSER_BASE_URL: "http://127.0.0.1:8000"'), 'Auto Browser manifest must match upstream API port 8000');
+assert(agent.includes('AUTO_BROWSER_BASE_URL=http://127.0.0.1:8000'), 'Auto Browser installer env must match upstream API port 8000');
+assert(!connector.includes('http://127.0.0.1:7331'), 'Auto Browser connector must not use stale default port 7331');
+assert(!agent.includes('http://127.0.0.1:7331'), 'Auto Browser manifest/installer must not use stale default port 7331');
 assert(connector.includes('AUTO_BROWSER_ALLOWED_HOSTS'), 'local connector must define Auto Browser host allowlist');
 assert(connector.includes('async function handleAutoBrowser'), 'local connector must expose Auto Browser handler');
 assert(connector.includes("action !== 'status'"), 'Auto Browser local endpoint must block non-status actions before adapter PoC');
