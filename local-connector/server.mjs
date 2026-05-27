@@ -616,6 +616,9 @@ function policyBody() {
       fetch_upload_enabled: FETCH_UPLOAD_ENABLED,
       browser4_enabled: BROWSER4_ENABLED,
       browser4_allowed_hosts: BROWSER4_ALLOWED_HOSTS,
+      auto_browser_enabled: AUTO_BROWSER_ENABLED,
+      auto_browser_base_url: AUTO_BROWSER_ENABLED ? AUTO_BROWSER_BASE_URL : null,
+      auto_browser_allowed_hosts: AUTO_BROWSER_ALLOWED_HOSTS,
     },
     secrets_included: false,
   };
