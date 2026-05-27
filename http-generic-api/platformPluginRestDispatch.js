@@ -16,6 +16,10 @@ function normalizeKey(value = "", max = 255) {
   return compactString(value, max).toLowerCase().replace(/[\s-]+/g, "_").replace(/[^a-z0-9_:.]/g, "_");
 }
 
+function normalize(value = "") {
+  return String(value || "").trim().toLowerCase();
+}
+
 function parseStoredJson(value, fallback) {
   if (value === null || value === undefined || value === "") return fallback;
   if (typeof value === "object") return value;
