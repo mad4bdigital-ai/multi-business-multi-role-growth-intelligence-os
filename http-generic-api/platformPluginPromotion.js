@@ -133,6 +133,51 @@ export async function certifyPlatformPluginContribution({ pool = getPool(), cont
   return { ok: report.ok, contribution: await loadContribution(pool, id), certification: report, execution_log: log ? { ok: true, id: log.id, execution_status: log.execution_status, trace_id: log.execution_trace_id_writeback } : { ok: false }, promoted: false, platform_base_mutated: false, secrets_included: false };
 }
 
+async function checkContributionSmokeCertifications({ pool, contribution }) {
+  const actions = (contribution.action_bindings_json || []).filter((action) => action?.action_key);
+  const checks = [];
+  for (const action of actions) {
+    const actionKey = compactString(action.action_key, 128);
+    const rows = await safeQuery(
+      pool,
+      `SELECT certification_id, mock_provider, mock_resource, last_response_status,
+              last_smoke_execution_log_id, certified_at, certification_status
+         FROM platform_plugin_smoke_certifications
+        WHERE plugin_key = ?
+          AND action_key = ?
+          AND certification_status = 'certified'
+          AND last_smoke_status = 'success'
+          AND last_response_ok = 1
+          AND last_response_status = 200
+          AND secrets_included = 0
+        ORDER BY certified_at DESC
+        LIMIT 1`,
+      [contribution.plugin_key, actionKey]
+    );
+    const cert = rows[0] || null;
+    checks.push({
+      action_key: actionKey,
+      certified: Boolean(cert),
+      certification_id: cert?.certification_id || null,
+      mock_provider: cert?.mock_provider || null,
+      mock_resource: cert?.mock_resource || null,
+      last_response_status: cert?.last_response_status || null,
+      last_smoke_execution_log_id: cert?.last_smoke_execution_log_id || null,
+      certified_at: cert?.certified_at || null,
+      certification_status: cert?.certification_status || null,
+      reason: cert ? "smoke_certification_active" : "smoke_certification_required",
+      secrets_included: false,
+    });
+  }
+  return {
+    required: actions.length > 0,
+    ok: actions.every((action) => checks.find((check) => check.action_key === compactString(action.action_key, 128))?.certified),
+    checks,
+    missing_action_keys: checks.filter((check) => !check.certified).map((check) => check.action_key),
+    secrets_included: false,
+  };
+}
+
 function normalizeActionBinding(contribution, action) {
   const policy = contribution.credential_policy_json || {};
   const role = normalizeKey(action.binding_role || "primary_api");
