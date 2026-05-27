@@ -9361,8 +9361,8 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: remoteRuntimeLocalReadonlyExecute
-      summary: Execute allowlisted local_path read-only status command
-      description: Execute the first narrow Remote Runtime local_path command. Supports only status/git_status and maps to connector_shell alias repo_status_growth_os. It rejects Hostinger/SSH targets, arbitrary shell, file access, extra args, deploy, restart, and secret-like inputs.
+      summary: Execute allowlisted local_path read-only commands
+      description: Execute narrow Remote Runtime local_path read-only commands. Supports status/git_status through connector_shell alias repo_status_growth_os and diff_name_status through repo_diff_name_status_growth_os. It rejects Hostinger/SSH targets, arbitrary shell, file access, extra args, deploy, restart, and secret-like inputs.
       requestBody:
         required: true
         content:
@@ -9376,7 +9376,7 @@ paths:
                 tenant_id: { type: string }
                 user_id: { type: string }
                 device_id: { type: string }
-                command_key: { type: string, enum: [status, git_status], default: status }
+                command_key: { type: string, enum: [status, git_status, diff_name_status], default: status }
                 inputs:
                   type: object
                   additionalProperties: true

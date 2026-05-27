@@ -197,8 +197,13 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
       const commandKey = String(input.command_key || input.commandKey || "status").trim().toLowerCase();
-      if (!["status", "git_status"].includes(commandKey)) {
-        const err = new Error("Only read-only local_path commands status and git_status are supported by this execution route.");
+      const connectorAliasByCommand = {
+        status: "repo_status_growth_os",
+        git_status: "repo_status_growth_os",
+        diff_name_status: "repo_diff_name_status_growth_os",
+      };
+      if (!Object.prototype.hasOwnProperty.call(connectorAliasByCommand, commandKey)) {
+        const err = new Error("Only read-only local_path commands status, git_status, and diff_name_status are supported by this execution route.");
         err.status = 400;
         err.code = "remote_runtime_local_readonly_command_not_allowed";
         throw err;
@@ -207,7 +212,7 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         targetId: input.target_id || input.targetId,
         tenantId: input.tenant_id || input.tenantId || null,
         userId: input.user_id || input.userId || null,
-        commandKey: "status",
+        commandKey,
         inputs: input.inputs || {},
         approvalId: input.approval_id || input.approvalId || null,
         approvalReason: input.approval_reason || input.approvalReason || null,
@@ -250,7 +255,7 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         tenant_id: plan.target.tenant_id,
         user_id: plan.target.user_id || input.user_id || input.userId || undefined,
         action: "run",
-        alias: "repo_status_growth_os",
+        alias: connectorAliasByCommand[commandKey],
         extra_args: [],
         timeout_ms: Math.max(1000, Math.min(Number(input.timeout_ms || input.timeoutMs || 120000), 120000)),
       };
@@ -262,7 +267,7 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         plugin_key: "remote_ssh_runtime",
         execution_mode: "local_path_readonly_allowlisted",
         command_key: commandKey,
-        connector_alias: "repo_status_growth_os",
+        connector_alias: connectorAliasByCommand[commandKey],
         target: plan.target,
         dry_run_plan: {
           dispatch_ready: plan.dispatch_ready,
@@ -275,7 +280,7 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
           requested_device_id: deviceId,
           device_id: canonicalDeviceId,
           action: "run",
-          alias: "repo_status_growth_os",
+          alias: connectorAliasByCommand[commandKey],
           status: dispatchResult.status,
           body: dispatchResult.body,
         },
