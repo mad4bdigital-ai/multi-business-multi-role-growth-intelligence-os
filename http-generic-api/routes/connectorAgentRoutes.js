@@ -212,7 +212,7 @@ function buildConnectorEnv({ connectorSecret, aliases, port, permissionGrants = 
     "N8N_PORT=5678",
     "N8N_LISTEN_ADDRESS=127.0.0.1",
     "N8N_PUBLIC_URL=https://n8n.mad4b.com/",
-    `CONNECTOR_SHELL_ALLOWLIST=${buildAllowlistEnvValue(aliases)}`,
+    `CONNECTOR_SHELL_ALLOWLIST=${buildAllowlistEnvValue(allAliases)}`,
   ].join("\r\n");
 }
 
