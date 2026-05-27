@@ -991,6 +991,8 @@ export async function buildActivationSessionContext(req) {
     pending_tasks: pendingTaskRows,
   });
 
+  const platformEvolution = await loadPlatformEvolutionCheckpointContext(subject, req.query || {});
+
   return {
     session_id: newSessionId,
     closed_sessions,
