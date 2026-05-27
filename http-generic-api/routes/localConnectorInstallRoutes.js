@@ -66,12 +66,18 @@ function normalizeWindowsPath(value, max = 260) {
 function normalizePermissionGrants(value = {}) {
   const grants = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   const capabilities = normalizeRequestedCapabilities(grants.capabilities || grants.connector_capabilities || []);
-  const allowedPaths = [...new Set((Array.isArray(grants.allowed_paths) ? grants.allowed_paths : [])
+  const pathGrantValues = Array.isArray(grants.allowed_paths)
+    ? grants.allowed_paths
+    : (Array.isArray(grants.file_paths) ? grants.file_paths : []);
+  const allowedPaths = [...new Set(pathGrantValues
     .map((item) => normalizeWindowsPath(item, 260))
     .filter(Boolean))].slice(0, 25);
 
+  const appGrantValues = Array.isArray(grants.apps)
+    ? grants.apps
+    : Object.entries(grants.apps || {}).map(([alias, value]) => ({ alias, ...(value && typeof value === "object" ? value : {}) }));
   const apps = {};
-  for (const item of Array.isArray(grants.apps) ? grants.apps : []) {
+  for (const item of appGrantValues) {
     const alias = normalizeGrantAlias(item?.app_alias || item?.alias || item?.display_name, "app");
     const command = normalizeWindowsPath(item?.command || item?.executable_path || item?.path, 260);
     if (!alias || !command) continue;
