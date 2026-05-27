@@ -1037,6 +1037,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
         canonical_device_id: config.device_id,
         config_id: config.config_id,
         format,
+        capabilities,
         ttl_minutes: ttl,
         download_url,
         run_as_admin_required: true,
