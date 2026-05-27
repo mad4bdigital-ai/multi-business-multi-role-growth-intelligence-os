@@ -1187,6 +1187,38 @@ internal static class Program
                 _desktopCommandPollRunning = false;
             }
         }
+        private void RegisterDesktopCommandPollFailure(string message, string? diagnostic = null)
+        {
+            _desktopCommandPollFailureCount += 1;
+            var backoffSeconds = Math.Min(300, _desktopCommandPollFailureCount switch
+            {
+                <= 1 => 15,
+                2 => 30,
+                3 => 60,
+                _ => 120
+            });
+            _desktopCommandPollBackoffUntil = DateTimeOffset.UtcNow.AddSeconds(backoffSeconds);
+
+            // Desktop command polling is a background convenience path. Do not keep
+            // overwriting the main status every timer tick for transient TLS/network
+            // failures; show only the first and periodic failures, and write a
+            // sanitized diagnostic payload with no token or command payload secrets.
+            if (_desktopCommandPollFailureCount == 1 || _desktopCommandPollFailureCount % 5 == 0)
+            {
+                _status.Text = $"Desktop command polling paused for {backoffSeconds}s: {message}";
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    desktop_command_polling = "paused",
+                    failure_count = _desktopCommandPollFailureCount,
+                    backoff_seconds = backoffSeconds,
+                    message,
+                    diagnostic,
+                    token_plaintext_shown = false,
+                    secrets_included = false
+                }, _json);
+            }
+        }
+
         private async Task ExecuteDesktopCommandAsync(HttpClient client, string token, JsonElement command)
         {
             var commandId = JsonValue(command, "command_id");
