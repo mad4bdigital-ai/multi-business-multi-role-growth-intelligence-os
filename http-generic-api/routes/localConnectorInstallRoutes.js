@@ -1160,7 +1160,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
       if (!config.cf_token || !config.connector_secret) throw httpError(409, "connector_config_incomplete", "Connector config is missing recovery token or connector secret.");
-      const capabilities = normalizeRequestedCapabilities(payload.capabilities || []);
+      const permissionGrants = normalizePermissionGrants(payload.permission_grants || { capabilities: payload.capabilities || [] });
+      const capabilities = permissionGrants.capabilities;
       const ps1Token = signInstallerDownloadToken({
         user_id: payload.user_id,
         tenant_id: payload.tenant_id,
