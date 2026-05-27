@@ -21,4 +21,21 @@ assert(localManager.includes('local release owner for platform tools'), 'public 
 assert(localManager.includes('manifest-driven local tool installation'), 'link flow must explain manifest-driven local tool installation');
 assert(localManager.includes('Mad4B Local Manager Admin Tools'), 'admin page must distinguish governed installer tools');
 
+assert(installRoutes.includes('LOCAL_CONNECTOR_CAPABILITY_FLAGS'), 'installer route must define explicit capability flag mapping');
+assert(installRoutes.includes('powershell_admin: "CONNECTOR_POWERSHELL_ENABLED"'), 'PowerShell capability must map only through explicit opt-in');
+assert(installRoutes.includes('windows_control: "CONNECTOR_WIN_ENABLED"'), 'Windows control capability must map only through explicit opt-in');
+assert(installRoutes.includes('normalizeRequestedCapabilities(req.body?.capabilities || [])'), 'device-scoped installer link must normalize requested capabilities');
+assert(installRoutes.includes('capabilities,\n        exp: payload.exp'), 'installer download token must propagate capabilities without secrets');
+assert(!installRoutes.includes('CONNECTOR_POWERSHELL_ENABLED=true",'), 'PowerShell must not be enabled by default in base connector env');
+assert(!installRoutes.includes('CONNECTOR_WIN_ENABLED=true",'), 'Windows control must not be enabled by default in base connector env');
+
+assert(proxyRoutes.includes('code: "DISABLED"'), 'connector proxy must preserve disabled capability errors');
+assert(proxyRoutes.includes('connector_capability_status: "disabled"'), 'connector proxy response must classify disabled capability state');
+
+assert(localManagerWindows.includes('Capabilities'), 'Windows app must expose capability choices');
+assert(localManagerWindows.includes('ConfigureConnectorCapabilitiesAsync'), 'Windows app must request capability installer from user action');
+assert(localManagerWindows.includes('powershell_admin'), 'Windows app must support PowerShell capability selection');
+assert(localManagerWindows.includes('windows_control'), 'Windows app must support Windows control capability selection');
+assert(localManagerWindows.includes('RunAsAdminRequired'), 'Windows app must surface local Administrator requirement');
+
 console.log('local manager tool release owner tests passed');
