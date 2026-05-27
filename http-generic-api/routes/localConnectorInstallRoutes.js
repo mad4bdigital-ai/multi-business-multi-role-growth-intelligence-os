@@ -1109,6 +1109,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
             tunnelUrl: config.tunnel_url,
             aliases: DEFAULT_WINDOWS_ALIASES,
             port: CONNECTOR_PORT,
+            capabilities,
           });
       const safeDeviceId = String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-");
       const filename = `install-local-connector-${safeDeviceId}.${payload.format}`;
