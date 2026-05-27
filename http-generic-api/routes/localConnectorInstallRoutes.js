@@ -1215,7 +1215,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
       });
       const ps1Url = `${publicBaseUrl(req)}/connector-agent/installer.ps1?token=${encodeURIComponent(ps1Token)}`;
       const installer = payload.format === "bat"
-        ? buildInstallPowerShellBootstrapBat({ ps1Url, deviceId: config.device_id })
+        ? buildInstallPowerShellBootstrapBat({ ps1Url, deviceId: config.device_id, appManaged: payload.app_managed === true || payload.suppress_pause === true || payload.no_pause === true })
         : buildInstallPowerShell({
             cfToken: config.cf_token,
             connectorSecret: config.connector_secret,
