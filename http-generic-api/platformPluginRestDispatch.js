@@ -91,6 +91,42 @@ async function loadPromotedContributionActionTemplate(pool, { pluginKey, actionK
   return { template: null, source: null, contribution: rows[0] || null };
 }
 
+async function loadEndpointRegistryActionTemplate(pool, { actionKey }) {
+  const rows = await safeQuery(
+    pool,
+    `SELECT endpoint_key, parent_action_key, method, endpoint_path_or_function,
+            status, execution_readiness, provider_domain, route_target
+       FROM endpoints
+      WHERE (parent_action_key = ? OR endpoint_key = ?)
+        AND (status IS NULL OR status NOT IN ('deprecated','archived','disabled','inactive'))
+      ORDER BY CASE WHEN endpoint_key = ? THEN 0 ELSE 1 END,
+               CASE WHEN execution_readiness = 'ready' THEN 0 ELSE 1 END,
+               endpoint_key ASC
+      LIMIT 5`,
+    [actionKey, actionKey, actionKey]
+  );
+  for (const row of rows) {
+    const method = String(row.method || "GET").toUpperCase();
+    const path = compactString(row.endpoint_path_or_function || "", 1000);
+    const ready = ["ready", "active", "enabled", ""].includes(normalize(row.execution_readiness || ""));
+    if (!path || !ready) continue;
+    return {
+      template: { method, path, headers: {}, body_template: null },
+      source: "endpoints.endpoint_path_or_function",
+      contribution: null,
+      endpoint: {
+        endpoint_key: row.endpoint_key,
+        parent_action_key: row.parent_action_key,
+        provider_domain: row.provider_domain,
+        route_target: row.route_target,
+        execution_readiness: row.execution_readiness,
+        status: row.status,
+      },
+    };
+  }
+  return { template: null, source: null, contribution: null, endpoint: rows[0] || null };
+}
+
 async function loadConnection(pool, connectionId) {
   const rows = await safeQuery(
     pool,
