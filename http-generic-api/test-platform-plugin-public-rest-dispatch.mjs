@@ -141,6 +141,17 @@ assert(smokeCertSource.includes("certification_expires_at"), "smoke certificatio
 assert(smokeCertSource.includes("last_recertification_required_at"), "smoke certification status must expose recertification timestamp");
 assert(smokeCertSource.includes("recertification_reason"), "smoke certification status must expose recertification reason");
 
+assert(smokeRecertSource.includes("listPlatformPluginSmokeRecertificationQueue"), "smoke recertification source must expose queue reader");
+assert(smokeRecertSource.includes("runPlatformPluginSmokeRecertificationBatch"), "smoke recertification source must expose batch runner");
+assert(smokeRecertSource.includes("expires_soon"), "smoke recertification queue must detect expiring soon certifications");
+assert(smokeRecertSource.includes("origin_drift"), "smoke recertification queue must detect origin drift");
+assert(smokeRecertSource.includes("path_drift"), "smoke recertification queue must detect path drift");
+assert(smokeRecertSource.includes("method_drift"), "smoke recertification queue must detect method drift");
+assert(smokeRecertSource.includes("automatic_recertification_supported"), "smoke recertification queue must distinguish auto-safe candidates");
+assert(smokeRecertSource.includes("dispatchPlatformPluginRestAction"), "smoke recertification batch must reuse guarded dispatch");
+assert(smokeRecertSource.includes("recertificationMode: true"), "smoke recertification batch must use explicit recertification mode");
+assert(smokeRecertSource.includes("certifyPlatformPluginSmoke"), "smoke recertification batch must certify successful smoke logs");
+
 assert(pluginResolverSource.includes("checkSmokeCertification"), "plugin resolver must check smoke certification before dispatch readiness");
 assert(pluginResolverSource.includes("platform_plugin_smoke_certifications"), "plugin resolver must read smoke certification registry");
 assert(pluginResolverSource.includes("smoke_certification_required"), "plugin resolver must block dispatch readiness when smoke certification is missing");
