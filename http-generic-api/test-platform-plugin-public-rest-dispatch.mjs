@@ -114,6 +114,19 @@ assert(smokeCertSource.includes("smoke_response_status_not_200"), "smoke certifi
 assert(smokeCertSource.includes("expected_origin_mismatch"), "smoke certification must require expected origin match");
 assert(smokeCertSource.includes("secrets_included: false"), "smoke certification responses must be secret-free");
 
+assert(pluginResolverSource.includes("checkSmokeCertification"), "plugin resolver must check smoke certification before dispatch readiness");
+assert(pluginResolverSource.includes("platform_plugin_smoke_certifications"), "plugin resolver must read smoke certification registry");
+assert(pluginResolverSource.includes("smoke_certification_required"), "plugin resolver must block dispatch readiness when smoke certification is missing");
+assert(pluginResolverSource.includes("smoke_certification: smokeCertification"), "plugin resolver must return smoke certification evidence");
+assert(pluginResolverSource.includes("last_response_status = 200"), "plugin resolver must require successful 200 smoke certification");
+assert(pluginResolverSource.includes("secrets_included = 0"), "plugin resolver must require secret-free smoke certification");
+
+assert(promotionSource.includes("checkContributionSmokeCertifications"), "promotion must check smoke certifications before platform base promotion");
+assert(promotionSource.includes("smoke_certification_required"), "promotion must block when smoke certification is missing");
+assert(promotionSource.includes("platform_plugin_smoke_certifications"), "promotion must read smoke certification registry");
+assert(promotionSource.includes("last_response_status = 200"), "promotion must require 200 smoke certification evidence");
+assert(promotionSource.includes("secrets_included = 0"), "promotion must require secret-free smoke certification evidence");
+
 for (const forbidden of [
   "api_key_value",
   "access_token",
