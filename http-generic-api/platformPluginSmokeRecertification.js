@@ -58,6 +58,7 @@ function classifyCertification(row, { policy = null, expiresSoonDays = 14 } = {}
   if (!row.current_endpoint_key || !row.current_path) reasons.push("endpoint_missing");
   if (currentUrlError) reasons.push("url_resolution_failed");
   if (currentUrl && row.url_origin && currentUrl.origin !== row.url_origin) reasons.push("origin_drift");
+  if (effectivePolicy.allowed_expected_origin && row.expected_origin && effectivePolicy.allowed_expected_origin !== row.expected_origin) reasons.push("policy_expected_origin_mismatch");
   if (currentUrl && row.url_path && currentUrl.pathname !== row.url_path) reasons.push("path_drift");
   if (row.http_method && currentMethod && String(row.http_method).toUpperCase() !== currentMethod) reasons.push("method_drift");
   const driftReasons = reasons.filter((reason) => ["origin_drift", "path_drift", "method_drift", "connection_missing", "endpoint_missing", "url_resolution_failed"].includes(reason));
