@@ -734,6 +734,7 @@ async function executeGitHubRestFallback(args = []) {
   if (resource === "api" && command) {
     let apiTarget = String(command);
     const repoPrefix = `repos/${owner}/${repo}`;
+    if (apiTarget.startsWith(`/${repoPrefix}`)) apiTarget = apiTarget.slice(repoPrefix.length + 1);
     if (apiTarget.startsWith(repoPrefix)) apiTarget = apiTarget.slice(repoPrefix.length);
     if (!apiTarget.startsWith("/")) apiTarget = `/${apiTarget}`;
     const method = parseGithubApiMethod(args);
@@ -742,10 +743,11 @@ async function executeGitHubRestFallback(args = []) {
     const allowedMutation = ["POST", "PUT", "PATCH"].includes(method) && (
       /^\/pulls\/\d+\/update-branch$/.test(apiTarget)
       || /^\/pulls\/\d+\/merge$/.test(apiTarget)
+      || /^\/actions\/workflows\/[^/]+\/dispatches$/.test(apiTarget)
       || apiTarget === "/merges"
     );
     if (!allowedRead && !allowedMutation) {
-      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, and repo merges mutations.");
+      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, workflow dispatches, and repo merges mutations.");
       err.status = 501;
       err.code = "github_rest_api_unsupported_path";
       err.details = { apiTarget, method };
@@ -796,6 +798,32 @@ async function executeGitHubRestFallback(args = []) {
     });
     return {
       stdout: JSON.stringify({ number: payload.number, state: payload.state, html_url: payload.html_url }, null, 2),
+      stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n",
+      exit_code: 0,
+      fallback: "github_rest",
+    };
+  }
+
+  if (resource === "workflow" && command === "run") {
+    const workflowId = firstGithubPositional(args, 2);
+    const ref = parseCliFlag(args, "--ref") || "main";
+    const inputs = parseGithubFieldValues(args);
+    if (!workflowId) {
+      const err = new Error("workflow run fallback requires a workflow file name or workflow id.");
+      err.status = 400;
+      err.code = "github_workflow_run_args_required";
+      throw err;
+    }
+    await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/actions/workflows/${encodeURIComponent(workflowId)}/dispatches`,
+      token,
+      method: "POST",
+      body: { ref, ...(Object.keys(inputs).length ? { inputs } : {}) },
+    });
+    return {
+      stdout: JSON.stringify({ workflow: workflowId, ref, dispatched: true, inputs_count: Object.keys(inputs).length }, null, 2),
       stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n",
       exit_code: 0,
       fallback: "github_rest",
@@ -894,7 +922,7 @@ async function executeGitHubRestFallback(args = []) {
     return { stdout: JSON.stringify({ number: Number(prNumber), merged: true, merge_method: mergeMethod, sha: mergeResult.sha || null, message: mergeResult.message || "Pull Request successfully merged" }, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
   }
 
-  const err = new Error("gh CLI is missing and GitHub REST fallback currently supports: run list, run view <id>, run view <id> --log-failed, pr create, and pr merge <number|url>.");
+  const err = new Error("gh CLI is missing and GitHub REST fallback currently supports: workflow run <workflow> --ref <ref>, api <workflow-dispatch-path> -X POST -f ref=<ref>, run list, run view <id>, run view <id> --log-failed, pr create, and pr merge <number|url>.");
   err.status = 501;
   err.code = "github_rest_fallback_unsupported_args";
   err.details = { args };
