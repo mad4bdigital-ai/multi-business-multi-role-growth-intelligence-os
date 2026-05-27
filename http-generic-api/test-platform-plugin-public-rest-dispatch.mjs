@@ -47,6 +47,15 @@ assert(migration.includes("state_changing"), "dispatch tool must be state-changi
 assert(migration.includes("no_secrets"), "dispatch tool must be tagged no-secrets");
 assert(migration.includes("ON DUPLICATE KEY UPDATE"), "dispatch tool registration must be idempotent");
 
+assert(smokeRoutes.includes("/platform/mock-crm/contacts"), "platform smoke routes must expose mock CRM contacts endpoint");
+assert(smokeRoutes.includes("smoke_read_only"), "mock CRM contacts endpoint must declare smoke read-only mode");
+assert(smokeRoutes.includes("will_mutate: false"), "mock CRM contacts endpoint must declare non-mutating behavior");
+assert(smokeRoutes.includes("secrets_included: false"), "mock CRM contacts endpoint must be secret-free");
+assert(routeIndex.includes("buildPlatformSmokeRoutes"), "platform smoke routes must be registered");
+assert(openapi.includes("/platform/mock-crm/contacts:"), "OpenAPI must document mock CRM contacts smoke endpoint");
+assert(openapi.includes("operationId: platformMockCrmContacts"), "mock CRM OpenAPI operationId must be stable");
+assert(openapi.includes("Public read-only mock CRM contacts endpoint"), "mock CRM OpenAPI description must document public read-only smoke behavior");
+
 const dispatchPathMatches = openapi.match(/\/platform\/plugins\/dispatch-rest:/g) || [];
 assert.equal(dispatchPathMatches.length, 1, "OpenAPI must document dispatch route exactly once");
 assert(openapi.includes("operationId: platformPluginDispatchRest"), "OpenAPI must expose stable dispatch operationId");
