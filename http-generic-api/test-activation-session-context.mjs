@@ -50,6 +50,24 @@ assert.equal(normalizeOffset(-1), 0);
 assert.equal(normalizeOffset(40), 40);
 
 {
+  const scope = resolveRequestedEvolutionScope({}, { is_admin: true });
+  assert.equal(scope, "brand:growth_intelligence_platform|tenant:00000000-0000-4000-a000-000000000010");
+}
+
+{
+  const scope = resolveRequestedEvolutionScope(
+    { evolution_brand_key: "brand_a", evolution_tenant_id: "tenant-a" },
+    { is_admin: false, tenant_id: "tenant-a", user_id: "user-a" }
+  );
+  assert.equal(scope, "brand:brand_a|tenant:tenant-a");
+}
+
+{
+  const scope = resolveRequestedEvolutionScope({}, { is_admin: false, tenant_id: "tenant-a", user_id: "user-a" });
+  assert.equal(scope, null);
+}
+
+{
   const transcript = buildEnvelopeTranscript({
     request_json: JSON.stringify({
       raw_input: "User asked for last sessions",
