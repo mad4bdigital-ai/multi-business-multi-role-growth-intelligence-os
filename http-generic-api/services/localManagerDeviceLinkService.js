@@ -776,8 +776,32 @@ export async function getDeviceControls(req, res) {
       },
       settings: {
         label: "Settings",
-        actions: ["view_device_identity", "view_token_storage_status", "open_account_settings"],
-        write_actions_enabled: false,
+        actions: ["view_device_identity", "view_token_storage_status", "open_account_settings", "request_capability_installer"],
+        write_actions_enabled: true,
+        capability_consent: {
+          endpoint: "/local-connector/install/device-download-link",
+          method: "POST",
+          requires_device_token: true,
+          requires_local_user_consent: true,
+          requires_local_admin_elevation: true,
+          default_format: "bat",
+          supported_capabilities: [
+            {
+              key: "powershell_admin",
+              label: "Admin PowerShell recovery",
+              env_flag: "CONNECTOR_POWERSHELL_ENABLED",
+              risk: "high",
+              note: "Break-glass recovery only. Enables governed /ps proxy after local elevated reinstall.",
+            },
+            {
+              key: "windows_control",
+              label: "Windows app/process control",
+              env_flag: "CONNECTOR_WIN_ENABLED",
+              risk: "high",
+              note: "Break-glass/desktop-control only. Enables governed /win proxy after local elevated reinstall.",
+            },
+          ],
+        },
       },
     };
 
