@@ -27,7 +27,7 @@ const baseContributionRow = {
   notes: "draft contribution",
 };
 
-function makePool({ existingBase = false, certified = false } = {}) {
+function makePool({ existingBase = false, certified = false, smokeCertified = true } = {}) {
   const calls = [];
   return {
     calls,
