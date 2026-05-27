@@ -414,14 +414,16 @@ export async function resolvePlatformPluginExecution({
   });
   const requiredSkillKey = deriveRequiredSkill({ pluginKey: normalizedPluginKey, actionKey, toolKey, binding });
   const skill = await checkSkillGrant({ pool, agentId, tenantId, requiredSkillKey });
+  const smokeCertification = await checkSmokeCertification({ pool, pluginKey: normalizedPluginKey, actionKey });
 
   const pluginStatusActive = ["active", "beta"].includes(normalize(rows.plugin.status));
-  const allowed = Boolean(pluginStatusActive && bindingState.ok && credential.ok && skill.granted);
+  const allowed = Boolean(pluginStatusActive && bindingState.ok && credential.ok && skill.granted && smokeCertification.certified);
   const denialReasons = [];
   if (!pluginStatusActive) denialReasons.push("plugin_not_active");
   if (!bindingState.ok) denialReasons.push(bindingState.reason);
   if (!credential.ok) denialReasons.push(credential.reason);
   if (!skill.granted) denialReasons.push(skill.reason);
+  if (!smokeCertification.certified) denialReasons.push(smokeCertification.reason);
 
   const defaultGrants = parseJsonArray(rows.plugin.default_action_grants, []);
   const baseApprovalRequired = Boolean(
