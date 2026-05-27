@@ -108,6 +108,12 @@ assert(smokeCertMigration.includes("last_smoke_execution_log_id"), "smoke certif
 assert(smokeCertMigration.includes("UNIQUE KEY `uniq_plugin_action_mock`"), "smoke certification table must enforce one cert per plugin/action/mock pair");
 assert(smokeCertMigration.includes("secrets_included` tinyint(1) NOT NULL DEFAULT 0"), "smoke certification table must default secrets_included=false");
 
+assert(smokeCertLifecycleMigration.includes("certification_expires_at"), "smoke certification lifecycle migration must add expiry column");
+assert(smokeCertLifecycleMigration.includes("last_recertification_required_at"), "smoke certification lifecycle migration must add recertification timestamp column");
+assert(smokeCertLifecycleMigration.includes("recertification_reason"), "smoke certification lifecycle migration must add recertification reason column");
+assert(smokeCertLifecycleMigration.includes("INTERVAL 90 DAY"), "smoke certification lifecycle migration must backfill default 90-day expiry");
+assert(smokeCertLifecycleToolsMigration.includes("certification_ttl_days"), "smoke certification lifecycle tool migration must expose TTL days");
+
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certify"), "smoke certification writer admin tool must be registered");
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certification_status"), "smoke certification status admin tool must be registered");
 assert(smokeCertToolsMigration.includes("/platform/plugins/smoke-certifications/certify"), "smoke certification writer tool must point at route");
