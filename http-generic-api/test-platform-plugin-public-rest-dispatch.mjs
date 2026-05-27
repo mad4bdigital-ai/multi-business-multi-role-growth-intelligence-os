@@ -15,6 +15,9 @@ assert(service.includes('resolution.mode !== "dispatch_ready"'), "dispatcher mus
 assert(service.includes("resolution.execution?.will_execute !== true"), "dispatcher must require execution.will_execute=true");
 assert(service.includes("dispatch_template_missing"), "dispatcher must fail closed when REST action template is missing");
 assert(service.includes("platform_plugin_contributions.action_bindings_json"), "dispatcher must use contribution action template source");
+assert(service.includes("loadEndpointRegistryActionTemplate"), "dispatcher must support endpoint registry template fallback");
+assert(service.includes("endpoints.endpoint_path_or_function"), "dispatcher must use endpoint registry path fallback when contribution template is missing");
+assert(service.includes("endpoint_key: endpoint?.endpoint_key"), "dispatcher must include endpoint fallback evidence in request summary");
 assert(service.includes("https_required"), "dispatcher must enforce HTTPS");
 assert(service.includes("private_network_blocked"), "dispatcher must block private-network hosts");
 assert(service.includes("safeHeaders"), "dispatcher must sanitize outgoing headers");
