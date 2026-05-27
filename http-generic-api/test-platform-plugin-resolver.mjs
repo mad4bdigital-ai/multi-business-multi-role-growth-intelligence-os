@@ -160,6 +160,24 @@ function makePool({ withConnection = true, withSkill = true, tenantDedicated = f
 }
 
 {
+  const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true, withSmokeCertification: false });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+  });
+  assert.equal(result.allowed, false);
+  assert.equal(result.mode, "preview_only");
+  assert(result.reason.includes("smoke_certification_required"));
+  assert.equal(result.smoke_certification.required, true);
+  assert.equal(result.smoke_certification.certified, false);
+  assert.equal(result.execution.will_execute, false);
+}
+
+{
   const pool = makePool({ withConnection: false, withSkill: true, tenantDedicated: true });
   const result = await resolvePlatformPluginExecution({
     pool,
