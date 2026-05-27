@@ -156,6 +156,10 @@ async function post(path, payload) {
 }
 
 section("Layer 3 - Runtime health");
+console.log(`  runtime_profile: ${RUNTIME_PROFILE}`);
+console.log(`  expect_queue_available: ${EXPECT_QUEUE_AVAILABLE}`);
+console.log(`  expect_worker_enabled: ${EXPECT_WORKER_ENABLED}`);
+console.log(`  verify_execution_log_row: ${VERIFY_EXECUTION_LOG_ROW}`);
 
 const health = await get("/health");
 if (isBotVerificationResponse(health)) finishEnvironmentAccessBlocked(health, "/health");
