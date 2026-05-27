@@ -1102,6 +1102,11 @@ export function buildLocalConnectorInstallRoutes(deps) {
         config_id: config.config_id,
         format,
         capabilities,
+        permission_grants: {
+          allowed_paths: permissionGrants.allowed_paths,
+          app_aliases: Object.keys(permissionGrants.apps),
+          shell_aliases: permissionGrants.shell_aliases.map((entry) => entry.alias),
+        },
         ttl_minutes: ttl,
         download_url,
         run_as_admin_required: true,
