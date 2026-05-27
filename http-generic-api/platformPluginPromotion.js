@@ -141,7 +141,8 @@ async function checkContributionSmokeCertifications({ pool, contribution }) {
     const rows = await safeQuery(
       pool,
       `SELECT certification_id, mock_provider, mock_resource, last_response_status,
-              last_smoke_execution_log_id, certified_at, certification_status
+              last_smoke_execution_log_id, certified_at, certification_expires_at,
+              last_recertification_required_at, recertification_reason, certification_status
          FROM platform_plugin_smoke_certifications
         WHERE plugin_key = ?
           AND action_key = ?
