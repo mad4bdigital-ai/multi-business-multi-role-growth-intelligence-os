@@ -3,6 +3,7 @@
   "required_files": [
     "routes/platformPluginRoutes.js",
     "routes/tenantPlatformPluginRoutes.js",
+    "routes/tenantEvolutionRoutes.js",
     "routes/platformGraphRoutes.js",
     "routes/platformEvolutionRoutes.js",
     "routes/schemaImportRoutes.js",
