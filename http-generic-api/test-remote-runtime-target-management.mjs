@@ -10,6 +10,7 @@ assert(service.includes("upsertRemoteRuntimeTarget"), "service must export targe
 assert(service.includes("validateRemoteRuntimeTarget"), "service must export target validate");
 assert(service.includes("rejectSecretLikePayload"), "service must reject secret-like metadata");
 assert(service.includes("remote_runtime_secret_like_metadata_rejected"), "service must use stable secret rejection code");
+assert(service.includes('key === "secrets_included" && child === false'), "service must allow the safe secrets_included=false marker");
 assert(service.includes("hosting_account targets require system_id or connection_id"), "hosting target must require system/connection reference");
 assert(service.includes("local_path targets require local_path_id"), "local path target must require local path reference");
 assert(service.includes("metadata_registered_no_ssh_execution"), "hosting upsert must remain metadata-only");
