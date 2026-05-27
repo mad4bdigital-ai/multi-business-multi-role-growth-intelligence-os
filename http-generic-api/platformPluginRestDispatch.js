@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 import { resolvePlatformPluginExecution } from "./platformPluginResolver.js";
+import { resolveExecutionReadinessDryRun } from "./executionReadinessDryRun.js";
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 const BLOCKED_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);
@@ -139,6 +140,20 @@ export async function dispatchPlatformPluginRestAction({
   input = {},
   dryRun = false,
   timeoutMs = 10000,
+  enforceExecutionReadiness = true,
+  brandKey = null,
+  businessTypeKey = null,
+  businessActivityTypeKey = null,
+  workflowKey = null,
+  logicKey = null,
+  logicPackKey = null,
+  skillKey = null,
+  actorRole = null,
+  governanceLevel = null,
+  graphDepth = 1,
+  graphLimit = 120,
+  detailLimit = 10,
+  edgeDetailLimit = 10,
 } = {}) {
   const normalizedPluginKey = normalizeKey(pluginKey, 128);
   const normalizedActionKey = normalizeKey(actionKey, 128);
@@ -150,6 +165,42 @@ export async function dispatchPlatformPluginRestAction({
     err.code = "missing_platform_dispatch_context";
     err.status = 400;
     throw err;
+  }
+
+  let executionReadiness = null;
+  if (enforceExecutionReadiness !== false) {
+    executionReadiness = await resolveExecutionReadinessDryRun({
+      action_key: normalizedActionKey,
+      endpoint_key: normalizedActionKey,
+      plugin_key: normalizedPluginKey,
+      tenant_id: normalizedTenantId,
+      user_id: normalizedUserId,
+      agent_id: normalizedAgentId,
+      brand_key: brandKey || input?.brand_key || input?.target_key || null,
+      business_type_key: businessTypeKey || input?.business_type_key || null,
+      business_activity_type_key: businessActivityTypeKey || input?.business_activity_type_key || input?.activity_key || null,
+      workflow_key: workflowKey || input?.workflow_key || null,
+      logic_key: logicKey || input?.logic_key || null,
+      logic_pack_key: logicPackKey || input?.logic_pack_key || null,
+      skill_key: skillKey || input?.skill_key || null,
+      actor_role: actorRole || input?.actor_role || null,
+      governance_level: governanceLevel || input?.governance_level || null,
+      preview_enforce: true,
+      require_plugin_connection: true,
+      graph_depth: graphDepth,
+      graph_limit: graphLimit,
+      detail_limit: detailLimit,
+      edge_detail_limit: edgeDetailLimit,
+    });
+    if (executionReadiness.dispatch_ready !== true) {
+      return {
+        ok: true,
+        dispatched: false,
+        reason: "execution_readiness_not_dispatch_ready",
+        execution_readiness: executionReadiness,
+        secrets_included: false,
+      };
+    }
   }
 
   const resolution = await resolvePlatformPluginExecution({
@@ -243,6 +294,7 @@ export async function dispatchPlatformPluginRestAction({
       reason: "dry_run",
       request: requestSummary,
       resolution,
+      execution_readiness: executionReadiness,
       execution_log: log ? { ok: true, id: log.id, execution_status: log.execution_status, trace_id: log.execution_trace_id_writeback } : { ok: false, trace_id: traceId },
       secrets_included: false,
     };

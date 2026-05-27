@@ -6,7 +6,11 @@ const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/145_sprint65_platform_plugin_public_rest_dispatch_tool.sql", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
 
-assert(service.includes("resolvePlatformPluginExecution"), "public dispatcher must call resolver first");
+assert(service.includes("resolveExecutionReadinessDryRun"), "public dispatcher must run full execution readiness dry-run before dispatch");
+assert(service.includes("execution_readiness_not_dispatch_ready"), "public dispatcher must block when readiness dry-run is not dispatch_ready");
+assert(service.includes("preview_enforce: true"), "public dispatcher must enforce manifest guard preview before dispatch");
+assert(service.includes("require_plugin_connection: true"), "public dispatcher must require plugin connection before dispatch");
+assert(service.includes("resolvePlatformPluginExecution"), "public dispatcher must call resolver after readiness preflight");
 assert(service.includes('resolution.mode !== "dispatch_ready"'), "dispatcher must require dispatch_ready mode");
 assert(service.includes("resolution.execution?.will_execute !== true"), "dispatcher must require execution.will_execute=true");
 assert(service.includes("dispatch_template_missing"), "dispatcher must fail closed when REST action template is missing");
@@ -20,6 +24,10 @@ assert(service.includes("secrets_included: false"), "dispatcher must explicitly 
 assert(routes.includes("dispatchPlatformPluginRestAction"), "routes must import public dispatch service");
 assert(routes.includes("/platform/plugins/dispatch-rest"), "routes must expose public REST dispatch endpoint");
 assert(routes.includes("platform_plugin_rest_dispatch_failed"), "routes must use structured dispatch error code");
+assert(routes.includes("enforceExecutionReadiness"), "dispatch route must pass readiness enforcement flag");
+assert(routes.includes("businessActivityTypeKey"), "dispatch route must pass business activity context");
+assert(routes.includes("logicPackKey"), "dispatch route must pass logic pack context");
+assert(routes.includes("edgeDetailLimit"), "dispatch route must pass bounded graph detail limits");
 
 assert(migration.includes("platform_plugin_dispatch_rest"), "migration must register dispatch tool key");
 assert(migration.includes("/platform/plugins/dispatch-rest"), "migration must bind dispatch route path");
@@ -31,6 +39,8 @@ const dispatchPathMatches = openapi.match(/\/platform\/plugins\/dispatch-rest:/g
 assert.equal(dispatchPathMatches.length, 1, "OpenAPI must document dispatch route exactly once");
 assert(openapi.includes("operationId: platformPluginDispatchRest"), "OpenAPI must expose stable dispatch operationId");
 assert(openapi.includes("x-openai-isConsequential: true"), "OpenAPI must mark dispatch route consequential");
+assert(openapi.includes("full execution readiness passes"), "OpenAPI must document readiness guard before dispatch");
+assert(openapi.includes("Brand, Business Activity, Workflow/Logic, Skill, and Platform Graph"), "OpenAPI must document readiness context fields");
 
 for (const forbidden of [
   "api_key_value",
