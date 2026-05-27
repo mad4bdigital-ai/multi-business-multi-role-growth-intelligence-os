@@ -1,6 +1,3 @@
-name: Fallback Hostinger SSH Deploy
-
-on:
   workflow_dispatch:
     inputs:
       target:
