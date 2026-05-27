@@ -7,7 +7,8 @@ import {
   normalizeOffset,
   resolveSessionContextSubject,
   SESSION_CONTEXT_DEFAULT_LIMIT,
-  SESSION_CONTEXT_MAX_LIMIT
+  SESSION_CONTEXT_MAX_LIMIT,
+  resolveRequestedEvolutionScope
 } from "./routes/activationRoutes.js";
 
 {
@@ -47,6 +48,24 @@ assert.equal(capLimit(500, SESSION_CONTEXT_DEFAULT_LIMIT, SESSION_CONTEXT_MAX_LI
 assert.equal(normalizeOffset(undefined), 0);
 assert.equal(normalizeOffset(-1), 0);
 assert.equal(normalizeOffset(40), 40);
+
+{
+  const scope = resolveRequestedEvolutionScope({}, { is_admin: true });
+  assert.equal(scope, "brand:growth_intelligence_platform|tenant:00000000-0000-4000-a000-000000000010");
+}
+
+{
+  const scope = resolveRequestedEvolutionScope(
+    { evolution_brand_key: "brand_a", evolution_tenant_id: "tenant-a" },
+    { is_admin: false, tenant_id: "tenant-a", user_id: "user-a" }
+  );
+  assert.equal(scope, "brand:brand_a|tenant:tenant-a");
+}
+
+{
+  const scope = resolveRequestedEvolutionScope({}, { is_admin: false, tenant_id: "tenant-a", user_id: "user-a" });
+  assert.equal(scope, null);
+}
 
 {
   const transcript = buildEnvelopeTranscript({
@@ -94,6 +113,10 @@ assert.equal(normalizeOffset(40), 40);
   assert.equal(source.includes("include_turns: asBoolean(req.query.include_turns)"), true);
   assert.equal(source.includes("include_turns: includeTurns"), true);
   assert.equal(source.includes("platform_pending_tasks.conversation_context_ref"), true);
+  assert.equal(source.includes("platform_evolution: platformEvolution"), true);
+  assert.equal(source.includes("loadPlatformEvolutionCheckpointContext"), true);
+  assert.equal(source.includes("v_platform_evolution_activation_card"), true);
+  assert.equal(source.includes("platform_evolution_degraded"), true);
   assert.equal(source.includes("INFORMATION_SCHEMA.COLUMNS"), true);
   assert.equal(source.includes("NULL AS brief"), true);
   assert.equal(source.includes("NULL AS activation_prompt"), true);

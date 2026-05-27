@@ -309,6 +309,119 @@ export function resolveSessionContextSubject(req) {
 }
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
+const PLATFORM_EVOLUTION_BRAND_KEY = "growth_intelligence_platform";
+const PLATFORM_EVOLUTION_TENANT_ID = "00000000-0000-4000-a000-000000000010";
+const PLATFORM_EVOLUTION_SCOPE_KEY = `brand:${PLATFORM_EVOLUTION_BRAND_KEY}|tenant:${PLATFORM_EVOLUTION_TENANT_ID}`;
+
+export function resolveRequestedEvolutionScope(query = {}, subject = {}) {
+  const explicitScope = String(query.evolution_scope_key || query.scope_key || "").trim();
+  if (explicitScope) return explicitScope;
+
+  const brandKey = String(query.evolution_brand_key || query.brand_key || "").trim();
+  const tenantId = String(query.evolution_tenant_id || query.tenant_id || subject.tenant_id || "").trim();
+  if (brandKey && tenantId) return `brand:${brandKey}|tenant:${tenantId}`;
+
+  if (subject.is_admin) return PLATFORM_EVOLUTION_SCOPE_KEY;
+  return null;
+}
+
+async function loadPlatformEvolutionCheckpointContext(subject = {}, query = {}) {
+  const requestedScopeKey = resolveRequestedEvolutionScope(query, subject);
+  if (!requestedScopeKey) {
+    return {
+      ok: true,
+      requested: false,
+      available: false,
+      scope_key: null,
+      access_state: "not_requested",
+      card: null,
+      secrets_included: false,
+    };
+  }
+
+  try {
+    if (!subject.is_admin) {
+      const access = await safeQuery(
+        `SELECT scope_key, access_state
+           FROM \`v_platform_evolution_scope_access\`
+          WHERE scope_key = ?
+            AND (? IS NULL OR tenant_id = ?)
+            AND (? IS NULL OR user_id = ?)
+            AND access_state = 'allowed'
+          LIMIT 1`,
+        [requestedScopeKey, subject.tenant_id, subject.tenant_id, subject.user_id, subject.user_id]
+      );
+      if (!access.ok) {
+        return {
+          ok: false,
+          requested: true,
+          available: false,
+          scope_key: requestedScopeKey,
+          access_state: "validation_error",
+          card: null,
+          error: access.error,
+          secrets_included: false,
+        };
+      }
+      if (!access.rows.length) {
+        return {
+          ok: true,
+          requested: true,
+          available: false,
+          scope_key: requestedScopeKey,
+          access_state: "not_granted",
+          card: null,
+          secrets_included: false,
+        };
+      }
+    }
+
+    const card = await safeQuery(
+      `SELECT *
+         FROM \`v_platform_evolution_activation_card\`
+        WHERE scope_key = ?
+        LIMIT 1`,
+      [requestedScopeKey]
+    );
+    if (!card.ok) {
+      return {
+        ok: false,
+        requested: true,
+        available: false,
+        scope_key: requestedScopeKey,
+        access_state: subject.is_admin ? "admin_allowed" : "allowed",
+        card: null,
+        error: card.error,
+        secrets_included: false,
+      };
+    }
+
+    return {
+      ok: true,
+      requested: true,
+      available: card.rows.length > 0,
+      scope_key: requestedScopeKey,
+      access_state: subject.is_admin ? "admin_allowed" : "allowed",
+      card: card.rows[0] || null,
+      source: "v_platform_evolution_activation_card",
+      next_action: card.rows[0]
+        ? "Use platform_evolution_thread_map and platform_evolution_open_evidence for detailed checkpoint drilldown."
+        : "Create a platform_evolution checkpoint for this scope.",
+      secrets_included: false,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      requested: true,
+      available: false,
+      scope_key: requestedScopeKey,
+      access_state: "error",
+      card: null,
+      error: { code: err.code || "platform_evolution_context_failed", message: err.message },
+      secrets_included: false,
+    };
+  }
+}
 
 async function getPlatformPendingTaskColumnFlags() {
   const result = await safeQuery(
@@ -878,6 +991,8 @@ export async function buildActivationSessionContext(req) {
     pending_tasks: pendingTaskRows,
   });
 
+  const platformEvolution = await loadPlatformEvolutionCheckpointContext(subject, req.query || {});
+
   return {
     session_id: newSessionId,
     closed_sessions,
@@ -928,6 +1043,7 @@ export async function buildActivationSessionContext(req) {
     gpt_sessions: gptSessions.rows,
     conversation_memory: conversationMemory,
     platform_access: platformAccess,
+    platform_evolution: platformEvolution,
     pending_tasks: {
       summary: pendingTaskSummary,
       items: pendingTaskRows
@@ -942,7 +1058,8 @@ export async function buildActivationSessionContext(req) {
       ["gpt_sessions", gptSessions],
       ["pending_tasks", pendingTasks],
       ["conversation_memory", { ok: conversationMemory.degraded_surfaces.length === 0, error: { code: "conversation_memory_degraded", details: conversationMemory.degraded_surfaces } }],
-      ["platform_access", { ok: platformAccess.degraded_surfaces.length === 0, error: { code: "platform_access_degraded", details: platformAccess.degraded_surfaces } }]
+      ["platform_access", { ok: platformAccess.degraded_surfaces.length === 0, error: { code: "platform_access_degraded", details: platformAccess.degraded_surfaces } }],
+      ["platform_evolution", { ok: platformEvolution.ok !== false, error: platformEvolution.error || { code: "platform_evolution_degraded" } }]
     ]
       .filter(([, result]) => !result.ok)
       .map(([surface, result]) => ({ surface, error: result.error }))
