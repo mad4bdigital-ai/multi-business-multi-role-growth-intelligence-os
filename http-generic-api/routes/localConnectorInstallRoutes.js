@@ -595,8 +595,9 @@ function buildAllowlistEnvValue(aliases) {
   return JSON.stringify(obj);
 }
 
-function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port }) {
+function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port, capabilities = [] }) {
   const allowlistVal = buildAllowlistEnvValue(aliases);
+  const capabilityLines = connectorCapabilityEnvLines(capabilities).map((line) => `echo ${line}>> \"%~dp0.env\"`);
   return [
     "@echo off",
     "setlocal EnableDelayedExpansion",
