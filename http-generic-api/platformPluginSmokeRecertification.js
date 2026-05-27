@@ -43,7 +43,7 @@ function classifyCertification(row, { policy = null, expiresSoonDays = 14 } = {}
   const reasons = [];
   const expiresInDays = daysUntil(row.certification_expires_at);
   const expired = expiresInDays !== null && expiresInDays <= 0;
-  const expiresSoon = expiresInDays !== null && expiresInDays > 0 && expiresInDays <= expiresSoonDays;
+  const expiresSoon = expiresInDays !== null && expiresInDays > 0 && expiresInDays <= effectiveExpiresSoonDays;
   let currentUrl = null;
   let currentUrlError = null;
   try {
