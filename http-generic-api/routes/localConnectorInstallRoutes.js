@@ -656,9 +656,11 @@ function buildAllowlistEnvValue(aliases) {
   return JSON.stringify(obj);
 }
 
-function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port, capabilities = [] }) {
-  const allowlistVal = buildAllowlistEnvValue(aliases);
-  const capabilityLines = connectorCapabilityEnvLines(capabilities).map((line) => `echo ${line}>> \"%~dp0.env\"`);
+function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
+  const envEchoLines = buildConnectorEnv({ connectorSecret, aliases, port, capabilities, permissionGrants })
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line, index) => `echo ${line}${index === 0 ? ">" : ">>"} \"%~dp0.env\"`);
   return [
     "@echo off",
     "setlocal EnableDelayedExpansion",
