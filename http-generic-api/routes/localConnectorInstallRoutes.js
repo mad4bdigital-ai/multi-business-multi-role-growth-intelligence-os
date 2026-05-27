@@ -1165,7 +1165,21 @@ export function buildLocalConnectorInstallRoutes(deps) {
       });
       const path = format === "bat" ? "/local-connector/install/download" : "/connector-agent/installer.ps1";
       const download_url = `${publicBaseUrl(req)}${path}?token=${encodeURIComponent(token)}`;
-      return res.status(200).json({ ok: true, device_id, config_id: config.config_id, format, ttl_minutes: ttl, download_url, secrets_included: false });
+      return res.status(200).json({
+        ok: true,
+        device_id,
+        config_id: config.config_id,
+        format,
+        capabilities,
+        permission_grants: {
+          allowed_paths: permissionGrants.allowed_paths,
+          app_aliases: Object.keys(permissionGrants.apps),
+          shell_aliases: permissionGrants.shell_aliases.map((entry) => entry.alias),
+        },
+        ttl_minutes: ttl,
+        download_url,
+        secrets_included: false,
+      });
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "download_link_failed", message: err.message } });
     }
