@@ -167,6 +167,42 @@ export async function dispatchPlatformPluginRestAction({
     throw err;
   }
 
+  let executionReadiness = null;
+  if (enforceExecutionReadiness !== false) {
+    executionReadiness = await resolveExecutionReadinessDryRun({
+      action_key: normalizedActionKey,
+      endpoint_key: normalizedActionKey,
+      plugin_key: normalizedPluginKey,
+      tenant_id: normalizedTenantId,
+      user_id: normalizedUserId,
+      agent_id: normalizedAgentId,
+      brand_key: brandKey || input?.brand_key || input?.target_key || null,
+      business_type_key: businessTypeKey || input?.business_type_key || null,
+      business_activity_type_key: businessActivityTypeKey || input?.business_activity_type_key || input?.activity_key || null,
+      workflow_key: workflowKey || input?.workflow_key || null,
+      logic_key: logicKey || input?.logic_key || null,
+      logic_pack_key: logicPackKey || input?.logic_pack_key || null,
+      skill_key: skillKey || input?.skill_key || null,
+      actor_role: actorRole || input?.actor_role || null,
+      governance_level: governanceLevel || input?.governance_level || null,
+      preview_enforce: true,
+      require_plugin_connection: true,
+      graph_depth: graphDepth,
+      graph_limit: graphLimit,
+      detail_limit: detailLimit,
+      edge_detail_limit: edgeDetailLimit,
+    });
+    if (executionReadiness.dispatch_ready !== true) {
+      return {
+        ok: true,
+        dispatched: false,
+        reason: "execution_readiness_not_dispatch_ready",
+        execution_readiness: executionReadiness,
+        secrets_included: false,
+      };
+    }
+  }
+
   const resolution = await resolvePlatformPluginExecution({
     pool,
     pluginKey: normalizedPluginKey,
