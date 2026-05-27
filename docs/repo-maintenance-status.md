@@ -47,8 +47,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Route Coverage Allowlist
 
-- Required files: 15
-- Exact allowlist entries: 14
+- Required files: 16
+- Exact allowlist entries: 17
 - Prefix allowlist entries: 14
 - File allowlist entries: 5
 
