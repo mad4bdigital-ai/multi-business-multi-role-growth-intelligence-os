@@ -337,6 +337,9 @@ function createPool() {
   assert(dryRunSource.includes("loadSkillReadiness"), "execution readiness dry-run must include Skill readiness");
   assert(dryRunSource.includes("will_execute: false"), "execution readiness dry-run must never execute");
   assert(dryRunSource.includes("secrets_included: false"), "execution readiness dry-run must be secret-free");
+  assert(dryRunSource.includes("summarizeGraphNodes"), "execution readiness dry-run must summarize graph nodes");
+  assert(dryRunSource.includes("summarizeGraphEdges"), "execution readiness dry-run must summarize graph edges");
+  assert(dryRunSource.includes("detail_truncated"), "execution readiness dry-run must report detail truncation");
 
   const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
   assert(routes.includes("/platform/execution-readiness/dry-run"), "execution readiness dry-run route must be mounted");
