@@ -777,10 +777,10 @@ if(restoreUser()) loadDevices();
 </body></html>`;
 }
 
-const LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.11";
+const LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.12";
 const LOCAL_MANAGER_WINDOWS_RELEASE_TAG = "local-manager-windows-latest";
-const LOCAL_MANAGER_WINDOWS_EXE_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.11.exe";
-const LOCAL_MANAGER_WINDOWS_SHA256_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.11.exe.sha256.json";
+const LOCAL_MANAGER_WINDOWS_EXE_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.12.exe";
+const LOCAL_MANAGER_WINDOWS_SHA256_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.12.exe.sha256.json";
 
 function normalizeVersion(value) {
   const raw = String(value || "").trim().replace(/^v/i, "");
