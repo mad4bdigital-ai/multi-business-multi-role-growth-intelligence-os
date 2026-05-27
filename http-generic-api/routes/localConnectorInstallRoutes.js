@@ -1146,6 +1146,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
       if (!device_id) return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "device_id is required." } });
       if (!["ps1", "bat"].includes(format)) return res.status(400).json({ ok: false, error: { code: "unsupported_format", message: "format must be ps1 or bat." } });
       const principal = await resolveRequestedLocalPrincipal(req, { user_id, tenant_id });
+      const permissionGrants = normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] });
+      const capabilities = permissionGrants.capabilities;
       const [[config]] = await getPool().query(
         "SELECT config_id, tenant_id FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
         [principal.userId, device_id]
