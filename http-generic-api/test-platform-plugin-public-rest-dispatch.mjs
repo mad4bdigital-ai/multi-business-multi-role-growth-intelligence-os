@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 
 const service = readFileSync("platformPluginRestDispatch.js", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
+const routeIndex = readFileSync("routes/index.js", "utf8");
+const smokeRoutes = readFileSync("routes/platformSmokeRoutes.js", "utf8");
 const migration = readFileSync("migrations/145_sprint65_platform_plugin_public_rest_dispatch_tool.sql", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
 
