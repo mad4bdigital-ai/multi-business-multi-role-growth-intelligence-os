@@ -137,6 +137,8 @@ assert(pluginResolverSource.includes("smoke_certification_required"), "plugin re
 assert(pluginResolverSource.includes("smoke_certification: smokeCertification"), "plugin resolver must return smoke certification evidence");
 assert(pluginResolverSource.includes("last_response_status = 200"), "plugin resolver must require successful 200 smoke certification");
 assert(pluginResolverSource.includes("secrets_included = 0"), "plugin resolver must require secret-free smoke certification");
+assert(pluginResolverSource.includes("smoke_certification_expired"), "plugin resolver must reject expired smoke certifications");
+assert(pluginResolverSource.includes("certification_expires_at"), "plugin resolver must return certification expiry evidence");
 
 assert(promotionSource.includes("checkContributionSmokeCertifications"), "promotion must check smoke certifications before platform base promotion");
 assert(promotionSource.includes("smoke_certification_required"), "promotion must block when smoke certification is missing");
