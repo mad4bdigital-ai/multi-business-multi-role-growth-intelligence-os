@@ -194,6 +194,8 @@ export async function dispatchPlatformPluginRestAction({
   graphLimit = 120,
   detailLimit = 10,
   edgeDetailLimit = 10,
+  providerSmoke = false,
+  providerSmokeExpectedOrigin = null,
 } = {}) {
   const normalizedPluginKey = normalizeKey(pluginKey, 128);
   const normalizedActionKey = normalizeKey(actionKey, 128);
