@@ -209,6 +209,59 @@ async function checkSkillGrant({ pool, agentId, tenantId, requiredSkillKey }) {
   };
 }
 
+async function checkSmokeCertification({ pool, pluginKey, actionKey }) {
+  if (!actionKey) {
+    return {
+      required: false,
+      certified: true,
+      reason: "no_action_requested",
+      secrets_included: false,
+    };
+  }
+  const rows = await safeQuery(
+    pool,
+    `SELECT certification_id, mock_provider, mock_resource, expected_origin,
+            url_origin, url_path, http_method, last_smoke_status,
+            last_response_status, last_response_ok, last_smoke_execution_log_id,
+            last_smoke_trace_id, certified_at, certification_status
+       FROM platform_plugin_smoke_certifications
+      WHERE plugin_key = ?
+        AND action_key = ?
+        AND certification_status = 'certified'
+        AND last_smoke_status = 'success'
+        AND last_response_ok = 1
+        AND last_response_status = 200
+        AND secrets_included = 0
+      ORDER BY certified_at DESC
+      LIMIT 1`,
+    [pluginKey, actionKey]
+  );
+  const row = rows[0] || null;
+  return {
+    required: true,
+    certified: Boolean(row),
+    reason: row ? "smoke_certification_active" : "smoke_certification_required",
+    certification: row ? {
+      certification_id: row.certification_id,
+      mock_provider: row.mock_provider,
+      mock_resource: row.mock_resource,
+      expected_origin: row.expected_origin,
+      url_origin: row.url_origin,
+      url_path: row.url_path,
+      http_method: row.http_method,
+      last_smoke_status: row.last_smoke_status,
+      last_response_status: row.last_response_status,
+      last_response_ok: Boolean(row.last_response_ok),
+      last_smoke_execution_log_id: row.last_smoke_execution_log_id,
+      last_smoke_trace_id: row.last_smoke_trace_id,
+      certified_at: row.certified_at,
+      certification_status: row.certification_status,
+      secrets_included: false,
+    } : null,
+    secrets_included: false,
+  };
+}
+
 async function checkActionGrant({ pool, pluginKey, actionKey, agentId, credential }) {
   if (!actionKey) return { required: false, granted: true, grant_id: null, reason: "no_action_requested" };
   if (!credential?.connection_id) {
@@ -361,14 +414,16 @@ export async function resolvePlatformPluginExecution({
   });
   const requiredSkillKey = deriveRequiredSkill({ pluginKey: normalizedPluginKey, actionKey, toolKey, binding });
   const skill = await checkSkillGrant({ pool, agentId, tenantId, requiredSkillKey });
+  const smokeCertification = await checkSmokeCertification({ pool, pluginKey: normalizedPluginKey, actionKey });
 
   const pluginStatusActive = ["active", "beta"].includes(normalize(rows.plugin.status));
-  const allowed = Boolean(pluginStatusActive && bindingState.ok && credential.ok && skill.granted);
+  const allowed = Boolean(pluginStatusActive && bindingState.ok && credential.ok && skill.granted && smokeCertification.certified);
   const denialReasons = [];
   if (!pluginStatusActive) denialReasons.push("plugin_not_active");
   if (!bindingState.ok) denialReasons.push(bindingState.reason);
   if (!credential.ok) denialReasons.push(credential.reason);
   if (!skill.granted) denialReasons.push(skill.reason);
+  if (!smokeCertification.certified) denialReasons.push(smokeCertification.reason);
 
   const defaultGrants = parseJsonArray(rows.plugin.default_action_grants, []);
   const baseApprovalRequired = Boolean(
@@ -417,6 +472,7 @@ export async function resolvePlatformPluginExecution({
     } : null,
     credential_resolution: credential,
     skill_resolution: skill,
+    smoke_certification: smokeCertification,
     approval: {
       approval_required: approvalRequired,
       base_required: baseApprovalRequired,

@@ -27,7 +27,7 @@ const baseContributionRow = {
   notes: "draft contribution",
 };
 
-function makePool({ existingBase = false, certified = false } = {}) {
+function makePool({ existingBase = false, certified = false, smokeCertified = true } = {}) {
   const calls = [];
   return {
     calls,
@@ -36,6 +36,17 @@ function makePool({ existingBase = false, certified = false } = {}) {
       if (sql.includes("SELECT app_key FROM app_integrations")) return existingBase ? [[{ app_key: "tenant.custom_crm_promoted" }]] : [[]];
       if (sql.includes("FROM platform_plugin_contributions")) {
         return [[{ ...baseContributionRow, status: certified ? "certified" : baseContributionRow.status, certification_status: certified ? "certified" : baseContributionRow.certification_status }]];
+      }
+      if (sql.includes("FROM platform_plugin_smoke_certifications")) {
+        return smokeCertified ? [[{
+          certification_id: "smoke-cert-1",
+          mock_provider: "crm",
+          mock_resource: "contacts",
+          last_response_status: 200,
+          last_smoke_execution_log_id: 14132,
+          certified_at: "2026-05-27T12:26:50.000Z",
+          certification_status: "certified",
+        }]] : [[]];
       }
       if (sql.includes("INSERT INTO app_integrations")) return [{ affectedRows: 1, insertId: 10 }];
       if (sql.includes("INSERT INTO app_integration_action_bindings")) return [{ affectedRows: 1, insertId: 20 }];
@@ -94,15 +105,24 @@ function makePool({ existingBase = false, certified = false } = {}) {
 }
 
 {
-  const pool = makePool({ certified: true });
+  const pool = makePool({ certified: true, smokeCertified: true });
   const result = await promotePlatformPluginContribution({ pool, contributionId: "contrib-1", adminUserId: "admin-1", status: "beta", notes: "promote test" });
   assert.equal(result.ok, true);
   assert.equal(result.promoted, true);
   assert.equal(result.platform_base_mutated, true);
   assert.equal(result.app_integration.app_key, "tenant.custom_crm_promoted");
   assert.equal(result.action_bindings[0].credential_source, "tenant_connection");
+  assert(pool.calls.some((call) => call.sql.includes("FROM platform_plugin_smoke_certifications")), "promotion must check smoke certification registry");
   assert(pool.calls.some((call) => call.sql.includes("INSERT INTO app_integrations")), "promotion must insert Platform Base app_integrations row");
   assert(pool.calls.some((call) => call.sql.includes("INSERT INTO app_integration_action_bindings")), "promotion must insert action bindings");
+}
+
+{
+  const pool = makePool({ certified: true, smokeCertified: false });
+  await assert.rejects(
+    () => promotePlatformPluginContribution({ pool, contributionId: "contrib-1", adminUserId: "admin-1" }),
+    (err) => err?.code === "smoke_certification_required" && err?.details?.missing_action_keys?.includes("crm.contact.list")
+  );
 }
 
 {
@@ -120,6 +140,9 @@ function makePool({ existingBase = false, certified = false } = {}) {
   const migration = readFileSync("migrations/128_sprint64_platform_plugin_promotion.sql", "utf8");
   assert(migration.includes("platform_plugin_contribution_certify"), "certify tool must be registered");
   assert(migration.includes("platform_plugin_contribution_promote"), "promote tool must be registered");
+  const promotionSource = readFileSync("platformPluginPromotion.js", "utf8");
+  assert(promotionSource.includes("checkContributionSmokeCertifications"), "promotion service must enforce smoke certifications");
+  assert(promotionSource.includes("smoke_certification_required"), "promotion service must block missing smoke certifications");
 }
 
 console.log("platform plugin promotion tests passed");

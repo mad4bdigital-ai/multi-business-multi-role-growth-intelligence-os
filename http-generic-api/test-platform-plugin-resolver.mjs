@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolvePlatformPluginExecution } from "./platformPluginResolver.js";
 
-function makePool({ withConnection = true, withSkill = true, tenantDedicated = false, withActionGrant = false, runtimeOnly = false } = {}) {
+function makePool({ withConnection = true, withSkill = true, tenantDedicated = false, withActionGrant = false, runtimeOnly = false, withSmokeCertification = true } = {}) {
   const calls = [];
   return {
     calls,
@@ -73,6 +73,24 @@ function makePool({ withConnection = true, withSkill = true, tenantDedicated = f
           expires_at: null,
         }]] : [[]];
       }
+      if (sql.includes("FROM platform_plugin_smoke_certifications")) {
+        return withSmokeCertification ? [[{
+          certification_id: "smoke-cert-1",
+          mock_provider: "crm",
+          mock_resource: "contacts",
+          expected_origin: "https://auth.mad4b.com",
+          url_origin: "https://auth.mad4b.com",
+          url_path: "/platform/mock-providers/crm/contacts",
+          http_method: "GET",
+          last_smoke_status: "success",
+          last_response_status: 200,
+          last_response_ok: 1,
+          last_smoke_execution_log_id: 14132,
+          last_smoke_trace_id: "trace-smoke-1",
+          certified_at: "2026-05-27T12:26:50.000Z",
+          certification_status: "certified",
+        }]] : [[]];
+      }
       return [[]];
     },
   };
@@ -93,6 +111,9 @@ function makePool({ withConnection = true, withSkill = true, tenantDedicated = f
   assert.equal(result.mode, "dispatch_ready");
   assert.equal(result.credential_resolution.credential_source, "user_connection");
   assert.equal(result.skill_resolution.granted, true);
+  assert.equal(result.smoke_certification.certified, true);
+  assert.equal(result.smoke_certification.certification.certification_id, "smoke-cert-1");
+  assert.equal(result.smoke_certification.certification.last_response_status, 200);
   assert.equal(result.approval.approval_required, false);
   assert.equal(result.execution.will_execute, true);
   assert.equal(result.secrets_included, false);
@@ -136,6 +157,24 @@ function makePool({ withConnection = true, withSkill = true, tenantDedicated = f
   assert.equal(result.execution.will_execute, true);
   assert.equal(result.execution.next_step, "dispatch_ready");
   assert.equal(result.secrets_included, false);
+}
+
+{
+  const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true, withSmokeCertification: false });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+  });
+  assert.equal(result.allowed, false);
+  assert.equal(result.mode, "preview_only");
+  assert(result.reason.includes("smoke_certification_required"));
+  assert.equal(result.smoke_certification.required, true);
+  assert.equal(result.smoke_certification.certified, false);
+  assert.equal(result.execution.will_execute, false);
 }
 
 {
