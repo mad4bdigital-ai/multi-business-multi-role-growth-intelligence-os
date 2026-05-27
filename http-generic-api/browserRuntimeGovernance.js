@@ -296,6 +296,9 @@ export function checkBrowserRuntimePolicy({ runtime = null, binding = null, inpu
   if (HIGH_RISK_BROWSER_ACTIONS.has(action) && input.explicit_approval !== true && input.approved !== true) {
     reasons.push("high_risk_action_requires_explicit_approval");
   }
+  if ((policy.requires_approval === true || policy.human_takeover_approval === true) && input.explicit_approval !== true && input.approved !== true) {
+    reasons.push("explicit_approval_required");
+  }
   if (["login_reuse", "persistent_authenticated_session", "authenticated_extraction"].includes(useCase) && policy.explicit_approval_required_for_login_reuse !== false && input.session_reuse_approved !== true) {
     reasons.push("login_or_session_reuse_requires_approval");
   }
@@ -504,4 +507,106 @@ export async function createBrowserSiteInspectionRun({ pool = getPool(), input =
     ],
   );
   return { ok: true, inspection_key: inspectionKey, status: "policy_allowed_pending_runtime", policy: policyCheck, secrets_included: false };
+}
+
+function deriveAdapterRequestStatus(runtime) {
+  const status = String(runtime?.status || "planned");
+  if (status.startsWith("active")) return "policy_allowed_pending_adapter";
+  if (status.includes("credential_required")) return "credential_required_pending_poc";
+  if (status.includes("candidate_under_review")) return "candidate_under_review_pending_poc";
+  if (status.includes("activation_pending")) return "adapter_poc_required";
+  return "runtime_not_active_pending_poc";
+}
+
+export async function createBrowserRuntimeAdapterRequest({ pool = getPool(), input = {}, defaultAction = "open_url", defaultUseCase = "browser_runtime", requestType = "browser_runtime_request" } = {}) {
+  assertNoSecretLike(input, requestType);
+  const bindingKey = input.binding_key || input.bindingKey;
+  const targetUrl = input.url || input.target_url || input.targetUrl;
+  const action = input.action || defaultAction;
+  const useCase = input.use_case || input.useCase || defaultUseCase;
+  const requestKey = input.request_key || input.requestKey || `${requestType}_${randomUUID()}`;
+  const policyCheck = await checkBrowserRuntimePolicyFromDb({
+    pool,
+    binding_key: bindingKey,
+    input: { ...input, target_url: targetUrl, action, use_case: useCase },
+  });
+  if (!policyCheck.ok) {
+    return { ok: false, request_key: requestKey, policy: policyCheck, error: { code: "browser_runtime_policy_blocked", message: "Browser runtime policy preflight blocked this request." }, secrets_included: false };
+  }
+
+  const binding = await loadBrowserRuntimeBinding({ pool, binding_key: bindingKey });
+  const runtime = (await getBrowserRuntime({ pool, runtime_key: binding.runtime_key })).runtime;
+  const target = parseBrowserUrl(targetUrl);
+  const sessionId = input.session_id || input.sessionId || randomUUID();
+  const requestStatus = deriveAdapterRequestStatus(runtime);
+  const metadata = {
+    request_key: requestKey,
+    request_type: requestType,
+    target_url: target.url,
+    action,
+    use_case: useCase,
+    runtime_status: runtime.status,
+    adapter_status: requestStatus,
+    adapter_configured: runtime.status === "active" && runtime.metadata?.adapter?.status === "active",
+    policy: policyCheck,
+    secrets_included: false,
+  };
+
+  await pool.query(
+    `INSERT INTO \`browser_runtime_sessions\`
+       (session_id, runtime_key, binding_key, tenant_id, user_id, url_host, status, expires_at, metadata_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND), ?)
+     ON DUPLICATE KEY UPDATE
+       runtime_key = VALUES(runtime_key), binding_key = VALUES(binding_key), tenant_id = VALUES(tenant_id),
+       user_id = VALUES(user_id), url_host = VALUES(url_host), status = VALUES(status),
+       expires_at = VALUES(expires_at), metadata_json = VALUES(metadata_json), updated_at = CURRENT_TIMESTAMP`,
+    [
+      sessionId,
+      runtime.runtime_key,
+      binding.binding_key,
+      input.tenant_id || input.tenantId || binding.tenant_id || null,
+      input.user_id || input.userId || binding.user_id || null,
+      target.host,
+      requestStatus,
+      Math.max(60, Math.min(Number(input.ttl_seconds || input.ttlSeconds || 1800), 14400)),
+      JSON.stringify(metadata),
+    ],
+  );
+
+  await pool.query(
+    `INSERT INTO \`browser_runtime_events\`
+       (event_id, session_id, runtime_key, binding_key, tenant_id, user_id, event_type, url_host, actor, policy_result, event_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      randomUUID(),
+      sessionId,
+      runtime.runtime_key,
+      binding.binding_key,
+      input.tenant_id || input.tenantId || binding.tenant_id || null,
+      input.user_id || input.userId || binding.user_id || null,
+      requestType,
+      target.host,
+      input.actor || input.requested_by || "growth-platform-admin",
+      policyCheck.policy_result,
+      JSON.stringify(metadata),
+    ],
+  );
+
+  return {
+    ok: true,
+    request_key: requestKey,
+    session_id: sessionId,
+    status: requestStatus,
+    runtime_key: runtime.runtime_key,
+    binding_key: binding.binding_key,
+    provider: runtime.provider,
+    capability_class: runtime.capability_class,
+    policy: policyCheck,
+    adapter: {
+      configured: metadata.adapter_configured,
+      status: requestStatus,
+      message: metadata.adapter_configured ? "Adapter is configured; execution handoff may proceed through runtime-specific route." : "Runtime policy is allowed, but the execution adapter is not configured/validated yet.",
+    },
+    secrets_included: false,
+  };
 }
