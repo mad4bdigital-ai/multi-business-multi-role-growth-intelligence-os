@@ -1,6 +1,7 @@
 import { getPool } from "./db.js";
 import { dispatchPlatformPluginRestAction } from "./platformPluginRestDispatch.js";
 import { certifyPlatformPluginSmoke } from "./platformPluginSmokeCertification.js";
+import { resolvePlatformPluginSmokeRecertificationPolicy } from "./platformPluginSmokeRecertificationPolicy.js";
 
 function compact(value = "", max = 255) {
   return String(value ?? "").trim().slice(0, max);
@@ -36,11 +37,13 @@ function daysUntil(value) {
   return Math.ceil((ms - Date.now()) / (24 * 60 * 60 * 1000));
 }
 
-function classifyCertification(row, { expiresSoonDays = 14 } = {}) {
+function classifyCertification(row, { policy = null, expiresSoonDays = 14 } = {}) {
+  const effectivePolicy = policy || { expires_soon_days: expiresSoonDays, auto_recertification_enabled: false, max_batch_size: 5, certification_ttl_days: 90 };
+  const effectiveExpiresSoonDays = boundedInt(effectivePolicy.expires_soon_days, expiresSoonDays, 1, 90);
   const reasons = [];
   const expiresInDays = daysUntil(row.certification_expires_at);
   const expired = expiresInDays !== null && expiresInDays <= 0;
-  const expiresSoon = expiresInDays !== null && expiresInDays > 0 && expiresInDays <= expiresSoonDays;
+  const expiresSoon = expiresInDays !== null && expiresInDays > 0 && expiresInDays <= effectiveExpiresSoonDays;
   let currentUrl = null;
   let currentUrlError = null;
   try {
@@ -55,9 +58,10 @@ function classifyCertification(row, { expiresSoonDays = 14 } = {}) {
   if (!row.current_endpoint_key || !row.current_path) reasons.push("endpoint_missing");
   if (currentUrlError) reasons.push("url_resolution_failed");
   if (currentUrl && row.url_origin && currentUrl.origin !== row.url_origin) reasons.push("origin_drift");
+  if (effectivePolicy.allowed_expected_origin && row.expected_origin && effectivePolicy.allowed_expected_origin !== row.expected_origin) reasons.push("policy_expected_origin_mismatch");
   if (currentUrl && row.url_path && currentUrl.pathname !== row.url_path) reasons.push("path_drift");
   if (row.http_method && currentMethod && String(row.http_method).toUpperCase() !== currentMethod) reasons.push("method_drift");
-  const driftReasons = reasons.filter((reason) => ["origin_drift", "path_drift", "method_drift", "connection_missing", "endpoint_missing", "url_resolution_failed"].includes(reason));
+  const driftReasons = reasons.filter((reason) => ["origin_drift", "path_drift", "method_drift", "policy_expected_origin_mismatch", "connection_missing", "endpoint_missing", "url_resolution_failed"].includes(reason));
   return {
     certification_id: row.certification_id,
     plugin_key: row.plugin_key,
@@ -90,7 +94,20 @@ function classifyCertification(row, { expiresSoonDays = 14 } = {}) {
     drift_reasons: driftReasons,
     recertification_required: reasons.some((reason) => reason !== "expires_soon"),
     recertification_due_soon: reasons.includes("expires_soon") && driftReasons.length === 0,
-    automatic_recertification_supported: driftReasons.length === 0 && Boolean(row.tenant_id && row.user_id && row.expected_origin),
+    automatic_recertification_supported: driftReasons.length === 0
+      && Boolean(row.tenant_id && row.user_id && row.expected_origin)
+      && effectivePolicy.auto_recertification_enabled === true,
+    policy: {
+      policy_id: effectivePolicy.policy_id || null,
+      source: effectivePolicy.source || null,
+      certification_ttl_days: effectivePolicy.certification_ttl_days,
+      expires_soon_days: effectiveExpiresSoonDays,
+      max_batch_size: effectivePolicy.max_batch_size,
+      auto_recertification_enabled: effectivePolicy.auto_recertification_enabled === true,
+      provider_smoke_required: effectivePolicy.provider_smoke_required !== false,
+      allowed_expected_origin: effectivePolicy.allowed_expected_origin || null,
+      secrets_included: false,
+    },
     secrets_included: false,
   };
 }
@@ -137,7 +154,22 @@ export async function listPlatformPluginSmokeRecertificationQueue(input = {}, de
   const expiresSoonDays = boundedInt(input.expires_soon_days || input.expiresSoonDays, 14, 1, 90);
   const includeOk = input.include_ok === true || input.includeOk === true;
   const rows = await loadRows(pool, input);
-  const items = rows.map((row) => classifyCertification(row, { expiresSoonDays }));
+  const items = await Promise.all(rows.map(async (row) => {
+    const policyResult = await resolvePlatformPluginSmokeRecertificationPolicy({
+      tenant_id: row.tenant_id,
+      plugin_key: row.plugin_key,
+      action_key: row.action_key,
+      mock_provider: row.mock_provider,
+      mock_resource: row.mock_resource,
+    }, { pool });
+    const policy = {
+      ...policyResult.policy,
+      expires_soon_days: input.expires_soon_days || input.expiresSoonDays
+        ? expiresSoonDays
+        : policyResult.policy.expires_soon_days,
+    };
+    return classifyCertification(row, { policy, expiresSoonDays });
+  }));
   const filtered = includeOk ? items : items.filter((item) => item.recertification_required || item.recertification_due_soon);
   return {
     ok: true,
@@ -158,9 +190,15 @@ export async function listPlatformPluginSmokeRecertificationQueue(input = {}, de
 export async function runPlatformPluginSmokeRecertificationBatch(input = {}, deps = {}) {
   const pool = deps.pool || getPool();
   const dryRun = input.dry_run === undefined ? input.dryRun !== false : input.dry_run !== false;
-  const limit = boundedInt(input.limit, 5, 1, 10);
-  const queue = await listPlatformPluginSmokeRecertificationQueue({ ...input, include_ok: false, limit }, { pool });
-  const candidates = queue.items.filter((item) => item.automatic_recertification_supported && item.drift_reasons.length === 0).slice(0, limit);
+  const requestedLimit = input.limit === undefined && input.limit === null ? null : Number(input.limit);
+  const queue = await listPlatformPluginSmokeRecertificationQueue({ ...input, include_ok: false, limit: input.limit || 50 }, { pool });
+  const policyLimit = queue.items.reduce((min, item) => Math.min(min, boundedInt(item.policy?.max_batch_size, 5, 1, 10)), 10);
+  const limit = requestedLimit === null || !Number.isFinite(requestedLimit)
+    ? policyLimit
+    : Math.min(boundedInt(requestedLimit, 5, 1, 10), policyLimit);
+  const candidates = queue.items
+    .filter((item) => item.automatic_recertification_supported && item.drift_reasons.length === 0)
+    .slice(0, limit);
   const results = [];
   for (const item of candidates) {
     if (dryRun) {
@@ -209,7 +247,7 @@ export async function runPlatformPluginSmokeRecertificationBatch(input = {}, dep
         execution_log_id: dispatch.execution_log.id,
         certified_by: input.certified_by || input.certifiedBy || "platform_recertification_batch",
         notes: input.notes || "Automated smoke recertification batch. secrets_included=false.",
-        certification_ttl_days: input.certification_ttl_days || input.certificationTtlDays || 90,
+        certification_ttl_days: input.certification_ttl_days || input.certificationTtlDays || item.policy?.certification_ttl_days || 90,
       });
     }
     results.push({

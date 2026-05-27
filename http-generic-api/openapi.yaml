@@ -9658,6 +9658,116 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+  /platform/plugins/smoke-certifications/policies/resolve:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationPolicyResolve
+      summary: Resolve Platform Plugin smoke recertification policy
+      description: Resolve the effective smoke recertification policy by tenant/plugin/action/mock provider/resource. Returns safe policy metadata only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                tenant_id: { type: string }
+                plugin_key: { type: string }
+                action_key: { type: string }
+                mock_provider: { type: string }
+                mock_resource: { type: string }
+                provider: { type: string }
+                resource: { type: string }
+      responses:
+        "200":
+          description: Effective smoke recertification policy
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/plugins/smoke-certifications/policies/list:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationPolicyList
+      summary: List Platform Plugin smoke recertification policies
+      description: List smoke recertification policy registry rows. Returns safe policy metadata only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                tenant_id: { type: string }
+                plugin_key: { type: string }
+                action_key: { type: string }
+                mock_provider: { type: string }
+                mock_resource: { type: string }
+                status: { type: string }
+                limit: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: Smoke recertification policy list
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/plugins/smoke-certifications/policies/upsert:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationPolicyUpsert
+      summary: Upsert Platform Plugin smoke recertification policy
+      description: Create or update a smoke recertification policy for a tenant/plugin/action/mock scope. Controls TTL, expiring-soon window, max batch size, auto enablement, and expected origin guard.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                policy_id: { type: string }
+                tenant_id: { type: string }
+                plugin_key: { type: string, default: "*" }
+                action_key: { type: string }
+                mock_provider: { type: string }
+                mock_resource: { type: string }
+                certification_ttl_days: { type: integer, minimum: 1, maximum: 365, default: 90 }
+                expires_soon_days: { type: integer, minimum: 1, maximum: 90, default: 14 }
+                max_batch_size: { type: integer, minimum: 1, maximum: 10, default: 5 }
+                auto_recertification_enabled: { type: boolean, default: false }
+                provider_smoke_required: { type: boolean, default: true }
+                allowed_expected_origin: { type: string }
+                status: { type: string, default: active }
+                priority: { type: integer, default: 100 }
+                notes: { type: string }
+                metadata:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Effective smoke recertification policy after upsert
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
   /platform/plugins/smoke-certifications/recertification-queue:
     post:
       x-openai-isConsequential: false
