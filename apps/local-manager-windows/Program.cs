@@ -141,7 +141,11 @@ internal static class Program
 
     private sealed class MainForm : Form
     {
-        private readonly System.Windows.Forms.Timer _desktopCommandTimer = new() { Interval = 5000 }; private bool _desktopCommandPollRunning; private readonly Label _status;
+        private readonly System.Windows.Forms.Timer _desktopCommandTimer = new() { Interval = 5000 };
+        private bool _desktopCommandPollRunning;
+        private int _desktopCommandPollFailureCount;
+        private DateTimeOffset _desktopCommandPollBackoffUntil = DateTimeOffset.MinValue;
+        private readonly Label _status;
         private readonly Label _pairingCode;
         private readonly ProgressBar _progress;
         private readonly TextBox _output;
