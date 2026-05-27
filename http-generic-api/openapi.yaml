@@ -9414,6 +9414,23 @@ paths:
                 input: { type: object, additionalProperties: true }
                 dry_run: { type: boolean, default: false }
                 timeout_ms: { type: integer, minimum: 1000, maximum: 30000, default: 10000 }
+                enforce_execution_readiness: { type: boolean, default: true }
+                brand_key: { type: string }
+                target_key: { type: string }
+                business_type_key: { type: string }
+                business_activity_type_key: { type: string }
+                workflow_key: { type: string }
+                logic_key: { type: string }
+                logic_pack_key: { type: string }
+                skill_key: { type: string }
+                actor_role: { type: string }
+                governance_level: { type: string }
+                graph_depth: { type: integer, minimum: 0, maximum: 3, default: 1 }
+                graph_limit: { type: integer, minimum: 1, maximum: 250, default: 120 }
+                detail_limit: { type: integer, minimum: 1, maximum: 50, default: 10 }
+                edge_detail_limit: { type: integer, minimum: 1, maximum: 80, default: 10 }
+                provider_smoke: { type: boolean, default: false }
+                provider_smoke_expected_origin: { type: string }
       responses:
         "200": { description: Platform Plugin REST dispatch result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
 

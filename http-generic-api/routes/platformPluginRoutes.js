@@ -189,6 +189,8 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         graphLimit: input.graph_limit || input.graphLimit || 120,
         detailLimit: input.detail_limit || input.detailLimit || 10,
         edgeDetailLimit: input.edge_detail_limit || input.edgeDetailLimit || 10,
+        providerSmoke: input.provider_smoke === true || input.providerSmoke === true,
+        providerSmokeExpectedOrigin: input.provider_smoke_expected_origin || input.providerSmokeExpectedOrigin || null,
       });
       return res.status(200).json(result);
     } catch (err) { return errorResponse(res, err, "platform_plugin_rest_dispatch_failed"); }

@@ -194,6 +194,8 @@ export async function dispatchPlatformPluginRestAction({
   graphLimit = 120,
   detailLimit = 10,
   edgeDetailLimit = 10,
+  providerSmoke = false,
+  providerSmokeExpectedOrigin = null,
 } = {}) {
   const normalizedPluginKey = normalizeKey(pluginKey, 128);
   const normalizedActionKey = normalizeKey(actionKey, 128);
@@ -314,6 +316,47 @@ export async function dispatchPlatformPluginRestAction({
   const blocked = isBlockedUrl(url);
   if (blocked) return { ok: true, dispatched: false, reason: blocked, url: url.origin, secrets_included: false };
 
+  const isProviderSmoke = providerSmoke === true;
+  if (isProviderSmoke) {
+    const expectedOrigin = compactString(providerSmokeExpectedOrigin || "", 300);
+    if (!expectedOrigin) {
+      return {
+        ok: true,
+        dispatched: false,
+        reason: "provider_smoke_expected_origin_required",
+        url_origin: url.origin,
+        secrets_included: false,
+      };
+    }
+    if (expectedOrigin !== url.origin) {
+      return {
+        ok: true,
+        dispatched: false,
+        reason: "provider_smoke_expected_origin_mismatch",
+        expected_origin: expectedOrigin,
+        resolved_origin: url.origin,
+        secrets_included: false,
+      };
+    }
+    if (template.method !== "GET") {
+      return {
+        ok: true,
+        dispatched: false,
+        reason: "provider_smoke_get_only",
+        method: template.method,
+        secrets_included: false,
+      };
+    }
+    if (template.body_template) {
+      return {
+        ok: true,
+        dispatched: false,
+        reason: "provider_smoke_body_not_allowed",
+        secrets_included: false,
+      };
+    }
+  }
+
   const headers = safeHeaders(template.headers || {});
   const hasBody = template.body_template && !["GET", "DELETE"].includes(template.method);
   const body = hasBody ? JSON.stringify({ ...template.body_template, input }) : undefined;
@@ -334,6 +377,8 @@ export async function dispatchPlatformPluginRestAction({
     url_origin: url.origin,
     url_path: url.pathname,
     dry_run: Boolean(dryRun),
+    provider_smoke: Boolean(isProviderSmoke),
+    provider_smoke_expected_origin: isProviderSmoke ? providerSmokeExpectedOrigin || null : null,
   };
 
   if (dryRun) {
