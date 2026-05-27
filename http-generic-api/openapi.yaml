@@ -9416,6 +9416,78 @@ paths:
       responses:
         "200": { description: Remote Runtime dispatch dry-run plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
 
+  /platform/plugins/smoke-certifications/certify:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeCertify
+      summary: Certify Platform Plugin smoke execution
+      description: Create or update a Platform Plugin smoke certification from a successful guarded provider_smoke execution log. Requires GET, status 200, expected origin match, and secrets_included=false.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [execution_log_id]
+              properties:
+                execution_log_id: { type: integer }
+                certification_id: { type: string }
+                certified_by: { type: string }
+                admin_user_id: { type: string }
+                notes: { type: string }
+      responses:
+        "200":
+          description: Smoke certification created or updated
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "422":
+          description: Smoke execution log was not certifiable
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/plugins/smoke-certifications/status:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeCertificationStatus
+      summary: Read Platform Plugin smoke certification status
+      description: Read Platform Plugin smoke certification status by plugin/action/mock provider/resource. Returns safe metadata and execution log references only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                plugin_key: { type: string }
+                action_key: { type: string }
+                mock_provider: { type: string }
+                mock_resource: { type: string }
+                provider: { type: string }
+                resource: { type: string }
+                limit: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: Smoke certification status response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
   /platform/remote-runtime/targets/upsert:
     post:
       x-openai-isConsequential: true
