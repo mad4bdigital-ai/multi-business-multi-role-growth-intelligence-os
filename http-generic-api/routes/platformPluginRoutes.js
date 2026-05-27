@@ -80,6 +80,14 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
     } catch (err) { return errorResponse(res, err, "action_manifest_resolve_failed"); }
   });
 
+  router.post("/platform/execution-readiness/dry-run", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await resolveExecutionReadinessDryRun(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "execution_readiness_dry_run_failed"); }
+  });
+
   router.post("/platform/plugins/install-policy", ...requireAdmin, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
