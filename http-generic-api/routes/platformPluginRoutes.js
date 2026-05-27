@@ -197,8 +197,13 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
       const commandKey = String(input.command_key || input.commandKey || "status").trim().toLowerCase();
-      if (!["status", "git_status"].includes(commandKey)) {
-        const err = new Error("Only read-only local_path commands status and git_status are supported by this execution route.");
+      const connectorAliasByCommand = {
+        status: "repo_status_growth_os",
+        git_status: "repo_status_growth_os",
+        diff_name_status: "repo_diff_name_status_growth_os",
+      };
+      if (!Object.prototype.hasOwnProperty.call(connectorAliasByCommand, commandKey)) {
+        const err = new Error("Only read-only local_path commands status, git_status, and diff_name_status are supported by this execution route.");
         err.status = 400;
         err.code = "remote_runtime_local_readonly_command_not_allowed";
         throw err;
