@@ -10074,6 +10074,302 @@ paths:
       responses:
         "200": { description: Private REST dispatch result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
 
+  /platform/evolution/activation-card:
+    get:
+      tags: [platform-evolution]
+      operationId: platformEvolutionActivationCard
+      summary: Read Platform Evolution activation card
+      description: >
+        Admin/service scoped read of the latest Platform Evolution activation card for a brand/tenant scope.
+        Returns checkpoint summary, thread counts, linked tasks/signals, and blocker counts. No secrets are returned.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Platform Evolution activation card.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionActivationCardResponse"
+        "400":
+          description: Missing scope fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /platform/evolution/thread-map:
+    get:
+      tags: [platform-evolution]
+      operationId: platformEvolutionThreadMap
+      summary: Read Platform Evolution thread map
+      description: >
+        Admin/service scoped thread map with linked task, signal, and blocker counts for a Platform Evolution scope.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+        - name: priority
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200":
+          description: Platform Evolution thread map.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionThreadMapResponse"
+        "400":
+          description: Missing scope fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /platform/evolution/open-evidence:
+    get:
+      tags: [platform-evolution]
+      operationId: platformEvolutionOpenEvidence
+      summary: Read Platform Evolution open evidence
+      description: >
+        Admin/service scoped linked evidence for Platform Evolution threads, including pending tasks and summary development signals.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: thread_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: linked_surface
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200":
+          description: Platform Evolution open evidence.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionOpenEvidenceResponse"
+        "400":
+          description: Missing scope fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /platform/evolution/checkpoints:
+    post:
+      tags: [platform-evolution]
+      operationId: platformEvolutionCheckpointCreate
+      summary: Create Platform Evolution checkpoint
+      description: >
+        Admin/service scoped creation of an activation, operation, manual, rollup, or recovery checkpoint.
+        Updates last_checkpoint_id for threads in the same scope. No secrets are accepted or returned.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformEvolutionCheckpointCreateRequest"
+      responses:
+        "201":
+          description: Checkpoint created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionCheckpointCreateResponse"
+        "400":
+          description: Missing summary or scope fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /tenant/evolution/activation-card:
+    get:
+      tags: [platform-evolution]
+      operationId: tenantEvolutionActivationCard
+      summary: Read tenant Evolution activation card
+      description: >
+        Tenant/user scoped read of a Platform Evolution activation card. Requires a user JWT, active tenant membership,
+        and allowed scope in v_platform_evolution_scope_access. No secrets are returned.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Tenant-scoped Platform Evolution activation card.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionActivationCardResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active membership or scope grant missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /tenant/evolution/thread-map:
+    get:
+      tags: [platform-evolution]
+      operationId: tenantEvolutionThreadMap
+      summary: Read tenant Evolution thread map
+      description: >
+        Tenant/user scoped thread map. Users can read only allowed scopes resolved from active membership and scope access.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+        - name: priority
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Tenant-scoped Platform Evolution thread map.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionThreadMapResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active membership or scope grant missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /tenant/evolution/open-evidence:
+    get:
+      tags: [platform-evolution]
+      operationId: tenantEvolutionOpenEvidence
+      summary: Read tenant Evolution open evidence
+      description: >
+        Tenant/user scoped linked evidence for Platform Evolution threads. Users can read only allowed scopes.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: thread_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: linked_surface
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Tenant-scoped Platform Evolution open evidence.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionOpenEvidenceResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active membership or scope grant missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /tenant/platform/plugins/catalog:
     get:
       tags: [platform-plugins]
