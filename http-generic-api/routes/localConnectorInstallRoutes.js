@@ -37,8 +37,69 @@ function normalizeRequestedCapabilities(value) {
   return [...new Set(raw.map((item) => String(item || "").trim()).filter((item) => LOCAL_CONNECTOR_CAPABILITY_FLAGS[item]))];
 }
 
+function normalizeGrantAlias(value, fallback = "item") {
+  const clean = String(value || "").trim().toLowerCase().replace(/[^a-z0-9_.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 48);
+  return clean || fallback;
+}
+
+function normalizeWindowsPath(value, max = 260) {
+  const raw = String(value || "").trim().replace(/^"|"$/g, "").slice(0, max);
+  if (!raw) return "";
+  if (!/^[a-zA-Z]:\\/.test(raw) && !raw.startsWith("\\\\")) return "";
+  if (/[\n\r<>|?*]/.test(raw)) return "";
+  return raw;
+}
+
+function normalizePermissionGrants(value = {}) {
+  const grants = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const capabilities = normalizeRequestedCapabilities(grants.capabilities || grants.connector_capabilities || []);
+  const allowedPaths = [...new Set((Array.isArray(grants.allowed_paths) ? grants.allowed_paths : [])
+    .map((item) => normalizeWindowsPath(item, 260))
+    .filter(Boolean))].slice(0, 25);
+
+  const apps = {};
+  for (const item of Array.isArray(grants.apps) ? grants.apps : []) {
+    const alias = normalizeGrantAlias(item?.app_alias || item?.alias || item?.display_name, "app");
+    const command = normalizeWindowsPath(item?.command || item?.executable_path || item?.path, 260);
+    if (!alias || !command) continue;
+    const processName = String(item?.process_name || command.split(/[/\\]/).pop() || alias).replace(/\.exe$/i, "").replace(/[^A-Za-z0-9_.-]+/g, "").slice(0, 80) || alias;
+    apps[alias] = {
+      display_name: cleanText(item?.display_name || alias, 120) || alias,
+      command,
+      process_name: processName,
+      browser: item?.browser === true,
+      capability_class: cleanText(item?.capability_class || "desktop_app", 80) || "desktop_app",
+      risk_class: cleanText(item?.risk_class || "interactive", 80) || "interactive",
+    };
+    if (Object.keys(apps).length >= 50) break;
+  }
+
+  const shellAliases = [];
+  for (const item of Array.isArray(grants.shell_aliases || grants.helpers) ? (grants.shell_aliases || grants.helpers) : []) {
+    const alias = normalizeGrantAlias(item?.alias || item?.display_name, "helper");
+    const command = normalizeWindowsPath(item?.command || item?.command_path, 260);
+    if (!alias || !command) continue;
+    const args = Array.isArray(item?.args) ? item.args.map((arg) => String(arg || "").slice(0, 200)).filter((arg) => !/[;&|`$<>\n\r]/.test(arg)).slice(0, 20) : [];
+    shellAliases.push({
+      alias,
+      cmd: command,
+      args,
+      allow_extra_args: item?.allow_extra_args === true,
+      description: cleanText(item?.description || item?.display_name || alias, 160) || alias,
+    });
+    if (shellAliases.length >= 50) break;
+  }
+
+  return { capabilities, allowed_paths: allowedPaths, apps, shell_aliases: shellAliases };
+}
+
 function connectorCapabilityEnvLines(capabilities = []) {
   return normalizeRequestedCapabilities(capabilities).map((capability) => `${LOCAL_CONNECTOR_CAPABILITY_FLAGS[capability]}=true`);
+}
+
+function envJsonLine(key, value) {
+  const json = JSON.stringify(value || {});
+  return `${key}=${json.replace(/\r?\n/g, "")}`;
 }
 
 function resolveLocalConnectorPrincipalAliases(userId, tenantId) {
