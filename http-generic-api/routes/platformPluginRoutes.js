@@ -21,6 +21,7 @@ import {
   probeRemoteRuntimeTarget,
   upsertRemoteRuntimeTarget,
   validateRemoteRuntimeTarget,
+  planRemoteRuntimeDispatchDryRun,
 } from "../remoteRuntime.js";
 import {
   certifyPlatformPluginContribution,
@@ -131,6 +132,22 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
       });
       return res.status(200).json(result);
     } catch (err) { return errorResponse(res, err, "remote_runtime_target_validate_failed"); }
+  });
+
+  router.post("/platform/remote-runtime/dispatch-dry-run", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await planRemoteRuntimeDispatchDryRun({
+        targetId: input.target_id || input.targetId,
+        tenantId: input.tenant_id || input.tenantId || null,
+        userId: input.user_id || input.userId || null,
+        commandKey: input.command_key || input.commandKey || "status",
+        inputs: input.inputs || {},
+        approvalId: input.approval_id || input.approvalId || null,
+        approvalReason: input.approval_reason || input.approvalReason || null,
+      });
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "remote_runtime_dispatch_dry_run_failed"); }
   });
 
   router.post("/platform/remote-runtime/targets/catalog", ...requireAdmin, async (req, res) => {
