@@ -1113,6 +1113,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
         format,
         capabilities,
         permission_grants: permissionGrants,
+        app_managed: appManaged,
         exp: Math.floor(Date.now() / 1000) + ttl * 60,
       });
       const path = format === "bat" ? "/local-connector/install/download" : "/connector-agent/installer.ps1";
