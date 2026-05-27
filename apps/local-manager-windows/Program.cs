@@ -730,6 +730,9 @@ internal static class Program
                     capability_installer_downloaded = true,
                     installer_path = target,
                     capabilities = requestedCapabilities,
+                    app_grants = selectedApps.Count,
+                    allowed_paths = selectedPaths,
+                    helper_grants = selectedHelpers.Count,
                     canonical_device_id = link.CanonicalDeviceId,
                     run_as_admin_required = link.RunAsAdminRequired,
                     secrets_included = false
