@@ -764,6 +764,8 @@ function buildStartConnectorBat() {
 function buildInstallPowerShellBootstrapBat({ ps1Url, deviceId, appManaged = false }) {
   const safeDeviceId = String(deviceId || "device").replace(/[^a-zA-Z0-9_-]+/g, "-");
   const safeUrl = String(ps1Url || "").replace(/"/g, "");
+  const failSuffix = appManaged ? "exit /b 1" : "pause & exit /b 1";
+  const doneSuffix = appManaged ? "exit /b 0" : "pause";
   return [
     "@echo off",
     "setlocal EnableExtensions",
