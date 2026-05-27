@@ -194,10 +194,11 @@ internal static class Program
             var updateButton = MakeButton("Check / install update", 440, 336, 200, async (_, _) => await CheckAndInstallUpdateAsync(true));
             var tokenStatusButton = MakeButton("Token status", 656, 336, 166, (_, _) => ShowTokenStatus());
 
-            var repairButton = MakeButton("Repair connector", 28, 392, 210, async (_, _) => await RepairConnectorAsync());
-            var repairControlsButton = MakeButton("Repair controls", 254, 392, 170, async (_, _) => await LoadDeviceControlsAsync("repairs", LocalManagerUrl));
-            var startN8nButton = MakeButton("Start n8n", 440, 392, 170, async (_, _) => await StartN8nLocalAsync());
-            var openN8nButton = MakeButton("Open n8n", 626, 392, 196, async (_, _) => await OpenN8nLocalAsync());
+            var repairButton = MakeButton("Repair connector", 28, 392, 170, async (_, _) => await RepairConnectorAsync());
+            var capabilitiesButton = MakeButton("Capabilities", 214, 392, 150, async (_, _) => await ConfigureConnectorCapabilitiesAsync());
+            var repairControlsButton = MakeButton("Repair controls", 380, 392, 150, async (_, _) => await LoadDeviceControlsAsync("repairs", LocalManagerUrl));
+            var startN8nButton = MakeButton("Start n8n", 546, 392, 130, async (_, _) => await StartN8nLocalAsync());
+            var openN8nButton = MakeButton("Open n8n", 692, 392, 130, async (_, _) => await OpenN8nLocalAsync());
 
             _status = new Label
             {
