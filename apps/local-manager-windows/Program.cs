@@ -531,26 +531,12 @@ internal static class Program
                     secrets_included = false
                 }, _json);
 
-                var result = MessageBox.Show(
-                    "A connector repair installer was downloaded. Run it as Administrator now?\n\nWindows will show a UAC prompt.",
+                await RunElevatedInstallerAndVerifyAsync(
+                    target,
+                    "connector repair installer",
                     "Repair connector",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning);
-                if (result != DialogResult.Yes)
-                {
-                    _status.Text = $"Repair installer downloaded: {target}. Run as Administrator when ready.";
-                    return;
-                }
-
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = target,
-                    UseShellExecute = true,
-                    WorkingDirectory = Path.GetDirectoryName(target) ?? UpdatesRoot,
-                    Verb = "runas"
-                });
-                _progress.Value = 100;
-                _status.Text = "Repair installer launched with elevation request. After it finishes, click Device session or Repair controls to verify.";
+                    "This will repair and restart the local connector service. Approve the Windows UAC prompt to continue.",
+                    async () => await RefreshDeviceControlsAfterInstallerAsync("repairs", "Repair verification"));
             }
             catch (Exception ex)
             {
@@ -751,32 +737,112 @@ internal static class Program
                     secrets_included = false
                 }, _json);
 
-                var result = MessageBox.Show(
-                    "Capability installer downloaded. Run it as Administrator now?\n\nThis will update the local connector service configuration for the selected capabilities.",
+                await RunElevatedInstallerAndVerifyAsync(
+                    target,
+                    "connector capability installer",
                     "Connector capabilities",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning);
-                if (result != DialogResult.Yes)
-                {
-                    _status.Text = $"Capability installer downloaded: {target}. Run as Administrator when ready.";
-                    return;
-                }
-
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = target,
-                    UseShellExecute = true,
-                    WorkingDirectory = Path.GetDirectoryName(target) ?? UpdatesRoot,
-                    Verb = "runas"
-                });
-                _progress.Value = 100;
-                _status.Text = "Capability installer launched with elevation request. Verify connector health after it finishes.";
+                    "This will update the local connector service configuration for the selected capabilities and permission grants. Approve the Windows UAC prompt to continue.",
+                    async () => await RefreshDeviceControlsAfterInstallerAsync("settings", "Capability verification"));
             }
             catch (Exception ex)
             {
                 _status.Text = "Capability installer failed: " + ex.Message;
                 _output.Text = ex.ToString();
             }
+        }
+
+        private async Task RunElevatedInstallerAndVerifyAsync(string installerPath, string installerLabel, string dialogTitle, string explanation, Func<Task>? refreshAfterInstall)
+        {
+            var result = MessageBox.Show(
+                $"{installerLabel} is ready.\n\n{explanation}\n\nLocal Manager will launch the correct installer, wait for it to finish when Windows exposes the process handle, then refresh device controls automatically.",
+                dialogTitle,
+                MessageBoxButtons.OKCancel,
+                MessageBoxIcon.Warning);
+            if (result != DialogResult.OK)
+            {
+                _status.Text = $"{installerLabel} downloaded: {installerPath}. Click the same button again when ready to apply it.";
+                return;
+            }
+
+            _status.Text = $"Launching {installerLabel} with Administrator approval…";
+            _progress.Value = Math.Max(_progress.Value, 80);
+            _output.Text = JsonSerializer.Serialize(new
+            {
+                installer_launching = true,
+                installer_label = installerLabel,
+                installer_path = installerPath,
+                uac_required = true,
+                token_plaintext_shown = false,
+                secrets_included = false
+            }, _json);
+
+            Process? process = null;
+            try
+            {
+                process = Process.Start(new ProcessStartInfo
+                {
+                    FileName = installerPath,
+                    UseShellExecute = true,
+                    WorkingDirectory = Path.GetDirectoryName(installerPath) ?? UpdatesRoot,
+                    Verb = "runas"
+                });
+            }
+            catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
+            {
+                _status.Text = $"{installerLabel} was not applied because the UAC prompt was cancelled.";
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    installer_applied = false,
+                    installer_label = installerLabel,
+                    cancelled_by_user = true,
+                    token_plaintext_shown = false,
+                    secrets_included = false
+                }, _json);
+                return;
+            }
+
+            if (process is null)
+            {
+                _status.Text = $"Windows did not return a process handle for {installerLabel}.";
+                return;
+            }
+
+            _status.Text = $"{installerLabel} is running with elevation. Waiting for completion…";
+            try
+            {
+                await process.WaitForExitAsync();
+            }
+            catch
+            {
+                await Task.Delay(TimeSpan.FromSeconds(10));
+            }
+            finally
+            {
+                process.Dispose();
+            }
+
+            _progress.Value = Math.Max(_progress.Value, 92);
+            _status.Text = $"{installerLabel} finished. Waiting for connector service to restart…";
+            await Task.Delay(TimeSpan.FromSeconds(8));
+
+            if (refreshAfterInstall is not null)
+            {
+                await refreshAfterInstall();
+            }
+
+            _progress.Value = 100;
+            _status.Text = $"{installerLabel} completed. Device controls were refreshed automatically.";
+        }
+
+        private async Task RefreshDeviceControlsAfterInstallerAsync(string section, string label)
+        {
+            var token = LoadDeviceToken(false);
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                _status.Text = label + ": no linked device token; use Device session after relinking.";
+                return;
+            }
+            await CallDeviceApiAsync(DeviceControlsUrl + "?section=" + Uri.EscapeDataString(section), token, label);
         }
 
         private sealed record InstalledAppChoice(string DisplayName, string ExecutablePath)

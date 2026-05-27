@@ -21,12 +21,12 @@ assert(connectorAgent.includes('local_tool_release_owner: "mad4b-local-manager"'
 assert(localManager.includes('local release owner for platform tools'), 'public app page must explain Local Manager tool release ownership');
 assert(localManager.includes('manifest-driven local tool installation'), 'link flow must explain manifest-driven local tool installation');
 assert(localManager.includes('Mad4B Local Manager Admin Tools'), 'admin page must distinguish governed installer tools');
-assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.10"'), 'public Local Manager update route must advertise Windows 0.2.10');
-assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.10.exe'), 'public Local Manager download route must point at Windows 0.2.10 assets');
-assert(localManagerProject.includes('<Version>0.2.10</Version>'), 'Windows project Version must match advertised release');
-assert(localManagerProject.includes('<AssemblyVersion>0.2.10.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
-assert(localManagerProject.includes('<FileVersion>0.2.10.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
-assert(localManagerProject.includes('<InformationalVersion>0.2.10-desktop-poll-resilience</InformationalVersion>'), 'Windows project InformationalVersion must identify the desktop polling resilience fix');
+assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.11"'), 'public Local Manager update route must advertise Windows 0.2.11');
+assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.11.exe'), 'public Local Manager download route must point at Windows 0.2.11 assets');
+assert(localManagerProject.includes('<Version>0.2.11</Version>'), 'Windows project Version must match advertised release');
+assert(localManagerProject.includes('<AssemblyVersion>0.2.11.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
+assert(localManagerProject.includes('<FileVersion>0.2.11.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
+assert(localManagerProject.includes('<InformationalVersion>0.2.11-installer-apply-workflow</InformationalVersion>'), 'Windows project InformationalVersion must identify the installer apply workflow fix');
 
 assert(installRoutes.includes('LOCAL_CONNECTOR_CAPABILITY_FLAGS'), 'installer route must define explicit capability flag mapping');
 assert(installRoutes.includes('powershell_admin: "CONNECTOR_POWERSHELL_ENABLED"'), 'PowerShell capability must map only through explicit opt-in');
@@ -44,6 +44,13 @@ assert(!installRoutes.includes('CONNECTOR_WIN_ENABLED=true",'), 'Windows control
 assert(proxyRoutes.includes('code: "DISABLED"'), 'connector proxy must preserve disabled capability errors');
 assert(proxyRoutes.includes('connector_capability_status: "disabled"'), 'connector proxy response must classify disabled capability state');
 
+assert(localManagerWindows.includes('RunElevatedInstallerAndVerifyAsync'), 'Windows app must run connector installers through an in-app elevated workflow');
+assert(localManagerWindows.includes('RefreshDeviceControlsAfterInstallerAsync'), 'Windows app must refresh device controls after installer execution');
+assert(localManagerWindows.includes('WaitForExitAsync'), 'Windows app must wait for elevated installer completion when possible');
+assert(localManagerWindows.includes('UAC prompt'), 'Windows app must clearly explain local Administrator approval');
+assert(localManagerWindows.includes('installer_applied = false'), 'Windows app must handle cancelled UAC prompts explicitly');
+assert(localManagerWindows.includes('installer_launching = true'), 'Windows app must show sanitized installer launch diagnostics');
+assert(localManagerWindows.includes('connector capability installer'), 'Windows app must apply the capability installer, not just download it');
 assert(localManagerWindows.includes('RegisterDesktopCommandPollFailure'), 'Windows app must back off transient desktop command polling failures');
 assert(localManagerWindows.includes('_desktopCommandPollBackoffUntil'), 'Windows app must track desktop command polling backoff state');
 assert(localManagerWindows.includes('Desktop command polling paused'), 'Windows app must show paused polling instead of noisy repeated failures');
