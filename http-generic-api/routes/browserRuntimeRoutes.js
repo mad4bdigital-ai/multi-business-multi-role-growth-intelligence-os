@@ -3,6 +3,7 @@ import { runBrowser4InspectionAdapter } from "../browser4InspectionAdapter.js";
 import {
   checkBrowserRuntimePolicyFromDb,
   createBrowserDataExtractionJob,
+  createBrowserRuntimeAdapterRequest,
   createBrowserSiteInspectionRun,
   getBrowserRuntime,
   healthBrowserRuntime,
