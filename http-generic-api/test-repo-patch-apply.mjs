@@ -7,6 +7,7 @@
  *   - context mismatch detection
  *   - bad action / missing path / blocked path / missing message rejections
  *   - replace_block ambiguity detection (no network call)
+ *   - delete_file action is exposed and wired to GitHub Contents DELETE
  *
  * Skips: any branch that requires a real GitHub App token; those go through
  * the full virtual-tool integration tests in the live smoke (run by the admin
@@ -68,6 +69,9 @@ pass("missing commit_message is rejected with repo_patch_missing_message");
   assert.ok(source.includes("/git/refs"));
   assert.ok(source.includes("allow_protected_branch"));
   assert.ok(source.includes("break_glass_reason"));
+  assert.ok(source.includes('"delete_file"'), "repo_patch_apply schema/action list must expose delete_file");
+  assert.ok(source.includes('method: "DELETE"'), "repo_patch_apply must use GitHub Contents DELETE for delete_file");
+  assert.ok(source.includes("repo_patch_github_delete_failed"), "delete_file failures must return a structured error code");
   assert.ok(!source.includes("Defaults to main"));
   pass("repo_patch_apply blocks protected branches by runtime policy");
 }

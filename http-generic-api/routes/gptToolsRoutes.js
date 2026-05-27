@@ -164,7 +164,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repo_patch_apply",
     displayName: "Repository Patch Apply",
-    description: "Apply a patch to the repository via the GitHub App, sidestepping the local connector. Actions: write_file, replace_block, apply_unified_diff. Path is repo-confined; secrets/build folders are blocked. Runtime defaults to a generated non-protected work branch. Protected branches are blocked unless explicit break-glass policy is enabled and justified.",
+    description: "Apply a patch to the repository via the GitHub App, sidestepping the local connector. Actions: write_file, replace_block, apply_unified_diff, delete_file. Path is repo-confined; secrets/build folders are blocked. Runtime defaults to a generated non-protected work branch. Protected branches are blocked unless explicit break-glass policy is enabled and justified.",
     method: "VIRTUAL",
     path: "internal://repo-patch-apply",
     tags: ["repo", "mutation", "self_repair"],
@@ -172,7 +172,7 @@ const VIRTUAL_ADMIN_TOOLS = [
       type: "object",
       required: ["action", "path", "commit_message"],
       properties: {
-        action: { type: "string", enum: ["write_file", "replace_block", "apply_unified_diff"] },
+        action: { type: "string", enum: ["write_file", "replace_block", "apply_unified_diff", "delete_file"] },
         path: { type: "string", description: "Repository-relative path of the single file to modify, e.g. http-generic-api/pathResolverDbLoader.js." },
         commit_message: { type: "string", minLength: 5, maxLength: 200 },
         branch: { type: "string", description: "Target work branch. If omitted, runtime generates a non-protected gpt/repo-patch/* branch. Protected branches are blocked by default." },
@@ -870,8 +870,8 @@ async function loadRepoPatchBranchCompare({ owner, repo, defaultBranch, branch, 
 
 export async function applyRepoPatch(args = {}, ctx = {}) {
   const action = String(args.action || "").trim().toLowerCase();
-  if (!["write_file", "replace_block", "apply_unified_diff"].includes(action)) {
-    const err = new Error("action must be one of: write_file, replace_block, apply_unified_diff.");
+  if (!["write_file", "replace_block", "apply_unified_diff", "delete_file"].includes(action)) {
+    const err = new Error("action must be one of: write_file, replace_block, apply_unified_diff, delete_file.");
     err.status = 400;
     err.code = "repo_patch_bad_action";
     throw err;
@@ -921,6 +921,57 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
   const currentContent = existing.status === 200 && existing.payload?.content
     ? Buffer.from(existing.payload.content, existing.payload.encoding || "base64").toString("utf8")
     : "";
+
+  if (action === "delete_file") {
+    if (!currentSha) {
+      const err = new Error("target file does not exist in the repository.");
+      err.status = 404;
+      err.code = "repo_patch_file_not_found";
+      throw err;
+    }
+    const deleteResult = await githubContentsRequest({
+      method: "DELETE",
+      owner,
+      repo,
+      filePath,
+      branch,
+      body: { message: commitMessage, sha: currentSha, branch },
+      token,
+    });
+    if (!deleteResult.ok) {
+      const err = new Error("GitHub Contents DELETE failed.");
+      err.status = 502;
+      err.code = "repo_patch_github_delete_failed";
+      err.details = { upstream_status: deleteResult.status, message: deleteResult.payload?.message };
+      throw err;
+    }
+    const commitSha = deleteResult.payload?.commit?.sha || null;
+    const commitUrl = deleteResult.payload?.commit?.html_url || null;
+    writeAuditLogAsync({
+      action: "repo_patch_apply",
+      resource_type: "repo",
+      resource_id: `${owner}/${repo}:${filePath}`,
+      payload: {
+        branch,
+        action_type: action,
+        commit_message: commitMessage,
+        commit_sha: commitSha,
+        previous_sha: currentSha || null,
+        principal: ctx?.auth?.user_id || ctx?.auth?.mode || "admin",
+      },
+    });
+    return {
+      action,
+      path: filePath,
+      branch,
+      owner,
+      repo,
+      commit_sha: commitSha,
+      commit_url: commitUrl,
+      previous_sha: currentSha || null,
+      deleted: true,
+    };
+  }
 
   let newContent;
   if (action === "write_file") {
