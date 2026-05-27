@@ -1168,6 +1168,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
         device_id: payload.device_id,
         format: "ps1",
         capabilities,
+        permission_grants: permissionGrants,
         exp: payload.exp,
       });
       const ps1Url = `${publicBaseUrl(req)}/connector-agent/installer.ps1?token=${encodeURIComponent(ps1Token)}`;
