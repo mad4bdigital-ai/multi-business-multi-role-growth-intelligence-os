@@ -44,6 +44,10 @@ assert(!installRoutes.includes('CONNECTOR_WIN_ENABLED=true",'), 'Windows control
 assert(proxyRoutes.includes('code: "DISABLED"'), 'connector proxy must preserve disabled capability errors');
 assert(proxyRoutes.includes('connector_capability_status: "disabled"'), 'connector proxy response must classify disabled capability state');
 
+assert(localManagerWindows.includes('RegisterDesktopCommandPollFailure'), 'Windows app must back off transient desktop command polling failures');
+assert(localManagerWindows.includes('_desktopCommandPollBackoffUntil'), 'Windows app must track desktop command polling backoff state');
+assert(localManagerWindows.includes('Desktop command polling paused'), 'Windows app must show paused polling instead of noisy repeated failures');
+assert(localManagerWindows.includes('secrets_included = false'), 'desktop polling diagnostics must remain secret-safe');
 assert(localManagerWindows.includes('Capabilities'), 'Windows app must expose capability choices');
 assert(localManagerWindows.includes('ConfigureConnectorCapabilitiesAsync'), 'Windows app must request capability installer from user action');
 assert(localManagerWindows.includes('powershell_admin'), 'Windows app must support PowerShell capability selection');
