@@ -657,7 +657,7 @@ function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port
   ].join("\r\n");
 }
 
-function buildConnectorEnv({ connectorSecret, aliases, port }) {
+function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [] }) {
   const allowlistVal = buildAllowlistEnvValue(aliases);
   return [
     `BACKEND_API_KEY=${connectorSecret}`,
