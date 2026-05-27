@@ -13,12 +13,31 @@
 
 const BASE_URL = (process.env.RUNTIME_BASE_URL || "").replace(/\/$/, "");
 const API_KEY = process.env.BACKEND_API_KEY || "";
-const EXPECT_QUEUE_AVAILABLE =
-  String(process.env.EXPECT_QUEUE_AVAILABLE || "TRUE").trim().toUpperCase() === "TRUE";
-const EXPECT_WORKER_ENABLED =
-  String(process.env.EXPECT_WORKER_ENABLED || "TRUE").trim().toUpperCase() === "TRUE";
-const VERIFY_EXECUTION_LOG_ROW =
-  String(process.env.VERIFY_EXECUTION_LOG_ROW || "FALSE").trim().toUpperCase() === "TRUE";
+const RUNTIME_PROFILE = String(process.env.RUNTIME_PROFILE || "api_only").trim().toLowerCase();
+
+function parseRuntimeBool(value, fallback) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (!normalized) return fallback;
+  return ["1", "true", "yes", "y", "enabled", "on"].includes(normalized);
+}
+
+function defaultForQueue(profile) {
+  return profile === "queue_worker" || profile === "worker" || profile === "full";
+}
+
+function defaultForWorker(profile) {
+  return profile === "queue_worker" || profile === "worker" || profile === "full";
+}
+
+const EXPECT_QUEUE_AVAILABLE = parseRuntimeBool(
+  process.env.EXPECT_QUEUE_AVAILABLE,
+  defaultForQueue(RUNTIME_PROFILE)
+);
+const EXPECT_WORKER_ENABLED = parseRuntimeBool(
+  process.env.EXPECT_WORKER_ENABLED,
+  defaultForWorker(RUNTIME_PROFILE)
+);
+const VERIFY_EXECUTION_LOG_ROW = parseRuntimeBool(process.env.VERIFY_EXECUTION_LOG_ROW, false);
 const EXECUTION_LOG_VERIFY_PATH =
   String(process.env.EXECUTION_LOG_VERIFY_PATH || "/governance/execution-log-latest").trim() ||
   "/governance/execution-log-latest";
