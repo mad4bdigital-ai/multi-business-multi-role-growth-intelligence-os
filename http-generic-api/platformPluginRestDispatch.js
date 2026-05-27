@@ -324,6 +324,7 @@ export async function dispatchPlatformPluginRestAction({
     agent_id: normalizedAgentId,
     connection_id: connection.connection_id,
     contribution_id: contribution?.contribution_id || null,
+    endpoint_key: endpoint?.endpoint_key || null,
     template_source: source,
     method: template.method,
     url_origin: url.origin,
