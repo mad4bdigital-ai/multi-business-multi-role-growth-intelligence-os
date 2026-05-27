@@ -90,6 +90,24 @@ assert(smokeMigration.includes("provider_smoke_expected_origin"), "provider smok
 assert(smokeMigration.includes("origin_guard"), "provider smoke schema migration must tag origin guard behavior");
 assert(!smokeMigration.includes("updated_at"), "provider smoke schema migration must avoid admin_platform_endpoint_tools.updated_at because live table does not have it");
 
+assert(smokeCertMigration.includes("platform_plugin_smoke_certifications"), "smoke certification table migration must create registry table");
+assert(smokeCertMigration.includes("last_smoke_execution_log_id"), "smoke certification table must reference execution log evidence");
+assert(smokeCertMigration.includes("UNIQUE KEY `uniq_plugin_action_mock`"), "smoke certification table must enforce one cert per plugin/action/mock pair");
+assert(smokeCertMigration.includes("secrets_included` tinyint(1) NOT NULL DEFAULT 0"), "smoke certification table must default secrets_included=false");
+
+assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certify"), "smoke certification writer admin tool must be registered");
+assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certification_status"), "smoke certification status admin tool must be registered");
+assert(smokeCertToolsMigration.includes("/platform/plugins/smoke-certifications/certify"), "smoke certification writer tool must point at route");
+assert(smokeCertToolsMigration.includes("/platform/plugins/smoke-certifications/status"), "smoke certification status tool must point at route");
+
+assert(smokeCertSource.includes("validateSmokeEvidence"), "smoke certification module must validate execution log evidence");
+assert(smokeCertSource.includes("provider_smoke_flag_missing"), "smoke certification must require provider_smoke=true");
+assert(smokeCertSource.includes("dry_run_cannot_certify_smoke"), "smoke certification must reject dry-run logs");
+assert(smokeCertSource.includes("smoke_method_must_be_get"), "smoke certification must require GET");
+assert(smokeCertSource.includes("smoke_response_status_not_200"), "smoke certification must require 200 response");
+assert(smokeCertSource.includes("expected_origin_mismatch"), "smoke certification must require expected origin match");
+assert(smokeCertSource.includes("secrets_included: false"), "smoke certification responses must be secret-free");
+
 for (const forbidden of [
   "api_key_value",
   "access_token",
