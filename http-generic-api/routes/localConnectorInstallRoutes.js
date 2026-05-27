@@ -1132,6 +1132,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
         },
         ttl_minutes: ttl,
         download_url,
+        app_managed: appManaged,
         run_as_admin_required: true,
         secrets_included: false,
       });
