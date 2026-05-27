@@ -379,6 +379,7 @@ export async function resolvePlatformPluginExecution({
   userId = null,
   agentId = null,
   requestedCredentialScope = null,
+  allowExpiredSmokeCertificationForRecertification = false,
 } = {}) {
   const normalizedPluginKey = compactString(pluginKey, 128);
   if (!normalizedPluginKey) {
