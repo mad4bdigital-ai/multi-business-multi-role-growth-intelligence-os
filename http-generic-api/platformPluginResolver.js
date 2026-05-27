@@ -223,7 +223,8 @@ async function checkSmokeCertification({ pool, pluginKey, actionKey }) {
     `SELECT certification_id, mock_provider, mock_resource, expected_origin,
             url_origin, url_path, http_method, last_smoke_status,
             last_response_status, last_response_ok, last_smoke_execution_log_id,
-            last_smoke_trace_id, certified_at, certification_status
+            last_smoke_trace_id, certified_at, certification_expires_at,
+            last_recertification_required_at, recertification_reason, certification_status
        FROM platform_plugin_smoke_certifications
       WHERE plugin_key = ?
         AND action_key = ?
@@ -237,10 +238,12 @@ async function checkSmokeCertification({ pool, pluginKey, actionKey }) {
     [pluginKey, actionKey]
   );
   const row = rows[0] || null;
+  const expired = Boolean(row?.certification_expires_at && new Date(row.certification_expires_at).getTime() <= Date.now());
+  const certified = Boolean(row && !expired);
   return {
     required: true,
-    certified: Boolean(row),
-    reason: row ? "smoke_certification_active" : "smoke_certification_required",
+    certified,
+    reason: row ? (expired ? "smoke_certification_expired" : "smoke_certification_active") : "smoke_certification_required",
     certification: row ? {
       certification_id: row.certification_id,
       mock_provider: row.mock_provider,
@@ -255,6 +258,10 @@ async function checkSmokeCertification({ pool, pluginKey, actionKey }) {
       last_smoke_execution_log_id: row.last_smoke_execution_log_id,
       last_smoke_trace_id: row.last_smoke_trace_id,
       certified_at: row.certified_at,
+      certification_expires_at: row.certification_expires_at,
+      expired,
+      last_recertification_required_at: row.last_recertification_required_at || null,
+      recertification_reason: row.recertification_reason || null,
       certification_status: row.certification_status,
       secrets_included: false,
     } : null,
