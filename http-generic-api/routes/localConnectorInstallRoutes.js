@@ -626,6 +626,7 @@ function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port
     "echo CONNECTOR_APPS_ENABLED=true>> \"%~dp0.env\"",
     "echo CONNECTOR_FETCH_UPLOAD_ENABLED=true>> \"%~dp0.env\"",
     "echo CONNECTOR_N8N_ENABLED=true>> \"%~dp0.env\"",
+    ...capabilityLines,
     "echo N8N_COMMAND=D:\\npm-global\\n8n.cmd>> \"%~dp0.env\"",
     "echo N8N_USER_FOLDER=D:\\n8n-data>> \"%~dp0.env\"",
     "echo N8N_PORT=5678>> \"%~dp0.env\"",
