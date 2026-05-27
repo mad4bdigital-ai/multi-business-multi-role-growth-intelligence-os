@@ -6,6 +6,9 @@ const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const routeIndex = readFileSync("routes/index.js", "utf8");
 const smokeRoutes = readFileSync("routes/platformSmokeRoutes.js", "utf8");
 const migration = readFileSync("migrations/145_sprint65_platform_plugin_public_rest_dispatch_tool.sql", "utf8");
+const smokeCertMigration = readFileSync("migrations/151_sprint65_platform_plugin_smoke_certifications.sql", "utf8");
+const smokeCertToolsMigration = readFileSync("migrations/152_sprint65_platform_plugin_smoke_certification_tools.sql", "utf8");
+const smokeCertSource = readFileSync("platformPluginSmokeCertification.js", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
 
 assert(service.includes("resolveExecutionReadinessDryRun"), "public dispatcher must run full execution readiness dry-run before dispatch");
