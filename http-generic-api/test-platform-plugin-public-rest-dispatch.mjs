@@ -46,6 +46,10 @@ assert(routes.includes("logicPackKey"), "dispatch route must pass logic pack con
 assert(routes.includes("edgeDetailLimit"), "dispatch route must pass bounded graph detail limits");
 assert(routes.includes("providerSmoke"), "dispatch route must pass provider smoke flag");
 assert(routes.includes("providerSmokeExpectedOrigin"), "dispatch route must pass provider smoke expected origin");
+assert(routes.includes("certifyPlatformPluginSmoke"), "routes must import smoke certification writer");
+assert(routes.includes("getPlatformPluginSmokeCertification"), "routes must import smoke certification reader");
+assert(routes.includes("/platform/plugins/smoke-certifications/certify"), "routes must expose smoke certification writer endpoint");
+assert(routes.includes("/platform/plugins/smoke-certifications/status"), "routes must expose smoke certification status endpoint");
 
 assert(migration.includes("platform_plugin_dispatch_rest"), "migration must register dispatch tool key");
 assert(migration.includes("/platform/plugins/dispatch-rest"), "migration must bind dispatch route path");
