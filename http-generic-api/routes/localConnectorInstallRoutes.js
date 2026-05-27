@@ -761,7 +761,7 @@ function buildStartConnectorBat() {
   ].join("\r\n");
 }
 
-function buildInstallPowerShellBootstrapBat({ ps1Url, deviceId }) {
+function buildInstallPowerShellBootstrapBat({ ps1Url, deviceId, appManaged = false }) {
   const safeDeviceId = String(deviceId || "device").replace(/[^a-zA-Z0-9_-]+/g, "-");
   const safeUrl = String(ps1Url || "").replace(/"/g, "");
   return [
