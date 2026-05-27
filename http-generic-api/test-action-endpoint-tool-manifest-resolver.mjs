@@ -321,4 +321,10 @@ function createPool() {
   assert(migration.includes("dry-run"), "tool description must declare dry-run behavior");
 }
 
+{
+  const resolverSource = readFileSync("actionEndpointToolManifestResolver.js", "utf8");
+  assert(resolverSource.includes("NULL AS review_required"), "endpoint manifest resolver must not require non-existent endpoints.review_required column");
+  assert(!resolverSource.includes("runtime_binding_profile, review_required"), "endpoint manifest resolver must avoid direct review_required select from endpoints");
+}
+
 console.log("action endpoint tool manifest resolver tests passed");

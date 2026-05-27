@@ -143,7 +143,7 @@ async function loadEndpoints(pool, { actionKey, endpointKey, includeDisabled, li
             child_openai_schema_file_id IS NOT NULL AS child_openai_schema_file_id_present,
             schema_overlay_mode, schema_overlay_status,
             schema_overlay_parent_action_key, required_variable_contracts,
-            runtime_binding_profile, review_required, admin_only,
+            runtime_binding_profile, NULL AS review_required, admin_only,
             allowed_actor_roles, allowed_governance_levels, client_allowed,
             team_allowed, writeback_scope
        FROM endpoints
