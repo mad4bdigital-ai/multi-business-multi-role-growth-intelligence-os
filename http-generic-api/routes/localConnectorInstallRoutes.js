@@ -820,8 +820,10 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     hostname = null,
     custom_aliases = [],
     local_apps = [],
+    capabilities = [],
     reprovision = false,
   } = body || {};
+  const requestedCapabilities = normalizeRequestedCapabilities(capabilities);
   if (!user_id || !tenant_id || !device_id) {
     throw httpError(400, "missing_fields", "user_id, tenant_id, device_id required.");
   }
