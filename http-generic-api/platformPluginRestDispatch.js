@@ -377,6 +377,8 @@ export async function dispatchPlatformPluginRestAction({
     url_origin: url.origin,
     url_path: url.pathname,
     dry_run: Boolean(dryRun),
+    provider_smoke: Boolean(isProviderSmoke),
+    provider_smoke_expected_origin: isProviderSmoke ? providerSmokeExpectedOrigin || null : null,
   };
 
   if (dryRun) {
