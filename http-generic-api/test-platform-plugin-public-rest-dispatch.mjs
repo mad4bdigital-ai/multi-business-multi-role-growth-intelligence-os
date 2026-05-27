@@ -24,6 +24,10 @@ assert(service.includes("secrets_included: false"), "dispatcher must explicitly 
 assert(routes.includes("dispatchPlatformPluginRestAction"), "routes must import public dispatch service");
 assert(routes.includes("/platform/plugins/dispatch-rest"), "routes must expose public REST dispatch endpoint");
 assert(routes.includes("platform_plugin_rest_dispatch_failed"), "routes must use structured dispatch error code");
+assert(routes.includes("enforceExecutionReadiness"), "dispatch route must pass readiness enforcement flag");
+assert(routes.includes("businessActivityTypeKey"), "dispatch route must pass business activity context");
+assert(routes.includes("logicPackKey"), "dispatch route must pass logic pack context");
+assert(routes.includes("edgeDetailLimit"), "dispatch route must pass bounded graph detail limits");
 
 assert(migration.includes("platform_plugin_dispatch_rest"), "migration must register dispatch tool key");
 assert(migration.includes("/platform/plugins/dispatch-rest"), "migration must bind dispatch route path");
