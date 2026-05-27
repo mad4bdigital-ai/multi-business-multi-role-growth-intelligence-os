@@ -29,6 +29,7 @@ function rejectSecretLikePayload(value, path = "payload") {
   const blocked = /(secret|password|passphrase|private[_-]?key|token|authorization|cookie|credential)/i;
   for (const [key, child] of Object.entries(value)) {
     const childPath = `${path}.${key}`;
+    if (key === "secrets_included" && child === false) continue;
     if (blocked.test(key)) {
       const err = new Error(`Secret-like field is not allowed in Remote Runtime metadata: ${childPath}`);
       err.status = 400;
