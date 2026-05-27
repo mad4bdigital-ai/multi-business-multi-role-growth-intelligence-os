@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { resolveCallerTypeForRequest, dispatchToolForCaller } from "./gptToolsRoutes.js";
 import { loadPlatformPluginCatalog } from "../platformPluginCatalog.js";
 import { resolvePlatformPluginExecution } from "../platformPluginResolver.js";
 import { upsertPlatformPluginPolicy } from "../platformPluginPolicy.js";
@@ -148,6 +149,99 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
       });
       return res.status(200).json(result);
     } catch (err) { return errorResponse(res, err, "remote_runtime_dispatch_dry_run_failed"); }
+  });
+
+  router.post("/platform/remote-runtime/local-path/execute-readonly", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const commandKey = String(input.command_key || input.commandKey || "status").trim().toLowerCase();
+      if (!["status", "git_status"].includes(commandKey)) {
+        const err = new Error("Only read-only local_path commands status and git_status are supported by this execution route.");
+        err.status = 400;
+        err.code = "remote_runtime_local_readonly_command_not_allowed";
+        throw err;
+      }
+      const plan = await planRemoteRuntimeDispatchDryRun({
+        targetId: input.target_id || input.targetId,
+        tenantId: input.tenant_id || input.tenantId || null,
+        userId: input.user_id || input.userId || null,
+        commandKey: "status",
+        inputs: input.inputs || {},
+        approvalId: input.approval_id || input.approvalId || null,
+        approvalReason: input.approval_reason || input.approvalReason || null,
+      });
+      if (!plan.found || !plan.target) {
+        const err = new Error("Remote Runtime target was not found or is outside scope.");
+        err.status = 404;
+        err.code = "remote_runtime_target_not_found";
+        err.details = { plan };
+        throw err;
+      }
+      if (plan.target.target_kind !== "local_path") {
+        const err = new Error("This execution route only supports local_path targets. Hostinger/SSH execution remains disabled.");
+        err.status = 409;
+        err.code = "remote_runtime_execution_target_kind_not_supported";
+        err.details = { target_kind: plan.target.target_kind };
+        throw err;
+      }
+      if (!plan.dispatch_ready) {
+        const err = new Error("Remote Runtime dispatch dry-run is not ready.");
+        err.status = 409;
+        err.code = "remote_runtime_dispatch_not_ready";
+        err.details = { reason: plan.reason, checks: plan.checks };
+        throw err;
+      }
+      const deviceId = String(input.device_id || input.deviceId || plan.target.metadata?.local_device_id || "").trim();
+      if (!deviceId) {
+        const err = new Error("local_path target is missing a device id.");
+        err.status = 409;
+        err.code = "remote_runtime_local_device_missing";
+        throw err;
+      }
+      const connectorArgs = {
+        device_id: deviceId,
+        tenant_id: plan.target.tenant_id,
+        user_id: plan.target.user_id || input.user_id || input.userId || undefined,
+        action: "run",
+        alias: "repo_status_growth_os",
+        extra_args: [],
+        timeout_ms: Math.max(1000, Math.min(Number(input.timeout_ms || input.timeoutMs || 120000), 120000)),
+      };
+      const callerType = resolveCallerTypeForRequest(req);
+      const dispatchResult = await dispatchToolForCaller(callerType, "connector_shell", connectorArgs, req);
+      const ok = dispatchResult?.body?.ok !== false && dispatchResult.status < 400;
+      return res.status(dispatchResult.status).json({
+        ok,
+        plugin_key: "remote_ssh_runtime",
+        execution_mode: "local_path_readonly_allowlisted",
+        command_key: commandKey,
+        connector_alias: "repo_status_growth_os",
+        target: plan.target,
+        dry_run_plan: {
+          dispatch_ready: plan.dispatch_ready,
+          reason: plan.reason,
+          checks: plan.checks,
+          execution_log: plan.execution_log,
+        },
+        connector: {
+          tool_key: "connector_shell",
+          device_id: deviceId,
+          action: "run",
+          alias: "repo_status_growth_os",
+          status: dispatchResult.status,
+          body: dispatchResult.body,
+        },
+        execution: {
+          will_execute: true,
+          executed: ok,
+          shell_freeform: false,
+          ssh_used: false,
+          file_access: false,
+          allowlisted_alias_only: true,
+        },
+        secrets_included: false,
+      });
+    } catch (err) { return errorResponse(res, err, "remote_runtime_local_readonly_execute_failed"); }
   });
 
   router.post("/platform/remote-runtime/targets/catalog", ...requireAdmin, async (req, res) => {
