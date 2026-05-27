@@ -978,6 +978,174 @@ components:
         drive_export_url:
           type: string
 
+    # -- Platform Evolution checkpoint schemas --------------------------------
+
+    PlatformEvolutionActivationCard:
+      type: object
+      additionalProperties: true
+      properties:
+        scope_key: { type: string }
+        latest_checkpoint_at: { type: string, format: date-time, nullable: true }
+        latest_checkpoint_id: { type: string, nullable: true }
+        latest_activation_status: { type: string, nullable: true }
+        latest_main_commit_sha: { type: string, nullable: true }
+        latest_deployed_commit_sha: { type: string, nullable: true }
+        latest_summary_text: { type: string, nullable: true }
+        thread_count: { type: integer }
+        blocked_thread_count: { type: integer }
+        validating_thread_count: { type: integer }
+        active_thread_count: { type: integer }
+        monitoring_thread_count: { type: integer }
+        critical_thread_count: { type: integer }
+        active_link_count: { type: integer }
+        linked_task_count: { type: integer }
+        linked_signal_count: { type: integer }
+        linked_blocker_count: { type: integer }
+
+    PlatformEvolutionActivationCardResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, scope_key, card, secrets_included]
+      properties:
+        ok: { type: boolean }
+        scope_key: { type: string }
+        card:
+          oneOf:
+            - $ref: "#/components/schemas/PlatformEvolutionActivationCard"
+            - type: "null"
+        auth_context:
+          type: object
+          additionalProperties: true
+        access:
+          type: object
+          additionalProperties: true
+        tenant_facing: { type: boolean }
+        secrets_included: { type: boolean, enum: [false] }
+
+    PlatformEvolutionThreadMapItem:
+      type: object
+      additionalProperties: true
+      properties:
+        scope_key: { type: string }
+        tenant_id: { type: string, nullable: true }
+        user_id: { type: string, nullable: true }
+        brand_key: { type: string, nullable: true }
+        thread_key: { type: string }
+        title: { type: string }
+        category: { type: string }
+        status: { type: string }
+        priority: { type: string }
+        current_phase: { type: string, nullable: true }
+        classification: { type: string, nullable: true }
+        owner_scope: { type: string }
+        current_summary: { type: string, nullable: true }
+        next_action: { type: string, nullable: true }
+        blocked_by: { type: string, nullable: true }
+        last_checkpoint_id: { type: string, nullable: true }
+        updated_at: { type: string, format: date-time, nullable: true }
+        active_link_count: { type: integer }
+        linked_task_count: { type: integer }
+        linked_signal_count: { type: integer }
+        linked_blocker_count: { type: integer }
+        latest_event_at: { type: string, format: date-time, nullable: true }
+
+    PlatformEvolutionThreadMapResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, scope_key, count, threads, secrets_included]
+      properties:
+        ok: { type: boolean }
+        scope_key: { type: string }
+        count: { type: integer }
+        threads:
+          type: array
+          items: { $ref: "#/components/schemas/PlatformEvolutionThreadMapItem" }
+        auth_context:
+          type: object
+          additionalProperties: true
+        tenant_facing: { type: boolean }
+        secrets_included: { type: boolean, enum: [false] }
+
+    PlatformEvolutionOpenEvidenceItem:
+      type: object
+      additionalProperties: true
+      properties:
+        scope_key: { type: string }
+        tenant_id: { type: string, nullable: true }
+        user_id: { type: string, nullable: true }
+        brand_key: { type: string, nullable: true }
+        thread_key: { type: string }
+        linked_surface: { type: string }
+        linked_ref: { type: string }
+        linked_ref_key: { type: string }
+        link_role: { type: string }
+        classification: { type: string, nullable: true }
+        link_status: { type: string }
+        linked_title: { type: string, nullable: true }
+        linked_priority: { type: string, nullable: true }
+        linked_item_status: { type: string, nullable: true }
+        linked_updated_at: { type: string, format: date-time, nullable: true }
+        metadata_json:
+          oneOf:
+            - $ref: "#/components/schemas/JsonValue"
+            - type: string
+            - type: "null"
+        linked_at: { type: string, format: date-time, nullable: true }
+
+    PlatformEvolutionOpenEvidenceResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, scope_key, count, evidence, secrets_included]
+      properties:
+        ok: { type: boolean }
+        scope_key: { type: string }
+        count: { type: integer }
+        evidence:
+          type: array
+          items: { $ref: "#/components/schemas/PlatformEvolutionOpenEvidenceItem" }
+        auth_context:
+          type: object
+          additionalProperties: true
+        tenant_facing: { type: boolean }
+        secrets_included: { type: boolean, enum: [false] }
+
+    PlatformEvolutionCheckpointCreateRequest:
+      type: object
+      additionalProperties: true
+      required: [summary_text]
+      properties:
+        scope_key: { type: string }
+        brand_key: { type: string }
+        tenant_id: { type: string }
+        user_id: { type: string }
+        checkpoint_type:
+          type: string
+          enum: [activation, operation, manual, rollup, recovery]
+          default: operation
+        activation_session_id: { type: string }
+        main_commit_sha: { type: string, nullable: true }
+        deployed_commit_sha: { type: string, nullable: true }
+        activation_status: { type: string, nullable: true }
+        release_readiness_status: { type: string, nullable: true }
+        summary_text: { type: string }
+        thread_snapshot: { $ref: "#/components/schemas/JsonValue" }
+        delta: { $ref: "#/components/schemas/JsonValue" }
+        evidence: { $ref: "#/components/schemas/JsonValue" }
+        next_actions:
+          type: array
+          items: { type: string }
+        created_by: { type: string }
+
+    PlatformEvolutionCheckpointCreateResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, checkpoint_id, scope_key, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        checkpoint_id: { type: string }
+        scope_key: { type: string }
+        secrets_included: { type: boolean, enum: [false] }
+
     # -- Local Manager schemas ------------------------------------------------
 
     LocalManagerDeviceLinkSession:
