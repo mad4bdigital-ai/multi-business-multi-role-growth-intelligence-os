@@ -39,6 +39,8 @@ const dispatchPathMatches = openapi.match(/\/platform\/plugins\/dispatch-rest:/g
 assert.equal(dispatchPathMatches.length, 1, "OpenAPI must document dispatch route exactly once");
 assert(openapi.includes("operationId: platformPluginDispatchRest"), "OpenAPI must expose stable dispatch operationId");
 assert(openapi.includes("x-openai-isConsequential: true"), "OpenAPI must mark dispatch route consequential");
+assert(openapi.includes("full execution readiness passes"), "OpenAPI must document readiness guard before dispatch");
+assert(openapi.includes("Brand, Business Activity, Workflow/Logic, Skill, and Platform Graph"), "OpenAPI must document readiness context fields");
 
 for (const forbidden of [
   "api_key_value",
