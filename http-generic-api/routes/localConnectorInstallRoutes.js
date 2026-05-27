@@ -46,7 +46,10 @@ function normalizeWindowsPath(value, max = 260) {
   const raw = String(value || "").trim().replace(/^"|"$/g, "").slice(0, max);
   if (!raw) return "";
   if (!/^[a-zA-Z]:\\/.test(raw) && !raw.startsWith("\\\\")) return "";
-  if (/[\n\r<>|?*]/.test(raw)) return "";
+  // Block characters that are unsafe in Windows paths or generated .bat/.env lines.
+  // Windows itself disallows <>|?* for paths; &^%! are additionally blocked here
+  // because dynamic user-selected grants are rendered into installer scripts.
+  if (/[\n\r<>|?*&^%!]/.test(raw)) return "";
   return raw;
 }
 
