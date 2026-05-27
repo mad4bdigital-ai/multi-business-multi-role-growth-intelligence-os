@@ -209,7 +209,7 @@ async function checkSkillGrant({ pool, agentId, tenantId, requiredSkillKey }) {
   };
 }
 
-async function checkSmokeCertification({ pool, pluginKey, actionKey }) {
+async function checkSmokeCertification({ pool, pluginKey, actionKey, allowExpiredForRecertification = false }) {
   if (!actionKey) {
     return {
       required: false,
