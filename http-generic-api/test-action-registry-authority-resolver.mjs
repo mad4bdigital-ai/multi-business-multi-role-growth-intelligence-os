@@ -39,6 +39,8 @@ function createPool() {
         }]];
       }
       if (compactSql.includes("FROM `actions` a")) {
+        assert.equal((String(sql).match(/\?/g) || []).length, params.length, "action registry SQL placeholder count must match params");
+        assert.deepEqual(params.slice(0, 5), ["tenant_1", "tenant_1", "tenant_1", "user_1", "user_1"].map((value, index) => params[index] === null ? null : value));
         return [[
           {
             action_key: "crm.contact.list",
