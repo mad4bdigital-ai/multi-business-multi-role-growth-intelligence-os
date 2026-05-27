@@ -734,6 +734,7 @@ async function executeGitHubRestFallback(args = []) {
   if (resource === "api" && command) {
     let apiTarget = String(command);
     const repoPrefix = `repos/${owner}/${repo}`;
+    if (apiTarget.startsWith(`/${repoPrefix}`)) apiTarget = apiTarget.slice(repoPrefix.length + 1);
     if (apiTarget.startsWith(repoPrefix)) apiTarget = apiTarget.slice(repoPrefix.length);
     if (!apiTarget.startsWith("/")) apiTarget = `/${apiTarget}`;
     const method = parseGithubApiMethod(args);
