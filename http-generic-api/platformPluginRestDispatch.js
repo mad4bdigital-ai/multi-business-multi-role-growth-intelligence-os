@@ -294,6 +294,7 @@ export async function dispatchPlatformPluginRestAction({
       reason: "dry_run",
       request: requestSummary,
       resolution,
+      execution_readiness: executionReadiness,
       execution_log: log ? { ok: true, id: log.id, execution_status: log.execution_status, trace_id: log.execution_trace_id_writeback } : { ok: false, trace_id: traceId },
       secrets_included: false,
     };
