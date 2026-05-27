@@ -58,10 +58,10 @@ async function resolveRemoteRuntimeCanonicalDeviceId({ deviceId, tenantId = null
         WHERE alias_device_id = ?
           AND status = 'active'
           AND (tenant_id = ? OR tenant_id IS NULL)
-          AND (user_id = ? OR user_id IS NULL)
-        ORDER BY (tenant_id IS NOT NULL) DESC, (user_id IS NOT NULL) DESC, updated_at DESC
+          AND (? IS NULL OR user_id = ? OR user_id IS NULL)
+        ORDER BY (tenant_id = ?) DESC, (user_id = ?) DESC, (tenant_id IS NOT NULL) DESC, (user_id IS NOT NULL) DESC, updated_at DESC
         LIMIT 1`,
-      [requested, tenantId || null, userId || null]
+      [requested, tenantId || null, userId || null, userId || null, tenantId || null, userId || null]
     );
     return rows[0]?.canonical_device_id || requested;
   } catch {
