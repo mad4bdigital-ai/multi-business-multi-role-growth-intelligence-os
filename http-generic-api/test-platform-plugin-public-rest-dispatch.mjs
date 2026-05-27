@@ -36,6 +36,8 @@ assert(routes.includes("enforceExecutionReadiness"), "dispatch route must pass r
 assert(routes.includes("businessActivityTypeKey"), "dispatch route must pass business activity context");
 assert(routes.includes("logicPackKey"), "dispatch route must pass logic pack context");
 assert(routes.includes("edgeDetailLimit"), "dispatch route must pass bounded graph detail limits");
+assert(routes.includes("providerSmoke"), "dispatch route must pass provider smoke flag");
+assert(routes.includes("providerSmokeExpectedOrigin"), "dispatch route must pass provider smoke expected origin");
 
 assert(migration.includes("platform_plugin_dispatch_rest"), "migration must register dispatch tool key");
 assert(migration.includes("/platform/plugins/dispatch-rest"), "migration must bind dispatch route path");
