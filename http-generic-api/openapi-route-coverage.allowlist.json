@@ -21,7 +21,11 @@
     "GET /healthz",
     "GET /readyz",
     "GET /favicon.ico",
-    "GET /robots.txt"
+    "GET /robots.txt",
+    "POST /browser-runtime/visual-takeover/run",
+    "POST /browser-runtime/persistent-session/run",
+    "POST /browser-runtime/cloud-extract/run",
+    "POST /browser-runtime/stealth-extract/run"
   ],
   "prefixes": [
     "/oauth",
