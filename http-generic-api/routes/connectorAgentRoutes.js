@@ -143,6 +143,41 @@ function psQuote(value) {
   return String(value ?? "").replace(/'/g, "''");
 }
 
+function normalizeGrantAlias(value, fallback = "item") {
+  const clean = String(value || "").trim().toLowerCase().replace(/[^a-z0-9_.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 48);
+  return clean || fallback;
+}
+
+function normalizeWindowsPath(value, max = 260) {
+  const raw = String(value || "").trim().replace(/^\"|\"$/g, "").slice(0, max);
+  if (!raw) return "";
+  if (!/^[a-zA-Z]:\\/.test(raw) && !raw.startsWith("\\\\")) return "";
+  if (/[\n\r<>|?*&^%!]/.test(raw)) return "";
+  return raw;
+}
+
+function normalizePermissionGrants(value = {}) {
+  const grants = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const shellAliases = [];
+  for (const item of Array.isArray(grants.shell_aliases || grants.helpers) ? (grants.shell_aliases || grants.helpers) : []) {
+    const alias = normalizeGrantAlias(item?.alias || item?.display_name, "helper");
+    const command = normalizeWindowsPath(item?.command || item?.command_path || item?.cmd, 260);
+    if (!alias || !command) continue;
+    const args = Array.isArray(item?.args)
+      ? item.args.map((arg) => String(arg || "").slice(0, 200)).filter((arg) => !/[;&|`$<>\n\r]/.test(arg)).slice(0, 20)
+      : [];
+    shellAliases.push({
+      alias,
+      cmd: command,
+      args,
+      allow_extra_args: item?.allow_extra_args === true,
+      description: String(item?.description || item?.display_name || alias).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 160) || alias,
+    });
+    if (shellAliases.length >= 50) break;
+  }
+  return { shell_aliases: shellAliases };
+}
+
 function buildAllowlistEnvValue(aliases) {
   const obj = {};
   for (const a of aliases) {
