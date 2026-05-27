@@ -102,6 +102,10 @@ assert(openapi.includes("/platform/plugins/smoke-certifications/certify:"), "Ope
 assert(openapi.includes("operationId: platformPluginSmokeCertify"), "OpenAPI must expose stable smoke certification writer operationId");
 assert(openapi.includes("/platform/plugins/smoke-certifications/status:"), "OpenAPI must document smoke certification status route");
 assert(openapi.includes("operationId: platformPluginSmokeCertificationStatus"), "OpenAPI must expose stable smoke certification status operationId");
+assert(openapi.includes("/platform/plugins/smoke-certifications/recertification-queue:"), "OpenAPI must document smoke recertification queue route");
+assert(openapi.includes("operationId: platformPluginSmokeRecertificationQueue"), "OpenAPI must expose stable recertification queue operationId");
+assert(openapi.includes("/platform/plugins/smoke-certifications/recertification-batch:"), "OpenAPI must document smoke recertification batch route");
+assert(openapi.includes("operationId: platformPluginSmokeRecertificationBatch"), "OpenAPI must expose stable recertification batch operationId");
 
 const smokeMigration = readFileSync("migrations/150_sprint65_provider_smoke_guarded_dispatch_schema.sql", "utf8");
 assert(smokeMigration.includes("provider_smoke"), "provider smoke schema migration must include provider_smoke field");
