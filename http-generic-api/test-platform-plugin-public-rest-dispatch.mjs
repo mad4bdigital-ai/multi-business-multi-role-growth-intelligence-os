@@ -177,6 +177,11 @@ assert(smokeRecertSource.includes("automatic_recertification_supported"), "smoke
 assert(smokeRecertSource.includes("dispatchPlatformPluginRestAction"), "smoke recertification batch must reuse guarded dispatch");
 assert(smokeRecertSource.includes("recertificationMode: true"), "smoke recertification batch must use explicit recertification mode");
 assert(smokeRecertSource.includes("certifyPlatformPluginSmoke"), "smoke recertification batch must certify successful smoke logs");
+assert(smokeRecertSource.includes("resolvePlatformPluginSmokeRecertificationPolicy"), "smoke recertification queue must resolve effective policy per row");
+assert(smokeRecertSource.includes("policy_expected_origin_mismatch"), "smoke recertification queue must detect policy expected origin mismatches");
+assert(smokeRecertSource.includes("item.policy?.certification_ttl_days"), "smoke recertification batch must use policy TTL days when certifying");
+assert(smokeRecertSource.includes("item.policy?.max_batch_size"), "smoke recertification batch must honor policy max batch size");
+assert(smokeRecertSource.includes("auto_recertification_enabled"), "smoke recertification queue must expose policy auto recertification flag");
 
 assert(pluginResolverSource.includes("checkSmokeCertification"), "plugin resolver must check smoke certification before dispatch readiness");
 assert(pluginResolverSource.includes("platform_plugin_smoke_certifications"), "plugin resolver must read smoke certification registry");
