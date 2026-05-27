@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { resolveCallerTypeForRequest, dispatchToolForCaller } from "./gptToolsRoutes.js";
+import { getPool } from "../db.js";
 import { loadPlatformPluginCatalog } from "../platformPluginCatalog.js";
 import { resolvePlatformPluginExecution } from "../platformPluginResolver.js";
 import { upsertPlatformPluginPolicy } from "../platformPluginPolicy.js";
@@ -45,6 +46,27 @@ function errorResponse(res, err, fallbackCode) {
     error: { code: err.code || fallbackCode, message: err.message, details: err.details || null },
     secrets_included: false,
   });
+}
+
+async function resolveRemoteRuntimeCanonicalDeviceId({ deviceId, tenantId = null, userId = null }) {
+  const requested = String(deviceId || "").trim();
+  if (!requested) return "";
+  try {
+    const [rows] = await getPool().query(
+      `SELECT canonical_device_id
+         FROM local_connector_device_aliases
+        WHERE alias_device_id = ?
+          AND status = 'active'
+          AND (tenant_id = ? OR tenant_id IS NULL)
+          AND (user_id = ? OR user_id IS NULL)
+        ORDER BY (tenant_id IS NOT NULL) DESC, (user_id IS NOT NULL) DESC, updated_at DESC
+        LIMIT 1`,
+      [requested, tenantId || null, userId || null]
+    );
+    return rows[0]?.canonical_device_id || requested;
+  } catch {
+    return requested;
+  }
 }
 
 export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPrincipal }) {
@@ -198,8 +220,13 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         err.code = "remote_runtime_local_device_missing";
         throw err;
       }
+      const canonicalDeviceId = await resolveRemoteRuntimeCanonicalDeviceId({
+        deviceId,
+        tenantId: plan.target.tenant_id,
+        userId: plan.target.user_id || input.user_id || input.userId || null,
+      });
       const connectorArgs = {
-        device_id: deviceId,
+        device_id: canonicalDeviceId,
         tenant_id: plan.target.tenant_id,
         user_id: plan.target.user_id || input.user_id || input.userId || undefined,
         action: "run",
@@ -225,7 +252,8 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         },
         connector: {
           tool_key: "connector_shell",
-          device_id: deviceId,
+          requested_device_id: deviceId,
+          device_id: canonicalDeviceId,
           action: "run",
           alias: "repo_status_growth_os",
           status: dispatchResult.status,
