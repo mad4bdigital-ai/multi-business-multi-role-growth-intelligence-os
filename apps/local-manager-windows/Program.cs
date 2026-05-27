@@ -687,7 +687,18 @@ internal static class Program
                 using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
                 using var req = new HttpRequestMessage(HttpMethod.Post, DeviceRepairInstallerUrl)
                 {
-                    Content = JsonContent(new { format = "bat", ttl_minutes = 30, capabilities = requestedCapabilities })
+                    Content = JsonContent(new
+                    {
+                        format = "bat",
+                        ttl_minutes = 30,
+                        capabilities = requestedCapabilities,
+                        permission_grants = new
+                        {
+                            apps = selectedApps,
+                            allowed_paths = selectedPaths,
+                            shell_aliases = selectedHelpers
+                        }
+                    })
                 };
                 req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 req.Headers.Accept.ParseAdd("application/json");
