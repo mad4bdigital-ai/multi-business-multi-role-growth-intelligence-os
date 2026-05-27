@@ -9231,6 +9231,53 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+  /platform/execution-readiness/dry-run:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: executionReadinessDryRun
+      summary: Resolve full execution readiness dry-run
+      description: Read-only full execution readiness dry-run combining action manifest guard preview with Brand, Business Activity, Workflow/Logic, Skills, and Platform Graph context. Never executes providers or exposes secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                action_key: { type: string }
+                endpoint_key: { type: string }
+                plugin_key: { type: string }
+                tool_key: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                brand_key: { type: string }
+                target_key: { type: string }
+                business_type_key: { type: string }
+                business_activity_type_key: { type: string }
+                workflow_key: { type: string }
+                logic_key: { type: string }
+                logic_pack_key: { type: string }
+                agent_id: { type: string }
+                skill_key: { type: string }
+                actor_role: { type: string }
+                governance_level: { type: string }
+                preview_enforce: { type: boolean, default: true }
+                require_plugin_connection: { type: boolean, default: true }
+                graph_depth: { type: integer, default: 2 }
+                graph_limit: { type: integer, default: 250 }
+      responses:
+        "200":
+          description: Full execution readiness dry-run response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
   /platform/plugins/install-policy:
     post:
       x-openai-isConsequential: true
