@@ -111,6 +111,9 @@ function makePool({ withConnection = true, withSkill = true, tenantDedicated = f
   assert.equal(result.mode, "dispatch_ready");
   assert.equal(result.credential_resolution.credential_source, "user_connection");
   assert.equal(result.skill_resolution.granted, true);
+  assert.equal(result.smoke_certification.certified, true);
+  assert.equal(result.smoke_certification.certification.certification_id, "smoke-cert-1");
+  assert.equal(result.smoke_certification.certification.last_response_status, 200);
   assert.equal(result.approval.approval_required, false);
   assert.equal(result.execution.will_execute, true);
   assert.equal(result.secrets_included, false);
