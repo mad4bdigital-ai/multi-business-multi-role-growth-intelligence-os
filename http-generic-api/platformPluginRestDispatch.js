@@ -272,10 +272,15 @@ export async function dispatchPlatformPluginRestAction({
     };
   }
 
-  const { template, source, contribution } = await loadPromotedContributionActionTemplate(pool, {
+  let { template, source, contribution, endpoint } = await loadPromotedContributionActionTemplate(pool, {
     pluginKey: normalizedPluginKey,
     actionKey: normalizedActionKey,
   });
+  if (!template) {
+    ({ template, source, contribution, endpoint } = await loadEndpointRegistryActionTemplate(pool, {
+      actionKey: normalizedActionKey,
+    }));
+  }
   if (!template) {
     return {
       ok: true,
@@ -283,8 +288,12 @@ export async function dispatchPlatformPluginRestAction({
       reason: "dispatch_template_missing",
       plugin_key: normalizedPluginKey,
       action_key: normalizedActionKey,
-      template_sources_checked: ["platform_plugin_contributions.action_bindings_json"],
+      template_sources_checked: [
+        "platform_plugin_contributions.action_bindings_json",
+        "endpoints.endpoint_path_or_function",
+      ],
       contribution_id: contribution?.contribution_id || null,
+      endpoint_key: endpoint?.endpoint_key || null,
       secrets_included: false,
     };
   }
