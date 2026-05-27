@@ -44,6 +44,12 @@ assert(!installRoutes.includes('CONNECTOR_WIN_ENABLED=true",'), 'Windows control
 assert(proxyRoutes.includes('code: "DISABLED"'), 'connector proxy must preserve disabled capability errors');
 assert(proxyRoutes.includes('connector_capability_status: "disabled"'), 'connector proxy response must classify disabled capability state');
 
+assert(localManagerWindows.includes('app_managed = true'), 'Windows app must request app-managed installer bootstraps');
+assert(localManagerWindows.includes('suppress_pause = true'), 'Windows app must request no-pause installer bootstraps');
+assert(installRoutes.includes('app_managed: appManaged'), 'installer route must sign app-managed mode into download tokens');
+assert(installRoutes.includes('appManaged: payload.app_managed === true'), 'download route must pass app-managed mode into bootstrap BAT generation');
+assert(installRoutes.includes('const doneSuffix = appManaged ? "exit /b 0" : "pause"'), 'app-managed bootstrap BAT must exit instead of pausing');
+assert(installRoutes.includes('const failSuffix = appManaged ? "exit /b 1" : "pause & exit /b 1"'), 'app-managed bootstrap BAT failures must exit instead of pausing');
 assert(localManagerWindows.includes('RunElevatedInstallerAndVerifyAsync'), 'Windows app must run connector installers through an in-app elevated workflow');
 assert(localManagerWindows.includes('RefreshDeviceControlsAfterInstallerAsync'), 'Windows app must refresh device controls after installer execution');
 assert(localManagerWindows.includes('WaitForExitAsync'), 'Windows app must wait for elevated installer completion when possible');
