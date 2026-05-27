@@ -252,7 +252,8 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         },
         connector: {
           tool_key: "connector_shell",
-          device_id: deviceId,
+          requested_device_id: deviceId,
+          device_id: canonicalDeviceId,
           action: "run",
           alias: "repo_status_growth_os",
           status: dispatchResult.status,
