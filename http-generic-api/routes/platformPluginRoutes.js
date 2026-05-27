@@ -212,7 +212,7 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         targetId: input.target_id || input.targetId,
         tenantId: input.tenant_id || input.tenantId || null,
         userId: input.user_id || input.userId || null,
-        commandKey: "status",
+        commandKey,
         inputs: input.inputs || {},
         approvalId: input.approval_id || input.approvalId || null,
         approvalReason: input.approval_reason || input.approvalReason || null,
