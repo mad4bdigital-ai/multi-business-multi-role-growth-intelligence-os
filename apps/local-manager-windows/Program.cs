@@ -567,7 +567,7 @@ internal static class Program
             {
                 Text = "Connector capabilities",
                 StartPosition = FormStartPosition.CenterParent,
-                Size = new Size(560, 300),
+                Size = new Size(760, 610),
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
                 MinimizeBox = false,
