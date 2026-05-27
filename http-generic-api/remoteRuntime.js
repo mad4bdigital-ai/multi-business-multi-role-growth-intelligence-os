@@ -16,6 +16,33 @@ function parseStoredJson(value, fallback) {
   try { return JSON.parse(String(value)); } catch { return fallback; }
 }
 
+function asArray(value, fallback = []) {
+  if (Array.isArray(value)) return value.map((item) => compactString(item, 1024)).filter(Boolean);
+  const parsed = parseStoredJson(value, null);
+  if (Array.isArray(parsed)) return parsed.map((item) => compactString(item, 1024)).filter(Boolean);
+  return fallback;
+}
+
+function rejectSecretLikePayload(value, path = "payload") {
+  if (value === null || value === undefined) return;
+  if (typeof value !== "object") return;
+  const blocked = /(secret|password|passphrase|private[_-]?key|token|authorization|cookie|credential)/i;
+  for (const [key, child] of Object.entries(value)) {
+    const childPath = `${path}.${key}`;
+    if (blocked.test(key)) {
+      const err = new Error(`Secret-like field is not allowed in Remote Runtime metadata: ${childPath}`);
+      err.status = 400;
+      err.code = "remote_runtime_secret_like_metadata_rejected";
+      throw err;
+    }
+    rejectSecretLikePayload(child, childPath);
+  }
+}
+
+function jsonParam(value, fallback) {
+  return JSON.stringify(value === undefined ? fallback : value);
+}
+
 async function safeQuery(pool, sql, params = []) {
   try {
     const [rows] = await pool.query(sql, params);
