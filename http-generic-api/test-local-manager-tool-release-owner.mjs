@@ -40,6 +40,9 @@ assert(localManagerWindows.includes('Capabilities'), 'Windows app must expose ca
 assert(localManagerWindows.includes('ConfigureConnectorCapabilitiesAsync'), 'Windows app must request capability installer from user action');
 assert(localManagerWindows.includes('powershell_admin'), 'Windows app must support PowerShell capability selection');
 assert(localManagerWindows.includes('windows_control'), 'Windows app must support Windows control capability selection');
+assert(localManagerWindows.includes('permission_grants'), 'Windows app must send dynamic permission grants');
+assert(localManagerWindows.includes('OpenFileDialog'), 'Windows app must let users choose app/helper executables locally');
+assert(localManagerWindows.includes('FolderBrowserDialog'), 'Windows app must let users choose allowed paths locally');
 assert(localManagerWindows.includes('RunAsAdminRequired'), 'Windows app must surface local Administrator requirement');
 
 console.log('local manager tool release owner tests passed');
