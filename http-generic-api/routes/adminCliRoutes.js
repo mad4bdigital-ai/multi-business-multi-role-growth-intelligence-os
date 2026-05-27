@@ -922,7 +922,7 @@ async function executeGitHubRestFallback(args = []) {
     return { stdout: JSON.stringify({ number: Number(prNumber), merged: true, merge_method: mergeMethod, sha: mergeResult.sha || null, message: mergeResult.message || "Pull Request successfully merged" }, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
   }
 
-  const err = new Error("gh CLI is missing and GitHub REST fallback currently supports: run list, run view <id>, run view <id> --log-failed, pr create, and pr merge <number|url>.");
+  const err = new Error("gh CLI is missing and GitHub REST fallback currently supports: workflow run <workflow> --ref <ref>, api <workflow-dispatch-path> -X POST -f ref=<ref>, run list, run view <id>, run view <id> --log-failed, pr create, and pr merge <number|url>.");
   err.status = 501;
   err.code = "github_rest_fallback_unsupported_args";
   err.details = { args };
