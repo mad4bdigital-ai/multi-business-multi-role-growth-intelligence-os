@@ -104,6 +104,10 @@ const BROWSER4_JAVA_HOME = process.env.BROWSER4_JAVA_HOME ?? (process.platform =
   : '');
 const BROWSER4_SERVER_URL = process.env.BROWSER4_SERVER_URL ?? 'http://localhost:8182';
 const BROWSER4_ALLOWED_HOSTS = parseBrowser4AllowedHosts(process.env.BROWSER4_ALLOWED_HOSTS ?? 'mad4b.com,n8n.mad4b.com');
+const AUTO_BROWSER_ENABLED = process.env.CONNECTOR_AUTO_BROWSER_ENABLED === 'true';
+const AUTO_BROWSER_BASE_URL = (process.env.AUTO_BROWSER_BASE_URL ?? 'http://127.0.0.1:7331').replace(/\/$/, '');
+const AUTO_BROWSER_HEALTH_PATH = process.env.AUTO_BROWSER_HEALTH_PATH ?? '/health';
+const AUTO_BROWSER_ALLOWED_HOSTS = parseBrowser4AllowedHosts(process.env.AUTO_BROWSER_ALLOWED_HOSTS ?? 'mad4b.com,n8n.mad4b.com');
 
 const DEFAULT_DEPENDENCY_ALLOWLIST = {
   gh: {
@@ -613,6 +617,9 @@ function policyBody() {
       fetch_upload_enabled: FETCH_UPLOAD_ENABLED,
       browser4_enabled: BROWSER4_ENABLED,
       browser4_allowed_hosts: BROWSER4_ALLOWED_HOSTS,
+      auto_browser_enabled: AUTO_BROWSER_ENABLED,
+      auto_browser_base_url: AUTO_BROWSER_ENABLED ? AUTO_BROWSER_BASE_URL : null,
+      auto_browser_allowed_hosts: AUTO_BROWSER_ALLOWED_HOSTS,
     },
     secrets_included: false,
   };
@@ -1074,6 +1081,43 @@ async function handleBrowser4(req, res) {
     } catch (e) { return err(res, 500, 'BROWSER4_INSPECT_ERROR', e.message); }
   }
   return err(res, 400, 'UNKNOWN_ACTION', 'action must be "status" or "inspect_site"');
+}
+
+async function handleAutoBrowser(req, res) {
+  if (!AUTO_BROWSER_ENABLED) return err(res, 403, 'DISABLED', 'Auto Browser endpoint is disabled — set CONNECTOR_AUTO_BROWSER_ENABLED=true after installing and validating Auto Browser');
+  if (!requireAuth(req, res)) return;
+  let body;
+  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
+  const { action = 'status', timeout_ms } = body;
+  if (action !== 'status') {
+    return err(res, 409, 'AUTO_BROWSER_ADAPTER_NOT_VALIDATED', 'Only action=status is enabled until the Auto Browser adapter PoC is validated.');
+  }
+  audit(req, { action: 'auto_browser:status' });
+  const timeoutMs = clampTimeout(timeout_ms, 15000);
+  let health = null;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await fetch(`${AUTO_BROWSER_BASE_URL}${AUTO_BROWSER_HEALTH_PATH}`, { signal: controller.signal });
+    const text = await response.text().catch(() => '');
+    clearTimeout(timer);
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = { body_preview: text.slice(0, 500) }; }
+    health = { reachable: response.ok, status: response.status, data };
+  } catch (e) {
+    health = { reachable: false, error: e.message };
+  }
+  return ok(res, {
+    auto_browser_enabled: true,
+    base_url: AUTO_BROWSER_BASE_URL,
+    health_path: AUTO_BROWSER_HEALTH_PATH,
+    allowed_hosts: AUTO_BROWSER_ALLOWED_HOSTS,
+    adapter_status: health.reachable ? 'service_reachable_status_only' : 'service_not_reachable_or_not_installed',
+    validated_actions: ['status'],
+    blocked_actions: ['visual_takeover', 'click', 'type', 'auth_profile_reuse', 'destructive_actions'],
+    health,
+    secrets_included: false,
+  });
 }
 
 async function handleFiles(req, res) {
@@ -1703,6 +1747,7 @@ const server = http.createServer(async (req, res) => {
     if (method === 'POST' && url === '/apps') return await handleApps(req, res);
     if (method === 'POST' && url === '/browser') return await handleBrowser(req, res);
     if (method === 'POST' && url === '/browser4') return await handleBrowser4(req, res);
+      if (method === 'POST' && url === '/auto-browser') return await handleAutoBrowser(req, res);
     if (method === 'POST' && url === '/files') return await handleFiles(req, res);
     if (method === 'POST' && url === '/fetch-upload') return await handleFetchUpload(req, res);
     if (method === 'POST' && url === '/shell-fetch-upload') return await handleShellFetchUpload(req, res);

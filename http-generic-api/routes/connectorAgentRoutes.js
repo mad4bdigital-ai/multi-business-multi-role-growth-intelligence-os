@@ -64,6 +64,30 @@ const LOCAL_TOOL_RELEASES = [
       governed_runtime_binding_required: true,
     },
   },
+  {
+    tool_key: "auto_browser",
+    display_name: "Auto Browser Visual Takeover Candidate",
+    owner_app: "mad4b-local-manager",
+    install_kind: "external_provider_manifest_candidate",
+    status: "candidate_pending_install_plan",
+    platform: "windows",
+    files: ["server.mjs"],
+    source_url: "https://github.com/LvcidPsyche/auto-browser",
+    env: {
+      CONNECTOR_AUTO_BROWSER_ENABLED: "false",
+      AUTO_BROWSER_BASE_URL: "http://127.0.0.1:7331",
+      AUTO_BROWSER_HEALTH_PATH: "/health",
+      AUTO_BROWSER_ALLOWED_HOSTS: "mad4b.com,n8n.mad4b.com",
+    },
+    install_policy: {
+      allowlisted_domains_only: true,
+      no_raw_shell_surface: true,
+      no_secret_return: true,
+      governed_runtime_binding_required: true,
+      explicit_user_approval_required: true,
+      adapter_poc_required_before_activation: true,
+    },
+  },
 ];
 
 const DEFAULT_WINDOWS_ALIASES = [
@@ -142,6 +166,10 @@ function buildConnectorEnv({ connectorSecret, aliases, port }) {
     "BROWSER4_WORK_DIR=D:\\n8n-data\\browser-runtime-artifacts",
     "BROWSER4_JAVA_HOME=D:\\n8n-data\\browser-runtime\\jre17\\jdk-17.0.19+10-jre",
     "BROWSER4_SERVER_URL=http://localhost:8182",
+    "CONNECTOR_AUTO_BROWSER_ENABLED=false",
+    "AUTO_BROWSER_BASE_URL=http://127.0.0.1:7331",
+    "AUTO_BROWSER_HEALTH_PATH=/health",
+    "AUTO_BROWSER_ALLOWED_HOSTS=mad4b.com,n8n.mad4b.com",
     "N8N_COMMAND=D:\\npm-global\\n8n.cmd",
     "N8N_USER_FOLDER=D:\\n8n-data",
     "N8N_PORT=5678",
