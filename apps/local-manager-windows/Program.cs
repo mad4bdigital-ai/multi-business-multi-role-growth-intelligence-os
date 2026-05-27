@@ -605,6 +605,14 @@ internal static class Program
                     if (string.IsNullOrWhiteSpace(appAlias.Text)) appAlias.Text = SafeFileSegment(Path.GetFileNameWithoutExtension(dialog.FileName)).ToLowerInvariant();
                 }
             };
+            var discoverApps = new Button { Text = "Installed apps", Location = new Point(614, 222), Size = new Size(110, 32) };
+            discoverApps.Click += (_, _) =>
+            {
+                var selected = PickInstalledApp(form);
+                if (selected is null) return;
+                appAlias.Text = SafeFileSegment(selected.DisplayName).ToLowerInvariant();
+                appPath.Text = selected.ExecutablePath;
+            };
 
             var folderLabel = new Label { Text = "Optional allowed folder/path grant", Location = new Point(22, 230), Size = new Size(690, 22) };
             var allowedPath = new TextBox { PlaceholderText = "Allowed folder for read/write/list operations", Location = new Point(22, 258), Size = new Size(580, 28) };
