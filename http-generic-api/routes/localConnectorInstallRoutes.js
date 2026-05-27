@@ -1017,6 +1017,11 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     installation: {
       aliases: allAliases.map((a) => a.alias),
       capabilities: requestedCapabilities,
+      permission_grants: {
+        allowed_paths: requestedPermissionGrants.allowed_paths,
+        app_aliases: Object.keys(requestedPermissionGrants.apps),
+        shell_aliases: requestedPermissionGrants.shell_aliases.map((entry) => entry.alias),
+      },
       install_bat: installScript,
       install_ps1: installPowerShell,
       files: {
