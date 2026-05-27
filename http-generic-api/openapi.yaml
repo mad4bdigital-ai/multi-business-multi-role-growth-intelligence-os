@@ -9172,6 +9172,35 @@ paths:
                 type: object
                 additionalProperties: true
 
+  /platform/mock-crm/contacts:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      operationId: platformMockCrmContacts
+      summary: Platform-owned mock CRM contacts smoke endpoint
+      description: Public read-only mock CRM contacts endpoint for guarded provider smoke tests. Returns deterministic non-sensitive test data and never mutates state.
+      responses:
+        "200":
+          description: Mock CRM contacts smoke response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  ok: { type: boolean }
+                  provider: { type: string }
+                  resource: { type: string }
+                  mode: { type: string }
+                  contacts:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  count: { type: integer }
+                  will_mutate: { type: boolean }
+                  secrets_included: { type: boolean }
+                  timestamp: { type: string }
   /platform/plugins/resolve:
     post:
       x-openai-isConsequential: false
