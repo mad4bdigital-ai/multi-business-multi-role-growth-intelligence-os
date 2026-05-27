@@ -9340,7 +9340,7 @@ paths:
         - backendApiKeyAuth: []
       operationId: platformPluginDispatchRest
       summary: Dispatch Platform Plugin REST action
-      description: Execute a promoted or tenant-installed Platform Plugin REST action only after full execution readiness passes. Requires the Phase 33 dry-run/guard to return dispatch_ready, then requires plugin dispatch_ready resolution, an active connection with api_base_url, and an action template from plugin contribution metadata. Supports optional Brand, Business Activity, Workflow/Logic, Skill, and Platform Graph context fields for guarded readiness. Credentials remain server-side and secrets are never returned.
+      description: Execute a promoted or tenant-installed Platform Plugin REST action only after full execution readiness passes. Requires the Phase 33 dry-run/guard to return dispatch_ready, then requires plugin dispatch_ready resolution, an active connection with api_base_url, and an action template from plugin contribution metadata or the Endpoint Registry. Supports optional Brand, Business Activity, Workflow/Logic, Skill, and Platform Graph context fields for guarded readiness. Credentials remain server-side and secrets are never returned.
       requestBody:
         required: true
         content:
