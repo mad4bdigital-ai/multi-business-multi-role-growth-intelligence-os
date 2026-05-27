@@ -9,6 +9,9 @@ assert(routes.includes("/platform/remote-runtime/local-path/execute-readonly"), 
 assert(routes.includes("dispatchToolForCaller"), "route must dispatch through governed tool dispatcher");
 assert(routes.includes('"connector_shell"'), "route must use connector_shell, not direct process execution");
 assert(routes.includes('alias: "repo_status_growth_os"'), "route must use fixed repo_status_growth_os allowlist alias");
+assert(routes.includes("resolveRemoteRuntimeCanonicalDeviceId"), "route must resolve legacy device ids through local_connector_device_aliases");
+assert(routes.includes("local_connector_device_aliases"), "route must query device alias registry before connector_shell dispatch");
+assert(routes.includes("canonicalDeviceId"), "route must use canonical device id for connector dispatch");
 assert(routes.includes("extra_args: []"), "route must forbid extra shell args");
 assert(routes.includes('action: "run"'), "route must call connector shell run action");
 assert(routes.includes('planRemoteRuntimeDispatchDryRun'), "route must require successful dry-run planning before execution");
