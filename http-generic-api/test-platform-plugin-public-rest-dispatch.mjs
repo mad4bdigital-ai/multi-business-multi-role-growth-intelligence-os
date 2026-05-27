@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 
 const service = readFileSync("platformPluginRestDispatch.js", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
+const routeIndex = readFileSync("routes/index.js", "utf8");
+const smokeRoutes = readFileSync("routes/platformSmokeRoutes.js", "utf8");
 const migration = readFileSync("migrations/145_sprint65_platform_plugin_public_rest_dispatch_tool.sql", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
 
@@ -44,6 +46,15 @@ assert(migration.includes("/platform/plugins/dispatch-rest"), "migration must bi
 assert(migration.includes("state_changing"), "dispatch tool must be state-changing");
 assert(migration.includes("no_secrets"), "dispatch tool must be tagged no-secrets");
 assert(migration.includes("ON DUPLICATE KEY UPDATE"), "dispatch tool registration must be idempotent");
+
+assert(smokeRoutes.includes("/platform/mock-crm/contacts"), "platform smoke routes must expose mock CRM contacts endpoint");
+assert(smokeRoutes.includes("smoke_read_only"), "mock CRM contacts endpoint must declare smoke read-only mode");
+assert(smokeRoutes.includes("will_mutate: false"), "mock CRM contacts endpoint must declare non-mutating behavior");
+assert(smokeRoutes.includes("secrets_included: false"), "mock CRM contacts endpoint must be secret-free");
+assert(routeIndex.includes("buildPlatformSmokeRoutes"), "platform smoke routes must be registered");
+assert(openapi.includes("/platform/mock-crm/contacts:"), "OpenAPI must document mock CRM contacts smoke endpoint");
+assert(openapi.includes("operationId: platformMockCrmContacts"), "mock CRM OpenAPI operationId must be stable");
+assert(openapi.includes("Public read-only mock CRM contacts endpoint"), "mock CRM OpenAPI description must document public read-only smoke behavior");
 
 const dispatchPathMatches = openapi.match(/\/platform\/plugins\/dispatch-rest:/g) || [];
 assert.equal(dispatchPathMatches.length, 1, "OpenAPI must document dispatch route exactly once");
