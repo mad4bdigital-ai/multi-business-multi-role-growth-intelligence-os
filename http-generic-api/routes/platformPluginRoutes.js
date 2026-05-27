@@ -267,7 +267,7 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         plugin_key: "remote_ssh_runtime",
         execution_mode: "local_path_readonly_allowlisted",
         command_key: commandKey,
-        connector_alias: "repo_status_growth_os",
+        connector_alias: connectorAliasByCommand[commandKey],
         target: plan.target,
         dry_run_plan: {
           dispatch_ready: plan.dispatch_ready,
