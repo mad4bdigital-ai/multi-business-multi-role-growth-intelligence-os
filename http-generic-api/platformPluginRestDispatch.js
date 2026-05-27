@@ -74,7 +74,7 @@ function validateSmokeCertificationDrift({ resolution, url, method }) {
   if (cert.url_origin && cert.url_origin !== url.origin) blocks.push("smoke_certification_origin_drift");
   if (cert.url_path && cert.url_path !== url.pathname) blocks.push("smoke_certification_path_drift");
   if (cert.http_method && String(cert.http_method).toUpperCase() !== String(method).toUpperCase()) blocks.push("smoke_certification_method_drift");
-  if (cert.expired === true) blocks.push("smoke_certification_expired");
+  if (cert.expired === true && !(resolution?.smoke_certification?.reason === "smoke_certification_expired_recertification_allowed")) blocks.push("smoke_certification_expired");
   return {
     ok: blocks.length === 0,
     checked: true,
