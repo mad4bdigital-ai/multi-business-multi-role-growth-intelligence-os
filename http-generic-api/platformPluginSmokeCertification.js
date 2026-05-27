@@ -20,6 +20,17 @@ function bool(value) {
   return ["true", "1", "yes", "y", "ok", "success"].includes(normalize(value));
 }
 
+function boundedTtlDays(value) {
+  const parsed = Number(value || 90);
+  if (!Number.isFinite(parsed)) return 90;
+  return Math.max(1, Math.min(Math.floor(parsed), 365));
+}
+
+function addDaysSql(days = 90) {
+  const date = new Date(Date.now() + boundedTtlDays(days) * 24 * 60 * 60 * 1000);
+  return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
 function inferMock(summary = {}) {
   const preview = parseJson(summary.response_preview, {}) || {};
   const urlPath = compact(summary.url_path || "", 500);
@@ -85,7 +96,9 @@ export async function getPlatformPluginSmokeCertification(input = {}, deps = {})
             connection_id, mock_provider, mock_resource, expected_origin, url_origin,
             url_path, http_method, last_smoke_status, last_response_status,
             last_response_ok, last_smoke_execution_log_id, last_smoke_trace_id,
-            certification_status, certified_at, certified_by, notes, metadata_json,
+            certification_status, certified_at, certification_expires_at,
+            last_recertification_required_at, recertification_reason,
+            certified_by, notes, metadata_json,
             secrets_included, created_at, updated_at
        FROM platform_plugin_smoke_certifications
       WHERE ${where.join(" AND ")}
@@ -98,6 +111,7 @@ export async function getPlatformPluginSmokeCertification(input = {}, deps = {})
     count: rows.length,
     certifications: rows.map((row) => ({
       ...row,
+      expired: row.certification_expires_at ? new Date(row.certification_expires_at).getTime() <= Date.now() : false,
       metadata_json: parseJson(row.metadata_json, {}),
       secrets_included: false,
     })),
@@ -141,7 +155,11 @@ export async function certifyPlatformPluginSmoke(input = {}, deps = {}) {
   }
   const s = evidence.summary;
   const certificationId = compact(input.certification_id || input.certificationId || `smoke_cert_${randomUUID()}`, 64);
+  const certificationTtlDays = boundedTtlDays(input.certification_ttl_days || input.certificationTtlDays || 90);
+  const certificationExpiresAt = addDaysSql(certificationTtlDays);
   const metadata = {
+    certification_ttl_days: certificationTtlDays,
+    certification_expires_at: certificationExpiresAt,
     provider_name: evidence.mock.provider_name || null,
     template_source: s.template_source || null,
     provider_smoke: true,
@@ -157,8 +175,9 @@ export async function certifyPlatformPluginSmoke(input = {}, deps = {}) {
        connection_id, mock_provider, mock_resource, expected_origin, url_origin,
        url_path, http_method, last_smoke_status, last_response_status,
        last_response_ok, last_smoke_execution_log_id, last_smoke_trace_id,
-       certification_status, certified_by, notes, metadata_json, secrets_included
-     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)
+       certification_status, certification_expires_at, last_recertification_required_at,
+       recertification_reason, certified_by, notes, metadata_json, secrets_included
+     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)
      ON DUPLICATE KEY UPDATE
        endpoint_key = VALUES(endpoint_key),
        tenant_id = VALUES(tenant_id),
@@ -175,6 +194,9 @@ export async function certifyPlatformPluginSmoke(input = {}, deps = {}) {
        last_smoke_trace_id = VALUES(last_smoke_trace_id),
        certification_status = VALUES(certification_status),
        certified_at = CURRENT_TIMESTAMP,
+       certification_expires_at = VALUES(certification_expires_at),
+       last_recertification_required_at = NULL,
+       recertification_reason = NULL,
        certified_by = VALUES(certified_by),
        notes = VALUES(notes),
        metadata_json = VALUES(metadata_json),
@@ -199,6 +221,9 @@ export async function certifyPlatformPluginSmoke(input = {}, deps = {}) {
       executionLogId,
       compact(logRow.execution_trace_id_writeback || "", 255) || null,
       "certified",
+      certificationExpiresAt,
+      null,
+      null,
       compact(input.certified_by || input.certifiedBy || input.admin_user_id || input.adminUserId || "", 128) || null,
       compact(input.notes || "", 2000) || null,
       JSON.stringify(metadata),
@@ -222,6 +247,8 @@ export async function certifyPlatformPluginSmoke(input = {}, deps = {}) {
       last_response_status: Number(s.response_status || 0),
       last_response_ok: true,
       certification_status: "certified",
+      certification_expires_at: certificationExpiresAt,
+      certification_ttl_days: certificationTtlDays,
       secrets_included: false,
     },
     secrets_included: false,

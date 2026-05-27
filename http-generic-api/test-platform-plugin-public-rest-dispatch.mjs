@@ -8,6 +8,8 @@ const smokeRoutes = readFileSync("routes/platformSmokeRoutes.js", "utf8");
 const migration = readFileSync("migrations/145_sprint65_platform_plugin_public_rest_dispatch_tool.sql", "utf8");
 const smokeCertMigration = readFileSync("migrations/151_sprint65_platform_plugin_smoke_certifications.sql", "utf8");
 const smokeCertToolsMigration = readFileSync("migrations/152_sprint65_platform_plugin_smoke_certification_tools.sql", "utf8");
+const smokeCertLifecycleMigration = readFileSync("migrations/153_sprint65_smoke_certification_lifecycle.sql", "utf8");
+const smokeCertLifecycleToolsMigration = readFileSync("migrations/154_sprint65_smoke_certification_lifecycle_tools.sql", "utf8");
 const smokeCertSource = readFileSync("platformPluginSmokeCertification.js", "utf8");
 const pluginResolverSource = readFileSync("platformPluginResolver.js", "utf8");
 const promotionSource = readFileSync("platformPluginPromotion.js", "utf8");
@@ -36,6 +38,11 @@ assert(service.includes("provider_smoke_expected_origin_required"), "provider sm
 assert(service.includes("provider_smoke_expected_origin_mismatch"), "provider smoke must block unexpected origins");
 assert(service.includes("provider_smoke_get_only"), "provider smoke must be GET-only");
 assert(service.includes("provider_smoke_body_not_allowed"), "provider smoke must reject body templates");
+assert(service.includes("validateSmokeCertificationDrift"), "dispatcher must compare current URL/method against smoke certification evidence");
+assert(service.includes("smoke_certification_recertification_required"), "dispatcher must block when smoke certification drifts");
+assert(service.includes("smoke_certification_origin_drift"), "dispatcher must detect smoke certification origin drift");
+assert(service.includes("smoke_certification_path_drift"), "dispatcher must detect smoke certification path drift");
+assert(service.includes("smoke_certification_method_drift"), "dispatcher must detect smoke certification method drift");
 assert(service.includes("writeExecutionEvidence"), "dispatcher must write execution evidence");
 assert(service.includes("secrets_included: false"), "dispatcher must explicitly exclude secrets");
 
@@ -101,6 +108,12 @@ assert(smokeCertMigration.includes("last_smoke_execution_log_id"), "smoke certif
 assert(smokeCertMigration.includes("UNIQUE KEY `uniq_plugin_action_mock`"), "smoke certification table must enforce one cert per plugin/action/mock pair");
 assert(smokeCertMigration.includes("secrets_included` tinyint(1) NOT NULL DEFAULT 0"), "smoke certification table must default secrets_included=false");
 
+assert(smokeCertLifecycleMigration.includes("certification_expires_at"), "smoke certification lifecycle migration must add expiry column");
+assert(smokeCertLifecycleMigration.includes("last_recertification_required_at"), "smoke certification lifecycle migration must add recertification timestamp column");
+assert(smokeCertLifecycleMigration.includes("recertification_reason"), "smoke certification lifecycle migration must add recertification reason column");
+assert(smokeCertLifecycleMigration.includes("INTERVAL 90 DAY"), "smoke certification lifecycle migration must backfill default 90-day expiry");
+assert(smokeCertLifecycleToolsMigration.includes("certification_ttl_days"), "smoke certification lifecycle tool migration must expose TTL days");
+
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certify"), "smoke certification writer admin tool must be registered");
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certification_status"), "smoke certification status admin tool must be registered");
 assert(smokeCertToolsMigration.includes("/platform/plugins/smoke-certifications/certify"), "smoke certification writer tool must point at route");
@@ -113,6 +126,10 @@ assert(smokeCertSource.includes("smoke_method_must_be_get"), "smoke certificatio
 assert(smokeCertSource.includes("smoke_response_status_not_200"), "smoke certification must require 200 response");
 assert(smokeCertSource.includes("expected_origin_mismatch"), "smoke certification must require expected origin match");
 assert(smokeCertSource.includes("secrets_included: false"), "smoke certification responses must be secret-free");
+assert(smokeCertSource.includes("boundedTtlDays"), "smoke certification writer must bound TTL days");
+assert(smokeCertSource.includes("certification_expires_at"), "smoke certification writer/status must expose expiry metadata");
+assert(smokeCertSource.includes("last_recertification_required_at"), "smoke certification status must expose recertification timestamp");
+assert(smokeCertSource.includes("recertification_reason"), "smoke certification status must expose recertification reason");
 
 assert(pluginResolverSource.includes("checkSmokeCertification"), "plugin resolver must check smoke certification before dispatch readiness");
 assert(pluginResolverSource.includes("platform_plugin_smoke_certifications"), "plugin resolver must read smoke certification registry");
@@ -120,12 +137,16 @@ assert(pluginResolverSource.includes("smoke_certification_required"), "plugin re
 assert(pluginResolverSource.includes("smoke_certification: smokeCertification"), "plugin resolver must return smoke certification evidence");
 assert(pluginResolverSource.includes("last_response_status = 200"), "plugin resolver must require successful 200 smoke certification");
 assert(pluginResolverSource.includes("secrets_included = 0"), "plugin resolver must require secret-free smoke certification");
+assert(pluginResolverSource.includes("smoke_certification_expired"), "plugin resolver must reject expired smoke certifications");
+assert(pluginResolverSource.includes("certification_expires_at"), "plugin resolver must return certification expiry evidence");
 
 assert(promotionSource.includes("checkContributionSmokeCertifications"), "promotion must check smoke certifications before platform base promotion");
 assert(promotionSource.includes("smoke_certification_required"), "promotion must block when smoke certification is missing");
 assert(promotionSource.includes("platform_plugin_smoke_certifications"), "promotion must read smoke certification registry");
 assert(promotionSource.includes("last_response_status = 200"), "promotion must require 200 smoke certification evidence");
 assert(promotionSource.includes("secrets_included = 0"), "promotion must require secret-free smoke certification evidence");
+assert(promotionSource.includes("smoke_certification_expired"), "promotion must reject expired smoke certifications");
+assert(promotionSource.includes("certification_expires_at"), "promotion must return certification expiry evidence");
 
 for (const forbidden of [
   "api_key_value",

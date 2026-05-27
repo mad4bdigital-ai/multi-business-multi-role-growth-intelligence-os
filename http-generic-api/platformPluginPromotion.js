@@ -141,7 +141,8 @@ async function checkContributionSmokeCertifications({ pool, contribution }) {
     const rows = await safeQuery(
       pool,
       `SELECT certification_id, mock_provider, mock_resource, last_response_status,
-              last_smoke_execution_log_id, certified_at, certification_status
+              last_smoke_execution_log_id, certified_at, certification_expires_at,
+              last_recertification_required_at, recertification_reason, certification_status
          FROM platform_plugin_smoke_certifications
         WHERE plugin_key = ?
           AND action_key = ?
@@ -155,17 +156,22 @@ async function checkContributionSmokeCertifications({ pool, contribution }) {
       [contribution.plugin_key, actionKey]
     );
     const cert = rows[0] || null;
+    const expired = Boolean(cert?.certification_expires_at && new Date(cert.certification_expires_at).getTime() <= Date.now());
     checks.push({
       action_key: actionKey,
-      certified: Boolean(cert),
+      certified: Boolean(cert && !expired),
       certification_id: cert?.certification_id || null,
       mock_provider: cert?.mock_provider || null,
       mock_resource: cert?.mock_resource || null,
       last_response_status: cert?.last_response_status || null,
       last_smoke_execution_log_id: cert?.last_smoke_execution_log_id || null,
       certified_at: cert?.certified_at || null,
+      certification_expires_at: cert?.certification_expires_at || null,
+      expired,
+      last_recertification_required_at: cert?.last_recertification_required_at || null,
+      recertification_reason: cert?.recertification_reason || null,
       certification_status: cert?.certification_status || null,
-      reason: cert ? "smoke_certification_active" : "smoke_certification_required",
+      reason: cert ? (expired ? "smoke_certification_expired" : "smoke_certification_active") : "smoke_certification_required",
       secrets_included: false,
     });
   }
