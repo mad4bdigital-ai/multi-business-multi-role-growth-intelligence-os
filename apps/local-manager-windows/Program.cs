@@ -554,6 +554,139 @@ internal static class Program
             }
         }
 
+        private async Task ConfigureConnectorCapabilitiesAsync()
+        {
+            var token = LoadDeviceToken();
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                _output.Text = "No linked device token.\r\nUse 'Link this device' first.";
+                return;
+            }
+
+            using var form = new Form
+            {
+                Text = "Connector capabilities",
+                StartPosition = FormStartPosition.CenterParent,
+                Size = new Size(560, 300),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                Font = new Font("Segoe UI", 10)
+            };
+            var intro = new Label
+            {
+                Text = "Choose optional high-risk capabilities to enable on this device.\nThey require a device-scoped installer and local Administrator approval.",
+                Location = new Point(18, 18),
+                Size = new Size(500, 52)
+            };
+            var powershell = new CheckBox
+            {
+                Text = "Admin PowerShell recovery (/ps)",
+                Location = new Point(22, 84),
+                Size = new Size(480, 28)
+            };
+            var windowsControl = new CheckBox
+            {
+                Text = "Windows app/process control (/win)",
+                Location = new Point(22, 122),
+                Size = new Size(480, 28)
+            };
+            var warning = new Label
+            {
+                Text = "These options are for explicit break-glass/local automation use. Leave unchecked unless you need them now.",
+                Location = new Point(22, 160),
+                Size = new Size(500, 42),
+                ForeColor = Color.DarkOrange
+            };
+            var ok = new Button { Text = "Create installer", DialogResult = DialogResult.OK, Location = new Point(300, 214), Size = new Size(130, 34) };
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(438, 214), Size = new Size(82, 34) };
+            form.Controls.AddRange(new Control[] { intro, powershell, windowsControl, warning, ok, cancel });
+            form.AcceptButton = ok;
+            form.CancelButton = cancel;
+
+            if (form.ShowDialog(this) != DialogResult.OK) return;
+            var requestedCapabilities = new List<string>();
+            if (powershell.Checked) requestedCapabilities.Add("powershell_admin");
+            if (windowsControl.Checked) requestedCapabilities.Add("windows_control");
+            if (requestedCapabilities.Count == 0)
+            {
+                _status.Text = "No connector capability changes selected.";
+                return;
+            }
+
+            try
+            {
+                EnsureLocalFiles(_status);
+                _progress.Value = 0;
+                _status.Text = "Requesting capability installer from auth.mad4b.com…";
+                using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+                using var req = new HttpRequestMessage(HttpMethod.Post, DeviceRepairInstallerUrl)
+                {
+                    Content = JsonContent(new { format = "bat", ttl_minutes = 30, capabilities = requestedCapabilities })
+                };
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                req.Headers.Accept.ParseAdd("application/json");
+                using var response = await client.SendAsync(req);
+                var text = await response.Content.ReadAsStringAsync();
+                var link = JsonSerializer.Deserialize<DeviceInstallerLinkResponse>(text, _json);
+                if (!response.IsSuccessStatusCode || link?.Ok != true || string.IsNullOrWhiteSpace(link.DownloadUrl))
+                {
+                    _status.Text = "Capability installer request failed: " + (link?.Error?.Message ?? response.ReasonPhrase ?? "unknown error");
+                    _output.Text = text;
+                    return;
+                }
+
+                _progress.Value = 25;
+                var safeDeviceId = SafeFileSegment(link.CanonicalDeviceId ?? link.DeviceId ?? Environment.MachineName);
+                var target = Path.Combine(UpdatesRoot, $"enable-connector-capabilities-{safeDeviceId}.bat");
+                using (var installerResponse = await client.GetAsync(link.DownloadUrl, HttpCompletionOption.ResponseHeadersRead))
+                {
+                    installerResponse.EnsureSuccessStatusCode();
+                    await using var source = await installerResponse.Content.ReadAsStreamAsync();
+                    await using var destination = File.Create(target);
+                    await source.CopyToAsync(destination);
+                }
+                var fileInfo = new FileInfo(target);
+                if (!fileInfo.Exists || fileInfo.Length < 64) throw new InvalidOperationException("Downloaded capability installer file is missing or too small.");
+                _progress.Value = 75;
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    capability_installer_downloaded = true,
+                    installer_path = target,
+                    capabilities = requestedCapabilities,
+                    canonical_device_id = link.CanonicalDeviceId,
+                    run_as_admin_required = link.RunAsAdminRequired,
+                    secrets_included = false
+                }, _json);
+
+                var result = MessageBox.Show(
+                    "Capability installer downloaded. Run it as Administrator now?\n\nThis will update the local connector service configuration for the selected capabilities.",
+                    "Connector capabilities",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+                if (result != DialogResult.Yes)
+                {
+                    _status.Text = $"Capability installer downloaded: {target}. Run as Administrator when ready.";
+                    return;
+                }
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = target,
+                    UseShellExecute = true,
+                    WorkingDirectory = Path.GetDirectoryName(target) ?? UpdatesRoot,
+                    Verb = "runas"
+                });
+                _progress.Value = 100;
+                _status.Text = "Capability installer launched with elevation request. Verify connector health after it finishes.";
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Capability installer failed: " + ex.Message;
+                _output.Text = ex.ToString();
+            }
+        }
+
         private static StringContent JsonContent(object payload) => new(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
         private static string SafeFileSegment(string value)
