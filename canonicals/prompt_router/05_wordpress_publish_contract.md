@@ -12,6 +12,10 @@ When the request involves WordPress discovery or publishing, route through this 
 4. `publish_contract_stage_gate`
 5. execution
 
+For brand-scoped blog/article publishing intents, prompt_router should prefer `wordpress_blog_publish_or_recover_credentials` when the request may require credential resolution, credential intake, or same-request resume. This route preserves the original user request while the platform creates a secure credential-intake session, then resumes the same publish flow after credential readback succeeds.
+
+This is a platform-native route. n8n routes may be selected only when a governed `workflow_runtime_bindings` row explicitly authorizes an auxiliary side-effect flow. n8n must not replace WordPress target resolution, credential resolution, publish stage gates, readback, or execution logging.
+
 ## inventory stage classification
 
 Route requests into one of these explicit stages:
