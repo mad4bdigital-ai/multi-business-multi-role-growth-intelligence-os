@@ -51,6 +51,13 @@ assert(openapi.includes("operationId: platformPluginDispatchRest"), "OpenAPI mus
 assert(openapi.includes("x-openai-isConsequential: true"), "OpenAPI must mark dispatch route consequential");
 assert(openapi.includes("full execution readiness passes"), "OpenAPI must document readiness guard before dispatch");
 assert(openapi.includes("Brand, Business Activity, Workflow/Logic, Skill, and Platform Graph"), "OpenAPI must document readiness context fields");
+assert(openapi.includes("provider_smoke"), "OpenAPI must document provider smoke flag");
+assert(openapi.includes("provider_smoke_expected_origin"), "OpenAPI must document provider smoke expected origin");
+
+const smokeMigration = readFileSync("migrations/150_sprint65_provider_smoke_guarded_dispatch_schema.sql", "utf8");
+assert(smokeMigration.includes("provider_smoke"), "provider smoke schema migration must include provider_smoke field");
+assert(smokeMigration.includes("provider_smoke_expected_origin"), "provider smoke schema migration must include expected origin field");
+assert(smokeMigration.includes("origin_guard"), "provider smoke schema migration must tag origin guard behavior");
 
 for (const forbidden of [
   "api_key_value",
