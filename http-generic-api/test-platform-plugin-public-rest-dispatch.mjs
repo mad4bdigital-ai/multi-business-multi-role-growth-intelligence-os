@@ -6,6 +6,9 @@ const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const routeIndex = readFileSync("routes/index.js", "utf8");
 const smokeRoutes = readFileSync("routes/platformSmokeRoutes.js", "utf8");
 const migration = readFileSync("migrations/145_sprint65_platform_plugin_public_rest_dispatch_tool.sql", "utf8");
+const smokeCertMigration = readFileSync("migrations/151_sprint65_platform_plugin_smoke_certifications.sql", "utf8");
+const smokeCertToolsMigration = readFileSync("migrations/152_sprint65_platform_plugin_smoke_certification_tools.sql", "utf8");
+const smokeCertSource = readFileSync("platformPluginSmokeCertification.js", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
 
 assert(service.includes("resolveExecutionReadinessDryRun"), "public dispatcher must run full execution readiness dry-run before dispatch");
@@ -43,6 +46,10 @@ assert(routes.includes("logicPackKey"), "dispatch route must pass logic pack con
 assert(routes.includes("edgeDetailLimit"), "dispatch route must pass bounded graph detail limits");
 assert(routes.includes("providerSmoke"), "dispatch route must pass provider smoke flag");
 assert(routes.includes("providerSmokeExpectedOrigin"), "dispatch route must pass provider smoke expected origin");
+assert(routes.includes("certifyPlatformPluginSmoke"), "routes must import smoke certification writer");
+assert(routes.includes("getPlatformPluginSmokeCertification"), "routes must import smoke certification reader");
+assert(routes.includes("/platform/plugins/smoke-certifications/certify"), "routes must expose smoke certification writer endpoint");
+assert(routes.includes("/platform/plugins/smoke-certifications/status"), "routes must expose smoke certification status endpoint");
 
 assert(migration.includes("platform_plugin_dispatch_rest"), "migration must register dispatch tool key");
 assert(migration.includes("/platform/plugins/dispatch-rest"), "migration must bind dispatch route path");
@@ -76,12 +83,34 @@ assert(openapi.includes("full execution readiness passes"), "OpenAPI must docume
 assert(openapi.includes("Brand, Business Activity, Workflow/Logic, Skill, and Platform Graph"), "OpenAPI must document readiness context fields");
 assert(openapi.includes("provider_smoke"), "OpenAPI must document provider smoke flag");
 assert(openapi.includes("provider_smoke_expected_origin"), "OpenAPI must document provider smoke expected origin");
+assert(openapi.includes("/platform/plugins/smoke-certifications/certify:"), "OpenAPI must document smoke certification writer route");
+assert(openapi.includes("operationId: platformPluginSmokeCertify"), "OpenAPI must expose stable smoke certification writer operationId");
+assert(openapi.includes("/platform/plugins/smoke-certifications/status:"), "OpenAPI must document smoke certification status route");
+assert(openapi.includes("operationId: platformPluginSmokeCertificationStatus"), "OpenAPI must expose stable smoke certification status operationId");
 
 const smokeMigration = readFileSync("migrations/150_sprint65_provider_smoke_guarded_dispatch_schema.sql", "utf8");
 assert(smokeMigration.includes("provider_smoke"), "provider smoke schema migration must include provider_smoke field");
 assert(smokeMigration.includes("provider_smoke_expected_origin"), "provider smoke schema migration must include expected origin field");
 assert(smokeMigration.includes("origin_guard"), "provider smoke schema migration must tag origin guard behavior");
 assert(!smokeMigration.includes("updated_at"), "provider smoke schema migration must avoid admin_platform_endpoint_tools.updated_at because live table does not have it");
+
+assert(smokeCertMigration.includes("platform_plugin_smoke_certifications"), "smoke certification table migration must create registry table");
+assert(smokeCertMigration.includes("last_smoke_execution_log_id"), "smoke certification table must reference execution log evidence");
+assert(smokeCertMigration.includes("UNIQUE KEY `uniq_plugin_action_mock`"), "smoke certification table must enforce one cert per plugin/action/mock pair");
+assert(smokeCertMigration.includes("secrets_included` tinyint(1) NOT NULL DEFAULT 0"), "smoke certification table must default secrets_included=false");
+
+assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certify"), "smoke certification writer admin tool must be registered");
+assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certification_status"), "smoke certification status admin tool must be registered");
+assert(smokeCertToolsMigration.includes("/platform/plugins/smoke-certifications/certify"), "smoke certification writer tool must point at route");
+assert(smokeCertToolsMigration.includes("/platform/plugins/smoke-certifications/status"), "smoke certification status tool must point at route");
+
+assert(smokeCertSource.includes("validateSmokeEvidence"), "smoke certification module must validate execution log evidence");
+assert(smokeCertSource.includes("provider_smoke_flag_missing"), "smoke certification must require provider_smoke=true");
+assert(smokeCertSource.includes("dry_run_cannot_certify_smoke"), "smoke certification must reject dry-run logs");
+assert(smokeCertSource.includes("smoke_method_must_be_get"), "smoke certification must require GET");
+assert(smokeCertSource.includes("smoke_response_status_not_200"), "smoke certification must require 200 response");
+assert(smokeCertSource.includes("expected_origin_mismatch"), "smoke certification must require expected origin match");
+assert(smokeCertSource.includes("secrets_included: false"), "smoke certification responses must be secret-free");
 
 for (const forbidden of [
   "api_key_value",
