@@ -12,20 +12,25 @@ on:
         required: false
         default: "unspecified"
         type: string
-      expect_queue_available:
-        description: "Whether this deployment is expected to have live Redis/BullMQ queue connectivity"
+      runtime_profile:
+        description: "Expected runtime shape: api_only, queue_worker, or custom"
         required: false
-        default: "true"
+        default: "api_only"
+        type: string
+      expect_queue_available:
+        description: "Whether this deployment is expected to have live Redis/BullMQ queue connectivity. Leave blank to derive from runtime_profile."
+        required: false
+        default: ""
         type: string
       expect_worker_enabled:
-        description: "Whether this runtime instance is expected to run the BullMQ worker"
+        description: "Whether this runtime instance is expected to run the BullMQ worker. Leave blank to derive from runtime_profile."
         required: false
-        default: "true"
+        default: ""
         type: string
       verify_execution_log_row:
         description: "Whether to verify latest Execution Log Unified row parity"
         required: false
-        default: "true"
+        default: "false"
         type: string
       execution_log_verify_path:
         description: "Runtime endpoint that returns the latest Execution Log Unified row"
