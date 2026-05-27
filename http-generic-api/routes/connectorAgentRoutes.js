@@ -186,7 +186,9 @@ function buildAllowlistEnvValue(aliases) {
   return JSON.stringify(obj);
 }
 
-function buildConnectorEnv({ connectorSecret, aliases, port }) {
+function buildConnectorEnv({ connectorSecret, aliases, port, permissionGrants = {} }) {
+  const grants = normalizePermissionGrants(permissionGrants);
+  const allAliases = [...aliases, ...grants.shell_aliases];
   return [
     `CONNECTOR_SECRET=${connectorSecret}`,
     "MAIN_API_URL=https://api.mad4b.com",
