@@ -114,6 +114,12 @@ assert(openapi.includes("/platform/plugins/smoke-certifications/recertification-
 assert(openapi.includes("operationId: platformPluginSmokeRecertificationQueue"), "OpenAPI must expose stable recertification queue operationId");
 assert(openapi.includes("/platform/plugins/smoke-certifications/recertification-batch:"), "OpenAPI must document smoke recertification batch route");
 assert(openapi.includes("operationId: platformPluginSmokeRecertificationBatch"), "OpenAPI must expose stable recertification batch operationId");
+assert(openapi.includes("/platform/plugins/smoke-certifications/policies/resolve:"), "OpenAPI must document recertification policy resolve route");
+assert(openapi.includes("operationId: platformPluginSmokeRecertificationPolicyResolve"), "OpenAPI must expose stable recertification policy resolve operationId");
+assert(openapi.includes("/platform/plugins/smoke-certifications/policies/list:"), "OpenAPI must document recertification policy list route");
+assert(openapi.includes("operationId: platformPluginSmokeRecertificationPolicyList"), "OpenAPI must expose stable recertification policy list operationId");
+assert(openapi.includes("/platform/plugins/smoke-certifications/policies/upsert:"), "OpenAPI must document recertification policy upsert route");
+assert(openapi.includes("operationId: platformPluginSmokeRecertificationPolicyUpsert"), "OpenAPI must expose stable recertification policy upsert operationId");
 
 const smokeMigration = readFileSync("migrations/150_sprint65_provider_smoke_guarded_dispatch_schema.sql", "utf8");
 assert(smokeMigration.includes("provider_smoke"), "provider smoke schema migration must include provider_smoke field");
