@@ -37,7 +37,9 @@ function daysUntil(value) {
   return Math.ceil((ms - Date.now()) / (24 * 60 * 60 * 1000));
 }
 
-function classifyCertification(row, { expiresSoonDays = 14 } = {}) {
+function classifyCertification(row, { policy = null, expiresSoonDays = 14 } = {}) {
+  const effectivePolicy = policy || { expires_soon_days: expiresSoonDays, auto_recertification_enabled: false, max_batch_size: 5, certification_ttl_days: 90 };
+  const effectiveExpiresSoonDays = boundedInt(effectivePolicy.expires_soon_days, expiresSoonDays, 1, 90);
   const reasons = [];
   const expiresInDays = daysUntil(row.certification_expires_at);
   const expired = expiresInDays !== null && expiresInDays <= 0;
