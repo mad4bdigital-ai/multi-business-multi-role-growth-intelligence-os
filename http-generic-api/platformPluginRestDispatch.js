@@ -289,6 +289,7 @@ export async function dispatchPlatformPluginRestAction({
     userId: normalizedUserId,
     agentId: normalizedAgentId,
     requestedCredentialScope,
+    allowExpiredSmokeCertificationForRecertification: providerSmoke === true && recertificationMode === true,
   });
   if (!resolution.allowed || resolution.mode !== "dispatch_ready" || resolution.execution?.will_execute !== true) {
     return {
