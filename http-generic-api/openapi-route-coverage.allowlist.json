@@ -3,9 +3,7 @@
   "required_files": [
     "routes/platformPluginRoutes.js",
     "routes/tenantPlatformPluginRoutes.js",
-    "routes/tenantEvolutionRoutes.js",
     "routes/platformGraphRoutes.js",
-    "routes/platformEvolutionRoutes.js",
     "routes/schemaImportRoutes.js",
     "routes/gptToolsRoutes.js",
     "routes/systemLayerRoutes.js",
@@ -28,14 +26,7 @@
     "POST /browser-runtime/persistent-session/run",
     "POST /browser-runtime/cloud-extract/run",
     "POST /browser-runtime/stealth-extract/run",
-    "POST /connector/{device_id}/auto-browser",
-    "GET /platform/evolution/activation-card",
-    "GET /platform/evolution/thread-map",
-    "GET /platform/evolution/open-evidence",
-    "POST /platform/evolution/checkpoints",
-    "GET /tenant/evolution/activation-card",
-    "GET /tenant/evolution/thread-map",
-    "GET /tenant/evolution/open-evidence"
+    "POST /connector/{device_id}/auto-browser"
   ],
   "prefixes": [
     "/oauth",

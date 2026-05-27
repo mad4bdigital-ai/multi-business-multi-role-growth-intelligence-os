@@ -75,6 +75,8 @@ tags:
     description: SQL-primary platform knowledge graph projection, validation, and context resolution.
   - name: platform-plugins
     description: Tenant-facing and admin-governed Platform Plugin catalog, install, resolve, contribution, and promotion surfaces.
+  - name: platform-evolution
+    description: Brand, tenant, and user scoped Platform Evolution checkpoints, thread maps, and linked evidence surfaces.
 
 components:
   securitySchemes:
@@ -975,6 +977,174 @@ components:
           type: string
         drive_export_url:
           type: string
+
+    # -- Platform Evolution checkpoint schemas --------------------------------
+
+    PlatformEvolutionActivationCard:
+      type: object
+      additionalProperties: true
+      properties:
+        scope_key: { type: string }
+        latest_checkpoint_at: { type: string, format: date-time, nullable: true }
+        latest_checkpoint_id: { type: string, nullable: true }
+        latest_activation_status: { type: string, nullable: true }
+        latest_main_commit_sha: { type: string, nullable: true }
+        latest_deployed_commit_sha: { type: string, nullable: true }
+        latest_summary_text: { type: string, nullable: true }
+        thread_count: { type: integer }
+        blocked_thread_count: { type: integer }
+        validating_thread_count: { type: integer }
+        active_thread_count: { type: integer }
+        monitoring_thread_count: { type: integer }
+        critical_thread_count: { type: integer }
+        active_link_count: { type: integer }
+        linked_task_count: { type: integer }
+        linked_signal_count: { type: integer }
+        linked_blocker_count: { type: integer }
+
+    PlatformEvolutionActivationCardResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, scope_key, card, secrets_included]
+      properties:
+        ok: { type: boolean }
+        scope_key: { type: string }
+        card:
+          oneOf:
+            - $ref: "#/components/schemas/PlatformEvolutionActivationCard"
+            - type: "null"
+        auth_context:
+          type: object
+          additionalProperties: true
+        access:
+          type: object
+          additionalProperties: true
+        tenant_facing: { type: boolean }
+        secrets_included: { type: boolean, enum: [false] }
+
+    PlatformEvolutionThreadMapItem:
+      type: object
+      additionalProperties: true
+      properties:
+        scope_key: { type: string }
+        tenant_id: { type: string, nullable: true }
+        user_id: { type: string, nullable: true }
+        brand_key: { type: string, nullable: true }
+        thread_key: { type: string }
+        title: { type: string }
+        category: { type: string }
+        status: { type: string }
+        priority: { type: string }
+        current_phase: { type: string, nullable: true }
+        classification: { type: string, nullable: true }
+        owner_scope: { type: string }
+        current_summary: { type: string, nullable: true }
+        next_action: { type: string, nullable: true }
+        blocked_by: { type: string, nullable: true }
+        last_checkpoint_id: { type: string, nullable: true }
+        updated_at: { type: string, format: date-time, nullable: true }
+        active_link_count: { type: integer }
+        linked_task_count: { type: integer }
+        linked_signal_count: { type: integer }
+        linked_blocker_count: { type: integer }
+        latest_event_at: { type: string, format: date-time, nullable: true }
+
+    PlatformEvolutionThreadMapResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, scope_key, count, threads, secrets_included]
+      properties:
+        ok: { type: boolean }
+        scope_key: { type: string }
+        count: { type: integer }
+        threads:
+          type: array
+          items: { $ref: "#/components/schemas/PlatformEvolutionThreadMapItem" }
+        auth_context:
+          type: object
+          additionalProperties: true
+        tenant_facing: { type: boolean }
+        secrets_included: { type: boolean, enum: [false] }
+
+    PlatformEvolutionOpenEvidenceItem:
+      type: object
+      additionalProperties: true
+      properties:
+        scope_key: { type: string }
+        tenant_id: { type: string, nullable: true }
+        user_id: { type: string, nullable: true }
+        brand_key: { type: string, nullable: true }
+        thread_key: { type: string }
+        linked_surface: { type: string }
+        linked_ref: { type: string }
+        linked_ref_key: { type: string }
+        link_role: { type: string }
+        classification: { type: string, nullable: true }
+        link_status: { type: string }
+        linked_title: { type: string, nullable: true }
+        linked_priority: { type: string, nullable: true }
+        linked_item_status: { type: string, nullable: true }
+        linked_updated_at: { type: string, format: date-time, nullable: true }
+        metadata_json:
+          oneOf:
+            - $ref: "#/components/schemas/JsonValue"
+            - type: string
+            - type: "null"
+        linked_at: { type: string, format: date-time, nullable: true }
+
+    PlatformEvolutionOpenEvidenceResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, scope_key, count, evidence, secrets_included]
+      properties:
+        ok: { type: boolean }
+        scope_key: { type: string }
+        count: { type: integer }
+        evidence:
+          type: array
+          items: { $ref: "#/components/schemas/PlatformEvolutionOpenEvidenceItem" }
+        auth_context:
+          type: object
+          additionalProperties: true
+        tenant_facing: { type: boolean }
+        secrets_included: { type: boolean, enum: [false] }
+
+    PlatformEvolutionCheckpointCreateRequest:
+      type: object
+      additionalProperties: true
+      required: [summary_text]
+      properties:
+        scope_key: { type: string }
+        brand_key: { type: string }
+        tenant_id: { type: string }
+        user_id: { type: string }
+        checkpoint_type:
+          type: string
+          enum: [activation, operation, manual, rollup, recovery]
+          default: operation
+        activation_session_id: { type: string }
+        main_commit_sha: { type: string, nullable: true }
+        deployed_commit_sha: { type: string, nullable: true }
+        activation_status: { type: string, nullable: true }
+        release_readiness_status: { type: string, nullable: true }
+        summary_text: { type: string }
+        thread_snapshot: { $ref: "#/components/schemas/JsonValue" }
+        delta: { $ref: "#/components/schemas/JsonValue" }
+        evidence: { $ref: "#/components/schemas/JsonValue" }
+        next_actions:
+          type: array
+          items: { type: string }
+        created_by: { type: string }
+
+    PlatformEvolutionCheckpointCreateResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, checkpoint_id, scope_key, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        checkpoint_id: { type: string }
+        scope_key: { type: string }
+        secrets_included: { type: boolean, enum: [false] }
 
     # -- Local Manager schemas ------------------------------------------------
 
@@ -9903,6 +10073,302 @@ paths:
             schema: { type: object, required: [contribution_id, action_key, tenant_id, user_id], additionalProperties: true }
       responses:
         "200": { description: Private REST dispatch result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/evolution/activation-card:
+    get:
+      tags: [platform-evolution]
+      operationId: platformEvolutionActivationCard
+      summary: Read Platform Evolution activation card
+      description: >
+        Admin/service scoped read of the latest Platform Evolution activation card for a brand/tenant scope.
+        Returns checkpoint summary, thread counts, linked tasks/signals, and blocker counts. No secrets are returned.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Platform Evolution activation card.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionActivationCardResponse"
+        "400":
+          description: Missing scope fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /platform/evolution/thread-map:
+    get:
+      tags: [platform-evolution]
+      operationId: platformEvolutionThreadMap
+      summary: Read Platform Evolution thread map
+      description: >
+        Admin/service scoped thread map with linked task, signal, and blocker counts for a Platform Evolution scope.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+        - name: priority
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200":
+          description: Platform Evolution thread map.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionThreadMapResponse"
+        "400":
+          description: Missing scope fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /platform/evolution/open-evidence:
+    get:
+      tags: [platform-evolution]
+      operationId: platformEvolutionOpenEvidence
+      summary: Read Platform Evolution open evidence
+      description: >
+        Admin/service scoped linked evidence for Platform Evolution threads, including pending tasks and summary development signals.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: thread_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: linked_surface
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200":
+          description: Platform Evolution open evidence.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionOpenEvidenceResponse"
+        "400":
+          description: Missing scope fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /platform/evolution/checkpoints:
+    post:
+      tags: [platform-evolution]
+      operationId: platformEvolutionCheckpointCreate
+      summary: Create Platform Evolution checkpoint
+      description: >
+        Admin/service scoped creation of an activation, operation, manual, rollup, or recovery checkpoint.
+        Updates last_checkpoint_id for threads in the same scope. No secrets are accepted or returned.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformEvolutionCheckpointCreateRequest"
+      responses:
+        "201":
+          description: Checkpoint created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionCheckpointCreateResponse"
+        "400":
+          description: Missing summary or scope fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /tenant/evolution/activation-card:
+    get:
+      tags: [platform-evolution]
+      operationId: tenantEvolutionActivationCard
+      summary: Read tenant Evolution activation card
+      description: >
+        Tenant/user scoped read of a Platform Evolution activation card. Requires a user JWT, active tenant membership,
+        and allowed scope in v_platform_evolution_scope_access. No secrets are returned.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Tenant-scoped Platform Evolution activation card.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionActivationCardResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active membership or scope grant missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /tenant/evolution/thread-map:
+    get:
+      tags: [platform-evolution]
+      operationId: tenantEvolutionThreadMap
+      summary: Read tenant Evolution thread map
+      description: >
+        Tenant/user scoped thread map. Users can read only allowed scopes resolved from active membership and scope access.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+        - name: priority
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Tenant-scoped Platform Evolution thread map.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionThreadMapResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active membership or scope grant missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /tenant/evolution/open-evidence:
+    get:
+      tags: [platform-evolution]
+      operationId: tenantEvolutionOpenEvidence
+      summary: Read tenant Evolution open evidence
+      description: >
+        Tenant/user scoped linked evidence for Platform Evolution threads. Users can read only allowed scopes.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: thread_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: linked_surface
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Tenant-scoped Platform Evolution open evidence.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionOpenEvidenceResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active membership or scope grant missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
 
   /tenant/platform/plugins/catalog:
     get:
