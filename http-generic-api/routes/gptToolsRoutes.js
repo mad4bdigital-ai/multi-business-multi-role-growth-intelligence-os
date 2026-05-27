@@ -922,6 +922,57 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
     ? Buffer.from(existing.payload.content, existing.payload.encoding || "base64").toString("utf8")
     : "";
 
+  if (action === "delete_file") {
+    if (!currentSha) {
+      const err = new Error("target file does not exist in the repository.");
+      err.status = 404;
+      err.code = "repo_patch_file_not_found";
+      throw err;
+    }
+    const deleteResult = await githubContentsRequest({
+      method: "DELETE",
+      owner,
+      repo,
+      filePath,
+      branch,
+      body: { message: commitMessage, sha: currentSha, branch },
+      token,
+    });
+    if (!deleteResult.ok) {
+      const err = new Error("GitHub Contents DELETE failed.");
+      err.status = 502;
+      err.code = "repo_patch_github_delete_failed";
+      err.details = { upstream_status: deleteResult.status, message: deleteResult.payload?.message };
+      throw err;
+    }
+    const commitSha = deleteResult.payload?.commit?.sha || null;
+    const commitUrl = deleteResult.payload?.commit?.html_url || null;
+    writeAuditLogAsync({
+      action: "repo_patch_apply",
+      resource_type: "repo",
+      resource_id: `${owner}/${repo}:${filePath}`,
+      payload: {
+        branch,
+        action_type: action,
+        commit_message: commitMessage,
+        commit_sha: commitSha,
+        previous_sha: currentSha || null,
+        principal: ctx?.auth?.user_id || ctx?.auth?.mode || "admin",
+      },
+    });
+    return {
+      action,
+      path: filePath,
+      branch,
+      owner,
+      repo,
+      commit_sha: commitSha,
+      commit_url: commitUrl,
+      previous_sha: currentSha || null,
+      deleted: true,
+    };
+  }
+
   let newContent;
   if (action === "write_file") {
     if (typeof args.content !== "string") {
