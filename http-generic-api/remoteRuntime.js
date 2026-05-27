@@ -677,3 +677,142 @@ export async function probeRemoteRuntimeTarget({
     secrets_included: false,
   };
 }
+
+export async function planRemoteRuntimeDispatchDryRun({
+  pool = getPool(),
+  targetId,
+  tenantId = null,
+  userId = null,
+  commandKey = "status",
+  inputs = {},
+  approvalId = null,
+  approvalReason = null,
+} = {}) {
+  const normalizedTargetId = compactString(targetId, 64);
+  const normalizedTenantId = compactString(tenantId, 64);
+  const normalizedUserId = compactString(userId, 64);
+  const normalizedCommandKey = normalizeKey(commandKey || "status", 128) || "status";
+  const normalizedApprovalId = compactString(approvalId, 191) || null;
+  const normalizedApprovalReason = compactString(approvalReason, 500) || null;
+  if (!normalizedTargetId) {
+    const err = new Error("target_id is required.");
+    err.status = 400;
+    err.code = "missing_remote_runtime_target_id";
+    throw err;
+  }
+  rejectSecretLikePayload(inputs, "inputs");
+
+  const probe = await probeRemoteRuntimeTarget({
+    pool,
+    targetId: normalizedTargetId,
+    tenantId: normalizedTenantId,
+    userId: normalizedUserId,
+    commandKey: normalizedCommandKey,
+    dryRun: true,
+  });
+  if (!probe.found) {
+    return {
+      ok: true,
+      plugin_key: "remote_ssh_runtime",
+      found: false,
+      target_id: normalizedTargetId,
+      command_key: normalizedCommandKey,
+      dispatch_ready: false,
+      reason: probe.reason || "target_not_found",
+      execution: { will_execute: false, dry_run: true, dispatch_ready: false },
+      secrets_included: false,
+    };
+  }
+
+  const target = probe.target;
+  const selectedCommand = probe.commands.find((command) => command.command_key === normalizedCommandKey) || null;
+  const commandExists = Boolean(selectedCommand);
+  const commandActive = selectedCommand?.status === "active";
+  const commandTargetCompatible = Boolean(selectedCommand && (selectedCommand.target_kind === "both" || selectedCommand.target_kind === target.target_kind));
+  const targetCommandAllowlist = Array.isArray(target.command_allowlist) ? target.command_allowlist : [];
+  const targetAllowsCommand = normalizedCommandKey === "status" || targetCommandAllowlist.includes(normalizedCommandKey);
+  const approvalRequired = Boolean(selectedCommand?.requires_approval || selectedCommand?.is_consequential);
+  const approvalSatisfied = !approvalRequired || Boolean(normalizedApprovalId || (normalizedApprovalReason && normalizedApprovalReason.length >= 12));
+
+  let reason = "dispatch_dry_run_ready";
+  if (!commandExists) reason = "command_not_registered";
+  else if (!commandActive) reason = "command_not_active";
+  else if (!commandTargetCompatible) reason = "command_not_compatible_with_target_kind";
+  else if (!targetAllowsCommand) reason = "command_not_allowed_by_target_allowlist";
+  else if (!probe.ready) reason = probe.reason || "target_not_ready";
+  else if (!approvalSatisfied) reason = "approval_required_before_execution";
+
+  const dispatchReady = reason === "dispatch_dry_run_ready";
+  const traceId = `remote_runtime_dispatch_dry_run_${randomUUID()}`;
+  let log = null;
+  try {
+    const evidence = await writeExecutionEvidence({
+      pool,
+      traceId,
+      entryType: "remote_runtime_dispatch_dry_run",
+      executionClass: "remote_runtime_dispatch_plan",
+      sourceLayer: "remoteRuntime",
+      userInput: `remote runtime dispatch dry-run ${normalizedTargetId} ${normalizedCommandKey}`,
+      routeKeys: "remote_runtime_dispatch_dry_run",
+      selectedWorkflows: "remote_runtime_allowlisted_dispatch_planning",
+      executionMode: "dry_run_only",
+      decisionTrigger: "admin_tool",
+      executionStatus: "success",
+      outputSummary: {
+        plugin_key: "remote_ssh_runtime",
+        target_id: normalizedTargetId,
+        target_kind: target.target_kind,
+        command_key: normalizedCommandKey,
+        command_active: commandActive,
+        target_allows_command: targetAllowsCommand,
+        approval_required: approvalRequired,
+        approval_satisfied: approvalSatisfied,
+        dispatch_ready: dispatchReady,
+        will_execute: false,
+        secrets_included: false,
+      },
+      recoveryStatus: "not_required",
+      routeStatus: "resolved",
+      routeSource: "sql_primary",
+      intakeValidationStatus: "validated",
+      executionReadyStatus: dispatchReady ? "ready" : "degraded",
+      logSource: "sql_primary",
+    });
+    log = evidence.row || null;
+  } catch {
+    log = null;
+  }
+
+  return {
+    ok: true,
+    plugin_key: "remote_ssh_runtime",
+    found: true,
+    target,
+    selected_command: selectedCommand,
+    requested_command_key: normalizedCommandKey,
+    inputs_summary: {
+      keys: inputs && typeof inputs === "object" ? Object.keys(inputs).sort() : [],
+      secrets_included: false,
+    },
+    checks: {
+      command_exists: commandExists,
+      command_active: commandActive,
+      command_target_compatible: commandTargetCompatible,
+      target_allows_command: targetAllowsCommand,
+      target_ready: Boolean(probe.ready),
+      approval_required: approvalRequired,
+      approval_satisfied: approvalSatisfied,
+    },
+    dispatch_ready: dispatchReady,
+    reason,
+    next_step: dispatchReady ? "request_execution_route_with_approval_if_required" : "resolve_failed_dry_run_check",
+    execution: {
+      will_execute: false,
+      dry_run: true,
+      dispatch_ready: dispatchReady,
+      note: "Dispatch dry-run never opens SSH, local shell, or file access. It only evaluates allowlists, target readiness, and approval requirements.",
+    },
+    execution_log: log ? { ok: true, id: log.id, execution_status: log.execution_status, trace_id: log.execution_trace_id_writeback } : { ok: false, trace_id: traceId },
+    secrets_included: false,
+  };
+}
