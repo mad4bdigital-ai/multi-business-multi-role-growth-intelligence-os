@@ -61,7 +61,7 @@ function classifyCertification(row, { policy = null, expiresSoonDays = 14 } = {}
   if (effectivePolicy.allowed_expected_origin && row.expected_origin && effectivePolicy.allowed_expected_origin !== row.expected_origin) reasons.push("policy_expected_origin_mismatch");
   if (currentUrl && row.url_path && currentUrl.pathname !== row.url_path) reasons.push("path_drift");
   if (row.http_method && currentMethod && String(row.http_method).toUpperCase() !== currentMethod) reasons.push("method_drift");
-  const driftReasons = reasons.filter((reason) => ["origin_drift", "path_drift", "method_drift", "connection_missing", "endpoint_missing", "url_resolution_failed"].includes(reason));
+  const driftReasons = reasons.filter((reason) => ["origin_drift", "path_drift", "method_drift", "policy_expected_origin_mismatch", "connection_missing", "endpoint_missing", "url_resolution_failed"].includes(reason));
   return {
     certification_id: row.certification_id,
     plugin_key: row.plugin_key,
