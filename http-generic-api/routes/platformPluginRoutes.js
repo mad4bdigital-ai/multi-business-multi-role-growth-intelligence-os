@@ -16,7 +16,12 @@ import { dispatchPrivatePlatformPluginRestAction } from "../platformPluginPrivat
 import { dispatchPlatformPluginRestAction } from "../platformPluginRestDispatch.js";
 import { resolveActionManifestDiagnostic } from "../actionManifestDiagnostic.js";
 import { resolveExecutionReadinessDryRun } from "../executionReadinessDryRun.js";
-import { listRemoteRuntimeTargets, probeRemoteRuntimeTarget } from "../remoteRuntime.js";
+import {
+  listRemoteRuntimeTargets,
+  probeRemoteRuntimeTarget,
+  upsertRemoteRuntimeTarget,
+  validateRemoteRuntimeTarget,
+} from "../remoteRuntime.js";
 import {
   certifyPlatformPluginContribution,
   promotePlatformPluginContribution,
@@ -87,6 +92,45 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
       const result = await resolveExecutionReadinessDryRun(input);
       return res.status(200).json(result);
     } catch (err) { return errorResponse(res, err, "execution_readiness_dry_run_failed"); }
+  });
+
+  router.post("/platform/remote-runtime/targets/upsert", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await upsertRemoteRuntimeTarget({
+        targetId: input.target_id || input.targetId || null,
+        tenantId: input.tenant_id || input.tenantId,
+        userId: input.user_id || input.userId || null,
+        targetKind: input.target_kind || input.targetKind,
+        providerFamily: input.provider_family || input.providerFamily || null,
+        connectorFamily: input.connector_family || input.connectorFamily || null,
+        systemId: input.system_id || input.systemId || null,
+        connectionId: input.connection_id || input.connectionId || null,
+        localPathId: input.local_path_id || input.localPathId || null,
+        hostLabel: input.host_label || input.hostLabel || null,
+        rootPath: input.root_path || input.rootPath || null,
+        pathAllowlist: input.path_allowlist || input.pathAllowlist || null,
+        commandAllowlist: input.command_allowlist || input.commandAllowlist || null,
+        metadata: input.metadata || {},
+        status: input.status || null,
+        validationStatus: input.validation_status || input.validationStatus || null,
+        updatedBy: input.updated_by || input.updatedBy || input.user_id || input.userId || null,
+      });
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "remote_runtime_target_upsert_failed"); }
+  });
+
+  router.post("/platform/remote-runtime/targets/validate", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await validateRemoteRuntimeTarget({
+        targetId: input.target_id || input.targetId,
+        tenantId: input.tenant_id || input.tenantId || null,
+        userId: input.user_id || input.userId || null,
+        updatedBy: input.updated_by || input.updatedBy || input.user_id || input.userId || null,
+      });
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "remote_runtime_target_validate_failed"); }
   });
 
   router.post("/platform/remote-runtime/targets/catalog", ...requireAdmin, async (req, res) => {
