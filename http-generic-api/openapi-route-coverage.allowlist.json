@@ -27,7 +27,11 @@
     "POST /browser-runtime/persistent-session/run",
     "POST /browser-runtime/cloud-extract/run",
     "POST /browser-runtime/stealth-extract/run",
-    "POST /connector/{device_id}/auto-browser"
+    "POST /connector/{device_id}/auto-browser",
+    "GET /platform/evolution/activation-card",
+    "GET /platform/evolution/thread-map",
+    "GET /platform/evolution/open-evidence",
+    "POST /platform/evolution/checkpoints"
   ],
   "prefixes": [
     "/oauth",
