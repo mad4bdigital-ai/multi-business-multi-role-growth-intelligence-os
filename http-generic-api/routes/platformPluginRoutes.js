@@ -280,7 +280,7 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
           requested_device_id: deviceId,
           device_id: canonicalDeviceId,
           action: "run",
-          alias: "repo_status_growth_os",
+          alias: connectorAliasByCommand[commandKey],
           status: dispatchResult.status,
           body: dispatchResult.body,
         },
