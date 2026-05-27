@@ -136,6 +136,20 @@ assert(smokeRecertToolsMigration.includes("platform_plugin_smoke_recertification
 assert(smokeRecertToolsMigration.includes("dry_run"), "smoke recertification batch schema must expose dry_run default");
 assert(smokeRecertToolsMigration.includes("origin_guard"), "smoke recertification batch must be tagged origin guarded");
 
+assert(smokeRecertPolicyMigration.includes("platform_plugin_smoke_recertification_policies"), "smoke recertification policy migration must create policy registry table");
+assert(smokeRecertPolicyMigration.includes("certification_ttl_days"), "smoke recertification policy registry must store TTL days");
+assert(smokeRecertPolicyMigration.includes("expires_soon_days"), "smoke recertification policy registry must store expires-soon window");
+assert(smokeRecertPolicyMigration.includes("max_batch_size"), "smoke recertification policy registry must store max batch size");
+assert(smokeRecertPolicyMigration.includes("auto_recertification_enabled"), "smoke recertification policy registry must store auto enablement");
+assert(smokeRecertPolicyMigration.includes("allowed_expected_origin"), "smoke recertification policy registry must store expected origin guard");
+assert(smokeRecertPolicyMigration.includes("smoke_recert_policy_default"), "smoke recertification policy registry must seed conservative default policy");
+assert(smokeRecertPolicyToolsMigration.includes("platform_plugin_smoke_recertification_policy_resolve"), "smoke recertification policy resolve tool must be registered");
+assert(smokeRecertPolicyToolsMigration.includes("platform_plugin_smoke_recertification_policy_list"), "smoke recertification policy list tool must be registered");
+assert(smokeRecertPolicyToolsMigration.includes("platform_plugin_smoke_recertification_policy_upsert"), "smoke recertification policy upsert tool must be registered");
+assert(smokeRecertPolicySource.includes("resolvePlatformPluginSmokeRecertificationPolicy"), "smoke recertification policy source must expose resolver");
+assert(smokeRecertPolicySource.includes("upsertPlatformPluginSmokeRecertificationPolicy"), "smoke recertification policy source must expose upsert");
+assert(smokeRecertPolicySource.includes("DEFAULT_POLICY"), "smoke recertification policy source must provide runtime default fallback");
+
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certify"), "smoke certification writer admin tool must be registered");
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certification_status"), "smoke certification status admin tool must be registered");
 assert(smokeCertToolsMigration.includes("/platform/plugins/smoke-certifications/certify"), "smoke certification writer tool must point at route");
