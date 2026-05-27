@@ -20,6 +20,17 @@ function bool(value) {
   return ["true", "1", "yes", "y", "ok", "success"].includes(normalize(value));
 }
 
+function boundedTtlDays(value) {
+  const parsed = Number(value || 90);
+  if (!Number.isFinite(parsed)) return 90;
+  return Math.max(1, Math.min(Math.floor(parsed), 365));
+}
+
+function addDaysIso(days = 90) {
+  const date = new Date(Date.now() + boundedTtlDays(days) * 24 * 60 * 60 * 1000);
+  return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
 function inferMock(summary = {}) {
   const preview = parseJson(summary.response_preview, {}) || {};
   const urlPath = compact(summary.url_path || "", 500);
