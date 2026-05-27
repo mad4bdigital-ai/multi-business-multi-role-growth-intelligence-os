@@ -472,6 +472,7 @@ export async function resolvePlatformPluginExecution({
     } : null,
     credential_resolution: credential,
     skill_resolution: skill,
+    smoke_certification: smokeCertification,
     approval: {
       approval_required: approvalRequired,
       base_required: baseApprovalRequired,
