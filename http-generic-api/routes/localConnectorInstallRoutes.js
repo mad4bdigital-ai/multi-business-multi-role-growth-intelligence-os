@@ -876,9 +876,11 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     custom_aliases = [],
     local_apps = [],
     capabilities = [],
+    permission_grants = {},
     reprovision = false,
   } = body || {};
-  const requestedCapabilities = normalizeRequestedCapabilities(capabilities);
+  const requestedPermissionGrants = normalizePermissionGrants({ ...permission_grants, capabilities });
+  const requestedCapabilities = requestedPermissionGrants.capabilities;
   if (!user_id || !tenant_id || !device_id) {
     throw httpError(400, "missing_fields", "user_id, tenant_id, device_id required.");
   }
