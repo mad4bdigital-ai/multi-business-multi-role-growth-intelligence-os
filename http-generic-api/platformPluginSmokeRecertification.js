@@ -246,7 +246,7 @@ export async function runPlatformPluginSmokeRecertificationBatch(input = {}, dep
         execution_log_id: dispatch.execution_log.id,
         certified_by: input.certified_by || input.certifiedBy || "platform_recertification_batch",
         notes: input.notes || "Automated smoke recertification batch. secrets_included=false.",
-        certification_ttl_days: input.certification_ttl_days || input.certificationTtlDays || 90,
+        certification_ttl_days: input.certification_ttl_days || input.certificationTtlDays || item.policy?.certification_ttl_days || 90,
       });
     }
     results.push({
