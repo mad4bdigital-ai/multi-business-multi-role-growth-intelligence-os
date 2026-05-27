@@ -30,7 +30,17 @@ const DEFAULT_WINDOWS_ALIASES = [
 const LOCAL_CONNECTOR_CAPABILITY_FLAGS = {
   powershell_admin: "CONNECTOR_POWERSHELL_ENABLED",
   windows_control: "CONNECTOR_WIN_ENABLED",
+  dependencies: "CONNECTOR_DEPENDENCIES_ENABLED",
+  auto_browser: "CONNECTOR_AUTO_BROWSER_ENABLED",
 };
+
+function cleanText(value, max = 255) {
+  return String(value || "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
 
 function normalizeRequestedCapabilities(value) {
   const raw = Array.isArray(value) ? value : String(value || "").split(",");
@@ -56,12 +66,18 @@ function normalizeWindowsPath(value, max = 260) {
 function normalizePermissionGrants(value = {}) {
   const grants = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   const capabilities = normalizeRequestedCapabilities(grants.capabilities || grants.connector_capabilities || []);
-  const allowedPaths = [...new Set((Array.isArray(grants.allowed_paths) ? grants.allowed_paths : [])
+  const pathGrantValues = Array.isArray(grants.allowed_paths)
+    ? grants.allowed_paths
+    : (Array.isArray(grants.file_paths) ? grants.file_paths : []);
+  const allowedPaths = [...new Set(pathGrantValues
     .map((item) => normalizeWindowsPath(item, 260))
     .filter(Boolean))].slice(0, 25);
 
+  const appGrantValues = Array.isArray(grants.apps)
+    ? grants.apps
+    : Object.entries(grants.apps || {}).map(([alias, value]) => ({ alias, ...(value && typeof value === "object" ? value : {}) }));
   const apps = {};
-  for (const item of Array.isArray(grants.apps) ? grants.apps : []) {
+  for (const item of appGrantValues) {
     const alias = normalizeGrantAlias(item?.app_alias || item?.alias || item?.display_name, "app");
     const command = normalizeWindowsPath(item?.command || item?.executable_path || item?.path, 260);
     if (!alias || !command) continue;
@@ -1136,16 +1152,34 @@ export function buildLocalConnectorInstallRoutes(deps) {
       );
       if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found" } });
       const ttl = Math.max(5, Math.min(120, Number(ttl_minutes || 30)));
+      const permissionGrants = normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] });
+      const capabilities = permissionGrants.capabilities;
       const token = signInstallerDownloadToken({
         user_id: principal.userId,
         tenant_id: config.tenant_id || principal.tenantId,
         device_id,
         format,
+        capabilities,
+        permission_grants: permissionGrants,
         exp: Math.floor(Date.now() / 1000) + ttl * 60,
       });
       const path = format === "bat" ? "/local-connector/install/download" : "/connector-agent/installer.ps1";
       const download_url = `${publicBaseUrl(req)}${path}?token=${encodeURIComponent(token)}`;
-      return res.status(200).json({ ok: true, device_id, config_id: config.config_id, format, ttl_minutes: ttl, download_url, secrets_included: false });
+      return res.status(200).json({
+        ok: true,
+        device_id,
+        config_id: config.config_id,
+        format,
+        capabilities,
+        permission_grants: {
+          allowed_paths: permissionGrants.allowed_paths,
+          app_aliases: Object.keys(permissionGrants.apps),
+          shell_aliases: permissionGrants.shell_aliases.map((entry) => entry.alias),
+        },
+        ttl_minutes: ttl,
+        download_url,
+        secrets_included: false,
+      });
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "download_link_failed", message: err.message } });
     }
