@@ -646,7 +646,7 @@ internal static class Program
             };
             var ok = new Button { Text = "Create installer", DialogResult = DialogResult.OK, Location = new Point(488, 508), Size = new Size(130, 34) };
             var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(626, 508), Size = new Size(82, 34) };
-            form.Controls.AddRange(new Control[] { intro, powershell, windowsControl, appLabel, appAlias, appPath, browseApp, folderLabel, allowedPath, browseFolder, helperLabel, helperAlias, helperPath, browseHelper, warning, ok, cancel });
+            form.Controls.AddRange(new Control[] { intro, powershell, windowsControl, appLabel, appAlias, appPath, browseApp, discoverApps, folderLabel, allowedPath, browseFolder, helperLabel, helperAlias, helperPath, browseHelper, warning, ok, cancel });
             form.AcceptButton = ok;
             form.CancelButton = cancel;
 
