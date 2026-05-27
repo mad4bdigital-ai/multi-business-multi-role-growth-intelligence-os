@@ -428,6 +428,7 @@ export async function dispatchPlatformPluginRestAction({
     dry_run: Boolean(dryRun),
     provider_smoke: Boolean(isProviderSmoke),
     provider_smoke_expected_origin: isProviderSmoke ? providerSmokeExpectedOrigin || null : null,
+    recertification_mode: Boolean(recertificationMode),
   };
 
   if (dryRun) {
