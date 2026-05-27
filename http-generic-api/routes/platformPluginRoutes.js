@@ -23,6 +23,10 @@ import {
   getPlatformPluginSmokeCertification,
 } from "../platformPluginSmokeCertification.js";
 import {
+  listPlatformPluginSmokeRecertificationQueue,
+  runPlatformPluginSmokeRecertificationBatch,
+} from "../platformPluginSmokeRecertification.js";
+import {
   listRemoteRuntimeTargets,
   probeRemoteRuntimeTarget,
   upsertRemoteRuntimeTarget,
