@@ -801,6 +801,13 @@ export async function getDeviceControls(req, res) {
               note: "Break-glass/desktop-control only. Enables governed /win proxy after local elevated reinstall.",
             },
           ],
+          dynamic_grants: {
+            apps_env: "CONNECTOR_APP_ALLOWLIST",
+            file_paths_env: "CONNECTOR_FILE_PATHS",
+            helper_aliases_env: "CONNECTOR_SHELL_ALLOWLIST",
+            supported_grant_types: ["app", "allowed_path", "helper_alias"],
+            note: "The Windows app must collect explicit local user selections for app executable paths, allowed folders, and helper aliases before requesting a scoped installer.",
+          },
         },
       },
     };
