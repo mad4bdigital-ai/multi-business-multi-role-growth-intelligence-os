@@ -119,6 +119,10 @@ assert(smokeCertLifecycleMigration.includes("last_recertification_required_at"),
 assert(smokeCertLifecycleMigration.includes("recertification_reason"), "smoke certification lifecycle migration must add recertification reason column");
 assert(smokeCertLifecycleMigration.includes("INTERVAL 90 DAY"), "smoke certification lifecycle migration must backfill default 90-day expiry");
 assert(smokeCertLifecycleToolsMigration.includes("certification_ttl_days"), "smoke certification lifecycle tool migration must expose TTL days");
+assert(smokeRecertToolsMigration.includes("platform_plugin_smoke_recertification_queue"), "smoke recertification queue admin tool must be registered");
+assert(smokeRecertToolsMigration.includes("platform_plugin_smoke_recertification_batch"), "smoke recertification batch admin tool must be registered");
+assert(smokeRecertToolsMigration.includes("dry_run"), "smoke recertification batch schema must expose dry_run default");
+assert(smokeRecertToolsMigration.includes("origin_guard"), "smoke recertification batch must be tagged origin guarded");
 
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certify"), "smoke certification writer admin tool must be registered");
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certification_status"), "smoke certification status admin tool must be registered");
