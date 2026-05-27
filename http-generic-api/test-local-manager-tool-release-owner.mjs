@@ -3,6 +3,9 @@ import { readFileSync } from 'node:fs';
 
 const connectorAgent = readFileSync('routes/connectorAgentRoutes.js', 'utf8');
 const localManager = readFileSync('routes/localManagerBetaRoutes.js', 'utf8');
+const installRoutes = readFileSync('routes/localConnectorInstallRoutes.js', 'utf8');
+const proxyRoutes = readFileSync('routes/connectorProxyRoutes.js', 'utf8');
+const localManagerWindows = readFileSync('../apps/local-manager-windows/Program.cs', 'utf8');
 
 assert(connectorAgent.includes('const AGENT_VERSION = "2026.05.26.1"'), 'connector agent version must move for Local Manager tool releases');
 assert(connectorAgent.includes('"browser4-adapter.mjs"'), 'Browser4 adapter must be shipped by connector-agent manifest');
@@ -17,5 +20,32 @@ assert(connectorAgent.includes('local_tool_release_owner: "mad4b-local-manager"'
 assert(localManager.includes('local release owner for platform tools'), 'public app page must explain Local Manager tool release ownership');
 assert(localManager.includes('manifest-driven local tool installation'), 'link flow must explain manifest-driven local tool installation');
 assert(localManager.includes('Mad4B Local Manager Admin Tools'), 'admin page must distinguish governed installer tools');
+
+assert(installRoutes.includes('LOCAL_CONNECTOR_CAPABILITY_FLAGS'), 'installer route must define explicit capability flag mapping');
+assert(installRoutes.includes('powershell_admin: "CONNECTOR_POWERSHELL_ENABLED"'), 'PowerShell capability must map only through explicit opt-in');
+assert(installRoutes.includes('windows_control: "CONNECTOR_WIN_ENABLED"'), 'Windows control capability must map only through explicit opt-in');
+assert(installRoutes.includes('normalizePermissionGrants'), 'installer route must normalize dynamic permission grants');
+assert(installRoutes.includes('/[\\n\\r<>|?*&^%!]/.test(raw)'), 'dynamic Windows paths must reject CMD metacharacters before installer rendering');
+assert(installRoutes.includes('CONNECTOR_APP_ALLOWLIST'), 'installer route must support dynamic app allowlist grants');
+assert(installRoutes.includes('CONNECTOR_FILE_PATHS'), 'installer route must support dynamic file path grants');
+assert(installRoutes.includes('shell_aliases'), 'installer route must support dynamic helper shell alias grants');
+assert(installRoutes.includes('normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] })'), 'device-scoped installer link must normalize requested permission grants');
+assert(installRoutes.includes('permission_grants: permissionGrants'), 'installer download token must propagate permission grants without secrets');
+assert(!installRoutes.includes('CONNECTOR_POWERSHELL_ENABLED=true",'), 'PowerShell must not be enabled by default in base connector env');
+assert(!installRoutes.includes('CONNECTOR_WIN_ENABLED=true",'), 'Windows control must not be enabled by default in base connector env');
+
+assert(proxyRoutes.includes('code: "DISABLED"'), 'connector proxy must preserve disabled capability errors');
+assert(proxyRoutes.includes('connector_capability_status: "disabled"'), 'connector proxy response must classify disabled capability state');
+
+assert(localManagerWindows.includes('Capabilities'), 'Windows app must expose capability choices');
+assert(localManagerWindows.includes('ConfigureConnectorCapabilitiesAsync'), 'Windows app must request capability installer from user action');
+assert(localManagerWindows.includes('powershell_admin'), 'Windows app must support PowerShell capability selection');
+assert(localManagerWindows.includes('windows_control'), 'Windows app must support Windows control capability selection');
+assert(localManagerWindows.includes('permission_grants'), 'Windows app must send dynamic permission grants');
+assert(localManagerWindows.includes('OpenFileDialog'), 'Windows app must let users choose app/helper executables locally');
+assert(localManagerWindows.includes('FolderBrowserDialog'), 'Windows app must let users choose allowed paths locally');
+assert(localManagerWindows.includes('PickInstalledApp'), 'Windows app must provide installed-app discovery for easier app grants');
+assert(localManagerWindows.includes('Registry.CurrentUser') && localManagerWindows.includes('Registry.LocalMachine'), 'installed-app discovery must read per-user and machine uninstall registries');
+assert(localManagerWindows.includes('RunAsAdminRequired'), 'Windows app must surface local Administrator requirement');
 
 console.log('local manager tool release owner tests passed');

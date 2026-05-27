@@ -220,14 +220,25 @@ async function fetchConnectorJson(url, options) {
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
-    data = {
-      ok: false,
-      error: {
-        code: "connector_non_json_response",
-        message: "Connector returned a non-JSON response.",
-        details: { status: response.status, body_preview: text.slice(0, 500) },
-      },
-    };
+    const bodyPreview = text.slice(0, 500);
+    const disabledCapability = response.status === 403 && /(?:\bDISABLED\b|endpoint is disabled|CONNECTOR_[A-Z0-9_]+_ENABLED)/i.test(bodyPreview);
+    data = disabledCapability
+      ? {
+          ok: false,
+          error: {
+            code: "DISABLED",
+            message: bodyPreview || "Connector capability endpoint is disabled.",
+            details: { status: response.status, body_preview: bodyPreview },
+          },
+        }
+      : {
+          ok: false,
+          error: {
+            code: "connector_non_json_response",
+            message: "Connector returned a non-JSON response.",
+            details: { status: response.status, body_preview: bodyPreview },
+          },
+        };
   }
   return { response, data };
 }

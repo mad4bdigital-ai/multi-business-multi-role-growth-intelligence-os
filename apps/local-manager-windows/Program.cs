@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
+using Microsoft.Win32;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -194,10 +195,11 @@ internal static class Program
             var updateButton = MakeButton("Check / install update", 440, 336, 200, async (_, _) => await CheckAndInstallUpdateAsync(true));
             var tokenStatusButton = MakeButton("Token status", 656, 336, 166, (_, _) => ShowTokenStatus());
 
-            var repairButton = MakeButton("Repair connector", 28, 392, 210, async (_, _) => await RepairConnectorAsync());
-            var repairControlsButton = MakeButton("Repair controls", 254, 392, 170, async (_, _) => await LoadDeviceControlsAsync("repairs", LocalManagerUrl));
-            var startN8nButton = MakeButton("Start n8n", 440, 392, 170, async (_, _) => await StartN8nLocalAsync());
-            var openN8nButton = MakeButton("Open n8n", 626, 392, 196, async (_, _) => await OpenN8nLocalAsync());
+            var repairButton = MakeButton("Repair connector", 28, 392, 170, async (_, _) => await RepairConnectorAsync());
+            var capabilitiesButton = MakeButton("Capabilities", 214, 392, 150, async (_, _) => await ConfigureConnectorCapabilitiesAsync());
+            var repairControlsButton = MakeButton("Repair controls", 380, 392, 150, async (_, _) => await LoadDeviceControlsAsync("repairs", LocalManagerUrl));
+            var startN8nButton = MakeButton("Start n8n", 546, 392, 130, async (_, _) => await StartN8nLocalAsync());
+            var openN8nButton = MakeButton("Open n8n", 692, 392, 130, async (_, _) => await OpenN8nLocalAsync());
 
             _status = new Label
             {
@@ -230,7 +232,7 @@ internal static class Program
             {
                 title, body, signInButton, signUpButton, linkButton, openButton, forgetButton, _pairingCode,
                 devicesButton, routesButton, backupsButton, settingsButton, webDevicesButton,
-                shortcutButton, folderButton, updateButton, tokenStatusButton, repairButton, repairControlsButton,
+                shortcutButton, folderButton, updateButton, tokenStatusButton, repairButton, capabilitiesButton, repairControlsButton,
                 startN8nButton, openN8nButton, _status, _progress, _output
             });
 
@@ -551,6 +553,334 @@ internal static class Program
                 _status.Text = "Connector repair failed: " + ex.Message;
                 _output.Text = ex.ToString();
             }
+        }
+
+        private async Task ConfigureConnectorCapabilitiesAsync()
+        {
+            var token = LoadDeviceToken();
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                _output.Text = "No linked device token.\r\nUse 'Link this device' first.";
+                return;
+            }
+
+            using var form = new Form
+            {
+                Text = "Connector capabilities",
+                StartPosition = FormStartPosition.CenterParent,
+                Size = new Size(760, 610),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                Font = new Font("Segoe UI", 10)
+            };
+            var intro = new Label
+            {
+                Text = "Choose optional high-risk capabilities to enable on this device.\nThey require a device-scoped installer and local Administrator approval.",
+                Location = new Point(18, 18),
+                Size = new Size(500, 52)
+            };
+            var powershell = new CheckBox
+            {
+                Text = "Admin PowerShell recovery (/ps)",
+                Location = new Point(22, 84),
+                Size = new Size(480, 28)
+            };
+            var windowsControl = new CheckBox
+            {
+                Text = "Windows app/process control (/win)",
+                Location = new Point(22, 122),
+                Size = new Size(480, 28)
+            };
+            var appLabel = new Label { Text = "Optional app executable grant", Location = new Point(22, 160), Size = new Size(690, 22) };
+            var appAlias = new TextBox { PlaceholderText = "app alias e.g. photoshop", Location = new Point(22, 188), Size = new Size(180, 28) };
+            var appPath = new TextBox { PlaceholderText = "C:\\Path\\To\\App.exe", Location = new Point(212, 188), Size = new Size(390, 28) };
+            var browseApp = new Button { Text = "Browse", Location = new Point(614, 186), Size = new Size(90, 32) };
+            browseApp.Click += (_, _) =>
+            {
+                using var dialog = new OpenFileDialog { Title = "Choose application executable", Filter = "Applications (*.exe;*.cmd;*.bat)|*.exe;*.cmd;*.bat|All files (*.*)|*.*" };
+                if (dialog.ShowDialog(form) == DialogResult.OK)
+                {
+                    appPath.Text = dialog.FileName;
+                    if (string.IsNullOrWhiteSpace(appAlias.Text)) appAlias.Text = SafeFileSegment(Path.GetFileNameWithoutExtension(dialog.FileName)).ToLowerInvariant();
+                }
+            };
+            var discoverApps = new Button { Text = "Installed apps", Location = new Point(614, 222), Size = new Size(110, 32) };
+            discoverApps.Click += (_, _) =>
+            {
+                var selected = PickInstalledApp(form);
+                if (selected is null) return;
+                appAlias.Text = SafeFileSegment(selected.DisplayName).ToLowerInvariant();
+                appPath.Text = selected.ExecutablePath;
+            };
+
+            var folderLabel = new Label { Text = "Optional allowed folder/path grant", Location = new Point(22, 230), Size = new Size(690, 22) };
+            var allowedPath = new TextBox { PlaceholderText = "Allowed folder for read/write/list operations", Location = new Point(22, 258), Size = new Size(580, 28) };
+            var browseFolder = new Button { Text = "Browse", Location = new Point(614, 256), Size = new Size(90, 32) };
+            browseFolder.Click += (_, _) =>
+            {
+                using var dialog = new FolderBrowserDialog { Description = "Choose an allowed folder for this connector" };
+                if (dialog.ShowDialog(form) == DialogResult.OK) allowedPath.Text = dialog.SelectedPath;
+            };
+
+            var helperLabel = new Label { Text = "Optional helper command grant", Location = new Point(22, 300), Size = new Size(690, 22) };
+            var helperAlias = new TextBox { PlaceholderText = "helper alias e.g. app_status", Location = new Point(22, 328), Size = new Size(180, 28) };
+            var helperPath = new TextBox { PlaceholderText = "C:\\Path\\To\\Helper.exe or .cmd", Location = new Point(212, 328), Size = new Size(390, 28) };
+            var browseHelper = new Button { Text = "Browse", Location = new Point(614, 326), Size = new Size(90, 32) };
+            browseHelper.Click += (_, _) =>
+            {
+                using var dialog = new OpenFileDialog { Title = "Choose helper command", Filter = "Executables/scripts (*.exe;*.cmd;*.bat)|*.exe;*.cmd;*.bat|All files (*.*)|*.*" };
+                if (dialog.ShowDialog(form) == DialogResult.OK)
+                {
+                    helperPath.Text = dialog.FileName;
+                    if (string.IsNullOrWhiteSpace(helperAlias.Text)) helperAlias.Text = SafeFileSegment(Path.GetFileNameWithoutExtension(dialog.FileName)).ToLowerInvariant();
+                }
+            };
+
+            var warning = new Label
+            {
+                Text = "These options are explicit local grants. They become connector allowlists only after this app downloads a short-lived installer and you approve UAC.",
+                Location = new Point(22, 380),
+                Size = new Size(690, 60),
+                ForeColor = Color.DarkOrange
+            };
+            var ok = new Button { Text = "Create installer", DialogResult = DialogResult.OK, Location = new Point(488, 508), Size = new Size(130, 34) };
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(626, 508), Size = new Size(82, 34) };
+            form.Controls.AddRange(new Control[] { intro, powershell, windowsControl, appLabel, appAlias, appPath, browseApp, discoverApps, folderLabel, allowedPath, browseFolder, helperLabel, helperAlias, helperPath, browseHelper, warning, ok, cancel });
+            form.AcceptButton = ok;
+            form.CancelButton = cancel;
+
+            if (form.ShowDialog(this) != DialogResult.OK) return;
+            var requestedCapabilities = new List<string>();
+            if (powershell.Checked) requestedCapabilities.Add("powershell_admin");
+            if (windowsControl.Checked) requestedCapabilities.Add("windows_control");
+            var selectedApps = new List<object>();
+            if (!string.IsNullOrWhiteSpace(appPath.Text))
+            {
+                selectedApps.Add(new
+                {
+                    app_alias = string.IsNullOrWhiteSpace(appAlias.Text) ? SafeFileSegment(Path.GetFileNameWithoutExtension(appPath.Text)).ToLowerInvariant() : SafeFileSegment(appAlias.Text).ToLowerInvariant(),
+                    display_name = string.IsNullOrWhiteSpace(appAlias.Text) ? Path.GetFileNameWithoutExtension(appPath.Text) : appAlias.Text.Trim(),
+                    executable_path = appPath.Text.Trim(),
+                    process_name = Path.GetFileNameWithoutExtension(appPath.Text),
+                    browser = false,
+                    capability_class = "desktop_app",
+                    risk_class = "interactive"
+                });
+            }
+            var selectedPaths = new List<string>();
+            if (!string.IsNullOrWhiteSpace(allowedPath.Text)) selectedPaths.Add(allowedPath.Text.Trim());
+            var selectedHelpers = new List<object>();
+            if (!string.IsNullOrWhiteSpace(helperPath.Text))
+            {
+                selectedHelpers.Add(new
+                {
+                    alias = string.IsNullOrWhiteSpace(helperAlias.Text) ? SafeFileSegment(Path.GetFileNameWithoutExtension(helperPath.Text)).ToLowerInvariant() : SafeFileSegment(helperAlias.Text).ToLowerInvariant(),
+                    command = helperPath.Text.Trim(),
+                    args = Array.Empty<string>(),
+                    allow_extra_args = false,
+                    description = string.IsNullOrWhiteSpace(helperAlias.Text) ? Path.GetFileNameWithoutExtension(helperPath.Text) : helperAlias.Text.Trim()
+                });
+            }
+            if (requestedCapabilities.Count == 0 && selectedApps.Count == 0 && selectedPaths.Count == 0 && selectedHelpers.Count == 0)
+            {
+                _status.Text = "No connector capability or permission changes selected.";
+                return;
+            }
+
+            try
+            {
+                EnsureLocalFiles(_status);
+                _progress.Value = 0;
+                _status.Text = "Requesting capability installer from auth.mad4b.com…";
+                using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+                using var req = new HttpRequestMessage(HttpMethod.Post, DeviceRepairInstallerUrl)
+                {
+                    Content = JsonContent(new
+                    {
+                        format = "bat",
+                        ttl_minutes = 30,
+                        capabilities = requestedCapabilities,
+                        permission_grants = new
+                        {
+                            apps = selectedApps,
+                            allowed_paths = selectedPaths,
+                            shell_aliases = selectedHelpers
+                        }
+                    })
+                };
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                req.Headers.Accept.ParseAdd("application/json");
+                using var response = await client.SendAsync(req);
+                var text = await response.Content.ReadAsStringAsync();
+                var link = JsonSerializer.Deserialize<DeviceInstallerLinkResponse>(text, _json);
+                if (!response.IsSuccessStatusCode || link?.Ok != true || string.IsNullOrWhiteSpace(link.DownloadUrl))
+                {
+                    _status.Text = "Capability installer request failed: " + (link?.Error?.Message ?? response.ReasonPhrase ?? "unknown error");
+                    _output.Text = text;
+                    return;
+                }
+
+                _progress.Value = 25;
+                var safeDeviceId = SafeFileSegment(link.CanonicalDeviceId ?? link.DeviceId ?? Environment.MachineName);
+                var target = Path.Combine(UpdatesRoot, $"enable-connector-capabilities-{safeDeviceId}.bat");
+                using (var installerResponse = await client.GetAsync(link.DownloadUrl, HttpCompletionOption.ResponseHeadersRead))
+                {
+                    installerResponse.EnsureSuccessStatusCode();
+                    await using var source = await installerResponse.Content.ReadAsStreamAsync();
+                    await using var destination = File.Create(target);
+                    await source.CopyToAsync(destination);
+                }
+                var fileInfo = new FileInfo(target);
+                if (!fileInfo.Exists || fileInfo.Length < 64) throw new InvalidOperationException("Downloaded capability installer file is missing or too small.");
+                _progress.Value = 75;
+                _output.Text = JsonSerializer.Serialize(new
+                {
+                    capability_installer_downloaded = true,
+                    installer_path = target,
+                    capabilities = requestedCapabilities,
+                    app_grants = selectedApps.Count,
+                    allowed_paths = selectedPaths,
+                    helper_grants = selectedHelpers.Count,
+                    canonical_device_id = link.CanonicalDeviceId,
+                    run_as_admin_required = link.RunAsAdminRequired,
+                    secrets_included = false
+                }, _json);
+
+                var result = MessageBox.Show(
+                    "Capability installer downloaded. Run it as Administrator now?\n\nThis will update the local connector service configuration for the selected capabilities.",
+                    "Connector capabilities",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+                if (result != DialogResult.Yes)
+                {
+                    _status.Text = $"Capability installer downloaded: {target}. Run as Administrator when ready.";
+                    return;
+                }
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = target,
+                    UseShellExecute = true,
+                    WorkingDirectory = Path.GetDirectoryName(target) ?? UpdatesRoot,
+                    Verb = "runas"
+                });
+                _progress.Value = 100;
+                _status.Text = "Capability installer launched with elevation request. Verify connector health after it finishes.";
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Capability installer failed: " + ex.Message;
+                _output.Text = ex.ToString();
+            }
+        }
+
+        private sealed record InstalledAppChoice(string DisplayName, string ExecutablePath)
+        {
+            public override string ToString() => $"{DisplayName} — {ExecutablePath}";
+        }
+
+        private static InstalledAppChoice? PickInstalledApp(IWin32Window owner)
+        {
+            var apps = DiscoverInstalledApps().OrderBy(app => app.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+            if (apps.Count == 0)
+            {
+                MessageBox.Show(owner, "No installed applications with executable paths were discovered. Use Browse instead.", "Installed apps", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return null;
+            }
+
+            using var form = new Form
+            {
+                Text = "Choose installed app",
+                StartPosition = FormStartPosition.CenterParent,
+                Size = new Size(760, 520),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                Font = new Font("Segoe UI", 10)
+            };
+            var filter = new TextBox { PlaceholderText = "Search installed apps…", Location = new Point(16, 16), Size = new Size(710, 30) };
+            var list = new ListBox { Location = new Point(16, 56), Size = new Size(710, 360), HorizontalScrollbar = true };
+            var ok = new Button { Text = "Use selected", DialogResult = DialogResult.OK, Location = new Point(500, 430), Size = new Size(130, 34) };
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(642, 430), Size = new Size(82, 34) };
+            void RefreshList()
+            {
+                var q = filter.Text.Trim();
+                list.Items.Clear();
+                foreach (var app in apps.Where(app => string.IsNullOrWhiteSpace(q) || app.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase) || app.ExecutablePath.Contains(q, StringComparison.OrdinalIgnoreCase)).Take(300))
+                {
+                    list.Items.Add(app);
+                }
+                if (list.Items.Count > 0 && list.SelectedIndex < 0) list.SelectedIndex = 0;
+            }
+            filter.TextChanged += (_, _) => RefreshList();
+            list.DoubleClick += (_, _) => { if (list.SelectedItem is not null) form.DialogResult = DialogResult.OK; };
+            form.Controls.AddRange(new Control[] { filter, list, ok, cancel });
+            form.AcceptButton = ok;
+            form.CancelButton = cancel;
+            RefreshList();
+            return form.ShowDialog(owner) == DialogResult.OK ? list.SelectedItem as InstalledAppChoice : null;
+        }
+
+        private static IEnumerable<InstalledAppChoice> DiscoverInstalledApps()
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var root in new[] { Registry.CurrentUser, Registry.LocalMachine })
+            foreach (var subkeyPath in new[] { @"Software\Microsoft\Windows\CurrentVersion\Uninstall", @"Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall" })
+            {
+                using var rootKey = root.OpenSubKey(subkeyPath);
+                if (rootKey is null) continue;
+                foreach (var name in rootKey.GetSubKeyNames())
+                {
+                    using var key = rootKey.OpenSubKey(name);
+                    var displayName = Convert.ToString(key?.GetValue("DisplayName"))?.Trim();
+                    if (string.IsNullOrWhiteSpace(displayName)) continue;
+                    var exe = ResolveInstalledAppExecutable(
+                        Convert.ToString(key?.GetValue("DisplayIcon")),
+                        Convert.ToString(key?.GetValue("InstallLocation")),
+                        Convert.ToString(key?.GetValue("UninstallString")));
+                    if (string.IsNullOrWhiteSpace(exe) || !File.Exists(exe) || !seen.Add(exe)) continue;
+                    yield return new InstalledAppChoice(displayName, exe);
+                }
+            }
+        }
+
+        private static string ResolveInstalledAppExecutable(string? displayIcon, string? installLocation, string? uninstallString)
+        {
+            foreach (var candidate in new[] { displayIcon, uninstallString })
+            {
+                var exe = ExtractExecutablePath(candidate);
+                if (!string.IsNullOrWhiteSpace(exe) && File.Exists(exe)) return exe;
+            }
+            var folder = (installLocation ?? "").Trim().Trim('"');
+            if (Directory.Exists(folder))
+            {
+                foreach (var exe in Directory.EnumerateFiles(folder, "*.exe", SearchOption.TopDirectoryOnly).OrderBy(path => Path.GetFileName(path).Length).Take(5))
+                {
+                    if (File.Exists(exe)) return exe;
+                }
+            }
+            return "";
+        }
+
+        private static string ExtractExecutablePath(string? raw)
+        {
+            var value = (raw ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(value)) return "";
+            if (value.StartsWith("\""))
+            {
+                var end = value.IndexOf('"', 1);
+                if (end > 1) value = value.Substring(1, end - 1);
+            }
+            else
+            {
+                var exeIndex = value.IndexOf(".exe", StringComparison.OrdinalIgnoreCase);
+                if (exeIndex >= 0) value = value.Substring(0, exeIndex + 4);
+                else value = value.Split(',', ' ').FirstOrDefault() ?? "";
+            }
+            value = value.Trim().Trim('"');
+            if (value.Contains(',')) value = value.Split(',')[0].Trim().Trim('"');
+            return value.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? value : "";
         }
 
         private static StringContent JsonContent(object payload) => new(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");

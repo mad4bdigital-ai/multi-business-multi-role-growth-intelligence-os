@@ -27,6 +27,84 @@ const DEFAULT_WINDOWS_ALIASES = [
   { alias: "n8n_restore_certify_probe", cmd: "node", args: ["n8n-restore-certifier.mjs"], allow_extra_args: false, description: "Read-only n8n restore certification prerequisite probe" },
 ];
 
+const LOCAL_CONNECTOR_CAPABILITY_FLAGS = {
+  powershell_admin: "CONNECTOR_POWERSHELL_ENABLED",
+  windows_control: "CONNECTOR_WIN_ENABLED",
+};
+
+function normalizeRequestedCapabilities(value) {
+  const raw = Array.isArray(value) ? value : String(value || "").split(",");
+  return [...new Set(raw.map((item) => String(item || "").trim()).filter((item) => LOCAL_CONNECTOR_CAPABILITY_FLAGS[item]))];
+}
+
+function normalizeGrantAlias(value, fallback = "item") {
+  const clean = String(value || "").trim().toLowerCase().replace(/[^a-z0-9_.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 48);
+  return clean || fallback;
+}
+
+function normalizeWindowsPath(value, max = 260) {
+  const raw = String(value || "").trim().replace(/^"|"$/g, "").slice(0, max);
+  if (!raw) return "";
+  if (!/^[a-zA-Z]:\\/.test(raw) && !raw.startsWith("\\\\")) return "";
+  // Block characters that are unsafe in Windows paths or generated .bat/.env lines.
+  // Windows itself disallows <>|?* for paths; &^%! are additionally blocked here
+  // because dynamic user-selected grants are rendered into installer scripts.
+  if (/[\n\r<>|?*&^%!]/.test(raw)) return "";
+  return raw;
+}
+
+function normalizePermissionGrants(value = {}) {
+  const grants = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const capabilities = normalizeRequestedCapabilities(grants.capabilities || grants.connector_capabilities || []);
+  const allowedPaths = [...new Set((Array.isArray(grants.allowed_paths) ? grants.allowed_paths : [])
+    .map((item) => normalizeWindowsPath(item, 260))
+    .filter(Boolean))].slice(0, 25);
+
+  const apps = {};
+  for (const item of Array.isArray(grants.apps) ? grants.apps : []) {
+    const alias = normalizeGrantAlias(item?.app_alias || item?.alias || item?.display_name, "app");
+    const command = normalizeWindowsPath(item?.command || item?.executable_path || item?.path, 260);
+    if (!alias || !command) continue;
+    const processName = String(item?.process_name || command.split(/[/\\]/).pop() || alias).replace(/\.exe$/i, "").replace(/[^A-Za-z0-9_.-]+/g, "").slice(0, 80) || alias;
+    apps[alias] = {
+      display_name: cleanText(item?.display_name || alias, 120) || alias,
+      command,
+      process_name: processName,
+      browser: item?.browser === true,
+      capability_class: cleanText(item?.capability_class || "desktop_app", 80) || "desktop_app",
+      risk_class: cleanText(item?.risk_class || "interactive", 80) || "interactive",
+    };
+    if (Object.keys(apps).length >= 50) break;
+  }
+
+  const shellAliases = [];
+  for (const item of Array.isArray(grants.shell_aliases || grants.helpers) ? (grants.shell_aliases || grants.helpers) : []) {
+    const alias = normalizeGrantAlias(item?.alias || item?.display_name, "helper");
+    const command = normalizeWindowsPath(item?.command || item?.command_path, 260);
+    if (!alias || !command) continue;
+    const args = Array.isArray(item?.args) ? item.args.map((arg) => String(arg || "").slice(0, 200)).filter((arg) => !/[;&|`$<>\n\r]/.test(arg)).slice(0, 20) : [];
+    shellAliases.push({
+      alias,
+      cmd: command,
+      args,
+      allow_extra_args: item?.allow_extra_args === true,
+      description: cleanText(item?.description || item?.display_name || alias, 160) || alias,
+    });
+    if (shellAliases.length >= 50) break;
+  }
+
+  return { capabilities, allowed_paths: allowedPaths, apps, shell_aliases: shellAliases };
+}
+
+function connectorCapabilityEnvLines(capabilities = []) {
+  return normalizeRequestedCapabilities(capabilities).map((capability) => `${LOCAL_CONNECTOR_CAPABILITY_FLAGS[capability]}=true`);
+}
+
+function envJsonLine(key, value) {
+  const json = JSON.stringify(value || {});
+  return `${key}=${json.replace(/\r?\n/g, "")}`;
+}
+
 function resolveLocalConnectorPrincipalAliases(userId, tenantId) {
   const normalizedUser = String(userId || "").trim().toLowerCase();
   const normalizedTenant = String(tenantId || "").trim().toLowerCase();
@@ -581,8 +659,11 @@ function buildAllowlistEnvValue(aliases) {
   return JSON.stringify(obj);
 }
 
-function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port }) {
-  const allowlistVal = buildAllowlistEnvValue(aliases);
+function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
+  const envEchoLines = buildConnectorEnv({ connectorSecret, aliases, port, capabilities, permissionGrants })
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line, index) => `echo ${line}${index === 0 ? ">" : ">>"} \"%~dp0.env\"`);
   return [
     "@echo off",
     "setlocal EnableDelayedExpansion",
@@ -603,20 +684,7 @@ function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port
     "sc query %CF_SERVICE% >nul 2>&1 && net start %CF_SERVICE% >nul 2>&1",
     "",
     "REM ── 2. Write .env ──",
-    `echo CONNECTOR_SECRET=${connectorSecret}> "%~dp0.env"`,
-    `echo CONNECTOR_PORT=${port}>> "%~dp0.env"`,
-    "echo MAIN_API_URL=https://api.mad4b.com>> \"%~dp0.env\"",
-    "echo CONNECTOR_SHELL_ENABLED=true>> \"%~dp0.env\"",
-    "echo CONNECTOR_FILES_ENABLED=true>> \"%~dp0.env\"",
-    "echo CONNECTOR_APPS_ENABLED=true>> \"%~dp0.env\"",
-    "echo CONNECTOR_FETCH_UPLOAD_ENABLED=true>> \"%~dp0.env\"",
-    "echo CONNECTOR_N8N_ENABLED=true>> \"%~dp0.env\"",
-    "echo N8N_COMMAND=D:\\npm-global\\n8n.cmd>> \"%~dp0.env\"",
-    "echo N8N_USER_FOLDER=D:\\n8n-data>> \"%~dp0.env\"",
-    "echo N8N_PORT=5678>> \"%~dp0.env\"",
-    "echo N8N_LISTEN_ADDRESS=127.0.0.1>> \"%~dp0.env\"",
-    "echo N8N_PUBLIC_URL=https://n8n.mad4b.com/>> \"%~dp0.env\"",
-    `echo CONNECTOR_SHELL_ALLOWLIST=${allowlistVal}>> "%~dp0.env"`,
+    ...envEchoLines,
     "",
     "REM ── 3. Install Node connector as Windows service via NSSM ──",
     "where nssm >nul 2>&1 || (winget install NSSM.NSSM -e --silent)",
@@ -641,8 +709,12 @@ function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port
   ].join("\r\n");
 }
 
-function buildConnectorEnv({ connectorSecret, aliases, port }) {
-  const allowlistVal = buildAllowlistEnvValue(aliases);
+function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [], permissionGrants = {} }) {
+  const grants = normalizePermissionGrants(permissionGrants);
+  const allAliases = [...aliases, ...grants.shell_aliases];
+  const allowlistVal = buildAllowlistEnvValue(allAliases);
+  const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
+  const filePathLine = grants.allowed_paths.length ? [`CONNECTOR_FILE_PATHS=${grants.allowed_paths.join(",")}`] : [];
   return [
     `BACKEND_API_KEY=${connectorSecret}`,
     "MAIN_API_URL=https://api.mad4b.com",
@@ -652,6 +724,9 @@ function buildConnectorEnv({ connectorSecret, aliases, port }) {
     "CONNECTOR_APPS_ENABLED=true",
     "CONNECTOR_FETCH_UPLOAD_ENABLED=true",
     "CONNECTOR_N8N_ENABLED=true",
+    ...connectorCapabilityEnvLines([...capabilities, ...grants.capabilities]),
+    ...appAllowlistLine,
+    ...filePathLine,
     "N8N_COMMAND=D:\\npm-global\\n8n.cmd",
     "N8N_USER_FOLDER=D:\\n8n-data",
     "N8N_PORT=5678",
@@ -696,8 +771,8 @@ function buildInstallPowerShellBootstrapBat({ ps1Url, deviceId }) {
   ].join("\r\n");
 }
 
-function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, port }) {
-  const envText = buildConnectorEnv({ connectorSecret, aliases, port });
+function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
+  const envText = buildConnectorEnv({ connectorSecret, aliases, port, capabilities, permissionGrants });
   return [
     "# Mad4B Local Connector — run once as Administrator",
     "$ErrorActionPreference = 'Stop'",
@@ -803,8 +878,12 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     hostname = null,
     custom_aliases = [],
     local_apps = [],
+    capabilities = [],
+    permission_grants = {},
     reprovision = false,
   } = body || {};
+  const requestedPermissionGrants = normalizePermissionGrants({ ...permission_grants, capabilities });
+  const requestedCapabilities = requestedPermissionGrants.capabilities;
   if (!user_id || !tenant_id || !device_id) {
     throw httpError(400, "missing_fields", "user_id, tenant_id, device_id required.");
   }
@@ -921,10 +1000,10 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     );
   }
 
-  const installPowerShell = buildInstallPowerShell({ cfToken: tunnelToken, connectorSecret, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT });
-  const connectorEnv = buildConnectorEnv({ connectorSecret, aliases: allAliases, port: CONNECTOR_PORT });
+  const installPowerShell = buildInstallPowerShell({ cfToken: tunnelToken, connectorSecret, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
+  const connectorEnv = buildConnectorEnv({ connectorSecret, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
   const startConnectorBat = buildStartConnectorBat();
-  const installScript = buildInstallScript({ cfToken: tunnelToken, connectorSecret, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT });
+  const installScript = buildInstallScript({ cfToken: tunnelToken, connectorSecret, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
 
   return {
     ok: true,
@@ -940,6 +1019,12 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     app_routes: await loadLocalAppRoutes(pool, finalConfigId),
     installation: {
       aliases: allAliases.map((a) => a.alias),
+      capabilities: requestedCapabilities,
+      permission_grants: {
+        allowed_paths: requestedPermissionGrants.allowed_paths,
+        app_aliases: Object.keys(requestedPermissionGrants.apps),
+        shell_aliases: requestedPermissionGrants.shell_aliases.map((entry) => entry.alias),
+      },
       install_bat: installScript,
       install_ps1: installPowerShell,
       files: {
@@ -976,6 +1061,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
       const device = await requireLocalManagerDevice(req);
       const format = String(req.body?.format || "bat").trim().toLowerCase();
       const ttl = Math.max(5, Math.min(60, Number(req.body?.ttl_minutes || 30)));
+      const permissionGrants = normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] });
+      const capabilities = permissionGrants.capabilities;
       if (!["ps1", "bat"].includes(format)) return res.status(400).json({ ok: false, error: { code: "unsupported_format", message: "format must be ps1 or bat." }, secrets_included: false });
       const [rows] = await getPool().query(
         `SELECT c.config_id, c.tenant_id, c.device_id
@@ -1005,6 +1092,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
         tenant_id: config.tenant_id || device.tenant_id,
         device_id: config.device_id,
         format,
+        capabilities,
+        permission_grants: permissionGrants,
         exp: Math.floor(Date.now() / 1000) + ttl * 60,
       });
       const path = format === "bat" ? "/local-connector/install/download" : "/connector-agent/installer.ps1";
@@ -1015,6 +1104,12 @@ export function buildLocalConnectorInstallRoutes(deps) {
         canonical_device_id: config.device_id,
         config_id: config.config_id,
         format,
+        capabilities,
+        permission_grants: {
+          allowed_paths: permissionGrants.allowed_paths,
+          app_aliases: Object.keys(permissionGrants.apps),
+          shell_aliases: permissionGrants.shell_aliases.map((entry) => entry.alias),
+        },
         ttl_minutes: ttl,
         download_url,
         run_as_admin_required: true,
@@ -1068,11 +1163,15 @@ export function buildLocalConnectorInstallRoutes(deps) {
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
       if (!config.cf_token || !config.connector_secret) throw httpError(409, "connector_config_incomplete", "Connector config is missing recovery token or connector secret.");
+      const permissionGrants = normalizePermissionGrants(payload.permission_grants || { capabilities: payload.capabilities || [] });
+      const capabilities = permissionGrants.capabilities;
       const ps1Token = signInstallerDownloadToken({
         user_id: payload.user_id,
         tenant_id: payload.tenant_id,
         device_id: payload.device_id,
         format: "ps1",
+        capabilities,
+        permission_grants: permissionGrants,
         exp: payload.exp,
       });
       const ps1Url = `${publicBaseUrl(req)}/connector-agent/installer.ps1?token=${encodeURIComponent(ps1Token)}`;
@@ -1084,6 +1183,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
             tunnelUrl: config.tunnel_url,
             aliases: DEFAULT_WINDOWS_ALIASES,
             port: CONNECTOR_PORT,
+            capabilities,
+            permissionGrants,
           });
       const safeDeviceId = String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-");
       const filename = `install-local-connector-${safeDeviceId}.${payload.format}`;

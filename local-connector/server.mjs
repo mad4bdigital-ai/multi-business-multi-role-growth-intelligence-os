@@ -177,7 +177,8 @@ try {
 let APP_ALLOWLIST = DEFAULT_APP_ALLOWLIST;
 try {
   if (process.env.CONNECTOR_APP_ALLOWLIST) {
-    APP_ALLOWLIST = JSON.parse(process.env.CONNECTOR_APP_ALLOWLIST);
+    const configuredApps = JSON.parse(process.env.CONNECTOR_APP_ALLOWLIST);
+    APP_ALLOWLIST = { ...DEFAULT_APP_ALLOWLIST, ...(configuredApps && typeof configuredApps === 'object' ? configuredApps : {}) };
   }
 } catch (e) {
   console.error('[connector] Failed to parse CONNECTOR_APP_ALLOWLIST:', e.message);
