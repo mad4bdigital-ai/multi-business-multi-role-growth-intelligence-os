@@ -220,8 +220,13 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         err.code = "remote_runtime_local_device_missing";
         throw err;
       }
+      const canonicalDeviceId = await resolveRemoteRuntimeCanonicalDeviceId({
+        deviceId,
+        tenantId: plan.target.tenant_id,
+        userId: plan.target.user_id || input.user_id || input.userId || null,
+      });
       const connectorArgs = {
-        device_id: deviceId,
+        device_id: canonicalDeviceId,
         tenant_id: plan.target.tenant_id,
         user_id: plan.target.user_id || input.user_id || input.userId || undefined,
         action: "run",
