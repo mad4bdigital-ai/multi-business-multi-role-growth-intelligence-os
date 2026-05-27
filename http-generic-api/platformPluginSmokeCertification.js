@@ -96,7 +96,9 @@ export async function getPlatformPluginSmokeCertification(input = {}, deps = {})
             connection_id, mock_provider, mock_resource, expected_origin, url_origin,
             url_path, http_method, last_smoke_status, last_response_status,
             last_response_ok, last_smoke_execution_log_id, last_smoke_trace_id,
-            certification_status, certified_at, certified_by, notes, metadata_json,
+            certification_status, certified_at, certification_expires_at,
+            last_recertification_required_at, recertification_reason,
+            certified_by, notes, metadata_json,
             secrets_included, created_at, updated_at
        FROM platform_plugin_smoke_certifications
       WHERE ${where.join(" AND ")}
