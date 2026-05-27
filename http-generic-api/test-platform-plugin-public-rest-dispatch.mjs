@@ -22,6 +22,10 @@ assert(service.includes("endpoint_key: endpoint?.endpoint_key"), "dispatcher mus
 assert(service.includes("https_required"), "dispatcher must enforce HTTPS");
 assert(service.includes("private_network_blocked"), "dispatcher must block private-network hosts");
 assert(service.includes("safeHeaders"), "dispatcher must sanitize outgoing headers");
+assert(service.includes("provider_smoke_expected_origin_required"), "provider smoke must require explicit expected origin");
+assert(service.includes("provider_smoke_expected_origin_mismatch"), "provider smoke must block unexpected origins");
+assert(service.includes("provider_smoke_get_only"), "provider smoke must be GET-only");
+assert(service.includes("provider_smoke_body_not_allowed"), "provider smoke must reject body templates");
 assert(service.includes("writeExecutionEvidence"), "dispatcher must write execution evidence");
 assert(service.includes("secrets_included: false"), "dispatcher must explicitly exclude secrets");
 
