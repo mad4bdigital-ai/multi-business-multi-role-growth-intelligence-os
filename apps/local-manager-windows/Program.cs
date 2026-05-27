@@ -737,26 +737,12 @@ internal static class Program
                     secrets_included = false
                 }, _json);
 
-                var result = MessageBox.Show(
-                    "Capability installer downloaded. Run it as Administrator now?\n\nThis will update the local connector service configuration for the selected capabilities.",
+                await RunElevatedInstallerAndVerifyAsync(
+                    target,
+                    "connector capability installer",
                     "Connector capabilities",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning);
-                if (result != DialogResult.Yes)
-                {
-                    _status.Text = $"Capability installer downloaded: {target}. Run as Administrator when ready.";
-                    return;
-                }
-
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = target,
-                    UseShellExecute = true,
-                    WorkingDirectory = Path.GetDirectoryName(target) ?? UpdatesRoot,
-                    Verb = "runas"
-                });
-                _progress.Value = 100;
-                _status.Text = "Capability installer launched with elevation request. Verify connector health after it finishes.";
+                    "This will update the local connector service configuration for the selected capabilities and permission grants. Approve the Windows UAC prompt to continue.",
+                    async () => await RefreshDeviceControlsAfterInstallerAsync("settings", "Capability verification"));
             }
             catch (Exception ex)
             {
