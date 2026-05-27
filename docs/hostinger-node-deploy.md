@@ -133,25 +133,19 @@ Then verify via platform device tool:
 }
 ```
 
-## Fallback workflow
+## Deployment authority
 
-The repository contains:
+Hostinger hPanel Auto Deploy is the sole repository-to-Hostinger deployment path for `dev.mad4b.com` and `auth.mad4b.com`. The repository intentionally does not contain a GitHub Actions SSH fallback workflow and does not require Hostinger SSH secrets in GitHub.
 
-```text
-.github/workflows/deploy-hostinger-node.yml
-```
-
-This workflow is manual-only. It is not triggered by push and should be used only if Hostinger Auto Deploy is degraded. Do not use it to deploy `connector.mad4b.com`; that hostname must stay on the Cloudflare Tunnel/local-service path so it can recover Hostinger/auth outages.
+Do not use GitHub Actions to deploy `connector.mad4b.com`; that hostname must stay on the Cloudflare Tunnel/local-service path so it can recover Hostinger/auth outages.
 
 ## Security notes
 
 - Do not commit `.env`, API keys, private keys, Hostinger credentials, or Cloudflare tokens.
-- Keep secrets in hPanel environment variables or GitHub Secrets for fallback only.
+- Keep secrets in hPanel environment variables, not GitHub Actions deployment secrets.
 - Avoid manual ZIP uploads except for emergency rollback.
 - Verify `/connector-agent/version` after every deployment that affects local connector behavior.
 
 ## Rollback
 
-Preferred rollback is Hostinger hPanel deployment history.
-
-If the fallback workflow was used, rerun it against a known-good ref or restore through hPanel.
+Rollback through Hostinger hPanel deployment history.
