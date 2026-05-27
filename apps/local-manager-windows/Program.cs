@@ -645,9 +645,37 @@ internal static class Program
             var requestedCapabilities = new List<string>();
             if (powershell.Checked) requestedCapabilities.Add("powershell_admin");
             if (windowsControl.Checked) requestedCapabilities.Add("windows_control");
-            if (requestedCapabilities.Count == 0)
+            var selectedApps = new List<object>();
+            if (!string.IsNullOrWhiteSpace(appPath.Text))
             {
-                _status.Text = "No connector capability changes selected.";
+                selectedApps.Add(new
+                {
+                    app_alias = string.IsNullOrWhiteSpace(appAlias.Text) ? SafeFileSegment(Path.GetFileNameWithoutExtension(appPath.Text)).ToLowerInvariant() : SafeFileSegment(appAlias.Text).ToLowerInvariant(),
+                    display_name = string.IsNullOrWhiteSpace(appAlias.Text) ? Path.GetFileNameWithoutExtension(appPath.Text) : appAlias.Text.Trim(),
+                    executable_path = appPath.Text.Trim(),
+                    process_name = Path.GetFileNameWithoutExtension(appPath.Text),
+                    browser = false,
+                    capability_class = "desktop_app",
+                    risk_class = "interactive"
+                });
+            }
+            var selectedPaths = new List<string>();
+            if (!string.IsNullOrWhiteSpace(allowedPath.Text)) selectedPaths.Add(allowedPath.Text.Trim());
+            var selectedHelpers = new List<object>();
+            if (!string.IsNullOrWhiteSpace(helperPath.Text))
+            {
+                selectedHelpers.Add(new
+                {
+                    alias = string.IsNullOrWhiteSpace(helperAlias.Text) ? SafeFileSegment(Path.GetFileNameWithoutExtension(helperPath.Text)).ToLowerInvariant() : SafeFileSegment(helperAlias.Text).ToLowerInvariant(),
+                    command = helperPath.Text.Trim(),
+                    args = Array.Empty<string>(),
+                    allow_extra_args = false,
+                    description = string.IsNullOrWhiteSpace(helperAlias.Text) ? Path.GetFileNameWithoutExtension(helperPath.Text) : helperAlias.Text.Trim()
+                });
+            }
+            if (requestedCapabilities.Count == 0 && selectedApps.Count == 0 && selectedPaths.Count == 0 && selectedHelpers.Count == 0)
+            {
+                _status.Text = "No connector capability or permission changes selected.";
                 return;
             }
 
