@@ -123,6 +123,58 @@ export function buildBrowserRuntimeRoutes({ requireBackendApiKey, requireAdminPr
     } catch (err) { return errorResponse(res, err, "browser_runtime_inspect_site_run_failed"); }
   });
 
+  router.post("/browser-runtime/visual-takeover/run", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await createBrowserRuntimeAdapterRequest({
+        input: { ...input, binding_key: input.binding_key || input.bindingKey || "auto_browser_takeover_essam" },
+        defaultAction: "visual_takeover",
+        defaultUseCase: "visual_takeover",
+        requestType: "visual_takeover_request",
+      });
+      return res.status(result.ok ? 202 : 403).json(result);
+    } catch (err) { return errorResponse(res, err, "browser_runtime_visual_takeover_failed"); }
+  });
+
+  router.post("/browser-runtime/persistent-session/run", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await createBrowserRuntimeAdapterRequest({
+        input: { ...input, binding_key: input.binding_key || input.bindingKey || "vessel_persistent_essam" },
+        defaultAction: "persistent_session",
+        defaultUseCase: "persistent_authenticated_session",
+        requestType: "persistent_session_request",
+      });
+      return res.status(result.ok ? 202 : 403).json(result);
+    } catch (err) { return errorResponse(res, err, "browser_runtime_persistent_session_failed"); }
+  });
+
+  router.post("/browser-runtime/cloud-extract/run", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await createBrowserRuntimeAdapterRequest({
+        input: { ...input, binding_key: input.binding_key || input.bindingKey || "oxylabs_cloud_extraction" },
+        defaultAction: "extract_data",
+        defaultUseCase: "cloud_public_extraction",
+        requestType: "cloud_public_extraction_request",
+      });
+      return res.status(result.ok ? 202 : 403).json(result);
+    } catch (err) { return errorResponse(res, err, "browser_runtime_cloud_extract_failed"); }
+  });
+
+  router.post("/browser-runtime/stealth-extract/run", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await createBrowserRuntimeAdapterRequest({
+        input: { ...input, binding_key: input.binding_key || input.bindingKey || "cloak_browser_stealth_public_extraction_candidate" },
+        defaultAction: "public_page_extract",
+        defaultUseCase: "stealth_public_extraction",
+        requestType: "stealth_public_extraction_request",
+      });
+      return res.status(result.ok ? 202 : 403).json(result);
+    } catch (err) { return errorResponse(res, err, "browser_runtime_stealth_extract_failed"); }
+  });
+
   return router;
 }
 
