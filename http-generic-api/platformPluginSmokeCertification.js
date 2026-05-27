@@ -154,7 +154,11 @@ export async function certifyPlatformPluginSmoke(input = {}, deps = {}) {
   }
   const s = evidence.summary;
   const certificationId = compact(input.certification_id || input.certificationId || `smoke_cert_${randomUUID()}`, 64);
+  const certificationTtlDays = boundedTtlDays(input.certification_ttl_days || input.certificationTtlDays || 90);
+  const certificationExpiresAt = addDaysIso(certificationTtlDays);
   const metadata = {
+    certification_ttl_days: certificationTtlDays,
+    certification_expires_at: certificationExpiresAt,
     provider_name: evidence.mock.provider_name || null,
     template_source: s.template_source || null,
     provider_smoke: true,
