@@ -142,12 +142,10 @@ Do not use GitHub Actions to deploy `connector.mad4b.com`; that hostname must st
 ## Security notes
 
 - Do not commit `.env`, API keys, private keys, Hostinger credentials, or Cloudflare tokens.
-- Keep secrets in hPanel environment variables or GitHub Secrets for fallback only.
+- Keep secrets in hPanel environment variables, not GitHub Actions deployment secrets.
 - Avoid manual ZIP uploads except for emergency rollback.
 - Verify `/connector-agent/version` after every deployment that affects local connector behavior.
 
 ## Rollback
 
-Preferred rollback is Hostinger hPanel deployment history.
-
-If the fallback workflow was used, rerun it against a known-good ref or restore through hPanel.
+Rollback through Hostinger hPanel deployment history.
