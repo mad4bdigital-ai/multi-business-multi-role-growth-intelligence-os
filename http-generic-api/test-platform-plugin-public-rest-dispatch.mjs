@@ -68,6 +68,11 @@ assert(routes.includes("listPlatformPluginSmokeRecertificationQueue"), "routes m
 assert(routes.includes("runPlatformPluginSmokeRecertificationBatch"), "routes must import smoke recertification batch handler");
 assert(routes.includes("/platform/plugins/smoke-certifications/recertification-queue"), "routes must expose smoke recertification queue endpoint");
 assert(routes.includes("/platform/plugins/smoke-certifications/recertification-batch"), "routes must expose smoke recertification batch endpoint");
+assert(routes.includes("resolvePlatformPluginSmokeRecertificationPolicy"), "routes must import smoke recertification policy resolver");
+assert(routes.includes("upsertPlatformPluginSmokeRecertificationPolicy"), "routes must import smoke recertification policy upsert handler");
+assert(routes.includes("/platform/plugins/smoke-certifications/policies/resolve"), "routes must expose smoke recertification policy resolve endpoint");
+assert(routes.includes("/platform/plugins/smoke-certifications/policies/list"), "routes must expose smoke recertification policy list endpoint");
+assert(routes.includes("/platform/plugins/smoke-certifications/policies/upsert"), "routes must expose smoke recertification policy upsert endpoint");
 
 assert(migration.includes("platform_plugin_dispatch_rest"), "migration must register dispatch tool key");
 assert(migration.includes("/platform/plugins/dispatch-rest"), "migration must bind dispatch route path");
