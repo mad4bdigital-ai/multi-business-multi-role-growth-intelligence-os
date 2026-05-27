@@ -44,6 +44,13 @@ assert(!installRoutes.includes('CONNECTOR_WIN_ENABLED=true",'), 'Windows control
 assert(proxyRoutes.includes('code: "DISABLED"'), 'connector proxy must preserve disabled capability errors');
 assert(proxyRoutes.includes('connector_capability_status: "disabled"'), 'connector proxy response must classify disabled capability state');
 
+assert(localManagerWindows.includes('RunElevatedInstallerAndVerifyAsync'), 'Windows app must run connector installers through an in-app elevated workflow');
+assert(localManagerWindows.includes('RefreshDeviceControlsAfterInstallerAsync'), 'Windows app must refresh device controls after installer execution');
+assert(localManagerWindows.includes('WaitForExitAsync'), 'Windows app must wait for elevated installer completion when possible');
+assert(localManagerWindows.includes('UAC prompt'), 'Windows app must clearly explain local Administrator approval');
+assert(localManagerWindows.includes('installer_applied = false'), 'Windows app must handle cancelled UAC prompts explicitly');
+assert(localManagerWindows.includes('installer_launching = true'), 'Windows app must show sanitized installer launch diagnostics');
+assert(localManagerWindows.includes('connector capability installer'), 'Windows app must apply the capability installer, not just download it');
 assert(localManagerWindows.includes('RegisterDesktopCommandPollFailure'), 'Windows app must back off transient desktop command polling failures');
 assert(localManagerWindows.includes('_desktopCommandPollBackoffUntil'), 'Windows app must track desktop command polling backoff state');
 assert(localManagerWindows.includes('Desktop command polling paused'), 'Windows app must show paused polling instead of noisy repeated failures');
