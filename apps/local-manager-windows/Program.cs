@@ -531,26 +531,12 @@ internal static class Program
                     secrets_included = false
                 }, _json);
 
-                var result = MessageBox.Show(
-                    "A connector repair installer was downloaded. Run it as Administrator now?\n\nWindows will show a UAC prompt.",
+                await RunElevatedInstallerAndVerifyAsync(
+                    target,
+                    "connector repair installer",
                     "Repair connector",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning);
-                if (result != DialogResult.Yes)
-                {
-                    _status.Text = $"Repair installer downloaded: {target}. Run as Administrator when ready.";
-                    return;
-                }
-
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = target,
-                    UseShellExecute = true,
-                    WorkingDirectory = Path.GetDirectoryName(target) ?? UpdatesRoot,
-                    Verb = "runas"
-                });
-                _progress.Value = 100;
-                _status.Text = "Repair installer launched with elevation request. After it finishes, click Device session or Repair controls to verify.";
+                    "This will repair and restart the local connector service. Approve the Windows UAC prompt to continue.",
+                    async () => await RefreshDeviceControlsAfterInstallerAsync("repairs", "Repair verification"));
             }
             catch (Exception ex)
             {
