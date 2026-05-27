@@ -747,7 +747,7 @@ async function executeGitHubRestFallback(args = []) {
       || apiTarget === "/merges"
     );
     if (!allowedRead && !allowedMutation) {
-      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, and repo merges mutations.");
+      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, workflow dispatches, and repo merges mutations.");
       err.status = 501;
       err.code = "github_rest_api_unsupported_path";
       err.details = { apiTarget, method };
