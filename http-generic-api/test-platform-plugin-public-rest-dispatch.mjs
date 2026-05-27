@@ -58,6 +58,7 @@ const smokeMigration = readFileSync("migrations/150_sprint65_provider_smoke_guar
 assert(smokeMigration.includes("provider_smoke"), "provider smoke schema migration must include provider_smoke field");
 assert(smokeMigration.includes("provider_smoke_expected_origin"), "provider smoke schema migration must include expected origin field");
 assert(smokeMigration.includes("origin_guard"), "provider smoke schema migration must tag origin guard behavior");
+assert(!smokeMigration.includes("updated_at"), "provider smoke schema migration must avoid admin_platform_endpoint_tools.updated_at because live table does not have it");
 
 for (const forbidden of [
   "api_key_value",
