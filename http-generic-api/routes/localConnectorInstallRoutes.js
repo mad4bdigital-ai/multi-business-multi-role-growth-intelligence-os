@@ -30,7 +30,17 @@ const DEFAULT_WINDOWS_ALIASES = [
 const LOCAL_CONNECTOR_CAPABILITY_FLAGS = {
   powershell_admin: "CONNECTOR_POWERSHELL_ENABLED",
   windows_control: "CONNECTOR_WIN_ENABLED",
+  dependencies: "CONNECTOR_DEPENDENCIES_ENABLED",
+  auto_browser: "CONNECTOR_AUTO_BROWSER_ENABLED",
 };
+
+function cleanText(value, max = 255) {
+  return String(value || "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
 
 function normalizeRequestedCapabilities(value) {
   const raw = Array.isArray(value) ? value : String(value || "").split(",");
