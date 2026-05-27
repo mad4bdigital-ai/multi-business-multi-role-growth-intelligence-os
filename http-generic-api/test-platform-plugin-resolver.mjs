@@ -73,6 +73,24 @@ function makePool({ withConnection = true, withSkill = true, tenantDedicated = f
           expires_at: null,
         }]] : [[]];
       }
+      if (sql.includes("FROM platform_plugin_smoke_certifications")) {
+        return withSmokeCertification ? [[{
+          certification_id: "smoke-cert-1",
+          mock_provider: "crm",
+          mock_resource: "contacts",
+          expected_origin: "https://auth.mad4b.com",
+          url_origin: "https://auth.mad4b.com",
+          url_path: "/platform/mock-providers/crm/contacts",
+          http_method: "GET",
+          last_smoke_status: "success",
+          last_response_status: 200,
+          last_response_ok: 1,
+          last_smoke_execution_log_id: 14132,
+          last_smoke_trace_id: "trace-smoke-1",
+          certified_at: "2026-05-27T12:26:50.000Z",
+          certification_status: "certified",
+        }]] : [[]];
+      }
       return [[]];
     },
   };
