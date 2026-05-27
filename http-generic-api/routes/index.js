@@ -65,6 +65,7 @@ import { buildPlatformGraphRoutes } from "./platformGraphRoutes.js";
 import { buildPlatformPluginRoutes } from "./platformPluginRoutes.js";
 import { buildTenantPlatformPluginRoutes } from "./tenantPlatformPluginRoutes.js";
 import { buildBrowserRuntimeRoutes } from "./browserRuntimeRoutes.js";
+import { buildPlatformSmokeRoutes } from "./platformSmokeRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
