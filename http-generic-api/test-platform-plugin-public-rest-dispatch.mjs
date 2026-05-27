@@ -38,6 +38,11 @@ assert(service.includes("provider_smoke_expected_origin_required"), "provider sm
 assert(service.includes("provider_smoke_expected_origin_mismatch"), "provider smoke must block unexpected origins");
 assert(service.includes("provider_smoke_get_only"), "provider smoke must be GET-only");
 assert(service.includes("provider_smoke_body_not_allowed"), "provider smoke must reject body templates");
+assert(service.includes("validateSmokeCertificationDrift"), "dispatcher must compare current URL/method against smoke certification evidence");
+assert(service.includes("smoke_certification_recertification_required"), "dispatcher must block when smoke certification drifts");
+assert(service.includes("smoke_certification_origin_drift"), "dispatcher must detect smoke certification origin drift");
+assert(service.includes("smoke_certification_path_drift"), "dispatcher must detect smoke certification path drift");
+assert(service.includes("smoke_certification_method_drift"), "dispatcher must detect smoke certification method drift");
 assert(service.includes("writeExecutionEvidence"), "dispatcher must write execution evidence");
 assert(service.includes("secrets_included: false"), "dispatcher must explicitly exclude secrets");
 
