@@ -23,6 +23,10 @@ import {
   getPlatformPluginSmokeCertification,
 } from "../platformPluginSmokeCertification.js";
 import {
+  listPlatformPluginSmokeRecertificationQueue,
+  runPlatformPluginSmokeRecertificationBatch,
+} from "../platformPluginSmokeRecertification.js";
+import {
   listRemoteRuntimeTargets,
   probeRemoteRuntimeTarget,
   upsertRemoteRuntimeTarget,
@@ -136,6 +140,22 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
       const result = await getPlatformPluginSmokeCertification(input);
       return res.status(200).json(result);
     } catch (err) { return errorResponse(res, err, "platform_plugin_smoke_certification_status_failed"); }
+  });
+
+  router.post("/platform/plugins/smoke-certifications/recertification-queue", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await listPlatformPluginSmokeRecertificationQueue(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_plugin_smoke_recertification_queue_failed"); }
+  });
+
+  router.post("/platform/plugins/smoke-certifications/recertification-batch", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await runPlatformPluginSmokeRecertificationBatch(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_plugin_smoke_recertification_batch_failed"); }
   });
 
   router.post("/platform/remote-runtime/targets/upsert", ...requireAdmin, async (req, res) => {

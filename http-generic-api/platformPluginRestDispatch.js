@@ -74,7 +74,7 @@ function validateSmokeCertificationDrift({ resolution, url, method }) {
   if (cert.url_origin && cert.url_origin !== url.origin) blocks.push("smoke_certification_origin_drift");
   if (cert.url_path && cert.url_path !== url.pathname) blocks.push("smoke_certification_path_drift");
   if (cert.http_method && String(cert.http_method).toUpperCase() !== String(method).toUpperCase()) blocks.push("smoke_certification_method_drift");
-  if (cert.expired === true) blocks.push("smoke_certification_expired");
+  if (cert.expired === true && !(resolution?.smoke_certification?.reason === "smoke_certification_expired_recertification_allowed")) blocks.push("smoke_certification_expired");
   return {
     ok: blocks.length === 0,
     checked: true,
@@ -231,6 +231,7 @@ export async function dispatchPlatformPluginRestAction({
   edgeDetailLimit = 10,
   providerSmoke = false,
   providerSmokeExpectedOrigin = null,
+  recertificationMode = false,
 } = {}) {
   const normalizedPluginKey = normalizeKey(pluginKey, 128);
   const normalizedActionKey = normalizeKey(actionKey, 128);
@@ -288,6 +289,7 @@ export async function dispatchPlatformPluginRestAction({
     userId: normalizedUserId,
     agentId: normalizedAgentId,
     requestedCredentialScope,
+    allowExpiredSmokeCertificationForRecertification: providerSmoke === true && recertificationMode === true,
   });
   if (!resolution.allowed || resolution.mode !== "dispatch_ready" || resolution.execution?.will_execute !== true) {
     return {
@@ -426,6 +428,7 @@ export async function dispatchPlatformPluginRestAction({
     dry_run: Boolean(dryRun),
     provider_smoke: Boolean(isProviderSmoke),
     provider_smoke_expected_origin: isProviderSmoke ? providerSmokeExpectedOrigin || null : null,
+    recertification_mode: Boolean(recertificationMode),
   };
 
   if (dryRun) {

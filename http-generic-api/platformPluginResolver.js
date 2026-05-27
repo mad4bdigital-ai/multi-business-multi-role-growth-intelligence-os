@@ -209,7 +209,7 @@ async function checkSkillGrant({ pool, agentId, tenantId, requiredSkillKey }) {
   };
 }
 
-async function checkSmokeCertification({ pool, pluginKey, actionKey }) {
+async function checkSmokeCertification({ pool, pluginKey, actionKey, allowExpiredForRecertification = false }) {
   if (!actionKey) {
     return {
       required: false,
@@ -239,11 +239,11 @@ async function checkSmokeCertification({ pool, pluginKey, actionKey }) {
   );
   const row = rows[0] || null;
   const expired = Boolean(row?.certification_expires_at && new Date(row.certification_expires_at).getTime() <= Date.now());
-  const certified = Boolean(row && !expired);
+  const certified = Boolean(row && (!expired || allowExpiredForRecertification));
   return {
     required: true,
     certified,
-    reason: row ? (expired ? "smoke_certification_expired" : "smoke_certification_active") : "smoke_certification_required",
+    reason: row ? (expired ? (allowExpiredForRecertification ? "smoke_certification_expired_recertification_allowed" : "smoke_certification_expired") : "smoke_certification_active") : "smoke_certification_required",
     certification: row ? {
       certification_id: row.certification_id,
       mock_provider: row.mock_provider,
@@ -379,6 +379,7 @@ export async function resolvePlatformPluginExecution({
   userId = null,
   agentId = null,
   requestedCredentialScope = null,
+  allowExpiredSmokeCertificationForRecertification = false,
 } = {}) {
   const normalizedPluginKey = compactString(pluginKey, 128);
   if (!normalizedPluginKey) {
@@ -421,7 +422,12 @@ export async function resolvePlatformPluginExecution({
   });
   const requiredSkillKey = deriveRequiredSkill({ pluginKey: normalizedPluginKey, actionKey, toolKey, binding });
   const skill = await checkSkillGrant({ pool, agentId, tenantId, requiredSkillKey });
-  const smokeCertification = await checkSmokeCertification({ pool, pluginKey: normalizedPluginKey, actionKey });
+  const smokeCertification = await checkSmokeCertification({
+    pool,
+    pluginKey: normalizedPluginKey,
+    actionKey,
+    allowExpiredForRecertification: allowExpiredSmokeCertificationForRecertification === true,
+  });
 
   const pluginStatusActive = ["active", "beta"].includes(normalize(rows.plugin.status));
   const allowed = Boolean(pluginStatusActive && bindingState.ok && credential.ok && skill.granted && smokeCertification.certified);

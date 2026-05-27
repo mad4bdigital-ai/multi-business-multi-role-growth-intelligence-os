@@ -10,7 +10,9 @@ const smokeCertMigration = readFileSync("migrations/151_sprint65_platform_plugin
 const smokeCertToolsMigration = readFileSync("migrations/152_sprint65_platform_plugin_smoke_certification_tools.sql", "utf8");
 const smokeCertLifecycleMigration = readFileSync("migrations/153_sprint65_smoke_certification_lifecycle.sql", "utf8");
 const smokeCertLifecycleToolsMigration = readFileSync("migrations/154_sprint65_smoke_certification_lifecycle_tools.sql", "utf8");
+const smokeRecertToolsMigration = readFileSync("migrations/155_sprint65_smoke_recertification_tools.sql", "utf8");
 const smokeCertSource = readFileSync("platformPluginSmokeCertification.js", "utf8");
+const smokeRecertSource = readFileSync("platformPluginSmokeRecertification.js", "utf8");
 const pluginResolverSource = readFileSync("platformPluginResolver.js", "utf8");
 const promotionSource = readFileSync("platformPluginPromotion.js", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
@@ -59,6 +61,10 @@ assert(routes.includes("certifyPlatformPluginSmoke"), "routes must import smoke 
 assert(routes.includes("getPlatformPluginSmokeCertification"), "routes must import smoke certification reader");
 assert(routes.includes("/platform/plugins/smoke-certifications/certify"), "routes must expose smoke certification writer endpoint");
 assert(routes.includes("/platform/plugins/smoke-certifications/status"), "routes must expose smoke certification status endpoint");
+assert(routes.includes("listPlatformPluginSmokeRecertificationQueue"), "routes must import smoke recertification queue handler");
+assert(routes.includes("runPlatformPluginSmokeRecertificationBatch"), "routes must import smoke recertification batch handler");
+assert(routes.includes("/platform/plugins/smoke-certifications/recertification-queue"), "routes must expose smoke recertification queue endpoint");
+assert(routes.includes("/platform/plugins/smoke-certifications/recertification-batch"), "routes must expose smoke recertification batch endpoint");
 
 assert(migration.includes("platform_plugin_dispatch_rest"), "migration must register dispatch tool key");
 assert(migration.includes("/platform/plugins/dispatch-rest"), "migration must bind dispatch route path");
@@ -96,6 +102,10 @@ assert(openapi.includes("/platform/plugins/smoke-certifications/certify:"), "Ope
 assert(openapi.includes("operationId: platformPluginSmokeCertify"), "OpenAPI must expose stable smoke certification writer operationId");
 assert(openapi.includes("/platform/plugins/smoke-certifications/status:"), "OpenAPI must document smoke certification status route");
 assert(openapi.includes("operationId: platformPluginSmokeCertificationStatus"), "OpenAPI must expose stable smoke certification status operationId");
+assert(openapi.includes("/platform/plugins/smoke-certifications/recertification-queue:"), "OpenAPI must document smoke recertification queue route");
+assert(openapi.includes("operationId: platformPluginSmokeRecertificationQueue"), "OpenAPI must expose stable recertification queue operationId");
+assert(openapi.includes("/platform/plugins/smoke-certifications/recertification-batch:"), "OpenAPI must document smoke recertification batch route");
+assert(openapi.includes("operationId: platformPluginSmokeRecertificationBatch"), "OpenAPI must expose stable recertification batch operationId");
 
 const smokeMigration = readFileSync("migrations/150_sprint65_provider_smoke_guarded_dispatch_schema.sql", "utf8");
 assert(smokeMigration.includes("provider_smoke"), "provider smoke schema migration must include provider_smoke field");
@@ -113,6 +123,10 @@ assert(smokeCertLifecycleMigration.includes("last_recertification_required_at"),
 assert(smokeCertLifecycleMigration.includes("recertification_reason"), "smoke certification lifecycle migration must add recertification reason column");
 assert(smokeCertLifecycleMigration.includes("INTERVAL 90 DAY"), "smoke certification lifecycle migration must backfill default 90-day expiry");
 assert(smokeCertLifecycleToolsMigration.includes("certification_ttl_days"), "smoke certification lifecycle tool migration must expose TTL days");
+assert(smokeRecertToolsMigration.includes("platform_plugin_smoke_recertification_queue"), "smoke recertification queue admin tool must be registered");
+assert(smokeRecertToolsMigration.includes("platform_plugin_smoke_recertification_batch"), "smoke recertification batch admin tool must be registered");
+assert(smokeRecertToolsMigration.includes("dry_run"), "smoke recertification batch schema must expose dry_run default");
+assert(smokeRecertToolsMigration.includes("origin_guard"), "smoke recertification batch must be tagged origin guarded");
 
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certify"), "smoke certification writer admin tool must be registered");
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certification_status"), "smoke certification status admin tool must be registered");
@@ -131,6 +145,17 @@ assert(smokeCertSource.includes("certification_expires_at"), "smoke certificatio
 assert(smokeCertSource.includes("last_recertification_required_at"), "smoke certification status must expose recertification timestamp");
 assert(smokeCertSource.includes("recertification_reason"), "smoke certification status must expose recertification reason");
 
+assert(smokeRecertSource.includes("listPlatformPluginSmokeRecertificationQueue"), "smoke recertification source must expose queue reader");
+assert(smokeRecertSource.includes("runPlatformPluginSmokeRecertificationBatch"), "smoke recertification source must expose batch runner");
+assert(smokeRecertSource.includes("expires_soon"), "smoke recertification queue must detect expiring soon certifications");
+assert(smokeRecertSource.includes("origin_drift"), "smoke recertification queue must detect origin drift");
+assert(smokeRecertSource.includes("path_drift"), "smoke recertification queue must detect path drift");
+assert(smokeRecertSource.includes("method_drift"), "smoke recertification queue must detect method drift");
+assert(smokeRecertSource.includes("automatic_recertification_supported"), "smoke recertification queue must distinguish auto-safe candidates");
+assert(smokeRecertSource.includes("dispatchPlatformPluginRestAction"), "smoke recertification batch must reuse guarded dispatch");
+assert(smokeRecertSource.includes("recertificationMode: true"), "smoke recertification batch must use explicit recertification mode");
+assert(smokeRecertSource.includes("certifyPlatformPluginSmoke"), "smoke recertification batch must certify successful smoke logs");
+
 assert(pluginResolverSource.includes("checkSmokeCertification"), "plugin resolver must check smoke certification before dispatch readiness");
 assert(pluginResolverSource.includes("platform_plugin_smoke_certifications"), "plugin resolver must read smoke certification registry");
 assert(pluginResolverSource.includes("smoke_certification_required"), "plugin resolver must block dispatch readiness when smoke certification is missing");
@@ -139,6 +164,10 @@ assert(pluginResolverSource.includes("last_response_status = 200"), "plugin reso
 assert(pluginResolverSource.includes("secrets_included = 0"), "plugin resolver must require secret-free smoke certification");
 assert(pluginResolverSource.includes("smoke_certification_expired"), "plugin resolver must reject expired smoke certifications");
 assert(pluginResolverSource.includes("certification_expires_at"), "plugin resolver must return certification expiry evidence");
+assert(pluginResolverSource.includes("allowExpiredSmokeCertificationForRecertification"), "plugin resolver must only allow expired certificates in explicit recertification mode");
+assert(pluginResolverSource.includes("smoke_certification_expired_recertification_allowed"), "plugin resolver must mark bounded expiry bypass for recertification evidence");
+assert(service.includes("recertificationMode"), "dispatcher must expose explicit recertification mode");
+assert(service.includes("allowExpiredSmokeCertificationForRecertification"), "dispatcher must pass bounded recertification mode to resolver");
 
 assert(promotionSource.includes("checkContributionSmokeCertifications"), "promotion must check smoke certifications before platform base promotion");
 assert(promotionSource.includes("smoke_certification_required"), "promotion must block when smoke certification is missing");
