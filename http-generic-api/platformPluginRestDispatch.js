@@ -231,6 +231,7 @@ export async function dispatchPlatformPluginRestAction({
   edgeDetailLimit = 10,
   providerSmoke = false,
   providerSmokeExpectedOrigin = null,
+  recertificationMode = false,
 } = {}) {
   const normalizedPluginKey = normalizeKey(pluginKey, 128);
   const normalizedActionKey = normalizeKey(actionKey, 128);
