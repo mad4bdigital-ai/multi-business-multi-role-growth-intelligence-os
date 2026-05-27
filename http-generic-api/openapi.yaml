@@ -9278,6 +9278,37 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+  /platform/remote-runtime/dispatch-dry-run:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: remoteRuntimeDispatchDryRun
+      summary: Dry-run Remote Runtime allowlisted dispatch
+      description: Plan an allowlisted remote_ssh_runtime dispatch without opening SSH, local shell, or file access. Evaluates target readiness, global command allowlist, target command allowlist, and approval requirements. It never executes commands and never returns secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_id, command_key]
+              additionalProperties: true
+              properties:
+                target_id: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                command_key: { type: string }
+                inputs:
+                  type: object
+                  additionalProperties: true
+                approval_id: { type: string }
+                approval_reason: { type: string }
+      responses:
+        "200": { description: Remote Runtime dispatch dry-run plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
   /platform/remote-runtime/targets/upsert:
     post:
       x-openai-isConsequential: true
