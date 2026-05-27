@@ -4,6 +4,7 @@
     "routes/platformPluginRoutes.js",
     "routes/tenantPlatformPluginRoutes.js",
     "routes/platformGraphRoutes.js",
+    "routes/platformEvolutionRoutes.js",
     "routes/schemaImportRoutes.js",
     "routes/gptToolsRoutes.js",
     "routes/systemLayerRoutes.js",
