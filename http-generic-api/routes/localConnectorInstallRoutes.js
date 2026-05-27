@@ -668,6 +668,7 @@ function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [] }
     "CONNECTOR_APPS_ENABLED=true",
     "CONNECTOR_FETCH_UPLOAD_ENABLED=true",
     "CONNECTOR_N8N_ENABLED=true",
+    ...connectorCapabilityEnvLines(capabilities),
     "N8N_COMMAND=D:\\npm-global\\n8n.cmd",
     "N8N_USER_FOLDER=D:\\n8n-data",
     "N8N_PORT=5678",
