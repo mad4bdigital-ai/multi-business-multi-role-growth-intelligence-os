@@ -9278,6 +9278,61 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+  /platform/remote-runtime/targets/catalog:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: remoteRuntimeTargetCatalog
+      summary: List Remote Runtime targets
+      description: List remote_ssh_runtime hosting_account and local_path targets plus command allowlists. This endpoint never opens SSH, local shell, files, or returns secrets.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                tenant_id: { type: string }
+                user_id: { type: string }
+                target_kind: { type: string, enum: [hosting_account, local_path] }
+                provider_family: { type: string }
+                status: { type: string, enum: [planned, active, disabled, archived] }
+                include_commands: { type: boolean, default: true }
+                limit: { type: integer, minimum: 1, maximum: 250, default: 100 }
+      responses:
+        "200": { description: Remote Runtime target catalog, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/remote-runtime/probe:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: remoteRuntimeProbe
+      summary: Probe Remote Runtime target readiness
+      description: Dry-run readiness probe for one remote_ssh_runtime target. It does not open SSH, local shell, or file access; it only reports whether future allowlisted dispatch could be requested.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_id]
+              additionalProperties: true
+              properties:
+                target_id: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                command_key: { type: string, default: status }
+                dry_run: { type: boolean, default: true }
+      responses:
+        "200": { description: Remote Runtime readiness probe result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
   /platform/plugins/install-policy:
     post:
       x-openai-isConsequential: true
