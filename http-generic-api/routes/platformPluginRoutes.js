@@ -15,6 +15,7 @@ import {
 import { dispatchPrivatePlatformPluginRestAction } from "../platformPluginPrivateRestDispatch.js";
 import { dispatchPlatformPluginRestAction } from "../platformPluginRestDispatch.js";
 import { resolveActionManifestDiagnostic } from "../actionManifestDiagnostic.js";
+import { resolveExecutionReadinessDryRun } from "../executionReadinessDryRun.js";
 import {
   certifyPlatformPluginContribution,
   promotePlatformPluginContribution,
