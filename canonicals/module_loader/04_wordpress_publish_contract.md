@@ -307,3 +307,23 @@ Endpoint Registry alignment:
 - WordPress REST paths must start with `/wp/v2/` or `/jet-engine/v2/`.
 - `transport_action_key` may be `http_generic_api` or method wrappers `http_get`, `http_post`, `http_put`, `http_patch`, `http_delete` when delegated through the backend.
 - Hostinger rows must not carry WordPress operation/path authority unless explicitly classified as a delegated transport wrapper and not as canonical WordPress endpoint authority.
+
+
+---
+
+## WordPress blog credential recovery loading rule
+
+When routed execution selects `wordpress_blog_publish_or_recover_credentials`, module_loader must prepare a resume-aware platform-native execution contract.
+
+The loaded context must include:
+
+- resolved brand and `target_key`
+- publish preflight readiness
+- `credential_effective_status` inputs for `wordpress_rest`
+- secure credential-intake session creation inputs when credentials are missing
+- original publish request envelope without raw secrets
+- draft-first WordPress create inputs
+- readback verification requirements
+- repair/resume handoff when readback fails
+
+n8n must not be loaded as the authoritative WordPress publish runtime unless a governed `workflow_runtime_bindings` row explicitly authorizes an auxiliary side-effect branch. Even then, platform-native credential resolution, WordPress publish contract, readback, and execution logging remain mandatory.
