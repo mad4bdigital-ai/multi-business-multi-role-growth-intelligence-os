@@ -9488,6 +9488,87 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+  /platform/plugins/smoke-certifications/recertification-queue:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationQueue
+      summary: List Platform Plugin smoke recertification queue
+      description: List smoke certifications that are expired, expiring soon, or drifting from the current connection/endpoint URL or method. Returns safe metadata only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                plugin_key: { type: string }
+                action_key: { type: string }
+                tenant_id: { type: string }
+                mock_provider: { type: string }
+                mock_resource: { type: string }
+                provider: { type: string }
+                resource: { type: string }
+                expires_soon_days: { type: integer, minimum: 1, maximum: 90, default: 14 }
+                include_ok: { type: boolean, default: false }
+                limit: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200":
+          description: Smoke recertification queue response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/plugins/smoke-certifications/recertification-batch:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationBatch
+      summary: Run bounded Platform Plugin smoke recertification batch
+      description: Run a bounded smoke recertification batch. Defaults to dry_run=true. Real execution uses provider_smoke only for rows with no drift and an explicit expected origin, then re-certifies successful 200 responses.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                plugin_key: { type: string }
+                action_key: { type: string }
+                tenant_id: { type: string }
+                mock_provider: { type: string }
+                mock_resource: { type: string }
+                expires_soon_days: { type: integer, minimum: 1, maximum: 90, default: 14 }
+                dry_run: { type: boolean, default: true }
+                limit: { type: integer, minimum: 1, maximum: 10, default: 5 }
+                certification_ttl_days: { type: integer, minimum: 1, maximum: 365, default: 90 }
+                certified_by: { type: string }
+                notes: { type: string }
+                agent_id: { type: string }
+                requested_credential_scope: { type: string, default: tenant_connection }
+                brand_key: { type: string }
+                business_type_key: { type: string }
+                business_activity_type_key: { type: string }
+                actor_role: { type: string }
+                governance_level: { type: string }
+                timeout_ms: { type: integer, minimum: 1000, maximum: 30000, default: 5000 }
+      responses:
+        "200":
+          description: Smoke recertification batch response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
   /platform/remote-runtime/targets/upsert:
     post:
       x-openai-isConsequential: true
