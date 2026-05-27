@@ -734,6 +734,11 @@ export function buildConnectorProxyRoutes(deps) {
     catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
   });
 
+  router.post("/connector/:device_id/auto-browser", requireBackendApiKey, adminOnly, async (req, res) => {
+    try { await proxyToDevice(req, res, req.params.device_id, "/auto-browser"); }
+    catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
+  });
+
   router.post("/connector/:device_id/ps", requireBackendApiKey, adminOnly, async (req, res) => {
     try { await proxyToDevice(req, res, req.params.device_id, "/ps"); }
     catch (err) { res.status(502).json({ ok: false, error: { code: "proxy_failed", message: err.message } }); }
