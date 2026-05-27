@@ -6,7 +6,11 @@ const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/145_sprint65_platform_plugin_public_rest_dispatch_tool.sql", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
 
-assert(service.includes("resolvePlatformPluginExecution"), "public dispatcher must call resolver first");
+assert(service.includes("resolveExecutionReadinessDryRun"), "public dispatcher must run full execution readiness dry-run before dispatch");
+assert(service.includes("execution_readiness_not_dispatch_ready"), "public dispatcher must block when readiness dry-run is not dispatch_ready");
+assert(service.includes("preview_enforce: true"), "public dispatcher must enforce manifest guard preview before dispatch");
+assert(service.includes("require_plugin_connection: true"), "public dispatcher must require plugin connection before dispatch");
+assert(service.includes("resolvePlatformPluginExecution"), "public dispatcher must call resolver after readiness preflight");
 assert(service.includes('resolution.mode !== "dispatch_ready"'), "dispatcher must require dispatch_ready mode");
 assert(service.includes("resolution.execution?.will_execute !== true"), "dispatcher must require execution.will_execute=true");
 assert(service.includes("dispatch_template_missing"), "dispatcher must fail closed when REST action template is missing");
