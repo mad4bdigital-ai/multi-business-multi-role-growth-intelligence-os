@@ -126,6 +126,10 @@ assert(smokeCertSource.includes("smoke_method_must_be_get"), "smoke certificatio
 assert(smokeCertSource.includes("smoke_response_status_not_200"), "smoke certification must require 200 response");
 assert(smokeCertSource.includes("expected_origin_mismatch"), "smoke certification must require expected origin match");
 assert(smokeCertSource.includes("secrets_included: false"), "smoke certification responses must be secret-free");
+assert(smokeCertSource.includes("boundedTtlDays"), "smoke certification writer must bound TTL days");
+assert(smokeCertSource.includes("certification_expires_at"), "smoke certification writer/status must expose expiry metadata");
+assert(smokeCertSource.includes("last_recertification_required_at"), "smoke certification status must expose recertification timestamp");
+assert(smokeCertSource.includes("recertification_reason"), "smoke certification status must expose recertification reason");
 
 assert(pluginResolverSource.includes("checkSmokeCertification"), "plugin resolver must check smoke certification before dispatch readiness");
 assert(pluginResolverSource.includes("platform_plugin_smoke_certifications"), "plugin resolver must read smoke certification registry");
