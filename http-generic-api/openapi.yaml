@@ -9376,7 +9376,7 @@ paths:
                 tenant_id: { type: string }
                 user_id: { type: string }
                 device_id: { type: string }
-                command_key: { type: string, enum: [status, git_status], default: status }
+                command_key: { type: string, enum: [status, git_status, diff_name_status], default: status }
                 inputs:
                   type: object
                   additionalProperties: true
