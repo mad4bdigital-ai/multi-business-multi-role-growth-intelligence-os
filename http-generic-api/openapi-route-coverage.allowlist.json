@@ -3,6 +3,7 @@
   "required_files": [
     "routes/platformPluginRoutes.js",
     "routes/tenantPlatformPluginRoutes.js",
+    "routes/tenantEvolutionRoutes.js",
     "routes/platformGraphRoutes.js",
     "routes/platformEvolutionRoutes.js",
     "routes/schemaImportRoutes.js",
@@ -31,7 +32,10 @@
     "GET /platform/evolution/activation-card",
     "GET /platform/evolution/thread-map",
     "GET /platform/evolution/open-evidence",
-    "POST /platform/evolution/checkpoints"
+    "POST /platform/evolution/checkpoints",
+    "GET /tenant/evolution/activation-card",
+    "GET /tenant/evolution/thread-map",
+    "GET /tenant/evolution/open-evidence"
   ],
   "prefixes": [
     "/oauth",
