@@ -89,6 +89,36 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
     } catch (err) { return errorResponse(res, err, "execution_readiness_dry_run_failed"); }
   });
 
+  router.post("/platform/remote-runtime/targets/catalog", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await listRemoteRuntimeTargets({
+        tenantId: input.tenant_id || input.tenantId || null,
+        userId: input.user_id || input.userId || null,
+        targetKind: input.target_kind || input.targetKind || null,
+        providerFamily: input.provider_family || input.providerFamily || null,
+        status: input.status || null,
+        includeCommands: input.include_commands === undefined ? input.includeCommands !== false : input.include_commands !== false,
+        limit: input.limit || 100,
+      });
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "remote_runtime_catalog_failed"); }
+  });
+
+  router.post("/platform/remote-runtime/probe", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await probeRemoteRuntimeTarget({
+        targetId: input.target_id || input.targetId,
+        tenantId: input.tenant_id || input.tenantId || null,
+        userId: input.user_id || input.userId || null,
+        commandKey: input.command_key || input.commandKey || "status",
+        dryRun: input.dry_run === undefined ? input.dryRun !== false : input.dry_run !== false,
+      });
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "remote_runtime_probe_failed"); }
+  });
+
   router.post("/platform/plugins/install-policy", ...requireAdmin, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
