@@ -996,6 +996,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
       const device = await requireLocalManagerDevice(req);
       const format = String(req.body?.format || "bat").trim().toLowerCase();
       const ttl = Math.max(5, Math.min(60, Number(req.body?.ttl_minutes || 30)));
+      const capabilities = normalizeRequestedCapabilities(req.body?.capabilities || []);
       if (!["ps1", "bat"].includes(format)) return res.status(400).json({ ok: false, error: { code: "unsupported_format", message: "format must be ps1 or bat." }, secrets_included: false });
       const [rows] = await getPool().query(
         `SELECT c.config_id, c.tenant_id, c.device_id
