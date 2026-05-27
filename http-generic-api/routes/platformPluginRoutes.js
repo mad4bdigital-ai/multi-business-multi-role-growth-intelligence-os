@@ -27,6 +27,11 @@ import {
   runPlatformPluginSmokeRecertificationBatch,
 } from "../platformPluginSmokeRecertification.js";
 import {
+  listPlatformPluginSmokeRecertificationPolicies,
+  resolvePlatformPluginSmokeRecertificationPolicy,
+  upsertPlatformPluginSmokeRecertificationPolicy,
+} from "../platformPluginSmokeRecertificationPolicy.js";
+import {
   listRemoteRuntimeTargets,
   probeRemoteRuntimeTarget,
   upsertRemoteRuntimeTarget,
