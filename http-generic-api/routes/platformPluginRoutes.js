@@ -255,7 +255,7 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
         tenant_id: plan.target.tenant_id,
         user_id: plan.target.user_id || input.user_id || input.userId || undefined,
         action: "run",
-        alias: "repo_status_growth_os",
+        alias: connectorAliasByCommand[commandKey],
         extra_args: [],
         timeout_ms: Math.max(1000, Math.min(Number(input.timeout_ms || input.timeoutMs || 120000), 120000)),
       };
