@@ -743,6 +743,7 @@ async function executeGitHubRestFallback(args = []) {
     const allowedMutation = ["POST", "PUT", "PATCH"].includes(method) && (
       /^\/pulls\/\d+\/update-branch$/.test(apiTarget)
       || /^\/pulls\/\d+\/merge$/.test(apiTarget)
+      || /^\/actions\/workflows\/[^/]+\/dispatches$/.test(apiTarget)
       || apiTarget === "/merges"
     );
     if (!allowedRead && !allowedMutation) {
