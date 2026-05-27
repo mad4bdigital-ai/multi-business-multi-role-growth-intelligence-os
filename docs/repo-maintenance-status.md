@@ -10,16 +10,16 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 263
-- Operations: 315
+- Paths: 269
+- Operations: 321
 - Top-level tags: 25
 
 ## Top Operation Tags
 
 - `connected-systems`: 46
+- `platform-plugins`: 25
 - `customers`: 24
 - `admin-control`: 23
-- `platform-plugins`: 19
 - `connector-proxy`: 17
 - `identity`: 16
 - `observability`: 16
@@ -48,7 +48,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 ## Route Coverage Allowlist
 
 - Required files: 14
-- Exact allowlist entries: 5
+- Exact allowlist entries: 10
 - Prefix allowlist entries: 14
 - File allowlist entries: 5
 
@@ -68,7 +68,6 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/scripts/repo-maintenance-sync.mjs`
 - `http-generic-api/scripts/schema-docs-change-guard.mjs`
 - `http-generic-api/scripts/split-openapi.mjs`
-- `http-generic-api/scripts/update-repo-planning-docs.mjs`
 
 ## Schema / Plugin / OpenAPI Tests
 
@@ -96,7 +95,6 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-platform-plugin-public-rest-dispatch.mjs`
 - `http-generic-api/test-platform-plugin-resolver.mjs`
 - `http-generic-api/test-platform-plugin-shared-tool-bindings.mjs`
-- `http-generic-api/test-repo-maintenance-sync.mjs`
 - `http-generic-api/test-schema-overlay-json-asset-loader.mjs`
 - `http-generic-api/test-schema-overlay-resolver.mjs`
 - `http-generic-api/test-tenant-platform-plugin-openapi.mjs`
@@ -109,4 +107,3 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - DB tool registry rows should preserve method/path/tag parity with OpenAPI when a tool maps to an HTTP route.
 - Runtime/schema authority changes should include tests, docs, or canonical coverage.
 - Automation should open reviewable PRs rather than pushing generated contract changes directly to `main`.
-- Split schema artifact writes are opt-in for reviewed PRs via `repo-maintenance-sync.mjs --write --write-split-schemas`.
