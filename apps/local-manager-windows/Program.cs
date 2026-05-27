@@ -690,6 +690,8 @@ internal static class Program
                     {
                         format = "bat",
                         ttl_minutes = 30,
+                        app_managed = true,
+                        suppress_pause = true,
                         capabilities = requestedCapabilities,
                         permission_grants = new
                         {
