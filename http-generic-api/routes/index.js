@@ -118,6 +118,7 @@ export function registerRoutes(app, deps) {
   app.use(buildGovernanceRoutes(deps));
   app.use(buildPlatformGraphRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformSmokeRoutes());
+  app.use(buildPlatformEvolutionRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildTenantPlatformPluginRoutes());
   app.use(buildPlatformPluginRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildBrowserRuntimeRoutes({ ...deps, requireAdminPrincipal }));
