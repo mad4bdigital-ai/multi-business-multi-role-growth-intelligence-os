@@ -1152,6 +1152,8 @@ export function buildLocalConnectorInstallRoutes(deps) {
       );
       if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found" } });
       const ttl = Math.max(5, Math.min(120, Number(ttl_minutes || 30)));
+      const permissionGrants = normalizePermissionGrants({ ...(req.body?.permission_grants || {}), capabilities: req.body?.capabilities || [] });
+      const capabilities = permissionGrants.capabilities;
       const token = signInstallerDownloadToken({
         user_id: principal.userId,
         tenant_id: config.tenant_id || principal.tenantId,
