@@ -9278,6 +9278,77 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+  /platform/remote-runtime/targets/upsert:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: remoteRuntimeTargetUpsert
+      summary: Upsert Remote Runtime target
+      description: Create or update a remote_ssh_runtime hosting_account or local_path target reference. This stores metadata and allowlists only; it rejects secret-like fields and never opens SSH, local shell, or files.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, target_kind]
+              additionalProperties: true
+              properties:
+                target_id: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                target_kind: { type: string, enum: [hosting_account, local_path] }
+                provider_family: { type: string }
+                connector_family: { type: string }
+                system_id: { type: string }
+                connection_id: { type: string }
+                local_path_id: { type: string }
+                host_label: { type: string }
+                root_path: { type: string }
+                path_allowlist:
+                  type: array
+                  items: { type: string }
+                command_allowlist:
+                  type: array
+                  items: { type: string }
+                metadata:
+                  type: object
+                  additionalProperties: true
+                status: { type: string, enum: [planned, active, disabled, archived] }
+                validation_status: { type: string, enum: [unknown, pending_configuration, valid, invalid, inaccessible, partial] }
+                updated_by: { type: string }
+      responses:
+        "200": { description: Remote Runtime target upsert result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/remote-runtime/targets/validate:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: remoteRuntimeTargetValidate
+      summary: Validate Remote Runtime target metadata
+      description: Validate target references and local path metadata without opening SSH, local shell, or file access. Updates validation_status and returns a dry-run readiness probe.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_id]
+              additionalProperties: true
+              properties:
+                target_id: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                updated_by: { type: string }
+      responses:
+        "200": { description: Remote Runtime target validation result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
   /platform/remote-runtime/targets/catalog:
     post:
       x-openai-isConsequential: false
