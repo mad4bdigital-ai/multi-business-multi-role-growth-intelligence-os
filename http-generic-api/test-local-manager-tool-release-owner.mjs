@@ -43,6 +43,8 @@ assert(localManagerWindows.includes('windows_control'), 'Windows app must suppor
 assert(localManagerWindows.includes('permission_grants'), 'Windows app must send dynamic permission grants');
 assert(localManagerWindows.includes('OpenFileDialog'), 'Windows app must let users choose app/helper executables locally');
 assert(localManagerWindows.includes('FolderBrowserDialog'), 'Windows app must let users choose allowed paths locally');
+assert(localManagerWindows.includes('PickInstalledApp'), 'Windows app must provide installed-app discovery for easier app grants');
+assert(localManagerWindows.includes('Registry.CurrentUser') && localManagerWindows.includes('Registry.LocalMachine'), 'installed-app discovery must read per-user and machine uninstall registries');
 assert(localManagerWindows.includes('RunAsAdminRequired'), 'Windows app must surface local Administrator requirement');
 
 console.log('local manager tool release owner tests passed');
