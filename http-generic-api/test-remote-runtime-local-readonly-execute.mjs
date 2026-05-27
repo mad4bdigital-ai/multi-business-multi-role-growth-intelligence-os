@@ -20,8 +20,8 @@ assert(routes.includes("ORDER BY (tenant_id = ?) DESC, (user_id = ?) DESC"), "ro
 assert(routes.includes("extra_args: []"), "route must forbid extra shell args");
 assert(routes.includes('action: "run"'), "route must call connector shell run action");
 assert(routes.includes('planRemoteRuntimeDispatchDryRun'), "route must require successful dry-run planning before execution");
-assert(routes.includes('commandKey: "status"'), "route must gate execution through status dry-run only");
-assert(routes.includes("Only read-only local_path commands status and git_status"), "route must reject non-read-only command keys");
+assert(routes.includes("commandKey,"), "route must gate execution through the requested read-only command");
+assert(routes.includes("Only read-only local_path commands status, git_status, and diff_name_status"), "route must reject non-read-only command keys");
 assert(routes.includes("This execution route only supports local_path targets"), "route must reject Hostinger/SSH targets");
 assert(routes.includes("Remote Runtime dispatch dry-run is not ready"), "route must reject failed dry-run checks");
 assert(routes.includes("shell_freeform: false"), "route response must state no freeform shell");
