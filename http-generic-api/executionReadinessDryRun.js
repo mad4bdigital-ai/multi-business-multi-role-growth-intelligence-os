@@ -13,6 +13,35 @@ function sanitizeRows(rows = [], limit = 20) {
   return (Array.isArray(rows) ? rows : []).slice(0, limit).map((row) => ({ ...row, secrets_included: false }));
 }
 
+function summarizeGraphNodes(rows = [], limit = 20) {
+  return (Array.isArray(rows) ? rows : []).slice(0, limit).map((row) => ({
+    node_id: row.node_id,
+    node_type: row.node_type,
+    node_label: row.node_label,
+    scope_type: row.scope_type,
+    authority_status: row.authority_status,
+    lifecycle_status: row.lifecycle_status,
+    runtime_role: row.runtime_role,
+    source_table: row.source_table,
+    secrets_included: false,
+  }));
+}
+
+function summarizeGraphEdges(rows = [], limit = 40) {
+  return (Array.isArray(rows) ? rows : []).slice(0, limit).map((row) => ({
+    edge_id: row.edge_id,
+    source_node_id: row.source_node_id,
+    edge_type: row.edge_type,
+    target_node_id: row.target_node_id,
+    authority_status: row.authority_status,
+    lifecycle_status: row.lifecycle_status,
+    runtime_role: row.runtime_role,
+    runtime_enforced: Number(row.runtime_enforced || 0) === 1,
+    source_table: row.source_table,
+    secrets_included: false,
+  }));
+}
+
 async function loadBrandReadiness(pool, input = {}) {
   const brandKey = firstNonEmpty(input.brand_key, input.target_key, input.brand_name);
   if (!brandKey) return { requested: false, status: "not_requested", blocks: [], secrets_included: false };
@@ -281,8 +310,14 @@ export async function resolveExecutionReadinessDryRun(input = {}, deps = {}) {
         node_count: graph_context.node_count || graph_context.nodes?.length || 0,
         edge_count: graph_context.edge_count || graph_context.edges?.length || 0,
         authority_summary: graph_context.authority_summary || null,
-        nodes: sanitizeRows(graph_context.nodes || [], 50),
-        edges: sanitizeRows(graph_context.edges || [], 80),
+        nodes: summarizeGraphNodes(graph_context.nodes || [], input.detail_limit || 20),
+        edges: summarizeGraphEdges(graph_context.edges || [], input.edge_detail_limit || 40),
+        detail_truncated: {
+          node_limit: Number(input.detail_limit || 20),
+          edge_limit: Number(input.edge_detail_limit || 40),
+          nodes_available: graph_context.nodes?.length || 0,
+          edges_available: graph_context.edges?.length || 0,
+        },
         secrets_included: false,
       },
     },
