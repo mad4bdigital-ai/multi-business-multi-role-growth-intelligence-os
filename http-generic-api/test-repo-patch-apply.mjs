@@ -7,6 +7,7 @@
  *   - context mismatch detection
  *   - bad action / missing path / blocked path / missing message rejections
  *   - replace_block ambiguity detection (no network call)
+ *   - delete_file action is exposed and wired to GitHub Contents DELETE
  *
  * Skips: any branch that requires a real GitHub App token; those go through
  * the full virtual-tool integration tests in the live smoke (run by the admin
