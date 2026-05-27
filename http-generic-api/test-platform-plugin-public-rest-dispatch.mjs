@@ -160,6 +160,10 @@ assert(pluginResolverSource.includes("last_response_status = 200"), "plugin reso
 assert(pluginResolverSource.includes("secrets_included = 0"), "plugin resolver must require secret-free smoke certification");
 assert(pluginResolverSource.includes("smoke_certification_expired"), "plugin resolver must reject expired smoke certifications");
 assert(pluginResolverSource.includes("certification_expires_at"), "plugin resolver must return certification expiry evidence");
+assert(pluginResolverSource.includes("allowExpiredSmokeCertificationForRecertification"), "plugin resolver must only allow expired certificates in explicit recertification mode");
+assert(pluginResolverSource.includes("smoke_certification_expired_recertification_allowed"), "plugin resolver must mark bounded expiry bypass for recertification evidence");
+assert(service.includes("recertificationMode"), "dispatcher must expose explicit recertification mode");
+assert(service.includes("allowExpiredSmokeCertificationForRecertification"), "dispatcher must pass bounded recertification mode to resolver");
 
 assert(promotionSource.includes("checkContributionSmokeCertifications"), "promotion must check smoke certifications before platform base promotion");
 assert(promotionSource.includes("smoke_certification_required"), "promotion must block when smoke certification is missing");
