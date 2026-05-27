@@ -153,7 +153,22 @@ export async function listPlatformPluginSmokeRecertificationQueue(input = {}, de
   const expiresSoonDays = boundedInt(input.expires_soon_days || input.expiresSoonDays, 14, 1, 90);
   const includeOk = input.include_ok === true || input.includeOk === true;
   const rows = await loadRows(pool, input);
-  const items = rows.map((row) => classifyCertification(row, { expiresSoonDays }));
+  const items = await Promise.all(rows.map(async (row) => {
+    const policyResult = await resolvePlatformPluginSmokeRecertificationPolicy({
+      tenant_id: row.tenant_id,
+      plugin_key: row.plugin_key,
+      action_key: row.action_key,
+      mock_provider: row.mock_provider,
+      mock_resource: row.mock_resource,
+    }, { pool });
+    const policy = {
+      ...policyResult.policy,
+      expires_soon_days: input.expires_soon_days || input.expiresSoonDays
+        ? expiresSoonDays
+        : policyResult.policy.expires_soon_days,
+    };
+    return classifyCertification(row, { policy, expiresSoonDays });
+  }));
   const filtered = includeOk ? items : items.filter((item) => item.recertification_required || item.recertification_due_soon);
   return {
     ok: true,
