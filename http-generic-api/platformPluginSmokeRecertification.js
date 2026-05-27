@@ -189,9 +189,15 @@ export async function listPlatformPluginSmokeRecertificationQueue(input = {}, de
 export async function runPlatformPluginSmokeRecertificationBatch(input = {}, deps = {}) {
   const pool = deps.pool || getPool();
   const dryRun = input.dry_run === undefined ? input.dryRun !== false : input.dry_run !== false;
-  const limit = boundedInt(input.limit, 5, 1, 10);
-  const queue = await listPlatformPluginSmokeRecertificationQueue({ ...input, include_ok: false, limit }, { pool });
-  const candidates = queue.items.filter((item) => item.automatic_recertification_supported && item.drift_reasons.length === 0).slice(0, limit);
+  const requestedLimit = input.limit === undefined && input.limit === null ? null : Number(input.limit);
+  const queue = await listPlatformPluginSmokeRecertificationQueue({ ...input, include_ok: false, limit: input.limit || 50 }, { pool });
+  const policyLimit = queue.items.reduce((min, item) => Math.min(min, boundedInt(item.policy?.max_batch_size, 5, 1, 10)), 10);
+  const limit = requestedLimit === null || !Number.isFinite(requestedLimit)
+    ? policyLimit
+    : Math.min(boundedInt(requestedLimit, 5, 1, 10), policyLimit);
+  const candidates = queue.items
+    .filter((item) => item.automatic_recertification_supported && item.drift_reasons.length === 0)
+    .slice(0, limit);
   const results = [];
   for (const item of candidates) {
     if (dryRun) {
