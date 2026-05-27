@@ -6,6 +6,7 @@ const localManager = readFileSync('routes/localManagerBetaRoutes.js', 'utf8');
 const installRoutes = readFileSync('routes/localConnectorInstallRoutes.js', 'utf8');
 const proxyRoutes = readFileSync('routes/connectorProxyRoutes.js', 'utf8');
 const localManagerWindows = readFileSync('../apps/local-manager-windows/Program.cs', 'utf8');
+const localManagerProject = readFileSync('../apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj', 'utf8');
 
 assert(connectorAgent.includes('const AGENT_VERSION = "2026.05.26.1"'), 'connector agent version must move for Local Manager tool releases');
 assert(connectorAgent.includes('"browser4-adapter.mjs"'), 'Browser4 adapter must be shipped by connector-agent manifest');
