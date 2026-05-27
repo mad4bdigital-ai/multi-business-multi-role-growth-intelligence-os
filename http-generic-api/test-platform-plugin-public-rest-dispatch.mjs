@@ -145,6 +145,8 @@ assert(promotionSource.includes("smoke_certification_required"), "promotion must
 assert(promotionSource.includes("platform_plugin_smoke_certifications"), "promotion must read smoke certification registry");
 assert(promotionSource.includes("last_response_status = 200"), "promotion must require 200 smoke certification evidence");
 assert(promotionSource.includes("secrets_included = 0"), "promotion must require secret-free smoke certification evidence");
+assert(promotionSource.includes("smoke_certification_expired"), "promotion must reject expired smoke certifications");
+assert(promotionSource.includes("certification_expires_at"), "promotion must return certification expiry evidence");
 
 for (const forbidden of [
   "api_key_value",
