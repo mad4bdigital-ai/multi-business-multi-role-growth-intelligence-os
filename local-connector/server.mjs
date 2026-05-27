@@ -104,6 +104,10 @@ const BROWSER4_JAVA_HOME = process.env.BROWSER4_JAVA_HOME ?? (process.platform =
   : '');
 const BROWSER4_SERVER_URL = process.env.BROWSER4_SERVER_URL ?? 'http://localhost:8182';
 const BROWSER4_ALLOWED_HOSTS = parseBrowser4AllowedHosts(process.env.BROWSER4_ALLOWED_HOSTS ?? 'mad4b.com,n8n.mad4b.com');
+const AUTO_BROWSER_ENABLED = process.env.CONNECTOR_AUTO_BROWSER_ENABLED === 'true';
+const AUTO_BROWSER_BASE_URL = (process.env.AUTO_BROWSER_BASE_URL ?? 'http://127.0.0.1:7331').replace(/\/$/, '');
+const AUTO_BROWSER_HEALTH_PATH = process.env.AUTO_BROWSER_HEALTH_PATH ?? '/health';
+const AUTO_BROWSER_ALLOWED_HOSTS = parseBrowser4AllowedHosts(process.env.AUTO_BROWSER_ALLOWED_HOSTS ?? 'mad4b.com,n8n.mad4b.com');
 
 const DEFAULT_DEPENDENCY_ALLOWLIST = {
   gh: {
