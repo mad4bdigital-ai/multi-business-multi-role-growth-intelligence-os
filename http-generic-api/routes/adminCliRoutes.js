@@ -804,6 +804,32 @@ async function executeGitHubRestFallback(args = []) {
     };
   }
 
+  if (resource === "workflow" && command === "run") {
+    const workflowId = firstGithubPositional(args, 2);
+    const ref = parseCliFlag(args, "--ref") || "main";
+    const inputs = parseGithubFieldValues(args);
+    if (!workflowId) {
+      const err = new Error("workflow run fallback requires a workflow file name or workflow id.");
+      err.status = 400;
+      err.code = "github_workflow_run_args_required";
+      throw err;
+    }
+    await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/actions/workflows/${encodeURIComponent(workflowId)}/dispatches`,
+      token,
+      method: "POST",
+      body: { ref, ...(Object.keys(inputs).length ? { inputs } : {}) },
+    });
+    return {
+      stdout: JSON.stringify({ workflow: workflowId, ref, dispatched: true, inputs_count: Object.keys(inputs).length }, null, 2),
+      stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n",
+      exit_code: 0,
+      fallback: "github_rest",
+    };
+  }
+
   if (resource === "run" && command === "list") {
     const limit = Math.max(1, Math.min(100, Number(parseCliFlag(args, "--limit") || 20)));
     const branch = parseCliFlag(args, "--branch");
