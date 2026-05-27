@@ -422,7 +422,12 @@ export async function resolvePlatformPluginExecution({
   });
   const requiredSkillKey = deriveRequiredSkill({ pluginKey: normalizedPluginKey, actionKey, toolKey, binding });
   const skill = await checkSkillGrant({ pool, agentId, tenantId, requiredSkillKey });
-  const smokeCertification = await checkSmokeCertification({ pool, pluginKey: normalizedPluginKey, actionKey });
+  const smokeCertification = await checkSmokeCertification({
+    pool,
+    pluginKey: normalizedPluginKey,
+    actionKey,
+    allowExpiredForRecertification: allowExpiredSmokeCertificationForRecertification === true,
+  });
 
   const pluginStatusActive = ["active", "beta"].includes(normalize(rows.plugin.status));
   const allowed = Boolean(pluginStatusActive && bindingState.ok && credential.ok && skill.granted && smokeCertification.certified);
