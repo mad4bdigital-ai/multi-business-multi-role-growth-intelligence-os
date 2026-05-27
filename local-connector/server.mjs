@@ -1082,6 +1082,43 @@ async function handleBrowser4(req, res) {
   return err(res, 400, 'UNKNOWN_ACTION', 'action must be "status" or "inspect_site"');
 }
 
+async function handleAutoBrowser(req, res) {
+  if (!AUTO_BROWSER_ENABLED) return err(res, 403, 'DISABLED', 'Auto Browser endpoint is disabled — set CONNECTOR_AUTO_BROWSER_ENABLED=true after installing and validating Auto Browser');
+  if (!requireAuth(req, res)) return;
+  let body;
+  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
+  const { action = 'status', timeout_ms } = body;
+  if (action !== 'status') {
+    return err(res, 409, 'AUTO_BROWSER_ADAPTER_NOT_VALIDATED', 'Only action=status is enabled until the Auto Browser adapter PoC is validated.');
+  }
+  audit(req, { action: 'auto_browser:status' });
+  const timeoutMs = clampTimeout(timeout_ms, 15000);
+  let health = null;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await fetch(`${AUTO_BROWSER_BASE_URL}${AUTO_BROWSER_HEALTH_PATH}`, { signal: controller.signal });
+    const text = await response.text().catch(() => '');
+    clearTimeout(timer);
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = { body_preview: text.slice(0, 500) }; }
+    health = { reachable: response.ok, status: response.status, data };
+  } catch (e) {
+    health = { reachable: false, error: e.message };
+  }
+  return ok(res, {
+    auto_browser_enabled: true,
+    base_url: AUTO_BROWSER_BASE_URL,
+    health_path: AUTO_BROWSER_HEALTH_PATH,
+    allowed_hosts: AUTO_BROWSER_ALLOWED_HOSTS,
+    adapter_status: health.reachable ? 'service_reachable_status_only' : 'service_not_reachable_or_not_installed',
+    validated_actions: ['status'],
+    blocked_actions: ['visual_takeover', 'click', 'type', 'auth_profile_reuse', 'destructive_actions'],
+    health,
+    secrets_included: false,
+  });
+}
+
 async function handleFiles(req, res) {
   if (!FILES_ENABLED) return err(res, 403, 'DISABLED', 'Files endpoint is disabled on this connector');
   if (!requireAuth(req, res)) return;
