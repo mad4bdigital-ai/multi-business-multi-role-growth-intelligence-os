@@ -1,6 +1,7 @@
 import { getPool } from "./db.js";
 import { dispatchPlatformPluginRestAction } from "./platformPluginRestDispatch.js";
 import { certifyPlatformPluginSmoke } from "./platformPluginSmokeCertification.js";
+import { resolvePlatformPluginSmokeRecertificationPolicy } from "./platformPluginSmokeRecertificationPolicy.js";
 
 function compact(value = "", max = 255) {
   return String(value ?? "").trim().slice(0, max);
