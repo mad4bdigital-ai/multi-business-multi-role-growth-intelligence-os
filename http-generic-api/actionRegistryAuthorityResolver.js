@@ -243,7 +243,13 @@ export async function resolveActionCandidates({
 
   const safeLimit = Math.max(1, Math.min(Number(limit) || 10, 50));
   const where = ["1 = 1"];
-  const params = [tenant_id || null, tenant_id || null, user_id || null, user_id || null];
+  const params = [
+    tenant_id || null,
+    tenant_id || null,
+    tenant_id || null,
+    user_id || null,
+    user_id || null,
+  ];
 
   if (action_key) {
     where.push("a.action_key = ?");
