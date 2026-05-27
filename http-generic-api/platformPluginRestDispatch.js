@@ -67,6 +67,34 @@ function buildUrl({ baseUrl, path }) {
   return new URL(joinedPath || "/", base.origin);
 }
 
+function validateSmokeCertificationDrift({ resolution, url, method }) {
+  const cert = resolution?.smoke_certification?.certification || null;
+  if (!cert) return { ok: true, checked: false, reason: "no_certification_evidence" };
+  const blocks = [];
+  if (cert.url_origin && cert.url_origin !== url.origin) blocks.push("smoke_certification_origin_drift");
+  if (cert.url_path && cert.url_path !== url.pathname) blocks.push("smoke_certification_path_drift");
+  if (cert.http_method && String(cert.http_method).toUpperCase() !== String(method).toUpperCase()) blocks.push("smoke_certification_method_drift");
+  if (cert.expired === true) blocks.push("smoke_certification_expired");
+  return {
+    ok: blocks.length === 0,
+    checked: true,
+    reason: blocks.length ? "smoke_certification_recertification_required" : "smoke_certification_matches_current_dispatch",
+    blocks,
+    expected: {
+      url_origin: cert.url_origin || null,
+      url_path: cert.url_path || null,
+      http_method: cert.http_method || null,
+      certification_expires_at: cert.certification_expires_at || null,
+    },
+    actual: {
+      url_origin: url.origin,
+      url_path: url.pathname,
+      http_method: method,
+    },
+    secrets_included: false,
+  };
+}
+
 function extractActionTemplate(action) {
   if (!action || typeof action !== "object") return null;
   const method = String(action.method || action.http_method || action.verb || "").toUpperCase();
