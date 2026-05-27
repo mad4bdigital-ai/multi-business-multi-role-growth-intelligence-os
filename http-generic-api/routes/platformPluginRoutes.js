@@ -19,6 +19,10 @@ import { dispatchPlatformPluginRestAction } from "../platformPluginRestDispatch.
 import { resolveActionManifestDiagnostic } from "../actionManifestDiagnostic.js";
 import { resolveExecutionReadinessDryRun } from "../executionReadinessDryRun.js";
 import {
+  certifyPlatformPluginSmoke,
+  getPlatformPluginSmokeCertification,
+} from "../platformPluginSmokeCertification.js";
+import {
   listRemoteRuntimeTargets,
   probeRemoteRuntimeTarget,
   upsertRemoteRuntimeTarget,
