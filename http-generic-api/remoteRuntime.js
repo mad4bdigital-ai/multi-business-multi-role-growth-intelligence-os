@@ -334,7 +334,7 @@ export async function upsertRemoteRuntimeTarget({
       target_id, tenant_id, user_id, plugin_key, target_kind, provider_family, connector_family,
       system_id, connection_id, local_path_id, host_label, root_path, path_allowlist_json,
       command_allowlist_json, metadata_json, status, validation_status, created_by, updated_by
-    ) VALUES (?, ?, ?, 'remote_ssh_runtime', ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), CAST(? AS JSON), CAST(? AS JSON), ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, 'remote_ssh_runtime', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON DUPLICATE KEY UPDATE
       tenant_id = VALUES(tenant_id),
       user_id = VALUES(user_id),
