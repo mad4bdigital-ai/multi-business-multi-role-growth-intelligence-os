@@ -121,6 +121,10 @@ assert(openapi.includes("/platform/plugins/smoke-certifications/policies/list:")
 assert(openapi.includes("operationId: platformPluginSmokeRecertificationPolicyList"), "OpenAPI must expose stable recertification policy list operationId");
 assert(openapi.includes("/platform/plugins/smoke-certifications/policies/upsert:"), "OpenAPI must document recertification policy upsert route");
 assert(openapi.includes("operationId: platformPluginSmokeRecertificationPolicyUpsert"), "OpenAPI must expose stable recertification policy upsert operationId");
+assert(openapi.includes("Writes execution-log audit evidence"), "OpenAPI must document policy upsert audit evidence");
+assert(openapi.includes("actor_id: { type: string }"), "OpenAPI must expose policy upsert actor_id field");
+assert(openapi.includes("change_reason: { type: string }"), "OpenAPI must expose policy upsert change_reason field");
+assert(openapi.includes("trace_id: { type: string }"), "OpenAPI must expose policy upsert trace_id field");
 
 const smokeMigration = readFileSync("migrations/150_sprint65_provider_smoke_guarded_dispatch_schema.sql", "utf8");
 assert(smokeMigration.includes("provider_smoke"), "provider smoke schema migration must include provider_smoke field");
