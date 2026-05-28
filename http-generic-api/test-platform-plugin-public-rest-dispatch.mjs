@@ -171,6 +171,11 @@ assert(smokeRecertPolicyAuditToolsMigration.includes("actor"), "smoke recertific
 assert(smokeRecertPolicyAuditToolsMigration.includes("reason"), "smoke recertification policy upsert schema must expose reason field");
 assert(smokeRecertPolicyAuditToolsMigration.includes("trace_id"), "smoke recertification policy upsert schema must expose trace_id field");
 assert(smokeRecertPolicyAuditToolsMigration.includes("execution_log_audit"), "smoke recertification policy upsert tool must be tagged execution_log_audit");
+assert(smokeRecertPolicyHistoryToolsMigration.includes("platform_plugin_smoke_recertification_policy_history"), "smoke recertification policy history tool must be registered");
+assert(smokeRecertPolicyHistoryToolsMigration.includes("platform_plugin_smoke_recertification_policy_rollback_preview"), "smoke recertification policy rollback preview tool must be registered");
+assert(smokeRecertPolicyHistoryToolsMigration.includes("platform_plugin_smoke_recertification_policy_rollback_apply"), "smoke recertification policy rollback apply tool must be registered");
+assert(smokeRecertPolicyHistoryToolsMigration.includes("confirm_rollback"), "rollback apply schema must require explicit confirmation field");
+assert(smokeRecertPolicyHistoryToolsMigration.includes("execution_log_audit"), "rollback apply tool must be tagged execution_log_audit");
 assert(smokeRecertPolicySource.includes("resolvePlatformPluginSmokeRecertificationPolicy"), "smoke recertification policy source must expose resolver");
 assert(smokeRecertPolicySource.includes("upsertPlatformPluginSmokeRecertificationPolicy"), "smoke recertification policy source must expose upsert");
 assert(smokeRecertPolicySource.includes("DEFAULT_POLICY"), "smoke recertification policy source must provide runtime default fallback");
