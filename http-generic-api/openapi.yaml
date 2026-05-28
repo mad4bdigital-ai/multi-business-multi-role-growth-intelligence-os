@@ -980,6 +980,68 @@ components:
 
     # -- Platform Evolution checkpoint schemas --------------------------------
 
+    CredentialResolutionCandidate:
+      type: object
+      additionalProperties: true
+      properties:
+        source: { type: string }
+        owner_type: { type: string, nullable: true }
+        owner_id: { type: string, nullable: true }
+        binding_id: { type: string, nullable: true }
+        connection_id: { type: string, nullable: true }
+        system_id: { type: string, nullable: true }
+        installation_id: { type: string, nullable: true }
+        action_key: { type: string, nullable: true }
+        target_key: { type: string, nullable: true }
+        credential_role: { type: string, nullable: true }
+        credential_ref: { type: string, nullable: true }
+        provider_family: { type: string, nullable: true }
+        connector_family: { type: string, nullable: true }
+        resolution_priority: { type: integer, nullable: true }
+        status: { type: string, nullable: true }
+        secret_value_included: { type: boolean, enum: [false] }
+
+    CredentialEffectivePlanRequest:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, credential_role]
+      properties:
+        tenant_id: { type: string }
+        user_id: { type: string }
+        connection_id: { type: string }
+        action_key: { type: string }
+        target_key: { type: string }
+        credential_role: { type: string }
+        allow_platform_fallback: { type: boolean, default: true }
+
+    CredentialEffectivePlanResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, request, policy, resolution_order, candidates, effective, total, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        request:
+          type: object
+          additionalProperties: true
+        policy:
+          type: object
+          additionalProperties: true
+          properties:
+            platform_fallback_allowed_by_request: { type: boolean }
+            credential_values_returned: { type: boolean, enum: [false] }
+            secret_values_returned: { type: boolean, enum: [false] }
+        resolution_order:
+          type: array
+          items: { type: string }
+        candidates:
+          type: array
+          items: { $ref: "#/components/schemas/CredentialResolutionCandidate" }
+        effective:
+          type: object
+          additionalProperties: true
+        total: { type: integer }
+        secrets_included: { type: boolean, enum: [false] }
+
     PlatformEvolutionSwitchOption:
       type: object
       additionalProperties: true
