@@ -787,6 +787,41 @@ async function executeGitHubRestFallback(args = []) {
     return { stdout: JSON.stringify(output, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
   }
 
+  if (resource === "pr" && command === "view" && maybeId) {
+    const prNumber = parseGithubPrNumber(maybeId);
+    const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
+    let checks = [];
+    try {
+      const ref = pr?.head?.sha || pr?.head?.ref || "";
+      if (ref) {
+        const payload = await githubRestJson({ owner, repo, apiPath: `/commits/${encodeURIComponent(ref)}/check-runs?per_page=100`, token });
+        checks = payload.check_runs || [];
+      }
+    } catch { /* best-effort diagnostics only */ }
+    const output = mapGithubPullForGhJson({ ...pr, _state_check_rollup: checks }, fields);
+    return { stdout: JSON.stringify(output, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
+  if (resource === "pr" && command === "update-branch" && maybeId) {
+    const prNumber = parseGithubPrNumber(maybeId);
+    const expectedHeadSha = parseCliFlag(args, "--expected-head-sha");
+    const body = expectedHeadSha ? { expected_head_sha: expectedHeadSha } : {};
+    await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/pulls/${encodeURIComponent(prNumber)}/update-branch`,
+      token,
+      method: "PUT",
+      body,
+    });
+    return {
+      stdout: JSON.stringify({ number: Number(prNumber), update_branch_requested: true }, null, 2),
+      stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n",
+      exit_code: 0,
+      fallback: "github_rest",
+    };
+  }
+
   if (resource === "pr" && command === "close" && maybeId) {
     const comment = parseCliFlag(args, "--comment");
     const prNumber = encodeURIComponent(String(maybeId));
