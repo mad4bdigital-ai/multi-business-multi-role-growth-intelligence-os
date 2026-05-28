@@ -112,8 +112,9 @@ function normalizeTenantCheckpointType(value) {
 
 async function resolveAllowedEvolutionScope(req) {
   const pool = getPool();
-  const explicitScope = nonEmptyString(req.query.scope_key || req.query.scopeKey);
-  const brandKey = nonEmptyString(req.query.brand_key || req.query.brandKey);
+  const input = req.method === "POST" ? (req.body || {}) : (req.query || {});
+  const explicitScope = nonEmptyString(input.scope_key || input.scopeKey);
+  const brandKey = nonEmptyString(input.brand_key || input.brandKey);
   const params = [req.auth.tenant_id, req.auth.user_id];
   const where = ["tenant_id = ?", "user_id = ?", "access_state = 'allowed'"];
 
