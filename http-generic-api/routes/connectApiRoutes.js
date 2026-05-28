@@ -354,6 +354,17 @@ export function buildConnectApiRoutes(deps = {}) {
   // POST /connect/api/cms/claims/:claim_id/approve — owner/admin approves sharing.
   router.post("/connect/api/cms/claims/:claim_id/approve", async (req, res, next) => {
     try {
+      const [claims] = await pool.query(
+        `SELECT claim_id, tenant_id, user_id, connection_id, matched_target_key, normalized_domain, requested_scope, verification_status
+           FROM \`cms_account_claims\`
+          WHERE claim_id = ?
+            AND tenant_id = ?
+          LIMIT 1`,
+        [req.params.claim_id, req.auth.tenant_id]
+      );
+      const claim = claims?.[0];
+      if (!claim) return res.status(404).json({ ok: false, error: { code: "cms_claim_not_found", message: "CMS claim was not found." }, secrets_included: false });
+
       const [result] = await pool.query(
         `UPDATE \`cms_account_claims\`
             SET verification_status = 'approved',
@@ -365,7 +376,65 @@ export function buildConnectApiRoutes(deps = {}) {
             AND verification_status IN ('verified', 'pending')`,
         [req.auth.user_id, req.params.claim_id, req.auth.tenant_id]
       );
-      res.json({ ok: true, status: result?.affectedRows ? "approved" : "not_modified" });
+
+      let promotion = null;
+      if (result?.affectedRows && claim.connection_id) {
+        const targetKey = claim.matched_target_key || claim.normalized_domain;
+        const credentialRef = `user_app_connection:${claim.connection_id}:encrypted_credentials.application_password`;
+        const [existing] = await pool.query(
+          `SELECT binding_id
+             FROM \`credential_bindings\`
+            WHERE tenant_id = ?
+              AND owner_type = 'tenant'
+              AND owner_id = ?
+              AND user_id IS NULL
+              AND connection_id IS NULL
+              AND target_key = ?
+              AND credential_role = 'wordpress_app_password'
+              AND credential_ref = ?
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [claim.tenant_id, claim.tenant_id, targetKey, credentialRef]
+        );
+        const bindingId = existing?.[0]?.binding_id || randomUUID();
+        if (existing?.[0]?.binding_id) {
+          await pool.query(
+            `UPDATE \`credential_bindings\`
+                SET provider_family = 'wordpress',
+                    connector_family = 'wordpress_rest',
+                    resolution_priority = 20,
+                    status = 'active',
+                    updated_at = NOW()
+              WHERE binding_id = ?`,
+            [bindingId]
+          );
+        } else {
+          await pool.query(
+            `INSERT INTO \`credential_bindings\` (
+               binding_id, tenant_id, owner_type, owner_id, user_id, system_id, installation_id, connection_id,
+               action_key, target_key, credential_role, credential_ref, provider_family, connector_family,
+               resolution_priority, status, created_by, created_at, updated_at
+             ) VALUES (?, ?, 'tenant', ?, NULL, NULL, NULL, NULL, NULL, ?, 'wordpress_app_password', ?, 'wordpress', 'wordpress_rest', 20, 'active', ?, NOW(), NOW())`,
+            [bindingId, claim.tenant_id, claim.tenant_id, targetKey, credentialRef, `cms_claim_approval:${req.auth.user_id}`]
+          );
+        }
+        promotion = {
+          binding_id: bindingId,
+          target_key: targetKey,
+          credential_role: "wordpress_app_password",
+          credential_ref: credentialRef,
+          secret_copied: false,
+          token_returned: false,
+          secrets_included: false,
+        };
+      }
+
+      res.json({
+        ok: true,
+        status: result?.affectedRows ? "approved" : "not_modified",
+        promotion,
+        secrets_included: false,
+      });
     } catch (err) {
       next(err);
     }
