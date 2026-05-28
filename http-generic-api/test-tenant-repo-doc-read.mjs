@@ -24,6 +24,7 @@ assert(!routeFile.includes('repo_inspect'), 'tenant route must not reuse admin r
 
 assert(indexFile.includes('buildTenantRepoDocRoutes'), 'routes index must import tenant repo doc routes');
 assert(indexFile.includes('app.use(buildTenantRepoDocRoutes())'), 'tenant repo doc routes must be mounted');
+assert(routeFile.includes('tenant_safe_repo_doc_allowlist'), 'tenant repo doc route must expose its allowlist policy source');
 
 assert(migration.includes('tenant_repo_doc_read'), 'tenant repo doc read tool must be registered');
 assert(migration.includes('tenant_platform_endpoint_tools'), 'tenant repo doc tool must target tenant tool registry');
