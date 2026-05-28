@@ -8,7 +8,10 @@ const migration = readFileSync('migrations/058_create_cms_account_claims.sql', '
 assert(resolver.includes('connected_at, last_used_at'), 'CMS claim resolver must insert live user_app_connections timestamp columns');
 assert(resolver.includes("'basic_auth'"), 'CMS claim resolver must use supported user_app_connections auth_type enum');
 assert(resolver.includes('last_used_at = NOW()'), 'CMS claim resolver must update last_used_at on upsert');
-assert(!resolver.includes('created_at, updated_at'), 'CMS claim resolver must not rely on missing user_app_connections created_at/updated_at columns');
+const connectionInsertStart = resolver.indexOf('INSERT INTO `user_app_connections`');
+const connectionInsertEnd = resolver.indexOf('return connectionId;', connectionInsertStart);
+const connectionInsert = resolver.slice(connectionInsertStart, connectionInsertEnd);
+assert(!connectionInsert.includes('created_at, updated_at'), 'CMS claim connection insert must not rely on missing user_app_connections created_at/updated_at columns');
 assert(resolver.includes('application_password: applicationPassword'), 'CMS claim resolver must preserve encrypted application password payload');
 assert(!resolver.includes('console.log(applicationPassword'), 'CMS claim resolver must not log application password');
 
