@@ -10,8 +10,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 296
-- Operations: 348
+- Paths: 297
+- Operations: 349
 - Top-level tags: 26
 
 ## Top Operation Tags
@@ -26,9 +26,9 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `observability`: 16
 - `local-manager`: 13
 - `logic`: 12
+- `platform-evolution`: 12
 - `admin-internal`: 11
 - `developer-api`: 11
-- `platform-evolution`: 11
 - `connect-api`: 9
 - `planner`: 8
 - `tenants`: 8
