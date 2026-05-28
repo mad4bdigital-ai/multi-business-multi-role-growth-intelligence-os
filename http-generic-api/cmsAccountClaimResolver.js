@@ -217,7 +217,7 @@ async function createUserAppConnection({
       INSERT INTO \`user_app_connections\` (
         connection_id, tenant_id, user_id, app_key, auth_type, display_label,
         encrypted_credentials, status, last_validated_at, validation_status,
-        created_at, updated_at
+        connected_at, last_used_at
       )
       VALUES (?, ?, ?, ?, 'basic_auth_app_password', ?, ?, 'active', NOW(), 'verified', NOW(), NOW())
       ON DUPLICATE KEY UPDATE
