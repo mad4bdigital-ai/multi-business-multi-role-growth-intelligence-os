@@ -36,7 +36,7 @@ function allowLegacySheetRegistryRead(deps = {}) {
 async function readHostingAccountRows(sheetName, deps = {}) {
   const readSqlSurface = typeof deps.readSqlRegistrySurface === "function"
     ? deps.readSqlRegistrySurface
-    : readSqlTable;
+    : readSqlRegistryTable;
   try {
     return { rows: await readSqlSurface(sheetName), source: "sql_primary" };
   } catch (sqlErr) {
