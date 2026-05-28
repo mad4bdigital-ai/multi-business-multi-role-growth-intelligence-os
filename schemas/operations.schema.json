@@ -938,7 +938,10 @@
             "$ref": "./execution.schema.json#/$defs/registryBinding"
           }
         },
-        "active_sheet_bindings": {
+        "active_sql_registry_bindings": {
+          "$ref": "./shared.schema.json#/$defs/stringList"
+        },
+        "legacy_mirror_sheet_bindings": {
           "$ref": "./shared.schema.json#/$defs/stringList"
         },
         "system_layers_active": {
