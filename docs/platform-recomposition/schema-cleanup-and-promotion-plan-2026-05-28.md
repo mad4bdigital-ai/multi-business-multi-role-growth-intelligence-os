@@ -183,6 +183,8 @@ business identity spreadsheet metadata moved to legacy_mirror_* fields
 
 ### Phase S5 — Runtime enforcement alignment
 
+Status: in progress.
+
 After schema cleanup, confirm runtime enforcement uses the same model:
 
 ```text
@@ -192,6 +194,25 @@ output sink router
 local connector dispatch
 policy approval holds
 schema validation tests
+```
+
+S5 implemented changes:
+
+```text
+readGovernedSheetRecords is now a SQL-first compatibility wrapper
+Brand Registry and Hosting Account Registry reads use sqlAdapter/readTable by default
+legacy Google Sheets fallback is disabled unless LEGACY_SHEET_REGISTRY_RUNTIME_ENABLED or allowLegacySheetRegistryRead=true is set
+hostingerSshRuntimeRead reports table.hosting_accounts as authoritative_source
+legacy sheet names are returned only as legacy_mirror_source
+new tests cover SQL-first registry resolution and disabled legacy fallback
+```
+
+Compatibility note:
+
+```text
+Some registry surface ids still contain historical names such as surface.operations_log_unified_sheet.
+Those ids are database identity keys and must be migrated separately with registry row aliases/replacement ids before code constants are renamed.
+They no longer imply workbook runtime authority after S1-S5.
 ```
 
 ## Non-goals for S1
