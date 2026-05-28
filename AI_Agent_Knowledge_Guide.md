@@ -11,6 +11,14 @@ It translates the canonical architecture into an operational guide for AI agents
 
 For the personal Custom GPT Admin Assistant action setup, scoped OpenAPI files, subdomains, and admin operating boundaries, use `GPT_Admin_Assistant_Knowledge_Guide.md`.
 
+### Live repo knowledge loading
+
+Do not treat GPT Builder file uploads as the canonical source for repo knowledge. They can drift. When repo tools are available, read live files from the repository through governed auth-host tools.
+
+Admin/service agents may use `repo_inspect` through `callAdminTool` to read `AI_Agent_Knowledge_Guide.md`, `GPT_Admin_Assistant_Knowledge_Guide.md`, canonical root files, `http-generic-api/openapi.yaml`, and relevant `docs/*.md` files for the current task.
+
+Tenant GPTs must not use admin repo tools. Tenant knowledge must come from OAuth-scoped `auth.mad4b.com` tenant tools discovered by `listTools`, and only from tenant-safe bounded docs or guidance surfaces. Admin-only guides, raw migrations, DB dumps, secrets, and cross-tenant diagnostics must not be exposed to Tenant GPTs.
+
 ### Authority sources
 
 | Registry | Purpose |
