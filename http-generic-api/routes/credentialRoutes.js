@@ -106,6 +106,7 @@ async function buildCredentialResolutionPlan(input = {}) {
   const targetKey = str(input.target_key || input.targetKey);
   const credentialRole = str(input.credential_role || input.credentialRole || input.role);
   const allowPlatformFallback = input.allow_platform_fallback !== false && input.allowPlatformFallback !== false;
+  const requestContext = { tenantId, userId, connectionId, actionKey, targetKey, credentialRole };
   if (!tenantId) {
     const err = new Error("tenant_id is required.");
     err.status = 400;
