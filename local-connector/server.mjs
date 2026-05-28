@@ -1274,6 +1274,7 @@ async function handleAutoBrowser(req, res) {
 async function handleFiles(req, res) {
   if (!FILES_ENABLED) return err(res, 403, 'DISABLED', 'Files endpoint is disabled on this connector');
   if (!requireAuth(req, res)) return;
+  await refreshShellPolicy();
   let body;
   try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
 
