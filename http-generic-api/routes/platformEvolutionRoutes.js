@@ -2,6 +2,7 @@ import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
+import { getEffectiveCredentialStatus } from "../credentialResolver.js";
 
 function boundedInt(value, fallback, min = 1, max = 200) {
   const parsed = Number.parseInt(value, 10);
