@@ -10,6 +10,9 @@ ALTER TABLE `local_connector_shell_allowlists`
   ADD COLUMN IF NOT EXISTS `checksum` VARCHAR(64) NULL AFTER `policy_version`,
   ADD COLUMN IF NOT EXISTS `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER `created_at`;
 
+CREATE UNIQUE INDEX IF NOT EXISTS `uq_lc_shell_policy_config_alias`
+  ON `local_connector_shell_allowlists` (`config_id`, `alias`);
+
 CREATE INDEX IF NOT EXISTS `idx_lc_shell_policy_config_status_alias`
   ON `local_connector_shell_allowlists` (`config_id`, `status`, `alias`);
 
