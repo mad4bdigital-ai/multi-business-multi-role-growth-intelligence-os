@@ -232,6 +232,43 @@ function normalizeRemoteShellAliases(value) {
   return aliases;
 }
 
+function normalizeRemoteAppAllowlist(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const apps = {};
+  for (const [alias, entry] of Object.entries(value)) {
+    if (!isSafeAlias(alias) || !entry || typeof entry !== 'object') continue;
+    const command = String(entry.command || '').trim();
+    if (!command || /[\n\r<>]/.test(command)) continue;
+    apps[alias.toLowerCase()] = {
+      display_name: String(entry.display_name || alias).slice(0, 120),
+      command,
+      process_name: String(entry.process_name || alias).replace(/\.exe$/i, '').replace(/[^A-Za-z0-9_.-]+/g, '').slice(0, 80) || alias,
+      browser: entry.browser === true,
+      capability_class: String(entry.capability_class || 'desktop_app').slice(0, 80),
+      risk_class: String(entry.risk_class || 'interactive').slice(0, 80),
+    };
+  }
+  return apps;
+}
+
+function applyConnectorCapabilityGrants(grants = {}) {
+  const capabilities = Array.isArray(grants.capabilities) ? grants.capabilities.map(String) : [];
+  PS_ENABLED = ENV_PS_ENABLED || capabilities.includes('powershell_admin');
+  WIN_ENABLED = ENV_WIN_ENABLED || capabilities.includes('windows_control');
+  DEPENDENCIES_ENABLED = ENV_DEPENDENCIES_ENABLED || capabilities.includes('dependencies');
+  AUTO_BROWSER_ENABLED = ENV_AUTO_BROWSER_ENABLED || capabilities.includes('auto_browser');
+  if (Array.isArray(grants.allowed_paths) && grants.allowed_paths.length > 0) {
+    FILE_ALLOWLIST = [...new Set([...ENV_FILE_ALLOWLIST, ...grants.allowed_paths.map(String).filter(Boolean)])];
+  }
+  const dbApps = normalizeRemoteAppAllowlist(grants.apps);
+  if (Object.keys(dbApps).length > 0) {
+    APP_ALLOWLIST = { ...DEFAULT_APP_ALLOWLIST, ...APP_ALLOWLIST, ...dbApps };
+    APPS_ENABLED = true;
+  } else {
+    APPS_ENABLED = ENV_APPS_ENABLED || APPS_ENABLED;
+  }
+}
+
 async function refreshShellPolicy({ force = false } = {}) {
   if (!CONNECTOR_POLICY_ENABLED || !CONNECTOR_AUTH_SECRET || !CONNECTOR_POLICY_URL) return SHELL_POLICY_STATE;
   const now = Date.now();
