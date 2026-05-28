@@ -5,8 +5,9 @@ This directory contains clean-room staging copies for rebuilding the Growth Inte
 ## Status
 
 - Created as a non-destructive staging area.
-- Files here are not runtime authority until explicitly promoted.
-- Root canonical files remain generated indexes.
+- `memory_schema.clean-v1.json` was promoted to root `memory_schema.json` as the SQL-first memory/state contract on 2026-05-28.
+- Remaining clean-room overlays in this directory are not runtime authority until explicitly promoted.
+- Root canonical markdown files remain generated indexes.
 - Promotion requires updating canonical sources, schema manifests, runtime code, SQL registry rows, and validation checks together.
 
 ## Staged files
