@@ -1162,6 +1162,10 @@ components:
         tenant_id: { type: string }
         brand_key: { type: string }
         scope_key: { type: string }
+        transport_mode:
+          type: string
+          enum: [direct_scope, http_self_call]
+          default: direct_scope
 
     PlatformEvolutionTenantSmokeCheck:
       type: object
