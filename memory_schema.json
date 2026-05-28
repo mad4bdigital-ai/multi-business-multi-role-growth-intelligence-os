@@ -1,1432 +1,235 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://growth-intelligence.local/schemas/memory_schema.json",
-  "title": "Multi-Business Growth Intelligence Platform Memory Schema",
-  "description": "Canonical memory/state model aligned with Registry Surfaces Catalog authority, Validation & Repair Registry governance, runtime execution registries, embedded OAuth config resolution, embedded API-key resolution, repair-aware routing, execution traceability, review writeback planning, observability governance, architecture reconciliation, analytics identity tracking, API action capability/endpoint inventory state, governed starter-governance validation, governance-drift anomaly emission, prompt-first human-trigger continuation, enforced same-cycle native Google agent execution actions validation for governed activation and runtime checks, spill-safe prewrite guard enforcement, row-2 template sampling before governed writes, protected unified-log column preservation, governed pipeline-integrity audit state, and provider-family continuity validation across capability, route, and workflow layers.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auth.mad4b.com/schemas/platform-memory.clean-v1.json",
+  "title": "Growth Intelligence Platform Memory Schema - Clean Draft v1",
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "company_name",
-    "tour_catalog_url",
-    "destinations_detected",
-    "experience_types",
-    "business_catalog_url",
-    "locations_detected",
-    "product_or_service_types",
-    "keyword_themes",
-    "competitors_detected",
-    "content_clusters",
-    "modules_loaded",
-    "modules_cache",
-    "brand_context",
-    "brand_memory",
-    "workflow_context",
-    "routing_context",
-    "execution_context",
-    "logic_pointer_state",
-    "logic_knowledge_state",
-    "http_transport_state",
-    "intelligence_context",
-    "system_context",
-    "operations_context",
-    "repair_memory",
-    "repair_intelligence",
-    "review_context",
-    "monitoring_context",
-    "architecture_reconciliation",
-    "runtime_validation",
-    "audit_context",
-    "full_audit_state",
-    "memory_paths",
-    "write_rules",
-    "governance_rules",
-    "brand_tracking_bindings",
-    "analytics_discovery_state",
-    "measurement_health_state",
-    "revenue_signal_state",
-    "autopilot_trace_state",
-    "measurement_pipeline_state",
-    "analytics_sync",
-    "analytics_issue_tracking",
-    "starter_intelligence_state",
-    "governance_drift_state",
-    "trigger_prompt_state",
-    "auto_repair_retry_state",
-    "graph_intelligence_state",
-    "governed_addition_state",
-    "addition_intake_state",
-    "addition_decision_state",
-    "overlap_review_state",
-    "chain_necessity_state",
-    "graph_impact_state",
-    "bindings_impact_state",
-    "candidate_promotion_state",
-    "brand_onboarding_state",
-    "brand_identity_state",
-    "brand_property_binding_state",
-    "engine_readiness_state",
-    "brand_writing_engine_state",
-    "business_type_knowledge_state",
-    "brand_promotion_state",
-    "google_workspace_execution_state",
-    "auto_bootstrap_state",
+    "version",
+    "purpose",
+    "data_source_state",
+    "multi_business_activity_state",
+    "tenant_role_access_state",
+    "service_mode_state",
+    "human_oversight_state",
+    "commercial_entitlement_state",
     "activation_state",
+    "auto_bootstrap_state",
     "hard_activation_wrapper_state",
     "execution_logging_state",
-    "surface_role_state",
+    "governance_rules",
+    "governance_drift_state",
+    "variable_contract_state",
+    "http_transport_state",
+    "logic_pointer_state",
+    "logic_knowledge_state",
+    "business_type_knowledge_state",
+    "logical_search_state",
     "anomaly_cluster_state",
     "cluster_auto_repair_state",
-    "sheet_audit_state",
-    "formula_audit_state",
-    "projection_audit_state",
-    "control_surface_audit_state",
-    "schema_loaded",
-    "schema_source_file_id",
-    "schema_parse_status",
-    "schema_paths",
-    "schema_methods",
-    "schema_validation_status",
-    "schema_blocking_reason",
-    "governed_registry_generation_events",
-    "wordpress_generated_endpoint_support_state",
-    "wordpress_multilingual_state",
-    "brand_core_asset_intake_state",
-    "brand_core_write_rules_state",
-    "brand_core_read_state",
-    "authoritative_asset_home_state",
-    "legacy_json_mirror_state",
-    "publish_preparation_extension_state",
-    "variable_contract_state",
-    "patch_deployment_parity_state",
-    "addition_scoring_state",
-    "addition_framework_health_state",
-    "template_contract_state",
-    "template_lifecycle_state",
-    "template_health_state",
-    "template_impact_state",
-    "template_lineage_state"
+    "output_artifacts_state",
+    "sink_dispatch_state",
+    "agent_chain_state",
+    "local_connector_governance_state"
   ],
-  "output_artifacts_state",
-  "sink_dispatch_state",
-  "agent_chain_state",
-  "local_connector_governance_state"
   "properties": {
     "version": {
       "type": "string",
-      "default": "v8.43-logic-pointer-governance",
-      "description": "Schema revision identifier."
+      "default": "clean-v1-platform-recomposition",
+      "description": "Schema draft revision for non-destructive platform recomposition staging."
     },
     "purpose": {
       "type": "string",
-      "default": "Canonical memory/state model for the Multi-Business Growth Intelligence Platform."
+      "default": "Clean staging schema for SQL-first governed runtime state, output sinks, agent chain events, and local connector governance."
     },
-    "principles": {
-      "$ref": "./schemas/shared.schema.json#/$defs/principles",
-      "default": {}
-    },
-    "company_name": {
-      "type": "string",
-      "default": "",
-      "description": "Detected or user-provided company or brand name for the active session."
-    },
-    "tour_catalog_url": {
-      "type": "string",
-      "default": "",
-      "description": "Primary tour catalog or website URL associated with the active session."
-    },
-    "business_catalog_url": {
-      "type": "string",
-      "default": "",
-      "description": "Primary business catalog, store, or website URL associated with the active session."
-    },
-    "destinations_detected": {
-      "$ref": "./schemas/shared.schema.json#/$defs/stringList",
-      "description": "Unique destination names detected from user input or analyzed sources."
-    },
-    "locations_detected": {
-      "$ref": "./schemas/shared.schema.json#/$defs/stringList",
-      "description": "Unique locations or destinations detected from user input or analyzed sources."
-    },
-    "experience_types": {
-      "$ref": "./schemas/shared.schema.json#/$defs/stringList",
-      "description": "Unique travel or experience categories detected for the session."
-    },
-    "product_or_service_types": {
-      "$ref": "./schemas/shared.schema.json#/$defs/stringList",
-      "description": "Unique product, service, or experience categories detected for the session."
-    },
-    "keyword_themes": {
-      "$ref": "./schemas/shared.schema.json#/$defs/stringList",
-      "description": "Unique SEO themes, keyword clusters, or search topics identified during the session."
-    },
-    "competitors_detected": {
-      "$ref": "./schemas/shared.schema.json#/$defs/stringList",
-      "description": "Unique competitors, competing brands, or competing websites detected during analysis."
-    },
-    "content_clusters": {
-      "$ref": "./schemas/shared.schema.json#/$defs/stringList",
-      "description": "Unique content clusters, editorial hubs, or topic groups identified for strategy."
-    },
-    "modules_loaded": {
-      "$ref": "./schemas/shared.schema.json#/$defs/stringList",
-      "description": "Exact module Variable names that were successfully loaded during the session."
-    },
-    "modules_cache": {
-      "type": "object",
-      "default": {},
-      "description": "Per-session module cache keyed by the exact module Variable value.",
-      "propertyNames": {
-        "type": "string",
-        "minLength": 1
-      },
-      "additionalProperties": {
-        "$ref": "./schemas/business_identity.schema.json#/$defs/moduleCacheEntry"
-      }
-    },
-    "session_context": {
-      "$ref": "./schemas/business_identity.schema.json#/$defs/sessionContext",
-      "default": {}
-    },
-    "brand_context": {
-      "$ref": "./schemas/brand.schema.json#/$defs/brandContext",
-      "default": {}
-    },
-    "brand_memory": {
-      "$ref": "./schemas/brand.schema.json#/$defs/brandMemory",
-      "default": {}
-    },
-    "workflow_context": {
-      "$ref": "./schemas/operations.schema.json#/$defs/workflowContext",
-      "default": {}
-    },
-    "routing_context": {
-      "$ref": "./schemas/routing_transport.schema.json#/$defs/routingContext",
-      "default": {}
-    },
-    "execution_context": {
-      "$ref": "./schemas/execution.schema.json#/$defs/executionContext",
-      "default": {}
-    },
-    "logic_pointer_state": {
-      "$ref": "schemas/logic_knowledge.schema.json#/$defs/logic_pointer_state"
-    },
-    "logic_knowledge_state": {
-      "$ref": "schemas/logic_knowledge.schema.json#/$defs/logic_knowledge_state"
-    },
-    "http_transport_state": {
-      "$ref": "schemas/routing_transport.schema.json#/$defs/http_transport_state"
-    },
-    "variable_contract_state": {
-      "$ref": "schemas/governance.schema.json#/$defs/variable_contract_state"
-    },
-    "patch_deployment_parity_state": {
-      "$ref": "schemas/governance.schema.json#/$defs/patch_deployment_parity_state"
-    },
-    "schema_repair_state": {
-      "type": "object",
-      "properties": {
-        "repair_required": {
-          "type": "boolean",
-          "default": false
-        },
-        "repair_in_progress": {
-          "type": "boolean",
-          "default": false
-        },
-        "repair_completed": {
-          "type": "boolean",
-          "default": false
-        },
-        "repair_validation_status": {
-          "type": "string",
-          "enum": [
-            "pending",
-            "validated",
-            "failed"
-          ],
-          "default": "pending"
-        }
-      },
-      "default": {
-        "repair_required": false,
-        "repair_in_progress": false,
-        "repair_completed": false,
-        "repair_validation_status": "pending"
-      }
-    },
-    "execution_logging_state": {
-      "$ref": "schemas/operations.schema.json#/$defs/execution_logging_state"
-    },
-    "surface_role_state": {
+    "data_source_state": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["runtime_authority", "sheets_role", "mode"],
       "properties": {
-        "raw_execution_log_surface_id": {
-          "type": "string",
-          "default": ""
-        },
-        "legacy_log_surface_ids": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "derived_view_surface_ids": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "findings_surface_id": {
-          "type": "string",
-          "default": ""
-        },
-        "anomaly_surface_id": {
-          "type": "string",
-          "default": ""
-        },
-        "repair_surface_id": {
-          "type": "string",
-          "default": ""
-        },
-        "system_enforcement_events_surface_id": {
-          "type": "string",
-          "default": "surface.system_enforcement_events_sheet"
-        },
-        "query_engine_events_surface_id": {
-          "type": "string",
-          "default": "surface.query_engine_events_sheet"
-        }
-      },
-      "default": {
-        "raw_execution_log_surface_id": "",
-        "legacy_log_surface_ids": [],
-        "derived_view_surface_ids": [],
-        "findings_surface_id": "",
-        "anomaly_surface_id": "",
-        "repair_surface_id": "",
-        "system_enforcement_events_surface_id": "surface.system_enforcement_events_sheet",
-        "query_engine_events_surface_id": "surface.query_engine_events_sheet"
+        "runtime_authority": { "const": "sql" },
+        "sheets_role": { "const": "async_mirror_and_recovery" },
+        "mode": { "type": "string", "enum": ["sql", "degraded_sql", "recovery"] },
+        "sheets_required_for_runtime": { "const": false }
       }
     },
-    "anomaly_cluster_state": {
-      "$ref": "schemas/repair_audit.schema.json#/$defs/anomaly_cluster_state"
-    },
-    "cluster_auto_repair_state": {
-      "$ref": "schemas/repair_audit.schema.json#/$defs/cluster_auto_repair_state"
-    },
-    "sheet_audit_state": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "target_surface_id": {
-          "type": "string",
-          "default": ""
-        },
-        "sheet_role": {
-          "type": "string",
-          "default": ""
-        },
-        "sheet_audit_mode": {
-          "type": "string",
-          "default": ""
-        },
-        "sheet_audit_status": {
-          "type": "string",
-          "enum": [
-            "pending",
-            "validated",
-            "degraded",
-            "blocked"
-          ],
-          "default": "pending"
-        },
-        "repair_candidate_types": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        }
-      },
-      "default": {
-        "target_surface_id": "",
-        "sheet_role": "",
-        "sheet_audit_mode": "",
-        "sheet_audit_status": "pending",
-        "repair_candidate_types": []
-      }
-    },
-    "formula_audit_state": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "formula_audit_required": {
-          "type": "boolean",
-          "default": false
-        },
-        "formula_anchor_row_detected": {
-          "type": "boolean",
-          "default": false
-        },
-        "broken_formula_detected": {
-          "type": "boolean",
-          "default": false
-        },
-        "broken_importrange_detected": {
-          "type": "boolean",
-          "default": false
-        },
-        "deprecated_column_dependency_detected": {
-          "type": "boolean",
-          "default": false
-        }
-      },
-      "default": {
-        "formula_audit_required": false,
-        "formula_anchor_row_detected": false,
-        "broken_formula_detected": false,
-        "broken_importrange_detected": false,
-        "deprecated_column_dependency_detected": false
-      }
-    },
-    "projection_audit_state": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "projection_audit_required": {
-          "type": "boolean",
-          "default": false
-        },
-        "source_surface_id": {
-          "type": "string",
-          "default": ""
-        },
-        "key_based_projection": {
-          "type": "boolean",
-          "default": false
-        },
-        "row_position_mirroring_detected": {
-          "type": "boolean",
-          "default": false
-        },
-        "projection_mismatch_detected": {
-          "type": "boolean",
-          "default": false
-        }
-      },
-      "default": {
-        "projection_audit_required": false,
-        "source_surface_id": "",
-        "key_based_projection": false,
-        "row_position_mirroring_detected": false,
-        "projection_mismatch_detected": false
-      }
-    },
-    "control_surface_audit_state": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "control_metric_audit_required": {
-          "type": "boolean",
-          "default": false
-        },
-        "broken_reference_detected": {
-          "type": "boolean",
-          "default": false
-        },
-        "metric_source_surface_ids": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "alert_binding_status": {
-          "type": "string",
-          "enum": [
-            "pending",
-            "validated",
-            "degraded",
-            "blocked"
-          ],
-          "default": "pending"
-        }
-      },
-      "default": {
-        "control_metric_audit_required": false,
-        "broken_reference_detected": false,
-        "metric_source_surface_ids": [],
-        "alert_binding_status": "pending"
-      }
-    },
-    "schema_loaded": {
-      "type": "boolean",
-      "default": false
-    },
-    "schema_source_file_id": {
-      "type": "string",
-      "default": ""
-    },
-    "schema_parse_status": {
-      "type": "string",
-      "enum": [
-        "",
-        "success",
-        "failed"
-      ],
-      "default": ""
-    },
-    "schema_paths": {
-      "$ref": "./schemas/shared.schema.json#/$defs/stringList",
-      "default": []
-    },
-    "schema_methods": {
-      "$ref": "./schemas/shared.schema.json#/$defs/stringList",
-      "default": []
-    },
-    "schema_validation_status": {
-      "type": "string",
-      "default": ""
-    },
-    "schema_blocking_reason": {
-      "type": "string",
-      "default": ""
-    },
-    "activation_state": {
-      "$ref": "schemas/execution.schema.json#/$defs/activation_state"
-    },
-    "hard_activation_wrapper_state": {
-      "$ref": "schemas/execution.schema.json#/$defs/hard_activation_wrapper_state"
-    },
-    "auto_bootstrap_state": {
-      "$ref": "schemas/execution.schema.json#/$defs/auto_bootstrap_state"
-    },
-    "live_canonical_validation_required": {
-      "type": "boolean",
-      "default": false
-    },
-    "live_canonical_validation_status": {
-      "type": "string",
-      "enum": [
-        "pending",
-        "validated",
-        "authorization_gated",
-        "degraded",
-        "blocked"
-      ],
-      "default": "pending"
-    },
-    "live_canonical_validation_source": {
-      "type": "string",
-      "enum": [
-        "http_generic_api_live_canonical",
-        "google_docs_live_canonical",
-        "knowledge_layer_trace_only",
-        "uploaded_copy_trace_only",
-        "none"
-      ],
-      "default": "none"
-    },
-    "knowledge_layer_trace_status": {
-      "type": "string",
-      "enum": [
-        "pending",
-        "validated",
-        "degraded",
-        "blocked"
-      ],
-      "default": "pending"
-    },
-    "canonical_trace_comparison_status": {
-      "type": "string",
-      "enum": [
-        "pending",
-        "match",
-        "drift_detected",
-        "degraded",
-        "blocked"
-      ],
-      "default": "pending"
-    },
-    "activation_dependency_order_status": {
-      "type": "string",
-      "enum": [
-        "pending",
-        "knowledge_first_complete",
-        "live_validation_complete",
-        "comparison_complete",
-        "degraded",
-        "blocked"
-      ],
-      "default": "pending"
-    },
-    "required_surface_resolution_status": {
-      "type": "string",
-      "enum": [
-        "pending",
-        "validated",
-        "degraded",
-        "blocked"
-      ],
-      "default": "pending"
-    },
-    "registry_binding_status": {
-      "type": "string",
-      "enum": [
-        "pending",
-        "validated",
-        "degraded",
-        "blocked"
-      ],
-      "default": "pending"
-    },
-    "runtime_authority_validation_status": {
-      "type": "string",
-      "enum": [
-        "pending",
-        "validated",
-        "degraded",
-        "blocked"
-      ],
-      "default": "pending"
-    },
-    "dependency_readiness_status": {
-      "type": "string",
-      "enum": [
-        "pending",
-        "validated",
-        "degraded",
-        "blocked"
-      ],
-      "default": "pending"
-    },
-    "intelligence_context": {
-      "$ref": "./schemas/operations.schema.json#/$defs/intelligenceContext",
-      "default": {}
-    },
-    "data_context": {
-      "$ref": "./schemas/operations.schema.json#/$defs/dataContext",
-      "default": {}
-    },
-    "system_context": {
-      "$ref": "./schemas/operations.schema.json#/$defs/systemContext",
-      "default": {}
-    },
-    "operations_context": {
-      "$ref": "./schemas/operations.schema.json#/$defs/operationsContext",
-      "default": {}
-    },
-    "review_context": {
-      "$ref": "./schemas/operations.schema.json#/$defs/reviewContext",
-      "default": {}
-    },
-    "monitoring_context": {
-      "$ref": "./schemas/operations.schema.json#/$defs/monitoringContext",
-      "default": {}
-    },
-    "architecture_reconciliation": {
-      "$ref": "./schemas/operations.schema.json#/$defs/architectureReconciliation",
-      "default": {
-        "required": true,
-        "status": "pending",
-        "affected_surfaces": [],
-        "last_completed_at": null
-      }
-    },
-    "memory_paths": {
-      "$ref": "./schemas/operations.schema.json#/$defs/memoryPaths",
-      "default": {}
-    },
-    "write_rules": {
-      "$ref": "./schemas/operations.schema.json#/$defs/writeRules",
-      "default": {}
-    },
-    "governance_rules": {
-      "$ref": "schemas/governance.schema.json#/$defs/governance_rules"
-    },
-    "runtime_validation_rule": {
-      "type": "string",
-      "default": "Recovered classification is forbidden unless required authoritative runtime bindings, direct-write targets, post-write readback checks, and layout validations succeed on Registry-resolved target surfaces."
-    },
-    "runtime_binding_enforcement_rule": {
-      "type": "string",
-      "const": "All execution surfaces must be resolved through Registry Surfaces Catalog using worksheet_gid as authoritative identity; validation must confirm worksheet_gid exists, is valid, and matches the actual sheet binding; sheet_name and tab_name must not be used for execution resolution; if validation fails, execution must block or enter repair-aware mode."
-    },
-    "runtime_validation": {
-      "$ref": "./schemas/execution.schema.json#/$defs/runtimeValidation",
-      "default": {
-        "validated_dependencies": [],
-        "readback_proof": false,
-        "authoritative_write_status": "pending",
-        "review_evidence_status": "pending",
-        "layout_validation_status": "pending",
-        "runtime_result": "pending"
-      }
-    },
-    "write_proof": {
-      "$ref": "./schemas/execution.schema.json#/$defs/writeProof",
-      "default": {}
-    },
-    "authoritative_write_targets": {
-      "$ref": "./schemas/execution.schema.json#/$defs/authoritativeWriteTargets",
-      "default": {}
-    },
-    "repair_memory": {
-      "$ref": "./schemas/repair_audit.schema.json#/$defs/repairMemory",
-      "default": {}
-    },
-    "repair_intelligence": {
-      "$ref": "./schemas/repair_audit.schema.json#/$defs/repairIntelligence",
-      "default": {}
-    },
-    "audit_context": {
-      "$ref": "./schemas/repair_audit.schema.json#/$defs/auditContext",
-      "default": {}
-    },
-    "full_audit_state": {
-      "$ref": "./schemas/repair_audit.schema.json#/$defs/fullAuditState",
-      "default": {}
-    },
-    "binding_integrity_state": {
-      "$ref": "./schemas/repair_audit.schema.json#/$defs/bindingIntegrityState",
-      "default": {}
-    },
-    "schema_governance_state": {
-      "$ref": "./schemas/governance.schema.json#/$defs/schemaGovernanceState",
-      "default": {}
-    },
-    "schema_migration_state": {
-      "$ref": "./schemas/governance.schema.json#/$defs/schemaMigrationState",
-      "default": {}
-    },
-    "adaptive_scoring_state": {
-      "$ref": "./schemas/repair_audit.schema.json#/$defs/adaptiveScoringState",
-      "default": {}
-    },
-    "starter_intelligence_state": {
-      "$ref": "schemas/brand.schema.json#/$defs/starter_intelligence_state"
-    },
-    "governance_drift_state": {
-      "$ref": "schemas/governance.schema.json#/$defs/governance_drift_state"
-    },
-    "trigger_prompt_state": {
+    "multi_business_activity_state": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "user_trigger_required",
-        "next_trigger_prompt_required",
-        "closed_loop_continuation_forbidden",
-        "last_recommended_starter",
-        "last_trigger_prompt",
-        "last_prompt_reason"
+        "authority",
+        "registry_surface",
+        "default_behavior",
+        "legacy_tourism_profile_policy",
+        "resolution_order"
       ],
       "properties": {
-        "user_trigger_required": {
-          "type": "boolean",
-          "default": true
-        },
-        "next_trigger_prompt_required": {
-          "type": "boolean",
-          "default": true
-        },
-        "closed_loop_continuation_forbidden": {
-          "type": "boolean",
-          "default": true
-        },
-        "last_recommended_starter": {
+        "authority": { "const": "business_activity_type_registry_first" },
+        "registry_surface": { "const": "business_activity_types" },
+        "default_behavior": { "const": "no_single_activity_default" },
+        "legacy_tourism_profile_policy": {
           "type": "string",
-          "default": ""
+          "enum": ["profile_only", "deprecated_default", "blocked"],
+          "default": "profile_only"
         },
-        "last_trigger_prompt": {
-          "type": "string",
-          "default": ""
-        },
-        "last_prompt_reason": {
-          "type": "string",
-          "default": ""
-        }
-      },
-      "default": {}
-    },
-    "auto_repair_retry_state": {
-      "$ref": "./schemas/repair_audit.schema.json#/$defs/autoRepairRetryState",
-      "default": {}
-    },
-    "graph_intelligence_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/graphIntelligenceState",
-      "default": {}
-    },
-    "governed_addition_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/governedAdditionState",
-      "default": {
-        "starter_addition_requested": false,
-        "starter_classification": "",
-        "starter_override_required": false,
-        "starter_override_source": "",
-        "starter_insert_validation_status": "pending",
-        "starter_post_insert_readback_status": "pending",
-        "starter_post_insert_readback_at": null
-      }
-    },
-    "addition_intake_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/additionIntakeState",
-      "default": {
-        "addition_request_detected": false,
-        "addition_type": "",
-        "addition_decision_class": "",
-        "candidate_write_performed": false,
-        "candidate_write_targets": [],
-        "promotion_prerequisites": [],
-        "promotion_status": "pending"
-      }
-    },
-    "addition_decision_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/additionDecisionState",
-      "default": {
-        "addition_decision_class": "",
-        "decision_status": "pending",
-        "affected_surface_ids": [],
-        "candidate_write_targets": [],
-        "promotion_prerequisites": [],
-        "overlap_group": "",
-        "chain_required": false
-      }
-    },
-    "overlap_review_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/overlapReviewState",
-      "default": {
-        "route_overlap_status": "pending",
-        "workflow_overlap_status": "pending",
-        "overlap_group": "",
-        "reuse_recommended": false,
-        "extend_recommended": false
-      }
-    },
-    "chain_necessity_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/chainNecessityState",
-      "default": {
-        "chain_review_required": false,
-        "chain_required": false,
-        "chain_candidate_id": "",
-        "intersection_detected": false
-      }
-    },
-    "graph_impact_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/graphImpactState",
-      "default": {
-        "knowledge_graph_update_required": false,
-        "relationship_graph_update_required": false,
-        "graph_validation_status": "pending"
-      }
-    },
-    "bindings_impact_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/bindingsImpactState",
-      "default": {
-        "execution_bindings_update_required": false,
-        "validation_registry_update_required": false,
-        "registry_surfaces_update_required": false,
-        "bindings_validation_status": "pending"
-      }
-    },
-    "candidate_promotion_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/candidatePromotionState",
-      "default": {
-        "promotion_blocked_until_validated": true,
-        "promotion_status": "pending",
-        "candidate_write_performed": false,
-        "candidate_validation_required": false,
-        "candidate_validation_rows_written": false,
-        "candidate_validation_row_ids": [],
-        "candidate_write_targets": [],
-        "promotion_blockers": [],
-        "promotion_prerequisites": [],
-        "promotion_ready": false,
-        "blocked_reason": ""
-      }
-    },
-    "brand_onboarding_state": {
-      "$ref": "./schemas/brand.schema.json#/$defs/brandOnboardingState",
-      "default": {
-        "brand_onboarding_requested": false,
-        "brand_onboarding_type": "",
-        "brand_onboarding_decision_class": "",
-        "brand_entity_registration_required": false,
-        "brand_identity_formation_required": false,
-        "brand_property_runtime_binding_required": false,
-        "brand_core_read_precedence_required": true,
-        "json_asset_registry_derived_only_exception": true,
-        "brand_onboarding_status": "pending"
-      }
-    },
-    "brand_identity_state": {
-      "$ref": "./schemas/brand.schema.json#/$defs/brandIdentityState",
-      "default": {
-        "brand_core_ready": false,
-        "brand_core_asset_home_status": "pending",
-        "brand_identity_formation_status": "pending",
-        "maturity_status": "pending",
-        "identity_assets_missing": [],
-        "identity_read_home": "brand_core_registry"
-      }
-    },
-    "brand_property_binding_state": {
-      "$ref": "./schemas/brand.schema.json#/$defs/brandPropertyBindingState",
-      "default": {
-        "ga_property_binding_status": "pending",
-        "gtm_binding_status": "pending",
-        "gsc_binding_status": "pending",
-        "hosting_binding_status": "pending",
-        "website_runtime_binding_status": "pending",
-        "transport_binding_status": "pending",
-        "auth_binding_status": "pending",
-        "framework_classification_status": "pending"
-      }
-    },
-    "engine_readiness_state": {
-      "$ref": "./schemas/execution.schema.json#/$defs/engineReadinessState",
-      "default": {
-        "identity_engine_readiness_required": false,
-        "required_identity_engine_ids": [],
-        "missing_identity_engine_ids": [],
-        "inactive_identity_engine_ids": [],
-        "non_callable_identity_engine_ids": [],
-        "identity_engine_readiness_status": "pending"
-      }
-    },
-    "brand_promotion_state": {
-      "$ref": "./schemas/brand.schema.json#/$defs/brandPromotionState",
-      "default": {
-        "brand_candidate_write_performed": false,
-        "brand_candidate_validation_required": false,
-        "brand_candidate_validation_rows_written": false,
-        "brand_candidate_validation_row_ids": [],
-        "brand_promotion_blockers": [],
-        "brand_promotion_prerequisites": [],
-        "brand_promotion_ready": false,
-        "brand_promotion_status": "pending"
-      }
-    },
-    "brand_writing_engine_state": {
-      "$ref": "schemas/brand.schema.json#/$defs/brand_writing_engine_state"
-    },
-    "business_type_knowledge_state": {
-      "$ref": "schemas/logic_knowledge.schema.json#/$defs/business_type_knowledge_state"
-    },
-    "google_workspace_execution_state": {
-      "$ref": "./schemas/execution.schema.json#/$defs/googleWorkspaceExecutionState",
-      "default": {}
-    },
-    "brand_tracking_bindings": {
-      "$ref": "./schemas/analytics.schema.json#/$defs/brandTrackingBindingEntry",
-      "default": {
-        "gsc_property": "",
-        "ga_property_id": "",
-        "gtm_container_id": "",
-        "binding_status": "unresolved",
-        "analytics_discovery_state": "not_started",
-        "measurement_health_state": "not_started"
-      }
-    },
-    "analytics_discovery_state": {
-      "$ref": "./schemas/analytics.schema.json#/$defs/analyticsDiscoveryState",
-      "default": {}
-    },
-    "measurement_health_state": {
-      "$ref": "./schemas/analytics.schema.json#/$defs/measurementHealthStateMap",
-      "default": {}
-    },
-    "revenue_signal_state": {
-      "$ref": "./schemas/analytics.schema.json#/$defs/revenueSignalStateMap",
-      "default": {}
-    },
-    "autopilot_trace_state": {
-      "$ref": "./schemas/analytics.schema.json#/$defs/autopilotTraceState",
-      "default": {}
-    },
-    "measurement_pipeline_state": {
-      "$ref": "./schemas/analytics.schema.json#/$defs/measurementPipelineState",
-      "default": {}
-    },
-    "analytics_sync": {
-      "$ref": "./schemas/analytics.schema.json#/$defs/analyticsSyncState",
-      "default": {
-        "last_run_at": null,
-        "last_request_scope": {
-          "mode": "pending",
-          "brand_count": 0,
-          "brands": [],
-          "request_date": null,
-          "date_from": null,
-          "date_to": null,
-          "trigger_mode": "pending"
-        },
-        "last_write_status": "pending",
-        "last_written_brands": [],
-        "schema_validation_status": "pending",
-        "last_target_surfaces": [
-          "GA4 Data",
-          "GSC Data"
-        ],
-        "last_execution_result": "pending"
-      }
-    },
-    "analytics_identity": {
-      "$ref": "./schemas/analytics.schema.json#/$defs/analyticsIdentity",
-      "default": {
-        "brand_domain_required": true,
-        "last_domain_validation_status": "pending",
-        "last_resolved_brand_domains": [],
-        "last_missing_domain_brands": []
-      }
-    },
-    "analytics_issue_tracking": {
-      "$ref": "./schemas/analytics.schema.json#/$defs/analyticsIssueTracking",
-      "default": {
-        "last_detected_issues": [],
-        "last_issue_creation_status": "pending",
-        "last_issue_scope": {
-          "brands": [],
-          "issue_type": "",
-          "execution_cycle_id": ""
-        },
-        "issue_deduplication_keys": [],
-        "last_issue_resolution_status": "pending"
-      }
-    },
-    "api_action_inventory": {
-      "$ref": "./schemas/wordpress_api.schema.json#/$defs/apiActionInventory",
-      "default": {
-        "last_capability_registry_validation": "pending",
-        "last_endpoint_inventory_validation": "pending",
-        "last_incomplete_endpoint_metadata": [],
-        "last_parent_endpoint_mismatches": [],
-        "last_async_job_validation": "pending",
-        "last_credential_resolver_chain": [],
-        "last_hosting_account_registry_validation": "pending"
-      }
-    },
-    "credential_resolution": {
-      "$ref": "./schemas/routing_transport.schema.json#/$defs/credentialResolution",
-      "default": {
-        "last_storage_mode": "",
-        "last_target_key": "",
-        "last_hosting_account_key": "",
-        "last_api_key_reference": "",
-        "last_resolution_status": "pending",
-        "last_resolution_chain": []
-      }
-    },
-    "surface_authority_rule": {
-      "type": "string",
-      "const": "Registry Surfaces Catalog is the only authoritative surface-location registry; Validation & Repair Registry is the only authoritative validation-state registry."
-    },
-    "surface_catalog_state": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "surface_catalog_validation_status": {
-          "type": "string",
-          "enum": [
-            "valid",
-            "degraded",
-            "blocked",
-            "unknown"
-          ],
-          "default": "unknown"
-        },
-        "validation_registry_status": {
-          "type": "string",
-          "enum": [
-            "valid",
-            "degraded",
-            "blocked",
-            "unknown"
-          ],
-          "default": "unknown"
-        },
-        "deprecated_registry_usage_detected": {
-          "type": "boolean",
-          "default": false
-        }
-      },
-      "default": {
-        "surface_catalog_validation_status": "unknown",
-        "validation_registry_status": "unknown",
-        "deprecated_registry_usage_detected": false
-      }
-    },
-    "auth_resolution_state": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "google_auth_source": {
-          "type": "string",
-          "enum": [
-            "embedded_oauth_config",
-            "external_vault",
-            "unknown"
-          ],
-          "default": "embedded_oauth_config"
-        },
-        "api_key_auth_source": {
-          "type": "string",
-          "enum": [
-            "embedded_actions_registry",
-            "external_vault",
-            "unknown"
-          ],
-          "default": "embedded_actions_registry"
-        }
-      },
-      "default": {
-        "google_auth_source": "embedded_oauth_config",
-        "api_key_auth_source": "embedded_actions_registry"
-      }
-    },
-    "logical_search_state": {
-      "$ref": "schemas/logic_knowledge.schema.json#/$defs/logical_search_state"
-    },
-    "governed_registry_generation_events": {
-      "$ref": "schemas/governance.schema.json#/$defs/governed_registry_generation_events"
-    },
-    "wordpress_generated_endpoint_support_state": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "enabled": {
-          "type": "boolean"
-        },
-        "supported_template_classes": {
+        "resolution_order": {
           "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "items": { "type": "string" },
+          "default": [
+            "business_activity_type",
+            "business_type_profile",
+            "brand_path",
+            "brand_core",
+            "logic_pointer",
+            "workflow_route",
+            "action_endpoint_schema"
+          ]
         },
-        "materialization_preference_order": {
+        "required_for_business_outputs": { "type": "boolean", "default": true }
+      }
+    },
+    "tenant_role_access_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "tenant_surface", "role_surface", "decision_policy", "scope_dimensions"],
+      "properties": {
+        "authority": { "const": "deny_by_default_access_gate" },
+        "tenant_surface": { "const": "tenants" },
+        "role_surface": { "const": "role_assignments" },
+        "relationship_surface": { "const": "tenant_relationships" },
+        "decision_policy": { "const": "resolve_before_dispatch" },
+        "scope_dimensions": {
           "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "items": { "type": "string" },
+          "default": ["tenant", "partner_child", "freelancer", "client", "brand", "review", "supervision", "managed_service"]
         },
-        "last_generation_basis": {
-          "type": "string"
-        }
+        "required_before_execution": { "type": "boolean", "default": true }
       }
     },
-    "wordpress_multilingual_state": {
-      "$ref": "./schemas/wordpress_api.schema.json#/$defs/wordpressMultilingualState",
-      "default": {
-        "translatable_post_type_scope_active": false,
-        "target_post_type_slug": "",
-        "target_language_code": "",
-        "default_language_inferred": false,
-        "direct_rest_language_write_status": "pending",
-        "wpml_import_language_path_status": "pending",
-        "translation_scope_preflight_status": "pending",
-        "translation_linkage_status": "pending",
-        "multilingual_execution_mode": ""
-      }
-    },
-    "wordpress_blog_publish_recovery_state": {
-      "$ref": "./schemas/wordpress_api.schema.json#/$defs/wordpressBlogPublishRecoveryState",
-      "default": {
-        "workflow_key": "wordpress_blog_publish_or_recover_credentials_workflow",
-        "target_key": "",
-        "credential_status": "pending",
-        "intake_status": "pending",
-        "resume_status": "pending",
-        "post_status": "pending",
-        "readback_status": "pending",
-        "last_post_id": null,
-        "last_post_link": "",
-        "n8n_authority_status": "not_authoritative"
-      }
-    },
-    "brand_core_asset_intake_state": {
+    "service_mode_state": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["authority", "modes", "mode_classes", "resolution_policy"],
       "properties": {
-        "intake_required": {
-          "type": "boolean",
-          "default": false
+        "authority": { "const": "service_mode_matrix" },
+        "modes": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["self_serve", "assisted", "managed"] },
+          "default": ["self_serve", "assisted", "managed"]
         },
-        "intake_status": {
-          "type": "string",
-          "enum": [
-            "pending",
-            "validated",
-            "accepted",
-            "rejected",
-            "blocked"
-          ],
-          "default": "pending"
+        "mode_classes": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["self_serve_capable", "assistance_optional", "assistance_recommended", "assistance_required_by_policy", "managed_service_only"] },
+          "default": ["self_serve_capable", "assistance_optional", "assistance_recommended", "assistance_required_by_policy", "managed_service_only"]
         },
-        "intake_id": {
-          "type": "string",
-          "default": ""
-        },
-        "asset_class": {
-          "type": "string",
-          "default": ""
-        },
-        "mirror_policy": {
-          "type": "string",
-          "default": ""
-        }
-      },
-      "default": {
-        "intake_required": false,
-        "intake_status": "pending",
-        "intake_id": "",
-        "asset_class": "",
-        "mirror_policy": ""
+        "resolution_policy": { "const": "classify_before_workflow_offer_or_dispatch" }
       }
     },
-    "brand_core_write_rules_state": {
+    "human_oversight_state": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["authority", "role_surface", "approval_surface", "assignment_policy"],
       "properties": {
-        "write_rules_required": {
-          "type": "boolean",
-          "default": false
+        "authority": { "const": "assisted_operations_layer" },
+        "role_surface": { "const": "assistance_roles" },
+        "approval_surface": { "const": "approval_holds" },
+        "assignment_policy": { "type": "string", "enum": ["required_by_policy", "optional_by_entitlement", "disabled"], "default": "required_by_policy" },
+        "roles": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["reviewer", "auditor", "supervisor", "managed_operator", "training_mentor"]
         },
-        "write_target": {
-          "type": "string",
-          "default": ""
-        },
-        "write_target_status": {
-          "type": "string",
-          "enum": [
-            "pending",
-            "validated",
-            "degraded",
-            "blocked"
-          ],
-          "default": "pending"
-        },
-        "derived_json_artifact_exception": {
-          "type": "boolean",
-          "default": false
-        }
-      },
-      "default": {
-        "write_rules_required": false,
-        "write_target": "",
-        "write_target_status": "pending",
-        "derived_json_artifact_exception": false
+        "runtime_status": { "type": "string", "enum": ["active", "validating", "blocked"], "default": "validating" }
       }
     },
-    "brand_core_read_state": {
-      "$ref": "schemas/brand.schema.json#/$defs/brand_core_read_state"
-    },
-    "authoritative_asset_home_state": {
+    "commercial_entitlement_state": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["authority", "entitlement_surface", "resolution_policy"],
       "properties": {
-        "authoritative_home": {
-          "type": "string",
-          "default": ""
-        },
-        "primary_read_home": {
-          "type": "string",
-          "default": ""
-        },
-        "read_precedence_status": {
-          "type": "string",
-          "enum": [
-            "pending",
-            "validated",
-            "degraded",
-            "blocked"
-          ],
-          "default": "pending"
-        }
-      },
-      "default": {
-        "authoritative_home": "",
-        "primary_read_home": "",
-        "read_precedence_status": "pending"
+        "authority": { "const": "commercial_eligibility_gate" },
+        "entitlement_surface": { "const": "entitlements" },
+        "usage_surface": { "const": "tenant_usage" },
+        "resolution_policy": { "const": "resolve_before_paid_limited_or_managed_feature" },
+        "runtime_status": { "type": "string", "enum": ["active", "validating", "blocked"], "default": "validating" }
       }
     },
-    "legacy_json_mirror_state": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "legacy_mirror_present": {
-          "type": "boolean",
-          "default": false
-        },
-        "legacy_mirror_deprioritized": {
-          "type": "boolean",
-          "default": false
-        },
-        "legacy_mirror_authoritative": {
-          "type": "boolean",
-          "default": false
-        }
-      },
-      "default": {
-        "legacy_mirror_present": false,
-        "legacy_mirror_deprioritized": false,
-        "legacy_mirror_authoritative": false
-      }
-    },
-    "publish_preparation_extension_state": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "extension_proposed": {
-          "type": "boolean",
-          "default": false
-        },
-        "extension_intake_required": {
-          "type": "boolean",
-          "default": false
-        },
-        "extension_commit_control_required": {
-          "type": "boolean",
-          "default": false
-        },
-        "extension_commit_status": {
-          "type": "string",
-          "enum": [
-            "pending",
-            "validated",
-            "degraded",
-            "blocked",
-            "committed"
-          ],
-          "default": "pending"
-        },
-        "workbook_extension_name": {
-          "type": "string",
-          "default": ""
-        }
-      },
-      "default": {
-        "extension_proposed": false,
-        "extension_intake_required": false,
-        "extension_commit_control_required": false,
-        "extension_commit_status": "pending",
-        "workbook_extension_name": ""
-      }
-    },
-    "addition_scoring_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/additionScoringState",
-      "default": {
-        "addition_promotion_score": 0,
-        "proof_confidence": "",
-        "score_freshness_status": "pending",
-        "scoring_refresh_status": "pending",
-        "scoring_writeback_status": "pending"
-      }
-    },
-    "addition_framework_health_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/additionFrameworkHealthState",
-      "default": {
-        "framework_health_status": "pending",
-        "template_conformance_status": "pending",
-        "score_freshness_status": "pending",
-        "verification_loop_status": "pending"
-      }
-    },
-    "template_contract_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/templateContractState",
-      "default": {
-        "template_contract_active": false,
-        "template_contract_status": "pending",
-        "template_mismatch_detected": false
-      }
-    },
-    "template_lifecycle_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/templateLifecycleState",
-      "default": {
-        "template_lifecycle_status": "pending",
-        "template_version": "",
-        "template_canonical": false,
-        "template_superseded": false,
-        "template_deprecated": false
-      }
-    },
-    "template_health_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/templateHealthState",
-      "default": {
-        "template_health_status": "pending",
-        "active_version_unique": false,
-        "no_open_supersession_gap": false,
-        "no_open_deprecation_gap": false
-      }
-    },
-    "template_impact_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/templateImpactState",
-      "default": {
-        "template_impact_status": "pending",
-        "affected_additions_count": 0,
-        "affected_promotions_count": 0,
-        "governance_dependency_risk": ""
-      }
-    },
-    "template_lineage_state": {
-      "$ref": "./schemas/graph_addition.schema.json#/$defs/templateLineageState",
-      "default": {
-        "template_lineage_status": "pending",
-        "dependent_routes_traced": false,
-        "dependent_workflows_traced": false,
-        "dependent_chains_traced": false
-      }
-    }
+    "activation_state": { "$ref": "schemas/execution.schema.json#/$defs/activation_state" },
+    "auto_bootstrap_state": { "$ref": "schemas/execution.schema.json#/$defs/auto_bootstrap_state" },
+    "hard_activation_wrapper_state": { "$ref": "schemas/execution.schema.json#/$defs/hard_activation_wrapper_state" },
+    "execution_logging_state": { "$ref": "schemas/operations.schema.json#/$defs/execution_logging_state" },
+    "governance_rules": { "$ref": "schemas/governance.schema.json#/$defs/governance_rules" },
+    "governance_drift_state": { "$ref": "schemas/governance.schema.json#/$defs/governance_drift_state" },
+    "variable_contract_state": { "$ref": "schemas/governance.schema.json#/$defs/variable_contract_state" },
+    "http_transport_state": { "$ref": "schemas/routing_transport.schema.json#/$defs/http_transport_state" },
+    "logic_pointer_state": { "$ref": "schemas/logic_knowledge.schema.json#/$defs/logic_pointer_state" },
+    "logic_knowledge_state": { "$ref": "schemas/logic_knowledge.schema.json#/$defs/logic_knowledge_state" },
+    "business_type_knowledge_state": { "$ref": "schemas/logic_knowledge.schema.json#/$defs/business_type_knowledge_state" },
+    "logical_search_state": { "$ref": "schemas/logic_knowledge.schema.json#/$defs/logical_search_state" },
+    "anomaly_cluster_state": { "$ref": "schemas/repair_audit.schema.json#/$defs/anomaly_cluster_state" },
+    "cluster_auto_repair_state": { "$ref": "schemas/repair_audit.schema.json#/$defs/cluster_auto_repair_state" },
     "output_artifacts_state": {
-      "$ref": "./schemas/operations.schema.json#/$defs/outputArtifactsState"
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "table", "required_keys", "write_policy", "readback_required"],
+      "properties": {
+        "authority": { "const": "canonical_agent_output_store" },
+        "table": { "const": "output_artifacts" },
+        "required_keys": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["artifact_id", "run_id", "tenant_id", "artifact_type", "status"]
+        },
+        "write_policy": { "type": "string", "enum": ["sql_first", "blocked", "diagnostic_only"], "default": "sql_first" },
+        "readback_required": { "type": "boolean", "default": true }
+      }
     },
     "sink_dispatch_state": {
-      "$ref": "./schemas/operations.schema.json#/$defs/sinkDispatchState"
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "table", "status_contract", "audit_policy"],
+      "properties": {
+        "authority": { "const": "output_sink_router_audit" },
+        "table": { "const": "sink_dispatch_log" },
+        "status_contract": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["queued", "dispatched", "completed", "ok", "failed", "skipped"] },
+          "default": ["ok", "failed", "skipped"]
+        },
+        "audit_policy": { "const": "append_only" }
+      }
     },
     "agent_chain_state": {
-      "$ref": "./schemas/operations.schema.json#/$defs/agentChainState"
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "table", "lifecycle", "dispatch_policy"],
+      "properties": {
+        "authority": { "const": "agent_event_bus" },
+        "table": { "const": "agent_chain_events" },
+        "lifecycle": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["pending", "dispatched", "consumed", "failed", "skipped", "expired"] },
+          "default": ["pending", "dispatched", "failed", "skipped"]
+        },
+        "dispatch_policy": { "type": "string", "enum": ["manual_or_scheduled", "disabled", "auto"], "default": "manual_or_scheduled" }
+      }
     },
     "local_connector_governance_state": {
-      "$ref": "./schemas/governance.schema.json#/$defs/localConnectorGovernanceState"
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "route_surface", "config_surface", "skill_grants_required", "device_id_required_for_local_intents"],
+      "properties": {
+        "authority": { "const": "governed_dispatch_layer" },
+        "route_surface": { "const": "task_routes" },
+        "config_surface": { "const": "local_connector_user_configs" },
+        "skill_grants_required": { "type": "boolean", "default": true },
+        "device_id_required_for_local_intents": { "type": "boolean", "default": true },
+        "direct_modules": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["local_connector_shell", "local_connector_health", "local_connector_file", "local_connector_install"]
+        }
+      }
     }
-  },
-  "governance_rules": [
-    "For plain Activate System and equivalent one-request activation prompts, tool-first execution is mandatory: no user-facing narrative completion may occur before at least one real governed activation transport attempt or an exhausted same-cycle governed retry path.",
-    "Traceability-only completion is forbidden for governed first-turn activation when governed transport live validation is required.",
-    "Activation-class execution memory must preserve tool_first_execution_required, no_traceability_only_completion, tool_hesitation_retry_required, and activation_transport_sequence_mode when emitted by prompt_router, module_loader, or system_bootstrap.",
-    "For governed HTTP execution, parent_action_key authority must resolve auth strategy and openai_schema_file_id before transport execution; unresolved auth normalization or schema alignment must block or degrade execution.",
-    "http_transport_state must preserve resolved_auth_mode, credential_resolution_status, request_schema_alignment_status, response_schema_alignment_status, and transport_request_contract_status for schema-bound external execution."
-  ],
-  "logical_search_events": [],
-  "wordpress_runtime_contract_events": [
-    {
-      "timestamp": "iso8601",
-      "target_key": "string",
-      "parent_action_key": "wordpress_api",
-      "stage": "discovery|inventory_normalization|field_mapping|draft_publish|verification",
-      "evidence_sink": "Execution Log Unified",
-      "payload_sink": "JSON Asset Registry",
-      "raw_writeback_block": "AF:AK",
-      "payload_mode": "terminal_meaningful_only",
-      "payload_reduction": "body_only",
-      "success_dedupe_key": "asset_key",
-      "schema_meta_only_suppression": true,
-      "status": "active|runtime_validation_required|degraded"
-    }
-  ],
-  "wordpress_publish_contract_events": [
-    {
-      "timestamp": "iso8601",
-      "brand": "string",
-      "target_key": "string",
-      "publish_target_type": "post|page|custom_post_type",
-      "publish_target_slug": "string",
-      "taxonomy_targets": [],
-      "field_mapping_governed": false,
-      "publish_mode": "draft_first",
-      "draft_create_verified": false,
-      "readback_verified": false
-    }
-  ]
+  }
 }
