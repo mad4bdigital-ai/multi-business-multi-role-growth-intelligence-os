@@ -76,6 +76,12 @@ assert(routes.includes("upsertPlatformPluginSmokeRecertificationPolicy"), "route
 assert(routes.includes("/platform/plugins/smoke-certifications/policies/resolve"), "routes must expose smoke recertification policy resolve endpoint");
 assert(routes.includes("/platform/plugins/smoke-certifications/policies/list"), "routes must expose smoke recertification policy list endpoint");
 assert(routes.includes("/platform/plugins/smoke-certifications/policies/upsert"), "routes must expose smoke recertification policy upsert endpoint");
+assert(routes.includes("listPlatformPluginSmokeRecertificationPolicyHistory"), "routes must import smoke recertification policy history handler");
+assert(routes.includes("previewPlatformPluginSmokeRecertificationPolicyRollback"), "routes must import smoke recertification policy rollback preview handler");
+assert(routes.includes("applyPlatformPluginSmokeRecertificationPolicyRollback"), "routes must import smoke recertification policy rollback apply handler");
+assert(routes.includes("/platform/plugins/smoke-certifications/policies/history"), "routes must expose smoke recertification policy history endpoint");
+assert(routes.includes("/platform/plugins/smoke-certifications/policies/rollback-preview"), "routes must expose smoke recertification policy rollback preview endpoint");
+assert(routes.includes("/platform/plugins/smoke-certifications/policies/rollback-apply"), "routes must expose smoke recertification policy rollback apply endpoint");
 
 assert(migration.includes("platform_plugin_dispatch_rest"), "migration must register dispatch tool key");
 assert(migration.includes("/platform/plugins/dispatch-rest"), "migration must bind dispatch route path");
