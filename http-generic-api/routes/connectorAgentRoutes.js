@@ -100,6 +100,13 @@ const DEFAULT_WINDOWS_ALIASES = [
   { alias: "n8n_restore_certify_probe", cmd: "node", args: ["n8n-restore-certifier.mjs"], allow_extra_args: false, description: "Read-only n8n restore certification prerequisite probe" },
 ];
 
+const LOCAL_CONNECTOR_CAPABILITY_FLAGS = {
+  powershell_admin: "CONNECTOR_POWERSHELL_ENABLED",
+  windows_control: "CONNECTOR_WIN_ENABLED",
+  dependencies: "CONNECTOR_DEPENDENCIES_ENABLED",
+  auto_browser: "CONNECTOR_AUTO_BROWSER_ENABLED",
+};
+
 function sha256(buffer) {
   return crypto.createHash("sha256").update(buffer).digest("hex");
 }
@@ -156,8 +163,39 @@ function normalizeWindowsPath(value, max = 260) {
   return raw;
 }
 
+function normalizeRequestedCapabilities(value) {
+  const raw = Array.isArray(value) ? value : String(value || "").split(",");
+  return [...new Set(raw.map((item) => String(item || "").trim()).filter((item) => LOCAL_CONNECTOR_CAPABILITY_FLAGS[item]))];
+}
+
 function normalizePermissionGrants(value = {}) {
   const grants = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const capabilities = normalizeRequestedCapabilities(grants.capabilities || grants.connector_capabilities || []);
+  const pathGrantValues = Array.isArray(grants.allowed_paths)
+    ? grants.allowed_paths
+    : (Array.isArray(grants.file_paths) ? grants.file_paths : []);
+  const allowedPaths = [...new Set(pathGrantValues.map((item) => normalizeWindowsPath(item, 260)).filter(Boolean))].slice(0, 25);
+
+  const appGrantValues = Array.isArray(grants.apps)
+    ? grants.apps
+    : Object.entries(grants.apps || {}).map(([alias, value]) => ({ alias, ...(value && typeof value === "object" ? value : {}) }));
+  const apps = {};
+  for (const item of appGrantValues) {
+    const alias = normalizeGrantAlias(item?.app_alias || item?.alias || item?.display_name, "app");
+    const command = normalizeWindowsPath(item?.command || item?.executable_path || item?.path, 260);
+    if (!alias || !command) continue;
+    const processName = String(item?.process_name || command.split(/[/\\]/).pop() || alias).replace(/\.exe$/i, "").replace(/[^A-Za-z0-9_.-]+/g, "").slice(0, 80) || alias;
+    apps[alias] = {
+      display_name: String(item?.display_name || alias).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) || alias,
+      command,
+      process_name: processName,
+      browser: item?.browser === true,
+      capability_class: String(item?.capability_class || "desktop_app").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "desktop_app",
+      risk_class: String(item?.risk_class || "interactive").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "interactive",
+    };
+    if (Object.keys(apps).length >= 50) break;
+  }
+
   const shellAliases = [];
   for (const item of Array.isArray(grants.shell_aliases || grants.helpers) ? (grants.shell_aliases || grants.helpers) : []) {
     const alias = normalizeGrantAlias(item?.alias || item?.display_name, "helper");
@@ -175,7 +213,16 @@ function normalizePermissionGrants(value = {}) {
     });
     if (shellAliases.length >= 50) break;
   }
-  return { shell_aliases: shellAliases };
+  return { capabilities, allowed_paths: allowedPaths, apps, shell_aliases: shellAliases };
+}
+
+function connectorCapabilityEnvLines(capabilities = []) {
+  return normalizeRequestedCapabilities(capabilities).map((capability) => `${LOCAL_CONNECTOR_CAPABILITY_FLAGS[capability]}=true`);
+}
+
+function envJsonLine(key, value) {
+  const json = JSON.stringify(value || {});
+  return `${key}=${json.replace(/\r?\n/g, "")}`;
 }
 
 function buildAllowlistEnvValue(aliases) {
@@ -186,9 +233,11 @@ function buildAllowlistEnvValue(aliases) {
   return JSON.stringify(obj);
 }
 
-function buildConnectorEnv({ connectorSecret, aliases, port, permissionGrants = {} }) {
+function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [], permissionGrants = {} }) {
   const grants = normalizePermissionGrants(permissionGrants);
   const allAliases = [...aliases, ...grants.shell_aliases];
+  const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
+  const filePathLine = grants.allowed_paths.length ? [`CONNECTOR_FILE_PATHS=${grants.allowed_paths.join(",")}`] : [];
   return [
     `CONNECTOR_SECRET=${connectorSecret}`,
     "MAIN_API_URL=https://api.mad4b.com",
@@ -198,6 +247,9 @@ function buildConnectorEnv({ connectorSecret, aliases, port, permissionGrants = 
     "CONNECTOR_APPS_ENABLED=true",
     "CONNECTOR_FETCH_UPLOAD_ENABLED=true",
     "CONNECTOR_N8N_ENABLED=true",
+    ...connectorCapabilityEnvLines([...capabilities, ...grants.capabilities]),
+    ...appAllowlistLine,
+    ...filePathLine,
     "CONNECTOR_BROWSER4_ENABLED=true",
     "BROWSER4_ALLOWED_HOSTS=mad4b.com,n8n.mad4b.com",
     "BROWSER4_WORK_DIR=D:\\n8n-data\\browser-runtime-artifacts",
@@ -216,8 +268,8 @@ function buildConnectorEnv({ connectorSecret, aliases, port, permissionGrants = 
   ].join("\r\n");
 }
 
-function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, port, permissionGrants = {} }) {
-  const envText = buildConnectorEnv({ connectorSecret, aliases, port, permissionGrants });
+function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
+  const envText = buildConnectorEnv({ connectorSecret, aliases, port, capabilities, permissionGrants });
   return [
     "# Mad4B Local Connector — run once as Administrator",
     "$ErrorActionPreference = 'Stop'",
@@ -532,6 +584,7 @@ export function buildConnectorAgentRoutes() {
         tunnelUrl: config.tunnel_url,
         aliases: DEFAULT_WINDOWS_ALIASES,
         port: CONNECTOR_PORT,
+        capabilities: payload.capabilities || [],
         permissionGrants: payload.permission_grants || {},
       });
       const filename = `install-local-connector-${String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-")}.ps1`;
