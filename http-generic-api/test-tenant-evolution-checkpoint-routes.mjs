@@ -30,6 +30,7 @@ assert(indexFile.includes('buildTenantEvolutionRoutes'), 'routes index must impo
 assert(indexFile.includes('app.use(buildTenantEvolutionRoutes())'), 'tenant evolution routes must be mounted');
 
 for (const toolKey of [
+  'tenant_evolution_checkpoint_create',
   'tenant_evolution_activation_card',
   'tenant_evolution_thread_map',
   'tenant_evolution_open_evidence',
