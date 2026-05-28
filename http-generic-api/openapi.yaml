@@ -10959,6 +10959,44 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /platform/evolution/cms-claim-smoke:
+    post:
+      tags: [platform-evolution]
+      operationId: platformEvolutionCmsClaimSmoke
+      summary: Smoke CMS claim approval and credential promotion
+      description: >
+        Admin-only governed smoke harness for CMS/WordPress claim approval governance. It issues and verifies an
+        internal short-lived User JWT, creates or reuses a verified CMS claim, approves it in direct_scope mode,
+        creates or updates a tenant-owned WordPress credential binding pointer, and reads back effective credential
+        status without returning tokens, decrypted credentials, or secret values.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformEvolutionCmsClaimSmokeRequest"
+      responses:
+        "200":
+          description: CMS claim smoke passed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionCmsClaimSmokeResponse"
+        "400":
+          description: Missing required fields or unsupported transport.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "502":
+          description: CMS claim smoke failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionCmsClaimSmokeResponse"
+
   /platform/evolution/tenant-smoke:
     post:
       tags: [platform-evolution]
