@@ -143,9 +143,9 @@ That subtree currently contains:
 - a modularized WordPress migration subsystem
 - a strictly MySQL-backed primary data layer
 
-### Sheets to MySQL data layer
+### SQL-first data layer
 
-The `http-generic-api/` subtree includes a production MySQL-backed data layer alongside Google Sheets. The runtime remains Sheets-first by default (`DATA_SOURCE=sheets`); switch to `dual` or `sql` to route reads through MySQL.
+The `http-generic-api/` subtree includes a production MySQL-backed data layer alongside Google Sheets legacy/recovery support. Runtime execution is SQL-first by default (`DATA_SOURCE=sql`). Use `sheets` only for legacy recovery/bootstrap workflows, and use `dual` only as a transition or recovery mode because async mirroring can drift if it is not monitored.
 
 **Environment variables required:**
 | Variable | Purpose | Default |
@@ -155,7 +155,7 @@ The `http-generic-api/` subtree includes a production MySQL-backed data layer al
 | `DB_NAME` | MySQL database name | (required) |
 | `DB_USER` | MySQL username | (required) |
 | `DB_PASSWORD` | MySQL password | (required) |
-| `DATA_SOURCE` | Routing mode: `sheets` / `dual` / `sql` | `sheets` |
+| `DATA_SOURCE` | Routing mode: `sql` / `dual` / `sheets` | `sql` |
 | `REGISTRY_SPREADSHEET_ID` | Primary Google Sheets workbook ID | (required for CLI scripts) |
 | `ACTIVITY_SPREADSHEET_ID` | Activity log workbook ID | defaults to `REGISTRY_SPREADSHEET_ID` |
 
@@ -262,6 +262,7 @@ Ongoing priorities:
 - maintain canonical/runtime alignment on every change
 - keep test coverage and architecture checks green
 - treat deployment parity as a required verification step, not optional
+- adopt governance checklist changes only when they match the current repo boundaries; see [`docs/governance-adoption.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/docs/governance-adoption.md>)
 
 ## Documentation map
 

@@ -71,6 +71,14 @@ jobs:
         working-directory: http-generic-api
         run: npm test
 
+      - name: Run explicit governance contract checks
+        working-directory: http-generic-api
+        run: |
+          node test-custom-gpt-schemas.mjs
+          node test-openapi-split-governance.mjs
+          node test-openapi-split-regeneration-parity.mjs
+          node test-local-connector-capability-installer-grants.mjs
+
   execution-resolver-gate:
     name: Execution Resolver Gate
     runs-on: ubuntu-latest

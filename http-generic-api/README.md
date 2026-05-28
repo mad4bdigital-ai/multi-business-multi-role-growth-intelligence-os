@@ -64,6 +64,8 @@ When `DATA_SOURCE=sql`, the following are no-ops and will not block activation o
 - `writeExecutionLogUnifiedRow`
 - `persistOversizedArtifactImpl`
 
+Sheets support is retained for legacy, bootstrap, and recovery workflows. Do not treat Sheets mode as the production default on Hostinger.
+
 ## Running migrations
 
 ```bash
