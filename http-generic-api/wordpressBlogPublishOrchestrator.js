@@ -110,13 +110,14 @@ async function createCredentialIntakeSession({ plan, brand, reason }, deps = {})
 }
 
 async function resolveWpCredential({ plan, brand }, deps = {}) {
+  const input = extractInput(plan);
   return resolveEffectiveCredential({
     tenantId: plan.tenant_id,
     userId: plan.user_id,
-    connectionId: plan.connection_id,
+    connectionId: input.connection_id || input.connectionId || plan.connection_id,
     actionKey: "wordpress_create_post",
-    targetKey: brand.target_key || plan.target_key,
-    credentialRole: "wordpress_rest",
+    targetKey: brand.target_key || input.target_key || input.targetKey || plan.target_key,
+    credentialRole: input.credential_role || input.credentialRole || "wordpress_rest",
     includeSecret: true,
     allowPlatformFallback: true,
   }, { pool: deps.pool, decryptCredentials: deps.decryptCredentials, decryptToken: deps.decryptToken, env: deps.env });
