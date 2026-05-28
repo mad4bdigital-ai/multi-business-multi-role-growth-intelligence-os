@@ -86,7 +86,8 @@ assert(
   );
 
   assert("hostinger runtime read resolves matching row", result.ok === true, JSON.stringify(result));
-  assert("hostinger runtime read preserves authoritative source", result.authoritative_source === "Hosting Account Registry", JSON.stringify(result));
+  assert("hostinger runtime read reports SQL authoritative source", result.authoritative_source === "table.hosting_accounts", JSON.stringify(result));
+  assert("hostinger runtime read preserves legacy mirror source", result.legacy_mirror_source === "Hosting Account Registry", JSON.stringify(result));
   assert("hostinger runtime read normalizes booleans", result.ssh_available === true && result.wp_cli_available === false, JSON.stringify(result));
 }
 
