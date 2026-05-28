@@ -10,6 +10,9 @@ assert(routeFile.includes('/platform/evolution/tenant-smoke'), 'tenant smoke adm
 assert(routeFile.includes('/tenant/evolution/switch-options'), 'tenant smoke must call tenant switch-options route');
 assert(routeFile.includes('/tenant/evolution/activation-card'), 'tenant smoke must call tenant activation-card route');
 assert(routeFile.includes('/tenant/evolution/thread-map'), 'tenant smoke must call tenant thread-map route');
+assert(routeFile.includes('scopeKeyComparisonSql'), 'tenant smoke must use collation-safe scope_key comparison');
+assert(routeFile.includes('INTERNAL_RUNTIME_BASE_URL'), 'tenant smoke must support internal runtime base URL override');
+assert(routeFile.includes('tenant_smoke_self_call_failed'), 'tenant smoke must return structured self-call failures');
 assert(routeFile.includes('token_returned: false'), 'tenant smoke must explicitly not return token');
 assert(routeFile.includes('tenant_checkpoint_write_enabled: false'), 'tenant smoke must keep tenant checkpoint write disabled');
 assert(routeFile.includes('secrets_included: false'), 'tenant smoke must not include secrets');

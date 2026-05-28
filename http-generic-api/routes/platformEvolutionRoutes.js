@@ -44,7 +44,16 @@ function errorResponse(res, err, fallbackCode) {
 }
 
 function runtimeBaseUrl() {
-  return String(process.env.PUBLIC_BASE_URL || process.env.PLATFORM_JWT_ISSUER || "https://auth.mad4b.com").replace(/\/$/, "");
+  return String(
+    process.env.INTERNAL_RUNTIME_BASE_URL ||
+    process.env.PUBLIC_BASE_URL ||
+    process.env.PLATFORM_JWT_ISSUER ||
+    "https://auth.mad4b.com"
+  ).replace(/\/$/, "");
+}
+
+function scopeKeyComparisonSql(columnName = "scope_key") {
+  return `${columnName} = CAST(? AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_bin`;
 }
 
 function issueInternalTenantSmokeJwt({ user_id, email, tenant_id }) {
@@ -64,17 +73,29 @@ function issueInternalTenantSmokeJwt({ user_id, email, tenant_id }) {
 
 async function smokeGet(path, token) {
   const base = runtimeBaseUrl();
-  const response = await fetch(`${base}${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    signal: AbortSignal.timeout(15000),
-  });
-  const text = await response.text();
-  let body;
-  try { body = JSON.parse(text); } catch { body = { _raw: text.slice(0, 500) }; }
-  return { status: response.status, ok: response.ok, body };
+  try {
+    const response = await fetch(`${base}${path}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+    const text = await response.text();
+    let body;
+    try { body = JSON.parse(text); } catch { body = { _raw: text.slice(0, 500) }; }
+    return { status: response.status, ok: response.ok, body };
+  } catch (err) {
+    return {
+      status: 0,
+      ok: false,
+      body: {
+        ok: false,
+        error: { code: "tenant_smoke_self_call_failed", message: err?.message || String(err) },
+        secrets_included: false,
+      },
+    };
+  }
 }
 
 function smokeSummary(result) {
@@ -188,7 +209,7 @@ export function buildPlatformEvolutionRoutes(deps = {}) {
       if (email) { where.push("email = ?"); params.push(email); }
       if (tenantId) { where.push("tenant_id = ?"); params.push(tenantId); }
       if (brandKey) { where.push("brand_key = ?"); params.push(brandKey); }
-      if (scopeKey) { where.push("scope_key = ?"); params.push(scopeKey); }
+      if (scopeKey) { where.push(scopeKeyComparisonSql("scope_key")); params.push(scopeKey); }
       const [scopes] = await getPool().query(
         `SELECT scope_key, tenant_id, brand_key, user_id, email, membership_role, assigned_role, access_state
            FROM v_platform_evolution_scope_access
