@@ -119,6 +119,8 @@ governance patch parity evidence source now defaults to table.execution_log
 
 ### Phase S3 — Operations and repair schema cleanup
 
+Status: in progress.
+
 Clean operational/audit naming:
 
 ```text
