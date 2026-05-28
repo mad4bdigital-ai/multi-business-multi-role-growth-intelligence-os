@@ -233,9 +233,11 @@ function buildAllowlistEnvValue(aliases) {
   return JSON.stringify(obj);
 }
 
-function buildConnectorEnv({ connectorSecret, aliases, port, permissionGrants = {} }) {
+function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [], permissionGrants = {} }) {
   const grants = normalizePermissionGrants(permissionGrants);
   const allAliases = [...aliases, ...grants.shell_aliases];
+  const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
+  const filePathLine = grants.allowed_paths.length ? [`CONNECTOR_FILE_PATHS=${grants.allowed_paths.join(",")}`] : [];
   return [
     `CONNECTOR_SECRET=${connectorSecret}`,
     "MAIN_API_URL=https://api.mad4b.com",
