@@ -4882,6 +4882,38 @@ paths:
         "200": { description: Audit log entries, content: { application/json: { schema: { $ref: "#/components/schemas/PlatformListResponse" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /audit/evidence/smoke:
+    post:
+      tags: [security]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: runAuditPayloadEvidenceSmoke
+      summary: Run audit payload evidence smoke
+      description: >
+        Writes a synthetic audit log row plus bounded, redacted request-response evidence,
+        verifies SHA hashes and redacted previews, and confirms no secret values or tokens
+        are returned. Cleanup is enabled by default.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuditPayloadEvidenceSmokeRequest"
+      responses:
+        "200":
+          description: Audit payload evidence smoke passed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditPayloadEvidenceSmokeResponse"
+        "500":
+          description: Audit payload evidence smoke failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditPayloadEvidenceSmokeResponse"
+
   /secret-references:
     post:
       tags: [security]
