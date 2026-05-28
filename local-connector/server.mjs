@@ -295,10 +295,11 @@ refreshShellPolicy({ force: true }).catch((e) => {
 });
 
 /** @type {string[]} */
-const FILE_ALLOWLIST = (process.env.CONNECTOR_FILE_PATHS ?? '')
+const ENV_FILE_ALLOWLIST = (process.env.CONNECTOR_FILE_PATHS ?? '')
   .split(',')
   .map(p => p.trim())
   .filter(Boolean);
+let FILE_ALLOWLIST = [...ENV_FILE_ALLOWLIST];
 
 function isSubPath(parent, child) {
   const relative = path.relative(parent, child);
