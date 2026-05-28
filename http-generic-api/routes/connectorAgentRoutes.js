@@ -718,6 +718,7 @@ export function buildConnectorAgentRoutes() {
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
       if (!config.cf_token || !config.connector_secret) throw httpError(409, "connector_config_incomplete", "Connector config is missing recovery token or connector secret.");
+      const dbGrants = await loadConnectorGrantPolicy(config.config_id);
       const installer = buildInstallPowerShell({
         cfToken: config.cf_token,
         connectorSecret: config.connector_secret,
@@ -725,7 +726,7 @@ export function buildConnectorAgentRoutes() {
         aliases: DEFAULT_WINDOWS_ALIASES,
         port: CONNECTOR_PORT,
         capabilities: payload.capabilities || [],
-        permissionGrants: payload.permission_grants || {},
+        permissionGrants: mergePermissionGrants(dbGrants, payload.permission_grants || {}),
       });
       const filename = `install-local-connector-${String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-")}.ps1`;
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
