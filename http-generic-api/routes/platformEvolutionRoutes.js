@@ -209,7 +209,7 @@ export function buildPlatformEvolutionRoutes(deps = {}) {
       if (email) { where.push("email = ?"); params.push(email); }
       if (tenantId) { where.push("tenant_id = ?"); params.push(tenantId); }
       if (brandKey) { where.push("brand_key = ?"); params.push(brandKey); }
-      if (scopeKey) { where.push("scope_key = ?"); params.push(scopeKey); }
+      if (scopeKey) { where.push(scopeKeyComparisonSql("scope_key")); params.push(scopeKey); }
       const [scopes] = await getPool().query(
         `SELECT scope_key, tenant_id, brand_key, user_id, email, membership_role, assigned_role, access_state
            FROM v_platform_evolution_scope_access
