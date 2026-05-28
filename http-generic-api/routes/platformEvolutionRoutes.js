@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
+import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
 
 function boundedInt(value, fallback, min = 1, max = 200) {
@@ -40,6 +41,52 @@ function errorResponse(res, err, fallbackCode) {
     },
     secrets_included: false,
   });
+}
+
+function runtimeBaseUrl() {
+  return String(process.env.PUBLIC_BASE_URL || process.env.PLATFORM_JWT_ISSUER || "https://auth.mad4b.com").replace(/\/$/, "");
+}
+
+function issueInternalTenantSmokeJwt({ user_id, email, tenant_id }) {
+  const secret = process.env.JWT_SECRET || "development_fallback_secret_only";
+  return jwt.sign(
+    {
+      user_id,
+      email,
+      tenant_id,
+      purpose: "tenant_evolution_smoke",
+      client: "platform_evolution_tenant_smoke",
+    },
+    secret,
+    { expiresIn: "5m", jwtid: randomUUID() }
+  );
+}
+
+async function smokeGet(path, token) {
+  const base = runtimeBaseUrl();
+  const response = await fetch(`${base}${path}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+  const text = await response.text();
+  let body;
+  try { body = JSON.parse(text); } catch { body = { _raw: text.slice(0, 500) }; }
+  return { status: response.status, ok: response.ok, body };
+}
+
+function smokeSummary(result) {
+  return {
+    status: result.status,
+    ok: result.ok,
+    response_ok: result.body?.ok === true,
+    count: result.body?.count ?? null,
+    scope_key: result.body?.scope_key ?? null,
+    secrets_included: result.body?.secrets_included ?? null,
+    error_code: result.body?.error?.code || null,
+  };
 }
 
 export function buildPlatformEvolutionRoutes(deps = {}) {
@@ -118,6 +165,83 @@ export function buildPlatformEvolutionRoutes(deps = {}) {
       });
     } catch (err) {
       return errorResponse(res, err, "platform_evolution_switch_options_failed");
+    }
+  });
+
+  router.post("/platform/evolution/tenant-smoke", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const userId = nonEmptyString(body.user_id || body.userId);
+      const email = nonEmptyString(body.email);
+      const tenantId = nonEmptyString(body.tenant_id || body.tenantId);
+      const brandKey = nonEmptyString(body.brand_key || body.brandKey);
+      const scopeKey = nonEmptyString(body.scope_key || body.scopeKey);
+      if (!userId && !email) {
+        const err = new Error("user_id or email is required for tenant evolution smoke.");
+        err.status = 400;
+        err.code = "tenant_evolution_smoke_user_required";
+        throw err;
+      }
+      const where = ["access_state = 'allowed'"];
+      const params = [];
+      if (userId) { where.push("user_id = ?"); params.push(userId); }
+      if (email) { where.push("email = ?"); params.push(email); }
+      if (tenantId) { where.push("tenant_id = ?"); params.push(tenantId); }
+      if (brandKey) { where.push("brand_key = ?"); params.push(brandKey); }
+      if (scopeKey) { where.push("scope_key = ?"); params.push(scopeKey); }
+      const [scopes] = await getPool().query(
+        `SELECT scope_key, tenant_id, brand_key, user_id, email, membership_role, assigned_role, access_state
+           FROM v_platform_evolution_scope_access
+          WHERE ${where.join(" AND ")}
+          ORDER BY tenant_id ASC, brand_key ASC
+          LIMIT 1`,
+        params
+      );
+      const scope = scopes[0] || null;
+      if (!scope) {
+        const err = new Error("No allowed tenant evolution scope found for smoke.");
+        err.status = 403;
+        err.code = "tenant_evolution_smoke_scope_not_allowed";
+        throw err;
+      }
+
+      const token = issueInternalTenantSmokeJwt({
+        user_id: scope.user_id,
+        email: scope.email,
+        tenant_id: scope.tenant_id,
+      });
+      const encodedScope = encodeURIComponent(scope.scope_key);
+      const encodedBrand = encodeURIComponent(scope.brand_key || "");
+      const switchResult = await smokeGet(`/tenant/evolution/switch-options?brand_key=${encodedBrand}&limit=5`, token);
+      const cardResult = await smokeGet(`/tenant/evolution/activation-card?scope_key=${encodedScope}`, token);
+      const threadResult = await smokeGet(`/tenant/evolution/thread-map?scope_key=${encodedScope}&limit=3`, token);
+      const checks = {
+        switch_options: smokeSummary(switchResult),
+        activation_card: smokeSummary(cardResult),
+        thread_map: smokeSummary(threadResult),
+      };
+      const passed =
+        checks.switch_options.status === 200 && checks.switch_options.response_ok === true && checks.switch_options.secrets_included === false &&
+        checks.activation_card.status === 200 && checks.activation_card.response_ok === true && checks.activation_card.secrets_included === false &&
+        checks.thread_map.status === 200 && checks.thread_map.response_ok === true && checks.thread_map.secrets_included === false;
+
+      return res.status(passed ? 200 : 502).json({
+        ok: passed,
+        scope_key: scope.scope_key,
+        tenant_id: scope.tenant_id,
+        brand_key: scope.brand_key,
+        user_id: scope.user_id,
+        checks,
+        smoke_policy: {
+          token_returned: false,
+          jwt_ttl_seconds: 300,
+          tenant_checkpoint_write_enabled: false,
+          runtime_base_url: runtimeBaseUrl(),
+        },
+        secrets_included: false,
+      });
+    } catch (err) {
+      return errorResponse(res, err, "platform_evolution_tenant_smoke_failed");
     }
   });
 
