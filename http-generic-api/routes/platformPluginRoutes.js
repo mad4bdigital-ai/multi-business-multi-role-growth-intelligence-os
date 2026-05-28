@@ -32,6 +32,11 @@ import {
   upsertPlatformPluginSmokeRecertificationPolicy,
 } from "../platformPluginSmokeRecertificationPolicy.js";
 import {
+  applyPlatformPluginSmokeRecertificationPolicyRollback,
+  listPlatformPluginSmokeRecertificationPolicyHistory,
+  previewPlatformPluginSmokeRecertificationPolicyRollback,
+} from "../platformPluginSmokeRecertificationPolicyHistory.js";
+import {
   listRemoteRuntimeTargets,
   probeRemoteRuntimeTarget,
   upsertRemoteRuntimeTarget,
