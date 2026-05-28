@@ -150,6 +150,8 @@ repair cluster_source_mode direct_sheet renamed to recovery_mirror_import
 
 ### Phase S4 — Analytics, WordPress, and asset schema cleanup
 
+Status: in progress.
+
 Clean source-specific remnants:
 
 ```text
