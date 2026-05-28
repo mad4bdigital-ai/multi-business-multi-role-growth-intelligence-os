@@ -17,6 +17,9 @@ assert(routeFile.includes('directTenantSmoke'), 'tenant smoke must support direc
 assert(routeFile.includes('transport_mode'), 'tenant smoke must expose transport mode');
 assert(routeFile.includes('direct_scope'), 'tenant smoke must default to direct_scope mode');
 assert(routeFile.includes('jwt_verified'), 'tenant smoke must verify internally issued JWT in direct mode');
+assert(routeFile.includes('createTenantWriteSmokeCheckpoint'), 'tenant smoke must support scoped checkpoint write smoke');
+assert(routeFile.includes('include_write'), 'tenant smoke must expose include_write option');
+assert(routeFile.includes('checkpoint_write'), 'tenant smoke response must include checkpoint_write check when available');
 assert(routeFile.includes('token_returned: false'), 'tenant smoke must explicitly not return token');
 assert(routeFile.includes('tenant_checkpoint_write_enabled: false'), 'tenant smoke must keep tenant checkpoint write disabled');
 assert(routeFile.includes('secrets_included: false'), 'tenant smoke must not include secrets');
