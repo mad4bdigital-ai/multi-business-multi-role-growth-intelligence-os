@@ -208,23 +208,20 @@ export async function resolveBrandRegistryBinding(identity = {}, deps = {}) {
 
 export async function hostingerSshRuntimeRead(args = {}, deps = {}) {
   const input = args.input || {};
-  const { sheets } = await deps.getGoogleClientsForSpreadsheet(deps.REGISTRY_SPREADSHEET_ID);
+  const registry = await readGovernedSheetRecords(
+    deps.HOSTING_ACCOUNT_REGISTRY_SHEET || "Hosting Account Registry",
+    deps.REGISTRY_SPREADSHEET_ID,
+    deps
+  );
 
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: String(deps.REGISTRY_SPREADSHEET_ID || "").trim(),
-    range: deps.HOSTING_ACCOUNT_REGISTRY_RANGE
-  });
-
-  const values = response.data.values || [];
-  if (values.length < 2) {
-    const err = new Error("Hosting Account Registry is empty or missing data rows.");
+  const rowObjs = registry.rows || [];
+  if (!rowObjs.length) {
+    const err = new Error("Hosting Account Registry SQL surface is empty or missing data rows.");
     err.code = "hosting_account_registry_empty";
     err.status = 500;
     throw err;
   }
 
-  const [header, ...rows] = values;
-  const rowObjs = rows.map(row => deps.rowToObject(header, row));
   const match = rowObjs.find(rowObj => deps.matchesHostingerSshTarget(rowObj, input));
 
   if (!match) {
