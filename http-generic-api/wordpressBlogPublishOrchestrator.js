@@ -171,4 +171,48 @@ export async function dispatchWordpressBlogPublish(plan = {}, deps = {}) {
   return { ok: true, status: "completed", credential_status: "resolved", target_key: brand.target_key || plan.target_key || "", post_status: requestedStatus, post_id: created.post_id, link: created.link, readback_status: created.readback_status, result: created, output: { post_id: created.post_id, link: created.link, status: created.status, readback_status: created.readback_status } };
 }
 
+export async function diagnoseWordpressAuthContext(plan = {}, deps = {}) {
+  const brand = deps.brand || await loadBrand(plan, deps);
+  if (!brand) return { ok: false, status: "blocked", error: { code: "brand_target_not_resolved" } };
+  const credential = await resolveWpCredential({ plan, brand }, deps);
+  if (credential.status !== "resolved" || !credential.secret_present || !credential.secret) {
+    return { ok: false, status: "credential_unresolved", credential_status: credential.status || "missing" };
+  }
+  const fetchImpl = deps.fetch || globalThis.fetch;
+  const wpBase = normalizeWpJsonBase(brand.base_url || brand.default_wp_api_base || (brand.brand_domain ? `https://${brand.brand_domain}/wp-json` : ""));
+  const username = str(credential.username || credential.account_label || brand.username || "gpt");
+  const password = str(credential.secret);
+  const response = await fetchImpl(`${wpBase}/users/me?context=edit`, {
+    method: "GET",
+    headers: { Authorization: basicAuth(username, password), Accept: "application/json" },
+  });
+  const text = await response.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+  if (!response.ok) {
+    return {
+      ok: false,
+      status: "wordpress_auth_context_failed",
+      upstream_status: response.status,
+      upstream_code: data?.code || "",
+      upstream_message: data?.message || "",
+      wp_base: wpBase,
+      username_present: Boolean(username),
+    };
+  }
+  const caps = data?.capabilities && typeof data.capabilities === "object" ? data.capabilities : {};
+  return {
+    ok: true,
+    status: "wordpress_auth_context_resolved",
+    wp_base: wpBase,
+    user_id: data?.id || null,
+    slug: data?.slug || "",
+    name: data?.name || "",
+    roles: Array.isArray(data?.roles) ? data.roles : [],
+    can_edit_posts: Boolean(caps.edit_posts),
+    can_publish_posts: Boolean(caps.publish_posts),
+    can_create_posts: Boolean(caps.create_posts || caps.edit_posts),
+  };
+}
+
 export const __test__ = { normalizeWpJsonBase, buildPostPayload };
