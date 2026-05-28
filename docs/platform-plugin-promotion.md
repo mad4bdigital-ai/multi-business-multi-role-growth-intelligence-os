@@ -24,6 +24,15 @@ Promotion writes:
 
 Promotion intentionally defaults new Platform Base entries to `beta` unless an admin explicitly requests `active`.
 
+## Smoke certification gate
+
+If any promoted action binding lacks valid smoke evidence, promotion must fail with `smoke_certification_required`. If smoke evidence is expired or drifted, the action must be recertified before promotion.
+
+See:
+
+- `docs/platform-plugin-smoke-certification-governance.md`
+- `docs/platform-plugin-recertification-policy-governance.md`
+
 ## Boundaries
 
 - Private owner-scoped execution remains independent from promotion.
