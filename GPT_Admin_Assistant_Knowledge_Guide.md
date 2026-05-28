@@ -481,6 +481,10 @@ Operations:
 
 Pass `tool` to select the backend executor:
 
+When GitHub CLI is unavailable, the auth-host GitHub REST fallback supports PR diagnostics and recovery commands including `pr view --json`, `pr update-branch`, `pr merge`, `run list`, `run view --log-failed`, workflow dispatch, compare evidence, and structured dirty-PR diagnostics. Use this path before recreating branches, and prefer clean mainline replacement branches when `mergeable_state=dirty` cannot be resolved with `pr update-branch`.
+
+For brand-scoped WordPress blog/article publishing, use `wordpress_blog_publish_or_recover_credentials_workflow`. It resolves credentials, opens secure credential intake when needed, preserves the original publish request, resumes after credential storage, and returns post/readback evidence. n8n remains auxiliary only and must not be used as the authoritative publish runtime.
+
 | tool | Purpose | Key fields |
 |---|---|---|
 | `github` | `gh` CLI on Cloud Run container | `command_args` |
