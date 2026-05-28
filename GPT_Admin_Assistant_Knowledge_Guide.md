@@ -78,6 +78,19 @@ Use customer side for:
 
 Customer side must stay inside the resolved tenant/user/brand scope. Do not use admin CLI, raw DB, GCloud, GitHub mutation, secret access, or cross-tenant diagnostics for customer tasks. If access is missing, report `authorization_gated`, `blocked`, or `degraded_contract` instead of attempting an admin recovery path.
 
+## Local Manager Capability Installer Governance
+
+Local Manager 0.2.12 owns connector repair/capability installer application from inside the Windows app. It downloads the signed BAT, launches it through Windows UAC, waits for completion when Windows returns a process handle, and refreshes controls. The app-owned request must include `app_managed=true` and `suppress_pause=true`; app-managed BATs exit with `exit /b 0` or `exit /b 1` rather than stopping at `Press any key`.
+
+For admin validation, do not accept `section=settings` as proof of capability activation. Settings only proves the device token can read the control surface. After a Capabilities run, verify the live connector:
+
+- `connector_ps` must return a PowerShell version instead of structured `DISABLED` when `powershell_admin` was selected.
+- `connector_win process_list` must return process data instead of structured `DISABLED` when `windows_control` was selected.
+- `connector_files list_drives` must show the selected path in `allowed_paths`.
+- `connector_apps list` must include selected app grants plus the default app aliases.
+
+The root cause fixed by PR #368 was in `/connector-agent/installer.ps1`: the BAT and app flow were correct, but the PowerShell installer generator ignored signed capability/grant payloads. Future admin fixes must inspect both `localConnectorInstallRoutes.js` and `connectorAgentRoutes.js` before declaring capability installation recovered. Keep high-risk capabilities opt-in, UAC-gated, and secret-safe. See `docs/local-manager-capability-installer-governance-2026-05-28.md`.
+
 ## Local Manager n8n and Desktop Execution Governance
 
 n8n profiles and desktop execution are DB-governed. For n8n, `connected_systems.config_json` plus `installations` rows define the command path, npm prefix, user folder, port, local URL, public URL, editor base URL, webhook URL, lifecycle mode, and exposure scope. Local Manager must read `/local-manager/device/controls?section=n8n` and start n8n from that returned profile.
