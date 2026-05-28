@@ -947,7 +947,7 @@
         "system_layers_active": {
           "$ref": "./shared.schema.json#/$defs/stringList"
         },
-        "approved_registry_tabs": {
+        "approved_registry_tables": {
           "type": "array",
           "default": [
             "Brand Registry",
