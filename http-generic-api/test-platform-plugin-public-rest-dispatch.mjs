@@ -14,6 +14,7 @@ const smokeRecertToolsMigration = readFileSync("migrations/155_sprint65_smoke_re
 const smokeRecertPolicyMigration = readFileSync("migrations/156_sprint65_smoke_recertification_policy_registry.sql", "utf8");
 const smokeRecertPolicyToolsMigration = readFileSync("migrations/157_sprint65_smoke_recertification_policy_tools.sql", "utf8");
 const smokeRecertPolicyAuditToolsMigration = readFileSync("migrations/158_sprint65_smoke_recertification_policy_audit_tool_schema.sql", "utf8");
+const smokeRecertPolicyHistoryToolsMigration = readFileSync("migrations/159_sprint65_smoke_recertification_policy_history_tools.sql", "utf8");
 const smokeCertSource = readFileSync("platformPluginSmokeCertification.js", "utf8");
 const smokeRecertSource = readFileSync("platformPluginSmokeRecertification.js", "utf8");
 const smokeRecertPolicySource = readFileSync("platformPluginSmokeRecertificationPolicy.js", "utf8");
