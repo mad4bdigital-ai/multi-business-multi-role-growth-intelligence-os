@@ -287,7 +287,7 @@ This makes provisioning fully automated for any user/device. The platform stores
 The generated `.env` is the local runtime contract for `server.mjs`:
 
 ```
-BACKEND_API_KEY=<device connector secret>
+CONNECTOR_SECRET=<device connector secret>
 CONNECTOR_PORT=7070
 CONNECTOR_SHELL_ENABLED=true
 CONNECTOR_SHELL_ALLOWLIST={...}
@@ -302,7 +302,7 @@ Run `install-local-connector.ps1` as Administrator from the `local-connector` fo
 The same tunnel ID can be active on multiple machines simultaneously. Cloudflare load-balances across all connected cloudflared instances. To add a spare:
 
 1. Copy `cloudflared-config.yml` and the credentials file (`~/.cloudflared/<tunnel-id>.json`) to the spare device.
-2. Copy and fill `.env` with the same `BACKEND_API_KEY`.
+2. Copy and fill `.env` with the same `CONNECTOR_SECRET`.
 3. Start cloudflared on the spare: `cloudflared tunnel run --config cloudflared-config.yml`.
 4. Start the Node server on the spare: `node server.mjs`.
 

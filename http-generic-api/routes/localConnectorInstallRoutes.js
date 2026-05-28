@@ -732,7 +732,7 @@ function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [], 
   const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
   const filePathLine = grants.allowed_paths.length ? [`CONNECTOR_FILE_PATHS=${grants.allowed_paths.join(",")}`] : [];
   return [
-    `BACKEND_API_KEY=${connectorSecret}`,
+    `CONNECTOR_SECRET=${connectorSecret}`,
     "MAIN_API_URL=https://api.mad4b.com",
     `CONNECTOR_PORT=${port}`,
     "CONNECTOR_SHELL_ENABLED=true",

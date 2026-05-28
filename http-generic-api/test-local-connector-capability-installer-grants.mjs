@@ -14,6 +14,8 @@ assert(source.includes('const capabilities = permissionGrants.capabilities;'), '
 assert(source.includes('permission_grants: permissionGrants'), 'signed installer tokens must carry permission grants');
 assert(source.includes('capabilities,\n        permission_grants: permissionGrants'), 'signed installer tokens must carry capabilities and permission grants');
 assert(source.includes('...connectorCapabilityEnvLines([...capabilities, ...grants.capabilities])'), 'generated .env must include requested capability flags');
+assert(source.includes('`CONNECTOR_SECRET=${connectorSecret}`'), 'generated .env must use CONNECTOR_SECRET for new local connector installs');
+assert(!source.includes('`BACKEND_API_KEY=${connectorSecret}`'), 'generated .env must not use BACKEND_API_KEY for new local connector installs');
 assert(source.includes('CONNECTOR_FILE_PATHS='), 'generated .env must include allowed file paths when granted');
 assert(source.includes('CONNECTOR_APP_ALLOWLIST'), 'generated .env must include app allowlist when granted');
 assert(source.includes('app_aliases: Object.keys(permissionGrants.apps)'), 'download-link response must expose sanitized app grant summary');
