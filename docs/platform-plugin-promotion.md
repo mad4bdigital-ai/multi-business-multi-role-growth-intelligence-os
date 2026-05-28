@@ -15,12 +15,23 @@ Certification validates the contribution manifest, protocol bindings, action bin
 
 ## Promotion
 
-Promotion requires prior certification and writes:
+Promotion requires prior contribution certification and a valid smoke certification for every promoted action binding. The smoke certification must be `certified`, successful, unexpired, status `200`, `response_ok=true`, and `secrets_included=false`.
+
+Promotion writes:
 
 - `app_integrations`
 - `app_integration_action_bindings`
 
 Promotion intentionally defaults new Platform Base entries to `beta` unless an admin explicitly requests `active`.
+
+## Smoke certification gate
+
+If any promoted action binding lacks valid smoke evidence, promotion must fail with `smoke_certification_required`. If smoke evidence is expired or drifted, the action must be recertified before promotion.
+
+See:
+
+- `docs/platform-plugin-smoke-certification-governance.md`
+- `docs/platform-plugin-recertification-policy-governance.md`
 
 ## Boundaries
 

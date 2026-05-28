@@ -31,3 +31,5 @@ Platform Plugin contribution intake lets tenants and users create scoped plugin 
 ## Promotion boundary
 
 A contribution can be private to a tenant/user, submitted as a marketplace candidate, or submitted as a Platform Base candidate. Promotion is intentionally not part of this intake surface; it requires a separate certification and approval step.
+
+Promotion to Platform Base now also requires valid smoke certification evidence for every action binding. The smoke evidence must be successful, unexpired, non-drifted, and secret-free. See `docs/platform-plugin-smoke-certification-governance.md` and `docs/platform-plugin-governance-roadmap-2026-05-28.md`.
