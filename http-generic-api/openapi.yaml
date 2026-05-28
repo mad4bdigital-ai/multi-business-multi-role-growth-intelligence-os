@@ -1207,6 +1207,7 @@ components:
             switch_options: { $ref: "#/components/schemas/PlatformEvolutionTenantSmokeCheck" }
             activation_card: { $ref: "#/components/schemas/PlatformEvolutionTenantSmokeCheck" }
             thread_map: { $ref: "#/components/schemas/PlatformEvolutionTenantSmokeCheck" }
+            checkpoint_write: { $ref: "#/components/schemas/PlatformEvolutionTenantSmokeCheck" }
         smoke_policy:
           type: object
           additionalProperties: false
