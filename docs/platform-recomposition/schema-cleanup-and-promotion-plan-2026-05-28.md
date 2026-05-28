@@ -104,6 +104,17 @@ Expected result:
 SQL registry keys are primary
 Drive/Sheets checks are diagnostic/recovery only
 worksheet_gid and spreadsheet ids are not runtime binding authority
+execution authoritative write targets are SQL tables: execution_log, output_artifacts, sink_dispatch_log, agent_chain_events
+```
+
+S2 implemented changes:
+
+```text
+registryBinding now uses registry_source / registry_table / registry_row_id / binding_key
+writeProof now uses target_table / target_primary_key / target_row_id
+legacy spreadsheet/gid evidence moved under legacy_mirror_* fields
+authoritativeWriteTargets now defaults to SQL tables instead of *_sheet targets
+governance patch parity evidence source now defaults to table.execution_log
 ```
 
 ### Phase S3 — Operations and repair schema cleanup
