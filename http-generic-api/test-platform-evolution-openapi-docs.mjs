@@ -31,6 +31,8 @@ for (const schema of [
   'TenantEvolutionCheckpointCreateResponse',
   'PlatformEvolutionCheckpointCreateRequest',
   'PlatformEvolutionCheckpointCreateResponse',
+  'PlatformEvolutionCmsClaimSmokeRequest',
+  'PlatformEvolutionCmsClaimSmokeResponse',
 ]) {
   assert(openapi.includes(`${schema}:`), `${schema} must be documented as an OpenAPI schema`);
 }
