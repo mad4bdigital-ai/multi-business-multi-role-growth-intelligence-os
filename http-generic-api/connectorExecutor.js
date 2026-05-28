@@ -339,7 +339,8 @@ export async function dispatchPlan(plan_id, {
 
   const isWordpress =
     brand?.auth_type === "basic_auth_app_password" ||
-    connectedSystem?.connector_family === "wordpress";
+    connectedSystem?.connector_family === "wordpress" ||
+    isWordpressBlogPublishWorkflow(plan.workflow_key);
 
   // GAP 6: runtime_capability_class from actions table is authoritative when
   // connector_family is not set on the connected_systems row.
