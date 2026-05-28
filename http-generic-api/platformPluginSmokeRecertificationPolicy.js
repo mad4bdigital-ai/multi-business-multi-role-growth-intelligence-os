@@ -238,6 +238,10 @@ export async function upsertPlatformPluginSmokeRecertificationPolicy(input = {},
   const priority = boundedInt(input.priority, 100, 0, 1000000);
   const notes = nullable(input.notes, 2000);
   const metadata = JSON.stringify({ ...(input.metadata || {}), secrets_included: false });
+  const actor = nullable(input.actor || input.actor_id || input.actorId || input.admin_user_id || input.adminUserId || input.updated_by || input.updatedBy, 128);
+  const reason = nullable(input.reason || input.change_reason || input.changeReason || input.notes, 2000);
+  const traceId = compact(input.trace_id || input.traceId || `smoke_recert_policy_upsert_${randomUUID()}`, 255);
+  const beforePolicy = await getPolicyById(pool, policyId);
   await pool.query(
     `INSERT INTO platform_plugin_smoke_recertification_policies (
        policy_id, tenant_id, plugin_key, action_key, mock_provider, mock_resource,
