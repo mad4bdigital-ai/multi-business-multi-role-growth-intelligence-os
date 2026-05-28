@@ -9804,6 +9804,13 @@ paths:
                 metadata:
                   type: object
                   additionalProperties: true
+                actor: { type: string }
+                actor_id: { type: string }
+                admin_user_id: { type: string }
+                updated_by: { type: string }
+                reason: { type: string }
+                change_reason: { type: string }
+                trace_id: { type: string }
       responses:
         "200":
           description: Effective smoke recertification policy after upsert
