@@ -1166,6 +1166,10 @@ components:
           type: string
           enum: [direct_scope, http_self_call]
           default: direct_scope
+        include_write:
+          type: boolean
+          default: false
+          description: When true in direct_scope mode, also creates a scoped tenant checkpoint write-smoke row without returning secrets or tokens.
 
     PlatformEvolutionTenantSmokeCheck:
       type: object
