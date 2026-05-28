@@ -1,3 +1,38 @@
+import { readTable as readSqlTable } from "./sqlAdapter.js";
+
+function createCompatError(deps = {}, code, message, status = 500) {
+  if (typeof deps.createHttpError === "function") return deps.createHttpError(code, message, status);
+  const err = new Error(message);
+  err.code = code;
+  err.status = status;
+  return err;
+}
+
+function isEnabledFlag(value) {
+  return ["1", "true", "yes", "on"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+function allowLegacySheetRegistryRead(deps = {}) {
+  return deps.allowLegacySheetRegistryRead === true || isEnabledFlag(process.env.LEGACY_SHEET_REGISTRY_RUNTIME_ENABLED);
+}
+
+function buildRecordSetFromRows(rows = [], sheetName = "", deps = {}, source = "sql_primary") {
+  const header = [];
+  const seen = new Set();
+  for (const row of rows || []) {
+    for (const key of Object.keys(row || {})) {
+      if (!seen.has(key)) {
+        seen.add(key);
+        header.push(key);
+      }
+    }
+  }
+  const map = typeof deps.headerMap === "function"
+    ? deps.headerMap(header, sheetName)
+    : Object.fromEntries(header.map((key, idx) => [key, idx]));
+  return { header, rows: rows || [], map, source, authority: source === "sql_primary" ? "sql_runtime_authority" : "legacy_mirror_recovery" };
+}
+
 export async function readGovernedSheetRecords(
   sheetName,
   spreadsheetId,
@@ -9,10 +44,38 @@ export async function readGovernedSheetRecords(
   ).trim();
 
   if (!trimmedSheetName) {
-    throw deps.createHttpError("missing_sheet_name", "Sheet name is required.", 500);
+    throw createCompatError(deps, "missing_registry_surface", "Registry surface name is required.", 500);
   }
+
+  const readSqlSurface = typeof deps.readSqlRegistrySurface === "function"
+    ? deps.readSqlRegistrySurface
+    : readSqlTable;
+
+  try {
+    const rows = await readSqlSurface(trimmedSheetName);
+    return buildRecordSetFromRows(rows, trimmedSheetName, deps, "sql_primary");
+  } catch (sqlErr) {
+    if (!allowLegacySheetRegistryRead(deps)) {
+      const err = createCompatError(
+        deps,
+        "sql_registry_read_failed",
+        `SQL registry read failed for ${trimmedSheetName}. Legacy sheet fallback is disabled.`,
+        500
+      );
+      err.cause = sqlErr;
+      throw err;
+    }
+  }
+
   if (!trimmedSpreadsheetId) {
-    throw deps.createHttpError("missing_spreadsheet_id", "Spreadsheet id is required.", 500);
+    throw createCompatError(deps, "missing_legacy_spreadsheet_id", "Legacy spreadsheet id is required only for recovery mirror fallback.", 500);
+  }
+  if (
+    typeof deps.assertSheetExistsInSpreadsheet !== "function" ||
+    typeof deps.getGoogleClientsForSpreadsheet !== "function" ||
+    typeof deps.toValuesApiRange !== "function"
+  ) {
+    throw createCompatError(deps, "legacy_sheet_dependencies_missing", "Legacy sheet fallback dependencies are not available.", 500);
   }
 
   await deps.assertSheetExistsInSpreadsheet(trimmedSpreadsheetId, trimmedSheetName);
@@ -24,11 +87,13 @@ export async function readGovernedSheetRecords(
 
   const values = response.data.values || [];
   if (!values.length) {
-    return { header: [], rows: [], map: {} };
+    return { header: [], rows: [], map: {}, source: "legacy_sheet_mirror", authority: "legacy_mirror_recovery" };
   }
 
   const header = (values[0] || []).map(value => String(value || "").trim());
-  const map = deps.headerMap(header, trimmedSheetName);
+  const map = typeof deps.headerMap === "function"
+    ? deps.headerMap(header, trimmedSheetName)
+    : Object.fromEntries(header.map((key, idx) => [key, idx]));
   const rows = values.slice(1).map(row => {
     const record = {};
     header.forEach((key, idx) => {
@@ -38,7 +103,7 @@ export async function readGovernedSheetRecords(
     return record;
   });
 
-  return { header, rows, map };
+  return { header, rows, map, source: "legacy_sheet_mirror", authority: "legacy_mirror_recovery" };
 }
 
 export function normalizeLooseHostname(value = "") {
