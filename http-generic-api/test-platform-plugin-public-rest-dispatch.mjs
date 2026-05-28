@@ -14,9 +14,11 @@ const smokeRecertToolsMigration = readFileSync("migrations/155_sprint65_smoke_re
 const smokeRecertPolicyMigration = readFileSync("migrations/156_sprint65_smoke_recertification_policy_registry.sql", "utf8");
 const smokeRecertPolicyToolsMigration = readFileSync("migrations/157_sprint65_smoke_recertification_policy_tools.sql", "utf8");
 const smokeRecertPolicyAuditToolsMigration = readFileSync("migrations/158_sprint65_smoke_recertification_policy_audit_tool_schema.sql", "utf8");
+const smokeRecertPolicyHistoryToolsMigration = readFileSync("migrations/159_sprint65_smoke_recertification_policy_history_tools.sql", "utf8");
 const smokeCertSource = readFileSync("platformPluginSmokeCertification.js", "utf8");
 const smokeRecertSource = readFileSync("platformPluginSmokeRecertification.js", "utf8");
 const smokeRecertPolicySource = readFileSync("platformPluginSmokeRecertificationPolicy.js", "utf8");
+const smokeRecertPolicyHistorySource = readFileSync("platformPluginSmokeRecertificationPolicyHistory.js", "utf8");
 const pluginResolverSource = readFileSync("platformPluginResolver.js", "utf8");
 const promotionSource = readFileSync("platformPluginPromotion.js", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
@@ -74,6 +76,12 @@ assert(routes.includes("upsertPlatformPluginSmokeRecertificationPolicy"), "route
 assert(routes.includes("/platform/plugins/smoke-certifications/policies/resolve"), "routes must expose smoke recertification policy resolve endpoint");
 assert(routes.includes("/platform/plugins/smoke-certifications/policies/list"), "routes must expose smoke recertification policy list endpoint");
 assert(routes.includes("/platform/plugins/smoke-certifications/policies/upsert"), "routes must expose smoke recertification policy upsert endpoint");
+assert(routes.includes("listPlatformPluginSmokeRecertificationPolicyHistory"), "routes must import smoke recertification policy history handler");
+assert(routes.includes("previewPlatformPluginSmokeRecertificationPolicyRollback"), "routes must import smoke recertification policy rollback preview handler");
+assert(routes.includes("applyPlatformPluginSmokeRecertificationPolicyRollback"), "routes must import smoke recertification policy rollback apply handler");
+assert(routes.includes("/platform/plugins/smoke-certifications/policies/history"), "routes must expose smoke recertification policy history endpoint");
+assert(routes.includes("/platform/plugins/smoke-certifications/policies/rollback-preview"), "routes must expose smoke recertification policy rollback preview endpoint");
+assert(routes.includes("/platform/plugins/smoke-certifications/policies/rollback-apply"), "routes must expose smoke recertification policy rollback apply endpoint");
 
 assert(migration.includes("platform_plugin_dispatch_rest"), "migration must register dispatch tool key");
 assert(migration.includes("/platform/plugins/dispatch-rest"), "migration must bind dispatch route path");
@@ -125,6 +133,13 @@ assert(openapi.includes("Writes execution-log audit evidence"), "OpenAPI must do
 assert(openapi.includes("actor_id: { type: string }"), "OpenAPI must expose policy upsert actor_id field");
 assert(openapi.includes("change_reason: { type: string }"), "OpenAPI must expose policy upsert change_reason field");
 assert(openapi.includes("trace_id: { type: string }"), "OpenAPI must expose policy upsert trace_id field");
+assert(openapi.includes("/platform/plugins/smoke-certifications/policies/history:"), "OpenAPI must document policy history route");
+assert(openapi.includes("operationId: platformPluginSmokeRecertificationPolicyHistory"), "OpenAPI must expose stable policy history operationId");
+assert(openapi.includes("/platform/plugins/smoke-certifications/policies/rollback-preview:"), "OpenAPI must document policy rollback preview route");
+assert(openapi.includes("operationId: platformPluginSmokeRecertificationPolicyRollbackPreview"), "OpenAPI must expose stable rollback preview operationId");
+assert(openapi.includes("/platform/plugins/smoke-certifications/policies/rollback-apply:"), "OpenAPI must document policy rollback apply route");
+assert(openapi.includes("operationId: platformPluginSmokeRecertificationPolicyRollbackApply"), "OpenAPI must expose stable rollback apply operationId");
+assert(openapi.includes("confirm_rollback: { type: boolean, default: false }"), "OpenAPI must require explicit rollback confirmation field");
 
 const smokeMigration = readFileSync("migrations/150_sprint65_provider_smoke_guarded_dispatch_schema.sql", "utf8");
 assert(smokeMigration.includes("provider_smoke"), "provider smoke schema migration must include provider_smoke field");
@@ -163,6 +178,11 @@ assert(smokeRecertPolicyAuditToolsMigration.includes("actor"), "smoke recertific
 assert(smokeRecertPolicyAuditToolsMigration.includes("reason"), "smoke recertification policy upsert schema must expose reason field");
 assert(smokeRecertPolicyAuditToolsMigration.includes("trace_id"), "smoke recertification policy upsert schema must expose trace_id field");
 assert(smokeRecertPolicyAuditToolsMigration.includes("execution_log_audit"), "smoke recertification policy upsert tool must be tagged execution_log_audit");
+assert(smokeRecertPolicyHistoryToolsMigration.includes("platform_plugin_smoke_recertification_policy_history"), "smoke recertification policy history tool must be registered");
+assert(smokeRecertPolicyHistoryToolsMigration.includes("platform_plugin_smoke_recertification_policy_rollback_preview"), "smoke recertification policy rollback preview tool must be registered");
+assert(smokeRecertPolicyHistoryToolsMigration.includes("platform_plugin_smoke_recertification_policy_rollback_apply"), "smoke recertification policy rollback apply tool must be registered");
+assert(smokeRecertPolicyHistoryToolsMigration.includes("confirm_rollback"), "rollback apply schema must require explicit confirmation field");
+assert(smokeRecertPolicyHistoryToolsMigration.includes("execution_log_audit"), "rollback apply tool must be tagged execution_log_audit");
 assert(smokeRecertPolicySource.includes("resolvePlatformPluginSmokeRecertificationPolicy"), "smoke recertification policy source must expose resolver");
 assert(smokeRecertPolicySource.includes("upsertPlatformPluginSmokeRecertificationPolicy"), "smoke recertification policy source must expose upsert");
 assert(smokeRecertPolicySource.includes("DEFAULT_POLICY"), "smoke recertification policy source must provide runtime default fallback");
@@ -173,6 +193,14 @@ assert(smokeRecertPolicySource.includes("policyAuditSummary"), "smoke recertific
 assert(smokeRecertPolicySource.includes("before: policyAuditSummary"), "smoke recertification policy audit must include before summary");
 assert(smokeRecertPolicySource.includes("after: policyAuditSummary"), "smoke recertification policy audit must include after summary");
 assert(smokeRecertPolicySource.includes("auditRow"), "smoke recertification policy upsert must return audit row evidence");
+assert(smokeRecertPolicyHistorySource.includes("platform_plugin_smoke_recertification_policy_upsert"), "policy history must read policy upsert audit entry type");
+assert(smokeRecertPolicyHistorySource.includes("listPlatformPluginSmokeRecertificationPolicyHistory"), "policy history source must expose history reader");
+assert(smokeRecertPolicyHistorySource.includes("previewPlatformPluginSmokeRecertificationPolicyRollback"), "policy history source must expose rollback preview");
+assert(smokeRecertPolicyHistorySource.includes("applyPlatformPluginSmokeRecertificationPolicyRollback"), "policy history source must expose rollback apply");
+assert(smokeRecertPolicyHistorySource.includes("confirm_rollback_required"), "rollback apply must require explicit confirmation");
+assert(smokeRecertPolicyHistorySource.includes("upsertPlatformPluginSmokeRecertificationPolicy"), "rollback apply must reuse audited policy upsert path");
+assert(smokeRecertPolicyHistorySource.includes("notes_content_replayed: false"), "rollback preview must disclose notes content is not replayed");
+assert(smokeRecertPolicyHistorySource.includes("secrets_included: false"), "policy history/rollback responses must be secret-free");
 
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certify"), "smoke certification writer admin tool must be registered");
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certification_status"), "smoke certification status admin tool must be registered");

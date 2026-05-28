@@ -9878,6 +9878,110 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+  /platform/plugins/smoke-certifications/policies/history:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationPolicyHistory
+      summary: Read smoke recertification policy audit history
+      description: Read execution-log audit history for smoke recertification policy upserts. Supports policy id, actor, changed field, and reason filters. Returns safe before/after summaries only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                policy_id: { type: string }
+                actor: { type: string }
+                actor_id: { type: string }
+                changed_field: { type: string }
+                reason_contains: { type: string }
+                limit: { type: integer, minimum: 1, maximum: 200, default: 100 }
+      responses:
+        "200":
+          description: Policy audit history
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/plugins/smoke-certifications/policies/rollback-preview:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationPolicyRollbackPreview
+      summary: Preview smoke recertification policy rollback
+      description: Preview rollback from a policy upsert audit row. Returns target snapshot, current policy, changed fields, and rollback safety notes without mutating state.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                audit_log_id: { type: integer }
+                trace_id: { type: string }
+                rollback_to:
+                  type: string
+                  enum: [before, after]
+                  default: before
+      responses:
+        "200":
+          description: Policy rollback preview
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/plugins/smoke-certifications/policies/rollback-apply:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationPolicyRollbackApply
+      summary: Apply smoke recertification policy rollback
+      description: Apply rollback from a policy upsert audit row. Requires confirm_rollback=true and writes a new execution-log audit row through the audited policy upsert path.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                audit_log_id: { type: integer }
+                trace_id: { type: string }
+                rollback_to:
+                  type: string
+                  enum: [before, after]
+                  default: before
+                confirm_rollback: { type: boolean, default: false }
+                actor: { type: string }
+                actor_id: { type: string }
+                admin_user_id: { type: string }
+                reason: { type: string }
+                change_reason: { type: string }
+                rollback_trace_id: { type: string }
+                notes: { type: string }
+      responses:
+        "200":
+          description: Policy rollback apply response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
   /platform/plugins/smoke-certifications/recertification-queue:
     post:
       x-openai-isConsequential: false
