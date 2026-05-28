@@ -219,7 +219,7 @@ async function createUserAppConnection({
         encrypted_credentials, status, last_validated_at, validation_status,
         connected_at, last_used_at
       )
-      VALUES (?, ?, ?, ?, 'basic_auth_app_password', ?, ?, 'active', NOW(), 'verified', NOW(), NOW())
+      VALUES (?, ?, ?, ?, 'basic_auth', ?, ?, 'active', NOW(), 'verified', NOW(), NOW())
       ON DUPLICATE KEY UPDATE
         encrypted_credentials = VALUES(encrypted_credentials),
         status = 'active',
