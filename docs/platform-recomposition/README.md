@@ -21,6 +21,7 @@ This directory contains clean-room staging copies for rebuilding the Growth Inte
 | `prompt_router.clean-v1.md` | Clean routing contract overlay for intent resolution, task routes, validation states, and execution handoff. |
 | `direct_instructions_registry_patch.clean-v1.md` | Clean direct-instruction overlay for authority, compatibility, and repair-first behavior. |
 | `drive-workbooks-review-2026-05-18.md` | Drive workbook inventory and review status for the Production folder. |
+| `schema-cleanup-and-promotion-plan-2026-05-28.md` | Phased plan for promoting the clean memory schema and cleaning workbook-era terms from `schemas/*.schema.json`. |
 
 ## Promotion rule
 
