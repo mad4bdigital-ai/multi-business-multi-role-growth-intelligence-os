@@ -25,6 +25,7 @@ assert(routeFile.includes('tenant_checkpoint_write_enabled: false'), 'tenant smo
 assert(routeFile.includes('secrets_included: false'), 'tenant smoke must not include secrets');
 assert(!routeFile.includes('access_token:'), 'tenant smoke response must not expose access_token field');
 
+assert(migration.includes('include_write'), 'tenant smoke tool schema must include include_write');
 assert(migration.includes('platform_evolution_tenant_smoke'), 'tenant smoke tool must be registered');
 assert(migration.includes('no_token_returned'), 'tenant smoke tool must be tagged no_token_returned');
 assert(migration.includes('no_secrets'), 'tenant smoke tool must be tagged no_secrets');
