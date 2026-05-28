@@ -1283,7 +1283,7 @@
               "type": "string",
               "default": ""
             },
-            "brand_playbook_sheet_gid": {
+            "legacy_brand_playbook_sheet_gid": {
               "type": "string",
               "default": ""
             },
