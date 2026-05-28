@@ -440,6 +440,43 @@ export function buildPlatformEvolutionRoutes(deps = {}) {
     }
   });
 
+  router.post("/platform/evolution/cms-claim-smoke", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const transportMode = nonEmptyString(body.transport_mode || body.transportMode, "direct_scope");
+      if (transportMode !== "direct_scope") {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "cms_claim_smoke_transport_unsupported", message: "Only direct_scope is currently supported for CMS claim smoke." },
+          secrets_included: false,
+        });
+      }
+      const result = await directCmsClaimApprovalSmoke(body);
+      const passed = result.jwt_verified === true &&
+        result.status === "approved" &&
+        result.effective_status === "resolved" &&
+        result.effective_owner_type === "tenant" &&
+        result.secrets_included === false &&
+        result.token_returned === false &&
+        result.secret_copied === false;
+      return res.status(passed ? 200 : 502).json({
+        ok: passed,
+        transport_mode: transportMode,
+        result,
+        smoke_policy: {
+          token_returned: false,
+          jwt_ttl_seconds: 300,
+          secret_copied: false,
+          secrets_included: false,
+          direct_http_route_smoke: false,
+        },
+        secrets_included: false,
+      });
+    } catch (err) {
+      return errorResponse(res, err, "platform_evolution_cms_claim_smoke_failed");
+    }
+  });
+
   router.post("/platform/evolution/tenant-smoke", async (req, res) => {
     try {
       const body = req.body || {};
