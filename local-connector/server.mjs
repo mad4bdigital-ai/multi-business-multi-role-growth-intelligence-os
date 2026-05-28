@@ -693,6 +693,7 @@ function policyBody() {
         display_name: entry.display_name ?? alias,
         allow_extra_args: entry.allow_extra_args === true,
       })),
+      policy: SHELL_POLICY_STATE,
     },
     files: {
       enabled: FILES_ENABLED,
