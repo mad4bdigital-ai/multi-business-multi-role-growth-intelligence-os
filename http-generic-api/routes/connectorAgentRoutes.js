@@ -233,6 +233,62 @@ function buildAllowlistEnvValue(aliases) {
   return JSON.stringify(obj);
 }
 
+function tokenizeCommandTemplate(template) {
+  const raw = String(template || "").trim();
+  if (!raw) return null;
+  const cmdMatch = raw.match(/^cmd(?:\.exe)?\s+\/c\s+(.+)$/i);
+  if (cmdMatch) return { command: process.platform === "win32" ? "cmd.exe" : "cmd", args: ["/d", "/c", cmdMatch[1]] };
+  const tokens = [];
+  let current = "";
+  let quote = null;
+  for (let i = 0; i < raw.length; i += 1) {
+    const ch = raw[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+      else current += ch;
+      continue;
+    }
+    if (ch === '"' || ch === "'") { quote = ch; continue; }
+    if (/\s/.test(ch)) {
+      if (current) { tokens.push(current); current = ""; }
+      continue;
+    }
+    current += ch;
+  }
+  if (current) tokens.push(current);
+  if (!tokens.length) return null;
+  return { command: tokens[0], args: tokens.slice(1) };
+}
+
+function checksumShellPolicy(aliases) {
+  return crypto.createHash("sha256").update(JSON.stringify(aliases)).digest("hex");
+}
+
+function normalizeShellPolicyRow(row) {
+  const alias = normalizeGrantAlias(row.alias, "alias");
+  if (!alias) return null;
+  let parsed = null;
+  try {
+    const obj = JSON.parse(row.command_template);
+    if (obj && typeof obj === "object" && typeof obj.command === "string") {
+      parsed = { command: obj.command, args: Array.isArray(obj.args) ? obj.args.map(String) : [] };
+    }
+  } catch {
+    parsed = tokenizeCommandTemplate(row.command_template);
+  }
+  if (!parsed?.command) return null;
+  return {
+    alias,
+    command: parsed.command,
+    args: parsed.args || [],
+    display_name: String(row.description || alias).slice(0, 160),
+    allow_extra_args: row.allow_extra_args === 1 || row.allow_extra_args === true,
+    max_extra_args: Number(row.max_extra_args || 0) || 0,
+    risk_class: String(row.risk_class || "read_only"),
+    source: String(row.source || "db"),
+  };
+}
+
 function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [], permissionGrants = {} }) {
   const grants = normalizePermissionGrants(permissionGrants);
   const allAliases = [...aliases, ...grants.shell_aliases];
