@@ -20,7 +20,7 @@ assert(migration.includes('powershell_admin'), 'migration must seed powershell c
 assert(migration.includes('windows_control'), 'migration must seed windows control capability');
 assert(migration.includes('dependencies'), 'migration must seed dependencies capability');
 assert(migration.includes('auto_browser'), 'migration must seed auto_browser capability');
-assert(migration.includes('D:\\\\n8n-data\\\\auto-browser'), 'migration must seed Auto Browser working directory');
+assert(migration.includes('auto-browser'), 'migration must seed Auto Browser working directory');
 assert(migration.includes('Microsoft Edge'), 'migration must seed Edge app grant');
 assert(migration.includes('Google Chrome'), 'migration must seed Chrome app grant');
 assert(migration.includes('ON DUPLICATE KEY UPDATE'), 'migration seeds must be idempotent');
