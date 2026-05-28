@@ -132,6 +132,56 @@ const decryptCredentials = (stored) => JSON.parse(stored);
 
 {
   const pool = makePool({
+    connections: [
+      {
+        connection_id: "conn-wp",
+        user_id: "user-1",
+        tenant_id: "tenant-1",
+        app_key: "wordpress_rest",
+        auth_type: "basic_auth",
+        encrypted_credentials: JSON.stringify({ username: "wp-author", application_password: "wp-app-password" }),
+        account_label: "WordPress Author",
+        status: "active"
+      }
+    ]
+  });
+
+  const safe = await getEffectiveCredentialStatus(
+    {
+      tenantId: "tenant-1",
+      userId: "user-1",
+      connectionId: "conn-wp",
+      actionKey: "wordpress_create_post",
+      targetKey: "almallah_wp",
+      credentialRole: "wordpress_rest"
+    },
+    { pool, decryptCredentials, env: {} }
+  );
+
+  assert.equal(safe.status, "resolved");
+  assert.equal(Object.prototype.hasOwnProperty.call(safe, "secret"), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(safe, "username"), false);
+
+  const resolved = await resolveEffectiveCredential(
+    {
+      tenantId: "tenant-1",
+      userId: "user-1",
+      connectionId: "conn-wp",
+      actionKey: "wordpress_create_post",
+      targetKey: "almallah_wp",
+      credentialRole: "wordpress_rest",
+      includeSecret: true
+    },
+    { pool, decryptCredentials, env: {} }
+  );
+
+  assert.equal(resolved.status, "resolved");
+  assert.equal(resolved.secret, "wp-app-password");
+  assert.equal(resolved.username, "wp-author");
+}
+
+{
+  const pool = makePool({
     actions: [
       {
         action_key: "makecom_mcp_client",
