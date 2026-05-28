@@ -276,6 +276,16 @@ function applyConnectorCapabilityGrants(grants = {}) {
   } else {
     APPS_ENABLED = ENV_APPS_ENABLED || APPS_ENABLED;
   }
+  CONNECTOR_GRANT_POLICY_STATE = {
+    source: (capabilities.length || (grants.allowed_paths || []).length || Object.keys(dbApps).length) ? 'db' : 'env',
+    loaded: true,
+    capabilities,
+    capability_count: capabilities.length,
+    allowed_path_count: FILE_ALLOWLIST.length,
+    app_count: Object.keys(APP_ALLOWLIST).length,
+    last_pull_at: new Date().toISOString(),
+    last_error: null,
+  };
 }
 
 async function refreshShellPolicy({ force = false } = {}) {
