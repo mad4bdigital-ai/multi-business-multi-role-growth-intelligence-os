@@ -33,6 +33,104 @@ export function buildSecurityRoutes(deps) {
     }
   });
 
+  // ── POST /audit/evidence/smoke ────────────────────────────────────────────
+  router.post("/audit/evidence/smoke", requireBackendApiKey, async (req, res) => {
+    const pool = getPool();
+    const cleanup = req.body?.cleanup !== false;
+    const tenantId = req.body?.tenant_id || "00000000-0000-4000-a000-000000000010";
+    const actorId = req.body?.actor_id || "audit_payload_smoke";
+    const maxPreviewChars = Math.min(Math.max(Number(req.body?.max_preview_chars || 4000), 256), 8000);
+    const requestPayload = {
+      route: "/audit/evidence/smoke",
+      method: "POST",
+      authorization: "Bearer SHOULD_NOT_APPEAR",
+      nested: { api_key: "SHOULD_NOT_APPEAR", safe: "request-safe-field" },
+    };
+    const responsePayload = {
+      ok: true,
+      token: "SHOULD_NOT_APPEAR",
+      result: { status: "created", safe: "response-safe-field" },
+    };
+    const cleanupState = { audit_deleted: false, evidence_deleted: false };
+    try {
+      const auditId = await writeAuditLog({
+        tenant_id: tenantId,
+        actor_id: actorId,
+        actor_type: "system_smoke",
+        action: "audit.payload_evidence_smoke",
+        resource_type: "audit_payload_evidence",
+        resource_id: "smoke",
+        after_json: { status: "smoke_started", secrets_included: false },
+        service_mode: "managed",
+      });
+      const evidence = await writeAuditPayloadEvidence({
+        tenant_id: tenantId,
+        actor_id: actorId,
+        actor_type: "system_smoke",
+        action: "audit.payload_evidence_smoke",
+        resource_type: "audit_payload_evidence",
+        resource_id: auditId,
+        source_table: "audit_log",
+        source_pk: auditId,
+        evidence_type: "request_response_smoke",
+        request_payload: requestPayload,
+        response_payload: responsePayload,
+        max_preview_chars: maxPreviewChars,
+        metadata: { smoke: true, cleanup_requested: cleanup },
+      }, { pool });
+      const [rows] = await pool.query(
+        `SELECT evidence_id, tenant_id, actor_id, action, source_table, source_pk,
+                request_preview, request_sha256, response_preview, response_sha256,
+                metadata_json, redaction_status, secrets_included, created_at
+           FROM \`audit_payload_evidence\`
+          WHERE evidence_id = ?
+          LIMIT 1`,
+        [evidence.evidence_id]
+      );
+      const row = rows[0] || {};
+      const requestPreview = String(row.request_preview || "");
+      const responsePreview = String(row.response_preview || "");
+      const secretLeak = /SHOULD_NOT_APPEAR|Bearer/i.test(`${requestPreview}\n${responsePreview}`);
+      const checks = [
+        { name: "audit_row_created", pass: Boolean(auditId) },
+        { name: "evidence_row_created", pass: Boolean(row.evidence_id) },
+        { name: "request_hash_present", pass: String(row.request_sha256 || "").length === 64 },
+        { name: "response_hash_present", pass: String(row.response_sha256 || "").length === 64 },
+        { name: "redaction_status", pass: row.redaction_status === "redacted" },
+        { name: "no_secret_leak", pass: secretLeak === false },
+        { name: "secrets_flag_false", pass: Number(row.secrets_included || 0) === 0 },
+      ];
+      const ok = checks.every((check) => check.pass);
+      if (cleanup) {
+        const [evidenceDelete] = await pool.query("DELETE FROM `audit_payload_evidence` WHERE evidence_id = ?", [evidence.evidence_id]);
+        cleanupState.evidence_deleted = Number(evidenceDelete?.affectedRows || 0) === 1;
+        const [auditDelete] = await pool.query("DELETE FROM `audit_log` WHERE audit_id = ? AND action = 'audit.payload_evidence_smoke'", [auditId]);
+        cleanupState.audit_deleted = Number(auditDelete?.affectedRows || 0) === 1;
+      }
+      return res.status(ok ? 200 : 500).json({
+        ok,
+        status: ok ? "pass" : "fail",
+        smoke_type: "audit_payload_evidence",
+        audit_id: auditId,
+        evidence_id: evidence.evidence_id,
+        redaction_status: row.redaction_status || null,
+        cleanup: cleanup ? cleanupState : null,
+        checks,
+        secret_values_returned: false,
+        token_returned: false,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(500).json({
+        ok: false,
+        status: "fail",
+        smoke_type: "audit_payload_evidence",
+        error: { code: "audit_payload_evidence_smoke_failed", message: err.message },
+        secrets_included: false,
+      });
+    }
+  });
+
   // ── POST /secret-references ───────────────────────────────────────────────
   router.post("/secret-references", requireBackendApiKey, async (req, res) => {
     try {
