@@ -160,6 +160,15 @@ function makeDriveDeps() {
   };
 }
 
+const migration = readFileSync('migrations/163_sprint65_session_archive_smoke_tool.sql', 'utf8');
+const openapi = readFileSync('openapi.yaml', 'utf8');
+assert(migration.includes('session_archive_smoke'), 'session archive smoke admin tool must be registered');
+assert(migration.includes('/release/session-archive-smoke'), 'session archive smoke tool path must be registered');
+assert(migration.includes('no_secrets'), 'session archive smoke tool must be tagged no_secrets');
+assert(migration.includes('cleanup_supported'), 'session archive smoke tool must be tagged cleanup_supported');
+assert(openapi.includes('/release/session-archive-smoke:'), 'session archive smoke path must be documented in OpenAPI');
+assert(openapi.includes('operationId: runSessionArchiveSmoke'), 'session archive smoke operationId must be documented');
+
 // ── Smoke runner test: writes to sequestered subfolder, then cleans up ────────
 {
   const pool = makePool();
