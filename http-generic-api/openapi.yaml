@@ -10872,6 +10872,55 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /tenant/repo-docs/read:
+    post:
+      tags: [platform-evolution]
+      operationId: tenantRepoDocRead
+      summary: Read tenant-safe live repository documentation
+      description: >
+        Tenant/user scoped read of an allowlisted tenant-safe Markdown document
+        from the live repository. Omit path to list allowed documents. Blocks
+        admin guides, raw migrations, DB dumps, secrets, native GitHub, and raw
+        repo access. Requires a signed-in user JWT and active tenant membership.
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                path:
+                  type: string
+                  description: Allowlisted tenant-safe repo document path. Omit to list allowed docs.
+                doc_path:
+                  type: string
+                  description: Alias for path.
+                max_chars:
+                  type: integer
+                  minimum: 1000
+                  maximum: 20000
+                  default: 12000
+      responses:
+        "200":
+          description: Allowed docs list or bounded document content.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          description: Sign-in required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Document is not tenant-safe or tenant membership is missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
   /tenant/evolution/switch-options:
     get:
       tags: [platform-evolution]
