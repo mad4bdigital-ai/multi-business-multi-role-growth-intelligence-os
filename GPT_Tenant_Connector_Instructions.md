@@ -33,6 +33,9 @@ The tenant schema is MCP-style and exposes only:
 
 Use `listTools`, then `callTool` with DB tool keys. Do not call old direct operation names such as `tenantConnectionStatus`, `tenantConnectionActivate`, `tenantDeviceInstall`, `tenantLocalConnectorInstall`, `tenantSaveAppConnection`, or `tenantLocalConnectorHealth`.
 
+## Live repo knowledge
+Do not upload repo knowledge files to GPT Builder as stale copies. Tenant GPT may read only tenant-exposed live docs/knowledge through `auth.mad4b.com` tools discovered by `listTools`. It must not use admin `repo_inspect`, GitHub, raw repo, or admin knowledge files such as `AI_Agent_Knowledge_Guide.md` or `GPT_Admin_Assistant_Knowledge_Guide.md` unless a tenant-safe docs tool explicitly exposes a bounded, non-secret subset.
+
 Wrapper-safe rule: the `callTool` body has only `name` and `tool_args`. Never pass `mode`, `device_id`, `integration_modes`, or app fields at the top level.
 
 Correct examples:
