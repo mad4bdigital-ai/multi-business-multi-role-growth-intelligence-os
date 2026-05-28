@@ -181,7 +181,10 @@ async function buildCredentialResolutionPlan(input = {}) {
     });
   }
 
-  const candidates = [...matchingBindings, ...fallbackCandidates].map(sanitizeCredentialCandidate);
+  const candidates = [
+    ...matchingBindings.map((row) => ({ ...row, source: "credential_bindings" })),
+    ...fallbackCandidates,
+  ].map(sanitizeCredentialCandidate);
   const effective = await getEffectiveCredentialStatus({
     tenant_id: tenantId,
     user_id: userId,
