@@ -929,8 +929,9 @@ async function handleGCloud(req, res) {
 }
 
 async function handleDependencies(req, res) {
-  if (!DEPENDENCIES_ENABLED) return err(res, 403, 'DISABLED', 'Dependency installer is disabled on this connector');
   if (!requireAuth(req, res)) return;
+  await refreshShellPolicy();
+  if (!DEPENDENCIES_ENABLED) return err(res, 403, 'DISABLED', 'Dependency installer is disabled on this connector');
   let body;
   try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
 
