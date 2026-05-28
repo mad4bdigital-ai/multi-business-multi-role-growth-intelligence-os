@@ -433,8 +433,33 @@ export function buildCredentialRoutes(deps) {
         return res.status(400).json({ ok: false, error: { code: "active_connection_required", message: "An active user_app_connection in this tenant is required for promotion." }, secrets_included: false });
       }
 
+      const preflight = await buildCredentialResolutionPlan({
+        tenant_id: tenantId,
+        user_id: connection.user_id,
+        connection_id: connectionId,
+        action_key: actionKey || undefined,
+        target_key: targetKey || undefined,
+        credential_role: credentialRole,
+        allow_platform_fallback: false,
+      });
+      if (preflight.effective?.status !== "resolved" || preflight.effective?.owner_type !== "connection" || preflight.effective?.connection_id !== connectionId) {
+        return res.status(409).json({
+          ok: false,
+          error: {
+            code: "promotion_source_not_resolved",
+            message: "Source connection credential must resolve with user+connection context before promotion.",
+            details: {
+              effective_status: preflight.effective?.status || null,
+              effective_owner_type: preflight.effective?.owner_type || null,
+              effective_connection_id: preflight.effective?.connection_id || null,
+            },
+          },
+          secrets_included: false,
+        });
+      }
+
       const field = roleCandidateField(credentialRole, connection.auth_type);
-      const credentialRef = `user_app_connection:${connection.connection_id}:encrypted_credentials.${field}`;
+      const credentialRef = preflight.effective.credential_ref || `user_app_connection:${connection.connection_id}:encrypted_credentials.${field}`;
       const [existing] = await pool.query(
         `SELECT binding_id FROM credential_bindings
           WHERE tenant_id = ?
