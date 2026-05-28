@@ -25,6 +25,8 @@ for (const schema of [
   'PlatformEvolutionThreadMapResponse',
   'PlatformEvolutionOpenEvidenceItem',
   'PlatformEvolutionOpenEvidenceResponse',
+  'TenantEvolutionCheckpointCreateRequest',
+  'TenantEvolutionCheckpointCreateResponse',
   'PlatformEvolutionCheckpointCreateRequest',
   'PlatformEvolutionCheckpointCreateResponse',
 ]) {
