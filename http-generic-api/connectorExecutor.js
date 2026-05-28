@@ -19,6 +19,10 @@ import { runAgentLoop } from "./agentLoopRunner.js";
 import { getAgentDeps } from "./agentRuntime.js";
 import { routeOutput }  from "./outputSinkRouter.js";
 import { evaluateConnectorDispatchPreflight, assertPreflightAllowed } from "./governedExecutionPreflight.js";
+import {
+  dispatchWordpressBlogPublish,
+  isWordpressBlogPublishWorkflow,
+} from "./wordpressBlogPublishOrchestrator.js";
 
 const EXECUTABLE_DECISIONS = new Set([
   "ALLOW_SELF_SERVE",
