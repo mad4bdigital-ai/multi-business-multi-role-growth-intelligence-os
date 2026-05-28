@@ -258,6 +258,29 @@ The local connector is intentionally a separate plugin/action because it connect
 - `authCredentialResolution.js`, `userAppConnectionCredentials.js`, `authInjection.js`, `executionPreparation.js`, and `routes/systemLayerRoutes.js` — parent-action external auth strategy: exported tools can resolve platform, user, tenant, or explicit connection credentials at runtime
 - MCP connector branch added: `makecom_mcp` dispatches via JSON-RPC 2.0 to Make MCP stateless endpoint
 
+## Platform Plugin smoke certification governance
+
+The Platform Plugin dispatch track is governed through smoke certification, recertification policy, audit history, and rollback controls.
+
+Current checkpoint: complete through Phase 44 as of 2026-05-28.
+
+Key docs:
+
+- [`docs/platform-plugin-smoke-certification-governance.md`](docs/platform-plugin-smoke-certification-governance.md) — guarded REST dispatch, provider smoke, certification, expiry, and drift gates.
+- [`docs/platform-plugin-recertification-policy-governance.md`](docs/platform-plugin-recertification-policy-governance.md) — recertification policy registry, queue, batch, policy audit, history, and rollback.
+- [`docs/platform-plugin-governance-roadmap-2026-05-28.md`](docs/platform-plugin-governance-roadmap-2026-05-28.md) — completed phases 31-44 and planned phases 45-50.
+
+Current live proof target:
+
+```text
+plugin_key: tenant.nagy_sample_crm_20260525
+action_key: crm.contact.list
+mock target: /platform/mock-providers/crm/contacts
+result: guarded provider smoke dispatch returns HTTP 200 with secrets_included=false
+```
+
+Operational rule: a Platform Plugin action must not become `dispatch_ready` or promotion-ready unless it has a valid smoke certification. Certifications expire, can drift, and are regulated by policy. Risky future policy changes should move through approval hold before apply.
+
 ## Upgrade direction
 
 All 9 upgrade phases are complete. The project is in a production-ready, fully governed state.
@@ -283,6 +306,9 @@ Operations and validation:
 - [`governed_mutation_playbook.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/governed_mutation_playbook.md>)
 - [`connector_contracts.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/connector_contracts.md>)
 - [`docs/external-endpoint-auth-strategy.md`](docs/external-endpoint-auth-strategy.md)
+- [`docs/platform-plugin-smoke-certification-governance.md`](docs/platform-plugin-smoke-certification-governance.md)
+- [`docs/platform-plugin-recertification-policy-governance.md`](docs/platform-plugin-recertification-policy-governance.md)
+- [`docs/platform-plugin-governance-roadmap-2026-05-28.md`](docs/platform-plugin-governance-roadmap-2026-05-28.md)
 - [`deployment_parity_checklist.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/deployment_parity_checklist.md>)
 - [`docs/development-environment-governance.md`](docs/development-environment-governance.md)
 - [`runtime_confirmation_procedure.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/runtime_confirmation_procedure.md>)

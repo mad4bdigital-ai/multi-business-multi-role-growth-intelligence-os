@@ -33,6 +33,23 @@ The dispatcher requires:
 - Execution writes `execution_log` evidence.
 - `dry_run` is supported to verify dispatch planning without outbound HTTP.
 
+## Certification parity backlog
+
+The public Platform Plugin REST dispatch path now enforces smoke certification, expiry, drift, recertification policy, audit history, and rollback controls. Private contribution dispatch must reach parity before private actions are treated as production-ready outside owner-scoped smoke work.
+
+Backlog requirement:
+
+```text
+private contribution dispatch
+→ owner scope checks
+→ provider smoke evidence
+→ private smoke certification
+→ expiry/drift guard
+→ promotion gate parity
+```
+
+Until private parity is implemented, do not treat private contribution dispatch as equivalent to certified Platform Base dispatch.
+
 ## Boundaries
 
 This is the first REST adapter boundary. It intentionally does not promote the contribution, grant agent skills, or expose credentials. Credential-bearing dispatch can be extended later through the governed credential resolver rather than raw contribution manifests.
