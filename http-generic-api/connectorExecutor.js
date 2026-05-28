@@ -19,6 +19,10 @@ import { runAgentLoop } from "./agentLoopRunner.js";
 import { getAgentDeps } from "./agentRuntime.js";
 import { routeOutput }  from "./outputSinkRouter.js";
 import { evaluateConnectorDispatchPreflight, assertPreflightAllowed } from "./governedExecutionPreflight.js";
+import {
+  dispatchWordpressBlogPublish,
+  isWordpressBlogPublishWorkflow,
+} from "./wordpressBlogPublishOrchestrator.js";
 
 const EXECUTABLE_DECISIONS = new Set([
   "ALLOW_SELF_SERVE",
@@ -335,7 +339,8 @@ export async function dispatchPlan(plan_id, {
 
   const isWordpress =
     brand?.auth_type === "basic_auth_app_password" ||
-    connectedSystem?.connector_family === "wordpress";
+    connectedSystem?.connector_family === "wordpress" ||
+    isWordpressBlogPublishWorkflow(plan.workflow_key);
 
   // GAP 6: runtime_capability_class from actions table is authoritative when
   // connector_family is not set on the connected_systems row.
@@ -390,7 +395,9 @@ export async function dispatchPlan(plan_id, {
 
   let result, dispatchError;
   try {
-    if (isWordpress) {
+    if (isWordpressBlogPublishWorkflow(plan.workflow_key)) {
+      result = await dispatchWordpressBlogPublish(plan, { ...deps, brand });
+    } else if (isWordpress) {
       const wpContext = buildWpContext(brand);
       if (!wpContext) {
         throw new Error(
