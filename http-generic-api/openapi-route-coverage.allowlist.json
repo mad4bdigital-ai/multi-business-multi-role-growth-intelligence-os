@@ -26,7 +26,8 @@
     "POST /browser-runtime/persistent-session/run",
     "POST /browser-runtime/cloud-extract/run",
     "POST /browser-runtime/stealth-extract/run",
-    "POST /connector/{device_id}/auto-browser"
+    "POST /connector/{device_id}/auto-browser",
+    "GET /connector-agent/policy"
   ],
   "prefixes": [
     "/oauth",
