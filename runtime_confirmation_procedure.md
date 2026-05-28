@@ -45,6 +45,7 @@ This script checks governed behaviors:
 7. Local Connector Governance — `GET /local-connector/install/status` returns install state for mohammedlap
 8. Dispatch routing — `GET /dispatch/routes` returns active task_routes with `directly_dispatched` flags
 9. Dispatch intent — `POST /dispatch` with `intent_key=local.health.check` returns `ok` or expected error shape (not 500)
+10. Local Manager capability installer changes — when validating a capability rollout, verify live connector behavior through `connector_ps`, `connector_win`, `connector_files`, and `connector_apps`; `section=settings` refresh is not sufficient evidence.
 
 **Passing output ends with:**
 ```
