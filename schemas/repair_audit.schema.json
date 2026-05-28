@@ -1532,7 +1532,7 @@
           "enum": [
             "",
             "local_import_stage",
-            "direct_sheet",
+            "recovery_mirror_import",
             "mixed"
           ],
           "default": ""
