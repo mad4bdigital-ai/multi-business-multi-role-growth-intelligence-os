@@ -303,7 +303,7 @@ function normalizeAppPolicyRow(row) {
 async function loadConnectorGrantPolicy(configId) {
   const [capRows] = await getPool().query(
     `SELECT capability_key, COALESCE(status, 'active') AS status, COALESCE(source, 'db') AS source, updated_at
-       FROM \`local_connector_capability_grants\`
+       FROM `local_connector_capability_grants`
       WHERE config_id = ? AND COALESCE(status, 'active') = 'active'
       ORDER BY capability_key`,
     [configId]
