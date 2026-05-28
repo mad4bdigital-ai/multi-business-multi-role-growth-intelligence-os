@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { getEffectiveCredentialStatus } from "../credentialResolver.js";
 import { getPool } from "../db.js";
 import { encryptToken } from "../tokenEncryption.js";
