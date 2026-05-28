@@ -432,6 +432,23 @@ Sub-schemas: `shared`, `business_identity`, `brand`, `execution`, `analytics`,
 
 After memory schema changes, run `node validate-memory-schema.mjs`.
 
+### WordPress blog publish credential recovery
+
+Brand-scoped WordPress blog/article publishing uses the platform-native workflow `wordpress_blog_publish_or_recover_credentials_workflow`.
+
+The expected flow is:
+
+1. resolve brand and WordPress target
+2. run publish/preflight readiness
+3. resolve `wordpress_rest` credentials
+4. if credentials are missing, create a secure credential-intake session and preserve the original publish request without raw secrets
+5. after credential storage/readback succeeds, resume the same original publish request
+6. create the WordPress post through the dedicated orchestrator
+7. return post id, link, status, and readback evidence
+8. persist runtime state in `wordpress_blog_publish_recovery_state`
+
+n8n is not authoritative for provider publish execution. It may only run auxiliary governed `workflow_runtime_bindings` side effects, such as notifications or post-publish automation, and must not bypass auth, registry scope, credential resolution, readback, or execution logging.
+
 ### `direct_instructions_registry_patch.md`
 Hard enforcement patch layer.
 

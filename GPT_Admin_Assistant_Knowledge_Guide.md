@@ -485,6 +485,10 @@ Operations:
 
 Pass `tool` to select the backend executor:
 
+When GitHub CLI is unavailable, the auth-host GitHub REST fallback supports PR diagnostics and recovery commands including `pr view --json`, `pr update-branch`, `pr merge`, `run list`, `run view --log-failed`, workflow dispatch, compare evidence, and structured dirty-PR diagnostics. Use this path before recreating branches, and prefer clean mainline replacement branches when `mergeable_state=dirty` cannot be resolved with `pr update-branch`.
+
+For brand-scoped WordPress blog/article publishing, use `wordpress_blog_publish_or_recover_credentials_workflow`. It resolves credentials, opens secure credential intake when needed, preserves the original publish request, resumes after credential storage, and returns post/readback evidence. n8n remains auxiliary only and must not be used as the authoritative publish runtime.
+
 | tool | Purpose | Key fields |
 |---|---|---|
 | `github` | `gh` CLI on Cloud Run container | `command_args` |
@@ -498,6 +502,10 @@ Pass `tool` to select the backend executor:
 `shell` tool: `alias` must match an entry in `ADMIN_SHELL_ALLOWLIST` on the Cloud Run environment. Enabled only when `ADMIN_SHELL_ENABLED=true`. Use `action: "list"` first to discover available aliases. For `action: "run"`, pass `alias` and optionally `extra_args` when `allow_extra_args=true` on that alias. Arguments with shell metacharacters are rejected.
 
 This scope can broker GitHub CLI, Google Cloud CLI, remote DB control, Hostinger DNS/VPS/billing API, and allowlisted shell operations when backend policy allows it. Always prefer a specific governed endpoint when one exists. For destructive operations, require explicit user intent in the current conversation and preserve audit evidence.
+
+When GitHub CLI is unavailable, the auth-host GitHub REST fallback supports PR diagnostics and recovery commands including `pr view --json`, `pr update-branch`, `pr merge`, `run list`, `run view --log-failed`, workflow dispatch, compare evidence, and structured dirty-PR diagnostics. Use this path before recreating branches, and prefer clean mainline replacement branches when `mergeable_state=dirty` cannot be update-branch resolved.
+
+For brand-scoped WordPress blog/article publishing, use `wordpress_blog_publish_or_recover_credentials_workflow`. It resolves credentials, opens secure credential intake when needed, preserves the original publish request, resumes after credential storage, and returns post/readback evidence. n8n remains auxiliary only and must not be used as the authoritative publish runtime.
 
 ## Ops Scope
 
