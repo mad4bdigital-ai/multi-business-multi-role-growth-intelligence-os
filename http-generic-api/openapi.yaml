@@ -980,6 +980,50 @@ components:
 
     # -- Platform Evolution checkpoint schemas --------------------------------
 
+    PlatformEvolutionSwitchOption:
+      type: object
+      additionalProperties: true
+      properties:
+        scope_key: { type: string }
+        tenant_id: { type: string }
+        brand_key: { type: string }
+        user_id: { type: string }
+        email: { type: string, nullable: true }
+        user_display_name: { type: string, nullable: true }
+        membership_role: { type: string, nullable: true }
+        assigned_role: { type: string, nullable: true }
+        tenant_type: { type: string, nullable: true }
+        tenant_display_name: { type: string, nullable: true }
+        business_type_key: { type: string, nullable: true }
+        knowledge_profile_key: { type: string, nullable: true }
+        brand_path_status: { type: string, nullable: true }
+        access_state: { type: string, enum: [allowed, not_granted] }
+
+    PlatformEvolutionSwitchOptionsResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, count, switch_options, switch_policy, secrets_included]
+      properties:
+        ok: { type: boolean }
+        count: { type: integer }
+        switch_options:
+          type: array
+          items: { $ref: "#/components/schemas/PlatformEvolutionSwitchOption" }
+        auth_context:
+          type: object
+          additionalProperties: true
+        switch_policy:
+          type: object
+          additionalProperties: true
+          properties:
+            mode: { type: string }
+            selected_scope_parameter: { type: string, enum: [scope_key] }
+            requires_allowed_scope: { type: boolean, enum: [true] }
+            checkpoint_write_enabled: { type: boolean, enum: [false] }
+            tenant_checkpoint_write_enabled: { type: boolean, enum: [false] }
+        tenant_facing: { type: boolean }
+        secrets_included: { type: boolean, enum: [false] }
+
     PlatformEvolutionActivationCard:
       type: object
       additionalProperties: true
