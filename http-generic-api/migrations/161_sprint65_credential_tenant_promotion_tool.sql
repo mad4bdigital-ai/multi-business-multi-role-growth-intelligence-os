@@ -13,7 +13,7 @@ INSERT INTO `admin_platform_endpoint_tools` (
   'POST',
   '/credentials/bindings/promote',
   NULL,
-  '{"type":"object","required":["tenant_id","connection_id","credential_role"],"properties":{"tenant_id":{"type":"string"},"connection_id":{"type":"string"},"target_key":{"type":"string"},"action_key":{"type":"string"},"credential_role":{"type":"string"},"provider_family":{"type":"string","default":"wordpress"},"connector_family":{"type":"string","default":"wordpress_rest"},"promoted_owner_type":{"type":"string","enum":["tenant"],"default":"tenant"},"resolution_priority":{"type":"integer","default":20},"allow_platform_fallback":{"type":"boolean","default":true},"created_by":{"type":"string"}},"additionalProperties":false}',
+  '{"type":"object","required":["tenant_id","connection_id","credential_role","promotion_approved","promotion_reason"],"properties":{"tenant_id":{"type":"string"},"connection_id":{"type":"string"},"target_key":{"type":"string"},"action_key":{"type":"string"},"credential_role":{"type":"string"},"provider_family":{"type":"string","default":"wordpress"},"connector_family":{"type":"string","default":"wordpress_rest"},"promoted_owner_type":{"type":"string","enum":["tenant"],"default":"tenant"},"resolution_priority":{"type":"integer","default":20},"allow_platform_fallback":{"type":"boolean","default":true},"promotion_approved":{"type":"boolean","const":true},"promotion_reason":{"type":"string","minLength":8},"created_by":{"type":"string"}},"additionalProperties":false}',
   NULL,
   'credentials,lifecycle,promotion,tenant_binding,read_write,no_secrets,no_token_returned,no_secret_copy,admin,scope_gated',
   1,
