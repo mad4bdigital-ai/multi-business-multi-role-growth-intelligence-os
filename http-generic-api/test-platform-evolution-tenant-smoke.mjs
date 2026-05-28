@@ -7,6 +7,10 @@ const openapi = readFileSync('openapi.yaml', 'utf8');
 
 assert(routeFile.includes('jwt.sign'), 'tenant smoke route must issue a short-lived JWT internally');
 assert(routeFile.includes('/platform/evolution/tenant-smoke'), 'tenant smoke admin route must exist');
+assert(routeFile.includes('/platform/evolution/cms-claim-smoke'), 'CMS claim smoke admin route must exist');
+assert(routeFile.includes('directCmsClaimApprovalSmoke'), 'CMS claim smoke direct helper must exist');
+assert(routeFile.includes('cms_account_claims'), 'CMS claim smoke must exercise cms_account_claims');
+assert(routeFile.includes('getEffectiveCredentialStatus'), 'CMS claim smoke must verify effective credential readback');
 assert(routeFile.includes('/tenant/evolution/switch-options'), 'tenant smoke must call tenant switch-options route');
 assert(routeFile.includes('/tenant/evolution/activation-card'), 'tenant smoke must call tenant activation-card route');
 assert(routeFile.includes('/tenant/evolution/thread-map'), 'tenant smoke must call tenant thread-map route');
