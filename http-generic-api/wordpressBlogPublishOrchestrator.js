@@ -144,7 +144,9 @@ async function createPost({ brand, credential, postType, payload }, deps = {}) {
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
   if (!response.ok) {
-    const err = new Error(`WordPress create post failed with HTTP ${response.status}.`);
+    const upstreamCode = data?.code ? ` code=${String(data.code).slice(0, 120)}` : "";
+    const upstreamMessage = data?.message ? ` message=${String(data.message).replace(/\s+/g, " ").slice(0, 240)}` : "";
+    const err = new Error(`WordPress create post failed with HTTP ${response.status}.${upstreamCode}${upstreamMessage}`);
     err.code = "wordpress_create_post_failed";
     err.status = response.status;
     err.details = data;

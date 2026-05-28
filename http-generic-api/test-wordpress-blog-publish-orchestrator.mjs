@@ -133,4 +133,45 @@ assert.equal(__test__.normalizeWpJsonBase("https://example.com/wp-json/wp/v2"), 
   assert.equal(calls.length, 1);
 }
 
+{
+  const pool = makePool({
+    brands: [brand],
+    connections: [{
+      connection_id: "conn-wp",
+      user_id: "user-1",
+      tenant_id: "tenant-1",
+      app_key: "wordpress_rest",
+      auth_type: "basic_auth",
+      encrypted_credentials: JSON.stringify({ username: "gpt", application_password: "wp-app-password" }),
+      account_label: "gpt",
+      status: "active",
+    }],
+  });
+  const fetch = async () => ({
+    ok: false,
+    status: 401,
+    async text() {
+      return JSON.stringify({ code: "incorrect_password", message: "The provided password is an invalid application password." });
+    },
+  });
+  await assert.rejects(
+    () => dispatchWordpressBlogPublish(
+      {
+        plan_id: "plan-upstream-error",
+        tenant_id: "tenant-1",
+        user_id: "user-1",
+        brand_key: "Almallah Group",
+        target_key: "almallah_wp",
+        workflow_key: "wordpress_blog_publish_or_recover_credentials_workflow",
+        steps_json: JSON.stringify([{ body: { connection_id: "conn-wp" } }]),
+        title: "Nile Cruise Egypt",
+        content: "<p>Draft post content.</p>",
+        status: "draft",
+      },
+      { pool, fetch, decryptCredentials: JSON.parse, env: {} }
+    ),
+    /HTTP 401\. code=incorrect_password message=The provided password is an invalid application password\./
+  );
+}
+
 console.log("wordpress blog publish orchestrator tests passed");
