@@ -70,6 +70,46 @@ function boundedInt(value, fallback, min = 1, max = 100) {
   return Math.max(min, Math.min(parsed, max));
 }
 
+function safeJson(value, fallback) {
+  if (value === undefined || value === null || value === "") return fallback;
+  if (typeof value === "object") return value;
+  try { return JSON.parse(String(value)); } catch { return fallback; }
+}
+
+function safeSummary(value) {
+  const text = String(value ?? "").trim();
+  return text.length > 4000 ? `${text.slice(0, 4000)}…` : text;
+}
+
+function scopeKeyComparisonSql(columnName = "scope_key") {
+  return `${columnName} = CAST(? AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_bin`;
+}
+
+function hasTenantCheckpointWriteRole(scope = {}) {
+  const roles = [scope.membership_role, scope.assigned_role]
+    .filter(Boolean)
+    .map((role) => String(role).trim().toLowerCase());
+  return roles.some((role) => [
+    "owner",
+    "admin",
+    "tenant_admin",
+    "brand_admin",
+    "brand_owner",
+    "manager",
+    "editor",
+    "operator",
+  ].includes(role));
+}
+
+function normalizeTenantCheckpointType(value) {
+  const checkpointType = String(value || "operation").trim().toLowerCase();
+  if (["operation", "manual", "rollup"].includes(checkpointType)) return checkpointType;
+  const err = new Error("Tenant checkpoint_type must be one of: operation, manual, rollup.");
+  err.status = 400;
+  err.code = "tenant_evolution_checkpoint_type_invalid";
+  throw err;
+}
+
 async function resolveAllowedEvolutionScope(req) {
   const pool = getPool();
   const explicitScope = nonEmptyString(req.query.scope_key || req.query.scopeKey);
