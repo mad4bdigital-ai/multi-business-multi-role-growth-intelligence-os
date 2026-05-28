@@ -190,6 +190,7 @@ assert(openapi.includes('operationId: runSessionArchiveSmoke'), 'session archive
   assert.equal(result.ok, true, JSON.stringify(result.checks, null, 2));
   assert.equal(result.status, "pass");
   assert.equal(result.originator, "gpt_action_smoke", "smoke must keep gpt_action_smoke originator for filtering");
+  assert.equal(activationReq?.query?.include_smoke_sessions, true, "smoke activation readback must explicitly request gpt_action_smoke sessions");
   assert.equal(result.smoke_subfolder, "_smoke_archives", "smoke must sequester to _smoke_archives subfolder");
   assert.equal(result.drive.doc_id, "doc-1");
   assert.equal(result.drive.jsonl_id, "jsonl-1");
