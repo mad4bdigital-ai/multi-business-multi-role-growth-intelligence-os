@@ -525,6 +525,9 @@ export function buildCredentialRoutes(deps) {
         resolution_priority: Number.isFinite(resolutionPriority) ? resolutionPriority : 20,
         promotion_policy: {
           mode: "tenant_connection_binding_promotion_v1",
+          promotion_approved: true,
+          promotion_reason: promotionReason,
+          source_preflight_status: preflight.effective?.status || null,
           source_connection_id: connectionId,
           source_user_id: connection.user_id,
           secret_copied: false,
