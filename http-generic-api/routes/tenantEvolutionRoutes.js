@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
 
@@ -69,10 +70,51 @@ function boundedInt(value, fallback, min = 1, max = 100) {
   return Math.max(min, Math.min(parsed, max));
 }
 
+function safeJson(value, fallback) {
+  if (value === undefined || value === null || value === "") return fallback;
+  if (typeof value === "object") return value;
+  try { return JSON.parse(String(value)); } catch { return fallback; }
+}
+
+function safeSummary(value) {
+  const text = String(value ?? "").trim();
+  return text.length > 4000 ? `${text.slice(0, 4000)}…` : text;
+}
+
+function scopeKeyComparisonSql(columnName = "scope_key") {
+  return `${columnName} = CAST(? AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_bin`;
+}
+
+function hasTenantCheckpointWriteRole(scope = {}) {
+  const roles = [scope.membership_role, scope.assigned_role]
+    .filter(Boolean)
+    .map((role) => String(role).trim().toLowerCase());
+  return roles.some((role) => [
+    "owner",
+    "admin",
+    "tenant_admin",
+    "brand_admin",
+    "brand_owner",
+    "manager",
+    "editor",
+    "operator",
+  ].includes(role));
+}
+
+function normalizeTenantCheckpointType(value) {
+  const checkpointType = String(value || "operation").trim().toLowerCase();
+  if (["operation", "manual", "rollup"].includes(checkpointType)) return checkpointType;
+  const err = new Error("Tenant checkpoint_type must be one of: operation, manual, rollup.");
+  err.status = 400;
+  err.code = "tenant_evolution_checkpoint_type_invalid";
+  throw err;
+}
+
 async function resolveAllowedEvolutionScope(req) {
   const pool = getPool();
-  const explicitScope = nonEmptyString(req.query.scope_key || req.query.scopeKey);
-  const brandKey = nonEmptyString(req.query.brand_key || req.query.brandKey);
+  const input = req.method === "POST" ? (req.body || {}) : (req.query || {});
+  const explicitScope = nonEmptyString(input.scope_key || input.scopeKey);
+  const brandKey = nonEmptyString(input.brand_key || input.brandKey);
   const params = [req.auth.tenant_id, req.auth.user_id];
   const where = ["tenant_id = ?", "user_id = ?", "access_state = 'allowed'"];
 
@@ -150,6 +192,118 @@ export function buildTenantEvolutionRoutes() {
         secrets_included: false,
       });
     } catch (err) { return errorResponse(res, err, "tenant_evolution_switch_options_failed"); }
+  });
+
+  router.post("/tenant/evolution/checkpoints", requireTenantUserJwt, async (req, res) => {
+    try {
+      const body = req.body || {};
+      const scope = await resolveAllowedEvolutionScope(req);
+      if (!hasTenantCheckpointWriteRole(scope)) {
+        return res.status(403).json({
+          ok: false,
+          error: {
+            code: "tenant_evolution_checkpoint_write_role_required",
+            message: "Tenant checkpoint write requires owner, admin, manager, editor, operator, or brand_owner role.",
+          },
+          secrets_included: false,
+        });
+      }
+      const summaryText = safeSummary(body.summary_text || body.summaryText);
+      if (!summaryText) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "tenant_evolution_checkpoint_summary_required", message: "summary_text is required." },
+          secrets_included: false,
+        });
+      }
+      const checkpointType = normalizeTenantCheckpointType(body.checkpoint_type || body.checkpointType);
+      const checkpointId = body.checkpoint_id || randomUUID();
+      const createdBy = `tenant_user:${req.auth.user_id}`;
+      const threadSnapshotJson = JSON.stringify(safeJson(body.thread_snapshot_json || body.threadSnapshotJson || body.thread_snapshot || body.threadSnapshot, null));
+      const deltaJson = JSON.stringify(safeJson(body.delta_json || body.deltaJson || body.delta, null));
+      const evidenceJson = JSON.stringify({
+        ...(safeJson(body.evidence_json || body.evidenceJson || body.evidence, {}) || {}),
+        tenant_checkpoint_policy: {
+          created_by_user_id: req.auth.user_id,
+          tenant_id: req.auth.tenant_id,
+          scope_key: scope.scope_key,
+          membership_role: scope.membership_role || null,
+          assigned_role: scope.assigned_role || null,
+          platform_commit_fields_accepted: false,
+          token_returned: false,
+          secrets_included: false,
+        },
+      });
+      const nextActionsJson = JSON.stringify(safeJson(body.next_actions_json || body.nextActionsJson || body.next_actions || body.nextActions, []));
+
+      await getPool().query(
+        `INSERT INTO platform_evolution_checkpoints (
+          checkpoint_id, scope_key, tenant_id, user_id, brand_key, checkpoint_type,
+          activation_session_id, main_commit_sha, deployed_commit_sha, activation_status, release_readiness_status,
+          summary_text, thread_snapshot_json, delta_json, evidence_json, next_actions_json, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          checkpointId,
+          scope.scope_key,
+          scope.tenant_id,
+          req.auth.user_id,
+          scope.brand_key,
+          checkpointType,
+          null,
+          null,
+          null,
+          "tenant_checkpoint_created",
+          "tenant_scope_write_policy_v1",
+          summaryText,
+          threadSnapshotJson,
+          deltaJson,
+          evidenceJson,
+          nextActionsJson,
+          createdBy,
+        ]
+      );
+      await getPool().query(
+        `UPDATE platform_evolution_threads SET last_checkpoint_id = ?, updated_by = ? WHERE ${scopeKeyComparisonSql("scope_key")}`,
+        [checkpointId, createdBy, scope.scope_key]
+      );
+      await getPool().query(
+        `INSERT INTO platform_evolution_thread_events (
+          event_id, scope_key, tenant_id, user_id, brand_key, thread_key, event_type, event_title,
+          event_summary, source_surface, source_ref, classification, checkpoint_id, evidence_json, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          randomUUID(),
+          scope.scope_key,
+          scope.tenant_id,
+          req.auth.user_id,
+          scope.brand_key,
+          "activation_checkpoint_loop",
+          "tenant_checkpoint_created",
+          "Tenant checkpoint created",
+          summaryText.slice(0, 500),
+          "tenant_evolution_checkpoint_create",
+          checkpointId,
+          "tenant_scope_write_policy_v1",
+          checkpointId,
+          JSON.stringify({ token_returned: false, secrets_included: false, checkpoint_type: checkpointType }),
+          createdBy,
+        ]
+      );
+
+      return res.status(201).json({
+        ok: true,
+        checkpoint_id: checkpointId,
+        scope_key: scope.scope_key,
+        checkpoint_type: checkpointType,
+        tenant_facing: true,
+        write_policy: {
+          mode: "tenant_scope_write_policy_v1",
+          platform_commit_fields_accepted: false,
+          allowed_roles: ["owner", "admin", "tenant_admin", "brand_admin", "brand_owner", "manager", "editor", "operator"],
+        },
+        secrets_included: false,
+      });
+    } catch (err) { return errorResponse(res, err, "tenant_evolution_checkpoint_create_failed"); }
   });
 
   router.get("/tenant/evolution/activation-card", requireTenantUserJwt, async (req, res) => {
