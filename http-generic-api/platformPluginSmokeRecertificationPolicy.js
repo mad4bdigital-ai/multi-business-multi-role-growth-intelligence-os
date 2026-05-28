@@ -42,6 +42,87 @@ function parseJson(value, fallback = {}) {
   try { return JSON.parse(String(value)); } catch { return fallback; }
 }
 
+function policyAuditSummary(policy = null) {
+  if (!policy) return null;
+  return {
+    policy_id: policy.policy_id || null,
+    tenant_id: policy.tenant_id || null,
+    plugin_key: policy.plugin_key || "*",
+    action_key: policy.action_key || null,
+    mock_provider: policy.mock_provider || null,
+    mock_resource: policy.mock_resource || null,
+    certification_ttl_days: policy.certification_ttl_days,
+    expires_soon_days: policy.expires_soon_days,
+    max_batch_size: policy.max_batch_size,
+    auto_recertification_enabled: policy.auto_recertification_enabled === true,
+    provider_smoke_required: policy.provider_smoke_required !== false,
+    allowed_expected_origin: policy.allowed_expected_origin || null,
+    status: policy.status || null,
+    priority: policy.priority,
+    notes_present: Boolean(policy.notes),
+    secrets_included: false,
+  };
+}
+
+function changedFields(beforePolicy = null, afterPolicy = null) {
+  const before = policyAuditSummary(beforePolicy) || {};
+  const after = policyAuditSummary(afterPolicy) || {};
+  const fields = [
+    "tenant_id", "plugin_key", "action_key", "mock_provider", "mock_resource",
+    "certification_ttl_days", "expires_soon_days", "max_batch_size",
+    "auto_recertification_enabled", "provider_smoke_required", "allowed_expected_origin",
+    "status", "priority", "notes_present",
+  ];
+  return fields.filter((field) => JSON.stringify(before[field] ?? null) !== JSON.stringify(after[field] ?? null));
+}
+
+async function getPolicyById(pool, policyId) {
+  const [rows] = await pool.query(
+    `SELECT policy_id, tenant_id, plugin_key, action_key, mock_provider, mock_resource,
+            certification_ttl_days, expires_soon_days, max_batch_size,
+            auto_recertification_enabled, provider_smoke_required, allowed_expected_origin,
+            status, priority, notes, metadata_json
+       FROM platform_plugin_smoke_recertification_policies
+      WHERE policy_id = ?
+      LIMIT 1`,
+    [policyId]
+  );
+  return rows[0] ? normalizePolicy(rows[0]) : null;
+}
+
+async function writePolicyAuditEvidence({ pool, traceId, actor, reason, beforePolicy, afterPolicy, changed, upsertMode }) {
+  const evidence = await writeExecutionEvidence({
+    pool,
+    traceId,
+    entryType: "platform_plugin_smoke_recertification_policy_upsert",
+    executionClass: "platform_plugin_governance",
+    sourceLayer: "platformPluginSmokeRecertificationPolicy",
+    userInput: `smoke recertification policy upsert ${afterPolicy?.policy_id || "unknown"}`,
+    routeKeys: "platform_plugin_smoke_recertification_policy_upsert",
+    selectedWorkflows: "policy_registry_upsert",
+    executionMode: "policy_registry_mutation",
+    decisionTrigger: "admin_tool",
+    executionStatus: "success",
+    outputSummary: {
+      ok: true,
+      upsert_mode: upsertMode,
+      actor: actor || null,
+      reason: reason || null,
+      changed_fields: changed,
+      before: policyAuditSummary(beforePolicy),
+      after: policyAuditSummary(afterPolicy),
+      secrets_included: false,
+    },
+    recoveryStatus: "not_required",
+    routeStatus: "resolved",
+    routeSource: "sql_primary",
+    intakeValidationStatus: "validated",
+    executionReadyStatus: "ready",
+    logSource: "sql_primary",
+  });
+  return evidence.row || null;
+}
+
 function normalizePolicy(row = null) {
   if (!row) return { ...DEFAULT_POLICY };
   return {
