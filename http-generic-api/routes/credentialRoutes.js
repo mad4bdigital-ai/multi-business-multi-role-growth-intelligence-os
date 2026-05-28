@@ -249,6 +249,141 @@ async function buildCredentialResolutionPlan(input = {}) {
   };
 }
 
+async function promoteCredentialBinding(input = {}) {
+  const tenantId = str(input.tenant_id || input.tenantId);
+  const userId = str(input.user_id || input.userId);
+  const connectionId = str(input.connection_id || input.connectionId);
+  const actionKey = str(input.action_key || input.actionKey) || null;
+  const targetKey = str(input.target_key || input.targetKey) || null;
+  const credentialRole = str(input.credential_role || input.credentialRole || input.role);
+  const targetOwnerType = str(input.target_owner_type || input.targetOwnerType || "tenant");
+  const targetOwnerId = str(input.target_owner_id || input.targetOwnerId || (targetOwnerType === "platform" ? "platform" : tenantId));
+  const resolutionPriority = Math.max(1, Math.min(Number.parseInt(input.resolution_priority ?? input.resolutionPriority ?? "20", 10) || 20, 999));
+  const promotionReason = str(input.promotion_reason || input.promotionReason);
+  const promotionApproved = input.promotion_approved === true || input.promotionApproved === true;
+  const createdBy = str(input.created_by || input.createdBy || "credential_binding_promotion");
+
+  if (!tenantId || !userId || !connectionId || !credentialRole) {
+    const err = new Error("tenant_id, user_id, connection_id, and credential_role are required.");
+    err.status = 400;
+    err.code = "credential_promotion_required_fields_missing";
+    throw err;
+  }
+  if (!["tenant", "platform"].includes(targetOwnerType)) {
+    const err = new Error("target_owner_type must be tenant or platform.");
+    err.status = 400;
+    err.code = "credential_promotion_owner_type_invalid";
+    throw err;
+  }
+  if (!promotionApproved || promotionReason.length < 8) {
+    const err = new Error("promotion_approved=true and a promotion_reason of at least 8 characters are required.");
+    err.status = 400;
+    err.code = "credential_promotion_approval_required";
+    throw err;
+  }
+
+  const plan = await buildCredentialResolutionPlan({
+    tenant_id: tenantId,
+    user_id: userId,
+    connection_id: connectionId,
+    action_key: actionKey,
+    target_key: targetKey,
+    credential_role: credentialRole,
+    allow_platform_fallback: false,
+  });
+  const effective = plan.effective || {};
+  if (effective.status !== "resolved" || effective.owner_type !== "connection" || effective.connection_id !== connectionId) {
+    const err = new Error("Source connection credential must resolve before it can be promoted.");
+    err.status = 409;
+    err.code = "credential_promotion_source_not_resolved";
+    err.details = { status: effective.status, owner_type: effective.owner_type, connection_id: effective.connection_id };
+    throw err;
+  }
+
+  const sourceCandidate = plan.candidates.find((candidate) =>
+    candidate.connection_id === connectionId && candidate.eligible_for_request === true && candidate.credential_ref === effective.credential_ref
+  ) || {};
+  const pool = getPool();
+  const bindingId = randomUUID();
+  const ownerId = targetOwnerType === "tenant" ? tenantId : targetOwnerId;
+  const promotedRef = effective.credential_ref;
+  const providerFamily = sourceCandidate.provider_family || null;
+  const connectorFamily = sourceCandidate.connector_family || null;
+  const promotionActor = `promotion:${createdBy}`.slice(0, 64);
+
+  const [existing] = await pool.query(
+    `SELECT binding_id
+       FROM credential_bindings
+      WHERE tenant_id = ?
+        AND owner_type = ?
+        AND owner_id <=> ?
+        AND user_id IS NULL
+        AND system_id IS NULL
+        AND installation_id IS NULL
+        AND connection_id IS NULL
+        AND action_key <=> ?
+        AND target_key <=> ?
+        AND credential_role = ?
+      ORDER BY id ASC
+      LIMIT 1`,
+    [tenantId, targetOwnerType, ownerId, actionKey, targetKey, credentialRole]
+  );
+
+  if (existing[0]?.binding_id) {
+    await pool.query(
+      `UPDATE credential_bindings
+          SET credential_ref = ?, provider_family = ?, connector_family = ?, resolution_priority = ?, status = 'active', created_by = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE binding_id = ?`,
+      [promotedRef, providerFamily, connectorFamily, resolutionPriority, promotionActor, existing[0].binding_id]
+    );
+  } else {
+    await pool.query(
+      `INSERT INTO credential_bindings (
+        binding_id, tenant_id, owner_type, owner_id, user_id, system_id, installation_id, connection_id,
+        action_key, target_key, credential_role, credential_ref, provider_family, connector_family,
+        resolution_priority, status, created_by
+      ) VALUES (?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, 'active', ?)`,
+      [bindingId, tenantId, targetOwnerType, ownerId, actionKey, targetKey, credentialRole, promotedRef, providerFamily, connectorFamily, resolutionPriority, promotionActor]
+    );
+  }
+
+  const finalBindingId = existing[0]?.binding_id || bindingId;
+  const finalPlan = await buildCredentialResolutionPlan({
+    tenant_id: tenantId,
+    action_key: actionKey,
+    target_key: targetKey,
+    credential_role: credentialRole,
+    allow_platform_fallback: false,
+  });
+
+  return {
+    ok: true,
+    promoted_binding_id: finalBindingId,
+    source_connection_id: connectionId,
+    source_user_id: userId,
+    target_owner_type: targetOwnerType,
+    target_owner_id: ownerId,
+    tenant_id: tenantId,
+    action_key: actionKey,
+    target_key: targetKey,
+    credential_role: credentialRole,
+    credential_ref: promotedRef,
+    resolution_priority: resolutionPriority,
+    promotion_policy: {
+      mode: "credential_pointer_promotion_v1",
+      promotion_approved: true,
+      promotion_reason: promotionReason,
+      secret_copied: false,
+      secret_value_returned: false,
+      token_returned: false,
+    },
+    post_promotion_effective_status: finalPlan.effective?.status || null,
+    post_promotion_effective_owner_type: finalPlan.effective?.owner_type || null,
+    post_promotion_binding_id: finalPlan.effective?.binding_id || null,
+    secrets_included: false,
+  };
+}
+
 export function buildCredentialRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
