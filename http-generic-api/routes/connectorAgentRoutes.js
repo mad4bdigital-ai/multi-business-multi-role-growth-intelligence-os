@@ -268,8 +268,8 @@ function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [], 
   ].join("\r\n");
 }
 
-function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, port, permissionGrants = {} }) {
-  const envText = buildConnectorEnv({ connectorSecret, aliases, port, permissionGrants });
+function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
+  const envText = buildConnectorEnv({ connectorSecret, aliases, port, capabilities, permissionGrants });
   return [
     "# Mad4B Local Connector — run once as Administrator",
     "$ErrorActionPreference = 'Stop'",
