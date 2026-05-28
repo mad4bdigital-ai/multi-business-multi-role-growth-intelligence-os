@@ -999,6 +999,10 @@ components:
         connector_family: { type: string, nullable: true }
         resolution_priority: { type: integer, nullable: true }
         status: { type: string, nullable: true }
+        eligible_for_request: { type: boolean }
+        ineligibility_reasons:
+          type: array
+          items: { type: string }
         secret_value_included: { type: boolean, enum: [false] }
 
     CredentialEffectivePlanRequest:

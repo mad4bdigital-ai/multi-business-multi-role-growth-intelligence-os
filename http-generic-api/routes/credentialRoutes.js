@@ -49,12 +49,38 @@ function roleCandidateField(role = "", authType = "") {
   return "api_key";
 }
 
-function sanitizeCredentialCandidate(candidate = {}) {
+function candidateEligibility(candidate = {}, context = {}) {
+  const reasons = [];
+  for (const [field, contextField, label] of [
+    ["user_id", "userId", "user_context_required"],
+    ["connection_id", "connectionId", "connection_context_required"],
+    ["system_id", "systemId", "system_context_required"],
+    ["installation_id", "installationId", "installation_context_required"],
+    ["action_key", "actionKey", "action_context_required"],
+    ["target_key", "targetKey", "target_context_required"],
+  ]) {
+    const requiredValue = str(candidate[field]);
+    const suppliedValue = str(context[contextField]);
+    if (requiredValue && !suppliedValue) reasons.push(label);
+    if (requiredValue && suppliedValue && requiredValue !== suppliedValue) reasons.push(`${label}_mismatch`);
+  }
+  if (candidate.owner_type === "connection" && str(candidate.user_id) && !str(context.userId)) {
+    reasons.push("private_connection_user_context_required");
+  }
+  return {
+    eligible_for_request: reasons.length === 0,
+    ineligibility_reasons: [...new Set(reasons)],
+  };
+}
+
+function sanitizeCredentialCandidate(candidate = {}, context = {}) {
+  const eligibility = candidateEligibility(candidate, context);
   return {
     source: candidate.source || "unknown",
     owner_type: candidate.owner_type || null,
     owner_id: candidate.owner_id || null,
     binding_id: candidate.binding_id || null,
+    user_id: candidate.user_id || null,
     connection_id: candidate.connection_id || null,
     system_id: candidate.system_id || null,
     installation_id: candidate.installation_id || null,
@@ -66,6 +92,8 @@ function sanitizeCredentialCandidate(candidate = {}) {
     connector_family: candidate.connector_family || null,
     resolution_priority: candidate.resolution_priority ?? null,
     status: candidate.status || null,
+    eligible_for_request: eligibility.eligible_for_request,
+    ineligibility_reasons: eligibility.ineligibility_reasons,
     secret_value_included: false,
   };
 }
@@ -78,6 +106,7 @@ async function buildCredentialResolutionPlan(input = {}) {
   const targetKey = str(input.target_key || input.targetKey);
   const credentialRole = str(input.credential_role || input.credentialRole || input.role);
   const allowPlatformFallback = input.allow_platform_fallback !== false && input.allowPlatformFallback !== false;
+  const requestContext = { tenantId, userId, connectionId, actionKey, targetKey, credentialRole };
   if (!tenantId) {
     const err = new Error("tenant_id is required.");
     err.status = 400;
@@ -184,7 +213,7 @@ async function buildCredentialResolutionPlan(input = {}) {
   const candidates = [
     ...matchingBindings.map((row) => ({ ...row, source: "credential_bindings" })),
     ...fallbackCandidates,
-  ].map(sanitizeCredentialCandidate);
+  ].map((candidate) => sanitizeCredentialCandidate(candidate, requestContext));
   const effective = await getEffectiveCredentialStatus({
     tenant_id: tenantId,
     user_id: userId,
