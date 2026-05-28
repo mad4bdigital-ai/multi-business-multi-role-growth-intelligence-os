@@ -857,13 +857,32 @@
             }
           }
         },
-        "operations_workbook_binding": {
+        "operations_database_binding": {
           "type": "object",
           "additionalProperties": false,
           "default": {},
           "required": [
-            "id"
+            "source"
           ],
+          "properties": {
+            "source": {
+              "type": "string",
+              "default": "mysql_primary"
+            },
+            "title": {
+              "type": "string",
+              "default": "Growth Intelligence OS - Operations SQL Tables"
+            },
+            "role": {
+              "type": "string",
+              "default": "runtime_control_surface"
+            }
+          }
+        },
+        "legacy_operations_workbook_mirror": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
           "properties": {
             "id": {
               "type": "string",
@@ -875,7 +894,7 @@
             },
             "role": {
               "type": "string",
-              "default": "runtime_control_surface"
+              "default": "async_mirror_and_recovery"
             }
           }
         },
