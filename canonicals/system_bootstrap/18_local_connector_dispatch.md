@@ -83,6 +83,22 @@ Provisioning is idempotent — re-calling without `reprovision=true` returns the
 After provisioning, `CONNECTOR_LOCAL_API_KEY` on Cloud Run must be updated to the new
 `connector_secret` if Cloud Run proxies requests through the platform-side orchestrator.
 
+## Local Manager Capability Installer Invariants
+
+Local Manager-owned connector repair and capability flows must request short-lived signed installers through `POST /local-connector/install/device-download-link` using the DPAPI-protected device token. App-owned flows must set `app_managed=true` and `suppress_pause=true`, launch the signed BAT through Windows UAC, handle cancellation, wait for completion when possible, and then verify the live connector.
+
+The BAT wrapper is not the final authority for capability application. It downloads and runs `/connector-agent/installer.ps1`, which writes the effective local connector `.env`. Both paths must preserve the signed capability and permission-grant payload. The PowerShell installer must render opt-in capability flags and dynamic grants into:
+
+- `CONNECTOR_POWERSHELL_ENABLED`
+- `CONNECTOR_WIN_ENABLED`
+- `CONNECTOR_FILE_PATHS`
+- `CONNECTOR_APP_ALLOWLIST`
+- `CONNECTOR_SHELL_ALLOWLIST`
+
+`section=settings` control refresh is not proof of activation. A capability installer is validated only when live connector checks confirm the requested surfaces: PowerShell returns a version, Windows control returns process data, file grants appear in `allowed_paths`, and dynamic app grants appear in `connector_apps list`.
+
+High-risk capabilities remain explicit local-consent surfaces. They must not be present in the base connector environment and must remain UAC-gated, signed-token-gated, and secret-safe.
+
 ## Shell and File Execution Invariants
 
 For governed shell execution via local connector:
