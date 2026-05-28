@@ -65,6 +65,29 @@ Use admin side for:
 
 Admin side requires backend/service auth and must keep privileged work evidence-based. Prefer a specific governed endpoint before `executeAdminControl`. For destructive operations, require explicit current-user intent, preserve audit evidence, and stop on auth or policy denial.
 
+### Platform Plugin smoke/certification administration
+
+For Platform Plugin administration, treat smoke certification as the dispatch and promotion gate.
+
+Do not mark a plugin/action as ready based only on integration rows. Use the governed tool sequence:
+
+1. Resolve action/endpoint and execution readiness.
+2. Run `platform_plugin_dispatch_rest` in dry-run or provider-smoke mode.
+3. For provider smoke, set `provider_smoke=true` and an exact `provider_smoke_expected_origin`.
+4. Certify the successful smoke execution through `platform_plugin_smoke_certify`.
+5. Verify status with `platform_plugin_smoke_certification_status`.
+6. Use `platform_plugin_smoke_recertification_queue` before expiration/drift work.
+7. Use `platform_plugin_smoke_recertification_batch` only when queue shows no drift and policy permits automatic recertification.
+8. Use policy upsert/history/rollback tools for recertification policy changes, with `actor`, `reason`, and audit trace evidence.
+
+Policy changes that affect `auto_recertification_enabled`, `allowed_expected_origin`, `max_batch_size`, `provider_smoke_required`, `status`, or large TTL changes should be treated as risky. Until approval-hold is implemented, make such changes only with explicit user instruction and audit reason.
+
+Reference docs:
+
+- `docs/platform-plugin-smoke-certification-governance.md`
+- `docs/platform-plugin-recertification-policy-governance.md`
+- `docs/platform-plugin-governance-roadmap-2026-05-28.md`
+
 ### Customer Agent Side
 
 Customer-side mode is for tenant, brand, CRM, support, and user-scoped work. It must not assume platform-wide access even when the same GPT has admin actions available.
