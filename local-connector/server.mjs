@@ -335,6 +335,10 @@ const ENV_FILE_ALLOWLIST = (process.env.CONNECTOR_FILE_PATHS ?? '')
   .filter(Boolean);
 let FILE_ALLOWLIST = [...ENV_FILE_ALLOWLIST];
 
+refreshShellPolicy({ force: true }).catch((e) => {
+  console.error('[connector] Initial connector policy pull failed:', e.message);
+});
+
 function isSubPath(parent, child) {
   const relative = path.relative(parent, child);
   return Boolean(relative) && !relative.startsWith('..') && !path.isAbsolute(relative);
