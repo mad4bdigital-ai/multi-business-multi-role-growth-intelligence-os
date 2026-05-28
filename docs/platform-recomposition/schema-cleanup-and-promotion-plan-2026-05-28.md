@@ -168,6 +168,19 @@ warehouse/source connector/brand core asset keys are primary
 sheet ids remain optional import/recovery metadata only
 ```
 
+S4 implemented changes:
+
+```text
+analytics score signals use source_registry_table / source_connector_key
+analytics source_sheet retained only as legacy_mirror_sheet_name
+WordPress preflight uses brand_playbook_asset_key as primary
+brand_playbook_sheet_gid renamed to legacy_brand_playbook_sheet_gid
+operations logging_surface uses SQL execution_log table
+operations workbook runtime remnants reclassified as legacy_operations_workbook_runtime_mirror
+business identity source_registry uses registry_source / registry_table / registry_row_id
+business identity spreadsheet metadata moved to legacy_mirror_* fields
+```
+
 ### Phase S5 — Runtime enforcement alignment
 
 After schema cleanup, confirm runtime enforcement uses the same model:
