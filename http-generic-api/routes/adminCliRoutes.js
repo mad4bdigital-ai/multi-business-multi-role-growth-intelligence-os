@@ -937,6 +937,12 @@ async function executeGitHubRestFallback(args = []) {
     const mergeMethod = hasCliFlag(args, "--squash") ? "squash" : hasCliFlag(args, "--rebase") ? "rebase" : "merge";
     const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
     if (pr?.mergeable === false || String(pr?.mergeable_state || "").toLowerCase() === "dirty") {
+      const headRef = pr?.head?.repo?.full_name === `${owner}/${repo}`
+        ? pr?.head?.ref
+        : pr?.head?.repo?.owner?.login && pr?.head?.ref
+          ? `${pr.head.repo.owner.login}:${pr.head.ref}`
+          : pr?.head?.ref;
+      const compare = await loadGithubCompareForRefs({ owner, repo, token, baseRef: pr?.base?.ref || "main", headRef });
       const err = new Error("Pull request is not mergeable. Resolve conflicts or recreate the branch from the current base before merging.");
       err.status = 409;
       err.code = "github_pr_not_mergeable_dirty";
@@ -948,6 +954,12 @@ async function executeGitHubRestFallback(args = []) {
         head_sha: pr?.head?.sha || null,
         base_ref: pr?.base?.ref || null,
         base_sha: pr?.base?.sha || null,
+        compare_status: compare?.status || null,
+        ahead_by: compare?.ahead_by ?? null,
+        behind_by: compare?.behind_by ?? null,
+        files: Array.isArray(compare?.files)
+          ? compare.files.map((file) => ({ filename: file.filename, status: file.status, changes: file.changes })).slice(0, 100)
+          : [],
       };
       throw err;
     }
