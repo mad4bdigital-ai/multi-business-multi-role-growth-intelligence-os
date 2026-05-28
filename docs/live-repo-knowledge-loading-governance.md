@@ -86,28 +86,37 @@ browser scraping of raw GitHub URLs
 copy/pasted credentials or secrets
 ```
 
-## Future tenant-safe docs reader contract
+## Tenant-safe docs reader contract
 
-A tenant-visible docs reader should be bounded by an allowlist.
+A tenant-visible docs reader is implemented and bounded by an allowlist.
 
-Suggested tool key:
+Tool key:
 
 ```text
 tenant_repo_doc_read
 ```
 
-Suggested behavior:
+Route:
+
+```text
+POST /tenant/repo-docs/read
+```
+
+Behavior:
 
 ```text
 input: { path, max_chars }
-allowlist only tenant-safe docs
+omit path to list allowed docs
+allowlist only tenant-safe Markdown docs
 no globbing outside allowed docs
 no raw migrations or admin guides
-no secrets
-return content, sha/commit if available, truncated flag, and source path
+no admin repo_inspect
+no native GitHub/raw repo fallback
+obvious secret-like patterns are redacted defensively
+return content, truncated flag, source path, policy, and secrets_included=false
 ```
 
-Suggested allowlist:
+Implemented allowlist:
 
 ```text
 GPT_Tenant_Connector_Instructions.md
