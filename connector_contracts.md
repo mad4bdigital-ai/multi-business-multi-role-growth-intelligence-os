@@ -140,6 +140,23 @@ AES-GCM decryption helpers, credential field extraction, scope matching, and las
 
 ---
 
+## Local connector installer routes
+
+### `/local-connector/install/device-download-link` and `/local-connector/install/download`
+
+- **Purpose:** Issue and download short-lived, signed connector repair/capability installer bootstraps for the linked Local Manager device.
+- **Caller:** Local Manager Windows app using a DPAPI-protected `local_manager.device` token.
+- **App-managed mode:** `app_managed=true` and `suppress_pause=true` make the generated BAT exit with `exit /b 0` or `exit /b 1` instead of pausing. Manual downloads retain `pause`.
+- **Payload authority:** `capabilities` and `permission_grants` are signed into the installer token. The route must normalize and preserve requested capabilities, app grants, allowed paths, and helper shell aliases.
+- **Security:** UAC/local Administrator approval is still required. Installer JSON responses and app diagnostics must not expose connector secrets or signed token values.
+
+### `/connector-agent/installer.ps1`
+
+- **Purpose:** Generate the PowerShell installer that downloads manifest-verified connector agent files, writes the effective local `.env`, configures cloudflared/NSSM, and restarts the `local-connector` service.
+- **Caller:** The BAT wrapper returned by `/local-connector/install/download`.
+- **Capability contract:** This route is the final `.env` writer and must render signed opt-in values into `CONNECTOR_POWERSHELL_ENABLED`, `CONNECTOR_WIN_ENABLED`, `CONNECTOR_FILE_PATHS`, `CONNECTOR_APP_ALLOWLIST`, and `CONNECTOR_SHELL_ALLOWLIST`.
+- **Regression guard:** Do not declare capability install recovered from Settings refresh alone. Validate live connector behavior: `connector_ps`, `connector_win`, `connector_files`, and `connector_apps`.
+
 ## Dispatch entrypoint
 
 Connector dispatch routes through two layers:
