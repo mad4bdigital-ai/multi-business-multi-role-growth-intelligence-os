@@ -100,6 +100,13 @@ const DEFAULT_WINDOWS_ALIASES = [
   { alias: "n8n_restore_certify_probe", cmd: "node", args: ["n8n-restore-certifier.mjs"], allow_extra_args: false, description: "Read-only n8n restore certification prerequisite probe" },
 ];
 
+const LOCAL_CONNECTOR_CAPABILITY_FLAGS = {
+  powershell_admin: "CONNECTOR_POWERSHELL_ENABLED",
+  windows_control: "CONNECTOR_WIN_ENABLED",
+  dependencies: "CONNECTOR_DEPENDENCIES_ENABLED",
+  auto_browser: "CONNECTOR_AUTO_BROWSER_ENABLED",
+};
+
 function sha256(buffer) {
   return crypto.createHash("sha256").update(buffer).digest("hex");
 }
