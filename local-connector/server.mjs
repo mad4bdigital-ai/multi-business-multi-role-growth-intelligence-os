@@ -207,6 +207,15 @@ let SHELL_POLICY_STATE = {
   last_pull_at: null,
   last_error: null,
 };
+let CONNECTOR_GRANT_POLICY_STATE = {
+  source: 'env',
+  loaded: false,
+  capability_count: 0,
+  allowed_path_count: 0,
+  app_count: Object.keys(APP_ALLOWLIST).length,
+  last_pull_at: null,
+  last_error: null,
+};
 
 function normalizeRemoteShellAliases(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
