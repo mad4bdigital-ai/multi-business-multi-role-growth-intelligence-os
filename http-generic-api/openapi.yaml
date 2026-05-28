@@ -10804,6 +10804,46 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /tenant/evolution/checkpoints:
+    post:
+      tags: [platform-evolution]
+      operationId: tenantEvolutionCheckpointCreate
+      summary: Create tenant Evolution checkpoint
+      description: >
+        Tenant/user scoped checkpoint creation. Requires User JWT, active tenant membership, an allowed Platform Evolution
+        scope, and a write-capable role. Tenant checkpoints cannot set platform commit/deploy authority fields and do not
+        return tokens or secrets.
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantEvolutionCheckpointCreateRequest"
+      responses:
+        "201":
+          description: Tenant checkpoint created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantEvolutionCheckpointCreateResponse"
+        "400":
+          description: Missing summary or invalid checkpoint type.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Scope grant or write-capable role missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /tenant/evolution/activation-card:
     get:
       tags: [platform-evolution]
