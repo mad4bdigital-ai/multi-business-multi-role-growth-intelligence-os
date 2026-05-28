@@ -33,6 +33,8 @@ assert(migration.includes('no_secrets'), 'tenant smoke tool must be tagged no_se
 assert(openapi.includes('/platform/evolution/tenant-smoke:'), 'tenant smoke path must be documented in OpenAPI');
 assert(openapi.includes('PlatformEvolutionTenantSmokeRequest'), 'tenant smoke request schema must be documented');
 assert(openapi.includes('PlatformEvolutionTenantSmokeResponse'), 'tenant smoke response schema must be documented');
+assert(openapi.includes('include_write'), 'OpenAPI must document include_write');
+assert(openapi.includes('checkpoint_write'), 'OpenAPI must document checkpoint_write check');
 assert(openapi.includes('token_returned: { type: boolean, enum: [false] }'), 'OpenAPI must document token_returned=false');
 assert(openapi.includes('tenant_checkpoint_write_enabled: { type: boolean, enum: [false] }'), 'OpenAPI must document tenant checkpoint write disabled');
 
