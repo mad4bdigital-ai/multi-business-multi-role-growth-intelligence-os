@@ -162,6 +162,13 @@ assert(smokeRecertPolicyAuditToolsMigration.includes("execution_log_audit"), "sm
 assert(smokeRecertPolicySource.includes("resolvePlatformPluginSmokeRecertificationPolicy"), "smoke recertification policy source must expose resolver");
 assert(smokeRecertPolicySource.includes("upsertPlatformPluginSmokeRecertificationPolicy"), "smoke recertification policy source must expose upsert");
 assert(smokeRecertPolicySource.includes("DEFAULT_POLICY"), "smoke recertification policy source must provide runtime default fallback");
+assert(smokeRecertPolicySource.includes("writeExecutionEvidence"), "smoke recertification policy upsert must write execution evidence");
+assert(smokeRecertPolicySource.includes("platform_plugin_smoke_recertification_policy_upsert"), "smoke recertification policy audit entry type must be stable");
+assert(smokeRecertPolicySource.includes("changedFields"), "smoke recertification policy upsert must compute changed fields");
+assert(smokeRecertPolicySource.includes("policyAuditSummary"), "smoke recertification policy upsert must summarize before/after safely");
+assert(smokeRecertPolicySource.includes("before: policyAuditSummary"), "smoke recertification policy audit must include before summary");
+assert(smokeRecertPolicySource.includes("after: policyAuditSummary"), "smoke recertification policy audit must include after summary");
+assert(smokeRecertPolicySource.includes("auditRow"), "smoke recertification policy upsert must return audit row evidence");
 
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certify"), "smoke certification writer admin tool must be registered");
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certification_status"), "smoke certification status admin tool must be registered");
