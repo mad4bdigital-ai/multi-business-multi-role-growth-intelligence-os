@@ -1829,7 +1829,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, healthBody());
     }
 
-    if (method === 'GET' && url === '/policy') { if (!requireAuth(req, res)) return; audit(req, { action: 'policy' }); return json(res, 200, policyBody()); }
+    if (method === 'GET' && url === '/policy') { if (!requireAuth(req, res)) return; await refreshShellPolicy(); audit(req, { action: 'policy' }); return json(res, 200, policyBody()); }
 
       if (method === 'GET' && url === '/schema') {
       const schemaPath = path.join(__dirname, '..', 'http-generic-api', 'openapi.gpt-action.local-connector.yaml');
