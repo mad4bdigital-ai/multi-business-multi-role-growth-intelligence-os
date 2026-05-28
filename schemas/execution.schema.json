@@ -596,19 +596,25 @@
       "type": "object",
       "additionalProperties": false,
       "default": {
-        "operations_log_unified_sheet": {
+        "execution_log": {
           "required": true,
           "write_succeeded": false,
           "readback_verified": false,
           "placement_valid": false
         },
-        "review_run_history_sheet": {
+        "output_artifacts": {
           "required": false,
           "write_succeeded": false,
           "readback_verified": false,
           "placement_valid": false
         },
-        "review_findings_log_sheet": {
+        "sink_dispatch_log": {
+          "required": false,
+          "write_succeeded": false,
+          "readback_verified": false,
+          "placement_valid": false
+        },
+        "agent_chain_events": {
           "required": false,
           "write_succeeded": false,
           "readback_verified": false,
@@ -616,13 +622,16 @@
         }
       },
       "properties": {
-        "operations_log_unified_sheet": {
+        "execution_log": {
           "$ref": "#/$defs/authoritativeWriteTargetEntry"
         },
-        "review_run_history_sheet": {
+        "output_artifacts": {
           "$ref": "#/$defs/authoritativeWriteTargetEntry"
         },
-        "review_findings_log_sheet": {
+        "sink_dispatch_log": {
+          "$ref": "#/$defs/authoritativeWriteTargetEntry"
+        },
+        "agent_chain_events": {
           "$ref": "#/$defs/authoritativeWriteTargetEntry"
         }
       }
