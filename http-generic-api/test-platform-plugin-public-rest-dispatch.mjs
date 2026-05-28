@@ -13,6 +13,7 @@ const smokeCertLifecycleToolsMigration = readFileSync("migrations/154_sprint65_s
 const smokeRecertToolsMigration = readFileSync("migrations/155_sprint65_smoke_recertification_tools.sql", "utf8");
 const smokeRecertPolicyMigration = readFileSync("migrations/156_sprint65_smoke_recertification_policy_registry.sql", "utf8");
 const smokeRecertPolicyToolsMigration = readFileSync("migrations/157_sprint65_smoke_recertification_policy_tools.sql", "utf8");
+const smokeRecertPolicyAuditToolsMigration = readFileSync("migrations/158_sprint65_smoke_recertification_policy_audit_tool_schema.sql", "utf8");
 const smokeCertSource = readFileSync("platformPluginSmokeCertification.js", "utf8");
 const smokeRecertSource = readFileSync("platformPluginSmokeRecertification.js", "utf8");
 const smokeRecertPolicySource = readFileSync("platformPluginSmokeRecertificationPolicy.js", "utf8");
@@ -120,6 +121,10 @@ assert(openapi.includes("/platform/plugins/smoke-certifications/policies/list:")
 assert(openapi.includes("operationId: platformPluginSmokeRecertificationPolicyList"), "OpenAPI must expose stable recertification policy list operationId");
 assert(openapi.includes("/platform/plugins/smoke-certifications/policies/upsert:"), "OpenAPI must document recertification policy upsert route");
 assert(openapi.includes("operationId: platformPluginSmokeRecertificationPolicyUpsert"), "OpenAPI must expose stable recertification policy upsert operationId");
+assert(openapi.includes("Writes execution-log audit evidence"), "OpenAPI must document policy upsert audit evidence");
+assert(openapi.includes("actor_id: { type: string }"), "OpenAPI must expose policy upsert actor_id field");
+assert(openapi.includes("change_reason: { type: string }"), "OpenAPI must expose policy upsert change_reason field");
+assert(openapi.includes("trace_id: { type: string }"), "OpenAPI must expose policy upsert trace_id field");
 
 const smokeMigration = readFileSync("migrations/150_sprint65_provider_smoke_guarded_dispatch_schema.sql", "utf8");
 assert(smokeMigration.includes("provider_smoke"), "provider smoke schema migration must include provider_smoke field");
@@ -152,9 +157,22 @@ assert(smokeRecertPolicyMigration.includes("smoke_recert_policy_default"), "smok
 assert(smokeRecertPolicyToolsMigration.includes("platform_plugin_smoke_recertification_policy_resolve"), "smoke recertification policy resolve tool must be registered");
 assert(smokeRecertPolicyToolsMigration.includes("platform_plugin_smoke_recertification_policy_list"), "smoke recertification policy list tool must be registered");
 assert(smokeRecertPolicyToolsMigration.includes("platform_plugin_smoke_recertification_policy_upsert"), "smoke recertification policy upsert tool must be registered");
+assert(smokeRecertPolicyAuditToolsMigration.includes("execution-log audit evidence"), "smoke recertification policy upsert schema must document execution-log audit evidence");
+assert(smokeRecertPolicyAuditToolsMigration.includes("changed fields"), "smoke recertification policy upsert schema must document changed fields");
+assert(smokeRecertPolicyAuditToolsMigration.includes("actor"), "smoke recertification policy upsert schema must expose actor field");
+assert(smokeRecertPolicyAuditToolsMigration.includes("reason"), "smoke recertification policy upsert schema must expose reason field");
+assert(smokeRecertPolicyAuditToolsMigration.includes("trace_id"), "smoke recertification policy upsert schema must expose trace_id field");
+assert(smokeRecertPolicyAuditToolsMigration.includes("execution_log_audit"), "smoke recertification policy upsert tool must be tagged execution_log_audit");
 assert(smokeRecertPolicySource.includes("resolvePlatformPluginSmokeRecertificationPolicy"), "smoke recertification policy source must expose resolver");
 assert(smokeRecertPolicySource.includes("upsertPlatformPluginSmokeRecertificationPolicy"), "smoke recertification policy source must expose upsert");
 assert(smokeRecertPolicySource.includes("DEFAULT_POLICY"), "smoke recertification policy source must provide runtime default fallback");
+assert(smokeRecertPolicySource.includes("writeExecutionEvidence"), "smoke recertification policy upsert must write execution evidence");
+assert(smokeRecertPolicySource.includes("platform_plugin_smoke_recertification_policy_upsert"), "smoke recertification policy audit entry type must be stable");
+assert(smokeRecertPolicySource.includes("changedFields"), "smoke recertification policy upsert must compute changed fields");
+assert(smokeRecertPolicySource.includes("policyAuditSummary"), "smoke recertification policy upsert must summarize before/after safely");
+assert(smokeRecertPolicySource.includes("before: policyAuditSummary"), "smoke recertification policy audit must include before summary");
+assert(smokeRecertPolicySource.includes("after: policyAuditSummary"), "smoke recertification policy audit must include after summary");
+assert(smokeRecertPolicySource.includes("auditRow"), "smoke recertification policy upsert must return audit row evidence");
 
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certify"), "smoke certification writer admin tool must be registered");
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certification_status"), "smoke certification status admin tool must be registered");

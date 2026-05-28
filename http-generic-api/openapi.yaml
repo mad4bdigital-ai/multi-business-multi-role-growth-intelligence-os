@@ -9826,7 +9826,7 @@ paths:
         - backendApiKeyAuth: []
       operationId: platformPluginSmokeRecertificationPolicyUpsert
       summary: Upsert Platform Plugin smoke recertification policy
-      description: Create or update a smoke recertification policy for a tenant/plugin/action/mock scope. Controls TTL, expiring-soon window, max batch size, auto enablement, and expected origin guard.
+      description: Create or update a smoke recertification policy for a tenant/plugin/action/mock scope. Controls TTL, expiring-soon window, max batch size, auto enablement, and expected origin guard. Writes execution-log audit evidence with before/after summaries and changed fields.
       requestBody:
         required: true
         content:
@@ -9853,6 +9853,13 @@ paths:
                 metadata:
                   type: object
                   additionalProperties: true
+                actor: { type: string }
+                actor_id: { type: string }
+                admin_user_id: { type: string }
+                updated_by: { type: string }
+                reason: { type: string }
+                change_reason: { type: string }
+                trace_id: { type: string }
       responses:
         "200":
           description: Effective smoke recertification policy after upsert
