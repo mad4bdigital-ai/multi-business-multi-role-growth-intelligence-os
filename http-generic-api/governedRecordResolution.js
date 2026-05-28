@@ -157,7 +157,7 @@ export function findRegistryRecordByIdentity(rows = [], identity = {}) {
 
 export async function resolveBrandRegistryBinding(identity = {}, deps = {}) {
   const registry = await readGovernedSheetRecords(
-    deps.BRAND_REGISTRY_SHEET,
+    deps.BRAND_REGISTRY_SHEET || "Brand Registry",
     deps.REGISTRY_SPREADSHEET_ID,
     deps
   );
