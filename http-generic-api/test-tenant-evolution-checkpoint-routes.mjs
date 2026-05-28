@@ -7,6 +7,7 @@ const indexFile = readFileSync('routes/index.js', 'utf8');
 const migration = readFileSync('migrations/156_sprint65_tenant_evolution_checkpoint_read_tools.sql', 'utf8');
 
 assert(routeFile.includes('export function buildTenantEvolutionRoutes'), 'tenant evolution route builder must be exported');
+assert(routeFile.includes('/tenant/evolution/checkpoints'), 'tenant checkpoint create route must exist');
 assert(routeFile.includes('/tenant/evolution/activation-card'), 'tenant activation-card route must exist');
 assert(routeFile.includes('/tenant/evolution/thread-map'), 'tenant thread-map route must exist');
 assert(routeFile.includes('/tenant/evolution/open-evidence'), 'tenant open-evidence route must exist');
