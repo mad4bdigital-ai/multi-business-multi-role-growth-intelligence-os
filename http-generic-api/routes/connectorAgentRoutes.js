@@ -213,7 +213,16 @@ function normalizePermissionGrants(value = {}) {
     });
     if (shellAliases.length >= 50) break;
   }
-  return { shell_aliases: shellAliases };
+  return { capabilities, allowed_paths: allowedPaths, apps, shell_aliases: shellAliases };
+}
+
+function connectorCapabilityEnvLines(capabilities = []) {
+  return normalizeRequestedCapabilities(capabilities).map((capability) => `${LOCAL_CONNECTOR_CAPABILITY_FLAGS[capability]}=true`);
+}
+
+function envJsonLine(key, value) {
+  const json = JSON.stringify(value || {});
+  return `${key}=${json.replace(/\r?\n/g, "")}`;
 }
 
 function buildAllowlistEnvValue(aliases) {
