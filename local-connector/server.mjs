@@ -1234,8 +1234,9 @@ async function handleBrowser4(req, res) {
 }
 
 async function handleAutoBrowser(req, res) {
-  if (!AUTO_BROWSER_ENABLED) return err(res, 403, 'DISABLED', 'Auto Browser endpoint is disabled — set CONNECTOR_AUTO_BROWSER_ENABLED=true after installing and validating Auto Browser');
   if (!requireAuth(req, res)) return;
+  await refreshShellPolicy();
+  if (!AUTO_BROWSER_ENABLED) return err(res, 403, 'DISABLED', 'Auto Browser endpoint is disabled — set CONNECTOR_AUTO_BROWSER_ENABLED=true after installing and validating Auto Browser');
   let body;
   try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
   const { action = 'status', timeout_ms } = body;
