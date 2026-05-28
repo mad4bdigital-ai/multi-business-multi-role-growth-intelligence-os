@@ -791,7 +791,8 @@ export function buildConnectorAgentRoutes() {
         if (entry) aliases[entry.alias] = entry;
       }
       const aliasList = Object.entries(aliases).map(([alias, entry]) => ({ alias, ...entry }));
-      const checksum = checksumShellPolicy(aliasList);
+      const grantPolicy = await loadConnectorGrantPolicy(config.config_id);
+      const checksum = checksumConnectorPolicy({ aliases: aliasList, grants: grantPolicy });
       const policyVersion = aliasList.reduce((max, item) => {
         const ts = item.updated_at ? Date.parse(item.updated_at) : 0;
         return Number.isFinite(ts) && ts > max ? ts : max;
