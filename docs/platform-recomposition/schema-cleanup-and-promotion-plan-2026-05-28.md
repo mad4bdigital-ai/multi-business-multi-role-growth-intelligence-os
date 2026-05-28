@@ -137,6 +137,17 @@ SQL execution_log / audit_log / output_artifacts / sink_dispatch_log / agent_cha
 workbook fields are legacy_mirror_* or recovery_* only
 ```
 
+S3 implemented changes:
+
+```text
+systemContext.active_sheet_bindings renamed to active_sql_registry_bindings
+legacy_mirror_sheet_bindings added for mirror/recovery evidence
+approved_registry_tabs renamed to approved_registry_tables
+registry_workbook split into registry_database + legacy_registry_workbook_mirror
+operations_workbook_binding split into operations_database_binding + legacy_operations_workbook_mirror
+repair cluster_source_mode direct_sheet renamed to recovery_mirror_import
+```
+
 ### Phase S4 — Analytics, WordPress, and asset schema cleanup
 
 Clean source-specific remnants:
