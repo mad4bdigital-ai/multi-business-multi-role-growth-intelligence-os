@@ -150,6 +150,82 @@
         }
       }
     },
+    "wordpressBlogPublishRecoveryState": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Runtime memory state for the platform-native WordPress blog publish credential recovery workflow.",
+      "required": [
+        "workflow_key",
+        "target_key",
+        "credential_status",
+        "intake_status",
+        "resume_status",
+        "post_status",
+        "readback_status",
+        "n8n_authority_status"
+      ],
+      "properties": {
+        "workflow_key": {
+          "type": "string",
+          "const": "wordpress_blog_publish_or_recover_credentials_workflow",
+          "default": "wordpress_blog_publish_or_recover_credentials_workflow"
+        },
+        "target_key": {
+          "type": "string",
+          "default": ""
+        },
+        "credential_status": {
+          "type": "string",
+          "enum": ["pending", "resolved", "missing", "intake_required", "authorization_gated", "degraded", "blocked"],
+          "default": "pending"
+        },
+        "intake_status": {
+          "type": "string",
+          "enum": ["not_required", "pending", "created", "stored", "expired", "failed"],
+          "default": "pending"
+        },
+        "resume_status": {
+          "type": "string",
+          "enum": ["pending", "original_request_preserved", "resumed", "not_resumable", "blocked"],
+          "default": "pending"
+        },
+        "post_status": {
+          "type": "string",
+          "enum": ["pending", "draft", "publish", "created", "failed", "blocked"],
+          "default": "pending"
+        },
+        "readback_status": {
+          "type": "string",
+          "enum": ["pending", "created_response_contains_id", "created_response_missing_id", "verified", "failed", "blocked"],
+          "default": "pending"
+        },
+        "last_post_id": {
+          "type": ["integer", "null"],
+          "default": null
+        },
+        "last_post_link": {
+          "type": "string",
+          "default": ""
+        },
+        "n8n_authority_status": {
+          "type": "string",
+          "enum": ["not_authoritative", "auxiliary_only", "blocked_from_provider_publish"],
+          "default": "not_authoritative"
+        }
+      },
+      "default": {
+        "workflow_key": "wordpress_blog_publish_or_recover_credentials_workflow",
+        "target_key": "",
+        "credential_status": "pending",
+        "intake_status": "pending",
+        "resume_status": "pending",
+        "post_status": "pending",
+        "readback_status": "pending",
+        "last_post_id": null,
+        "last_post_link": "",
+        "n8n_authority_status": "not_authoritative"
+      }
+    },
     "apiActionInventory": {
       "type": "object",
       "additionalProperties": false,
