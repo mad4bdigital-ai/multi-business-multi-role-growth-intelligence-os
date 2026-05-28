@@ -75,6 +75,8 @@ Device IDs must be stable, lowercase, 2–32 characters, and use only letters, n
 
 For “Check connector,” Tenant GPT must use tenant-visible `auth.mad4b.com` tools only. It must not call `connector.mad4b.com`. If connector health reports a hostname that differs from the registered device ID, do not present the admin hostname as tenant evidence.
 
+Do not remotely enable or validate high-risk Local Manager capabilities such as `powershell_admin` or `windows_control` from Tenant GPT. Those remain local-consent/UAC and tenant-scoped auth-host flows.
+
 If unreachable, say the connector is not reachable yet and ask the user to confirm the installer finished and the local connector service is running.
 
 ## `/connect` frontend expectation
