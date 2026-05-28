@@ -85,6 +85,8 @@ CI validation green
 
 ### Phase S2 — Governance and execution schema cleanup
 
+Status: in progress.
+
 Clean the definitions that directly influence runtime validation:
 
 ```text
