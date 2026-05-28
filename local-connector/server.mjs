@@ -98,8 +98,10 @@ const CF_ENABLED = process.env.CONNECTOR_CF_ENABLED === 'true';
 const CF_TOKEN = process.env.CLOUDFLARE_API_TOKEN ?? '';
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID ?? '';
 const CF_ZONE_ID = process.env.CF_ZONE_ID ?? '';
-const DEPENDENCIES_ENABLED = process.env.CONNECTOR_DEPENDENCIES_ENABLED === 'true';
-const APPS_ENABLED = process.env.CONNECTOR_APPS_ENABLED === 'true';
+const ENV_DEPENDENCIES_ENABLED = process.env.CONNECTOR_DEPENDENCIES_ENABLED === 'true';
+const ENV_APPS_ENABLED = process.env.CONNECTOR_APPS_ENABLED === 'true';
+let DEPENDENCIES_ENABLED = ENV_DEPENDENCIES_ENABLED;
+let APPS_ENABLED = ENV_APPS_ENABLED;
 const BROWSER4_ENABLED = process.env.CONNECTOR_BROWSER4_ENABLED === 'true';
 const BROWSER4_WORK_DIR = process.env.BROWSER4_WORK_DIR ?? (process.platform === 'win32'
   ? 'D:\\n8n-data\\browser-runtime-artifacts'
