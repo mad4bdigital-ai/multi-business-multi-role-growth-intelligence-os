@@ -291,17 +291,31 @@ export function buildPlatformEvolutionRoutes(deps = {}) {
         email: scope.email,
         tenant_id: scope.tenant_id,
       });
-      const encodedScope = encodeURIComponent(scope.scope_key);
-      const encodedBrand = encodeURIComponent(scope.brand_key || "");
-      const switchResult = await smokeGet(`/tenant/evolution/switch-options?brand_key=${encodedBrand}&limit=5`, token);
-      const cardResult = await smokeGet(`/tenant/evolution/activation-card?scope_key=${encodedScope}`, token);
-      const threadResult = await smokeGet(`/tenant/evolution/thread-map?scope_key=${encodedScope}&limit=3`, token);
-      const checks = {
-        switch_options: smokeSummary(switchResult),
-        activation_card: smokeSummary(cardResult),
-        thread_map: smokeSummary(threadResult),
-      };
+      const transportMode = nonEmptyString(body.transport_mode || body.transportMode, "direct_scope");
+      let checks;
+      let jwtVerified = null;
+      if (transportMode === "http_self_call") {
+        const encodedScope = encodeURIComponent(scope.scope_key);
+        const encodedBrand = encodeURIComponent(scope.brand_key || "");
+        const switchResult = await smokeGet(`/tenant/evolution/switch-options?brand_key=${encodedBrand}&limit=5`, token);
+        const cardResult = await smokeGet(`/tenant/evolution/activation-card?scope_key=${encodedScope}`, token);
+        const threadResult = await smokeGet(`/tenant/evolution/thread-map?scope_key=${encodedScope}&limit=3`, token);
+        checks = {
+          switch_options: smokeSummary(switchResult),
+          activation_card: smokeSummary(cardResult),
+          thread_map: smokeSummary(threadResult),
+        };
+      } else {
+        const direct = await directTenantSmoke(scope, token);
+        checks = {
+          switch_options: direct.switch_options,
+          activation_card: direct.activation_card,
+          thread_map: direct.thread_map,
+        };
+        jwtVerified = direct.jwt_verified;
+      }
       const passed =
+        (transportMode === "http_self_call" || jwtVerified === true) &&
         checks.switch_options.status === 200 && checks.switch_options.response_ok === true && checks.switch_options.secrets_included === false &&
         checks.activation_card.status === 200 && checks.activation_card.response_ok === true && checks.activation_card.secrets_included === false &&
         checks.thread_map.status === 200 && checks.thread_map.response_ok === true && checks.thread_map.secrets_included === false;
@@ -312,12 +326,14 @@ export function buildPlatformEvolutionRoutes(deps = {}) {
         tenant_id: scope.tenant_id,
         brand_key: scope.brand_key,
         user_id: scope.user_id,
+        transport_mode: transportMode,
+        jwt_verified: jwtVerified,
         checks,
         smoke_policy: {
           token_returned: false,
           jwt_ttl_seconds: 300,
           tenant_checkpoint_write_enabled: false,
-          runtime_base_url: runtimeBaseUrl(),
+          runtime_base_url: transportMode === "http_self_call" ? runtimeBaseUrl() : null,
         },
         secrets_included: false,
       });
