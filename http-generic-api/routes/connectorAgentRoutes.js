@@ -814,6 +814,12 @@ export function buildConnectorAgentRoutes() {
           app_aliases: Object.keys(grantPolicy.apps),
         },
         generated_at: new Date().toISOString(),
+        capability_grants: {
+          capabilities: grantPolicy.capabilities,
+          allowed_paths: grantPolicy.allowed_paths,
+          apps: grantPolicy.apps,
+          app_aliases: Object.keys(grantPolicy.apps),
+        },
         ttl_seconds: 300,
         secrets_included: false,
       });
