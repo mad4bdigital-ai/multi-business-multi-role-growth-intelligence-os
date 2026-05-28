@@ -218,6 +218,10 @@ Completed sprints: WordPress extraction (S2), http-generic-api decomposition (S3
 - `http-generic-api/openapi.gpt-action.local-connector.yaml` — hand-maintained Admin-only break-glass OpenAPI spec for `connector.mad4b.com`. It points to the standalone local connector, not to `http-generic-api/server.js`. Eleven ops: health, github, gcloud, shell, files, fetch-upload, shell-fetch-upload, ps (PowerShell), win (Windows UI), n8n, plus connector cf (Cloudflare API).
 - `local-connector/` â€” Node.js break-glass connector running on the active admin Windows host at port 7070, exposed via Cloudflare Tunnel to `connector.mad4b.com`. This runtime must remain independently usable when `auth.mad4b.com` / Hostinger `server.js` is unavailable.
 
+### Local Manager capability installer chain
+
+Local Manager 0.2.12 owns connector repair/capability installer application through an app-managed UAC flow. It requests signed no-pause BAT bootstraps, the BAT downloads `/connector-agent/installer.ps1`, and the PowerShell installer writes the effective connector `.env`. Capability activation is not considered complete from Settings refresh alone; verify live connector behavior through `connector_ps`, `connector_win`, `connector_files`, and `connector_apps`. See `docs/local-manager-capability-installer-governance-2026-05-28.md`.
+
 ### Migrations (032â€“035)
 
 | File | Sprint | Content |
