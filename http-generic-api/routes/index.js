@@ -65,6 +65,7 @@ import { buildPlatformGraphRoutes } from "./platformGraphRoutes.js";
 import { buildPlatformPluginRoutes } from "./platformPluginRoutes.js";
 import { buildTenantPlatformPluginRoutes } from "./tenantPlatformPluginRoutes.js";
 import { buildTenantEvolutionRoutes } from "./tenantEvolutionRoutes.js";
+import { buildTenantRepoDocRoutes } from "./tenantRepoDocRoutes.js";
 import { buildBrowserRuntimeRoutes } from "./browserRuntimeRoutes.js";
 import { buildPlatformSmokeRoutes } from "./platformSmokeRoutes.js";
 import { buildPlatformEvolutionRoutes } from "./platformEvolutionRoutes.js";
