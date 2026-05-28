@@ -183,6 +183,8 @@ business identity spreadsheet metadata moved to legacy_mirror_* fields
 
 ### Phase S5 — Runtime enforcement alignment
 
+Status: in progress.
+
 After schema cleanup, confirm runtime enforcement uses the same model:
 
 ```text
