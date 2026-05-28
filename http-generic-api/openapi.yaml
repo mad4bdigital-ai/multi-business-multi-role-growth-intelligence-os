@@ -1005,6 +1005,64 @@ components:
           items: { type: string }
         secret_value_included: { type: boolean, enum: [false] }
 
+    CredentialBindingPromoteRequest:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, user_id, connection_id, credential_role, promotion_approved, promotion_reason]
+      properties:
+        tenant_id: { type: string }
+        user_id: { type: string }
+        connection_id: { type: string }
+        action_key: { type: string }
+        target_key: { type: string }
+        credential_role: { type: string }
+        target_owner_type:
+          type: string
+          enum: [tenant, platform]
+          default: tenant
+        target_owner_id: { type: string }
+        resolution_priority:
+          type: integer
+          minimum: 1
+          maximum: 999
+          default: 20
+        promotion_approved: { type: boolean, enum: [true] }
+        promotion_reason:
+          type: string
+          minLength: 8
+        created_by: { type: string }
+
+    CredentialBindingPromoteResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, promoted_binding_id, tenant_id, credential_role, credential_ref, promotion_policy, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        promoted_binding_id: { type: string }
+        source_connection_id: { type: string }
+        source_user_id: { type: string }
+        target_owner_type: { type: string, enum: [tenant, platform] }
+        target_owner_id: { type: string }
+        tenant_id: { type: string }
+        action_key: { type: string, nullable: true }
+        target_key: { type: string, nullable: true }
+        credential_role: { type: string }
+        credential_ref: { type: string }
+        resolution_priority: { type: integer }
+        promotion_policy:
+          type: object
+          additionalProperties: true
+          properties:
+            mode: { type: string, enum: [credential_pointer_promotion_v1] }
+            promotion_approved: { type: boolean, enum: [true] }
+            secret_copied: { type: boolean, enum: [false] }
+            secret_value_returned: { type: boolean, enum: [false] }
+            token_returned: { type: boolean, enum: [false] }
+        post_promotion_effective_status: { type: string, nullable: true }
+        post_promotion_effective_owner_type: { type: string, nullable: true }
+        post_promotion_binding_id: { type: string, nullable: true }
+        secrets_included: { type: boolean, enum: [false] }
+
     CredentialEffectivePlanRequest:
       type: object
       additionalProperties: false
