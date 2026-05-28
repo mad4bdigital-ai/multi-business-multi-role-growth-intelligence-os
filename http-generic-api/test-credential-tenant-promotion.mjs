@@ -29,6 +29,10 @@ assert(migration.includes('/credentials/bindings/promote'), 'tenant promotion to
 assert(migration.includes('read_write'), 'tenant promotion tool must be read_write');
 assert(migration.includes('no_secrets'), 'tenant promotion tool must be tagged no_secrets');
 assert(migration.includes('no_secret_copy'), 'tenant promotion tool must be tagged no_secret_copy');
+assert(migration.includes('requires_approval'), 'tenant promotion tool must be tagged requires_approval');
+assert(migration.includes('preflight_required'), 'tenant promotion tool must be tagged preflight_required');
+assert(migration.includes('promotion_approved'), 'tenant promotion tool schema must require promotion approval');
+assert(migration.includes('promotion_reason'), 'tenant promotion tool schema must require promotion reason');
 
 assert(openapi.includes('/credentials/bindings/promote:'), 'tenant promotion path must be documented');
 assert(openapi.includes('CredentialBindingPromoteTenantRequest'), 'tenant promotion request schema must be documented');
