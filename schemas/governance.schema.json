@@ -457,7 +457,7 @@
         },
         "authoritative_runtime_evidence_source": {
           "type": "string",
-          "default": "surface.operations_log_unified_sheet"
+          "default": "table.execution_log"
         }
       },
       "default": {
