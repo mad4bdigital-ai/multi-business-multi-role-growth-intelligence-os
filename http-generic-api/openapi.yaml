@@ -10309,6 +10309,46 @@ paths:
       responses:
         "200": { description: Private REST dispatch result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
 
+  /platform/evolution/switch-options:
+    get:
+      tags: [platform-evolution]
+      operationId: platformEvolutionSwitchOptions
+      summary: List Platform Evolution switch options
+      description: >
+        Admin/service scoped read of allowed Platform Evolution scope switch options. This supports view-as/scope selection
+        by user, email, tenant, or brand. It does not grant access and does not expose checkpoint writes.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: email
+          in: query
+          required: false
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200":
+          description: Allowed switch scopes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionSwitchOptionsResponse"
+
   /platform/evolution/activation-card:
     get:
       tags: [platform-evolution]
