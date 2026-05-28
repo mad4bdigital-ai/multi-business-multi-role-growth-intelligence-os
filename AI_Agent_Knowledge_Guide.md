@@ -100,6 +100,27 @@ Do not start GitHub until the bootstrap row resolves. Halt if Sheets is rate-lim
 
 Every execution must validate surface bindings, route/workflow authority, dependency readiness, and credential resolution. Recovered classification is forbidden without same-cycle validation.
 
+### Platform Plugin smoke certification governance
+
+Platform Plugin REST actions must not be treated as dispatch-ready just because `app_integrations`, action bindings, or endpoint rows exist. The public dispatch path must resolve readiness, credential/connection state, action grants, and smoke certification before execution.
+
+Current governed surfaces:
+
+- `platform_plugin_dispatch_rest` — guarded REST dispatch and provider smoke.
+- `platform_plugin_smoke_certify` / `platform_plugin_smoke_certification_status` — smoke certification write/read.
+- `platform_plugin_smoke_recertification_queue` / `platform_plugin_smoke_recertification_batch` — expiry/drift queue and bounded recertification.
+- `platform_plugin_smoke_recertification_policy_*` — policy resolve/list/upsert/history/rollback surfaces.
+
+A valid smoke certification requires a successful `provider_smoke=true` execution log with `GET`, status `200`, `response_ok=true`, expected origin matching resolved origin, and `secrets_included=false`. Dispatch and promotion must reject missing, expired, or drifted certifications. Drift includes origin, path, or method mismatch between certification evidence and the current resolved dispatch target.
+
+Recertification is policy-governed. Batches default to dry-run, honor policy `max_batch_size`, require explicit expected origin evidence, and must not bypass origin/path/method drift. Policy upsert and rollback write execution-log audit evidence with before/after summaries and changed fields.
+
+Detailed operator maps:
+
+- `docs/platform-plugin-smoke-certification-governance.md`
+- `docs/platform-plugin-recertification-policy-governance.md`
+- `docs/platform-plugin-governance-roadmap-2026-05-28.md`
+
 ### Local connector device proxy governance
 
 Local connector device operations go through `auth.mad4b.com` `/connector/{device_id}/...` proxy routes, not direct connector hosts, except for explicit break-glass reachability checks. Use `/connector/{device_id}/diagnostics` before long-running device actions to confirm selected config, candidate routes, hostname alias handling, and route health metadata.
