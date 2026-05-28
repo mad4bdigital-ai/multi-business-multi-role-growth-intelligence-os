@@ -1273,6 +1273,64 @@ components:
         tenant_facing: { type: boolean }
         secrets_included: { type: boolean, enum: [false] }
 
+    PlatformEvolutionCmsClaimSmokeRequest:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, connection_id, target_key]
+      properties:
+        tenant_id: { type: string }
+        user_id: { type: string }
+        connection_id: { type: string }
+        target_key: { type: string }
+        site_url: { type: string }
+        normalized_domain: { type: string }
+        credential_role: { type: string, default: wordpress_app_password }
+        claim_id: { type: string }
+        transport_mode:
+          type: string
+          enum: [direct_scope]
+          default: direct_scope
+
+    PlatformEvolutionCmsClaimSmokeResult:
+      type: object
+      additionalProperties: true
+      properties:
+        status: { type: string }
+        claim_id: { type: string }
+        tenant_id: { type: string }
+        user_id: { type: string }
+        connection_id: { type: string }
+        target_key: { type: string }
+        credential_role: { type: string }
+        binding_id: { type: string }
+        jwt_verified: { type: boolean }
+        effective_status: { type: string, nullable: true }
+        effective_owner_type: { type: string, nullable: true }
+        effective_binding_id: { type: string, nullable: true }
+        effective_connection_id: { type: string, nullable: true }
+        secret_copied: { type: boolean, enum: [false] }
+        token_returned: { type: boolean, enum: [false] }
+        secrets_included: { type: boolean, enum: [false] }
+
+    PlatformEvolutionCmsClaimSmokeResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, transport_mode, result, smoke_policy, secrets_included]
+      properties:
+        ok: { type: boolean }
+        transport_mode: { type: string, enum: [direct_scope] }
+        result: { $ref: "#/components/schemas/PlatformEvolutionCmsClaimSmokeResult" }
+        smoke_policy:
+          type: object
+          additionalProperties: true
+          properties:
+            token_returned: { type: boolean, enum: [false] }
+            jwt_ttl_seconds: { type: integer, enum: [300] }
+            secret_copied: { type: boolean, enum: [false] }
+            secrets_included: { type: boolean, enum: [false] }
+            direct_http_route_smoke: { type: boolean, enum: [false] }
+        secrets_included: { type: boolean, enum: [false] }
+
     PlatformEvolutionTenantSmokeRequest:
       type: object
       additionalProperties: false
