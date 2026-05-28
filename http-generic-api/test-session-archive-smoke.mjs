@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import express from "express";
+import { readFileSync } from "node:fs";
 import { buildReleaseRoutes } from "./routes/releaseRoutes.js";
 import { runSessionArchiveSmoke } from "./sessionArchiveSmoke.js";
 
