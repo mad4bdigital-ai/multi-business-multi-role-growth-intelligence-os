@@ -1396,8 +1396,9 @@ async function handleFiles(req, res) {
 }
 
 async function handlePs(req, res) {
-  if (!PS_ENABLED) return err(res, 403, 'DISABLED', 'PowerShell endpoint is disabled — set CONNECTOR_POWERSHELL_ENABLED=true');
   if (!requireAuth(req, res)) return;
+  await refreshShellPolicy();
+  if (!PS_ENABLED) return err(res, 403, 'DISABLED', 'PowerShell endpoint is disabled — set CONNECTOR_POWERSHELL_ENABLED=true');
   let body;
   try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
 
