@@ -1133,8 +1133,9 @@ async function handleApps(req, res) {
 }
 
 async function handleBrowser(req, res) {
-  if (!APPS_ENABLED) return err(res, 403, 'DISABLED', 'Browser control endpoint is disabled on this connector');
   if (!requireAuth(req, res)) return;
+  await refreshShellPolicy();
+  if (!APPS_ENABLED) return err(res, 403, 'DISABLED', 'Browser control endpoint is disabled on this connector');
   let body;
   try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
 
