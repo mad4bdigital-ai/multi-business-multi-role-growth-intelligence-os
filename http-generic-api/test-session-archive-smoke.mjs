@@ -4,6 +4,15 @@ import express from "express";
 import { buildReleaseRoutes } from "./routes/releaseRoutes.js";
 import { runSessionArchiveSmoke } from "./sessionArchiveSmoke.js";
 
+const migration = readFileSync("migrations/163_sprint65_session_archive_smoke_tool.sql", "utf8");
+
+assert(migration.includes("release_session_archive_smoke"), "session archive smoke admin tool must be registered");
+assert(migration.includes("/release/session-archive-smoke"), "session archive smoke tool must point at release smoke route");
+assert(migration.includes("drive-writeback"), "session archive smoke tool must be tagged drive-writeback");
+assert(migration.includes("activation-readback"), "session archive smoke tool must be tagged activation-readback");
+assert(migration.includes("no_secrets"), "session archive smoke tool must be tagged no_secrets");
+assert(migration.includes("cleanup_default_true"), "session archive smoke tool must advertise cleanup_default_true");
+
 function makePool() {
   const state = { session: null, turns: [], events: [], deletes: { session: 0, turns: 0, events: 0 } };
   return {
