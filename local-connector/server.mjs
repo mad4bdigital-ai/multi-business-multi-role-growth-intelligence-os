@@ -54,6 +54,9 @@ const CONNECTOR_SECRET = String(process.env.CONNECTOR_SECRET ?? '').trim();
 const CONNECTOR_LOCAL_API_KEY = String(process.env.CONNECTOR_LOCAL_API_KEY ?? '').trim();
 const LEGACY_BACKEND_API_KEY = String(process.env.BACKEND_API_KEY ?? '').trim();
 const CONNECTOR_AUTH_SECRET = CONNECTOR_SECRET || CONNECTOR_LOCAL_API_KEY || LEGACY_BACKEND_API_KEY;
+const CONNECTOR_POLICY_ENABLED = process.env.CONNECTOR_POLICY_ENABLED !== 'false';
+const CONNECTOR_POLICY_URL = String(process.env.CONNECTOR_POLICY_URL ?? 'https://auth.mad4b.com/connector-agent/policy').replace(/\/$/, '');
+const CONNECTOR_POLICY_TTL_MS = Math.min(Math.max(parseInt(process.env.CONNECTOR_POLICY_TTL_MS ?? '300000', 10) || 300000, 30000), 1800000);
 const SHELL_ENABLED = process.env.CONNECTOR_SHELL_ENABLED === 'true';
 const FILES_ENABLED = process.env.CONNECTOR_FILES_ENABLED === 'true';
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -187,6 +190,104 @@ try {
 } catch (e) {
   console.error('[connector] Failed to parse CONNECTOR_APP_ALLOWLIST:', e.message);
 }
+
+const ENV_SHELL_ALLOWLIST = { ...SHELL_ALLOWLIST };
+let SHELL_POLICY_STATE = {
+  source: 'env',
+  loaded: false,
+  alias_count: Object.keys(SHELL_ALLOWLIST).length,
+  policy_url: CONNECTOR_POLICY_URL,
+  policy_version: null,
+  checksum: null,
+  last_pull_at: null,
+  last_error: null,
+};
+
+function normalizeRemoteShellAliases(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const aliases = {};
+  for (const [alias, entry] of Object.entries(value)) {
+    if (!isSafeAlias(alias) || !entry || typeof entry !== 'object') continue;
+    const command = String(entry.command || '').trim();
+    if (!command || /[\n\r<>]/.test(command)) continue;
+    const args = Array.isArray(entry.args)
+      ? entry.args.map((arg) => String(arg)).filter((arg) => !/[\n\r]/.test(arg)).slice(0, 40)
+      : [];
+    aliases[alias] = {
+      command,
+      args,
+      display_name: String(entry.display_name || alias).slice(0, 160),
+      allow_extra_args: entry.allow_extra_args === true,
+      max_extra_args: Math.min(Math.max(parseInt(entry.max_extra_args, 10) || 0, 0), 50),
+      timeout_ms: Math.min(Math.max(parseInt(entry.timeout_ms, 10) || DEFAULT_TIMEOUT_MS, 1000), MAX_TIMEOUT_MS),
+      risk_class: String(entry.risk_class || 'read_only').slice(0, 80),
+      source: String(entry.source || 'db').slice(0, 80),
+    };
+  }
+  return aliases;
+}
+
+async function refreshShellPolicy({ force = false } = {}) {
+  if (!CONNECTOR_POLICY_ENABLED || !CONNECTOR_AUTH_SECRET || !CONNECTOR_POLICY_URL) return SHELL_POLICY_STATE;
+  const now = Date.now();
+  if (!force && SHELL_POLICY_STATE.last_pull_at && now - Date.parse(SHELL_POLICY_STATE.last_pull_at) < CONNECTOR_POLICY_TTL_MS) return SHELL_POLICY_STATE;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    const response = await fetch(CONNECTOR_POLICY_URL, {
+      headers: {
+        Authorization: `Bearer ${CONNECTOR_AUTH_SECRET}`,
+        Accept: 'application/json',
+        'X-Mad4B-Connector-Hostname': os.hostname(),
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    const data = await response.json().catch(() => null);
+    if (!response.ok || data?.ok !== true) {
+      throw new Error(data?.error?.message || `policy_http_${response.status}`);
+    }
+    const aliases = normalizeRemoteShellAliases(data.shell_aliases);
+    if (Object.keys(aliases).length > 0) {
+      SHELL_ALLOWLIST = aliases;
+      SHELL_POLICY_STATE = {
+        source: 'db',
+        loaded: true,
+        alias_count: Object.keys(aliases).length,
+        policy_url: CONNECTOR_POLICY_URL,
+        policy_version: data.policy_version || null,
+        checksum: data.checksum || null,
+        last_pull_at: new Date().toISOString(),
+        last_error: null,
+      };
+    } else {
+      SHELL_ALLOWLIST = ENV_SHELL_ALLOWLIST;
+      SHELL_POLICY_STATE = {
+        ...SHELL_POLICY_STATE,
+        source: 'env_fallback_empty_db_policy',
+        loaded: false,
+        alias_count: Object.keys(SHELL_ALLOWLIST).length,
+        last_pull_at: new Date().toISOString(),
+        last_error: 'empty_db_policy',
+      };
+    }
+  } catch (e) {
+    SHELL_ALLOWLIST = Object.keys(SHELL_ALLOWLIST).length ? SHELL_ALLOWLIST : ENV_SHELL_ALLOWLIST;
+    SHELL_POLICY_STATE = {
+      ...SHELL_POLICY_STATE,
+      source: SHELL_POLICY_STATE.loaded ? SHELL_POLICY_STATE.source : 'env_fallback_policy_pull_failed',
+      alias_count: Object.keys(SHELL_ALLOWLIST).length,
+      last_pull_at: SHELL_POLICY_STATE.last_pull_at,
+      last_error: e.message,
+    };
+    console.error('[connector] Failed to refresh shell policy:', e.message);
+  }
+  return SHELL_POLICY_STATE;
+}
+
+refreshShellPolicy({ force: true }).catch((e) => {
+  console.error('[connector] Initial shell policy pull failed:', e.message);
+});
 
 /** @type {string[]} */
 const FILE_ALLOWLIST = (process.env.CONNECTOR_FILE_PATHS ?? '')
@@ -592,6 +693,7 @@ function policyBody() {
         display_name: entry.display_name ?? alias,
         allow_extra_args: entry.allow_extra_args === true,
       })),
+      policy: SHELL_POLICY_STATE,
     },
     files: {
       enabled: FILES_ENABLED,
@@ -848,6 +950,7 @@ async function handleDependencies(req, res) {
 async function handleShell(req, res) {
   if (!SHELL_ENABLED) return err(res, 403, 'DISABLED', 'Shell endpoint is disabled on this connector');
   if (!requireAuth(req, res)) return;
+  await refreshShellPolicy();
   let body;
   try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
 
@@ -1726,7 +1829,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, healthBody());
     }
 
-    if (method === 'GET' && url === '/policy') { if (!requireAuth(req, res)) return; audit(req, { action: 'policy' }); return json(res, 200, policyBody()); }
+    if (method === 'GET' && url === '/policy') { if (!requireAuth(req, res)) return; await refreshShellPolicy(); audit(req, { action: 'policy' }); return json(res, 200, policyBody()); }
 
       if (method === 'GET' && url === '/schema') {
       const schemaPath = path.join(__dirname, '..', 'http-generic-api', 'openapi.gpt-action.local-connector.yaml');

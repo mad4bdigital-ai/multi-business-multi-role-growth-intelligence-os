@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getPool } from "../db.js";
 
-const AGENT_VERSION = "2026.05.26.1";
+const AGENT_VERSION = "2026.05.28.1";
 const ROOT = process.cwd();
 const CONNECTOR_PORT = 7070;
 
@@ -231,6 +231,63 @@ function buildAllowlistEnvValue(aliases) {
     obj[a.alias] = { command: a.cmd, args: a.args || [], display_name: a.description || a.alias, allow_extra_args: !!a.allow_extra_args };
   }
   return JSON.stringify(obj);
+}
+
+function tokenizeCommandTemplate(template) {
+  const raw = String(template || "").trim();
+  if (!raw) return null;
+  const cmdMatch = raw.match(/^cmd(?:\.exe)?\s+\/c\s+(.+)$/i);
+  if (cmdMatch) return { command: "cmd.exe", args: ["/d", "/c", cmdMatch[1]] };
+  const tokens = [];
+  let current = "";
+  let quote = null;
+  for (let i = 0; i < raw.length; i += 1) {
+    const ch = raw[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+      else current += ch;
+      continue;
+    }
+    if (ch === '"' || ch === "'") { quote = ch; continue; }
+    if (/\s/.test(ch)) {
+      if (current) { tokens.push(current); current = ""; }
+      continue;
+    }
+    current += ch;
+  }
+  if (current) tokens.push(current);
+  if (!tokens.length) return null;
+  return { command: tokens[0], args: tokens.slice(1) };
+}
+
+function checksumShellPolicy(aliases) {
+  return crypto.createHash("sha256").update(JSON.stringify(aliases)).digest("hex");
+}
+
+function normalizeShellPolicyRow(row) {
+  const alias = normalizeGrantAlias(row.alias, "alias");
+  if (!alias) return null;
+  let parsed = null;
+  try {
+    const obj = JSON.parse(row.command_template);
+    if (obj && typeof obj === "object" && typeof obj.command === "string") {
+      parsed = { command: obj.command, args: Array.isArray(obj.args) ? obj.args.map(String) : [] };
+    }
+  } catch {
+    parsed = tokenizeCommandTemplate(row.command_template);
+  }
+  if (!parsed?.command) return null;
+  return {
+    alias,
+    command: parsed.command,
+    args: parsed.args || [],
+    display_name: String(row.description || alias).slice(0, 160),
+    allow_extra_args: row.allow_extra_args === 1 || row.allow_extra_args === true,
+    max_extra_args: Number(row.max_extra_args || 0) || 0,
+    risk_class: String(row.risk_class || "read_only"),
+    source: String(row.source || "db"),
+    updated_at: row.updated_at || null,
+  };
 }
 
 function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [], permissionGrants = {} }) {
@@ -611,6 +668,68 @@ export function buildConnectorAgentRoutes() {
       return res.status(200).send(loaded.buffer);
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "connector_agent_file_failed", message: err.message } });
+    }
+  });
+
+  router.get("/connector-agent/policy", async (req, res) => {
+    try {
+      const token = bearerToken(req);
+      if (!token) throw httpError(401, "connector_auth_required", "Connector policy requires bearer auth.");
+      const configId = boundedString(req.query.config_id, 64);
+      const deviceId = boundedString(req.query.device_id, 128);
+      const params = [];
+      let sql = "SELECT * FROM `local_connector_user_configs` WHERE is_enabled = 1";
+      if (configId) { sql += " AND config_id = ?"; params.push(configId); }
+      if (deviceId) { sql += " AND device_id = ?"; params.push(deviceId); }
+      const backendToken = String(process.env.BACKEND_API_KEY || "").trim();
+      if (backendToken && token === backendToken) {
+        sql += " ORDER BY updated_at DESC LIMIT 1";
+      } else {
+        sql += " AND connector_secret = ? ORDER BY updated_at DESC LIMIT 1";
+        params.push(token);
+      }
+      const [[config]] = await getPool().query(sql, params);
+      if (!config) throw httpError(403, "connector_policy_auth_failed", "Connector policy auth failed.");
+
+      const [rows] = await getPool().query(
+        `SELECT alias, command_template, allow_extra_args, description,
+                COALESCE(status, 'active') AS status,
+                COALESCE(risk_class, 'read_only') AS risk_class,
+                COALESCE(source, 'db') AS source,
+                updated_at
+           FROM \`local_connector_shell_allowlists\`
+          WHERE config_id = ?
+            AND COALESCE(status, 'active') = 'active'
+          ORDER BY alias`,
+        [config.config_id]
+      );
+      const aliases = {};
+      for (const row of rows) {
+        const entry = normalizeShellPolicyRow(row);
+        if (entry) aliases[entry.alias] = entry;
+      }
+      const aliasList = Object.entries(aliases).map(([alias, entry]) => ({ alias, ...entry }));
+      const checksum = checksumShellPolicy(aliasList);
+      const policyVersion = aliasList.reduce((max, item) => {
+        const ts = item.updated_at ? Date.parse(item.updated_at) : 0;
+        return Number.isFinite(ts) && ts > max ? ts : max;
+      }, 0) || Date.now();
+      return res.status(200).json({
+        ok: true,
+        config_id: config.config_id,
+        user_id: config.user_id,
+        tenant_id: config.tenant_id,
+        device_id: config.device_id,
+        policy_version: String(policyVersion),
+        checksum,
+        shell_aliases: aliases,
+        alias_count: Object.keys(aliases).length,
+        generated_at: new Date().toISOString(),
+        ttl_seconds: 300,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "connector_agent_policy_failed", message: err.message }, secrets_included: false });
     }
   });
 
