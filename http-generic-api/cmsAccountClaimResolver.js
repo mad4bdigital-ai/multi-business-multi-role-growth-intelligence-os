@@ -225,7 +225,7 @@ async function createUserAppConnection({
         status = 'active',
         last_validated_at = NOW(),
         validation_status = 'verified',
-        updated_at = NOW()
+        last_used_at = NOW()
     `,
     [
       connectionId, tenantId, userId, APP_KEY, displayLabel,
