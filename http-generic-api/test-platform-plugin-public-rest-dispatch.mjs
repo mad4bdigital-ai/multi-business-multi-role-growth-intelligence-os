@@ -133,6 +133,13 @@ assert(openapi.includes("Writes execution-log audit evidence"), "OpenAPI must do
 assert(openapi.includes("actor_id: { type: string }"), "OpenAPI must expose policy upsert actor_id field");
 assert(openapi.includes("change_reason: { type: string }"), "OpenAPI must expose policy upsert change_reason field");
 assert(openapi.includes("trace_id: { type: string }"), "OpenAPI must expose policy upsert trace_id field");
+assert(openapi.includes("/platform/plugins/smoke-certifications/policies/history:"), "OpenAPI must document policy history route");
+assert(openapi.includes("operationId: platformPluginSmokeRecertificationPolicyHistory"), "OpenAPI must expose stable policy history operationId");
+assert(openapi.includes("/platform/plugins/smoke-certifications/policies/rollback-preview:"), "OpenAPI must document policy rollback preview route");
+assert(openapi.includes("operationId: platformPluginSmokeRecertificationPolicyRollbackPreview"), "OpenAPI must expose stable rollback preview operationId");
+assert(openapi.includes("/platform/plugins/smoke-certifications/policies/rollback-apply:"), "OpenAPI must document policy rollback apply route");
+assert(openapi.includes("operationId: platformPluginSmokeRecertificationPolicyRollbackApply"), "OpenAPI must expose stable rollback apply operationId");
+assert(openapi.includes("confirm_rollback: { type: boolean, default: false }"), "OpenAPI must require explicit rollback confirmation field");
 
 const smokeMigration = readFileSync("migrations/150_sprint65_provider_smoke_guarded_dispatch_schema.sql", "utf8");
 assert(smokeMigration.includes("provider_smoke"), "provider smoke schema migration must include provider_smoke field");
