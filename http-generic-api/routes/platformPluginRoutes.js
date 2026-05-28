@@ -176,6 +176,30 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
     } catch (err) { return errorResponse(res, err, "platform_plugin_smoke_recertification_policy_upsert_failed"); }
   });
 
+  router.post("/platform/plugins/smoke-certifications/policies/history", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await listPlatformPluginSmokeRecertificationPolicyHistory(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_plugin_smoke_recertification_policy_history_failed"); }
+  });
+
+  router.post("/platform/plugins/smoke-certifications/policies/rollback-preview", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await previewPlatformPluginSmokeRecertificationPolicyRollback(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_plugin_smoke_recertification_policy_rollback_preview_failed"); }
+  });
+
+  router.post("/platform/plugins/smoke-certifications/policies/rollback-apply", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await applyPlatformPluginSmokeRecertificationPolicyRollback(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_plugin_smoke_recertification_policy_rollback_apply_failed"); }
+  });
+
   router.post("/platform/plugins/smoke-certifications/recertification-queue", ...requireAdmin, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
