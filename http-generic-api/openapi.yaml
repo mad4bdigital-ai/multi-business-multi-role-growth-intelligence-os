@@ -1182,6 +1182,7 @@ components:
         scope_key: { type: string, nullable: true }
         secrets_included: { type: boolean, enum: [false] }
         error_code: { type: string, nullable: true }
+        checkpoint_id: { type: string, nullable: true }
 
     PlatformEvolutionTenantSmokeResponse:
       type: object
