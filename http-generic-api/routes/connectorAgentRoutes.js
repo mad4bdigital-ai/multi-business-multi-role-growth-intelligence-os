@@ -315,7 +315,7 @@ async function loadConnectorGrantPolicy(configId) {
 
   const [fileRows] = await getPool().query(
     `SELECT path_pattern, access_mode, description, created_at AS updated_at
-       FROM `local_connector_file_access_rules`
+       FROM local_connector_file_access_rules
       WHERE config_id = ?
       ORDER BY id`,
     [configId]
