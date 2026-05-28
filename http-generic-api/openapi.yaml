@@ -9437,6 +9437,49 @@ paths:
       responses:
         "201": { description: Credential intake submitted, content: { text/html: { schema: { type: string } } } }
 
+  /credentials/bindings/promote:
+    post:
+      x-openai-isConsequential: true
+      tags: [security]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: credentialBindingPromoteTenant
+      summary: Promote an active connection credential into a tenant binding pointer
+      description: >
+        Admin-only credential lifecycle action. Creates or updates a tenant-owned credential binding pointer from an active
+        user_app_connection for a target/action/credential_role. It never copies, decrypts, or returns secret values.
+        Platform-wide promotion is disabled in v1.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialBindingPromoteTenantRequest"
+      responses:
+        "200":
+          description: Existing tenant promotion binding updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialBindingPromoteTenantResponse"
+        "201":
+          description: Tenant promotion binding created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialBindingPromoteTenantResponse"
+        "400":
+          description: Missing fields, unsupported owner type, or inactive connection.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Promotion failed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /credentials/effective/plan:
     post:
       x-openai-isConsequential: false
