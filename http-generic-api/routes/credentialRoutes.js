@@ -412,6 +412,22 @@ export function buildCredentialRoutes(deps) {
     }
   });
 
+  // Promote a private connection credential pointer into a tenant/platform runtime binding.
+  // This never copies, decrypts, or returns secret values. It expands runtime
+  // access only after explicit approval and a source credential preflight.
+  router.post("/credentials/bindings/promote", async (req, res) => {
+    try {
+      const result = await promoteCredentialBinding(req.body || {});
+      res.status(201).json(result);
+    } catch (err) {
+      res.status(err.status || 500).json({
+        ok: false,
+        error: { code: err.code || "credential_promotion_failed", message: err.message, details: err.details || undefined },
+        secrets_included: false,
+      });
+    }
+  });
+
   // Store a platform or tenant secret as AES-256-GCM ciphertext in SQL. This is
   // backend/admin only. It never echoes the provided value and updates the
   // pointer registry to store_type=db_encrypted.
