@@ -237,7 +237,7 @@ function tokenizeCommandTemplate(template) {
   const raw = String(template || "").trim();
   if (!raw) return null;
   const cmdMatch = raw.match(/^cmd(?:\.exe)?\s+\/c\s+(.+)$/i);
-  if (cmdMatch) return { command: process.platform === "win32" ? "cmd.exe" : "cmd", args: ["/d", "/c", cmdMatch[1]] };
+  if (cmdMatch) return { command: "cmd.exe", args: ["/d", "/c", cmdMatch[1]] };
   const tokens = [];
   let current = "";
   let quote = null;
