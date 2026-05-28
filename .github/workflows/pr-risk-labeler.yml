@@ -85,7 +85,17 @@ jobs:
               }
             }
 
-            const { data: current } = await github.rest.issues.listLabelsOnIssue({ owner, repo, issue_number, per_page: 100 });
+            let current = [];
+            try {
+              const response = await github.rest.issues.listLabelsOnIssue({ owner, repo, issue_number, per_page: 100 });
+              current = response.data || [];
+            } catch (error) {
+              if (error.status === 404) {
+                core.warning(`list PR labels skipped because labels endpoint returned 404 for PR #${issue_number}: ${error.message}`);
+              } else if (!warnOnPermissionDenied("list PR labels", error)) {
+                throw error;
+              }
+            }
             const currentManaged = current.map((label) => label.name).filter((name) => managedLabels[name]);
             const toRemove = currentManaged.filter((name) => !labels.has(name));
             for (const name of toRemove) {
