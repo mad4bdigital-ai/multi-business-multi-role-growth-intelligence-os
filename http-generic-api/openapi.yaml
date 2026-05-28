@@ -9383,6 +9383,43 @@ paths:
       responses:
         "201": { description: Credential intake submitted, content: { text/html: { schema: { type: string } } } }
 
+  /credentials/effective/plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [security]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: credentialEffectivePlan
+      summary: Inspect credential resolution candidates without returning secrets
+      description: >
+        Read-only admin diagnostic for credential lifecycle governance. Returns matching credential_bindings,
+        fallback candidates, tenant integration policies, and the effective safe status without returning decrypted
+        credentials, tokens, or secret values.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialEffectivePlanRequest"
+      responses:
+        "200":
+          description: Credential resolution plan.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialEffectivePlanResponse"
+        "400":
+          description: Missing tenant_id or credential_role.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Credential plan failed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /credentials/effective/status:
     post:
       x-openai-isConsequential: false
