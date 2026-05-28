@@ -15,7 +15,9 @@ Certification validates the contribution manifest, protocol bindings, action bin
 
 ## Promotion
 
-Promotion requires prior certification and writes:
+Promotion requires prior contribution certification and a valid smoke certification for every promoted action binding. The smoke certification must be `certified`, successful, unexpired, status `200`, `response_ok=true`, and `secrets_included=false`.
+
+Promotion writes:
 
 - `app_integrations`
 - `app_integration_action_bindings`
