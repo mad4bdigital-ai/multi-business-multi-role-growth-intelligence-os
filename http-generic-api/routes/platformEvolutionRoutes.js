@@ -110,7 +110,44 @@ function smokeSummary(result) {
   };
 }
 
-async function directTenantSmoke(scope, token) {
+async function createTenantWriteSmokeCheckpoint(scope) {
+  const checkpointId = randomUUID();
+  const createdBy = `tenant_smoke:${scope.user_id}`;
+  const summaryText = "Tenant checkpoint write smoke created by platform_evolution_tenant_smoke direct_scope mode.";
+  await getPool().query(
+    `INSERT INTO platform_evolution_checkpoints (
+      checkpoint_id, scope_key, tenant_id, user_id, brand_key, checkpoint_type,
+      activation_session_id, main_commit_sha, deployed_commit_sha, activation_status, release_readiness_status,
+      summary_text, thread_snapshot_json, delta_json, evidence_json, next_actions_json, created_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      checkpointId,
+      scope.scope_key,
+      scope.tenant_id,
+      scope.user_id,
+      scope.brand_key,
+      "operation",
+      null,
+      null,
+      null,
+      "tenant_checkpoint_created",
+      "tenant_scope_write_policy_v1_smoke",
+      summaryText,
+      JSON.stringify({ smoke: true, route_family: "tenant_evolution" }),
+      JSON.stringify({ include_write: true, transport_mode: "direct_scope" }),
+      JSON.stringify({ token_returned: false, secrets_included: false, platform_commit_fields_accepted: false }),
+      JSON.stringify(["Review tenant checkpoint write policy before enabling broader tenant write workflows."]),
+      createdBy,
+    ]
+  );
+  await getPool().query(
+    `UPDATE platform_evolution_threads SET last_checkpoint_id = ?, updated_by = ? WHERE ${scopeKeyComparisonSql("scope_key")}`,
+    [checkpointId, createdBy, scope.scope_key]
+  );
+  return checkpointId;
+}
+
+async function directTenantSmoke(scope, token, options = {}) {
   const secret = process.env.JWT_SECRET || "development_fallback_secret_only";
   let verified = false;
   try {
