@@ -670,6 +670,68 @@ export function buildConnectorAgentRoutes() {
     }
   });
 
+  router.get("/connector-agent/policy", async (req, res) => {
+    try {
+      const token = bearerToken(req);
+      if (!token) throw httpError(401, "connector_auth_required", "Connector policy requires bearer auth.");
+      const configId = boundedString(req.query.config_id, 64);
+      const deviceId = boundedString(req.query.device_id, 128);
+      const params = [];
+      let sql = "SELECT * FROM `local_connector_user_configs` WHERE is_enabled = 1";
+      if (configId) { sql += " AND config_id = ?"; params.push(configId); }
+      if (deviceId) { sql += " AND device_id = ?"; params.push(deviceId); }
+      const backendToken = String(process.env.BACKEND_API_KEY || "").trim();
+      if (backendToken && token === backendToken) {
+        sql += " ORDER BY updated_at DESC LIMIT 1";
+      } else {
+        sql += " AND connector_secret = ? ORDER BY updated_at DESC LIMIT 1";
+        params.push(token);
+      }
+      const [[config]] = await getPool().query(sql, params);
+      if (!config) throw httpError(403, "connector_policy_auth_failed", "Connector policy auth failed.");
+
+      const [rows] = await getPool().query(
+        `SELECT alias, command_template, allow_extra_args, description,
+                COALESCE(status, 'active') AS status,
+                COALESCE(risk_class, 'read_only') AS risk_class,
+                COALESCE(source, 'db') AS source,
+                updated_at
+           FROM \`local_connector_shell_allowlists\`
+          WHERE config_id = ?
+            AND COALESCE(status, 'active') = 'active'
+          ORDER BY alias`,
+        [config.config_id]
+      );
+      const aliases = {};
+      for (const row of rows) {
+        const entry = normalizeShellPolicyRow(row);
+        if (entry) aliases[entry.alias] = entry;
+      }
+      const aliasList = Object.entries(aliases).map(([alias, entry]) => ({ alias, ...entry }));
+      const checksum = checksumShellPolicy(aliasList);
+      const policyVersion = aliasList.reduce((max, item) => {
+        const ts = item.updated_at ? Date.parse(item.updated_at) : 0;
+        return Number.isFinite(ts) && ts > max ? ts : max;
+      }, 0) || Date.now();
+      return res.status(200).json({
+        ok: true,
+        config_id: config.config_id,
+        user_id: config.user_id,
+        tenant_id: config.tenant_id,
+        device_id: config.device_id,
+        policy_version: String(policyVersion),
+        checksum,
+        shell_aliases: aliases,
+        alias_count: Object.keys(aliases).length,
+        generated_at: new Date().toISOString(),
+        ttl_seconds: 300,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "connector_agent_policy_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   router.post("/connector-agent/heartbeat", async (req, res) => {
     try {
       const body = req.body || {};
