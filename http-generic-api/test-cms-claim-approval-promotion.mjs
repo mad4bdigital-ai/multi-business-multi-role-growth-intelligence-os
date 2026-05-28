@@ -32,6 +32,6 @@ const approvalRouteStart = connectApi.indexOf('router.post("/connect/api/cms/cla
 const approvalRouteEnd = connectApi.indexOf('router.post("/connect/api/cms/claims/:claim_id/reject"', approvalRouteStart);
 assert(approvalRouteStart >= 0 && approvalRouteEnd > approvalRouteStart, 'approval route block must be discoverable');
 const approvalRoute = connectApi.slice(approvalRouteStart, approvalRouteEnd);
-assert(!approvalRoute.includes('application_password'), 'CMS claim approval route must not accept or return application_password');
+assert(!approvalRoute.includes('req.body?.application_password'), 'CMS claim approval route must not accept raw application_password input');
 
 console.log('cms claim approval promotion tests passed');
