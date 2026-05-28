@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
+import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 
 const DEFAULT_POLICY = Object.freeze({
   policy_id: "smoke_recert_policy_runtime_default",
