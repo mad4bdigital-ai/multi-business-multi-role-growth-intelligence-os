@@ -264,6 +264,89 @@ function checksumShellPolicy(aliases) {
   return crypto.createHash("sha256").update(JSON.stringify(aliases)).digest("hex");
 }
 
+function checksumConnectorPolicy(parts = {}) {
+  return crypto.createHash("sha256").update(JSON.stringify(parts)).digest("hex");
+}
+
+function mergePermissionGrants(...values) {
+  const merged = { capabilities: [], allowed_paths: [], apps: {}, shell_aliases: [] };
+  for (const value of values) {
+    const normalized = normalizePermissionGrants(value || {});
+    merged.capabilities.push(...normalized.capabilities);
+    merged.allowed_paths.push(...normalized.allowed_paths);
+    Object.assign(merged.apps, normalized.apps);
+    merged.shell_aliases.push(...normalized.shell_aliases);
+  }
+  return {
+    capabilities: [...new Set(merged.capabilities)].filter((item) => LOCAL_CONNECTOR_CAPABILITY_FLAGS[item]),
+    allowed_paths: [...new Set(merged.allowed_paths)].slice(0, 25),
+    apps: Object.fromEntries(Object.entries(merged.apps).slice(0, 50)),
+    shell_aliases: merged.shell_aliases.slice(0, 50),
+  };
+}
+
+function normalizeAppPolicyRow(row) {
+  const alias = normalizeGrantAlias(row.app_alias || row.alias || row.app_key, "app");
+  const command = normalizeWindowsPath(row.command_path || row.command || row.executable_path, 260);
+  if (!alias || !command) return null;
+  const processName = String(row.process_name || command.split(/[/\\]/).pop() || alias).replace(/\.exe$/i, "").replace(/[^A-Za-z0-9_.-]+/g, "").slice(0, 80) || alias;
+  return {
+    display_name: String(row.display_name || alias).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) || alias,
+    command,
+    process_name: processName,
+    browser: row.browser === 1 || row.browser === true,
+    capability_class: String(row.capability_class || "desktop_app").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "desktop_app",
+    risk_class: String(row.risk_class || "interactive").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "interactive",
+  };
+}
+
+async function loadConnectorGrantPolicy(configId) {
+  const [capRows] = await getPool().query(
+    `SELECT capability_key, COALESCE(status, 'active') AS status, COALESCE(source, 'db') AS source, updated_at
+       FROM \`local_connector_capability_grants\`
+      WHERE config_id = ? AND COALESCE(status, 'active') = 'active'
+      ORDER BY capability_key`,
+    [configId]
+  ).catch((err) => {
+    if (String(err?.message || '').includes('local_connector_capability_grants')) return [[]];
+    throw err;
+  });
+  const capabilities = [...new Set((capRows || []).map((row) => String(row.capability_key || '').trim()).filter((key) => LOCAL_CONNECTOR_CAPABILITY_FLAGS[key]))];
+
+  const [fileRows] = await getPool().query(
+    `SELECT path_pattern, access_mode, description, created_at AS updated_at
+       FROM \`local_connector_file_access_rules\`
+      WHERE config_id = ?
+      ORDER BY id`,
+    [configId]
+  ).catch(() => [[]]);
+  const allowedPaths = [...new Set((fileRows || [])
+    .map((row) => normalizeWindowsPath(String(row.path_pattern || '').replace(/\\\*$/, ''), 260))
+    .filter(Boolean))].slice(0, 25);
+
+  const [appRows] = await getPool().query(
+    `SELECT app_alias, display_name, command_path, process_name, browser, capability_class, risk_class,
+            COALESCE(status, 'active') AS status,
+            COALESCE(source, 'db') AS source,
+            updated_at
+       FROM \`local_connector_app_allowlists\`
+      WHERE config_id = ? AND COALESCE(status, 'active') = 'active'
+      ORDER BY app_alias`,
+    [configId]
+  ).catch((err) => {
+    if (String(err?.message || '').includes('local_connector_app_allowlists')) return [[]];
+    throw err;
+  });
+  const apps = {};
+  for (const row of appRows || []) {
+    const alias = normalizeGrantAlias(row.app_alias, "app");
+    const entry = normalizeAppPolicyRow(row);
+    if (alias && entry) apps[alias] = entry;
+  }
+
+  return mergePermissionGrants({ capabilities, allowed_paths: allowedPaths, apps });
+}
+
 function normalizeShellPolicyRow(row) {
   const alias = normalizeGrantAlias(row.alias, "alias");
   if (!alias) return null;
