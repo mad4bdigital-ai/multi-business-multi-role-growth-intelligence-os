@@ -14,6 +14,13 @@ assert(connectorAgent.includes('LOCAL_TOOL_RELEASES'), 'connector-agent manifest
 assert(connectorAgent.includes('owner_app: "mad4b-local-manager"'), 'Local Manager must own local tool releases');
 assert(connectorAgent.includes('release_model: "manifest_driven_allowlisted_tools"'), 'manifest must declare allowlisted tool release model');
 assert(connectorAgent.includes('CONNECTOR_BROWSER4_ENABLED=true'), 'installer env must enable Browser4 through Local Manager release');
+assert(connectorAgent.includes('LOCAL_CONNECTOR_CAPABILITY_FLAGS'), 'connector-agent installer must define explicit capability flag mapping');
+assert(connectorAgent.includes('powershell_admin: "CONNECTOR_POWERSHELL_ENABLED"'), 'connector-agent PowerShell capability must map only through explicit opt-in');
+assert(connectorAgent.includes('windows_control: "CONNECTOR_WIN_ENABLED"'), 'connector-agent Windows control capability must map only through explicit opt-in');
+assert(connectorAgent.includes('connectorCapabilityEnvLines([...capabilities, ...grants.capabilities])'), 'connector-agent installer must render requested capability env flags');
+assert(connectorAgent.includes('CONNECTOR_APP_ALLOWLIST'), 'connector-agent installer must render dynamic app allowlist grants');
+assert(connectorAgent.includes('CONNECTOR_FILE_PATHS'), 'connector-agent installer must render dynamic file path grants');
+assert(connectorAgent.includes('capabilities: payload.capabilities || []'), 'connector-agent installer route must pass signed token capabilities into env generation');
 assert(connectorAgent.includes('BROWSER4_ALLOWED_HOSTS=mad4b.com,n8n.mad4b.com'), 'Browser4 install must preserve connector-side domain allowlist');
 assert(connectorAgent.includes("Get-Mad4BManifestFile -Name 'browser4-adapter.mjs'"), 'installer must install manifest-declared Browser4 adapter file');
 assert(connectorAgent.includes('local_tool_release_owner: "mad4b-local-manager"'), 'upgrade policy must identify Local Manager as tool release owner');
