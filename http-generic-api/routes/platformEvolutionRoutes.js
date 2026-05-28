@@ -44,7 +44,16 @@ function errorResponse(res, err, fallbackCode) {
 }
 
 function runtimeBaseUrl() {
-  return String(process.env.PUBLIC_BASE_URL || process.env.PLATFORM_JWT_ISSUER || "https://auth.mad4b.com").replace(/\/$/, "");
+  return String(
+    process.env.INTERNAL_RUNTIME_BASE_URL ||
+    process.env.PUBLIC_BASE_URL ||
+    process.env.PLATFORM_JWT_ISSUER ||
+    "https://auth.mad4b.com"
+  ).replace(/\/$/, "");
+}
+
+function scopeKeyComparisonSql(columnName = "scope_key") {
+  return `${columnName} = CAST(? AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_bin`;
 }
 
 function issueInternalTenantSmokeJwt({ user_id, email, tenant_id }) {
