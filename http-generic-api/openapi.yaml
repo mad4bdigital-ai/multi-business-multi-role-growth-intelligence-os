@@ -9445,6 +9445,49 @@ paths:
       responses:
         "201": { description: Credential intake submitted, content: { text/html: { schema: { type: string } } } }
 
+  /credentials/bindings/promote:
+    post:
+      x-openai-isConsequential: true
+      tags: [security]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: credentialBindingPromote
+      summary: Promote a private connection credential pointer into a runtime binding
+      description: >
+        Admin-governed credential pointer promotion. Preflights a user_app_connection credential using user and
+        connection context, then creates or updates a tenant/platform runtime credential binding pointing to the same
+        credential_ref. This does not copy, decrypt, or return secret values, but it intentionally expands runtime
+        access to the promoted owner scope and therefore requires explicit approval and a promotion reason.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialBindingPromoteRequest"
+      responses:
+        "201":
+          description: Credential binding promoted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialBindingPromoteResponse"
+        "400":
+          description: Missing required fields or approval.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Source connection credential did not resolve.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Credential promotion failed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /credentials/effective/plan:
     post:
       x-openai-isConsequential: false
