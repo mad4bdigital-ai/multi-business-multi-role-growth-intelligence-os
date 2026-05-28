@@ -2,6 +2,7 @@ import { Router } from "express";
 import { getPool } from "../db.js";
 import { routeOutput } from "../outputSinkRouter.js";
 import { dispatchChainEvent, dispatchPendingChainEvents } from "../chainEventDispatcher.js";
+import { dispatchPlan } from "../connectorExecutor.js";
 
 export function buildOutputSinkRoutes(deps) {
   const { requireBackendApiKey } = deps;
