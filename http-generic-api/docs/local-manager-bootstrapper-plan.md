@@ -142,6 +142,9 @@ Every install, upgrade, rollback, and repair should produce:
 - Route selector falls back across enabled healthy/unknown routes.
 - Installer status does not include raw secrets.
 - Desktop Manager displays only redacted diagnostics.
+- App-managed connector installers do not stop at `Press any key`.
+- Capability installer verification checks live behavior: `connector_ps`, `connector_win`, file `allowed_paths`, and dynamic app aliases.
+- `/connector-agent/installer.ps1` renders signed capability and grant payloads into the effective `.env`.
 
 ## Deployment order
 
