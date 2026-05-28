@@ -550,18 +550,30 @@ function mapGithubRunForGhJson(run, fields = []) {
 }
 
 function mapGithubPullForGhJson(pr, fields = []) {
+  const checkRuns = Array.isArray(pr._state_check_rollup) ? pr._state_check_rollup : [];
   const mapped = {
     number: pr.number,
     url: pr.html_url,
     title: pr.title,
     body: pr.body,
     state: pr.state,
+    isDraft: Boolean(pr.draft),
     mergeable: pr.mergeable,
+    mergeStateStatus: pr.mergeable_state || null,
     merged: pr.merged,
     headRefName: pr.head?.ref || null,
+    headRefOid: pr.head?.sha || null,
     headRepositoryOwner: pr.head?.repo?.owner?.login || null,
+    headRepository: pr.head?.repo?.full_name || null,
     baseRefName: pr.base?.ref || null,
+    baseRefOid: pr.base?.sha || null,
     author: pr.user?.login || null,
+    stateCheckRollup: checkRuns.map((run) => ({
+      name: run.name || run.context || run.check_suite?.app?.name || "unknown",
+      status: run.status || null,
+      conclusion: run.conclusion || null,
+      url: run.html_url || run.details_url || null,
+    })),
   };
   if (!fields.length) return mapped;
   return Object.fromEntries(fields.map((field) => [field, mapped[field] ?? pr[field] ?? null]));
@@ -775,6 +787,41 @@ async function executeGitHubRestFallback(args = []) {
     return { stdout: JSON.stringify(output, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
   }
 
+  if (resource === "pr" && command === "view" && maybeId) {
+    const prNumber = parseGithubPrNumber(maybeId);
+    const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
+    let checks = [];
+    try {
+      const ref = pr?.head?.sha || pr?.head?.ref || "";
+      if (ref) {
+        const payload = await githubRestJson({ owner, repo, apiPath: `/commits/${encodeURIComponent(ref)}/check-runs?per_page=100`, token });
+        checks = payload.check_runs || [];
+      }
+    } catch { /* best-effort diagnostics only */ }
+    const output = mapGithubPullForGhJson({ ...pr, _state_check_rollup: checks }, fields);
+    return { stdout: JSON.stringify(output, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
+
+  if (resource === "pr" && command === "update-branch" && maybeId) {
+    const prNumber = parseGithubPrNumber(maybeId);
+    const expectedHeadSha = parseCliFlag(args, "--expected-head-sha");
+    const body = expectedHeadSha ? { expected_head_sha: expectedHeadSha } : {};
+    await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/pulls/${encodeURIComponent(prNumber)}/update-branch`,
+      token,
+      method: "PUT",
+      body,
+    });
+    return {
+      stdout: JSON.stringify({ number: Number(prNumber), update_branch_requested: true }, null, 2),
+      stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n",
+      exit_code: 0,
+      fallback: "github_rest",
+    };
+  }
+
   if (resource === "pr" && command === "close" && maybeId) {
     const comment = parseCliFlag(args, "--comment");
     const prNumber = encodeURIComponent(String(maybeId));
@@ -890,6 +937,12 @@ async function executeGitHubRestFallback(args = []) {
     const mergeMethod = hasCliFlag(args, "--squash") ? "squash" : hasCliFlag(args, "--rebase") ? "rebase" : "merge";
     const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
     if (pr?.mergeable === false || String(pr?.mergeable_state || "").toLowerCase() === "dirty") {
+      const headRef = pr?.head?.repo?.full_name === `${owner}/${repo}`
+        ? pr?.head?.ref
+        : pr?.head?.repo?.owner?.login && pr?.head?.ref
+          ? `${pr.head.repo.owner.login}:${pr.head.ref}`
+          : pr?.head?.ref;
+      const compare = await loadGithubCompareForRefs({ owner, repo, token, baseRef: pr?.base?.ref || "main", headRef });
       const err = new Error("Pull request is not mergeable. Resolve conflicts or recreate the branch from the current base before merging.");
       err.status = 409;
       err.code = "github_pr_not_mergeable_dirty";
@@ -901,6 +954,12 @@ async function executeGitHubRestFallback(args = []) {
         head_sha: pr?.head?.sha || null,
         base_ref: pr?.base?.ref || null,
         base_sha: pr?.base?.sha || null,
+        compare_status: compare?.status || null,
+        ahead_by: compare?.ahead_by ?? null,
+        behind_by: compare?.behind_by ?? null,
+        files: Array.isArray(compare?.files)
+          ? compare.files.map((file) => ({ filename: file.filename, status: file.status, changes: file.changes })).slice(0, 100)
+          : [],
       };
       throw err;
     }
