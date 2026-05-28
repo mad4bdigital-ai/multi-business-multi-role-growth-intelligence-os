@@ -73,17 +73,29 @@ function issueInternalTenantSmokeJwt({ user_id, email, tenant_id }) {
 
 async function smokeGet(path, token) {
   const base = runtimeBaseUrl();
-  const response = await fetch(`${base}${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    signal: AbortSignal.timeout(15000),
-  });
-  const text = await response.text();
-  let body;
-  try { body = JSON.parse(text); } catch { body = { _raw: text.slice(0, 500) }; }
-  return { status: response.status, ok: response.ok, body };
+  try {
+    const response = await fetch(`${base}${path}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+    const text = await response.text();
+    let body;
+    try { body = JSON.parse(text); } catch { body = { _raw: text.slice(0, 500) }; }
+    return { status: response.status, ok: response.ok, body };
+  } catch (err) {
+    return {
+      status: 0,
+      ok: false,
+      body: {
+        ok: false,
+        error: { code: "tenant_smoke_self_call_failed", message: err?.message || String(err) },
+        secrets_included: false,
+      },
+    };
+  }
 }
 
 function smokeSummary(result) {
