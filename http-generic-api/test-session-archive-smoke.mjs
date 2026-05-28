@@ -173,6 +173,7 @@ assert(openapi.includes('operationId: runSessionArchiveSmoke'), 'session archive
 {
   const pool = makePool();
   const drive = makeDriveDeps();
+  let activationReq = null;
   const result = await runSessionArchiveSmoke({
     pool,
     tenantId: "tenant-1",
@@ -180,9 +181,10 @@ assert(openapi.includes('operationId: runSessionArchiveSmoke'), 'session archive
     injectedArchiveDeps: drive.deps,
     fetchDriveContentFn: drive.fetchDriveContent,
     deleteDriveFileFn: drive.deleteDriveFile,
-    activationContextReader: async () => ({
-      gpt_sessions: [{ session_id: pool.state.session.session_id, drive_export_url: "https://drive/doc-1" }],
-    }),
+    activationContextReader: async (req) => {
+      activationReq = req;
+      return { gpt_sessions: [{ session_id: pool.state.session.session_id, drive_export_url: "https://drive/doc-1" }] };
+    },
   });
 
   assert.equal(result.ok, true, JSON.stringify(result.checks, null, 2));
