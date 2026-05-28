@@ -1008,13 +1008,17 @@ components:
     CredentialBindingPromoteTenantRequest:
       type: object
       additionalProperties: false
-      required: [tenant_id, connection_id, credential_role]
+      required: [tenant_id, connection_id, credential_role, promotion_approved, promotion_reason]
       properties:
         tenant_id: { type: string }
         connection_id: { type: string }
         target_key: { type: string }
         action_key: { type: string }
         credential_role: { type: string }
+        promotion_approved: { type: boolean, enum: [true] }
+        promotion_reason:
+          type: string
+          minLength: 8
         provider_family: { type: string, default: wordpress }
         connector_family: { type: string, default: wordpress_rest }
         promoted_owner_type:
