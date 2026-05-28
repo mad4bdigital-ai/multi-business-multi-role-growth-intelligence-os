@@ -1153,6 +1153,55 @@ components:
         tenant_facing: { type: boolean }
         secrets_included: { type: boolean, enum: [false] }
 
+    PlatformEvolutionTenantSmokeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id: { type: string }
+        email: { type: string }
+        tenant_id: { type: string }
+        brand_key: { type: string }
+        scope_key: { type: string }
+
+    PlatformEvolutionTenantSmokeCheck:
+      type: object
+      additionalProperties: false
+      properties:
+        status: { type: integer }
+        ok: { type: boolean }
+        response_ok: { type: boolean }
+        count: { type: integer, nullable: true }
+        scope_key: { type: string, nullable: true }
+        secrets_included: { type: boolean, enum: [false] }
+        error_code: { type: string, nullable: true }
+
+    PlatformEvolutionTenantSmokeResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, scope_key, checks, smoke_policy, secrets_included]
+      properties:
+        ok: { type: boolean }
+        scope_key: { type: string }
+        tenant_id: { type: string }
+        brand_key: { type: string }
+        user_id: { type: string }
+        checks:
+          type: object
+          additionalProperties: false
+          properties:
+            switch_options: { $ref: "#/components/schemas/PlatformEvolutionTenantSmokeCheck" }
+            activation_card: { $ref: "#/components/schemas/PlatformEvolutionTenantSmokeCheck" }
+            thread_map: { $ref: "#/components/schemas/PlatformEvolutionTenantSmokeCheck" }
+        smoke_policy:
+          type: object
+          additionalProperties: false
+          properties:
+            token_returned: { type: boolean, enum: [false] }
+            jwt_ttl_seconds: { type: integer, enum: [300] }
+            tenant_checkpoint_write_enabled: { type: boolean, enum: [false] }
+            runtime_base_url: { type: string }
+        secrets_included: { type: boolean, enum: [false] }
+
     PlatformEvolutionCheckpointCreateRequest:
       type: object
       additionalProperties: true
