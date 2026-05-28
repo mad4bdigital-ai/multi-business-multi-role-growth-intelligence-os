@@ -10512,6 +10512,43 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /tenant/evolution/switch-options:
+    get:
+      tags: [platform-evolution]
+      operationId: tenantEvolutionSwitchOptions
+      summary: List tenant Evolution switch options
+      description: >
+        Tenant/user scoped read of allowed Platform Evolution scope switch options for the signed-in user.
+        The returned scope_key values can be passed to tenant evolution read routes. No access is granted by this route.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Tenant allowed switch scopes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionSwitchOptionsResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active membership missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /tenant/evolution/activation-card:
     get:
       tags: [platform-evolution]
