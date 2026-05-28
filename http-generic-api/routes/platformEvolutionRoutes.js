@@ -110,7 +110,44 @@ function smokeSummary(result) {
   };
 }
 
-async function directTenantSmoke(scope, token) {
+async function createTenantWriteSmokeCheckpoint(scope) {
+  const checkpointId = randomUUID();
+  const createdBy = `tenant_smoke:${scope.user_id}`;
+  const summaryText = "Tenant checkpoint write smoke created by platform_evolution_tenant_smoke direct_scope mode.";
+  await getPool().query(
+    `INSERT INTO platform_evolution_checkpoints (
+      checkpoint_id, scope_key, tenant_id, user_id, brand_key, checkpoint_type,
+      activation_session_id, main_commit_sha, deployed_commit_sha, activation_status, release_readiness_status,
+      summary_text, thread_snapshot_json, delta_json, evidence_json, next_actions_json, created_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      checkpointId,
+      scope.scope_key,
+      scope.tenant_id,
+      scope.user_id,
+      scope.brand_key,
+      "operation",
+      null,
+      null,
+      null,
+      "tenant_checkpoint_created",
+      "tenant_scope_write_policy_v1_smoke",
+      summaryText,
+      JSON.stringify({ smoke: true, route_family: "tenant_evolution" }),
+      JSON.stringify({ include_write: true, transport_mode: "direct_scope" }),
+      JSON.stringify({ token_returned: false, secrets_included: false, platform_commit_fields_accepted: false }),
+      JSON.stringify(["Review tenant checkpoint write policy before enabling broader tenant write workflows."]),
+      createdBy,
+    ]
+  );
+  await getPool().query(
+    `UPDATE platform_evolution_threads SET last_checkpoint_id = ?, updated_by = ? WHERE ${scopeKeyComparisonSql("scope_key")}`,
+    [checkpointId, createdBy, scope.scope_key]
+  );
+  return checkpointId;
+}
+
+async function directTenantSmoke(scope, token, options = {}) {
   const secret = process.env.JWT_SECRET || "development_fallback_secret_only";
   let verified = false;
   try {
@@ -138,6 +175,29 @@ async function directTenantSmoke(scope, token) {
     `SELECT * FROM v_platform_evolution_thread_map WHERE ${scopeKeyComparisonSql("scope_key")} ORDER BY FIELD(priority,'critical','high','medium','low'), thread_key LIMIT 3`,
     [scope.scope_key]
   );
+  let writeCheckpointId = null;
+  let writeCheck = {
+    status: 200,
+    ok: true,
+    response_ok: options.include_write !== true,
+    count: null,
+    scope_key: scope.scope_key,
+    secrets_included: false,
+    error_code: options.include_write === true ? "tenant_write_not_attempted" : null,
+  };
+  if (options.include_write === true && verified === true) {
+    writeCheckpointId = await createTenantWriteSmokeCheckpoint(scope);
+    writeCheck = {
+      status: 201,
+      ok: true,
+      response_ok: true,
+      count: 1,
+      scope_key: scope.scope_key,
+      secrets_included: false,
+      error_code: null,
+      checkpoint_id: writeCheckpointId,
+    };
+  }
   return {
     switch_options: {
       status: 200,
@@ -166,6 +226,7 @@ async function directTenantSmoke(scope, token) {
       secrets_included: false,
       error_code: null,
     },
+    checkpoint_write: writeCheck,
     jwt_verified: verified,
   };
 }
@@ -306,11 +367,12 @@ export function buildPlatformEvolutionRoutes(deps = {}) {
           thread_map: smokeSummary(threadResult),
         };
       } else {
-        const direct = await directTenantSmoke(scope, token);
+        const direct = await directTenantSmoke(scope, token, { include_write: body.include_write === true || body.includeWrite === true });
         checks = {
           switch_options: direct.switch_options,
           activation_card: direct.activation_card,
           thread_map: direct.thread_map,
+          checkpoint_write: direct.checkpoint_write,
         };
         jwtVerified = direct.jwt_verified;
       }
@@ -318,7 +380,8 @@ export function buildPlatformEvolutionRoutes(deps = {}) {
         (transportMode === "http_self_call" || jwtVerified === true) &&
         checks.switch_options.status === 200 && checks.switch_options.response_ok === true && checks.switch_options.secrets_included === false &&
         checks.activation_card.status === 200 && checks.activation_card.response_ok === true && checks.activation_card.secrets_included === false &&
-        checks.thread_map.status === 200 && checks.thread_map.response_ok === true && checks.thread_map.secrets_included === false;
+        checks.thread_map.status === 200 && checks.thread_map.response_ok === true && checks.thread_map.secrets_included === false &&
+        (!checks.checkpoint_write || (checks.checkpoint_write.response_ok === true && checks.checkpoint_write.secrets_included === false));
 
       return res.status(passed ? 200 : 502).json({
         ok: passed,

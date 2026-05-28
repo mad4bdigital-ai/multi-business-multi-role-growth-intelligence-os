@@ -17,11 +17,15 @@ assert(routeFile.includes('directTenantSmoke'), 'tenant smoke must support direc
 assert(routeFile.includes('transport_mode'), 'tenant smoke must expose transport mode');
 assert(routeFile.includes('direct_scope'), 'tenant smoke must default to direct_scope mode');
 assert(routeFile.includes('jwt_verified'), 'tenant smoke must verify internally issued JWT in direct mode');
+assert(routeFile.includes('createTenantWriteSmokeCheckpoint'), 'tenant smoke must support scoped checkpoint write smoke');
+assert(routeFile.includes('include_write'), 'tenant smoke must expose include_write option');
+assert(routeFile.includes('checkpoint_write'), 'tenant smoke response must include checkpoint_write check when available');
 assert(routeFile.includes('token_returned: false'), 'tenant smoke must explicitly not return token');
 assert(routeFile.includes('tenant_checkpoint_write_enabled: false'), 'tenant smoke must keep tenant checkpoint write disabled');
 assert(routeFile.includes('secrets_included: false'), 'tenant smoke must not include secrets');
 assert(!routeFile.includes('access_token:'), 'tenant smoke response must not expose access_token field');
 
+assert(migration.includes('include_write'), 'tenant smoke tool schema must include include_write');
 assert(migration.includes('platform_evolution_tenant_smoke'), 'tenant smoke tool must be registered');
 assert(migration.includes('no_token_returned'), 'tenant smoke tool must be tagged no_token_returned');
 assert(migration.includes('no_secrets'), 'tenant smoke tool must be tagged no_secrets');
@@ -29,6 +33,8 @@ assert(migration.includes('no_secrets'), 'tenant smoke tool must be tagged no_se
 assert(openapi.includes('/platform/evolution/tenant-smoke:'), 'tenant smoke path must be documented in OpenAPI');
 assert(openapi.includes('PlatformEvolutionTenantSmokeRequest'), 'tenant smoke request schema must be documented');
 assert(openapi.includes('PlatformEvolutionTenantSmokeResponse'), 'tenant smoke response schema must be documented');
+assert(openapi.includes('include_write'), 'OpenAPI must document include_write');
+assert(openapi.includes('checkpoint_write'), 'OpenAPI must document checkpoint_write check');
 assert(openapi.includes('token_returned: { type: boolean, enum: [false] }'), 'OpenAPI must document token_returned=false');
 assert(openapi.includes('tenant_checkpoint_write_enabled: { type: boolean, enum: [false] }'), 'OpenAPI must document tenant checkpoint write disabled');
 
