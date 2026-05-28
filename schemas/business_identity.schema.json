@@ -33,7 +33,7 @@
           "type": "string",
           "minLength": 1
         },
-        "gid": {
+        "legacy_mirror_gid": {
           "type": "string",
           "minLength": 1
         },
