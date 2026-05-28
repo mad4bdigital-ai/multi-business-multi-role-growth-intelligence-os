@@ -1091,29 +1091,33 @@
           "required": [
             "source",
             "dependency_key",
-            "worksheet"
+            "table"
           ],
           "properties": {
             "source": {
               "type": "string",
-              "default": "registry",
+              "default": "sql_registry",
               "enum": [
-                "registry"
+                "sql_registry"
               ]
             },
             "dependency_key": {
               "type": "string",
-              "default": "operations_log_unified_sheet",
+              "default": "execution_log",
               "enum": [
-                "operations_log_unified_sheet"
+                "execution_log"
               ]
             },
-            "worksheet": {
+            "table": {
               "type": "string",
-              "default": "Execution Log Unified",
+              "default": "execution_log",
               "enum": [
-                "Execution Log Unified"
+                "execution_log"
               ]
+            },
+            "legacy_mirror_worksheet": {
+              "type": "string",
+              "default": "Execution Log Unified"
             }
           }
         },
