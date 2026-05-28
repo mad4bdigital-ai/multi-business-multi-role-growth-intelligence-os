@@ -457,7 +457,7 @@
         },
         "authoritative_runtime_evidence_source": {
           "type": "string",
-          "default": "surface.operations_log_unified_sheet"
+          "default": "table.execution_log"
         }
       },
       "default": {
@@ -467,7 +467,7 @@
         "canonical_merge_verification_status": "pending",
         "registry_alignment_verification_status": "pending",
         "runtime_deployment_verification_status": "pending",
-        "authoritative_runtime_evidence_source": "surface.operations_log_unified_sheet"
+        "authoritative_runtime_evidence_source": "table.execution_log"
       }
     },
     "governed_registry_generation_events": {
