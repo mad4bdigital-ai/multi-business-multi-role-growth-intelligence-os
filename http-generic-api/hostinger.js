@@ -1,5 +1,9 @@
 // Auto-extracted from server.js — do not edit manually, use domain logic here.
-import { readTable as readSqlTable } from "./sqlAdapter.js";
+
+async function readSqlRegistryTable(surfaceName) {
+  const { readTable } = await import("./sqlAdapter.js");
+  return readTable(surfaceName);
+}
 
 function jsonParseSafe(value, fallback) {
   try {
