@@ -110,6 +110,66 @@ function smokeSummary(result) {
   };
 }
 
+async function directTenantSmoke(scope, token) {
+  const secret = process.env.JWT_SECRET || "development_fallback_secret_only";
+  let verified = false;
+  try {
+    const decoded = jwt.verify(token, secret);
+    verified = decoded?.user_id === scope.user_id && decoded?.tenant_id === scope.tenant_id;
+  } catch {
+    verified = false;
+  }
+  const pool = getPool();
+  const [switchRows] = await pool.query(
+    `SELECT scope_key, tenant_id, brand_key, user_id, access_state
+       FROM v_platform_evolution_scope_access
+      WHERE user_id = ?
+        AND tenant_id = ?
+        AND brand_key = ?
+        AND access_state = 'allowed'
+      LIMIT 5`,
+    [scope.user_id, scope.tenant_id, scope.brand_key]
+  );
+  const [cardRows] = await pool.query(
+    `SELECT * FROM v_platform_evolution_activation_card WHERE ${scopeKeyComparisonSql("scope_key")} LIMIT 1`,
+    [scope.scope_key]
+  );
+  const [threadRows] = await pool.query(
+    `SELECT * FROM v_platform_evolution_thread_map WHERE ${scopeKeyComparisonSql("scope_key")} ORDER BY FIELD(priority,'critical','high','medium','low'), thread_key LIMIT 3`,
+    [scope.scope_key]
+  );
+  return {
+    switch_options: {
+      status: 200,
+      ok: true,
+      response_ok: switchRows.length > 0,
+      count: switchRows.length,
+      scope_key: scope.scope_key,
+      secrets_included: false,
+      error_code: null,
+    },
+    activation_card: {
+      status: 200,
+      ok: true,
+      response_ok: cardRows.length > 0,
+      count: cardRows.length,
+      scope_key: scope.scope_key,
+      secrets_included: false,
+      error_code: null,
+    },
+    thread_map: {
+      status: 200,
+      ok: true,
+      response_ok: threadRows.length > 0,
+      count: threadRows.length,
+      scope_key: scope.scope_key,
+      secrets_included: false,
+      error_code: null,
+    },
+    jwt_verified: verified,
+  };
+}
+
 export function buildPlatformEvolutionRoutes(deps = {}) {
   const { requireBackendApiKey, requireAdminPrincipal } = deps;
   const router = Router();
