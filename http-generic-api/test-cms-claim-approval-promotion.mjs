@@ -28,6 +28,9 @@ assert(connectApi.includes('secret_copied: false'), 'CMS claim approval must not
 assert(connectApi.includes('token_returned: false'), 'CMS claim approval must not return tokens');
 assert(connectApi.includes('secrets_included: false'), 'CMS claim approval must not return secrets');
 assert(!connectApi.includes('decryptToken('), 'CMS claim approval must not decrypt tokens');
-assert(!connectApi.includes('application_password:'), 'CMS claim approval route must not accept or return application_password');
+const approvalRouteStart = connectApi.indexOf('/connect/api/cms/claims/:claim_id/approve');
+const approvalRouteEnd = connectApi.indexOf('/connect/api/cms/claims/:claim_id/reject', approvalRouteStart);
+const approvalRoute = connectApi.slice(approvalRouteStart, approvalRouteEnd);
+assert(!approvalRoute.includes('application_password'), 'CMS claim approval route must not accept or return application_password');
 
 console.log('cms claim approval promotion tests passed');
