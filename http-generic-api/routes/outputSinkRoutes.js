@@ -2,6 +2,7 @@ import { Router } from "express";
 import { getPool } from "../db.js";
 import { routeOutput } from "../outputSinkRouter.js";
 import { dispatchChainEvent, dispatchPendingChainEvents } from "../chainEventDispatcher.js";
+import { dispatchPlan } from "../connectorExecutor.js";
 
 export function buildOutputSinkRoutes(deps) {
   const { requireBackendApiKey } = deps;
@@ -88,6 +89,26 @@ export function buildOutputSinkRoutes(deps) {
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /execution-plans/:id/dispatch — execute a validated/approved plan ──
+  router.post("/execution-plans/:id/dispatch", async (req, res) => {
+    try {
+      const { apply = false, publish_status = "draft", post_types = ["post"], actor_id = "admin:gpt" } = req.body || {};
+      if (apply !== false && apply !== true) {
+        return res.status(400).json({ error: { code: "invalid_apply", message: "apply must be boolean." } });
+      }
+      if (!["draft", "publish"].includes(String(publish_status))) {
+        return res.status(400).json({ error: { code: "invalid_publish_status", message: "publish_status must be draft or publish." } });
+      }
+      const result = await dispatchPlan(req.params.id, { apply, publish_status, post_types, actor_id });
+      if (!result.ok) {
+        return res.status(422).json(result);
+      }
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: { code: "execution_plan_dispatch_failed", message: err.message } });
     }
   });
 
