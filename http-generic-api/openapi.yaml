@@ -10531,6 +10531,48 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /platform/evolution/tenant-smoke:
+    post:
+      tags: [platform-evolution]
+      operationId: platformEvolutionTenantSmoke
+      summary: Smoke tenant Evolution routes with User JWT
+      description: >
+        Admin-only governed smoke harness. It resolves an allowed Platform Evolution scope, issues an internal short-lived
+        User JWT, calls tenant evolution switch-options, activation-card, and thread-map routes, and returns only sanitized
+        result summaries. The JWT is never returned and tenant checkpoint write remains disabled.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformEvolutionTenantSmokeRequest"
+      responses:
+        "200":
+          description: Tenant smoke passed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionTenantSmokeResponse"
+        "400":
+          description: Missing user identifier.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Requested smoke scope is not allowed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "502":
+          description: Tenant route smoke failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionTenantSmokeResponse"
+
   /platform/evolution/checkpoints:
     post:
       tags: [platform-evolution]
