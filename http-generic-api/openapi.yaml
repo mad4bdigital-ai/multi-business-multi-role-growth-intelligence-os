@@ -1212,6 +1212,49 @@ components:
             runtime_base_url: { type: string }
         secrets_included: { type: boolean, enum: [false] }
 
+    TenantEvolutionCheckpointCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [summary_text]
+      properties:
+        scope_key: { type: string }
+        brand_key: { type: string }
+        checkpoint_id: { type: string }
+        checkpoint_type:
+          type: string
+          enum: [operation, manual, rollup]
+          default: operation
+        summary_text:
+          type: string
+          maxLength: 4000
+        thread_snapshot: { $ref: "#/components/schemas/JsonValue" }
+        delta: { $ref: "#/components/schemas/JsonValue" }
+        evidence: { $ref: "#/components/schemas/JsonValue" }
+        next_actions:
+          type: array
+          items: { type: string }
+
+    TenantEvolutionCheckpointCreateResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, checkpoint_id, scope_key, checkpoint_type, tenant_facing, write_policy, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        checkpoint_id: { type: string }
+        scope_key: { type: string }
+        checkpoint_type: { type: string, enum: [operation, manual, rollup] }
+        tenant_facing: { type: boolean, enum: [true] }
+        write_policy:
+          type: object
+          additionalProperties: true
+          properties:
+            mode: { type: string, enum: [tenant_scope_write_policy_v1] }
+            platform_commit_fields_accepted: { type: boolean, enum: [false] }
+            allowed_roles:
+              type: array
+              items: { type: string }
+        secrets_included: { type: boolean, enum: [false] }
+
     PlatformEvolutionCheckpointCreateRequest:
       type: object
       additionalProperties: true
