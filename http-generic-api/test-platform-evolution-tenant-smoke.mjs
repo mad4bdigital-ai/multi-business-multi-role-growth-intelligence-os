@@ -13,6 +13,10 @@ assert(routeFile.includes('/tenant/evolution/thread-map'), 'tenant smoke must ca
 assert(routeFile.includes('scopeKeyComparisonSql'), 'tenant smoke must use collation-safe scope_key comparison');
 assert(routeFile.includes('INTERNAL_RUNTIME_BASE_URL'), 'tenant smoke must support internal runtime base URL override');
 assert(routeFile.includes('tenant_smoke_self_call_failed'), 'tenant smoke must return structured self-call failures');
+assert(routeFile.includes('directTenantSmoke'), 'tenant smoke must support direct scope fallback');
+assert(routeFile.includes('transport_mode'), 'tenant smoke must expose transport mode');
+assert(routeFile.includes('direct_scope'), 'tenant smoke must default to direct_scope mode');
+assert(routeFile.includes('jwt_verified'), 'tenant smoke must verify internally issued JWT in direct mode');
 assert(routeFile.includes('token_returned: false'), 'tenant smoke must explicitly not return token');
 assert(routeFile.includes('tenant_checkpoint_write_enabled: false'), 'tenant smoke must keep tenant checkpoint write disabled');
 assert(routeFile.includes('secrets_included: false'), 'tenant smoke must not include secrets');

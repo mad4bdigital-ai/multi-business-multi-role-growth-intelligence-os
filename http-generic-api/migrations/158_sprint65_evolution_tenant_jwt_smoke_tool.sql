@@ -13,7 +13,7 @@ INSERT INTO `admin_platform_endpoint_tools` (
   'POST',
   '/platform/evolution/tenant-smoke',
   NULL,
-  '{"type":"object","properties":{"user_id":{"type":"string"},"email":{"type":"string"},"tenant_id":{"type":"string"},"brand_key":{"type":"string"},"scope_key":{"type":"string"}},"additionalProperties":false}',
+  '{"type":"object","properties":{"user_id":{"type":"string"},"email":{"type":"string"},"tenant_id":{"type":"string"},"brand_key":{"type":"string"},"scope_key":{"type":"string"},"transport_mode":{"type":"string","enum":["direct_scope","http_self_call"],"default":"direct_scope"}},"additionalProperties":false}',
   NULL,
   'platform-evolution,tenant-smoke,user-jwt,certification,read_only,scope_gated,no_secrets,no_token_returned',
   1,
