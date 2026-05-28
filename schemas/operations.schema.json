@@ -821,7 +821,25 @@
           "type": "string",
           "default": "Multi-Business Growth Intelligence Platform"
         },
-        "registry_workbook": {
+        "registry_database": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "default": "mysql_primary"
+            },
+            "title": {
+              "type": "string",
+              "default": "Growth Intelligence OS - SQL Registry"
+            },
+            "role": {
+              "type": "string",
+              "default": "runtime_authority"
+            }
+          }
+        },
+        "legacy_registry_workbook_mirror": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
@@ -835,7 +853,7 @@
             },
             "role": {
               "type": "string",
-              "default": "structural_truth"
+              "default": "async_mirror_and_recovery"
             }
           }
         },
