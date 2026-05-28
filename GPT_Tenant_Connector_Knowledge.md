@@ -46,6 +46,8 @@ Blocked from Tenant GPT unless explicitly transformed into a tenant-safe subset:
 
 If no tenant-visible docs reader exists in `listTools`, continue from the compact instructions and current activation evidence. Do not fall back to native GitHub, browser scraping, uploaded GPT Builder files, or admin `repo_inspect`.
 
+See `docs/live-repo-knowledge-loading-governance.md` for the admin/tenant boundary and the proposed `tenant_repo_doc_read` tool contract.
+
 Correct:
 
 ```json
