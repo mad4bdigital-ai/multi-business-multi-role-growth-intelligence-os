@@ -265,5 +265,43 @@ export async function upsertPlatformPluginSmokeRecertificationPolicy(input = {},
       autoEnabled, providerSmokeRequired, allowedExpectedOrigin,
       status, priority, notes, metadata]
   );
-  return resolvePlatformPluginSmokeRecertificationPolicy({ tenant_id: tenantId, plugin_key: pluginKey, action_key: actionKey, mock_provider: mockProvider, mock_resource: mockResource }, { pool });
+  const afterPolicy = await getPolicyById(pool, policyId);
+  const changed = changedFields(beforePolicy, afterPolicy);
+  const auditRow = await writePolicyAuditEvidence({
+    pool,
+    traceId,
+    actor,
+    reason,
+    beforePolicy,
+    afterPolicy,
+    changed,
+    upsertMode: beforePolicy ? "update" : "insert",
+  });
+  const resolved = await resolvePlatformPluginSmokeRecertificationPolicy({
+    tenant_id: tenantId,
+    plugin_key: pluginKey,
+    action_key: actionKey,
+    mock_provider: mockProvider,
+    mock_resource: mockResource,
+  }, { pool });
+  return {
+    ...resolved,
+    upsert: {
+      policy_id: policyId,
+      mode: beforePolicy ? "update" : "insert",
+      changed_fields: changed,
+      before: policyAuditSummary(beforePolicy),
+      after: policyAuditSummary(afterPolicy),
+      audit: auditRow ? {
+        ok: true,
+        id: auditRow.id,
+        execution_status: auditRow.execution_status,
+        trace_id: auditRow.execution_trace_id_writeback,
+      } : { ok: false, trace_id: traceId },
+      actor,
+      reason,
+      secrets_included: false,
+    },
+    secrets_included: false,
+  };
 }
