@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
+import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
 
 function boundedInt(value, fallback, min = 1, max = 200) {
