@@ -163,8 +163,39 @@ function normalizeWindowsPath(value, max = 260) {
   return raw;
 }
 
+function normalizeRequestedCapabilities(value) {
+  const raw = Array.isArray(value) ? value : String(value || "").split(",");
+  return [...new Set(raw.map((item) => String(item || "").trim()).filter((item) => LOCAL_CONNECTOR_CAPABILITY_FLAGS[item]))];
+}
+
 function normalizePermissionGrants(value = {}) {
   const grants = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const capabilities = normalizeRequestedCapabilities(grants.capabilities || grants.connector_capabilities || []);
+  const pathGrantValues = Array.isArray(grants.allowed_paths)
+    ? grants.allowed_paths
+    : (Array.isArray(grants.file_paths) ? grants.file_paths : []);
+  const allowedPaths = [...new Set(pathGrantValues.map((item) => normalizeWindowsPath(item, 260)).filter(Boolean))].slice(0, 25);
+
+  const appGrantValues = Array.isArray(grants.apps)
+    ? grants.apps
+    : Object.entries(grants.apps || {}).map(([alias, value]) => ({ alias, ...(value && typeof value === "object" ? value : {}) }));
+  const apps = {};
+  for (const item of appGrantValues) {
+    const alias = normalizeGrantAlias(item?.app_alias || item?.alias || item?.display_name, "app");
+    const command = normalizeWindowsPath(item?.command || item?.executable_path || item?.path, 260);
+    if (!alias || !command) continue;
+    const processName = String(item?.process_name || command.split(/[/\\]/).pop() || alias).replace(/\.exe$/i, "").replace(/[^A-Za-z0-9_.-]+/g, "").slice(0, 80) || alias;
+    apps[alias] = {
+      display_name: String(item?.display_name || alias).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) || alias,
+      command,
+      process_name: processName,
+      browser: item?.browser === true,
+      capability_class: String(item?.capability_class || "desktop_app").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "desktop_app",
+      risk_class: String(item?.risk_class || "interactive").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "interactive",
+    };
+    if (Object.keys(apps).length >= 50) break;
+  }
+
   const shellAliases = [];
   for (const item of Array.isArray(grants.shell_aliases || grants.helpers) ? (grants.shell_aliases || grants.helpers) : []) {
     const alias = normalizeGrantAlias(item?.alias || item?.display_name, "helper");
