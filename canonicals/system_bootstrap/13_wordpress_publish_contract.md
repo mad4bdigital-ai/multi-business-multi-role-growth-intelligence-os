@@ -64,6 +64,22 @@ If any earlier stage is incomplete:
 - keep status at `draft_only`
 - block publish escalation
 
+## Blog publish credential recovery and same-request resume rule
+
+For brand-scoped WordPress blog/article publishing, missing credentials are a recoverable pre-execution dependency, not a reason to discard the original publish request.
+
+When `credential_effective_status` or the credential resolver returns missing, unresolved, or secret-absent for the resolved WordPress target, system_bootstrap must:
+
+1. create a secure credential-intake session through governed credential intake
+2. preserve the original publish request envelope without raw secrets
+3. classify execution as `credential_intake_required`
+4. after credential storage/readback succeeds, re-run credential resolution in the same governed flow
+5. resume the original publish workflow without asking the user to restate the publishing request
+6. continue through WordPress create and readback verification
+7. persist state using `wordpress_blog_publish_recovery_state`
+
+The platform-native workflow `wordpress_blog_publish_or_recover_credentials_workflow` is the authoritative orchestration path for this behavior. n8n may only participate as auxiliary governed `workflow_runtime_bindings` side effects, such as notifications or post-publish automation. n8n must not bypass platform auth, registry scope, credential resolver, WordPress publish contract, readback, or execution logging.
+
 ## Tour publish contract rule
 
 For tour publishing on WordPress brand sites:
