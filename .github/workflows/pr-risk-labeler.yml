@@ -1,0 +1,95 @@
+name: PR Risk Labeler
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  label:
+    name: Label PR by changed surfaces
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.state == 'open'
+
+    steps:
+      - name: Apply risk labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = context.payload.pull_request.number;
+
+            const managedLabels = {
+              "docs-only": { color: "0E8A16", description: "Only documentation or markdown guidance changed." },
+              "ci": { color: "1D76DB", description: "GitHub Actions or repository automation changed." },
+              "openapi": { color: "5319E7", description: "OpenAPI contracts or contract generation changed." },
+              "needs-contract-review": { color: "B60205", description: "Generated or public API contract changes need human review." },
+              "migration": { color: "D93F0B", description: "Database schema, migration, or SQL-adjacent changes." },
+              "connector": { color: "006B75", description: "Connector, local execution, or external integration changes." },
+              "auth": { color: "BFDADC", description: "Authentication, OAuth, token, or credential resolution changes." },
+              "runtime": { color: "FBCA04", description: "Runtime server, route, service, or execution code changed." },
+              "local-manager": { color: "C2E0C6", description: "Local Manager desktop app or related release workflow changed." },
+              "tests": { color: "D4C5F9", description: "Test files or test fixtures changed." },
+              "dependencies": { color: "F9D0C4", description: "Package manifests or lockfiles changed." }
+            };
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: issue_number,
+              per_page: 100
+            });
+            const names = files.map((file) => file.filename);
+
+            const matches = (patterns) => names.some((name) => patterns.some((pattern) => pattern.test(name)));
+            const allDocs = names.length > 0 && names.every((name) =>
+              /^docs\/.+\.md$/.test(name) ||
+              /^canonicals\/.+\.md$/.test(name) ||
+              /^[^/]+\.md$/.test(name) ||
+              name === ".github/pull_request_template.md"
+            );
+
+            const labels = new Set();
+            if (allDocs) labels.add("docs-only");
+            if (matches([/^\.github\/workflows\//])) labels.add("ci");
+            if (matches([/^http-generic-api\/openapi.*\.yaml$/, /^http-generic-api\/scripts\/(?:openapi|split-openapi|repo-maintenance-sync)/])) {
+              labels.add("openapi");
+              labels.add("needs-contract-review");
+            }
+            if (matches([/^http-generic-api\/migrations\//, /^http-generic-api\/.*migrate.*\.mjs$/, /^http-generic-api\/.*schema.*\.sql$/, /\.sql$/])) labels.add("migration");
+            if (matches([/^local-connector\//, /^http-generic-api\/.*connector/i, /^http-generic-api\/routes\/.*Connector.*\.js$/])) labels.add("connector");
+            if (matches([/auth/i, /oauth/i, /credential/i, /token/i, /secret/i])) labels.add("auth");
+            if (matches([/^http-generic-api\/(?:routes|services|wordpress)\//, /^http-generic-api\/[^/]+\.(?:js|mjs)$/])) labels.add("runtime");
+            if (matches([/^apps\/local-manager-windows\//, /^\.github\/workflows\/local-manager-windows\.yml$/])) labels.add("local-manager");
+            if (matches([/(^|\/)test-[^/]+\.mjs$/, /^tests\//, /\.test\.ts$/])) labels.add("tests");
+            if (matches([/(^|\/)package(?:-lock)?\.json$/])) labels.add("dependencies");
+
+            for (const [name, details] of Object.entries(managedLabels)) {
+              try {
+                await github.rest.issues.createLabel({ owner, repo, name, ...details });
+              } catch (error) {
+                if (error.status !== 422) throw error;
+              }
+            }
+
+            const { data: current } = await github.rest.issues.listLabelsOnIssue({ owner, repo, issue_number, per_page: 100 });
+            const currentManaged = current.map((label) => label.name).filter((name) => managedLabels[name]);
+            const toRemove = currentManaged.filter((name) => !labels.has(name));
+            for (const name of toRemove) {
+              await github.rest.issues.removeLabel({ owner, repo, issue_number, name });
+            }
+
+            if (labels.size > 0) {
+              await github.rest.issues.addLabels({ owner, repo, issue_number, labels: [...labels].sort() });
+            }
+
+            core.summary
+              .addHeading("PR risk labels")
+              .addRaw(`Changed files: ${names.length}\n\n`)
+              .addRaw(`Applied labels: ${[...labels].sort().join(", ") || "none"}\n`)
+              .write();
