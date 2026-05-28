@@ -1065,16 +1065,12 @@
             }
           }
         },
-        "operations_workbook": {
+        "legacy_operations_workbook_runtime_mirror": {
           "type": "object",
           "additionalProperties": false,
           "default": {},
-          "required": [
-            "spreadsheet_id",
-            "title"
-          ],
           "properties": {
-            "spreadsheet_id": {
+            "legacy_mirror_spreadsheet_id": {
               "type": "string",
               "default": "1D0uiZteobSqPL9c6zygq3UVWTe56H3R7IHL1yJcwP5k"
             },
@@ -1084,7 +1080,7 @@
             },
             "role": {
               "type": "string",
-              "default": "runtime_control_surface"
+              "default": "async_mirror_and_recovery"
             }
           }
         },
