@@ -584,6 +584,7 @@ export function buildConnectorAgentRoutes() {
         tunnelUrl: config.tunnel_url,
         aliases: DEFAULT_WINDOWS_ALIASES,
         port: CONNECTOR_PORT,
+        capabilities: payload.capabilities || [],
         permissionGrants: payload.permission_grants || {},
       });
       const filename = `install-local-connector-${String(config.device_id).replace(/[^a-zA-Z0-9_-]+/g, "-")}.ps1`;
