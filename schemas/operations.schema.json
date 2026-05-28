@@ -1065,16 +1065,12 @@
             }
           }
         },
-        "operations_workbook": {
+        "legacy_operations_workbook_runtime_mirror": {
           "type": "object",
           "additionalProperties": false,
           "default": {},
-          "required": [
-            "spreadsheet_id",
-            "title"
-          ],
           "properties": {
-            "spreadsheet_id": {
+            "legacy_mirror_spreadsheet_id": {
               "type": "string",
               "default": "1D0uiZteobSqPL9c6zygq3UVWTe56H3R7IHL1yJcwP5k"
             },
@@ -1084,7 +1080,7 @@
             },
             "role": {
               "type": "string",
-              "default": "runtime_control_surface"
+              "default": "async_mirror_and_recovery"
             }
           }
         },
@@ -1095,29 +1091,33 @@
           "required": [
             "source",
             "dependency_key",
-            "worksheet"
+            "table"
           ],
           "properties": {
             "source": {
               "type": "string",
-              "default": "registry",
+              "default": "sql_registry",
               "enum": [
-                "registry"
+                "sql_registry"
               ]
             },
             "dependency_key": {
               "type": "string",
-              "default": "operations_log_unified_sheet",
+              "default": "execution_log",
               "enum": [
-                "operations_log_unified_sheet"
+                "execution_log"
               ]
             },
-            "worksheet": {
+            "table": {
               "type": "string",
-              "default": "Execution Log Unified",
+              "default": "execution_log",
               "enum": [
-                "Execution Log Unified"
+                "execution_log"
               ]
+            },
+            "legacy_mirror_worksheet": {
+              "type": "string",
+              "default": "Execution Log Unified"
             }
           }
         },
@@ -1283,7 +1283,7 @@
               "type": "string",
               "default": ""
             },
-            "brand_playbook_sheet_gid": {
+            "legacy_brand_playbook_sheet_gid": {
               "type": "string",
               "default": ""
             },
