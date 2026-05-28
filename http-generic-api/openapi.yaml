@@ -1005,6 +1005,56 @@ components:
           items: { type: string }
         secret_value_included: { type: boolean, enum: [false] }
 
+    CredentialBindingPromoteTenantRequest:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, connection_id, credential_role]
+      properties:
+        tenant_id: { type: string }
+        connection_id: { type: string }
+        target_key: { type: string }
+        action_key: { type: string }
+        credential_role: { type: string }
+        provider_family: { type: string, default: wordpress }
+        connector_family: { type: string, default: wordpress_rest }
+        promoted_owner_type:
+          type: string
+          enum: [tenant]
+          default: tenant
+        resolution_priority: { type: integer, default: 20 }
+        allow_platform_fallback: { type: boolean, default: true }
+        created_by: { type: string }
+
+    CredentialBindingPromoteTenantResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, binding_id, tenant_id, promoted_owner_type, credential_ref, credential_role, promotion_policy, readback, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        binding_id: { type: string }
+        tenant_id: { type: string }
+        promoted_owner_type: { type: string, enum: [tenant] }
+        credential_ref: { type: string }
+        target_key: { type: string, nullable: true }
+        action_key: { type: string, nullable: true }
+        credential_role: { type: string }
+        resolution_priority: { type: integer }
+        promotion_policy:
+          type: object
+          additionalProperties: true
+          properties:
+            mode: { type: string, enum: [tenant_connection_binding_promotion_v1] }
+            source_connection_id: { type: string }
+            source_user_id: { type: string }
+            secret_copied: { type: boolean, enum: [false] }
+            token_returned: { type: boolean, enum: [false] }
+            secrets_included: { type: boolean, enum: [false] }
+            platform_wide_promotion_enabled: { type: boolean, enum: [false] }
+        readback:
+          type: object
+          additionalProperties: true
+        secrets_included: { type: boolean, enum: [false] }
+
     CredentialEffectivePlanRequest:
       type: object
       additionalProperties: false
@@ -9386,6 +9436,49 @@ paths:
         - { name: token, in: path, required: true, schema: { type: string } }
       responses:
         "201": { description: Credential intake submitted, content: { text/html: { schema: { type: string } } } }
+
+  /credentials/bindings/promote:
+    post:
+      x-openai-isConsequential: true
+      tags: [security]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: credentialBindingPromoteTenant
+      summary: Promote an active connection credential into a tenant binding pointer
+      description: >
+        Admin-only credential lifecycle action. Creates or updates a tenant-owned credential binding pointer from an active
+        user_app_connection for a target/action/credential_role. It never copies, decrypts, or returns secret values.
+        Platform-wide promotion is disabled in v1.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialBindingPromoteTenantRequest"
+      responses:
+        "200":
+          description: Existing tenant promotion binding updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialBindingPromoteTenantResponse"
+        "201":
+          description: Tenant promotion binding created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialBindingPromoteTenantResponse"
+        "400":
+          description: Missing fields, unsupported owner type, or inactive connection.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Promotion failed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
 
   /credentials/effective/plan:
     post:
