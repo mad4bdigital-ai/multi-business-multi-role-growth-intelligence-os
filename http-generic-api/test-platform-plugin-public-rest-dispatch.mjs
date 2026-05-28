@@ -18,6 +18,7 @@ const smokeRecertPolicyHistoryToolsMigration = readFileSync("migrations/159_spri
 const smokeCertSource = readFileSync("platformPluginSmokeCertification.js", "utf8");
 const smokeRecertSource = readFileSync("platformPluginSmokeRecertification.js", "utf8");
 const smokeRecertPolicySource = readFileSync("platformPluginSmokeRecertificationPolicy.js", "utf8");
+const smokeRecertPolicyHistorySource = readFileSync("platformPluginSmokeRecertificationPolicyHistory.js", "utf8");
 const pluginResolverSource = readFileSync("platformPluginResolver.js", "utf8");
 const promotionSource = readFileSync("platformPluginPromotion.js", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
