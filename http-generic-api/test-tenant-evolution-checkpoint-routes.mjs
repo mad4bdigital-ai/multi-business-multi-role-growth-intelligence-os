@@ -5,8 +5,9 @@ import { _testingTenantEvolutionRoutes } from './routes/tenantEvolutionRoutes.js
 const routeFile = readFileSync('routes/tenantEvolutionRoutes.js', 'utf8');
 const indexFile = readFileSync('routes/index.js', 'utf8');
 const migration156 = readFileSync('migrations/156_sprint65_tenant_evolution_checkpoint_read_tools.sql', 'utf8');
+const migration157 = readFileSync('migrations/157_sprint65_evolution_user_switch_tools.sql', 'utf8');
 const migration159 = readFileSync('migrations/159_sprint65_tenant_evolution_checkpoint_write_policy.sql', 'utf8');
-const migrations = `${migration156}\n${migration159}`;
+const migrations = `${migration156}\n${migration157}\n${migration159}`;
 
 assert(routeFile.includes('export function buildTenantEvolutionRoutes'), 'tenant evolution route builder must be exported');
 assert(routeFile.includes('/tenant/evolution/switch-options'), 'tenant switch-options route must exist');
