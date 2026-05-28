@@ -9,6 +9,7 @@ for (const path of [
   '/platform/evolution/thread-map',
   '/platform/evolution/open-evidence',
   '/platform/evolution/checkpoints',
+  '/platform/evolution/cms-claim-smoke',
   '/tenant/evolution/checkpoints',
   '/tenant/evolution/activation-card',
   '/tenant/evolution/thread-map',
@@ -25,6 +26,8 @@ for (const schema of [
   'PlatformEvolutionThreadMapResponse',
   'PlatformEvolutionOpenEvidenceItem',
   'PlatformEvolutionOpenEvidenceResponse',
+  'PlatformEvolutionCmsClaimSmokeRequest',
+  'PlatformEvolutionCmsClaimSmokeResponse',
   'TenantEvolutionCheckpointCreateRequest',
   'TenantEvolutionCheckpointCreateResponse',
   'PlatformEvolutionCheckpointCreateRequest',
@@ -37,6 +40,7 @@ assert(openapi.includes('- name: platform-evolution'), 'platform-evolution tag m
 assert(!allowlist.includes('routes/platformEvolutionRoutes.js'), 'platformEvolutionRoutes.js must not remain allowlisted');
 assert(!allowlist.includes('routes/tenantEvolutionRoutes.js'), 'tenantEvolutionRoutes.js must not remain allowlisted');
 assert(openapi.includes('operationId: platformEvolutionActivationCard'), 'admin activation card operationId must exist');
+assert(openapi.includes('operationId: platformEvolutionCmsClaimSmoke'), 'CMS claim smoke operationId must exist');
 assert(openapi.includes('operationId: tenantEvolutionActivationCard'), 'tenant activation card operationId must exist');
 assert(openapi.includes('operationId: platformEvolutionCheckpointCreate'), 'checkpoint create operationId must exist');
 assert(openapi.includes('User JWT required'), 'tenant auth failure response must be documented');
