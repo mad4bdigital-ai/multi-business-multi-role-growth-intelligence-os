@@ -110,6 +110,8 @@ Expected connector-agent version response:
 
 This proves `auth.mad4b.com` is serving the current `local-connector/server.mjs` with the governed n8n lifecycle actions.
 
+For Local Manager capability changes, also verify the deployed `connectorAgentRoutes.js` behavior, because `/connector-agent/installer.ps1` is the final `.env` writer for capability flags and dynamic grants. A successful app update or Settings refresh alone does not prove `CONNECTOR_POWERSHELL_ENABLED`, `CONNECTOR_WIN_ENABLED`, `CONNECTOR_FILE_PATHS`, or `CONNECTOR_APP_ALLOWLIST` were applied.
+
 ## Local connector update flow
 
 Once `auth.mad4b.com/connector-agent/version` is correct, update the Windows connector machine with:

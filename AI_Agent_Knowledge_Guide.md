@@ -209,6 +209,21 @@ Customer agents must:
 - receive only scoped session history and transcripts; raw dumps must be bounded and same-user or explicitly authorized
 - report `authorization_gated`, `blocked`, or `degraded_contract` instead of trying admin recovery paths
 
+### Local Manager connector capability installer governance
+
+Local Manager is now the app-owned surface for connector repair and capability installer application. For repair and capability flows, the app must request a short-lived installer link from `POST /local-connector/install/device-download-link` using its DPAPI-protected device token. App-owned flows must send `app_managed=true` and `suppress_pause=true`, launch the returned BAT through Windows UAC, handle UAC cancellation, wait for the elevated process when possible, then refresh controls.
+
+Do not treat `section=settings` refresh as proof that capabilities were applied. Validate the effective connector behavior after a capability installer runs:
+
+- `connector_ps` should return a PowerShell version when `powershell_admin` was explicitly selected.
+- `connector_win process_list` should return process data when `windows_control` was explicitly selected.
+- `connector_files list_drives` should show selected allowed paths, such as `D:\\`, in `allowed_paths`.
+- `connector_apps list` should include default app aliases plus any dynamic app grant selected locally.
+
+The final `.env` writer is `/connector-agent/installer.ps1`, not just the BAT wrapper. It must render signed capability/grant intent into `CONNECTOR_POWERSHELL_ENABLED`, `CONNECTOR_WIN_ENABLED`, `CONNECTOR_FILE_PATHS`, `CONNECTOR_APP_ALLOWLIST`, and `CONNECTOR_SHELL_ALLOWLIST`. The PR #368 failure mode was: Local Manager and app-managed BAT were correct, but the connector-agent PowerShell installer ignored capability/grant payloads. Future changes must test both `/local-connector/install/download` and `/connector-agent/installer.ps1`.
+
+High-risk capabilities remain opt-in only and require local UAC approval. Never enable `CONNECTOR_POWERSHELL_ENABLED` or `CONNECTOR_WIN_ENABLED` in the base connector env. Prefer bounded verification evidence and keep `secrets_included=false` in all diagnostics. See `docs/local-manager-capability-installer-governance-2026-05-28.md`.
+
 ### Local Manager n8n runtime governance
 
 n8n runtime selection is DB-governed. `connected_systems.config_json` and linked `installations` rows are the source of truth for n8n command path, npm prefix, user folder, port, local URL, public URL, editor base URL, webhook URL, lifecycle mode, and exposure scope. Local Manager must load `/local-manager/device/controls?section=n8n` and generate its start script from the returned profile. Do not hard-code tenant n8n routes in the app or in GPT behavior.

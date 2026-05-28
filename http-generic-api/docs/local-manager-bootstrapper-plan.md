@@ -25,16 +25,18 @@ Out of scope for this phase:
 
 ## Bootstrap flow
 
-1. User downloads a short-lived installer from the platform.
-2. Installer verifies the connector-agent manifest.
-3. Installer downloads `server.mjs`, `connector-watchdog.ps1`, and `connector-safe-upgrade.ps1`.
-4. Installer verifies SHA-256 for every downloaded agent file.
-5. Installer writes `.env` locally using short-lived install payload data.
-6. Installer installs or verifies Node.js, cloudflared, and NSSM.
-7. Installer installs the connector Node service.
-8. Installer installs the watchdog scheduled task.
-9. Connector reports heartbeat to `/connector-agent/heartbeat`.
-10. Desktop Manager opens local health and route setup screens.
+1. User or Local Manager requests a short-lived installer from the platform.
+2. For app-owned flows, Local Manager sends `app_managed=true` and `suppress_pause=true`, downloads the signed BAT, and launches it through Windows UAC.
+3. The BAT downloads `/connector-agent/installer.ps1` and exits with `exit /b 0` or `exit /b 1` in app-managed mode; manual downloads may still pause for visibility.
+4. The PowerShell installer verifies the connector-agent manifest.
+5. Installer downloads `server.mjs`, `connector-watchdog.ps1`, and `connector-safe-upgrade.ps1`.
+6. Installer verifies SHA-256 for every downloaded agent file.
+7. Installer writes `.env` locally using short-lived install payload data, including opt-in capability flags and dynamic app/path/helper grants.
+8. Installer installs or verifies Node.js, cloudflared, and NSSM.
+9. Installer installs the connector Node service.
+10. Installer installs the watchdog scheduled task.
+11. Connector reports heartbeat to `/connector-agent/heartbeat`.
+12. Desktop Manager refreshes controls and operators verify live connector behavior.
 
 ## Runtime surfaces
 
@@ -140,6 +142,9 @@ Every install, upgrade, rollback, and repair should produce:
 - Route selector falls back across enabled healthy/unknown routes.
 - Installer status does not include raw secrets.
 - Desktop Manager displays only redacted diagnostics.
+- App-managed connector installers do not stop at `Press any key`.
+- Capability installer verification checks live behavior: `connector_ps`, `connector_win`, file `allowed_paths`, and dynamic app aliases.
+- `/connector-agent/installer.ps1` renders signed capability and grant payloads into the effective `.env`.
 
 ## Deployment order
 

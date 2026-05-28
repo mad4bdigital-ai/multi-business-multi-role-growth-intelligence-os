@@ -110,6 +110,10 @@ For “Check connector,” use `connect_status` or a tenant-visible connector he
 6. Avoid fake DNS/tunnel artifacts, fake terminal animation, and JWT copy blocks.
 7. Use a calm Claude-style flow with one primary action at a time.
 
+## Local Manager capability boundary
+
+High-risk Local Manager capability installers such as `powershell_admin` and `windows_control` are local-consent/UAC surfaces and must not be remotely enabled by Tenant GPT. Tenant assistants may explain that the user must approve local device setup, but actual capability activation and validation must remain within tenant-visible `auth.mad4b.com` tools and scoped device status. Do not use admin `connector_ps`, `connector_win`, or direct `connector.mad4b.com` evidence in tenant responses.
+
 ## Windows `.ps1` fallback
 
 When automatic launch is unavailable, Windows `.ps1` installer is the main fallback artifact. Show:

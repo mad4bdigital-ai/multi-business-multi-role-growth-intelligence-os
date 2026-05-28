@@ -432,6 +432,27 @@ Owns:
 - auth-mode and scope resolution
 - required policy checks for execution readiness
 
+### Local Manager and connector installer boundary
+
+- [`apps/local-manager-windows/Program.cs`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/apps/local-manager-windows/Program.cs>)
+- [`http-generic-api/routes/localConnectorInstallRoutes.js`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/http-generic-api/routes/localConnectorInstallRoutes.js>)
+- [`http-generic-api/routes/connectorAgentRoutes.js`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/http-generic-api/routes/connectorAgentRoutes.js>)
+- [`http-generic-api/services/localManagerDeviceLinkService.js`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/http-generic-api/services/localManagerDeviceLinkService.js>)
+
+Owns:
+- Local Manager device token storage and device-control UI flows
+- app-managed connector repair/capability installer requests
+- signed installer token generation and download handoff
+- BAT bootstrap generation with no-pause app-managed mode
+- connector-agent PowerShell installer generation and effective `.env` rendering
+- capability and dynamic grant propagation into `CONNECTOR_POWERSHELL_ENABLED`, `CONNECTOR_WIN_ENABLED`, `CONNECTOR_FILE_PATHS`, `CONNECTOR_APP_ALLOWLIST`, and `CONNECTOR_SHELL_ALLOWLIST`
+
+Boundary rules:
+- the Windows app may launch installers through UAC but must not bypass UAC
+- `/local-connector/install/download` and `/connector-agent/installer.ps1` must both preserve signed capability/grant intent
+- Settings refresh is only control-surface evidence; behavior validation must use live connector probes
+- high-risk capabilities are opt-in only and must not appear in base connector env
+
 ### GitHub connector boundary
 
 - [`http-generic-api/github.js`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/http-generic-api/github.js>)

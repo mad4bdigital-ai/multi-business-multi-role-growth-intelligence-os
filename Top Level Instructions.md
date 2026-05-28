@@ -94,7 +94,6 @@ API contracts must use OpenAPI 3.1 with stable structured error envelopes. Prese
 
 -------
 
-When executing local device ops (shell, file, health), use /dispatch with 
-intent_key=local.shell.run|local.file.read|local.file.write|local.health.check.
-Use `auth.mad4b.com` as the platform control-plane connector for all activation, `/system/*` tool discovery/calls, provisioning, schema, and admin ops.
-`connector.mad4b.com` is Admin-only break-glass: Cloudflare Tunnel to admin Windows `local-connector/server.mjs:7070`, not Hostinger `server.js`. Never use it in Tenant GPTs; tenant local-device flows go through `auth.mad4b.com`/`local.mad4b.com`. Direct use only for admin recovery/local reachability.
+Local device ops route via `/dispatch` intent keys `local.shell.run|local.file.read|local.file.write|local.health.check` when using governed runtime dispatch.
+Use `auth.mad4b.com` for activation, tool discovery/calls, provisioning, schema, admin ops, and Local Manager capability flows; verify capability installs by live connector behavior, not Settings refresh.
+`connector.mad4b.com` is Admin-only break-glass to the Windows local connector, not Hostinger `server.js`; Tenant GPT local-device flows stay on `auth.mad4b.com`/`local.mad4b.com`.

@@ -59,3 +59,17 @@ Connector route health is the operational source of truth. To avoid stale databa
 ## Schema and guide alignment
 
 The auth-host OpenAPI schema must document `/connector/{device_id}/diagnostics`. Agent instructions must direct agents to use diagnostics before long device calls and to prefer bounded aliases over raw PowerShell.
+
+## 2026-05-28 Local Manager capability follow-up
+
+The follow-up Local Manager release chain fixed the connector capability workflow end to end:
+
+- `0.2.9` stopped the update loop by aligning Windows binary metadata with advertised release metadata.
+- `0.2.10` added desktop command polling backoff and secret-safe diagnostics for transient SSL/network failures.
+- `0.2.11` moved repair/capability installer execution into the app-owned UAC workflow.
+- `0.2.12` made app-managed BAT bootstraps exit automatically instead of stopping at `Press any key`.
+- PR #368 fixed the final `.env` writer in `/connector-agent/installer.ps1` so signed capability flags and dynamic grants render into the effective connector environment.
+
+Validation must check live connector behavior, not only Local Manager Settings refresh. The accepted evidence is `connector_ps`, `connector_win`, `connector_files list_drives`, and `connector_apps list`. The Essam validation showed PowerShell `5.1.22621.6133`, Windows control process data, `D:\\` in `allowed_paths`, and dynamic app alias `cursor--user`.
+
+See `docs/local-manager-capability-installer-governance-2026-05-28.md`.
