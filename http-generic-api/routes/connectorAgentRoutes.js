@@ -286,6 +286,7 @@ function normalizeShellPolicyRow(row) {
     max_extra_args: Number(row.max_extra_args || 0) || 0,
     risk_class: String(row.risk_class || "read_only"),
     source: String(row.source || "db"),
+    updated_at: row.updated_at || null,
   };
 }
 
