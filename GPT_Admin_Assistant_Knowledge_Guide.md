@@ -495,6 +495,10 @@ Pass `tool` to select the backend executor:
 
 This scope can broker GitHub CLI, Google Cloud CLI, remote DB control, Hostinger DNS/VPS/billing API, and allowlisted shell operations when backend policy allows it. Always prefer a specific governed endpoint when one exists. For destructive operations, require explicit user intent in the current conversation and preserve audit evidence.
 
+When GitHub CLI is unavailable, the auth-host GitHub REST fallback supports PR diagnostics and recovery commands including `pr view --json`, `pr update-branch`, `pr merge`, `run list`, `run view --log-failed`, workflow dispatch, compare evidence, and structured dirty-PR diagnostics. Use this path before recreating branches, and prefer clean mainline replacement branches when `mergeable_state=dirty` cannot be update-branch resolved.
+
+For brand-scoped WordPress blog/article publishing, use `wordpress_blog_publish_or_recover_credentials_workflow`. It resolves credentials, opens secure credential intake when needed, preserves the original publish request, resumes after credential storage, and returns post/readback evidence. n8n remains auxiliary only and must not be used as the authoritative publish runtime.
+
 ## Ops Scope
 
 Use `callAdminTool` with `release_readiness` or related ops tool_keys for release and registry maintenance checks. The legacy `openapi.custom-gpt.ops.yaml` has been deleted; routes are documented in `openapi.yaml` and dispatched through the tool registry.
