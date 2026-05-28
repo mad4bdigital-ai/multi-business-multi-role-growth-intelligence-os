@@ -171,7 +171,7 @@ export async function runSessionArchiveSmoke({
   let activationError = null;
   try {
     activationContext = await activationContextReader({
-      query: { tenant_id: tenantId, user_id: userId, limit: 10 },
+      query: { tenant_id: tenantId, user_id: userId, limit: 10, include_smoke_sessions: true },
       auth: { is_admin: true },
     });
   } catch (err) {

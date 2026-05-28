@@ -953,11 +953,15 @@ export async function buildActivationSessionContext(req) {
     }
   }
   const gptSessionsTenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const includeSmokeSessions = asBoolean(req.query.include_smoke_sessions);
+  const gptOriginatorWhere = includeSmokeSessions
+    ? "originator IN ('gpt_action', 'gpt_action_smoke')"
+    : "originator = 'gpt_action'";
   const gptSessions = await safeQuery(
     `SELECT session_id, tenant_id, user_id, session_status, turn_count,
             started_at, ended_at, drive_export_url
      FROM \`customer_sessions\`
-     WHERE originator = 'gpt_action'
+     WHERE ${gptOriginatorWhere}
        AND tenant_id = ?
        AND (? IS NULL OR user_id = ?)
      ORDER BY started_at DESC
