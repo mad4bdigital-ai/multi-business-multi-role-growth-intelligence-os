@@ -34,6 +34,9 @@ assert(migration.includes('platform_evolution_tenant_smoke'), 'tenant smoke tool
 assert(migration.includes('no_token_returned'), 'tenant smoke tool must be tagged no_token_returned');
 assert(migration.includes('no_secrets'), 'tenant smoke tool must be tagged no_secrets');
 
+assert(openapi.includes('/platform/evolution/cms-claim-smoke:'), 'CMS claim smoke path must be documented in OpenAPI');
+assert(openapi.includes('PlatformEvolutionCmsClaimSmokeRequest'), 'CMS claim smoke request schema must be documented');
+assert(openapi.includes('PlatformEvolutionCmsClaimSmokeResponse'), 'CMS claim smoke response schema must be documented');
 assert(openapi.includes('/platform/evolution/tenant-smoke:'), 'tenant smoke path must be documented in OpenAPI');
 assert(openapi.includes('PlatformEvolutionTenantSmokeRequest'), 'tenant smoke request schema must be documented');
 assert(openapi.includes('PlatformEvolutionTenantSmokeResponse'), 'tenant smoke response schema must be documented');
