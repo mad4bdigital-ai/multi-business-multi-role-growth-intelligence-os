@@ -18,8 +18,13 @@ assert(routeFile.includes("access_state = 'allowed'"), 'tenant scope resolution 
 assert(routeFile.includes('v_platform_evolution_activation_card'), 'tenant activation-card route must read activation card view');
 assert(routeFile.includes('v_platform_evolution_thread_map'), 'tenant thread-map route must read thread map view');
 assert(routeFile.includes('v_platform_evolution_open_evidence'), 'tenant open-evidence route must read open evidence view');
+assert(routeFile.includes('hasTenantCheckpointWriteRole'), 'tenant checkpoint create must be role-gated');
+assert(routeFile.includes('normalizeTenantCheckpointType'), 'tenant checkpoint type must be restricted');
+assert(routeFile.includes('platform_commit_fields_accepted: false'), 'tenant checkpoint create must not accept platform commit authority fields');
+assert(routeFile.includes('main_commit_sha'), 'tenant checkpoint insert must explicitly control commit fields');
+assert(routeFile.includes('deployed_commit_sha'), 'tenant checkpoint insert must explicitly control deploy fields');
 assert(routeFile.includes('secrets_included: false'), 'tenant routes must not return secrets');
-assert(!routeFile.includes('/tenant/evolution/checkpoints'), 'tenant checkpoint write route must not be exposed in read-only sprint');
+assert(!routeFile.includes('access_token:'), 'tenant routes must not expose access_token');
 
 assert(indexFile.includes('buildTenantEvolutionRoutes'), 'routes index must import/register tenant evolution routes');
 assert(indexFile.includes('app.use(buildTenantEvolutionRoutes())'), 'tenant evolution routes must be mounted');
