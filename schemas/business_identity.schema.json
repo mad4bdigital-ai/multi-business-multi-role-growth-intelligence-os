@@ -113,7 +113,7 @@
           },
           "then": {
             "required": [
-              "gid"
+              "legacy_mirror_gid"
             ]
           }
         }
