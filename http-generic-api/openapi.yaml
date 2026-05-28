@@ -980,6 +980,50 @@ components:
 
     # -- Platform Evolution checkpoint schemas --------------------------------
 
+    PlatformEvolutionSwitchOption:
+      type: object
+      additionalProperties: true
+      properties:
+        scope_key: { type: string }
+        tenant_id: { type: string }
+        brand_key: { type: string }
+        user_id: { type: string }
+        email: { type: string, nullable: true }
+        user_display_name: { type: string, nullable: true }
+        membership_role: { type: string, nullable: true }
+        assigned_role: { type: string, nullable: true }
+        tenant_type: { type: string, nullable: true }
+        tenant_display_name: { type: string, nullable: true }
+        business_type_key: { type: string, nullable: true }
+        knowledge_profile_key: { type: string, nullable: true }
+        brand_path_status: { type: string, nullable: true }
+        access_state: { type: string, enum: [allowed, not_granted] }
+
+    PlatformEvolutionSwitchOptionsResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, count, switch_options, switch_policy, secrets_included]
+      properties:
+        ok: { type: boolean }
+        count: { type: integer }
+        switch_options:
+          type: array
+          items: { $ref: "#/components/schemas/PlatformEvolutionSwitchOption" }
+        auth_context:
+          type: object
+          additionalProperties: true
+        switch_policy:
+          type: object
+          additionalProperties: true
+          properties:
+            mode: { type: string }
+            selected_scope_parameter: { type: string, enum: [scope_key] }
+            requires_allowed_scope: { type: boolean, enum: [true] }
+            checkpoint_write_enabled: { type: boolean, enum: [false] }
+            tenant_checkpoint_write_enabled: { type: boolean, enum: [false] }
+        tenant_facing: { type: boolean }
+        secrets_included: { type: boolean, enum: [false] }
+
     PlatformEvolutionActivationCard:
       type: object
       additionalProperties: true
@@ -10265,6 +10309,46 @@ paths:
       responses:
         "200": { description: Private REST dispatch result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
 
+  /platform/evolution/switch-options:
+    get:
+      tags: [platform-evolution]
+      operationId: platformEvolutionSwitchOptions
+      summary: List Platform Evolution switch options
+      description: >
+        Admin/service scoped read of allowed Platform Evolution scope switch options. This supports view-as/scope selection
+        by user, email, tenant, or brand. It does not grant access and does not expose checkpoint writes.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: email
+          in: query
+          required: false
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200":
+          description: Allowed switch scopes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionSwitchOptionsResponse"
+
   /platform/evolution/activation-card:
     get:
       tags: [platform-evolution]
@@ -10424,6 +10508,43 @@ paths:
                 $ref: "#/components/schemas/PlatformEvolutionCheckpointCreateResponse"
         "400":
           description: Missing summary or scope fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /tenant/evolution/switch-options:
+    get:
+      tags: [platform-evolution]
+      operationId: tenantEvolutionSwitchOptions
+      summary: List tenant Evolution switch options
+      description: >
+        Tenant/user scoped read of allowed Platform Evolution scope switch options for the signed-in user.
+        The returned scope_key values can be passed to tenant evolution read routes. No access is granted by this route.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Tenant allowed switch scopes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionSwitchOptionsResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active membership missing.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }

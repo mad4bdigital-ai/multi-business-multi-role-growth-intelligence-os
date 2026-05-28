@@ -114,6 +114,44 @@ function errorResponse(res, err, fallbackCode) {
 export function buildTenantEvolutionRoutes() {
   const router = Router();
 
+  router.get("/tenant/evolution/switch-options", requireTenantUserJwt, async (req, res) => {
+    try {
+      const brandKey = nonEmptyString(req.query.brand_key || req.query.brandKey);
+      const limit = boundedInt(req.query.limit, 50, 1, 100);
+      const where = ["user_id = ?", "access_state = 'allowed'"];
+      const params = [req.auth.user_id];
+      if (brandKey) { where.push("brand_key = ?"); params.push(brandKey); }
+      params.push(limit);
+      const [rows] = await getPool().query(
+        `SELECT scope_key, tenant_id, brand_key, user_id, email, user_display_name, membership_role, assigned_role, tenant_type, tenant_display_name, business_type_key, knowledge_profile_key, brand_path_status, access_state
+           FROM v_platform_evolution_scope_access
+          WHERE ${where.join(" AND ")}
+          ORDER BY tenant_display_name ASC, brand_key ASC
+          LIMIT ?`,
+        params
+      );
+      return res.status(200).json({
+        ok: true,
+        count: rows.length,
+        switch_options: rows,
+        auth_context: {
+          tenant_id: req.auth.tenant_id,
+          user_id: req.auth.user_id,
+          tenant_role: req.auth.tenant_role,
+          source: "user_jwt",
+        },
+        switch_policy: {
+          mode: "tenant_user_scope_selection",
+          selected_scope_parameter: "scope_key",
+          requires_allowed_scope: true,
+          checkpoint_write_enabled: false,
+        },
+        tenant_facing: true,
+        secrets_included: false,
+      });
+    } catch (err) { return errorResponse(res, err, "tenant_evolution_switch_options_failed"); }
+  });
+
   router.get("/tenant/evolution/activation-card", requireTenantUserJwt, async (req, res) => {
     try {
       const scope = await resolveAllowedEvolutionScope(req);

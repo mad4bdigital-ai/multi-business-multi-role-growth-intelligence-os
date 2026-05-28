@@ -82,6 +82,45 @@ export function buildPlatformEvolutionRoutes(deps = {}) {
     }
   });
 
+  router.get("/platform/evolution/switch-options", async (req, res) => {
+    try {
+      const userId = nonEmptyString(req.query.user_id || req.query.userId);
+      const email = nonEmptyString(req.query.email);
+      const tenantId = nonEmptyString(req.query.tenant_id || req.query.tenantId);
+      const brandKey = nonEmptyString(req.query.brand_key || req.query.brandKey);
+      const limit = boundedInt(req.query.limit, 50, 1, 250);
+      const where = ["access_state = 'allowed'"];
+      const params = [];
+      if (userId) { where.push("user_id = ?"); params.push(userId); }
+      if (email) { where.push("email = ?"); params.push(email); }
+      if (tenantId) { where.push("tenant_id = ?"); params.push(tenantId); }
+      if (brandKey) { where.push("brand_key = ?"); params.push(brandKey); }
+      params.push(limit);
+      const [rows] = await getPool().query(
+        `SELECT scope_key, tenant_id, brand_key, user_id, email, user_display_name, membership_role, assigned_role, tenant_type, tenant_display_name, business_type_key, knowledge_profile_key, brand_path_status, access_state
+           FROM v_platform_evolution_scope_access
+          WHERE ${where.join(" AND ")}
+          ORDER BY tenant_display_name ASC, brand_key ASC, email ASC
+          LIMIT ?`,
+        params
+      );
+      return res.json({
+        ok: true,
+        count: rows.length,
+        switch_options: rows,
+        switch_policy: {
+          mode: "admin_scope_selection",
+          selected_scope_parameter: "scope_key",
+          requires_allowed_scope: true,
+          tenant_checkpoint_write_enabled: false,
+        },
+        secrets_included: false,
+      });
+    } catch (err) {
+      return errorResponse(res, err, "platform_evolution_switch_options_failed");
+    }
+  });
+
   router.get("/platform/evolution/open-evidence", async (req, res) => {
     try {
       const scopeKey = resolveEvolutionScope(req.query || {});
