@@ -289,6 +289,7 @@ async function refreshShellPolicy({ force = false } = {}) {
     if (!response.ok || data?.ok !== true) {
       throw new Error(data?.error?.message || `policy_http_${response.status}`);
     }
+    applyConnectorCapabilityGrants(data.capability_grants || {});
     const aliases = normalizeRemoteShellAliases(data.shell_aliases);
     if (Object.keys(aliases).length > 0) {
       SHELL_ALLOWLIST = aliases;
