@@ -9,6 +9,7 @@ for (const path of [
   '/platform/evolution/thread-map',
   '/platform/evolution/open-evidence',
   '/platform/evolution/checkpoints',
+  '/platform/evolution/cms-claim-smoke',
   '/tenant/evolution/checkpoints',
   '/tenant/evolution/activation-card',
   '/tenant/evolution/thread-map',
