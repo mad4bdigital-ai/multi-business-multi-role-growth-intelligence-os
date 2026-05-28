@@ -810,9 +810,9 @@
       "additionalProperties": false,
       "required": [
         "approved_registry_bindings",
-        "active_sheet_bindings",
+        "active_sql_registry_bindings",
         "system_layers_active",
-        "approved_registry_tabs",
+        "approved_registry_tables",
         "live_data_layer_ready",
         "control_center_state"
       ],
