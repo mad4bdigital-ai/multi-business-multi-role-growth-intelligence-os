@@ -1418,8 +1418,9 @@ async function handlePs(req, res) {
 }
 
 async function handleWin(req, res) {
-  if (!WIN_ENABLED) return err(res, 403, 'DISABLED', 'Windows control endpoint is disabled — set CONNECTOR_WIN_ENABLED=true');
   if (!requireAuth(req, res)) return;
+  await refreshShellPolicy();
+  if (!WIN_ENABLED) return err(res, 403, 'DISABLED', 'Windows control endpoint is disabled — set CONNECTOR_WIN_ENABLED=true');
   let body;
   try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
 
