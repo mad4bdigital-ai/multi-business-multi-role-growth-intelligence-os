@@ -516,23 +516,31 @@
       "additionalProperties": false,
       "default": {},
       "properties": {
-        "target_spreadsheet_id": {
+        "target_table": {
           "type": "string",
           "default": ""
         },
-        "target_sheet_name": {
+        "target_primary_key": {
           "type": "string",
           "default": ""
         },
-        "target_gid": {
+        "target_row_id": {
           "type": "string",
           "default": ""
         },
-        "expected_start_row": {
+        "legacy_mirror_spreadsheet_id": {
           "type": "string",
           "default": ""
         },
-        "actual_start_row": {
+        "legacy_mirror_worksheet_gid": {
+          "type": "string",
+          "default": ""
+        },
+        "expected_write_position": {
+          "type": "string",
+          "default": ""
+        },
+        "actual_write_position": {
           "type": "string",
           "default": ""
         },
