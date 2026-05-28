@@ -641,6 +641,12 @@ Autopilot behavior expected from the desktop app/bootstrapper:
 9. Keep Cloudflare tunnel as fallback unless customer explicitly disables it.
 10. Never use `connector.mad4b.com` for tenant/customer runtime.
 
+## 2026-05-28 Local Manager capability governance update
+
+Local Manager 0.2.12 now owns connector repair/capability installer application through an app-managed UAC flow. The capability chain is complete only when `/connector-agent/installer.ps1` writes signed capability flags and dynamic grants into the effective connector `.env`; Settings refresh alone is not proof. Validate with live connector probes: `connector_ps`, `connector_win`, `connector_files`, and `connector_apps`.
+
+The 2026-05-28 Essam validation confirmed PowerShell and Windows control enabled by explicit local UAC consent, `D:\\` in `allowed_paths`, and dynamic app alias `cursor--user`. See `docs/local-manager-capability-installer-governance-2026-05-28.md`.
+
 ## Sprint 63 runtime governance update
 
 Sprint 63 added Local Manager beta status, route selector smoke, installer/reprovision smoke, GitHub tooling schema smoke, and DB/n8n restore certifier probe aliases.
