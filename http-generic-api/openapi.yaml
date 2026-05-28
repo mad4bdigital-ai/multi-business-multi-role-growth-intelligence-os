@@ -1189,6 +1189,12 @@ components:
         tenant_id: { type: string }
         brand_key: { type: string }
         user_id: { type: string }
+        transport_mode:
+          type: string
+          enum: [direct_scope, http_self_call]
+        jwt_verified:
+          type: boolean
+          nullable: true
         checks:
           type: object
           additionalProperties: false
