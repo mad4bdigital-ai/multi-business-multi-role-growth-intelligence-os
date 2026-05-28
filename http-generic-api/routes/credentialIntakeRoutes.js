@@ -550,6 +550,35 @@ export function buildCredentialIntakeRoutes(deps = {}) {
         [connectionId, session.session_id]
       );
 
+      const targetKey = String(metadata.target_key || metadata.targetKey || "").trim();
+      const providerFamily = String(metadata.provider_family || metadata.providerFamily || session.app_key || "").toLowerCase();
+      if (targetKey && providerFamily.includes("wordpress") && session.auth_type === "basic_auth") {
+        const credentialRef = `user_app_connection:${connectionId}:encrypted_credentials.application_password`;
+        for (const role of ["wordpress_rest", "wordpress_app_password"]) {
+          await getPool().query(
+            `INSERT INTO credential_bindings
+               (binding_id, tenant_id, owner_type, owner_id, user_id, connection_id, action_key,
+                target_key, credential_role, credential_ref, provider_family, connector_family,
+                resolution_priority, status, created_by)
+             VALUES (UUID(), ?, 'tenant', ?, ?, NULL, ?, ?, ?, ?, 'wordpress', 'wordpress_rest', 10, 'active', ?)
+             ON DUPLICATE KEY UPDATE
+               owner_type = VALUES(owner_type),
+               owner_id = VALUES(owner_id),
+               user_id = VALUES(user_id),
+               connection_id = NULL,
+               action_key = VALUES(action_key),
+               credential_ref = VALUES(credential_ref),
+               provider_family = VALUES(provider_family),
+               connector_family = VALUES(connector_family),
+               resolution_priority = VALUES(resolution_priority),
+               status = VALUES(status),
+               updated_at = CURRENT_TIMESTAMP`,
+            [session.tenant_id, session.tenant_id, session.user_id, role === "wordpress_rest" ? "wordpress_create_post" : null,
+             targetKey, role, credentialRef, session.user_id]
+          );
+        }
+      }
+
       writeAuditLogAsync({
         tenant_id: session.tenant_id,
         actor_id: session.user_id,
