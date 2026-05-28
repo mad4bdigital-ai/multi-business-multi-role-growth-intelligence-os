@@ -10,7 +10,7 @@ INSERT INTO admin_platform_endpoint_tools (
   'POST',
   '/wordpress/auth-context/diagnose',
   '[]',
-  '{"type":"object","additionalProperties":false,"required":["tenant_id","user_id","connection_id"],"properties":{"tenant_id":{"type":"string","minLength":1},"user_id":{"type":"string","minLength":1},"connection_id":{"type":"string","minLength":1},"brand_key":{"type":"string"},"target_key":{"type":"string"}}}',
+  '{"type":"object","additionalProperties":false,"required":["tenant_id","user_id"],"properties":{"tenant_id":{"type":"string","minLength":1},"user_id":{"type":"string","minLength":1},"connection_id":{"type":"string"},"brand_key":{"type":"string"},"target_key":{"type":"string"}},"anyOf":[{"required":["brand_key"]},{"required":["target_key"]}]}',
   NULL,
   'admin,wordpress,credentials,diagnostics,read_only,no_secrets',
   1,
