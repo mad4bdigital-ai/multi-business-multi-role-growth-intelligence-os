@@ -329,7 +329,7 @@ async function loadConnectorGrantPolicy(configId) {
             COALESCE(status, 'active') AS status,
             COALESCE(source, 'db') AS source,
             updated_at
-       FROM `local_connector_app_allowlists`
+       FROM local_connector_app_allowlists
       WHERE config_id = ? AND COALESCE(status, 'active') = 'active'
       ORDER BY app_alias`,
     [configId]
