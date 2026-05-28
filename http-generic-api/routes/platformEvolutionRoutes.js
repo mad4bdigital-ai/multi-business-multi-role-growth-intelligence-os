@@ -175,6 +175,29 @@ async function directTenantSmoke(scope, token, options = {}) {
     `SELECT * FROM v_platform_evolution_thread_map WHERE ${scopeKeyComparisonSql("scope_key")} ORDER BY FIELD(priority,'critical','high','medium','low'), thread_key LIMIT 3`,
     [scope.scope_key]
   );
+  let writeCheckpointId = null;
+  let writeCheck = {
+    status: 200,
+    ok: true,
+    response_ok: options.include_write !== true,
+    count: null,
+    scope_key: scope.scope_key,
+    secrets_included: false,
+    error_code: options.include_write === true ? "tenant_write_not_attempted" : null,
+  };
+  if (options.include_write === true && verified === true) {
+    writeCheckpointId = await createTenantWriteSmokeCheckpoint(scope);
+    writeCheck = {
+      status: 201,
+      ok: true,
+      response_ok: true,
+      count: 1,
+      scope_key: scope.scope_key,
+      secrets_included: false,
+      error_code: null,
+      checkpoint_id: writeCheckpointId,
+    };
+  }
   return {
     switch_options: {
       status: 200,
@@ -203,6 +226,7 @@ async function directTenantSmoke(scope, token, options = {}) {
       secrets_included: false,
       error_code: null,
     },
+    checkpoint_write: writeCheck,
     jwt_verified: verified,
   };
 }
