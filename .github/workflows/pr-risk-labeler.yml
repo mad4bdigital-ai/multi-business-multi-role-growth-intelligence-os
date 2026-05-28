@@ -69,11 +69,19 @@ jobs:
             if (matches([/(^|\/)test-[^/]+\.mjs$/, /^tests\//, /\.test\.ts$/])) labels.add("tests");
             if (matches([/(^|\/)package(?:-lock)?\.json$/])) labels.add("dependencies");
 
+            const warnOnPermissionDenied = (action, error) => {
+              if (error.status === 403) {
+                core.warning(`${action} skipped because GITHUB_TOKEN cannot write labels: ${error.message}`);
+                return true;
+              }
+              return false;
+            };
+
             for (const [name, details] of Object.entries(managedLabels)) {
               try {
                 await github.rest.issues.createLabel({ owner, repo, name, ...details });
               } catch (error) {
-                if (error.status !== 422) throw error;
+                if (error.status !== 422 && !warnOnPermissionDenied(`create label ${name}`, error)) throw error;
               }
             }
 
@@ -81,11 +89,19 @@ jobs:
             const currentManaged = current.map((label) => label.name).filter((name) => managedLabels[name]);
             const toRemove = currentManaged.filter((name) => !labels.has(name));
             for (const name of toRemove) {
-              await github.rest.issues.removeLabel({ owner, repo, issue_number, name });
+              try {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number, name });
+              } catch (error) {
+                if (!warnOnPermissionDenied(`remove label ${name}`, error)) throw error;
+              }
             }
 
             if (labels.size > 0) {
-              await github.rest.issues.addLabels({ owner, repo, issue_number, labels: [...labels].sort() });
+              try {
+                await github.rest.issues.addLabels({ owner, repo, issue_number, labels: [...labels].sort() });
+              } catch (error) {
+                if (!warnOnPermissionDenied("add PR labels", error)) throw error;
+              }
             }
 
             core.summary
