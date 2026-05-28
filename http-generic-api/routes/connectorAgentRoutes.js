@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getPool } from "../db.js";
 
-const AGENT_VERSION = "2026.05.26.1";
+const AGENT_VERSION = "2026.05.28.1";
 const ROOT = process.cwd();
 const CONNECTOR_PORT = 7070;
 
