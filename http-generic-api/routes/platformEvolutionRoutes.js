@@ -43,6 +43,52 @@ function errorResponse(res, err, fallbackCode) {
   });
 }
 
+function runtimeBaseUrl() {
+  return String(process.env.PUBLIC_BASE_URL || process.env.PLATFORM_JWT_ISSUER || "https://auth.mad4b.com").replace(/\/$/, "");
+}
+
+function issueInternalTenantSmokeJwt({ user_id, email, tenant_id }) {
+  const secret = process.env.JWT_SECRET || "development_fallback_secret_only";
+  return jwt.sign(
+    {
+      user_id,
+      email,
+      tenant_id,
+      purpose: "tenant_evolution_smoke",
+      client: "platform_evolution_tenant_smoke",
+    },
+    secret,
+    { expiresIn: "5m", jwtid: randomUUID() }
+  );
+}
+
+async function smokeGet(path, token) {
+  const base = runtimeBaseUrl();
+  const response = await fetch(`${base}${path}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+  const text = await response.text();
+  let body;
+  try { body = JSON.parse(text); } catch { body = { _raw: text.slice(0, 500) }; }
+  return { status: response.status, ok: response.ok, body };
+}
+
+function smokeSummary(result) {
+  return {
+    status: result.status,
+    ok: result.ok,
+    response_ok: result.body?.ok === true,
+    count: result.body?.count ?? null,
+    scope_key: result.body?.scope_key ?? null,
+    secrets_included: result.body?.secrets_included ?? null,
+    error_code: result.body?.error?.code || null,
+  };
+}
+
 export function buildPlatformEvolutionRoutes(deps = {}) {
   const { requireBackendApiKey, requireAdminPrincipal } = deps;
   const router = Router();
