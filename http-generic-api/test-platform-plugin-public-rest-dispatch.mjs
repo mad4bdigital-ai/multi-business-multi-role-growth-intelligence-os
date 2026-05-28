@@ -186,6 +186,14 @@ assert(smokeRecertPolicySource.includes("policyAuditSummary"), "smoke recertific
 assert(smokeRecertPolicySource.includes("before: policyAuditSummary"), "smoke recertification policy audit must include before summary");
 assert(smokeRecertPolicySource.includes("after: policyAuditSummary"), "smoke recertification policy audit must include after summary");
 assert(smokeRecertPolicySource.includes("auditRow"), "smoke recertification policy upsert must return audit row evidence");
+assert(smokeRecertPolicyHistorySource.includes("platform_plugin_smoke_recertification_policy_upsert"), "policy history must read policy upsert audit entry type");
+assert(smokeRecertPolicyHistorySource.includes("listPlatformPluginSmokeRecertificationPolicyHistory"), "policy history source must expose history reader");
+assert(smokeRecertPolicyHistorySource.includes("previewPlatformPluginSmokeRecertificationPolicyRollback"), "policy history source must expose rollback preview");
+assert(smokeRecertPolicyHistorySource.includes("applyPlatformPluginSmokeRecertificationPolicyRollback"), "policy history source must expose rollback apply");
+assert(smokeRecertPolicyHistorySource.includes("confirm_rollback_required"), "rollback apply must require explicit confirmation");
+assert(smokeRecertPolicyHistorySource.includes("upsertPlatformPluginSmokeRecertificationPolicy"), "rollback apply must reuse audited policy upsert path");
+assert(smokeRecertPolicyHistorySource.includes("notes_content_replayed: false"), "rollback preview must disclose notes content is not replayed");
+assert(smokeRecertPolicyHistorySource.includes("secrets_included: false"), "policy history/rollback responses must be secret-free");
 
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certify"), "smoke certification writer admin tool must be registered");
 assert(smokeCertToolsMigration.includes("platform_plugin_smoke_certification_status"), "smoke certification status admin tool must be registered");
