@@ -306,6 +306,7 @@ Operations and validation:
 - [`governed_mutation_playbook.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/governed_mutation_playbook.md>)
 - [`connector_contracts.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/connector_contracts.md>)
 - [`docs/external-endpoint-auth-strategy.md`](docs/external-endpoint-auth-strategy.md)
+- [`docs/live-repo-knowledge-loading-governance.md`](docs/live-repo-knowledge-loading-governance.md)
 - [`docs/platform-plugin-smoke-certification-governance.md`](docs/platform-plugin-smoke-certification-governance.md)
 - [`docs/platform-plugin-recertification-policy-governance.md`](docs/platform-plugin-recertification-policy-governance.md)
 - [`docs/platform-plugin-governance-roadmap-2026-05-28.md`](docs/platform-plugin-governance-roadmap-2026-05-28.md)

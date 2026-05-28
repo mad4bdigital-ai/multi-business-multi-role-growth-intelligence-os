@@ -10,14 +10,18 @@ Name: Mad4B Platform Admin Assistant
 
 Description: Governed admin bridge for the Mad4B Growth Intelligence OS. Uses one auth platform connector and one local device connector to route runtime work through user, tenant, device, skill-grant, workflow, DNS, GCloud, and local-connector controls.
 
-Use this guide together with:
+Use this guide together with live repo references, read through governed auth-host repo tools rather than uploaded GPT Builder knowledge copies:
 
 1. `Top Level Instructions.md`
 2. `AI_Agent_Knowledge_Guide.md`
-3. `http-generic-api/openapi.yaml`
-4. `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` (production control-plane dispatcher)
-5. `http-generic-api/openapi.gpt-action.dev-dispatcher.yaml` (separate passive dispatcher for `dev.mad4b.com`)
-6. `http-generic-api/openapi.gpt-action.local-connector.yaml` (local connector break-glass bridge)
+3. `GPT_Admin_Assistant_Knowledge_Guide.md`
+4. `http-generic-api/openapi.yaml`
+5. `http-generic-api/openapi.custom-gpt.auth-dispatcher.yaml` (production control-plane dispatcher)
+6. `http-generic-api/openapi.gpt-action.dev-dispatcher.yaml` (separate passive dispatcher for `dev.mad4b.com`)
+7. `http-generic-api/openapi.gpt-action.local-connector.yaml` (local connector break-glass bridge)
+8. Relevant `docs/*.md` files for the active task
+
+Admin GPT live loading rule: use `repo_inspect` via `callAdminTool` to read repo docs/files at runtime. Do not rely on stale GPT Builder uploads when the auth-host repo tool is available. Tenant GPTs must not use admin repo tools; they need tenant-exposed bounded docs tools only.
 
 ## GPT Action Auth
 
