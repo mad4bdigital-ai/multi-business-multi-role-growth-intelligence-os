@@ -107,39 +107,20 @@ export function matchesHostingerSshTarget(rowObj, input = {}) {
 
 export async function hostingerSshRuntimeRead({ input = {} } = {}, deps = {}) {
   const {
-    REGISTRY_SPREADSHEET_ID = "",
-    HOSTING_ACCOUNT_REGISTRY_RANGE = "",
     HOSTING_ACCOUNT_REGISTRY_SHEET = "Hosting Account Registry",
     asBool: asBoolFn = asBool,
-    getGoogleClientsForSpreadsheet,
-    matchesHostingerSshTarget: matchesTarget = matchesHostingerSshTarget,
-    rowToObject: rowToObjectFn = rowToObject
+    matchesHostingerSshTarget: matchesTarget = matchesHostingerSshTarget
   } = deps;
 
-  if (typeof getGoogleClientsForSpreadsheet !== "function") {
-    const err = new Error("Hostinger runtime read requires getGoogleClientsForSpreadsheet dependency.");
-    err.code = "hostinger_dependency_missing";
-    err.status = 500;
-    throw err;
-  }
-
-  const { sheets } = await getGoogleClientsForSpreadsheet(REGISTRY_SPREADSHEET_ID);
-
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: String(REGISTRY_SPREADSHEET_ID || "").trim(),
-    range: HOSTING_ACCOUNT_REGISTRY_RANGE
-  });
-
-  const values = response.data.values || [];
-  if (values.length < 2) {
-    const err = new Error("Hosting Account Registry is empty or missing data rows.");
+  const registry = await readHostingAccountRows(HOSTING_ACCOUNT_REGISTRY_SHEET, deps);
+  const rowObjs = registry.rows || [];
+  if (!rowObjs.length) {
+    const err = new Error("Hosting Account Registry SQL surface is empty or missing data rows.");
     err.code = "hosting_account_registry_empty";
     err.status = 500;
     throw err;
   }
 
-  const [header, ...rows] = values;
-  const rowObjs = rows.map(row => rowToObjectFn(header, row));
   const match = rowObjs.find(rowObj => matchesTarget(rowObj, input));
 
   if (!match) {
