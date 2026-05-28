@@ -8,6 +8,7 @@ const openapi = readFileSync('openapi.yaml', 'utf8');
 assert(routeFile.includes('/credentials/effective/plan'), 'credential resolution plan route must exist');
 assert(routeFile.includes('buildCredentialResolutionPlan'), 'credential resolution plan helper must exist');
 assert(routeFile.includes('credential_bindings'), 'plan must inspect credential bindings');
+assert(routeFile.includes('source: "credential_bindings"'), 'credential binding candidates must be labeled as credential_bindings');
 assert(routeFile.includes('user_app_connections_fallback'), 'plan must include user app connection fallback');
 assert(routeFile.includes('actions.secret_store_ref'), 'plan must include action secret fallback');
 assert(routeFile.includes('target_tenant_secret_convention'), 'plan must include target tenant secret convention');
