@@ -15,6 +15,10 @@ assert(routeFile.includes('target_tenant_secret_convention'), 'plan must include
 assert(routeFile.includes('tenant_integration_policies'), 'plan must include tenant integration policies');
 assert(routeFile.includes('getEffectiveCredentialStatus'), 'plan must include effective safe status');
 assert(routeFile.includes('credential_values_returned: false'), 'plan must not return credential values');
+assert(routeFile.includes('candidateEligibility'), 'plan must annotate candidate eligibility');
+assert(routeFile.includes('eligible_for_request'), 'plan candidates must include eligibility flag');
+assert(routeFile.includes('ineligibility_reasons'), 'plan candidates must include ineligibility reasons');
+assert(routeFile.includes('private_connection_user_context_required'), 'plan must explain private connection user-context requirements');
 assert(routeFile.includes('secret_values_returned: false'), 'plan must not return secret values');
 assert(routeFile.includes('secrets_included: false'), 'plan must return secrets_included=false');
 assert(!routeFile.includes('includeSecret: true'), 'plan must not request secret inclusion');
