@@ -367,11 +367,12 @@ export function buildPlatformEvolutionRoutes(deps = {}) {
           thread_map: smokeSummary(threadResult),
         };
       } else {
-        const direct = await directTenantSmoke(scope, token);
+        const direct = await directTenantSmoke(scope, token, { include_write: body.include_write === true || body.includeWrite === true });
         checks = {
           switch_options: direct.switch_options,
           activation_card: direct.activation_card,
           thread_map: direct.thread_map,
+          checkpoint_write: direct.checkpoint_write,
         };
         jwtVerified = direct.jwt_verified;
       }
@@ -379,7 +380,8 @@ export function buildPlatformEvolutionRoutes(deps = {}) {
         (transportMode === "http_self_call" || jwtVerified === true) &&
         checks.switch_options.status === 200 && checks.switch_options.response_ok === true && checks.switch_options.secrets_included === false &&
         checks.activation_card.status === 200 && checks.activation_card.response_ok === true && checks.activation_card.secrets_included === false &&
-        checks.thread_map.status === 200 && checks.thread_map.response_ok === true && checks.thread_map.secrets_included === false;
+        checks.thread_map.status === 200 && checks.thread_map.response_ok === true && checks.thread_map.secrets_included === false &&
+        (!checks.checkpoint_write || (checks.checkpoint_write.response_ok === true && checks.checkpoint_write.secrets_included === false));
 
       return res.status(passed ? 200 : 502).json({
         ok: passed,
