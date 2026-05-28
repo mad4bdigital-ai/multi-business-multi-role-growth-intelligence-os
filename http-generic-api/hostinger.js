@@ -1,4 +1,5 @@
 // Auto-extracted from server.js — do not edit manually, use domain logic here.
+import { readTable as readSqlTable } from "./sqlAdapter.js";
 
 function jsonParseSafe(value, fallback) {
   try {
