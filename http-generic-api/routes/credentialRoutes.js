@@ -233,6 +233,18 @@ export function buildCredentialRoutes(deps) {
     }
   });
 
+  // Credential resolution plan. This is a safe diagnostic/read model for
+  // governance and promotion design. It returns pointer metadata and ordering,
+  // never decrypted secret values.
+  router.post("/credentials/effective/plan", async (req, res) => {
+    try {
+      const plan = await buildCredentialResolutionPlan(req.body || {});
+      res.json(plan);
+    } catch (err) {
+      res.status(err.status || 500).json({ ok: false, error: { code: err.code || "credential_plan_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   // Store a platform or tenant secret as AES-256-GCM ciphertext in SQL. This is
   // backend/admin only. It never echoes the provided value and updates the
   // pointer registry to store_type=db_encrypted.
