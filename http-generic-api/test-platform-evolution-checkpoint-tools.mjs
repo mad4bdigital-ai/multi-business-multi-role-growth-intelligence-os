@@ -6,6 +6,7 @@ const indexFile = readFileSync('routes/index.js', 'utf8');
 const migration = readFileSync('migrations/155_sprint65_platform_evolution_checkpoint_tools.sql', 'utf8');
 
 assert(routeFile.includes('export function buildPlatformEvolutionRoutes'), 'platform evolution route builder must be exported');
+assert(routeFile.includes('/platform/evolution/switch-options'), 'switch options route must exist');
 assert(routeFile.includes('/platform/evolution/activation-card'), 'activation card route must exist');
 assert(routeFile.includes('/platform/evolution/thread-map'), 'thread map route must exist');
 assert(routeFile.includes('/platform/evolution/open-evidence'), 'open evidence route must exist');
