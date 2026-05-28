@@ -550,18 +550,30 @@ function mapGithubRunForGhJson(run, fields = []) {
 }
 
 function mapGithubPullForGhJson(pr, fields = []) {
+  const checkRuns = Array.isArray(pr._state_check_rollup) ? pr._state_check_rollup : [];
   const mapped = {
     number: pr.number,
     url: pr.html_url,
     title: pr.title,
     body: pr.body,
     state: pr.state,
+    isDraft: Boolean(pr.draft),
     mergeable: pr.mergeable,
+    mergeStateStatus: pr.mergeable_state || null,
     merged: pr.merged,
     headRefName: pr.head?.ref || null,
+    headRefOid: pr.head?.sha || null,
     headRepositoryOwner: pr.head?.repo?.owner?.login || null,
+    headRepository: pr.head?.repo?.full_name || null,
     baseRefName: pr.base?.ref || null,
+    baseRefOid: pr.base?.sha || null,
     author: pr.user?.login || null,
+    stateCheckRollup: checkRuns.map((run) => ({
+      name: run.name || run.context || run.check_suite?.app?.name || "unknown",
+      status: run.status || null,
+      conclusion: run.conclusion || null,
+      url: run.html_url || run.details_url || null,
+    })),
   };
   if (!fields.length) return mapped;
   return Object.fromEntries(fields.map((field) => [field, mapped[field] ?? pr[field] ?? null]));
