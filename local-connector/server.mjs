@@ -285,6 +285,10 @@ async function refreshShellPolicy({ force = false } = {}) {
   return SHELL_POLICY_STATE;
 }
 
+refreshShellPolicy({ force: true }).catch((e) => {
+  console.error('[connector] Initial shell policy pull failed:', e.message);
+});
+
 /** @type {string[]} */
 const FILE_ALLOWLIST = (process.env.CONNECTOR_FILE_PATHS ?? '')
   .split(',')
