@@ -406,8 +406,13 @@ export function buildCredentialRoutes(deps) {
       const connectorFamily = str(body.connector_family || body.connectorFamily || "wordpress_rest");
       const promotedOwnerType = str(body.promoted_owner_type || body.promotedOwnerType || "tenant");
       const resolutionPriority = Number.parseInt(String(body.resolution_priority || body.resolutionPriority || 20), 10);
+      const promotionApproved = body.promotion_approved === true || body.promotionApproved === true;
+      const promotionReason = str(body.promotion_reason || body.promotionReason);
       const createdBy = str(body.created_by || body.createdBy || "credential_binding_promotion_v1");
 
+      if (!promotionApproved || promotionReason.length < 8) {
+        return res.status(400).json({ ok: false, error: { code: "promotion_approval_required", message: "promotion_approved=true and promotion_reason of at least 8 characters are required." }, secrets_included: false });
+      }
       if (promotedOwnerType !== "tenant") {
         return res.status(400).json({ ok: false, error: { code: "unsupported_promotion_owner_type", message: "v1 supports promoted_owner_type=tenant only." }, secrets_included: false });
       }
