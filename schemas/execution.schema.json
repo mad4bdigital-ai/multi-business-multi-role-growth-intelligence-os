@@ -81,21 +81,39 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "spreadsheet_id",
+        "registry_source",
+        "registry_table",
         "surface_name"
       ],
       "properties": {
-        "spreadsheet_id": {
+        "registry_source": {
+          "type": "string",
+          "enum": ["sql_primary", "recovery_mirror", "diagnostic_mirror"],
+          "default": "sql_primary"
+        },
+        "registry_table": {
           "type": "string",
           "minLength": 1
+        },
+        "registry_row_id": {
+          "type": "string",
+          "default": ""
         },
         "surface_name": {
           "type": "string",
           "minLength": 1
         },
-        "worksheet_gid": {
+        "binding_key": {
           "type": "string",
-          "minLength": 1
+          "default": ""
+        },
+        "legacy_mirror_spreadsheet_id": {
+          "type": "string",
+          "default": ""
+        },
+        "legacy_mirror_worksheet_gid": {
+          "type": "string",
+          "default": ""
         }
       }
     },
