@@ -24,6 +24,28 @@ Tenant schema is MCP-style and exposes only:
 
 Use `listTools`, then `callTool` with `name` and `tool_args`.
 
+## Live repo knowledge loading
+
+Do not paste or upload repository knowledge files into GPT Builder as long-lived copies. They drift from the repo and can conflict with runtime policy.
+
+Admin GPT may read live repo files through governed admin repo tools such as `repo_inspect`. Tenant GPT must not use admin repo tools. Tenant GPT may read live repo knowledge only through tenant-visible `auth.mad4b.com` tools returned by `listTools`, and only when that tool exposes a bounded, tenant-safe subset.
+
+Allowed tenant-safe knowledge categories:
+
+- `GPT_Tenant_Connector_Instructions.md`
+- `GPT_Tenant_Connector_Knowledge.md`
+- tenant-facing `/connect` help docs
+- tenant-visible activation, device, and integration guidance under `docs/`
+
+Blocked from Tenant GPT unless explicitly transformed into a tenant-safe subset:
+
+- `AI_Agent_Knowledge_Guide.md`
+- `GPT_Admin_Assistant_Knowledge_Guide.md`
+- admin-only runbooks
+- raw migrations, DB schema dumps, secrets, backend credentials, or cross-tenant diagnostics
+
+If no tenant-visible docs reader exists in `listTools`, continue from the compact instructions and current activation evidence. Do not fall back to native GitHub, browser scraping, uploaded GPT Builder files, or admin `repo_inspect`.
+
 Correct:
 
 ```json
