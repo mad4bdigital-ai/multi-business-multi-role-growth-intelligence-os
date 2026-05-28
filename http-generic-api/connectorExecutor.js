@@ -395,7 +395,9 @@ export async function dispatchPlan(plan_id, {
 
   let result, dispatchError;
   try {
-    if (isWordpress) {
+    if (isWordpressBlogPublishWorkflow(plan.workflow_key)) {
+      result = await dispatchWordpressBlogPublish(plan, { ...deps, brand });
+    } else if (isWordpress) {
       const wpContext = buildWpContext(brand);
       if (!wpContext) {
         throw new Error(
