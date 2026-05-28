@@ -1053,8 +1053,9 @@ async function handleShell(req, res) {
 }
 
 async function handleApps(req, res) {
-  if (!APPS_ENABLED) return err(res, 403, 'DISABLED', 'App control endpoint is disabled on this connector');
   if (!requireAuth(req, res)) return;
+  await refreshShellPolicy();
+  if (!APPS_ENABLED) return err(res, 403, 'DISABLED', 'App control endpoint is disabled on this connector');
   let body;
   try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid JSON'); }
 
