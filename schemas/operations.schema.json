@@ -1001,10 +1001,6 @@
               "enum": [
                 "execution_log"
               ]
-            },
-            "legacy_mirror_worksheet": {
-              "type": "string",
-              "default": "Execution Log Unified"
             }
           }
         },
