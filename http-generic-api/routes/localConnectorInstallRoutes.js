@@ -1026,10 +1026,10 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     );
   }
 
-  const installPowerShell = buildInstallPowerShell({ cfToken: tunnelToken, connectorSecret, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
-  const connectorEnv = buildConnectorEnv({ connectorSecret, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
+  const installPowerShell = buildInstallPowerShell({ cfToken: tunnelToken, connectorSecret, connectorLocalApiKey, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
+  const connectorEnv = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
   const startConnectorBat = buildStartConnectorBat();
-  const installScript = buildInstallScript({ cfToken: tunnelToken, connectorSecret, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
+  const installScript = buildInstallScript({ cfToken: tunnelToken, connectorSecret, connectorLocalApiKey, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
 
   return {
     ok: true,
