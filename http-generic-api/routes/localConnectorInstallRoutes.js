@@ -731,8 +731,12 @@ function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases
   const allowlistVal = buildAllowlistEnvValue(allAliases);
   const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
   const filePathLine = grants.allowed_paths.length ? [`CONNECTOR_FILE_PATHS=${grants.allowed_paths.join(",")}`] : [];
+  const connectorLocalApiKeyLine = String(connectorLocalApiKey || '').trim()
+    ? [`CONNECTOR_LOCAL_API_KEY=${String(connectorLocalApiKey).trim()}`]
+    : [];
   return [
     `CONNECTOR_SECRET=${connectorSecret}`,
+    ...connectorLocalApiKeyLine,
     "MAIN_API_URL=https://api.mad4b.com",
     `CONNECTOR_PORT=${port}`,
     "CONNECTOR_SHELL_ENABLED=true",
