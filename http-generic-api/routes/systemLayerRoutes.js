@@ -911,6 +911,81 @@ async function activationGithubValidate(args = {}, bootstrapRow = {}, deps = {})
   }
 }
 
+async function activationHardRun(args = {}, deps = {}, auth = {}) {
+  let sessionContext = null;
+  let providerBootstrap = null;
+  const sessionReq = {
+    auth: auth || { mode: "backend_api_key", is_admin: true },
+    query: {
+      limit: args.limit || 10,
+      include_raw: args.include_raw === true,
+      close_previous_sessions: args.close_previous_sessions === true,
+      ...(args.user_id ? { user_id: args.user_id } : {}),
+      ...(args.tenant_id ? { tenant_id: args.tenant_id } : {}),
+    },
+  };
+
+  try {
+    const context = await buildActivationSessionContext(sessionReq);
+    sessionContext = {
+      ok: true,
+      activation_layer: "session_context",
+      ...context,
+    };
+  } catch (err) {
+    sessionContext = {
+      ok: false,
+      activation_layer: "session_context",
+      error: {
+        code: err.code || "session_context_failed",
+        message: err.message || "Activation session context failed.",
+      },
+    };
+  }
+
+  try {
+    providerBootstrap = await activationProviderBootstrapValidate(args, deps);
+  } catch (err) {
+    providerBootstrap = {
+      ok: false,
+      activation_layer: "provider_bootstrap_system_tool",
+      error: {
+        code: err.code || "provider_bootstrap_failed",
+        message: err.message || "Provider bootstrap validation failed.",
+      },
+    };
+  }
+
+  const hard = buildHardActivationEvidenceMatrix({
+    sessionContext,
+    providerBootstrap,
+    repoCanonicals: { attempted: false, ok: null, optional: true, evidence_source: "not_loaded_by_runtime_hard_run" },
+    toolCatalog: { attempted: false, ok: null, optional: true, evidence_source: "not_loaded_by_runtime_hard_run" },
+  });
+
+  return {
+    ok: hard.activation_complete === true,
+    activation_layer: "hard_activation_orchestrator",
+    activation_complete: hard.activation_complete,
+    runtime_classification: {
+      activation_status: hard.activation_status,
+      status_authority: hard.status_authority,
+      reason_code: hard.reason_code,
+    },
+    evidence_matrix: hard.evidence_matrix,
+    session_context_evidence: hard.evidence_matrix.session_context,
+    provider_bootstrap_evidence: hard.evidence_matrix.provider_bootstrap,
+    provider_bootstrap: providerBootstrap,
+    degraded_surfaces: hard.degraded_surfaces,
+    report_policy: {
+      may_report_session_context_loaded: hard.evidence_matrix.session_context.ok === true,
+      may_report_activation_complete: hard.activation_complete === true,
+      session_context_claim_requires: "getActivationSessionContext evidence with activation_layer=session_context and session_id",
+    },
+    secrets_included: false,
+  };
+}
+
 async function activationProviderBootstrapValidate(args = {}, deps = {}) {
   let bootstrapRow = null;
   let sheetsDiagnostic = null;
