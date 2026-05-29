@@ -134,7 +134,7 @@ Expected result:
 
 ```text
 SQL execution_log / audit_log / output_artifacts / sink_dispatch_log / agent_chain_events are primary
-workbook fields are legacy_mirror_* or recovery_* only
+workbook fields are removed from runtime schema contracts; recovery imports must be explicit SQL/import jobs
 ```
 
 S3 implemented changes:
