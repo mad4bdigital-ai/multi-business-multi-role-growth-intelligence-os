@@ -601,8 +601,8 @@ async function proxyToDevice(req, res, deviceId, targetPath) {
   }
 
   const candidateTokens = isAdmin
-    ? uniqueTruthy([device.connector_secret, process.env.BACKEND_API_KEY])
-    : uniqueTruthy([device.connector_secret]);
+    ? uniqueTruthy([device.connector_secret, device.connector_local_api_key, process.env.BACKEND_API_KEY])
+    : uniqueTruthy([device.connector_secret, device.connector_local_api_key]);
   if (!candidateTokens.length) {
     return res.status(503).json({ ok: false, error: { code: "connector_auth_unconfigured", message: "No per-device connector auth token is configured for this device proxy." } });
   }
