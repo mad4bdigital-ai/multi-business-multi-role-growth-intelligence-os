@@ -55,7 +55,7 @@
           "properties": {
             "registry_source": {
               "type": "string",
-              "enum": ["sql_primary", "legacy_mirror", "recovery_import"],
+              "enum": ["sql_primary", "recovery_import"],
               "default": "sql_primary"
             },
             "registry_table": {
