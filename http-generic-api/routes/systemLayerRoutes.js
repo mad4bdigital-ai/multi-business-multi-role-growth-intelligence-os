@@ -106,22 +106,6 @@ const SYSTEM_LAYER_TOOLS = [
     },
   },
   {
-    name: "activation_hard_run",
-    description: "Admin-only hard activation orchestrator. Calls GET /activation/session-context evidence first, then activation_provider_bootstrap_validate, and returns a single evidence matrix. Hard activation is not complete unless session_context and provider_bootstrap evidence are both present and valid.",
-    requires_admin: true,
-    inputSchema: {
-      type: "object",
-      properties: {
-        user_id: { type: "string" },
-        tenant_id: { type: "string" },
-        limit: { type: "integer", minimum: 1, maximum: 50, default: 10 },
-        close_previous_sessions: { type: "boolean", default: false },
-        include_raw: { type: "boolean", default: false },
-      },
-      required: [],
-    },
-  },
-  {
     name: "activation_provider_bootstrap_validate",
     description: "Admin-only provider/bootstrap validation only. Runs same-cycle Drive, Sheets mirror, and GitHub provider-connectivity validation. It does not open or read GPT session context; hard activation callers must also call getActivationSessionContext or use activation_hard_run before reporting activation complete.",
     requires_admin: true,
