@@ -17,22 +17,6 @@ function asBool(value) {
   return String(value || "").trim().toUpperCase() === "TRUE";
 }
 
-function rowToObject(header, row) {
-  const out = {};
-  for (let i = 0; i < header.length; i += 1) {
-    out[header[i]] = row[i] ?? "";
-  }
-  return out;
-}
-
-function isEnabledFlag(value) {
-  return ["1", "true", "yes", "on"].includes(String(value ?? "").trim().toLowerCase());
-}
-
-function allowLegacySheetRegistryRead(deps = {}) {
-  return deps.allowLegacySheetRegistryRead === true || isEnabledFlag(process.env.LEGACY_SHEET_REGISTRY_RUNTIME_ENABLED);
-}
-
 async function readHostingAccountRows(sheetName, deps = {}) {
   const readSqlSurface = typeof deps.readSqlRegistrySurface === "function"
     ? deps.readSqlRegistrySurface
@@ -40,32 +24,9 @@ async function readHostingAccountRows(sheetName, deps = {}) {
   try {
     return { rows: await readSqlSurface(sheetName), source: "sql_primary" };
   } catch (sqlErr) {
-    if (!allowLegacySheetRegistryRead(deps)) {
-      sqlErr.code = sqlErr.code || "sql_hosting_account_registry_read_failed";
-      throw sqlErr;
-    }
+    sqlErr.code = sqlErr.code || "sql_hosting_account_registry_read_failed";
+    throw sqlErr;
   }
-
-  const {
-    REGISTRY_SPREADSHEET_ID = "",
-    HOSTING_ACCOUNT_REGISTRY_RANGE = "",
-    getGoogleClientsForSpreadsheet,
-    rowToObject: rowToObjectFn = rowToObject
-  } = deps;
-  if (typeof getGoogleClientsForSpreadsheet !== "function") {
-    const err = new Error("Legacy Hostinger sheet fallback requires getGoogleClientsForSpreadsheet dependency.");
-    err.code = "legacy_sheet_dependencies_missing";
-    err.status = 500;
-    throw err;
-  }
-  const { sheets } = await getGoogleClientsForSpreadsheet(REGISTRY_SPREADSHEET_ID);
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: String(REGISTRY_SPREADSHEET_ID || "").trim(),
-    range: HOSTING_ACCOUNT_REGISTRY_RANGE
-  });
-  const values = response.data.values || [];
-  const [header, ...rows] = values;
-  return { rows: rows.map(row => rowToObjectFn(header, row)), source: "legacy_sheet_mirror" };
 }
 
 export function matchesHostingerSshTarget(rowObj, input = {}) {
