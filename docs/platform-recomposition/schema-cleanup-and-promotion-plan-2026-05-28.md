@@ -112,7 +112,7 @@ S2 implemented changes:
 ```text
 registryBinding now uses registry_source / registry_table / registry_row_id / binding_key
 writeProof now uses target_table / target_primary_key / target_row_id
-legacy spreadsheet/gid evidence moved under legacy_mirror_* fields
+legacy spreadsheet/gid evidence removed from runtime schema contracts
 authoritativeWriteTargets now defaults to SQL tables instead of *_sheet targets
 governance patch parity evidence source now defaults to table.execution_log
 ```
