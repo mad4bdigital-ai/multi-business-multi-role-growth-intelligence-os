@@ -22,7 +22,6 @@
           "type": "string",
           "enum": [
             "document",
-            "spreadsheet",
             "knowledge_file",
             "database",
             "api",
