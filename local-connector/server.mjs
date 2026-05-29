@@ -53,7 +53,15 @@ const PORT = parseInt(process.env.CONNECTOR_PORT ?? '7070', 10);
 const CONNECTOR_SECRET = String(process.env.CONNECTOR_SECRET ?? '').trim();
 const CONNECTOR_LOCAL_API_KEY = String(process.env.CONNECTOR_LOCAL_API_KEY ?? '').trim();
 const LEGACY_BACKEND_API_KEY = String(process.env.BACKEND_API_KEY ?? '').trim();
-const CONNECTOR_AUTH_SECRET = CONNECTOR_SECRET || CONNECTOR_LOCAL_API_KEY || LEGACY_BACKEND_API_KEY;
+const LEGACY_BACKEND_API_KEY_FALLBACK_ENABLED = process.env.CONNECTOR_LEGACY_BACKEND_API_KEY_FALLBACK_ENABLED === 'true';
+const CONNECTOR_AUTH_SECRETS = [
+  CONNECTOR_SECRET,
+  CONNECTOR_LOCAL_API_KEY,
+  LEGACY_BACKEND_API_KEY_FALLBACK_ENABLED ? LEGACY_BACKEND_API_KEY : '',
+]
+  .map((value) => String(value || '').trim())
+  .filter(Boolean);
+const CONNECTOR_AUTH_SECRET = CONNECTOR_AUTH_SECRETS[0] || '';
 const CONNECTOR_POLICY_ENABLED = process.env.CONNECTOR_POLICY_ENABLED !== 'false';
 const CONNECTOR_POLICY_URL = String(process.env.CONNECTOR_POLICY_URL ?? 'https://auth.mad4b.com/connector-agent/policy').replace(/\/$/, '');
 const CONNECTOR_POLICY_TTL_MS = Math.min(Math.max(parseInt(process.env.CONNECTOR_POLICY_TTL_MS ?? '300000', 10) || 300000, 30000), 1800000);
