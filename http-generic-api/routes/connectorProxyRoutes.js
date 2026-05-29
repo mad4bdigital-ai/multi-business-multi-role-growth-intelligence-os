@@ -541,8 +541,8 @@ async function connectorRouteDiagnostics(req, res, deviceId) {
   const registeredRoutes = await listRegisteredRoutes(device, { includeDown: true });
   const routes = await listCandidateRoutes(device);
   const candidateTokens = isAdmin
-    ? uniqueTruthy([device.connector_secret, process.env.BACKEND_API_KEY])
-    : uniqueTruthy([device.connector_secret]);
+    ? uniqueTruthy([device.connector_secret, device.connector_local_api_key, process.env.BACKEND_API_KEY])
+    : uniqueTruthy([device.connector_secret, device.connector_local_api_key]);
 
   return res.status(200).json({
     ok: true,
