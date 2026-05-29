@@ -931,6 +931,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   let tunnelToken = existing?.cf_token || null;
   let tunnelUrl = existing?.tunnel_url || null;
   let connectorSecret = existing?.connector_secret || null;
+  let connectorLocalApiKey = existing?.connector_local_api_key || null;
   const requestedRuntimeHostname = String(hostname || "").trim().toLowerCase();
   if (requestedRuntimeHostname && !requestedRuntimeHostname.endsWith(`.${DNS_DOMAIN}`)) {
     throw httpError(400, "invalid_runtime_hostname", `hostname must end with .${DNS_DOMAIN}`);
