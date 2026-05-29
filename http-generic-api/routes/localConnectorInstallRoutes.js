@@ -946,6 +946,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     tunnelToken = provisioned.token;
     tunnelUrl = `https://${tunnelId}.cfargotunnel.com`;
     connectorSecret = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
+    connectorLocalApiKey = connectorLocalApiKey || randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
 
     await pool.query(
       `INSERT INTO \`local_connector_user_configs\`
