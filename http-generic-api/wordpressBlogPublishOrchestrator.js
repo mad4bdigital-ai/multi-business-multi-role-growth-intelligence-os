@@ -180,7 +180,7 @@ export async function diagnoseWordpressAuthContext(plan = {}, deps = {}) {
   }
   const fetchImpl = deps.fetch || globalThis.fetch;
   const wpBase = normalizeWpJsonBase(brand.base_url || brand.default_wp_api_base || (brand.brand_domain ? `https://${brand.brand_domain}/wp-json` : ""));
-  const username = str(credential.username || credential.account_label || brand.username || "gpt");
+  const username = str(credential.username || brand.username || "gpt");
   const password = str(credential.secret);
   const response = await fetchImpl(`${wpBase}/users/me?context=edit`, {
     method: "GET",
