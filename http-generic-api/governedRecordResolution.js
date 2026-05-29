@@ -8,15 +8,7 @@ function createCompatError(deps = {}, code, message, status = 500) {
   return err;
 }
 
-function isEnabledFlag(value) {
-  return ["1", "true", "yes", "on"].includes(String(value ?? "").trim().toLowerCase());
-}
-
-function allowLegacySheetRegistryRead(deps = {}) {
-  return deps.allowLegacySheetRegistryRead === true || isEnabledFlag(process.env.LEGACY_SHEET_REGISTRY_RUNTIME_ENABLED);
-}
-
-function buildRecordSetFromRows(rows = [], sheetName = "", deps = {}, source = "sql_primary") {
+function buildRecordSetFromRows(rows = [], sheetName = "", deps = {}) {
   const header = [];
   const seen = new Set();
   for (const row of rows || []) {
