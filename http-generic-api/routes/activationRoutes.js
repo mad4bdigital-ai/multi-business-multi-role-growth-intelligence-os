@@ -5,6 +5,7 @@ import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.j
 import { ensureSessionArchive } from "../sessionArchiveService.js";
 import { loadSessionSummaryGraphMemory } from "../sessionSummaryService.js";
 import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
+import { buildHardActivationEvidenceMatrix } from "../activationHardEvidence.js";
 import {
   REGISTRY_SPREADSHEET_ID,
   ACTIVITY_SPREADSHEET_ID,
@@ -1206,6 +1207,77 @@ export function buildActivationRoutes(deps) {
         error: { code: "bootstrap_config_failed", message: err.message },
       });
     }
+  });
+
+  router.post("/activation/hard-run", requireBackendApiKey, async (req, res) => {
+    let sessionContext = null;
+    let providerBootstrap = null;
+    try {
+      const sessionReq = {
+        ...req,
+        query: {
+          ...(req.query || {}),
+          ...(req.body?.tenant_id ? { tenant_id: req.body.tenant_id } : {}),
+          ...(req.body?.user_id ? { user_id: req.body.user_id } : {}),
+          ...(req.body?.limit ? { limit: req.body.limit } : {}),
+          ...(req.body?.include_raw !== undefined ? { include_raw: req.body.include_raw } : {}),
+          ...(req.body?.close_previous_sessions !== undefined ? { close_previous_sessions: req.body.close_previous_sessions } : {}),
+        },
+      };
+      const context = await buildActivationSessionContext(sessionReq);
+      sessionContext = { ok: true, activation_layer: "session_context", ...context };
+    } catch (err) {
+      sessionContext = { ok: false, activation_layer: "session_context", error: { code: err.code || "session_context_failed", message: err.message } };
+    }
+
+    try {
+      const internalBase = process.env.INTERNAL_BASE_URL || `http://localhost:${process.env.PORT || 8080}`;
+      const response = await fetch(`${internalBase}/admin/system/tools/call`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: process.env.BACKEND_API_KEY ? `Bearer ${process.env.BACKEND_API_KEY}` : (req.headers.authorization || ""),
+        },
+        body: JSON.stringify({ name: "activation_provider_bootstrap_validate", arguments: req.body?.provider_arguments || {} }),
+        signal: AbortSignal.timeout(300000),
+      });
+      const payload = await response.json().catch(() => ({}));
+      providerBootstrap = payload?.result || payload;
+      if (payload?.ok === false && providerBootstrap?.ok !== false) {
+        providerBootstrap = { ok: false, activation_layer: "provider_bootstrap_system_tool", error: payload.error };
+      }
+    } catch (err) {
+      providerBootstrap = { ok: false, activation_layer: "provider_bootstrap_system_tool", error: { code: err.code || "provider_bootstrap_failed", message: err.message } };
+    }
+
+    const hard = buildHardActivationEvidenceMatrix({
+      sessionContext,
+      providerBootstrap,
+      repoCanonicals: { attempted: false, ok: null, optional: true, evidence_source: "caller_must_read_repo_canonicals" },
+      toolCatalog: { attempted: false, ok: null, optional: true, evidence_source: "not_required_for_hard_activation" },
+    });
+
+    return res.status(hard.activation_complete ? 200 : 424).json({
+      ok: hard.activation_complete,
+      activation_layer: "hard_activation_orchestrator",
+      activation_complete: hard.activation_complete,
+      runtime_classification: {
+        activation_status: hard.activation_status,
+        status_authority: hard.status_authority,
+        reason_code: hard.reason_code,
+      },
+      evidence_matrix: hard.evidence_matrix,
+      session_context_evidence: hard.evidence_matrix.session_context,
+      provider_bootstrap_evidence: hard.evidence_matrix.provider_bootstrap,
+      provider_bootstrap: providerBootstrap,
+      degraded_surfaces: hard.degraded_surfaces,
+      report_policy: {
+        may_report_session_context_loaded: hard.evidence_matrix.session_context.ok === true,
+        may_report_activation_complete: hard.activation_complete === true,
+        session_context_claim_requires: "getActivationSessionContext evidence with activation_layer=session_context and session_id",
+      },
+      secrets_included: false,
+    });
   });
 
   router.get("/activation/session-context", requireBackendApiKey, async (req, res) => {
