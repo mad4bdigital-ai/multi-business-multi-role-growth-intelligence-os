@@ -186,6 +186,104 @@ components:
         - type: boolean
         - type: "null"
 
+    HardActivationRunRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        tenant_id: { type: string }
+        user_id: { type: string }
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+        include_raw: { type: boolean, default: false }
+        close_previous_sessions: { type: boolean, default: false }
+        provider_arguments:
+          type: object
+          additionalProperties: true
+
+    HardActivationEvidenceStep:
+      type: object
+      additionalProperties: true
+      properties:
+        attempted: { type: boolean }
+        ok: { type: boolean, nullable: true }
+        activation_layer: { type: string, nullable: true }
+        evidence_source: { type: string, nullable: true }
+
+    HardActivationRunResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, activation_layer, activation_complete, runtime_classification, evidence_matrix, report_policy, secrets_included]
+      properties:
+        ok: { type: boolean }
+        activation_layer: { type: string, enum: [hard_activation_orchestrator] }
+        activation_complete: { type: boolean }
+        runtime_classification:
+          type: object
+          additionalProperties: true
+          properties:
+            activation_status: { type: string }
+            status_authority: { type: string }
+            reason_code: { type: string }
+        evidence_matrix:
+          type: object
+          additionalProperties: true
+          properties:
+            session_context: { $ref: "#/components/schemas/HardActivationEvidenceStep" }
+            provider_bootstrap: { $ref: "#/components/schemas/HardActivationEvidenceStep" }
+        report_policy:
+          type: object
+          additionalProperties: true
+          properties:
+            may_report_session_context_loaded: { type: boolean }
+            may_report_activation_complete: { type: boolean }
+            session_context_claim_requires: { type: string }
+        secrets_included: { type: boolean, enum: [false] }
+
+    AuditPayloadEvidenceSmokeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        tenant_id: { type: string }
+        actor_id: { type: string }
+        cleanup: { type: boolean, default: true }
+        max_preview_chars:
+          type: integer
+          minimum: 256
+          maximum: 8000
+          default: 4000
+
+    AuditPayloadEvidenceSmokeCheck:
+      type: object
+      additionalProperties: true
+      properties:
+        name: { type: string }
+        pass: { type: boolean }
+
+    AuditPayloadEvidenceSmokeResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, status, smoke_type, checks, secret_values_returned, token_returned, secrets_included]
+      properties:
+        ok: { type: boolean }
+        status: { type: string, enum: [pass, fail] }
+        smoke_type: { type: string, enum: [audit_payload_evidence] }
+        audit_id: { type: string }
+        evidence_id: { type: string }
+        redaction_status: { type: string, nullable: true }
+        cleanup:
+          type: object
+          additionalProperties: true
+          nullable: true
+        checks:
+          type: array
+          items: { $ref: "#/components/schemas/AuditPayloadEvidenceSmokeCheck" }
+        secret_values_returned: { type: boolean, enum: [false] }
+        token_returned: { type: boolean, enum: [false] }
+        secrets_included: { type: boolean, enum: [false] }
+
     PlatformGraphNode:
       type: object
       additionalProperties: true
@@ -3037,6 +3135,39 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /activation/hard-run:
+    post:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: runHardActivation
+      summary: Run hard activation with mandatory session-context evidence
+      description: >
+        Orchestrates hard activation by collecting session-context evidence first and provider-bootstrap
+        evidence second. Activation is not complete unless both evidence surfaces are present and valid.
+        This prevents final activation reports from claiming session context was opened or loaded without
+        getActivationSessionContext evidence.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HardActivationRunRequest"
+      responses:
+        "200":
+          description: Hard activation complete.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HardActivationRunResponse"
+        "424":
+          description: Required activation evidence is missing or degraded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HardActivationRunResponse"
+
   /activation/session-context:
     get:
       tags: [activation]
@@ -4839,6 +4970,38 @@ paths:
       responses:
         "200": { description: Audit log entries, content: { application/json: { schema: { $ref: "#/components/schemas/PlatformListResponse" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /audit/evidence/smoke:
+    post:
+      tags: [security]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: runAuditPayloadEvidenceSmoke
+      summary: Run audit payload evidence smoke
+      description: >
+        Writes a synthetic audit log row plus bounded, redacted request-response evidence,
+        verifies SHA hashes and redacted previews, and confirms no secret values or tokens
+        are returned. Cleanup is enabled by default.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuditPayloadEvidenceSmokeRequest"
+      responses:
+        "200":
+          description: Audit payload evidence smoke passed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditPayloadEvidenceSmokeResponse"
+        "500":
+          description: Audit payload evidence smoke failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditPayloadEvidenceSmokeResponse"
 
   /secret-references:
     post:

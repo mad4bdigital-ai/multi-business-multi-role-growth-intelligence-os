@@ -13,7 +13,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: Connector Secret
-      description: "Authorization: Bearer <CONNECTOR_SECRET> or x-connector-secret: <CONNECTOR_SECRET>. This standalone admin break-glass credential is independent of auth.mad4b.com."
+      description: "Authorization: Bearer <CONNECTOR_SECRET>, x-connector-secret: <CONNECTOR_SECRET>, or x-api-key: <CONNECTOR_SECRET>. This standalone admin break-glass credential is independent of auth.mad4b.com."
   schemas:
     CliResult:
       type: object

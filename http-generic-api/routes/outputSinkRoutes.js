@@ -97,8 +97,8 @@ export function buildOutputSinkRoutes(deps) {
   router.post("/wordpress/auth-context/diagnose", async (req, res) => {
     try {
       const { tenant_id, user_id, connection_id, brand_key, target_key } = req.body || {};
-      if (!tenant_id || !user_id || !connection_id || (!brand_key && !target_key)) {
-        return res.status(400).json({ ok: false, error: { code: "missing_required_fields", message: "tenant_id, user_id, connection_id, and brand_key or target_key are required." } });
+      if (!tenant_id || !user_id || (!brand_key && !target_key)) {
+        return res.status(400).json({ ok: false, error: { code: "missing_required_fields", message: "tenant_id, user_id, and brand_key or target_key are required." } });
       }
       const result = await diagnoseWordpressAuthContext({
         tenant_id,

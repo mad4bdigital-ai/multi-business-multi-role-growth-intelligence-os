@@ -103,7 +103,7 @@
           "type": "string",
           "default": ""
         },
-        "brand_playbook_sheet_gid": {
+        "legacy_brand_playbook_sheet_gid": {
           "type": "string",
           "default": ""
         },
@@ -148,6 +148,34 @@
           "type": "string",
           "default": ""
         }
+      }
+    },
+    "wordpressPerSiteCredentialBindingContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Canonical contract for WordPress REST Basic Auth Application Password credentials after tenant/user/workspace support. Credentials are selected per WordPress site by brand_domain/target_key and Authorization is generated at runtime; precomputed Authorization headers are legacy-only.",
+      "required": ["auth_type", "selection_mode", "selection_key", "header_name", "header_format", "runtime_generation_required"],
+      "properties": {
+        "config_version": { "type": "string", "const": "v1", "default": "v1" },
+        "auth_type": { "type": "string", "const": "basic_auth_app_password", "default": "basic_auth_app_password" },
+        "header_name": { "type": "string", "const": "Authorization", "default": "Authorization" },
+        "header_format": { "type": "string", "const": "Basic <base64(username:application_password)>", "default": "Basic <base64(username:application_password)>" },
+        "selection_mode": { "type": "string", "const": "per_site", "default": "per_site" },
+        "selection_key": { "type": "string", "enum": ["brand_domain", "target_key"], "default": "brand_domain" },
+        "credential_roles": { "type": "array", "items": { "type": "string", "enum": ["wordpress_rest", "wordpress_app_password"] }, "default": ["wordpress_rest", "wordpress_app_password"] },
+        "runtime_generation_required": { "type": "boolean", "const": true, "default": true },
+        "legacy_default_headers_allowed": { "type": "boolean", "default": false }
+      },
+      "default": {
+        "config_version": "v1",
+        "auth_type": "basic_auth_app_password",
+        "header_name": "Authorization",
+        "header_format": "Basic <base64(username:application_password)>",
+        "selection_mode": "per_site",
+        "selection_key": "brand_domain",
+        "credential_roles": ["wordpress_rest", "wordpress_app_password"],
+        "runtime_generation_required": true,
+        "legacy_default_headers_allowed": false
       }
     },
     "wordpressBlogPublishRecoveryState": {

@@ -116,6 +116,17 @@ const TOOLS_TABLE = {
   tenant: "tenant_platform_endpoint_tools",
 };
 
+const TENANT_BLOCKED_TOOL_PATH_PREFIXES = [
+  "/admin/",
+  "/admin/system/",
+  "/connector/",
+];
+
+function isTenantBlockedToolPath(httpPath = "") {
+  const path = String(httpPath || "").trim();
+  return TENANT_BLOCKED_TOOL_PATH_PREFIXES.some((prefix) => path === prefix.slice(0, -1) || path.startsWith(prefix));
+}
+
 const REPO_INSPECT_DENY_SEGMENTS = new Set([
   ".git",
   ".omx",
@@ -230,7 +241,10 @@ async function fetchTools(callerType) {
       return toolRows;
     }
   );
-  const dbTools = rows.map((r) => ({
+  const visibleRows = callerType === "tenant"
+    ? rows.filter((r) => !isTenantBlockedToolPath(r.http_path))
+    : rows;
+  const dbTools = visibleRows.map((r) => ({
     name: r.tool_key,
     displayName: r.display_name,
     description: r.description,
@@ -361,6 +375,19 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   }
 
   const { http_method: method, http_path: pathTemplate } = rows[0];
+  if (callerType === "tenant" && isTenantBlockedToolPath(pathTemplate)) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        error: {
+          code: "tenant_tool_route_not_allowed",
+          message: "Tenant GPT tools cannot dispatch to admin-only connector workaround routes. Use tenant-safe local gateway/connect status tools instead.",
+          details: { tool_key: toolKey, http_path: pathTemplate },
+        },
+      },
+    };
+  }
   const pathParamKeys = parseJson(rows[0].path_param_keys) || [];
   const fixedBody = parseJson(rows[0].fixed_body) || {};
   const remaining = { ...args };

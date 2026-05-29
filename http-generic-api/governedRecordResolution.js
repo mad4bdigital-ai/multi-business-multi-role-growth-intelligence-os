@@ -1,3 +1,38 @@
+import { readTable as readSqlTable } from "./sqlAdapter.js";
+
+function createCompatError(deps = {}, code, message, status = 500) {
+  if (typeof deps.createHttpError === "function") return deps.createHttpError(code, message, status);
+  const err = new Error(message);
+  err.code = code;
+  err.status = status;
+  return err;
+}
+
+function isEnabledFlag(value) {
+  return ["1", "true", "yes", "on"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+function allowLegacySheetRegistryRead(deps = {}) {
+  return deps.allowLegacySheetRegistryRead === true || isEnabledFlag(process.env.LEGACY_SHEET_REGISTRY_RUNTIME_ENABLED);
+}
+
+function buildRecordSetFromRows(rows = [], sheetName = "", deps = {}, source = "sql_primary") {
+  const header = [];
+  const seen = new Set();
+  for (const row of rows || []) {
+    for (const key of Object.keys(row || {})) {
+      if (!seen.has(key)) {
+        seen.add(key);
+        header.push(key);
+      }
+    }
+  }
+  const map = typeof deps.headerMap === "function"
+    ? deps.headerMap(header, sheetName)
+    : Object.fromEntries(header.map((key, idx) => [key, idx]));
+  return { header, rows: rows || [], map, source, authority: source === "sql_primary" ? "sql_runtime_authority" : "legacy_mirror_recovery" };
+}
+
 export async function readGovernedSheetRecords(
   sheetName,
   spreadsheetId,
@@ -9,10 +44,38 @@ export async function readGovernedSheetRecords(
   ).trim();
 
   if (!trimmedSheetName) {
-    throw deps.createHttpError("missing_sheet_name", "Sheet name is required.", 500);
+    throw createCompatError(deps, "missing_registry_surface", "Registry surface name is required.", 500);
   }
+
+  const readSqlSurface = typeof deps.readSqlRegistrySurface === "function"
+    ? deps.readSqlRegistrySurface
+    : readSqlTable;
+
+  try {
+    const rows = await readSqlSurface(trimmedSheetName);
+    return buildRecordSetFromRows(rows, trimmedSheetName, deps, "sql_primary");
+  } catch (sqlErr) {
+    if (!allowLegacySheetRegistryRead(deps)) {
+      const err = createCompatError(
+        deps,
+        "sql_registry_read_failed",
+        `SQL registry read failed for ${trimmedSheetName}. Legacy sheet fallback is disabled.`,
+        500
+      );
+      err.cause = sqlErr;
+      throw err;
+    }
+  }
+
   if (!trimmedSpreadsheetId) {
-    throw deps.createHttpError("missing_spreadsheet_id", "Spreadsheet id is required.", 500);
+    throw createCompatError(deps, "missing_legacy_spreadsheet_id", "Legacy spreadsheet id is required only for recovery mirror fallback.", 500);
+  }
+  if (
+    typeof deps.assertSheetExistsInSpreadsheet !== "function" ||
+    typeof deps.getGoogleClientsForSpreadsheet !== "function" ||
+    typeof deps.toValuesApiRange !== "function"
+  ) {
+    throw createCompatError(deps, "legacy_sheet_dependencies_missing", "Legacy sheet fallback dependencies are not available.", 500);
   }
 
   await deps.assertSheetExistsInSpreadsheet(trimmedSpreadsheetId, trimmedSheetName);
@@ -24,11 +87,13 @@ export async function readGovernedSheetRecords(
 
   const values = response.data.values || [];
   if (!values.length) {
-    return { header: [], rows: [], map: {} };
+    return { header: [], rows: [], map: {}, source: "legacy_sheet_mirror", authority: "legacy_mirror_recovery" };
   }
 
   const header = (values[0] || []).map(value => String(value || "").trim());
-  const map = deps.headerMap(header, trimmedSheetName);
+  const map = typeof deps.headerMap === "function"
+    ? deps.headerMap(header, trimmedSheetName)
+    : Object.fromEntries(header.map((key, idx) => [key, idx]));
   const rows = values.slice(1).map(row => {
     const record = {};
     header.forEach((key, idx) => {
@@ -38,7 +103,7 @@ export async function readGovernedSheetRecords(
     return record;
   });
 
-  return { header, rows, map };
+  return { header, rows, map, source: "legacy_sheet_mirror", authority: "legacy_mirror_recovery" };
 }
 
 export function normalizeLooseHostname(value = "") {
@@ -92,7 +157,7 @@ export function findRegistryRecordByIdentity(rows = [], identity = {}) {
 
 export async function resolveBrandRegistryBinding(identity = {}, deps = {}) {
   const registry = await readGovernedSheetRecords(
-    deps.BRAND_REGISTRY_SHEET,
+    deps.BRAND_REGISTRY_SHEET || "Brand Registry",
     deps.REGISTRY_SPREADSHEET_ID,
     deps
   );
@@ -143,23 +208,20 @@ export async function resolveBrandRegistryBinding(identity = {}, deps = {}) {
 
 export async function hostingerSshRuntimeRead(args = {}, deps = {}) {
   const input = args.input || {};
-  const { sheets } = await deps.getGoogleClientsForSpreadsheet(deps.REGISTRY_SPREADSHEET_ID);
+  const registry = await readGovernedSheetRecords(
+    deps.HOSTING_ACCOUNT_REGISTRY_SHEET || "Hosting Account Registry",
+    deps.REGISTRY_SPREADSHEET_ID,
+    deps
+  );
 
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: String(deps.REGISTRY_SPREADSHEET_ID || "").trim(),
-    range: deps.HOSTING_ACCOUNT_REGISTRY_RANGE
-  });
-
-  const values = response.data.values || [];
-  if (values.length < 2) {
-    const err = new Error("Hosting Account Registry is empty or missing data rows.");
+  const rowObjs = registry.rows || [];
+  if (!rowObjs.length) {
+    const err = new Error("Hosting Account Registry SQL surface is empty or missing data rows.");
     err.code = "hosting_account_registry_empty";
     err.status = 500;
     throw err;
   }
 
-  const [header, ...rows] = values;
-  const rowObjs = rows.map(row => deps.rowToObject(header, row));
   const match = rowObjs.find(rowObj => deps.matchesHostingerSshTarget(rowObj, input));
 
   if (!match) {
@@ -168,7 +230,8 @@ export async function hostingerSshRuntimeRead(args = {}, deps = {}) {
       endpoint_key: "hostinger_ssh_runtime_read",
       resolution_status: "blocked",
       reason: "no_matching_hosting_account_registry_row",
-      authoritative_source: deps.HOSTING_ACCOUNT_REGISTRY_SHEET,
+      authoritative_source: "table.hosting_accounts",
+      legacy_mirror_source: deps.HOSTING_ACCOUNT_REGISTRY_SHEET || "Hosting Account Registry",
       input
     };
   }
@@ -177,7 +240,8 @@ export async function hostingerSshRuntimeRead(args = {}, deps = {}) {
     ok: true,
     endpoint_key: "hostinger_ssh_runtime_read",
     resolution_status: "validated",
-    authoritative_source: deps.HOSTING_ACCOUNT_REGISTRY_SHEET,
+    authoritative_source: "table.hosting_accounts",
+    legacy_mirror_source: deps.HOSTING_ACCOUNT_REGISTRY_SHEET || "Hosting Account Registry",
     hosting_account_key: match.hosting_account_key || "",
     hosting_provider: match.hosting_provider || "",
     account_identifier: match.account_identifier || "",

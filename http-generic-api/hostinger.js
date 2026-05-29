@@ -1,5 +1,10 @@
 // Auto-extracted from server.js — do not edit manually, use domain logic here.
 
+async function readSqlRegistryTable(surfaceName) {
+  const { readTable } = await import("./sqlAdapter.js");
+  return readTable(surfaceName);
+}
+
 function jsonParseSafe(value, fallback) {
   try {
     return value ? JSON.parse(value) : fallback;
@@ -18,6 +23,49 @@ function rowToObject(header, row) {
     out[header[i]] = row[i] ?? "";
   }
   return out;
+}
+
+function isEnabledFlag(value) {
+  return ["1", "true", "yes", "on"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+function allowLegacySheetRegistryRead(deps = {}) {
+  return deps.allowLegacySheetRegistryRead === true || isEnabledFlag(process.env.LEGACY_SHEET_REGISTRY_RUNTIME_ENABLED);
+}
+
+async function readHostingAccountRows(sheetName, deps = {}) {
+  const readSqlSurface = typeof deps.readSqlRegistrySurface === "function"
+    ? deps.readSqlRegistrySurface
+    : readSqlRegistryTable;
+  try {
+    return { rows: await readSqlSurface(sheetName), source: "sql_primary" };
+  } catch (sqlErr) {
+    if (!allowLegacySheetRegistryRead(deps)) {
+      sqlErr.code = sqlErr.code || "sql_hosting_account_registry_read_failed";
+      throw sqlErr;
+    }
+  }
+
+  const {
+    REGISTRY_SPREADSHEET_ID = "",
+    HOSTING_ACCOUNT_REGISTRY_RANGE = "",
+    getGoogleClientsForSpreadsheet,
+    rowToObject: rowToObjectFn = rowToObject
+  } = deps;
+  if (typeof getGoogleClientsForSpreadsheet !== "function") {
+    const err = new Error("Legacy Hostinger sheet fallback requires getGoogleClientsForSpreadsheet dependency.");
+    err.code = "legacy_sheet_dependencies_missing";
+    err.status = 500;
+    throw err;
+  }
+  const { sheets } = await getGoogleClientsForSpreadsheet(REGISTRY_SPREADSHEET_ID);
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: String(REGISTRY_SPREADSHEET_ID || "").trim(),
+    range: HOSTING_ACCOUNT_REGISTRY_RANGE
+  });
+  const values = response.data.values || [];
+  const [header, ...rows] = values;
+  return { rows: rows.map(row => rowToObjectFn(header, row)), source: "legacy_sheet_mirror" };
 }
 
 export function matchesHostingerSshTarget(rowObj, input = {}) {
@@ -63,39 +111,20 @@ export function matchesHostingerSshTarget(rowObj, input = {}) {
 
 export async function hostingerSshRuntimeRead({ input = {} } = {}, deps = {}) {
   const {
-    REGISTRY_SPREADSHEET_ID = "",
-    HOSTING_ACCOUNT_REGISTRY_RANGE = "",
     HOSTING_ACCOUNT_REGISTRY_SHEET = "Hosting Account Registry",
     asBool: asBoolFn = asBool,
-    getGoogleClientsForSpreadsheet,
-    matchesHostingerSshTarget: matchesTarget = matchesHostingerSshTarget,
-    rowToObject: rowToObjectFn = rowToObject
+    matchesHostingerSshTarget: matchesTarget = matchesHostingerSshTarget
   } = deps;
 
-  if (typeof getGoogleClientsForSpreadsheet !== "function") {
-    const err = new Error("Hostinger runtime read requires getGoogleClientsForSpreadsheet dependency.");
-    err.code = "hostinger_dependency_missing";
-    err.status = 500;
-    throw err;
-  }
-
-  const { sheets } = await getGoogleClientsForSpreadsheet(REGISTRY_SPREADSHEET_ID);
-
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: String(REGISTRY_SPREADSHEET_ID || "").trim(),
-    range: HOSTING_ACCOUNT_REGISTRY_RANGE
-  });
-
-  const values = response.data.values || [];
-  if (values.length < 2) {
-    const err = new Error("Hosting Account Registry is empty or missing data rows.");
+  const registry = await readHostingAccountRows(HOSTING_ACCOUNT_REGISTRY_SHEET, deps);
+  const rowObjs = registry.rows || [];
+  if (!rowObjs.length) {
+    const err = new Error("Hosting Account Registry SQL surface is empty or missing data rows.");
     err.code = "hosting_account_registry_empty";
     err.status = 500;
     throw err;
   }
 
-  const [header, ...rows] = values;
-  const rowObjs = rows.map(row => rowToObjectFn(header, row));
   const match = rowObjs.find(rowObj => matchesTarget(rowObj, input));
 
   if (!match) {
@@ -104,7 +133,8 @@ export async function hostingerSshRuntimeRead({ input = {} } = {}, deps = {}) {
       endpoint_key: "hostinger_ssh_runtime_read",
       resolution_status: "blocked",
       reason: "no_matching_hosting_account_registry_row",
-      authoritative_source: HOSTING_ACCOUNT_REGISTRY_SHEET,
+      authoritative_source: "table.hosting_accounts",
+      legacy_mirror_source: HOSTING_ACCOUNT_REGISTRY_SHEET,
       input
     };
   }
@@ -113,7 +143,8 @@ export async function hostingerSshRuntimeRead({ input = {} } = {}, deps = {}) {
     ok: true,
     endpoint_key: "hostinger_ssh_runtime_read",
     resolution_status: "validated",
-    authoritative_source: HOSTING_ACCOUNT_REGISTRY_SHEET,
+    authoritative_source: "table.hosting_accounts",
+    legacy_mirror_source: HOSTING_ACCOUNT_REGISTRY_SHEET,
     hosting_account_key: match.hosting_account_key || "",
     hosting_provider: match.hosting_provider || "",
     account_identifier: match.account_identifier || "",
