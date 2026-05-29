@@ -2999,7 +2999,7 @@
           "Performance Impact Row"
         ],
         "write_guard_surface_scope": [
-          "surface.operations_log_unified_sheet"
+          "table.execution_log"
         ]
       }
     },
