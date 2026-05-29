@@ -3208,9 +3208,9 @@
             "json_asset_registry_is_durable_payload_store": true
           }
         },
-        "execution_log_spreadsheet_id": {
+        "execution_log_table": {
           "type": "string",
-          "default": ""
+          "default": "execution_log"
         },
         "json_asset_registry_spreadsheet_id": {
           "type": "string",
