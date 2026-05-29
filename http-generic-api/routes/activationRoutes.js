@@ -5,6 +5,7 @@ import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.j
 import { ensureSessionArchive } from "../sessionArchiveService.js";
 import { loadSessionSummaryGraphMemory } from "../sessionSummaryService.js";
 import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
+import { buildHardActivationEvidenceMatrix } from "../activationHardEvidence.js";
 import {
   REGISTRY_SPREADSHEET_ID,
   ACTIVITY_SPREADSHEET_ID,
