@@ -116,6 +116,17 @@ const TOOLS_TABLE = {
   tenant: "tenant_platform_endpoint_tools",
 };
 
+const TENANT_BLOCKED_TOOL_PATH_PREFIXES = [
+  "/admin/",
+  "/admin/system/",
+  "/connector/",
+];
+
+function isTenantBlockedToolPath(httpPath = "") {
+  const path = String(httpPath || "").trim();
+  return TENANT_BLOCKED_TOOL_PATH_PREFIXES.some((prefix) => path === prefix.slice(0, -1) || path.startsWith(prefix));
+}
+
 const REPO_INSPECT_DENY_SEGMENTS = new Set([
   ".git",
   ".omx",
