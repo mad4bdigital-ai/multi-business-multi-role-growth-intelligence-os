@@ -3212,9 +3212,9 @@
           "type": "string",
           "default": "execution_log"
         },
-        "json_asset_registry_spreadsheet_id": {
+        "json_asset_registry_table": {
           "type": "string",
-          "default": ""
+          "default": "json_asset_registry"
         },
         "execution_log_sheet_exists": {
           "type": "boolean",
