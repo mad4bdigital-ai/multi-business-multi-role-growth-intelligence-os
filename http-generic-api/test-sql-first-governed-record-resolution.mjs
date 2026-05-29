@@ -102,7 +102,7 @@ const sqlRows = [
 
   assert.equal(result.ok, true);
   assert.equal(result.authoritative_source, 'table.hosting_accounts');
-  assert.equal(result.legacy_mirror_source, 'Hosting Account Registry');
+  assert.equal(result.legacy_mirror_source, undefined);
   assert.equal(result.ssh_available, true);
   assert.equal(result.wp_cli_available, true);
   assert.equal(result.shared_access_enabled, false);
