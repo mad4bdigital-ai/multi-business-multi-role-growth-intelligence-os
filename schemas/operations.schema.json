@@ -861,24 +861,6 @@
             }
           }
         },
-        "metrics_warehouse_workbook": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "id": {
-              "type": "string",
-              "default": "1NsQ2dfGKpNX12k3LoclPvscW3kSyB5_anuXDLd1fgJs"
-            },
-            "title": {
-              "type": "string",
-              "default": "Business Metrics Warehouse"
-            },
-            "role": {
-              "type": "string",
-              "default": "summary_kpi_layer"
-            }
-          }
-        },
         "live_data_workbook": {
           "type": "object",
           "additionalProperties": false,
