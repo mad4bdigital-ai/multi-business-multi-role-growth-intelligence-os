@@ -975,6 +975,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
         deviceRuntimeUrl,
         ADMIN_RECOVERY_URL,
         connectorSecret,
+        connectorLocalApiKey,
         tunnelId,
         tunnelName,
         tunnelToken,
