@@ -861,24 +861,6 @@
             }
           }
         },
-        "review_workbook": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "id": {
-              "type": "string",
-              "default": "1SyFXE8bhcLH1-uWkV8ngd2AlV7B-BI_gvbHRx8ZnB6A"
-            },
-            "title": {
-              "type": "string",
-              "default": "System Integration Review Layer"
-            },
-            "role": {
-              "type": "string",
-              "default": "audit_and_remediation"
-            }
-          }
-        },
         "brands_root_folder_id": {
           "type": "string",
           "default": "1a7I8JOH3XQ-ILkGp4UJDjpOjAqqPb6T6"
