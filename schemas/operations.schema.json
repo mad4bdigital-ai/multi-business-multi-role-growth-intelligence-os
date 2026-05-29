@@ -861,24 +861,6 @@
             }
           }
         },
-        "live_data_workbook": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "id": {
-              "type": "string",
-              "default": "1BQz5KIcub66n6PQf_Qui9wkYVt8WsiyUGEocNbDddTc"
-            },
-            "title": {
-              "type": "string",
-              "default": "Business Live Data Hub"
-            },
-            "role": {
-              "type": "string",
-              "default": "live_data_intake_and_signal_governance"
-            }
-          }
-        },
         "review_workbook": {
           "type": "object",
           "additionalProperties": false,
