@@ -776,8 +776,8 @@ export function buildConnectorAgentRoutes() {
       if (backendToken && token === backendToken) {
         sql += " ORDER BY updated_at DESC LIMIT 1";
       } else {
-        sql += " AND connector_secret = ? ORDER BY updated_at DESC LIMIT 1";
-        params.push(token);
+        sql += " AND (connector_secret = ? OR connector_local_api_key = ?) ORDER BY updated_at DESC LIMIT 1";
+        params.push(token, token);
       }
       const [[config]] = await getPool().query(sql, params);
       if (!config) throw httpError(403, "connector_policy_auth_failed", "Connector policy auth failed.");
