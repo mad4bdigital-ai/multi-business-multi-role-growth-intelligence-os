@@ -373,7 +373,7 @@ function normalizeShellPolicyRow(row) {
   };
 }
 
-function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [], permissionGrants = {} }) {
+function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases, port, capabilities = [], permissionGrants = {} }) {
   const grants = normalizePermissionGrants(permissionGrants);
   const allAliases = [...aliases, ...grants.shell_aliases];
   const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
