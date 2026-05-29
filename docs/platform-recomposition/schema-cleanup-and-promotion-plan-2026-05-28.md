@@ -172,13 +172,13 @@ S4 implemented changes:
 
 ```text
 analytics score signals use source_registry_table / source_connector_key
-analytics source_sheet retained only as legacy_mirror_sheet_name
+analytics source_sheet removed in favor of source_registry_table / source_connector_key
 WordPress preflight uses brand_playbook_asset_key as primary
-brand_playbook_sheet_gid renamed to legacy_brand_playbook_sheet_gid
+brand_playbook_sheet_gid removed from runtime schema contracts
 operations logging_surface uses SQL execution_log table
-operations workbook runtime remnants reclassified as legacy_operations_workbook_runtime_mirror
+operations workbook runtime remnants removed from runtime schema contracts
 business identity source_registry uses registry_source / registry_table / registry_row_id
-business identity spreadsheet metadata moved to legacy_mirror_* fields
+business identity spreadsheet metadata removed from runtime schema contracts
 ```
 
 ### Phase S5 — Runtime enforcement alignment
