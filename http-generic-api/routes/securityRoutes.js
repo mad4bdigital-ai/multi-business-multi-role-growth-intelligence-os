@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
-import { writeAuditLogAsync } from "../auditLogger.js";
+import { writeAuditLog, writeAuditLogAsync } from "../auditLogger.js";
+import { writeAuditPayloadEvidence } from "../auditPayloadEvidence.js";
 
 export function buildSecurityRoutes(deps) {
   const { requireBackendApiKey } = deps;
