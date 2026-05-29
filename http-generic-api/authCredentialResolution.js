@@ -182,7 +182,7 @@ function applyConnectionToContract(contract, connectionResult, mode) {
 
   if (mode === "basic_auth") {
     contract.username = extractCredentialValue(credentials, "username", "user", "email");
-    contract.secret = extractCredentialValue(credentials, "password", "app_password", "secret", "token");
+    contract.secret = extractCredentialValue(credentials, "application_password", "app_password", "password", "secret", "token");
     contract.header_name = "Authorization";
     return true;
   }
