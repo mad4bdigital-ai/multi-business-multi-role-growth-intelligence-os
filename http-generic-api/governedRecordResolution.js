@@ -22,18 +22,15 @@ function buildRecordSetFromRows(rows = [], sheetName = "", deps = {}) {
   const map = typeof deps.headerMap === "function"
     ? deps.headerMap(header, sheetName)
     : Object.fromEntries(header.map((key, idx) => [key, idx]));
-  return { header, rows: rows || [], map, source, authority: source === "sql_primary" ? "sql_runtime_authority" : "legacy_mirror_recovery" };
+  return { header, rows: rows || [], map, source: "sql_primary", authority: "sql_runtime_authority" };
 }
 
 export async function readGovernedSheetRecords(
   sheetName,
-  spreadsheetId,
+  _spreadsheetId,
   deps = {}
 ) {
   const trimmedSheetName = String(sheetName || "").trim();
-  const trimmedSpreadsheetId = String(
-    spreadsheetId || deps.REGISTRY_SPREADSHEET_ID || ""
-  ).trim();
 
   if (!trimmedSheetName) {
     throw createCompatError(deps, "missing_registry_surface", "Registry surface name is required.", 500);
