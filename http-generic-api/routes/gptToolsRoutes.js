@@ -241,7 +241,10 @@ async function fetchTools(callerType) {
       return toolRows;
     }
   );
-  const dbTools = rows.map((r) => ({
+  const visibleRows = callerType === "tenant"
+    ? rows.filter((r) => !isTenantBlockedToolPath(r.http_path))
+    : rows;
+  const dbTools = visibleRows.map((r) => ({
     name: r.tool_key,
     displayName: r.display_name,
     description: r.description,
