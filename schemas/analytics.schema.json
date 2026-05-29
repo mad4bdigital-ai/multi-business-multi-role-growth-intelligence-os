@@ -231,10 +231,6 @@
           "type": "string",
           "default": ""
         },
-        "legacy_mirror_sheet_name": {
-          "type": "string",
-          "default": "Business Intelligence Scoreboard"
-        },
         "last_read_at": {
           "type": "string",
           "default": ""
