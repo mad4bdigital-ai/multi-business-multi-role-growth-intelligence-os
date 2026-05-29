@@ -106,14 +106,6 @@
         "binding_key": {
           "type": "string",
           "default": ""
-        },
-        "legacy_mirror_spreadsheet_id": {
-          "type": "string",
-          "default": ""
-        },
-        "legacy_mirror_worksheet_gid": {
-          "type": "string",
-          "default": ""
         }
       }
     },
