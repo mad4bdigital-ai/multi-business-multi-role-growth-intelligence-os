@@ -728,6 +728,7 @@ export function buildConnectorAgentRoutes() {
       const installer = buildInstallPowerShell({
         cfToken: config.cf_token,
         connectorSecret: config.connector_secret,
+        connectorLocalApiKey: config.connector_local_api_key || '',
         tunnelUrl: config.tunnel_url,
         aliases: DEFAULT_WINDOWS_ALIASES,
         port: CONNECTOR_PORT,
