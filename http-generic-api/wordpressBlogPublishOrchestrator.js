@@ -132,7 +132,7 @@ async function createPost({ brand, credential, postType, payload }, deps = {}) {
   if (typeof fetchImpl !== "function") throw Object.assign(new Error("fetch is not available for WordPress publishing."), { code: "fetch_not_available" });
   const wpBase = normalizeWpJsonBase(brand.base_url || brand.default_wp_api_base || (brand.brand_domain ? `https://${brand.brand_domain}/wp-json` : ""));
   if (!wpBase) throw Object.assign(new Error("WordPress API base URL is unresolved for target."), { code: "wordpress_base_url_unresolved" });
-  const username = str(credential.username || credential.account_label || brand.username || "gpt");
+  const username = str(credential.username || brand.username || "gpt");
   const password = str(credential.secret);
   if (!password) throw Object.assign(new Error("WordPress credential secret is missing after resolution."), { code: "wordpress_secret_missing" });
   const response = await fetchImpl(`${wpBase}/${postType}`, {
@@ -180,7 +180,7 @@ export async function diagnoseWordpressAuthContext(plan = {}, deps = {}) {
   }
   const fetchImpl = deps.fetch || globalThis.fetch;
   const wpBase = normalizeWpJsonBase(brand.base_url || brand.default_wp_api_base || (brand.brand_domain ? `https://${brand.brand_domain}/wp-json` : ""));
-  const username = str(credential.username || credential.account_label || brand.username || "gpt");
+  const username = str(credential.username || brand.username || "gpt");
   const password = str(credential.secret);
   const response = await fetchImpl(`${wpBase}/users/me?context=edit`, {
     method: "GET",
