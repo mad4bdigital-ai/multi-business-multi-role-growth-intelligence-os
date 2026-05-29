@@ -960,6 +960,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
          device_runtime_url = VALUES(device_runtime_url),
          admin_recovery_url = VALUES(admin_recovery_url),
          connector_secret = VALUES(connector_secret),
+         connector_local_api_key = VALUES(connector_local_api_key),
          cf_tunnel_id = VALUES(cf_tunnel_id),
          cf_tunnel_name = VALUES(cf_tunnel_name),
          cf_token = VALUES(cf_token),
