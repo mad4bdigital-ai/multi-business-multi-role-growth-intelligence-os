@@ -812,6 +812,10 @@ export function buildConnectorAgentRoutes() {
         user_id: config.user_id,
         tenant_id: config.tenant_id,
         device_id: config.device_id,
+        auth: {
+          connector_secret_configured: Boolean(config.connector_secret),
+          connector_local_api_key_configured: Boolean(config.connector_local_api_key),
+        },
         policy_version: String(policyVersion),
         checksum,
         shell_aliases: aliases,
