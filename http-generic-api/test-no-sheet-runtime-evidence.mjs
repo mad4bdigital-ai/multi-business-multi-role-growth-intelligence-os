@@ -48,7 +48,9 @@ const files = [
 for (const file of files) {
   const content = readFileSync(file, 'utf8');
   for (const term of banned) {
-    assert(!content.includes(term), `${file} must not contain removed sheet runtime evidence term: ${term}`);
+    const index = content.indexOf(term);
+    const snippet = index >= 0 ? content.slice(Math.max(0, index - 160), index + term.length + 160) : '';
+    assert(index === -1, `${file} must not contain removed sheet runtime evidence term: ${term}\n${snippet}`);
   }
 }
 
