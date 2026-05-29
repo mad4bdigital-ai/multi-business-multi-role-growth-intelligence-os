@@ -186,6 +186,62 @@ components:
         - type: boolean
         - type: "null"
 
+    HardActivationRunRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        tenant_id: { type: string }
+        user_id: { type: string }
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+        include_raw: { type: boolean, default: false }
+        close_previous_sessions: { type: boolean, default: false }
+        provider_arguments:
+          type: object
+          additionalProperties: true
+
+    HardActivationEvidenceStep:
+      type: object
+      additionalProperties: true
+      properties:
+        attempted: { type: boolean }
+        ok: { type: boolean, nullable: true }
+        activation_layer: { type: string, nullable: true }
+        evidence_source: { type: string, nullable: true }
+
+    HardActivationRunResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, activation_layer, activation_complete, runtime_classification, evidence_matrix, report_policy, secrets_included]
+      properties:
+        ok: { type: boolean }
+        activation_layer: { type: string, enum: [hard_activation_orchestrator] }
+        activation_complete: { type: boolean }
+        runtime_classification:
+          type: object
+          additionalProperties: true
+          properties:
+            activation_status: { type: string }
+            status_authority: { type: string }
+            reason_code: { type: string }
+        evidence_matrix:
+          type: object
+          additionalProperties: true
+          properties:
+            session_context: { $ref: "#/components/schemas/HardActivationEvidenceStep" }
+            provider_bootstrap: { $ref: "#/components/schemas/HardActivationEvidenceStep" }
+        report_policy:
+          type: object
+          additionalProperties: true
+          properties:
+            may_report_session_context_loaded: { type: boolean }
+            may_report_activation_complete: { type: boolean }
+            session_context_claim_requires: { type: string }
+        secrets_included: { type: boolean, enum: [false] }
+
     AuditPayloadEvidenceSmokeRequest:
       type: object
       additionalProperties: false
