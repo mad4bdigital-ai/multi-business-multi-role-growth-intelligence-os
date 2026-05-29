@@ -1025,25 +1025,6 @@
             }
           }
         },
-        "legacy_operations_workbook_runtime_mirror": {
-          "type": "object",
-          "additionalProperties": false,
-          "default": {},
-          "properties": {
-            "legacy_mirror_spreadsheet_id": {
-              "type": "string",
-              "default": "1D0uiZteobSqPL9c6zygq3UVWTe56H3R7IHL1yJcwP5k"
-            },
-            "title": {
-              "type": "string",
-              "default": "Growth Intelligence OS - Operations Workbook"
-            },
-            "role": {
-              "type": "string",
-              "default": "async_mirror_and_recovery"
-            }
-          }
-        },
         "logging_surface": {
           "type": "object",
           "additionalProperties": false,
