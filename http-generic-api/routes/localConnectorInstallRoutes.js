@@ -725,7 +725,7 @@ function buildInstallScript({ cfToken, connectorSecret, connectorLocalApiKey = '
   ].join("\r\n");
 }
 
-function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [], permissionGrants = {} }) {
+function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases, port, capabilities = [], permissionGrants = {} }) {
   const grants = normalizePermissionGrants(permissionGrants);
   const allAliases = [...aliases, ...grants.shell_aliases];
   const allowlistVal = buildAllowlistEnvValue(allAliases);
