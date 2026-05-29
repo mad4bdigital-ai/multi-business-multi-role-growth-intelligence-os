@@ -83,6 +83,7 @@ async function resolveDeviceConfig(userId, deviceId, { isAdmin = false, tenantId
                            device_runtime_url,
                            admin_recovery_url,
                            connector_secret,
+                           connector_local_api_key,
                            user_id,
                            tenant_id,
                            device_id,
