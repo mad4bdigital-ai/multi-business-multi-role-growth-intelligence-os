@@ -683,7 +683,7 @@ function policyBody() {
     platform: process.platform,
     auth: {
       credential: 'CONNECTOR_SECRET',
-      supported_headers: ['Authorization: Bearer <CONNECTOR_SECRET>', 'x-connector-secret'],
+      supported_headers: ['Authorization: Bearer <CONNECTOR_SECRET>', 'x-connector-secret', 'x-api-key'],
       local_api_key_alias_enabled: !CONNECTOR_SECRET && Boolean(CONNECTOR_LOCAL_API_KEY),
       legacy_backend_api_key_fallback_enabled: !CONNECTOR_SECRET && !CONNECTOR_LOCAL_API_KEY && Boolean(LEGACY_BACKEND_API_KEY),
     },
