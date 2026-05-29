@@ -64,10 +64,10 @@ const sqlRows = [
         throw new Error('sql unavailable');
       },
       async getGoogleClientsForSpreadsheet() {
-        throw new Error('should not use sheets without flag');
+        throw new Error('should never use sheets');
       },
     }),
-    /Legacy sheet fallback is disabled/
+    /Runtime registry reads do not fall back to sheets/
   );
 }
 
