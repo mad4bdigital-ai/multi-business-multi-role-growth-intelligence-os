@@ -2412,7 +2412,7 @@
         "operations_context.execution_logging.last_execution_score": "Most recent execution score written or prepared for the authoritative execution log.",
         "operations_context.execution_logging.last_optimization_trigger": "Most recent optimization trigger written or prepared for the authoritative execution log.",
         "operations_context.execution_logging.last_output_summary": "Most recent concise output summary prepared for the canonical execution ledger.",
-        "operations_context.execution_logging.logging_sink_surface_id": "Authoritative operational logging sink surface_id resolved for the active execution, expected to be surface.operations_log_unified_sheet when active.",
+        "operations_context.execution_logging.logging_sink_surface_id": "Authoritative operational logging sink table resolved for the active execution, expected to be table.execution_log when active.",
         "operations_context.execution_logging.logging_write_status": "Current write status for the authoritative execution log handoff.",
         "operations_context.execution_logging.pre_response_log_guard_passed": "Whether required canonical execution logging completed before the user-facing response.",
         "execution_logging_state.logging_sink_role": "Role of the resolved runtime logging sink. authoritative_raw_execution_log indicates the single source of raw execution truth.",
