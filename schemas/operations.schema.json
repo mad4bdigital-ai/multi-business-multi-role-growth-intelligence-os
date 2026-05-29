@@ -1166,10 +1166,6 @@
               "type": "string",
               "default": ""
             },
-            "legacy_brand_playbook_sheet_gid": {
-              "type": "string",
-              "default": ""
-            },
             "playbook_coverage_status": {
               "type": "string",
               "default": "",
