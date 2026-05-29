@@ -180,7 +180,6 @@ export async function hostingerSshRuntimeRead(args = {}, deps = {}) {
       resolution_status: "blocked",
       reason: "no_matching_hosting_account_registry_row",
       authoritative_source: "table.hosting_accounts",
-      legacy_mirror_source: deps.HOSTING_ACCOUNT_REGISTRY_SHEET || "Hosting Account Registry",
       input
     };
   }
