@@ -793,8 +793,8 @@ function buildInstallPowerShellBootstrapBat({ ps1Url, deviceId, appManaged = fal
   ].join("\r\n");
 }
 
-function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
-  const envText = buildConnectorEnv({ connectorSecret, aliases, port, capabilities, permissionGrants });
+function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey = '', tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
+  const envText = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases, port, capabilities, permissionGrants });
   return [
     "# Mad4B Local Connector — run once as Administrator",
     "$ErrorActionPreference = 'Stop'",
