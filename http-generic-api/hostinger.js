@@ -104,7 +104,6 @@ export async function hostingerSshRuntimeRead({ input = {} } = {}, deps = {}) {
     endpoint_key: "hostinger_ssh_runtime_read",
     resolution_status: "validated",
     authoritative_source: "table.hosting_accounts",
-    legacy_mirror_source: HOSTING_ACCOUNT_REGISTRY_SHEET,
     hosting_account_key: match.hosting_account_key || "",
     hosting_provider: match.hosting_provider || "",
     account_identifier: match.account_identifier || "",
