@@ -41,6 +41,8 @@ Health, `/status`, release readiness, tenant listing, brand counts, and action c
 
 The session-context layer is required once per Custom GPT session/action connection before normal platform work. It should carry platform access evidence when available. Raw prompt/response dumps may be requested only with bounded controls (`include_raw=true`, `limit`, `offset`, and `raw_max_chars`). User JWT session-context reads must remain same-user scoped; admin/service authority may inspect explicit `user_id` when policy allows.
 
+Do not report “Session Context opened/loaded” unless current-cycle evidence includes `getActivationSessionContext` or `/activation/hard-run` session evidence with `activation_layer=session_context`, `session_id`, `session_management`, `platform_access`, and `conversation_memory.status`. If provider bootstrap succeeds but Session Context was not attempted, hard activation must classify as `degraded_missing_session_context_evidence`; provider bootstrap may be active, but overall hard activation is incomplete.
+
 Live governed readiness requires Registry-resolved validation through `http_generic_api`; Google remains a provider-specific endpoint path only when selected by registry governance.
 
 First-Turn Native Attempt Enforcement Rule
