@@ -199,12 +199,12 @@ schema validation tests
 S5 implemented changes:
 
 ```text
-readGovernedSheetRecords is now a SQL-first compatibility wrapper
-Brand Registry and Hosting Account Registry reads use sqlAdapter/readTable by default
-legacy Google Sheets fallback is disabled unless LEGACY_SHEET_REGISTRY_RUNTIME_ENABLED or allowLegacySheetRegistryRead=true is set
+readGovernedSheetRecords is now a SQL-only compatibility wrapper
+Brand Registry and Hosting Account Registry reads use sqlAdapter/readTable only
+Google Sheets fallback is removed from governed runtime registry reads
 hostingerSshRuntimeRead reports table.hosting_accounts as authoritative_source
-legacy sheet names are returned only as legacy_mirror_source
-new tests cover SQL-first registry resolution and disabled legacy fallback
+runtime responses no longer return legacy sheet mirror evidence
+new tests cover SQL-only registry resolution and reject sheet fallback
 ```
 
 Compatibility note:
