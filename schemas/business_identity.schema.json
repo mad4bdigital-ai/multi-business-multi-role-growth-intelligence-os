@@ -55,7 +55,10 @@
           "properties": {
             "registry_source": {
               "type": "string",
-              "enum": ["sql_primary", "recovery_import"],
+              "enum": [
+                "sql_primary",
+                "recovery_import"
+              ],
               "default": "sql_primary"
             },
             "registry_table": {
@@ -63,18 +66,6 @@
               "minLength": 1
             },
             "registry_row_id": {
-              "type": "string",
-              "default": ""
-            },
-            "legacy_mirror_spreadsheet_id": {
-              "type": "string",
-              "default": ""
-            },
-            "legacy_mirror_sheet_name": {
-              "type": "string",
-              "default": ""
-            },
-            "legacy_mirror_sheet_title": {
               "type": "string",
               "default": ""
             }
@@ -93,26 +84,7 @@
           "default": {},
           "additionalProperties": true
         }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "file_type": {
-                "const": "spreadsheet"
-              }
-            },
-            "required": [
-              "file_type"
-            ]
-          },
-          "then": {
-            "required": [
-              "legacy_mirror_gid"
-            ]
-          }
-        }
-      ]
+      }
     },
     "sessionContext": {
       "type": "object",
