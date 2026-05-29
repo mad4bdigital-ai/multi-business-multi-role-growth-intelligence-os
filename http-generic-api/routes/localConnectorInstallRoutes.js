@@ -675,8 +675,8 @@ function buildAllowlistEnvValue(aliases) {
   return JSON.stringify(obj);
 }
 
-function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
-  const envEchoLines = buildConnectorEnv({ connectorSecret, aliases, port, capabilities, permissionGrants })
+function buildInstallScript({ cfToken, connectorSecret, connectorLocalApiKey = '', tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
+  const envEchoLines = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases, port, capabilities, permissionGrants })
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line, index) => `echo ${line}${index === 0 ? ">" : ">>"} \"%~dp0.env\"`);
