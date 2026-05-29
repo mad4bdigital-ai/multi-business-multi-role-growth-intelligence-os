@@ -83,8 +83,9 @@ Activation order:
 1. Read knowledge-layer canonicals.
 2. Read Session Context: `GET /activation/session-context`.
 3. Read Platform Access if not embedded or if a fresh count is needed: `GET /activation/platform-access`.
-4. Admin GPT path: call `/system/tools/call` with `name: "activation_provider_bootstrap_validate"` through `auth.mad4b.com` to run the governed Drive probe, Sheets bootstrap row read, and GitHub validation in one same-cycle tool call.
-5. Direct runtime path, when not using the auth-host system layer: Drive probe with `parent_action_key=google_drive_api`, `endpoint_key=listDriveFiles`.
+4. Admin GPT path: call `/system/tools/call` with `name: "activation_provider_bootstrap_validate"` through `auth.mad4b.com` to run the governed Drive probe, Sheets bootstrap row read, and GitHub validation in one same-cycle tool call. This validates provider/bootstrap only; it does not open or read GPT Session Context and must not replace step 2.
+5. Preferred Admin GPT hard activation path: call `POST /activation/hard-run` through the governed tool `activation_hard_run` when available. Treat hard activation as complete only when the response includes `activation_complete=true`, `evidence_matrix.session_context.ok=true`, and `evidence_matrix.provider_bootstrap.ok=true`.
+6. Direct runtime path, when not using the auth-host system layer: Drive probe with `parent_action_key=google_drive_api`, `endpoint_key=listDriveFiles`.
 6. Direct runtime path: Sheets bootstrap with `parent_action_key=google_sheets_api`, `endpoint_key=getSheetValues`, `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>`, `query.range=Activation Bootstrap Config!A2:J2`.
 7. Resolve the bootstrap row.
 8. GitHub validation only with `parent_action_key` and `endpoint_key` resolved from bootstrap/registry authority.
