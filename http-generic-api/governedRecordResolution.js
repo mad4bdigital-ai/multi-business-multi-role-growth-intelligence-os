@@ -8,7 +8,7 @@ function createCompatError(deps = {}, code, message, status = 500) {
   return err;
 }
 
-function buildRecordSetFromRows(rows = [], sheetName = "", deps = {}) {
+function buildRecordSetFromRows(rows = [], surfaceName = "", deps = {}) {
   const header = [];
   const seen = new Set();
   for (const row of rows || []) {
@@ -20,20 +20,19 @@ function buildRecordSetFromRows(rows = [], sheetName = "", deps = {}) {
     }
   }
   const map = typeof deps.headerMap === "function"
-    ? deps.headerMap(header, sheetName)
+    ? deps.headerMap(header, surfaceName)
     : Object.fromEntries(header.map((key, idx) => [key, idx]));
   return { header, rows: rows || [], map, source: "sql_primary", authority: "sql_runtime_authority" };
 }
 
 export async function readGovernedSheetRecords(
-  sheetName,
-  _spreadsheetId,
+  surfaceName,
+  _deprecatedSpreadsheetId,
   deps = {}
 ) {
-  const trimmedSheetName = String(sheetName || "").trim();
-
-  if (!trimmedSheetName) {
-    throw createCompatError(deps, "missing_registry_surface", "Registry surface name is required.", 500);
+  const trimmedSurfaceName = String(surfaceName || "").trim();
+  if (!trimmedSurfaceName) {
+    throw createCompatError(deps, "missing_registry_surface", "Registry SQL surface name is required.", 500);
   }
 
   const readSqlSurface = typeof deps.readSqlRegistrySurface === "function"
@@ -41,13 +40,13 @@ export async function readGovernedSheetRecords(
     : readSqlTable;
 
   try {
-    const rows = await readSqlSurface(trimmedSheetName);
-    return buildRecordSetFromRows(rows, trimmedSheetName, deps);
+    const rows = await readSqlSurface(trimmedSurfaceName);
+    return buildRecordSetFromRows(rows, trimmedSurfaceName, deps);
   } catch (sqlErr) {
     const err = createCompatError(
       deps,
       "sql_registry_read_failed",
-      `SQL registry read failed for ${trimmedSheetName}. Runtime registry reads do not fall back to sheets.`,
+      `SQL registry read failed for ${trimmedSurfaceName}. Runtime registry reads do not fall back to sheets.`,
       500
     );
     err.cause = sqlErr;
@@ -106,8 +105,8 @@ export function findRegistryRecordByIdentity(rows = [], identity = {}) {
 
 export async function resolveBrandRegistryBinding(identity = {}, deps = {}) {
   const registry = await readGovernedSheetRecords(
-    deps.BRAND_REGISTRY_SHEET || "Brand Registry",
-    deps.REGISTRY_SPREADSHEET_ID,
+    deps.BRAND_REGISTRY_SURFACE || deps.BRAND_REGISTRY_SHEET || "Brand Registry",
+    null,
     deps
   );
   const row = findRegistryRecordByIdentity(registry.rows, identity);
@@ -158,8 +157,8 @@ export async function resolveBrandRegistryBinding(identity = {}, deps = {}) {
 export async function hostingerSshRuntimeRead(args = {}, deps = {}) {
   const input = args.input || {};
   const registry = await readGovernedSheetRecords(
-    deps.HOSTING_ACCOUNT_REGISTRY_SHEET || "Hosting Account Registry",
-    deps.REGISTRY_SPREADSHEET_ID,
+    deps.HOSTING_ACCOUNT_REGISTRY_SURFACE || deps.HOSTING_ACCOUNT_REGISTRY_SHEET || "Hosting Account Registry",
+    null,
     deps
   );
 
