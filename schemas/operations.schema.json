@@ -839,24 +839,6 @@
             }
           }
         },
-        "legacy_registry_workbook_mirror": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "id": {
-              "type": "string",
-              "default": "1RV185rQo58pGppg27r81eD9hPE8pXPyBY1pfHANip4o"
-            },
-            "title": {
-              "type": "string",
-              "default": "Growth Intelligence OS - Registry Workbook"
-            },
-            "role": {
-              "type": "string",
-              "default": "async_mirror_and_recovery"
-            }
-          }
-        },
         "operations_database_binding": {
           "type": "object",
           "additionalProperties": false,
