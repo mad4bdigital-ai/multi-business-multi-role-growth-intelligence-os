@@ -42,57 +42,17 @@ export async function readGovernedSheetRecords(
 
   try {
     const rows = await readSqlSurface(trimmedSheetName);
-    return buildRecordSetFromRows(rows, trimmedSheetName, deps, "sql_primary");
+    return buildRecordSetFromRows(rows, trimmedSheetName, deps);
   } catch (sqlErr) {
-    if (!allowLegacySheetRegistryRead(deps)) {
-      const err = createCompatError(
-        deps,
-        "sql_registry_read_failed",
-        `SQL registry read failed for ${trimmedSheetName}. Legacy sheet fallback is disabled.`,
-        500
-      );
-      err.cause = sqlErr;
-      throw err;
-    }
+    const err = createCompatError(
+      deps,
+      "sql_registry_read_failed",
+      `SQL registry read failed for ${trimmedSheetName}. Runtime registry reads do not fall back to sheets.`,
+      500
+    );
+    err.cause = sqlErr;
+    throw err;
   }
-
-  if (!trimmedSpreadsheetId) {
-    throw createCompatError(deps, "missing_legacy_spreadsheet_id", "Legacy spreadsheet id is required only for recovery mirror fallback.", 500);
-  }
-  if (
-    typeof deps.assertSheetExistsInSpreadsheet !== "function" ||
-    typeof deps.getGoogleClientsForSpreadsheet !== "function" ||
-    typeof deps.toValuesApiRange !== "function"
-  ) {
-    throw createCompatError(deps, "legacy_sheet_dependencies_missing", "Legacy sheet fallback dependencies are not available.", 500);
-  }
-
-  await deps.assertSheetExistsInSpreadsheet(trimmedSpreadsheetId, trimmedSheetName);
-  const { sheets } = await deps.getGoogleClientsForSpreadsheet(trimmedSpreadsheetId);
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: trimmedSpreadsheetId,
-    range: deps.toValuesApiRange(trimmedSheetName, "A:AZ")
-  });
-
-  const values = response.data.values || [];
-  if (!values.length) {
-    return { header: [], rows: [], map: {}, source: "legacy_sheet_mirror", authority: "legacy_mirror_recovery" };
-  }
-
-  const header = (values[0] || []).map(value => String(value || "").trim());
-  const map = typeof deps.headerMap === "function"
-    ? deps.headerMap(header, trimmedSheetName)
-    : Object.fromEntries(header.map((key, idx) => [key, idx]));
-  const rows = values.slice(1).map(row => {
-    const record = {};
-    header.forEach((key, idx) => {
-      if (!key) return;
-      record[key] = row[idx] ?? "";
-    });
-    return record;
-  });
-
-  return { header, rows, map, source: "legacy_sheet_mirror", authority: "legacy_mirror_recovery" };
 }
 
 export function normalizeLooseHostname(value = "") {
