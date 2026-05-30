@@ -58,19 +58,49 @@ function ambiguousDeviceError(deviceId, rows) {
 async function resolveCanonicalDeviceId({ deviceId, userId = null, tenantId = null }) {
   const requested = String(deviceId || "").trim();
   if (!requested) return "";
+
+  const normalized = requested.toLowerCase();
+  const platformTenantId = "00000000-0000-0000-0000-000000000000";
+  const params = [normalized];
+  let scopeSql = "";
+
+  if (userId) {
+    scopeSql += " AND (user_id = ? OR user_id IS NULL)";
+    params.push(userId);
+  }
+  if (tenantId) {
+    scopeSql += " AND (tenant_id = ? OR tenant_id = ? OR tenant_id IS NULL)";
+    params.push(tenantId, platformTenantId);
+  }
+
   try {
     const [rows] = await getPool().query(
-      `SELECT canonical_device_id
+      `SELECT alias_device_id, canonical_device_id, canonical_config_id, user_id, tenant_id, updated_at
          FROM \`local_connector_device_aliases\`
-        WHERE alias_device_id = ?
+        WHERE LOWER(alias_device_id) = ?
           AND status = 'active'
-          AND (user_id = ? OR user_id IS NULL)
-          AND (tenant_id = ? OR tenant_id IS NULL)
-        ORDER BY (user_id IS NOT NULL) DESC, (tenant_id IS NOT NULL) DESC, updated_at DESC
-        LIMIT 1`,
-      [requested, userId, tenantId]
+          ${scopeSql}
+        ORDER BY CASE WHEN user_id = ? THEN 0 WHEN user_id IS NULL THEN 2 ELSE 1 END,
+                 CASE WHEN tenant_id = ? THEN 0 WHEN tenant_id = ? THEN 1 WHEN tenant_id IS NULL THEN 3 ELSE 2 END,
+                 updated_at DESC
+        LIMIT 10`,
+      [...params, userId || "", tenantId || "", platformTenantId]
     );
-    return rows[0]?.canonical_device_id || requested;
+    if (!rows.length) return requested;
+
+    const canonicalIds = [...new Set(rows.map((row) => String(row.canonical_device_id || "").trim()).filter(Boolean))];
+    if (canonicalIds.length === 1) return canonicalIds[0];
+
+    // Admin/global requests may see multiple alias rows. Treat them as safe only
+    // when every matching row resolves to the same active config; otherwise leave
+    // the original device id so resolveDeviceConfig can return its normal 404/409.
+    const configIds = [...new Set(rows.map((row) => String(row.canonical_config_id || "").trim()).filter(Boolean))];
+    if (configIds.length === 1) {
+      const rowWithConfig = rows.find((row) => String(row.canonical_config_id || "").trim() === configIds[0]);
+      return String(rowWithConfig?.canonical_device_id || "").trim() || requested;
+    }
+
+    return requested;
   } catch {
     return requested;
   }
