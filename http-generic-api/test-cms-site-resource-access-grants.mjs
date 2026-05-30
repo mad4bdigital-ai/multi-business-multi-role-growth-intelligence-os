@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const resolver = readFileSync('cmsAccountClaimResolver.js', 'utf8');
+const connectApi = readFileSync('routes/connectApiRoutes.js', 'utf8');
 const migration = readFileSync('migrations/160_sprint66_cms_site_resource_access_grants.sql', 'utf8');
 
 assert(migration.includes('CREATE TABLE IF NOT EXISTS cms_sites'), 'migration must create canonical CMS site resources');
