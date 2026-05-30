@@ -224,6 +224,93 @@ function parseJson(value) {
   try { return JSON.parse(value); } catch { return null; }
 }
 
+function normalizeResponseOptions(value = {}) {
+  const options = value && typeof value === "object" ? value : {};
+  return {
+    maxChars: clampNumber(options.max_chars ?? options.max_response_chars, DEFAULT_TOOL_RESPONSE_MAX_CHARS, 5000, MAX_TOOL_RESPONSE_MAX_CHARS),
+    cursor: clampNumber(options.cursor ?? options.response_cursor, 0, 0, Number.MAX_SAFE_INTEGER),
+  };
+}
+
+function cleanupToolResponseChunkCache(now = Date.now()) {
+  for (const [chunkId, entry] of TOOL_RESPONSE_CHUNK_CACHE.entries()) {
+    if (!entry?.expiresAt || entry.expiresAt <= now) TOOL_RESPONSE_CHUNK_CACHE.delete(chunkId);
+  }
+}
+
+function buildToolResponseChunk({ serialized, chunkId, cursor, maxChars, source = "tool_response_cache" }) {
+  const safeCursor = Math.min(Math.max(0, Number(cursor) || 0), serialized.length);
+  const end = Math.min(safeCursor + maxChars, serialized.length);
+  return {
+    ok: true,
+    response_chunked: true,
+    chunk_id: chunkId,
+    source,
+    page: {
+      cursor: safeCursor,
+      next_cursor: end < serialized.length ? end : null,
+      has_more: end < serialized.length,
+      max_chars: maxChars,
+      returned_chars: end - safeCursor,
+      total_chars: serialized.length,
+    },
+    chunk: serialized.slice(safeCursor, end),
+  };
+}
+
+function storeToolResponseForChunks(body) {
+  cleanupToolResponseChunkCache();
+  const serialized = JSON.stringify(body ?? {});
+  const now = Date.now();
+  const chunkId = crypto.randomUUID();
+  TOOL_RESPONSE_CHUNK_CACHE.set(chunkId, {
+    serialized,
+    createdAt: now,
+    expiresAt: now + TOOL_RESPONSE_CHUNK_TTL_MS,
+  });
+  return { chunkId, serialized };
+}
+
+function maybeChunkToolResponseBody(body, optionsSource = {}) {
+  const options = normalizeResponseOptions(optionsSource?.response_options || optionsSource?._response || {});
+  const serialized = JSON.stringify(body ?? {});
+  if (serialized.length <= options.maxChars) return body;
+  const { chunkId } = storeToolResponseForChunks(body);
+  return buildToolResponseChunk({
+    serialized,
+    chunkId,
+    cursor: 0,
+    maxChars: options.maxChars,
+    source: "tool_response_auto_chunk",
+  });
+}
+
+function readCachedToolResponseChunk(args = {}) {
+  const chunkId = String(args.chunk_id || "").trim();
+  if (!chunkId) {
+    const err = new Error("chunk_id is required.");
+    err.status = 400;
+    err.code = "missing_chunk_id";
+    throw err;
+  }
+  cleanupToolResponseChunkCache();
+  const entry = TOOL_RESPONSE_CHUNK_CACHE.get(chunkId);
+  if (!entry) {
+    const err = new Error("response chunk was not found or has expired.");
+    err.status = 404;
+    err.code = "response_chunk_not_found";
+    throw err;
+  }
+  const options = normalizeResponseOptions(args);
+  return buildToolResponseChunk({
+    serialized: entry.serialized,
+    chunkId,
+    cursor: options.cursor,
+    maxChars: options.maxChars,
+    source: "tool_response_cache",
+  });
+}
+
 export function resolveCallerTypeForRequest(req) {
   return resolveCallerType(req);
 }
