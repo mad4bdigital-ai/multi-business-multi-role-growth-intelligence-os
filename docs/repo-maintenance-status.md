@@ -71,6 +71,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Schema / Plugin / OpenAPI Tests
 
+- `http-generic-api/test-connector-schema-drift-compat.mjs`
 - `http-generic-api/test-custom-gpt-schemas.mjs`
 - `http-generic-api/test-endpoint-schema-resolver.mjs`
 - `http-generic-api/test-execution-preparation-schema-overlay.mjs`
