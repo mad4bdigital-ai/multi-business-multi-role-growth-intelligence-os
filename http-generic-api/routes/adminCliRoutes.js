@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { spawn } from "child_process";
 import { writeAuditLogAsync } from "../auditLogger.js";
 import { getPool } from "../db.js";
@@ -15,6 +15,15 @@ const LOCAL_WINDOWS_APP_CONTROL_ENABLED_ENV = "LOCAL_WINDOWS_APP_CONTROL_ENABLED
 const ADMIN_SHELL_ALLOWLIST_ENV = "ADMIN_SHELL_ALLOWLIST";
 const ADMIN_SHELL_ENABLED_ENV   = "ADMIN_SHELL_ENABLED";
 const EXTRA_ARG_UNSAFE_PATTERN  = /[;&|`$<>\\!{}()\n\r]/;
+const GITHUB_CONTENTS_WRITE_DENY_SEGMENTS = new Set([".git", ".omx", ".codex", "node_modules", "secrets", "tmp", "dist", "build", "coverage"]);
+const GITHUB_CONTENTS_WRITE_DENY_FILE_PATTERNS = [
+  /^\.env(?:\.|$)/i,
+  /^credentials(?:\..*)?\.json$/i,
+  /^token(?:\..*)?\.json$/i,
+  /^service[-_]?account.*\.json$/i,
+  /^private[-_]?key.*\.(?:json|key|pem)$/i,
+  /\.(?:key|p12|pem|pfx)$/i,
+];
 const WINDOWS_PATH_ARG_KEYS = new Set([
   "--current-path",
   "--new-path",
@@ -602,6 +611,67 @@ function encodeGithubRefPath(refName) {
   return String(refName || "").split("/").map((part) => encodeURIComponent(part)).join("/");
 }
 
+function decodeGithubApiPathSegment(value = "") {
+  try {
+    return decodeURIComponent(String(value || ""));
+  } catch {
+    return String(value || "");
+  }
+}
+
+function githubContentsPathFromApiTarget(apiTarget = "") {
+  const normalized = String(apiTarget || "");
+  const marker = "/contents/";
+  if (!normalized.startsWith(marker)) return "";
+  return normalized
+    .slice(marker.length)
+    .split("/")
+    .filter(Boolean)
+    .map(decodeGithubApiPathSegment)
+    .join("/");
+}
+
+function assertGithubContentsWritePathAllowed(apiTarget = "") {
+  const filePath = githubContentsPathFromApiTarget(apiTarget);
+  if (!filePath) {
+    const err = new Error("GitHub contents write fallback requires /contents/{path}.");
+    err.status = 400;
+    err.code = "github_rest_contents_path_required";
+    throw err;
+  }
+  const parts = filePath.replace(/\\/g, "/").split("/").filter(Boolean);
+  if (parts.some((part) => part === "..")) {
+    const err = new Error("GitHub contents write fallback blocks parent directory references.");
+    err.status = 400;
+    err.code = "github_rest_contents_path_traversal";
+    throw err;
+  }
+  if (parts.some((part) => GITHUB_CONTENTS_WRITE_DENY_SEGMENTS.has(part.toLowerCase()))) {
+    const err = new Error("GitHub contents write fallback blocks this repository segment.");
+    err.status = 403;
+    err.code = "github_rest_contents_path_blocked";
+    throw err;
+  }
+  if (filePath.toLowerCase().startsWith(".github/workflows/")) {
+    const err = new Error("GitHub contents write fallback blocks workflow file mutation.");
+    err.status = 403;
+    err.code = "github_rest_contents_workflow_blocked";
+    throw err;
+  }
+  const baseName = parts[parts.length - 1] || "";
+  if (GITHUB_CONTENTS_WRITE_DENY_FILE_PATTERNS.some((pattern) => pattern.test(baseName))) {
+    const err = new Error("GitHub contents write fallback blocks this file name.");
+    err.status = 403;
+    err.code = "github_rest_contents_file_blocked";
+    throw err;
+  }
+  return filePath;
+}
+
+function githubContentsMutationAllowed(apiTarget = "", method = "GET") {
+  return ["PUT", "DELETE"].includes(String(method || "").toUpperCase()) && String(apiTarget || "").startsWith("/contents/");
+}
+
 async function githubRestJson({ owner, repo, apiPath, token, method = "GET", body = null }) {
   const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${apiPath}`, {
     method,
@@ -647,6 +717,46 @@ async function githubRestText({ owner, repo, apiPath, token }) {
     throw err;
   }
   return text;
+}
+
+function assertGithubGraphqlReadOnly(query = "") {
+  const compact = String(query || "").replace(/#[^\n\r]*/g, " ").trim();
+  if (!compact) {
+    const err = new Error("GraphQL fallback requires a query field.");
+    err.status = 400;
+    err.code = "github_rest_graphql_query_required";
+    throw err;
+  }
+  if (/\b(?:mutation|subscription)\b/i.test(compact)) {
+    const err = new Error("GitHub GraphQL fallback supports read-only query operations only.");
+    err.status = 403;
+    err.code = "github_rest_graphql_mutation_blocked";
+    throw err;
+  }
+  return compact;
+}
+
+async function githubGraphqlJson({ token, body }) {
+  const response = await fetch("https://api.github.com/graphql", {
+    method: "POST",
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "mad4b-admin-control-github-rest-fallback",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body || {}),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.errors) {
+    const err = new Error(payload?.message || payload?.errors?.[0]?.message || `GitHub GraphQL request failed with HTTP ${response.status}.`);
+    err.status = response.status >= 400 && response.status < 500 ? response.status : 502;
+    err.code = response.status === 422 ? "github_graphql_validation_failed" : "github_graphql_failed";
+    err.details = { status: response.status, github_error: payload || null };
+    throw err;
+  }
+  return payload;
 }
 
 function encodeCompareRef(refName) {
@@ -718,6 +828,29 @@ async function executeGitHubRestFallback(args = []) {
   const token = await getGitHubAppInstallationToken({});
   const fields = parseGithubJsonFields(args);
 
+  if (resource === "api" && command === "graphql") {
+    const fieldValues = parseGithubFieldValues(args);
+    const query = assertGithubGraphqlReadOnly(fieldValues.query);
+    const variables = { ...fieldValues };
+    delete variables.query;
+    delete variables.operationName;
+    const payload = await githubGraphqlJson({
+      token,
+      body: {
+        query,
+        ...(fieldValues.operationName ? { operationName: fieldValues.operationName } : {}),
+        variables: { owner, repo, ...variables },
+      },
+    });
+    return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used read-only GitHub GraphQL REST fallback.\n", exit_code: 0, fallback: "github_graphql" };
+  }
+
+  if (resource === "pr" && command === "diff" && maybeId && hasCliFlag(args, "--name-only")) {
+    const prNumber = parseGithubPrNumber(maybeId);
+    const payload = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}/files?per_page=100`, token });
+    const filenames = (payload || []).map((file) => file.filename).filter(Boolean);
+    return { stdout: `${filenames.join("\n")}${filenames.length ? "\n" : ""}`, stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
   if (resource === "api" && command && String(command).includes("/branches")) {
     const payload = await githubRestJson({ owner, repo, apiPath: "/branches?per_page=100", token });
     return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
@@ -752,14 +885,17 @@ async function executeGitHubRestFallback(args = []) {
     const method = parseGithubApiMethod(args);
     const fieldValues = parseGithubFieldValues(args);
     const allowedRead = method === "GET" && (apiTarget.startsWith("/compare/") || apiTarget.startsWith("/pulls") || apiTarget.startsWith("/commits/"));
-    const allowedMutation = ["POST", "PUT", "PATCH"].includes(method) && (
+    const allowedContentsMutation = githubContentsMutationAllowed(apiTarget, method);
+    if (allowedContentsMutation) assertGithubContentsWritePathAllowed(apiTarget);
+    const allowedMutation = (["POST", "PUT", "PATCH"].includes(method) || allowedContentsMutation) && (
       /^\/pulls\/\d+\/update-branch$/.test(apiTarget)
       || /^\/pulls\/\d+\/merge$/.test(apiTarget)
       || /^\/actions\/workflows\/[^/]+\/dispatches$/.test(apiTarget)
       || apiTarget === "/merges"
+      || allowedContentsMutation
     );
     if (!allowedRead && !allowedMutation) {
-      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, workflow dispatches, and repo merges mutations.");
+      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, workflow dispatches, repo merges, and guarded contents PUT/DELETE mutations.");
       err.status = 501;
       err.code = "github_rest_api_unsupported_path";
       err.details = { apiTarget, method };
@@ -981,7 +1117,7 @@ async function executeGitHubRestFallback(args = []) {
     return { stdout: JSON.stringify({ number: Number(prNumber), merged: true, merge_method: mergeMethod, sha: mergeResult.sha || null, message: mergeResult.message || "Pull Request successfully merged" }, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
   }
 
-  const err = new Error("gh CLI is missing and GitHub REST fallback currently supports: workflow run <workflow> --ref <ref>, api <workflow-dispatch-path> -X POST -f ref=<ref>, run list, run view <id>, run view <id> --log-failed, pr create, and pr merge <number|url>.");
+  const err = new Error("gh CLI is missing and GitHub REST fallback currently supports: api graphql read-only queries, pr diff <number> --name-only, workflow run <workflow> --ref <ref>, api <workflow-dispatch-path> -X POST -f ref=<ref>, run list, run view <id>, run view <id> --log-failed, pr create, and pr merge <number|url>.");
   err.status = 501;
   err.code = "github_rest_fallback_unsupported_args";
   err.details = { args };
