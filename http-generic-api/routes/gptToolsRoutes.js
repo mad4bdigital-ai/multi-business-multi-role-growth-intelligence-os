@@ -349,6 +349,32 @@ function readCachedToolResponseChunk(args = {}) {
   });
 }
 
+function paginateItems(items = [], query = {}) {
+  const cursor = clampNumber(query.cursor ?? query.offset, 0, 0, Number.MAX_SAFE_INTEGER);
+  const limit = clampNumber(query.limit, DEFAULT_TOOL_LIST_LIMIT, 1, MAX_TOOL_LIST_LIMIT);
+  const q = String(query.q || query.query || "").trim().toLowerCase();
+  const tag = String(query.tag || "").trim().toLowerCase();
+  const filtered = items.filter((item) => {
+    const matchesText = !q || [item.name, item.displayName, item.description, item.path]
+      .some((value) => String(value || "").toLowerCase().includes(q));
+    const itemTags = Array.isArray(item.tags) ? item.tags.map((t) => String(t || "").toLowerCase()) : [];
+    const matchesTag = !tag || itemTags.includes(tag);
+    return matchesText && matchesTag;
+  });
+  const pageItems = filtered.slice(cursor, cursor + limit);
+  return {
+    items: pageItems,
+    page: {
+      cursor,
+      limit,
+      next_cursor: cursor + pageItems.length < filtered.length ? cursor + pageItems.length : null,
+      has_more: cursor + pageItems.length < filtered.length,
+      total_count: filtered.length,
+      returned_count: pageItems.length,
+    },
+  };
+}
+
 export function resolveCallerTypeForRequest(req) {
   return resolveCallerType(req);
 }
