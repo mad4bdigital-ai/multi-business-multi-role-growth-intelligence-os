@@ -15,7 +15,7 @@ assert(resolver.includes('ON DUPLICATE KEY UPDATE') && resolver.includes('normal
 assert(resolver.includes('async function createSiteAccessGrant'), 'claim resolver must create a site access grant');
 assert(resolver.includes('cms_site_access_grants'), 'claim resolver must write cms_site_access_grants');
 assert(resolver.includes('draft_allowed') && resolver.includes('publish_allowed'), 'grant must encode draft/publish capabilities');
-assert(resolver.includes('requestedScope !== "personal" || !!match.matchedBrandKey'), 'brand/workspace scope or matched brand must require approval');
+assert(resolver.includes('requestedScope !== "personal" || !!match.matchedTargetKey'), 'brand/workspace scope or matched brand must require approval');
 assert(resolver.includes('site_id: siteId'), 'claim result must expose site_id for follow-up approval/workflow resolution');
 assert(resolver.includes('grant_status: grant.status'), 'claim result must expose grant status');
 assert(resolver.includes('SELECT brand_name, target_key, brand_domain, base_url, default_wp_api_base'), 'brand matching must use current brands schema');
