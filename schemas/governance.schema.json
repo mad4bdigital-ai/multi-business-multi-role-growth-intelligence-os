@@ -542,6 +542,41 @@
           }
         }
       }
+    },
+    "localConnectorGovernanceState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "connector_authority": {
+          "type": "string",
+          "enum": ["sql", "local_connector_registry", "legacy_mirror", "unknown"],
+          "default": "sql"
+        },
+        "local_connector_required_for_runtime": {
+          "type": "boolean",
+          "default": false
+        },
+        "local_connector_status": {
+          "type": "string",
+          "enum": ["pending", "available", "degraded", "blocked", "disabled"],
+          "default": "pending"
+        },
+        "device_execution_requires_approval": {
+          "type": "boolean",
+          "default": true
+        },
+        "secrets_returned_to_agent": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "default": {
+        "connector_authority": "sql",
+        "local_connector_required_for_runtime": false,
+        "local_connector_status": "pending",
+        "device_execution_requires_approval": true,
+        "secrets_returned_to_agent": false
+      }
     }
   }
 }

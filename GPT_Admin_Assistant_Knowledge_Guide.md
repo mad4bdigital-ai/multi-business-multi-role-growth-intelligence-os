@@ -312,13 +312,15 @@ The Admin Assistant keeps production control in one auth-host connector, may add
 
 ### Platform connector — operations
 
-The auth-dispatcher exposes 19 ops, generated from `openapi.yaml` by `scripts/split-openapi.mjs` for routes tagged `activation`, `admin-control`, or `system-layer`. It includes activation context (`getActivationSessionContext`, `getActivationPlatformAccess`), system + admin tool registries (`listSystemTools` / `callSystemTool`, `listAdminSystemTools` / `callAdminSystemTool`), the GPT meta-tool dispatcher (`listAdminTools` / `callAdminTool`), three admin-CLI surfaces (`getLocalConnectorInstallBundle`, `repairLocalConnector`, `listDnsRecords`), schema-import, and admin Google-auth read helpers. All other admin work routes through `callAdminTool` with a registered tool_key from `admin_platform_endpoint_tools`.
+The auth-dispatcher exposes 23 ops, generated from `openapi.yaml` by `scripts/split-openapi.mjs` for routes tagged `activation`, `admin-control`, or `system-layer`. It includes activation context (`getActivationSessionContext`, `getActivationPlatformAccess`), system + admin tool registries (`listSystemTools` / `callSystemTool`, `listAdminSystemTools` / `callAdminSystemTool`), the GPT meta-tool dispatcher (`listAdminTools` / `callAdminTool`), device tools, selected admin-CLI surfaces, schema-import, data-source diagnostics, and admin Google-auth read helpers. All other admin work routes through `callAdminTool` with a registered tool_key from `admin_platform_endpoint_tools`.
 
 | Operation | Path | Use |
 |---|---|---|
 | `activateSession` | `GET /activation/session-context` | Open a platform GPT session without closing parallel conversations by default; return `session_id`, `session_management`, `conversation_memory`, `platform_access`, and `gpt_sessions`. Call once per conversation. Use `close_previous_sessions=true` only for explicit single-session cleanup. |
-| `listTools` | `GET /gpt/tools` | Discover all available platform tools from the DB registry. Returns tool names, descriptions, methods, paths, and inputSchemas. |
-| `callTool` | `POST /gpt/tools/call` | Execute any registered tool by name. Pass `name` (from `listTools`) and `tool_args` (not `arguments` — reserved by OpenAI). Path params substituted automatically. Returns raw upstream response. |
+| `listAdminTools` | `GET /gpt/tools` | Discover all available admin platform tools from the DB registry. Returns tool names, descriptions, methods, paths, and inputSchemas. |
+| `callAdminTool` | `POST /gpt/tools/call` | Execute any registered admin tool by name. Pass `name` (from `listAdminTools`) and `tool_args` (not `arguments` — reserved by OpenAI). Path params substituted automatically. Returns raw upstream response. |
+| `listTools` | `GET /system/tools` | Discover governed system-layer tools visible to the current principal. Tenant GPT aliases bind here, not to `/gpt/tools`. |
+| `callTool` | `POST /system/tools/call` | Call governed system-layer tools through principal-aware validation. Tenant GPT aliases bind here, not to `/gpt/tools/call`. |
 | `writeSessionTurn` | `POST /gpt/sessions/{id}/turn` | Persist a conversation turn (user, assistant, or tool). Requires `session_id` from `activateSession`. Call after every exchange. |
 | `endSession` | `POST /gpt/sessions/{id}/end` | Close session, optionally save summary, export full conversation JSON to Drive. Returns Drive link. |
 
@@ -327,9 +329,9 @@ The auth-dispatcher exposes 19 ops, generated from `openapi.yaml` by `scripts/sp
 All platform capabilities beyond the dispatcher's direct ops are reached through `listAdminTools` → `callAdminTool`. The backend enforces principal scope and DB/runtime validation; the GPT must not invent tool names, bypass registry checks, or use the local connector for work that can be completed through the auth-host system layer.
 
 **Workflow:**
-1. Call `listTools` to get the current tool catalog (name, description, inputSchema).
+1. Call `listAdminTools` to get the current admin tool catalog (name, description, inputSchema), or `listTools` for system-layer activation/provider tools.
 2. Pick the tool name that matches the task.
-3. Call `callTool` with `{ name, tool_args }`. Do not use `arguments` — that field name is reserved by OpenAI and causes `UnrecognizedKwargsError`.
+3. Call `callAdminTool` or `callTool` with `{ name, tool_args }`. Do not use `arguments` — that field name is reserved by OpenAI and causes `UnrecognizedKwargsError`.
 
 Admin-only activation tools accessible via `callTool`:
 - `activation_provider_bootstrap_validate` — full hard activation provider chain: Drive probe, Sheets bootstrap row read, and GitHub validation.
@@ -487,6 +489,8 @@ Operations:
 Pass `tool` to select the backend executor:
 
 When GitHub CLI is unavailable, the auth-host GitHub REST fallback supports PR diagnostics and recovery commands including `pr view --json`, `pr update-branch`, `pr merge`, `run list`, `run view --log-failed`, workflow dispatch, compare evidence, and structured dirty-PR diagnostics. Use this path before recreating branches, and prefer clean mainline replacement branches when `mergeable_state=dirty` cannot be resolved with `pr update-branch`.
+
+Avoid sending PR update/merge operations that can emit large payloads through `admin_control` when a local Git checkout or the GitHub connector can perform the same action. Oversized `admin_control` responses can stop message delivery before the result is summarized. Prefer bounded GitHub REST fallbacks, direct local Git commands, and short result summaries. For `connector_ps`, treat HTTP success as transport only and inspect `ok`, `exitCode`, and `exit_code` for command success.
 
 For brand-scoped WordPress blog/article publishing, use `wordpress_blog_publish_or_recover_credentials_workflow`. It resolves credentials, opens secure credential intake when needed, preserves the original publish request, resumes after credential storage, and returns post/readback evidence. n8n remains auxiliary only and must not be used as the authoritative publish runtime.
 

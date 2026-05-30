@@ -48,6 +48,25 @@ function tenantOperationId(operation) {
   return operation?.["x-tenant-gpt-operationId"] || operation?.operationId || null;
 }
 
+function validateUniqueTenantAliases(sourceOperations) {
+  const byAlias = new Map();
+  for (const op of sourceOperations) {
+    const alias = op.operation?.["x-tenant-gpt-operationId"];
+    if (!alias) continue;
+    const key = String(alias).trim();
+    if (!key) continue;
+    const entries = byAlias.get(key) || [];
+    entries.push(`${op.method.toUpperCase()} ${op.pathKey} (${op.operation?.operationId || "missing operationId"})`);
+    byAlias.set(key, entries);
+  }
+  const duplicates = [...byAlias.entries()].filter(([, entries]) => entries.length > 1);
+  if (duplicates.length > 0) {
+    throw new Error(`Duplicate x-tenant-gpt-operationId aliases in ${SOURCE_OPENAPI_FILE}: ${
+      duplicates.map(([alias, entries]) => `${alias} => ${entries.join(", ")}`).join("; ")
+    }`);
+  }
+}
+
 function countOperations(paths) {
   let n = 0;
   for (const pathItem of Object.values(paths || {})) {
@@ -126,6 +145,13 @@ function normalizeObjects(value) {
   if (Array.isArray(value)) { for (const item of value) normalizeObjects(item); return; }
   if (value.type === "object" && !("properties" in value)) value.properties = {};
   for (const child of Object.values(value)) normalizeObjects(child);
+}
+
+function normalizeTenantToolCallBody(operation) {
+  if (operation?.operationId !== "callTool") return;
+  const schema = operation.requestBody?.content?.["application/json"]?.schema;
+  if (!schema || typeof schema !== "object" || schema.type !== "object" || !schema.properties) return;
+  delete schema.properties.arguments;
 }
 
 function collectLocalRefs(value, refs = new Set()) {
@@ -233,6 +259,7 @@ function generateAuthDispatcher(sourceDoc, sourceOperations) {
 }
 
 function buildDocFromTenantOperationIds(sourceDoc, sourceOperations, operationIds, { host, title, summary, description }) {
+  validateUniqueTenantAliases(sourceOperations);
   const byTenantId = new Map();
   for (const op of sourceOperations) {
     const id = tenantOperationId(op.operation);
@@ -265,6 +292,7 @@ function normalizeTenantDoc(doc, sourceDoc, config) {
       if (!METHOD_NAMES.has(method) || !operation || typeof operation !== "object") continue;
       operation.security = clone(config.security);
       normalizeRequestBody(sourceDoc, operation);
+      normalizeTenantToolCallBody(operation);
     }
   }
   normalizeDescriptions(doc);

@@ -392,6 +392,14 @@ section("Admin system layer connector facade");
   ok("credential client config bad type code", r.body.error?.code === "invalid_credential_type", `got ${r.body.error?.code}`);
 }
 {
+  const r = await post("/system/tools/call", {
+    name: "credential_client_config_upsert",
+    tool_args: { credential_type: "bad_type" }
+  });
+  ok("shared system tool call accepts wrapper-safe tool_args", r.status === 400, `got ${r.status}`);
+  ok("shared system tool_args reach system tool implementation", r.body.error?.code === "invalid_credential_type", `got ${r.body.error?.code}`);
+}
+{
   const r = await post("/admin/system/tools/call", {
     name: "google_auth_platform_config_upsert",
     arguments: { tab: "bad_tab" }

@@ -341,11 +341,11 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     !Object.keys(tenantDoc.paths || {}).some((path) => path.startsWith("/connect")));
   assert("tenant OpenAI schema exposes tenant Platform Plugin routes only under /tenant/platform/plugins",
     ["/tenant/platform/plugins/catalog", "/tenant/platform/plugins/install", "/tenant/platform/plugins/resolve"].every((path) => Boolean(tenantDoc.paths?.[path])));
-  const tenantCallToolSchema = tenantDoc.paths?.["/gpt/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
+  const tenantCallToolSchema = tenantDoc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
   const tenantToolArgsSchema = tenantCallToolSchema?.properties?.tool_args;
   assert("tenant OpenAI schema tells GPT to pass activation mode and integration_modes through callTool",
     JSON.stringify(tenantDoc.info || {}).includes("connect_activate") &&
-    JSON.stringify(tenantDoc.paths?.["/gpt/tools/call"] || {}).includes("integration_modes"));
+    JSON.stringify(tenantDoc.paths?.["/system/tools/call"] || {}).includes("integration_modes"));
   assert("tenant callTool explicitly exposes wrapper-safe tool_args.mode",
     tenantToolArgsSchema?.properties?.mode?.enum?.includes("managed") &&
     tenantToolArgsSchema?.properties?.mode?.enum?.includes("dedicated"));

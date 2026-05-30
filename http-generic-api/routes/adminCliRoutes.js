@@ -669,7 +669,9 @@ function assertGithubContentsWritePathAllowed(apiTarget = "") {
 }
 
 function githubContentsMutationAllowed(apiTarget = "", method = "GET") {
-  return ["PUT", "DELETE"].includes(String(method || "").toUpperCase()) && String(apiTarget || "").startsWith("/contents/");
+  // The REST fallback is intended for governed content writes only. Destructive
+  // deletes must use a separate approval-gated route, not this fallback path.
+  return String(method || "").toUpperCase() === "PUT" && String(apiTarget || "").startsWith("/contents/");
 }
 
 async function githubRestJson({ owner, repo, apiPath, token, method = "GET", body = null }) {
@@ -895,7 +897,7 @@ async function executeGitHubRestFallback(args = []) {
       || allowedContentsMutation
     );
     if (!allowedRead && !allowedMutation) {
-      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, workflow dispatches, repo merges, and guarded contents PUT/DELETE mutations.");
+      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, workflow dispatches, repo merges, and guarded contents PUT mutations.");
       err.status = 501;
       err.code = "github_rest_api_unsupported_path";
       err.details = { apiTarget, method };
