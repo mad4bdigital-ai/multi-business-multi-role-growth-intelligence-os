@@ -188,6 +188,23 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "response_chunk_read",
+    displayName: "Read Tool Response Chunk",
+    description: "Read the next chunk of a cached oversized tool response. Use when any governed tool returns response_chunked=true.",
+    method: "VIRTUAL",
+    path: "internal://response-chunk-read",
+    tags: ["tooling", "pagination", "read_only"],
+    inputSchema: {
+      type: "object",
+      required: ["chunk_id"],
+      properties: {
+        chunk_id: { type: "string" },
+        cursor: { type: "integer", minimum: 0, default: 0 },
+        max_chars: { type: "integer", minimum: 5000, maximum: 150000, default: 45000 },
+      },
+    },
+  },
+  {
     name: "repo_patch_apply",
     displayName: "Repository Patch Apply",
     description: "Apply a patch to the repository via the GitHub App, sidestepping the local connector. Actions: write_file, replace_block, apply_unified_diff, delete_file. Path is repo-confined; secrets/build folders are blocked. Runtime defaults to a generated non-protected work branch. Protected branches are blocked unless explicit break-glass policy is enabled and justified.",
