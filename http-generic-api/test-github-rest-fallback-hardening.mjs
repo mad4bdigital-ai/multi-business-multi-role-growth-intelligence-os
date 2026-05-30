@@ -13,6 +13,8 @@ assert(adminCliRoutes.includes('/^\\/pulls\\/\\d+\\/merge$/'), 'GitHub REST fall
 assert(adminCliRoutes.includes('githubContentsMutationAllowed'), 'GitHub REST fallback must explicitly gate contents writes');
 assert(adminCliRoutes.includes('assertGithubContentsWritePathAllowed'), 'GitHub REST fallback contents writes must use repo path policy');
 assert(adminCliRoutes.includes('allowedContentsMutation'), 'GitHub REST fallback must include guarded contents mutation support');
+assert(adminCliRoutes.includes('toUpperCase() === "PUT"'), 'GitHub REST fallback contents mutation must be limited to non-destructive PUT writes');
+assert(!adminCliRoutes.includes('["PUT", "DELETE"].includes'), 'GitHub REST fallback must not allow contents DELETE through the write fallback');
 assert(adminCliRoutes.includes('github_rest_contents_workflow_blocked'), 'GitHub REST fallback must block workflow file mutation through contents writes');
 assert(adminCliRoutes.includes('github_pr_not_mergeable_dirty'), 'PR merge must classify dirty PRs before merge attempts');
 assert(adminCliRoutes.includes('mergeable_state'), 'Dirty PR diagnostics must include mergeable_state evidence');
