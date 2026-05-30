@@ -377,6 +377,39 @@ export function buildConnectApiRoutes(deps = {}) {
         [req.auth.user_id, req.params.claim_id, req.auth.tenant_id]
       );
 
+      let grantPromotion = null;
+      if (result?.affectedRows) {
+        const [grantRows] = await pool.query(
+          `SELECT grant_id, site_id, scope, status
+             FROM \`cms_site_access_grants\`
+            WHERE claim_id = ?
+              AND tenant_id = ?
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [req.params.claim_id, req.auth.tenant_id]
+        );
+        const grant = grantRows?.[0] || null;
+        if (grant) {
+          await pool.query(
+            `UPDATE \`cms_site_access_grants\`
+                SET status = 'active',
+                    approved_by = ?,
+                    approved_at = NOW(),
+                    updated_at = NOW()
+              WHERE grant_id = ?
+                AND tenant_id = ?`,
+            [req.auth.user_id, grant.grant_id, req.auth.tenant_id]
+          );
+          grantPromotion = {
+            grant_id: grant.grant_id,
+            site_id: grant.site_id,
+            scope: grant.scope,
+            status: "active",
+            secrets_included: false,
+          };
+        }
+      }
+
       let promotion = null;
       if (result?.affectedRows && claim.connection_id) {
         const targetKey = claim.matched_target_key || claim.normalized_domain;
