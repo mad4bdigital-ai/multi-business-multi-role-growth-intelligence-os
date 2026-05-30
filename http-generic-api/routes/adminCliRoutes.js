@@ -830,6 +830,29 @@ async function executeGitHubRestFallback(args = []) {
   const token = await getGitHubAppInstallationToken({});
   const fields = parseGithubJsonFields(args);
 
+  if (resource === "api" && command === "graphql") {
+    const fieldValues = parseGithubFieldValues(args);
+    const query = assertGithubGraphqlReadOnly(fieldValues.query);
+    const variables = { ...fieldValues };
+    delete variables.query;
+    delete variables.operationName;
+    const payload = await githubGraphqlJson({
+      token,
+      body: {
+        query,
+        ...(fieldValues.operationName ? { operationName: fieldValues.operationName } : {}),
+        variables: { owner, repo, ...variables },
+      },
+    });
+    return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used read-only GitHub GraphQL REST fallback.\n", exit_code: 0, fallback: "github_graphql" };
+  }
+
+  if (resource === "pr" && command === "diff" && maybeId && hasCliFlag(args, "--name-only")) {
+    const prNumber = parseGithubPrNumber(maybeId);
+    const payload = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}/files?per_page=100`, token });
+    const filenames = (payload || []).map((file) => file.filename).filter(Boolean);
+    return { stdout: `${filenames.join("\n")}${filenames.length ? "\n" : ""}`, stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
+  }
   if (resource === "api" && command && String(command).includes("/branches")) {
     const payload = await githubRestJson({ owner, repo, apiPath: "/branches?per_page=100", token });
     return { stdout: JSON.stringify(payload, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
