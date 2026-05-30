@@ -177,6 +177,42 @@ async function findBrandMatch({ db, tenantId, normalizedDomain, cmsUser }) {
   return { matchedBrandKey: null, matchedTargetKey: null, matchConfidence: "none" };
 }
 
+function capabilityFlags(cmsUser = {}) {
+  const caps = cmsUser.raw?.capabilities && typeof cmsUser.raw.capabilities === "object" ? cmsUser.raw.capabilities : {};
+  const roles = Array.isArray(cmsUser.roles) ? cmsUser.roles.map((role) => String(role).toLowerCase()) : [];
+  return {
+    edit_posts: Boolean(caps.edit_posts || hasAdminLikeRole(roles)),
+    publish_posts: Boolean(caps.publish_posts || roles.includes("administrator") || roles.includes("editor")),
+    delete_posts: Boolean(caps.delete_posts || roles.includes("administrator")),
+  };
+}
+
+async function upsertCmsSite({ db, siteId, normalizedDomain, siteUrl, wpJsonBase, match }) {
+  await db.query(
+    `
+      INSERT INTO \`cms_sites\` (
+        site_id, app_key, normalized_domain, site_url, wp_json_base,
+        canonical_target_key, platform_status, first_claimed_at, last_verified_at,
+        created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW(), NOW(), NOW())
+      ON DUPLICATE KEY UPDATE
+        site_url = VALUES(site_url),
+        wp_json_base = VALUES(wp_json_base),
+        canonical_target_key = COALESCE(VALUES(canonical_target_key), canonical_target_key),
+        platform_status = 'active',
+        last_verified_at = NOW(),
+        updated_at = NOW()
+    `,
+    [siteId, APP_KEY, normalizedDomain, siteUrl, wpJsonBase, match.matchedTargetKey || null]
+  );
+  const [rows] = await db.query(
+    `SELECT site_id FROM \`cms_sites\` WHERE app_key = ? AND normalized_domain = ? LIMIT 1`,
+    [APP_KEY, normalizedDomain]
+  );
+  return rows?.[0]?.site_id || siteId;
+}
+
 async function createUserAppConnection({
   db, connectionId, tenantId, userId, normalizedDomain, wpJsonBase,
   username, applicationPassword, encryptCredentials,
