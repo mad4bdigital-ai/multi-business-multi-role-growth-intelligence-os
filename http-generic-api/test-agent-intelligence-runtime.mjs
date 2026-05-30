@@ -107,4 +107,38 @@ const destructive = await searchAgentTools({
 assert.equal(destructive.count, 1);
 assert.equal(destructive.tools[0].risk_class, "destructive");
 
+const indexedSearch = await searchAgentTools(
+  { query: "release", limit: 5 },
+  {
+    pool: {
+      async query(sql) {
+        assert(String(sql).includes("agent_tool_index"), "indexed tool search must read from agent_tool_index first");
+        return [[
+          {
+            tool_key: "release_readiness",
+            display_name: "Release Readiness",
+            source_truth_resource_type: "endpoint",
+            source_truth_resource_key: "release_readiness",
+            tool_manifest_json: JSON.stringify({
+              description: "Full platform release readiness check.",
+              http_method: "GET",
+              http_path: "/release/readiness",
+            }),
+            risk_class: "read_only",
+            tags: JSON.stringify(["release", "read_only"]),
+            status: "active",
+          },
+        ]];
+      },
+    },
+  },
+);
+
+assert.equal(indexedSearch.count, 1);
+assert.equal(indexedSearch.tools[0].tool_key, "release_readiness");
+assert.equal(indexedSearch.tools[0].description, "Full platform release readiness check.");
+assert.equal(indexedSearch.tools[0].http_method, "GET");
+assert.equal(indexedSearch.tools[0].http_path, "/release/readiness");
+assert.equal(indexedSearch.tools[0].raw_manifest_exposed, false);
+
 console.log("agent intelligence runtime tests passed");
