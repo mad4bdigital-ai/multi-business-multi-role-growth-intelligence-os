@@ -20,6 +20,16 @@ function text(value = "") {
   return String(value || "").trim();
 }
 
+function safeJsonParse(value, fallback) {
+  if (value === undefined || value === null || value === "") return fallback;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(String(value));
+  } catch {
+    return fallback;
+  }
+}
+
 function asArray(value) {
   return Array.isArray(value) ? value : [];
 }
