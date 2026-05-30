@@ -928,7 +928,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   if (!tenant) throw httpError(404, "tenant_not_found", "Tenant not found.");
 
   const [[existing]] = await pool.query(
-    "SELECT config_id, cf_tunnel_id, cf_token, connector_secret, connector_local_api_key, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1",
+    `SELECT config_id, cf_tunnel_id, cf_token, connector_secret, ${connectorLocalApiKeySelect}, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1`,
     [resolvedUserId, resolvedTenantId, device_id]
   );
 
