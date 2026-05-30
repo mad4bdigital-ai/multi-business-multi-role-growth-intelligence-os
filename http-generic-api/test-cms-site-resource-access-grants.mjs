@@ -22,4 +22,9 @@ assert(resolver.includes('SELECT brand_name, target_key, brand_domain, base_url,
 assert(!resolver.includes('SELECT brand_key, target_key, brand_domain, website_url'), 'brand matching must not rely on legacy/missing brand columns');
 assert(!resolver.includes('console.log(applicationPassword'), 'resolver must not log application passwords');
 
+assert(connectApi.includes('cms_site_access_grants'), 'claim approval route must read/update cms_site_access_grants');
+assert(connectApi.includes("SET status = 'active'"), 'claim approval route must activate pending grants');
+assert(connectApi.includes('grant_promotion: grantPromotion'), 'claim approval response must include grant promotion evidence');
+assert(connectApi.includes('secrets_included: false'), 'claim approval route must not return secrets');
+
 console.log('cms site resource access grants tests passed');
