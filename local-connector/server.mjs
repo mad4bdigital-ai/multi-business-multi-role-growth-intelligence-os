@@ -758,8 +758,9 @@ function policyBody() {
     auth: {
       credential: 'CONNECTOR_SECRET',
       supported_headers: ['Authorization: Bearer <CONNECTOR_SECRET>', 'x-connector-secret', 'x-api-key'],
-      local_api_key_alias_enabled: !CONNECTOR_SECRET && Boolean(CONNECTOR_LOCAL_API_KEY),
-      legacy_backend_api_key_fallback_enabled: !CONNECTOR_SECRET && !CONNECTOR_LOCAL_API_KEY && Boolean(LEGACY_BACKEND_API_KEY),
+      local_api_key_alias_enabled: Boolean(CONNECTOR_LOCAL_API_KEY),
+      connector_auth_secret_count: CONNECTOR_AUTH_SECRETS.length,
+      legacy_backend_api_key_fallback_enabled: LEGACY_BACKEND_API_KEY_FALLBACK_ENABLED && Boolean(LEGACY_BACKEND_API_KEY),
     },
     shell: {
       enabled: SHELL_ENABLED,
