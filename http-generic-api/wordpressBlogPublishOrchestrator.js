@@ -14,6 +14,17 @@ function safeJson(value, fallback = {}) {
   try { return JSON.parse(value); } catch { return fallback; }
 }
 
+function normalizeDomainFromUrl(raw = "") {
+  const value = str(raw);
+  if (!value) return "";
+  try {
+    const parsed = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    return parsed.hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return value.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split("/")[0].toLowerCase();
+  }
+}
+
 export function isWordpressBlogPublishWorkflow(workflowKey = "") {
   return str(workflowKey) === WORKFLOW_KEY;
 }
