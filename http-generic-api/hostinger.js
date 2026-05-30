@@ -6,117 +6,42 @@ async function readSqlRegistryTable(surfaceName) {
 }
 
 function jsonParseSafe(value, fallback) {
-  try {
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
+  try { return value ? JSON.parse(value) : fallback; } catch { return fallback; }
 }
 
 function asBool(value) {
   return String(value || "").trim().toUpperCase() === "TRUE";
 }
 
-function rowToObject(header, row) {
-  const out = {};
-  for (let i = 0; i < header.length; i += 1) {
-    out[header[i]] = row[i] ?? "";
-  }
-  return out;
-}
-
-function isEnabledFlag(value) {
-  return ["1", "true", "yes", "on"].includes(String(value ?? "").trim().toLowerCase());
-}
-
-function allowLegacySheetRegistryRead(deps = {}) {
-  return deps.allowLegacySheetRegistryRead === true || isEnabledFlag(process.env.LEGACY_SHEET_REGISTRY_RUNTIME_ENABLED);
-}
-
-async function readHostingAccountRows(sheetName, deps = {}) {
-  const readSqlSurface = typeof deps.readSqlRegistrySurface === "function"
-    ? deps.readSqlRegistrySurface
-    : readSqlRegistryTable;
+async function readHostingAccountRows(surfaceName, deps = {}) {
+  const readSqlSurface = typeof deps.readSqlRegistrySurface === "function" ? deps.readSqlRegistrySurface : readSqlRegistryTable;
   try {
-    return { rows: await readSqlSurface(sheetName), source: "sql_primary" };
+    return { rows: await readSqlSurface(surfaceName), source: "sql_primary" };
   } catch (sqlErr) {
-    if (!allowLegacySheetRegistryRead(deps)) {
-      sqlErr.code = sqlErr.code || "sql_hosting_account_registry_read_failed";
-      throw sqlErr;
-    }
+    sqlErr.code = sqlErr.code || "sql_hosting_account_registry_read_failed";
+    throw sqlErr;
   }
-
-  const {
-    REGISTRY_SPREADSHEET_ID = "",
-    HOSTING_ACCOUNT_REGISTRY_RANGE = "",
-    getGoogleClientsForSpreadsheet,
-    rowToObject: rowToObjectFn = rowToObject
-  } = deps;
-  if (typeof getGoogleClientsForSpreadsheet !== "function") {
-    const err = new Error("Legacy Hostinger sheet fallback requires getGoogleClientsForSpreadsheet dependency.");
-    err.code = "legacy_sheet_dependencies_missing";
-    err.status = 500;
-    throw err;
-  }
-  const { sheets } = await getGoogleClientsForSpreadsheet(REGISTRY_SPREADSHEET_ID);
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: String(REGISTRY_SPREADSHEET_ID || "").trim(),
-    range: HOSTING_ACCOUNT_REGISTRY_RANGE
-  });
-  const values = response.data.values || [];
-  const [header, ...rows] = values;
-  return { rows: rows.map(row => rowToObjectFn(header, row)), source: "legacy_sheet_mirror" };
 }
 
 export function matchesHostingerSshTarget(rowObj, input = {}) {
-  if ((rowObj.hosting_provider || "").trim().toLowerCase() !== "hostinger") {
-    return false;
-  }
-
+  if ((rowObj.hosting_provider || "").trim().toLowerCase() !== "hostinger") return false;
   const targetKey = String(input.target_key || "").trim();
   const hostingAccountKey = String(input.hosting_account_key || "").trim();
   const accountIdentifier = String(input.account_identifier || "").trim();
   const siteUrl = String(input.site_url || "").trim().toLowerCase();
-
-  if (hostingAccountKey && rowObj.hosting_account_key === hostingAccountKey) {
-    return true;
-  }
-
-  if (accountIdentifier && rowObj.account_identifier === accountIdentifier) {
-    return true;
-  }
-
+  if (hostingAccountKey && rowObj.hosting_account_key === hostingAccountKey) return true;
+  if (accountIdentifier && rowObj.account_identifier === accountIdentifier) return true;
   const resolverTargetKeys = jsonParseSafe(rowObj.resolver_target_keys_json, []);
-  if (
-    targetKey &&
-    Array.isArray(resolverTargetKeys) &&
-    resolverTargetKeys.includes(targetKey)
-  ) {
-    return true;
-  }
-
+  if (targetKey && Array.isArray(resolverTargetKeys) && resolverTargetKeys.includes(targetKey)) return true;
   const brandSites = jsonParseSafe(rowObj.brand_sites_json, []);
-  if (
-    siteUrl &&
-    Array.isArray(brandSites) &&
-    brandSites.some(
-      x => String(x?.site || "").trim().toLowerCase() === siteUrl
-    )
-  ) {
-    return true;
-  }
-
-  return false;
+  return Boolean(siteUrl && Array.isArray(brandSites) && brandSites.some(x => String(x?.site || "").trim().toLowerCase() === siteUrl));
 }
 
 export async function hostingerSshRuntimeRead({ input = {} } = {}, deps = {}) {
-  const {
-    HOSTING_ACCOUNT_REGISTRY_SHEET = "Hosting Account Registry",
-    asBool: asBoolFn = asBool,
-    matchesHostingerSshTarget: matchesTarget = matchesHostingerSshTarget
-  } = deps;
-
-  const registry = await readHostingAccountRows(HOSTING_ACCOUNT_REGISTRY_SHEET, deps);
+  const surfaceName = deps.HOSTING_ACCOUNT_REGISTRY_SURFACE || deps.HOSTING_ACCOUNT_REGISTRY_SHEET || "Hosting Account Registry";
+  const asBoolFn = deps.asBool || asBool;
+  const matchesTarget = deps.matchesHostingerSshTarget || matchesHostingerSshTarget;
+  const registry = await readHostingAccountRows(surfaceName, deps);
   const rowObjs = registry.rows || [];
   if (!rowObjs.length) {
     const err = new Error("Hosting Account Registry SQL surface is empty or missing data rows.");
@@ -124,27 +49,15 @@ export async function hostingerSshRuntimeRead({ input = {} } = {}, deps = {}) {
     err.status = 500;
     throw err;
   }
-
   const match = rowObjs.find(rowObj => matchesTarget(rowObj, input));
-
   if (!match) {
-    return {
-      ok: false,
-      endpoint_key: "hostinger_ssh_runtime_read",
-      resolution_status: "blocked",
-      reason: "no_matching_hosting_account_registry_row",
-      authoritative_source: "table.hosting_accounts",
-      legacy_mirror_source: HOSTING_ACCOUNT_REGISTRY_SHEET,
-      input
-    };
+    return { ok: false, endpoint_key: "hostinger_ssh_runtime_read", resolution_status: "blocked", reason: "no_matching_hosting_account_registry_row", authoritative_source: "table.hosting_accounts", input };
   }
-
   return {
     ok: true,
     endpoint_key: "hostinger_ssh_runtime_read",
     resolution_status: "validated",
     authoritative_source: "table.hosting_accounts",
-    legacy_mirror_source: HOSTING_ACCOUNT_REGISTRY_SHEET,
     hosting_account_key: match.hosting_account_key || "",
     hosting_provider: match.hosting_provider || "",
     account_identifier: match.account_identifier || "",

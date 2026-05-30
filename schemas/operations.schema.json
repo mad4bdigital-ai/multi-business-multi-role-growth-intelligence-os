@@ -839,24 +839,6 @@
             }
           }
         },
-        "legacy_registry_workbook_mirror": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "id": {
-              "type": "string",
-              "default": "1RV185rQo58pGppg27r81eD9hPE8pXPyBY1pfHANip4o"
-            },
-            "title": {
-              "type": "string",
-              "default": "Growth Intelligence OS - Registry Workbook"
-            },
-            "role": {
-              "type": "string",
-              "default": "async_mirror_and_recovery"
-            }
-          }
-        },
         "operations_database_binding": {
           "type": "object",
           "additionalProperties": false,
@@ -876,79 +858,6 @@
             "role": {
               "type": "string",
               "default": "runtime_control_surface"
-            }
-          }
-        },
-        "legacy_operations_workbook_mirror": {
-          "type": "object",
-          "additionalProperties": false,
-          "default": {},
-          "properties": {
-            "id": {
-              "type": "string",
-              "default": "1D0uiZteobSqPL9c6zygq3UVWTe56H3R7IHL1yJcwP5k"
-            },
-            "title": {
-              "type": "string",
-              "default": "Growth Intelligence OS - Operations Workbook"
-            },
-            "role": {
-              "type": "string",
-              "default": "async_mirror_and_recovery"
-            }
-          }
-        },
-        "metrics_warehouse_workbook": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "id": {
-              "type": "string",
-              "default": "1NsQ2dfGKpNX12k3LoclPvscW3kSyB5_anuXDLd1fgJs"
-            },
-            "title": {
-              "type": "string",
-              "default": "Business Metrics Warehouse"
-            },
-            "role": {
-              "type": "string",
-              "default": "summary_kpi_layer"
-            }
-          }
-        },
-        "live_data_workbook": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "id": {
-              "type": "string",
-              "default": "1BQz5KIcub66n6PQf_Qui9wkYVt8WsiyUGEocNbDddTc"
-            },
-            "title": {
-              "type": "string",
-              "default": "Business Live Data Hub"
-            },
-            "role": {
-              "type": "string",
-              "default": "live_data_intake_and_signal_governance"
-            }
-          }
-        },
-        "review_workbook": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "id": {
-              "type": "string",
-              "default": "1SyFXE8bhcLH1-uWkV8ngd2AlV7B-BI_gvbHRx8ZnB6A"
-            },
-            "title": {
-              "type": "string",
-              "default": "System Integration Review Layer"
-            },
-            "role": {
-              "type": "string",
-              "default": "audit_and_remediation"
             }
           }
         },
@@ -976,9 +885,6 @@
           }
         },
         "active_sql_registry_bindings": {
-          "$ref": "./shared.schema.json#/$defs/stringList"
-        },
-        "legacy_mirror_sheet_bindings": {
           "$ref": "./shared.schema.json#/$defs/stringList"
         },
         "system_layers_active": {
@@ -1065,25 +971,6 @@
             }
           }
         },
-        "legacy_operations_workbook_runtime_mirror": {
-          "type": "object",
-          "additionalProperties": false,
-          "default": {},
-          "properties": {
-            "legacy_mirror_spreadsheet_id": {
-              "type": "string",
-              "default": "1D0uiZteobSqPL9c6zygq3UVWTe56H3R7IHL1yJcwP5k"
-            },
-            "title": {
-              "type": "string",
-              "default": "Growth Intelligence OS - Operations Workbook"
-            },
-            "role": {
-              "type": "string",
-              "default": "async_mirror_and_recovery"
-            }
-          }
-        },
         "logging_surface": {
           "type": "object",
           "additionalProperties": false,
@@ -1114,10 +1001,6 @@
               "enum": [
                 "execution_log"
               ]
-            },
-            "legacy_mirror_worksheet": {
-              "type": "string",
-              "default": "Execution Log Unified"
             }
           }
         },
@@ -1280,10 +1163,6 @@
           "default": {},
           "properties": {
             "brand_playbook_asset_key": {
-              "type": "string",
-              "default": ""
-            },
-            "legacy_brand_playbook_sheet_gid": {
               "type": "string",
               "default": ""
             },
@@ -2533,7 +2412,7 @@
         "operations_context.execution_logging.last_execution_score": "Most recent execution score written or prepared for the authoritative execution log.",
         "operations_context.execution_logging.last_optimization_trigger": "Most recent optimization trigger written or prepared for the authoritative execution log.",
         "operations_context.execution_logging.last_output_summary": "Most recent concise output summary prepared for the canonical execution ledger.",
-        "operations_context.execution_logging.logging_sink_surface_id": "Authoritative operational logging sink surface_id resolved for the active execution, expected to be surface.operations_log_unified_sheet when active.",
+        "operations_context.execution_logging.logging_sink_surface_id": "Authoritative operational logging sink table resolved for the active execution, expected to be table.execution_log when active.",
         "operations_context.execution_logging.logging_write_status": "Current write status for the authoritative execution log handoff.",
         "operations_context.execution_logging.pre_response_log_guard_passed": "Whether required canonical execution logging completed before the user-facing response.",
         "execution_logging_state.logging_sink_role": "Role of the resolved runtime logging sink. authoritative_raw_execution_log indicates the single source of raw execution truth.",
@@ -3102,7 +2981,7 @@
             "type": "string"
           },
           "default": [
-            "surface.operations_log_unified_sheet"
+            "table.execution_log"
           ]
         }
       },
@@ -3120,7 +2999,7 @@
           "Performance Impact Row"
         ],
         "write_guard_surface_scope": [
-          "surface.operations_log_unified_sheet"
+          "table.execution_log"
         ]
       }
     },
@@ -3329,13 +3208,13 @@
             "json_asset_registry_is_durable_payload_store": true
           }
         },
-        "execution_log_spreadsheet_id": {
+        "execution_log_table": {
           "type": "string",
-          "default": ""
+          "default": "execution_log"
         },
-        "json_asset_registry_spreadsheet_id": {
+        "json_asset_registry_table": {
           "type": "string",
-          "default": ""
+          "default": "json_asset_registry"
         },
         "execution_log_sheet_exists": {
           "type": "boolean",
@@ -3412,10 +3291,10 @@
           "legacy_tail_columns_writable": false,
           "json_asset_registry_is_durable_payload_store": true
         },
-        "execution_log_spreadsheet_id": "",
-        "json_asset_registry_spreadsheet_id": "",
-        "execution_log_sheet_exists": false,
-        "json_asset_registry_sheet_exists": false,
+        "execution_log_table": "execution_log",
+        "json_asset_registry_table": "json_asset_registry",
+        "execution_log_table_exists": false,
+        "json_asset_registry_table_exists": false,
         "formula_managed_columns_protected": false,
         "safe_write_columns": [],
         "unsafe_write_columns": [],
