@@ -7,7 +7,7 @@ export const HARD_ACTIVATION_REASON_CODES = Object.freeze({
 });
 
 function isObject(value) {
-  return value && typeof value === "object" && !Array.isArray(value);
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
 function hasString(value) {
