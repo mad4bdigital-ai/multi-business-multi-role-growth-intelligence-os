@@ -5788,8 +5788,42 @@ paths:
       tags: [admin-control]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listAdminTools
-      summary: List all admin platform tools from the DB registry
-      description: "Returns the full catalog of admin platform operations from admin_platform_endpoint_tools. Each tool has a name (pass to callAdminTool), description, and inputSchema. Call this to discover available operations before using callAdminTool."
+      summary: List admin platform tools from the governed registry
+      description: "Returns a paginated catalog of admin platform operations from admin_platform_endpoint_tools plus virtual admin tools. Each tool has a name (pass to callAdminTool), description, and inputSchema. Use limit/cursor/q/tag for bounded discovery. Oversized responses may return response_chunked=true; use response_chunk_read with chunk_id and next_cursor to continue."
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+          description: Maximum tools to return in this page.
+        - name: cursor
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Zero-based list cursor for the next page.
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Optional text filter over name, displayName, description, and path.
+        - name: tag
+          in: query
+          schema:
+            type: string
+          description: Optional exact tag filter.
+        - name: max_chars
+          in: query
+          schema:
+            type: integer
+            minimum: 5000
+            maximum: 150000
+            default: 45000
+          description: Maximum JSON characters before returning an automatic response chunk.
       responses:
         "200":
           description: Admin tool catalog
