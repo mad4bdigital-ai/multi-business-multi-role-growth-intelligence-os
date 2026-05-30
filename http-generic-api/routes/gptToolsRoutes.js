@@ -424,11 +424,16 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
 async function dispatchTool(callerType, toolKey, args, req) {
   assertPreflightAllowed(await evaluateGptToolDispatchPreflight({ callerType, toolKey, args }));
   const result = await dispatchToolImpl(callerType, toolKey, args, req);
+  const responseOptions = args && typeof args === "object" ? args : {};
+  const resultForClient = {
+    ...result,
+    body: maybeChunkToolResponseBody(result?.body, responseOptions),
+  };
   // Best-effort: archive the dispatch as a tool turn so admin GPT sessions get a
   // complete transcript without depending on the GPT calling writeSessionTurn.
   // Errors are logged and swallowed so the tool result still flows through.
-  await recordToolDispatchTurn(req, toolKey, args, result);
-  return result;
+  await recordToolDispatchTurn(req, toolKey, args, resultForClient);
+  return resultForClient;
 }
 
 export function buildInternalToolDispatchHeaders(req, env = process.env) {
