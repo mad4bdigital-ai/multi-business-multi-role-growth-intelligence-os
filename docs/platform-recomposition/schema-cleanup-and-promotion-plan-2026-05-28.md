@@ -112,7 +112,7 @@ S2 implemented changes:
 ```text
 registryBinding now uses registry_source / registry_table / registry_row_id / binding_key
 writeProof now uses target_table / target_primary_key / target_row_id
-legacy spreadsheet/gid evidence moved under legacy_mirror_* fields
+legacy spreadsheet/gid evidence removed from runtime schema contracts
 authoritativeWriteTargets now defaults to SQL tables instead of *_sheet targets
 governance patch parity evidence source now defaults to table.execution_log
 ```
@@ -134,7 +134,7 @@ Expected result:
 
 ```text
 SQL execution_log / audit_log / output_artifacts / sink_dispatch_log / agent_chain_events are primary
-workbook fields are legacy_mirror_* or recovery_* only
+workbook fields are removed from runtime schema contracts; recovery imports must be explicit SQL/import jobs
 ```
 
 S3 implemented changes:
@@ -172,16 +172,18 @@ S4 implemented changes:
 
 ```text
 analytics score signals use source_registry_table / source_connector_key
-analytics source_sheet retained only as legacy_mirror_sheet_name
+analytics source_sheet removed in favor of source_registry_table / source_connector_key
 WordPress preflight uses brand_playbook_asset_key as primary
-brand_playbook_sheet_gid renamed to legacy_brand_playbook_sheet_gid
+brand_playbook_sheet_gid removed from runtime schema contracts
 operations logging_surface uses SQL execution_log table
-operations workbook runtime remnants reclassified as legacy_operations_workbook_runtime_mirror
+operations workbook runtime remnants removed from runtime schema contracts
 business identity source_registry uses registry_source / registry_table / registry_row_id
-business identity spreadsheet metadata moved to legacy_mirror_* fields
+business identity spreadsheet metadata removed from runtime schema contracts
 ```
 
 ### Phase S5 — Runtime enforcement alignment
+
+Status: in progress.
 
 After schema cleanup, confirm runtime enforcement uses the same model:
 
@@ -192,6 +194,26 @@ output sink router
 local connector dispatch
 policy approval holds
 schema validation tests
+```
+
+S5 implemented changes:
+
+```text
+readGovernedSheetRecords is now a SQL-only compatibility wrapper
+Brand Registry and Hosting Account Registry reads use sqlAdapter/readTable only
+Google Sheets fallback is removed from governed runtime registry reads
+hostingerSshRuntimeRead reports table.hosting_accounts as authoritative_source
+runtime responses no longer return legacy sheet mirror evidence
+selected runtime schemas no longer retain spreadsheet/sheet/workbook evidence fields
+new tests cover SQL-only registry resolution and reject sheet fallback
+```
+
+Compatibility note:
+
+```text
+Some registry surface ids still contain historical names such as surface.operations_log_unified_sheet.
+Those ids are database identity keys and must be migrated separately with registry row aliases/replacement ids before code constants are renamed.
+They no longer imply workbook runtime authority after S1-S5.
 ```
 
 ## Non-goals for S1

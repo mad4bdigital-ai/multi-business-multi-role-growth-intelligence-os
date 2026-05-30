@@ -65,54 +65,30 @@ assert(
   const result = await hostingerSshRuntimeRead(
     { input: { target_key: "site_beta" } },
     {
-      REGISTRY_SPREADSHEET_ID: "sheet_123",
-      HOSTING_ACCOUNT_REGISTRY_RANGE: "Hosting Account Registry!A:Z",
       HOSTING_ACCOUNT_REGISTRY_SHEET: "Hosting Account Registry",
-      async getGoogleClientsForSpreadsheet() {
-        return {
-          sheets: {
-            spreadsheets: {
-              values: {
-                async get() {
-                  return {
-                    data: {
-                      values: [
-                        [
-                          "hosting_provider",
-                          "hosting_account_key",
-                          "account_identifier",
-                          "resolver_target_keys_json",
-                          "brand_sites_json",
-                          "ssh_available",
-                          "wp_cli_available",
-                          "shared_access_enabled",
-                          "resolver_execution_ready"
-                        ],
-                        [
-                          "Hostinger",
-                          "hostinger_main",
-                          "acct_123",
-                          '["site_alpha","site_beta"]',
-                          '[{"site":"https://example.com"}]',
-                          "TRUE",
-                          "FALSE",
-                          "TRUE",
-                          "TRUE"
-                        ]
-                      ]
-                    }
-                  };
-                }
-              }
-            }
+      async readSqlRegistrySurface(surfaceName) {
+        assert("hostinger runtime read asks for Hosting Account Registry SQL surface", surfaceName === "Hosting Account Registry", surfaceName);
+        return [
+          {
+            hosting_provider: "Hostinger",
+            hosting_account_key: "hostinger_main",
+            account_identifier: "acct_123",
+            resolver_target_keys_json: '["site_alpha","site_beta"]',
+            brand_sites_json: '[{"site":"https://example.com"}]',
+            ssh_available: "TRUE",
+            wp_cli_available: "FALSE",
+            shared_access_enabled: "TRUE",
+            resolver_execution_ready: "TRUE"
           }
-        };
+        ];
       }
     }
   );
 
   assert("hostinger runtime read resolves matching row", result.ok === true, JSON.stringify(result));
-  assert("hostinger runtime read preserves authoritative source", result.authoritative_source === "Hosting Account Registry", JSON.stringify(result));
+  assert("hostinger runtime read reports SQL authoritative source", result.authoritative_source === "table.hosting_accounts", JSON.stringify(result));
+  const removedMirrorKey = 'legacy' + '_mirror_source';
+  assert("hostinger runtime read does not return sheet mirror source", result[removedMirrorKey] === undefined, JSON.stringify(result));
   assert("hostinger runtime read normalizes booleans", result.ssh_available === true && result.wp_cli_available === false, JSON.stringify(result));
 }
 

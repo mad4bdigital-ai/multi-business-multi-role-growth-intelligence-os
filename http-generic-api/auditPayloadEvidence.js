@@ -23,11 +23,7 @@ export function redactAuditPayload(value, depth = 0) {
   if (typeof value === "object") {
     const out = {};
     for (const [key, child] of Object.entries(value)) {
-      if (SENSITIVE_KEY_PATTERN.test(key)) {
-        out[key] = "[REDACTED]";
-      } else {
-        out[key] = redactAuditPayload(child, depth + 1);
-      }
+      out[key] = SENSITIVE_KEY_PATTERN.test(key) ? "[REDACTED]" : redactAuditPayload(child, depth + 1);
     }
     return out;
   }

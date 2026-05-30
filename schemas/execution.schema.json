@@ -15,7 +15,6 @@
           "type": "string",
           "enum": [
             "none",
-            "sheets",
             "docs",
             "drive"
           ],
@@ -104,14 +103,6 @@
           "minLength": 1
         },
         "binding_key": {
-          "type": "string",
-          "default": ""
-        },
-        "legacy_mirror_spreadsheet_id": {
-          "type": "string",
-          "default": ""
-        },
-        "legacy_mirror_worksheet_gid": {
           "type": "string",
           "default": ""
         }
@@ -525,14 +516,6 @@
           "default": ""
         },
         "target_row_id": {
-          "type": "string",
-          "default": ""
-        },
-        "legacy_mirror_spreadsheet_id": {
-          "type": "string",
-          "default": ""
-        },
-        "legacy_mirror_worksheet_gid": {
           "type": "string",
           "default": ""
         },

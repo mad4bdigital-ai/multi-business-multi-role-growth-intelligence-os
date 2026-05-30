@@ -186,6 +186,62 @@ components:
         - type: boolean
         - type: "null"
 
+    HardActivationRunRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        tenant_id: { type: string }
+        user_id: { type: string }
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+        include_raw: { type: boolean, default: false }
+        close_previous_sessions: { type: boolean, default: false }
+        provider_arguments:
+          type: object
+          additionalProperties: true
+
+    HardActivationEvidenceStep:
+      type: object
+      additionalProperties: true
+      properties:
+        attempted: { type: boolean }
+        ok: { type: boolean, nullable: true }
+        activation_layer: { type: string, nullable: true }
+        evidence_source: { type: string, nullable: true }
+
+    HardActivationRunResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, activation_layer, activation_complete, runtime_classification, evidence_matrix, report_policy, secrets_included]
+      properties:
+        ok: { type: boolean }
+        activation_layer: { type: string, enum: [hard_activation_orchestrator] }
+        activation_complete: { type: boolean }
+        runtime_classification:
+          type: object
+          additionalProperties: true
+          properties:
+            activation_status: { type: string }
+            status_authority: { type: string }
+            reason_code: { type: string }
+        evidence_matrix:
+          type: object
+          additionalProperties: true
+          properties:
+            session_context: { $ref: "#/components/schemas/HardActivationEvidenceStep" }
+            provider_bootstrap: { $ref: "#/components/schemas/HardActivationEvidenceStep" }
+        report_policy:
+          type: object
+          additionalProperties: true
+          properties:
+            may_report_session_context_loaded: { type: boolean }
+            may_report_activation_complete: { type: boolean }
+            session_context_claim_requires: { type: string }
+        secrets_included: { type: boolean, enum: [false] }
+
     AuditPayloadEvidenceSmokeRequest:
       type: object
       additionalProperties: false
@@ -3079,6 +3135,40 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /activation/hard-run:
+    post:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: runHardActivation
+      x-openai-isConsequential: false
+      summary: Run hard activation with mandatory session-context evidence
+      description: >
+        Orchestrates hard activation by collecting session-context evidence first and provider-bootstrap
+        evidence second. Activation is not complete unless both evidence surfaces are present and valid.
+        This prevents final activation reports from claiming session context was opened or loaded without
+        getActivationSessionContext evidence.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HardActivationRunRequest"
+      responses:
+        "200":
+          description: Hard activation complete.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HardActivationRunResponse"
+        "424":
+          description: Required activation evidence is missing or degraded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HardActivationRunResponse"
+
   /activation/session-context:
     get:
       tags: [activation]
@@ -5642,7 +5732,34 @@ paths:
                 tool_args:
                   type: object
                   additionalProperties: true
-                  description: Arguments matching the tool inputSchema. For admin_control pass tool, sql, args etc. here.
+                  description: Arguments matching the tool inputSchema. For connect_activate, pass mode and integration_modes here; for connect_device_install, pass device_id here; for admin_control pass tool, sql, args etc. here.
+                  properties:
+                    mode:
+                      type: string
+                      enum: [managed, dedicated]
+                      description: Activation mode for connect_activate.
+                    device_id:
+                      type: string
+                      pattern: "^[a-z0-9-]{2,32}$"
+                      description: Stable lowercase device id for connect_device_install.
+                    workspace_name:
+                      type: string
+                    integration_modes:
+                      type: object
+                      additionalProperties: true
+                      description: Optional per-app managed/dedicated source policy.
+                    n8n_activation_mode:
+                      type: string
+                      enum: [managed_main_server, self_hosted_local]
+                    provisioning_credential_mode:
+                      type: string
+                      enum: [managed, dedicated]
+                    app_key:
+                      type: string
+                    auth_type:
+                      type: string
+                    display_label:
+                      type: string
       responses:
         "200":
           description: Upstream tool response
@@ -11491,6 +11608,7 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: writeGptSessionTurn
       x-tenant-gpt-operationId: writeSessionTurn
+      x-openai-isConsequential: false
       summary: Append one turn to a customer_sessions archive
       description: "Append one conversation turn to the active customer_sessions row. Writes the full content to the Drive transcript Doc and JSONL sidecar, and stores a bounded preview, sha256 hash, and Drive anchor in gpt_session_turns. Registered as the admin tool gpt_session_turn_write."
       parameters:
@@ -11537,6 +11655,7 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: endGptSession
       x-tenant-gpt-operationId: endSession
+      x-openai-isConsequential: false
       summary: Close a customer_sessions archive
       description: "Close the active customer_sessions row. Optionally writes a session_summaries row, finalizes the Drive transcript through closeGptSessionArchive, and triggers the exportSessionToDrive pipeline so drive_export_url is populated for activation readback. Registered as the admin tool gpt_session_end."
       parameters:

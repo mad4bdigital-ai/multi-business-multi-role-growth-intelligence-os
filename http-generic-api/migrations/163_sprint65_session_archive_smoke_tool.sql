@@ -1,21 +1,23 @@
--- Sprint 65: Session archive/writeback certification tool.
+-- Sprint 65: Governed session archive/writeback smoke tool.
+-- Exposes the existing /release/session-archive-smoke route through the admin tool registry.
+-- Smoke verifies Drive doc, JSONL sidecar, SQL pointer-only turn rows, activation readback, and cleanup.
 
 INSERT INTO `admin_platform_endpoint_tools` (
   `tool_key`, `display_name`, `description`, `http_method`, `http_path`,
   `path_param_keys`, `input_schema`, `fixed_body`, `tags`, `is_enabled`, `sort_order`
 ) VALUES
 (
-  'session_archive_smoke',
-  'Session Archive Drive Writeback Smoke',
-  'Run governed GPT session archive smoke. Writes a synthetic GPT action session, verifies Drive Doc and JSONL writeback, SQL pointer/hash/preview-only storage, activation readback, and optional cleanup. Does not return secret values.',
+  'release_session_archive_smoke',
+  'Release Session Archive Smoke',
+  'Run live GPT session archive/writeback smoke. Creates a synthetic GPT action session, writes user and assistant turns, verifies Drive doc/JSONL readback, SQL pointer-only rows, activation session-context readback, and optional cleanup. Does not return raw secrets.',
   'POST',
   '/release/session-archive-smoke',
   NULL,
-  '{"type":"object","properties":{"tenant_id":{"type":"string"},"user_id":{"type":"string"},"include_drive_readback":{"type":"boolean","default":true},"cleanup":{"type":"boolean","default":true},"smoke_subfolder":{"type":"string","default":"_smoke_archives"}},"additionalProperties":false}',
+  '{"type":"object","properties":{"tenant_id":{"type":"string","description":"Tenant id for the synthetic smoke session. Defaults to platform tenant."},"user_id":{"type":"string","description":"Synthetic user id for the smoke session. Defaults to a generated session_archive_smoke_* value."},"include_drive_readback":{"type":"boolean","default":true},"cleanup":{"type":"boolean","default":true},"smoke_subfolder":{"type":"string","default":"_smoke_archives"}},"additionalProperties":false}',
   NULL,
-  'session,archive,drive,writeback,smoke,read_write,admin,release,certification,no_secrets,cleanup_supported',
+  'release,session-archive,drive-writeback,activation-readback,smoke,read_write,admin,no_secrets,cleanup_default_true',
   1,
-  258
+  104
 )
 ON DUPLICATE KEY UPDATE
   `display_name` = VALUES(`display_name`),

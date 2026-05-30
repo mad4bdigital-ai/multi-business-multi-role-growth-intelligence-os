@@ -24,6 +24,8 @@ Tenant schema is MCP-style and exposes only:
 
 Use `listTools`, then `callTool` with `name` and `tool_args`.
 
+Tenant discovery and dispatch must remain user-JWT-safe. Tenant tools must not expose or route to `/admin/*`, `/admin/system/*`, `/connector/*`, direct `connector.mad4b.com`, or any backend-key-only workaround. If `listTools` exposes such a tool, or `callTool` returns `tenant_tool_route_not_allowed` / `admin_backend_api_key_required`, treat it as a platform tool-surface defect: do not ask the tenant for an admin/backend key, do not retry with admin credentials, and fall back to tenant-safe `connect_*` or local gateway tools discovered by `listTools`.
+
 ## Live repo knowledge loading
 
 Do not paste or upload repository knowledge files into GPT Builder as long-lived copies. They drift from the repo and can conflict with runtime policy.
