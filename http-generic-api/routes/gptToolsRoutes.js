@@ -309,7 +309,7 @@ function storeToolResponseForChunks(body) {
   return { chunkId, serialized };
 }
 
-function maybeChunkToolResponseBody(body, optionsSource = {}) {
+export function maybeChunkToolResponseBody(body, optionsSource = {}) {
   const options = normalizeResponseOptions(optionsSource?.response_options || optionsSource?._response || {});
   const serialized = JSON.stringify(body ?? {});
   if (serialized.length <= options.maxChars) return body;
