@@ -276,7 +276,7 @@ export async function writePlatformEngineRun(plan = {}, input = {}, deps = {}) {
        rules_matched_json, skills_selected_json, plan_json, risk_level,
        approval_status, apply_status, validation_status, blocked_reasons_json,
        actor_id, tenant_id, trace_id, completed_at
-     ) VALUES (?, ?, ?, ?, ?, ?, CAST(? AS JSON), CAST(? AS JSON), CAST(? AS JSON), ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?, CURRENT_TIMESTAMP)
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
      ON DUPLICATE KEY UPDATE
        policy_key = VALUES(policy_key),
        rules_matched_json = VALUES(rules_matched_json),
