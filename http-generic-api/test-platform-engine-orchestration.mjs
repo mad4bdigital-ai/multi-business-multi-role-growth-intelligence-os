@@ -30,8 +30,10 @@ const lifecycleMigration = fs.readFileSync(
 );
 const routesIndex = fs.readFileSync(new URL("./routes/index.js", import.meta.url), "utf8");
 const engineRoutes = fs.readFileSync(new URL("./routes/platformEngineRoutes.js", import.meta.url), "utf8");
+const platformEngineRegistrySource = fs.readFileSync(new URL("./platformEngineRegistry.js", import.meta.url), "utf8");
 const tenantOpenApi = fs.readFileSync(new URL("./openapi.tenant-gpt.auth.yaml", import.meta.url), "utf8");
 
+assert(!platformEngineRegistrySource.includes("CAST(? AS JSON)"), "Platform engine audit writes must not use unsupported MariaDB CAST(? AS JSON) placeholders");
 assert(migration.includes("CREATE TABLE IF NOT EXISTS platform_engine_registry"));
 assert(migration.includes("CREATE TABLE IF NOT EXISTS platform_engine_policy_registry"));
 assert(migration.includes("CREATE TABLE IF NOT EXISTS platform_engine_policy_rules"));
