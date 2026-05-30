@@ -648,10 +648,33 @@ function boundedCliText(value) {
   };
 }
 
+function classifyCliCredentialFailure(toolLabel, stdoutText = '', stderrText = '') {
+  if (String(toolLabel || '').toUpperCase() !== 'GH') return null;
+  const combined = `${stdoutText}\n${stderrText}`.toLowerCase();
+  const authMissing = [
+    'could not read username',
+    'terminal prompts have been disabled',
+    'authentication required',
+    'not logged in to any github hosts',
+    'gh auth login',
+    'github.com: permission denied',
+  ].some((needle) => combined.includes(needle));
+  if (!authMissing) return null;
+  return {
+    code: 'GH_AUTH_REQUIRED',
+    message: 'Local GitHub CLI is not authenticated. Use the auth-host GitHub App / DB-backed admin_control github route for normal repo work, or explicitly configure local gh auth for break-glass recovery.',
+    credential_boundary: 'local_device_cli_only',
+    recommended_route: 'auth_host_admin_control_github',
+    db_backed_route_available: true,
+    secrets_included: false,
+  };
+}
+
 function normalizeCliResult(result, toolLabel) {
   const exitCode = Number(result?.exitCode ?? result?.exit_code ?? 0);
   const stdout = boundedCliText(result?.stdout);
   const stderr = boundedCliText(result?.stderr);
+  const credentialFailure = exitCode !== 0 ? classifyCliCredentialFailure(toolLabel, stdout.text, stderr.text) : null;
   return {
     ok: exitCode === 0,
     command_ok: exitCode === 0,
@@ -664,8 +687,12 @@ function normalizeCliResult(result, toolLabel) {
     output_limit_chars: CLI_OUTPUT_LIMIT_CHARS,
     exitCode,
     exit_code: exitCode,
+    ...(credentialFailure ? {
+      credential_failure: credentialFailure,
+      recommended_route: credentialFailure.recommended_route,
+    } : {}),
     ...(exitCode !== 0
-      ? { error: { code: `${toolLabel}_EXIT_NONZERO`, message: `${toolLabel} exited with code ${exitCode}` } }
+      ? { error: credentialFailure || { code: `${toolLabel}_EXIT_NONZERO`, message: `${toolLabel} exited with code ${exitCode}` } }
       : {}),
   };
 }
