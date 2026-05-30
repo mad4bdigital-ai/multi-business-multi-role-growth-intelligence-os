@@ -915,6 +915,8 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   }
 
   const pool = getPool();
+  const connectorLocalApiKeyColumnSupported = await hasConnectorLocalApiKeyColumn(pool);
+  const connectorLocalApiKeySelect = await connectorLocalApiKeySelectFragment(pool);
   const principal = await resolveRequestedLocalPrincipal(req, { user_id, tenant_id });
   const resolvedUserId = principal.userId;
   const resolvedTenantId = principal.tenantId;
