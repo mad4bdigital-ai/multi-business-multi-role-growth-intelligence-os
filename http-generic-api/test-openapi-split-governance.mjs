@@ -49,12 +49,17 @@ const splitScript = readFileSync("scripts/split-openapi.mjs", "utf8");
 const sourcePairs = new Set();
 const sourceOperationIds = new Set();
 const sourceTenantAliases = new Set();
+const sourceTenantAliasLocations = new Map();
 for (const op of collectOperations(main)) {
   sourcePairs.add(`${op.method.toUpperCase()} ${op.pathKey}`);
   if (op.operation?.operationId) sourceOperationIds.add(op.operation.operationId);
   if (op.operation?.["x-tenant-gpt-operationId"]) {
-    sourceOperationIds.add(op.operation["x-tenant-gpt-operationId"]);
-    sourceTenantAliases.add(op.operation["x-tenant-gpt-operationId"]);
+    const alias = op.operation["x-tenant-gpt-operationId"];
+    sourceOperationIds.add(alias);
+    sourceTenantAliases.add(alias);
+    const locations = sourceTenantAliasLocations.get(alias) || [];
+    locations.push(`${op.method.toUpperCase()} ${op.pathKey}`);
+    sourceTenantAliasLocations.set(alias, locations);
   }
 }
 
@@ -75,6 +80,11 @@ for (const requiredPath of [
 for (const requiredAlias of ["activateSession", "listTools", "callTool", "writeSessionTurn", "endSession"]) {
   assert(sourceTenantAliases.has(requiredAlias), `tenant alias must be declared in main OpenAPI via x-tenant-gpt-operationId: ${requiredAlias}`);
 }
+for (const [alias, locations] of sourceTenantAliasLocations.entries()) {
+  assert(locations.length === 1, `tenant alias must be unique in main OpenAPI: ${alias} => ${locations.join(", ")}`);
+}
+assert(sourceTenantAliasLocations.get("listTools")?.[0] === "GET /system/tools", "tenant listTools alias must bind to /system/tools");
+assert(sourceTenantAliasLocations.get("callTool")?.[0] === "POST /system/tools/call", "tenant callTool alias must bind to /system/tools/call");
 
 for (const splitFile of SPLIT_SCHEMA_FILES) {
   const splitDoc = loadYaml(splitFile);
@@ -100,6 +110,7 @@ for (const splitFile of SPLIT_SCHEMA_FILES) {
 
 assert(splitScript.includes("tenant_operation_ids"), "split-openapi must select tenant operations from main config");
 assert(splitScript.includes("x-tenant-gpt-operationId"), "split-openapi must support source-declared tenant aliases");
+assert(splitScript.includes("validateUniqueTenantAliases"), "split-openapi must reject duplicate tenant operation aliases");
 assert(splitScript.includes("validateSplitOperationsComeFromSource"), "split-openapi must validate generated split operations against main source");
 assert(!splitScript.includes("yaml.load(fs.readFileSync(tenantPath"), "split-openapi must not use tenant schema as the tenant source-of-truth");
 

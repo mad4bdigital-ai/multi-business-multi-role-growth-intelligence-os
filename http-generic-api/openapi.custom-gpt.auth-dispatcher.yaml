@@ -683,8 +683,27 @@ paths:
                 arguments:
                   type: object
                   additionalProperties: true
-                  description: Tool arguments. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields. Admin provider tools require admin/service auth.
+                  deprecated: true
+                  description: Legacy tool arguments. Tenant GPT callers should use tool_args.
                   properties: {}
+                tool_args:
+                  type: object
+                  additionalProperties: true
+                  description: Tool arguments. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields. Admin provider tools require admin/service auth.
+                  properties:
+                    mode:
+                      type: string
+                      enum:
+                        - managed
+                        - dedicated
+                        - hybrid
+                    integration_modes:
+                      type: array
+                      items:
+                        type: string
+                    device_id:
+                      type: string
+                      pattern: ^[a-z0-9-]{2,32}$
       responses:
         '200':
           description: System tool result
@@ -872,6 +891,12 @@ paths:
                 arguments:
                   type: object
                   additionalProperties: true
+                  deprecated: true
+                  description: Legacy tool arguments. Prefer tool_args for wrapper-safe callers.
+                  properties: {}
+                tool_args:
+                  type: object
+                  additionalProperties: true
                   description: Tool arguments. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields.
                   properties: {}
       responses:
@@ -1020,7 +1045,6 @@ paths:
       security:
         - backendBearerAuth: []
       operationId: listAdminTools
-      x-tenant-gpt-operationId: listTools
       summary: List all admin platform tools from the DB registry
       description: Returns the full catalog of admin platform operations from admin_platform_endpoint_tools. Each tool has a name (pass to callAdminTool), description, and inputSchema. Call this to discover available operations before using callAdminTool.
       responses:
@@ -1076,7 +1100,6 @@ paths:
       security:
         - backendBearerAuth: []
       operationId: callAdminTool
-      x-tenant-gpt-operationId: callTool
       x-openai-isConsequential: false
       summary: Execute any admin platform tool by name
       description: Executes a tool from admin_platform_endpoint_tools. Use listAdminTools to get tool names and inputSchema. Pass tool arguments in tool_args. Path params are substituted automatically. Returns the raw upstream response.

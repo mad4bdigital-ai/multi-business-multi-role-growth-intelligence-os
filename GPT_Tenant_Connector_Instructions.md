@@ -33,6 +33,8 @@ The tenant schema is MCP-style and exposes only:
 
 Use `listTools`, then `callTool` with DB tool keys. Do not call old direct operation names such as `tenantConnectionStatus`, `tenantConnectionActivate`, `tenantDeviceInstall`, `tenantLocalConnectorInstall`, `tenantSaveAppConnection`, or `tenantLocalConnectorHealth`.
 
+Tenant `listTools` and `callTool` are system-layer aliases generated from `/system/tools` and `/system/tools/call`. They must not be generated from `/gpt/tools` or `/gpt/tools/call`, which are admin dispatcher routes.
+
 Tenant tools must not route into `/admin/*`, `/admin/system/*`, `/connector/*`, `connector.mad4b.com`, or any backend-key-only workaround. If a tool returns `tenant_tool_route_not_allowed` or `admin_backend_api_key_required`, treat it as a platform tool-surface bug and use tenant-safe `connect_*` / local gateway tools discovered by `listTools`; never ask the tenant for an admin/backend key.
 
 ## Live repo knowledge

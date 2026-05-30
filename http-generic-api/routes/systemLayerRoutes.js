@@ -1204,7 +1204,10 @@ export function buildSystemLayerRoutes(deps) {
 
   router.post("/system/tools/call", ...authenticated, async (req, res) => {
     try {
-      const { name, arguments: args = {} } = req.body || {};
+      const { name } = req.body || {};
+      const args = req.body?.tool_args && typeof req.body.tool_args === "object"
+        ? req.body.tool_args
+        : (req.body?.arguments && typeof req.body.arguments === "object" ? req.body.arguments : {});
       if (!name) {
         return res.status(400).json({ ok: false, error: { code: "missing_tool_name", message: "name is required." } });
       }
@@ -1273,7 +1276,10 @@ export function buildSystemLayerRoutes(deps) {
 
   router.post("/admin/system/tools/call", ...adminOnly, async (req, res) => {
     try {
-      const { name, arguments: args = {} } = req.body || {};
+      const { name } = req.body || {};
+      const args = req.body?.tool_args && typeof req.body.tool_args === "object"
+        ? req.body.tool_args
+        : (req.body?.arguments && typeof req.body.arguments === "object" ? req.body.arguments : {});
       if (!name) {
         return res.status(400).json({ ok: false, error: { code: "missing_tool_name", message: "name is required." } });
       }

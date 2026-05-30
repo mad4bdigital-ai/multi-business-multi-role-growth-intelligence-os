@@ -51,6 +51,11 @@ function asBoolean(value) {
   return String(value || "").trim().toLowerCase() === "true";
 }
 
+function queryStringValue(value) {
+  if (Array.isArray(value)) return String(value[0] || "").trim();
+  return String(value || "").trim();
+}
+
 function asCount(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -290,10 +295,13 @@ export async function buildActivationPlatformAccess(req, deps = {}) {
 }
 
 export function resolveSessionContextSubject(req) {
-  const requestedUserId = String(req.query.user_id || "").trim();
-  const authUserId = String(req.auth?.user_id || "").trim();
+  const requestedUserId = queryStringValue(req.query.user_id);
+  const requestedTenantId = queryStringValue(req.query.tenant_id);
+  const authUserId = queryStringValue(req.auth?.user_id);
+  const authTenantId = queryStringValue(req.auth?.tenant_id);
   const isAdmin = req.auth?.is_admin === true;
   const userId = requestedUserId || authUserId;
+  const tenantId = requestedTenantId || authTenantId;
 
   if (!isAdmin && requestedUserId && requestedUserId !== authUserId) {
     const err = new Error("User JWT cannot inspect another user's activation session context.");
@@ -304,7 +312,7 @@ export function resolveSessionContextSubject(req) {
 
   return {
     user_id: userId || null,
-    tenant_id: String(req.query.tenant_id || "").trim() || null,
+    tenant_id: tenantId || null,
     is_admin: isAdmin
   };
 }
@@ -933,7 +941,23 @@ export async function buildActivationSessionContext(req) {
         ok: true,
         rows: [],
         skipped: true,
+        reason_code: "execution_log_not_user_scoped",
         reason: "execution_log transcript is not user-scoped; user JWT callers receive request_envelope transcripts only."
+      };
+  const transcriptSourceStatus = executionTranscript.skipped
+    ? {
+        source: "execution_log",
+        status: "skipped",
+        tenant_safe: true,
+        reason_code: executionTranscript.reason_code || "not_available",
+        fallback_source: "request_envelopes"
+      }
+    : {
+        source: "execution_log",
+        status: executionTranscript.ok ? "available" : "degraded",
+        tenant_safe: Boolean(subject.is_admin),
+        event_count: executionTranscript.rows.length,
+        reason_code: executionTranscript.ok ? null : "execution_log_query_failed"
       };
 
   const scopeSet = new Set();
@@ -1040,7 +1064,7 @@ export async function buildActivationSessionContext(req) {
           }
         } : {})
       })),
-      transcript_events_note: executionTranscript.skipped ? executionTranscript.reason : undefined,
+      transcript_source_status: transcriptSourceStatus,
       developer_apps: developerApps.rows.map((row) => ({ ...row, scopes: parseScopes(row.scopes) })),
       api_credentials: apiCredentials.rows.map((row) => ({ ...row, scopes: parseScopes(row.scopes) })),
       installations: installations.rows.map((row) => ({ ...row, scope: parseScopes(row.scope) }))

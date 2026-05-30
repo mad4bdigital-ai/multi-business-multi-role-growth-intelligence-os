@@ -17,6 +17,12 @@ Tenant GPT operations are selected from `x-tenant-gpt-auth.tenant_operation_ids`
 
 The split generator must not treat `openapi.tenant-gpt.auth.yaml` as an independent source of paths, operations, security scopes, or component dependencies.
 
+Tenant operation aliases must be unique in the canonical source. In particular:
+
+- `listTools` is declared only on `GET /system/tools`
+- `callTool` is declared only on `POST /system/tools/call`
+- `GET /gpt/tools` and `POST /gpt/tools/call` remain admin dispatcher operations and must not carry tenant aliases
+
 ## Enforcement
 
 The DB execution policy is:
@@ -30,6 +36,7 @@ CI enforcement is implemented by:
 - `http-generic-api/scripts/split-openapi.mjs`
 - `http-generic-api/test-openapi-split-governance.mjs`
 - source-declared tenant aliases through `x-tenant-gpt-operationId` in `http-generic-api/openapi.yaml`
+- duplicate tenant alias rejection in `split-openapi.mjs`
 
 ## Failure class
 

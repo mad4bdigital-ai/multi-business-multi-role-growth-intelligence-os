@@ -127,7 +127,7 @@ try {
     const doc = yaml.load(readFileSync("openapi.tenant-gpt.auth.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const securityScheme = doc.components?.securitySchemes?.userBearerAuth;
-    const callToolSchema = doc.paths?.["/gpt/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
+    const callToolSchema = doc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
     const allOperations = exposedPaths.flatMap((pathKey) => {
       const pathItem = doc.paths[pathKey] || {};
       return Object.entries(pathItem)
@@ -153,10 +153,10 @@ try {
     assert("tenant GPT schema preset carries scope links", TENANT_SCOPE_LINKS.every((scope) => doc["x-gpt-action-auth-preset"]?.scope_links?.includes(scope)), JSON.stringify(doc["x-gpt-action-auth-preset"]));
     assert("tenant GPT schema hides OAuth plumbing operations", !exposedPaths.some((path) => path.startsWith("/auth/")), exposedPaths.join(", "));
 
-    // MCP meta-operations (connect/system tools are now accessible via callTool)
+    // MCP meta-operations (connect/system tools are accessible through system-layer callTool)
     assert("tenant GPT schema exposes activateSession", exposedPaths.includes("/activation/session-context"), exposedPaths.join(", "));
-    assert("tenant GPT schema exposes listTools", exposedPaths.includes("/gpt/tools"), exposedPaths.join(", "));
-    assert("tenant GPT schema exposes callTool", exposedPaths.includes("/gpt/tools/call"), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes listTools", exposedPaths.includes("/system/tools"), exposedPaths.join(", "));
+    assert("tenant GPT schema exposes callTool", exposedPaths.includes("/system/tools/call"), exposedPaths.join(", "));
     assert("tenant GPT schema exposes writeSessionTurn", exposedPaths.includes("/gpt/sessions/{id}/turn"), exposedPaths.join(", "));
     assert("tenant GPT schema exposes endSession", exposedPaths.includes("/gpt/sessions/{id}/end"), exposedPaths.join(", "));
     assert("tenant GPT schema exposes tenant Platform Plugin catalog", exposedPaths.includes("/tenant/platform/plugins/catalog"), exposedPaths.join(", "));
