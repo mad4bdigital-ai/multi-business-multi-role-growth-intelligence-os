@@ -117,6 +117,9 @@ const SECRET = "secret app password";
 
   assert.equal(result.status, "verified");
   assert.ok(result.claim_id, "claim_id should be present");
+  assert.ok(result.site_id, "site_id should be present");
+  assert.ok(result.grant_id, "grant_id should be present");
+  assert.equal(result.grant_status, "pending_approval");
   assert.ok(result.connection_id, "connection_id should be present");
   assert.equal(result.matched_brand_key, "allroyal");
   assert.equal(result.matched_target_key, "allroyalegypt_wp");
