@@ -799,12 +799,106 @@ async function searchRepoFiles(options) {
   };
 }
 
+function assertSafeGitRef(ref, fallback = "HEAD") {
+  const value = String(ref || fallback).trim() || fallback;
+  if (value.includes("..") || !/^[A-Za-z0-9._/@:+-]+$/.test(value)) {
+    const err = new Error("git ref contains unsupported characters.");
+    err.status = 400;
+    err.code = "repo_git_bad_ref";
+    throw err;
+  }
+  return value;
+}
+
+async function runGitReadOnly(gitArgs, options = {}) {
+  const { root } = resolveRepoInspectPath(".");
+  const maxChars = clampNumber(options.max_chars, 12000, 1000, 50000);
+  try {
+    const { stdout, stderr } = await execFileAsync("git", ["-C", root, ...gitArgs], {
+      timeout: 30_000,
+      maxBuffer: Math.max(1024 * 1024, maxChars * 4),
+    });
+    return {
+      stdout: String(stdout || "").slice(0, maxChars),
+      stderr: String(stderr || "").slice(0, Math.min(maxChars, 4000)),
+      truncated: String(stdout || "").length > maxChars,
+    };
+  } catch (err) {
+    const wrapped = new Error(`git read-only command failed: ${err.message}`);
+    wrapped.status = 502;
+    wrapped.code = "repo_git_command_failed";
+    wrapped.details = {
+      exit_code: err.code,
+      stderr: String(err.stderr || "").slice(0, 4000),
+    };
+    throw wrapped;
+  }
+}
+
+async function gitStatusRepo(args = {}) {
+  const [status, head, branch] = await Promise.all([
+    runGitReadOnly(["status", "--short", "--branch"], args),
+    runGitReadOnly(["rev-parse", "HEAD"], { ...args, max_chars: 2000 }),
+    runGitReadOnly(["rev-parse", "--abbrev-ref", "HEAD"], { ...args, max_chars: 2000 }),
+  ]);
+  return {
+    action: "git_status",
+    root: repoInspectRoot(),
+    head_sha: head.stdout.trim(),
+    branch: branch.stdout.trim(),
+    truncated: status.truncated,
+    status: status.stdout,
+  };
+}
+
+async function gitLogRepo(args = {}) {
+  const limit = clampNumber(args.max_entries ?? args.limit, 20, 1, 100);
+  const gitArgs = ["log", `-n${limit}`, "--date=iso-strict", "--pretty=format:%H%x1f%h%x1f%cI%x1f%an%x1f%s"];
+  if (args.since) gitArgs.push(`--since=${String(args.since)}`);
+  if (args.until) gitArgs.push(`--until=${String(args.until)}`);
+  if (args.file) gitArgs.push("--", validatePatchPath(args.file));
+  const result = await runGitReadOnly(gitArgs, args);
+  const commits = result.stdout.split(/\r?\n/).filter(Boolean).map((line) => {
+    const [sha, short_sha, committed_at, author, subject] = line.split("\x1f");
+    return { sha, short_sha, committed_at, author, subject };
+  });
+  return {
+    action: "git_log",
+    root: repoInspectRoot(),
+    count: commits.length,
+    truncated: result.truncated,
+    commits,
+  };
+}
+
+async function gitShowRepo(args = {}) {
+  const ref = assertSafeGitRef(args.ref || "HEAD", "HEAD");
+  const result = await runGitReadOnly([
+    "show",
+    "--stat",
+    "--patch",
+    "--format=fuller",
+    "--no-ext-diff",
+    ref,
+  ], args);
+  return {
+    action: "git_show",
+    root: repoInspectRoot(),
+    ref,
+    truncated: result.truncated,
+    output: result.stdout,
+  };
+}
+
 export async function inspectRepoReadOnly(args = {}) {
   const action = String(args.action || "list").trim().toLowerCase();
   if (action === "list") return listRepoEntries(args.path || ".", args);
   if (action === "read") return readRepoFile(args.path, args);
   if (action === "search") return searchRepoFiles(args);
-  const err = new Error("action must be one of: list, read, search.");
+  if (action === "git_status") return gitStatusRepo(args);
+  if (action === "git_log") return gitLogRepo(args);
+  if (action === "git_show") return gitShowRepo(args);
+  const err = new Error("action must be one of: list, read, search, git_status, git_log, git_show.");
   err.status = 400;
   err.code = "repo_inspect_bad_action";
   throw err;
