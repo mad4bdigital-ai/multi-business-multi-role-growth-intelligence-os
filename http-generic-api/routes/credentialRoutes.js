@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { createHash, randomUUID } from "node:crypto";
 import { getEffectiveCredentialStatus } from "../credentialResolver.js";
+import { maybeCreateCredentialIntakeRequirement } from "../credentialIntakeEnforcement.js";
 import { getPool } from "../db.js";
 import { encryptToken } from "../tokenEncryption.js";
 
@@ -258,8 +259,10 @@ export function buildCredentialRoutes(deps) {
   // /connect wrappers, and governance diagnostics.
   router.post("/credentials/effective/status", async (req, res) => {
     try {
-      const credential = await getEffectiveCredentialStatus(req.body || {});
-      res.json({ ok: true, credential });
+      const input = req.body || {};
+      const credential = await getEffectiveCredentialStatus(input);
+      const intake = await maybeCreateCredentialIntakeRequirement(input, credential, { req });
+      res.json({ ok: true, credential, ...(intake ? { intake } : {}) });
     } catch (err) {
       res.status(500).json({ ok: false, error: { code: err.code || "credential_status_failed", message: err.message } });
     }
@@ -270,8 +273,10 @@ export function buildCredentialRoutes(deps) {
   // never decrypted secret values.
   router.post("/credentials/effective/plan", async (req, res) => {
     try {
-      const plan = await buildCredentialResolutionPlan(req.body || {});
-      res.json(plan);
+      const input = req.body || {};
+      const plan = await buildCredentialResolutionPlan(input);
+      const intake = await maybeCreateCredentialIntakeRequirement(input, plan.effective || {}, { req });
+      res.json({ ...plan, ...(intake ? { intake } : {}) });
     } catch (err) {
       res.status(err.status || 500).json({ ok: false, error: { code: err.code || "credential_plan_failed", message: err.message }, secrets_included: false });
     }
