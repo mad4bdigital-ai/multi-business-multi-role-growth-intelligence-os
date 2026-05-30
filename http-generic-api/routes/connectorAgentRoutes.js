@@ -723,8 +723,9 @@ export function buildConnectorAgentRoutes() {
     try {
       const payload = verifyInstallerDownloadToken(req.query.token);
       if (payload.format !== "ps1") throw httpError(400, "unsupported_format", "Only ps1 installer downloads are supported.");
+      const connectorLocalApiKeySelect = await connectorLocalApiKeySelectFragment();
       const [[config]] = await getPool().query(
-        "SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, connector_local_api_key, cf_token FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+        `SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, ${connectorLocalApiKeySelect}, cf_token FROM \`local_connector_user_configs\` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1`,
         [payload.user_id, payload.device_id]
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
