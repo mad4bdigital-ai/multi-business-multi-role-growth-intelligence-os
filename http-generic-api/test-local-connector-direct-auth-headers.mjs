@@ -24,6 +24,13 @@ assert(
 );
 
 assert(
+  'local connector policy reports configured auth aliases, not only fallback-only aliases',
+  connectorSource.includes('local_api_key_alias_enabled: Boolean(CONNECTOR_LOCAL_API_KEY)') &&
+    connectorSource.includes('connector_auth_secret_count: CONNECTOR_AUTH_SECRETS.length') &&
+    connectorSource.includes('LEGACY_BACKEND_API_KEY_FALLBACK_ENABLED && Boolean(LEGACY_BACKEND_API_KEY)'),
+);
+
+assert(
   'direct connector OpenAPI documents x-api-key as break-glass auth alias',
   connectorSchema.includes('x-api-key: <CONNECTOR_SECRET>') &&
     connectorSchema.includes('connectorBearerAuth'),
