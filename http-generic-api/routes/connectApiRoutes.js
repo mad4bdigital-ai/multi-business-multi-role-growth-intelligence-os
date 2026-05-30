@@ -466,6 +466,7 @@ export function buildConnectApiRoutes(deps = {}) {
         ok: true,
         status: result?.affectedRows ? "approved" : "not_modified",
         promotion,
+        grant_promotion: grantPromotion,
         secrets_included: false,
       });
     } catch (err) {
