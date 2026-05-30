@@ -276,6 +276,39 @@ async function createPrivateCredentialBinding({
   );
 }
 
+async function createSiteAccessGrant({
+  db, grantId, siteId, tenantId, userId, connectionId, claimId, cmsUser, requestedScope, approvalRequired,
+}) {
+  const caps = capabilityFlags(cmsUser);
+  const status = approvalRequired ? "pending_approval" : "active";
+  await db.query(
+    `
+      INSERT INTO \`cms_site_access_grants\` (
+        grant_id, site_id, tenant_id, user_id, workspace_id, connection_id, claim_id,
+        scope, capabilities_json, draft_allowed, publish_allowed, destructive_allowed,
+        status, approved_by, approved_at, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, 0, ?, ?, IF(? = 'active', NOW(), NULL), NOW(), NOW())
+      ON DUPLICATE KEY UPDATE
+        connection_id = VALUES(connection_id),
+        claim_id = VALUES(claim_id),
+        capabilities_json = VALUES(capabilities_json),
+        draft_allowed = VALUES(draft_allowed),
+        publish_allowed = VALUES(publish_allowed),
+        status = VALUES(status),
+        approved_by = VALUES(approved_by),
+        approved_at = VALUES(approved_at),
+        updated_at = NOW()
+    `,
+    [
+      grantId, siteId, tenantId, userId, connectionId, claimId, requestedScope,
+      JSON.stringify(caps), caps.edit_posts ? 1 : 0, caps.publish_posts ? 1 : 0,
+      status, status === "active" ? userId : null, status,
+    ]
+  );
+  return { status, capabilities: caps };
+}
+
 async function insertClaim({
   db, claimId, tenantId, userId, connectionId, siteUrl, wpJsonBase,
   normalizedDomain, cmsUser, match, requestedScope,
