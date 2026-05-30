@@ -56,6 +56,7 @@ function localManagerActivationBinding() {
     ...LOCAL_MANAGER_ACTIVATION_BINDING,
     urls: {
       public_app: LOCAL_MANAGER_ACTIVATION_BINDING.public_app_url,
+      download: LOCAL_MANAGER_ACTIVATION_BINDING.download_url,
       admin_tools: LOCAL_MANAGER_ACTIVATION_BINDING.admin_tools_url,
       device_link: LOCAL_MANAGER_ACTIVATION_BINDING.device_link_url,
       devices: LOCAL_MANAGER_ACTIVATION_BINDING.devices_url,
