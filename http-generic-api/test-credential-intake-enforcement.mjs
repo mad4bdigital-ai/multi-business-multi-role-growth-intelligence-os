@@ -61,5 +61,12 @@ assert(
   intakeSource.includes('secrets_included: false') && !intakeSource.includes('secret_value'),
   'intake enforcement responses must stay secret-safe',
 );
+assert(
+  toolSchemaMigration.includes("'enforce_intake'") &&
+    toolSchemaMigration.includes("'auto_intake'") &&
+    toolSchemaMigration.includes("WHERE tool_key = 'credential_effective_status'") &&
+    toolSchemaMigration.includes("WHERE tool_key = 'credential_effective_plan'"),
+  'tool schemas must expose enforce_intake and auto_intake flags for effective credential tools',
+);
 
 console.log('credential intake enforcement tests passed');
