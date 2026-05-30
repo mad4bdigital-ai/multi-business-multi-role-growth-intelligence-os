@@ -1279,7 +1279,16 @@ export function buildGptToolsRoutes(deps) {
     try {
       const callerType = resolveCallerType(req);
       const tools = await fetchTools(callerType);
-      return res.status(200).json({ ok: true, caller_type: callerType, count: tools.length, tools });
+      const { items, page } = paginateItems(tools, req.query || {});
+      const body = {
+        ok: true,
+        caller_type: callerType,
+        count: tools.length,
+        returned_count: items.length,
+        page,
+        tools: items,
+      };
+      return res.status(200).json(maybeChunkToolResponseBody(body, { response_options: req.query || {} }));
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "tools_list_failed", message: err.message } });
     }
