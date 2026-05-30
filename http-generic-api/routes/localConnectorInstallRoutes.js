@@ -675,8 +675,8 @@ function buildAllowlistEnvValue(aliases) {
   return JSON.stringify(obj);
 }
 
-function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
-  const envEchoLines = buildConnectorEnv({ connectorSecret, aliases, port, capabilities, permissionGrants })
+function buildInstallScript({ cfToken, connectorSecret, connectorLocalApiKey = '', tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
+  const envEchoLines = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases, port, capabilities, permissionGrants })
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line, index) => `echo ${line}${index === 0 ? ">" : ">>"} \"%~dp0.env\"`);
@@ -725,14 +725,18 @@ function buildInstallScript({ cfToken, connectorSecret, tunnelUrl, aliases, port
   ].join("\r\n");
 }
 
-function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [], permissionGrants = {} }) {
+function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases, port, capabilities = [], permissionGrants = {} }) {
   const grants = normalizePermissionGrants(permissionGrants);
   const allAliases = [...aliases, ...grants.shell_aliases];
   const allowlistVal = buildAllowlistEnvValue(allAliases);
   const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
   const filePathLine = grants.allowed_paths.length ? [`CONNECTOR_FILE_PATHS=${grants.allowed_paths.join(",")}`] : [];
+  const connectorLocalApiKeyLine = String(connectorLocalApiKey || '').trim()
+    ? [`CONNECTOR_LOCAL_API_KEY=${String(connectorLocalApiKey).trim()}`]
+    : [];
   return [
     `CONNECTOR_SECRET=${connectorSecret}`,
+    ...connectorLocalApiKeyLine,
     "MAIN_API_URL=https://api.mad4b.com",
     `CONNECTOR_PORT=${port}`,
     "CONNECTOR_SHELL_ENABLED=true",
@@ -789,8 +793,8 @@ function buildInstallPowerShellBootstrapBat({ ps1Url, deviceId, appManaged = fal
   ].join("\r\n");
 }
 
-function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
-  const envText = buildConnectorEnv({ connectorSecret, aliases, port, capabilities, permissionGrants });
+function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey = '', tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
+  const envText = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases, port, capabilities, permissionGrants });
   return [
     "# Mad4B Local Connector — run once as Administrator",
     "$ErrorActionPreference = 'Stop'",
@@ -918,7 +922,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   if (!tenant) throw httpError(404, "tenant_not_found", "Tenant not found.");
 
   const [[existing]] = await pool.query(
-    "SELECT config_id, cf_tunnel_id, cf_token, connector_secret, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1",
+    "SELECT config_id, cf_tunnel_id, cf_token, connector_secret, connector_local_api_key, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1",
     [resolvedUserId, resolvedTenantId, device_id]
   );
 
@@ -927,6 +931,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   let tunnelToken = existing?.cf_token || null;
   let tunnelUrl = existing?.tunnel_url || null;
   let connectorSecret = existing?.connector_secret || null;
+  let connectorLocalApiKey = existing?.connector_local_api_key || null;
   const requestedRuntimeHostname = String(hostname || "").trim().toLowerCase();
   if (requestedRuntimeHostname && !requestedRuntimeHostname.endsWith(`.${DNS_DOMAIN}`)) {
     throw httpError(400, "invalid_runtime_hostname", `hostname must end with .${DNS_DOMAIN}`);
@@ -941,19 +946,21 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     tunnelToken = provisioned.token;
     tunnelUrl = `https://${tunnelId}.cfargotunnel.com`;
     connectorSecret = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
+    connectorLocalApiKey = connectorLocalApiKey || randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
 
     await pool.query(
       `INSERT INTO \`local_connector_user_configs\`
          (config_id, user_id, tenant_id, device_id,
           tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url,
-          connector_secret, cf_tunnel_id, cf_tunnel_name, cf_token, is_enabled)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+          connector_secret, connector_local_api_key, cf_tunnel_id, cf_tunnel_name, cf_token, is_enabled)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
        ON DUPLICATE KEY UPDATE
          tunnel_url = VALUES(tunnel_url),
          public_gateway_url = VALUES(public_gateway_url),
          device_runtime_url = VALUES(device_runtime_url),
          admin_recovery_url = VALUES(admin_recovery_url),
          connector_secret = VALUES(connector_secret),
+         connector_local_api_key = VALUES(connector_local_api_key),
          cf_tunnel_id = VALUES(cf_tunnel_id),
          cf_tunnel_name = VALUES(cf_tunnel_name),
          cf_token = VALUES(cf_token),
@@ -968,6 +975,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
         deviceRuntimeUrl,
         ADMIN_RECOVERY_URL,
         connectorSecret,
+        connectorLocalApiKey,
         tunnelId,
         tunnelName,
         tunnelToken,
@@ -1018,10 +1026,10 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     );
   }
 
-  const installPowerShell = buildInstallPowerShell({ cfToken: tunnelToken, connectorSecret, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
-  const connectorEnv = buildConnectorEnv({ connectorSecret, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
+  const installPowerShell = buildInstallPowerShell({ cfToken: tunnelToken, connectorSecret, connectorLocalApiKey, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
+  const connectorEnv = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
   const startConnectorBat = buildStartConnectorBat();
-  const installScript = buildInstallScript({ cfToken: tunnelToken, connectorSecret, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
+  const installScript = buildInstallScript({ cfToken: tunnelToken, connectorSecret, connectorLocalApiKey, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
 
   return {
     ok: true,

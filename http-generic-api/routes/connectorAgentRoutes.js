@@ -373,13 +373,17 @@ function normalizeShellPolicyRow(row) {
   };
 }
 
-function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [], permissionGrants = {} }) {
+function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases, port, capabilities = [], permissionGrants = {} }) {
   const grants = normalizePermissionGrants(permissionGrants);
   const allAliases = [...aliases, ...grants.shell_aliases];
   const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
   const filePathLine = grants.allowed_paths.length ? [`CONNECTOR_FILE_PATHS=${grants.allowed_paths.join(",")}`] : [];
+  const connectorLocalApiKeyLine = String(connectorLocalApiKey || '').trim()
+    ? [`CONNECTOR_LOCAL_API_KEY=${String(connectorLocalApiKey).trim()}`]
+    : [];
   return [
     `CONNECTOR_SECRET=${connectorSecret}`,
+    ...connectorLocalApiKeyLine,
     "MAIN_API_URL=https://api.mad4b.com",
     `CONNECTOR_PORT=${port}`,
     "CONNECTOR_SHELL_ENABLED=true",
@@ -408,8 +412,8 @@ function buildConnectorEnv({ connectorSecret, aliases, port, capabilities = [], 
   ].join("\r\n");
 }
 
-function buildInstallPowerShell({ cfToken, connectorSecret, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
-  const envText = buildConnectorEnv({ connectorSecret, aliases, port, capabilities, permissionGrants });
+function buildInstallPowerShell({ cfToken, connectorSecret, connectorLocalApiKey = '', tunnelUrl, aliases, port, capabilities = [], permissionGrants = {} }) {
+  const envText = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases, port, capabilities, permissionGrants });
   return [
     "# Mad4B Local Connector — run once as Administrator",
     "$ErrorActionPreference = 'Stop'",
@@ -543,8 +547,8 @@ async function resolveHeartbeatConfig(req, body = {}) {
   if (backendToken && token === backendToken) {
     sql += " ORDER BY updated_at DESC LIMIT 1";
   } else {
-    sql += " AND connector_secret = ? ORDER BY updated_at DESC LIMIT 1";
-    params.push(token);
+    sql += " AND (connector_secret = ? OR connector_local_api_key = ?) ORDER BY updated_at DESC LIMIT 1";
+    params.push(token, token);
   }
   const [rows] = await getPool().query(sql, params);
   if (rows[0]) return rows[0];
@@ -715,7 +719,7 @@ export function buildConnectorAgentRoutes() {
       const payload = verifyInstallerDownloadToken(req.query.token);
       if (payload.format !== "ps1") throw httpError(400, "unsupported_format", "Only ps1 installer downloads are supported.");
       const [[config]] = await getPool().query(
-        "SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, cf_token FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+        "SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, connector_local_api_key, cf_token FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
         [payload.user_id, payload.device_id]
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
@@ -724,6 +728,7 @@ export function buildConnectorAgentRoutes() {
       const installer = buildInstallPowerShell({
         cfToken: config.cf_token,
         connectorSecret: config.connector_secret,
+        connectorLocalApiKey: config.connector_local_api_key || '',
         tunnelUrl: config.tunnel_url,
         aliases: DEFAULT_WINDOWS_ALIASES,
         port: CONNECTOR_PORT,
@@ -771,8 +776,8 @@ export function buildConnectorAgentRoutes() {
       if (backendToken && token === backendToken) {
         sql += " ORDER BY updated_at DESC LIMIT 1";
       } else {
-        sql += " AND connector_secret = ? ORDER BY updated_at DESC LIMIT 1";
-        params.push(token);
+        sql += " AND (connector_secret = ? OR connector_local_api_key = ?) ORDER BY updated_at DESC LIMIT 1";
+        params.push(token, token);
       }
       const [[config]] = await getPool().query(sql, params);
       if (!config) throw httpError(403, "connector_policy_auth_failed", "Connector policy auth failed.");
@@ -807,6 +812,10 @@ export function buildConnectorAgentRoutes() {
         user_id: config.user_id,
         tenant_id: config.tenant_id,
         device_id: config.device_id,
+        auth: {
+          connector_secret_configured: Boolean(config.connector_secret),
+          connector_local_api_key_configured: Boolean(config.connector_local_api_key),
+        },
         policy_version: String(policyVersion),
         checksum,
         shell_aliases: aliases,

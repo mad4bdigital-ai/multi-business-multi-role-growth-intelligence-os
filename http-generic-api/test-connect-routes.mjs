@@ -1112,8 +1112,8 @@ section("connect api auth scope");
       const routePattern = new RegExp(`router\\.post\\("${tenantSafe.replace(/[/]/g, "\\/").replace(/:/g, ":")}",[^)]*adminOnly`);
       assert(`tenant-safe route ${tenantSafe} stays open to user JWT (no adminOnly)`, !routePattern.test(source));
     }
-    assert("auth connector proxy can fall back from connector_secret to BACKEND_API_KEY",
-      source.includes("uniqueTruthy([device.connector_secret, process.env.BACKEND_API_KEY])") &&
+    assert("auth connector proxy can fall back from connector_secret through local alias to BACKEND_API_KEY",
+      source.includes("uniqueTruthy([device.connector_secret, device.connector_local_api_key, process.env.BACKEND_API_KEY])") &&
       source.includes("connector_auth_failed"));
     assert("auth connector proxy lets admin resolve device_id without user_id",
       source.includes("Admin/service callers may address a governed device by device_id alone") &&

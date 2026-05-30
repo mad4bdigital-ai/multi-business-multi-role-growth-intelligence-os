@@ -83,6 +83,7 @@ async function resolveDeviceConfig(userId, deviceId, { isAdmin = false, tenantId
                            device_runtime_url,
                            admin_recovery_url,
                            connector_secret,
+                           connector_local_api_key,
                            user_id,
                            tenant_id,
                            device_id,
@@ -540,8 +541,8 @@ async function connectorRouteDiagnostics(req, res, deviceId) {
   const registeredRoutes = await listRegisteredRoutes(device, { includeDown: true });
   const routes = await listCandidateRoutes(device);
   const candidateTokens = isAdmin
-    ? uniqueTruthy([device.connector_secret, process.env.BACKEND_API_KEY])
-    : uniqueTruthy([device.connector_secret]);
+    ? uniqueTruthy([device.connector_secret, device.connector_local_api_key, process.env.BACKEND_API_KEY])
+    : uniqueTruthy([device.connector_secret, device.connector_local_api_key]);
 
   return res.status(200).json({
     ok: true,
@@ -600,8 +601,8 @@ async function proxyToDevice(req, res, deviceId, targetPath) {
   }
 
   const candidateTokens = isAdmin
-    ? uniqueTruthy([device.connector_secret, process.env.BACKEND_API_KEY])
-    : uniqueTruthy([device.connector_secret]);
+    ? uniqueTruthy([device.connector_secret, device.connector_local_api_key, process.env.BACKEND_API_KEY])
+    : uniqueTruthy([device.connector_secret, device.connector_local_api_key]);
   if (!candidateTokens.length) {
     return res.status(503).json({ ok: false, error: { code: "connector_auth_unconfigured", message: "No per-device connector auth token is configured for this device proxy." } });
   }

@@ -105,6 +105,24 @@ try {
       headers: { 'x-connector-secret': localApiKey },
     });
     const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.principal_scope, 'platform_admin_break_glass_only');
+  }
+
+  {
+    const response = await fetch(`http://127.0.0.1:${port}/policy`, {
+      headers: { 'x-api-key': localApiKey },
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.principal_scope, 'platform_admin_break_glass_only');
+  }
+
+  {
+    const response = await fetch(`http://127.0.0.1:${port}/policy`, {
+      headers: { 'x-api-key': 'wrong-secret' },
+    });
+    const body = await response.json();
     assert.equal(response.status, 401);
     assert.equal(body.error.code, 'UNAUTHORIZED');
   }

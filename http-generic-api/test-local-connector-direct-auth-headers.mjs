@@ -15,7 +15,7 @@ const connectorSchema = readFileSync('openapi.gpt-action.local-connector.yaml', 
 assert(
   'local connector accepts x-api-key as connector-secret alias',
   connectorSource.includes("const apiKeySecret = String(req.headers['x-api-key'] ?? '').trim();") &&
-    connectorSource.includes('apiKeySecret === CONNECTOR_AUTH_SECRET'),
+    connectorSource.includes('CONNECTOR_AUTH_SECRETS.includes(value)'),
 );
 
 assert(
