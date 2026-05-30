@@ -373,6 +373,15 @@ export async function createWordPressAccountClaim({
   const claimId = randomId();
   const connectionId = randomId();
   const bindingId = randomId();
+  const grantId = randomId();
+  const siteId = await upsertCmsSite({
+    db,
+    siteId: randomId(),
+    normalizedDomain: normalized.normalizedDomain,
+    siteUrl: normalized.siteUrl,
+    wpJsonBase: normalized.wpJsonBase,
+    match,
+  });
 
   await createUserAppConnection({
     db, connectionId, tenantId, userId,
