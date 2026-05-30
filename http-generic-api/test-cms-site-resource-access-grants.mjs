@@ -1,3 +1,4 @@
+// Regression guard for CMS site resources and access grants.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
