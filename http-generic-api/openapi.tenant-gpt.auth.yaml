@@ -303,6 +303,11 @@ paths:
                   enum:
                     - connector_registry_list
                     - connector_registry_get
+                    - connect_status
+                    - connect_activate
+                    - connect_device_install
+                    - local_gateway_tools_list
+                    - local_gateway_tools_call
                     - activation_drive_probe
                     - activation_sheets_bootstrap_read
                     - activation_github_validate

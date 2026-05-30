@@ -28,6 +28,7 @@ import { requireAdminPrincipal } from "./adminCliRoutes.js";
 import { decodeGitHubAppPrivateKey, resolveGitHubAppConfig } from "../githubAppAuth.js";
 import { DATA_SOURCE_MODE } from "../dataSource.js";
 import { derivePrincipalExecutionContext } from "../executionControlResolvers.js";
+import { fetchToolsForCaller, dispatchToolForCaller } from "./gptToolsRoutes.js";
 
 const SYSTEM_LAYER_TOOLS = [
   {
@@ -356,11 +357,38 @@ async function listPlatformEndpointToolsForPrincipal(auth, existingNames = new S
   }
 }
 
+function isTenantRegistryToolAllowedInSystemFacade(tool = {}) {
+  const name = String(tool.name || "").trim();
+  if (!name || name.startsWith("system_tools_")) return false;
+  const pathValue = String(tool.path || "").trim();
+  if (pathValue === "/system/tools" || pathValue === "/system/tools/call") return false;
+  return true;
+}
+
+async function listTenantEndpointRegistryToolsForPrincipal(auth, existingNames = new Set()) {
+  if (isAdminPrincipal(auth)) return [];
+  try {
+    const tools = await fetchToolsForCaller("tenant");
+    return tools
+      .filter((tool) => isTenantRegistryToolAllowedInSystemFacade(tool))
+      .filter((tool) => !existingNames.has(tool.name))
+      .map((tool) => ({
+        ...tool,
+        source: "tenant_platform_endpoint_tools",
+      }));
+  } catch (err) {
+    console.error("[systemLayerTools] Failed to list tenant endpoint registry tools:", err?.message || err);
+    return [];
+  }
+}
+
 async function toolsForPrincipalWithPlatformEndpoints(auth) {
   const baseTools = toolsForPrincipal(auth);
   const existingNames = new Set(baseTools.map((tool) => tool.name));
+  const tenantTools = await listTenantEndpointRegistryToolsForPrincipal(auth, existingNames);
+  for (const tool of tenantTools) existingNames.add(tool.name);
   const platformTools = await listPlatformEndpointToolsForPrincipal(auth, existingNames);
-  return [...baseTools, ...platformTools];
+  return [...baseTools, ...tenantTools, ...platformTools];
 }
 
 async function callRuntimeEndpointViaFacade(payload, deps = {}) {
@@ -479,6 +507,30 @@ async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null,
   const payload = normalizePlatformEndpointCallArgs(row, args, auth);
   const result = await callRuntimeEndpointViaFacade(payload, deps);
   return { handled: true, result };
+}
+
+async function callTenantEndpointRegistryToolIfAvailable(name, args = {}, auth = null, deps = {}) {
+  if (isAdminPrincipal(auth)) return { handled: false };
+  const tenantTools = await listTenantEndpointRegistryToolsForPrincipal(auth, new Set());
+  const tool = tenantTools.find((entry) => entry.name === name);
+  if (!tool) return { handled: false };
+
+  const req = deps.req || { auth, headers: deps.headers || {}, ip: deps.ip || null };
+  const dispatched = await dispatchToolForCaller("tenant", name, args, req);
+  const status = Number(dispatched?.status || 200);
+  const body = dispatched?.body || {};
+  if (status >= 400 || body?.ok === false) {
+    const err = new Error(body?.error?.message || `Tenant endpoint registry tool ${name} failed.`);
+    err.status = status || body?.error?.status || 500;
+    err.code = body?.error?.code || "tenant_endpoint_registry_tool_failed";
+    err.details = body?.error?.details || null;
+    throw err;
+  }
+
+  return {
+    handled: true,
+    result: Object.prototype.hasOwnProperty.call(body, "result") ? body.result : body,
+  };
 }
 
 function isAdminPrincipal(auth) {
@@ -1093,6 +1145,9 @@ async function getConnectorRegistrySystem(systemId, auth = null) {
 
 async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   if (!LOCAL_SYSTEM_TOOL_NAMES.has(name)) {
+    const tenantRegistryTool = await callTenantEndpointRegistryToolIfAvailable(name, args, auth, deps);
+    if (tenantRegistryTool.handled) return tenantRegistryTool.result;
+
     let platformEndpointTool;
     try {
       platformEndpointTool = await callPlatformEndpointToolIfAvailable(name, args, auth, deps);

@@ -300,6 +300,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   const activationModePolicy = readFileSync(resolve(__dirname, "activationModePolicy.js"), "utf8");
   const dedicatedPolicy = readFileSync(resolve(__dirname, "dedicatedIntegrationPolicy.js"), "utf8");
   const hybridPolicy = readFileSync(resolve(__dirname, "hybridIntegrationPolicy.js"), "utf8");
+  const connectRoutes = readFileSync(resolve(__dirname, "routes/connectRoutes.js"), "utf8");
   const migration104 = readFileSync(resolve(__dirname, "migrations/104_sprint64_activation_mode_governance.sql"), "utf8");
   const migration105 = readFileSync(resolve(__dirname, "migrations/105_sprint64_dedicated_integration_flow.sql"), "utf8");
   const migration106 = readFileSync(resolve(__dirname, "migrations/106_sprint64_hybrid_integration_policy.sql"), "utf8");
@@ -343,14 +344,22 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     ["/tenant/platform/plugins/catalog", "/tenant/platform/plugins/install", "/tenant/platform/plugins/resolve"].every((path) => Boolean(tenantDoc.paths?.[path])));
   const tenantCallToolSchema = tenantDoc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
   const tenantToolArgsSchema = tenantCallToolSchema?.properties?.tool_args;
+  const tenantCallToolNames = new Set(tenantCallToolSchema?.properties?.name?.enum || []);
   assert("tenant OpenAI schema tells GPT to pass activation mode and integration_modes through callTool",
     JSON.stringify(tenantDoc.info || {}).includes("connect_activate") &&
     JSON.stringify(tenantDoc.paths?.["/system/tools/call"] || {}).includes("integration_modes"));
+  for (const toolName of ["connect_status", "connect_activate", "connect_device_install", "local_gateway_tools_list", "local_gateway_tools_call"]) {
+    assert(`tenant callTool name enum exposes ${toolName}`, tenantCallToolNames.has(toolName));
+  }
   assert("tenant callTool explicitly exposes wrapper-safe tool_args.mode",
     tenantToolArgsSchema?.properties?.mode?.enum?.includes("managed") &&
     tenantToolArgsSchema?.properties?.mode?.enum?.includes("dedicated"));
   assert("tenant callTool explicitly exposes wrapper-safe tool_args.device_id",
     tenantToolArgsSchema?.properties?.device_id?.pattern === "^[a-z0-9-]{2,32}$");
+  assert("connect device install handoff points to released Local Manager download page",
+    connectRoutes.includes('download_url: "/app/local-manager#download"') &&
+    connectRoutes.includes('download_page_url: "https://auth.mad4b.com/app/local-manager#download"') &&
+    connectRoutes.includes('new_device_pairing_url: "https://auth.mad4b.com/app/local-manager#download"'));
 
   for (const [path, operationId] of [
     ["/connect/activate", "postConnectActivate"],
