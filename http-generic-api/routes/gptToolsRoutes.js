@@ -1,6 +1,9 @@
 import { Router } from "express";
+import crypto from "node:crypto";
+import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import { getPool } from "../db.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
