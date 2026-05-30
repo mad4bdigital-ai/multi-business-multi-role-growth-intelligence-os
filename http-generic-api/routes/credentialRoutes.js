@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { getEffectiveCredentialStatus } from "../credentialResolver.js";
 import { maybeCreateCredentialIntakeRequirement } from "../credentialIntakeEnforcement.js";
 import { getPool } from "../db.js";
-import { encryptToken } from "../tokenEncryption.js";
+import { decryptCredentials, encryptToken } from "../tokenEncryption.js";
 
 function str(value) {
   return String(value ?? "").trim();
