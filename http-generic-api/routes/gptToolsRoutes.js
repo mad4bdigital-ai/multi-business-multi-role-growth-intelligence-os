@@ -166,7 +166,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repo_inspect",
     displayName: "Repository Inspect",
-    description: "Read-only repository inspection. Actions: list, read, search. Paths are repo-confined; secrets/build folders are blocked.",
+    description: "Read-only repository inspection. Actions: list, read, search, git_status, git_log, git_show. Paths are repo-confined; secrets/build folders are blocked. Git helpers return metadata only and never expose .git internals."
     method: "VIRTUAL",
     path: "internal://repo-inspect",
     tags: ["repo", "read_only", "diagnostics"],
