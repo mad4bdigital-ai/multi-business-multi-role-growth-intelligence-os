@@ -349,7 +349,7 @@ export function readCachedToolResponseChunk(args = {}) {
   });
 }
 
-function paginateItems(items = [], query = {}) {
+export function paginateItems(items = [], query = {}) {
   const cursor = clampNumber(query.cursor ?? query.offset, 0, 0, Number.MAX_SAFE_INTEGER);
   const limit = clampNumber(query.limit, DEFAULT_TOOL_LIST_LIMIT, 1, MAX_TOOL_LIST_LIMIT);
   const q = String(query.q || query.query || "").trim().toLowerCase();
