@@ -16,6 +16,11 @@ assert(adminCliRoutes.includes('allowedContentsMutation'), 'GitHub REST fallback
 assert(adminCliRoutes.includes('toUpperCase() === "PUT"'), 'GitHub REST fallback contents mutation must be limited to non-destructive PUT writes');
 assert(!adminCliRoutes.includes('["PUT", "DELETE"].includes'), 'GitHub REST fallback must not allow contents DELETE through the write fallback');
 assert(adminCliRoutes.includes('github_rest_contents_workflow_blocked'), 'GitHub REST fallback must block workflow file mutation through contents writes');
+assert(adminCliRoutes.includes('command === "graphql"'), 'GitHub REST fallback must support explicit GraphQL API calls');
+assert(adminCliRoutes.includes('assertGithubGraphqlReadOnly'), 'GitHub GraphQL fallback must enforce read-only queries');
+assert(adminCliRoutes.includes('github_rest_graphql_mutation_blocked'), 'GitHub GraphQL fallback must block mutations and subscriptions');
+assert(adminCliRoutes.includes('command === "diff" && maybeId && hasCliFlag(args, "--name-only")'), 'GitHub REST fallback must support gh pr diff --name-only');
+assert(adminCliRoutes.includes('/pulls/${encodeURIComponent(prNumber)}/files?per_page=100'), 'GitHub PR diff name-only fallback must read pull request files');
 assert(adminCliRoutes.includes('github_pr_not_mergeable_dirty'), 'PR merge must classify dirty PRs before merge attempts');
 assert(adminCliRoutes.includes('mergeable_state'), 'Dirty PR diagnostics must include mergeable_state evidence');
 
