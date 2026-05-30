@@ -8,7 +8,7 @@ const allowlist = readFileSync('openapi-route-coverage.allowlist.json', 'utf8');
 
 assert(agentRoutes.includes('/connector-agent/policy'), 'auth-host must expose connector-agent policy endpoint');
 assert(agentRoutes.includes('local_connector_shell_allowlists'), 'policy endpoint must read local_connector_shell_allowlists');
-assert(agentRoutes.includes('connector_secret = ?'), 'policy endpoint must authenticate using connector secret');
+assert(agentRoutes.includes('connectorAuthPredicateForToken(token)'), 'policy endpoint must authenticate through schema-compatible connector token predicate');
 assert(agentRoutes.includes('normalizeShellPolicyRow'), 'policy endpoint must normalize shell policy rows');
 assert(agentRoutes.includes('tokenizeCommandTemplate'), 'policy endpoint must parse command_template safely');
 assert(agentRoutes.includes('cmd.exe'), 'cmd /c command templates must be emitted as cmd.exe with args');

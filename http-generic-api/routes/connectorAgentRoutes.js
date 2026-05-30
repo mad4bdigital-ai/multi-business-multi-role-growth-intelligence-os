@@ -3,6 +3,10 @@ import crypto from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getPool } from "../db.js";
+import {
+  connectorAuthPredicateForToken,
+  connectorLocalApiKeySelectFragment,
+} from "../connectorSchemaCompatibility.js";
 
 const AGENT_VERSION = "2026.05.28.1";
 const ROOT = process.cwd();
@@ -547,8 +551,9 @@ async function resolveHeartbeatConfig(req, body = {}) {
   if (backendToken && token === backendToken) {
     sql += " ORDER BY updated_at DESC LIMIT 1";
   } else {
-    sql += " AND (connector_secret = ? OR connector_local_api_key = ?) ORDER BY updated_at DESC LIMIT 1";
-    params.push(token, token);
+    const authPredicate = await connectorAuthPredicateForToken(token);
+    sql += ` AND ${authPredicate.sql} ORDER BY updated_at DESC LIMIT 1`;
+    params.push(...authPredicate.params);
   }
   const [rows] = await getPool().query(sql, params);
   if (rows[0]) return rows[0];
@@ -718,8 +723,9 @@ export function buildConnectorAgentRoutes() {
     try {
       const payload = verifyInstallerDownloadToken(req.query.token);
       if (payload.format !== "ps1") throw httpError(400, "unsupported_format", "Only ps1 installer downloads are supported.");
+      const connectorLocalApiKeySelect = await connectorLocalApiKeySelectFragment();
       const [[config]] = await getPool().query(
-        "SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, connector_local_api_key, cf_token FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+        `SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url, connector_secret, ${connectorLocalApiKeySelect}, cf_token FROM \`local_connector_user_configs\` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1`,
         [payload.user_id, payload.device_id]
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
@@ -776,8 +782,9 @@ export function buildConnectorAgentRoutes() {
       if (backendToken && token === backendToken) {
         sql += " ORDER BY updated_at DESC LIMIT 1";
       } else {
-        sql += " AND (connector_secret = ? OR connector_local_api_key = ?) ORDER BY updated_at DESC LIMIT 1";
-        params.push(token, token);
+        const authPredicate = await connectorAuthPredicateForToken(token);
+        sql += ` AND ${authPredicate.sql} ORDER BY updated_at DESC LIMIT 1`;
+        params.push(...authPredicate.params);
       }
       const [[config]] = await getPool().query(sql, params);
       if (!config) throw httpError(403, "connector_policy_auth_failed", "Connector policy auth failed.");

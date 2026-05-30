@@ -50,9 +50,9 @@ assert(
 );
 
 assert(
-  'connector agent policy and heartbeat accept connector_local_api_key auth',
-  agentSource.includes('(connector_secret = ? OR connector_local_api_key = ?)') &&
-    agentSource.includes('params.push(token, token)'),
+  'connector agent policy and heartbeat accept connector_local_api_key auth through schema-compatible predicate',
+  agentSource.includes('connectorAuthPredicateForToken(token)') &&
+    agentSource.includes('params.push(...authPredicate.params)'),
 );
 
 assert(

@@ -4,6 +4,10 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto
 import { decryptCredentials } from "../tokenEncryption.js";
 import { normalizeConnectionMode } from "../activationModePolicy.js";
 import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkService.js";
+import {
+  connectorLocalApiKeySelectFragment,
+  hasConnectorLocalApiKeyColumn,
+} from "../connectorSchemaCompatibility.js";
 
 const CF_API = "https://api.cloudflare.com/client/v4";
 const CONNECTOR_PORT = 7070;
@@ -911,6 +915,8 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   }
 
   const pool = getPool();
+  const connectorLocalApiKeyColumnSupported = await hasConnectorLocalApiKeyColumn(pool);
+  const connectorLocalApiKeySelect = await connectorLocalApiKeySelectFragment(pool);
   const principal = await resolveRequestedLocalPrincipal(req, { user_id, tenant_id });
   const resolvedUserId = principal.userId;
   const resolvedTenantId = principal.tenantId;
@@ -922,7 +928,7 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   if (!tenant) throw httpError(404, "tenant_not_found", "Tenant not found.");
 
   const [[existing]] = await pool.query(
-    "SELECT config_id, cf_tunnel_id, cf_token, connector_secret, connector_local_api_key, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1",
+    `SELECT config_id, cf_tunnel_id, cf_token, connector_secret, ${connectorLocalApiKeySelect}, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1`,
     [resolvedUserId, resolvedTenantId, device_id]
   );
 
@@ -948,39 +954,73 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     connectorSecret = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
     connectorLocalApiKey = connectorLocalApiKey || randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
 
-    await pool.query(
-      `INSERT INTO \`local_connector_user_configs\`
-         (config_id, user_id, tenant_id, device_id,
-          tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url,
-          connector_secret, connector_local_api_key, cf_tunnel_id, cf_tunnel_name, cf_token, is_enabled)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-       ON DUPLICATE KEY UPDATE
-         tunnel_url = VALUES(tunnel_url),
-         public_gateway_url = VALUES(public_gateway_url),
-         device_runtime_url = VALUES(device_runtime_url),
-         admin_recovery_url = VALUES(admin_recovery_url),
-         connector_secret = VALUES(connector_secret),
-         connector_local_api_key = VALUES(connector_local_api_key),
-         cf_tunnel_id = VALUES(cf_tunnel_id),
-         cf_tunnel_name = VALUES(cf_tunnel_name),
-         cf_token = VALUES(cf_token),
-         is_enabled = 1`,
-      [
-        configId,
-        resolvedUserId,
-        resolvedTenantId,
-        device_id,
-        tunnelUrl,
-        LOCAL_GATEWAY_URL,
-        deviceRuntimeUrl,
-        ADMIN_RECOVERY_URL,
-        connectorSecret,
-        connectorLocalApiKey,
-        tunnelId,
-        tunnelName,
-        tunnelToken,
-      ]
-    );
+    if (connectorLocalApiKeyColumnSupported) {
+      await pool.query(
+        `INSERT INTO \`local_connector_user_configs\`
+           (config_id, user_id, tenant_id, device_id,
+            tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url,
+            connector_secret, connector_local_api_key, cf_tunnel_id, cf_tunnel_name, cf_token, is_enabled)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+         ON DUPLICATE KEY UPDATE
+           tunnel_url = VALUES(tunnel_url),
+           public_gateway_url = VALUES(public_gateway_url),
+           device_runtime_url = VALUES(device_runtime_url),
+           admin_recovery_url = VALUES(admin_recovery_url),
+           connector_secret = VALUES(connector_secret),
+           connector_local_api_key = VALUES(connector_local_api_key),
+           cf_tunnel_id = VALUES(cf_tunnel_id),
+           cf_tunnel_name = VALUES(cf_tunnel_name),
+           cf_token = VALUES(cf_token),
+           is_enabled = 1`,
+        [
+          configId,
+          resolvedUserId,
+          resolvedTenantId,
+          device_id,
+          tunnelUrl,
+          LOCAL_GATEWAY_URL,
+          deviceRuntimeUrl,
+          ADMIN_RECOVERY_URL,
+          connectorSecret,
+          connectorLocalApiKey,
+          tunnelId,
+          tunnelName,
+          tunnelToken,
+        ]
+      );
+    } else {
+      await pool.query(
+        `INSERT INTO \`local_connector_user_configs\`
+           (config_id, user_id, tenant_id, device_id,
+            tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url,
+            connector_secret, cf_tunnel_id, cf_tunnel_name, cf_token, is_enabled)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+         ON DUPLICATE KEY UPDATE
+           tunnel_url = VALUES(tunnel_url),
+           public_gateway_url = VALUES(public_gateway_url),
+           device_runtime_url = VALUES(device_runtime_url),
+           admin_recovery_url = VALUES(admin_recovery_url),
+           connector_secret = VALUES(connector_secret),
+           cf_tunnel_id = VALUES(cf_tunnel_id),
+           cf_tunnel_name = VALUES(cf_tunnel_name),
+           cf_token = VALUES(cf_token),
+           is_enabled = 1`,
+        [
+          configId,
+          resolvedUserId,
+          resolvedTenantId,
+          device_id,
+          tunnelUrl,
+          LOCAL_GATEWAY_URL,
+          deviceRuntimeUrl,
+          ADMIN_RECOVERY_URL,
+          connectorSecret,
+          tunnelId,
+          tunnelName,
+          tunnelToken,
+        ]
+      );
+    }
   }
 
   const [[cfgRow]] = await pool.query(
