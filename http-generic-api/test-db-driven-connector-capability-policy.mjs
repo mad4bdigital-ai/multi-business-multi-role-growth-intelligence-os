@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const agentRoutes = readFileSync('routes/connectorAgentRoutes.js', 'utf8');
-const migration = readFileSync('migrations/161_sprint65_connector_capability_policy_grants.sql', 'utf8');
+const migration = readFileSync('migrations/162_sprint65_connector_capability_policy_grants.sql', 'utf8');
 
 assert(agentRoutes.includes('loadConnectorGrantPolicy'), 'auth-host policy must load DB-backed connector grant policy');
 assert(agentRoutes.includes('local_connector_capability_grants'), 'capability grants must come from local_connector_capability_grants');

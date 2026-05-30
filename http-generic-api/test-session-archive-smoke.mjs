@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import express from "express";
 import { buildReleaseRoutes } from "./routes/releaseRoutes.js";
 import { runSessionArchiveSmoke } from "./sessionArchiveSmoke.js";
+
+const migration = readFileSync("migrations/163_sprint65_session_archive_smoke_tool.sql", "utf8");
+
+assert(migration.includes("release_session_archive_smoke"), "session archive smoke admin tool must be registered");
+assert(migration.includes("/release/session-archive-smoke"), "session archive smoke tool must point at release smoke route");
+assert(migration.includes("drive-writeback"), "session archive smoke tool must be tagged drive-writeback");
+assert(migration.includes("activation-readback"), "session archive smoke tool must be tagged activation-readback");
+assert(migration.includes("no_secrets"), "session archive smoke tool must be tagged no_secrets");
+assert(migration.includes("cleanup_default_true"), "session archive smoke tool must advertise cleanup_default_true");
 
 function makePool() {
   const state = { session: null, turns: [], events: [], deletes: { session: 0, turns: 0, events: 0 } };
@@ -163,6 +173,7 @@ function makeDriveDeps() {
 {
   const pool = makePool();
   const drive = makeDriveDeps();
+  let activationReq = null;
   const result = await runSessionArchiveSmoke({
     pool,
     tenantId: "tenant-1",
@@ -170,14 +181,16 @@ function makeDriveDeps() {
     injectedArchiveDeps: drive.deps,
     fetchDriveContentFn: drive.fetchDriveContent,
     deleteDriveFileFn: drive.deleteDriveFile,
-    activationContextReader: async () => ({
-      gpt_sessions: [{ session_id: pool.state.session.session_id, drive_export_url: "https://drive/doc-1" }],
-    }),
+    activationContextReader: async (req) => {
+      activationReq = req;
+      return { gpt_sessions: [{ session_id: pool.state.session.session_id, drive_export_url: "https://drive/doc-1" }] };
+    },
   });
 
   assert.equal(result.ok, true, JSON.stringify(result.checks, null, 2));
   assert.equal(result.status, "pass");
   assert.equal(result.originator, "gpt_action_smoke", "smoke must keep gpt_action_smoke originator for filtering");
+  assert.equal(activationReq?.query?.include_smoke_sessions, true, "smoke activation readback must explicitly request gpt_action_smoke sessions");
   assert.equal(result.smoke_subfolder, "_smoke_archives", "smoke must sequester to _smoke_archives subfolder");
   assert.equal(result.drive.doc_id, "doc-1");
   assert.equal(result.drive.jsonl_id, "jsonl-1");

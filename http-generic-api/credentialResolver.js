@@ -207,6 +207,7 @@ async function resolveUserAppConnectionRef(ref, context, deps) {
     source: "user_app_connections",
     secret: value,
     secret_present: true,
+    username: str(credentials.username || credentials.user || credentials.login || ""),
     account_label: conn.account_label || "",
     auth_type: conn.auth_type || "",
     app_key: conn.app_key || ""

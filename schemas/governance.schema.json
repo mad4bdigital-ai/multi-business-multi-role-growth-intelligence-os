@@ -202,9 +202,10 @@
         "Derived observability failures must degrade observability trust without overwriting authoritative write truth when authoritative sources are intact.",
         "When governed activation or runtime validation requires Google Workspace live checks, at least one real governed HTTP transport call must occur through available agent execution actions/native tools in the same execution cycle; otherwise classification must remain degraded with reason missing_required_activation_transport_attempt.",
         "Aggregated, monitoring, and observability surfaces must be computed dynamically from authoritative sources whenever possible.",
-        "Authoritative execution and governance surfaces must resolve through Registry Surfaces Catalog, and validation-state authority must resolve through Validation & Repair Registry before dependency execution continues.",
-        "All execution surfaces must resolve through Registry Surfaces Catalog using worksheet_gid as authoritative binding identity; worksheet_gid must exist, be valid, and match actual sheet binding; sheet_name and tab_name must not be used for execution resolution; validation failure must block execution or enter repair-aware mode.",
-        "Each governed surface must declare schema_ref, schema_version, header_signature, expected_column_count, and binding_mode; validation must verify schema_validation_status, header_match_status, and schema_drift_detected; schema drift must trigger degraded or blocked execution and repair mapping when required.",
+        "Authoritative execution and governance surfaces must resolve through SQL-primary registry tables before dependency execution continues.",
+        "Google Sheets and Drive workbooks are async mirrors, diagnostic evidence, and recovery helpers only; they must not be primary runtime authority when SQL registry rows are available.",
+        "All execution surfaces must resolve through SQL registry identity keys such as tenant_id, brand_key, workflow_id, action_key, endpoint_key, plugin_key, and table-backed registry row ids; legacy sheet names, tab names, spreadsheet ids, and worksheet_gid values are recovery metadata only.",
+        "Each governed SQL surface must declare schema_ref, schema_version, expected key fields, validation status, and drift policy; validation failure must block execution or enter repair-aware mode.",
         "Growth scores must be derived from authoritative execution records, metrics summaries, or governed review feedback sources.",
         "Growth-loop triggers must remain Registry-governed and passive rows or passive scores must not auto-execute.",
         "brand_tracking_bindings must reflect Brand Registryâ€“authoritative fields for gsc_property, ga_property_id, and gtm_container_id and must not be fabricated outside governed discovery or writeback paths.",
@@ -456,7 +457,7 @@
         },
         "authoritative_runtime_evidence_source": {
           "type": "string",
-          "default": "surface.operations_log_unified_sheet"
+          "default": "table.execution_log"
         }
       },
       "default": {
@@ -466,7 +467,7 @@
         "canonical_merge_verification_status": "pending",
         "registry_alignment_verification_status": "pending",
         "runtime_deployment_verification_status": "pending",
-        "authoritative_runtime_evidence_source": "surface.operations_log_unified_sheet"
+        "authoritative_runtime_evidence_source": "table.execution_log"
       }
     },
     "governed_registry_generation_events": {

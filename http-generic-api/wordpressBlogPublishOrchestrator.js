@@ -110,13 +110,14 @@ async function createCredentialIntakeSession({ plan, brand, reason }, deps = {})
 }
 
 async function resolveWpCredential({ plan, brand }, deps = {}) {
+  const input = extractInput(plan);
   return resolveEffectiveCredential({
     tenantId: plan.tenant_id,
     userId: plan.user_id,
-    connectionId: plan.connection_id,
+    connectionId: input.connection_id || input.connectionId || plan.connection_id,
     actionKey: "wordpress_create_post",
-    targetKey: brand.target_key || plan.target_key,
-    credentialRole: "wordpress_rest",
+    targetKey: brand.target_key || input.target_key || input.targetKey || plan.target_key,
+    credentialRole: input.credential_role || input.credentialRole || "wordpress_rest",
     includeSecret: true,
     allowPlatformFallback: true,
   }, { pool: deps.pool, decryptCredentials: deps.decryptCredentials, decryptToken: deps.decryptToken, env: deps.env });
@@ -131,7 +132,7 @@ async function createPost({ brand, credential, postType, payload }, deps = {}) {
   if (typeof fetchImpl !== "function") throw Object.assign(new Error("fetch is not available for WordPress publishing."), { code: "fetch_not_available" });
   const wpBase = normalizeWpJsonBase(brand.base_url || brand.default_wp_api_base || (brand.brand_domain ? `https://${brand.brand_domain}/wp-json` : ""));
   if (!wpBase) throw Object.assign(new Error("WordPress API base URL is unresolved for target."), { code: "wordpress_base_url_unresolved" });
-  const username = str(credential.username || credential.account_label || brand.username || "gpt");
+  const username = str(credential.username || brand.username || "gpt");
   const password = str(credential.secret);
   if (!password) throw Object.assign(new Error("WordPress credential secret is missing after resolution."), { code: "wordpress_secret_missing" });
   const response = await fetchImpl(`${wpBase}/${postType}`, {
@@ -143,7 +144,9 @@ async function createPost({ brand, credential, postType, payload }, deps = {}) {
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
   if (!response.ok) {
-    const err = new Error(`WordPress create post failed with HTTP ${response.status}.`);
+    const upstreamCode = data?.code ? ` code=${String(data.code).slice(0, 120)}` : "";
+    const upstreamMessage = data?.message ? ` message=${String(data.message).replace(/\s+/g, " ").slice(0, 240)}` : "";
+    const err = new Error(`WordPress create post failed with HTTP ${response.status}.${upstreamCode}${upstreamMessage}`);
     err.code = "wordpress_create_post_failed";
     err.status = response.status;
     err.details = data;
@@ -166,6 +169,50 @@ export async function dispatchWordpressBlogPublish(plan = {}, deps = {}) {
   const { postType, payload, requestedStatus } = buildPostPayload(plan, brand);
   const created = await createPost({ brand, credential, postType, payload }, deps);
   return { ok: true, status: "completed", credential_status: "resolved", target_key: brand.target_key || plan.target_key || "", post_status: requestedStatus, post_id: created.post_id, link: created.link, readback_status: created.readback_status, result: created, output: { post_id: created.post_id, link: created.link, status: created.status, readback_status: created.readback_status } };
+}
+
+export async function diagnoseWordpressAuthContext(plan = {}, deps = {}) {
+  const brand = deps.brand || await loadBrand(plan, deps);
+  if (!brand) return { ok: false, status: "blocked", error: { code: "brand_target_not_resolved" } };
+  const credential = await resolveWpCredential({ plan, brand }, deps);
+  if (credential.status !== "resolved" || !credential.secret_present || !credential.secret) {
+    return { ok: false, status: "credential_unresolved", credential_status: credential.status || "missing" };
+  }
+  const fetchImpl = deps.fetch || globalThis.fetch;
+  const wpBase = normalizeWpJsonBase(brand.base_url || brand.default_wp_api_base || (brand.brand_domain ? `https://${brand.brand_domain}/wp-json` : ""));
+  const username = str(credential.username || brand.username || "gpt");
+  const password = str(credential.secret);
+  const response = await fetchImpl(`${wpBase}/users/me?context=edit`, {
+    method: "GET",
+    headers: { Authorization: basicAuth(username, password), Accept: "application/json" },
+  });
+  const text = await response.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+  if (!response.ok) {
+    return {
+      ok: false,
+      status: "wordpress_auth_context_failed",
+      upstream_status: response.status,
+      upstream_code: data?.code || "",
+      upstream_message: data?.message || "",
+      wp_base: wpBase,
+      username_present: Boolean(username),
+    };
+  }
+  const caps = data?.capabilities && typeof data.capabilities === "object" ? data.capabilities : {};
+  return {
+    ok: true,
+    status: "wordpress_auth_context_resolved",
+    wp_base: wpBase,
+    user_id: data?.id || null,
+    slug: data?.slug || "",
+    name: data?.name || "",
+    roles: Array.isArray(data?.roles) ? data.roles : [],
+    can_edit_posts: Boolean(caps.edit_posts),
+    can_publish_posts: Boolean(caps.publish_posts),
+    can_create_posts: Boolean(caps.create_posts || caps.edit_posts),
+  };
 }
 
 export const __test__ = { normalizeWpJsonBase, buildPostPayload };

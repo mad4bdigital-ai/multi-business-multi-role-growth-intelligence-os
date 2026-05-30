@@ -5,8 +5,10 @@ This directory contains clean-room staging copies for rebuilding the Growth Inte
 ## Status
 
 - Created as a non-destructive staging area.
-- Files here are not runtime authority until explicitly promoted.
-- Root canonical files remain generated indexes.
+- `memory_schema.clean-v1.json` is being promoted to root `memory_schema.json` as the SQL-first memory/state contract.
+- This promotion is Phase S1 only: root schema cleanup first, followed by staged cleanup of legacy workbook-era terms in `schemas/*.schema.json`.
+- Remaining clean-room overlays and deeper schema cleanups in this directory are not runtime authority until explicitly promoted.
+- Root canonical markdown files remain generated indexes.
 - Promotion requires updating canonical sources, schema manifests, runtime code, SQL registry rows, and validation checks together.
 
 ## Staged files
@@ -19,6 +21,7 @@ This directory contains clean-room staging copies for rebuilding the Growth Inte
 | `prompt_router.clean-v1.md` | Clean routing contract overlay for intent resolution, task routes, validation states, and execution handoff. |
 | `direct_instructions_registry_patch.clean-v1.md` | Clean direct-instruction overlay for authority, compatibility, and repair-first behavior. |
 | `drive-workbooks-review-2026-05-18.md` | Drive workbook inventory and review status for the Production folder. |
+| `schema-cleanup-and-promotion-plan-2026-05-28.md` | Phased plan for promoting the clean memory schema and cleaning workbook-era terms from `schemas/*.schema.json`. |
 
 ## Promotion rule
 

@@ -186,6 +186,104 @@ components:
         - type: boolean
         - type: "null"
 
+    HardActivationRunRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        tenant_id: { type: string }
+        user_id: { type: string }
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+        include_raw: { type: boolean, default: false }
+        close_previous_sessions: { type: boolean, default: false }
+        provider_arguments:
+          type: object
+          additionalProperties: true
+
+    HardActivationEvidenceStep:
+      type: object
+      additionalProperties: true
+      properties:
+        attempted: { type: boolean }
+        ok: { type: boolean, nullable: true }
+        activation_layer: { type: string, nullable: true }
+        evidence_source: { type: string, nullable: true }
+
+    HardActivationRunResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, activation_layer, activation_complete, runtime_classification, evidence_matrix, report_policy, secrets_included]
+      properties:
+        ok: { type: boolean }
+        activation_layer: { type: string, enum: [hard_activation_orchestrator] }
+        activation_complete: { type: boolean }
+        runtime_classification:
+          type: object
+          additionalProperties: true
+          properties:
+            activation_status: { type: string }
+            status_authority: { type: string }
+            reason_code: { type: string }
+        evidence_matrix:
+          type: object
+          additionalProperties: true
+          properties:
+            session_context: { $ref: "#/components/schemas/HardActivationEvidenceStep" }
+            provider_bootstrap: { $ref: "#/components/schemas/HardActivationEvidenceStep" }
+        report_policy:
+          type: object
+          additionalProperties: true
+          properties:
+            may_report_session_context_loaded: { type: boolean }
+            may_report_activation_complete: { type: boolean }
+            session_context_claim_requires: { type: string }
+        secrets_included: { type: boolean, enum: [false] }
+
+    AuditPayloadEvidenceSmokeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        tenant_id: { type: string }
+        actor_id: { type: string }
+        cleanup: { type: boolean, default: true }
+        max_preview_chars:
+          type: integer
+          minimum: 256
+          maximum: 8000
+          default: 4000
+
+    AuditPayloadEvidenceSmokeCheck:
+      type: object
+      additionalProperties: true
+      properties:
+        name: { type: string }
+        pass: { type: boolean }
+
+    AuditPayloadEvidenceSmokeResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, status, smoke_type, checks, secret_values_returned, token_returned, secrets_included]
+      properties:
+        ok: { type: boolean }
+        status: { type: string, enum: [pass, fail] }
+        smoke_type: { type: string, enum: [audit_payload_evidence] }
+        audit_id: { type: string }
+        evidence_id: { type: string }
+        redaction_status: { type: string, nullable: true }
+        cleanup:
+          type: object
+          additionalProperties: true
+          nullable: true
+        checks:
+          type: array
+          items: { $ref: "#/components/schemas/AuditPayloadEvidenceSmokeCheck" }
+        secret_values_returned: { type: boolean, enum: [false] }
+        token_returned: { type: boolean, enum: [false] }
+        secrets_included: { type: boolean, enum: [false] }
+
     PlatformGraphNode:
       type: object
       additionalProperties: true
@@ -1005,6 +1103,60 @@ components:
           items: { type: string }
         secret_value_included: { type: boolean, enum: [false] }
 
+    CredentialBindingPromoteTenantRequest:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, connection_id, credential_role, promotion_approved, promotion_reason]
+      properties:
+        tenant_id: { type: string }
+        connection_id: { type: string }
+        target_key: { type: string }
+        action_key: { type: string }
+        credential_role: { type: string }
+        promotion_approved: { type: boolean, enum: [true] }
+        promotion_reason:
+          type: string
+          minLength: 8
+        provider_family: { type: string, default: wordpress }
+        connector_family: { type: string, default: wordpress_rest }
+        promoted_owner_type:
+          type: string
+          enum: [tenant]
+          default: tenant
+        resolution_priority: { type: integer, default: 20 }
+        allow_platform_fallback: { type: boolean, default: true }
+        created_by: { type: string }
+
+    CredentialBindingPromoteTenantResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, binding_id, tenant_id, promoted_owner_type, credential_ref, credential_role, promotion_policy, readback, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        binding_id: { type: string }
+        tenant_id: { type: string }
+        promoted_owner_type: { type: string, enum: [tenant] }
+        credential_ref: { type: string }
+        target_key: { type: string, nullable: true }
+        action_key: { type: string, nullable: true }
+        credential_role: { type: string }
+        resolution_priority: { type: integer }
+        promotion_policy:
+          type: object
+          additionalProperties: true
+          properties:
+            mode: { type: string, enum: [tenant_connection_binding_promotion_v1] }
+            source_connection_id: { type: string }
+            source_user_id: { type: string }
+            secret_copied: { type: boolean, enum: [false] }
+            token_returned: { type: boolean, enum: [false] }
+            secrets_included: { type: boolean, enum: [false] }
+            platform_wide_promotion_enabled: { type: boolean, enum: [false] }
+        readback:
+          type: object
+          additionalProperties: true
+        secrets_included: { type: boolean, enum: [false] }
+
     CredentialEffectivePlanRequest:
       type: object
       additionalProperties: false
@@ -1217,6 +1369,64 @@ components:
           type: object
           additionalProperties: true
         tenant_facing: { type: boolean }
+        secrets_included: { type: boolean, enum: [false] }
+
+    PlatformEvolutionCmsClaimSmokeRequest:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, connection_id, target_key]
+      properties:
+        tenant_id: { type: string }
+        user_id: { type: string }
+        connection_id: { type: string }
+        target_key: { type: string }
+        site_url: { type: string }
+        normalized_domain: { type: string }
+        credential_role: { type: string, default: wordpress_app_password }
+        claim_id: { type: string }
+        transport_mode:
+          type: string
+          enum: [direct_scope]
+          default: direct_scope
+
+    PlatformEvolutionCmsClaimSmokeResult:
+      type: object
+      additionalProperties: true
+      properties:
+        status: { type: string }
+        claim_id: { type: string }
+        tenant_id: { type: string }
+        user_id: { type: string }
+        connection_id: { type: string }
+        target_key: { type: string }
+        credential_role: { type: string }
+        binding_id: { type: string }
+        jwt_verified: { type: boolean }
+        effective_status: { type: string, nullable: true }
+        effective_owner_type: { type: string, nullable: true }
+        effective_binding_id: { type: string, nullable: true }
+        effective_connection_id: { type: string, nullable: true }
+        secret_copied: { type: boolean, enum: [false] }
+        token_returned: { type: boolean, enum: [false] }
+        secrets_included: { type: boolean, enum: [false] }
+
+    PlatformEvolutionCmsClaimSmokeResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, transport_mode, result, smoke_policy, secrets_included]
+      properties:
+        ok: { type: boolean }
+        transport_mode: { type: string, enum: [direct_scope] }
+        result: { $ref: "#/components/schemas/PlatformEvolutionCmsClaimSmokeResult" }
+        smoke_policy:
+          type: object
+          additionalProperties: true
+          properties:
+            token_returned: { type: boolean, enum: [false] }
+            jwt_ttl_seconds: { type: integer, enum: [300] }
+            secret_copied: { type: boolean, enum: [false] }
+            secrets_included: { type: boolean, enum: [false] }
+            direct_http_route_smoke: { type: boolean, enum: [false] }
         secrets_included: { type: boolean, enum: [false] }
 
     PlatformEvolutionTenantSmokeRequest:
@@ -2924,6 +3134,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  /activation/hard-run:
+    post:
+      tags: [activation]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: runHardActivation
+      x-openai-isConsequential: false
+      summary: Run hard activation with mandatory session-context evidence
+      description: >
+        Orchestrates hard activation by collecting session-context evidence first and provider-bootstrap
+        evidence second. Activation is not complete unless both evidence surfaces are present and valid.
+        This prevents final activation reports from claiming session context was opened or loaded without
+        getActivationSessionContext evidence.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HardActivationRunRequest"
+      responses:
+        "200":
+          description: Hard activation complete.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HardActivationRunResponse"
+        "424":
+          description: Required activation evidence is missing or degraded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HardActivationRunResponse"
 
   /activation/session-context:
     get:
@@ -4728,6 +4972,38 @@ paths:
         "200": { description: Audit log entries, content: { application/json: { schema: { $ref: "#/components/schemas/PlatformListResponse" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /audit/evidence/smoke:
+    post:
+      tags: [security]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: runAuditPayloadEvidenceSmoke
+      summary: Run audit payload evidence smoke
+      description: >
+        Writes a synthetic audit log row plus bounded, redacted request-response evidence,
+        verifies SHA hashes and redacted previews, and confirms no secret values or tokens
+        are returned. Cleanup is enabled by default.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuditPayloadEvidenceSmokeRequest"
+      responses:
+        "200":
+          description: Audit payload evidence smoke passed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditPayloadEvidenceSmokeResponse"
+        "500":
+          description: Audit payload evidence smoke failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditPayloadEvidenceSmokeResponse"
+
   /secret-references:
     post:
       tags: [security]
@@ -5456,7 +5732,34 @@ paths:
                 tool_args:
                   type: object
                   additionalProperties: true
-                  description: Arguments matching the tool inputSchema. For admin_control pass tool, sql, args etc. here.
+                  description: Arguments matching the tool inputSchema. For connect_activate, pass mode and integration_modes here; for connect_device_install, pass device_id here; for admin_control pass tool, sql, args etc. here.
+                  properties:
+                    mode:
+                      type: string
+                      enum: [managed, dedicated]
+                      description: Activation mode for connect_activate.
+                    device_id:
+                      type: string
+                      pattern: "^[a-z0-9-]{2,32}$"
+                      description: Stable lowercase device id for connect_device_install.
+                    workspace_name:
+                      type: string
+                    integration_modes:
+                      type: object
+                      additionalProperties: true
+                      description: Optional per-app managed/dedicated source policy.
+                    n8n_activation_mode:
+                      type: string
+                      enum: [managed_main_server, self_hosted_local]
+                    provisioning_credential_mode:
+                      type: string
+                      enum: [managed, dedicated]
+                    app_key:
+                      type: string
+                    auth_type:
+                      type: string
+                    display_label:
+                      type: string
       responses:
         "200":
           description: Upstream tool response
@@ -9387,6 +9690,49 @@ paths:
       responses:
         "201": { description: Credential intake submitted, content: { text/html: { schema: { type: string } } } }
 
+  /credentials/bindings/promote:
+    post:
+      x-openai-isConsequential: true
+      tags: [security]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: credentialBindingPromoteTenant
+      summary: Promote an active connection credential into a tenant binding pointer
+      description: >
+        Admin-only credential lifecycle action. Creates or updates a tenant-owned credential binding pointer from an active
+        user_app_connection for a target/action/credential_role. It never copies, decrypts, or returns secret values.
+        Platform-wide promotion is disabled in v1.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialBindingPromoteTenantRequest"
+      responses:
+        "200":
+          description: Existing tenant promotion binding updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialBindingPromoteTenantResponse"
+        "201":
+          description: Tenant promotion binding created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CredentialBindingPromoteTenantResponse"
+        "400":
+          description: Missing fields, unsupported owner type, or inactive connection.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Promotion failed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /credentials/effective/plan:
     post:
       x-openai-isConsequential: false
@@ -10804,6 +11150,44 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /platform/evolution/cms-claim-smoke:
+    post:
+      tags: [platform-evolution]
+      operationId: platformEvolutionCmsClaimSmoke
+      summary: Smoke CMS claim approval and credential promotion
+      description: >
+        Admin-only governed smoke harness for CMS/WordPress claim approval governance. It issues and verifies an
+        internal short-lived User JWT, creates or reuses a verified CMS claim, approves it in direct_scope mode,
+        creates or updates a tenant-owned WordPress credential binding pointer, and reads back effective credential
+        status without returning tokens, decrypted credentials, or secret values.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformEvolutionCmsClaimSmokeRequest"
+      responses:
+        "200":
+          description: CMS claim smoke passed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionCmsClaimSmokeResponse"
+        "400":
+          description: Missing required fields or unsupported transport.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "502":
+          description: CMS claim smoke failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionCmsClaimSmokeResponse"
+
   /platform/evolution/tenant-smoke:
     post:
       tags: [platform-evolution]
@@ -11224,6 +11608,7 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: writeGptSessionTurn
       x-tenant-gpt-operationId: writeSessionTurn
+      x-openai-isConsequential: false
       summary: Append one turn to a customer_sessions archive
       description: "Append one conversation turn to the active customer_sessions row. Writes the full content to the Drive transcript Doc and JSONL sidecar, and stores a bounded preview, sha256 hash, and Drive anchor in gpt_session_turns. Registered as the admin tool gpt_session_turn_write."
       parameters:
@@ -11270,6 +11655,7 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: endGptSession
       x-tenant-gpt-operationId: endSession
+      x-openai-isConsequential: false
       summary: Close a customer_sessions archive
       description: "Close the active customer_sessions row. Optionally writes a session_summaries row, finalizes the Drive transcript through closeGptSessionArchive, and triggers the exportSessionToDrive pipeline so drive_export_url is populated for activation readback. Registered as the admin tool gpt_session_end."
       parameters:

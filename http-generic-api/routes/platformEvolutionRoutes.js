@@ -2,6 +2,7 @@ import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
+import { getEffectiveCredentialStatus } from "../credentialResolver.js";
 
 function boundedInt(value, fallback, min = 1, max = 200) {
   const parsed = Number.parseInt(value, 10);
@@ -145,6 +146,135 @@ async function createTenantWriteSmokeCheckpoint(scope) {
     [checkpointId, createdBy, scope.scope_key]
   );
   return checkpointId;
+}
+
+async function directCmsClaimApprovalSmoke(input = {}) {
+  const tenantId = nonEmptyString(input.tenant_id || input.tenantId);
+  const userId = nonEmptyString(input.user_id || input.userId);
+  const connectionId = nonEmptyString(input.connection_id || input.connectionId);
+  const targetKey = nonEmptyString(input.target_key || input.targetKey);
+  const siteUrl = nonEmptyString(input.site_url || input.siteUrl, "https://example.com");
+  const normalizedDomain = nonEmptyString(input.normalized_domain || input.normalizedDomain, "example.com");
+  const credentialRole = nonEmptyString(input.credential_role || input.credentialRole, "wordpress_app_password");
+  if (!tenantId || !connectionId || !targetKey) {
+    const err = new Error("tenant_id, connection_id, and target_key are required.");
+    err.status = 400;
+    err.code = "cms_claim_smoke_required_fields_missing";
+    throw err;
+  }
+  const pool = getPool();
+  const [connections] = await pool.query(
+    `SELECT connection_id, tenant_id, user_id, app_key, auth_type, display_label, status, validation_status
+       FROM user_app_connections
+      WHERE connection_id = ?
+        AND tenant_id = ?
+      LIMIT 1`,
+    [connectionId, tenantId]
+  );
+  const connection = connections[0] || null;
+  if (!connection || connection.status !== "active") {
+    const err = new Error("Active user app connection is required for CMS claim smoke.");
+    err.status = 404;
+    err.code = "cms_claim_smoke_connection_not_active";
+    throw err;
+  }
+  const smokeUserId = userId || connection.user_id;
+  const token = issueInternalTenantSmokeJwt({ user_id: smokeUserId, email: null, tenant_id: tenantId });
+  let jwtVerified = false;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "development_fallback_secret_only");
+    jwtVerified = decoded?.user_id === smokeUserId && decoded?.tenant_id === tenantId;
+  } catch {
+    jwtVerified = false;
+  }
+  if (!jwtVerified) {
+    const err = new Error("Internal User JWT smoke token did not verify.");
+    err.status = 500;
+    err.code = "cms_claim_smoke_jwt_not_verified";
+    throw err;
+  }
+
+  const claimId = input.claim_id || input.claimId || randomUUID();
+  const credentialRef = `user_app_connection:${connectionId}:encrypted_credentials.application_password`;
+  await pool.query(
+    `INSERT INTO cms_account_claims (
+       claim_id, tenant_id, user_id, connection_id, app_key, site_url, wp_json_base,
+       normalized_domain, claimed_username, claimed_email, cms_user_id, cms_roles_json,
+       matched_brand_key, matched_target_key, match_confidence, verification_status,
+       requested_scope, approval_required
+     ) VALUES (?, ?, ?, ?, 'wordpress_rest', ?, ?, ?, 'cms-smoke', NULL, '42', JSON_ARRAY('administrator'), NULL, ?, 'verified', 'verified', 'tenant_brand', 1)
+     ON DUPLICATE KEY UPDATE
+       verification_status = 'verified',
+       connection_id = VALUES(connection_id),
+       matched_target_key = VALUES(matched_target_key),
+       updated_at = NOW()`,
+    [claimId, tenantId, smokeUserId, connectionId, siteUrl, `${siteUrl.replace(/\/$/, "")}/wp-json`, normalizedDomain, targetKey]
+  );
+  const [approval] = await pool.query(
+    `UPDATE cms_account_claims
+        SET verification_status = 'approved', approved_by = ?, approved_at = NOW(), updated_at = NOW()
+      WHERE claim_id = ?
+        AND tenant_id = ?
+        AND verification_status IN ('verified', 'pending')`,
+    [smokeUserId, claimId, tenantId]
+  );
+  const [existing] = await pool.query(
+    `SELECT binding_id
+       FROM credential_bindings
+      WHERE tenant_id = ?
+        AND owner_type = 'tenant'
+        AND owner_id = ?
+        AND user_id IS NULL
+        AND connection_id IS NULL
+        AND target_key = ?
+        AND credential_role = ?
+        AND credential_ref = ?
+      ORDER BY updated_at DESC
+      LIMIT 1`,
+    [tenantId, tenantId, targetKey, credentialRole, credentialRef]
+  );
+  const bindingId = existing[0]?.binding_id || randomUUID();
+  if (existing[0]?.binding_id) {
+    await pool.query(
+      `UPDATE credential_bindings
+          SET provider_family = 'wordpress', connector_family = 'wordpress_rest', resolution_priority = 20, status = 'active', updated_at = NOW()
+        WHERE binding_id = ?`,
+      [bindingId]
+    );
+  } else {
+    await pool.query(
+      `INSERT INTO credential_bindings (
+         binding_id, tenant_id, owner_type, owner_id, user_id, system_id, installation_id, connection_id,
+         action_key, target_key, credential_role, credential_ref, provider_family, connector_family,
+         resolution_priority, status, created_by, created_at, updated_at
+       ) VALUES (?, ?, 'tenant', ?, NULL, NULL, NULL, NULL, NULL, ?, ?, ?, 'wordpress', 'wordpress_rest', 20, 'active', ?, NOW(), NOW())`,
+      [bindingId, tenantId, tenantId, targetKey, credentialRole, credentialRef, `cms_claim_smoke:${smokeUserId}`]
+    );
+  }
+  const effective = await getEffectiveCredentialStatus({
+    tenant_id: tenantId,
+    target_key: targetKey,
+    credential_role: credentialRole,
+    allow_platform_fallback: true,
+  });
+  return {
+    status: approval?.affectedRows ? "approved" : "not_modified",
+    claim_id: claimId,
+    tenant_id: tenantId,
+    user_id: smokeUserId,
+    connection_id: connectionId,
+    target_key: targetKey,
+    credential_role: credentialRole,
+    binding_id: bindingId,
+    jwt_verified: jwtVerified,
+    effective_status: effective?.status || null,
+    effective_owner_type: effective?.owner_type || null,
+    effective_binding_id: effective?.binding_id || null,
+    effective_connection_id: effective?.connection_id || null,
+    secret_copied: false,
+    token_returned: false,
+    secrets_included: false,
+  };
 }
 
 async function directTenantSmoke(scope, token, options = {}) {
@@ -307,6 +437,43 @@ export function buildPlatformEvolutionRoutes(deps = {}) {
       });
     } catch (err) {
       return errorResponse(res, err, "platform_evolution_switch_options_failed");
+    }
+  });
+
+  router.post("/platform/evolution/cms-claim-smoke", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const transportMode = nonEmptyString(body.transport_mode || body.transportMode, "direct_scope");
+      if (transportMode !== "direct_scope") {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "cms_claim_smoke_transport_unsupported", message: "Only direct_scope is currently supported for CMS claim smoke." },
+          secrets_included: false,
+        });
+      }
+      const result = await directCmsClaimApprovalSmoke(body);
+      const passed = result.jwt_verified === true &&
+        result.status === "approved" &&
+        result.effective_status === "resolved" &&
+        result.effective_owner_type === "tenant" &&
+        result.secrets_included === false &&
+        result.token_returned === false &&
+        result.secret_copied === false;
+      return res.status(passed ? 200 : 502).json({
+        ok: passed,
+        transport_mode: transportMode,
+        result,
+        smoke_policy: {
+          token_returned: false,
+          jwt_ttl_seconds: 300,
+          secret_copied: false,
+          secrets_included: false,
+          direct_http_route_smoke: false,
+        },
+        secrets_included: false,
+      });
+    } catch (err) {
+      return errorResponse(res, err, "platform_evolution_cms_claim_smoke_failed");
     }
   });
 

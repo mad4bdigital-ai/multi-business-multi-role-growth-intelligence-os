@@ -810,9 +810,9 @@
       "additionalProperties": false,
       "required": [
         "approved_registry_bindings",
-        "active_sheet_bindings",
+        "active_sql_registry_bindings",
         "system_layers_active",
-        "approved_registry_tabs",
+        "approved_registry_tables",
         "live_data_layer_ready",
         "control_center_state"
       ],
@@ -821,7 +821,25 @@
           "type": "string",
           "default": "Multi-Business Growth Intelligence Platform"
         },
-        "registry_workbook": {
+        "registry_database": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "default": "mysql_primary"
+            },
+            "title": {
+              "type": "string",
+              "default": "Growth Intelligence OS - SQL Registry"
+            },
+            "role": {
+              "type": "string",
+              "default": "runtime_authority"
+            }
+          }
+        },
+        "legacy_registry_workbook_mirror": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
@@ -835,17 +853,36 @@
             },
             "role": {
               "type": "string",
-              "default": "structural_truth"
+              "default": "async_mirror_and_recovery"
             }
           }
         },
-        "operations_workbook_binding": {
+        "operations_database_binding": {
           "type": "object",
           "additionalProperties": false,
           "default": {},
           "required": [
-            "id"
+            "source"
           ],
+          "properties": {
+            "source": {
+              "type": "string",
+              "default": "mysql_primary"
+            },
+            "title": {
+              "type": "string",
+              "default": "Growth Intelligence OS - Operations SQL Tables"
+            },
+            "role": {
+              "type": "string",
+              "default": "runtime_control_surface"
+            }
+          }
+        },
+        "legacy_operations_workbook_mirror": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
           "properties": {
             "id": {
               "type": "string",
@@ -857,7 +894,7 @@
             },
             "role": {
               "type": "string",
-              "default": "runtime_control_surface"
+              "default": "async_mirror_and_recovery"
             }
           }
         },
@@ -938,13 +975,16 @@
             "$ref": "./execution.schema.json#/$defs/registryBinding"
           }
         },
-        "active_sheet_bindings": {
+        "active_sql_registry_bindings": {
+          "$ref": "./shared.schema.json#/$defs/stringList"
+        },
+        "legacy_mirror_sheet_bindings": {
           "$ref": "./shared.schema.json#/$defs/stringList"
         },
         "system_layers_active": {
           "$ref": "./shared.schema.json#/$defs/stringList"
         },
-        "approved_registry_tabs": {
+        "approved_registry_tables": {
           "type": "array",
           "default": [
             "Brand Registry",
@@ -1025,16 +1065,12 @@
             }
           }
         },
-        "operations_workbook": {
+        "legacy_operations_workbook_runtime_mirror": {
           "type": "object",
           "additionalProperties": false,
           "default": {},
-          "required": [
-            "spreadsheet_id",
-            "title"
-          ],
           "properties": {
-            "spreadsheet_id": {
+            "legacy_mirror_spreadsheet_id": {
               "type": "string",
               "default": "1D0uiZteobSqPL9c6zygq3UVWTe56H3R7IHL1yJcwP5k"
             },
@@ -1044,7 +1080,7 @@
             },
             "role": {
               "type": "string",
-              "default": "runtime_control_surface"
+              "default": "async_mirror_and_recovery"
             }
           }
         },
@@ -1055,29 +1091,33 @@
           "required": [
             "source",
             "dependency_key",
-            "worksheet"
+            "table"
           ],
           "properties": {
             "source": {
               "type": "string",
-              "default": "registry",
+              "default": "sql_registry",
               "enum": [
-                "registry"
+                "sql_registry"
               ]
             },
             "dependency_key": {
               "type": "string",
-              "default": "operations_log_unified_sheet",
+              "default": "execution_log",
               "enum": [
-                "operations_log_unified_sheet"
+                "execution_log"
               ]
             },
-            "worksheet": {
+            "table": {
               "type": "string",
-              "default": "Execution Log Unified",
+              "default": "execution_log",
               "enum": [
-                "Execution Log Unified"
+                "execution_log"
               ]
+            },
+            "legacy_mirror_worksheet": {
+              "type": "string",
+              "default": "Execution Log Unified"
             }
           }
         },
@@ -1243,7 +1283,7 @@
               "type": "string",
               "default": ""
             },
-            "brand_playbook_sheet_gid": {
+            "legacy_brand_playbook_sheet_gid": {
               "type": "string",
               "default": ""
             },

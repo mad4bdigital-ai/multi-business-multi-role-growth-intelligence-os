@@ -81,21 +81,39 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "spreadsheet_id",
+        "registry_source",
+        "registry_table",
         "surface_name"
       ],
       "properties": {
-        "spreadsheet_id": {
+        "registry_source": {
+          "type": "string",
+          "enum": ["sql_primary", "recovery_mirror", "diagnostic_mirror"],
+          "default": "sql_primary"
+        },
+        "registry_table": {
           "type": "string",
           "minLength": 1
+        },
+        "registry_row_id": {
+          "type": "string",
+          "default": ""
         },
         "surface_name": {
           "type": "string",
           "minLength": 1
         },
-        "worksheet_gid": {
+        "binding_key": {
           "type": "string",
-          "minLength": 1
+          "default": ""
+        },
+        "legacy_mirror_spreadsheet_id": {
+          "type": "string",
+          "default": ""
+        },
+        "legacy_mirror_worksheet_gid": {
+          "type": "string",
+          "default": ""
         }
       }
     },
@@ -498,23 +516,31 @@
       "additionalProperties": false,
       "default": {},
       "properties": {
-        "target_spreadsheet_id": {
+        "target_table": {
           "type": "string",
           "default": ""
         },
-        "target_sheet_name": {
+        "target_primary_key": {
           "type": "string",
           "default": ""
         },
-        "target_gid": {
+        "target_row_id": {
           "type": "string",
           "default": ""
         },
-        "expected_start_row": {
+        "legacy_mirror_spreadsheet_id": {
           "type": "string",
           "default": ""
         },
-        "actual_start_row": {
+        "legacy_mirror_worksheet_gid": {
+          "type": "string",
+          "default": ""
+        },
+        "expected_write_position": {
+          "type": "string",
+          "default": ""
+        },
+        "actual_write_position": {
           "type": "string",
           "default": ""
         },
@@ -570,19 +596,25 @@
       "type": "object",
       "additionalProperties": false,
       "default": {
-        "operations_log_unified_sheet": {
+        "execution_log": {
           "required": true,
           "write_succeeded": false,
           "readback_verified": false,
           "placement_valid": false
         },
-        "review_run_history_sheet": {
+        "output_artifacts": {
           "required": false,
           "write_succeeded": false,
           "readback_verified": false,
           "placement_valid": false
         },
-        "review_findings_log_sheet": {
+        "sink_dispatch_log": {
+          "required": false,
+          "write_succeeded": false,
+          "readback_verified": false,
+          "placement_valid": false
+        },
+        "agent_chain_events": {
           "required": false,
           "write_succeeded": false,
           "readback_verified": false,
@@ -590,13 +622,16 @@
         }
       },
       "properties": {
-        "operations_log_unified_sheet": {
+        "execution_log": {
           "$ref": "#/$defs/authoritativeWriteTargetEntry"
         },
-        "review_run_history_sheet": {
+        "output_artifacts": {
           "$ref": "#/$defs/authoritativeWriteTargetEntry"
         },
-        "review_findings_log_sheet": {
+        "sink_dispatch_log": {
+          "$ref": "#/$defs/authoritativeWriteTargetEntry"
+        },
+        "agent_chain_events": {
           "$ref": "#/$defs/authoritativeWriteTargetEntry"
         }
       }

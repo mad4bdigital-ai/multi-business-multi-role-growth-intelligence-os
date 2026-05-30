@@ -2,6 +2,8 @@ import { Router } from "express";
 import { getPool } from "../db.js";
 import { routeOutput } from "../outputSinkRouter.js";
 import { dispatchChainEvent, dispatchPendingChainEvents } from "../chainEventDispatcher.js";
+import { dispatchPlan } from "../connectorExecutor.js";
+import { diagnoseWordpressAuthContext } from "../wordpressBlogPublishOrchestrator.js";
 
 export function buildOutputSinkRoutes(deps) {
   const { requireBackendApiKey } = deps;
@@ -88,6 +90,47 @@ export function buildOutputSinkRoutes(deps) {
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /wordpress/auth-context/diagnose — safe WordPress REST auth diagnostic ──
+  router.post("/wordpress/auth-context/diagnose", async (req, res) => {
+    try {
+      const { tenant_id, user_id, connection_id, brand_key, target_key } = req.body || {};
+      if (!tenant_id || !user_id || (!brand_key && !target_key)) {
+        return res.status(400).json({ ok: false, error: { code: "missing_required_fields", message: "tenant_id, user_id, and brand_key or target_key are required." } });
+      }
+      const result = await diagnoseWordpressAuthContext({
+        tenant_id,
+        user_id,
+        connection_id,
+        brand_key: brand_key || target_key,
+        target_key: target_key || brand_key,
+        workflow_key: "wordpress_blog_publish_or_recover_credentials_workflow",
+      });
+      res.status(result.ok ? 200 : 422).json(result);
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "wordpress_auth_context_diagnostic_failed", message: err.message } });
+    }
+  });
+
+  // ── POST /execution-plans/:id/dispatch — execute a validated/approved plan ──
+  router.post("/execution-plans/:id/dispatch", async (req, res) => {
+    try {
+      const { apply = false, publish_status = "draft", post_types = ["post"], actor_id = "admin:gpt" } = req.body || {};
+      if (apply !== false && apply !== true) {
+        return res.status(400).json({ error: { code: "invalid_apply", message: "apply must be boolean." } });
+      }
+      if (!["draft", "publish"].includes(String(publish_status))) {
+        return res.status(400).json({ error: { code: "invalid_publish_status", message: "publish_status must be draft or publish." } });
+      }
+      const result = await dispatchPlan(req.params.id, { apply, publish_status, post_types, actor_id });
+      if (!result.ok) {
+        return res.status(422).json(result);
+      }
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: { code: "execution_plan_dispatch_failed", message: err.message } });
     }
   });
 

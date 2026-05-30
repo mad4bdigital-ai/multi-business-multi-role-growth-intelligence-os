@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { getEffectiveCredentialStatus } from "../credentialResolver.js";
 import { getPool } from "../db.js";
 import { encryptToken } from "../tokenEncryption.js";
@@ -388,6 +388,164 @@ export function buildCredentialRoutes(deps) {
       });
     } catch (err) {
       res.status(500).json({ ok: false, error: { code: err.code || "credential_secret_upsert_failed", message: err.message } });
+    }
+  });
+
+  // Promote a private connection credential into a tenant-owned binding. This
+  // creates a pointer binding only; it never copies, decrypts, or returns secret
+  // values. V1 intentionally supports tenant-owned promotion only.
+  router.post("/credentials/bindings/promote", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const tenantId = str(body.tenant_id || body.tenantId);
+      const connectionId = str(body.connection_id || body.connectionId);
+      const targetKey = str(body.target_key || body.targetKey);
+      const actionKey = str(body.action_key || body.actionKey);
+      const credentialRole = str(body.credential_role || body.credentialRole || body.role);
+      const providerFamily = str(body.provider_family || body.providerFamily || "wordpress");
+      const connectorFamily = str(body.connector_family || body.connectorFamily || "wordpress_rest");
+      const promotedOwnerType = str(body.promoted_owner_type || body.promotedOwnerType || "tenant");
+      const resolutionPriority = Number.parseInt(String(body.resolution_priority || body.resolutionPriority || 20), 10);
+      const promotionApproved = body.promotion_approved === true || body.promotionApproved === true;
+      const promotionReason = str(body.promotion_reason || body.promotionReason);
+      const createdBy = str(body.created_by || body.createdBy || "credential_binding_promotion_v1");
+
+      if (!promotionApproved || promotionReason.length < 8) {
+        return res.status(400).json({ ok: false, error: { code: "promotion_approval_required", message: "promotion_approved=true and promotion_reason of at least 8 characters are required." }, secrets_included: false });
+      }
+      if (promotedOwnerType !== "tenant") {
+        return res.status(400).json({ ok: false, error: { code: "unsupported_promotion_owner_type", message: "v1 supports promoted_owner_type=tenant only." }, secrets_included: false });
+      }
+      if (!tenantId || !connectionId || !credentialRole || (!targetKey && !actionKey)) {
+        return res.status(400).json({ ok: false, error: { code: "promotion_fields_required", message: "tenant_id, connection_id, credential_role, and target_key or action_key are required." }, secrets_included: false });
+      }
+
+      const pool = getPool();
+      const [connections] = await pool.query(
+        `SELECT connection_id, user_id, tenant_id, app_key, auth_type, account_label, status, validation_status
+           FROM user_app_connections
+          WHERE connection_id = ? AND tenant_id = ?
+          LIMIT 1`,
+        [connectionId, tenantId]
+      );
+      const connection = connections[0];
+      if (!connection || connection.status !== "active") {
+        return res.status(400).json({ ok: false, error: { code: "active_connection_required", message: "An active user_app_connection in this tenant is required for promotion." }, secrets_included: false });
+      }
+
+      const preflight = await buildCredentialResolutionPlan({
+        tenant_id: tenantId,
+        user_id: connection.user_id,
+        connection_id: connectionId,
+        action_key: actionKey || undefined,
+        target_key: targetKey || undefined,
+        credential_role: credentialRole,
+        allow_platform_fallback: false,
+      });
+      if (preflight.effective?.status !== "resolved" || preflight.effective?.owner_type !== "connection" || preflight.effective?.connection_id !== connectionId) {
+        return res.status(409).json({
+          ok: false,
+          error: {
+            code: "promotion_source_not_resolved",
+            message: "Source connection credential must resolve with user+connection context before promotion.",
+            details: {
+              effective_status: preflight.effective?.status || null,
+              effective_owner_type: preflight.effective?.owner_type || null,
+              effective_connection_id: preflight.effective?.connection_id || null,
+            },
+          },
+          secrets_included: false,
+        });
+      }
+
+      const field = roleCandidateField(credentialRole, connection.auth_type);
+      const credentialRef = preflight.effective.credential_ref || `user_app_connection:${connection.connection_id}:encrypted_credentials.${field}`;
+      const [existing] = await pool.query(
+        `SELECT binding_id FROM credential_bindings
+          WHERE tenant_id = ?
+            AND owner_type = 'tenant'
+            AND owner_id = ?
+            AND credential_role = ?
+            AND credential_ref = ?
+            AND COALESCE(target_key, '') = COALESCE(?, '')
+            AND COALESCE(action_key, '') = COALESCE(?, '')
+          ORDER BY updated_at DESC
+          LIMIT 1`,
+        [tenantId, tenantId, credentialRole, credentialRef, targetKey || null, actionKey || null]
+      );
+      const bindingId = existing[0]?.binding_id || randomUUID();
+
+      if (existing[0]?.binding_id) {
+        await pool.query(
+          `UPDATE credential_bindings
+              SET provider_family = ?, connector_family = ?, resolution_priority = ?, status = 'active', updated_at = NOW()
+            WHERE binding_id = ?`,
+          [providerFamily, connectorFamily, Number.isFinite(resolutionPriority) ? resolutionPriority : 20, bindingId]
+        );
+      } else {
+        await pool.query(
+          `INSERT INTO credential_bindings (
+             binding_id, tenant_id, owner_type, owner_id, user_id, system_id, installation_id, connection_id,
+             action_key, target_key, credential_role, credential_ref, provider_family, connector_family,
+             resolution_priority, status, created_by, created_at, updated_at
+           ) VALUES (?, ?, 'tenant', ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, 'active', ?, NOW(), NOW())`,
+          [
+            bindingId,
+            tenantId,
+            tenantId,
+            actionKey || null,
+            targetKey || null,
+            credentialRole,
+            credentialRef,
+            providerFamily,
+            connectorFamily,
+            Number.isFinite(resolutionPriority) ? resolutionPriority : 20,
+            createdBy,
+          ]
+        );
+      }
+
+      const plan = await buildCredentialResolutionPlan({
+        tenant_id: tenantId,
+        action_key: actionKey || undefined,
+        target_key: targetKey || undefined,
+        credential_role: credentialRole,
+        allow_platform_fallback: body.allow_platform_fallback !== false,
+      });
+
+      res.status(existing[0]?.binding_id ? 200 : 201).json({
+        ok: true,
+        binding_id: bindingId,
+        tenant_id: tenantId,
+        promoted_owner_type: "tenant",
+        credential_ref: credentialRef,
+        target_key: targetKey || null,
+        action_key: actionKey || null,
+        credential_role: credentialRole,
+        resolution_priority: Number.isFinite(resolutionPriority) ? resolutionPriority : 20,
+        promotion_policy: {
+          mode: "tenant_connection_binding_promotion_v1",
+          promotion_approved: true,
+          promotion_reason: promotionReason,
+          source_preflight_status: preflight.effective?.status || null,
+          source_connection_id: connectionId,
+          source_user_id: connection.user_id,
+          secret_copied: false,
+          token_returned: false,
+          secrets_included: false,
+          platform_wide_promotion_enabled: false,
+        },
+        readback: {
+          effective_status: plan.effective?.status || null,
+          effective_source: plan.effective?.source || null,
+          effective_binding_id: plan.effective?.binding_id || null,
+          candidate_count: plan.total,
+          secrets_included: false,
+        },
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: err.code || "credential_binding_promotion_failed", message: err.message }, secrets_included: false });
     }
   });
 

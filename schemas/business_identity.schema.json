@@ -33,7 +33,7 @@
           "type": "string",
           "minLength": 1
         },
-        "gid": {
+        "legacy_mirror_gid": {
           "type": "string",
           "minLength": 1
         },
@@ -54,20 +54,34 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "spreadsheet_id",
-            "sheet_name"
+            "registry_source",
+            "registry_table"
           ],
           "properties": {
-            "spreadsheet_id": {
+            "registry_source": {
+              "type": "string",
+              "enum": ["sql_primary", "legacy_mirror", "recovery_import"],
+              "default": "sql_primary"
+            },
+            "registry_table": {
               "type": "string",
               "minLength": 1
             },
-            "sheet_name": {
+            "registry_row_id": {
               "type": "string",
-              "minLength": 1
+              "default": ""
             },
-            "sheet_title": {
-              "type": "string"
+            "legacy_mirror_spreadsheet_id": {
+              "type": "string",
+              "default": ""
+            },
+            "legacy_mirror_sheet_name": {
+              "type": "string",
+              "default": ""
+            },
+            "legacy_mirror_sheet_title": {
+              "type": "string",
+              "default": ""
             }
           }
         },
@@ -99,7 +113,7 @@
           },
           "then": {
             "required": [
-              "gid"
+              "legacy_mirror_gid"
             ]
           }
         }

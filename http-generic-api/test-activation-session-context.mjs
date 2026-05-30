@@ -111,6 +111,8 @@ assert.equal(normalizeOffset(40), 40);
   assert.equal(source.includes("session_summary_fallback_used"), true);
   assert.equal(source.includes("session_summaries_sql_fallback"), true);
   assert.equal(source.includes("include_turns: asBoolean(req.query.include_turns)"), true);
+  assert.equal(source.includes("includeSmokeSessions = asBoolean(req.query.include_smoke_sessions)"), true);
+  assert.equal(source.includes("originator IN ('gpt_action', 'gpt_action_smoke')"), true);
   assert.equal(source.includes("include_turns: includeTurns"), true);
   assert.equal(source.includes("platform_pending_tasks.conversation_context_ref"), true);
   assert.equal(source.includes("platform_evolution: platformEvolution"), true);
