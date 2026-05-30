@@ -78,13 +78,14 @@ async function resolveCanonicalDeviceId({ deviceId, userId = null, tenantId = nu
 
 async function resolveDeviceConfig(userId, deviceId, { isAdmin = false, tenantId = null } = {}) {
   deviceId = await resolveCanonicalDeviceId({ deviceId, userId, tenantId });
+  const connectorLocalApiKeySelect = await connectorLocalApiKeySelectFragment();
   const selectSql = `SELECT config_id,
                            COALESCE(device_runtime_url, tunnel_url) AS tunnel_url,
                            public_gateway_url,
                            device_runtime_url,
                            admin_recovery_url,
                            connector_secret,
-                           connector_local_api_key,
+                           ${connectorLocalApiKeySelect},
                            user_id,
                            tenant_id,
                            device_id,
