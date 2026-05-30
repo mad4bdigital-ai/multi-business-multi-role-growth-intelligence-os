@@ -27,6 +27,12 @@ const SENSITIVE_ARG_SUBSTRINGS = [
 ];
 const TURN_CONTENT_RESULT_LIMIT = 3000;
 const TURN_CONTENT_STRING_LIMIT = 500;
+const DEFAULT_TOOL_LIST_LIMIT = 50;
+const MAX_TOOL_LIST_LIMIT = 200;
+const DEFAULT_TOOL_RESPONSE_MAX_CHARS = 45000;
+const MAX_TOOL_RESPONSE_MAX_CHARS = 150000;
+const TOOL_RESPONSE_CHUNK_TTL_MS = 15 * 60 * 1000;
+const TOOL_RESPONSE_CHUNK_CACHE = new Map();
 
 function redactArgsForArchive(value) {
   if (Array.isArray(value)) return value.map(redactArgsForArchive);
