@@ -721,6 +721,46 @@ async function githubRestText({ owner, repo, apiPath, token }) {
   return text;
 }
 
+function assertGithubGraphqlReadOnly(query = "") {
+  const compact = String(query || "").replace(/#[^\n\r]*/g, " ").trim();
+  if (!compact) {
+    const err = new Error("GraphQL fallback requires a query field.");
+    err.status = 400;
+    err.code = "github_rest_graphql_query_required";
+    throw err;
+  }
+  if (/\b(?:mutation|subscription)\b/i.test(compact)) {
+    const err = new Error("GitHub GraphQL fallback supports read-only query operations only.");
+    err.status = 403;
+    err.code = "github_rest_graphql_mutation_blocked";
+    throw err;
+  }
+  return compact;
+}
+
+async function githubGraphqlJson({ token, body }) {
+  const response = await fetch("https://api.github.com/graphql", {
+    method: "POST",
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "mad4b-admin-control-github-rest-fallback",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body || {}),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.errors) {
+    const err = new Error(payload?.message || payload?.errors?.[0]?.message || `GitHub GraphQL request failed with HTTP ${response.status}.`);
+    err.status = response.status >= 400 && response.status < 500 ? response.status : 502;
+    err.code = response.status === 422 ? "github_graphql_validation_failed" : "github_graphql_failed";
+    err.details = { status: response.status, github_error: payload || null };
+    throw err;
+  }
+  return payload;
+}
+
 function encodeCompareRef(refName) {
   return encodeURIComponent(String(refName || "").trim());
 }
