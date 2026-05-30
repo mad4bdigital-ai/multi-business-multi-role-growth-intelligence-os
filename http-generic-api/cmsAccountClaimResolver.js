@@ -373,6 +373,15 @@ export async function createWordPressAccountClaim({
   const claimId = randomId();
   const connectionId = randomId();
   const bindingId = randomId();
+  const grantId = randomId();
+  const siteId = await upsertCmsSite({
+    db,
+    siteId: randomId(),
+    normalizedDomain: normalized.normalizedDomain,
+    siteUrl: normalized.siteUrl,
+    wpJsonBase: normalized.wpJsonBase,
+    match,
+  });
 
   await createUserAppConnection({
     db, connectionId, tenantId, userId,
@@ -394,10 +403,17 @@ export async function createWordPressAccountClaim({
     normalizedDomain: normalized.normalizedDomain,
     cmsUser, match, requestedScope,
   });
+  const grant = await createSiteAccessGrant({
+    db, grantId, siteId, tenantId, userId, connectionId, claimId,
+    cmsUser, requestedScope, approvalRequired,
+  });
 
   return {
     status: "verified",
     claim_id: claimId,
+    site_id: siteId,
+    grant_id: grantId,
+    grant_status: grant.status,
     connection_id: connectionId,
     app_key: APP_KEY,
     normalized_domain: normalized.normalizedDomain,
