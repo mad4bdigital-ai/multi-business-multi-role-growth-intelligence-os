@@ -120,6 +120,55 @@ async function createCredentialIntakeSession({ plan, brand, reason }, deps = {})
   return { session_id: sessionId, intake_url: `${intakePublicBaseUrl()}/credential-intake/${publicToken}`, expires_at: expiresAt, app_key: "wordpress_rest", auth_type: "basic_auth" };
 }
 
+async function resolveCmsSiteGrant({ plan, brand, requestedStatus }, deps = {}) {
+  const pool = deps.pool || getPool();
+  const input = extractInput(plan);
+  const targetKey = str(brand.target_key || input.target_key || input.targetKey || plan.target_key);
+  const domain = normalizeDomainFromUrl(brand.brand_domain || brand.base_url || brand.default_wp_api_base || targetKey);
+  try {
+    const [siteRows] = await pool.query(
+      `SELECT site_id, normalized_domain, canonical_target_key
+         FROM \`cms_sites\`
+        WHERE app_key = 'wordpress_rest'
+          AND (canonical_target_key = ? OR normalized_domain = ?)
+        ORDER BY updated_at DESC
+        LIMIT 1`,
+      [targetKey, domain]
+    );
+    const site = siteRows?.[0] || null;
+    if (!site) return { ok: true, status: "legacy_site_not_registered", grant_required: false };
+
+    const [grantRows] = await pool.query(
+      `SELECT grant_id, site_id, scope, draft_allowed, publish_allowed, destructive_allowed, status
+         FROM \`cms_site_access_grants\`
+        WHERE site_id = ?
+          AND tenant_id = ?
+          AND status = 'active'
+          AND (user_id IS NULL OR user_id = ?)
+        ORDER BY CASE WHEN user_id = ? THEN 0 ELSE 1 END, updated_at DESC
+        LIMIT 1`,
+      [site.site_id, plan.tenant_id, plan.user_id || "", plan.user_id || ""]
+    );
+    const grant = grantRows?.[0] || null;
+    if (!grant) {
+      return { ok: false, status: "cms_site_access_grant_required", site_id: site.site_id, grant_required: true };
+    }
+    const wantsPublish = str(requestedStatus).toLowerCase() === "publish";
+    if (wantsPublish && !boolish(grant.publish_allowed)) {
+      return { ok: false, status: "cms_site_publish_not_allowed", site_id: site.site_id, grant_id: grant.grant_id, grant_required: true };
+    }
+    if (!wantsPublish && !boolish(grant.draft_allowed)) {
+      return { ok: false, status: "cms_site_draft_not_allowed", site_id: site.site_id, grant_id: grant.grant_id, grant_required: true };
+    }
+    return { ok: true, status: "cms_site_access_grant_resolved", site_id: site.site_id, grant_id: grant.grant_id, scope: grant.scope, grant_required: true };
+  } catch (err) {
+    if (["ER_NO_SUCH_TABLE", "ER_BAD_TABLE_ERROR"].includes(err?.code)) {
+      return { ok: true, status: "cms_site_grants_unavailable_legacy_allowed", grant_required: false };
+    }
+    throw err;
+  }
+}
+
 async function resolveWpCredential({ plan, brand }, deps = {}) {
   const input = extractInput(plan);
   return resolveEffectiveCredential({
