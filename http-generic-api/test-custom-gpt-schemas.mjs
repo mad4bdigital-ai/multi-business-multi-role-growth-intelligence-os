@@ -356,6 +356,10 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     tenantToolArgsSchema?.properties?.mode?.enum?.includes("dedicated"));
   assert("tenant callTool explicitly exposes wrapper-safe tool_args.device_id",
     tenantToolArgsSchema?.properties?.device_id?.pattern === "^[a-z0-9-]{2,32}$");
+  assert("connect device install handoff points to released Local Manager download page",
+    connectRoutes.includes('download_url: "/app/local-manager#download"') &&
+    connectRoutes.includes('download_page_url: "https://auth.mad4b.com/app/local-manager#download"') &&
+    connectRoutes.includes('new_device_pairing_url: "https://auth.mad4b.com/app/local-manager#download"'));
 
   for (const [path, operationId] of [
     ["/connect/activate", "postConnectActivate"],
