@@ -32,6 +32,7 @@ const LOCAL_MANAGER_ACTIVATION_BINDING = {
   app_key: "mad4b-local-manager",
   role: "local_tool_release_owner",
   public_app_url: "/app/local-manager",
+  download_url: "/app/local-manager#download",
   admin_tools_url: "/app/local-manager/admin",
   device_link_url: "/app/local-manager/link-device",
   devices_url: "/app/local-manager/devices",
