@@ -35,10 +35,12 @@ function makeDbMock({ brandMatch = true } = {}) {
       if (/FROM `brands`/i.test(sql)) {
         if (!brandMatch) return [[]];
         return [[{
+          brand_name: "allroyal",
           brand_key: "allroyal",
           target_key: "allroyalegypt_wp",
           brand_domain: "allroyalegypt.com",
-          website_url: "https://allroyalegypt.com",
+          base_url: "https://allroyalegypt.com",
+          default_wp_api_base: "https://allroyalegypt.com/wp-json/wp/v2",
         }]];
       }
       return [{ affectedRows: 1, insertId: 1 }];
@@ -115,6 +117,9 @@ const SECRET = "secret app password";
 
   assert.equal(result.status, "verified");
   assert.ok(result.claim_id, "claim_id should be present");
+  assert.ok(result.site_id, "site_id should be present");
+  assert.ok(result.grant_id, "grant_id should be present");
+  assert.equal(result.grant_status, "pending_approval");
   assert.ok(result.connection_id, "connection_id should be present");
   assert.equal(result.matched_brand_key, "allroyal");
   assert.equal(result.matched_target_key, "allroyalegypt_wp");

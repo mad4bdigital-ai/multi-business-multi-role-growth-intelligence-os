@@ -147,47 +147,26 @@ function hasAdminLikeRole(roles) {
 }
 
 async function findBrandMatch({ db, tenantId, normalizedDomain, cmsUser }) {
-  const candidates = [
-    {
-      sql: `
-        SELECT brand_key, target_key, brand_domain, website_url
-        FROM \`brands\`
-        WHERE tenant_id = ?
-          AND (
-            LOWER(REPLACE(brand_domain, 'www.', '')) = ?
-            OR LOWER(REPLACE(website_url, 'https://www.', '')) LIKE ?
-            OR LOWER(REPLACE(website_url, 'https://', '')) LIKE ?
-          )
-        LIMIT 1
-      `,
-      params: [tenantId, normalizedDomain, `%${normalizedDomain}%`, `%${normalizedDomain}%`],
-    },
-    {
-      sql: `
-        SELECT brand_key, target_key, brand_domain, website_url
-        FROM \`brands\`
-        WHERE LOWER(REPLACE(brand_domain, 'www.', '')) = ?
-           OR LOWER(website_url) LIKE ?
-        LIMIT 1
-      `,
-      params: [normalizedDomain, `%${normalizedDomain}%`],
-    },
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      const [rows] = await db.query(candidate.sql, candidate.params);
-      if (rows && rows[0]) {
-        const roleBoost = hasAdminLikeRole(cmsUser.roles);
-        return {
-          matchedBrandKey: rows[0].brand_key || null,
-          matchedTargetKey: rows[0].target_key || null,
-          matchConfidence: roleBoost ? "high" : "medium",
-        };
-      }
-    } catch {
-      // Ignore schema mismatch and try next candidate.
+  try {
+    const [rows] = await db.query(
+      `SELECT brand_name, brand_key, target_key, brand_domain, base_url, default_wp_api_base
+         FROM \`brands\`
+        WHERE LOWER(REPLACE(COALESCE(brand_domain, ''), 'www.', '')) = ?
+           OR LOWER(COALESCE(base_url, '')) LIKE ?
+           OR LOWER(COALESCE(default_wp_api_base, '')) LIKE ?
+        LIMIT 1`,
+      [normalizedDomain, `%${normalizedDomain}%`, `%${normalizedDomain}%`]
+    );
+    if (rows && rows[0]) {
+      const roleBoost = hasAdminLikeRole(cmsUser.roles);
+      return {
+        matchedBrandKey: rows[0].brand_name || rows[0].brand_key || rows[0].target_key || null,
+        matchedTargetKey: rows[0].target_key || null,
+        matchConfidence: roleBoost ? "high" : "medium",
+      };
     }
+  } catch {
+    // Ignore schema mismatch and keep claim creation available.
   }
 
   const email = cmsUser && cmsUser.email ? String(cmsUser.email).toLowerCase() : "";
@@ -196,6 +175,42 @@ async function findBrandMatch({ db, tenantId, normalizedDomain, cmsUser }) {
   }
 
   return { matchedBrandKey: null, matchedTargetKey: null, matchConfidence: "none" };
+}
+
+function capabilityFlags(cmsUser = {}) {
+  const caps = cmsUser.raw?.capabilities && typeof cmsUser.raw.capabilities === "object" ? cmsUser.raw.capabilities : {};
+  const roles = Array.isArray(cmsUser.roles) ? cmsUser.roles.map((role) => String(role).toLowerCase()) : [];
+  return {
+    edit_posts: Boolean(caps.edit_posts || hasAdminLikeRole(roles)),
+    publish_posts: Boolean(caps.publish_posts || roles.includes("administrator") || roles.includes("editor")),
+    delete_posts: Boolean(caps.delete_posts || roles.includes("administrator")),
+  };
+}
+
+async function upsertCmsSite({ db, siteId, normalizedDomain, siteUrl, wpJsonBase, match }) {
+  await db.query(
+    `
+      INSERT INTO \`cms_sites\` (
+        site_id, app_key, normalized_domain, site_url, wp_json_base,
+        canonical_target_key, platform_status, first_claimed_at, last_verified_at,
+        created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW(), NOW(), NOW())
+      ON DUPLICATE KEY UPDATE
+        site_url = VALUES(site_url),
+        wp_json_base = VALUES(wp_json_base),
+        canonical_target_key = COALESCE(VALUES(canonical_target_key), canonical_target_key),
+        platform_status = 'active',
+        last_verified_at = NOW(),
+        updated_at = NOW()
+    `,
+    [siteId, APP_KEY, normalizedDomain, siteUrl, wpJsonBase, match.matchedTargetKey || null]
+  );
+  const [rows] = await db.query(
+    `SELECT site_id FROM \`cms_sites\` WHERE app_key = ? AND normalized_domain = ? LIMIT 1`,
+    [APP_KEY, normalizedDomain]
+  );
+  return rows?.[0]?.site_id || siteId;
 }
 
 async function createUserAppConnection({
@@ -259,6 +274,39 @@ async function createPrivateCredentialBinding({
       targetKey || normalizedDomain, credentialRef, userId,
     ]
   );
+}
+
+async function createSiteAccessGrant({
+  db, grantId, siteId, tenantId, userId, connectionId, claimId, cmsUser, requestedScope, approvalRequired,
+}) {
+  const caps = capabilityFlags(cmsUser);
+  const status = approvalRequired ? "pending_approval" : "active";
+  await db.query(
+    `
+      INSERT INTO \`cms_site_access_grants\` (
+        grant_id, site_id, tenant_id, user_id, workspace_id, connection_id, claim_id,
+        scope, capabilities_json, draft_allowed, publish_allowed, destructive_allowed,
+        status, approved_by, approved_at, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, 0, ?, ?, IF(? = 'active', NOW(), NULL), NOW(), NOW())
+      ON DUPLICATE KEY UPDATE
+        connection_id = VALUES(connection_id),
+        claim_id = VALUES(claim_id),
+        capabilities_json = VALUES(capabilities_json),
+        draft_allowed = VALUES(draft_allowed),
+        publish_allowed = VALUES(publish_allowed),
+        status = VALUES(status),
+        approved_by = VALUES(approved_by),
+        approved_at = VALUES(approved_at),
+        updated_at = NOW()
+    `,
+    [
+      grantId, siteId, tenantId, userId, connectionId, claimId, requestedScope,
+      JSON.stringify(caps), caps.edit_posts ? 1 : 0, caps.publish_posts ? 1 : 0,
+      status, status === "active" ? userId : null, status,
+    ]
+  );
+  return { status, capabilities: caps };
 }
 
 async function insertClaim({
@@ -325,6 +373,15 @@ export async function createWordPressAccountClaim({
   const claimId = randomId();
   const connectionId = randomId();
   const bindingId = randomId();
+  const grantId = randomId();
+  const siteId = await upsertCmsSite({
+    db,
+    siteId: randomId(),
+    normalizedDomain: normalized.normalizedDomain,
+    siteUrl: normalized.siteUrl,
+    wpJsonBase: normalized.wpJsonBase,
+    match,
+  });
 
   await createUserAppConnection({
     db, connectionId, tenantId, userId,
@@ -346,10 +403,17 @@ export async function createWordPressAccountClaim({
     normalizedDomain: normalized.normalizedDomain,
     cmsUser, match, requestedScope,
   });
+  const grant = await createSiteAccessGrant({
+    db, grantId, siteId, tenantId, userId, connectionId, claimId,
+    cmsUser, requestedScope, approvalRequired,
+  });
 
   return {
     status: "verified",
     claim_id: claimId,
+    site_id: siteId,
+    grant_id: grantId,
+    grant_status: grant.status,
     connection_id: connectionId,
     app_key: APP_KEY,
     normalized_domain: normalized.normalizedDomain,
