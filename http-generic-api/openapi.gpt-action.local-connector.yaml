@@ -19,9 +19,19 @@ components:
       type: object
       properties:
         ok: { type: boolean }
+        command_ok: { type: boolean }
         stdout: { type: string }
         stderr: { type: string }
+        stdout_length_chars: { type: integer }
+        stderr_length_chars: { type: integer }
+        stdout_truncated: { type: boolean }
+        stderr_truncated: { type: boolean }
+        output_limit_chars: { type: integer }
+        exitCode: { type: integer }
         exit_code: { type: integer }
+        error:
+          type: object
+          additionalProperties: true
     ConnectorError:
       type: object
       properties:

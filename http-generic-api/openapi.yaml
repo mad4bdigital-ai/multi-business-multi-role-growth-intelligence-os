@@ -8992,7 +8992,7 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: postConnectorDeviceGithub
       summary: Invoke GitHub helper on device
-      description: "Proxies POST /github to the device tunnel. Used for git operations against the device's checked-out repo (status, log, branch listing, etc.) under the connector's policy."
+      description: "Proxies POST /github to the device tunnel. Used for git operations against the device's checked-out repo (status, log, branch listing, etc.) under the connector's policy. Connector responses bound stdout/stderr and expose command_ok plus exitCode/exit_code; HTTP 200 only means the device route responded."
       parameters:
         - { name: device_id, in: path, required: true, schema: { type: string } }
         - { name: user_id, in: query, required: false, schema: { type: string }, description: Admin caller only — target user id. }
