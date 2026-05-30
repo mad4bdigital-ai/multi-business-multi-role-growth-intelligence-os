@@ -35,10 +35,11 @@ function makeDbMock({ brandMatch = true } = {}) {
       if (/FROM `brands`/i.test(sql)) {
         if (!brandMatch) return [[]];
         return [[{
-          brand_key: "allroyal",
+          brand_name: "allroyal",
           target_key: "allroyalegypt_wp",
           brand_domain: "allroyalegypt.com",
-          website_url: "https://allroyalegypt.com",
+          base_url: "https://allroyalegypt.com",
+          default_wp_api_base: "https://allroyalegypt.com/wp-json/wp/v2",
         }]];
       }
       return [{ affectedRows: 1, insertId: 1 }];
