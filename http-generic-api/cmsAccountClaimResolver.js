@@ -147,47 +147,26 @@ function hasAdminLikeRole(roles) {
 }
 
 async function findBrandMatch({ db, tenantId, normalizedDomain, cmsUser }) {
-  const candidates = [
-    {
-      sql: `
-        SELECT brand_key, target_key, brand_domain, website_url
-        FROM \`brands\`
-        WHERE tenant_id = ?
-          AND (
-            LOWER(REPLACE(brand_domain, 'www.', '')) = ?
-            OR LOWER(REPLACE(website_url, 'https://www.', '')) LIKE ?
-            OR LOWER(REPLACE(website_url, 'https://', '')) LIKE ?
-          )
-        LIMIT 1
-      `,
-      params: [tenantId, normalizedDomain, `%${normalizedDomain}%`, `%${normalizedDomain}%`],
-    },
-    {
-      sql: `
-        SELECT brand_key, target_key, brand_domain, website_url
-        FROM \`brands\`
-        WHERE LOWER(REPLACE(brand_domain, 'www.', '')) = ?
-           OR LOWER(website_url) LIKE ?
-        LIMIT 1
-      `,
-      params: [normalizedDomain, `%${normalizedDomain}%`],
-    },
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      const [rows] = await db.query(candidate.sql, candidate.params);
-      if (rows && rows[0]) {
-        const roleBoost = hasAdminLikeRole(cmsUser.roles);
-        return {
-          matchedBrandKey: rows[0].brand_key || null,
-          matchedTargetKey: rows[0].target_key || null,
-          matchConfidence: roleBoost ? "high" : "medium",
-        };
-      }
-    } catch {
-      // Ignore schema mismatch and try next candidate.
+  try {
+    const [rows] = await db.query(
+      `SELECT brand_name, target_key, brand_domain, base_url, default_wp_api_base
+         FROM \`brands\`
+        WHERE LOWER(REPLACE(COALESCE(brand_domain, ''), 'www.', '')) = ?
+           OR LOWER(COALESCE(base_url, '')) LIKE ?
+           OR LOWER(COALESCE(default_wp_api_base, '')) LIKE ?
+        LIMIT 1`,
+      [normalizedDomain, `%${normalizedDomain}%`, `%${normalizedDomain}%`]
+    );
+    if (rows && rows[0]) {
+      const roleBoost = hasAdminLikeRole(cmsUser.roles);
+      return {
+        matchedBrandKey: rows[0].brand_name || rows[0].brand_key || rows[0].target_key || null,
+        matchedTargetKey: rows[0].target_key || null,
+        matchConfidence: roleBoost ? "high" : "medium",
+      };
     }
+  } catch {
+    // Ignore schema mismatch and keep claim creation available.
   }
 
   const email = cmsUser && cmsUser.email ? String(cmsUser.email).toLowerCase() : "";
