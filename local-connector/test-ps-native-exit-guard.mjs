@@ -56,6 +56,8 @@ try {
   assert.equal(result.status, 200);
   assert.equal(result.body.exitCode, 7);
   assert.equal(result.body.exit_code, 7);
+  assert.equal(result.body.ok, false);
+  assert.equal(result.body.error?.code, 'POWERSHELL_EXIT_NONZERO');
   assert.match(result.body.stdout, /false success/);
   assert.match(result.body.stderr, /Native command failed with exit code 7/);
 } finally {
