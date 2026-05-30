@@ -1145,6 +1145,9 @@ async function getConnectorRegistrySystem(systemId, auth = null) {
 
 async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   if (!LOCAL_SYSTEM_TOOL_NAMES.has(name)) {
+    const tenantRegistryTool = await callTenantEndpointRegistryToolIfAvailable(name, args, auth, deps);
+    if (tenantRegistryTool.handled) return tenantRegistryTool.result;
+
     let platformEndpointTool;
     try {
       platformEndpointTool = await callPlatformEndpointToolIfAvailable(name, args, auth, deps);
