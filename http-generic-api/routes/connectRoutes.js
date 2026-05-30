@@ -60,6 +60,8 @@ function localManagerActivationBinding() {
     urls: {
       public_app: LOCAL_MANAGER_ACTIVATION_BINDING.public_app_url,
       download: LOCAL_MANAGER_ACTIVATION_BINDING.download_url,
+      download_page: LOCAL_MANAGER_ACTIVATION_BINDING.download_page_url,
+      new_device_pairing: LOCAL_MANAGER_ACTIVATION_BINDING.new_device_pairing_url,
       admin_tools: LOCAL_MANAGER_ACTIVATION_BINDING.admin_tools_url,
       device_link: LOCAL_MANAGER_ACTIVATION_BINDING.device_link_url,
       devices: LOCAL_MANAGER_ACTIVATION_BINDING.devices_url,
