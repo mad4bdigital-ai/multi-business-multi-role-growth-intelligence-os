@@ -509,6 +509,30 @@ async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null,
   return { handled: true, result };
 }
 
+async function callTenantEndpointRegistryToolIfAvailable(name, args = {}, auth = null, deps = {}) {
+  if (isAdminPrincipal(auth)) return { handled: false };
+  const tenantTools = await listTenantEndpointRegistryToolsForPrincipal(auth, new Set());
+  const tool = tenantTools.find((entry) => entry.name === name);
+  if (!tool) return { handled: false };
+
+  const req = deps.req || { auth, headers: deps.headers || {}, ip: deps.ip || null };
+  const dispatched = await dispatchToolForCaller("tenant", name, args, req);
+  const status = Number(dispatched?.status || 200);
+  const body = dispatched?.body || {};
+  if (status >= 400 || body?.ok === false) {
+    const err = new Error(body?.error?.message || `Tenant endpoint registry tool ${name} failed.`);
+    err.status = status || body?.error?.status || 500;
+    err.code = body?.error?.code || "tenant_endpoint_registry_tool_failed";
+    err.details = body?.error?.details || null;
+    throw err;
+  }
+
+  return {
+    handled: true,
+    result: Object.prototype.hasOwnProperty.call(body, "result") ? body.result : body,
+  };
+}
+
 function isAdminPrincipal(auth) {
   return auth?.is_admin === true;
 }
