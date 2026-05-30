@@ -92,9 +92,48 @@ assert.equal(__test__.normalizeWpJsonBase("https://example.com/wp-json/wp/v2"), 
 }
 
 {
+  const pool = makePool({
+    brands: [brand],
+    cmsSites: [{ site_id: "site-1", canonical_target_key: "almallah_wp", normalized_domain: "tourism.almallahgroup-mg.com" }],
+    connections: [{
+      connection_id: "conn-wp",
+      user_id: "user-1",
+      tenant_id: "tenant-1",
+      app_key: "wordpress_rest",
+      auth_type: "basic_auth",
+      encrypted_credentials: JSON.stringify({ username: "gpt", application_password: "wp-app-password" }),
+      account_label: "gpt",
+      status: "active",
+    }],
+  });
+  const result = await dispatchWordpressBlogPublish(
+    {
+      plan_id: "plan-site-grant-missing",
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      brand_key: "Almallah Group",
+      target_key: "almallah_wp",
+      workflow_key: "wordpress_blog_publish_or_recover_credentials_workflow",
+      steps_json: JSON.stringify([{ body: { connection_id: "conn-wp" } }]),
+      title: "Nile Cruise Egypt",
+      content: "<p>Draft post content.</p>",
+      status: "draft",
+    },
+    { pool, fetch: async () => { throw new Error("fetch must not be called without grant"); }, decryptCredentials: JSON.parse, env: {} }
+  );
+  assert.equal(result.ok, false);
+  assert.equal(result.status, "blocked");
+  assert.equal(result.error.code, "cms_site_access_grant_required");
+  assert.equal(result.site_id, "site-1");
+  assert.equal(result.grant_required, true);
+}
+
+{
   const calls = [];
   const pool = makePool({
     brands: [brand],
+    cmsSites: [{ site_id: "site-1", canonical_target_key: "almallah_wp", normalized_domain: "tourism.almallahgroup-mg.com" }],
+    cmsGrants: [{ grant_id: "grant-1", site_id: "site-1", tenant_id: "tenant-1", user_id: "user-1", scope: "personal", status: "active", draft_allowed: 1, publish_allowed: 0 }],
     connections: [{
       connection_id: "conn-wp",
       user_id: "user-1",
