@@ -634,6 +634,42 @@ function err(res, status, code, message) {
   json(res, status, { ok: false, error: { code, message } });
 }
 
+const CLI_OUTPUT_LIMIT_CHARS = Math.min(
+  Math.max(Number(process.env.CONNECTOR_CLI_OUTPUT_LIMIT_CHARS || 12000), 1000),
+  50000
+);
+
+function boundedCliText(value) {
+  const text = String(value || '');
+  return {
+    text: text.length > CLI_OUTPUT_LIMIT_CHARS ? text.slice(0, CLI_OUTPUT_LIMIT_CHARS) : text,
+    length: text.length,
+    truncated: text.length > CLI_OUTPUT_LIMIT_CHARS,
+  };
+}
+
+function normalizeCliResult(result, toolLabel) {
+  const exitCode = Number(result?.exitCode ?? result?.exit_code ?? 0);
+  const stdout = boundedCliText(result?.stdout);
+  const stderr = boundedCliText(result?.stderr);
+  return {
+    ok: exitCode === 0,
+    command_ok: exitCode === 0,
+    stdout: stdout.text,
+    stderr: stderr.text,
+    stdout_length_chars: stdout.length,
+    stderr_length_chars: stderr.length,
+    stdout_truncated: stdout.truncated,
+    stderr_truncated: stderr.truncated,
+    output_limit_chars: CLI_OUTPUT_LIMIT_CHARS,
+    exitCode,
+    exit_code: exitCode,
+    ...(exitCode !== 0
+      ? { error: { code: `${toolLabel}_EXIT_NONZERO`, message: `${toolLabel} exited with code ${exitCode}` } }
+      : {}),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Auth middleware
 // ---------------------------------------------------------------------------
@@ -877,7 +913,7 @@ async function handleGitHub(req, res) {
 
   try {
     const result = await runCommand(windowsCommand('gh'), args, timeoutMs);
-    return ok(res, result);
+    return json(res, 200, normalizeCliResult(result, 'GH'));
   } catch (e) {
     return err(res, 500, 'EXEC_ERROR', e.message);
   }

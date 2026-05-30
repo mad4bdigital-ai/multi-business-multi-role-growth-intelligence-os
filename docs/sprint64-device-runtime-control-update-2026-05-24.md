@@ -43,7 +43,7 @@ Avoid using raw PowerShell for long scripts through auth-host. Long-running or r
 
 When a setup action must restart `local-connector`, schedule the restart and return quickly instead of blocking the active proxy request.
 
-For repo maintenance and PR recovery, avoid oversized `admin_control` or `connector_ps` calls that stream large GitHub/PowerShell payloads through auth-host. Prefer GitHub REST fallback paths, direct Git commands from the local repo, or short bounded aliases. If raw PowerShell is unavoidable, every native command such as `git`, `curl`, or `npm` must be followed by `$LASTEXITCODE` handling; connector responses distinguish transport success from command success through `exitCode`/`exit_code` and `ok`.
+For repo maintenance and PR recovery, avoid oversized `admin_control`, `connector_ps`, or `connector_github` calls that stream large GitHub/PowerShell payloads through auth-host. Prefer GitHub REST fallback paths, direct Git commands from the local repo, or short bounded aliases. If raw PowerShell is unavoidable, every native command such as `git`, `curl`, or `npm` must be followed by `$LASTEXITCODE` handling; connector responses distinguish transport success from command success through `exitCode`/`exit_code`, `command_ok`, and `ok`. `connector_github` responses bound stdout/stderr and expose truncation metadata so large `gh` payloads cannot silently exceed the GPT response surface.
 
 ## Route/config health metadata sync
 
