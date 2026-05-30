@@ -77,6 +77,8 @@ tags:
     description: Tenant-facing and admin-governed Platform Plugin catalog, install, resolve, contribution, and promotion surfaces.
   - name: platform-evolution
     description: Brand, tenant, and user scoped Platform Evolution checkpoints, thread maps, and linked evidence surfaces.
+  - name: platform-intelligence
+    description: Admin-governed AI Intelligence Runtime planning, policy, lifecycle, and decision evidence surfaces.
 
 components:
   securitySchemes:
@@ -3691,6 +3693,95 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  /ai/model-runs:
+    post:
+      x-openai-isConsequential: false
+      tags: [ai, platform-intelligence]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: aiModelRunPlan
+      summary: Build a canonical governed model-run plan
+      description: >
+        Creates a dry-run canonical model-run envelope for the AI Intelligence Runtime. This route does not call a
+        model, execute tools, expose a raw tool catalog, or store raw thinking. Tool execution remains a separate
+        governed runtime step.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                provider_key: { type: string }
+                model_key: { type: string }
+                mode: { type: string, enum: [dry_run], default: dry_run }
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+                requested_tools:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200": { description: Dry-run model-run envelope, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /ai/model-runs/{id}/events:
+    get:
+      x-openai-isConsequential: false
+      tags: [ai, platform-intelligence]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: aiModelRunEvents
+      summary: Read canonical model-run events
+      description: >
+        Returns a canonical event envelope for a governed model run. This is a readback/event surface only and does
+        not stream provider events or execute tools.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Canonical model-run events, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /ai/tool-search:
+    post:
+      x-openai-isConsequential: false
+      tags: [ai, platform-intelligence]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: aiToolSearch
+      summary: Search governed deferred tools
+      description: >
+        Searches the derived governed tool index and returns bounded summaries only. The source of truth remains
+        actions, endpoints, workflows, and connected systems; this route does not expose a raw catalog or execute tools.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                query: { type: string }
+                tags:
+                  type: array
+                  items: { type: string }
+                risk_class:
+                  type: string
+                  enum: [read_only, workspace_write, brand_external_write, tenant_external_write, admin_registry_write, provider_privileged, local_device, destructive, credential_touching, deployment_affecting]
+                limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        "200": { description: Bounded governed tool search results, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
 
   /ai/registry-readiness:
     get:
@@ -11259,6 +11350,310 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /platform/engines:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineList
+      summary: List governed platform intelligence engines
+      description: >
+        Admin/service scoped read of registered policy-driven engines. This is registry inspection only and never
+        executes engine tasks, tools, strategies, or model calls.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+        - name: engine_type
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 100 }
+      responses:
+        "200":
+          description: Registered engines.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/resolve-intent:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineResolveIntent
+      summary: Resolve objective to candidate engine and skill
+      description: >
+        Read-only objective classification for the AI Intelligence Runtime. It returns candidate engine, task class,
+        skill, resource classification, and rationale. It does not plan, apply, execute tools, or call models.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                objective: { type: string }
+                prompt: { type: string }
+                goal: { type: string }
+                engine_key: { type: string }
+                task_class: { type: string }
+                resource_key: { type: string }
+                resource_kind: { type: string }
+                resource: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Intent resolution, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/task-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineTaskPlan
+      summary: Build a governed engine task plan
+      description: >
+        Builds a dry-run governed plan from SQL policy, rules, strategy registry, skill manifest, validators, and
+        prior outcome evidence. It does not apply changes or execute dynamic code.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [engine_key, task_class]
+              properties:
+                engine_key: { type: string }
+                task_class: { type: string }
+                mode: { type: string, enum: [diagnose_only, dry_run, apply_allowed], default: dry_run }
+                resource_key: { type: string }
+                resource_kind: { type: string }
+                resource: { type: object, additionalProperties: true }
+                scope_id: { type: string }
+                scope_guard_passed: { type: boolean, default: false }
+                approval_granted: { type: boolean, default: false }
+                write_audit: { type: boolean, default: false }
+                actor_id: { type: string }
+                tenant_id: { type: string }
+                trace_id: { type: string }
+      responses:
+        "200": { description: Governed task plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/decision-brief:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineDecisionBrief
+      summary: Build an intelligence decision brief
+      description: >
+        Combines intent resolution, capability readiness, policy-driven planning, feedback-aware scoring, and
+        apply-readiness blockers. Models may assist candidate scoring only; hard gates remain deterministic.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                objective: { type: string }
+                engine_key: { type: string }
+                task_class: { type: string }
+                mode: { type: string, enum: [diagnose_only, dry_run, apply_allowed], default: dry_run }
+                resource_key: { type: string }
+                resource_kind: { type: string }
+                scope_guard_passed: { type: boolean, default: false }
+                approval_granted: { type: boolean, default: false }
+      responses:
+        "200": { description: Intelligence decision brief, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/execution-envelope:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineExecutionEnvelope
+      summary: Build apply readiness envelope
+      description: >
+        Reports the controls required before a separate governed apply route can execute: scope guard, approval,
+        validators, audit, and readback. This route never mutates repositories, databases, or external systems.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [engine_key, task_class]
+              properties:
+                engine_key: { type: string }
+                task_class: { type: string }
+                mode: { type: string, enum: [apply_allowed], default: apply_allowed }
+                resource_key: { type: string }
+                resource_kind: { type: string }
+                resource: { type: object, additionalProperties: true }
+                scope_id: { type: string }
+                scope_guard_passed: { type: boolean, default: false }
+                approval_granted: { type: boolean, default: false }
+                actor_id: { type: string }
+                tenant_id: { type: string }
+                trace_id: { type: string }
+      responses:
+        "200": { description: Apply readiness envelope, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/capability-check:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineCapabilityCheck
+      summary: Check engine planning capability
+      description: >
+        Readiness diagnostic for an engine and optional task class. Verifies active policy, rule, strategy, skill
+        contract, and validator coverage without planning or applying.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [engine_key]
+              properties:
+                engine_key: { type: string }
+                task_class: { type: string }
+      responses:
+        "200": { description: Capability check, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/runs:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineRunHistory
+      summary: List engine planning and audit runs
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: engine_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: task_class
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200": { description: Engine run history, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/feedback-summary:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineFeedbackSummary
+      summary: Summarize recent engine outcomes
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: engine_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: task_class
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200": { description: Feedback summary, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/database-table-lifecycle/decision-brief:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseTableLifecycleDecisionBrief
+      summary: Build database table lifecycle decision brief
+      description: >
+        Read-only live table census and classification using information_schema, data_migration_inventory, and
+        lifecycle registry state. It never drops, archives, truncates, deletes, or mutates data.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                limit: { type: integer, minimum: 1, maximum: 1000, default: 250 }
+      responses:
+        "200": { description: Database table lifecycle brief, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/database-table-lifecycle/register-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseTableLifecycleRegisterPlan
+      summary: Build database table lifecycle registry upsert plan
+      description: >
+        Builds a dry-run plan to register lifecycle metadata for live tables. It does not write registry rows and
+        does not perform archive, drop, truncate, or delete operations.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                limit: { type: integer, minimum: 1, maximum: 1000, default: 250 }
+      responses:
+        "200": { description: Dry-run lifecycle registry upsert plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
 
   /tenant/evolution/switch-options:
     get:

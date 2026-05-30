@@ -7,6 +7,7 @@ import { buildJobRoutes } from "./jobRoutes.js";
 import { buildExecuteRoutes } from "./executeRoutes.js";
 import { buildGithubRoutes } from "./githubRoutes.js";
 import { buildAiResolverRoutes } from "./aiResolverRoutes.js";
+import { buildAgentIntelligenceRoutes } from "./agentIntelligenceRoutes.js";
 import { buildTenantsRoutes } from "./tenantsRoutes.js";
 import { buildIdentityRoutes } from "./identityRoutes.js";
 import { buildAccessRoutes } from "./accessRoutes.js";
@@ -68,6 +69,7 @@ import { buildTenantEvolutionRoutes } from "./tenantEvolutionRoutes.js";
 import { buildBrowserRuntimeRoutes } from "./browserRuntimeRoutes.js";
 import { buildPlatformSmokeRoutes } from "./platformSmokeRoutes.js";
 import { buildPlatformEvolutionRoutes } from "./platformEvolutionRoutes.js";
+import { buildPlatformEngineRoutes } from "./platformEngineRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -120,12 +122,14 @@ export function registerRoutes(app, deps) {
   app.use(buildPlatformGraphRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformSmokeRoutes());
   app.use(buildPlatformEvolutionRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildPlatformEngineRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildTenantPlatformPluginRoutes());
   app.use(buildTenantEvolutionRoutes());
   app.use(buildPlatformPluginRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildBrowserRuntimeRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildGithubRoutes(deps));
   app.use(buildJobRoutes(deps));
+  app.use(buildAgentIntelligenceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAiResolverRoutes(deps));
   app.use(buildTenantsRoutes(deps));
   app.use(buildIdentityRoutes(deps));

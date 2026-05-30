@@ -1,0 +1,818 @@
+-- Sprint 65: AI intelligence runtime governance foundation.
+--
+-- Generalizes governed engine execution beyond repo conflict handling into an
+-- AI Intelligence Runtime & Governance Layer. The registry stores declarative
+-- policies, rules, strategies, model/tool boundaries, and skill contracts only.
+-- Executable strategy implementations stay in backend code.
+--
+-- Idempotent. No DELETE/TRUNCATE/DROP.
+
+CREATE TABLE IF NOT EXISTS intelligence_engines (
+  engine_key VARCHAR(191) NOT NULL PRIMARY KEY,
+  display_name VARCHAR(255) NOT NULL,
+  engine_type ENUM('decision','policy','skill','engine','tool_action','evaluation','memory_lifecycle','agent_runtime','generic') NOT NULL DEFAULT 'generic',
+  runtime_key VARCHAR(191) NULL,
+  compatibility_platform_engine_key VARCHAR(191) NULL,
+  lifecycle_stage ENUM('planned','build','operate','govern','apply','deprecated') NOT NULL DEFAULT 'planned',
+  supported_task_classes_json JSON NULL,
+  capabilities_json JSON NULL,
+  default_policy_key VARCHAR(191) NULL,
+  default_skill_key VARCHAR(191) NULL,
+  default_eval_suite_key VARCHAR(191) NULL,
+  runtime_surface_policy_json JSON NULL,
+  observability_policy_json JSON NULL,
+  status ENUM('planned','available','active','degraded','disabled') NOT NULL DEFAULT 'planned',
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_intelligence_engines_runtime (runtime_key, status),
+  KEY idx_intelligence_engines_stage (lifecycle_stage, engine_type, status),
+  KEY idx_intelligence_engines_compat (compatibility_platform_engine_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS intelligence_policies (
+  policy_key VARCHAR(191) NOT NULL PRIMARY KEY,
+  engine_key VARCHAR(191) NULL,
+  scope_type ENUM('global','repo','tenant','brand','workflow','action','runtime','model','tool','table') NOT NULL DEFAULT 'global',
+  scope_id VARCHAR(191) NULL,
+  mode ENUM('diagnose_only','dry_run','apply_allowed') NOT NULL DEFAULT 'diagnose_only',
+  risk_default ENUM('read_only','workspace_write','brand_external_write','tenant_external_write','admin_registry_write','provider_privileged','local_device','destructive','credential_touching','deployment_affecting') NOT NULL DEFAULT 'read_only',
+  approval_required_min_risk ENUM('read_only','workspace_write','brand_external_write','tenant_external_write','admin_registry_write','provider_privileged','local_device','destructive','credential_touching','deployment_affecting') NOT NULL DEFAULT 'admin_registry_write',
+  deterministic_hard_gates_json JSON NULL,
+  model_decision_role ENUM('none','candidate_generation','scoring_assist','explanation_only') NOT NULL DEFAULT 'candidate_generation',
+  require_scope_guard TINYINT(1) NOT NULL DEFAULT 1,
+  require_audit TINYINT(1) NOT NULL DEFAULT 1,
+  require_validators TINYINT(1) NOT NULL DEFAULT 1,
+  require_readback TINYINT(1) NOT NULL DEFAULT 1,
+  require_eval_suite TINYINT(1) NOT NULL DEFAULT 1,
+  validators_json JSON NULL,
+  blocked_terms_json JSON NULL,
+  allowed_resource_patterns_json JSON NULL,
+  blocked_resource_patterns_json JSON NULL,
+  status ENUM('planned','active','disabled') NOT NULL DEFAULT 'planned',
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_intelligence_policies_engine (engine_key, status),
+  KEY idx_intelligence_policies_scope (scope_type, scope_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS intelligence_policy_rules (
+  rule_key VARCHAR(191) NOT NULL PRIMARY KEY,
+  policy_key VARCHAR(191) NOT NULL,
+  engine_key VARCHAR(191) NULL,
+  priority INT NOT NULL DEFAULT 0,
+  task_class VARCHAR(191) NULL,
+  resource_kind VARCHAR(191) NULL,
+  resource_pattern VARCHAR(500) NOT NULL DEFAULT '*',
+  condition_json JSON NULL,
+  strategy_key VARCHAR(191) NOT NULL,
+  skill_key VARCHAR(191) NULL,
+  eval_suite_key VARCHAR(191) NULL,
+  risk_class ENUM('read_only','workspace_write','brand_external_write','tenant_external_write','admin_registry_write','provider_privileged','local_device','destructive','credential_touching','deployment_affecting') NOT NULL DEFAULT 'read_only',
+  deterministic_gate TINYINT(1) NOT NULL DEFAULT 1,
+  model_may_override TINYINT(1) NOT NULL DEFAULT 0,
+  auto_apply_allowed TINYINT(1) NOT NULL DEFAULT 0,
+  dry_run_required TINYINT(1) NOT NULL DEFAULT 1,
+  approval_required TINYINT(1) NOT NULL DEFAULT 0,
+  validator_commands_json JSON NULL,
+  readback_requirements_json JSON NULL,
+  blocked_terms_json JSON NULL,
+  allowed_terms_json JSON NULL,
+  status ENUM('planned','active','disabled') NOT NULL DEFAULT 'planned',
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_intelligence_policy_rules_match (engine_key, task_class, status, priority),
+  KEY idx_intelligence_policy_rules_policy (policy_key, status),
+  KEY idx_intelligence_policy_rules_strategy (strategy_key),
+  KEY idx_intelligence_policy_rules_skill_eval (skill_key, eval_suite_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS skill_manifests (
+  skill_key VARCHAR(191) NOT NULL PRIMARY KEY,
+  engine_key VARCHAR(191) NULL,
+  display_name VARCHAR(255) NOT NULL,
+  skill_version VARCHAR(64) NOT NULL DEFAULT 'v1',
+  prompt_contract_version VARCHAR(64) NOT NULL DEFAULT 'v1',
+  policy_key VARCHAR(191) NOT NULL,
+  eval_suite_key VARCHAR(191) NOT NULL,
+  tool_policy_json JSON NOT NULL,
+  task_classes_json JSON NULL,
+  required_tools_json JSON NULL,
+  forbidden_tools_json JSON NULL,
+  validator_commands_json JSON NULL,
+  success_criteria_json JSON NULL,
+  fallback_behavior_json JSON NULL,
+  prompt_template TEXT NULL,
+  status ENUM('planned','active','disabled') NOT NULL DEFAULT 'planned',
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_skill_manifests_engine (engine_key, status),
+  KEY idx_skill_manifests_policy_eval (policy_key, eval_suite_key, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS decision_runs (
+  decision_run_id VARCHAR(36) NOT NULL PRIMARY KEY,
+  run_key VARCHAR(191) NOT NULL UNIQUE,
+  engine_key VARCHAR(191) NOT NULL,
+  skill_key VARCHAR(191) NULL,
+  policy_key VARCHAR(191) NULL,
+  eval_suite_key VARCHAR(191) NULL,
+  task_class VARCHAR(191) NOT NULL,
+  objective_hash VARCHAR(128) NULL,
+  mode ENUM('diagnose','dry_run','apply') NOT NULL DEFAULT 'dry_run',
+  lifecycle_stage ENUM('requested','classified','planned','blocked','approved_for_apply','applied','validated','failed','audited') NOT NULL DEFAULT 'requested',
+  candidate_plans_json JSON NULL,
+  candidate_scores_json JSON NULL,
+  selected_plan_json JSON NULL,
+  hard_gates_json JSON NULL,
+  explanation_json JSON NULL,
+  event_trace_json JSON NULL,
+  risk_class ENUM('read_only','workspace_write','brand_external_write','tenant_external_write','admin_registry_write','provider_privileged','local_device','destructive','credential_touching','deployment_affecting') NOT NULL DEFAULT 'read_only',
+  approval_status ENUM('not_required','required','granted','denied') NOT NULL DEFAULT 'not_required',
+  apply_status ENUM('not_requested','blocked','applied','failed') NOT NULL DEFAULT 'not_requested',
+  validation_status ENUM('not_run','passed','failed','blocked') NOT NULL DEFAULT 'not_run',
+  readback_status ENUM('not_required','pending','validated','failed','blocked') NOT NULL DEFAULT 'not_required',
+  error_json JSON NULL,
+  outcome_json JSON NULL,
+  actor_id VARCHAR(191) NULL,
+  tenant_id VARCHAR(64) NULL,
+  trace_id VARCHAR(191) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  completed_at DATETIME NULL,
+  KEY idx_decision_runs_engine (engine_key, task_class, created_at),
+  KEY idx_decision_runs_lifecycle (lifecycle_stage, approval_status, validation_status),
+  KEY idx_decision_runs_tenant (tenant_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS ai_model_providers (
+  provider_key VARCHAR(191) NOT NULL PRIMARY KEY,
+  display_name VARCHAR(255) NOT NULL,
+  provider_type ENUM('openai','anthropic','google','local','proxy','other') NOT NULL DEFAULT 'other',
+  credential_binding_key VARCHAR(191) NULL,
+  supports_streaming TINYINT(1) NOT NULL DEFAULT 0,
+  supports_tool_use TINYINT(1) NOT NULL DEFAULT 0,
+  supports_prompt_cache TINYINT(1) NOT NULL DEFAULT 0,
+  secrets_returned_to_agent TINYINT(1) NOT NULL DEFAULT 0,
+  status ENUM('planned','active','disabled') NOT NULL DEFAULT 'planned',
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_ai_model_providers_status (provider_type, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS ai_model_registry (
+  model_key VARCHAR(191) NOT NULL PRIMARY KEY,
+  provider_key VARCHAR(191) NOT NULL,
+  display_name VARCHAR(255) NOT NULL,
+  model_family VARCHAR(191) NULL,
+  canonical_message_protocol_json JSON NULL,
+  allowed_content_blocks_json JSON NULL,
+  thinking_metadata_policy_json JSON NULL,
+  tool_use_policy_json JSON NULL,
+  cost_policy_json JSON NULL,
+  status ENUM('planned','active','disabled') NOT NULL DEFAULT 'planned',
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_ai_model_registry_provider (provider_key, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS agent_tool_index (
+  tool_key VARCHAR(191) NOT NULL PRIMARY KEY,
+  source_truth_resource_type ENUM('action','endpoint','workflow','connected_system','mcp_import','local_tool','other') NOT NULL,
+  source_truth_resource_key VARCHAR(191) NOT NULL,
+  display_name VARCHAR(255) NULL,
+  tool_manifest_json JSON NOT NULL,
+  risk_class ENUM('read_only','workspace_write','brand_external_write','tenant_external_write','admin_registry_write','provider_privileged','local_device','destructive','credential_touching','deployment_affecting') NOT NULL DEFAULT 'read_only',
+  policy_key VARCHAR(191) NULL,
+  deferred_search_tags_json JSON NULL,
+  status ENUM('planned','active','disabled') NOT NULL DEFAULT 'planned',
+  last_indexed_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_agent_tool_index_source (source_truth_resource_type, source_truth_resource_key),
+  KEY idx_agent_tool_index_policy (policy_key, risk_class, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS agent_model_runs (
+  model_run_id VARCHAR(36) NOT NULL PRIMARY KEY,
+  decision_run_id VARCHAR(36) NULL,
+  model_key VARCHAR(191) NOT NULL,
+  provider_key VARCHAR(191) NOT NULL,
+  status ENUM('started','streaming','completed','failed','cancelled') NOT NULL DEFAULT 'started',
+  input_message_summary_json JSON NULL,
+  output_message_summary_json JSON NULL,
+  content_block_counts_json JSON NULL,
+  prompt_cache_json JSON NULL,
+  cost_ledger_json JSON NULL,
+  no_raw_thinking_stored TINYINT(1) NOT NULL DEFAULT 1,
+  trace_id VARCHAR(191) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  completed_at DATETIME NULL,
+  KEY idx_agent_model_runs_decision (decision_run_id, created_at),
+  KEY idx_agent_model_runs_model (model_key, status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS agent_tool_calls (
+  tool_call_id VARCHAR(36) NOT NULL PRIMARY KEY,
+  decision_run_id VARCHAR(36) NULL,
+  model_run_id VARCHAR(36) NULL,
+  tool_key VARCHAR(191) NOT NULL,
+  authorization_status ENUM('pending','authorized','denied','failed') NOT NULL DEFAULT 'pending',
+  pre_tool_gate_json JSON NULL,
+  post_tool_readback_json JSON NULL,
+  input_summary_json JSON NULL,
+  output_summary_json JSON NULL,
+  secrets_returned_to_model TINYINT(1) NOT NULL DEFAULT 0,
+  side_effect_confirmed_by_readback TINYINT(1) NOT NULL DEFAULT 0,
+  error_json JSON NULL,
+  trace_id VARCHAR(191) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  completed_at DATETIME NULL,
+  KEY idx_agent_tool_calls_decision (decision_run_id, created_at),
+  KEY idx_agent_tool_calls_tool (tool_key, authorization_status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS platform_engine_registry (
+  engine_key VARCHAR(191) NOT NULL PRIMARY KEY,
+  display_name VARCHAR(255) NOT NULL,
+  engine_type ENUM('repo_maintenance','schema_governance','runtime_readiness','provider_certification','release_readiness','browser_runtime','local_device_repair','activation_validation','workflow_runtime','generic') NOT NULL DEFAULT 'generic',
+  runtime_key VARCHAR(191) NULL,
+  supported_task_classes_json JSON NULL,
+  capabilities_json JSON NULL,
+  default_policy_key VARCHAR(191) NULL,
+  status ENUM('planned','available','active','degraded','disabled') NOT NULL DEFAULT 'planned',
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_platform_engine_registry_status (status, engine_type),
+  KEY idx_platform_engine_registry_runtime (runtime_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS platform_engine_policy_registry (
+  policy_key VARCHAR(191) NOT NULL PRIMARY KEY,
+  engine_key VARCHAR(191) NULL,
+  scope_type ENUM('global','repo','tenant','brand','workflow','action','runtime') NOT NULL DEFAULT 'global',
+  scope_id VARCHAR(191) NULL,
+  mode ENUM('diagnose_only','dry_run','apply_allowed') NOT NULL DEFAULT 'diagnose_only',
+  risk_default ENUM('low','medium','high','critical') NOT NULL DEFAULT 'medium',
+  approval_required_min_risk ENUM('low','medium','high','critical') NOT NULL DEFAULT 'high',
+  require_scope_guard TINYINT(1) NOT NULL DEFAULT 1,
+  require_audit TINYINT(1) NOT NULL DEFAULT 1,
+  require_validators TINYINT(1) NOT NULL DEFAULT 1,
+  max_changes_json JSON NULL,
+  validators_json JSON NULL,
+  blocked_terms_json JSON NULL,
+  allowed_resource_patterns_json JSON NULL,
+  blocked_resource_patterns_json JSON NULL,
+  status ENUM('planned','active','disabled') NOT NULL DEFAULT 'planned',
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_platform_engine_policy_engine (engine_key, status),
+  KEY idx_platform_engine_policy_scope (scope_type, scope_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS platform_engine_strategy_registry (
+  strategy_key VARCHAR(191) NOT NULL PRIMARY KEY,
+  display_name VARCHAR(255) NOT NULL,
+  description TEXT NULL,
+  supported_engine_types_json JSON NULL,
+  supported_task_classes_json JSON NULL,
+  supported_resource_kinds_json JSON NULL,
+  requires_ast TINYINT(1) NOT NULL DEFAULT 0,
+  allows_full_resource_rewrite TINYINT(1) NOT NULL DEFAULT 0,
+  executes_dynamic_code TINYINT(1) NOT NULL DEFAULT 0,
+  required_validators_json JSON NULL,
+  risk_level ENUM('low','medium','high','critical') NOT NULL DEFAULT 'medium',
+  status ENUM('planned','active','disabled') NOT NULL DEFAULT 'planned',
+  metadata_json JSON NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_platform_engine_strategy_status (status, risk_level)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS platform_engine_policy_rules (
+  rule_key VARCHAR(191) NOT NULL PRIMARY KEY,
+  policy_key VARCHAR(191) NOT NULL,
+  engine_key VARCHAR(191) NULL,
+  priority INT NOT NULL DEFAULT 0,
+  task_class VARCHAR(191) NULL,
+  resource_kind VARCHAR(191) NULL,
+  resource_pattern VARCHAR(500) NOT NULL DEFAULT '*',
+  condition_json JSON NULL,
+  strategy_key VARCHAR(191) NOT NULL,
+  risk_level ENUM('low','medium','high','critical') NOT NULL DEFAULT 'medium',
+  auto_apply_allowed TINYINT(1) NOT NULL DEFAULT 0,
+  dry_run_required TINYINT(1) NOT NULL DEFAULT 1,
+  approval_required TINYINT(1) NOT NULL DEFAULT 0,
+  validator_commands_json JSON NULL,
+  blocked_terms_json JSON NULL,
+  allowed_terms_json JSON NULL,
+  required_skill_keys_json JSON NULL,
+  status ENUM('planned','active','disabled') NOT NULL DEFAULT 'planned',
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_platform_engine_policy_rules_match (engine_key, task_class, status, priority),
+  KEY idx_platform_engine_policy_rules_policy (policy_key, status),
+  KEY idx_platform_engine_policy_rules_strategy (strategy_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS platform_engine_skill_prompt_registry (
+  skill_key VARCHAR(191) NOT NULL PRIMARY KEY,
+  engine_key VARCHAR(191) NULL,
+  display_name VARCHAR(255) NOT NULL,
+  prompt_contract_version VARCHAR(64) NOT NULL DEFAULT 'v1',
+  task_classes_json JSON NULL,
+  required_tools_json JSON NULL,
+  forbidden_tools_json JSON NULL,
+  validator_commands_json JSON NULL,
+  success_criteria_json JSON NULL,
+  fallback_behavior_json JSON NULL,
+  prompt_template TEXT NULL,
+  status ENUM('planned','active','disabled') NOT NULL DEFAULT 'planned',
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_platform_engine_skill_prompt_engine (engine_key, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS platform_engine_execution_runs (
+  run_id VARCHAR(36) NOT NULL PRIMARY KEY,
+  run_key VARCHAR(191) NOT NULL UNIQUE,
+  engine_key VARCHAR(191) NOT NULL,
+  task_class VARCHAR(191) NOT NULL,
+  mode ENUM('diagnose','dry_run','apply') NOT NULL DEFAULT 'dry_run',
+  policy_key VARCHAR(191) NULL,
+  rules_matched_json JSON NULL,
+  skills_selected_json JSON NULL,
+  plan_json JSON NULL,
+  risk_level ENUM('low','medium','high','critical') NOT NULL DEFAULT 'medium',
+  approval_status ENUM('not_required','required','granted','denied') NOT NULL DEFAULT 'not_required',
+  apply_status ENUM('not_requested','blocked','applied','failed') NOT NULL DEFAULT 'not_requested',
+  validation_status ENUM('not_run','passed','failed','blocked') NOT NULL DEFAULT 'not_run',
+  blocked_reasons_json JSON NULL,
+  error_json JSON NULL,
+  outcome_json JSON NULL,
+  actor_id VARCHAR(191) NULL,
+  tenant_id VARCHAR(64) NULL,
+  trace_id VARCHAR(191) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  completed_at DATETIME NULL,
+  KEY idx_platform_engine_runs_engine (engine_key, task_class, created_at),
+  KEY idx_platform_engine_runs_status (approval_status, apply_status, validation_status),
+  KEY idx_platform_engine_runs_tenant (tenant_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO platform_engine_registry
+  (engine_key, display_name, engine_type, runtime_key, supported_task_classes_json, capabilities_json, default_policy_key, status, notes)
+VALUES
+  (
+    'repo_conflict_resolution_engine',
+    'Repository Conflict Resolution Engine',
+    'repo_maintenance',
+    'codex_essam_chatgpt_v1',
+    '["conflict_diagnose","conflict_plan","conflict_apply"]',
+    '{"supports_sql_policy":true,"supports_skill_prompt_alignment":true,"executes_db_stored_code":false,"default_mode":"dry_run"}',
+    'repo_conflict_policy_v1',
+    'active',
+    'First engine onboarded to the policy-driven orchestration layer. Apply remains gated by scope guard, policy, approval, and validators.'
+  ),
+  (
+    'schema_cleanup_engine',
+    'Schema Cleanup Engine',
+    'schema_governance',
+    'codex_essam_chatgpt_v1',
+    '["schema_diagnose","schema_plan","schema_cleanup"]',
+    '{"supports_sql_policy":true,"supports_ast_transform":true,"executes_db_stored_code":false,"default_mode":"dry_run"}',
+    'schema_cleanup_policy_v1',
+    'planned',
+    'Planned engine for JSON schema authority cleanup and legacy Sheets identity migration.'
+  ),
+  (
+    'provider_smoke_certification_engine',
+    'Provider Smoke Certification Engine',
+    'provider_certification',
+    NULL,
+    '["certify_plugin","recertify_plugin","probe_provider"]',
+    '{"supports_sql_policy":true,"provider_smoke_get_only":true,"secrets_returned":false,"default_mode":"dry_run"}',
+    'provider_smoke_policy_v1',
+    'planned',
+    'Planned bridge for provider smoke certification decisions using existing platform plugin smoke controls.'
+  ),
+  (
+    'release_readiness_engine',
+    'Release Readiness Engine',
+    'release_readiness',
+    NULL,
+    '["release_check","release_gate","deployment_readiness"]',
+    '{"supports_sql_policy":true,"executes_db_stored_code":false,"default_mode":"dry_run"}',
+    'platform_engine_default_v1',
+    'planned',
+    'Planned engine for release readiness checks and deployment gate evidence.'
+  ),
+  (
+    'activation_validation_engine',
+    'Activation Validation Engine',
+    'activation_validation',
+    NULL,
+    '["activation_validate","hard_activation_check","bootstrap_validation"]',
+    '{"supports_sql_policy":true,"executes_db_stored_code":false,"default_mode":"dry_run"}',
+    'platform_engine_default_v1',
+    'planned',
+    'Planned engine for governed activation and bootstrap validation decisions.'
+  )
+ON DUPLICATE KEY UPDATE
+  display_name = VALUES(display_name),
+  engine_type = VALUES(engine_type),
+  runtime_key = VALUES(runtime_key),
+  supported_task_classes_json = VALUES(supported_task_classes_json),
+  capabilities_json = VALUES(capabilities_json),
+  default_policy_key = VALUES(default_policy_key),
+  status = VALUES(status),
+  notes = VALUES(notes),
+  updated_at = CURRENT_TIMESTAMP;
+
+INSERT INTO platform_engine_policy_registry
+  (policy_key, engine_key, scope_type, scope_id, mode, risk_default, approval_required_min_risk,
+   require_scope_guard, require_audit, require_validators, validators_json,
+   allowed_resource_patterns_json, blocked_resource_patterns_json, status, notes)
+VALUES
+  (
+    'platform_engine_default_v1',
+    NULL,
+    'global',
+    NULL,
+    'dry_run',
+    'medium',
+    'high',
+    1,
+    1,
+    1,
+    '[]',
+    '["*"]',
+    '[".env","**/secrets/**","**/*secret*"]',
+    'active',
+    'Default policy for all engines: dry-run first, scoped resources only, audit and validators required.'
+  ),
+  (
+    'repo_conflict_policy_v1',
+    'repo_conflict_resolution_engine',
+    'repo',
+    NULL,
+    'apply_allowed',
+    'medium',
+    'high',
+    1,
+    1,
+    1,
+    '["node test-repo-patch-apply.mjs"]',
+    '["http-generic-api/**","schemas/**","docs/**","memory_schema.json","*.md","*.mjs"]',
+    '[".env","**/secrets/**","**/credentials/**"]',
+    'active',
+    'Allows low/medium-risk repo conflict apply only when a matching declarative rule, scope guard, and validators are present.'
+  ),
+  (
+    'schema_cleanup_policy_v1',
+    'schema_cleanup_engine',
+    'global',
+    NULL,
+    'dry_run',
+    'medium',
+    'high',
+    1,
+    1,
+    1,
+    '["node ../validate-memory-schema.mjs"]',
+    '["memory_schema.json","schemas/**","docs/platform-recomposition/**"]',
+    '[".env","**/secrets/**"]',
+    'planned',
+    'Dry-run schema cleanup policy. Apply should be enabled only after schema validators are green.'
+  )
+ON DUPLICATE KEY UPDATE
+  engine_key = VALUES(engine_key),
+  scope_type = VALUES(scope_type),
+  scope_id = VALUES(scope_id),
+  mode = VALUES(mode),
+  risk_default = VALUES(risk_default),
+  approval_required_min_risk = VALUES(approval_required_min_risk),
+  require_scope_guard = VALUES(require_scope_guard),
+  require_audit = VALUES(require_audit),
+  require_validators = VALUES(require_validators),
+  validators_json = VALUES(validators_json),
+  allowed_resource_patterns_json = VALUES(allowed_resource_patterns_json),
+  blocked_resource_patterns_json = VALUES(blocked_resource_patterns_json),
+  status = VALUES(status),
+  notes = VALUES(notes),
+  updated_at = CURRENT_TIMESTAMP;
+
+INSERT INTO platform_engine_strategy_registry
+  (strategy_key, display_name, description, supported_task_classes_json, supported_resource_kinds_json,
+   requires_ast, allows_full_resource_rewrite, executes_dynamic_code, required_validators_json, risk_level, status, metadata_json)
+VALUES
+  ('json_script_insert', 'JSON Script Insert', 'Parse JSON and insert/dedupe a package script without whole-file conflict replacement.', '["conflict_plan","conflict_apply"]', '["json"]', 1, 0, 0, '["node -e \\"JSON.parse(require(''fs'').readFileSync(''package.json'',''utf8''))\\""]', 'medium', 'active', '{"implementation":"backend_allowlist"}'),
+  ('json_schema_field_transform', 'JSON Schema Field Transform', 'Apply allowlisted JSON schema field rename/remove/add operations and run schema validation.', '["conflict_plan","schema_cleanup"]', '["json_schema"]', 1, 0, 0, '["node ../validate-memory-schema.mjs"]', 'medium', 'active', '{"implementation":"backend_allowlist"}'),
+  ('section_replace', 'Section Replace', 'Replace a bounded markdown or text section between explicit anchors.', '["conflict_plan","conflict_apply","schema_plan"]', '["markdown","text"]', 0, 0, 0, '[]', 'low', 'active', '{"implementation":"backend_allowlist"}'),
+  ('manual_only', 'Manual Review Only', 'Block automatic apply and require human review for high-risk resources.', '["conflict_plan","conflict_apply","schema_cleanup","certify_plugin"]', '["generic","javascript","sql","openapi","secret"]', 0, 0, 0, '[]', 'high', 'active', '{"implementation":"backend_allowlist"}'),
+  ('provider_smoke_run', 'Provider Smoke Run', 'Plan a guarded provider smoke probe using existing plugin smoke readiness controls.', '["certify_plugin","recertify_plugin","probe_provider"]', '["plugin","provider"]', 0, 0, 0, '["node test-platform-plugin-public-rest-dispatch.mjs","node test-platform-plugin-policy.mjs"]', 'medium', 'planned', '{"implementation":"backend_allowlist","provider_smoke_get_only":true}')
+ON DUPLICATE KEY UPDATE
+  display_name = VALUES(display_name),
+  description = VALUES(description),
+  supported_task_classes_json = VALUES(supported_task_classes_json),
+  supported_resource_kinds_json = VALUES(supported_resource_kinds_json),
+  requires_ast = VALUES(requires_ast),
+  allows_full_resource_rewrite = VALUES(allows_full_resource_rewrite),
+  executes_dynamic_code = VALUES(executes_dynamic_code),
+  required_validators_json = VALUES(required_validators_json),
+  risk_level = VALUES(risk_level),
+  status = VALUES(status),
+  metadata_json = VALUES(metadata_json),
+  updated_at = CURRENT_TIMESTAMP;
+
+INSERT INTO platform_engine_policy_rules
+  (rule_key, policy_key, engine_key, priority, task_class, resource_kind, resource_pattern,
+   strategy_key, risk_level, auto_apply_allowed, dry_run_required, approval_required,
+   validator_commands_json, required_skill_keys_json, status, notes)
+VALUES
+  ('repo_conflict_package_json_scripts', 'repo_conflict_policy_v1', 'repo_conflict_resolution_engine', 100, 'conflict_plan', 'json', 'http-generic-api/package.json', 'json_script_insert', 'medium', 1, 1, 0, '["node test-platform-engine-orchestration.mjs","node test-repo-patch-apply.mjs"]', '["repo_conflict_resolution"]', 'active', 'Resolve package script conflicts through JSON parsing and dedupe, not whole-file replacement.'),
+  ('repo_conflict_memory_schema', 'repo_conflict_policy_v1', 'repo_conflict_resolution_engine', 90, 'conflict_plan', 'json_schema', 'memory_schema.json', 'json_schema_field_transform', 'medium', 1, 1, 0, '["node ../validate-memory-schema.mjs"]', '["repo_conflict_resolution","schema_cleanup"]', 'active', 'Allow schema conflicts only through schema-aware transforms and memory schema validation.'),
+  ('repo_conflict_auth_manual_only', 'repo_conflict_policy_v1', 'repo_conflict_resolution_engine', 200, 'conflict_plan', 'javascript', 'http-generic-api/auth*.js', 'manual_only', 'high', 0, 1, 1, '[]', '["repo_conflict_resolution"]', 'active', 'Auth conflicts are high-risk and require manual review plus explicit approval.'),
+  ('repo_conflict_migration_manual_only', 'repo_conflict_policy_v1', 'repo_conflict_resolution_engine', 200, 'conflict_plan', 'sql', 'http-generic-api/migrations/**', 'manual_only', 'high', 0, 1, 1, '[]', '["repo_conflict_resolution"]', 'active', 'Database migrations are high-risk conflict surfaces and must not auto-apply.')
+ON DUPLICATE KEY UPDATE
+  policy_key = VALUES(policy_key),
+  engine_key = VALUES(engine_key),
+  priority = VALUES(priority),
+  task_class = VALUES(task_class),
+  resource_kind = VALUES(resource_kind),
+  resource_pattern = VALUES(resource_pattern),
+  strategy_key = VALUES(strategy_key),
+  risk_level = VALUES(risk_level),
+  auto_apply_allowed = VALUES(auto_apply_allowed),
+  dry_run_required = VALUES(dry_run_required),
+  approval_required = VALUES(approval_required),
+  validator_commands_json = VALUES(validator_commands_json),
+  required_skill_keys_json = VALUES(required_skill_keys_json),
+  status = VALUES(status),
+  notes = VALUES(notes),
+  updated_at = CURRENT_TIMESTAMP;
+
+INSERT INTO platform_engine_skill_prompt_registry
+  (skill_key, engine_key, display_name, prompt_contract_version, task_classes_json,
+   required_tools_json, forbidden_tools_json, validator_commands_json, success_criteria_json,
+   fallback_behavior_json, prompt_template, status, notes)
+VALUES
+  (
+    'repo_conflict_resolution',
+    'repo_conflict_resolution_engine',
+    'Repository Conflict Resolution Skill Contract',
+    'v1',
+    '["conflict_diagnose","conflict_plan","conflict_apply"]',
+    '["engine_task_diagnose","engine_task_plan","scope_guard","validator_gate"]',
+    '["git push","force_update","secret_read","whole_file_rewrite_without_strategy"]',
+    '["node test-repo-patch-apply.mjs"]',
+    '["branch_mergeable","diff_within_allowed_scope","validators_pass","no_secret_exposure"]',
+    '{"unknown_rule":"diagnose_only","high_risk":"manual_review","validator_failure":"block_apply"}',
+    'Use SQL policy and rules first. Build a dry-run plan before apply. Do not touch files outside allowed scope. Auth, migrations, secrets, and public contracts require manual review unless an explicit governed approval is present.',
+    'active',
+    'Skill-bound prompt contract for repo conflict handling under the general engine orchestration layer.'
+  ),
+  (
+    'schema_cleanup',
+    'schema_cleanup_engine',
+    'Schema Cleanup Skill Contract',
+    'v1',
+    '["schema_diagnose","schema_plan","schema_cleanup"]',
+    '["engine_task_diagnose","engine_task_plan","schema_validator"]',
+    '["secret_read","runtime_sheet_authority_reintroduction","unvalidated_schema_write"]',
+    '["node ../validate-memory-schema.mjs"]',
+    '["schema_valid","sql_authority_preserved","legacy_mirror_terms_explicit"]',
+    '{"unknown_rule":"diagnose_only","validator_failure":"block_apply"}',
+    'Use schema-aware transforms only. Preserve SQL runtime authority and treat Sheets identifiers as legacy mirror or recovery metadata unless policy states otherwise.',
+    'planned',
+    'Skill-bound prompt contract for schema cleanup and memory-state governance.'
+  )
+ON DUPLICATE KEY UPDATE
+  engine_key = VALUES(engine_key),
+  display_name = VALUES(display_name),
+  prompt_contract_version = VALUES(prompt_contract_version),
+  task_classes_json = VALUES(task_classes_json),
+  required_tools_json = VALUES(required_tools_json),
+  forbidden_tools_json = VALUES(forbidden_tools_json),
+  validator_commands_json = VALUES(validator_commands_json),
+  success_criteria_json = VALUES(success_criteria_json),
+  fallback_behavior_json = VALUES(fallback_behavior_json),
+  prompt_template = VALUES(prompt_template),
+  status = VALUES(status),
+  notes = VALUES(notes),
+  updated_at = CURRENT_TIMESTAMP;
+
+INSERT INTO intelligence_engines
+  (engine_key, display_name, engine_type, runtime_key, compatibility_platform_engine_key,
+   lifecycle_stage, supported_task_classes_json, capabilities_json, default_policy_key,
+   default_skill_key, default_eval_suite_key, runtime_surface_policy_json,
+   observability_policy_json, status, notes)
+VALUES
+  (
+    'repo_conflict_resolution_engine',
+    'Repository Conflict Resolution Engine',
+    'engine',
+    'codex_essam_chatgpt_v1',
+    'repo_conflict_resolution_engine',
+    'operate',
+    '["conflict_diagnose","conflict_plan","conflict_apply"]',
+    '{"model_never_executes_tools":true,"tool_execution_runtime_separate":true,"executes_db_stored_code":false,"default_mode":"dry_run"}',
+    'repo_conflict_policy_v1',
+    'repo_conflict_resolution',
+    'repo_conflict_eval_v1',
+    '{"surface":"workspace","scope_guard_required":true,"apply_route_separate":true}',
+    '{"events":["decision.started","policy.loaded","skill.bound","candidate.plan.scored","validator.completed","readback.validated"]}',
+    'active',
+    'First compatibility engine lifted into the AI Intelligence Runtime & Governance Layer.'
+  ),
+  (
+    'schema_cleanup_engine',
+    'Schema Cleanup Engine',
+    'engine',
+    'codex_essam_chatgpt_v1',
+    'schema_cleanup_engine',
+    'build',
+    '["schema_diagnose","schema_plan","schema_cleanup"]',
+    '{"model_never_executes_tools":true,"tool_execution_runtime_separate":true,"executes_db_stored_code":false,"default_mode":"dry_run"}',
+    'schema_cleanup_policy_v1',
+    'schema_cleanup',
+    'schema_cleanup_eval_v1',
+    '{"surface":"workspace","scope_guard_required":true,"schema_validator_required":true}',
+    '{"events":["decision.started","policy.loaded","skill.bound","validator.completed"]}',
+    'planned',
+    'Schema authority cleanup engine for SQL-first memory contracts.'
+  ),
+  (
+    'canonical_agent_runtime_engine',
+    'Canonical Governed Agent Runtime Engine',
+    'agent_runtime',
+    NULL,
+    NULL,
+    'planned',
+    '["model_run","tool_loop","stream_events","tool_search"]',
+    '{"canonical_content_blocks":["text","tool_use","tool_result","thinking_metadata"],"raw_thinking_stored":false,"mcp_imports_registry_only":true}',
+    'canonical_agent_runtime_policy_v1',
+    'canonical_agent_runtime',
+    'agent_runtime_eval_v1',
+    '{"model_runtime_separate_from_tool_runtime":true,"deferred_tool_search_required":true}',
+    '{"events":["model.started","model.delta","tool.authorized","tool.denied","tool.result","memory.writeback.completed"]}',
+    'planned',
+    'Provider-neutral agent runtime boundary. Architecture reference only; no raw clawd-code dependency.'
+  )
+ON DUPLICATE KEY UPDATE
+  display_name = VALUES(display_name),
+  engine_type = VALUES(engine_type),
+  runtime_key = VALUES(runtime_key),
+  compatibility_platform_engine_key = VALUES(compatibility_platform_engine_key),
+  lifecycle_stage = VALUES(lifecycle_stage),
+  supported_task_classes_json = VALUES(supported_task_classes_json),
+  capabilities_json = VALUES(capabilities_json),
+  default_policy_key = VALUES(default_policy_key),
+  default_skill_key = VALUES(default_skill_key),
+  default_eval_suite_key = VALUES(default_eval_suite_key),
+  runtime_surface_policy_json = VALUES(runtime_surface_policy_json),
+  observability_policy_json = VALUES(observability_policy_json),
+  status = VALUES(status),
+  notes = VALUES(notes),
+  updated_at = CURRENT_TIMESTAMP;
+
+INSERT INTO intelligence_policies
+  (policy_key, engine_key, scope_type, scope_id, mode, risk_default,
+   approval_required_min_risk, deterministic_hard_gates_json, model_decision_role,
+   require_scope_guard, require_audit, require_validators, require_readback,
+   require_eval_suite, validators_json, allowed_resource_patterns_json,
+   blocked_resource_patterns_json, status, notes)
+VALUES
+  (
+    'repo_conflict_policy_v1',
+    'repo_conflict_resolution_engine',
+    'repo',
+    NULL,
+    'apply_allowed',
+    'workspace_write',
+    'admin_registry_write',
+    '{"model_may_not_override":["scope_guard","approval_gate","validator_gate","readback_gate","secret_block"],"default_fallback":"diagnose_only"}',
+    'scoring_assist',
+    1,
+    1,
+    1,
+    1,
+    1,
+    '["node test-repo-patch-apply.mjs"]',
+    '["http-generic-api/**","schemas/**","docs/**","memory_schema.json","*.md","*.mjs"]',
+    '[".env","**/secrets/**","**/credentials/**"]',
+    'active',
+    'AI may propose or score conflict plans, but deterministic policy gates decide whether apply is allowed.'
+  ),
+  (
+    'canonical_agent_runtime_policy_v1',
+    'canonical_agent_runtime_engine',
+    'runtime',
+    NULL,
+    'dry_run',
+    'read_only',
+    'provider_privileged',
+    '{"model_executes_tools":false,"tool_catalog_raw_exposure":false,"secrets_returned_to_model":false,"side_effects_require_readback":true}',
+    'candidate_generation',
+    1,
+    1,
+    1,
+    1,
+    1,
+    '["node test-platform-engine-orchestration.mjs"]',
+    '["model:*","tool:*","mcp:*"]',
+    '["secret:*","credential:*","destructive:*"]',
+    'planned',
+    'Provider-neutral agent runtime policy: models emit tool_use; platform authorizes and executes tools separately.'
+  )
+ON DUPLICATE KEY UPDATE
+  engine_key = VALUES(engine_key),
+  scope_type = VALUES(scope_type),
+  scope_id = VALUES(scope_id),
+  mode = VALUES(mode),
+  risk_default = VALUES(risk_default),
+  approval_required_min_risk = VALUES(approval_required_min_risk),
+  deterministic_hard_gates_json = VALUES(deterministic_hard_gates_json),
+  model_decision_role = VALUES(model_decision_role),
+  require_scope_guard = VALUES(require_scope_guard),
+  require_audit = VALUES(require_audit),
+  require_validators = VALUES(require_validators),
+  require_readback = VALUES(require_readback),
+  require_eval_suite = VALUES(require_eval_suite),
+  validators_json = VALUES(validators_json),
+  allowed_resource_patterns_json = VALUES(allowed_resource_patterns_json),
+  blocked_resource_patterns_json = VALUES(blocked_resource_patterns_json),
+  status = VALUES(status),
+  notes = VALUES(notes),
+  updated_at = CURRENT_TIMESTAMP;
+
+INSERT INTO skill_manifests
+  (skill_key, engine_key, display_name, skill_version, prompt_contract_version,
+   policy_key, eval_suite_key, tool_policy_json, task_classes_json, required_tools_json,
+   forbidden_tools_json, validator_commands_json, success_criteria_json,
+   fallback_behavior_json, prompt_template, status, notes)
+VALUES
+  (
+    'repo_conflict_resolution',
+    'repo_conflict_resolution_engine',
+    'Repository Conflict Resolution Skill Manifest',
+    'v1',
+    'v1',
+    'repo_conflict_policy_v1',
+    'repo_conflict_eval_v1',
+    '{"deferred_tool_search":true,"allowed_tool_classes":["repo_read","repo_plan","validator","scope_guard"],"forbidden_tool_classes":["secret_read","force_push","raw_destructive_shell"]}',
+    '["conflict_diagnose","conflict_plan","conflict_apply"]',
+    '["engine_task_diagnose","engine_task_plan","scope_guard","validator_gate"]',
+    '["git push","force_update","secret_read","whole_file_rewrite_without_strategy"]',
+    '["node test-repo-patch-apply.mjs"]',
+    '["branch_mergeable","diff_within_allowed_scope","validators_pass","no_secret_exposure","readback_verified"]',
+    '{"unknown_rule":"diagnose_only","high_risk":"manual_review","validator_failure":"block_apply","readback_failure":"block_apply"}',
+    'Use governed policy and SQL registry first. Build candidate plans, score them, and explain the selected plan. Do not execute tools directly; request governed tool authorization through the platform runtime.',
+    'active',
+    'Versioned skill contract: prompt plus policy, tool constraints, eval suite, validators, and fallback behavior.'
+  ),
+  (
+    'canonical_agent_runtime',
+    'canonical_agent_runtime_engine',
+    'Canonical Governed Agent Runtime Skill Manifest',
+    'v1',
+    'v1',
+    'canonical_agent_runtime_policy_v1',
+    'agent_runtime_eval_v1',
+    '{"deferred_tool_search":true,"mcp_imports_registry_only":true,"raw_tool_catalog_exposure":false,"model_executes_tools":false}',
+    '["model_run","tool_loop","stream_events","tool_search"]',
+    '["ai_model_run_create","ai_tool_search","governed_tool_authorize","governed_tool_result"]',
+    '["raw_mcp_catalog_dump","secret_return_to_model","db_stored_executable_code","raw_thinking_storage"]',
+    '["node test-platform-engine-orchestration.mjs"]',
+    '["content_blocks_canonical","tool_loop_governed","events_audited","no_raw_thinking_stored","secrets_not_returned"]',
+    '{"unknown_tool":"deny","high_risk_tool":"approval_required","provider_failure":"degraded_contract"}',
+    'Models produce canonical content blocks and tool_use requests only. The platform authorizes tools, executes them in the tool runtime, injects tool_result, and records audit/readback evidence.',
+    'planned',
+    'Skill manifest for Anthropic-like governed agent runtime semantics without copying an external runtime implementation.'
+  )
+ON DUPLICATE KEY UPDATE
+  engine_key = VALUES(engine_key),
+  display_name = VALUES(display_name),
+  skill_version = VALUES(skill_version),
+  prompt_contract_version = VALUES(prompt_contract_version),
+  policy_key = VALUES(policy_key),
+  eval_suite_key = VALUES(eval_suite_key),
+  tool_policy_json = VALUES(tool_policy_json),
+  task_classes_json = VALUES(task_classes_json),
+  required_tools_json = VALUES(required_tools_json),
+  forbidden_tools_json = VALUES(forbidden_tools_json),
+  validator_commands_json = VALUES(validator_commands_json),
+  success_criteria_json = VALUES(success_criteria_json),
+  fallback_behavior_json = VALUES(fallback_behavior_json),
+  prompt_template = VALUES(prompt_template),
+  status = VALUES(status),
+  notes = VALUES(notes),
+  updated_at = CURRENT_TIMESTAMP;

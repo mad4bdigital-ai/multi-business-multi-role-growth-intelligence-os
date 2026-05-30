@@ -15,6 +15,15 @@ const LOCAL_WINDOWS_APP_CONTROL_ENABLED_ENV = "LOCAL_WINDOWS_APP_CONTROL_ENABLED
 const ADMIN_SHELL_ALLOWLIST_ENV = "ADMIN_SHELL_ALLOWLIST";
 const ADMIN_SHELL_ENABLED_ENV   = "ADMIN_SHELL_ENABLED";
 const EXTRA_ARG_UNSAFE_PATTERN  = /[;&|`$<>\\!{}()\n\r]/;
+const GITHUB_CONTENTS_WRITE_DENY_SEGMENTS = new Set([".git", ".omx", ".codex", "node_modules", "secrets", "tmp", "dist", "build", "coverage"]);
+const GITHUB_CONTENTS_WRITE_DENY_FILE_PATTERNS = [
+  /^\.env(?:\.|$)/i,
+  /^credentials(?:\..*)?\.json$/i,
+  /^token(?:\..*)?\.json$/i,
+  /^service[-_]?account.*\.json$/i,
+  /^private[-_]?key.*\.(?:json|key|pem)$/i,
+  /\.(?:key|p12|pem|pfx)$/i,
+];
 const WINDOWS_PATH_ARG_KEYS = new Set([
   "--current-path",
   "--new-path",
@@ -602,6 +611,67 @@ function encodeGithubRefPath(refName) {
   return String(refName || "").split("/").map((part) => encodeURIComponent(part)).join("/");
 }
 
+function decodeGithubApiPathSegment(value = "") {
+  try {
+    return decodeURIComponent(String(value || ""));
+  } catch {
+    return String(value || "");
+  }
+}
+
+function githubContentsPathFromApiTarget(apiTarget = "") {
+  const normalized = String(apiTarget || "");
+  const marker = "/contents/";
+  if (!normalized.startsWith(marker)) return "";
+  return normalized
+    .slice(marker.length)
+    .split("/")
+    .filter(Boolean)
+    .map(decodeGithubApiPathSegment)
+    .join("/");
+}
+
+function assertGithubContentsWritePathAllowed(apiTarget = "") {
+  const filePath = githubContentsPathFromApiTarget(apiTarget);
+  if (!filePath) {
+    const err = new Error("GitHub contents write fallback requires /contents/{path}.");
+    err.status = 400;
+    err.code = "github_rest_contents_path_required";
+    throw err;
+  }
+  const parts = filePath.replace(/\\/g, "/").split("/").filter(Boolean);
+  if (parts.some((part) => part === "..")) {
+    const err = new Error("GitHub contents write fallback blocks parent directory references.");
+    err.status = 400;
+    err.code = "github_rest_contents_path_traversal";
+    throw err;
+  }
+  if (parts.some((part) => GITHUB_CONTENTS_WRITE_DENY_SEGMENTS.has(part.toLowerCase()))) {
+    const err = new Error("GitHub contents write fallback blocks this repository segment.");
+    err.status = 403;
+    err.code = "github_rest_contents_path_blocked";
+    throw err;
+  }
+  if (filePath.toLowerCase().startsWith(".github/workflows/")) {
+    const err = new Error("GitHub contents write fallback blocks workflow file mutation.");
+    err.status = 403;
+    err.code = "github_rest_contents_workflow_blocked";
+    throw err;
+  }
+  const baseName = parts[parts.length - 1] || "";
+  if (GITHUB_CONTENTS_WRITE_DENY_FILE_PATTERNS.some((pattern) => pattern.test(baseName))) {
+    const err = new Error("GitHub contents write fallback blocks this file name.");
+    err.status = 403;
+    err.code = "github_rest_contents_file_blocked";
+    throw err;
+  }
+  return filePath;
+}
+
+function githubContentsMutationAllowed(apiTarget = "", method = "GET") {
+  return ["PUT", "DELETE"].includes(String(method || "").toUpperCase()) && String(apiTarget || "").startsWith("/contents/");
+}
+
 async function githubRestJson({ owner, repo, apiPath, token, method = "GET", body = null }) {
   const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${apiPath}`, {
     method,
@@ -752,14 +822,17 @@ async function executeGitHubRestFallback(args = []) {
     const method = parseGithubApiMethod(args);
     const fieldValues = parseGithubFieldValues(args);
     const allowedRead = method === "GET" && (apiTarget.startsWith("/compare/") || apiTarget.startsWith("/pulls") || apiTarget.startsWith("/commits/"));
-    const allowedMutation = ["POST", "PUT", "PATCH"].includes(method) && (
+    const allowedContentsMutation = githubContentsMutationAllowed(apiTarget, method);
+    if (allowedContentsMutation) assertGithubContentsWritePathAllowed(apiTarget);
+    const allowedMutation = (["POST", "PUT", "PATCH"].includes(method) || allowedContentsMutation) && (
       /^\/pulls\/\d+\/update-branch$/.test(apiTarget)
       || /^\/pulls\/\d+\/merge$/.test(apiTarget)
       || /^\/actions\/workflows\/[^/]+\/dispatches$/.test(apiTarget)
       || apiTarget === "/merges"
+      || allowedContentsMutation
     );
     if (!allowedRead && !allowedMutation) {
-      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, workflow dispatches, and repo merges mutations.");
+      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, workflow dispatches, repo merges, and guarded contents PUT/DELETE mutations.");
       err.status = 501;
       err.code = "github_rest_api_unsupported_path";
       err.details = { apiTarget, method };

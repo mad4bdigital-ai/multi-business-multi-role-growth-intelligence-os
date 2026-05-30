@@ -3300,6 +3300,97 @@
         "unsafe_write_columns": [],
         "write_guard_outcome": "pending"
       }
+    },
+    "outputArtifactsState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "artifact_registry_authority": {
+          "type": "string",
+          "enum": ["sql", "json_asset_registry", "legacy_mirror", "unknown"],
+          "default": "sql"
+        },
+        "artifacts_required": {
+          "type": "boolean",
+          "default": false
+        },
+        "artifact_write_status": {
+          "type": "string",
+          "enum": ["pending", "ready", "completed", "degraded", "blocked"],
+          "default": "pending"
+        },
+        "legacy_mirror_role": {
+          "type": "string",
+          "enum": ["none", "async_mirror_and_recovery", "diagnostic_only"],
+          "default": "async_mirror_and_recovery"
+        }
+      },
+      "default": {
+        "artifact_registry_authority": "sql",
+        "artifacts_required": false,
+        "artifact_write_status": "pending",
+        "legacy_mirror_role": "async_mirror_and_recovery"
+      }
+    },
+    "sinkDispatchState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dispatch_authority": {
+          "type": "string",
+          "enum": ["sql", "runtime_registry", "legacy_mirror", "unknown"],
+          "default": "sql"
+        },
+        "sink_dispatch_required": {
+          "type": "boolean",
+          "default": false
+        },
+        "sink_dispatch_status": {
+          "type": "string",
+          "enum": ["pending", "planned", "completed", "degraded", "blocked"],
+          "default": "pending"
+        },
+        "legacy_sink_mirror_allowed": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "default": {
+        "dispatch_authority": "sql",
+        "sink_dispatch_required": false,
+        "sink_dispatch_status": "pending",
+        "legacy_sink_mirror_allowed": true
+      }
+    },
+    "agentChainState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "chain_authority": {
+          "type": "string",
+          "enum": ["sql", "workflow_runtime", "legacy_mirror", "unknown"],
+          "default": "sql"
+        },
+        "agent_chain_required": {
+          "type": "boolean",
+          "default": false
+        },
+        "agent_chain_status": {
+          "type": "string",
+          "enum": ["pending", "planned", "running", "completed", "degraded", "blocked"],
+          "default": "pending"
+        },
+        "approval_gate_required": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "default": {
+        "chain_authority": "sql",
+        "agent_chain_required": false,
+        "agent_chain_status": "pending",
+        "approval_gate_required": false
+      }
     }
   }
 }
