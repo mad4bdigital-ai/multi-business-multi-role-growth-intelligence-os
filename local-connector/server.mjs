@@ -743,8 +743,19 @@ function policyBody() {
 // PowerShell helper
 // ---------------------------------------------------------------------------
 
+function addPowerShellNativeExitGuard(script) {
+  return [
+    script,
+    '',
+    'if ($global:LASTEXITCODE -is [int] -and $global:LASTEXITCODE -ne 0) {',
+    '  Write-Error ("Native command failed with exit code {0}" -f $global:LASTEXITCODE)',
+    '  exit $global:LASTEXITCODE',
+    '}',
+  ].join('\n');
+}
+
 function runPs(script, timeoutMs = 10000) {
-  const encoded = Buffer.from(script, 'utf16le').toString('base64');
+  const encoded = Buffer.from(addPowerShellNativeExitGuard(script), 'utf16le').toString('base64');
   return runCommand('powershell.exe', [
     '-NonInteractive', '-NoProfile', '-ExecutionPolicy', 'Bypass',
     '-EncodedCommand', encoded,
