@@ -5461,7 +5461,7 @@ paths:
               properties:
                 name:
                   type: string
-                  enum: [connector_registry_list, connector_registry_get, activation_drive_probe, activation_sheets_bootstrap_read, activation_github_validate, activation_provider_bootstrap_validate, activation_bootstrap_config_upsert, tenant_gpt_oauth_client_upsert, credential_client_config_upsert, credential_client_config_list, google_auth_platform_config_upsert, google_auth_platform_config_get]
+                  enum: [connector_registry_list, connector_registry_get, connect_status, connect_activate, connect_device_install, local_gateway_tools_list, local_gateway_tools_call, activation_drive_probe, activation_sheets_bootstrap_read, activation_github_validate, activation_provider_bootstrap_validate, activation_bootstrap_config_upsert, tenant_gpt_oauth_client_upsert, credential_client_config_upsert, credential_client_config_list, google_auth_platform_config_upsert, google_auth_platform_config_get]
                 arguments:
                   type: object
                   additionalProperties: true
