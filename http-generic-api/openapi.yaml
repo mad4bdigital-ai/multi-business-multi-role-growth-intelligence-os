@@ -9799,6 +9799,63 @@ paths:
       responses:
         "201": { description: Credential intake submitted, content: { text/html: { schema: { type: string } } } }
 
+  /credentials/intake/promote-local-connector-key:
+    post:
+      x-openai-isConsequential: true
+      tags: [security]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: credentialIntakePromoteLocalConnectorKey
+      summary: Promote an intake credential into a local connector API key alias
+      description: >
+        Admin-only post-intake promotion route. Decrypts an active user_app_connection
+        server-side and writes its API key into local_connector_user_configs.connector_local_api_key
+        for one user/tenant/device. The decrypted secret is never returned.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [tenant_id, user_id, device_id, connection_id]
+              properties:
+                tenant_id: { type: string }
+                user_id: { type: string }
+                device_id: { type: string }
+                connection_id: { type: string }
+                credential_field: { type: string, default: api_key }
+                target_field:
+                  type: string
+                  enum: [connector_local_api_key]
+                  default: connector_local_api_key
+                created_by: { type: string }
+      responses:
+        "200":
+          description: Secret promoted into local connector config without returning secret value.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, target, user_id, tenant_id, device_id, connection_id, value_sha256, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  target: { type: string, enum: [local_connector_user_configs.connector_local_api_key] }
+                  user_id: { type: string }
+                  tenant_id: { type: string }
+                  device_id: { type: string }
+                  connection_id: { type: string }
+                  value_sha256: { type: string }
+                  updated_rows: { type: integer }
+                  next_actions:
+                    type: array
+                    items: { type: string }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400": { description: Invalid request or intake connection missing required secret. }
+        "404": { description: Active local connector config not found. }
+
   /credentials/bindings/promote:
     post:
       x-openai-isConsequential: true
