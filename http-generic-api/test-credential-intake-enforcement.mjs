@@ -7,6 +7,7 @@ import {
 
 const credentialRoutes = readFileSync('routes/credentialRoutes.js', 'utf8');
 const intakeSource = readFileSync('credentialIntakeEnforcement.js', 'utf8');
+const toolSchemaMigration = readFileSync('migrations/170_sprint65_credential_intake_enforcement_tool_schema.sql', 'utf8');
 
 assert.equal(
   intakeEnforcement.shouldCreateCredentialIntake({ enforce_intake: true }, { status: 'blocked_missing_secret' }),
