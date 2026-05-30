@@ -323,7 +323,7 @@ export function maybeChunkToolResponseBody(body, optionsSource = {}) {
   });
 }
 
-function readCachedToolResponseChunk(args = {}) {
+export function readCachedToolResponseChunk(args = {}) {
   const chunkId = String(args.chunk_id || "").trim();
   if (!chunkId) {
     const err = new Error("chunk_id is required.");
