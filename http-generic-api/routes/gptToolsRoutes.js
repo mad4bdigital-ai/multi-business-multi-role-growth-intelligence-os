@@ -1,6 +1,9 @@
 import { Router } from "express";
+import crypto from "node:crypto";
+import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import { getPool } from "../db.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
@@ -14,6 +17,8 @@ import {
 import { cachedSqlRead, sqlCacheKey, toolCacheTtl } from "../sqlCache.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 
+const execFileAsync = promisify(execFile);
+
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const SENSITIVE_ARG_SUBSTRINGS = [
   "password", "secret", "token", "api_key", "apikey",
@@ -22,6 +27,12 @@ const SENSITIVE_ARG_SUBSTRINGS = [
 ];
 const TURN_CONTENT_RESULT_LIMIT = 3000;
 const TURN_CONTENT_STRING_LIMIT = 500;
+const DEFAULT_TOOL_LIST_LIMIT = 50;
+const MAX_TOOL_LIST_LIMIT = 200;
+const DEFAULT_TOOL_RESPONSE_MAX_CHARS = 45000;
+const MAX_TOOL_RESPONSE_MAX_CHARS = 150000;
+const TOOL_RESPONSE_CHUNK_TTL_MS = 15 * 60 * 1000;
+const TOOL_RESPONSE_CHUNK_CACHE = new Map();
 
 function redactArgsForArchive(value) {
   if (Array.isArray(value)) return value.map(redactArgsForArchive);
@@ -155,7 +166,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repo_inspect",
     displayName: "Repository Inspect",
-    description: "Read-only repository inspection. Actions: list, read, search. Paths are repo-confined; secrets/build folders are blocked.",
+    description: "Read-only repository inspection. Actions: list, read, search, git_status, git_log, git_show, git_diff_name_status. Paths are repo-confined; secrets/build folders are blocked. Git helpers return metadata only and never expose .git internals."
     method: "VIRTUAL",
     path: "internal://repo-inspect",
     tags: ["repo", "read_only", "diagnostics"],
@@ -163,12 +174,35 @@ const VIRTUAL_ADMIN_TOOLS = [
       type: "object",
       required: ["action"],
       properties: {
-        action: { type: "string", enum: ["list", "read", "search"] },
+        action: { type: "string", enum: ["list", "read", "search", "git_status", "git_log", "git_show", "git_diff_name_status"] },
         path: { type: "string" },
         query: { type: "string" },
+        ref: { type: "string", description: "Git ref/commit for git_show. Defaults to HEAD." },
+        base_ref: { type: "string", description: "Base ref for git_diff_name_status. Defaults to HEAD~1." },
+        head_ref: { type: "string", description: "Head ref for git_diff_name_status. Defaults to HEAD." },
+        file: { type: "string", description: "Optional repo-relative path filter for git_log." },
+        since: { type: "string", description: "Optional git_log --since value." },
+        until: { type: "string", description: "Optional git_log --until value." },
         recursive: { type: "boolean", default: false },
         max_entries: { type: "integer", minimum: 1, maximum: 500, default: 100 },
         max_chars: { type: "integer", minimum: 1000, maximum: 50000, default: 12000 },
+      },
+    },
+  },
+  {
+    name: "response_chunk_read",
+    displayName: "Read Tool Response Chunk",
+    description: "Read the next chunk of a cached oversized tool response. Use when any governed tool returns response_chunked=true.",
+    method: "VIRTUAL",
+    path: "internal://response-chunk-read",
+    tags: ["tooling", "pagination", "read_only"],
+    inputSchema: {
+      type: "object",
+      required: ["chunk_id"],
+      properties: {
+        chunk_id: { type: "string" },
+        cursor: { type: "integer", minimum: 0, default: 0 },
+        max_chars: { type: "integer", minimum: 5000, maximum: 150000, default: 45000 },
       },
     },
   },
@@ -211,6 +245,119 @@ function parseJson(value) {
   if (!value) return null;
   if (typeof value === "object") return value;
   try { return JSON.parse(value); } catch { return null; }
+}
+
+function normalizeResponseOptions(value = {}) {
+  const options = value && typeof value === "object" ? value : {};
+  return {
+    maxChars: clampNumber(options.max_chars ?? options.max_response_chars, DEFAULT_TOOL_RESPONSE_MAX_CHARS, 5000, MAX_TOOL_RESPONSE_MAX_CHARS),
+    cursor: clampNumber(options.cursor ?? options.response_cursor, 0, 0, Number.MAX_SAFE_INTEGER),
+  };
+}
+
+function cleanupToolResponseChunkCache(now = Date.now()) {
+  for (const [chunkId, entry] of TOOL_RESPONSE_CHUNK_CACHE.entries()) {
+    if (!entry?.expiresAt || entry.expiresAt <= now) TOOL_RESPONSE_CHUNK_CACHE.delete(chunkId);
+  }
+}
+
+function buildToolResponseChunk({ serialized, chunkId, cursor, maxChars, source = "tool_response_cache" }) {
+  const safeCursor = Math.min(Math.max(0, Number(cursor) || 0), serialized.length);
+  const end = Math.min(safeCursor + maxChars, serialized.length);
+  return {
+    ok: true,
+    response_chunked: true,
+    chunk_id: chunkId,
+    source,
+    page: {
+      cursor: safeCursor,
+      next_cursor: end < serialized.length ? end : null,
+      has_more: end < serialized.length,
+      max_chars: maxChars,
+      returned_chars: end - safeCursor,
+      total_chars: serialized.length,
+    },
+    chunk: serialized.slice(safeCursor, end),
+  };
+}
+
+function storeToolResponseForChunks(body) {
+  cleanupToolResponseChunkCache();
+  const serialized = JSON.stringify(body ?? {});
+  const now = Date.now();
+  const chunkId = crypto.randomUUID();
+  TOOL_RESPONSE_CHUNK_CACHE.set(chunkId, {
+    serialized,
+    createdAt: now,
+    expiresAt: now + TOOL_RESPONSE_CHUNK_TTL_MS,
+  });
+  return { chunkId, serialized };
+}
+
+export function maybeChunkToolResponseBody(body, optionsSource = {}) {
+  const options = normalizeResponseOptions(optionsSource?.response_options || optionsSource?._response || {});
+  const serialized = JSON.stringify(body ?? {});
+  if (serialized.length <= options.maxChars) return body;
+  const { chunkId } = storeToolResponseForChunks(body);
+  return buildToolResponseChunk({
+    serialized,
+    chunkId,
+    cursor: 0,
+    maxChars: options.maxChars,
+    source: "tool_response_auto_chunk",
+  });
+}
+
+export function readCachedToolResponseChunk(args = {}) {
+  const chunkId = String(args.chunk_id || "").trim();
+  if (!chunkId) {
+    const err = new Error("chunk_id is required.");
+    err.status = 400;
+    err.code = "missing_chunk_id";
+    throw err;
+  }
+  cleanupToolResponseChunkCache();
+  const entry = TOOL_RESPONSE_CHUNK_CACHE.get(chunkId);
+  if (!entry) {
+    const err = new Error("response chunk was not found or has expired.");
+    err.status = 404;
+    err.code = "response_chunk_not_found";
+    throw err;
+  }
+  const options = normalizeResponseOptions(args);
+  return buildToolResponseChunk({
+    serialized: entry.serialized,
+    chunkId,
+    cursor: options.cursor,
+    maxChars: options.maxChars,
+    source: "tool_response_cache",
+  });
+}
+
+export function paginateItems(items = [], query = {}) {
+  const cursor = clampNumber(query.cursor ?? query.offset, 0, 0, Number.MAX_SAFE_INTEGER);
+  const limit = clampNumber(query.limit, DEFAULT_TOOL_LIST_LIMIT, 1, MAX_TOOL_LIST_LIMIT);
+  const q = String(query.q || query.query || "").trim().toLowerCase();
+  const tag = String(query.tag || "").trim().toLowerCase();
+  const filtered = items.filter((item) => {
+    const matchesText = !q || [item.name, item.displayName, item.description, item.path]
+      .some((value) => String(value || "").toLowerCase().includes(q));
+    const itemTags = Array.isArray(item.tags) ? item.tags.map((t) => String(t || "").toLowerCase()) : [];
+    const matchesTag = !tag || itemTags.includes(tag);
+    return matchesText && matchesTag;
+  });
+  const pageItems = filtered.slice(cursor, cursor + limit);
+  return {
+    items: pageItems,
+    page: {
+      cursor,
+      limit,
+      next_cursor: cursor + pageItems.length < filtered.length ? cursor + pageItems.length : null,
+      has_more: cursor + pageItems.length < filtered.length,
+      total_count: filtered.length,
+      returned_count: pageItems.length,
+    },
+  };
 }
 
 export function resolveCallerTypeForRequest(req) {
@@ -288,11 +435,16 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
 async function dispatchTool(callerType, toolKey, args, req) {
   assertPreflightAllowed(await evaluateGptToolDispatchPreflight({ callerType, toolKey, args }));
   const result = await dispatchToolImpl(callerType, toolKey, args, req);
+  const responseOptions = args && typeof args === "object" ? args : {};
+  const resultForClient = {
+    ...result,
+    body: maybeChunkToolResponseBody(result?.body, responseOptions),
+  };
   // Best-effort: archive the dispatch as a tool turn so admin GPT sessions get a
   // complete transcript without depending on the GPT calling writeSessionTurn.
   // Errors are logged and swallowed so the tool result still flows through.
-  await recordToolDispatchTurn(req, toolKey, args, result);
-  return result;
+  await recordToolDispatchTurn(req, toolKey, args, resultForClient);
+  return resultForClient;
 }
 
 export function buildInternalToolDispatchHeaders(req, env = process.env) {
@@ -313,6 +465,10 @@ export function buildInternalToolDispatchHeaders(req, env = process.env) {
 async function dispatchToolImpl(callerType, toolKey, args, req) {
   if (callerType === "admin" && toolKey === "repo_inspect") {
     return { status: 200, body: { ok: true, name: toolKey, result: await inspectRepoReadOnly(args) } };
+  }
+
+  if (callerType === "admin" && toolKey === "response_chunk_read") {
+    return { status: 200, body: readCachedToolResponseChunk(args) };
   }
 
   if (callerType === "admin" && toolKey === "repo_patch_apply") {
@@ -628,12 +784,126 @@ async function searchRepoFiles(options) {
   };
 }
 
+function assertSafeGitRef(ref, fallback = "HEAD") {
+  const value = String(ref || fallback).trim() || fallback;
+  if (value.includes("..") || !/^[A-Za-z0-9._/@:+-]+$/.test(value)) {
+    const err = new Error("git ref contains unsupported characters.");
+    err.status = 400;
+    err.code = "repo_git_bad_ref";
+    throw err;
+  }
+  return value;
+}
+
+async function runGitReadOnly(gitArgs, options = {}) {
+  const { root } = resolveRepoInspectPath(".");
+  const maxChars = clampNumber(options.max_chars, 12000, 1000, 50000);
+  try {
+    const { stdout, stderr } = await execFileAsync("git", ["-C", root, ...gitArgs], {
+      timeout: 30_000,
+      maxBuffer: Math.max(1024 * 1024, maxChars * 4),
+    });
+    return {
+      stdout: String(stdout || "").slice(0, maxChars),
+      stderr: String(stderr || "").slice(0, Math.min(maxChars, 4000)),
+      truncated: String(stdout || "").length > maxChars,
+    };
+  } catch (err) {
+    const wrapped = new Error(`git read-only command failed: ${err.message}`);
+    wrapped.status = 502;
+    wrapped.code = "repo_git_command_failed";
+    wrapped.details = {
+      exit_code: err.code,
+      stderr: String(err.stderr || "").slice(0, 4000),
+    };
+    throw wrapped;
+  }
+}
+
+async function gitStatusRepo(args = {}) {
+  const [status, head, branch] = await Promise.all([
+    runGitReadOnly(["status", "--short", "--branch"], args),
+    runGitReadOnly(["rev-parse", "HEAD"], { ...args, max_chars: 2000 }),
+    runGitReadOnly(["rev-parse", "--abbrev-ref", "HEAD"], { ...args, max_chars: 2000 }),
+  ]);
+  return {
+    action: "git_status",
+    root: repoInspectRoot(),
+    head_sha: head.stdout.trim(),
+    branch: branch.stdout.trim(),
+    truncated: status.truncated,
+    status: status.stdout,
+  };
+}
+
+async function gitLogRepo(args = {}) {
+  const limit = clampNumber(args.max_entries ?? args.limit, 20, 1, 100);
+  const gitArgs = ["log", `-n${limit}`, "--date=iso-strict", "--pretty=format:%H%x1f%h%x1f%cI%x1f%an%x1f%s"];
+  if (args.since) gitArgs.push(`--since=${String(args.since)}`);
+  if (args.until) gitArgs.push(`--until=${String(args.until)}`);
+  if (args.file) gitArgs.push("--", validatePatchPath(args.file));
+  const result = await runGitReadOnly(gitArgs, args);
+  const commits = result.stdout.split(/\r?\n/).filter(Boolean).map((line) => {
+    const [sha, short_sha, committed_at, author, subject] = line.split("\x1f");
+    return { sha, short_sha, committed_at, author, subject };
+  });
+  return {
+    action: "git_log",
+    root: repoInspectRoot(),
+    count: commits.length,
+    truncated: result.truncated,
+    commits,
+  };
+}
+
+async function gitShowRepo(args = {}) {
+  const ref = assertSafeGitRef(args.ref || "HEAD", "HEAD");
+  const result = await runGitReadOnly([
+    "show",
+    "--stat",
+    "--patch",
+    "--format=fuller",
+    "--no-ext-diff",
+    ref,
+  ], args);
+  return {
+    action: "git_show",
+    root: repoInspectRoot(),
+    ref,
+    truncated: result.truncated,
+    output: result.stdout,
+  };
+}
+
+async function gitDiffNameStatusRepo(args = {}) {
+  const baseRef = assertSafeGitRef(args.base_ref || "HEAD~1", "HEAD~1");
+  const headRef = assertSafeGitRef(args.head_ref || "HEAD", "HEAD");
+  const result = await runGitReadOnly(["diff", "--name-status", `${baseRef}...${headRef}`], args);
+  const files = result.stdout.split(/\r?\n/).filter(Boolean).map((line) => {
+    const [status, ...rest] = line.split(/\s+/);
+    return { status, path: rest.join(" ") };
+  });
+  return {
+    action: "git_diff_name_status",
+    root: repoInspectRoot(),
+    base_ref: baseRef,
+    head_ref: headRef,
+    count: files.length,
+    truncated: result.truncated,
+    files,
+  };
+}
+
 export async function inspectRepoReadOnly(args = {}) {
   const action = String(args.action || "list").trim().toLowerCase();
   if (action === "list") return listRepoEntries(args.path || ".", args);
   if (action === "read") return readRepoFile(args.path, args);
   if (action === "search") return searchRepoFiles(args);
-  const err = new Error("action must be one of: list, read, search.");
+  if (action === "git_status") return gitStatusRepo(args);
+  if (action === "git_log") return gitLogRepo(args);
+  if (action === "git_show") return gitShowRepo(args);
+  if (action === "git_diff_name_status") return gitDiffNameStatusRepo(args);
+  const err = new Error("action must be one of: list, read, search, git_status, git_log, git_show, git_diff_name_status.");
   err.status = 400;
   err.code = "repo_inspect_bad_action";
   throw err;
@@ -1123,7 +1393,16 @@ export function buildGptToolsRoutes(deps) {
     try {
       const callerType = resolveCallerType(req);
       const tools = await fetchTools(callerType);
-      return res.status(200).json({ ok: true, caller_type: callerType, count: tools.length, tools });
+      const { items, page } = paginateItems(tools, req.query || {});
+      const body = {
+        ok: true,
+        caller_type: callerType,
+        count: tools.length,
+        returned_count: items.length,
+        page,
+        tools: items,
+      };
+      return res.status(200).json(maybeChunkToolResponseBody(body, { response_options: req.query || {} }));
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "tools_list_failed", message: err.message } });
     }
