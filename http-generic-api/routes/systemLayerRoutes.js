@@ -357,11 +357,38 @@ async function listPlatformEndpointToolsForPrincipal(auth, existingNames = new S
   }
 }
 
+function isTenantRegistryToolAllowedInSystemFacade(tool = {}) {
+  const name = String(tool.name || "").trim();
+  if (!name || name.startsWith("system_tools_")) return false;
+  const pathValue = String(tool.path || "").trim();
+  if (pathValue === "/system/tools" || pathValue === "/system/tools/call") return false;
+  return true;
+}
+
+async function listTenantEndpointRegistryToolsForPrincipal(auth, existingNames = new Set()) {
+  if (isAdminPrincipal(auth)) return [];
+  try {
+    const tools = await fetchToolsForCaller("tenant");
+    return tools
+      .filter((tool) => isTenantRegistryToolAllowedInSystemFacade(tool))
+      .filter((tool) => !existingNames.has(tool.name))
+      .map((tool) => ({
+        ...tool,
+        source: "tenant_platform_endpoint_tools",
+      }));
+  } catch (err) {
+    console.error("[systemLayerTools] Failed to list tenant endpoint registry tools:", err?.message || err);
+    return [];
+  }
+}
+
 async function toolsForPrincipalWithPlatformEndpoints(auth) {
   const baseTools = toolsForPrincipal(auth);
   const existingNames = new Set(baseTools.map((tool) => tool.name));
+  const tenantTools = await listTenantEndpointRegistryToolsForPrincipal(auth, existingNames);
+  for (const tool of tenantTools) existingNames.add(tool.name);
   const platformTools = await listPlatformEndpointToolsForPrincipal(auth, existingNames);
-  return [...baseTools, ...platformTools];
+  return [...baseTools, ...tenantTools, ...platformTools];
 }
 
 async function callRuntimeEndpointViaFacade(payload, deps = {}) {
