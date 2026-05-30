@@ -669,7 +669,9 @@ function assertGithubContentsWritePathAllowed(apiTarget = "") {
 }
 
 function githubContentsMutationAllowed(apiTarget = "", method = "GET") {
-  return ["PUT", "DELETE"].includes(String(method || "").toUpperCase()) && String(apiTarget || "").startsWith("/contents/");
+  // The REST fallback is intended for governed content writes only. Destructive
+  // deletes must use a separate approval-gated route, not this fallback path.
+  return String(method || "").toUpperCase() === "PUT" && String(apiTarget || "").startsWith("/contents/");
 }
 
 async function githubRestJson({ owner, repo, apiPath, token, method = "GET", body = null }) {
