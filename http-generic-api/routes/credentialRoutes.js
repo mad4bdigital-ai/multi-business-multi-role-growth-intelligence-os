@@ -259,8 +259,10 @@ export function buildCredentialRoutes(deps) {
   // /connect wrappers, and governance diagnostics.
   router.post("/credentials/effective/status", async (req, res) => {
     try {
-      const credential = await getEffectiveCredentialStatus(req.body || {});
-      res.json({ ok: true, credential });
+      const input = req.body || {};
+      const credential = await getEffectiveCredentialStatus(input);
+      const intake = await maybeCreateCredentialIntakeRequirement(input, credential, { req });
+      res.json({ ok: true, credential, ...(intake ? { intake } : {}) });
     } catch (err) {
       res.status(500).json({ ok: false, error: { code: err.code || "credential_status_failed", message: err.message } });
     }
