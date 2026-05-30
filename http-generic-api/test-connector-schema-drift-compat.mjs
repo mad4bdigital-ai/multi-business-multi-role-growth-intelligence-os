@@ -44,8 +44,8 @@ assert(proxySource.includes('connectorLocalApiKeySelectFragment'), 'proxy config
 assert(proxySource.includes('LOWER(alias_device_id) = ?'), 'device aliases must resolve case-insensitively');
 assert(proxySource.includes("tenant_id = '00000000-0000-0000-0000-000000000000'"), 'alias resolution must support platform/global tenant aliases');
 assert(agentSource.includes('connectorAuthPredicateForToken(token)'), 'agent policy/heartbeat auth must not hard-reference optional local key column');
-assert(agentSource.includes('NULL AS connector_local_api_key'), 'agent installer SELECT must have optional local key fallback');
+assert(agentSource.includes('connectorLocalApiKeySelectFragment'), 'agent installer SELECT must use the optional local key select helper');
 assert(installSource.includes('connectorLocalApiKeyColumnSupported'), 'install route must branch writes based on optional column availability');
-assert(installSource.includes('NULL AS connector_local_api_key'), 'install route SELECT must have optional local key fallback');
+assert(installSource.includes('connectorLocalApiKeySelectFragment'), 'install route SELECT must use the optional local key select helper');
 
 console.log('connector schema drift compatibility tests passed');
