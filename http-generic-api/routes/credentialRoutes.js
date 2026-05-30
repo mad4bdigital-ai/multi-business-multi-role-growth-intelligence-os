@@ -396,6 +396,87 @@ export function buildCredentialRoutes(deps) {
     }
   });
 
+  // Promote an intake-created connection secret into the local connector registry.
+  // This is intentionally narrow: it only writes connector_local_api_key for one
+  // user/tenant/device config and never returns the decrypted secret.
+  router.post("/credentials/intake/promote-local-connector-key", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const tenantId = str(body.tenant_id || body.tenantId);
+      const userId = str(body.user_id || body.userId);
+      const deviceId = str(body.device_id || body.deviceId);
+      const connectionId = str(body.connection_id || body.connectionId);
+      const credentialField = str(body.credential_field || body.credentialField || "api_key");
+      const targetField = str(body.target_field || body.targetField || "connector_local_api_key");
+      const createdBy = str(body.created_by || body.createdBy || "credential_intake_local_connector_key_promotion");
+
+      if (targetField !== "connector_local_api_key") {
+        return res.status(400).json({ ok: false, error: { code: "unsupported_target_field", message: "Only connector_local_api_key is supported." }, secrets_included: false });
+      }
+      if (!tenantId || !userId || !deviceId || !connectionId) {
+        return res.status(400).json({ ok: false, error: { code: "promotion_fields_required", message: "tenant_id, user_id, device_id, and connection_id are required." }, secrets_included: false });
+      }
+
+      const pool = getPool();
+      const [connections] = await pool.query(
+        `SELECT connection_id, user_id, tenant_id, app_key, auth_type, encrypted_credentials, status, validation_status
+           FROM user_app_connections
+          WHERE connection_id = ? AND user_id = ? AND tenant_id = ?
+          LIMIT 1`,
+        [connectionId, userId, tenantId]
+      );
+      const connection = connections[0];
+      if (!connection || connection.status !== "active" || !connection.encrypted_credentials) {
+        return res.status(400).json({ ok: false, error: { code: "active_intake_connection_required", message: "An active encrypted intake connection is required." }, secrets_included: false });
+      }
+
+      const credentials = decryptCredentials(connection.encrypted_credentials) || {};
+      const candidateFields = [credentialField, "connector_local_api_key", "api_key", "bearer_token", "token", "key"];
+      const value = candidateFields.map((field) => str(credentials[field])).find(Boolean);
+      if (!value) {
+        return res.status(400).json({ ok: false, error: { code: "intake_secret_field_missing", message: "No usable secret field was found on the intake connection." }, fields_checked: [...new Set(candidateFields)], secrets_included: false });
+      }
+
+      const hash = sha256(value);
+      const [updateResult] = await pool.query(
+        `UPDATE local_connector_user_configs
+            SET connector_local_api_key = ?, updated_at = NOW()
+          WHERE user_id = ?
+            AND tenant_id = ?
+            AND device_id = ?
+            AND is_enabled = 1
+          LIMIT 1`,
+        [value, userId, tenantId, deviceId]
+      );
+      if (!updateResult?.affectedRows) {
+        return res.status(404).json({ ok: false, error: { code: "active_local_connector_config_not_found", message: "No enabled local connector config matched the requested user/tenant/device." }, secrets_included: false });
+      }
+
+      await pool.query(
+        `UPDATE user_app_connections
+            SET validation_status = 'promoted_to_local_connector_registry', last_used_at = NOW()
+          WHERE connection_id = ?`,
+        [connectionId]
+      ).catch(() => {});
+
+      return res.json({
+        ok: true,
+        target: "local_connector_user_configs.connector_local_api_key",
+        user_id: userId,
+        tenant_id: tenantId,
+        device_id: deviceId,
+        connection_id: connectionId,
+        value_sha256: hash,
+        promoted_by: createdBy,
+        updated_rows: updateResult.affectedRows,
+        next_actions: ["repair_or_restart_local_connector_to_materialize_CONNECTOR_LOCAL_API_KEY", "validate_connector_policy_local_api_key_alias_enabled", "validate_direct_connector_fallback"],
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: err.code || "local_connector_key_promotion_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   // Promote a private connection credential into a tenant-owned binding. This
   // creates a pointer binding only; it never copies, decrypts, or returns secret
   // values. V1 intentionally supports tenant-owned promotion only.
