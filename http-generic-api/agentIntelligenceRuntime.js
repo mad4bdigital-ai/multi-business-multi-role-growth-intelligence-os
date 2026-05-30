@@ -195,16 +195,23 @@ function matchesTool(row, query, tags, riskClass) {
 async function loadDbToolRows(pool) {
   const [indexed] = await pool.query(
     `SELECT tool_key, display_name, source_truth_resource_type, source_truth_resource_key,
-            risk_class, deferred_search_tags_json AS tags, status
+            tool_manifest_json, risk_class, deferred_search_tags_json AS tags, status
        FROM agent_tool_index
       WHERE status = 'active'
       ORDER BY tool_key ASC
       LIMIT 500`
   ).catch(() => [[]]);
-  if (indexed.length > 0) return indexed.map((row) => ({
-    ...row,
-    tags: typeof row.tags === "string" ? JSON.parse(row.tags || "[]") : row.tags,
-  }));
+  if (indexed.length > 0) return indexed.map((row) => {
+    const manifest = safeJsonParse(row.tool_manifest_json, {});
+    return {
+      ...row,
+      display_name: row.display_name || manifest.display_name,
+      description: manifest.description || row.description || "",
+      http_method: manifest.http_method || row.http_method || "",
+      http_path: manifest.http_path || row.http_path || "",
+      tags: typeof row.tags === "string" ? JSON.parse(row.tags || "[]") : row.tags,
+    };
+  });
 
   const [adminTools] = await pool.query(
     `SELECT tool_key, display_name, description, http_method, http_path, tags
