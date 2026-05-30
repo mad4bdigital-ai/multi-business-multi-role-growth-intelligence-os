@@ -4,6 +4,10 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto
 import { decryptCredentials } from "../tokenEncryption.js";
 import { normalizeConnectionMode } from "../activationModePolicy.js";
 import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkService.js";
+import {
+  connectorLocalApiKeySelectFragment,
+  hasConnectorLocalApiKeyColumn,
+} from "../connectorSchemaCompatibility.js";
 
 const CF_API = "https://api.cloudflare.com/client/v4";
 const CONNECTOR_PORT = 7070;
