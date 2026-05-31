@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { extractMigrationReadinessRequirementsFromSql } from "./releaseReadiness.js";
+import {
+  classifyMigrationDriftMissing,
+  extractMigrationReadinessRequirementsFromSql,
+  extractNamedToolKeysFromSource,
+} from "./releaseReadiness.js";
 
 const sampleSql = `
 CREATE TABLE IF NOT EXISTS platform_resource_authority_requirements (
