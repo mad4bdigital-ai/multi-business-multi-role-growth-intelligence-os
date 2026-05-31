@@ -600,6 +600,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     platform_tables_ok: Object.values(report.platform_tables).filter((c) => c.status === "pass").length,
     migration_drift_missing_total: report.migration_drift?.missing_total ?? null,
     migration_drift_files_scanned: report.migration_drift?.files_scanned ?? 0,
+    migration_drift_classification_counts: report.migration_drift?.missing_classification?.counts || {},
     graph_memory_resolved: Boolean(report.graph_memory_diagnostics?.resolved),
     graph_memory_asset_count: Number(report.graph_memory_diagnostics?.asset_count || 0),
     secrets_included: false,
