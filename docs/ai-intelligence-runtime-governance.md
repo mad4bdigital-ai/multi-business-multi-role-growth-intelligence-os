@@ -203,6 +203,8 @@ Still pending:
 - separate apply executor
 - validator result log table
 - failure taxonomy table
+- recovery / retry / conflict handling registry
+- resource authority gate for tenant, user, brand, and external writes
 - policy update proposal workflow
 - automated lifecycle report snapshots
 - tenant-safe read-only projection where needed
@@ -217,3 +219,23 @@ Still pending:
 - Do not let model output override hard gates.
 - Add tests for behavior changes.
 - Update docs when surfaces, policies, or contracts change.
+
+## Related recovery and resource authority checkpoint
+
+The broader governance checkpoint is documented in `docs/platform-governance-recovery-resource-authority-2026-05-31.md`. It promotes recovery handling and resource authority to first-class platform layers:
+
+```text
+Evidence
+  -> Recovery / Retry / Conflict Handling
+    -> Certification / Checkpoint
+```
+
+and:
+
+```text
+Policy
+  -> Resource Authority
+    -> Export
+```
+
+Any future apply executor must enforce both: it must recover from known failure classes with evidence, and it must block writes to tenant, user, brand, or external resources until resource resolution, ownership claim, active grant, scoped credential, audit, and readback requirements are satisfied.
