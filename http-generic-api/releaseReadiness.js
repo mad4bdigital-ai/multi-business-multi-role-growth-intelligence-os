@@ -459,6 +459,12 @@ async function checkDynamicMigrationDrift() {
     + registry_tables_missing.length;
   const replacement_surfaces = await readMigrationDriftReplacementSurfacesSafe();
   const missing_classification = classifyMigrationDriftMissing(missing, replacement_surfaces);
+  const missing_source_samples = sourceSamplesForMissing(missing, migrationLoad.artifact_sources, 25);
+  const migration_apply_plan = buildMigrationDriftApplyPlan(
+    missing,
+    missing_classification,
+    migrationLoad.artifact_sources
+  );
 
   return {
     status: missing_total > 0 ? "warn" : "pass",
