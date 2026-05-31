@@ -334,3 +334,124 @@ export async function listPlatformEngineRuns({ engine_key = "", task_class = "",
     params
   );
 }
+
+function boundedExcerpt(value = "", maxLength = 4000) {
+  const text = String(value || "");
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}...[truncated:${text.length}]`;
+}
+
+function normalizeValidatorStatus(value = "blocked") {
+  const status = String(value || "blocked").trim().toLowerCase();
+  if (["passed", "failed", "skipped", "blocked"].includes(status)) return status;
+  const err = new Error("validator status must be passed, failed, skipped, or blocked.");
+  err.status = 400;
+  err.code = "platform_engine_validator_status_invalid";
+  throw err;
+}
+
+function requireValidatorField(value, field) {
+  const text = String(value || "").trim();
+  if (!text) {
+    const err = new Error(`${field} is required.`);
+    err.status = 400;
+    err.code = `${field}_required`;
+    throw err;
+  }
+  return text;
+}
+
+export async function writePlatformEngineValidatorResult(input = {}, deps = {}) {
+  const pool = deps.pool || getPool();
+  const resultId = input.result_id || randomUUID();
+  const status = normalizeValidatorStatus(input.status);
+  const engineKey = requireValidatorField(input.engine_key, "engine_key");
+  const taskClass = requireValidatorField(input.task_class, "task_class");
+  const validatorCommand = requireValidatorField(input.validator_command, "validator_command");
+
+  await pool.query(
+    `INSERT INTO platform_engine_validator_result_log (
+       result_id, run_id, run_key, engine_key, task_class, resource_key, resource_kind,
+       validator_key, validator_command, status, exit_code, duration_ms, output_excerpt,
+       error_excerpt, evidence_json, artifact_refs_json, policy_key, strategy_key,
+       trace_id, actor_id, tenant_id
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       run_id = VALUES(run_id),
+       run_key = VALUES(run_key),
+       engine_key = VALUES(engine_key),
+       task_class = VALUES(task_class),
+       resource_key = VALUES(resource_key),
+       resource_kind = VALUES(resource_kind),
+       validator_key = VALUES(validator_key),
+       validator_command = VALUES(validator_command),
+       status = VALUES(status),
+       exit_code = VALUES(exit_code),
+       duration_ms = VALUES(duration_ms),
+       output_excerpt = VALUES(output_excerpt),
+       error_excerpt = VALUES(error_excerpt),
+       evidence_json = VALUES(evidence_json),
+       artifact_refs_json = VALUES(artifact_refs_json),
+       policy_key = VALUES(policy_key),
+       strategy_key = VALUES(strategy_key),
+       trace_id = VALUES(trace_id),
+       actor_id = VALUES(actor_id),
+       tenant_id = VALUES(tenant_id)`,
+    [
+      resultId,
+      input.run_id || null,
+      input.run_key || null,
+      engineKey,
+      taskClass,
+      input.resource_key || input.resource?.path || input.resource?.key || null,
+      input.resource_kind || input.resource?.kind || null,
+      input.validator_key || null,
+      validatorCommand,
+      status,
+      Number.isFinite(Number(input.exit_code)) ? Number(input.exit_code) : null,
+      Number.isFinite(Number(input.duration_ms)) ? Number(input.duration_ms) : null,
+      boundedExcerpt(input.output_excerpt || input.stdout || ""),
+      boundedExcerpt(input.error_excerpt || input.stderr || ""),
+      stringifyAuditJson(input.evidence || input.evidence_json || {}),
+      stringifyAuditJson(input.artifact_refs || input.artifact_refs_json || []),
+      input.policy_key || null,
+      input.strategy_key || null,
+      input.trace_id || null,
+      input.actor_id || input.requested_by || null,
+      input.tenant_id || null,
+    ]
+  );
+
+  return { result_id: resultId, status };
+}
+
+export async function listPlatformEngineValidatorResults({ engine_key = "", task_class = "", run_id = "", status = "", limit = 50 } = {}, deps = {}) {
+  const pool = deps.pool || getPool();
+  const where = [];
+  const params = [];
+  if (engine_key) {
+    where.push("engine_key = ?");
+    params.push(engine_key);
+  }
+  if (task_class) {
+    where.push("task_class = ?");
+    params.push(task_class);
+  }
+  if (run_id) {
+    where.push("run_id = ?");
+    params.push(run_id);
+  }
+  if (status) {
+    where.push("status = ?");
+    params.push(normalizeValidatorStatus(status));
+  }
+  params.push(Math.max(1, Math.min(Number(limit) || 50, 250)));
+  return queryRows(
+    pool,
+    `SELECT * FROM platform_engine_validator_result_log
+     ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+     ORDER BY created_at DESC
+     LIMIT ?`,
+    params
+  );
+}

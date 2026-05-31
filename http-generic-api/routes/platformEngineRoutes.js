@@ -8,11 +8,13 @@ import {
   checkPlatformEngineCapability,
   createPlatformEngineExecutionEnvelope,
   listPlatformEngineRuns,
+  listPlatformEngineValidatorResults,
   listPlatformEngines,
   planPlatformEngineTask,
   resolvePlatformEngineTaskIntent,
   summarizePlatformEngineFeedback,
   writePlatformEngineRun,
+  writePlatformEngineValidatorResult,
 } from "../platformEngineRegistry.js";
 
 function requireString(value, field) {
@@ -165,6 +167,30 @@ export function buildPlatformEngineRoutes(deps = {}) {
       res.json({ ok: true, feedback });
     } catch (error) {
       res.status(error.status || 500).json({ ok: false, error: { code: error.code || "platform_engine_feedback_summary_failed", message: error.message } });
+    }
+  });
+
+  router.get("/platform/engines/validator-results", ...requireAdmin, async (req, res) => {
+    try {
+      const results = await listPlatformEngineValidatorResults({
+        engine_key: req.query.engine_key,
+        task_class: req.query.task_class,
+        run_id: req.query.run_id,
+        status: req.query.status,
+        limit: req.query.limit,
+      }, deps);
+      res.json({ ok: true, results });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "platform_engine_validator_results_failed", message: error.message } });
+    }
+  });
+
+  router.post("/platform/engines/validator-results", ...requireAdmin, async (req, res) => {
+    try {
+      const result = await writePlatformEngineValidatorResult(req.body || {}, deps);
+      res.json({ ok: true, result, evidence_only: true, validators_executed_by_route: false, apply_executed: false });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "platform_engine_validator_result_log_failed", message: error.message } });
     }
   });
 
