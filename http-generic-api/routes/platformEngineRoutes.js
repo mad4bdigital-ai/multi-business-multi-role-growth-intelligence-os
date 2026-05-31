@@ -133,6 +133,27 @@ export function buildPlatformEngineRoutes(deps = {}) {
     }
   });
 
+  router.get("/platform/engines/database-table-lifecycle/report-snapshots", ...requireAdmin, async (req, res) => {
+    try {
+      const snapshots = await listDatabaseLifecycleReportSnapshots({
+        report_key: req.query.report_key,
+        limit: req.query.limit,
+      }, deps);
+      res.json({ ok: true, snapshots });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_report_snapshots_failed", message: error.message } });
+    }
+  });
+
+  router.post("/platform/engines/database-table-lifecycle/report-snapshots", ...requireAdmin, async (req, res) => {
+    try {
+      const snapshot = await createDatabaseLifecycleReportSnapshot(req.body || {}, deps);
+      res.json({ ok: true, snapshot, evidence_only: true, cleanup_executed: false, archive_executed: false, destructive_action_executed: false });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_report_snapshot_create_failed", message: error.message } });
+    }
+  });
+
   router.post("/platform/engines/capability-check", ...requireAdmin, async (req, res) => {
     try {
       const input = {
