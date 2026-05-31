@@ -270,6 +270,51 @@ export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces 
   };
 }
 
+export function buildMigrationDriftApplyPlan(missing = {}, missingClassification = {}, artifactSources = {}) {
+  const applySurfaces = [
+    "schema_objects",
+    "engines",
+    "engine_policies",
+    "engine_strategies",
+    "engine_rules",
+    "engine_skills",
+  ];
+  const candidateFiles = new Set();
+  const candidatesBySurface = {};
+  for (const surface of applySurfaces) {
+    const itemKeys = missingClassification?.classification?.[surface]?.migration_apply_candidate || [];
+    candidatesBySurface[surface] = compactList(itemKeys, 10000).map((item_key) => {
+      const source_files = sourceFilesFor(artifactSources, surface, item_key, 20);
+      for (const file of source_files) candidateFiles.add(file);
+      return { item_key, source_files };
+    });
+  }
+  const adminToolReview = compactList(
+    missingClassification?.classification?.admin_tools?.missing_required_runtime_artifact || [],
+    10000
+  ).map((item_key) => ({
+    item_key,
+    source_files: sourceFilesFor(artifactSources, "admin_tools", item_key, 20),
+    recommended_action: "review_registry_tool_surface_or_reseed_specific_tool",
+  }));
+  for (const item of adminToolReview) {
+    for (const file of item.source_files) candidateFiles.add(file);
+  }
+  return {
+    mode: "dry_run",
+    applies_sql: false,
+    candidate_files: compactList([...candidateFiles], 100),
+    candidates_by_surface: candidatesBySurface,
+    admin_tool_review: adminToolReview,
+    notes: [
+      "This plan is diagnostic only; no SQL was applied.",
+      "Schema and engine artifacts are migration apply candidates.",
+      "Admin tools marked missing_required_runtime_artifact need registry-surface review before reseeding.",
+    ],
+    secrets_included: false,
+  };
+}
+
 function mergeMigrationRequirements(target, source) {
   for (const [key, values] of Object.entries(source || {})) {
     if (!Array.isArray(values)) continue;
