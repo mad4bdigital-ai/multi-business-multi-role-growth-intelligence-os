@@ -127,12 +127,66 @@ function extractFirstColumnInsertKeys(sql = "", tableName = "") {
     const valuesIndex = statement.search(/\bVALUES\b/i);
     if (valuesIndex === -1) continue;
     const valuesPart = statement.slice(valuesIndex);
-    const tupleKeyRegex = /\(\s*'((?:''|[^'])+)'/g;
-    for (const tupleMatch of valuesPart.matchAll(tupleKeyRegex)) {
-      if (tupleMatch?.[1]) keys.add(unescapeSqlString(tupleMatch[1]));
+    for (const tuple of extractTopLevelSqlTuples(valuesPart)) {
+      const firstValue = firstSqlStringValue(tuple);
+      if (firstValue) keys.add(firstValue);
     }
   }
   return [...keys];
+}
+
+function extractTopLevelSqlTuples(sql = "") {
+  const tuples = [];
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  for (let i = 0; i < sql.length; i += 1) {
+    const ch = sql[i];
+    if (inString) {
+      if (ch === "'" && sql[i + 1] === "'") {
+        i += 1;
+      } else if (ch === "'") {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === "'") {
+      inString = true;
+      continue;
+    }
+    if (ch === "(") {
+      if (depth === 0) start = i;
+      depth += 1;
+      continue;
+    }
+    if (ch === ")" && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start !== -1) {
+        tuples.push(sql.slice(start, i + 1));
+        start = -1;
+      }
+    }
+  }
+  return tuples;
+}
+
+function firstSqlStringValue(tuple = "") {
+  let i = 1;
+  while (i < tuple.length && /\s/.test(tuple[i])) i += 1;
+  if (tuple[i] !== "'") return null;
+  i += 1;
+  let value = "";
+  for (; i < tuple.length; i += 1) {
+    const ch = tuple[i];
+    if (ch === "'" && tuple[i + 1] === "'") {
+      value += "'";
+      i += 1;
+      continue;
+    }
+    if (ch === "'") return value;
+    value += ch;
+  }
+  return null;
 }
 
 function mergeMigrationRequirements(target, source) {
