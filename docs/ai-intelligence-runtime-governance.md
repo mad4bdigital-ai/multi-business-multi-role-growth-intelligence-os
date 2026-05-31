@@ -101,6 +101,29 @@ Not allowed in this phase:
 - PR merge
 - external write
 
+### `resource_authority_engine`
+
+Current state: active for read-only authority readiness planning.
+
+The foundation is documented in `docs/resource-authority-registry-foundation.md`.
+
+Allowed in this phase:
+
+- resource authority checks
+- publish readiness planning
+- external-write readiness planning
+- credential scope classification
+- active grant readiness classification
+
+Not allowed in this phase:
+
+- publish
+- external write
+- repo patch apply
+- workflow activation
+- local connector config write
+- secret reads
+
 ### `repo_conflict_resolution_engine`
 
 Current state: active for diagnose, dry-run planning, and apply-readiness envelopes.
