@@ -127,6 +127,10 @@ const binding = normalizeBrowserRuntimeBinding({
   assert(routes.includes("/browser-runtime/policy-check"), "policy check route must exist");
   assert(routes.includes("/browser-runtime/extract-data"), "extract data route must exist");
   assert(routes.includes("/browser-runtime/inspect-site"), "inspect site route must exist");
+  assert(routes.includes("/browser-runtime/visual-takeover/sessions"), "managed visual takeover session create route must exist");
+  assert(routes.includes("/browser-runtime/visual-takeover/sessions/:session_id"), "managed visual takeover session read route must exist");
+  assert(routes.includes("/browser-runtime/visual-takeover/sessions/:session_id/close"), "managed visual takeover session close route must exist");
+  assert(routes.includes("raw_novnc_public_exposure_forbidden"), "managed session route must forbid raw noVNC exposure");
   assert(routes.includes("requireAdminPrincipal"), "browser runtime routes must be admin protected");
 }
 
