@@ -12,6 +12,9 @@ assert(connector.includes('AUTO_BROWSER_BASE_URL'), 'local connector must define
 assert(connector.includes("http://127.0.0.1:8000"), 'Auto Browser controller default must match upstream API port 8000');
 assert(agent.includes('AUTO_BROWSER_BASE_URL: "http://127.0.0.1:8000"'), 'Auto Browser manifest must match upstream API port 8000');
 assert(agent.includes('AUTO_BROWSER_BASE_URL=http://127.0.0.1:8000'), 'Auto Browser installer env must match upstream API port 8000');
+assert(connector.includes("AUTO_BROWSER_HEALTH_PATH = process.env.AUTO_BROWSER_HEALTH_PATH ?? '/healthz'"), 'Auto Browser connector default health probe must use /healthz');
+assert(agent.includes('AUTO_BROWSER_HEALTH_PATH: "/healthz"'), 'Auto Browser manifest must use /healthz');
+assert(agent.includes('AUTO_BROWSER_HEALTH_PATH=/healthz'), 'Auto Browser installer env must use /healthz');
 assert(!connector.includes('http://127.0.0.1:7331'), 'Auto Browser connector must not use stale default port 7331');
 assert(!agent.includes('http://127.0.0.1:7331'), 'Auto Browser manifest/installer must not use stale default port 7331');
 assert(connector.includes('AUTO_BROWSER_ALLOWED_HOSTS'), 'local connector must define Auto Browser host allowlist');
