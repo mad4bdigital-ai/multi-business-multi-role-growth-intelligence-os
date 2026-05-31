@@ -279,6 +279,47 @@ function mergeMigrationRequirements(target, source) {
   return target;
 }
 
+function emptyMigrationArtifactSourceMap() {
+  return {
+    schema_objects: {},
+    admin_tools: {},
+    tenant_tools: {},
+    engines: {},
+    engine_policies: {},
+    engine_strategies: {},
+    engine_rules: {},
+    engine_skills: {},
+  };
+}
+
+function noteMigrationRequirementSources(target, requirements, filename) {
+  for (const [surface, values] of Object.entries(requirements || {})) {
+    if (!Array.isArray(values)) continue;
+    if (!target[surface]) target[surface] = {};
+    for (const value of values) {
+      if (!value) continue;
+      if (!target[surface][value]) target[surface][value] = [];
+      target[surface][value].push(filename);
+    }
+  }
+  return target;
+}
+
+function sourceFilesFor(artifactSources = {}, surface = "", itemKey = "", limit = 10) {
+  return compactList(artifactSources?.[surface]?.[itemKey] || [], limit);
+}
+
+function sourceSamplesForMissing(missing = {}, artifactSources = {}, limit = 25) {
+  return Object.fromEntries(
+    Object.entries(missing).map(([surface, values]) => [
+      surface,
+      Object.fromEntries(
+        compactList(values, limit).map((itemKey) => [itemKey, sourceFilesFor(artifactSources, surface, itemKey, 10)])
+      ),
+    ])
+  );
+}
+
 async function readDynamicMigrationRequirements({ migrationsDir = MIGRATIONS_DIR } = {}) {
   const entries = await fs.readdir(migrationsDir, { withFileTypes: true });
   const files = entries
