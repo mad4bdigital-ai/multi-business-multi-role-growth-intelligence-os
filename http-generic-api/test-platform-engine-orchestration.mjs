@@ -13,6 +13,7 @@ import {
   planPolicyDrivenEngineTask,
   resolvePlatformEngineIntent,
   summarizePlatformEngineOutcomeFeedback,
+  validatePlatformEngineAuditEvidenceShape,
 } from "./platformEngineOrchestration.js";
 import fs from "node:fs";
 
@@ -110,6 +111,7 @@ assert(engineRoutes.includes('router.post("/platform/engines/database-table-life
 assert(engineRoutes.includes('router.post("/platform/engines/capability-check"'));
 assert(engineRoutes.includes('router.get("/platform/engines/feedback-summary"'));
 assert(engineRoutes.includes('router.post("/platform/engines/execution-envelope"'));
+assert(engineRoutes.includes("audit_evidence"));
 assert(engineRoutes.includes("write_audit"));
 assert(!engineRoutes.includes('router.post("/platform/engines/task-apply"'), "apply route must not exist in this phase");
 assert(!/router\.(delete|put|patch)\(/.test(engineRoutes), "platform engine routes must expose only read/plan GET+POST surfaces");
@@ -236,6 +238,19 @@ const skills = [
     status: "active",
   },
 ];
+
+const validAuditEvidence = {
+  trace_id: "trace_platform_engine_test",
+  actor_id: "tester",
+  decision_evidence: ["policy_matched", "validators_present", "scope_guard_passed"],
+};
+
+assert.equal(validatePlatformEngineAuditEvidenceShape(validAuditEvidence).ok, true);
+assert.equal(validatePlatformEngineAuditEvidenceShape({
+  trace_id: "trace_platform_engine_test",
+  decision_evidence: ["policy_matched"],
+  token: "must-not-pass",
+}).ok, false);
 
 const readyCapability = evaluatePlatformEngineCapability({
   engine_key: "repo_conflict_resolution_engine",
@@ -395,6 +410,7 @@ const decisionBrief = await buildPlatformEngineDecisionBrief({
   resource_key: "http-generic-api/package.json",
   mode: "apply_allowed",
   scope_guard_passed: true,
+  audit_evidence: validAuditEvidence,
 }, { pool: makeEngineBriefPool() });
 
 assert.equal(decisionBrief.ok, true);
@@ -481,12 +497,37 @@ assert(packagePlan.skills[0].forbidden_tools.includes("git push"));
 const readyEnvelope = buildPlatformEngineExecutionEnvelope(packagePlan, {
   mode: "apply_allowed",
   scope_guard_passed: true,
+  audit_evidence: validAuditEvidence,
 });
 assert.equal(readyEnvelope.can_apply, true);
 assert.equal(readyEnvelope.will_execute, false);
 assert.equal(readyEnvelope.no_repo_mutation, true);
 assert.equal(readyEnvelope.required_controls.readback_required, true);
+assert.equal(readyEnvelope.required_controls.audit_evidence_required, true);
+assert.equal(readyEnvelope.required_controls.audit_evidence_satisfied, true);
 assert.equal(readyEnvelope.next_step, "ready_for_separate_governed_apply_route");
+
+const missingAuditEvidenceEnvelope = buildPlatformEngineExecutionEnvelope(packagePlan, {
+  mode: "apply_allowed",
+  scope_guard_passed: true,
+});
+assert.equal(missingAuditEvidenceEnvelope.can_apply, false);
+assert.equal(missingAuditEvidenceEnvelope.required_controls.audit_evidence_required, true);
+assert.equal(missingAuditEvidenceEnvelope.required_controls.audit_evidence_satisfied, false);
+assert(missingAuditEvidenceEnvelope.blockers.includes("audit_evidence_required"));
+
+const sensitiveAuditEvidenceEnvelope = buildPlatformEngineExecutionEnvelope(packagePlan, {
+  mode: "apply_allowed",
+  scope_guard_passed: true,
+  audit_evidence: {
+    trace_id: "trace_platform_engine_test",
+    decision_evidence: ["policy_matched"],
+    credential_value: "must-not-pass",
+  },
+});
+assert.equal(sensitiveAuditEvidenceEnvelope.can_apply, false);
+assert(sensitiveAuditEvidenceEnvelope.blockers.includes("audit_evidence_required"));
+assert(sensitiveAuditEvidenceEnvelope.audit_evidence_validation.blockers.includes("audit_evidence_contains_sensitive_keys"));
 
 const missingResourceAuthorityPlan = planPolicyDrivenEngineTask({
   engine_key: "repo_conflict_resolution_engine",
@@ -545,6 +586,7 @@ const satisfiedResourceAuthorityEnvelope = buildPlatformEngineExecutionEnvelope(
   scope_guard_passed: true,
   resource_authority_required: true,
   resource_authority_passed: true,
+  audit_evidence: validAuditEvidence,
 });
 assert.equal(satisfiedResourceAuthorityEnvelope.can_apply, true);
 assert.equal(satisfiedResourceAuthorityEnvelope.required_controls.resource_authority_required, true);

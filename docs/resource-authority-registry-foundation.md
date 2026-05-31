@@ -109,6 +109,8 @@ If authority is required but not satisfied, the envelope returns:
 
 This is still readiness only. The envelope does not execute, mutate repo state, publish content, or write to an external system.
 
+The same envelope also requires audit evidence shape before `can_apply` can become true. Evidence must include a traceable subject such as `trace_id`, `run_id`, or `actor_id`, include decision evidence or control evidence, and avoid secret-like fields.
+
 ## Boundaries
 
 This foundation is not an apply executor.

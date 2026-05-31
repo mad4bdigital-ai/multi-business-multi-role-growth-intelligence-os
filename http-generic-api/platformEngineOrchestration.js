@@ -1,5 +1,6 @@
 const RISK_ORDER = ["low", "medium", "high", "critical"];
 const SAFE_FALLBACK_MODE = "diagnose_only";
+const SENSITIVE_EVIDENCE_KEY_PATTERN = /(secret|password|token|api[_-]?key|authorization|credential[_-]?(?:value|secret|token|password))/i;
 
 function compactString(value, fallback = "") {
   return String(value ?? fallback).trim();
@@ -65,6 +66,37 @@ function normalizeJsonObject(value) {
 
 function truthy(value) {
   return value === true || value === 1 || compactString(value).toLowerCase() === "true";
+}
+
+function collectSensitiveEvidenceKeys(value, path = "", depth = 0, output = []) {
+  if (depth > 8 || !value || typeof value !== "object") return output;
+  for (const [key, child] of Object.entries(value)) {
+    const nextPath = path ? `${path}.${key}` : key;
+    if (SENSITIVE_EVIDENCE_KEY_PATTERN.test(key)) output.push(nextPath);
+    collectSensitiveEvidenceKeys(child, nextPath, depth + 1, output);
+  }
+  return output;
+}
+
+export function validatePlatformEngineAuditEvidenceShape(value = {}) {
+  const evidence = value && typeof value === "object" && !Array.isArray(value) ? value : null;
+  const blockers = [];
+  if (!evidence) {
+    blockers.push("audit_evidence_missing");
+  } else {
+    const hasSubject = Boolean(compactString(evidence.audit_run_id || evidence.run_id || evidence.trace_id || evidence.actor_id));
+    const hasDecisionEvidence = Array.isArray(evidence.decision_evidence) ||
+      Array.isArray(evidence.evidence) ||
+      (evidence.controls && typeof evidence.controls === "object" && !Array.isArray(evidence.controls));
+    if (!hasSubject) blockers.push("audit_evidence_subject_missing");
+    if (!hasDecisionEvidence) blockers.push("audit_evidence_decision_shape_missing");
+    if (collectSensitiveEvidenceKeys(evidence).length > 0) blockers.push("audit_evidence_contains_sensitive_keys");
+  }
+  return {
+    ok: blockers.length === 0,
+    evidence_shape: "platform_engine_audit_evidence_shape_v1",
+    blockers,
+  };
 }
 
 function escapeRegex(value) {
@@ -648,6 +680,8 @@ export function buildPlatformEngineExecutionEnvelope(plan = {}, input = {}) {
     truthy(input.resource_authority_passed) ||
     truthy(input.resource_authority?.passed) ||
     truthy(input.resource?.resource_authority_passed);
+  const auditEvidence = input.audit_evidence || input.audit || plan.audit_evidence || null;
+  const auditEvidenceValidation = validatePlatformEngineAuditEvidenceShape(auditEvidence);
   const recommendedApply = plan.recommended_decision === "apply_strategy";
   const blockers = [
     ...(Array.isArray(plan.blocked) ? plan.blocked : []),
@@ -657,6 +691,7 @@ export function buildPlatformEngineExecutionEnvelope(plan = {}, input = {}) {
     approvalSatisfied ? null : "approval_required",
     scopeSatisfied ? null : "scope_guard_required",
     resourceAuthoritySatisfied ? null : "resource_authority_required",
+    auditEvidenceValidation.ok ? null : "audit_evidence_required",
     recommendedApply ? null : "planner_did_not_recommend_apply",
   ].filter(Boolean);
 
@@ -688,7 +723,10 @@ export function buildPlatformEngineExecutionEnvelope(plan = {}, input = {}) {
       resource_authority_satisfied: resourceAuthoritySatisfied,
       readback_required: true,
       audit_required: true,
+      audit_evidence_required: true,
+      audit_evidence_satisfied: auditEvidenceValidation.ok,
     },
+    audit_evidence_validation: auditEvidenceValidation,
     validators: plan.validators || [],
     skills: plan.skills || [],
     blockers,
