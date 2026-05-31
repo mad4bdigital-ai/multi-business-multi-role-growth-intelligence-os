@@ -16,7 +16,13 @@
 
 import { getPool } from "./db.js";
 import { randomUUID } from "node:crypto";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { resolvePlatformGraphMemory } from "./services/platformGraphMemoryResolver.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const MIGRATIONS_DIR = path.join(__dirname, "migrations");
 
 // ── All platform tables that must exist ───────────────────────────────────────
 const REQUIRED_TABLES = [
@@ -56,6 +62,202 @@ const LEGACY_TABLES = [
   "brands", "actions", "endpoints", "execution_policies",
   "task_routes", "workflows", "execution_log",
 ];
+
+const MIGRATION_REGISTRY_REQUIREMENTS = [
+  { key: "admin_tools", table: "admin_platform_endpoint_tools", column: "tool_key", insertTable: "admin_platform_endpoint_tools" },
+  { key: "tenant_tools", table: "tenant_platform_endpoint_tools", column: "tool_key", insertTable: "tenant_platform_endpoint_tools" },
+  { key: "engines", table: "platform_engine_registry", column: "engine_key", insertTable: "platform_engine_registry" },
+  { key: "engine_policies", table: "platform_engine_policy_registry", column: "policy_key", insertTable: "platform_engine_policy_registry" },
+  { key: "engine_strategies", table: "platform_engine_strategy_registry", column: "strategy_key", insertTable: "platform_engine_strategy_registry" },
+  { key: "engine_rules", table: "platform_engine_policy_rules", column: "rule_key", insertTable: "platform_engine_policy_rules" },
+  { key: "engine_skills", table: "platform_engine_skill_prompt_registry", column: "skill_key", insertTable: "platform_engine_skill_prompt_registry" },
+];
+
+function compactList(values = [], limit = 50) {
+  return Array.from(new Set(values.filter(Boolean))).sort().slice(0, limit);
+}
+
+function unescapeSqlString(value = "") {
+  return String(value || "").replace(/''/g, "'");
+}
+
+export function extractMigrationReadinessRequirementsFromSql(sqlText = "") {
+  const sql = String(sqlText || "");
+  const schemaObjects = new Set();
+  const requirements = {
+    schema_objects: [],
+    admin_tools: [],
+    tenant_tools: [],
+    engines: [],
+    engine_policies: [],
+    engine_strategies: [],
+    engine_rules: [],
+    engine_skills: [],
+  };
+
+  const createObjectRegex = /CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW)\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/gi;
+  for (const match of sql.matchAll(createObjectRegex)) {
+    if (match?.[1]) schemaObjects.add(match[1]);
+  }
+
+  for (const config of MIGRATION_REGISTRY_REQUIREMENTS) {
+    for (const key of extractFirstColumnInsertKeys(sql, config.insertTable)) {
+      requirements[config.key].push(key);
+    }
+  }
+
+  requirements.schema_objects = compactList([...schemaObjects], 5000);
+  for (const key of Object.keys(requirements)) {
+    requirements[key] = compactList(requirements[key], 5000);
+  }
+  return requirements;
+}
+
+function extractFirstColumnInsertKeys(sql = "", tableName = "") {
+  const escapedTable = tableName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const insertRegex = new RegExp(`INSERT\\s+INTO\\s+\`?${escapedTable}\`?[\\s\\S]*?;`, "gi");
+  const keys = new Set();
+  for (const statementMatch of sql.matchAll(insertRegex)) {
+    const statement = statementMatch[0] || "";
+    const valuesIndex = statement.search(/\bVALUES\b/i);
+    if (valuesIndex === -1) continue;
+    const valuesPart = statement.slice(valuesIndex);
+    const tupleKeyRegex = /\(\s*'((?:''|[^'])+)'/g;
+    for (const tupleMatch of valuesPart.matchAll(tupleKeyRegex)) {
+      if (tupleMatch?.[1]) keys.add(unescapeSqlString(tupleMatch[1]));
+    }
+  }
+  return [...keys];
+}
+
+function mergeMigrationRequirements(target, source) {
+  for (const [key, values] of Object.entries(source || {})) {
+    if (!Array.isArray(values)) continue;
+    if (!target[key]) target[key] = [];
+    target[key].push(...values);
+  }
+  return target;
+}
+
+async function readDynamicMigrationRequirements({ migrationsDir = MIGRATIONS_DIR } = {}) {
+  const entries = await fs.readdir(migrationsDir, { withFileTypes: true });
+  const files = entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".sql"))
+    .map((entry) => entry.name)
+    .sort();
+  const requirements = {
+    schema_objects: [],
+    admin_tools: [],
+    tenant_tools: [],
+    engines: [],
+    engine_policies: [],
+    engine_strategies: [],
+    engine_rules: [],
+    engine_skills: [],
+  };
+  for (const file of files) {
+    const sql = await fs.readFile(path.join(migrationsDir, file), "utf8");
+    mergeMigrationRequirements(requirements, extractMigrationReadinessRequirementsFromSql(sql));
+  }
+  for (const key of Object.keys(requirements)) {
+    requirements[key] = compactList(requirements[key], 10000);
+  }
+  return { files_scanned: files.length, requirements };
+}
+
+async function lookupExistingNames({ table, column, names }) {
+  const wanted = compactList(names, 10000);
+  if (!wanted.length) return { table_exists: true, existing: new Set(), missing: [] };
+
+  const [[tableRow]] = await getPool().query(
+    "SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?",
+    [table]
+  );
+  if (!tableRow?.cnt) {
+    return { table_exists: false, existing: new Set(), missing: wanted };
+  }
+
+  const [rows] = await getPool().query(
+    `SELECT \`${column}\` AS item_key FROM \`${table}\` WHERE \`${column}\` IN (?)`,
+    [wanted]
+  );
+  const existing = new Set((rows || []).map((row) => String(row.item_key)));
+  return { table_exists: true, existing, missing: wanted.filter((name) => !existing.has(name)) };
+}
+
+async function lookupExistingSchemaObjects(names = []) {
+  const wanted = compactList(names, 10000);
+  if (!wanted.length) return { existing: new Set(), missing: [] };
+  const [rows] = await getPool().query(
+    "SELECT table_name AS item_key FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN (?)",
+    [wanted]
+  );
+  const existing = new Set((rows || []).map((row) => String(row.item_key)));
+  return { existing, missing: wanted.filter((name) => !existing.has(name)) };
+}
+
+async function checkDynamicMigrationDrift() {
+  const migrationLoad = await readDynamicMigrationRequirements();
+  const requirements = migrationLoad.requirements;
+  const schemaResult = await lookupExistingSchemaObjects(requirements.schema_objects);
+  const missing = {
+    schema_objects: schemaResult.missing,
+  };
+  const registry_tables_missing = [];
+
+  for (const config of MIGRATION_REGISTRY_REQUIREMENTS) {
+    const result = await lookupExistingNames({
+      table: config.table,
+      column: config.column,
+      names: requirements[config.key],
+    });
+    if (!result.table_exists) registry_tables_missing.push(config.table);
+    missing[config.key] = result.missing;
+  }
+
+  const discovered_counts = Object.fromEntries(
+    Object.entries(requirements).map(([key, values]) => [key, Array.isArray(values) ? values.length : 0])
+  );
+  const missing_counts = Object.fromEntries(
+    Object.entries(missing).map(([key, values]) => [key, Array.isArray(values) ? values.length : 0])
+  );
+  const missing_total = Object.values(missing_counts).reduce((sum, count) => sum + Number(count || 0), 0)
+    + registry_tables_missing.length;
+
+  return {
+    status: missing_total > 0 ? "warn" : "pass",
+    detail: missing_total > 0
+      ? `Dynamic migration drift detected: ${missing_total} required migration artifact(s) are not present in runtime DB.`
+      : `Dynamic migration drift check passed across ${migrationLoad.files_scanned} migration file(s).`,
+    files_scanned: migrationLoad.files_scanned,
+    discovered_counts,
+    missing_counts,
+    missing_total,
+    registry_tables_missing: compactList(registry_tables_missing, 50),
+    missing_samples: Object.fromEntries(
+      Object.entries(missing).map(([key, values]) => [key, compactList(values, 25)])
+    ),
+    secrets_included: false,
+  };
+}
+
+async function checkDynamicMigrationDriftSafe() {
+  try {
+    return await checkDynamicMigrationDrift();
+  } catch (err) {
+    return {
+      status: "warn",
+      detail: `Dynamic migration drift check unavailable: ${err?.message || "unknown error"}`,
+      files_scanned: 0,
+      discovered_counts: {},
+      missing_counts: {},
+      missing_total: null,
+      registry_tables_missing: [],
+      missing_samples: {},
+      secrets_included: false,
+    };
+  }
+}
 
 async function checkDbConnectivity() {
   try {
@@ -191,6 +393,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     legacy_tables: {},
     seed_data: {},
     migration_inventory: null,
+    migration_drift: null,
     graph_memory_diagnostics: null,
   };
 
@@ -225,6 +428,13 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   report.migration_inventory = await checkMigrationInventorySafe();
   if (report.migration_inventory.status === "warn" && report.overall === "pass") report.overall = "warn";
 
+  // Dynamic migration drift — non-mutating comparison between repo migrations
+  // and the current runtime DB. This catches future governance migrations without
+  // adding their table/tool/engine names to a static release readiness list.
+  report.migration_drift = await checkDynamicMigrationDriftSafe();
+  if (report.migration_drift.status === "warn" && report.overall === "pass") report.overall = "warn";
+  if (report.migration_drift.status === "fail") report.overall = "fail";
+
   // Graph memory diagnostics — non-blocking admin context enrichment.
   report.graph_memory_diagnostics = await checkGraphMemoryDiagnostics();
 
@@ -235,6 +445,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     ...Object.values(report.legacy_tables),
     ...Object.values(report.seed_data),
     report.migration_inventory,
+    report.migration_drift,
     report.graph_memory_diagnostics,
   ];
   report.summary = {
@@ -244,6 +455,8 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     fail: allChecks.filter((c) => c.status === "fail").length,
     platform_tables_total: REQUIRED_TABLES.length,
     platform_tables_ok: Object.values(report.platform_tables).filter((c) => c.status === "pass").length,
+    migration_drift_missing_total: report.migration_drift?.missing_total ?? null,
+    migration_drift_files_scanned: report.migration_drift?.files_scanned ?? 0,
     graph_memory_resolved: Boolean(report.graph_memory_diagnostics?.resolved),
     graph_memory_asset_count: Number(report.graph_memory_diagnostics?.asset_count || 0),
     secrets_included: false,
@@ -258,6 +471,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
         ...Object.entries(report.legacy_tables).map(([k, v]) => [`legacy.${k}`, v]),
         ...Object.entries(report.seed_data),
         ["migration_inventory", report.migration_inventory],
+        ["migration_drift", report.migration_drift],
         ["graph_memory_diagnostics", report.graph_memory_diagnostics],
       ];
       await Promise.all(entries.map(([key, r]) =>
