@@ -6,12 +6,16 @@ const agent = readFileSync('routes/connectorAgentRoutes.js', 'utf8');
 const proxy = readFileSync('routes/connectorProxyRoutes.js', 'utf8');
 const migration = readFileSync('migrations/147_sprint65_auto_browser_local_tool_candidate.sql', 'utf8');
 const allowlist = readFileSync('openapi-route-coverage.allowlist.json', 'utf8');
+const managedRuntimeMigration = readFileSync('migrations/173_sprint65_auto_browser_managed_runtime_start.sql', 'utf8');
 
 assert(connector.includes('CONNECTOR_AUTO_BROWSER_ENABLED'), 'local connector must define Auto Browser enablement flag');
 assert(connector.includes('AUTO_BROWSER_BASE_URL'), 'local connector must define Auto Browser base URL');
 assert(connector.includes("http://127.0.0.1:8000"), 'Auto Browser controller default must match upstream API port 8000');
 assert(agent.includes('AUTO_BROWSER_BASE_URL: "http://127.0.0.1:8000"'), 'Auto Browser manifest must match upstream API port 8000');
 assert(agent.includes('AUTO_BROWSER_BASE_URL=http://127.0.0.1:8000'), 'Auto Browser installer env must match upstream API port 8000');
+assert(connector.includes("AUTO_BROWSER_HEALTH_PATH = process.env.AUTO_BROWSER_HEALTH_PATH ?? '/healthz'"), 'Auto Browser connector default health probe must use /healthz');
+assert(agent.includes('AUTO_BROWSER_HEALTH_PATH: "/healthz"'), 'Auto Browser manifest must use /healthz');
+assert(agent.includes('AUTO_BROWSER_HEALTH_PATH=/healthz'), 'Auto Browser installer env must use /healthz');
 assert(!connector.includes('http://127.0.0.1:7331'), 'Auto Browser connector must not use stale default port 7331');
 assert(!agent.includes('http://127.0.0.1:7331'), 'Auto Browser manifest/installer must not use stale default port 7331');
 assert(connector.includes('AUTO_BROWSER_ALLOWED_HOSTS'), 'local connector must define Auto Browser host allowlist');
@@ -41,5 +45,11 @@ assert(migration.includes('validated_actions":["status"]'), 'runtime metadata mu
 assert(migration.includes('blocked_until_poc'), 'runtime metadata must block execution actions until PoC');
 assert(migration.includes('candidate_only'), 'tool tags must keep Auto Browser candidate-only');
 assert(!migration.includes('"action":{"type":"string","enum":["visual_takeover"]}'), 'tool schema must not expose visual takeover execution yet');
+
+assert(managedRuntimeMigration.includes('auto_browser_managed_v1'), 'managed runtime migration must register browser.mad4b.com target runtime');
+assert(managedRuntimeMigration.includes('auto_browser_managed_visual_takeover_v1'), 'managed runtime migration must register planned visual takeover binding');
+assert(managedRuntimeMigration.includes('local_active_status_only'), 'Essam local runtime must be promoted only to status-only active');
+assert(managedRuntimeMigration.includes('/healthz'), 'managed runtime migration must document healthz status probe');
+assert(managedRuntimeMigration.includes('raw_novnc_public_exposure_forbidden'), 'managed runtime policy must forbid raw noVNC exposure');
 
 console.log('auto browser local tool candidate tests passed');

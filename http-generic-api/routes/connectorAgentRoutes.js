@@ -80,7 +80,7 @@ const LOCAL_TOOL_RELEASES = [
     env: {
       CONNECTOR_AUTO_BROWSER_ENABLED: "false",
       AUTO_BROWSER_BASE_URL: "http://127.0.0.1:8000",
-      AUTO_BROWSER_HEALTH_PATH: "/health",
+      AUTO_BROWSER_HEALTH_PATH: "/healthz",
       AUTO_BROWSER_ALLOWED_HOSTS: "mad4b.com,n8n.mad4b.com",
     },
     install_policy: {
@@ -405,7 +405,7 @@ function buildConnectorEnv({ connectorSecret, connectorLocalApiKey = '', aliases
     "BROWSER4_SERVER_URL=http://localhost:8182",
     "CONNECTOR_AUTO_BROWSER_ENABLED=false",
     "AUTO_BROWSER_BASE_URL=http://127.0.0.1:8000",
-    "AUTO_BROWSER_HEALTH_PATH=/health",
+    "AUTO_BROWSER_HEALTH_PATH=/healthz",
     "AUTO_BROWSER_ALLOWED_HOSTS=mad4b.com,n8n.mad4b.com",
     "N8N_COMMAND=D:\\npm-global\\n8n.cmd",
     "N8N_USER_FOLDER=D:\\n8n-data",
