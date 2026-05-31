@@ -518,6 +518,91 @@ function deriveAdapterRequestStatus(runtime) {
   return "runtime_not_active_pending_poc";
 }
 
+export async function getBrowserRuntimeSession({ pool = getPool(), session_id }) {
+  if (!session_id) {
+    const err = new Error("session_id is required.");
+    err.code = "browser_runtime_session_id_required";
+    err.status = 400;
+    throw err;
+  }
+  const [rows] = await pool.query("SELECT * FROM `browser_runtime_sessions` WHERE session_id = ? LIMIT 1", [session_id]);
+  if (!rows.length) {
+    const err = new Error("Browser runtime session was not found.");
+    err.code = "browser_runtime_session_not_found";
+    err.status = 404;
+    throw err;
+  }
+  const row = rows[0];
+  return {
+    ok: true,
+    session: {
+      session_id: row.session_id,
+      runtime_key: row.runtime_key,
+      binding_key: row.binding_key || null,
+      tenant_id: row.tenant_id || null,
+      user_id: row.user_id || null,
+      url_host: row.url_host || null,
+      status: row.status,
+      expires_at: row.expires_at || null,
+      metadata: jsonObject(row.metadata_json),
+      created_at: row.created_at || null,
+      updated_at: row.updated_at || null,
+      secrets_included: false,
+    },
+    secrets_included: false,
+  };
+}
+
+export async function closeBrowserRuntimeSession({ pool = getPool(), session_id, actor = "growth-platform-admin", reason = "manual_close" } = {}) {
+  const current = await getBrowserRuntimeSession({ pool, session_id });
+  const session = current.session;
+  const metadata = {
+    ...(session.metadata || {}),
+    close_requested_at: new Date().toISOString(),
+    close_reason: String(reason || "manual_close").slice(0, 120),
+    closed_by: String(actor || "growth-platform-admin").slice(0, 128),
+    secrets_included: false,
+  };
+  await pool.query(
+    `UPDATE \`browser_runtime_sessions\`
+        SET status = 'closed_pending_adapter', metadata_json = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE session_id = ?`,
+    [JSON.stringify(metadata), session_id],
+  );
+  await pool.query(
+    `INSERT INTO \`browser_runtime_events\`
+       (event_id, session_id, runtime_key, binding_key, tenant_id, user_id, event_type, url_host, actor, policy_result, event_json)
+     VALUES (?, ?, ?, ?, ?, ?, 'visual_takeover_close_request', ?, ?, 'allowed', ?)`,
+    [
+      randomUUID(),
+      session.session_id,
+      session.runtime_key,
+      session.binding_key,
+      session.tenant_id,
+      session.user_id,
+      session.url_host,
+      actor,
+      JSON.stringify(metadata),
+    ],
+  );
+  return { ok: true, session_id, status: "closed_pending_adapter", adapter_configured: false, secrets_included: false };
+}
+
+export async function createManagedVisualTakeoverSession({ pool = getPool(), input = {} } = {}) {
+  return createBrowserRuntimeAdapterRequest({
+    pool,
+    input: {
+      ...input,
+      binding_key: input.binding_key || input.bindingKey || "auto_browser_managed_visual_takeover_v1",
+      runtime_key: input.runtime_key || input.runtimeKey || "auto_browser_managed_v1",
+      action: input.action || "session_create",
+    },
+    defaultAction: "session_create",
+    defaultUseCase: "visual_takeover",
+    requestType: "visual_takeover_session_create",
+  });
+}
+
 export async function createBrowserRuntimeAdapterRequest({ pool = getPool(), input = {}, defaultAction = "open_url", defaultUseCase = "browser_runtime", requestType = "browser_runtime_request" } = {}) {
   assertNoSecretLike(input, requestType);
   const bindingKey = input.binding_key || input.bindingKey;
