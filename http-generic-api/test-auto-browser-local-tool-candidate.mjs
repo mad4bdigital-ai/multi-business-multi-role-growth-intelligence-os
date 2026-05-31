@@ -6,6 +6,7 @@ const agent = readFileSync('routes/connectorAgentRoutes.js', 'utf8');
 const proxy = readFileSync('routes/connectorProxyRoutes.js', 'utf8');
 const migration = readFileSync('migrations/147_sprint65_auto_browser_local_tool_candidate.sql', 'utf8');
 const allowlist = readFileSync('openapi-route-coverage.allowlist.json', 'utf8');
+const managedRuntimeMigration = readFileSync('migrations/173_sprint65_auto_browser_managed_runtime_start.sql', 'utf8');
 
 assert(connector.includes('CONNECTOR_AUTO_BROWSER_ENABLED'), 'local connector must define Auto Browser enablement flag');
 assert(connector.includes('AUTO_BROWSER_BASE_URL'), 'local connector must define Auto Browser base URL');
