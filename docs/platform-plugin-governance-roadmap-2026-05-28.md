@@ -178,6 +178,7 @@ The full track is done when:
 ## Documentation pointers
 
 - `docs/platform-governance-recovery-resource-authority-2026-05-31.md`
+- `docs/ai-intelligence-runtime-plan-checkpoint-2026-05-31.md`
 - `docs/platform-plugin-smoke-certification-governance.md`
 - `docs/platform-plugin-recertification-policy-governance.md`
 - `docs/platform-plugin-promotion.md`

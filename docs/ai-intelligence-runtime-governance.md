@@ -239,3 +239,5 @@ Policy
 ```
 
 Any future apply executor must enforce both: it must recover from known failure classes with evidence, and it must block writes to tenant, user, brand, or external resources until resource resolution, ownership claim, active grant, scoped credential, audit, and readback requirements are satisfied.
+
+The current plan checkpoint is tracked in `docs/ai-intelligence-runtime-plan-checkpoint-2026-05-31.md`.
