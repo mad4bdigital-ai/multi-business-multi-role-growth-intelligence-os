@@ -81,6 +81,48 @@ function unescapeSqlString(value = "") {
   return String(value || "").replace(/''/g, "'");
 }
 
+const RESERVED_SCHEMA_OBJECT_NAMES = new Set(["IF", "NOT", "EXISTS", "SELECT", "AS"]);
+
+export function extractMigrationReadinessRequirementsFromSql(sqlText = "") {
+  const sql = String(sqlText || "");
+  const schemaObjects = new Set();
+  const requirements = {
+    schema_objects: [],
+    admin_tools: [],
+    tenant_tools: [],
+    engines: [],
+    engine_policies: [],
+    engine_strategies: [],
+    engine_rules: [],
+    engine_skills: [],
+  };
+
+  const createObjectRegex = /CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW)\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/gi;
+  for (const match of sql.matchAll(createObjectRegex)) {
+    const objectName = String(match?.[1] || "").trim();
+    if (objectName && !RESERVED_SCHEMA_OBJECT_NAMES.has(objectName.toUpperCase())) {
+      schemaObjects.add(objectName);
+    }
+  }
+
+  for (const config of MIGRATION_REGISTRY_REQUIREMENTS) {
+    for (const key of extractFirstColumnInsertKeys(sql, config.insertTable)) {
+      requirements[config.key].push(key);
+    }
+  }
+
+  requirements.schema_objects = compactList([...schemaObjects], 5000);
+  for (const key of Object.keys(requirements)) {
+    requirements[key] = compactList(requirements[key], 5000);
+  }
+  return requirements;
+}
+
+function extractFirstColumnInsertKeys(sql = "", tableName = "") {
+  const escapedTable = tableName.replace(/[.*+?^${}()|[\]\\]/g, "\\function unescapeSqlString(value = "") {
+  return String(value || "").replace(/''/g, "'");
+}
+
 export function extractMigrationReadinessRequirementsFromSql(sqlText = "") {
   const sql = String(sqlText || "");
   const schemaObjects = new Set();
@@ -128,6 +170,75 @@ function extractFirstColumnInsertKeys(sql = "", tableName = "") {
     }
   }
   return [...keys];
+}
+");
+  const insertRegex = new RegExp(`INSERT\\s+INTO\\s+\`?${escapedTable}\`?[\\s\\S]*?;`, "gi");
+  const keys = new Set();
+  for (const statementMatch of sql.matchAll(insertRegex)) {
+    const statement = statementMatch[0] || "";
+    const valuesIndex = statement.search(/\bVALUES\b/i);
+    if (valuesIndex === -1) continue;
+    const valuesPart = statement.slice(valuesIndex);
+    for (const tuple of extractTopLevelSqlTuples(valuesPart)) {
+      const firstValue = firstSqlStringValue(tuple);
+      if (firstValue) keys.add(firstValue);
+    }
+  }
+  return [...keys];
+}
+
+function extractTopLevelSqlTuples(sql = "") {
+  const tuples = [];
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  for (let i = 0; i < sql.length; i += 1) {
+    const ch = sql[i];
+    if (inString) {
+      if (ch === "'" && sql[i + 1] === "'") {
+        i += 1;
+      } else if (ch === "'") {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === "'") {
+      inString = true;
+      continue;
+    }
+    if (ch === "(") {
+      if (depth === 0) start = i;
+      depth += 1;
+      continue;
+    }
+    if (ch === ")" && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start !== -1) {
+        tuples.push(sql.slice(start, i + 1));
+        start = -1;
+      }
+    }
+  }
+  return tuples;
+}
+
+function firstSqlStringValue(tuple = "") {
+  let i = 1;
+  while (i < tuple.length && /\s/.test(tuple[i])) i += 1;
+  if (tuple[i] !== "'") return null;
+  i += 1;
+  let value = "";
+  for (; i < tuple.length; i += 1) {
+    const ch = tuple[i];
+    if (ch === "'" && tuple[i + 1] === "'") {
+      value += "'";
+      i += 1;
+      continue;
+    }
+    if (ch === "'") return value;
+    value += ch;
+  }
+  return null;
 }
 
 function mergeMigrationRequirements(target, source) {
