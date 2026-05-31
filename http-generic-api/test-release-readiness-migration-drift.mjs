@@ -9,7 +9,7 @@ CREATE OR REPLACE VIEW v_resource_authority_sample AS SELECT 1 AS ok;
 INSERT INTO admin_platform_endpoint_tools
   (tool_key, display_name, description, http_method, http_path, path_param_keys, input_schema, fixed_body, tags, is_enabled, sort_order)
 VALUES
-  ('resource_authority_decision_brief', 'Resource Authority Decision Brief', 'Read-only.', 'POST', '/platform/engines/decision-brief', NULL, '{}', '{}', 'read_only', 1, 268),
+  ('resource_authority_decision_brief', 'Resource Authority Decision Brief', 'Read-only.', 'POST', '/platform/engines/decision-brief', NULL, JSON_OBJECT('type', 'object', 'tenant_id', 'abc'), JSON_OBJECT('environment', 'production'), 'read_only', 1, 268),
   ('github_ci_recovery_decision_brief', 'GitHub CI Recovery Decision Brief', 'Read-only.', 'POST', '/platform/engines/decision-brief', NULL, '{}', '{}', 'read_only', 1, 269);
 INSERT INTO tenant_platform_endpoint_tools
   (tool_key, display_name, description, http_method, http_path, path_param_keys, input_schema, fixed_body, tags, is_enabled, sort_order)
