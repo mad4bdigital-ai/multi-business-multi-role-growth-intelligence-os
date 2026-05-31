@@ -875,10 +875,31 @@ async function gitShowRepo(args = {}) {
   };
 }
 
+function isMissingGitRevisionError(err) {
+  const message = `${err?.message || ""}\n${err?.details?.stderr || ""}`.toLowerCase();
+  return err?.code === "repo_git_command_failed"
+    && (
+      message.includes("unknown revision")
+      || message.includes("ambiguous argument")
+      || message.includes("bad revision")
+      || message.includes("needed a single revision")
+      || message.includes("not in the working tree")
+    );
+}
+
 async function gitDiffNameStatusRepo(args = {}) {
+  const baseRefWasExplicit = Boolean(args.base_ref);
   const baseRef = assertSafeGitRef(args.base_ref || "HEAD~1", "HEAD~1");
   const headRef = assertSafeGitRef(args.head_ref || "HEAD", "HEAD");
-  const result = await runGitReadOnly(["diff", "--name-status", `${baseRef}...${headRef}`], args);
+  let result;
+  let fallback_strategy = null;
+  try {
+    result = await runGitReadOnly(["diff", "--name-status", `${baseRef}...${headRef}`], args);
+  } catch (err) {
+    if (baseRefWasExplicit || !isMissingGitRevisionError(err)) throw err;
+    fallback_strategy = "diff_tree_root_for_shallow_checkout";
+    result = await runGitReadOnly(["diff-tree", "--no-commit-id", "--name-status", "-r", "--root", headRef], args);
+  }
   const files = result.stdout.split(/\r?\n/).filter(Boolean).map((line) => {
     const [status, ...rest] = line.split(/\s+/);
     return { status, path: rest.join(" ") };
@@ -888,6 +909,7 @@ async function gitDiffNameStatusRepo(args = {}) {
     root: repoInspectRoot(),
     base_ref: baseRef,
     head_ref: headRef,
+    fallback_strategy,
     count: files.length,
     truncated: result.truncated,
     files,
