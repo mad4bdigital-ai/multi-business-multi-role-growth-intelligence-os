@@ -29,6 +29,9 @@ const server = spawn(process.execPath, ['server.mjs'], {
     CONNECTOR_FILES_ENABLED: 'true',
     CONNECTOR_FILE_PATHS: root,
     CONNECTOR_SHELL_ENABLED: 'false',
+    CONNECTOR_DEPENDENCIES_ENABLED: 'false',
+    CONNECTOR_APPS_ENABLED: 'false',
+    CONNECTOR_BROWSER_ENABLED: 'false',
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
