@@ -288,6 +288,7 @@ assert.equal(PLATFORM_ENGINE_ORCHESTRATION_GUARDRAILS.tool_catalog_raw_exposure,
 assert.equal(PLATFORM_ENGINE_ORCHESTRATION_GUARDRAILS.deterministic_hard_gates, true);
 assert.equal(PLATFORM_ENGINE_ORCHESTRATION_GUARDRAILS.skill_requires_policy_eval_tool_contract, true);
 assert.equal(PLATFORM_ENGINE_ORCHESTRATION_GUARDRAILS.side_effects_require_readback, true);
+assert.equal(PLATFORM_ENGINE_ORCHESTRATION_GUARDRAILS.external_writes_require_resource_authority, true);
 assert.equal(PLATFORM_ENGINE_ORCHESTRATION_GUARDRAILS.safe_fallback_mode, "diagnose_only");
 assert.deepEqual(classifyPlatformEngineResource({ path: "http-generic-api/package.json" }), {
   resource_key: "http-generic-api/package.json",
@@ -469,6 +470,7 @@ assert.equal(packagePlan.decision_model_role, "scoring_assist_only");
 assert.equal(packagePlan.hard_gates_deterministic, true);
 assert.equal(packagePlan.hard_gates.model_may_override, false);
 assert.equal(packagePlan.hard_gates.readback_required, true);
+assert.equal(packagePlan.hard_gates.resource_authority_required, false);
 assert.equal(packagePlan.recommended_decision, "apply_strategy");
 assert.equal(packagePlan.decision_options[0].option_key, "apply_strategy");
 assert(packagePlan.validators.includes("node test-repo-patch-apply.mjs"));
@@ -485,6 +487,69 @@ assert.equal(readyEnvelope.will_execute, false);
 assert.equal(readyEnvelope.no_repo_mutation, true);
 assert.equal(readyEnvelope.required_controls.readback_required, true);
 assert.equal(readyEnvelope.next_step, "ready_for_separate_governed_apply_route");
+
+const missingResourceAuthorityPlan = planPolicyDrivenEngineTask({
+  engine_key: "repo_conflict_resolution_engine",
+  task_class: "conflict_plan",
+  resource: {
+    path: "http-generic-api/package.json",
+    resource_authority_required: true,
+  },
+  mode: "apply_allowed",
+  scope_guard_passed: true,
+  policies,
+  rules,
+  strategies,
+  skills,
+});
+
+assert.equal(missingResourceAuthorityPlan.ok, false);
+assert.equal(missingResourceAuthorityPlan.mode, "diagnose_only");
+assert.equal(missingResourceAuthorityPlan.hard_gates.resource_authority_required, true);
+assert(missingResourceAuthorityPlan.blocked.includes("resource_authority_required"));
+assert.equal(missingResourceAuthorityPlan.recommended_decision, "diagnose_only");
+
+const satisfiedResourceAuthorityPlan = planPolicyDrivenEngineTask({
+  engine_key: "repo_conflict_resolution_engine",
+  task_class: "conflict_plan",
+  resource: {
+    path: "http-generic-api/package.json",
+    resource_authority_required: true,
+    resource_authority_passed: true,
+  },
+  mode: "apply_allowed",
+  scope_guard_passed: true,
+  policies,
+  rules,
+  strategies,
+  skills,
+});
+
+assert.equal(satisfiedResourceAuthorityPlan.ok, true);
+assert.equal(satisfiedResourceAuthorityPlan.mode, "apply_allowed");
+assert.equal(satisfiedResourceAuthorityPlan.hard_gates.resource_authority_required, true);
+assert(!satisfiedResourceAuthorityPlan.blocked.includes("resource_authority_required"));
+
+const missingResourceAuthorityEnvelope = buildPlatformEngineExecutionEnvelope(packagePlan, {
+  mode: "apply_allowed",
+  scope_guard_passed: true,
+  resource_authority_required: "true",
+});
+assert.equal(missingResourceAuthorityEnvelope.can_apply, false);
+assert.equal(missingResourceAuthorityEnvelope.required_controls.resource_authority_required, true);
+assert.equal(missingResourceAuthorityEnvelope.required_controls.resource_authority_satisfied, false);
+assert(missingResourceAuthorityEnvelope.blockers.includes("resource_authority_required"));
+
+const satisfiedResourceAuthorityEnvelope = buildPlatformEngineExecutionEnvelope(packagePlan, {
+  mode: "apply_allowed",
+  scope_guard_passed: true,
+  resource_authority_required: true,
+  resource_authority_passed: true,
+});
+assert.equal(satisfiedResourceAuthorityEnvelope.can_apply, true);
+assert.equal(satisfiedResourceAuthorityEnvelope.required_controls.resource_authority_required, true);
+assert.equal(satisfiedResourceAuthorityEnvelope.required_controls.resource_authority_satisfied, true);
+assert(!satisfiedResourceAuthorityEnvelope.blockers.includes("resource_authority_required"));
 
 const feedbackSummary = summarizePlatformEngineOutcomeFeedback({
   engine_key: "repo_conflict_resolution_engine",

@@ -96,6 +96,19 @@ All are tagged:
 - `no_apply`
 - `no_secret_read`
 
+## Apply-Readiness Integration
+
+`platform_engine_apply_readiness_envelope_v1` now treats resource authority as a deterministic hard gate when a plan or request marks `resource_authority_required`.
+
+If authority is required but not satisfied, the envelope returns:
+
+- `can_apply: false`
+- `blockers: ["resource_authority_required"]`
+- `required_controls.resource_authority_required: true`
+- `required_controls.resource_authority_satisfied: false`
+
+This is still readiness only. The envelope does not execute, mutate repo state, publish content, or write to an external system.
+
 ## Boundaries
 
 This foundation is not an apply executor.

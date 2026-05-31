@@ -63,6 +63,10 @@ function normalizeJsonObject(value) {
   return {};
 }
 
+function truthy(value) {
+  return value === true || value === 1 || compactString(value).toLowerCase() === "true";
+}
+
 function escapeRegex(value) {
   return String(value).replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
 }
@@ -492,6 +496,12 @@ export function planPolicyDrivenEngineTask(input = {}) {
     requested_mode: normalizeMode(input.mode || input.requested_mode || "dry_run"),
     scope_guard_passed: input.scope_guard_passed === true || input.scope_guard?.passed === true,
     approval_granted: input.approval_granted === true || input.approval?.granted === true,
+    resource_authority_required: truthy(input.resource_authority_required) ||
+      truthy(input.resource?.resource_authority_required) ||
+      compactString(input.engine_key || input.task?.engine_key) === "resource_authority_engine",
+    resource_authority_passed: truthy(input.resource_authority_passed) ||
+      truthy(input.resource_authority?.passed) ||
+      truthy(input.resource?.resource_authority_passed),
   };
 
   const policy = choosePolicy(task, asArray(input.policies));
@@ -542,11 +552,13 @@ export function planPolicyDrivenEngineTask(input = {}) {
     ...matchedSkills.flatMap((skill) => skill.validator_commands_json),
   ]);
 
+  const requestedApply = task.requested_mode === "apply_allowed";
   if (policy.require_validators && validatorCommands.length === 0) {
     blocks.push("validators_required");
   }
-
-  const requestedApply = task.requested_mode === "apply_allowed";
+  if (task.resource_authority_required && requestedApply && !task.resource_authority_passed) {
+    blocks.push("resource_authority_required");
+  }
   if (requestedApply && policy.mode !== "apply_allowed") blocks.push("policy_blocks_apply");
   if (requestedApply && selectedRule && !selectedRule.auto_apply_allowed) blocks.push("rule_blocks_auto_apply");
   if (requestedApply && !validatorCommands.length) blocks.push("apply_requires_validators");
@@ -607,6 +619,7 @@ export function planPolicyDrivenEngineTask(input = {}) {
       scope_guard: policy.require_scope_guard,
       approval_required: approvalRequired,
       validators_required: policy.require_validators,
+      resource_authority_required: task.resource_authority_required,
       readback_required: true,
       model_may_override: false,
     },
@@ -626,8 +639,15 @@ export function planPolicyDrivenEngineTask(input = {}) {
 export function buildPlatformEngineExecutionEnvelope(plan = {}, input = {}) {
   const requestedApply = plan.mode === "apply_allowed" || input.mode === "apply_allowed";
   const hasValidators = Array.isArray(plan.validators) && plan.validators.length > 0;
-  const approvalSatisfied = plan.approval_required !== true || input.approval_granted === true || input.approval?.granted === true;
-  const scopeSatisfied = plan.scope_guard_required !== true || input.scope_guard_passed === true || input.scope_guard?.passed === true;
+  const approvalSatisfied = plan.approval_required !== true || truthy(input.approval_granted) || truthy(input.approval?.granted);
+  const scopeSatisfied = plan.scope_guard_required !== true || truthy(input.scope_guard_passed) || truthy(input.scope_guard?.passed);
+  const resourceAuthorityRequired = truthy(plan.hard_gates?.resource_authority_required) ||
+    truthy(input.resource_authority_required) ||
+    truthy(input.resource_authority?.required);
+  const resourceAuthoritySatisfied = !resourceAuthorityRequired ||
+    truthy(input.resource_authority_passed) ||
+    truthy(input.resource_authority?.passed) ||
+    truthy(input.resource?.resource_authority_passed);
   const recommendedApply = plan.recommended_decision === "apply_strategy";
   const blockers = [
     ...(Array.isArray(plan.blocked) ? plan.blocked : []),
@@ -636,6 +656,7 @@ export function buildPlatformEngineExecutionEnvelope(plan = {}, input = {}) {
     hasValidators ? null : "validators_required",
     approvalSatisfied ? null : "approval_required",
     scopeSatisfied ? null : "scope_guard_required",
+    resourceAuthoritySatisfied ? null : "resource_authority_required",
     recommendedApply ? null : "planner_did_not_recommend_apply",
   ].filter(Boolean);
 
@@ -663,6 +684,8 @@ export function buildPlatformEngineExecutionEnvelope(plan = {}, input = {}) {
       approval_satisfied: approvalSatisfied,
       validators_required: true,
       validators_present: hasValidators,
+      resource_authority_required: resourceAuthorityRequired,
+      resource_authority_satisfied: resourceAuthoritySatisfied,
       readback_required: true,
       audit_required: true,
     },
@@ -684,6 +707,7 @@ export const PLATFORM_ENGINE_ORCHESTRATION_GUARDRAILS = Object.freeze({
   deterministic_hard_gates: true,
   skill_requires_policy_eval_tool_contract: true,
   side_effects_require_readback: true,
+  external_writes_require_resource_authority: true,
   require_scope_guard_by_default: true,
   approval_required_min_risk_default: "high",
   supported_risk_levels: RISK_ORDER,

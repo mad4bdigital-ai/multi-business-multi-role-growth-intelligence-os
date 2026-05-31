@@ -199,6 +199,8 @@ Known non-blocking local warning:
    - resource authority gate
    - audit evidence shape
 
+   Status: partial. The apply-readiness envelope now blocks missing `resource_authority_required` before any apply route exists. A dedicated apply executor and audit evidence validator remain out of scope for this checkpoint.
+
 4. Add resource authority registry foundation:
    - resource resolution
    - ownership claim
