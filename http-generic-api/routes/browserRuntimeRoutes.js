@@ -126,6 +126,41 @@ export function buildBrowserRuntimeRoutes({ requireBackendApiKey, requireAdminPr
     } catch (err) { return errorResponse(res, err, "browser_runtime_inspect_site_run_failed"); }
   });
 
+  router.post("/browser-runtime/visual-takeover/sessions", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await createManagedVisualTakeoverSession({ input });
+      return res.status(result.ok ? 202 : 403).json({
+        ...result,
+        managed_gateway: {
+          target_host: "browser.mad4b.com",
+          dns_required: true,
+          raw_novnc_public_exposure_forbidden: true,
+          status: "pending_gateway_and_adapter",
+        },
+      });
+    } catch (err) { return errorResponse(res, err, "browser_runtime_visual_takeover_session_create_failed"); }
+  });
+
+  router.get("/browser-runtime/visual-takeover/sessions/:session_id", ...requireAdmin, async (req, res) => {
+    try {
+      const result = await getBrowserRuntimeSession({ session_id: req.params.session_id });
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "browser_runtime_visual_takeover_session_get_failed"); }
+  });
+
+  router.post("/browser-runtime/visual-takeover/sessions/:session_id/close", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await closeBrowserRuntimeSession({
+        session_id: req.params.session_id,
+        actor: input.actor || input.requested_by || input.requestedBy || "growth-platform-admin",
+        reason: input.reason || "manual_close",
+      });
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "browser_runtime_visual_takeover_session_close_failed"); }
+  });
+
   router.post("/browser-runtime/visual-takeover/run", ...requireAdmin, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
