@@ -5789,7 +5789,7 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listAdminTools
       summary: List admin platform tools from the governed registry
-      description: "Returns a paginated catalog of admin platform operations from admin_platform_endpoint_tools plus virtual admin tools. Each tool has a name (pass to callAdminTool), description, and inputSchema. Use limit/cursor/q/tag for bounded discovery. Oversized responses may return response_chunked=true; use response_chunk_read with chunk_id and next_cursor to continue."
+      description: "Returns paginated admin platform tools from the registry plus virtual admin tools. Use limit/cursor/q/tag for bounded discovery. If response_chunked=true, call response_chunk_read with chunk_id and next_cursor."
       parameters:
         - name: limit
           in: query
