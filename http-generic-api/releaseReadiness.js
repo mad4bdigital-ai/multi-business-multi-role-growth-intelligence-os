@@ -612,6 +612,7 @@ async function checkDynamicMigrationDrift() {
     missing_classification,
     migrationLoad.artifact_sources
   );
+  const migration_apply_preflight = await buildMigrationApplyPreflightSafe(migration_apply_plan.candidate_files);
 
   return {
     status: missing_total > 0 ? "warn" : "pass",
