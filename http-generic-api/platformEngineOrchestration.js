@@ -25,6 +25,18 @@ function asArray(value) {
   return [value];
 }
 
+function uniqueCompactList(values = []) {
+  const seen = new Set();
+  const output = [];
+  for (const value of asArray(values)) {
+    const normalized = compactString(value);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    output.push(normalized);
+  }
+  return output;
+}
+
 function normalizeJsonList(value) {
   if (Array.isArray(value)) return value;
   if (typeof value === "string" && value.trim()) {
@@ -436,12 +448,12 @@ export function evaluatePlatformEngineCapability(input = {}) {
   });
   if (skillMatches.length === 0) warnings.push("skill_prompt_contract_not_found");
 
-  const validatorCount = [
+  const validatorCount = uniqueCompactList([
     ...enginePolicies.flatMap((policy) => policy.validators_json),
     ...taskRules.flatMap((rule) => rule.validator_commands_json),
     ...strategies.flatMap((strategy) => strategy.required_validators_json),
     ...skillMatches.flatMap((skill) => skill.validator_commands_json),
-  ].filter(Boolean).length;
+  ]).length;
   if (validatorCount === 0) warnings.push("validators_not_configured");
 
   return {
@@ -523,12 +535,12 @@ export function planPolicyDrivenEngineTask(input = {}) {
   );
   if (approvalRequired && !task.approval_granted) blocks.push("approval_required");
 
-  const validatorCommands = [
+  const validatorCommands = uniqueCompactList([
     ...policy.validators_json,
     ...(selectedStrategy?.required_validators_json || []),
     ...(selectedRule?.validator_commands_json || []),
     ...matchedSkills.flatMap((skill) => skill.validator_commands_json),
-  ].filter(Boolean);
+  ]);
 
   if (policy.require_validators && validatorCommands.length === 0) {
     blocks.push("validators_required");

@@ -472,6 +472,7 @@ assert.equal(packagePlan.hard_gates.readback_required, true);
 assert.equal(packagePlan.recommended_decision, "apply_strategy");
 assert.equal(packagePlan.decision_options[0].option_key, "apply_strategy");
 assert(packagePlan.validators.includes("node test-repo-patch-apply.mjs"));
+assert.equal(packagePlan.validators.length, new Set(packagePlan.validators).size, "platform engine plans must not duplicate validators from overlapping policy/rule/strategy/skill sources");
 assert.equal(packagePlan.skills[0].skill_key, "repo_conflict_resolution");
 assert(packagePlan.skills[0].forbidden_tools.includes("git push"));
 
