@@ -1,5 +1,7 @@
 import { Router } from "express";
 import {
+  createDatabaseLifecycleReportSnapshot,
+  listDatabaseLifecycleReportSnapshots,
   planDatabaseTableLifecycleRegistryUpsert,
   runDatabaseTableLifecycleCensus,
 } from "../databaseTableLifecycle.js";
