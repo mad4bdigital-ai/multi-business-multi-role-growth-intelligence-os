@@ -80,7 +80,7 @@ const LOCAL_TOOL_RELEASES = [
     env: {
       CONNECTOR_AUTO_BROWSER_ENABLED: "false",
       AUTO_BROWSER_BASE_URL: "http://127.0.0.1:8000",
-      AUTO_BROWSER_HEALTH_PATH: "/health",
+      AUTO_BROWSER_HEALTH_PATH: "/healthz",
       AUTO_BROWSER_ALLOWED_HOSTS: "mad4b.com,n8n.mad4b.com",
     },
     install_policy: {
