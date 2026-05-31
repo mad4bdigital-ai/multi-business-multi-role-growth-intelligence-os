@@ -25,6 +25,18 @@ function asArray(value) {
   return [value];
 }
 
+function uniqueCompactList(values = []) {
+  const seen = new Set();
+  const output = [];
+  for (const value of asArray(values)) {
+    const normalized = compactString(value);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    output.push(normalized);
+  }
+  return output;
+}
+
 function normalizeJsonList(value) {
   if (Array.isArray(value)) return value;
   if (typeof value === "string" && value.trim()) {
