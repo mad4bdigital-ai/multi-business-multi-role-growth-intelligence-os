@@ -58,7 +58,7 @@ async function main() {
   assert.ok(log.count <= 1);
   if (log.count === 1) assert.ok(log.commits[0].sha.length >= 7);
 
-  const diff = await inspectRepoReadOnly({ action: "git_diff_name_status", base_ref: "HEAD~1", head_ref: "HEAD", max_chars: 10000 });
+  const diff = await inspectRepoReadOnly({ action: "git_diff_name_status", head_ref: "HEAD", max_chars: 10000 });
   assert.equal(diff.action, "git_diff_name_status");
   assert.ok(Array.isArray(diff.files));
 }
