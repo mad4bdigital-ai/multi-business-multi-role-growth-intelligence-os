@@ -8,11 +8,13 @@ import {
   checkPlatformEngineCapability,
   createPlatformEngineExecutionEnvelope,
   listPlatformEngineRuns,
+  listPlatformEngineValidatorResults,
   listPlatformEngines,
   planPlatformEngineTask,
   resolvePlatformEngineTaskIntent,
   summarizePlatformEngineFeedback,
   writePlatformEngineRun,
+  writePlatformEngineValidatorResult,
 } from "../platformEngineRegistry.js";
 
 function requireString(value, field) {
