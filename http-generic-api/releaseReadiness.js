@@ -81,6 +81,8 @@ function unescapeSqlString(value = "") {
   return String(value || "").replace(/''/g, "'");
 }
 
+const RESERVED_SCHEMA_OBJECT_NAMES = new Set(["IF", "NOT", "EXISTS", "SELECT", "AS"]);
+
 export function extractMigrationReadinessRequirementsFromSql(sqlText = "") {
   const sql = String(sqlText || "");
   const schemaObjects = new Set();
