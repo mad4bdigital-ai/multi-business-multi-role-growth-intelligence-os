@@ -363,6 +363,8 @@ async function checkDynamicMigrationDrift() {
   );
   const missing_total = Object.values(missing_counts).reduce((sum, count) => sum + Number(count || 0), 0)
     + registry_tables_missing.length;
+  const replacement_surfaces = await readMigrationDriftReplacementSurfacesSafe();
+  const missing_classification = classifyMigrationDriftMissing(missing, replacement_surfaces);
 
   return {
     status: missing_total > 0 ? "warn" : "pass",
