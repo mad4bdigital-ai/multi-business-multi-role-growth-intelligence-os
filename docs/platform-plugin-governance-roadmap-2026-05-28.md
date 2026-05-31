@@ -68,6 +68,8 @@ plugin/action registry
 
 The foundation is complete. Remaining work is governance hardening, private-path parity, inventory coverage, and real-provider onboarding.
 
+The 2026-05-31 recovery and resource-authority checkpoint adds a broader requirement: platform plugins must model evidence-backed recovery, retry, conflict handling, and resource authority before writes to tenant, user, brand, or external resources. See `docs/platform-governance-recovery-resource-authority-2026-05-31.md`.
+
 ## Next planned phases
 
 ### Phase 45 — Policy diff and approval hold before risky changes
@@ -175,6 +177,7 @@ The full track is done when:
 
 ## Documentation pointers
 
+- `docs/platform-governance-recovery-resource-authority-2026-05-31.md`
 - `docs/platform-plugin-smoke-certification-governance.md`
 - `docs/platform-plugin-recertification-policy-governance.md`
 - `docs/platform-plugin-promotion.md`
