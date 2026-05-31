@@ -78,6 +78,29 @@ Binds tasks to skill contracts. A skill contract defines required tools, forbidd
 
 ## Active engines
 
+### `recovery_capability_taxonomy_engine`
+
+Current state: active for read-only recovery classification and planning.
+
+The foundation is documented in `docs/recovery-capability-taxonomy-foundation.md`.
+
+Allowed in this phase:
+
+- CI failure classification
+- bounded CI summary planning
+- repo patch recovery planning
+- required-check summary planning
+- PR merge idempotency planning
+
+Not allowed in this phase:
+
+- secret reads
+- repo mutation
+- branch update
+- patch apply
+- PR merge
+- external write
+
 ### `repo_conflict_resolution_engine`
 
 Current state: active for diagnose, dry-run planning, and apply-readiness envelopes.

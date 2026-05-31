@@ -178,6 +178,8 @@ Known non-blocking local warning:
    - `repo.patch.no_match.diagnose`
    - `github.pr.merge_idempotent`
 
+   Status: foundation added in `http-generic-api/migrations/174_sprint65_recovery_capability_taxonomy_foundation.sql`. Runtime apply remains out of scope.
+
 2. Add a CI failure taxonomy table or registry family for:
    - `pending`
    - `failed_with_logs`
@@ -187,6 +189,8 @@ Known non-blocking local warning:
    - `schema_contract_failed`
    - `unit_test_failed`
    - `stale_run`
+
+   Status: foundation added in `platform_recovery_failure_taxonomy`. See `docs/recovery-capability-taxonomy-foundation.md`.
 
 3. Add an execution envelope validator that blocks apply when any required gate is missing:
    - scope guard
