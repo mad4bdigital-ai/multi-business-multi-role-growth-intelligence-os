@@ -630,6 +630,7 @@ async function checkDynamicMigrationDrift() {
     missing_source_samples,
     missing_classification,
     migration_apply_plan,
+    migration_apply_preflight,
     secrets_included: false,
   };
 }
