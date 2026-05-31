@@ -119,6 +119,7 @@ export function extractMigrationReadinessRequirementsFromSql(sqlText = "") {
 }
 
 function extractFirstColumnInsertKeys(sql = "", tableName = "") {
+  const escapedTable = tableName.replace(/[.*+?^${}()|[\]\\]/g, "\\function extractFirstColumnInsertKeys(sql = "", tableName = "") {
   const escapedTable = tableName.replace(/[.*+?^${}()|[\]\\]/g, "\\function unescapeSqlString(value = "") {
   return String(value || "").replace(/''/g, "'");
 }
@@ -172,6 +173,21 @@ function extractFirstColumnInsertKeys(sql = "", tableName = "") {
   return [...keys];
 }
 ");
+");
+  const insertRegex = new RegExp(`INSERT\\s+INTO\\s+\`?${escapedTable}\`?[\\s\\S]*?;`, "gi");
+  const keys = new Set();
+  for (const statementMatch of sql.matchAll(insertRegex)) {
+    const statement = statementMatch[0] || "";
+    const valuesIndex = statement.search(/\bVALUES\b/i);
+    if (valuesIndex === -1) continue;
+    const valuesPart = statement.slice(valuesIndex);
+    for (const tuple of extractTopLevelSqlTuples(valuesPart)) {
+      const firstValue = firstSqlStringValue(tuple);
+      if (firstValue) keys.add(firstValue);
+    }
+  }
+  return [...keys];
+}
   const insertRegex = new RegExp(`INSERT\\s+INTO\\s+\`?${escapedTable}\`?[\\s\\S]*?;`, "gi");
   const keys = new Set();
   for (const statementMatch of sql.matchAll(insertRegex)) {
