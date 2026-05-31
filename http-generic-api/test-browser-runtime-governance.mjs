@@ -116,6 +116,12 @@ const binding = normalizeBrowserRuntimeBinding({
 }
 
 {
+  assert.equal(typeof createManagedVisualTakeoverSession, "function", "managed visual takeover session helper must be exported");
+  assert.equal(typeof getBrowserRuntimeSession, "function", "browser runtime session get helper must be exported");
+  assert.equal(typeof closeBrowserRuntimeSession, "function", "browser runtime session close helper must be exported");
+}
+
+{
   const routes = readFileSync("routes/browserRuntimeRoutes.js", "utf8");
   assert(routes.includes("/browser-runtime/runtimes"), "browser runtime list route must be mounted");
   assert(routes.includes("/browser-runtime/policy-check"), "policy check route must exist");
