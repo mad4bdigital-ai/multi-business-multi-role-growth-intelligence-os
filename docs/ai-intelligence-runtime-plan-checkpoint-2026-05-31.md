@@ -208,6 +208,8 @@ Known non-blocking local warning:
    - audit evidence
    - readback
 
+   Status: foundation added in `http-generic-api/migrations/175_sprint65_resource_authority_registry_foundation.sql`. Runtime apply remains out of scope. See `docs/resource-authority-registry-foundation.md`.
+
 5. Add exact regression coverage for:
    - `connector_ps` bounded output through auth-host relay
    - GitHub CLI auth-required classification through connector route
