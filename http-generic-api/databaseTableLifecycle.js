@@ -319,3 +319,106 @@ export async function planDatabaseTableLifecycleRegistryUpsert({ limit = 250 } =
   const capped = rows.slice(0, Math.max(1, Math.min(number(limit, 250), 1000)));
   return buildDatabaseTableLifecycleRegisterPlan(capped);
 }
+
+async function queryLifecycleView(pool, viewName, limit = 50) {
+  const safeLimit = Math.max(1, Math.min(number(limit, 50), 250));
+  const [rows] = await pool.query(`SELECT * FROM ${viewName} LIMIT ?`, [safeLimit]);
+  return rows;
+}
+
+function summarizeLifecycleSnapshot(snapshot = {}) {
+  const statusRows = snapshot.status_summary || [];
+  const ownerRows = snapshot.owner_coverage || [];
+  const hotspotRows = snapshot.growth_hotspots || [];
+  const credentialRows = snapshot.credential_review || [];
+  const backupRows = snapshot.backup_snapshot_review || [];
+  const placeholderRows = snapshot.placeholder_review || [];
+  return {
+    status_count: statusRows.length,
+    owner_count: ownerRows.length,
+    hotspot_count: hotspotRows.length,
+    credential_review_count: credentialRows.length,
+    backup_snapshot_count: backupRows.length,
+    placeholder_review_count: placeholderRows.length,
+    unclassified_tables: ownerRows.reduce((sum, row) => sum + number(row.unclassified_table_count), 0),
+    high_risk_owner_count: ownerRows.filter((row) => number(row.high_risk_table_count) > 0).length,
+  };
+}
+
+export async function createDatabaseLifecycleReportSnapshot(input = {}, deps = {}) {
+  const pool = deps.pool || getPool();
+  const snapshotId = input.snapshot_id || randomUUID();
+  const reportKey = text(input.report_key || `database_lifecycle:${new Date().toISOString().slice(0, 10)}`);
+  const sourceViews = [
+    'v_database_lifecycle_status_summary',
+    'v_database_lifecycle_owner_coverage',
+    'v_database_lifecycle_growth_hotspots',
+    'v_database_lifecycle_placeholder_review',
+    'v_database_lifecycle_high_risk_review',
+    'v_database_lifecycle_credential_review',
+    'v_database_lifecycle_backup_snapshot_review',
+  ];
+  const snapshot = {
+    status_summary: await queryLifecycleView(pool, 'v_database_lifecycle_status_summary', 100),
+    owner_coverage: await queryLifecycleView(pool, 'v_database_lifecycle_owner_coverage', 250),
+    growth_hotspots: await queryLifecycleView(pool, 'v_database_lifecycle_growth_hotspots', 50),
+    placeholder_review: await queryLifecycleView(pool, 'v_database_lifecycle_placeholder_review', 100),
+    high_risk_review: await queryLifecycleView(pool, 'v_database_lifecycle_high_risk_review', 100),
+    credential_review: await queryLifecycleView(pool, 'v_database_lifecycle_credential_review', 100),
+    backup_snapshot_review: await queryLifecycleView(pool, 'v_database_lifecycle_backup_snapshot_review', 100),
+  };
+  const summary = summarizeLifecycleSnapshot(snapshot);
+
+  await pool.query(
+    `INSERT INTO platform_lifecycle_report_snapshots (
+       snapshot_id, report_key, report_scope, status, summary_json, snapshot_json,
+       source_views_json, trace_id, actor_id, tenant_id
+     ) VALUES (?, ?, 'database_lifecycle', 'created', ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       report_key = VALUES(report_key),
+       status = VALUES(status),
+       summary_json = VALUES(summary_json),
+       snapshot_json = VALUES(snapshot_json),
+       source_views_json = VALUES(source_views_json),
+       trace_id = VALUES(trace_id),
+       actor_id = VALUES(actor_id),
+       tenant_id = VALUES(tenant_id)`,
+    [
+      snapshotId,
+      reportKey,
+      JSON.stringify(summary),
+      JSON.stringify(snapshot),
+      JSON.stringify(sourceViews),
+      input.trace_id || null,
+      input.actor_id || input.requested_by || null,
+      input.tenant_id || null,
+    ]
+  );
+
+  return { snapshot_id: snapshotId, report_key: reportKey, summary, source_views: sourceViews };
+}
+
+export async function listDatabaseLifecycleReportSnapshots({ report_key = '', limit = 25 } = {}, deps = {}) {
+  const pool = deps.pool || getPool();
+  const where = [];
+  const params = [];
+  if (report_key) {
+    where.push('report_key = ?');
+    params.push(report_key);
+  }
+  params.push(Math.max(1, Math.min(number(limit, 25), 100)));
+  const [rows] = await pool.query(
+    `SELECT snapshot_id, report_key, report_scope, status, summary_json, source_views_json,
+            trace_id, actor_id, tenant_id, created_at
+       FROM platform_lifecycle_report_snapshots
+      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+      ORDER BY created_at DESC
+      LIMIT ?`,
+    params
+  );
+  return rows.map((row) => ({
+    ...row,
+    summary_json: typeof row.summary_json === 'string' ? JSON.parse(row.summary_json || '{}') : row.summary_json,
+    source_views_json: typeof row.source_views_json === 'string' ? JSON.parse(row.source_views_json || '[]') : row.source_views_json,
+  }));
+}
