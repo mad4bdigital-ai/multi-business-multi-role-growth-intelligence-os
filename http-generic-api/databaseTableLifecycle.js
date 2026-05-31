@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 
 function text(value = "") {
