@@ -23,6 +23,8 @@ import { resolvePlatformGraphMemory } from "./services/platformGraphMemoryResolv
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.join(__dirname, "migrations");
+const SYSTEM_LAYER_ROUTES_PATH = path.join(__dirname, "routes", "systemLayerRoutes.js");
+const GPT_TOOLS_ROUTES_PATH = path.join(__dirname, "routes", "gptToolsRoutes.js");
 
 // ── All platform tables that must exist ───────────────────────────────────────
 const REQUIRED_TABLES = [
@@ -189,6 +191,85 @@ function firstSqlStringValue(tuple = "") {
   return null;
 }
 
+export function extractNamedToolKeysFromSource(source = "") {
+  const names = new Set();
+  const nameRegex = /\bname\s*:\s*["']([A-Za-z0-9_.:-]+)["']/g;
+  for (const match of String(source || "").matchAll(nameRegex)) {
+    if (match?.[1]) names.add(match[1]);
+  }
+  return compactList([...names], 10000);
+}
+
+async function readMigrationDriftReplacementSurfaces() {
+  const [systemLayerResult, gptToolsResult] = await Promise.allSettled([
+    fs.readFile(SYSTEM_LAYER_ROUTES_PATH, "utf8"),
+    fs.readFile(GPT_TOOLS_ROUTES_PATH, "utf8"),
+  ]);
+  return {
+    system_layer_tools: systemLayerResult.status === "fulfilled"
+      ? extractNamedToolKeysFromSource(systemLayerResult.value)
+      : [],
+    virtual_admin_tools: gptToolsResult.status === "fulfilled"
+      ? extractNamedToolKeysFromSource(gptToolsResult.value)
+      : [],
+  };
+}
+
+async function readMigrationDriftReplacementSurfacesSafe() {
+  try {
+    return await readMigrationDriftReplacementSurfaces();
+  } catch {
+    return { system_layer_tools: [], virtual_admin_tools: [] };
+  }
+}
+
+function classifyNames(names = [], classifier) {
+  const result = {};
+  for (const name of compactList(names, 10000)) {
+    const classification = classifier(name);
+    if (!result[classification]) result[classification] = [];
+    result[classification].push(name);
+  }
+  for (const key of Object.keys(result)) result[key] = compactList(result[key], 10000);
+  return result;
+}
+
+function countClassified(classification = {}) {
+  return Object.fromEntries(
+    Object.entries(classification).map(([key, values]) => [key, Array.isArray(values) ? values.length : 0])
+  );
+}
+
+export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces = {}) {
+  const systemLayerTools = new Set(replacementSurfaces.system_layer_tools || []);
+  const virtualAdminTools = new Set(replacementSurfaces.virtual_admin_tools || []);
+  const classification = {
+    schema_objects: classifyNames(missing.schema_objects, () => "migration_apply_candidate"),
+    admin_tools: classifyNames(missing.admin_tools, (name) => {
+      if (systemLayerTools.has(name)) return "system_layer_replacement_present";
+      if (virtualAdminTools.has(name)) return "virtual_replacement_present";
+      return "missing_required_runtime_artifact";
+    }),
+    tenant_tools: classifyNames(missing.tenant_tools, () => "missing_required_runtime_artifact"),
+    engines: classifyNames(missing.engines, () => "migration_apply_candidate"),
+    engine_policies: classifyNames(missing.engine_policies, () => "migration_apply_candidate"),
+    engine_strategies: classifyNames(missing.engine_strategies, () => "migration_apply_candidate"),
+    engine_rules: classifyNames(missing.engine_rules, () => "migration_apply_candidate"),
+    engine_skills: classifyNames(missing.engine_skills, () => "migration_apply_candidate"),
+  };
+  const counts = Object.fromEntries(
+    Object.entries(classification).map(([surface, classes]) => [surface, countClassified(classes)])
+  );
+  return {
+    classification,
+    counts,
+    replacement_surface_counts: {
+      system_layer_tools: systemLayerTools.size,
+      virtual_admin_tools: virtualAdminTools.size,
+    },
+  };
+}
+
 function mergeMigrationRequirements(target, source) {
   for (const [key, values] of Object.entries(source || {})) {
     if (!Array.isArray(values)) continue;
@@ -282,6 +363,8 @@ async function checkDynamicMigrationDrift() {
   );
   const missing_total = Object.values(missing_counts).reduce((sum, count) => sum + Number(count || 0), 0)
     + registry_tables_missing.length;
+  const replacement_surfaces = await readMigrationDriftReplacementSurfacesSafe();
+  const missing_classification = classifyMigrationDriftMissing(missing, replacement_surfaces);
 
   return {
     status: missing_total > 0 ? "warn" : "pass",
@@ -296,6 +379,7 @@ async function checkDynamicMigrationDrift() {
     missing_samples: Object.fromEntries(
       Object.entries(missing).map(([key, values]) => [key, compactList(values, 25)])
     ),
+    missing_classification,
     secrets_included: false,
   };
 }
@@ -516,6 +600,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     platform_tables_ok: Object.values(report.platform_tables).filter((c) => c.status === "pass").length,
     migration_drift_missing_total: report.migration_drift?.missing_total ?? null,
     migration_drift_files_scanned: report.migration_drift?.files_scanned ?? 0,
+    migration_drift_classification_counts: report.migration_drift?.missing_classification?.counts || {},
     graph_memory_resolved: Boolean(report.graph_memory_diagnostics?.resolved),
     graph_memory_asset_count: Number(report.graph_memory_diagnostics?.asset_count || 0),
     secrets_included: false,
