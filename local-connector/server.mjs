@@ -1448,17 +1448,7 @@ async function handlePs(req, res) {
 
   try {
     const result = await runPs(script, timeoutMs);
-    if (result.exitCode !== 0) {
-      return json(res, 200, {
-        ok: false,
-        ...result,
-        error: {
-          code: 'POWERSHELL_EXIT_NONZERO',
-          message: `PowerShell exited with code ${result.exitCode}`,
-        },
-      });
-    }
-    return ok(res, result);
+    return json(res, 200, normalizeCliResult(result, 'POWERSHELL'));
   } catch (e) {
     return err(res, 500, 'EXEC_ERROR', e.message);
   }
