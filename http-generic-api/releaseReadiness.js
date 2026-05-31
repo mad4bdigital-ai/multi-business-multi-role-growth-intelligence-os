@@ -23,6 +23,8 @@ import { resolvePlatformGraphMemory } from "./services/platformGraphMemoryResolv
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.join(__dirname, "migrations");
+const SYSTEM_LAYER_ROUTES_PATH = path.join(__dirname, "routes", "systemLayerRoutes.js");
+const GPT_TOOLS_ROUTES_PATH = path.join(__dirname, "routes", "gptToolsRoutes.js");
 
 // ── All platform tables that must exist ───────────────────────────────────────
 const REQUIRED_TABLES = [
