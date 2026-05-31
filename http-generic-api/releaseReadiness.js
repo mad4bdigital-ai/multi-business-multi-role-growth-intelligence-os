@@ -336,14 +336,22 @@ async function readDynamicMigrationRequirements({ migrationsDir = MIGRATIONS_DIR
     engine_rules: [],
     engine_skills: [],
   };
+  const artifact_sources = emptyMigrationArtifactSourceMap();
   for (const file of files) {
     const sql = await fs.readFile(path.join(migrationsDir, file), "utf8");
-    mergeMigrationRequirements(requirements, extractMigrationReadinessRequirementsFromSql(sql));
+    const parsed = extractMigrationReadinessRequirementsFromSql(sql);
+    mergeMigrationRequirements(requirements, parsed);
+    noteMigrationRequirementSources(artifact_sources, parsed, file);
   }
   for (const key of Object.keys(requirements)) {
     requirements[key] = compactList(requirements[key], 10000);
   }
-  return { files_scanned: files.length, requirements };
+  for (const surface of Object.keys(artifact_sources)) {
+    for (const itemKey of Object.keys(artifact_sources[surface] || {})) {
+      artifact_sources[surface][itemKey] = compactList(artifact_sources[surface][itemKey], 50);
+    }
+  }
+  return { files_scanned: files.length, requirements, artifact_sources };
 }
 
 async function lookupExistingNames({ table, column, names }) {
