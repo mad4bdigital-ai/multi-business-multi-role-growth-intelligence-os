@@ -43,6 +43,10 @@ assert(requirements.schema_objects.includes("platform_resource_authority_require
 assert(requirements.schema_objects.includes("v_resource_authority_sample"), "must detect CREATE VIEW objects");
 assert(requirements.admin_tools.includes("resource_authority_decision_brief"), "must detect first admin tool tuple");
 assert(requirements.admin_tools.includes("github_ci_recovery_decision_brief"), "must detect later admin tool tuples");
+assert(!requirements.admin_tools.includes("type"), "must not treat JSON_OBJECT keys as tool keys");
+assert(!requirements.admin_tools.includes("tenant_id"), "must not treat nested JSON keys as tool keys");
+assert(!requirements.admin_tools.includes("environment"), "must not treat fixed_body JSON keys as tool keys");
+assert(!requirements.admin_tools.includes("production"), "must not treat fixed_body JSON values as tool keys");
 assert(requirements.tenant_tools.includes("tenant_system_tools_list"), "must detect tenant tool tuples");
 assert(requirements.engines.includes("resource_authority_engine"), "must detect platform engine rows");
 assert(requirements.engine_policies.includes("resource_authority_policy_v1"), "must detect engine policy rows");
