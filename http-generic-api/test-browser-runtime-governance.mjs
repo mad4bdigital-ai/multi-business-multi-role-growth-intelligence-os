@@ -141,6 +141,7 @@ const binding = normalizeBrowserRuntimeBinding({
 
 {
   const migration = readFileSync("migrations/130_sprint65_browser_runtime_governance.sql", "utf8");
+  const managedSessionToolsMigration = readFileSync("migrations/174_sprint65_auto_browser_managed_session_tools.sql", "utf8");
   for (const tableName of [
     "browser_runtime_registry",
     "browser_runtime_bindings",
