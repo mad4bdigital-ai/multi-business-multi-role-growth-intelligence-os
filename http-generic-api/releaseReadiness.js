@@ -270,6 +270,51 @@ export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces 
   };
 }
 
+export function buildMigrationDriftApplyPlan(missing = {}, missingClassification = {}, artifactSources = {}) {
+  const applySurfaces = [
+    "schema_objects",
+    "engines",
+    "engine_policies",
+    "engine_strategies",
+    "engine_rules",
+    "engine_skills",
+  ];
+  const candidateFiles = new Set();
+  const candidatesBySurface = {};
+  for (const surface of applySurfaces) {
+    const itemKeys = missingClassification?.classification?.[surface]?.migration_apply_candidate || [];
+    candidatesBySurface[surface] = compactList(itemKeys, 10000).map((item_key) => {
+      const source_files = sourceFilesFor(artifactSources, surface, item_key, 20);
+      for (const file of source_files) candidateFiles.add(file);
+      return { item_key, source_files };
+    });
+  }
+  const adminToolReview = compactList(
+    missingClassification?.classification?.admin_tools?.missing_required_runtime_artifact || [],
+    10000
+  ).map((item_key) => ({
+    item_key,
+    source_files: sourceFilesFor(artifactSources, "admin_tools", item_key, 20),
+    recommended_action: "review_registry_tool_surface_or_reseed_specific_tool",
+  }));
+  for (const item of adminToolReview) {
+    for (const file of item.source_files) candidateFiles.add(file);
+  }
+  return {
+    mode: "dry_run",
+    applies_sql: false,
+    candidate_files: compactList([...candidateFiles], 100),
+    candidates_by_surface: candidatesBySurface,
+    admin_tool_review: adminToolReview,
+    notes: [
+      "This plan is diagnostic only; no SQL was applied.",
+      "Schema and engine artifacts are migration apply candidates.",
+      "Admin tools marked missing_required_runtime_artifact need registry-surface review before reseeding.",
+    ],
+    secrets_included: false,
+  };
+}
+
 function mergeMigrationRequirements(target, source) {
   for (const [key, values] of Object.entries(source || {})) {
     if (!Array.isArray(values)) continue;
@@ -277,6 +322,47 @@ function mergeMigrationRequirements(target, source) {
     target[key].push(...values);
   }
   return target;
+}
+
+function emptyMigrationArtifactSourceMap() {
+  return {
+    schema_objects: {},
+    admin_tools: {},
+    tenant_tools: {},
+    engines: {},
+    engine_policies: {},
+    engine_strategies: {},
+    engine_rules: {},
+    engine_skills: {},
+  };
+}
+
+function noteMigrationRequirementSources(target, requirements, filename) {
+  for (const [surface, values] of Object.entries(requirements || {})) {
+    if (!Array.isArray(values)) continue;
+    if (!target[surface]) target[surface] = {};
+    for (const value of values) {
+      if (!value) continue;
+      if (!target[surface][value]) target[surface][value] = [];
+      target[surface][value].push(filename);
+    }
+  }
+  return target;
+}
+
+function sourceFilesFor(artifactSources = {}, surface = "", itemKey = "", limit = 10) {
+  return compactList(artifactSources?.[surface]?.[itemKey] || [], limit);
+}
+
+function sourceSamplesForMissing(missing = {}, artifactSources = {}, limit = 25) {
+  return Object.fromEntries(
+    Object.entries(missing).map(([surface, values]) => [
+      surface,
+      Object.fromEntries(
+        compactList(values, limit).map((itemKey) => [itemKey, sourceFilesFor(artifactSources, surface, itemKey, 10)])
+      ),
+    ])
+  );
 }
 
 async function readDynamicMigrationRequirements({ migrationsDir = MIGRATIONS_DIR } = {}) {
@@ -295,14 +381,22 @@ async function readDynamicMigrationRequirements({ migrationsDir = MIGRATIONS_DIR
     engine_rules: [],
     engine_skills: [],
   };
+  const artifact_sources = emptyMigrationArtifactSourceMap();
   for (const file of files) {
     const sql = await fs.readFile(path.join(migrationsDir, file), "utf8");
-    mergeMigrationRequirements(requirements, extractMigrationReadinessRequirementsFromSql(sql));
+    const parsed = extractMigrationReadinessRequirementsFromSql(sql);
+    mergeMigrationRequirements(requirements, parsed);
+    noteMigrationRequirementSources(artifact_sources, parsed, file);
   }
   for (const key of Object.keys(requirements)) {
     requirements[key] = compactList(requirements[key], 10000);
   }
-  return { files_scanned: files.length, requirements };
+  for (const surface of Object.keys(artifact_sources)) {
+    for (const itemKey of Object.keys(artifact_sources[surface] || {})) {
+      artifact_sources[surface][itemKey] = compactList(artifact_sources[surface][itemKey], 50);
+    }
+  }
+  return { files_scanned: files.length, requirements, artifact_sources };
 }
 
 async function lookupExistingNames({ table, column, names }) {
@@ -365,6 +459,12 @@ async function checkDynamicMigrationDrift() {
     + registry_tables_missing.length;
   const replacement_surfaces = await readMigrationDriftReplacementSurfacesSafe();
   const missing_classification = classifyMigrationDriftMissing(missing, replacement_surfaces);
+  const missing_source_samples = sourceSamplesForMissing(missing, migrationLoad.artifact_sources, 25);
+  const migration_apply_plan = buildMigrationDriftApplyPlan(
+    missing,
+    missing_classification,
+    migrationLoad.artifact_sources
+  );
 
   return {
     status: missing_total > 0 ? "warn" : "pass",
@@ -379,7 +479,9 @@ async function checkDynamicMigrationDrift() {
     missing_samples: Object.fromEntries(
       Object.entries(missing).map(([key, values]) => [key, compactList(values, 25)])
     ),
+    missing_source_samples,
     missing_classification,
+    migration_apply_plan,
     secrets_included: false,
   };
 }
@@ -601,6 +703,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     migration_drift_missing_total: report.migration_drift?.missing_total ?? null,
     migration_drift_files_scanned: report.migration_drift?.files_scanned ?? 0,
     migration_drift_classification_counts: report.migration_drift?.missing_classification?.counts || {},
+    migration_drift_candidate_files: report.migration_drift?.migration_apply_plan?.candidate_files || [],
     graph_memory_resolved: Boolean(report.graph_memory_diagnostics?.resolved),
     graph_memory_asset_count: Number(report.graph_memory_diagnostics?.asset_count || 0),
     secrets_included: false,

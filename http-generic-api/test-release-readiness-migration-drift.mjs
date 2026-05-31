@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  buildMigrationDriftApplyPlan,
   classifyMigrationDriftMissing,
   extractMigrationReadinessRequirementsFromSql,
   extractNamedToolKeysFromSource,
@@ -89,5 +90,36 @@ assert.deepEqual(classified.classification.admin_tools.virtual_replacement_prese
 assert.deepEqual(classified.classification.admin_tools.missing_required_runtime_artifact, ["missing_admin_tool"], "true missing admin tools should remain explicit");
 assert.deepEqual(classified.classification.tenant_tools.missing_required_runtime_artifact, ["tenant_missing_tool"], "tenant tool gaps should remain explicit");
 assert.deepEqual(classified.classification.engines.migration_apply_candidate, ["commercial_lifecycle_engine"], "engine gaps should be migration apply candidates");
+
+const dryRunPlan = buildMigrationDriftApplyPlan(
+  {
+    schema_objects: ["cms_sites"],
+    admin_tools: ["missing_admin_tool"],
+    engines: ["commercial_lifecycle_engine"],
+    engine_policies: [],
+    engine_strategies: [],
+    engine_rules: [],
+    engine_skills: [],
+  },
+  classified,
+  {
+    schema_objects: { cms_sites: ["162_sprint66_cms_site_resource_access_grants.sql"] },
+    admin_tools: { missing_admin_tool: ["051_sprint48_cloudflare_and_self_repair_tools.sql"] },
+    engines: { commercial_lifecycle_engine: ["168_sprint65_database_table_lifecycle_governance.sql"] },
+  }
+);
+assert.equal(dryRunPlan.mode, "dry_run", "apply plan must be dry-run only");
+assert.equal(dryRunPlan.applies_sql, false, "apply plan must not apply SQL");
+assert(dryRunPlan.candidate_files.includes("162_sprint66_cms_site_resource_access_grants.sql"), "must map schema object to source migration file");
+assert(dryRunPlan.candidate_files.includes("168_sprint65_database_table_lifecycle_governance.sql"), "must map engine to source migration file");
+assert.deepEqual(
+  dryRunPlan.admin_tool_review[0],
+  {
+    item_key: "missing_admin_tool",
+    source_files: ["051_sprint48_cloudflare_and_self_repair_tools.sql"],
+    recommended_action: "review_registry_tool_surface_or_reseed_specific_tool",
+  },
+  "missing admin tools should be review items, not automatic SQL apply"
+);
 
 console.log("release readiness migration drift parser tests passed");
