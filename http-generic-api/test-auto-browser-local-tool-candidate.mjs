@@ -46,4 +46,10 @@ assert(migration.includes('blocked_until_poc'), 'runtime metadata must block exe
 assert(migration.includes('candidate_only'), 'tool tags must keep Auto Browser candidate-only');
 assert(!migration.includes('"action":{"type":"string","enum":["visual_takeover"]}'), 'tool schema must not expose visual takeover execution yet');
 
+assert(managedRuntimeMigration.includes('auto_browser_managed_v1'), 'managed runtime migration must register browser.mad4b.com target runtime');
+assert(managedRuntimeMigration.includes('auto_browser_managed_visual_takeover_v1'), 'managed runtime migration must register planned visual takeover binding');
+assert(managedRuntimeMigration.includes('local_active_status_only'), 'Essam local runtime must be promoted only to status-only active');
+assert(managedRuntimeMigration.includes('/healthz'), 'managed runtime migration must document healthz status probe');
+assert(managedRuntimeMigration.includes('raw_novnc_public_exposure_forbidden'), 'managed runtime policy must forbid raw noVNC exposure');
+
 console.log('auto browser local tool candidate tests passed');
