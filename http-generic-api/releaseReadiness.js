@@ -99,7 +99,10 @@ export function extractMigrationReadinessRequirementsFromSql(sqlText = "") {
 
   const createObjectRegex = /CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW)\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/gi;
   for (const match of sql.matchAll(createObjectRegex)) {
-    if (match?.[1]) schemaObjects.add(match[1]);
+    const objectName = String(match?.[1] || "").trim();
+    if (objectName && !RESERVED_SCHEMA_OBJECT_NAMES.has(objectName.toUpperCase())) {
+      schemaObjects.add(objectName);
+    }
   }
 
   for (const config of MIGRATION_REGISTRY_REQUIREMENTS) {
