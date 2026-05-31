@@ -379,6 +379,7 @@ async function checkDynamicMigrationDrift() {
     missing_samples: Object.fromEntries(
       Object.entries(missing).map(([key, values]) => [key, compactList(values, 25)])
     ),
+    missing_classification,
     secrets_included: false,
   };
 }
