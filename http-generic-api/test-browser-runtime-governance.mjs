@@ -164,6 +164,15 @@ const binding = normalizeBrowserRuntimeBinding({
     assert(migration.includes(toolKey), `${toolKey} must be registered`);
   }
   assert(migration.includes("active_open_url_degraded_visual_capture"), "Essam degraded visual capture status must be seeded");
+  for (const toolKey of [
+    "browser_runtime_visual_takeover_session_create",
+    "browser_runtime_visual_takeover_session_get",
+    "browser_runtime_visual_takeover_session_close",
+  ]) {
+    assert(managedSessionToolsMigration.includes(toolKey), `${toolKey} must be registered`);
+  }
+  assert(managedSessionToolsMigration.includes("raw noVNC exposure is forbidden"), "managed session tools must forbid raw noVNC exposure");
+  assert(managedSessionToolsMigration.includes("auto_browser_managed_visual_takeover_v1"), "managed session create tool must default to managed binding");
 }
 
 console.log("browser runtime governance tests passed");
