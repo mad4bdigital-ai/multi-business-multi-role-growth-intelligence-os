@@ -7,6 +7,9 @@ import {
   normalizeBrowserRuntime,
   normalizeBrowserRuntimeBinding,
   parseBrowserUrl,
+  createManagedVisualTakeoverSession,
+  closeBrowserRuntimeSession,
+  getBrowserRuntimeSession,
 } from "./browserRuntimeGovernance.js";
 
 const nativeEssam = SEEDED_BROWSER_RUNTIMES.find((runtime) => runtime.runtime_key === "native_essam_edge_connector_v1");
