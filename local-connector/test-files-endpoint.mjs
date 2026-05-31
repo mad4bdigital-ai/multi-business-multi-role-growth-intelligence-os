@@ -28,6 +28,8 @@ const server = spawn(process.execPath, ['server.mjs'], {
     CONNECTOR_PORT: String(port),
     CONNECTOR_FILES_ENABLED: 'true',
     CONNECTOR_FILE_PATHS: root,
+    CONNECTOR_DEPENDENCIES_ENABLED: 'false',
+    CONNECTOR_APPS_ENABLED: 'false',
     CONNECTOR_SHELL_ENABLED: 'false',
     CONNECTOR_DEPENDENCIES_ENABLED: 'false',
     CONNECTOR_APPS_ENABLED: 'false',
