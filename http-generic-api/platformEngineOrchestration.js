@@ -448,12 +448,12 @@ export function evaluatePlatformEngineCapability(input = {}) {
   });
   if (skillMatches.length === 0) warnings.push("skill_prompt_contract_not_found");
 
-  const validatorCount = [
+  const validatorCount = uniqueCompactList([
     ...enginePolicies.flatMap((policy) => policy.validators_json),
     ...taskRules.flatMap((rule) => rule.validator_commands_json),
     ...strategies.flatMap((strategy) => strategy.required_validators_json),
     ...skillMatches.flatMap((skill) => skill.validator_commands_json),
-  ].filter(Boolean).length;
+  ]).length;
   if (validatorCount === 0) warnings.push("validators_not_configured");
 
   return {
