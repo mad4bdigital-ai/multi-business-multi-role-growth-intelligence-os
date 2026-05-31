@@ -786,7 +786,7 @@ async function searchRepoFiles(options) {
 
 function assertSafeGitRef(ref, fallback = "HEAD") {
   const value = String(ref || fallback).trim() || fallback;
-  if (value.includes("..") || !/^[A-Za-z0-9._/@:+-]+$/.test(value)) {
+  if (value.includes("..") || !/^[A-Za-z0-9._/@:+~-]+$/.test(value)) {
     const err = new Error("git ref contains unsupported characters.");
     err.status = 400;
     err.code = "repo_git_bad_ref";
