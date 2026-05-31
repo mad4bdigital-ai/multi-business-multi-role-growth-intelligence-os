@@ -189,7 +189,7 @@ These views are read-only visibility surfaces over `database_table_lifecycle_reg
 
 ## Apply readiness versus execution
 
-An apply-readiness envelope can return `can_apply: true` when policy, scope guard, validators, approval, resource authority when required, and readback requirements are satisfied. This does not execute anything.
+An apply-readiness envelope can return `can_apply: true` when policy, scope guard, validators, approval, resource authority when required, audit evidence shape, and readback requirements are satisfied. This does not execute anything.
 
 The current readiness envelope has these hard boundaries:
 
@@ -215,6 +215,7 @@ A future apply route must be a separate governed surface with scope validation, 
 6. Treat `can_apply` as readiness only, not execution.
 7. Use a separate approved apply route only after it exists and passes readback.
 8. For external writes or publish flows, confirm `resource_authority_required` is satisfied before treating the envelope as apply-ready.
+9. Confirm `audit_evidence` has a traceable subject, decision evidence, and no secret-like fields before apply-readiness is accepted.
 
 ### Database lifecycle review
 
@@ -245,6 +246,7 @@ Implemented:
 - tool search from governed derived index
 - validator de-duplication
 - deterministic resource authority blocker inside apply-readiness envelopes
+- deterministic audit evidence shape blocker inside apply-readiness envelopes
 
 Still pending:
 
@@ -253,6 +255,7 @@ Still pending:
 - failure taxonomy table
 - recovery / retry / conflict handling registry
 - live resource authority evaluator for tenant, user, brand, and external writes
+- audit evidence persistence/readback validator for the future apply executor
 - policy update proposal workflow
 - automated lifecycle report snapshots
 - tenant-safe read-only projection where needed
