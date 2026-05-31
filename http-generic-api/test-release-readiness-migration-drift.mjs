@@ -58,4 +58,36 @@ assert(requirements.engine_strategies.includes("resource_authority_gate_check"),
 assert(requirements.engine_rules.includes("resource_authority_publish_gate"), "must detect engine policy rule rows");
 assert(requirements.engine_skills.includes("resource_authority"), "must detect engine skill prompt rows");
 
+const sourceToolNames = extractNamedToolKeysFromSource(`
+  const TOOLS = [
+    { name: "activation_sheets_bootstrap_read" },
+    { name: "repo_inspect" },
+  ];
+`);
+assert(sourceToolNames.includes("activation_sheets_bootstrap_read"), "must extract source tool names");
+assert(sourceToolNames.includes("repo_inspect"), "must extract virtual source tool names");
+
+const classified = classifyMigrationDriftMissing(
+  {
+    schema_objects: ["cms_sites"],
+    admin_tools: ["activation_sheets_bootstrap_read", "repo_inspect", "missing_admin_tool"],
+    tenant_tools: ["tenant_missing_tool"],
+    engines: ["commercial_lifecycle_engine"],
+    engine_policies: [],
+    engine_strategies: [],
+    engine_rules: [],
+    engine_skills: [],
+  },
+  {
+    system_layer_tools: ["activation_sheets_bootstrap_read"],
+    virtual_admin_tools: ["repo_inspect"],
+  }
+);
+assert.deepEqual(classified.classification.schema_objects.migration_apply_candidate, ["cms_sites"], "schema gaps should be migration apply candidates");
+assert.deepEqual(classified.classification.admin_tools.system_layer_replacement_present, ["activation_sheets_bootstrap_read"], "system-layer replacements should be separated");
+assert.deepEqual(classified.classification.admin_tools.virtual_replacement_present, ["repo_inspect"], "virtual replacements should be separated");
+assert.deepEqual(classified.classification.admin_tools.missing_required_runtime_artifact, ["missing_admin_tool"], "true missing admin tools should remain explicit");
+assert.deepEqual(classified.classification.tenant_tools.missing_required_runtime_artifact, ["tenant_missing_tool"], "tenant tool gaps should remain explicit");
+assert.deepEqual(classified.classification.engines.migration_apply_candidate, ["commercial_lifecycle_engine"], "engine gaps should be migration apply candidates");
+
 console.log("release readiness migration drift parser tests passed");
