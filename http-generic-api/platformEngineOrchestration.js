@@ -535,12 +535,12 @@ export function planPolicyDrivenEngineTask(input = {}) {
   );
   if (approvalRequired && !task.approval_granted) blocks.push("approval_required");
 
-  const validatorCommands = [
+  const validatorCommands = uniqueCompactList([
     ...policy.validators_json,
     ...(selectedStrategy?.required_validators_json || []),
     ...(selectedRule?.validator_commands_json || []),
     ...matchedSkills.flatMap((skill) => skill.validator_commands_json),
-  ].filter(Boolean);
+  ]);
 
   if (policy.require_validators && validatorCommands.length === 0) {
     blocks.push("validators_required");
