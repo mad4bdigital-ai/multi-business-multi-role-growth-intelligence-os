@@ -8,6 +8,9 @@ import {
   getBrowserRuntime,
   healthBrowserRuntime,
   listBrowserRuntimes,
+  closeBrowserRuntimeSession,
+  createManagedVisualTakeoverSession,
+  getBrowserRuntimeSession,
   upsertBrowserRuntimeBinding,
 } from "../browserRuntimeGovernance.js";
 
