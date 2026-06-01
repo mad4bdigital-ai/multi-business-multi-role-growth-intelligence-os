@@ -124,6 +124,12 @@ assert.deepEqual(
   "missing admin tools should be review items, not automatic SQL apply"
 );
 
+const splitStatements = splitSqlStatements(
+  "CREATE TABLE IF NOT EXISTS cms_sites (site_id varchar(36) PRIMARY KEY); INSERT IGNORE INTO admin_platform_endpoint_tools (tool_key, description) VALUES ('safe_tool', 'text with semicolon; not a boundary'); INSERT IGNORE INTO admin_platform_endpoint_tools (tool_key) VALUES ('safe_tool_2');"
+);
+assert.equal(splitStatements.length, 3, "must split SQL on statement boundaries while preserving semicolons inside string literals");
+assert(splitStatements[1].includes("semicolon; not a boundary"), "must keep semicolon literals inside the INSERT statement");
+
 const passPreflight = assessMigrationSqlPreflight(
   "safe.sql",
   "CREATE TABLE IF NOT EXISTS cms_sites (site_id varchar(36) PRIMARY KEY); INSERT IGNORE INTO admin_platform_endpoint_tools (tool_key) VALUES ('safe_tool');"
