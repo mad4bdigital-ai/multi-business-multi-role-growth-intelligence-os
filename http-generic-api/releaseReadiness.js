@@ -618,7 +618,7 @@ async function readDynamicMigrationRequirements({ migrationsDir = MIGRATIONS_DIR
       artifact_sources[surface][itemKey] = compactList(artifact_sources[surface][itemKey], 50);
     }
   }
-  return { files_scanned: files.length, requirements, artifact_sources };
+  return { files_scanned: files.length, requirements, artifact_sources, artifact_metadata };
 }
 
 async function lookupExistingNames({ table, column, names }) {
