@@ -139,6 +139,13 @@ assert.equal(warnPreflight.status, "warn", "non-idempotent create and insert sho
 assert(warnPreflight.risks.some((risk) => risk.code === "create_table_without_if_not_exists"), "must flag non-idempotent CREATE TABLE");
 assert(warnPreflight.risks.some((risk) => risk.code === "insert_without_ignore_or_on_duplicate"), "must flag non-idempotent INSERT");
 
+const literalPreflight = assessMigrationSqlPreflight(
+  "literal.sql",
+  "INSERT IGNORE INTO skill_manifests (skill_key, description) VALUES ('drop_truncate_delete_forbidden', 'DROP/TRUNCATE/DELETE are explicitly outside policy');"
+);
+assert.equal(literalPreflight.status, "pass", "destructive words inside INSERT payload strings should not fail preflight");
+assert.equal(literalPreflight.counts.destructive, 0, "must not count destructive words inside string payloads");
+
 const failPreflight = assessMigrationSqlPreflight("danger.sql", "DROP TABLE cms_sites;");
 assert.equal(failPreflight.status, "fail", "destructive SQL should fail preflight");
 assert(failPreflight.risks.some((risk) => risk.code === "destructive_statement_detected"), "must flag destructive SQL");
