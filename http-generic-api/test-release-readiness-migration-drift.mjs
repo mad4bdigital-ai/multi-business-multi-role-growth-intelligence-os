@@ -130,10 +130,9 @@ const splitStatements = splitSqlStatements(
 assert.equal(splitStatements.length, 3, "must split SQL on statement boundaries while preserving semicolons inside string literals");
 assert(splitStatements[1].includes("semicolon; not a boundary"), "must keep semicolon literals inside the INSERT statement");
 
-const passPreflight = assessMigrationSqlPreflight(
-  "safe.sql",
-  "CREATE TABLE IF NOT EXISTS cms_sites (site_id varchar(36) PRIMARY KEY); INSERT IGNORE INTO admin_platform_endpoint_tools (tool_key) VALUES ('safe_tool');"
-);
+const passSql = "-- leading migration comment\nCREATE TABLE IF NOT EXISTS cms_sites (site_id varchar(36) PRIMARY KEY); INSERT IGNORE INTO admin_platform_endpoint_tools (tool_key) VALUES ('safe_tool');";
+const passPreflight = assessMigrationSqlPreflight("safe.sql", passSql);
+assert.equal(passPreflight.counts.statements, splitSqlStatements(passSql).length, "preflight must use the same statement splitter as apply");
 assert.equal(passPreflight.status, "pass", "idempotent create table and insert ignore should pass");
 assert.equal(passPreflight.counts.create_table_idempotent, 1, "must count idempotent CREATE TABLE");
 assert.equal(passPreflight.counts.insert_idempotent, 1, "must count idempotent INSERT");
