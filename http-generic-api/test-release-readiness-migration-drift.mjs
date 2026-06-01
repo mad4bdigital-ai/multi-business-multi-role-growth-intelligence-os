@@ -84,6 +84,14 @@ const classified = classifyMigrationDriftMissing(
   {
     system_layer_tools: ["activation_sheets_bootstrap_read"],
     virtual_admin_tools: ["repo_inspect"],
+    live_route_paths: ["/live/route"],
+    documented_paths: ["/documented/route"],
+  },
+  {
+    admin_tools: {
+      route_present_tool: { http_path: "/live/route" },
+      documented_route_tool: { http_path: "/documented/route" },
+    },
   }
 );
 assert.deepEqual(classified.classification.schema_objects.migration_apply_candidate, ["cms_sites"], "schema gaps should be migration apply candidates");
