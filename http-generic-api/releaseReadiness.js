@@ -587,6 +587,26 @@ function sourceSamplesForMissing(missing = {}, artifactSources = {}, limit = 25)
   );
 }
 
+export function actionableMigrationDriftCounts(missing = {}, missingClassification = {}) {
+  const adminCounts = missingClassification?.counts?.admin_tools || {};
+  const counts = {
+    schema_objects: Array.isArray(missing.schema_objects) ? missing.schema_objects.length : 0,
+    admin_tools: Number(adminCounts.missing_required_runtime_artifact || 0)
+      + Number(adminCounts.live_route_registry_exposure_missing || 0)
+      + Number(adminCounts.documented_route_registry_exposure_missing || 0),
+    tenant_tools: Array.isArray(missing.tenant_tools) ? missing.tenant_tools.length : 0,
+    engines: Array.isArray(missing.engines) ? missing.engines.length : 0,
+    engine_policies: Array.isArray(missing.engine_policies) ? missing.engine_policies.length : 0,
+    engine_strategies: Array.isArray(missing.engine_strategies) ? missing.engine_strategies.length : 0,
+    engine_rules: Array.isArray(missing.engine_rules) ? missing.engine_rules.length : 0,
+    engine_skills: Array.isArray(missing.engine_skills) ? missing.engine_skills.length : 0,
+  };
+  return {
+    counts,
+    total: Object.values(counts).reduce((sum, count) => sum + Number(count || 0), 0),
+  };
+}
+
 function buildAdminToolRouteEvidence(missingAdminTools = [], replacementSurfaces = {}, artifactMetadata = {}, limit = 50) {
   const systemLayerTools = new Set(replacementSurfaces.system_layer_tools || []);
   const virtualAdminTools = new Set(replacementSurfaces.virtual_admin_tools || []);
@@ -716,6 +736,7 @@ async function checkDynamicMigrationDrift() {
     replacement_surfaces,
     migrationLoad.artifact_metadata
   );
+  const actionable_missing = actionableMigrationDriftCounts(missing, missing_classification);
   const missing_source_samples = sourceSamplesForMissing(missing, migrationLoad.artifact_sources, 25);
   const admin_tool_route_evidence = buildAdminToolRouteEvidence(
     missing.admin_tools,
@@ -731,14 +752,18 @@ async function checkDynamicMigrationDrift() {
   const migration_apply_preflight = await buildMigrationApplyPreflightSafe(migration_apply_plan.candidate_files);
 
   return {
-    status: missing_total > 0 ? "warn" : "pass",
-    detail: missing_total > 0
-      ? `Dynamic migration drift detected: ${missing_total} required migration artifact(s) are not present in runtime DB.`
-      : `Dynamic migration drift check passed across ${migrationLoad.files_scanned} migration file(s).`,
+    status: actionable_missing.total > 0 ? "warn" : "pass",
+    detail: actionable_missing.total > 0
+      ? `Dynamic migration drift detected: ${actionable_missing.total} actionable migration artifact gap(s) remain; ${missing_total} raw missing artifact(s) were classified.`
+      : missing_total > 0
+        ? `Dynamic migration drift check passed across ${migrationLoad.files_scanned} migration file(s); ${missing_total} raw missing artifact(s) are satisfied by replacement surfaces.`
+        : `Dynamic migration drift check passed across ${migrationLoad.files_scanned} migration file(s).`,
     files_scanned: migrationLoad.files_scanned,
     discovered_counts,
     missing_counts,
     missing_total,
+    actionable_missing_counts: actionable_missing.counts,
+    actionable_missing_total: actionable_missing.total,
     registry_tables_missing: compactList(registry_tables_missing, 50),
     missing_samples: Object.fromEntries(
       Object.entries(missing).map(([key, values]) => [key, compactList(values, 25)])
@@ -967,6 +992,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     platform_tables_total: REQUIRED_TABLES.length,
     platform_tables_ok: Object.values(report.platform_tables).filter((c) => c.status === "pass").length,
     migration_drift_missing_total: report.migration_drift?.missing_total ?? null,
+    migration_drift_actionable_missing_total: report.migration_drift?.actionable_missing_total ?? null,
     migration_drift_files_scanned: report.migration_drift?.files_scanned ?? 0,
     migration_drift_classification_counts: report.migration_drift?.missing_classification?.counts || {},
     migration_drift_candidate_files: report.migration_drift?.migration_apply_plan?.candidate_files || [],
