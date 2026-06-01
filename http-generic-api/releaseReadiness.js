@@ -231,10 +231,41 @@ export function extractNamedToolKeysFromSource(source = "") {
   return compactList([...names], 10000);
 }
 
+function extractOpenApiPathsFromSource(source = "") {
+  const paths = new Set();
+  const pathRegex = /^\s{2}(\/[A-Za-z0-9_{}:./-]+):\s*$/gm;
+  for (const match of String(source || "").matchAll(pathRegex)) {
+    if (match?.[1]) paths.add(match[1]);
+  }
+  return compactList([...paths], 10000);
+}
+
+function extractExpressRoutePathsFromSource(source = "") {
+  const paths = new Set();
+  const routeRegex = /\brouter\.(?:get|post|put|patch|delete)\s*\(\s*["']([^"']+)["']/g;
+  for (const match of String(source || "").matchAll(routeRegex)) {
+    if (match?.[1]) paths.add(match[1]);
+  }
+  return compactList([...paths], 10000);
+}
+
+async function readRoutePathsFromRoutesDir() {
+  const routePaths = [];
+  const entries = await fs.readdir(ROUTES_DIR, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".js")) continue;
+    const source = await fs.readFile(path.join(ROUTES_DIR, entry.name), "utf8");
+    routePaths.push(...extractExpressRoutePathsFromSource(source));
+  }
+  return compactList(routePaths, 10000);
+}
+
 async function readMigrationDriftReplacementSurfaces() {
-  const [systemLayerResult, gptToolsResult] = await Promise.allSettled([
+  const [systemLayerResult, gptToolsResult, openapiResult, routePathsResult] = await Promise.allSettled([
     fs.readFile(SYSTEM_LAYER_ROUTES_PATH, "utf8"),
     fs.readFile(GPT_TOOLS_ROUTES_PATH, "utf8"),
+    fs.readFile(OPENAPI_PATH, "utf8"),
+    readRoutePathsFromRoutesDir(),
   ]);
   return {
     system_layer_tools: systemLayerResult.status === "fulfilled"
@@ -243,6 +274,10 @@ async function readMigrationDriftReplacementSurfaces() {
     virtual_admin_tools: gptToolsResult.status === "fulfilled"
       ? extractNamedToolKeysFromSource(gptToolsResult.value)
       : [],
+    documented_paths: openapiResult.status === "fulfilled"
+      ? extractOpenApiPathsFromSource(openapiResult.value)
+      : [],
+    live_route_paths: routePathsResult.status === "fulfilled" ? routePathsResult.value : [],
   };
 }
 
