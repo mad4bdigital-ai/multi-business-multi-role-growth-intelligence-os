@@ -123,4 +123,24 @@ assert.deepEqual(
   "missing admin tools should be review items, not automatic SQL apply"
 );
 
+const passPreflight = assessMigrationSqlPreflight(
+  "safe.sql",
+  "CREATE TABLE IF NOT EXISTS cms_sites (site_id varchar(36) PRIMARY KEY); INSERT IGNORE INTO admin_platform_endpoint_tools (tool_key) VALUES ('safe_tool');"
+);
+assert.equal(passPreflight.status, "pass", "idempotent create table and insert ignore should pass");
+assert.equal(passPreflight.counts.create_table_idempotent, 1, "must count idempotent CREATE TABLE");
+assert.equal(passPreflight.counts.insert_idempotent, 1, "must count idempotent INSERT");
+
+const warnPreflight = assessMigrationSqlPreflight(
+  "warn.sql",
+  "CREATE TABLE cms_sites (site_id varchar(36) PRIMARY KEY); INSERT INTO admin_platform_endpoint_tools (tool_key) VALUES ('unsafe_tool');"
+);
+assert.equal(warnPreflight.status, "warn", "non-idempotent create and insert should warn");
+assert(warnPreflight.risks.some((risk) => risk.code === "create_table_without_if_not_exists"), "must flag non-idempotent CREATE TABLE");
+assert(warnPreflight.risks.some((risk) => risk.code === "insert_without_ignore_or_on_duplicate"), "must flag non-idempotent INSERT");
+
+const failPreflight = assessMigrationSqlPreflight("danger.sql", "DROP TABLE cms_sites;");
+assert.equal(failPreflight.status, "fail", "destructive SQL should fail preflight");
+assert(failPreflight.risks.some((risk) => risk.code === "destructive_statement_detected"), "must flag destructive SQL");
+
 console.log("release readiness migration drift parser tests passed");
