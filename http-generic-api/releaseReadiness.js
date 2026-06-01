@@ -285,7 +285,7 @@ async function readMigrationDriftReplacementSurfacesSafe() {
   try {
     return await readMigrationDriftReplacementSurfaces();
   } catch {
-    return { system_layer_tools: [], virtual_admin_tools: [] };
+    return { system_layer_tools: [], virtual_admin_tools: [], documented_paths: [], live_route_paths: [] };
   }
 }
 
