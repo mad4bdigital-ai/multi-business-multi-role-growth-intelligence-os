@@ -202,11 +202,22 @@ async function main() {
 
   const results = await applyStatements(statements);
   const after_schema_objects = await existingSchemaObjects(requirements.schema_objects);
+  const ledger = await recordMigrationLedger({
+    migration,
+    checksum: migration_checksum_sha256,
+    preflight,
+    statement_count,
+    requirements,
+    results,
+    before_schema_objects,
+    after_schema_objects,
+  });
 
   console.log(JSON.stringify({
     ok: true,
     mode: "apply",
     migration,
+    migration_checksum_sha256,
     applies_sql: true,
     preflight,
     statements_executed: results.length,
@@ -214,6 +225,7 @@ async function main() {
     requirements: artifactNames(requirements),
     before_schema_objects,
     after_schema_objects,
+    ledger,
     secrets_included: false,
   }, null, 2));
 }
