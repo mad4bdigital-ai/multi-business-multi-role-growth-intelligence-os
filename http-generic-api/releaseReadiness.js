@@ -992,6 +992,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     platform_tables_total: REQUIRED_TABLES.length,
     platform_tables_ok: Object.values(report.platform_tables).filter((c) => c.status === "pass").length,
     migration_drift_missing_total: report.migration_drift?.missing_total ?? null,
+    migration_drift_actionable_missing_total: report.migration_drift?.actionable_missing_total ?? null,
     migration_drift_files_scanned: report.migration_drift?.files_scanned ?? 0,
     migration_drift_classification_counts: report.migration_drift?.missing_classification?.counts || {},
     migration_drift_candidate_files: report.migration_drift?.migration_apply_plan?.candidate_files || [],
