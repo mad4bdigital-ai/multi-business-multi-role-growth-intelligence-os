@@ -175,22 +175,51 @@ function extractTopLevelSqlTuples(sql = "") {
 }
 
 function firstSqlStringValue(tuple = "") {
-  let i = 1;
-  while (i < tuple.length && /\s/.test(tuple[i])) i += 1;
-  if (tuple[i] !== "'") return null;
-  i += 1;
-  let value = "";
-  for (; i < tuple.length; i += 1) {
-    const ch = tuple[i];
-    if (ch === "'" && tuple[i + 1] === "'") {
-      value += "'";
-      i += 1;
-      continue;
+  return sqlStringValues(tuple)[0] || null;
+}
+
+function sqlStringValues(tuple = "") {
+  const values = [];
+  for (let i = 0; i < tuple.length; i += 1) {
+    if (tuple[i] !== "'") continue;
+    i += 1;
+    let value = "";
+    for (; i < tuple.length; i += 1) {
+      const ch = tuple[i];
+      if (ch === "'" && tuple[i + 1] === "'") {
+        value += "'";
+        i += 1;
+        continue;
+      }
+      if (ch === "'") {
+        values.push(value);
+        break;
+      }
+      value += ch;
     }
-    if (ch === "'") return value;
-    value += ch;
   }
-  return null;
+  return values;
+}
+
+function extractAdminToolMetadataFromSql(sql = "") {
+  const metadata = {};
+  const insertRegex = /INSERT\s+INTO\s+`?admin_platform_endpoint_tools`?[\s\S]*?;/gi;
+  for (const statementMatch of String(sql || "").matchAll(insertRegex)) {
+    const statement = statementMatch[0] || "";
+    const valuesIndex = statement.search(/\bVALUES\b/i);
+    if (valuesIndex === -1) continue;
+    const valuesPart = statement.slice(valuesIndex);
+    for (const tuple of extractTopLevelSqlTuples(valuesPart)) {
+      const values = sqlStringValues(tuple);
+      const toolKey = values[0];
+      if (!toolKey) continue;
+      metadata[toolKey] = {
+        http_method: values[3] || null,
+        http_path: values[4] || null,
+      };
+    }
+  }
+  return metadata;
 }
 
 export function extractNamedToolKeysFromSource(source = "") {
