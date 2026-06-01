@@ -81,6 +81,51 @@ async function applyStatements(statements = []) {
   return results;
 }
 
+function sha256(value = "") {
+  return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
+}
+
+async function recordMigrationLedger({
+  migration,
+  checksum,
+  preflight,
+  statement_count,
+  requirements,
+  results,
+  before_schema_objects,
+  after_schema_objects,
+}) {
+  const run_id = randomUUID();
+  const metadata = {
+    node_version: process.version,
+    platform: process.platform,
+    runner_pid: process.pid,
+  };
+  await getPool().query(
+    `INSERT INTO governed_migration_ledger
+      (run_id, migration_file, migration_checksum_sha256, applied_by, runner_version, mode,
+       statement_count, preflight_status, preflight_risk_count, requirements_json, results_json,
+       before_schema_objects_json, after_schema_objects_json, metadata_json, secrets_included)
+     VALUES (?, ?, ?, ?, ?, 'apply', ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+    [
+      run_id,
+      migration,
+      checksum,
+      process.env.GOVERNED_MIGRATION_APPLIED_BY || "governed_migration_runner",
+      RUNNER_VERSION,
+      statement_count,
+      preflight?.status || "unknown",
+      Number(preflight?.risk_count || 0),
+      JSON.stringify(artifactNames(requirements)),
+      JSON.stringify(results || []),
+      JSON.stringify(before_schema_objects || []),
+      JSON.stringify(after_schema_objects || []),
+      JSON.stringify(metadata),
+    ]
+  );
+  return { run_id, runner_version: RUNNER_VERSION, recorded: true };
+}
+
 async function main() {
   const args = parseArgs();
   const migration = path.basename(args.migration || "");
