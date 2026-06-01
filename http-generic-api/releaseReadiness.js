@@ -272,7 +272,7 @@ export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces 
 
 export function splitSqlStatements(sql = "") {
   return String(sql || "")
-    .split(/;\s*(?=(?:CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW)|INSERT\s+INTO|ALTER\s+TABLE|DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b|$)/i)
+    .split(/;\s*(?=(?:CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW)|INSERT\s+(?:IGNORE\s+)?INTO|ALTER\s+TABLE|DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b|$)/i)
     .map((statement) => statement.trim())
     .filter(Boolean);
 }
