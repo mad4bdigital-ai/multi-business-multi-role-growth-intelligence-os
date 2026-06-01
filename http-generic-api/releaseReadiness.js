@@ -601,11 +601,14 @@ async function readDynamicMigrationRequirements({ migrationsDir = MIGRATIONS_DIR
     engine_skills: [],
   };
   const artifact_sources = emptyMigrationArtifactSourceMap();
+  const artifact_metadata = emptyMigrationArtifactMetadataMap();
   for (const file of files) {
     const sql = await fs.readFile(path.join(migrationsDir, file), "utf8");
     const parsed = extractMigrationReadinessRequirementsFromSql(sql);
+    const adminToolMetadata = extractAdminToolMetadataFromSql(sql);
     mergeMigrationRequirements(requirements, parsed);
     noteMigrationRequirementSources(artifact_sources, parsed, file);
+    noteAdminToolMetadata(artifact_metadata, adminToolMetadata, file);
   }
   for (const key of Object.keys(requirements)) {
     requirements[key] = compactList(requirements[key], 10000);
