@@ -140,6 +140,14 @@ const splitStatements = splitSqlStatements(
 assert.equal(splitStatements.length, 3, "must split SQL on statement boundaries while preserving semicolons inside string literals");
 assert(splitStatements[1].includes("semicolon; not a boundary"), "must keep semicolon literals inside the INSERT statement");
 
+const commentSeparatedStatements = splitSqlStatements(
+  "UPDATE admin_platform_endpoint_tools SET description = 'ok' WHERE tool_key = 'admin_control';\n\n-- next seed block\nINSERT INTO admin_platform_endpoint_tools (tool_key) VALUES ('seeded_tool') ON DUPLICATE KEY UPDATE tool_key = VALUES(tool_key);\n/* next block */\nINSERT IGNORE INTO admin_platform_endpoint_tools (tool_key) VALUES ('seeded_tool_2');"
+);
+assert.equal(commentSeparatedStatements.length, 3, "must split SQL across line/block comments between statements");
+assert(commentSeparatedStatements[0].startsWith("UPDATE"), "must treat UPDATE as a statement boundary");
+assert(commentSeparatedStatements[1].startsWith("INSERT INTO"), "must split after comments before INSERT INTO");
+assert(commentSeparatedStatements[2].startsWith("INSERT IGNORE INTO"), "must split after block comments before INSERT IGNORE INTO");
+
 const passSql = "-- leading migration comment\nCREATE TABLE IF NOT EXISTS cms_sites (site_id varchar(36) PRIMARY KEY); INSERT IGNORE INTO admin_platform_endpoint_tools (tool_key) VALUES ('safe_tool');";
 const passPreflight = assessMigrationSqlPreflight("safe.sql", passSql);
 assert.equal(passPreflight.counts.statements, splitSqlStatements(passSql).length, "preflight must use the same statement splitter as apply");
