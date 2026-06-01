@@ -284,8 +284,7 @@ function stripSqlComments(sql = "") {
 }
 
 export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
-  const sql = stripSqlComments(sqlText);
-  const statements = splitSqlStatements(sql);
+  const statements = splitSqlStatements(sqlText);
   const risks = [];
   const counts = {
     statements: statements.length,
@@ -300,7 +299,10 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
   };
 
   for (const statement of statements) {
-    const normalized = statement.replace(/\s+/g, " ").trim();
+    const normalized = statement
+      .replace(/^\s*(?:--[^\n]*\n\s*)+/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
     if (/^CREATE\s+TABLE\b/i.test(normalized)) {
       counts.create_table += 1;
       if (/^CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\b/i.test(normalized)) {

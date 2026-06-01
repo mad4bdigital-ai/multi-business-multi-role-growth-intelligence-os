@@ -84,7 +84,27 @@ async function main() {
   const preflight = assessMigrationSqlPreflight(migration, sql);
   const requirements = extractMigrationReadinessRequirementsFromSql(sql);
   const statements = splitSqlStatements(sql);
+  const statement_count = statements.length;
+  const preflight_statement_count = Number(preflight?.counts?.statements || 0);
   const before_schema_objects = await existingSchemaObjects(requirements.schema_objects);
+
+  if (preflight_statement_count !== statement_count) {
+    console.log(JSON.stringify({
+      ok: false,
+      mode: args.mode,
+      migration,
+      blocked_reason: "preflight_statement_count_mismatch",
+      preflight_statement_count,
+      statement_count,
+      preflight,
+      requirements: artifactNames(requirements),
+      before_schema_objects,
+      applies_sql: false,
+      secrets_included: false,
+    }, null, 2));
+    process.exitCode = 2;
+    return;
+  }
 
   if (preflight.status !== "pass") {
     console.log(JSON.stringify({
