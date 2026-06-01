@@ -680,7 +680,11 @@ async function checkDynamicMigrationDrift() {
   const missing_total = Object.values(missing_counts).reduce((sum, count) => sum + Number(count || 0), 0)
     + registry_tables_missing.length;
   const replacement_surfaces = await readMigrationDriftReplacementSurfacesSafe();
-  const missing_classification = classifyMigrationDriftMissing(missing, replacement_surfaces);
+  const missing_classification = classifyMigrationDriftMissing(
+    missing,
+    replacement_surfaces,
+    migrationLoad.artifact_metadata
+  );
   const missing_source_samples = sourceSamplesForMissing(missing, migrationLoad.artifact_sources, 25);
   const migration_apply_plan = buildMigrationDriftApplyPlan(
     missing,
