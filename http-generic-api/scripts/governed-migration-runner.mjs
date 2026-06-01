@@ -25,7 +25,10 @@ const ALLOWED_MIGRATIONS = new Set([
   "163_sprint65_session_archive_smoke_tool.sql",
   "166_sprint65_ai_intelligence_runtime_governance.sql",
   "168_sprint65_database_table_lifecycle_governance.sql",
+  "176_sprint66_governed_migration_ledger.sql",
 ]);
+
+const RUNNER_VERSION = "governed-migration-runner-v2";
 
 function parseArgs(argv = process.argv.slice(2)) {
   const parsed = { mode: "dry_run", migration: "", confirm: "" };
