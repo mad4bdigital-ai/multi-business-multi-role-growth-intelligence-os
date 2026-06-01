@@ -25,6 +25,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.join(__dirname, "migrations");
 const SYSTEM_LAYER_ROUTES_PATH = path.join(__dirname, "routes", "systemLayerRoutes.js");
 const GPT_TOOLS_ROUTES_PATH = path.join(__dirname, "routes", "gptToolsRoutes.js");
+const OPENAPI_PATH = path.join(__dirname, "openapi.yaml");
+const ROUTES_DIR = path.join(__dirname, "routes");
 
 // ── All platform tables that must exist ───────────────────────────────────────
 const REQUIRED_TABLES = [
@@ -173,22 +175,51 @@ function extractTopLevelSqlTuples(sql = "") {
 }
 
 function firstSqlStringValue(tuple = "") {
-  let i = 1;
-  while (i < tuple.length && /\s/.test(tuple[i])) i += 1;
-  if (tuple[i] !== "'") return null;
-  i += 1;
-  let value = "";
-  for (; i < tuple.length; i += 1) {
-    const ch = tuple[i];
-    if (ch === "'" && tuple[i + 1] === "'") {
-      value += "'";
-      i += 1;
-      continue;
+  return sqlStringValues(tuple)[0] || null;
+}
+
+function sqlStringValues(tuple = "") {
+  const values = [];
+  for (let i = 0; i < tuple.length; i += 1) {
+    if (tuple[i] !== "'") continue;
+    i += 1;
+    let value = "";
+    for (; i < tuple.length; i += 1) {
+      const ch = tuple[i];
+      if (ch === "'" && tuple[i + 1] === "'") {
+        value += "'";
+        i += 1;
+        continue;
+      }
+      if (ch === "'") {
+        values.push(value);
+        break;
+      }
+      value += ch;
     }
-    if (ch === "'") return value;
-    value += ch;
   }
-  return null;
+  return values;
+}
+
+function extractAdminToolMetadataFromSql(sql = "") {
+  const metadata = {};
+  const insertRegex = /INSERT\s+INTO\s+`?admin_platform_endpoint_tools`?[\s\S]*?;/gi;
+  for (const statementMatch of String(sql || "").matchAll(insertRegex)) {
+    const statement = statementMatch[0] || "";
+    const valuesIndex = statement.search(/\bVALUES\b/i);
+    if (valuesIndex === -1) continue;
+    const valuesPart = statement.slice(valuesIndex);
+    for (const tuple of extractTopLevelSqlTuples(valuesPart)) {
+      const values = sqlStringValues(tuple);
+      const toolKey = values[0];
+      if (!toolKey) continue;
+      metadata[toolKey] = {
+        http_method: values[3] || null,
+        http_path: values[4] || null,
+      };
+    }
+  }
+  return metadata;
 }
 
 export function extractNamedToolKeysFromSource(source = "") {
@@ -200,10 +231,41 @@ export function extractNamedToolKeysFromSource(source = "") {
   return compactList([...names], 10000);
 }
 
+function extractOpenApiPathsFromSource(source = "") {
+  const paths = new Set();
+  const pathRegex = /^\s{2}(\/[A-Za-z0-9_{}:./-]+):\s*$/gm;
+  for (const match of String(source || "").matchAll(pathRegex)) {
+    if (match?.[1]) paths.add(match[1]);
+  }
+  return compactList([...paths], 10000);
+}
+
+function extractExpressRoutePathsFromSource(source = "") {
+  const paths = new Set();
+  const routeRegex = /\brouter\.(?:get|post|put|patch|delete)\s*\(\s*["']([^"']+)["']/g;
+  for (const match of String(source || "").matchAll(routeRegex)) {
+    if (match?.[1]) paths.add(match[1]);
+  }
+  return compactList([...paths], 10000);
+}
+
+async function readRoutePathsFromRoutesDir() {
+  const routePaths = [];
+  const entries = await fs.readdir(ROUTES_DIR, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".js")) continue;
+    const source = await fs.readFile(path.join(ROUTES_DIR, entry.name), "utf8");
+    routePaths.push(...extractExpressRoutePathsFromSource(source));
+  }
+  return compactList(routePaths, 10000);
+}
+
 async function readMigrationDriftReplacementSurfaces() {
-  const [systemLayerResult, gptToolsResult] = await Promise.allSettled([
+  const [systemLayerResult, gptToolsResult, openapiResult, routePathsResult] = await Promise.allSettled([
     fs.readFile(SYSTEM_LAYER_ROUTES_PATH, "utf8"),
     fs.readFile(GPT_TOOLS_ROUTES_PATH, "utf8"),
+    fs.readFile(OPENAPI_PATH, "utf8"),
+    readRoutePathsFromRoutesDir(),
   ]);
   return {
     system_layer_tools: systemLayerResult.status === "fulfilled"
@@ -212,6 +274,10 @@ async function readMigrationDriftReplacementSurfaces() {
     virtual_admin_tools: gptToolsResult.status === "fulfilled"
       ? extractNamedToolKeysFromSource(gptToolsResult.value)
       : [],
+    documented_paths: openapiResult.status === "fulfilled"
+      ? extractOpenApiPathsFromSource(openapiResult.value)
+      : [],
+    live_route_paths: routePathsResult.status === "fulfilled" ? routePathsResult.value : [],
   };
 }
 
@@ -219,7 +285,7 @@ async function readMigrationDriftReplacementSurfacesSafe() {
   try {
     return await readMigrationDriftReplacementSurfaces();
   } catch {
-    return { system_layer_tools: [], virtual_admin_tools: [] };
+    return { system_layer_tools: [], virtual_admin_tools: [], documented_paths: [], live_route_paths: [] };
   }
 }
 
@@ -240,14 +306,20 @@ function countClassified(classification = {}) {
   );
 }
 
-export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces = {}) {
+export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces = {}, artifactMetadata = {}) {
   const systemLayerTools = new Set(replacementSurfaces.system_layer_tools || []);
   const virtualAdminTools = new Set(replacementSurfaces.virtual_admin_tools || []);
+  const documentedPaths = new Set(replacementSurfaces.documented_paths || []);
+  const liveRoutePaths = new Set(replacementSurfaces.live_route_paths || []);
+  const adminToolMetadata = artifactMetadata.admin_tools || {};
   const classification = {
     schema_objects: classifyNames(missing.schema_objects, () => "migration_apply_candidate"),
     admin_tools: classifyNames(missing.admin_tools, (name) => {
       if (systemLayerTools.has(name)) return "system_layer_replacement_present";
       if (virtualAdminTools.has(name)) return "virtual_replacement_present";
+      const httpPath = adminToolMetadata?.[name]?.http_path;
+      if (httpPath && liveRoutePaths.has(httpPath)) return "live_route_registry_exposure_missing";
+      if (httpPath && documentedPaths.has(httpPath)) return "documented_route_registry_exposure_missing";
       return "missing_required_runtime_artifact";
     }),
     tenant_tools: classifyNames(missing.tenant_tools, () => "missing_required_runtime_artifact"),
@@ -266,6 +338,8 @@ export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces 
     replacement_surface_counts: {
       system_layer_tools: systemLayerTools.size,
       virtual_admin_tools: virtualAdminTools.size,
+      documented_paths: documentedPaths.size,
+      live_route_paths: liveRoutePaths.size,
     },
   };
 }
@@ -464,6 +538,24 @@ function emptyMigrationArtifactSourceMap() {
   };
 }
 
+function emptyMigrationArtifactMetadataMap() {
+  return {
+    admin_tools: {},
+  };
+}
+
+function noteAdminToolMetadata(target, metadata, filename) {
+  for (const [toolKey, info] of Object.entries(metadata || {})) {
+    if (!toolKey) continue;
+    target.admin_tools[toolKey] = {
+      ...(target.admin_tools[toolKey] || {}),
+      ...info,
+      source_files: compactList([...(target.admin_tools[toolKey]?.source_files || []), filename], 50),
+    };
+  }
+  return target;
+}
+
 function noteMigrationRequirementSources(target, requirements, filename) {
   for (const [surface, values] of Object.entries(requirements || {})) {
     if (!Array.isArray(values)) continue;
@@ -492,6 +584,34 @@ function sourceSamplesForMissing(missing = {}, artifactSources = {}, limit = 25)
   );
 }
 
+function buildAdminToolRouteEvidence(missingAdminTools = [], replacementSurfaces = {}, artifactMetadata = {}, limit = 50) {
+  const systemLayerTools = new Set(replacementSurfaces.system_layer_tools || []);
+  const virtualAdminTools = new Set(replacementSurfaces.virtual_admin_tools || []);
+  const documentedPaths = new Set(replacementSurfaces.documented_paths || []);
+  const liveRoutePaths = new Set(replacementSurfaces.live_route_paths || []);
+  const adminToolMetadata = artifactMetadata.admin_tools || {};
+  return Object.fromEntries(
+    compactList(missingAdminTools, limit).map((toolKey) => {
+      const info = adminToolMetadata[toolKey] || {};
+      const httpPath = info.http_path || null;
+      return [toolKey, {
+        http_method: info.http_method || null,
+        http_path: httpPath,
+        source_files: compactList(info.source_files || [], 10),
+        system_layer_tool_present: systemLayerTools.has(toolKey),
+        virtual_admin_tool_present: virtualAdminTools.has(toolKey),
+        live_route_present: Boolean(httpPath && liveRoutePaths.has(httpPath)),
+        documented_path_present: Boolean(httpPath && documentedPaths.has(httpPath)),
+        recommended_action: systemLayerTools.has(toolKey) || virtualAdminTools.has(toolKey)
+          ? "document_replacement_and_exclude_from_hard_drift"
+          : httpPath && (liveRoutePaths.has(httpPath) || documentedPaths.has(httpPath))
+            ? "restore_registry_exposure_or_document_deprecation"
+            : "investigate_missing_runtime_surface_before_reseed",
+      }];
+    })
+  );
+}
+
 async function readDynamicMigrationRequirements({ migrationsDir = MIGRATIONS_DIR } = {}) {
   const entries = await fs.readdir(migrationsDir, { withFileTypes: true });
   const files = entries
@@ -509,11 +629,14 @@ async function readDynamicMigrationRequirements({ migrationsDir = MIGRATIONS_DIR
     engine_skills: [],
   };
   const artifact_sources = emptyMigrationArtifactSourceMap();
+  const artifact_metadata = emptyMigrationArtifactMetadataMap();
   for (const file of files) {
     const sql = await fs.readFile(path.join(migrationsDir, file), "utf8");
     const parsed = extractMigrationReadinessRequirementsFromSql(sql);
+    const adminToolMetadata = extractAdminToolMetadataFromSql(sql);
     mergeMigrationRequirements(requirements, parsed);
     noteMigrationRequirementSources(artifact_sources, parsed, file);
+    noteAdminToolMetadata(artifact_metadata, adminToolMetadata, file);
   }
   for (const key of Object.keys(requirements)) {
     requirements[key] = compactList(requirements[key], 10000);
@@ -523,7 +646,7 @@ async function readDynamicMigrationRequirements({ migrationsDir = MIGRATIONS_DIR
       artifact_sources[surface][itemKey] = compactList(artifact_sources[surface][itemKey], 50);
     }
   }
-  return { files_scanned: files.length, requirements, artifact_sources };
+  return { files_scanned: files.length, requirements, artifact_sources, artifact_metadata };
 }
 
 async function lookupExistingNames({ table, column, names }) {
@@ -585,8 +708,18 @@ async function checkDynamicMigrationDrift() {
   const missing_total = Object.values(missing_counts).reduce((sum, count) => sum + Number(count || 0), 0)
     + registry_tables_missing.length;
   const replacement_surfaces = await readMigrationDriftReplacementSurfacesSafe();
-  const missing_classification = classifyMigrationDriftMissing(missing, replacement_surfaces);
+  const missing_classification = classifyMigrationDriftMissing(
+    missing,
+    replacement_surfaces,
+    migrationLoad.artifact_metadata
+  );
   const missing_source_samples = sourceSamplesForMissing(missing, migrationLoad.artifact_sources, 25);
+  const admin_tool_route_evidence = buildAdminToolRouteEvidence(
+    missing.admin_tools,
+    replacement_surfaces,
+    migrationLoad.artifact_metadata,
+    50
+  );
   const migration_apply_plan = buildMigrationDriftApplyPlan(
     missing,
     missing_classification,
@@ -608,6 +741,7 @@ async function checkDynamicMigrationDrift() {
       Object.entries(missing).map(([key, values]) => [key, compactList(values, 25)])
     ),
     missing_source_samples,
+    admin_tool_route_evidence,
     missing_classification,
     migration_apply_plan,
     migration_apply_preflight,
