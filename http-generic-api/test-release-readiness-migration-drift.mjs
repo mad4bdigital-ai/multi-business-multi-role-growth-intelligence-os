@@ -103,6 +103,24 @@ assert.deepEqual(classified.classification.admin_tools.documented_route_registry
 assert.deepEqual(classified.classification.admin_tools.missing_required_runtime_artifact, ["missing_admin_tool"], "true missing admin tools should remain explicit");
 assert.deepEqual(classified.classification.tenant_tools.missing_required_runtime_artifact, ["tenant_missing_tool"], "tenant tool gaps should remain explicit");
 assert.deepEqual(classified.classification.engines.migration_apply_candidate, ["commercial_lifecycle_engine"], "engine gaps should be migration apply candidates");
+const actionableReplacementOnly = actionableMigrationDriftCounts(
+  {
+    schema_objects: [],
+    admin_tools: ["activation_sheets_bootstrap_read"],
+    tenant_tools: [],
+    engines: [],
+    engine_policies: [],
+    engine_strategies: [],
+    engine_rules: [],
+    engine_skills: [],
+  },
+  {
+    counts: {
+      admin_tools: { system_layer_replacement_present: 1 },
+    },
+  }
+);
+assert.equal(actionableReplacementOnly.total, 0, "system-layer replacement drift should not be actionable");
 
 const dryRunPlan = buildMigrationDriftApplyPlan(
   {
