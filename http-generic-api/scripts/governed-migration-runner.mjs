@@ -7,6 +7,7 @@ import { getPool } from "../db.js";
 import {
   assessMigrationSqlPreflight,
   extractMigrationReadinessRequirementsFromSql,
+  splitSqlStatements,
 } from "../releaseReadiness.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
