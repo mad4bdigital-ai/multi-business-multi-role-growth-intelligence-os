@@ -173,7 +173,20 @@ async function main() {
   }, null, 2));
 }
 
-main().catch((error) => {
-  console.error(JSON.stringify({ ok: false, error: error?.message || String(error), secrets_included: false }, null, 2));
-  process.exit(1);
-});
+async function closePoolQuietly() {
+  try {
+    await getPool().end();
+  } catch {
+    // Best-effort cleanup only. Do not mask the runner result.
+  }
+}
+
+main()
+  .then(async () => {
+    await closePoolQuietly();
+  })
+  .catch(async (error) => {
+    console.error(JSON.stringify({ ok: false, error: error?.message || String(error), secrets_included: false }, null, 2));
+    await closePoolQuietly();
+    process.exit(1);
+  });
