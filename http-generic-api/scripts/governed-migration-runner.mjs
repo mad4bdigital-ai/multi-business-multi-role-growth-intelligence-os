@@ -183,6 +183,7 @@ async function main() {
       ok: true,
       mode: "dry_run",
       migration,
+      migration_checksum_sha256,
       applies_sql: false,
       preflight,
       statement_count: statements.length,
