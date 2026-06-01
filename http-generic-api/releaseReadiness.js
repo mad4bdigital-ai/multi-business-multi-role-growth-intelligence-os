@@ -752,14 +752,18 @@ async function checkDynamicMigrationDrift() {
   const migration_apply_preflight = await buildMigrationApplyPreflightSafe(migration_apply_plan.candidate_files);
 
   return {
-    status: missing_total > 0 ? "warn" : "pass",
-    detail: missing_total > 0
-      ? `Dynamic migration drift detected: ${missing_total} required migration artifact(s) are not present in runtime DB.`
-      : `Dynamic migration drift check passed across ${migrationLoad.files_scanned} migration file(s).`,
+    status: actionable_missing.total > 0 ? "warn" : "pass",
+    detail: actionable_missing.total > 0
+      ? `Dynamic migration drift detected: ${actionable_missing.total} actionable migration artifact gap(s) remain; ${missing_total} raw missing artifact(s) were classified.`
+      : missing_total > 0
+        ? `Dynamic migration drift check passed across ${migrationLoad.files_scanned} migration file(s); ${missing_total} raw missing artifact(s) are satisfied by replacement surfaces.`
+        : `Dynamic migration drift check passed across ${migrationLoad.files_scanned} migration file(s).`,
     files_scanned: migrationLoad.files_scanned,
     discovered_counts,
     missing_counts,
     missing_total,
+    actionable_missing_counts: actionable_missing.counts,
+    actionable_missing_total: actionable_missing.total,
     registry_tables_missing: compactList(registry_tables_missing, 50),
     missing_samples: Object.fromEntries(
       Object.entries(missing).map(([key, values]) => [key, compactList(values, 25)])
