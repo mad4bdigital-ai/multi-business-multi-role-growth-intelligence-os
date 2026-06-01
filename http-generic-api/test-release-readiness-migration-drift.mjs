@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  assessMigrationSqlPreflight,
   buildMigrationDriftApplyPlan,
   classifyMigrationDriftMissing,
   extractMigrationReadinessRequirementsFromSql,
