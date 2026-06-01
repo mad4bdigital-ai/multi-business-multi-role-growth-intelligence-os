@@ -284,8 +284,7 @@ function stripSqlComments(sql = "") {
 }
 
 export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
-  const sql = stripSqlComments(sqlText);
-  const statements = splitSqlStatements(sql);
+  const statements = splitSqlStatements(sqlText);
   const risks = [];
   const counts = {
     statements: statements.length,
