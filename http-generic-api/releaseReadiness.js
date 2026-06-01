@@ -306,14 +306,20 @@ function countClassified(classification = {}) {
   );
 }
 
-export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces = {}) {
+export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces = {}, artifactMetadata = {}) {
   const systemLayerTools = new Set(replacementSurfaces.system_layer_tools || []);
   const virtualAdminTools = new Set(replacementSurfaces.virtual_admin_tools || []);
+  const documentedPaths = new Set(replacementSurfaces.documented_paths || []);
+  const liveRoutePaths = new Set(replacementSurfaces.live_route_paths || []);
+  const adminToolMetadata = artifactMetadata.admin_tools || {};
   const classification = {
     schema_objects: classifyNames(missing.schema_objects, () => "migration_apply_candidate"),
     admin_tools: classifyNames(missing.admin_tools, (name) => {
       if (systemLayerTools.has(name)) return "system_layer_replacement_present";
       if (virtualAdminTools.has(name)) return "virtual_replacement_present";
+      const httpPath = adminToolMetadata?.[name]?.http_path;
+      if (httpPath && liveRoutePaths.has(httpPath)) return "live_route_registry_exposure_missing";
+      if (httpPath && documentedPaths.has(httpPath)) return "documented_route_registry_exposure_missing";
       return "missing_required_runtime_artifact";
     }),
     tenant_tools: classifyNames(missing.tenant_tools, () => "missing_required_runtime_artifact"),
