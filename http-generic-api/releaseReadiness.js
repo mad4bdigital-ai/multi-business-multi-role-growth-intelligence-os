@@ -584,6 +584,34 @@ function sourceSamplesForMissing(missing = {}, artifactSources = {}, limit = 25)
   );
 }
 
+function buildAdminToolRouteEvidence(missingAdminTools = [], replacementSurfaces = {}, artifactMetadata = {}, limit = 50) {
+  const systemLayerTools = new Set(replacementSurfaces.system_layer_tools || []);
+  const virtualAdminTools = new Set(replacementSurfaces.virtual_admin_tools || []);
+  const documentedPaths = new Set(replacementSurfaces.documented_paths || []);
+  const liveRoutePaths = new Set(replacementSurfaces.live_route_paths || []);
+  const adminToolMetadata = artifactMetadata.admin_tools || {};
+  return Object.fromEntries(
+    compactList(missingAdminTools, limit).map((toolKey) => {
+      const info = adminToolMetadata[toolKey] || {};
+      const httpPath = info.http_path || null;
+      return [toolKey, {
+        http_method: info.http_method || null,
+        http_path: httpPath,
+        source_files: compactList(info.source_files || [], 10),
+        system_layer_tool_present: systemLayerTools.has(toolKey),
+        virtual_admin_tool_present: virtualAdminTools.has(toolKey),
+        live_route_present: Boolean(httpPath && liveRoutePaths.has(httpPath)),
+        documented_path_present: Boolean(httpPath && documentedPaths.has(httpPath)),
+        recommended_action: systemLayerTools.has(toolKey) || virtualAdminTools.has(toolKey)
+          ? "document_replacement_and_exclude_from_hard_drift"
+          : httpPath && (liveRoutePaths.has(httpPath) || documentedPaths.has(httpPath))
+            ? "restore_registry_exposure_or_document_deprecation"
+            : "investigate_missing_runtime_surface_before_reseed",
+      }];
+    })
+  );
+}
+
 async function readDynamicMigrationRequirements({ migrationsDir = MIGRATIONS_DIR } = {}) {
   const entries = await fs.readdir(migrationsDir, { withFileTypes: true });
   const files = entries
