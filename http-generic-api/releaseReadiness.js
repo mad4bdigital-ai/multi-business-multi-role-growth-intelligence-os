@@ -538,6 +538,24 @@ function emptyMigrationArtifactSourceMap() {
   };
 }
 
+function emptyMigrationArtifactMetadataMap() {
+  return {
+    admin_tools: {},
+  };
+}
+
+function noteAdminToolMetadata(target, metadata, filename) {
+  for (const [toolKey, info] of Object.entries(metadata || {})) {
+    if (!toolKey) continue;
+    target.admin_tools[toolKey] = {
+      ...(target.admin_tools[toolKey] || {}),
+      ...info,
+      source_files: compactList([...(target.admin_tools[toolKey]?.source_files || []), filename], 50),
+    };
+  }
+  return target;
+}
+
 function noteMigrationRequirementSources(target, requirements, filename) {
   for (const [surface, values] of Object.entries(requirements || {})) {
     if (!Array.isArray(values)) continue;
