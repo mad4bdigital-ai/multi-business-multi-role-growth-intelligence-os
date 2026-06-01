@@ -853,6 +853,8 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     migration_drift_files_scanned: report.migration_drift?.files_scanned ?? 0,
     migration_drift_classification_counts: report.migration_drift?.missing_classification?.counts || {},
     migration_drift_candidate_files: report.migration_drift?.migration_apply_plan?.candidate_files || [],
+    migration_apply_preflight_status: report.migration_drift?.migration_apply_preflight?.status || null,
+    migration_apply_preflight_risk_count: report.migration_drift?.migration_apply_preflight?.risk_count ?? null,
     graph_memory_resolved: Boolean(report.graph_memory_diagnostics?.resolved),
     graph_memory_asset_count: Number(report.graph_memory_diagnostics?.asset_count || 0),
     secrets_included: false,
