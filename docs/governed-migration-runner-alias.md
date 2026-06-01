@@ -49,6 +49,20 @@ admin_control shell migration_apply_guarded_apply \
   --confirm=APPLY_166_SPRINT65_AI_INTELLIGENCE_RUNTIME_GOVERNANCE
 ```
 
+## Output evidence
+
+The runner returns bounded JSON with:
+
+- migration filename
+- migration checksum (`migration_checksum_sha256`)
+- SQL preflight status and risk count
+- statement count and statement execution summaries
+- requirements summary
+- ledger evidence (`ledger.run_id`) after successful apply
+- `secrets_included: false`
+
+JSON payloads written to the ledger are passed as regular `JSON.stringify(...)` string values through placeholders; the runner does not use `CAST(? AS JSON)`.
+
 ## Operational notes
 
 Use dry-run first, review the reported preflight and artifact readback, then apply one migration file at a time. After apply, run `release_readiness` to verify that dynamic migration drift decreased as expected.
