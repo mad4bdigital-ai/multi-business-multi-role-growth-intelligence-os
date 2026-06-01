@@ -587,7 +587,7 @@ function sourceSamplesForMissing(missing = {}, artifactSources = {}, limit = 25)
   );
 }
 
-function actionableMigrationDriftCounts(missing = {}, missingClassification = {}) {
+export function actionableMigrationDriftCounts(missing = {}, missingClassification = {}) {
   const adminCounts = missingClassification?.counts?.admin_tools || {};
   const counts = {
     schema_objects: Array.isArray(missing.schema_objects) ? missing.schema_objects.length : 0,
