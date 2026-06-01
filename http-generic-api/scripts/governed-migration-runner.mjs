@@ -7,6 +7,7 @@ import { getPool } from "../db.js";
 import {
   assessMigrationSqlPreflight,
   extractMigrationReadinessRequirementsFromSql,
+  splitSqlStatements,
 } from "../releaseReadiness.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -36,39 +37,6 @@ function parseArgs(argv = process.argv.slice(2)) {
 
 function confirmationFor(filename = "") {
   return `APPLY_${String(filename).replace(/\.sql$/i, "").replace(/[^A-Za-z0-9]+/g, "_").toUpperCase()}`;
-}
-
-function stripSqlComments(sql = "") {
-  return String(sql || "")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/^\s*--.*$/gm, "");
-}
-
-function splitSqlStatements(sql = "") {
-  const clean = stripSqlComments(sql);
-  const statements = [];
-  let start = 0;
-  let inString = false;
-  for (let i = 0; i < clean.length; i += 1) {
-    const ch = clean[i];
-    if (inString) {
-      if (ch === "'" && clean[i + 1] === "'") i += 1;
-      else if (ch === "'") inString = false;
-      continue;
-    }
-    if (ch === "'") {
-      inString = true;
-      continue;
-    }
-    if (ch === ";") {
-      const statement = clean.slice(start, i).trim();
-      if (statement) statements.push(statement);
-      start = i + 1;
-    }
-  }
-  const tail = clean.slice(start).trim();
-  if (tail) statements.push(tail);
-  return statements;
 }
 
 function artifactNames(requirements = {}) {

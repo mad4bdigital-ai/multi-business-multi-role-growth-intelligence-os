@@ -270,33 +270,11 @@ export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces 
   };
 }
 
-function splitSqlStatements(sql = "") {
-  const statements = [];
-  let start = 0;
-  let inString = false;
-  for (let i = 0; i < sql.length; i += 1) {
-    const ch = sql[i];
-    if (inString) {
-      if (ch === "'" && sql[i + 1] === "'") {
-        i += 1;
-      } else if (ch === "'") {
-        inString = false;
-      }
-      continue;
-    }
-    if (ch === "'") {
-      inString = true;
-      continue;
-    }
-    if (ch === ";") {
-      const statement = sql.slice(start, i).trim();
-      if (statement) statements.push(statement);
-      start = i + 1;
-    }
-  }
-  const tail = sql.slice(start).trim();
-  if (tail) statements.push(tail);
-  return statements;
+export function splitSqlStatements(sql = "") {
+  return String(sql || "")
+    .split(/;\s*(?=(?:CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW)|INSERT\s+(?:IGNORE\s+)?INTO|ALTER\s+TABLE|DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b|$)/i)
+    .map((statement) => statement.trim())
+    .filter(Boolean);
 }
 
 function stripSqlComments(sql = "") {
