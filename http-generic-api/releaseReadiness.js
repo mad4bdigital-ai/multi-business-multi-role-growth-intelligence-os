@@ -338,6 +338,8 @@ export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces 
     replacement_surface_counts: {
       system_layer_tools: systemLayerTools.size,
       virtual_admin_tools: virtualAdminTools.size,
+      documented_paths: documentedPaths.size,
+      live_route_paths: liveRoutePaths.size,
     },
   };
 }
