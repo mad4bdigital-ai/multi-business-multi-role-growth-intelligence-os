@@ -270,6 +270,153 @@ export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces 
   };
 }
 
+function splitSqlStatements(sql = "") {
+  const statements = [];
+  let start = 0;
+  let inString = false;
+  for (let i = 0; i < sql.length; i += 1) {
+    const ch = sql[i];
+    if (inString) {
+      if (ch === "'" && sql[i + 1] === "'") {
+        i += 1;
+      } else if (ch === "'") {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === "'") {
+      inString = true;
+      continue;
+    }
+    if (ch === ";") {
+      const statement = sql.slice(start, i).trim();
+      if (statement) statements.push(statement);
+      start = i + 1;
+    }
+  }
+  const tail = sql.slice(start).trim();
+  if (tail) statements.push(tail);
+  return statements;
+}
+
+function stripSqlComments(sql = "") {
+  return String(sql || "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*--.*$/gm, "");
+}
+
+export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
+  const sql = stripSqlComments(sqlText);
+  const statements = splitSqlStatements(sql);
+  const risks = [];
+  const counts = {
+    statements: statements.length,
+    create_table: 0,
+    create_table_idempotent: 0,
+    create_view: 0,
+    create_view_idempotent: 0,
+    insert: 0,
+    insert_idempotent: 0,
+    alter_table: 0,
+    destructive: 0,
+  };
+
+  for (const statement of statements) {
+    const normalized = statement.replace(/\s+/g, " ").trim();
+    if (/^CREATE\s+TABLE\b/i.test(normalized)) {
+      counts.create_table += 1;
+      if (/^CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\b/i.test(normalized)) {
+        counts.create_table_idempotent += 1;
+      } else {
+        risks.push({ severity: "warn", code: "create_table_without_if_not_exists", statement: normalized.slice(0, 140) });
+      }
+    }
+    if (/^CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\b/i.test(normalized)) {
+      counts.create_view += 1;
+      if (/^CREATE\s+OR\s+REPLACE\s+VIEW\b/i.test(normalized)) {
+        counts.create_view_idempotent += 1;
+      } else {
+        risks.push({ severity: "warn", code: "create_view_without_or_replace", statement: normalized.slice(0, 140) });
+      }
+    }
+    if (/^INSERT\s+(?:IGNORE\s+)?INTO\b/i.test(normalized)) {
+      counts.insert += 1;
+      if (/^INSERT\s+IGNORE\s+INTO\b/i.test(normalized) || /\bON\s+DUPLICATE\s+KEY\s+UPDATE\b/i.test(normalized)) {
+        counts.insert_idempotent += 1;
+      } else {
+        risks.push({ severity: "warn", code: "insert_without_ignore_or_on_duplicate", statement: normalized.slice(0, 140) });
+      }
+    }
+    if (/^ALTER\s+TABLE\b/i.test(normalized)) {
+      counts.alter_table += 1;
+      risks.push({ severity: "warn", code: "alter_table_requires_manual_idempotency_review", statement: normalized.slice(0, 140) });
+    }
+    if (/\b(DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b/i.test(normalized)) {
+      counts.destructive += 1;
+      risks.push({ severity: "fail", code: "destructive_statement_detected", statement: normalized.slice(0, 140) });
+    }
+  }
+
+  const status = risks.some((risk) => risk.severity === "fail") ? "fail" : risks.length ? "warn" : "pass";
+  return {
+    filename,
+    status,
+    counts,
+    risk_count: risks.length,
+    risks: risks.slice(0, 25),
+    secrets_included: false,
+  };
+}
+
+async function buildMigrationApplyPreflight(candidateFiles = [], { migrationsDir = MIGRATIONS_DIR } = {}) {
+  const files = compactList(candidateFiles, 100);
+  const file_reports = [];
+  for (const file of files) {
+    try {
+      const sql = await fs.readFile(path.join(migrationsDir, file), "utf8");
+      file_reports.push(assessMigrationSqlPreflight(file, sql));
+    } catch (err) {
+      file_reports.push({
+        filename: file,
+        status: "warn",
+        counts: {},
+        risk_count: 1,
+        risks: [{ severity: "warn", code: "migration_file_unavailable", detail: err?.message || "read failed" }],
+        secrets_included: false,
+      });
+    }
+  }
+  const status = file_reports.some((report) => report.status === "fail")
+    ? "fail"
+    : file_reports.some((report) => report.status === "warn") ? "warn" : "pass";
+  return {
+    mode: "dry_run",
+    applies_sql: false,
+    status,
+    files_checked: file_reports.length,
+    risk_count: file_reports.reduce((sum, report) => sum + Number(report.risk_count || 0), 0),
+    file_reports,
+    secrets_included: false,
+  };
+}
+
+async function buildMigrationApplyPreflightSafe(candidateFiles = []) {
+  try {
+    return await buildMigrationApplyPreflight(candidateFiles);
+  } catch (err) {
+    return {
+      mode: "dry_run",
+      applies_sql: false,
+      status: "warn",
+      files_checked: 0,
+      risk_count: 1,
+      file_reports: [],
+      error: err?.message || "migration apply preflight failed",
+      secrets_included: false,
+    };
+  }
+}
+
 export function buildMigrationDriftApplyPlan(missing = {}, missingClassification = {}, artifactSources = {}) {
   const applySurfaces = [
     "schema_objects",
@@ -465,6 +612,7 @@ async function checkDynamicMigrationDrift() {
     missing_classification,
     migrationLoad.artifact_sources
   );
+  const migration_apply_preflight = await buildMigrationApplyPreflightSafe(migration_apply_plan.candidate_files);
 
   return {
     status: missing_total > 0 ? "warn" : "pass",
@@ -482,6 +630,7 @@ async function checkDynamicMigrationDrift() {
     missing_source_samples,
     missing_classification,
     migration_apply_plan,
+    migration_apply_preflight,
     secrets_included: false,
   };
 }
@@ -704,6 +853,8 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     migration_drift_files_scanned: report.migration_drift?.files_scanned ?? 0,
     migration_drift_classification_counts: report.migration_drift?.missing_classification?.counts || {},
     migration_drift_candidate_files: report.migration_drift?.migration_apply_plan?.candidate_files || [],
+    migration_apply_preflight_status: report.migration_drift?.migration_apply_preflight?.status || null,
+    migration_apply_preflight_risk_count: report.migration_drift?.migration_apply_preflight?.risk_count ?? null,
     graph_memory_resolved: Boolean(report.graph_memory_diagnostics?.resolved),
     graph_memory_asset_count: Number(report.graph_memory_diagnostics?.asset_count || 0),
     secrets_included: false,
