@@ -73,7 +73,7 @@ assert(sourceToolNames.includes("repo_inspect"), "must extract virtual source to
 const classified = classifyMigrationDriftMissing(
   {
     schema_objects: ["cms_sites"],
-    admin_tools: ["activation_sheets_bootstrap_read", "repo_inspect", "missing_admin_tool"],
+    admin_tools: ["activation_sheets_bootstrap_read", "repo_inspect", "route_present_tool", "documented_route_tool", "missing_admin_tool"],
     tenant_tools: ["tenant_missing_tool"],
     engines: ["commercial_lifecycle_engine"],
     engine_policies: [],
