@@ -714,6 +714,12 @@ async function checkDynamicMigrationDrift() {
     migrationLoad.artifact_metadata
   );
   const missing_source_samples = sourceSamplesForMissing(missing, migrationLoad.artifact_sources, 25);
+  const admin_tool_route_evidence = buildAdminToolRouteEvidence(
+    missing.admin_tools,
+    replacement_surfaces,
+    migrationLoad.artifact_metadata,
+    50
+  );
   const migration_apply_plan = buildMigrationDriftApplyPlan(
     missing,
     missing_classification,
