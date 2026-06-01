@@ -345,8 +345,11 @@ export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces 
 }
 
 export function splitSqlStatements(sql = "") {
+  const boundaryStart = "(?:CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:TABLE|VIEW)|INSERT\\s+(?:IGNORE\\s+)?INTO|UPDATE\\s+`?[A-Za-z0-9_]+`?|ALTER\\s+TABLE|DROP\\s+TABLE|TRUNCATE\\s+TABLE|DELETE\\s+FROM)\\b";
+  const interStatementTrivia = "(?:\\s|--[^\\n]*(?:\\n|$)|/\\*[\\s\\S]*?\\*/)*";
+  const statementBoundary = new RegExp(`;${interStatementTrivia}(?=${interStatementTrivia}(?:${boundaryStart})|$)`, "i");
   return String(sql || "")
-    .split(/;\s*(?=(?:CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW)|INSERT\s+(?:IGNORE\s+)?INTO|ALTER\s+TABLE|DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b|$)/i)
+    .split(statementBoundary)
     .map((statement) => statement.trim())
     .filter(Boolean);
 }
