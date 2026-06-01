@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,7 +25,10 @@ const ALLOWED_MIGRATIONS = new Set([
   "163_sprint65_session_archive_smoke_tool.sql",
   "166_sprint65_ai_intelligence_runtime_governance.sql",
   "168_sprint65_database_table_lifecycle_governance.sql",
+  "176_sprint66_governed_migration_ledger.sql",
 ]);
+
+const RUNNER_VERSION = "governed-migration-runner-v2";
 
 function parseArgs(argv = process.argv.slice(2)) {
   const parsed = { mode: "dry_run", migration: "", confirm: "" };
@@ -77,6 +81,51 @@ async function applyStatements(statements = []) {
   return results;
 }
 
+function sha256(value = "") {
+  return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
+}
+
+async function recordMigrationLedger({
+  migration,
+  checksum,
+  preflight,
+  statement_count,
+  requirements,
+  results,
+  before_schema_objects,
+  after_schema_objects,
+}) {
+  const run_id = randomUUID();
+  const metadata = {
+    node_version: process.version,
+    platform: process.platform,
+    runner_pid: process.pid,
+  };
+  await getPool().query(
+    `INSERT INTO governed_migration_ledger
+      (run_id, migration_file, migration_checksum_sha256, applied_by, runner_version, mode,
+       statement_count, preflight_status, preflight_risk_count, requirements_json, results_json,
+       before_schema_objects_json, after_schema_objects_json, metadata_json, secrets_included)
+     VALUES (?, ?, ?, ?, ?, 'apply', ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+    [
+      run_id,
+      migration,
+      checksum,
+      process.env.GOVERNED_MIGRATION_APPLIED_BY || "governed_migration_runner",
+      RUNNER_VERSION,
+      statement_count,
+      preflight?.status || "unknown",
+      Number(preflight?.risk_count || 0),
+      JSON.stringify(artifactNames(requirements)),
+      JSON.stringify(results || []),
+      JSON.stringify(before_schema_objects || []),
+      JSON.stringify(after_schema_objects || []),
+      JSON.stringify(metadata),
+    ]
+  );
+  return { run_id, runner_version: RUNNER_VERSION, recorded: true };
+}
+
 async function main() {
   const args = parseArgs();
   const migration = path.basename(args.migration || "");
@@ -87,6 +136,7 @@ async function main() {
 
   const migrationPath = path.join(MIGRATIONS_DIR, migration);
   const sql = await fs.readFile(migrationPath, "utf8");
+  const migration_checksum_sha256 = sha256(sql);
   const preflight = assessMigrationSqlPreflight(migration, sql);
   const requirements = extractMigrationReadinessRequirementsFromSql(sql);
   const statements = splitSqlStatements(sql);
@@ -133,6 +183,7 @@ async function main() {
       ok: true,
       mode: "dry_run",
       migration,
+      migration_checksum_sha256,
       applies_sql: false,
       preflight,
       statement_count: statements.length,
@@ -151,11 +202,22 @@ async function main() {
 
   const results = await applyStatements(statements);
   const after_schema_objects = await existingSchemaObjects(requirements.schema_objects);
+  const ledger = await recordMigrationLedger({
+    migration,
+    checksum: migration_checksum_sha256,
+    preflight,
+    statement_count,
+    requirements,
+    results,
+    before_schema_objects,
+    after_schema_objects,
+  });
 
   console.log(JSON.stringify({
     ok: true,
     mode: "apply",
     migration,
+    migration_checksum_sha256,
     applies_sql: true,
     preflight,
     statements_executed: results.length,
@@ -163,6 +225,7 @@ async function main() {
     requirements: artifactNames(requirements),
     before_schema_objects,
     after_schema_objects,
+    ledger,
     secrets_included: false,
   }, null, 2));
 }

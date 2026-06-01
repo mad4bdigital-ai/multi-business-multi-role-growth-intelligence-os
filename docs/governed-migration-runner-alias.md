@@ -33,6 +33,7 @@ The runner is intentionally constrained:
 - `163_sprint65_session_archive_smoke_tool.sql`
 - `166_sprint65_ai_intelligence_runtime_governance.sql`
 - `168_sprint65_database_table_lifecycle_governance.sql`
+- `176_sprint66_governed_migration_ledger.sql`
 
 ## Example dry run
 
@@ -47,6 +48,20 @@ admin_control shell migration_apply_guarded_apply \
   --migration=166_sprint65_ai_intelligence_runtime_governance.sql \
   --confirm=APPLY_166_SPRINT65_AI_INTELLIGENCE_RUNTIME_GOVERNANCE
 ```
+
+## Output evidence
+
+The runner returns bounded JSON with:
+
+- migration filename
+- migration checksum (`migration_checksum_sha256`)
+- SQL preflight status and risk count
+- statement count and statement execution summaries
+- requirements summary
+- ledger evidence (`ledger.run_id`) after successful apply
+- `secrets_included: false`
+
+JSON payloads written to the ledger are passed as regular `JSON.stringify(...)` string values through placeholders; the runner does not use `CAST(? AS JSON)`.
 
 ## Operational notes
 
