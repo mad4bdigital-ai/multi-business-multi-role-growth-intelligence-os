@@ -5,6 +5,7 @@ import {
   classifyMigrationDriftMissing,
   extractMigrationReadinessRequirementsFromSql,
   extractNamedToolKeysFromSource,
+  splitSqlStatements,
 } from "./releaseReadiness.js";
 
 const sampleSql = `
