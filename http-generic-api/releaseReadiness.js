@@ -351,7 +351,7 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
       counts.alter_table += 1;
       risks.push({ severity: "warn", code: "alter_table_requires_manual_idempotency_review", statement: normalized.slice(0, 140) });
     }
-    if (/\b(DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b/i.test(normalized)) {
+    if (/^(DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b/i.test(normalized)) {
       counts.destructive += 1;
       risks.push({ severity: "fail", code: "destructive_statement_detected", statement: normalized.slice(0, 140) });
     }
