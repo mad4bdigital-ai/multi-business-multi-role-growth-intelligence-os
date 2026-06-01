@@ -136,6 +136,7 @@ async function main() {
 
   const migrationPath = path.join(MIGRATIONS_DIR, migration);
   const sql = await fs.readFile(migrationPath, "utf8");
+  const migration_checksum_sha256 = sha256(sql);
   const preflight = assessMigrationSqlPreflight(migration, sql);
   const requirements = extractMigrationReadinessRequirementsFromSql(sql);
   const statements = splitSqlStatements(sql);
