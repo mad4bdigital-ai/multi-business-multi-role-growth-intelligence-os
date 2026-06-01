@@ -587,6 +587,26 @@ function sourceSamplesForMissing(missing = {}, artifactSources = {}, limit = 25)
   );
 }
 
+function actionableMigrationDriftCounts(missing = {}, missingClassification = {}) {
+  const adminCounts = missingClassification?.counts?.admin_tools || {};
+  const counts = {
+    schema_objects: Array.isArray(missing.schema_objects) ? missing.schema_objects.length : 0,
+    admin_tools: Number(adminCounts.missing_required_runtime_artifact || 0)
+      + Number(adminCounts.live_route_registry_exposure_missing || 0)
+      + Number(adminCounts.documented_route_registry_exposure_missing || 0),
+    tenant_tools: Array.isArray(missing.tenant_tools) ? missing.tenant_tools.length : 0,
+    engines: Array.isArray(missing.engines) ? missing.engines.length : 0,
+    engine_policies: Array.isArray(missing.engine_policies) ? missing.engine_policies.length : 0,
+    engine_strategies: Array.isArray(missing.engine_strategies) ? missing.engine_strategies.length : 0,
+    engine_rules: Array.isArray(missing.engine_rules) ? missing.engine_rules.length : 0,
+    engine_skills: Array.isArray(missing.engine_skills) ? missing.engine_skills.length : 0,
+  };
+  return {
+    counts,
+    total: Object.values(counts).reduce((sum, count) => sum + Number(count || 0), 0),
+  };
+}
+
 function buildAdminToolRouteEvidence(missingAdminTools = [], replacementSurfaces = {}, artifactMetadata = {}, limit = 50) {
   const systemLayerTools = new Set(replacementSurfaces.system_layer_tools || []);
   const virtualAdminTools = new Set(replacementSurfaces.virtual_admin_tools || []);
