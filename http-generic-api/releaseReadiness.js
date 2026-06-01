@@ -741,6 +741,7 @@ async function checkDynamicMigrationDrift() {
       Object.entries(missing).map(([key, values]) => [key, compactList(values, 25)])
     ),
     missing_source_samples,
+    admin_tool_route_evidence,
     missing_classification,
     migration_apply_plan,
     migration_apply_preflight,
