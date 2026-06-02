@@ -198,26 +198,81 @@ async function main() {
     return;
   }
 
+  const existingRecordOnlyLedger = args.recordOnly
+    ? await findLedgerEntry(migration, migration_checksum_sha256, "record_only")
+    : null;
+
   if (args.mode !== "apply") {
     console.log(JSON.stringify({
       ok: true,
-      mode: "dry_run",
+      mode: args.recordOnly ? "record_only_dry_run" : "dry_run",
       migration,
       migration_checksum_sha256,
       applies_sql: false,
+      records_ledger_only: Boolean(args.recordOnly),
+      existing_record_only_ledger: existingRecordOnlyLedger,
       preflight,
       statement_count: statements.length,
       requirements: artifactNames(requirements),
       before_schema_objects,
-      required_confirmation: confirmationFor(migration),
+      required_confirmation: confirmationFor(migration, { recordOnly: args.recordOnly }),
       secrets_included: false,
     }, null, 2));
     return;
   }
 
-  const requiredConfirm = confirmationFor(migration);
+  const requiredConfirm = confirmationFor(migration, { recordOnly: args.recordOnly });
   if (args.confirm !== requiredConfirm) {
-    throw new Error(`Apply requires --confirm=${requiredConfirm}`);
+    throw new Error(`${args.recordOnly ? "Record-only ledger backfill" : "Apply"} requires --confirm=${requiredConfirm}`);
+  }
+
+  if (args.recordOnly) {
+    if (existingRecordOnlyLedger) {
+      console.log(JSON.stringify({
+        ok: true,
+        mode: "record_only",
+        migration,
+        migration_checksum_sha256,
+        applies_sql: false,
+        recorded: false,
+        duplicate: true,
+        existing_ledger: existingRecordOnlyLedger,
+        preflight,
+        statement_count,
+        requirements: artifactNames(requirements),
+        before_schema_objects,
+        secrets_included: false,
+      }, null, 2));
+      return;
+    }
+    const ledger = await recordMigrationLedger({
+      migration,
+      checksum: migration_checksum_sha256,
+      preflight,
+      statement_count,
+      requirements,
+      results: [],
+      before_schema_objects,
+      after_schema_objects: before_schema_objects,
+      ledgerMode: "record_only",
+      appliedBy: "governed_migration_runner_backfill",
+      extraMetadata: { record_only_backfill: true, sql_applied_by_this_run: false },
+    });
+    console.log(JSON.stringify({
+      ok: true,
+      mode: "record_only",
+      migration,
+      migration_checksum_sha256,
+      applies_sql: false,
+      recorded: true,
+      preflight,
+      statement_count,
+      requirements: artifactNames(requirements),
+      before_schema_objects,
+      ledger,
+      secrets_included: false,
+    }, null, 2));
+    return;
   }
 
   const results = await applyStatements(statements);
