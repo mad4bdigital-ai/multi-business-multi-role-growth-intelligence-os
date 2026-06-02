@@ -4,12 +4,18 @@ import {
   applyDatabaseLifecycleSchedulerApproval,
   assertDatabaseLifecycleSchedulerApprovalAllowed,
   buildDatabaseLifecycleSchedulerApprovalPlan,
+  buildDatabaseLifecycleSchedulerApprovalReadback,
   DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_CONFIRMATION,
   planDatabaseLifecycleSchedulerApproval,
+  verifyDatabaseLifecycleSchedulerApprovalReadback,
 } from "./databaseTableLifecycle.js";
 
 const migration = fs.readFileSync(
   new URL("./migrations/185_sprint66_database_lifecycle_scheduler_approval_metadata.sql", import.meta.url),
+  "utf8"
+);
+const readbackMigration = fs.readFileSync(
+  new URL("./migrations/186_sprint66_database_lifecycle_scheduler_approval_readback.sql", import.meta.url),
   "utf8"
 );
 const runner = fs.readFileSync(
@@ -23,8 +29,11 @@ assert(migration.includes("CREATE TABLE IF NOT EXISTS database_lifecycle_schedul
 assert(migration.includes("database_lifecycle_scheduler_approval_metadata"));
 assert(migration.includes("confirmation_required"));
 assert(migration.includes("typed_confirmation_required"));
+assert(readbackMigration.includes("database_lifecycle_scheduler_approval_readback"));
+assert(readbackMigration.includes("read_only"));
 for (const forbidden of [/\bDROP\s+TABLE\b/i, /\bTRUNCATE\s+TABLE\b/i, /\bDELETE\s+FROM\b/i, /\bUPDATE\s+database_table_lifecycle_registry\b/i]) {
   assert(!forbidden.test(migration), `approval metadata migration must not include destructive operation: ${forbidden}`);
+  assert(!forbidden.test(readbackMigration), `approval readback migration must not include destructive operation: ${forbidden}`);
 }
 
 const approvalPlan = buildDatabaseLifecycleSchedulerApprovalPlan({
@@ -79,18 +88,80 @@ assert.equal(assertDatabaseLifecycleSchedulerApprovalAllowed({
   confirm: DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_CONFIRMATION,
 }).allowed, true);
 
+const readbackPlan = buildDatabaseLifecycleSchedulerApprovalReadback({
+  target_type: "binding",
+  target_key: "database_lifecycle_retention_plan_weekly_binding",
+  event_id: "dblsa_test",
+}, {
+  binding_key: "database_lifecycle_retention_plan_weekly_binding",
+  status: "active",
+  approval_status: "approved",
+  notification_target: "admin_ops",
+  executor_policy_key: "database_lifecycle_report_snapshot_schedule_policy_v1",
+  will_execute: 0,
+  no_drop: 1,
+  no_delete: 1,
+  no_archive_execution: 1,
+  no_compaction_execution: 1,
+  secrets_included: 0,
+}, {
+  event_id: "dblsa_test",
+  event_key: "binding:database_lifecycle_retention_plan_weekly_binding:approve:dblsa_test",
+  target_type: "binding",
+  target_key: "database_lifecycle_retention_plan_weekly_binding",
+  decision: "approve",
+  next_status: "active",
+  next_approval_status: "approved",
+  notification_target: "admin_ops",
+  executor_policy_key: "database_lifecycle_report_snapshot_schedule_policy_v1",
+  will_execute: 0,
+  no_drop: 1,
+  no_delete: 1,
+  no_archive_execution: 1,
+  no_compaction_execution: 1,
+  secrets_included: 0,
+});
+assert.equal(readbackPlan.ok, true);
+assert.equal(readbackPlan.readback_type, "database_lifecycle_scheduler_approval_metadata_readback_v1");
+assert.equal(readbackPlan.verified, true);
+assert.equal(readbackPlan.will_execute, false);
+assert.equal(readbackPlan.secrets_included, false);
+
 let captured = [];
+let approvalApplied = false;
 const fakePool = {
   async query(sql, params) {
     captured.push({ sql, params });
     if (sql.includes("FROM database_lifecycle_report_snapshot_schedules")) {
       return [[{
         schedule_key: "database_lifecycle_retention_plan_weekly",
-        status: "planned_disabled",
-        approval_status: "pending",
-        notification_target: null,
+        status: approvalApplied ? "active" : "planned_disabled",
+        approval_status: approvalApplied ? "approved" : "pending",
+        notification_target: approvalApplied ? "admin_ops" : null,
         executor_policy_key: "database_lifecycle_report_snapshot_schedule_policy_v1",
       }]];
+    }
+    if (sql.includes("FROM database_lifecycle_scheduler_approval_events")) {
+      return [[{
+        event_id: "dblsa_test",
+        event_key: "schedule:database_lifecycle_retention_plan_weekly:approve:dblsa_test",
+        target_type: "schedule",
+        target_key: "database_lifecycle_retention_plan_weekly",
+        decision: "approve",
+        next_status: "active",
+        next_approval_status: "approved",
+        notification_target: "admin_ops",
+        executor_policy_key: "database_lifecycle_report_snapshot_schedule_policy_v1",
+        will_execute: 0,
+        no_drop: 1,
+        no_delete: 1,
+        no_archive_execution: 1,
+        no_compaction_execution: 1,
+        secrets_included: 0,
+      }]];
+    }
+    if (sql.includes("UPDATE database_lifecycle_report_snapshot_schedules")) {
+      approvalApplied = true;
     }
     return [{ affectedRows: 1 }];
   },
@@ -115,15 +186,30 @@ assert.equal(captured[0].params[0], "active");
 assert.equal(captured[0].params[1], "approved");
 assert.equal(captured[1].params[4], "approve");
 
+captured = [];
+const verifiedReadback = await verifyDatabaseLifecycleSchedulerApprovalReadback({
+  target_type: "schedule",
+  target_key: "database_lifecycle_retention_plan_weekly",
+  event_id: "dblsa_test",
+}, { pool: fakePool });
+assert.equal(verifiedReadback.ok, true);
+assert(captured[0].sql.includes("FROM database_lifecycle_report_snapshot_schedules"));
+assert(captured[1].sql.includes("FROM database_lifecycle_scheduler_approval_events"));
+
 assert(runner.includes("assertDatabaseLifecycleSchedulerApprovalAllowed"));
 assert(runner.includes("--apply"));
+assert(runner.includes("--readback-only"));
 assert(runner.includes("confirm"));
 assert(!runner.includes("DROP TABLE"));
 assert(!runner.includes("DELETE FROM"));
 assert(routesSource.includes("/platform/engines/database-lifecycle/scheduler-approval-metadata"));
+assert(routesSource.includes("/platform/engines/database-lifecycle/scheduler-approval-readback"));
 assert(routesSource.includes("assertDatabaseLifecycleSchedulerApprovalAllowed"));
 assert(routesSource.includes("applyDatabaseLifecycleSchedulerApproval"));
+assert(routesSource.includes("verifyDatabaseLifecycleSchedulerApprovalReadback"));
 assert(openapi.includes("/platform/engines/database-lifecycle/scheduler-approval-metadata:"));
+assert(openapi.includes("/platform/engines/database-lifecycle/scheduler-approval-readback:"));
 assert(openapi.includes("databaseLifecycleSchedulerApprovalMetadata"));
+assert(openapi.includes("databaseLifecycleSchedulerApprovalReadback"));
 
 console.log("database lifecycle scheduler approval metadata tests passed");

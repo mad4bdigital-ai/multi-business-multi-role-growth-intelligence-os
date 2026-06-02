@@ -13,6 +13,7 @@ import {
   planDatabaseTableLifecycleRegistryUpsert,
   planDatabaseLifecycleRetentionReview,
   runDatabaseTableLifecycleCensus,
+  verifyDatabaseLifecycleSchedulerApprovalReadback,
   writeDatabaseLifecycleReportSnapshot,
 } from "../databaseTableLifecycle.js";
 import {
@@ -294,8 +295,14 @@ export function buildPlatformEngineRoutes(deps = {}) {
       });
       const plan = await planDatabaseLifecycleSchedulerApproval({ ...input, apply: gate.allowed }, deps);
       const writeResult = gate.allowed ? await applyDatabaseLifecycleSchedulerApproval(plan, deps) : null;
-      res.json({
-        ok: true,
+      const readback = writeResult ? await verifyDatabaseLifecycleSchedulerApprovalReadback({
+        target_type: writeResult.target_type,
+        target_key: writeResult.target_key,
+        event_id: writeResult.event_id,
+      }, deps) : null;
+      const responseOk = !writeResult || readback?.ok === true;
+      res.status(responseOk ? 200 : 409).json({
+        ok: responseOk,
         mode: gate.mode,
         dry_run: !gate.allowed,
         will_write: gate.allowed,
@@ -307,9 +314,30 @@ export function buildPlatformEngineRoutes(deps = {}) {
         secrets_included: false,
         plan,
         write_result: writeResult,
+        readback,
+        readback_verified: readback ? readback.ok === true : false,
       });
     } catch (error) {
       res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_scheduler_approval_metadata_failed", message: error.message } });
+    }
+  });
+
+  router.post("/platform/engines/database-lifecycle/scheduler-approval-readback", ...requireAdmin, async (req, res) => {
+    try {
+      const readback = await verifyDatabaseLifecycleSchedulerApprovalReadback(req.body || {}, deps);
+      res.json({
+        ok: readback.ok,
+        dry_run: true,
+        will_execute: false,
+        no_drop: true,
+        no_delete: true,
+        no_archive_execution: true,
+        no_compaction_execution: true,
+        secrets_included: false,
+        readback,
+      });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_scheduler_approval_readback_failed", message: error.message } });
     }
   });
 

@@ -139,6 +139,29 @@ node scripts/database-lifecycle-scheduler-approval-metadata.mjs `
 Apply mode writes metadata only. It does not enable a scheduler, write snapshots,
 archive, delete, drop, truncate, compact, or read secrets.
 
+## Scheduler approval readback
+
+Migration `186_sprint66_database_lifecycle_scheduler_approval_readback.sql`
+registers a read-only verification surface for approval metadata.
+
+The route and CLI verify that:
+
+- the target schedule or binding exists;
+- the latest or requested approval event exists;
+- target status and approval status match the event;
+- notification and executor-policy metadata match when present;
+- executable/destructive/secret flags remain blocked.
+
+```powershell
+node scripts/database-lifecycle-scheduler-approval-metadata.mjs `
+  --readback-only `
+  --target-type schedule `
+  --target-key database_lifecycle_retention_plan_weekly
+```
+
+Approval readback is evidence-only. It does not enable scheduler jobs, write
+snapshots, archive, delete, drop, truncate, compact, or read secrets.
+
 ## Operating rules
 
 - Treat all reports as decision support, not automatic action.

@@ -12125,6 +12125,36 @@ paths:
         "404": { description: Target not found, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "409": { description: Approval plan blocked, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
 
+  /platform/engines/database-lifecycle/scheduler-approval-readback:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleSchedulerApprovalReadback
+      summary: Verify database lifecycle scheduler approval metadata readback
+      description: >
+        Verifies schedule/binding approval metadata and its audit event after confirmation-gated metadata apply.
+        This route is read-only and does not enable scheduler jobs, write snapshots, or execute lifecycle cleanup.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [target_type, target_key]
+              properties:
+                target_type: { type: string, enum: [schedule, binding] }
+                target_key: { type: string }
+                event_id: { type: string }
+                event_key: { type: string }
+      responses:
+        "200": { description: Database lifecycle scheduler approval metadata readback, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
   /tenant/evolution/switch-options:
     get:
       tags: [platform-evolution]
