@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import yaml from "js-yaml";
+import YAML from "yaml";
 
 const ROOT = process.cwd();
 const ROUTES_DIR = path.join(ROOT, "routes");
@@ -219,7 +219,7 @@ function findMissing(doc, allowlist) {
 function main() {
   const write = process.argv.includes("--write");
   const failOnMissing = process.argv.includes("--check");
-  const doc = yaml.load(fs.readFileSync(OPENAPI_PATH, "utf8"));
+  const doc = YAML.parse(fs.readFileSync(OPENAPI_PATH, "utf8"));
   const allowlist = loadJson(ALLOWLIST_PATH, { exact: [], prefixes: [], files: [], required_files: [] });
   const missing = findMissing(doc, allowlist);
 
@@ -238,9 +238,9 @@ function main() {
   }
 
   if (missing.length > 0) {
-    const serialized = yaml.dump(doc, {
+    const serialized = YAML.stringify(doc, {
       lineWidth: 120,
-      noRefs: true,
+      aliasDuplicateObjects: false,
       sortKeys: false,
       quotingType: '"',
     });

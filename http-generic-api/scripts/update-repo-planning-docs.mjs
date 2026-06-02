@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
-import yaml from "js-yaml";
+import YAML from "yaml";
 
 const API_ROOT = process.cwd();
 const REPO_ROOT = path.resolve(API_ROOT, "..");
@@ -46,7 +46,7 @@ function markdownList(items) {
 }
 
 function main() {
-  const doc = yaml.load(fs.readFileSync(OPENAPI_PATH, "utf8"));
+  const doc = YAML.parse(fs.readFileSync(OPENAPI_PATH, "utf8"));
   const allowlist = loadJson(ALLOWLIST_PATH, { exact: [], prefixes: [], files: [], required_files: [] });
   const splitSchemas = listFiles(API_ROOT, (name) => /^openapi\..*\.ya?ml$/.test(name) && name !== "openapi.yaml");
   const workflows = listFiles(WORKFLOWS_DIR, (name) => name.endsWith(".yml") || name.endsWith(".yaml"));

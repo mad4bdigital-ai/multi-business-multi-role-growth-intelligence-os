@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import yaml from "js-yaml";
+import YAML from "yaml";
 
 const ROOT = process.cwd();
 const ROUTES_DIR = path.join(ROOT, "routes");
@@ -39,7 +39,7 @@ function routeFilePaths() {
 }
 
 function collectOpenApiOperations() {
-  const doc = yaml.load(fs.readFileSync(OPENAPI_PATH, "utf8"));
+  const doc = YAML.parse(fs.readFileSync(OPENAPI_PATH, "utf8"));
   const ops = new Set();
   for (const [pathKey, pathItem] of Object.entries(doc.paths || {})) {
     for (const method of Object.keys(pathItem || {})) {
