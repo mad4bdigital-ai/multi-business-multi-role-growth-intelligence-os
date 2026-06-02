@@ -365,6 +365,10 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     connectRoutes.includes('download_url: "/app/local-manager#download"') &&
     connectRoutes.includes('download_page_url: "https://auth.mad4b.com/app/local-manager#download"') &&
     connectRoutes.includes('new_device_pairing_url: "https://auth.mad4b.com/app/local-manager#download"'));
+  assert("connect status tells tenant GPT not to auto-install when a device exists",
+    connectRoutes.includes('gpt_activation_guidance: buildTenantGptActivationGuidance') &&
+    connectRoutes.includes('should_call_connect_device_install: !hasRegisteredDevice') &&
+    connectRoutes.includes('Do not call connect_device_install automatically after connect_status'));
   assert("system tools/call forwards the original request context for tenant registry tools",
     systemLayerRoutes.includes('callSystemLayerTool(name, args, req.auth, { executionFacade, req })') &&
     systemLayerRoutes.includes('const req = deps.req || { auth, headers: deps.headers || {}, ip: deps.ip || null };'));
