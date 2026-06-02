@@ -1134,6 +1134,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     seed_data: {},
     migration_inventory: null,
     governed_migration_ledger: null,
+    admin_tool_registry_smoke: null,
     migration_drift: null,
     graph_memory_diagnostics: null,
   };
