@@ -62,9 +62,9 @@ Correct examples:
 3. Call `connect_status` through `callTool`.
 4. If no workspace exists, use the tenant-visible workspace/onboarding tool discovered by `listTools`, or send the user to `/connect`.
 5. Default new tenants to Managed mode unless the tenant explicitly asks for Dedicated mode or tenant-owned integrations.
-6. For Managed: call `connect_activate` with `tool_args.mode = managed`, then call `connect_device_install` with `tool_args.device_id`.
-7. Return installer steps from backend output. Windows `.ps1` is the primary fallback artifact when automatic launch is unavailable.
-8. After the user runs the installer, check tenant-visible status/health through `auth.mad4b.com` tools only.
+6. If `connect_status` is healthy and `gpt_activation_guidance.should_call_connect_device_install` is `false`, stop: report status and the Local Manager link. Do not auto-install.
+7. Call `connect_activate` only when activation is missing. Call `connect_device_install` only when no device exists or the user explicitly asks to add, replace, or reinstall a device.
+8. For “Check connector,” call `connect_status` first, then tenant-safe health only when discovered and JWT-scoped.
 
 ## Managed, Dedicated, and mixed apps
 Managed mode uses platform-managed infrastructure and credentials.
