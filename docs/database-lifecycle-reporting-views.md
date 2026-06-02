@@ -114,6 +114,31 @@ node scripts/database-lifecycle-scheduler-binding-readiness.mjs `
 Binding readiness remains dry-run and `will_execute = false`. Actual recurring
 execution still requires a separate approved scheduler integration.
 
+## Scheduler approval metadata
+
+Migration `185_sprint66_database_lifecycle_scheduler_approval_metadata.sql`
+adds `database_lifecycle_scheduler_approval_events` and a confirmation-gated
+metadata update surface.
+
+The route and CLI can approve, reject, or revoke schedule/binding metadata.
+Approval requires:
+
+- typed confirmation `APPROVE_DATABASE_LIFECYCLE_SCHEDULER_METADATA`;
+- `notification_target`;
+- `executor_policy_key`.
+
+```powershell
+node scripts/database-lifecycle-scheduler-approval-metadata.mjs `
+  --target-type schedule `
+  --target-key database_lifecycle_retention_plan_weekly `
+  --decision approve `
+  --notification-target admin_ops `
+  --executor-policy-key database_lifecycle_report_snapshot_schedule_policy_v1
+```
+
+Apply mode writes metadata only. It does not enable a scheduler, write snapshots,
+archive, delete, drop, truncate, compact, or read secrets.
+
 ## Operating rules
 
 - Treat all reports as decision support, not automatic action.

@@ -247,6 +247,7 @@ Implemented:
 - lifecycle report snapshot table and confirmation-gated snapshot runner
 - lifecycle report snapshot schedule readiness table and dry-run readiness runner
 - lifecycle report scheduler binding readiness table and dry-run readiness runner
+- lifecycle scheduler approval metadata events and confirmation-gated metadata runner
 - dry-run task plans
 - decision briefs
 - apply-readiness envelope inside decision brief
@@ -267,7 +268,7 @@ Still pending:
 - live resource authority evaluator for tenant, user, brand, and external writes
 - audit evidence persistence/readback validator for the future apply executor
 - policy update proposal workflow
-- approved scheduler integration for lifecycle report snapshots
+- live scheduler integration for lifecycle report snapshots
 - tenant-safe read-only projection where needed
 - full ADR for the intelligence runtime architecture
 

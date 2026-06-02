@@ -3,6 +3,7 @@ import { getPool } from "./db.js";
 
 export const DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION = "APPLY_DATABASE_TABLE_LIFECYCLE_REGISTRY_UPSERT";
 export const DATABASE_LIFECYCLE_REPORT_SNAPSHOT_CONFIRMATION = "APPLY_DATABASE_LIFECYCLE_REPORT_SNAPSHOT";
+export const DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_CONFIRMATION = "APPROVE_DATABASE_LIFECYCLE_SCHEDULER_METADATA";
 
 function text(value = "") {
   return String(value || "").trim();
@@ -769,6 +770,218 @@ export async function assessDatabaseLifecycleSchedulerBindingReadiness({ binding
     params
   );
   return buildDatabaseLifecycleSchedulerBindingReadiness(rows, { binding_key, schedule_key });
+}
+
+function normalizeSchedulerApprovalInput(input = {}) {
+  const targetType = lower(input.target_type || input.targetType);
+  const targetKey = text(input.target_key || input.targetKey);
+  const decision = lower(input.decision);
+  if (!["schedule", "binding"].includes(targetType)) {
+    const err = new Error("target_type must be schedule or binding.");
+    err.code = "DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_TARGET_TYPE_INVALID";
+    err.status = 400;
+    throw err;
+  }
+  if (!targetKey) {
+    const err = new Error("target_key is required.");
+    err.code = "DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_TARGET_KEY_REQUIRED";
+    err.status = 400;
+    throw err;
+  }
+  if (!["approve", "reject", "revoke"].includes(decision)) {
+    const err = new Error("decision must be approve, reject, or revoke.");
+    err.code = "DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_DECISION_INVALID";
+    err.status = 400;
+    throw err;
+  }
+  return {
+    target_type: targetType,
+    target_key: targetKey,
+    decision,
+    notification_target: text(input.notification_target || input.notificationTarget),
+    executor_policy_key: text(input.executor_policy_key || input.executorPolicyKey),
+    actor_id: text(input.actor_id || input.actorId || input.requested_by),
+    trace_id: text(input.trace_id || input.traceId),
+    reason: text(input.reason || input.notes),
+    apply: input.apply === true,
+    confirm: text(input.confirm),
+  };
+}
+
+function schedulerApprovalNextState(input = {}, current = {}) {
+  if (input.decision === "approve") {
+    return {
+      next_status: "active",
+      next_approval_status: "approved",
+      notification_target: input.notification_target || text(current.notification_target),
+      executor_policy_key: input.executor_policy_key || text(current.executor_policy_key),
+    };
+  }
+  if (input.decision === "reject") {
+    return {
+      next_status: "planned_disabled",
+      next_approval_status: "rejected",
+      notification_target: input.notification_target || text(current.notification_target),
+      executor_policy_key: input.executor_policy_key || text(current.executor_policy_key),
+    };
+  }
+  return {
+    next_status: "planned_disabled",
+    next_approval_status: "revoked",
+    notification_target: input.notification_target || text(current.notification_target),
+    executor_policy_key: input.executor_policy_key || text(current.executor_policy_key),
+  };
+}
+
+export function buildDatabaseLifecycleSchedulerApprovalPlan(input = {}, current = {}) {
+  const normalized = normalizeSchedulerApprovalInput(input);
+  const next = schedulerApprovalNextState(normalized, current);
+  const blockers = [];
+  if (normalized.decision === "approve" && !next.notification_target) blockers.push("notification_target_required_for_approval");
+  if (normalized.decision === "approve" && !next.executor_policy_key) blockers.push("executor_policy_key_required_for_approval");
+  return {
+    ok: blockers.length === 0,
+    plan_type: "database_lifecycle_scheduler_approval_metadata_plan_v1",
+    target_type: normalized.target_type,
+    target_key: normalized.target_key,
+    decision: normalized.decision,
+    previous_status: text(current.status),
+    previous_approval_status: text(current.approval_status),
+    ...next,
+    actor_id: normalized.actor_id,
+    trace_id: normalized.trace_id,
+    reason: normalized.reason,
+    dry_run: !normalized.apply,
+    will_execute: false,
+    no_drop: true,
+    no_delete: true,
+    no_archive_execution: true,
+    no_compaction_execution: true,
+    secrets_included: false,
+    required_confirmation: DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_CONFIRMATION,
+    blocked_reasons: blockers,
+    required_next_step: blockers.length ? "supply_required_approval_metadata" : "apply_with_typed_confirmation_to_record_metadata_only",
+  };
+}
+
+export function assertDatabaseLifecycleSchedulerApprovalAllowed({ apply = false, confirm } = {}) {
+  if (!apply) {
+    return {
+      allowed: false,
+      mode: "dry_run",
+      required_confirmation: DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_CONFIRMATION,
+    };
+  }
+  if (confirm !== DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_CONFIRMATION) {
+    const err = new Error(`Apply requires --confirm ${DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_CONFIRMATION}.`);
+    err.code = "DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_CONFIRMATION_REQUIRED";
+    err.status = 400;
+    throw err;
+  }
+  return { allowed: true, mode: "apply" };
+}
+
+async function loadSchedulerApprovalTarget(pool, input) {
+  const table = input.target_type === "schedule"
+    ? "database_lifecycle_report_snapshot_schedules"
+    : "database_lifecycle_report_snapshot_scheduler_bindings";
+  const keyColumn = input.target_type === "schedule" ? "schedule_key" : "binding_key";
+  const [rows] = await pool.query(
+    `SELECT * FROM ${table} WHERE ${keyColumn} = ? LIMIT 1`,
+    [input.target_key]
+  );
+  return rows[0] || null;
+}
+
+export async function planDatabaseLifecycleSchedulerApproval(input = {}, deps = {}) {
+  const normalized = normalizeSchedulerApprovalInput(input);
+  const pool = deps.pool || getPool();
+  const current = await loadSchedulerApprovalTarget(pool, normalized);
+  if (!current) {
+    const err = new Error(`${normalized.target_type} target not found.`);
+    err.code = "DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_TARGET_NOT_FOUND";
+    err.status = 404;
+    throw err;
+  }
+  return buildDatabaseLifecycleSchedulerApprovalPlan(normalized, current);
+}
+
+export async function applyDatabaseLifecycleSchedulerApproval(plan = {}, deps = {}) {
+  if (!plan.ok) {
+    const err = new Error("Scheduler approval plan is blocked.");
+    err.code = "DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_PLAN_BLOCKED";
+    err.status = 409;
+    throw err;
+  }
+  const pool = deps.pool || getPool();
+  const eventId = cryptoRandomId("dblsa");
+  const eventKey = `${plan.target_type}:${plan.target_key}:${plan.decision}:${eventId}`;
+  if (plan.target_type === "schedule") {
+    await pool.query(
+      `UPDATE database_lifecycle_report_snapshot_schedules
+          SET status = ?, approval_status = ?, approved_by = ?,
+              approved_at = CASE WHEN ? = 'approved' THEN CURRENT_TIMESTAMP ELSE approved_at END,
+              notification_target = ?, executor_policy_key = ?, notes = ?
+        WHERE schedule_key = ?`,
+      [
+        plan.next_status,
+        plan.next_approval_status,
+        plan.actor_id || null,
+        plan.next_approval_status,
+        plan.notification_target || null,
+        plan.executor_policy_key || null,
+        plan.reason || null,
+        plan.target_key,
+      ]
+    );
+  } else {
+    await pool.query(
+      `UPDATE database_lifecycle_report_snapshot_scheduler_bindings
+          SET status = ?, approval_status = ?, approved_by = ?,
+              approved_at = CASE WHEN ? = 'approved' THEN CURRENT_TIMESTAMP ELSE approved_at END,
+              notification_target = ?, executor_policy_key = ?, notes = ?,
+              will_execute = 0, no_drop = 1, no_delete = 1,
+              no_archive_execution = 1, no_compaction_execution = 1,
+              secrets_included = 0
+        WHERE binding_key = ?`,
+      [
+        plan.next_status,
+        plan.next_approval_status,
+        plan.actor_id || null,
+        plan.next_approval_status,
+        plan.notification_target || null,
+        plan.executor_policy_key || null,
+        plan.reason || null,
+        plan.target_key,
+      ]
+    );
+  }
+  await pool.query(
+    `INSERT INTO database_lifecycle_scheduler_approval_events (
+       event_id, event_key, target_type, target_key, decision,
+       previous_status, previous_approval_status, next_status, next_approval_status,
+       notification_target, executor_policy_key, actor_id, trace_id, reason,
+       dry_run, will_execute, no_drop, no_delete, no_archive_execution,
+       no_compaction_execution, secrets_included
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 1, 1, 1, 1, 0)`,
+    [
+      eventId,
+      eventKey,
+      plan.target_type,
+      plan.target_key,
+      plan.decision,
+      plan.previous_status || null,
+      plan.previous_approval_status || null,
+      plan.next_status,
+      plan.next_approval_status,
+      plan.notification_target || null,
+      plan.executor_policy_key || null,
+      plan.actor_id || null,
+      plan.trace_id || null,
+      plan.reason || null,
+    ]
+  );
+  return { event_id: eventId, event_key: eventKey, target_type: plan.target_type, target_key: plan.target_key };
 }
 
 export function assertDatabaseTableLifecycleRegistryUpsertAllowed({ apply = false, confirm } = {}) {
