@@ -68,9 +68,17 @@ export function buildLocalConnectorRoutes(deps) {
 
   router.get("/local-connector/devices", requireBackendApiKey, async (req, res) => {
     try {
-      const { user_id, tenant_id } = req.query;
+      const { user_id, tenant_id, auth_derived } = resolveLocalConnectorIdentity(req);
       if (!user_id || !tenant_id) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "user_id, tenant_id required." } });
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "missing_fields",
+            message: auth_derived
+              ? "Signed-in user is missing tenant context."
+              : "user_id and tenant_id are required for admin/service calls.",
+          },
+        });
       }
       const [rows] = await getPool().query(
         `SELECT config_id, device_id, tunnel_url, cf_tunnel_id, cf_tunnel_name, is_enabled, created_at, updated_at
@@ -79,7 +87,7 @@ export function buildLocalConnectorRoutes(deps) {
          ORDER BY created_at DESC`,
         [user_id, tenant_id]
       );
-      return res.status(200).json({ ok: true, devices: rows, count: rows.length });
+      return res.status(200).json({ ok: true, devices: rows, count: rows.length, auth_derived });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "devices_read_failed", message: err.message } });
     }
