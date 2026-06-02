@@ -41,6 +41,22 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "176_sprint66_governed_migration_ledger.sql",
 ];
 
+const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
+  "admin_cloudflare",
+  "admin_connector_activate",
+  "gpt_session_end",
+  "gpt_session_turn_write",
+  "local_connector_install_bundle",
+  "local_connector_self_repair",
+  "platform_data_source_census",
+  "platform_self_repair_diagnose",
+  "release_session_archive_smoke",
+];
+
+const LEGACY_NON_REQUIRED_ADMIN_TOOLS = [
+  "governance_execution_log_sheets_recovery",
+];
+
 // ── All platform tables that must exist ───────────────────────────────────────
 const REQUIRED_TABLES = [
   // Sprint 02
@@ -957,6 +973,99 @@ async function checkGovernedMigrationLedgerSafe() {
   }
 }
 
+async function checkAdminToolRegistrySmoke() {
+  const pool = getPool();
+  const expected = EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE;
+  const legacyNonRequired = LEGACY_NON_REQUIRED_ADMIN_TOOLS;
+  const allToolKeys = compactList([...expected, ...legacyNonRequired], 100);
+  const [[tableRow]] = await pool.query(
+    "SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'admin_platform_endpoint_tools'"
+  );
+  if (!tableRow?.cnt) {
+    return {
+      status: "warn",
+      detail: "Admin platform endpoint tool registry table is missing.",
+      table_exists: false,
+      expected_count: expected.length,
+      covered_count: 0,
+      missing_expected_tools: expected,
+      disabled_expected_tools: [],
+      invalid_expected_tools: [],
+      legacy_non_required_tools: legacyNonRequired,
+      secrets_included: false,
+    };
+  }
+
+  const [rows] = await pool.query(
+    "SELECT tool_key, is_enabled, http_method, http_path FROM admin_platform_endpoint_tools WHERE tool_key IN (?) ORDER BY tool_key",
+    [allToolKeys]
+  );
+  const byKey = new Map((rows || []).map((row) => [String(row.tool_key), row]));
+  const missing_expected_tools = expected.filter((toolKey) => !byKey.has(toolKey));
+  const disabled_expected_tools = expected.filter((toolKey) => byKey.has(toolKey) && Number(byKey.get(toolKey)?.is_enabled || 0) !== 1);
+  const invalid_expected_tools = expected.filter((toolKey) => {
+    const row = byKey.get(toolKey);
+    return row && (!String(row.http_method || "").trim() || !String(row.http_path || "").trim());
+  });
+  const status = missing_expected_tools.length || disabled_expected_tools.length || invalid_expected_tools.length
+    ? "warn"
+    : "pass";
+
+  return {
+    status,
+    detail: status === "pass"
+      ? `Admin tool registry smoke covers ${expected.length}/${expected.length} required tool(s); ${legacyNonRequired.length} legacy non-required tool(s) are informational only.`
+      : `Admin tool registry smoke has ${missing_expected_tools.length} missing, ${disabled_expected_tools.length} disabled, and ${invalid_expected_tools.length} invalid required tool(s).`,
+    table_exists: true,
+    expected_count: expected.length,
+    covered_count: expected.length - missing_expected_tools.length,
+    enabled_expected_count: expected.filter((toolKey) => Number(byKey.get(toolKey)?.is_enabled || 0) === 1).length,
+    missing_expected_tools,
+    disabled_expected_tools,
+    invalid_expected_tools,
+    expected_tools: expected.map((toolKey) => {
+      const row = byKey.get(toolKey) || {};
+      return {
+        tool_key: toolKey,
+        present: byKey.has(toolKey),
+        is_enabled: row.is_enabled ?? null,
+        http_method: row.http_method || null,
+        http_path: row.http_path || null,
+      };
+    }),
+    legacy_non_required_tools: legacyNonRequired.map((toolKey) => {
+      const row = byKey.get(toolKey) || {};
+      return {
+        tool_key: toolKey,
+        present: byKey.has(toolKey),
+        is_enabled: row.is_enabled ?? null,
+        http_method: row.http_method || null,
+        http_path: row.http_path || null,
+        classification: "legacy_non_required_diagnostic",
+      };
+    }),
+    executes_tools: false,
+    secrets_included: false,
+  };
+}
+
+async function checkAdminToolRegistrySmokeSafe() {
+  try {
+    return await checkAdminToolRegistrySmoke();
+  } catch (err) {
+    return {
+      status: "warn",
+      detail: `Admin tool registry smoke unavailable: ${err?.message || "unknown error"}`,
+      table_exists: false,
+      expected_count: EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE.length,
+      covered_count: 0,
+      missing_expected_tools: EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE,
+      executes_tools: false,
+      secrets_included: false,
+    };
+  }
+}
+
 function graphMemoryCheckResult(memory = {}) {
   const assetCount = Number(memory.asset_count || 0);
   const resolved = Boolean(memory.resolved);
@@ -1025,6 +1134,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     seed_data: {},
     migration_inventory: null,
     governed_migration_ledger: null,
+    admin_tool_registry_smoke: null,
     migration_drift: null,
     graph_memory_diagnostics: null,
   };
@@ -1065,6 +1175,11 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   report.governed_migration_ledger = await checkGovernedMigrationLedgerSafe();
   if (report.governed_migration_ledger.status === "warn" && report.overall === "pass") report.overall = "warn";
 
+  // Admin tool registry smoke — read-only registry verification only. This does
+  // not dispatch any high-risk admin tool.
+  report.admin_tool_registry_smoke = await checkAdminToolRegistrySmokeSafe();
+  if (report.admin_tool_registry_smoke.status === "warn" && report.overall === "pass") report.overall = "warn";
+
   // Dynamic migration drift — non-mutating comparison between repo migrations
   // and the current runtime DB. This catches future governance migrations without
   // adding their table/tool/engine names to a static release readiness list.
@@ -1083,6 +1198,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     ...Object.values(report.seed_data),
     report.migration_inventory,
     report.governed_migration_ledger,
+    report.admin_tool_registry_smoke,
     report.migration_drift,
     report.graph_memory_diagnostics,
   ];
@@ -1100,6 +1216,13 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     governed_migration_ledger_expected_count: report.governed_migration_ledger?.expected_count ?? null,
     governed_migration_ledger_covered_count: report.governed_migration_ledger?.covered_count ?? null,
     governed_migration_ledger_missing_expected_count: report.governed_migration_ledger?.missing_expected_migrations?.length ?? null,
+    admin_tool_registry_smoke_status: report.admin_tool_registry_smoke?.status || null,
+    admin_tool_registry_smoke_expected_count: report.admin_tool_registry_smoke?.expected_count ?? null,
+    admin_tool_registry_smoke_covered_count: report.admin_tool_registry_smoke?.covered_count ?? null,
+    admin_tool_registry_smoke_missing_count: report.admin_tool_registry_smoke?.missing_expected_tools?.length ?? null,
+    admin_tool_registry_smoke_disabled_count: report.admin_tool_registry_smoke?.disabled_expected_tools?.length ?? null,
+    admin_tool_registry_smoke_invalid_count: report.admin_tool_registry_smoke?.invalid_expected_tools?.length ?? null,
+    admin_tool_registry_smoke_executes_tools: Boolean(report.admin_tool_registry_smoke?.executes_tools),
     migration_drift_missing_total: report.migration_drift?.missing_total ?? null,
     migration_drift_actionable_missing_total: report.migration_drift?.actionable_missing_total ?? null,
     migration_drift_files_scanned: report.migration_drift?.files_scanned ?? 0,
@@ -1122,6 +1245,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
         ...Object.entries(report.seed_data),
         ["migration_inventory", report.migration_inventory],
         ["governed_migration_ledger", report.governed_migration_ledger],
+        ["admin_tool_registry_smoke", report.admin_tool_registry_smoke],
         ["migration_drift", report.migration_drift],
         ["graph_memory_diagnostics", report.graph_memory_diagnostics],
       ];
