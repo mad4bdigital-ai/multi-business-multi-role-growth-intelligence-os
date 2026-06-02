@@ -8,8 +8,10 @@ The governed migration runner provides a narrow, auditable shell-alias path for 
 
 - `migration_apply_guarded_dry_run`
 - `migration_apply_guarded_apply`
+- `migration_ledger_record_dry_run`
+- `migration_ledger_record_apply`
 
-Both aliases execute `http-generic-api/scripts/governed-migration-runner.mjs` through `admin_control` shell dispatch.
+All aliases execute `http-generic-api/scripts/governed-migration-runner.mjs` through `admin_control` shell dispatch.
 
 ## Safety contract
 
