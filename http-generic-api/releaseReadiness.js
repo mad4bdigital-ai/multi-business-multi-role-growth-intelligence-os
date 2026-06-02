@@ -28,6 +28,19 @@ const GPT_TOOLS_ROUTES_PATH = path.join(__dirname, "routes", "gptToolsRoutes.js"
 const OPENAPI_PATH = path.join(__dirname, "openapi.yaml");
 const ROUTES_DIR = path.join(__dirname, "routes");
 
+const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
+  "051_sprint48_cloudflare_and_self_repair_tools.sql",
+  "052_sprint49_local_connector_install_bundle.sql",
+  "054_sprint50_admin_device_seed_and_self_repair_tool.sql",
+  "055_sprint51_sql_primary_data_source.sql",
+  "057_sprint53_admin_session_turn_tools.sql",
+  "162_sprint66_cms_site_resource_access_grants.sql",
+  "163_sprint65_session_archive_smoke_tool.sql",
+  "166_sprint65_ai_intelligence_runtime_governance.sql",
+  "168_sprint65_database_table_lifecycle_governance.sql",
+  "176_sprint66_governed_migration_ledger.sql",
+];
+
 // ── All platform tables that must exist ───────────────────────────────────────
 const REQUIRED_TABLES = [
   // Sprint 02
@@ -862,6 +875,88 @@ async function checkMigrationInventorySafe() {
   }
 }
 
+async function checkGovernedMigrationLedger() {
+  const pool = getPool();
+  const [[tableRow]] = await pool.query(
+    "SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'governed_migration_ledger'"
+  );
+  if (!tableRow?.cnt) {
+    return {
+      status: "warn",
+      detail: "Governed migration ledger table is missing.",
+      table_exists: false,
+      expected_count: EXPECTED_GOVERNED_LEDGER_MIGRATIONS.length,
+      covered_count: 0,
+      missing_expected_migrations: EXPECTED_GOVERNED_LEDGER_MIGRATIONS,
+      secrets_included: false,
+    };
+  }
+
+  const [modeRows] = await pool.query(
+    "SELECT mode, COUNT(*) AS count FROM governed_migration_ledger GROUP BY mode ORDER BY mode"
+  );
+  const mode_counts = Object.fromEntries((modeRows || []).map((row) => [row.mode, Number(row.count || 0)]));
+
+  const [coverageRows] = await pool.query(
+    "SELECT migration_file, mode, statement_count, preflight_status, preflight_risk_count, secrets_included, applied_at FROM governed_migration_ledger WHERE migration_file IN (?) ORDER BY applied_at ASC",
+    [EXPECTED_GOVERNED_LEDGER_MIGRATIONS]
+  );
+  const covered = new Set((coverageRows || []).map((row) => String(row.migration_file)));
+  const missing_expected_migrations = EXPECTED_GOVERNED_LEDGER_MIGRATIONS.filter((file) => !covered.has(file));
+  const risky_entries = (coverageRows || []).filter((row) =>
+    String(row.preflight_status || "") !== "pass"
+    || Number(row.preflight_risk_count || 0) > 0
+    || Number(row.secrets_included || 0) !== 0
+  );
+  const latest_apply = [...(coverageRows || [])].reverse().find((row) => row.mode === "apply") || null;
+  const latest_record_only = [...(coverageRows || [])].reverse().find((row) => row.mode === "record_only") || null;
+  const status = missing_expected_migrations.length || risky_entries.length ? "warn" : "pass";
+
+  return {
+    status,
+    detail: status === "pass"
+      ? `Governed migration ledger covers ${coverageRows.length}/${EXPECTED_GOVERNED_LEDGER_MIGRATIONS.length} expected migration record(s).`
+      : `Governed migration ledger has ${missing_expected_migrations.length} missing expected record(s) and ${risky_entries.length} risky record(s).`,
+    table_exists: true,
+    total_entries: Object.values(mode_counts).reduce((sum, count) => sum + Number(count || 0), 0),
+    mode_counts,
+    expected_count: EXPECTED_GOVERNED_LEDGER_MIGRATIONS.length,
+    covered_count: coverageRows.length,
+    missing_expected_migrations,
+    risky_entries: risky_entries.slice(0, 10),
+    latest_apply,
+    latest_record_only,
+    checked_migrations: (coverageRows || []).map((row) => ({
+      migration_file: row.migration_file,
+      mode: row.mode,
+      statement_count: row.statement_count,
+      preflight_status: row.preflight_status,
+      preflight_risk_count: row.preflight_risk_count,
+      secrets_included: row.secrets_included,
+      applied_at: row.applied_at,
+    })),
+    secrets_included: false,
+  };
+}
+
+async function checkGovernedMigrationLedgerSafe() {
+  try {
+    return await checkGovernedMigrationLedger();
+  } catch (err) {
+    return {
+      status: "warn",
+      detail: `Governed migration ledger unavailable: ${err?.message || "unknown error"}`,
+      table_exists: false,
+      total_entries: 0,
+      mode_counts: {},
+      expected_count: EXPECTED_GOVERNED_LEDGER_MIGRATIONS.length,
+      covered_count: 0,
+      missing_expected_migrations: EXPECTED_GOVERNED_LEDGER_MIGRATIONS,
+      secrets_included: false,
+    };
+  }
+}
+
 function graphMemoryCheckResult(memory = {}) {
   const assetCount = Number(memory.asset_count || 0);
   const resolved = Boolean(memory.resolved);
@@ -929,6 +1024,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     legacy_tables: {},
     seed_data: {},
     migration_inventory: null,
+    governed_migration_ledger: null,
     migration_drift: null,
     graph_memory_diagnostics: null,
   };
@@ -964,6 +1060,11 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   report.migration_inventory = await checkMigrationInventorySafe();
   if (report.migration_inventory.status === "warn" && report.overall === "pass") report.overall = "warn";
 
+  // Governed migration ledger — non-mutating coverage evidence for migrations
+  // that were applied or historically backfilled through the governed runner.
+  report.governed_migration_ledger = await checkGovernedMigrationLedgerSafe();
+  if (report.governed_migration_ledger.status === "warn" && report.overall === "pass") report.overall = "warn";
+
   // Dynamic migration drift — non-mutating comparison between repo migrations
   // and the current runtime DB. This catches future governance migrations without
   // adding their table/tool/engine names to a static release readiness list.
@@ -981,6 +1082,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     ...Object.values(report.legacy_tables),
     ...Object.values(report.seed_data),
     report.migration_inventory,
+    report.governed_migration_ledger,
     report.migration_drift,
     report.graph_memory_diagnostics,
   ];
@@ -991,6 +1093,13 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     fail: allChecks.filter((c) => c.status === "fail").length,
     platform_tables_total: REQUIRED_TABLES.length,
     platform_tables_ok: Object.values(report.platform_tables).filter((c) => c.status === "pass").length,
+    governed_migration_ledger_status: report.governed_migration_ledger?.status || null,
+    governed_migration_ledger_total_entries: report.governed_migration_ledger?.total_entries ?? null,
+    governed_migration_ledger_apply_count: report.governed_migration_ledger?.mode_counts?.apply ?? 0,
+    governed_migration_ledger_record_only_count: report.governed_migration_ledger?.mode_counts?.record_only ?? 0,
+    governed_migration_ledger_expected_count: report.governed_migration_ledger?.expected_count ?? null,
+    governed_migration_ledger_covered_count: report.governed_migration_ledger?.covered_count ?? null,
+    governed_migration_ledger_missing_expected_count: report.governed_migration_ledger?.missing_expected_migrations?.length ?? null,
     migration_drift_missing_total: report.migration_drift?.missing_total ?? null,
     migration_drift_actionable_missing_total: report.migration_drift?.actionable_missing_total ?? null,
     migration_drift_files_scanned: report.migration_drift?.files_scanned ?? 0,
@@ -1012,6 +1121,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
         ...Object.entries(report.legacy_tables).map(([k, v]) => [`legacy.${k}`, v]),
         ...Object.entries(report.seed_data),
         ["migration_inventory", report.migration_inventory],
+        ["governed_migration_ledger", report.governed_migration_ledger],
         ["migration_drift", report.migration_drift],
         ["graph_memory_diagnostics", report.graph_memory_diagnostics],
       ];
