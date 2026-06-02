@@ -122,6 +122,87 @@ function readinessForTarget(target, activeCommands = []) {
   };
 }
 
+const HOSTING_SSH_CREDENTIAL_ROLES = ["ssh_host", "ssh_port", "ssh_user", "ssh_private_key"];
+
+async function loadHostingSshCredentialReadiness(pool, target = {}, system = null, connection = null) {
+  if (!target?.tenant_id) {
+    return {
+      roles: HOSTING_SSH_CREDENTIAL_ROLES,
+      present_roles: [],
+      missing_roles: HOSTING_SSH_CREDENTIAL_ROLES,
+      value_present_roles: [],
+      value_missing_roles: HOSTING_SSH_CREDENTIAL_ROLES,
+      all_bindings_present: false,
+      all_values_present: false,
+      bindings: [],
+      source: "credential_bindings",
+    };
+  }
+  const filters = [
+    "cb.tenant_id = ?",
+    "cb.credential_role IN ('ssh_host','ssh_port','ssh_user','ssh_private_key')",
+    "cb.status = 'active'",
+  ];
+  const params = [target.tenant_id];
+  if (target.system_id || system?.system_id) {
+    filters.push("cb.system_id = ?");
+    params.push(target.system_id || system.system_id);
+  } else if (target.connection_id || connection?.connection_id) {
+    filters.push("cb.connection_id = ?");
+    params.push(target.connection_id || connection.connection_id);
+  } else {
+    filters.push("cb.provider_family = ? AND cb.connector_family = ?");
+    params.push(target.provider_family || system?.provider_family || connection?.app_key || "hostinger");
+    params.push(target.connector_family || system?.connector_family || "hostinger_ssh");
+  }
+
+  const rows = await safeQuery(
+    pool,
+    `SELECT cb.credential_role, cb.credential_ref, cb.owner_type, cb.owner_id, cb.system_id,
+            ps.secret_key, ps.storage_backend, ps.status AS secret_status,
+            CASE WHEN COALESCE(ps.value_ciphertext, '') <> '' THEN 1 ELSE 0 END AS has_secret_value
+       FROM credential_bindings cb
+       LEFT JOIN platform_secrets ps
+         ON cb.credential_ref = CONCAT('platform_secret:', ps.secret_key)
+      WHERE ${filters.join(" AND ")}
+      ORDER BY cb.resolution_priority ASC, cb.updated_at DESC`,
+    params
+  );
+  const byRole = new Map();
+  for (const row of rows) {
+    if (!byRole.has(row.credential_role)) byRole.set(row.credential_role, row);
+  }
+  const presentRoles = HOSTING_SSH_CREDENTIAL_ROLES.filter((role) => byRole.has(role));
+  const missingRoles = HOSTING_SSH_CREDENTIAL_ROLES.filter((role) => !byRole.has(role));
+  const valuePresentRoles = HOSTING_SSH_CREDENTIAL_ROLES.filter((role) => {
+    const row = byRole.get(role);
+    return Boolean(row && row.secret_status === "active" && Number(row.has_secret_value) === 1);
+  });
+  const valueMissingRoles = HOSTING_SSH_CREDENTIAL_ROLES.filter((role) => !valuePresentRoles.includes(role));
+  return {
+    roles: HOSTING_SSH_CREDENTIAL_ROLES,
+    present_roles: presentRoles,
+    missing_roles: missingRoles,
+    value_present_roles: valuePresentRoles,
+    value_missing_roles: valueMissingRoles,
+    all_bindings_present: missingRoles.length === 0,
+    all_values_present: valueMissingRoles.length === 0,
+    bindings: presentRoles.map((role) => {
+      const row = byRole.get(role);
+      return {
+        credential_role: role,
+        credential_ref: row?.credential_ref || "",
+        owner_type: row?.owner_type || "",
+        owner_id: row?.owner_id || "",
+        storage_backend: row?.storage_backend || "",
+        secret_status: row?.secret_status || "missing",
+        secret_value_present: Number(row?.has_secret_value || 0) === 1,
+      };
+    }),
+    source: "credential_bindings",
+  };
+}
+
 async function loadConnection(pool, connectionId) {
   if (!connectionId) return null;
   const rows = await safeQuery(
