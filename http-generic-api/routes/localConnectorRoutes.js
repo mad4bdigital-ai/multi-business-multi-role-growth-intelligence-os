@@ -1,6 +1,22 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
 
+function resolveLocalConnectorIdentity(req = {}) {
+  const isTenantScoped = req.auth?.mode === "user_jwt" || req.auth?.mode === "api_credential";
+  if (isTenantScoped) {
+    return {
+      user_id: req.auth?.user_id || null,
+      tenant_id: req.auth?.tenant_id || null,
+      auth_derived: true,
+    };
+  }
+  return {
+    user_id: req.query?.user_id || req.body?.user_id || null,
+    tenant_id: req.query?.tenant_id || req.body?.tenant_id || null,
+    auth_derived: false,
+  };
+}
+
 export function buildLocalConnectorRoutes(deps) {
   const { requireBackendApiKey, localConnectorOrchestrator } = deps;
   const router = Router();
