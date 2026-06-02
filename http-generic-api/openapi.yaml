@@ -1080,6 +1080,96 @@ components:
         drive_export_url:
           type: string
 
+    TenantSafeDocItem:
+      type: object
+      additionalProperties: false
+      required: [doc_path]
+      properties:
+        doc_path:
+          type: string
+          enum:
+            - GPT_Tenant_Connector_Instructions.md
+            - GPT_Tenant_Connector_Knowledge.md
+            - docs/tenant-platform-plugin-self-serve.md
+            - docs/local-manager-n8n-runtime-governance.md
+            - docs/platform-plugin-tenant-install.md
+            - docs/platform-plugin-private-runtime.md
+
+    TenantDocsCatalogResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, docs, count, tenant_facing, auth_context, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        docs:
+          type: array
+          items: { $ref: "#/components/schemas/TenantSafeDocItem" }
+        count: { type: integer }
+        tenant_facing: { type: boolean, enum: [true] }
+        auth_context:
+          type: object
+          additionalProperties: true
+        secrets_included: { type: boolean, enum: [false] }
+
+    TenantDocReadResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, path, content, truncated, source_authority, tenant_facing, auth_context, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        path: { type: string }
+        content: { type: string }
+        truncated: { type: boolean }
+        size_chars: { type: integer }
+        max_chars: { type: integer }
+        source_authority: { type: string, enum: [repo_live_allowlisted] }
+        tenant_facing: { type: boolean, enum: [true] }
+        auth_context:
+          type: object
+          additionalProperties: true
+        secrets_included: { type: boolean, enum: [false] }
+
+    ReleaseDashboardResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, overall, run_id, checked_at, release_status, source_of_truth, dashboard_role, secrets_included]
+      properties:
+        ok: { type: boolean }
+        overall: { type: string, enum: [pass, warn, fail] }
+        run_id: { type: string }
+        checked_at: { type: string, format: date-time }
+        release_status:
+          type: object
+          additionalProperties: true
+        ledger:
+          type: object
+          additionalProperties: true
+          properties:
+            status: { type: string, nullable: true }
+            total_entries: { type: integer, nullable: true }
+            apply_count: { type: integer }
+            record_only_count: { type: integer }
+            expected_count: { type: integer, nullable: true }
+            covered_count: { type: integer, nullable: true }
+            missing_expected_count: { type: integer, nullable: true }
+        admin_tool_registry_smoke:
+          type: object
+          additionalProperties: true
+        migration_drift:
+          type: object
+          additionalProperties: true
+        graph_memory:
+          type: object
+          additionalProperties: true
+        degraded_surfaces:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        source_of_truth: { type: string, enum: [release_readiness] }
+        dashboard_role: { type: string, enum: [compact_read_only_projection] }
+        secrets_included: { type: boolean, enum: [false] }
+
     # -- Platform Evolution checkpoint schemas --------------------------------
 
     CredentialResolutionCandidate:
