@@ -537,15 +537,34 @@ export async function validateRemoteRuntimeTarget({
     checks.push({ check: "has_system_or_connection", ok: Boolean(system || connection) });
     checks.push({ check: "path_allowlist_non_empty", ok: Array.isArray(target.path_allowlist) && target.path_allowlist.length > 0 });
     checks.push({ check: "command_allowlist_non_empty", ok: Array.isArray(target.command_allowlist) && target.command_allowlist.length > 0 });
+    const credentialReadiness = await loadHostingSshCredentialReadiness(pool, target, system, connection);
+    checks.push({
+      check: "ssh_credential_bindings_present",
+      ok: credentialReadiness.all_bindings_present,
+      present_roles: credentialReadiness.present_roles,
+      missing_roles: credentialReadiness.missing_roles,
+    });
+    checks.push({
+      check: "ssh_secret_values_present",
+      ok: credentialReadiness.all_values_present,
+      present_roles: credentialReadiness.value_present_roles,
+      missing_roles: credentialReadiness.value_missing_roles,
+    });
     const externallyValid = system?.status === "active" || connection?.validation_status === "validated";
     if (system?.status === "active") {
       nextStatus = "active";
       nextValidation = "valid";
       reason = "managed_connected_system_active";
-    } else if (externallyValid) {
+    } else if (externallyValid || credentialReadiness.all_values_present) {
       nextStatus = "planned";
       nextValidation = "partial";
-      reason = "credential_metadata_validated_ssh_not_probed";
+      reason = credentialReadiness.all_values_present
+        ? "db_credential_values_present_ssh_not_probed"
+        : "credential_metadata_validated_ssh_not_probed";
+    } else if (credentialReadiness.all_bindings_present) {
+      nextStatus = "planned";
+      nextValidation = "pending_configuration";
+      reason = "db_credential_bindings_present_pending_secret_values";
     } else {
       nextStatus = "planned";
       nextValidation = "pending_configuration";
