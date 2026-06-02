@@ -105,19 +105,21 @@ async function recordMigrationLedger({
     node_version: process.version,
     platform: process.platform,
     runner_pid: process.pid,
+    ...extraMetadata,
   };
   await getPool().query(
     `INSERT INTO governed_migration_ledger
       (run_id, migration_file, migration_checksum_sha256, applied_by, runner_version, mode,
        statement_count, preflight_status, preflight_risk_count, requirements_json, results_json,
        before_schema_objects_json, after_schema_objects_json, metadata_json, secrets_included)
-     VALUES (?, ?, ?, ?, ?, 'apply', ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
     [
       run_id,
       migration,
       checksum,
-      process.env.GOVERNED_MIGRATION_APPLIED_BY || "governed_migration_runner",
+      appliedBy,
       RUNNER_VERSION,
+      ledgerMode,
       statement_count,
       preflight?.status || "unknown",
       Number(preflight?.risk_count || 0),
