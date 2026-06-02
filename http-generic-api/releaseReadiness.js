@@ -1175,6 +1175,11 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   report.governed_migration_ledger = await checkGovernedMigrationLedgerSafe();
   if (report.governed_migration_ledger.status === "warn" && report.overall === "pass") report.overall = "warn";
 
+  // Admin tool registry smoke — read-only registry verification only. This does
+  // not dispatch any high-risk admin tool.
+  report.admin_tool_registry_smoke = await checkAdminToolRegistrySmokeSafe();
+  if (report.admin_tool_registry_smoke.status === "warn" && report.overall === "pass") report.overall = "warn";
+
   // Dynamic migration drift — non-mutating comparison between repo migrations
   // and the current runtime DB. This catches future governance migrations without
   // adding their table/tool/engine names to a static release readiness list.
