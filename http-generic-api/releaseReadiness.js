@@ -973,6 +973,99 @@ async function checkGovernedMigrationLedgerSafe() {
   }
 }
 
+async function checkAdminToolRegistrySmoke() {
+  const pool = getPool();
+  const expected = EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE;
+  const legacyNonRequired = LEGACY_NON_REQUIRED_ADMIN_TOOLS;
+  const allToolKeys = compactList([...expected, ...legacyNonRequired], 100);
+  const [[tableRow]] = await pool.query(
+    "SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'admin_platform_endpoint_tools'"
+  );
+  if (!tableRow?.cnt) {
+    return {
+      status: "warn",
+      detail: "Admin platform endpoint tool registry table is missing.",
+      table_exists: false,
+      expected_count: expected.length,
+      covered_count: 0,
+      missing_expected_tools: expected,
+      disabled_expected_tools: [],
+      invalid_expected_tools: [],
+      legacy_non_required_tools: legacyNonRequired,
+      secrets_included: false,
+    };
+  }
+
+  const [rows] = await pool.query(
+    "SELECT tool_key, is_enabled, http_method, http_path FROM admin_platform_endpoint_tools WHERE tool_key IN (?) ORDER BY tool_key",
+    [allToolKeys]
+  );
+  const byKey = new Map((rows || []).map((row) => [String(row.tool_key), row]));
+  const missing_expected_tools = expected.filter((toolKey) => !byKey.has(toolKey));
+  const disabled_expected_tools = expected.filter((toolKey) => byKey.has(toolKey) && Number(byKey.get(toolKey)?.is_enabled || 0) !== 1);
+  const invalid_expected_tools = expected.filter((toolKey) => {
+    const row = byKey.get(toolKey);
+    return row && (!String(row.http_method || "").trim() || !String(row.http_path || "").trim());
+  });
+  const status = missing_expected_tools.length || disabled_expected_tools.length || invalid_expected_tools.length
+    ? "warn"
+    : "pass";
+
+  return {
+    status,
+    detail: status === "pass"
+      ? `Admin tool registry smoke covers ${expected.length}/${expected.length} required tool(s); ${legacyNonRequired.length} legacy non-required tool(s) are informational only.`
+      : `Admin tool registry smoke has ${missing_expected_tools.length} missing, ${disabled_expected_tools.length} disabled, and ${invalid_expected_tools.length} invalid required tool(s).`,
+    table_exists: true,
+    expected_count: expected.length,
+    covered_count: expected.length - missing_expected_tools.length,
+    enabled_expected_count: expected.filter((toolKey) => Number(byKey.get(toolKey)?.is_enabled || 0) === 1).length,
+    missing_expected_tools,
+    disabled_expected_tools,
+    invalid_expected_tools,
+    expected_tools: expected.map((toolKey) => {
+      const row = byKey.get(toolKey) || {};
+      return {
+        tool_key: toolKey,
+        present: byKey.has(toolKey),
+        is_enabled: row.is_enabled ?? null,
+        http_method: row.http_method || null,
+        http_path: row.http_path || null,
+      };
+    }),
+    legacy_non_required_tools: legacyNonRequired.map((toolKey) => {
+      const row = byKey.get(toolKey) || {};
+      return {
+        tool_key: toolKey,
+        present: byKey.has(toolKey),
+        is_enabled: row.is_enabled ?? null,
+        http_method: row.http_method || null,
+        http_path: row.http_path || null,
+        classification: "legacy_non_required_diagnostic",
+      };
+    }),
+    executes_tools: false,
+    secrets_included: false,
+  };
+}
+
+async function checkAdminToolRegistrySmokeSafe() {
+  try {
+    return await checkAdminToolRegistrySmoke();
+  } catch (err) {
+    return {
+      status: "warn",
+      detail: `Admin tool registry smoke unavailable: ${err?.message || "unknown error"}`,
+      table_exists: false,
+      expected_count: EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE.length,
+      covered_count: 0,
+      missing_expected_tools: EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE,
+      executes_tools: false,
+      secrets_included: false,
+    };
+  }
+}
+
 function graphMemoryCheckResult(memory = {}) {
   const assetCount = Number(memory.asset_count || 0);
   const resolved = Boolean(memory.resolved);
