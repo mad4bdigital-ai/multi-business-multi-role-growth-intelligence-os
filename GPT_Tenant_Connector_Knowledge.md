@@ -72,9 +72,9 @@ Incorrect:
 4. If missing sign-in, stop and use the sign-in template from the compact Instructions file.
 5. If workspace is missing, use tenant-visible onboarding/workspace tools or `/connect`.
 6. If activation is missing, call `connect_activate`.
-7. If device setup is needed, call `connect_device_install`.
-8. Show the real installer output returned by backend.
-9. After the installer runs, check status/health through tenant-visible auth-host tools only.
+7. If `connect_status.gpt_activation_guidance.should_call_connect_device_install` is `false`, do not call `connect_device_install`; report the healthy workspace/device state and Local Manager URL.
+8. Call `connect_device_install` only when no registered device exists or the user explicitly asks to add, replace, or reinstall a device.
+9. After the installer runs, check status first, then tenant-safe health through auth-host tools only.
 
 ## Managed mode
 
