@@ -395,6 +395,9 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     migration182.includes('storage_backend`, `secret_ref`, `value_sha256`, `value_ciphertext`') &&
     migration182.includes('store_type = \'db_encrypted\'') &&
     migration182.includes('credential_bindings'));
+  assert("migration 182 uses MariaDB-compatible JSON mutation syntax",
+    migration182.includes('COALESCE(config_json, JSON_OBJECT())') &&
+    !migration182.includes('CAST(config_json AS JSON)'));
 
   for (const [path, operationId] of [
     ["/connect/activate", "postConnectActivate"],
