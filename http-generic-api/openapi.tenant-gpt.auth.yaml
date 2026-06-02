@@ -49,7 +49,7 @@ components:
             - type: object
               additionalProperties: true
               properties: {}
-            - type: 'null'
+            - type: "null"
     ErrorResponse:
       type: object
       additionalProperties: false
@@ -62,7 +62,7 @@ components:
           enum:
             - false
         error:
-          $ref: '#/components/schemas/ErrorObject'
+          $ref: "#/components/schemas/ErrorObject"
         execution_guardrail:
           type: boolean
   responses:
@@ -71,13 +71,13 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
     Unauthorized:
       description: Invalid or missing backend API key
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
 security:
   - userBearerAuth:
       - https://auth.mad4b.com/scopes/tenant.links
@@ -138,7 +138,7 @@ paths:
             maximum: 20000
           description: Maximum characters per raw dump field when include_raw=true.
       responses:
-        '200':
+        "200":
           description: Session history and related platform scopes
           content:
             application/json:
@@ -224,16 +224,16 @@ paths:
                       type: object
                       additionalProperties: true
                       properties: {}
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
           description: Session context read failure
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /system/tools:
     get:
       tags:
@@ -249,7 +249,7 @@ paths:
       summary: List MCP-style system tools visible to the current principal
       description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context.
       responses:
-        '200':
+        "200":
           description: System layer tools
           content:
             application/json:
@@ -271,8 +271,8 @@ paths:
                       type: object
                       additionalProperties: true
                       properties: {}
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /system/tools/call:
     post:
       tags:
@@ -337,7 +337,7 @@ paths:
                       type: string
                       pattern: ^[a-z0-9-]{2,32}$
       responses:
-        '200':
+        "200":
           description: System tool result
           content:
             application/json:
@@ -353,16 +353,16 @@ paths:
                     type: object
                     additionalProperties: true
                     properties: {}
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
           description: Tenant scope violation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /tenant/platform/plugins/catalog:
     get:
       tags:
@@ -384,7 +384,7 @@ paths:
             maximum: 250
             default: 100
       responses:
-        '200':
+        "200":
           description: Tenant-scoped Platform Plugin catalog
           content:
             application/json:
@@ -406,8 +406,8 @@ paths:
                     type: boolean
                     enum:
                       - false
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
       security:
         - userBearerAuth:
             - https://auth.mad4b.com/scopes/tenant.links
@@ -479,7 +479,7 @@ paths:
                       additionalProperties: true
                       properties: {}
       responses:
-        '200':
+        "200":
           description: Plugin installed for tenant
           content:
             application/json:
@@ -499,14 +499,14 @@ paths:
                     type: boolean
                     enum:
                       - false
-        '400':
+        "400":
           description: Invalid install payload
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
       security:
         - userBearerAuth:
             - https://auth.mad4b.com/scopes/tenant.links
@@ -549,7 +549,7 @@ paths:
                     - device_connector
                     - none
       responses:
-        '200':
+        "200":
           description: Tenant-scoped plugin readiness result
           content:
             application/json:
@@ -569,8 +569,8 @@ paths:
                     type: boolean
                     enum:
                       - false
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
       security:
         - userBearerAuth:
             - https://auth.mad4b.com/scopes/tenant.links
@@ -622,7 +622,7 @@ paths:
                 action_key:
                   type: string
       responses:
-        '200':
+        "200":
           description: Turn write result with Drive anchor and archive status
           content:
             application/json:
@@ -650,38 +650,38 @@ paths:
                     type: string
                   archive_status:
                     type: string
-        '400':
+        "400":
           description: Missing role/content or invalid role
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
           description: Session belongs to a different user
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
           description: Session not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
           description: Cannot add turns to a closed session
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
           description: Turn write failure
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /gpt/sessions/{id}/end:
     post:
       tags:
@@ -717,7 +717,7 @@ paths:
                 user_email:
                   type: string
       responses:
-        '200':
+        "200":
           description: Session close result with archive and Drive export pointers
           content:
             application/json:
@@ -745,33 +745,33 @@ paths:
                             type: string
                           drive_web_url:
                             type: string
-                      - type: 'null'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
+                      - type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
           description: Session belongs to a different user
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
           description: Session not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
           description: Session is already closed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
           description: Session end failure
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 x-gpt-action-auth-preset:
   authentication_type: OAuth
   schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml

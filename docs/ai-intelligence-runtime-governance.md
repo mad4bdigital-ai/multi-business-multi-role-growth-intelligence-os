@@ -191,6 +191,11 @@ These views are read-only visibility surfaces over `database_table_lifecycle_reg
 
 An apply-readiness envelope can return `can_apply: true` when policy, scope guard, validators, approval, resource authority when required, audit evidence shape, and readback requirements are satisfied. This does not execute anything.
 
+When `validator_results_required` is true, the envelope requires a `passed`
+validator result for every planned validator command. The result evidence can be
+provided inline or loaded from `platform_engine_validator_result_log` by
+`run_id`/`run_key`; missing or failed validator evidence blocks apply-readiness.
+
 The current readiness envelope has these hard boundaries:
 
 ```text
@@ -250,11 +255,11 @@ Implemented:
 - recovery failure taxonomy registry
 - validator result log table and read/write evidence routes
 - local validator runner that executes allowlisted validator commands without shell execution
+- apply-readiness gate for passed validator result evidence
 
 Still pending:
 
 - separate apply executor
-- apply-readiness enforcement against passed validator result refs
 - recovery / retry / conflict handling registry
 - live resource authority evaluator for tenant, user, brand, and external writes
 - audit evidence persistence/readback validator for the future apply executor

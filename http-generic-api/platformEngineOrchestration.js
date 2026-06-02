@@ -442,6 +442,33 @@ function buildDecisionOptions({ task, policy, selectedStrategy, riskLevel, appro
     .map((option, index) => ({ ...option, rank: index + 1 }));
 }
 
+export function evaluatePlatformEngineValidatorResultEvidence(validators = [], input = {}) {
+  const requiredValidators = uniqueCompactList(validators);
+  const results = asArray(input.validator_results || input.validator_result_refs).filter((result) => result && typeof result === "object");
+  const requiredRunId = compactString(input.validator_result_run_id || input.run_id);
+  const requiredRunKey = compactString(input.validator_result_run_key || input.run_key);
+  const scopedResults = results.filter((result) => {
+    if (requiredRunId && compactString(result.run_id) !== requiredRunId) return false;
+    if (requiredRunKey && compactString(result.run_key) !== requiredRunKey) return false;
+    return true;
+  });
+  const passedCommands = new Set(scopedResults
+    .filter((result) => compactString(result.status) === "passed")
+    .map((result) => compactString(result.validator_command)));
+  const missing_validators = requiredValidators.filter((validator) => !passedCommands.has(compactString(validator)));
+
+  return {
+    required: truthy(input.validator_results_required),
+    ok: missing_validators.length === 0,
+    validators_required_count: requiredValidators.length,
+    validator_results_count: scopedResults.length,
+    passed_validator_results_count: passedCommands.size,
+    run_id: requiredRunId || null,
+    run_key: requiredRunKey || null,
+    missing_validators,
+  };
+}
+
 export function evaluatePlatformEngineCapability(input = {}) {
   const engineKey = compactString(input.engine_key);
   const taskClass = compactString(input.task_class);
@@ -671,6 +698,8 @@ export function planPolicyDrivenEngineTask(input = {}) {
 export function buildPlatformEngineExecutionEnvelope(plan = {}, input = {}) {
   const requestedApply = plan.mode === "apply_allowed" || input.mode === "apply_allowed";
   const hasValidators = Array.isArray(plan.validators) && plan.validators.length > 0;
+  const validatorResultEvidence = evaluatePlatformEngineValidatorResultEvidence(plan.validators || [], input);
+  const validatorResultsRequired = validatorResultEvidence.required;
   const approvalSatisfied = plan.approval_required !== true || truthy(input.approval_granted) || truthy(input.approval?.granted);
   const scopeSatisfied = plan.scope_guard_required !== true || truthy(input.scope_guard_passed) || truthy(input.scope_guard?.passed);
   const resourceAuthorityRequired = truthy(plan.hard_gates?.resource_authority_required) ||
@@ -688,6 +717,7 @@ export function buildPlatformEngineExecutionEnvelope(plan = {}, input = {}) {
     requestedApply ? null : "apply_mode_not_requested",
     plan.ok === true ? null : "plan_not_ok",
     hasValidators ? null : "validators_required",
+    validatorResultsRequired && !validatorResultEvidence.ok ? "validator_results_required" : null,
     approvalSatisfied ? null : "approval_required",
     scopeSatisfied ? null : "scope_guard_required",
     resourceAuthoritySatisfied ? null : "resource_authority_required",
@@ -719,6 +749,8 @@ export function buildPlatformEngineExecutionEnvelope(plan = {}, input = {}) {
       approval_satisfied: approvalSatisfied,
       validators_required: true,
       validators_present: hasValidators,
+      validator_results_required: validatorResultsRequired,
+      validator_results_satisfied: !validatorResultsRequired || validatorResultEvidence.ok,
       resource_authority_required: resourceAuthorityRequired,
       resource_authority_satisfied: resourceAuthoritySatisfied,
       readback_required: true,
@@ -726,6 +758,7 @@ export function buildPlatformEngineExecutionEnvelope(plan = {}, input = {}) {
       audit_evidence_required: true,
       audit_evidence_satisfied: auditEvidenceValidation.ok,
     },
+    validator_result_evidence: validatorResultEvidence,
     audit_evidence_validation: auditEvidenceValidation,
     validators: plan.validators || [],
     skills: plan.skills || [],
