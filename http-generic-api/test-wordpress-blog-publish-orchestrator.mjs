@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   dispatchWordpressBlogPublish,
+  diagnoseWordpressPublishAuthority,
   isWordpressBlogPublishWorkflow,
   __test__,
 } from "./wordpressBlogPublishOrchestrator.js";
