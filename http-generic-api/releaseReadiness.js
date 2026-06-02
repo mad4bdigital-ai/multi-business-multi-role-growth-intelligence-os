@@ -41,6 +41,22 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "176_sprint66_governed_migration_ledger.sql",
 ];
 
+const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
+  "admin_cloudflare",
+  "admin_connector_activate",
+  "gpt_session_end",
+  "gpt_session_turn_write",
+  "local_connector_install_bundle",
+  "local_connector_self_repair",
+  "platform_data_source_census",
+  "platform_self_repair_diagnose",
+  "release_session_archive_smoke",
+];
+
+const LEGACY_NON_REQUIRED_ADMIN_TOOLS = [
+  "governance_execution_log_sheets_recovery",
+];
+
 // ── All platform tables that must exist ───────────────────────────────────────
 const REQUIRED_TABLES = [
   // Sprint 02
