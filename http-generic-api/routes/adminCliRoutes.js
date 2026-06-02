@@ -1282,6 +1282,15 @@ function builtInShellAllowlist() {
       timeout_ms: 120000,
       built_in: true
     },
+    runtime_surface_coverage_audit_fast: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/runtime-surface-coverage-audit.mjs", "--json", "--code-only", "--no-samples"],
+      display_name: "Runtime surface coverage audit fast code-only",
+      allow_extra_args: false,
+      max_extra_args: 0,
+      timeout_ms: 120000,
+      built_in: true
+    },
     migration_apply_guarded_dry_run: {
       command: process.execPath,
       args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--dry-run"],
