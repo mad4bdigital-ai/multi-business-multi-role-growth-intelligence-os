@@ -53,6 +53,17 @@ admin_control shell migration_apply_guarded_apply \
   --confirm=APPLY_166_SPRINT65_AI_INTELLIGENCE_RUNTIME_GOVERNANCE
 ```
 
+## Example ledger record-only backfill
+
+```bash
+admin_control shell migration_ledger_record_dry_run \
+  --migration=166_sprint65_ai_intelligence_runtime_governance.sql
+
+admin_control shell migration_ledger_record_apply \
+  --migration=166_sprint65_ai_intelligence_runtime_governance.sql \
+  --confirm=RECORD_166_SPRINT65_AI_INTELLIGENCE_RUNTIME_GOVERNANCE
+```
+
 ## Output evidence
 
 The runner returns bounded JSON with:
