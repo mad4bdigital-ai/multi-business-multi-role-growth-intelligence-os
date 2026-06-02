@@ -3,7 +3,8 @@ import { getPool } from "../db.js";
 import { routeOutput } from "../outputSinkRouter.js";
 import { dispatchChainEvent, dispatchPendingChainEvents } from "../chainEventDispatcher.js";
 import { dispatchPlan } from "../connectorExecutor.js";
-import { diagnoseWordpressAuthContext, diagnoseWordpressPublishAuthority } from "../wordpressBlogPublishOrchestrator.js";
+import { diagnoseWordpressAuthContext } from "../wordpressBlogPublishOrchestrator.js";
+import { diagnoseWordpressPublishAuthority } from "../wordpressBlogPublishOrchestrator.js";
 
 export function buildOutputSinkRoutes(deps) {
   const { requireBackendApiKey } = deps;
