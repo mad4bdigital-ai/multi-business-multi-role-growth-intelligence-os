@@ -1,7 +1,9 @@
 import { Router } from "express";
 import {
   assertDatabaseLifecycleReportSnapshotAllowed,
+  assessDatabaseLifecycleReportSnapshotScheduleReadiness,
   buildDatabaseLifecycleReportSnapshot,
+  listDatabaseLifecycleReportSnapshotSchedules,
   listDatabaseLifecycleReportSnapshots,
   planDatabaseTableLifecycleRegistryUpsert,
   planDatabaseLifecycleRetentionReview,
@@ -194,6 +196,50 @@ export function buildPlatformEngineRoutes(deps = {}) {
       });
     } catch (error) {
       res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_report_snapshot_failed", message: error.message } });
+    }
+  });
+
+  router.get("/platform/engines/database-lifecycle/report-snapshot-schedules", ...requireAdmin, async (req, res) => {
+    try {
+      const schedules = await listDatabaseLifecycleReportSnapshotSchedules({
+        report_type: req.query.report_type,
+        status: req.query.status,
+        limit: req.query.limit,
+      }, deps);
+      res.json({
+        ok: true,
+        dry_run: true,
+        will_execute: false,
+        no_drop: true,
+        no_delete: true,
+        no_archive_execution: true,
+        no_compaction_execution: true,
+        secrets_included: false,
+        schedules,
+      });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_report_snapshot_schedules_failed", message: error.message } });
+    }
+  });
+
+  router.post("/platform/engines/database-lifecycle/report-snapshot-schedule-readiness", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body || {};
+      const reportType = String(input.report_type || "").trim();
+      if (reportType && reportType !== "retention_plan") {
+        const err = new Error("Only report_type=retention_plan is supported.");
+        err.status = 400;
+        err.code = "database_lifecycle_report_type_unsupported";
+        throw err;
+      }
+      const readiness = await assessDatabaseLifecycleReportSnapshotScheduleReadiness({
+        schedule_key: input.schedule_key,
+        report_type: reportType,
+        limit: input.limit,
+      }, deps);
+      res.json({ ok: true, readiness });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_report_snapshot_schedule_readiness_failed", message: error.message } });
     }
   });
 
