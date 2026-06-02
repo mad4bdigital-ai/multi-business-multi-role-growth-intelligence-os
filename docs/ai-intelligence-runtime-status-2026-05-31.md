@@ -14,6 +14,8 @@ The AI Intelligence Runtime & Governance Layer foundation is active for planning
 - Growth/retention dry-run review engines
 - Credential lifecycle metadata review
 - Backup snapshot dry-run review
+- Recovery failure taxonomy registry
+- Validator result log foundation
 
 ## Verified dry-run paths
 
@@ -80,8 +82,8 @@ The following remain intentionally unavailable:
 
 ## Next recommended work
 
-1. Add validator-result logging.
-2. Add failure taxonomy and policy update proposal surfaces.
+1. Wire validator runner output into apply-readiness checks so `passed` validator result refs are required before apply.
+2. Add policy update proposal surfaces informed by validator failures, recovery taxonomy, and lifecycle reports.
 3. Add lifecycle report snapshot/audit table.
 4. Design a separate repo conflict apply executor with scope guard, diff, validators, readback, and approval gates.
 5. Draft an ADR for the intelligence runtime architecture.

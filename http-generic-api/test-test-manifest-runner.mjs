@@ -19,6 +19,7 @@ for (const requiredCommand of [
   "node test-dynamic-capability-audit-foundation.mjs",
   "node test-platform-engine-orchestration.mjs",
   "node test-test-manifest-runner.mjs",
+  "node test-platform-engine-validator-runner.mjs",
 ]) {
   assert.ok(testCommands.includes(requiredCommand), `missing manifest command: ${requiredCommand}`);
 }

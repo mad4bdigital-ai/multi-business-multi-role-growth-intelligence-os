@@ -247,12 +247,14 @@ Implemented:
 - validator de-duplication
 - deterministic resource authority blocker inside apply-readiness envelopes
 - deterministic audit evidence shape blocker inside apply-readiness envelopes
+- recovery failure taxonomy registry
+- validator result log table and read/write evidence routes
+- local validator runner that executes allowlisted validator commands without shell execution
 
 Still pending:
 
 - separate apply executor
-- validator result log table
-- failure taxonomy table
+- apply-readiness enforcement against passed validator result refs
 - recovery / retry / conflict handling registry
 - live resource authority evaluator for tenant, user, brand, and external writes
 - audit evidence persistence/readback validator for the future apply executor
