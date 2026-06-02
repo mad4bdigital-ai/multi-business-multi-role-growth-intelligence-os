@@ -43,6 +43,10 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "179_sprint66_dynamic_capability_audit_foundation.sql",
   "180_sprint66_wordpress_publish_authority_diagnostic_tool.sql",
   "181_sprint66_connected_execution_continuity_foundation.sql",
+  "182_sprint66_database_lifecycle_report_snapshots.sql",
+  "183_sprint66_database_lifecycle_snapshot_schedule_readiness.sql",
+  "184_sprint66_database_lifecycle_scheduler_binding_readiness.sql",
+  "185_sprint66_database_lifecycle_scheduler_approval_metadata.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
