@@ -212,15 +212,28 @@ export async function dispatchWordpressBlogPublish(plan = {}, deps = {}) {
   if (!brand) return { ok: false, status: "blocked", error: { code: "brand_target_not_resolved", message: "Could not resolve brand/target for WordPress blog publishing." } };
   if (!boolish(brand.write_allowed)) return { ok: false, status: "blocked", error: { code: "wordpress_write_not_allowed", message: `Target ${brand.target_key || brand.brand_name} is not write-enabled.` } };
 
+  const { postType, payload, requestedStatus } = buildPostPayload(plan, brand);
+  const grant = await resolveCmsSiteGrant({ plan, brand, requestedStatus }, deps);
+  if (!grant.ok) {
+    return {
+      ok: false,
+      status: "blocked",
+      error: { code: grant.status, message: "Active CMS site access grant is required for WordPress publishing." },
+      target_key: brand.target_key || plan.target_key || "",
+      site_id: grant.site_id || null,
+      grant_id: grant.grant_id || null,
+      grant_required: true,
+    };
+  }
+
   const credential = await resolveWpCredential({ plan, brand }, deps);
   if (credential.status !== "resolved" || !credential.secret_present || !credential.secret) {
     const intake = await createCredentialIntakeSession({ plan, brand, reason: credential.status || "credential_missing" }, deps);
-    return { ok: true, status: "credential_intake_required", credential_status: credential.status || "missing", target_key: brand.target_key || plan.target_key || "", intake, resume: { workflow_key: WORKFLOW_KEY, plan_id: plan.plan_id || "", original_request_preserved: true }, output: { intake_url: intake.intake_url } };
+    return { ok: true, status: "credential_intake_required", credential_status: credential.status || "missing", target_key: brand.target_key || plan.target_key || "", site_id: grant.site_id || null, grant_id: grant.grant_id || null, grant_status: grant.status, intake, resume: { workflow_key: WORKFLOW_KEY, plan_id: plan.plan_id || "", original_request_preserved: true }, output: { intake_url: intake.intake_url } };
   }
 
-  const { postType, payload, requestedStatus } = buildPostPayload(plan, brand);
   const created = await createPost({ brand, credential, postType, payload }, deps);
-  return { ok: true, status: "completed", credential_status: "resolved", target_key: brand.target_key || plan.target_key || "", post_status: requestedStatus, post_id: created.post_id, link: created.link, readback_status: created.readback_status, result: created, output: { post_id: created.post_id, link: created.link, status: created.status, readback_status: created.readback_status } };
+  return { ok: true, status: "completed", credential_status: "resolved", target_key: brand.target_key || plan.target_key || "", site_id: grant.site_id || null, grant_id: grant.grant_id || null, grant_status: grant.status, post_status: requestedStatus, post_id: created.post_id, link: created.link, readback_status: created.readback_status, result: created, output: { post_id: created.post_id, link: created.link, status: created.status, readback_status: created.readback_status } };
 }
 
 export async function diagnoseWordpressAuthContext(plan = {}, deps = {}) {
