@@ -244,6 +244,7 @@ Implemented:
 - SQL engine/policy/strategy/rule/skill registries
 - lifecycle registry populated across runtime tables
 - lifecycle reporting views
+- lifecycle report snapshot table and confirmation-gated snapshot runner
 - dry-run task plans
 - decision briefs
 - apply-readiness envelope inside decision brief
@@ -264,7 +265,7 @@ Still pending:
 - live resource authority evaluator for tenant, user, brand, and external writes
 - audit evidence persistence/readback validator for the future apply executor
 - policy update proposal workflow
-- automated lifecycle report snapshots
+- automated lifecycle report schedule
 - tenant-safe read-only projection where needed
 - full ADR for the intelligence runtime architecture
 
