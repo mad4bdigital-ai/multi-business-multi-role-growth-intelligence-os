@@ -1245,6 +1245,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
         ...Object.entries(report.seed_data),
         ["migration_inventory", report.migration_inventory],
         ["governed_migration_ledger", report.governed_migration_ledger],
+        ["admin_tool_registry_smoke", report.admin_tool_registry_smoke],
         ["migration_drift", report.migration_drift],
         ["graph_memory_diagnostics", report.graph_memory_diagnostics],
       ];
