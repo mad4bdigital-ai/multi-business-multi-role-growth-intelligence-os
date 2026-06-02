@@ -555,7 +555,7 @@ section("connect api auth scope");
     assert("shared task route resolver is registry-driven and customization-aware",
       (() => {
         const source = readFileSync("taskRouteAuthorityResolver.js", "utf8");
-        const packageSource = readFileSync("package.json", "utf8");
+        const packageSource = readFileSync("scripts/test-manifest.mjs", "utf8");
         return source.includes("resolveTaskRouteCandidates") &&
           source.includes("SURFACE_KEYS.TASK_ROUTES") &&
           source.includes("assertSurfaceAuthority") &&
@@ -572,7 +572,7 @@ section("connect api auth scope");
     assert("shared workflow registry resolver is registry-driven and customization-aware",
       (() => {
         const source = readFileSync("workflowRegistryAuthorityResolver.js", "utf8");
-        const packageSource = readFileSync("package.json", "utf8");
+        const packageSource = readFileSync("scripts/test-manifest.mjs", "utf8");
         return source.includes("resolveWorkflowCandidates") &&
           source.includes("SURFACE_KEYS.WORKFLOW_REGISTRY") &&
           source.includes("assertSurfaceAuthority") &&

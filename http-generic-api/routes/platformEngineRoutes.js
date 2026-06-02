@@ -1,7 +1,14 @@
 import { Router } from "express";
 import {
+  assertDatabaseLifecycleReportSnapshotAllowed,
+  assessDatabaseLifecycleReportSnapshotScheduleReadiness,
+  buildDatabaseLifecycleReportSnapshot,
+  listDatabaseLifecycleReportSnapshotSchedules,
+  listDatabaseLifecycleReportSnapshots,
   planDatabaseTableLifecycleRegistryUpsert,
+  planDatabaseLifecycleRetentionReview,
   runDatabaseTableLifecycleCensus,
+  writeDatabaseLifecycleReportSnapshot,
 } from "../databaseTableLifecycle.js";
 import {
   buildPlatformEngineDecisionBrief,
@@ -134,6 +141,105 @@ export function buildPlatformEngineRoutes(deps = {}) {
       res.json({ ok: true, plan });
     } catch (error) {
       res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_table_lifecycle_register_plan_failed", message: error.message } });
+    }
+  });
+
+  router.get("/platform/engines/database-lifecycle/report-snapshots", ...requireAdmin, async (req, res) => {
+    try {
+      const snapshots = await listDatabaseLifecycleReportSnapshots({
+        report_type: req.query.report_type,
+        limit: req.query.limit,
+      }, deps);
+      res.json({ ok: true, snapshots });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_report_snapshots_failed", message: error.message } });
+    }
+  });
+
+  router.post("/platform/engines/database-lifecycle/report-snapshots", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body || {};
+      const gate = assertDatabaseLifecycleReportSnapshotAllowed({
+        apply: input.apply === true,
+        confirm: input.confirm,
+      });
+      const reportType = String(input.report_type || "retention_plan").trim();
+      if (reportType !== "retention_plan") {
+        const err = new Error("Only report_type=retention_plan is supported.");
+        err.status = 400;
+        err.code = "database_lifecycle_report_type_unsupported";
+        throw err;
+      }
+      const report = await planDatabaseLifecycleRetentionReview({ limit: input.limit }, deps);
+      const snapshot = buildDatabaseLifecycleReportSnapshot(report, {
+        report_type: reportType,
+        limit: input.limit,
+        apply: gate.allowed,
+        actor_id: input.actor_id || input.requested_by || "",
+        trace_id: input.trace_id || "",
+        tenant_id: input.tenant_id || "",
+        notes: input.notes || "",
+      });
+      const writeResult = gate.allowed ? await writeDatabaseLifecycleReportSnapshot(snapshot, deps) : null;
+      res.json({
+        ok: true,
+        mode: gate.mode,
+        dry_run: !gate.allowed,
+        will_write: gate.allowed,
+        no_drop: true,
+        no_delete: true,
+        no_archive_execution: true,
+        no_compaction_execution: true,
+        secrets_included: false,
+        snapshot,
+        write_result: writeResult,
+      });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_report_snapshot_failed", message: error.message } });
+    }
+  });
+
+  router.get("/platform/engines/database-lifecycle/report-snapshot-schedules", ...requireAdmin, async (req, res) => {
+    try {
+      const schedules = await listDatabaseLifecycleReportSnapshotSchedules({
+        report_type: req.query.report_type,
+        status: req.query.status,
+        limit: req.query.limit,
+      }, deps);
+      res.json({
+        ok: true,
+        dry_run: true,
+        will_execute: false,
+        no_drop: true,
+        no_delete: true,
+        no_archive_execution: true,
+        no_compaction_execution: true,
+        secrets_included: false,
+        schedules,
+      });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_report_snapshot_schedules_failed", message: error.message } });
+    }
+  });
+
+  router.post("/platform/engines/database-lifecycle/report-snapshot-schedule-readiness", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body || {};
+      const reportType = String(input.report_type || "").trim();
+      if (reportType && reportType !== "retention_plan") {
+        const err = new Error("Only report_type=retention_plan is supported.");
+        err.status = 400;
+        err.code = "database_lifecycle_report_type_unsupported";
+        throw err;
+      }
+      const readiness = await assessDatabaseLifecycleReportSnapshotScheduleReadiness({
+        schedule_key: input.schedule_key,
+        report_type: reportType,
+        limit: input.limit,
+      }, deps);
+      res.json({ ok: true, readiness });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_report_snapshot_schedule_readiness_failed", message: error.message } });
     }
   });
 

@@ -1,6 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 
 export const DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION = "APPLY_DATABASE_TABLE_LIFECYCLE_REGISTRY_UPSERT";
+export const DATABASE_LIFECYCLE_REPORT_SNAPSHOT_CONFIRMATION = "APPLY_DATABASE_LIFECYCLE_REPORT_SNAPSHOT";
 
 function text(value = "") {
   return String(value || "").trim();
@@ -370,6 +372,267 @@ export function buildDatabaseLifecycleRetentionPlan(rows = []) {
     required_next_step: "review_actions_then_create_separate_governed_execution_runner",
     secrets_included: false,
   };
+}
+
+function snapshotCountsFromReport(report = {}) {
+  const summary = report.summary || {};
+  return {
+    table_count: number(summary.table_count ?? report.table_count),
+    approval_required_count: number(summary.approval_required_count),
+    high_risk_count: number(summary.high_risk_count),
+    archive_candidate_count: number(summary.archive_candidate_count),
+  };
+}
+
+export function buildDatabaseLifecycleReportSnapshot(report = {}, options = {}) {
+  const reportType = text(options.report_type || "retention_plan");
+  const snapshotId = text(options.snapshot_id) || cryptoRandomId("dblrs");
+  const snapshotKey = text(options.snapshot_key) || `${reportType}:${snapshotId}`;
+  const counts = snapshotCountsFromReport(report);
+  return {
+    ok: true,
+    snapshot_type: "database_lifecycle_report_snapshot_v1",
+    snapshot_id: snapshotId,
+    snapshot_key: snapshotKey,
+    report_type: reportType,
+    engine_key: text(options.engine_key || report.engine_key || "database_table_lifecycle_engine"),
+    source_plan_type: text(report.plan_type || report.decision_brief_type),
+    ...counts,
+    summary: report.summary || {},
+    report,
+    source_options: {
+      limit: options.limit ?? null,
+      report_type: reportType,
+    },
+    dry_run: options.apply !== true,
+    will_execute: false,
+    no_drop: true,
+    no_delete: true,
+    no_archive_execution: true,
+    no_compaction_execution: true,
+    secrets_included: false,
+    actor_id: text(options.actor_id),
+    trace_id: text(options.trace_id),
+    tenant_id: text(options.tenant_id),
+    notes: text(options.notes),
+    required_confirmation: DATABASE_LIFECYCLE_REPORT_SNAPSHOT_CONFIRMATION,
+  };
+}
+
+function cryptoRandomId(prefix) {
+  return `${prefix}_${randomUUID()}`;
+}
+
+export function assertDatabaseLifecycleReportSnapshotAllowed({ apply = false, confirm } = {}) {
+  if (!apply) {
+    return {
+      allowed: false,
+      mode: "dry_run",
+      required_confirmation: DATABASE_LIFECYCLE_REPORT_SNAPSHOT_CONFIRMATION,
+    };
+  }
+  if (confirm !== DATABASE_LIFECYCLE_REPORT_SNAPSHOT_CONFIRMATION) {
+    const err = new Error(`Apply requires --confirm ${DATABASE_LIFECYCLE_REPORT_SNAPSHOT_CONFIRMATION}.`);
+    err.code = "DATABASE_LIFECYCLE_REPORT_SNAPSHOT_CONFIRMATION_REQUIRED";
+    throw err;
+  }
+  return { allowed: true, mode: "apply" };
+}
+
+export async function writeDatabaseLifecycleReportSnapshot(snapshot = {}, deps = {}) {
+  const pool = deps.pool || getPool();
+  await pool.query(
+    `INSERT INTO database_lifecycle_report_snapshots (
+       snapshot_id, snapshot_key, report_type, engine_key, source_plan_type,
+       table_count, approval_required_count, high_risk_count, archive_candidate_count,
+       summary_json, report_json, source_options_json, dry_run, will_execute,
+       no_drop, no_delete, no_archive_execution, no_compaction_execution,
+       secrets_included, actor_id, trace_id, tenant_id, notes
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       report_type = VALUES(report_type),
+       engine_key = VALUES(engine_key),
+       source_plan_type = VALUES(source_plan_type),
+       table_count = VALUES(table_count),
+       approval_required_count = VALUES(approval_required_count),
+       high_risk_count = VALUES(high_risk_count),
+       archive_candidate_count = VALUES(archive_candidate_count),
+       summary_json = VALUES(summary_json),
+       report_json = VALUES(report_json),
+       source_options_json = VALUES(source_options_json),
+       dry_run = VALUES(dry_run),
+       will_execute = VALUES(will_execute),
+       no_drop = VALUES(no_drop),
+       no_delete = VALUES(no_delete),
+       no_archive_execution = VALUES(no_archive_execution),
+       no_compaction_execution = VALUES(no_compaction_execution),
+       secrets_included = VALUES(secrets_included),
+       actor_id = VALUES(actor_id),
+       trace_id = VALUES(trace_id),
+       tenant_id = VALUES(tenant_id),
+       notes = VALUES(notes)`,
+    [
+      snapshot.snapshot_id,
+      snapshot.snapshot_key,
+      snapshot.report_type,
+      snapshot.engine_key,
+      snapshot.source_plan_type || null,
+      snapshot.table_count,
+      snapshot.approval_required_count,
+      snapshot.high_risk_count,
+      snapshot.archive_candidate_count,
+      JSON.stringify(snapshot.summary || {}),
+      JSON.stringify(snapshot.report || {}),
+      JSON.stringify(snapshot.source_options || {}),
+      snapshot.dry_run === true ? 1 : 0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      0,
+      snapshot.actor_id || null,
+      snapshot.trace_id || null,
+      snapshot.tenant_id || null,
+      snapshot.notes || null,
+    ]
+  );
+  return { snapshot_id: snapshot.snapshot_id, snapshot_key: snapshot.snapshot_key };
+}
+
+export async function listDatabaseLifecycleReportSnapshots({ report_type = "", limit = 50 } = {}, deps = {}) {
+  const pool = deps.pool || getPool();
+  const where = [];
+  const params = [];
+  if (report_type) {
+    where.push("report_type = ?");
+    params.push(text(report_type));
+  }
+  params.push(Math.max(1, Math.min(number(limit, 50), 250)));
+  const [rows] = await pool.query(
+    `SELECT snapshot_id, snapshot_key, report_type, engine_key, source_plan_type,
+            table_count, approval_required_count, high_risk_count, archive_candidate_count,
+            summary_json, source_options_json, dry_run, will_execute, no_drop, no_delete,
+            no_archive_execution, no_compaction_execution, secrets_included,
+            actor_id, trace_id, tenant_id, notes, created_at
+       FROM database_lifecycle_report_snapshots
+       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+       ORDER BY created_at DESC
+       LIMIT ?`,
+    params
+  );
+  return rows;
+}
+
+function normalizeScheduleRow(row = {}) {
+  return {
+    schedule_key: text(row.schedule_key),
+    report_type: text(row.report_type || "retention_plan"),
+    engine_key: text(row.engine_key || "database_table_lifecycle_engine"),
+    cron_expression: text(row.cron_expression),
+    timezone: text(row.timezone || "UTC"),
+    report_limit: number(row.report_limit, 80),
+    snapshot_retention_days: number(row.snapshot_retention_days, 180),
+    notification_target: text(row.notification_target),
+    approval_status: text(row.approval_status || "pending"),
+    approved_by: text(row.approved_by),
+    approved_at: row.approved_at || null,
+    status: text(row.status || "planned_disabled"),
+    executor_policy_key: text(row.executor_policy_key),
+    last_readiness_at: row.last_readiness_at || null,
+    last_snapshot_id: text(row.last_snapshot_id),
+    notes: text(row.notes),
+  };
+}
+
+export function buildDatabaseLifecycleReportSnapshotScheduleReadiness(schedules = [], options = {}) {
+  const normalized = schedules.map(normalizeScheduleRow);
+  const readiness = normalized.map((schedule) => {
+    const blockers = [];
+    if (schedule.status !== "active") blockers.push("schedule_not_active");
+    if (schedule.approval_status !== "approved") blockers.push("approval_not_approved");
+    if (!schedule.notification_target) blockers.push("notification_target_missing");
+    if (!schedule.executor_policy_key) blockers.push("executor_policy_missing");
+    if (!schedule.cron_expression) blockers.push("cron_expression_missing");
+    return {
+      ...schedule,
+      scheduler_ready: blockers.length === 0,
+      will_execute: false,
+      readiness_blockers: blockers,
+    };
+  });
+  return {
+    ok: true,
+    readiness_type: "database_lifecycle_report_snapshot_schedule_readiness_v1",
+    schedule_count: readiness.length,
+    ready_count: readiness.filter((row) => row.scheduler_ready).length,
+    blocked_count: readiness.filter((row) => !row.scheduler_ready).length,
+    requested_schedule_key: text(options.schedule_key),
+    requested_report_type: text(options.report_type),
+    dry_run: true,
+    will_execute: false,
+    no_drop: true,
+    no_delete: true,
+    no_archive_execution: true,
+    no_compaction_execution: true,
+    secrets_included: false,
+    required_next_step: "approve_schedule_metadata_then_bind_separate_scheduler_to_existing_snapshot_runner",
+    schedules: readiness,
+  };
+}
+
+export async function listDatabaseLifecycleReportSnapshotSchedules({ report_type = "", status = "", limit = 50 } = {}, deps = {}) {
+  const pool = deps.pool || getPool();
+  const where = [];
+  const params = [];
+  if (report_type) {
+    where.push("report_type = ?");
+    params.push(text(report_type));
+  }
+  if (status) {
+    where.push("status = ?");
+    params.push(text(status));
+  }
+  params.push(Math.max(1, Math.min(number(limit, 50), 250)));
+  const [rows] = await pool.query(
+    `SELECT schedule_key, report_type, engine_key, cron_expression, timezone,
+            report_limit, snapshot_retention_days, notification_target,
+            approval_status, approved_by, approved_at, status, executor_policy_key,
+            last_readiness_at, last_snapshot_id, notes, created_at, updated_at
+       FROM database_lifecycle_report_snapshot_schedules
+       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+       ORDER BY updated_at DESC, schedule_key ASC
+       LIMIT ?`,
+    params
+  );
+  return rows;
+}
+
+export async function assessDatabaseLifecycleReportSnapshotScheduleReadiness({ schedule_key = "", report_type = "", limit = 50 } = {}, deps = {}) {
+  const pool = deps.pool || getPool();
+  const where = [];
+  const params = [];
+  if (schedule_key) {
+    where.push("schedule_key = ?");
+    params.push(text(schedule_key));
+  }
+  if (report_type) {
+    where.push("report_type = ?");
+    params.push(text(report_type));
+  }
+  params.push(Math.max(1, Math.min(number(limit, 50), 250)));
+  const [rows] = await pool.query(
+    `SELECT schedule_key, report_type, engine_key, cron_expression, timezone,
+            report_limit, snapshot_retention_days, notification_target,
+            approval_status, approved_by, approved_at, status, executor_policy_key,
+            last_readiness_at, last_snapshot_id, notes
+       FROM database_lifecycle_report_snapshot_schedules
+       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+       ORDER BY updated_at DESC, schedule_key ASC
+       LIMIT ?`,
+    params
+  );
+  return buildDatabaseLifecycleReportSnapshotScheduleReadiness(rows, { schedule_key, report_type });
 }
 
 export function assertDatabaseTableLifecycleRegistryUpsertAllowed({ apply = false, confirm } = {}) {
