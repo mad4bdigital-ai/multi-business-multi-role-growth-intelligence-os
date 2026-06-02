@@ -307,6 +307,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   const migration104 = readFileSync(resolve(__dirname, "migrations/104_sprint64_activation_mode_governance.sql"), "utf8");
   const migration105 = readFileSync(resolve(__dirname, "migrations/105_sprint64_dedicated_integration_flow.sql"), "utf8");
   const migration106 = readFileSync(resolve(__dirname, "migrations/106_sprint64_hybrid_integration_policy.sql"), "utf8");
+  const migration182 = readFileSync(resolve(__dirname, "migrations/182_sprint66_platform_hostinger_ssh_db_credentials.sql"), "utf8");
 
   const adminOps = collectOperations(adminDoc);
   const adminOpIds = new Set(adminOps.map((op) => op.operation.operationId).filter(Boolean));
