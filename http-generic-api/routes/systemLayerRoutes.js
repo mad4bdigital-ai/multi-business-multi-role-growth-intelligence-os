@@ -1276,7 +1276,7 @@ export function buildSystemLayerRoutes(deps) {
         }, timeoutMs)
       );
       const result = await Promise.race([
-        callSystemLayerTool(name, args, req.auth, { executionFacade }),
+        callSystemLayerTool(name, args, req.auth, { executionFacade, req }),
         deadline
       ]);
       return res.status(200).json({ ok: true, name, result });

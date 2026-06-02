@@ -301,6 +301,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   const dedicatedPolicy = readFileSync(resolve(__dirname, "dedicatedIntegrationPolicy.js"), "utf8");
   const hybridPolicy = readFileSync(resolve(__dirname, "hybridIntegrationPolicy.js"), "utf8");
   const connectRoutes = readFileSync(resolve(__dirname, "routes/connectRoutes.js"), "utf8");
+  const systemLayerRoutes = readFileSync(resolve(__dirname, "routes/systemLayerRoutes.js"), "utf8");
   const migration104 = readFileSync(resolve(__dirname, "migrations/104_sprint64_activation_mode_governance.sql"), "utf8");
   const migration105 = readFileSync(resolve(__dirname, "migrations/105_sprint64_dedicated_integration_flow.sql"), "utf8");
   const migration106 = readFileSync(resolve(__dirname, "migrations/106_sprint64_hybrid_integration_policy.sql"), "utf8");
@@ -325,6 +326,10 @@ section("admin and tenant OpenAI schema coverage for tool additions");
 
   const tenantOps = collectOperations(tenantDoc);
   const tenantOpIds = new Set(tenantOps.map((op) => op.operation.operationId).filter(Boolean));
+  const activateSessionOp = tenantDoc.paths?.["/activation/session-context"]?.get;
+  assert("tenant activateSession requires OAuth before the first API request",
+    Array.isArray(activateSessionOp?.security) &&
+    activateSessionOp.security.some((entry) => Object.prototype.hasOwnProperty.call(entry, "userBearerAuth")));
   const expectedTenantOps = [
     "activateSession",
     "listTools",
@@ -360,6 +365,9 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     connectRoutes.includes('download_url: "/app/local-manager#download"') &&
     connectRoutes.includes('download_page_url: "https://auth.mad4b.com/app/local-manager#download"') &&
     connectRoutes.includes('new_device_pairing_url: "https://auth.mad4b.com/app/local-manager#download"'));
+  assert("system tools/call forwards the original request context for tenant registry tools",
+    systemLayerRoutes.includes('callSystemLayerTool(name, args, req.auth, { executionFacade, req })') &&
+    systemLayerRoutes.includes('const req = deps.req || { auth, headers: deps.headers || {}, ip: deps.ip || null };'));
 
   for (const [path, operationId] of [
     ["/connect/activate", "postConnectActivate"],
