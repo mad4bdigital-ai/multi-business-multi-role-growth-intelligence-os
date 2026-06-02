@@ -46,8 +46,9 @@ function parseArgs(argv = process.argv.slice(2)) {
   return parsed;
 }
 
-function confirmationFor(filename = "") {
-  return `APPLY_${String(filename).replace(/\.sql$/i, "").replace(/[^A-Za-z0-9]+/g, "_").toUpperCase()}`;
+function confirmationFor(filename = "", { recordOnly = false } = {}) {
+  const prefix = recordOnly ? "RECORD" : "APPLY";
+  return `${prefix}_${String(filename).replace(/\.sql$/i, "").replace(/[^A-Za-z0-9]+/g, "_").toUpperCase()}`;
 }
 
 function artifactNames(requirements = {}) {
