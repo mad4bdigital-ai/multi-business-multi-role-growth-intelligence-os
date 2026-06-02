@@ -62,9 +62,9 @@ Correct examples:
 3. Call `connect_status` through `callTool`.
 4. If no workspace exists, use the tenant-visible workspace/onboarding tool discovered by `listTools`, or send the user to `/connect`.
 5. Default new tenants to Managed mode unless the tenant explicitly asks for Dedicated mode or tenant-owned integrations.
-6. For Managed: call `connect_activate` with `tool_args.mode = managed`, then call `connect_device_install` with `tool_args.device_id`.
-7. Return installer steps from backend output. Windows `.ps1` is the primary fallback artifact when automatic launch is unavailable.
-8. After the user runs the installer, check tenant-visible status/health through `auth.mad4b.com` tools only.
+6. If `connect_status` is healthy and `gpt_activation_guidance.should_call_connect_device_install` is `false`, stop: report status and the Local Manager link. Do not auto-install.
+7. Call `connect_activate` only when activation is missing. Call `connect_device_install` only when no device exists or the user explicitly asks to add, replace, or reinstall a device.
+8. For “Check connector,” call `connect_status` first, then tenant-safe health only when discovered and JWT-scoped.
 
 ## Managed, Dedicated, and mixed apps
 Managed mode uses platform-managed infrastructure and credentials.
@@ -80,7 +80,7 @@ For tenant-owned credentials, create secure intake links. Never accept credentia
 ## Device and connector rules
 Device IDs must be stable, lowercase, 2–32 characters, and use only letters, numbers, and hyphens. Examples: `nagy-mbp-m4`, `johns-workstation`, `office-pc-01`.
 
-For “Check connector,” Tenant GPT must use tenant-visible `auth.mad4b.com` tools only. It must not call `connector.mad4b.com`. If connector health reports a hostname that differs from the registered device ID, do not present the admin hostname as tenant evidence.
+For “Check connector,” Tenant GPT must use tenant-visible `auth.mad4b.com` tools only. Start with `connect_status`. Use `local_connector_health` only as a JWT-scoped tenant tool with `tool_args.device_id`; never provide `user_id` or `tenant_id`. It must not call `connector.mad4b.com`. If connector health reports a hostname that differs from the registered device ID, do not present the admin hostname as tenant evidence.
 
 Do not remotely enable or validate high-risk Local Manager capabilities such as `powershell_admin` or `windows_control` from Tenant GPT. Those remain local-consent/UAC and tenant-scoped auth-host flows.
 

@@ -302,6 +302,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   const hybridPolicy = readFileSync(resolve(__dirname, "hybridIntegrationPolicy.js"), "utf8");
   const connectRoutes = readFileSync(resolve(__dirname, "routes/connectRoutes.js"), "utf8");
   const systemLayerRoutes = readFileSync(resolve(__dirname, "routes/systemLayerRoutes.js"), "utf8");
+  const localConnectorRoutes = readFileSync(resolve(__dirname, "routes/localConnectorRoutes.js"), "utf8");
   const migration104 = readFileSync(resolve(__dirname, "migrations/104_sprint64_activation_mode_governance.sql"), "utf8");
   const migration105 = readFileSync(resolve(__dirname, "migrations/105_sprint64_dedicated_integration_flow.sql"), "utf8");
   const migration106 = readFileSync(resolve(__dirname, "migrations/106_sprint64_hybrid_integration_policy.sql"), "utf8");
@@ -372,6 +373,16 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   assert("system tools/call forwards the original request context for tenant registry tools",
     systemLayerRoutes.includes('callSystemLayerTool(name, args, req.auth, { executionFacade, req })') &&
     systemLayerRoutes.includes('const req = deps.req || { auth, headers: deps.headers || {}, ip: deps.ip || null };'));
+  assert("local connector health/devices derive tenant user identity from auth context",
+    localConnectorRoutes.includes('function resolveLocalConnectorIdentity') &&
+    localConnectorRoutes.includes('user_id: req.auth?.user_id || null') &&
+    localConnectorRoutes.includes('tenant_id: req.auth?.tenant_id || null'));
+  assert("tenant instructions tell GPT not to auto-install or pass user tenant ids",
+    tenantInstructions.includes('should_call_connect_device_install') &&
+    tenantInstructions.includes('never provide `user_id` or `tenant_id`'));
+  assert("tenant knowledge documents JWT-scoped connector health",
+    tenantKnowledge.includes('gpt_activation_guidance.should_call_connect_device_install') &&
+    tenantKnowledge.includes('user and tenant IDs must come from the JWT'));
 
   for (const [path, operationId] of [
     ["/connect/activate", "postConnectActivate"],
