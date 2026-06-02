@@ -1082,6 +1082,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     ...Object.values(report.legacy_tables),
     ...Object.values(report.seed_data),
     report.migration_inventory,
+    report.governed_migration_ledger,
     report.migration_drift,
     report.graph_memory_diagnostics,
   ];
