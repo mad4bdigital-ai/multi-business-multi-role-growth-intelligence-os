@@ -1,5 +1,7 @@
 import { getPool } from "./db.js";
 
+export const DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION = "APPLY_DATABASE_TABLE_LIFECYCLE_REGISTRY_UPSERT";
+
 function text(value = "") {
   return String(value || "").trim();
 }
@@ -270,6 +272,22 @@ export function buildDatabaseTableLifecycleRegisterPlan(rows = []) {
     upsert_rows: upsertRows,
     required_next_step: "review_then_run_separate_governed_registry_upsert",
   };
+}
+
+export function assertDatabaseTableLifecycleRegistryUpsertAllowed({ apply = false, confirm } = {}) {
+  if (!apply) {
+    return {
+      allowed: false,
+      mode: "dry_run",
+      required_confirmation: DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION,
+    };
+  }
+  if (confirm !== DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION) {
+    const err = new Error(`Apply requires --confirm ${DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION}.`);
+    err.code = "DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION_REQUIRED";
+    throw err;
+  }
+  return { allowed: true, mode: "apply" };
 }
 
 async function loadDatabaseLifecycleRows(pool) {
