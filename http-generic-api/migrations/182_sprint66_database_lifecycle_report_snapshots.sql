@@ -95,11 +95,11 @@ VALUES
 ON DUPLICATE KEY UPDATE
   display_name = VALUES(display_name),
   description = VALUES(description),
-  method = VALUES(method),
-  path = VALUES(path),
-  input_schema_json = VALUES(input_schema_json),
+  http_method = VALUES(http_method),
+  http_path = VALUES(http_path),
+  input_schema = VALUES(input_schema),
   tags = VALUES(tags),
-  is_active = VALUES(is_active),
+  is_enabled = VALUES(is_enabled),
   sort_order = VALUES(sort_order);
 
 INSERT INTO tool_policy_registry (tool_key, policy_key, risk_class, approval_required, allowed_roles_json, metadata_json, status)
