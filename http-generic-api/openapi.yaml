@@ -12087,6 +12087,44 @@ paths:
         "200": { description: Database lifecycle scheduler binding readiness, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /platform/engines/database-lifecycle/scheduler-approval-metadata:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleSchedulerApprovalMetadata
+      summary: Plan or apply database lifecycle scheduler approval metadata
+      description: >
+        Plans or applies confirmation-gated schedule/binding approval metadata. This route does not enable scheduler jobs,
+        write snapshots, or execute lifecycle cleanup.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [target_type, target_key, decision]
+              properties:
+                target_type: { type: string, enum: [schedule, binding] }
+                target_key: { type: string }
+                decision: { type: string, enum: [approve, reject, revoke] }
+                notification_target: { type: string }
+                executor_policy_key: { type: string }
+                actor_id: { type: string }
+                trace_id: { type: string }
+                reason: { type: string }
+                apply: { type: boolean, default: false }
+                confirm: { type: string }
+      responses:
+        "200": { description: Database lifecycle scheduler approval metadata plan/result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Target not found, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: Approval plan blocked, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
   /tenant/evolution/switch-options:
     get:
       tags: [platform-evolution]

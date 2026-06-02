@@ -3,10 +3,13 @@ import {
   assertDatabaseLifecycleReportSnapshotAllowed,
   assessDatabaseLifecycleReportSnapshotScheduleReadiness,
   assessDatabaseLifecycleSchedulerBindingReadiness,
+  applyDatabaseLifecycleSchedulerApproval,
   buildDatabaseLifecycleReportSnapshot,
+  assertDatabaseLifecycleSchedulerApprovalAllowed,
   listDatabaseLifecycleReportSnapshotSchedules,
   listDatabaseLifecycleReportSnapshots,
   listDatabaseLifecycleSchedulerBindings,
+  planDatabaseLifecycleSchedulerApproval,
   planDatabaseTableLifecycleRegistryUpsert,
   planDatabaseLifecycleRetentionReview,
   runDatabaseTableLifecycleCensus,
@@ -279,6 +282,34 @@ export function buildPlatformEngineRoutes(deps = {}) {
       res.json({ ok: true, readiness });
     } catch (error) {
       res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_scheduler_binding_readiness_failed", message: error.message } });
+    }
+  });
+
+  router.post("/platform/engines/database-lifecycle/scheduler-approval-metadata", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body || {};
+      const gate = assertDatabaseLifecycleSchedulerApprovalAllowed({
+        apply: input.apply === true,
+        confirm: input.confirm,
+      });
+      const plan = await planDatabaseLifecycleSchedulerApproval({ ...input, apply: gate.allowed }, deps);
+      const writeResult = gate.allowed ? await applyDatabaseLifecycleSchedulerApproval(plan, deps) : null;
+      res.json({
+        ok: true,
+        mode: gate.mode,
+        dry_run: !gate.allowed,
+        will_write: gate.allowed,
+        will_execute: false,
+        no_drop: true,
+        no_delete: true,
+        no_archive_execution: true,
+        no_compaction_execution: true,
+        secrets_included: false,
+        plan,
+        write_result: writeResult,
+      });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_scheduler_approval_metadata_failed", message: error.message } });
     }
   });
 
