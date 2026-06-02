@@ -42,6 +42,66 @@ export function buildReleaseRoutes(deps) {
   router.get("/release/readiness", requireBackendApiKey, handleReadiness);
   router.get("/admin/release/readiness", requireBackendApiKey, handleReadiness);
 
+  async function handleReleaseDashboard(req, res) {
+    try {
+      const report = await runReleaseReadiness({ persist: false });
+      const dashboard = {
+        ok: report.overall !== "fail",
+        overall: report.overall,
+        run_id: report.run_id,
+        checked_at: report.checked_at,
+        release_status: report.summary,
+        ledger: {
+          status: report.governed_migration_ledger?.status || null,
+          total_entries: report.governed_migration_ledger?.total_entries ?? null,
+          apply_count: report.governed_migration_ledger?.mode_counts?.apply ?? 0,
+          record_only_count: report.governed_migration_ledger?.mode_counts?.record_only ?? 0,
+          expected_count: report.governed_migration_ledger?.expected_count ?? null,
+          covered_count: report.governed_migration_ledger?.covered_count ?? null,
+          missing_expected_count: report.governed_migration_ledger?.missing_expected_migrations?.length ?? null,
+        },
+        admin_tool_registry_smoke: {
+          status: report.admin_tool_registry_smoke?.status || null,
+          expected_count: report.admin_tool_registry_smoke?.expected_count ?? null,
+          covered_count: report.admin_tool_registry_smoke?.covered_count ?? null,
+          missing_count: report.admin_tool_registry_smoke?.missing_expected_tools?.length ?? null,
+          disabled_count: report.admin_tool_registry_smoke?.disabled_expected_tools?.length ?? null,
+          invalid_count: report.admin_tool_registry_smoke?.invalid_expected_tools?.length ?? null,
+          executes_tools: Boolean(report.admin_tool_registry_smoke?.executes_tools),
+        },
+        migration_drift: {
+          status: report.migration_drift?.status || null,
+          raw_missing_total: report.migration_drift?.missing_total ?? null,
+          actionable_missing_total: report.migration_drift?.actionable_missing_total ?? null,
+          files_scanned: report.migration_drift?.files_scanned ?? null,
+          candidate_files: report.migration_drift?.migration_apply_plan?.candidate_files || [],
+        },
+        graph_memory: {
+          status: report.graph_memory_diagnostics?.status || null,
+          resolved: Boolean(report.graph_memory_diagnostics?.resolved),
+          asset_count: Number(report.graph_memory_diagnostics?.asset_count || 0),
+        },
+        degraded_surfaces: [
+          report.db_connectivity,
+          report.migration_inventory,
+          report.governed_migration_ledger,
+          report.admin_tool_registry_smoke,
+          report.migration_drift,
+          report.graph_memory_diagnostics,
+        ].filter((check) => check && check.status !== "pass").map((check) => ({ status: check.status, detail: check.detail || null })),
+        source_of_truth: "release_readiness",
+        dashboard_role: "compact_read_only_projection",
+        secrets_included: false,
+      };
+      return res.status(200).json(dashboard);
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "release_dashboard_failed", message: err.message }, secrets_included: false });
+    }
+  }
+
+  router.get("/release/dashboard", requireBackendApiKey, handleReleaseDashboard);
+  router.get("/admin/release/dashboard", requireBackendApiKey, handleReleaseDashboard);
+
   async function handleSessionArchiveSmoke(req, res) {
     try {
       const result = await sessionArchiveSmokeRunner({
