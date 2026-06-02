@@ -56,6 +56,24 @@ Google Sheets is not required for runtime release readiness. Sheets may remain a
 
 `governance_execution_log_sheets_recovery` is therefore classified as a legacy/non-required diagnostic surface for this checkpoint.
 
+## Admin tool registry smoke baseline
+
+Release readiness now performs a read-only registry smoke check for required admin tool surfaces restored during this stabilization pass. The check verifies registry presence, enabled state, and method/path metadata only; it does not dispatch high-risk tools.
+
+Required smoke tools:
+
+- `admin_cloudflare`
+- `admin_connector_activate`
+- `gpt_session_end`
+- `gpt_session_turn_write`
+- `local_connector_install_bundle`
+- `local_connector_self_repair`
+- `platform_data_source_census`
+- `platform_self_repair_diagnose`
+- `release_session_archive_smoke`
+
+`governance_execution_log_sheets_recovery` is intentionally excluded from the required smoke list and remains classified as `legacy_non_required_diagnostic`.
+
 ## Remaining raw drift
 
 `activation_sheets_bootstrap_read` remains a raw migration artifact from older registry history, but it is satisfied by the system-layer replacement surface:
