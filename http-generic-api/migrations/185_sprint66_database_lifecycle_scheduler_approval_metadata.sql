@@ -71,19 +71,4 @@ ON DUPLICATE KEY UPDATE
   is_enabled = VALUES(is_enabled),
   sort_order = VALUES(sort_order);
 
-INSERT INTO tool_policy_registry (tool_key, policy_key, risk_class, approval_required, allowed_roles_json, metadata_json, status)
-SELECT tool_key,
-       CONCAT(tool_key, '_policy_v1'),
-       'admin_registry_write',
-       1,
-       JSON_ARRAY('admin'),
-       JSON_OBJECT('metadata_only', true, 'typed_confirmation_required', true, 'will_execute', false, 'no_drop', true, 'no_delete', true, 'no_archive_execution', true, 'no_secret_read', true),
-       'active'
-FROM admin_platform_endpoint_tools
-WHERE tool_key = 'database_lifecycle_scheduler_approval_metadata'
-ON DUPLICATE KEY UPDATE
-  risk_class = VALUES(risk_class),
-  approval_required = VALUES(approval_required),
-  allowed_roles_json = VALUES(allowed_roles_json),
-  metadata_json = VALUES(metadata_json),
-  status = VALUES(status);
+-- Policy metadata for this tool is carried through the admin tool tags and governed runtime registry surfaces.
