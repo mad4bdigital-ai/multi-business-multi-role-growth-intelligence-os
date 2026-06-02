@@ -22,6 +22,8 @@ The runner is intentionally constrained:
 - It refuses apply unless preflight status is `pass`.
 - Dry-run mode never applies SQL.
 - Apply mode requires an explicit typed confirmation token derived from the migration filename.
+- Record-only ledger mode never executes migration SQL; it records checksum/preflight evidence for previously applied migrations.
+- Record-only ledger apply requires a `RECORD_...` confirmation token and deduplicates by migration filename + checksum + mode.
 - The output is bounded JSON and does not include secrets.
 
 ## Current allowlist
