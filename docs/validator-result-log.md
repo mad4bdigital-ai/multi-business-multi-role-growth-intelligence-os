@@ -51,6 +51,26 @@ Read-only listing of validator evidence.
 
 Writes validator evidence only. The route does not execute validators and does not perform apply.
 
+## Local runner
+
+`http-generic-api/scripts/platform-engine-validator-runner.mjs` executes a single
+allowlisted validator command without shell execution, builds bounded validator
+evidence, and can optionally write that evidence to
+`platform_engine_validator_result_log`.
+
+Default behavior is evidence-only stdout:
+
+```powershell
+node scripts/platform-engine-validator-runner.mjs `
+  --engine-key repo_conflict_resolution_engine `
+  --task-class conflict_apply_readiness `
+  --validator-key manifest_guard `
+  --command "node test-test-manifest-runner.mjs"
+```
+
+Database writeback is opt-in with `--write-log`. `--dry-run` suppresses
+writeback even when `--write-log` is present.
+
 ## Operating model
 
 1. Engine produces a dry-run plan and validator list.

@@ -175,5 +175,6 @@ export const testCommands = [
   "node test-release-readiness-migration-drift.mjs",
   "node test-platform-engines.mjs",
   "node test-platform-routes.mjs",
-  "node test-test-manifest-runner.mjs"
+  "node test-test-manifest-runner.mjs",
+  "node test-platform-engine-validator-runner.mjs"
 ];
