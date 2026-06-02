@@ -12112,6 +12112,42 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /wordpress/publish-authority/diagnose:
+    post:
+      tags: [wordpress]
+      operationId: diagnoseWordpressPublishAuthority
+      summary: Diagnose WordPress publish authority without publishing
+      description: Dry-run diagnostic that checks brand write flag and CMS site access grant for draft/publish without resolving secrets or sending any WordPress POST request.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WordpressPublishAuthorityDiagnosticRequest" }
+      responses:
+        "200":
+          description: Authority diagnostic allowed or legacy-allowed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WordpressPublishAuthorityDiagnosticResponse" }
+        "400":
+          description: Missing or invalid request fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "422":
+          description: Authority diagnostic blocked.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WordpressPublishAuthorityDiagnosticResponse" }
+        "500":
+          description: Diagnostic failed unexpectedly.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /tenant/docs:
     get:
       tags: [tenant-docs]
