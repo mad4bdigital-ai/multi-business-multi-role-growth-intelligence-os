@@ -11920,6 +11920,61 @@ paths:
         "200": { description: Dry-run lifecycle registry upsert plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /platform/engines/database-lifecycle/report-snapshots:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleReportSnapshots
+      summary: List database lifecycle report snapshots
+      description: >
+        Lists evidence-only database lifecycle report snapshots. This route is read-only and does not execute lifecycle cleanup.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: report_type
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200": { description: Database lifecycle report snapshots, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleReportSnapshotCreate
+      summary: Create database lifecycle report snapshot
+      description: >
+        Creates an evidence-only lifecycle report snapshot when confirmation-gated. It does not archive, delete, drop,
+        truncate, compact, read secrets, or execute lifecycle cleanup.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                report_type: { type: string, enum: [retention_plan], default: retention_plan }
+                limit: { type: integer, minimum: 1, maximum: 500, default: 50 }
+                apply: { type: boolean, default: false }
+                confirm: { type: string }
+                actor_id: { type: string }
+                tenant_id: { type: string }
+                trace_id: { type: string }
+                notes: { type: string }
+      responses:
+        "200": { description: Database lifecycle report snapshot result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
   /tenant/evolution/switch-options:
     get:
       tags: [platform-evolution]

@@ -16,6 +16,7 @@ for (const requiredCommand of [
   "node test-cms-authority-reconciliation.mjs",
   "node test-database-table-lifecycle-registry-upsert.mjs",
   "node test-database-lifecycle-retention-plan.mjs",
+  "node test-database-lifecycle-report-snapshot.mjs",
   "node test-dynamic-capability-audit-foundation.mjs",
   "node test-platform-engine-orchestration.mjs",
   "node test-test-manifest-runner.mjs",

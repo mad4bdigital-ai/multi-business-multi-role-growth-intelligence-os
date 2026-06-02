@@ -163,6 +163,7 @@ export const testCommands = [
   "node test-cms-authority-reconciliation.mjs",
   "node test-database-table-lifecycle-registry-upsert.mjs",
   "node test-database-lifecycle-retention-plan.mjs",
+  "node test-database-lifecycle-report-snapshot.mjs",
   "node test-database-lifecycle-reporting-views.mjs",
   "node test-dynamic-capability-audit-foundation.mjs",
   "node test-dependency-performance-diagnostic-triage.mjs",

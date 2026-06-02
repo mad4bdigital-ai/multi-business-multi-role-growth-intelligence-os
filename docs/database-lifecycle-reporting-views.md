@@ -47,6 +47,28 @@ The plan is review-only:
 Execution requires a future, separate governed runner with approval, validator,
 readback, and audit evidence gates.
 
+## Report snapshots
+
+Migration `182_sprint66_database_lifecycle_report_snapshots.sql` adds
+`database_lifecycle_report_snapshots` and
+`v_database_lifecycle_report_snapshot_summary` for evidence-only lifecycle
+report snapshots.
+
+`http-generic-api/scripts/database-lifecycle-report-snapshot.mjs` can build a
+snapshot from the retention plan. It is dry-run by default. Database writeback is
+confirmation-gated:
+
+```powershell
+node scripts/database-lifecycle-report-snapshot.mjs --limit 80
+node scripts/database-lifecycle-report-snapshot.mjs `
+  --limit 80 `
+  --apply `
+  --confirm APPLY_DATABASE_LIFECYCLE_REPORT_SNAPSHOT
+```
+
+Snapshot writeback records report evidence only. It does not archive, delete,
+drop, truncate, compact, read secrets, or execute lifecycle cleanup.
+
 ## Operating rules
 
 - Treat all reports as decision support, not automatic action.
