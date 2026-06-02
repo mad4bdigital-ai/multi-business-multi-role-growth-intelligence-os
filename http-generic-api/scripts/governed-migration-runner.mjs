@@ -87,6 +87,19 @@ function sha256(value = "") {
   return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
 }
 
+async function findLedgerEntry(migration, checksum, mode = "record_only") {
+  try {
+    const [rows] = await getPool().query(
+      "SELECT run_id, migration_file, migration_checksum_sha256, mode, applied_at FROM governed_migration_ledger WHERE migration_file = ? AND migration_checksum_sha256 = ? AND mode = ? ORDER BY applied_at DESC LIMIT 1",
+      [migration, checksum, mode]
+    );
+    return rows?.[0] || null;
+  } catch (error) {
+    if (/doesn't exist|ER_NO_SUCH_TABLE/i.test(String(error?.message || ""))) return null;
+    throw error;
+  }
+}
+
 async function recordMigrationLedger({
   migration,
   checksum,
