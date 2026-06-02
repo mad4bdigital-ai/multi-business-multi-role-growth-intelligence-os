@@ -120,9 +120,9 @@ components:
           additionalProperties: true
           properties:
             session_context:
-              $ref: '#/components/schemas/HardActivationEvidenceStep'
+              $ref: "#/components/schemas/HardActivationEvidenceStep"
             provider_bootstrap:
-              $ref: '#/components/schemas/HardActivationEvidenceStep'
+              $ref: "#/components/schemas/HardActivationEvidenceStep"
         report_policy:
           type: object
           additionalProperties: true
@@ -155,7 +155,7 @@ components:
             - type: object
               additionalProperties: true
               properties: {}
-            - type: 'null'
+            - type: "null"
     ErrorResponse:
       type: object
       additionalProperties: false
@@ -168,7 +168,7 @@ components:
           enum:
             - false
         error:
-          $ref: '#/components/schemas/ErrorObject'
+          $ref: "#/components/schemas/ErrorObject"
         execution_guardrail:
           type: boolean
   responses:
@@ -177,13 +177,13 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
     Unauthorized:
       description: Invalid or missing backend API key
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
 security:
   - backendBearerAuth: []
 paths:
@@ -225,18 +225,18 @@ paths:
                   additionalProperties: true
                   properties: {}
       responses:
-        '200':
+        "200":
           description: Hard activation complete.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HardActivationRunResponse'
-        '424':
+                $ref: "#/components/schemas/HardActivationRunResponse"
+        "424":
           description: Required activation evidence is missing or degraded.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HardActivationRunResponse'
+                $ref: "#/components/schemas/HardActivationRunResponse"
   /activation/session-context:
     get:
       tags:
@@ -285,7 +285,7 @@ paths:
             maximum: 20000
           description: Maximum characters per raw dump field when include_raw=true.
       responses:
-        '200':
+        "200":
           description: Session history and related platform scopes
           content:
             application/json:
@@ -371,16 +371,16 @@ paths:
                       type: object
                       additionalProperties: true
                       properties: {}
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
           description: Session context read failure
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /activation/platform-access:
     get:
       tags:
@@ -392,7 +392,7 @@ paths:
       description: |
         Hard activation evidence for admin/service sessions. Returns explicit all-brand scope plus counts and readiness for brands, plugins, logics, engines, and runtime-callable actions.
       responses:
-        '200':
+        "200":
           description: Platform-wide activation access summary
           content:
             application/json:
@@ -489,16 +489,16 @@ paths:
                       type: object
                       additionalProperties: true
                       properties: {}
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
           description: Platform access read failure
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /system/connectors:
     get:
       tags:
@@ -539,7 +539,7 @@ paths:
             maximum: 200
             default: 50
       responses:
-        '200':
+        "200":
           description: Principal-scoped connector registry list
           content:
             application/json:
@@ -556,16 +556,16 @@ paths:
                       type: object
                       additionalProperties: true
                       properties: {}
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
           description: Tenant scope violation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /system/connectors/{system_id}:
     get:
       tags:
@@ -582,7 +582,7 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Principal-scoped connector registry record
           content:
             application/json:
@@ -595,20 +595,20 @@ paths:
                     type: object
                     additionalProperties: true
                     properties: {}
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
           description: Tenant scope violation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
           description: Connector system not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /system/tools:
     get:
       tags:
@@ -620,7 +620,7 @@ paths:
       summary: List MCP-style system tools visible to the current principal
       description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context.
       responses:
-        '200':
+        "200":
           description: System layer tools
           content:
             application/json:
@@ -642,8 +642,8 @@ paths:
                       type: object
                       additionalProperties: true
                       properties: {}
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /system/tools/call:
     post:
       tags:
@@ -670,6 +670,11 @@ paths:
                   enum:
                     - connector_registry_list
                     - connector_registry_get
+                    - connect_status
+                    - connect_activate
+                    - connect_device_install
+                    - local_gateway_tools_list
+                    - local_gateway_tools_call
                     - activation_drive_probe
                     - activation_sheets_bootstrap_read
                     - activation_github_validate
@@ -705,7 +710,7 @@ paths:
                       type: string
                       pattern: ^[a-z0-9-]{2,32}$
       responses:
-        '200':
+        "200":
           description: System tool result
           content:
             application/json:
@@ -721,16 +726,16 @@ paths:
                     type: object
                     additionalProperties: true
                     properties: {}
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
           description: Tenant scope violation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /admin/system/connectors:
     get:
       tags:
@@ -770,7 +775,7 @@ paths:
             maximum: 200
             default: 50
       responses:
-        '200':
+        "200":
           description: Connector registry list
           content:
             application/json:
@@ -787,10 +792,10 @@ paths:
                       type: object
                       additionalProperties: true
                       properties: {}
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /admin/system/connectors/{system_id}:
     get:
       tags:
@@ -807,7 +812,7 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Connector registry record
           content:
             application/json:
@@ -820,14 +825,14 @@ paths:
                     type: object
                     additionalProperties: true
                     properties: {}
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
           description: Connector system not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /admin/system/tools:
     get:
       tags:
@@ -838,7 +843,7 @@ paths:
       summary: List MCP-style system layer tools
       description: Lists fixed OpenAPI-compatible tools available through the admin system layer. This behaves like a small MCP tools/list facade over governed platform registries.
       responses:
-        '200':
+        "200":
           description: System layer tools
           content:
             application/json:
@@ -856,8 +861,8 @@ paths:
                       type: object
                       additionalProperties: true
                       properties: {}
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /admin/system/tools/call:
     post:
       tags:
@@ -900,7 +905,7 @@ paths:
                   description: Tool arguments. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields.
                   properties: {}
       responses:
-        '200':
+        "200":
           description: System tool result
           content:
             application/json:
@@ -916,10 +921,10 @@ paths:
                     type: object
                     additionalProperties: true
                     properties: {}
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /admin/apis-services/google-auth-platform:
     get:
       tags:
@@ -948,7 +953,7 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Google Auth Platform tab state
           content:
             application/json:
@@ -968,8 +973,8 @@ paths:
                       type: object
                       additionalProperties: true
                       properties: {}
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /admin/apis-services/google-auth-platform/{tab}:
     get:
       tags:
@@ -1000,7 +1005,7 @@ paths:
             type: string
             default: growth-intelligence-os
       responses:
-        '200':
+        "200":
           description: Google Auth Platform tab state
           content:
             application/json:
@@ -1008,10 +1013,10 @@ paths:
                 type: object
                 additionalProperties: true
                 properties: {}
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /admin/apis-services/credentials:
     get:
       tags:
@@ -1028,7 +1033,7 @@ paths:
             type: string
             default: growth-intelligence-os
       responses:
-        '200':
+        "200":
           description: APIs & Services Credentials state
           content:
             application/json:
@@ -1036,8 +1041,8 @@ paths:
                 type: object
                 additionalProperties: true
                 properties: {}
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /gpt/tools:
     get:
       tags:
@@ -1082,7 +1087,7 @@ paths:
             default: 45000
           description: Maximum JSON characters before returning an automatic response chunk.
       responses:
-        '200':
+        "200":
           description: Admin tool catalog
           content:
             application/json:
@@ -1119,14 +1124,14 @@ paths:
                           type: object
                           additionalProperties: true
                           properties: {}
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
           description: Tool list failure
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /gpt/tools/call:
     post:
       tags:
@@ -1189,7 +1194,7 @@ paths:
                     display_label:
                       type: string
       responses:
-        '200':
+        "200":
           description: Upstream tool response
           content:
             application/json:
@@ -1197,22 +1202,22 @@ paths:
                 type: object
                 additionalProperties: true
                 properties: {}
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
           description: Tool not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
           description: Tool call failure
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /device/tools:
     get:
       tags:
@@ -1223,7 +1228,7 @@ paths:
       summary: List device-tagged tools (MCP-style local device control surface)
       description: Returns the device-tagged subset of the admin or tenant tool registry. Use this MCP-style facade to control local device apps (n8n, browser, files, Windows, Cloudflare) primarily from auth.mad4b.com instead of the direct connector.mad4b.com schema.
       responses:
-        '200':
+        "200":
           description: Device tool catalog
           content:
             application/json:
@@ -1270,14 +1275,14 @@ paths:
                           type: object
                           additionalProperties: true
                           properties: {}
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
           description: Device tool list failure
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /device/tools/call:
     post:
       tags:
@@ -1307,7 +1312,7 @@ paths:
                   description: Arguments matching the device tool inputSchema.
                   properties: {}
       responses:
-        '200':
+        "200":
           description: Upstream device tool response
           content:
             application/json:
@@ -1315,28 +1320,28 @@ paths:
                 type: object
                 additionalProperties: true
                 properties: {}
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
           description: Tool exists but is not in the device-tools surface
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
           description: Tool not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
           description: Device tool call failure
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /admin/cli/local-connector/install-bundle:
     get:
       tags:
@@ -1360,7 +1365,7 @@ paths:
             type: string
           description: Device ID (hostname) to load config for. Defaults to mohammedlap.
       responses:
-        '200':
+        "200":
           description: Installer uploaded, drive link returned
           content:
             application/json:
@@ -1385,7 +1390,7 @@ paths:
                       - type: object
                         additionalProperties: true
                         properties: {}
-                      - type: 'null'
+                      - type: "null"
                   drive:
                     oneOf:
                       - type: object
@@ -1397,15 +1402,15 @@ paths:
                             type: string
                           filename:
                             type: string
-                      - type: 'null'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
+                      - type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
           description: Install bundle generation failure
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /admin/cli/local-connector/self-repair:
     post:
       tags:
@@ -1431,7 +1436,7 @@ paths:
                   type: string
                   description: Device hostname to repair. Defaults to mohammedlap.
       responses:
-        '200':
+        "200":
           description: Self-repair result with diagnosis and drive link
           content:
             application/json:
@@ -1481,7 +1486,7 @@ paths:
                           - type: object
                             additionalProperties: true
                             properties: {}
-                          - type: 'null'
+                          - type: "null"
                       drive:
                         oneOf:
                           - type: object
@@ -1493,15 +1498,15 @@ paths:
                                 type: string
                               filename:
                                 type: string
-                          - type: 'null'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
+                          - type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
           description: Self-repair failure
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /admin/cli/dns:
     get:
       tags:
@@ -1532,7 +1537,7 @@ paths:
             type: string
           description: Filter by record name.
       responses:
-        '200':
+        "200":
           description: DNS record list
           content:
             application/json:
@@ -1553,14 +1558,14 @@ paths:
                       type: object
                       additionalProperties: true
                       properties: {}
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
           description: DNS list failure
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /admin/schema-import/jobs:
     get:
       tags:
@@ -1589,7 +1594,7 @@ paths:
             default: 0
             minimum: 0
       responses:
-        '200':
+        "200":
           description: Job list
           content:
             application/json:
@@ -1603,9 +1608,9 @@ paths:
                   jobs:
                     type: array
                     items:
-                      $ref: '#/components/schemas/SchemaImportJob'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                      $ref: "#/components/schemas/SchemaImportJob"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /admin/cli/data-source/census:
     get:
       tags:
@@ -1616,7 +1621,7 @@ paths:
       summary: SQL data-source census across platform tables
       description: Returns row counts and last-write timestamps for every SQL table mapped in the platform registry (brands, actions, endpoints, plugins, execution_log, etc.) plus the Sheets mirror configuration. Use to verify SQL is the runtime authority, find empty tables that may need seeding, and audit migration.
       responses:
-        '200':
+        "200":
           description: Per-table census with summary
           content:
             application/json:
@@ -1668,18 +1673,18 @@ paths:
                         sql_row_count:
                           oneOf:
                             - type: integer
-                            - type: 'null'
+                            - type: "null"
                         sql_last_write_at:
                           oneOf:
                             - type: string
-                            - type: 'null'
+                            - type: "null"
                         sql_seeded:
                           type: boolean
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
           description: Census query failure
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"

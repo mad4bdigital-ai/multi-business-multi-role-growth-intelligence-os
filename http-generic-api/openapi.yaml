@@ -11693,6 +11693,12 @@ paths:
                 scope_id: { type: string }
                 scope_guard_passed: { type: boolean, default: false }
                 approval_granted: { type: boolean, default: false }
+                validator_results_required: { type: boolean, default: false }
+                validator_result_run_id: { type: string }
+                validator_result_run_key: { type: string }
+                validator_results:
+                  type: array
+                  items: { type: object, additionalProperties: true }
                 write_audit: { type: boolean, default: false }
                 actor_id: { type: string }
                 tenant_id: { type: string }
@@ -11730,6 +11736,12 @@ paths:
                 resource_kind: { type: string }
                 scope_guard_passed: { type: boolean, default: false }
                 approval_granted: { type: boolean, default: false }
+                validator_results_required: { type: boolean, default: false }
+                validator_result_run_id: { type: string }
+                validator_result_run_key: { type: string }
+                validator_results:
+                  type: array
+                  items: { type: object, additionalProperties: true }
       responses:
         "200": { description: Intelligence decision brief, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
@@ -11764,6 +11776,12 @@ paths:
                 scope_id: { type: string }
                 scope_guard_passed: { type: boolean, default: false }
                 approval_granted: { type: boolean, default: false }
+                validator_results_required: { type: boolean, default: false }
+                validator_result_run_id: { type: string }
+                validator_result_run_key: { type: string }
+                validator_results:
+                  type: array
+                  items: { type: object, additionalProperties: true }
                 actor_id: { type: string }
                 tenant_id: { type: string }
                 trace_id: { type: string }

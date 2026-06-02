@@ -76,7 +76,7 @@ writeback even when `--write-log` is present.
 1. Engine produces a dry-run plan and validator list.
 2. A separate runner executes validators outside the planning layer.
 3. Runner posts bounded results to `platform_engine_validator_result_log`.
-4. Apply-readiness can later require `passed` validator result refs, not just `validators_present`.
+4. Apply-readiness can require `passed` validator result refs, not just `validators_present`, by setting `validator_results_required=true`.
 
 ## Safety rules
 

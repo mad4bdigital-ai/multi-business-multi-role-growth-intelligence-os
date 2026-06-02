@@ -187,7 +187,11 @@ export async function summarizePlatformEngineFeedback(input = {}, deps = {}) {
 
 export async function createPlatformEngineExecutionEnvelope(input = {}, deps = {}) {
   const plan = await planPlatformEngineTask(input, deps);
-  return buildPlatformEngineExecutionEnvelope(plan, input);
+  const validatorResults = await loadValidatorResultsForEnvelope(plan, input, deps);
+  return buildPlatformEngineExecutionEnvelope(plan, {
+    ...input,
+    validator_results: validatorResults,
+  });
 }
 
 export function resolvePlatformEngineTaskIntent(input = {}) {
@@ -208,9 +212,11 @@ export async function buildPlatformEngineDecisionBrief(input = {}, deps = {}) {
   };
   const capability = await checkPlatformEngineCapability(resolvedInput, deps);
   const plan = await planPlatformEngineTask(resolvedInput, deps);
+  const validatorResults = await loadValidatorResultsForEnvelope(plan, resolvedInput, deps);
   const envelope = buildPlatformEngineExecutionEnvelope(plan, {
     ...resolvedInput,
     mode: resolvedInput.mode || "apply_allowed",
+    validator_results: validatorResults,
   });
   return {
     ok: true,
@@ -243,6 +249,27 @@ export async function buildPlatformEngineDecisionBrief(input = {}, deps = {}) {
         ? "run_or_review_dry_run_plan"
         : "resolve_capability_or_envelope_blockers",
   };
+}
+
+async function loadValidatorResultsForEnvelope(plan = {}, input = {}, deps = {}) {
+  if (!input.validator_results_required) {
+    return input.validator_results || input.validator_result_refs || [];
+  }
+  if (Array.isArray(input.validator_results) || Array.isArray(input.validator_result_refs)) {
+    return input.validator_results || input.validator_result_refs || [];
+  }
+  const runId = input.validator_result_run_id || input.run_id || "";
+  const runKey = input.validator_result_run_key || input.run_key || "";
+  if (!runId && !runKey) return [];
+  const rows = await listPlatformEngineValidatorResults({
+    engine_key: plan.engine_key || input.engine_key,
+    task_class: plan.task_class || input.task_class,
+    run_id: runId,
+    status: "passed",
+    limit: 250,
+  }, deps).catch(() => []);
+  if (!runKey) return rows;
+  return rows.filter((row) => String(row.run_key || "") === String(runKey));
 }
 
 export async function checkPlatformEngineCapability(input = {}, deps = {}) {

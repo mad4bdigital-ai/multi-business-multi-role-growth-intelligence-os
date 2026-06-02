@@ -9,6 +9,7 @@ import {
   buildPlatformEngineExecutionEnvelope,
   classifyPlatformEngineResource,
   evaluatePlatformEngineCapability,
+  evaluatePlatformEngineValidatorResultEvidence,
   PLATFORM_ENGINE_ORCHESTRATION_GUARDRAILS,
   planPolicyDrivenEngineTask,
   resolvePlatformEngineIntent,
@@ -506,6 +507,53 @@ assert.equal(readyEnvelope.required_controls.readback_required, true);
 assert.equal(readyEnvelope.required_controls.audit_evidence_required, true);
 assert.equal(readyEnvelope.required_controls.audit_evidence_satisfied, true);
 assert.equal(readyEnvelope.next_step, "ready_for_separate_governed_apply_route");
+
+const missingValidatorResultEnvelope = buildPlatformEngineExecutionEnvelope(packagePlan, {
+  mode: "apply_allowed",
+  scope_guard_passed: true,
+  audit_evidence: validAuditEvidence,
+  validator_results_required: true,
+});
+assert.equal(missingValidatorResultEnvelope.can_apply, false);
+assert.equal(missingValidatorResultEnvelope.required_controls.validator_results_required, true);
+assert.equal(missingValidatorResultEnvelope.required_controls.validator_results_satisfied, false);
+assert(missingValidatorResultEnvelope.blockers.includes("validator_results_required"));
+assert(missingValidatorResultEnvelope.validator_result_evidence.missing_validators.includes("node test-repo-patch-apply.mjs"));
+
+const failedValidatorResultEnvelope = buildPlatformEngineExecutionEnvelope(packagePlan, {
+  mode: "apply_allowed",
+  scope_guard_passed: true,
+  audit_evidence: validAuditEvidence,
+  validator_results_required: true,
+  validator_results: [{
+    validator_command: "node test-repo-patch-apply.mjs",
+    status: "failed",
+  }],
+});
+assert.equal(failedValidatorResultEnvelope.can_apply, false);
+assert(failedValidatorResultEnvelope.blockers.includes("validator_results_required"));
+
+const passedValidatorResults = packagePlan.validators.map((validatorCommand) => ({
+  validator_command: validatorCommand,
+  status: "passed",
+  run_id: "validator_run_1",
+}));
+const validatorBackedEnvelope = buildPlatformEngineExecutionEnvelope(packagePlan, {
+  mode: "apply_allowed",
+  scope_guard_passed: true,
+  audit_evidence: validAuditEvidence,
+  validator_results_required: true,
+  validator_result_run_id: "validator_run_1",
+  validator_results: passedValidatorResults,
+});
+assert.equal(validatorBackedEnvelope.can_apply, true);
+assert.equal(validatorBackedEnvelope.required_controls.validator_results_satisfied, true);
+assert.equal(validatorBackedEnvelope.validator_result_evidence.missing_validators.length, 0);
+assert.equal(evaluatePlatformEngineValidatorResultEvidence(packagePlan.validators, {
+  validator_results_required: true,
+  validator_result_run_id: "validator_run_1",
+  validator_results: passedValidatorResults,
+}).ok, true);
 
 const missingAuditEvidenceEnvelope = buildPlatformEngineExecutionEnvelope(packagePlan, {
   mode: "apply_allowed",
