@@ -189,6 +189,79 @@ assert.equal(__test__.normalizeWpJsonBase("https://example.com/wp-json/wp/v2"), 
 {
   const pool = makePool({
     brands: [brand],
+    cmsSites: [{ site_id: "site-1", canonical_target_key: "almallah_wp", normalized_domain: "tourism.almallahgroup-mg.com" }],
+    connections: [{
+      connection_id: "conn-wp",
+      user_id: "user-1",
+      tenant_id: "tenant-1",
+      app_key: "wordpress_rest",
+      auth_type: "basic_auth",
+      encrypted_credentials: JSON.stringify({ username: "gpt", application_password: "wp-app-password" }),
+      account_label: "gpt",
+      status: "active",
+    }],
+  });
+  const result = await diagnoseWordpressPublishAuthority(
+    {
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      brand_key: "Almallah Group",
+      target_key: "almallah_wp",
+      connection_id: "conn-wp",
+      title: "Nile Cruise Egypt",
+      content: "<p>Draft post content.</p>",
+      status: "publish",
+    },
+    { pool, fetch: async () => { throw new Error("diagnostic must not call WordPress"); }, decryptCredentials: JSON.parse, env: {} }
+  );
+  assert.equal(result.ok, false);
+  assert.equal(result.decision, "blocked");
+  assert.equal(result.error.code, "cms_site_access_grant_required");
+  assert.equal(result.executes_publish, false);
+  assert.equal(result.applies_wordpress_post, false);
+  assert.equal(result.secrets_included, false);
+}
+
+{
+  const pool = makePool({
+    brands: [brand],
+    cmsSites: [{ site_id: "site-1", canonical_target_key: "almallah_wp", normalized_domain: "tourism.almallahgroup-mg.com" }],
+    cmsGrants: [{ grant_id: "grant-2", site_id: "site-1", tenant_id: "tenant-1", user_id: "user-1", scope: "personal", status: "active", draft_allowed: 1, publish_allowed: 1 }],
+    connections: [{
+      connection_id: "conn-wp",
+      user_id: "user-1",
+      tenant_id: "tenant-1",
+      app_key: "wordpress_rest",
+      auth_type: "basic_auth",
+      encrypted_credentials: JSON.stringify({ username: "gpt", application_password: "wp-app-password" }),
+      account_label: "gpt",
+      status: "active",
+    }],
+  });
+  const result = await diagnoseWordpressPublishAuthority(
+    {
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      brand_key: "Almallah Group",
+      target_key: "almallah_wp",
+      connection_id: "conn-wp",
+      title: "Nile Cruise Egypt",
+      content: "<p>Publish post content.</p>",
+      status: "publish",
+    },
+    { pool, fetch: async () => { throw new Error("diagnostic must not call WordPress"); }, decryptCredentials: JSON.parse, env: {} }
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.decision, "allowed");
+  assert.equal(result.grant_id, "grant-2");
+  assert.equal(result.authority_checks.active_grant, true);
+  assert.equal(result.executes_publish, false);
+  assert.equal(result.secrets_included, false);
+}
+
+{
+  const pool = makePool({
+    brands: [brand],
     connections: [{
       connection_id: "conn-wp",
       user_id: "user-1",
