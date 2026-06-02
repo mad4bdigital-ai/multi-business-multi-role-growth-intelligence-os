@@ -39,6 +39,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "166_sprint65_ai_intelligence_runtime_governance.sql",
   "168_sprint65_database_table_lifecycle_governance.sql",
   "176_sprint66_governed_migration_ledger.sql",
+  "178_sprint66_runtime_authority_certification_registries.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
