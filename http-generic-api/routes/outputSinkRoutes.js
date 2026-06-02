@@ -4,6 +4,7 @@ import { routeOutput } from "../outputSinkRouter.js";
 import { dispatchChainEvent, dispatchPendingChainEvents } from "../chainEventDispatcher.js";
 import { dispatchPlan } from "../connectorExecutor.js";
 import { diagnoseWordpressAuthContext } from "../wordpressBlogPublishOrchestrator.js";
+import { diagnoseWordpressPublishAuthority } from "../wordpressBlogPublishOrchestrator.js";
 
 export function buildOutputSinkRoutes(deps) {
   const { requireBackendApiKey } = deps;
@@ -90,6 +91,30 @@ export function buildOutputSinkRoutes(deps) {
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /wordpress/publish-authority/diagnose — safe WordPress publish authority diagnostic ──
+  router.post("/wordpress/publish-authority/diagnose", async (req, res) => {
+    try {
+      const { tenant_id, user_id, connection_id, brand_key, target_key, title, content, status = "draft", publish_status } = req.body || {};
+      if (!tenant_id || !user_id || (!brand_key && !target_key)) {
+        return res.status(400).json({ ok: false, error: { code: "missing_required_fields", message: "tenant_id, user_id, and brand_key or target_key are required." }, secrets_included: false });
+      }
+      const result = await diagnoseWordpressPublishAuthority({
+        tenant_id,
+        user_id,
+        connection_id,
+        brand_key: brand_key || target_key,
+        target_key: target_key || brand_key,
+        title: title || "Authority diagnostic draft title",
+        content: content || "<p>Authority diagnostic content. No WordPress request is sent.</p>",
+        status: publish_status || status,
+        workflow_key: "wordpress_blog_publish_or_recover_credentials_workflow",
+      });
+      res.status(result.ok ? 200 : 422).json(result);
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "wordpress_publish_authority_diagnostic_failed", message: err.message }, secrets_included: false });
     }
   });
 

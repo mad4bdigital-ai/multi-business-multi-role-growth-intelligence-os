@@ -236,6 +236,86 @@ export async function dispatchWordpressBlogPublish(plan = {}, deps = {}) {
   return { ok: true, status: "completed", credential_status: "resolved", target_key: brand.target_key || plan.target_key || "", site_id: grant.site_id || null, grant_id: grant.grant_id || null, grant_status: grant.status, post_status: requestedStatus, post_id: created.post_id, link: created.link, readback_status: created.readback_status, result: created, output: { post_id: created.post_id, link: created.link, status: created.status, readback_status: created.readback_status } };
 }
 
+export async function diagnoseWordpressPublishAuthority(plan = {}, deps = {}) {
+  const brand = deps.brand || await loadBrand(plan, deps);
+  if (!brand) {
+    return {
+      ok: false,
+      status: "blocked",
+      decision: "blocked",
+      error: { code: "brand_target_not_resolved", message: "Could not resolve brand/target for WordPress publish authority diagnostic." },
+      executes_publish: false,
+      applies_wordpress_post: false,
+      secrets_included: false,
+    };
+  }
+  if (!boolish(brand.write_allowed)) {
+    return {
+      ok: false,
+      status: "blocked",
+      decision: "blocked",
+      error: { code: "wordpress_write_not_allowed", message: `Target ${brand.target_key || brand.brand_name} is not write-enabled.` },
+      target_key: brand.target_key || plan.target_key || "",
+      executes_publish: false,
+      applies_wordpress_post: false,
+      secrets_included: false,
+    };
+  }
+
+  let postType = "posts";
+  let requestedStatus = "draft";
+  try {
+    const payloadPlan = { ...plan, status: plan.status || plan.publish_status || "draft" };
+    const built = buildPostPayload(payloadPlan, brand);
+    postType = built.postType;
+    requestedStatus = built.requestedStatus;
+  } catch (err) {
+    return {
+      ok: false,
+      status: "blocked",
+      decision: "blocked",
+      error: { code: err?.code || "wordpress_publish_input_invalid", message: err?.message || "WordPress publish input is invalid." },
+      target_key: brand.target_key || plan.target_key || "",
+      executes_publish: false,
+      applies_wordpress_post: false,
+      secrets_included: false,
+    };
+  }
+
+  const grant = await resolveCmsSiteGrant({ plan, brand, requestedStatus }, deps);
+  const allowed = Boolean(grant.ok);
+  const legacyAllowed = allowed && ["legacy_site_not_registered", "cms_site_grants_unavailable_legacy_allowed"].includes(grant.status);
+  const status = allowed
+    ? (legacyAllowed ? "wordpress_publish_authority_legacy_allowed" : "wordpress_publish_authority_allowed")
+    : "wordpress_publish_authority_blocked";
+
+  return {
+    ok: allowed,
+    status,
+    decision: allowed ? (legacyAllowed ? "legacy_allowed" : "allowed") : "blocked",
+    target_key: brand.target_key || plan.target_key || "",
+    requested_status: requestedStatus,
+    post_type: postType,
+    site_id: grant.site_id || null,
+    grant_id: grant.grant_id || null,
+    grant_status: grant.status,
+    grant_required: Boolean(grant.grant_required),
+    authority_checks: {
+      resource_resolution: Boolean(brand.target_key || plan.target_key),
+      write_enabled: true,
+      active_grant: grant.status === "cms_site_access_grant_resolved",
+      publish_allowed: requestedStatus !== "publish" || grant.status === "cms_site_access_grant_resolved",
+      legacy_allowed_without_registered_site: legacyAllowed,
+      audit_evidence_required: true,
+      readback_required: true,
+    },
+    error: allowed ? null : { code: grant.status, message: "Active CMS site access grant is required for WordPress publishing." },
+    executes_publish: false,
+    applies_wordpress_post: false,
+    secrets_included: false,
+  };
+}
+
 export async function diagnoseWordpressAuthContext(plan = {}, deps = {}) {
   const brand = deps.brand || await loadBrand(plan, deps);
   if (!brand) return { ok: false, status: "blocked", error: { code: "brand_target_not_resolved" } };

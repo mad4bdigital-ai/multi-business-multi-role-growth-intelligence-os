@@ -77,6 +77,8 @@ tags:
     description: Tenant-facing and admin-governed Platform Plugin catalog, install, resolve, contribution, and promotion surfaces.
   - name: tenant-docs
     description: Tenant-safe live repository documentation reader surfaces.
+  - name: wordpress
+    description: WordPress runtime diagnostics and publish authority checks.
   - name: platform-evolution
     description: Brand, tenant, and user scoped Platform Evolution checkpoints, thread maps, and linked evidence surfaces.
   - name: platform-intelligence
@@ -1127,6 +1129,50 @@ components:
         auth_context:
           type: object
           additionalProperties: true
+        secrets_included: { type: boolean, enum: [false] }
+
+    WordpressPublishAuthorityDiagnosticRequest:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, user_id]
+      properties:
+        tenant_id: { type: string, minLength: 1 }
+        user_id: { type: string, minLength: 1 }
+        connection_id: { type: string }
+        brand_key: { type: string }
+        target_key: { type: string }
+        title: { type: string }
+        content: { type: string }
+        status: { type: string, enum: [draft, publish], default: draft }
+        publish_status: { type: string, enum: [draft, publish] }
+      anyOf:
+        - required: [brand_key]
+        - required: [target_key]
+
+    WordpressPublishAuthorityDiagnosticResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, status, decision, executes_publish, applies_wordpress_post, secrets_included]
+      properties:
+        ok: { type: boolean }
+        status: { type: string }
+        decision: { type: string, enum: [allowed, legacy_allowed, blocked] }
+        target_key: { type: string }
+        requested_status: { type: string, enum: [draft, publish] }
+        post_type: { type: string }
+        site_id: { type: string, nullable: true }
+        grant_id: { type: string, nullable: true }
+        grant_status: { type: string, nullable: true }
+        grant_required: { type: boolean }
+        authority_checks:
+          type: object
+          additionalProperties: true
+        error:
+          oneOf:
+            - $ref: "#/components/schemas/ErrorObject"
+            - type: "null"
+        executes_publish: { type: boolean, enum: [false] }
+        applies_wordpress_post: { type: boolean, enum: [false] }
         secrets_included: { type: boolean, enum: [false] }
 
     ReleaseDashboardResponse:
@@ -12062,6 +12108,42 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
         "403":
           description: Active membership or scope grant missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /wordpress/publish-authority/diagnose:
+    post:
+      tags: [wordpress]
+      operationId: diagnoseWordpressPublishAuthority
+      summary: Diagnose WordPress publish authority without publishing
+      description: Dry-run diagnostic that checks brand write flag and CMS site access grant for draft/publish without resolving secrets or sending any WordPress POST request.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WordpressPublishAuthorityDiagnosticRequest" }
+      responses:
+        "200":
+          description: Authority diagnostic allowed or legacy-allowed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WordpressPublishAuthorityDiagnosticResponse" }
+        "400":
+          description: Missing or invalid request fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "422":
+          description: Authority diagnostic blocked.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WordpressPublishAuthorityDiagnosticResponse" }
+        "500":
+          description: Diagnostic failed unexpectedly.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }

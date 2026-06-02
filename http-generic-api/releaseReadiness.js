@@ -41,6 +41,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "176_sprint66_governed_migration_ledger.sql",
   "178_sprint66_runtime_authority_certification_registries.sql",
   "179_sprint66_dynamic_capability_audit_foundation.sql",
+  "180_sprint66_wordpress_publish_authority_diagnostic_tool.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
