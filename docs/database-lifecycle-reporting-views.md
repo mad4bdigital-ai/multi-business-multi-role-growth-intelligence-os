@@ -91,6 +91,29 @@ node scripts/database-lifecycle-report-schedule-readiness.mjs `
 Readiness output is dry-run and `will_execute = false`. A separate scheduler
 binding must be approved before any recurring snapshot writeback is enabled.
 
+## Scheduler binding readiness
+
+Migration `184_sprint66_database_lifecycle_scheduler_binding_readiness.sql`
+adds `database_lifecycle_report_snapshot_scheduler_bindings` and
+`v_database_lifecycle_scheduler_binding_readiness`.
+
+The default binding is inserted as `planned_disabled` with
+`approval_status = pending`. It names the intended runner command, scheduler
+surface, confirmation gate, readback gate, and executor policy. It does not
+enable a scheduler.
+
+`http-generic-api/scripts/database-lifecycle-scheduler-binding-readiness.mjs`
+reports whether binding metadata is ready:
+
+```powershell
+node scripts/database-lifecycle-scheduler-binding-readiness.mjs
+node scripts/database-lifecycle-scheduler-binding-readiness.mjs `
+  --binding-key database_lifecycle_retention_plan_weekly_binding
+```
+
+Binding readiness remains dry-run and `will_execute = false`. Actual recurring
+execution still requires a separate approved scheduler integration.
+
 ## Operating rules
 
 - Treat all reports as decision support, not automatic action.

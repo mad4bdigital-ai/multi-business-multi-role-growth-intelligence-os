@@ -635,6 +635,142 @@ export async function assessDatabaseLifecycleReportSnapshotScheduleReadiness({ s
   return buildDatabaseLifecycleReportSnapshotScheduleReadiness(rows, { schedule_key, report_type });
 }
 
+function normalizeSchedulerBindingRow(row = {}) {
+  return {
+    binding_key: text(row.binding_key),
+    schedule_key: text(row.schedule_key),
+    report_type: text(row.report_type),
+    cron_expression: text(row.cron_expression),
+    timezone: text(row.timezone || "UTC"),
+    runner_key: text(row.runner_key || "database_lifecycle_report_snapshot_runner"),
+    runner_command: text(row.runner_command),
+    scheduler_surface: text(row.scheduler_surface || "external_scheduler"),
+    executor_policy_key: text(row.executor_policy_key),
+    notification_target: text(row.notification_target),
+    approval_status: text(row.approval_status || "pending"),
+    status: text(row.status || "planned_disabled"),
+    schedule_status: text(row.schedule_status),
+    schedule_approval_status: text(row.schedule_approval_status),
+    dry_run_required: row.dry_run_required !== false && row.dry_run_required !== 0,
+    confirmation_required: row.confirmation_required !== false && row.confirmation_required !== 0,
+    readback_required: row.readback_required !== false && row.readback_required !== 0,
+    will_execute: row.will_execute === true || row.will_execute === 1,
+    no_drop: row.no_drop !== false && row.no_drop !== 0,
+    no_delete: row.no_delete !== false && row.no_delete !== 0,
+    no_archive_execution: row.no_archive_execution !== false && row.no_archive_execution !== 0,
+    no_compaction_execution: row.no_compaction_execution !== false && row.no_compaction_execution !== 0,
+    secrets_included: row.secrets_included === true || row.secrets_included === 1,
+    notes: text(row.notes),
+  };
+}
+
+export function buildDatabaseLifecycleSchedulerBindingReadiness(bindings = [], options = {}) {
+  const normalized = bindings.map(normalizeSchedulerBindingRow);
+  const readiness = normalized.map((binding) => {
+    const blockers = [];
+    if (binding.status !== "active") blockers.push("binding_not_active");
+    if (binding.approval_status !== "approved") blockers.push("binding_approval_not_approved");
+    if (binding.schedule_status && binding.schedule_status !== "active") blockers.push("schedule_not_active");
+    if (binding.schedule_approval_status && binding.schedule_approval_status !== "approved") blockers.push("schedule_approval_not_approved");
+    if (!binding.notification_target) blockers.push("notification_target_missing");
+    if (!binding.executor_policy_key) blockers.push("executor_policy_missing");
+    if (!binding.runner_command) blockers.push("runner_command_missing");
+    if (!binding.confirmation_required) blockers.push("confirmation_gate_missing");
+    if (!binding.readback_required) blockers.push("readback_gate_missing");
+    if (binding.will_execute) blockers.push("binding_marked_executable");
+    if (!binding.no_drop || !binding.no_delete || !binding.no_archive_execution || !binding.no_compaction_execution) blockers.push("destructive_guard_missing");
+    if (binding.secrets_included) blockers.push("secrets_flagged_in_binding");
+    return {
+      ...binding,
+      binding_ready: blockers.length === 0,
+      will_execute: false,
+      readiness_blockers: blockers,
+    };
+  });
+  return {
+    ok: true,
+    readiness_type: "database_lifecycle_scheduler_binding_readiness_v1",
+    binding_count: readiness.length,
+    ready_count: readiness.filter((row) => row.binding_ready).length,
+    blocked_count: readiness.filter((row) => !row.binding_ready).length,
+    requested_binding_key: text(options.binding_key),
+    requested_schedule_key: text(options.schedule_key),
+    dry_run: true,
+    will_execute: false,
+    no_drop: true,
+    no_delete: true,
+    no_archive_execution: true,
+    no_compaction_execution: true,
+    secrets_included: false,
+    required_next_step: "approve_scheduler_binding_then_run_external_scheduler_dry_run_with_snapshot_readback",
+    bindings: readiness,
+  };
+}
+
+export async function listDatabaseLifecycleSchedulerBindings({ schedule_key = "", status = "", limit = 50 } = {}, deps = {}) {
+  const pool = deps.pool || getPool();
+  const where = [];
+  const params = [];
+  if (schedule_key) {
+    where.push("b.schedule_key = ?");
+    params.push(text(schedule_key));
+  }
+  if (status) {
+    where.push("b.status = ?");
+    params.push(text(status));
+  }
+  params.push(Math.max(1, Math.min(number(limit, 50), 250)));
+  const [rows] = await pool.query(
+    `SELECT b.binding_key, b.schedule_key, s.report_type, s.cron_expression, s.timezone,
+            b.runner_key, b.runner_command, b.scheduler_surface, b.executor_policy_key,
+            b.notification_target, b.approval_status, b.status, s.status AS schedule_status,
+            s.approval_status AS schedule_approval_status, b.dry_run_required,
+            b.confirmation_required, b.readback_required, b.will_execute,
+            b.no_drop, b.no_delete, b.no_archive_execution, b.no_compaction_execution,
+            b.secrets_included, b.notes, b.created_at, b.updated_at
+       FROM database_lifecycle_report_snapshot_scheduler_bindings b
+       LEFT JOIN database_lifecycle_report_snapshot_schedules s
+         ON s.schedule_key = b.schedule_key
+       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+       ORDER BY b.updated_at DESC, b.binding_key ASC
+       LIMIT ?`,
+    params
+  );
+  return rows;
+}
+
+export async function assessDatabaseLifecycleSchedulerBindingReadiness({ binding_key = "", schedule_key = "", limit = 50 } = {}, deps = {}) {
+  const pool = deps.pool || getPool();
+  const where = [];
+  const params = [];
+  if (binding_key) {
+    where.push("b.binding_key = ?");
+    params.push(text(binding_key));
+  }
+  if (schedule_key) {
+    where.push("b.schedule_key = ?");
+    params.push(text(schedule_key));
+  }
+  params.push(Math.max(1, Math.min(number(limit, 50), 250)));
+  const [rows] = await pool.query(
+    `SELECT b.binding_key, b.schedule_key, s.report_type, s.cron_expression, s.timezone,
+            b.runner_key, b.runner_command, b.scheduler_surface, b.executor_policy_key,
+            b.notification_target, b.approval_status, b.status, s.status AS schedule_status,
+            s.approval_status AS schedule_approval_status, b.dry_run_required,
+            b.confirmation_required, b.readback_required, b.will_execute,
+            b.no_drop, b.no_delete, b.no_archive_execution, b.no_compaction_execution,
+            b.secrets_included, b.notes
+       FROM database_lifecycle_report_snapshot_scheduler_bindings b
+       LEFT JOIN database_lifecycle_report_snapshot_schedules s
+         ON s.schedule_key = b.schedule_key
+       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+       ORDER BY b.updated_at DESC, b.binding_key ASC
+       LIMIT ?`,
+    params
+  );
+  return buildDatabaseLifecycleSchedulerBindingReadiness(rows, { binding_key, schedule_key });
+}
+
 export function assertDatabaseTableLifecycleRegistryUpsertAllowed({ apply = false, confirm } = {}) {
   if (!apply) {
     return {
