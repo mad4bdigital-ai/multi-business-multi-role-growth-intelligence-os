@@ -11,6 +11,7 @@ The AI Intelligence Runtime & Governance Layer foundation is active for planning
 - Database table lifecycle registry
 - Database lifecycle reporting views
 - Database lifecycle report snapshot foundation
+- Database lifecycle report snapshot schedule readiness foundation
 - Tool search from governed `agent_tool_index`
 - Growth/retention dry-run review engines
 - Credential lifecycle metadata review
@@ -85,6 +86,6 @@ The following remain intentionally unavailable:
 
 1. Wire validator runner output into apply-readiness checks so `passed` validator result refs are required before apply.
 2. Add policy update proposal surfaces informed by validator failures, recovery taxonomy, and lifecycle reports.
-3. Add an automated lifecycle report snapshot schedule after admin approval defines cadence and retention.
+3. Add an approved scheduler binding for lifecycle report snapshots after admin approval defines notification target and executor policy.
 4. Design a separate repo conflict apply executor with scope guard, diff, validators, readback, and approval gates.
 5. Draft an ADR for the intelligence runtime architecture.

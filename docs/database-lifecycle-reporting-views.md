@@ -69,6 +69,28 @@ node scripts/database-lifecycle-report-snapshot.mjs `
 Snapshot writeback records report evidence only. It does not archive, delete,
 drop, truncate, compact, read secrets, or execute lifecycle cleanup.
 
+## Snapshot schedule readiness
+
+Migration `183_sprint66_database_lifecycle_snapshot_schedule_readiness.sql`
+adds `database_lifecycle_report_snapshot_schedules` and
+`v_database_lifecycle_report_snapshot_schedule_readiness`.
+
+The default weekly retention-plan schedule is inserted as `planned_disabled`
+with `approval_status = pending`. It records cadence, retention, notification,
+and executor-policy metadata only. It does not start a recurring job.
+
+`http-generic-api/scripts/database-lifecycle-report-schedule-readiness.mjs`
+reports whether schedule metadata is ready:
+
+```powershell
+node scripts/database-lifecycle-report-schedule-readiness.mjs
+node scripts/database-lifecycle-report-schedule-readiness.mjs `
+  --schedule-key database_lifecycle_retention_plan_weekly
+```
+
+Readiness output is dry-run and `will_execute = false`. A separate scheduler
+binding must be approved before any recurring snapshot writeback is enabled.
+
 ## Operating rules
 
 - Treat all reports as decision support, not automatic action.
