@@ -18,6 +18,19 @@ function makePool({ brands = [], connections = [], cmsSites = [], cmsGrants = []
           row.brand_domain === brandDomain
         )).slice(0, 1)];
       }
+      if (compact.includes("FROM `cms_sites`")) {
+        const [targetKey, domain] = params;
+        return [cmsSites.filter((row) => row.canonical_target_key === targetKey || row.normalized_domain === domain).slice(0, 1)];
+      }
+      if (compact.includes("FROM `cms_site_access_grants`")) {
+        const [siteId, tenantId, userId] = params;
+        return [cmsGrants.filter((row) => (
+          row.site_id === siteId &&
+          row.tenant_id === tenantId &&
+          row.status === "active" &&
+          (!row.user_id || row.user_id === userId)
+        )).slice(0, 1)];
+      }
       if (compact.includes("FROM `credential_bindings`")) return [[]];
       if (compact.includes("FROM `user_app_connections`")) {
         const [connectionId] = params;
