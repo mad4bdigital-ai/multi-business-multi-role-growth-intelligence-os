@@ -77,6 +77,8 @@ tags:
     description: Tenant-facing and admin-governed Platform Plugin catalog, install, resolve, contribution, and promotion surfaces.
   - name: tenant-docs
     description: Tenant-safe live repository documentation reader surfaces.
+  - name: wordpress
+    description: WordPress runtime diagnostics and publish authority checks.
   - name: platform-evolution
     description: Brand, tenant, and user scoped Platform Evolution checkpoints, thread maps, and linked evidence surfaces.
   - name: platform-intelligence
