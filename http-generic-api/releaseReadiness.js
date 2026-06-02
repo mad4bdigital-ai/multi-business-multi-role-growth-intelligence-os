@@ -1060,6 +1060,11 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   report.migration_inventory = await checkMigrationInventorySafe();
   if (report.migration_inventory.status === "warn" && report.overall === "pass") report.overall = "warn";
 
+  // Governed migration ledger — non-mutating coverage evidence for migrations
+  // that were applied or historically backfilled through the governed runner.
+  report.governed_migration_ledger = await checkGovernedMigrationLedgerSafe();
+  if (report.governed_migration_ledger.status === "warn" && report.overall === "pass") report.overall = "warn";
+
   // Dynamic migration drift — non-mutating comparison between repo migrations
   // and the current runtime DB. This catches future governance migrations without
   // adding their table/tool/engine names to a static release readiness list.
