@@ -303,8 +303,6 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   const connectRoutes = readFileSync(resolve(__dirname, "routes/connectRoutes.js"), "utf8");
   const systemLayerRoutes = readFileSync(resolve(__dirname, "routes/systemLayerRoutes.js"), "utf8");
   const localConnectorRoutes = readFileSync(resolve(__dirname, "routes/localConnectorRoutes.js"), "utf8");
-  const tenantInstructions = readFileSync(resolve(__dirname, "../GPT_Tenant_Connector_Instructions.md"), "utf8");
-  const tenantKnowledge = readFileSync(resolve(__dirname, "../GPT_Tenant_Connector_Knowledge.md"), "utf8");
   const migration104 = readFileSync(resolve(__dirname, "migrations/104_sprint64_activation_mode_governance.sql"), "utf8");
   const migration105 = readFileSync(resolve(__dirname, "migrations/105_sprint64_dedicated_integration_flow.sql"), "utf8");
   const migration106 = readFileSync(resolve(__dirname, "migrations/106_sprint64_hybrid_integration_policy.sql"), "utf8");
