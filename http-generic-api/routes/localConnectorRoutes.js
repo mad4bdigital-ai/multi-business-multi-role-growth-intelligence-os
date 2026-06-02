@@ -95,14 +95,20 @@ export function buildLocalConnectorRoutes(deps) {
 
   router.get("/local-connector/health", requireBackendApiKey, async (req, res) => {
     try {
-      const isUserAuth = req.auth?.mode === "user_jwt" || req.auth?.mode === "api_credential";
-      const resolved_user_id = req.query.user_id || (isUserAuth ? req.auth?.user_id : null);
-      const resolved_tenant_id = req.query.tenant_id || (isUserAuth ? req.auth?.tenant_id : null);
+      const { user_id, tenant_id, auth_derived } = resolveLocalConnectorIdentity(req);
       const { device_id } = req.query;
-      if (!resolved_user_id || !resolved_tenant_id || !device_id) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "device_id is required." } });
+      if (!user_id || !tenant_id || !device_id) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "missing_fields",
+            message: auth_derived
+              ? "device_id is required and the signed-in user must have tenant context."
+              : "user_id, tenant_id, and device_id are required for admin/service calls.",
+          },
+        });
       }
-      const userConfig = await localConnectorOrchestrator.resolveUserLocalConfig(resolved_user_id, resolved_tenant_id, device_id);
+      const userConfig = await localConnectorOrchestrator.resolveUserLocalConfig(user_id, tenant_id, device_id);
       if (!userConfig) {
         return res.status(404).json({ ok: false, error: { code: "config_not_found", message: "No local connector config for this user/device." } });
       }
