@@ -893,6 +893,97 @@ async function loadSchedulerApprovalTarget(pool, input) {
   return rows[0] || null;
 }
 
+async function loadSchedulerApprovalEvent(pool, input = {}) {
+  const eventId = text(input.event_id || input.eventId);
+  const eventKey = text(input.event_key || input.eventKey);
+  const targetType = text(input.target_type || input.targetType);
+  const targetKey = text(input.target_key || input.targetKey);
+  if (eventId) {
+    const [rows] = await pool.query(
+      "SELECT * FROM database_lifecycle_scheduler_approval_events WHERE event_id = ? LIMIT 1",
+      [eventId]
+    );
+    return rows[0] || null;
+  }
+  if (eventKey) {
+    const [rows] = await pool.query(
+      "SELECT * FROM database_lifecycle_scheduler_approval_events WHERE event_key = ? LIMIT 1",
+      [eventKey]
+    );
+    return rows[0] || null;
+  }
+  const [rows] = await pool.query(
+    `SELECT * FROM database_lifecycle_scheduler_approval_events
+      WHERE target_type = ? AND target_key = ?
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [targetType, targetKey]
+  );
+  return rows[0] || null;
+}
+
+export function buildDatabaseLifecycleSchedulerApprovalReadback(input = {}, current = {}, event = {}) {
+  const normalized = {
+    target_type: lower(input.target_type || input.targetType),
+    target_key: text(input.target_key || input.targetKey),
+    event_id: text(input.event_id || input.eventId),
+    event_key: text(input.event_key || input.eventKey),
+  };
+  const blockers = [];
+  if (!["schedule", "binding"].includes(normalized.target_type)) blockers.push("target_type_invalid");
+  if (!normalized.target_key) blockers.push("target_key_missing");
+  if (!current) blockers.push("target_row_missing");
+  if (!event) blockers.push("approval_event_missing");
+  if (event && current) {
+    if (text(event.target_type) !== normalized.target_type) blockers.push("event_target_type_mismatch");
+    if (text(event.target_key) !== normalized.target_key) blockers.push("event_target_key_mismatch");
+    if (text(current.status) !== text(event.next_status)) blockers.push("target_status_mismatch");
+    if (text(current.approval_status) !== text(event.next_approval_status)) blockers.push("target_approval_status_mismatch");
+    if (text(event.notification_target) && text(current.notification_target) !== text(event.notification_target)) {
+      blockers.push("notification_target_mismatch");
+    }
+    if (text(event.executor_policy_key) && text(current.executor_policy_key) !== text(event.executor_policy_key)) {
+      blockers.push("executor_policy_key_mismatch");
+    }
+    if (event.will_execute === true || event.will_execute === 1) blockers.push("event_marked_executable");
+    if (event.no_drop === false || event.no_drop === 0) blockers.push("event_drop_guard_missing");
+    if (event.no_delete === false || event.no_delete === 0) blockers.push("event_delete_guard_missing");
+    if (event.no_archive_execution === false || event.no_archive_execution === 0) blockers.push("event_archive_guard_missing");
+    if (event.no_compaction_execution === false || event.no_compaction_execution === 0) blockers.push("event_compaction_guard_missing");
+    if (event.secrets_included === true || event.secrets_included === 1) blockers.push("event_secrets_flagged");
+  }
+  if (normalized.target_type === "binding" && current) {
+    if (current.will_execute === true || current.will_execute === 1) blockers.push("binding_marked_executable");
+    if (current.no_drop === false || current.no_drop === 0) blockers.push("binding_drop_guard_missing");
+    if (current.no_delete === false || current.no_delete === 0) blockers.push("binding_delete_guard_missing");
+    if (current.no_archive_execution === false || current.no_archive_execution === 0) blockers.push("binding_archive_guard_missing");
+    if (current.no_compaction_execution === false || current.no_compaction_execution === 0) blockers.push("binding_compaction_guard_missing");
+    if (current.secrets_included === true || current.secrets_included === 1) blockers.push("binding_secrets_flagged");
+  }
+  return {
+    ok: blockers.length === 0,
+    readback_type: "database_lifecycle_scheduler_approval_metadata_readback_v1",
+    target_type: normalized.target_type,
+    target_key: normalized.target_key,
+    event_id: text(event?.event_id || normalized.event_id),
+    event_key: text(event?.event_key || normalized.event_key),
+    decision: text(event?.decision),
+    status: text(current?.status),
+    approval_status: text(current?.approval_status),
+    notification_target: text(current?.notification_target),
+    executor_policy_key: text(current?.executor_policy_key),
+    dry_run: true,
+    will_execute: false,
+    no_drop: true,
+    no_delete: true,
+    no_archive_execution: true,
+    no_compaction_execution: true,
+    secrets_included: false,
+    verified: blockers.length === 0,
+    verification_blockers: blockers,
+  };
+}
+
 export async function planDatabaseLifecycleSchedulerApproval(input = {}, deps = {}) {
   const normalized = normalizeSchedulerApprovalInput(input);
   const pool = deps.pool || getPool();
@@ -904,6 +995,31 @@ export async function planDatabaseLifecycleSchedulerApproval(input = {}, deps = 
     throw err;
   }
   return buildDatabaseLifecycleSchedulerApprovalPlan(normalized, current);
+}
+
+export async function verifyDatabaseLifecycleSchedulerApprovalReadback(input = {}, deps = {}) {
+  const normalized = {
+    target_type: lower(input.target_type || input.targetType),
+    target_key: text(input.target_key || input.targetKey),
+    event_id: text(input.event_id || input.eventId),
+    event_key: text(input.event_key || input.eventKey),
+  };
+  if (!["schedule", "binding"].includes(normalized.target_type)) {
+    const err = new Error("target_type must be schedule or binding.");
+    err.code = "DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_TARGET_TYPE_INVALID";
+    err.status = 400;
+    throw err;
+  }
+  if (!normalized.target_key) {
+    const err = new Error("target_key is required.");
+    err.code = "DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_TARGET_KEY_REQUIRED";
+    err.status = 400;
+    throw err;
+  }
+  const pool = deps.pool || getPool();
+  const current = await loadSchedulerApprovalTarget(pool, normalized);
+  const event = await loadSchedulerApprovalEvent(pool, normalized);
+  return buildDatabaseLifecycleSchedulerApprovalReadback(normalized, current, event);
 }
 
 export async function applyDatabaseLifecycleSchedulerApproval(plan = {}, deps = {}) {

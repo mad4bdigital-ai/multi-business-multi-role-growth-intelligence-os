@@ -248,6 +248,7 @@ Implemented:
 - lifecycle report snapshot schedule readiness table and dry-run readiness runner
 - lifecycle report scheduler binding readiness table and dry-run readiness runner
 - lifecycle scheduler approval metadata events and confirmation-gated metadata runner
+- lifecycle scheduler approval metadata readback verifier
 - dry-run task plans
 - decision briefs
 - apply-readiness envelope inside decision brief
