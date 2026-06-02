@@ -385,6 +385,16 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   assert("tenant knowledge documents JWT-scoped connector health",
     tenantKnowledge.includes('gpt_activation_guidance.should_call_connect_device_install') &&
     tenantKnowledge.includes('user and tenant IDs must come from the JWT'));
+  assert("remote runtime validates Hostinger SSH via DB credential bindings, not server env",
+    remoteRuntime.includes('loadHostingSshCredentialReadiness') &&
+    remoteRuntime.includes('db_credential_bindings_present_pending_secret_values') &&
+    remoteRuntime.includes('db_credential_values_present_ssh_not_probed'));
+  assert("migration 182 registers platform brand DB-encrypted Hostinger SSH refs",
+    migration182.includes('@platform_brand_key := \'growth_intelligence_platform\'') &&
+    migration182.includes('platform_secret:hostinger_ssh_prod_private_key') &&
+    migration182.includes('storage_backend`, `secret_ref`, `value_sha256`, `value_ciphertext`') &&
+    migration182.includes('store_type = \'db_encrypted\'') &&
+    migration182.includes('credential_bindings'));
 
   for (const [path, operationId] of [
     ["/connect/activate", "postConnectActivate"],
