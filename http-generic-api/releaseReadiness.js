@@ -1121,6 +1121,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
         ...Object.entries(report.legacy_tables).map(([k, v]) => [`legacy.${k}`, v]),
         ...Object.entries(report.seed_data),
         ["migration_inventory", report.migration_inventory],
+        ["governed_migration_ledger", report.governed_migration_ledger],
         ["migration_drift", report.migration_drift],
         ["graph_memory_diagnostics", report.graph_memory_diagnostics],
       ];
