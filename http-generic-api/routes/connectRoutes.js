@@ -235,6 +235,24 @@ function buildOnboardingState({ resolvedTenantId, connection, devices = [] }) {
   };
 }
 
+function buildTenantGptActivationGuidance({ onboarding, devices = [] } = {}) {
+  const registeredDevices = Array.isArray(devices) ? devices : [];
+  const hasRegisteredDevice = registeredDevices.length > 0;
+  return {
+    status: hasRegisteredDevice ? "existing_device_registered" : "device_install_available",
+    should_call_connect_device_install: !hasRegisteredDevice,
+    connect_device_install_call_policy: hasRegisteredDevice
+      ? "Do not call connect_device_install automatically after connect_status when a registered device already exists. Only call it if the user explicitly asks to add, replace, or reinstall a device."
+      : "connect_device_install may be called when the user is activating a workspace that has no registered device, or explicitly asks to add a new device.",
+    next_recommended_action: hasRegisteredDevice
+      ? "Report the healthy workspace/device state and offer the released Local Manager page for optional device management."
+      : "Ask for a lowercase device_id or continue with the requested activation/install flow.",
+    local_manager_download_url: LOCAL_MANAGER_ACTIVATION_BINDING.download_page_url,
+    local_manager_new_device_pairing_url: LOCAL_MANAGER_ACTIVATION_BINDING.new_device_pairing_url,
+    onboarding_state: onboarding?.state || null,
+  };
+}
+
 async function resolveConnectState(userId, jwtTenantId = null) {
   const [user, memberships] = await Promise.all([
     fetchUser(userId),
@@ -529,6 +547,7 @@ export function buildConnectRoutes(deps) {
         hybrid_integration_catalog: hybridIntegrationCatalog(),
         hybrid_integration_readiness: state.hybridIntegrationReadiness,
         local_manager_activation_binding: localManagerActivationBinding(),
+        gpt_activation_guidance: buildTenantGptActivationGuidance({ onboarding: state.onboarding, devices: state.devices }),
         activation_graph_context: state.activationGraphContext,
         connection: state.connection ? {
           mode: state.connection.connection_mode,
