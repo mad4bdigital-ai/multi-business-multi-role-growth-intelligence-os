@@ -326,6 +326,10 @@ section("admin and tenant OpenAI schema coverage for tool additions");
 
   const tenantOps = collectOperations(tenantDoc);
   const tenantOpIds = new Set(tenantOps.map((op) => op.operation.operationId).filter(Boolean));
+  const activateSessionOp = tenantDoc.paths?.["/activation/session-context"]?.get;
+  assert("tenant activateSession requires OAuth before the first API request",
+    Array.isArray(activateSessionOp?.security) &&
+    activateSessionOp.security.some((entry) => Object.prototype.hasOwnProperty.call(entry, "userBearerAuth")));
   const expectedTenantOps = [
     "activateSession",
     "listTools",
