@@ -274,6 +274,104 @@ export function buildDatabaseTableLifecycleRegisterPlan(rows = []) {
   };
 }
 
+function retentionActionForRow(row = {}) {
+  const tableName = text(row.table_name);
+  const retentionClass = text(row.retention_class);
+  const cleanupStrategy = text(row.cleanup_strategy);
+  const archiveStrategy = text(row.archive_strategy);
+  const usageStatus = text(row.usage_status);
+  const ownerEngineKey = text(row.owner_engine_key);
+  const sizeMb = number(row.size_mb);
+  const approxRows = number(row.approx_rows);
+  const riskLevel = text(row.risk_level || "medium");
+  const reasons = [];
+
+  let action = "review_policy";
+  let execution_allowed = false;
+  let requires_approval = riskLevel === "high" || riskLevel === "critical";
+  let validator = "readback_registry_row";
+
+  if (retentionClass === "hot_then_archive" && cleanupStrategy.includes("archive")) {
+    action = ownerEngineKey === "session_memory_lifecycle_engine"
+      ? "summarize_then_archive_plan"
+      : "time_window_archive_plan";
+    reasons.push("hot_log_retention_policy_present");
+  } else if (retentionClass === "long_retention_archive") {
+    action = "long_retention_archive_plan";
+    reasons.push("long_retention_policy_present");
+  } else if (retentionClass === "canonical_with_compaction" || cleanupStrategy.includes("compact")) {
+    action = "compaction_candidate_review";
+    reasons.push("canonical_compaction_policy_present");
+  } else if (usageStatus === "backup_snapshot") {
+    action = "backup_snapshot_retention_review";
+    reasons.push("backup_snapshot_policy_present");
+  } else if (usageStatus === "planned_placeholder") {
+    action = "owner_or_archive_candidate_review";
+    reasons.push("placeholder_requires_owner_or_review");
+  } else {
+    reasons.push("retention_policy_requires_review");
+  }
+
+  if (sizeMb >= 8 || approxRows >= 5000) reasons.push("growth_hotspot");
+  if (archiveStrategy.includes("manual_review")) requires_approval = true;
+
+  return {
+    table_name: tableName,
+    owner_engine_key: ownerEngineKey || "database_table_lifecycle_engine",
+    usage_status: usageStatus || "manual_review",
+    risk_level: riskLevel,
+    approx_rows: approxRows,
+    size_mb: sizeMb,
+    retention_class: retentionClass || "requires_policy",
+    retention_days: row.retention_days ?? null,
+    archive_strategy: archiveStrategy || "manual_review",
+    cleanup_strategy: cleanupStrategy || "none",
+    recommended_action: action,
+    execution_allowed,
+    requires_approval,
+    validator,
+    reasons,
+  };
+}
+
+export function buildDatabaseLifecycleRetentionPlan(rows = []) {
+  const actions = rows
+    .map(retentionActionForRow)
+    .sort((left, right) => {
+      const riskOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+      const riskDelta = (riskOrder[right.risk_level] || 0) - (riskOrder[left.risk_level] || 0);
+      if (riskDelta) return riskDelta;
+      return number(right.size_mb) - number(left.size_mb);
+    });
+  const byAction = {};
+  const byOwner = {};
+  let approvalRequired = 0;
+  for (const action of actions) {
+    byAction[action.recommended_action] = (byAction[action.recommended_action] || 0) + 1;
+    byOwner[action.owner_engine_key] = (byOwner[action.owner_engine_key] || 0) + 1;
+    if (action.requires_approval) approvalRequired += 1;
+  }
+  return {
+    ok: true,
+    plan_type: "database_lifecycle_retention_plan_v1",
+    dry_run: true,
+    will_write: false,
+    no_drop: true,
+    no_delete: true,
+    no_archive_execution: true,
+    no_compaction_execution: true,
+    summary: {
+      table_count: actions.length,
+      approval_required_count: approvalRequired,
+      by_recommended_action: byAction,
+      by_owner_engine: byOwner,
+    },
+    actions,
+    required_next_step: "review_actions_then_create_separate_governed_execution_runner",
+    secrets_included: false,
+  };
+}
+
 export function assertDatabaseTableLifecycleRegistryUpsertAllowed({ apply = false, confirm } = {}) {
   if (!apply) {
     return {
@@ -335,4 +433,26 @@ export async function planDatabaseTableLifecycleRegistryUpsert({ limit = 250 } =
   const rows = await loadDatabaseLifecycleRows(pool);
   const capped = rows.slice(0, Math.max(1, Math.min(number(limit, 250), 1000)));
   return buildDatabaseTableLifecycleRegisterPlan(capped);
+}
+
+export async function planDatabaseLifecycleRetentionReview({ limit = 50 } = {}, deps = {}) {
+  const pool = deps.pool || getPool();
+  const [rows] = await pool.query(
+    `SELECT table_name, table_family, owner_engine_key, usage_status, risk_level,
+            approx_rows, size_mb, retention_class, retention_days,
+            archive_strategy, cleanup_strategy, growth_policy, status, notes, last_checked_at
+       FROM database_table_lifecycle_registry
+      WHERE risk_level IN ('high', 'critical')
+         OR COALESCE(size_mb, 0) >= 5
+         OR COALESCE(approx_rows, 0) >= 5000
+         OR usage_status IN ('backup_snapshot', 'planned_placeholder')
+      ORDER BY
+        CASE risk_level WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END DESC,
+        COALESCE(size_mb, 0) DESC,
+        COALESCE(approx_rows, 0) DESC,
+        table_name ASC
+      LIMIT ?`,
+    [Math.max(1, Math.min(number(limit, 50), 500))]
+  );
+  return buildDatabaseLifecycleRetentionPlan(rows);
 }

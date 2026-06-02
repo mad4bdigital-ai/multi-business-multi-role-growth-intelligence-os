@@ -31,6 +31,22 @@ Lists credential/secret/token-related lifecycle entries without exposing secret 
 ### `v_database_lifecycle_backup_snapshot_review`
 Lists backup and repair snapshot tables for retention review.
 
+## Retention plan CLI
+
+`http-generic-api/scripts/database-lifecycle-retention-plan.mjs` reads the
+lifecycle registry and emits a dry-run retention/growth action plan for
+hotspots, backup snapshots, placeholders, and high-risk rows.
+
+The plan is review-only:
+
+- it does not write to the database;
+- it does not drop, truncate, or delete tables;
+- it does not execute archive or compaction work;
+- every generated action has `execution_allowed = false`.
+
+Execution requires a future, separate governed runner with approval, validator,
+readback, and audit evidence gates.
+
 ## Operating rules
 
 - Treat all reports as decision support, not automatic action.
