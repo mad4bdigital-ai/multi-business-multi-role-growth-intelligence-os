@@ -114,6 +114,40 @@ export function buildOutputSinkRoutes(deps) {
     }
   });
 
+  // ── POST /wordpress/blog-publish-smoke — admin-only draft smoke through orchestrator ──
+  router.post("/wordpress/blog-publish-smoke", async (req, res) => {
+    try {
+      const {
+        tenant_id,
+        user_id,
+        connection_id,
+        brand_key,
+        target_key,
+        title = "Governed WordPress Draft Smoke",
+        content = "<p>Governed smoke test draft. Safe to delete.</p>",
+      } = req.body || {};
+      if (!tenant_id || !user_id || !connection_id || (!brand_key && !target_key)) {
+        return res.status(400).json({ ok: false, error: { code: "missing_required_fields", message: "tenant_id, user_id, connection_id, and brand_key or target_key are required." } });
+      }
+      const result = await dispatchWordpressBlogPublish({
+        plan_id: `wordpress-draft-smoke-${Date.now()}`,
+        tenant_id,
+        user_id,
+        connection_id,
+        brand_key: brand_key || target_key,
+        target_key: target_key || brand_key,
+        workflow_key: "wordpress_blog_publish_or_recover_credentials_workflow",
+        steps_json: JSON.stringify([{ body: { connection_id } }]),
+        title,
+        content,
+        status: "draft",
+      });
+      res.status(result.ok ? 200 : 422).json({ ...result, smoke: true, requested_status: "draft" });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: "wordpress_blog_publish_smoke_failed", message: err.message } });
+    }
+  });
+
   // ── POST /execution-plans/:id/dispatch — execute a validated/approved plan ──
   router.post("/execution-plans/:id/dispatch", async (req, res) => {
     try {
