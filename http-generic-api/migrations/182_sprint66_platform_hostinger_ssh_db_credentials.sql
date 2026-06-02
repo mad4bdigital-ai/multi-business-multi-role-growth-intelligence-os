@@ -80,7 +80,7 @@ WHERE NOT EXISTS (
 
 UPDATE `connected_systems`
    SET config_json = JSON_SET(
-       COALESCE(CAST(config_json AS JSON), JSON_OBJECT()),
+       COALESCE(config_json, JSON_OBJECT()),
        '$.secret_storage', 'platform_db_encrypted',
        '$.credential_owner', JSON_OBJECT('owner_type','platform','brand_id',@platform_brand_id,'brand_target_key',@platform_brand_key),
        '$.secret_refs.host', 'platform_secret:hostinger_ssh_prod_host',
