@@ -2,9 +2,11 @@ import { Router } from "express";
 import {
   assertDatabaseLifecycleReportSnapshotAllowed,
   assessDatabaseLifecycleReportSnapshotScheduleReadiness,
+  assessDatabaseLifecycleSchedulerBindingReadiness,
   buildDatabaseLifecycleReportSnapshot,
   listDatabaseLifecycleReportSnapshotSchedules,
   listDatabaseLifecycleReportSnapshots,
+  listDatabaseLifecycleSchedulerBindings,
   planDatabaseTableLifecycleRegistryUpsert,
   planDatabaseLifecycleRetentionReview,
   runDatabaseTableLifecycleCensus,
@@ -240,6 +242,43 @@ export function buildPlatformEngineRoutes(deps = {}) {
       res.json({ ok: true, readiness });
     } catch (error) {
       res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_report_snapshot_schedule_readiness_failed", message: error.message } });
+    }
+  });
+
+  router.get("/platform/engines/database-lifecycle/scheduler-bindings", ...requireAdmin, async (req, res) => {
+    try {
+      const bindings = await listDatabaseLifecycleSchedulerBindings({
+        schedule_key: req.query.schedule_key,
+        status: req.query.status,
+        limit: req.query.limit,
+      }, deps);
+      res.json({
+        ok: true,
+        dry_run: true,
+        will_execute: false,
+        no_drop: true,
+        no_delete: true,
+        no_archive_execution: true,
+        no_compaction_execution: true,
+        secrets_included: false,
+        bindings,
+      });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_scheduler_bindings_failed", message: error.message } });
+    }
+  });
+
+  router.post("/platform/engines/database-lifecycle/scheduler-binding-readiness", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body || {};
+      const readiness = await assessDatabaseLifecycleSchedulerBindingReadiness({
+        binding_key: input.binding_key,
+        schedule_key: input.schedule_key,
+        limit: input.limit,
+      }, deps);
+      res.json({ ok: true, readiness });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_scheduler_binding_readiness_failed", message: error.message } });
     }
   });
 

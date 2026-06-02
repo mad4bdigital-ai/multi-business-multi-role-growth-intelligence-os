@@ -12032,6 +12032,61 @@ paths:
         "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /platform/engines/database-lifecycle/scheduler-bindings:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleSchedulerBindings
+      summary: List database lifecycle scheduler bindings
+      description: >
+        Lists planned lifecycle snapshot scheduler bindings. This route is read-only and does not enable or run scheduler work.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: schedule_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200": { description: Database lifecycle scheduler bindings, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/database-lifecycle/scheduler-binding-readiness:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleSchedulerBindingReadiness
+      summary: Assess database lifecycle scheduler binding readiness
+      description: >
+        Assesses planned lifecycle snapshot scheduler bindings. This route is read-only and does not enable scheduler work
+        or execute snapshots.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                binding_key: { type: string }
+                schedule_key: { type: string }
+                limit: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200": { description: Database lifecycle scheduler binding readiness, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
   /tenant/evolution/switch-options:
     get:
       tags: [platform-evolution]
