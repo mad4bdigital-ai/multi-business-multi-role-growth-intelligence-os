@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import yaml from "js-yaml";
+import YAML from "yaml";
 
 const METHOD_NAMES = new Set(["get", "post", "put", "delete", "patch", "options", "head", "trace"]);
 const SPLIT_SCHEMA_FILES = [
@@ -20,7 +20,7 @@ function collectOperations(doc) {
 }
 
 function loadYaml(path) {
-  return yaml.load(readFileSync(path, "utf8"));
+  return YAML.parse(readFileSync(path, "utf8"));
 }
 
 function resolveJsonPointer(doc, pointer) {
@@ -112,6 +112,6 @@ assert(splitScript.includes("tenant_operation_ids"), "split-openapi must select 
 assert(splitScript.includes("x-tenant-gpt-operationId"), "split-openapi must support source-declared tenant aliases");
 assert(splitScript.includes("validateUniqueTenantAliases"), "split-openapi must reject duplicate tenant operation aliases");
 assert(splitScript.includes("validateSplitOperationsComeFromSource"), "split-openapi must validate generated split operations against main source");
-assert(!splitScript.includes("yaml.load(fs.readFileSync(tenantPath"), "split-openapi must not use tenant schema as the tenant source-of-truth");
+assert(!splitScript.includes("YAML.parse(fs.readFileSync(tenantPath"), "split-openapi must not use tenant schema as the tenant source-of-truth");
 
 console.log("openapi split governance tests passed");

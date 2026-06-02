@@ -11,6 +11,10 @@ const doc = fs.readFileSync(
 );
 const tenantOpenApi = fs.readFileSync(new URL('./openapi.tenant-gpt.auth.yaml', import.meta.url), 'utf8');
 const releaseReadiness = fs.readFileSync(new URL('./releaseReadiness.js', import.meta.url), 'utf8');
+const governedMigrationRunner = fs.readFileSync(
+  new URL('./scripts/governed-migration-runner.mjs', import.meta.url),
+  'utf8'
+);
 
 const requiredTables = [
   'platform_audit_event_bus',
@@ -72,6 +76,10 @@ assert(migration.includes('commit_sha'), 'repo/checkpoint audit tables must supp
 assert(
   releaseReadiness.includes('179_sprint66_dynamic_capability_audit_foundation.sql'),
   'release readiness governed ledger expectation must include migration 179'
+);
+assert(
+  governedMigrationRunner.includes('179_sprint66_dynamic_capability_audit_foundation.sql'),
+  'governed migration runner allowlist must include migration 179'
 );
 
 for (const destructiveSql of [

@@ -27,6 +27,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "168_sprint65_database_table_lifecycle_governance.sql",
   "176_sprint66_governed_migration_ledger.sql",
   "178_sprint66_runtime_authority_certification_registries.sql",
+  "179_sprint66_dynamic_capability_audit_foundation.sql",
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v2";

@@ -9,7 +9,7 @@
 
 import express from "express";
 import { readFileSync } from "node:fs";
-import yaml from "js-yaml";
+import YAML from "yaml";
 import { buildConnectRoutes, _testingSanitizeMetadataPayload, _testingAllowlists } from "./routes/connectRoutes.js";
 import { buildConnectApiRoutes } from "./routes/connectApiRoutes.js";
 import { buildOnboardingRoutes } from "./routes/onboardingRoutes.js";
@@ -124,7 +124,7 @@ try {
   {
     // MCP-style tenant schema plus direct tenant Platform Plugin self-serve actions.
     // Connect/system operations are still accessed via callTool (discovered through listTools).
-    const doc = yaml.load(readFileSync("openapi.tenant-gpt.auth.yaml", "utf8"));
+    const doc = YAML.parse(readFileSync("openapi.tenant-gpt.auth.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const securityScheme = doc.components?.securitySchemes?.userBearerAuth;
     const callToolSchema = doc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
@@ -678,7 +678,7 @@ section("connect api auth scope");
   section("local connector GPT action schema");
 
   {
-    const doc = yaml.load(readFileSync("openapi.gpt-action.local-connector.yaml", "utf8"));
+    const doc = YAML.parse(readFileSync("openapi.gpt-action.local-connector.yaml", "utf8"));
     const exposedPaths = Object.keys(doc.paths || {});
     const allOperations = exposedPaths.flatMap((pathKey) => {
       const pathItem = doc.paths[pathKey] || {};
@@ -776,7 +776,7 @@ section("connect api auth scope");
   section("auth-host connector proxy schema");
 
   {
-    const doc = yaml.load(readFileSync("openapi.yaml", "utf8"));
+    const doc = YAML.parse(readFileSync("openapi.yaml", "utf8"));
     const proxySource = readFileSync("routes/connectorProxyRoutes.js", "utf8");
     const proxyPaths = Object.keys(doc.paths || {}).filter((pathKey) => pathKey.startsWith("/connector/{device_id}/"));
     for (const pathKey of ["/connector/{device_id}/diagnostics", "/connector/{device_id}/dependencies", "/connector/{device_id}/apps", "/connector/{device_id}/browser", "/connector/{device_id}/ps", "/connector/{device_id}/win", "/connector/{device_id}/n8n", "/connector/{device_id}/cf"]) {

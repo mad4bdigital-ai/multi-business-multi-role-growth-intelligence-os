@@ -1,5 +1,5 @@
 import fs from "fs";
-import yaml from "js-yaml";
+import YAML from "yaml";
 import path from "path";
 
 // GPT schema architecture:
@@ -254,7 +254,7 @@ function generateAuthDispatcher(sourceDoc, sourceOperations) {
   validateSplitOperationsComeFromSource(doc, sourceDoc, AUTH_DISPATCHER_SCHEMA_FILE);
   const count = countOperations(doc.paths);
   const outPath = path.resolve(`./${AUTH_DISPATCHER_SCHEMA_FILE}`);
-  fs.writeFileSync(outPath, yaml.dump(doc, { lineWidth: -1, noRefs: true }), "utf8");
+  fs.writeFileSync(outPath, YAML.stringify(doc, { lineWidth: -1, aliasDuplicateObjects: false }), "utf8");
   console.log(`Generated ${outPath} (${count} operations) -> https://${AUTH_DISPATCHER_HOST}`);
 }
 
@@ -345,7 +345,7 @@ function generateTenantAuthSchema(sourceDoc, sourceOperations) {
   const count = countOperations(doc.paths);
   if (count > MAX_OPERATIONS) throw new Error(`${TENANT_AUTH_SCHEMA_FILE} has ${count} operations; max is ${MAX_OPERATIONS}.`);
   const tenantPath = path.resolve(`./${TENANT_AUTH_SCHEMA_FILE}`);
-  fs.writeFileSync(tenantPath, yaml.dump(doc, { lineWidth: -1, noRefs: true }), "utf8");
+  fs.writeFileSync(tenantPath, YAML.stringify(doc, { lineWidth: -1, aliasDuplicateObjects: false }), "utf8");
   console.log(`Generated ${tenantPath} (${count} operations) -> ${doc.servers?.[0]?.url || "tenant auth"}`);
 }
 
@@ -353,7 +353,7 @@ function main() {
   const openApiPath = path.resolve(`./${SOURCE_OPENAPI_FILE}`);
   if (!fs.existsSync(openApiPath)) { console.error(`Could not find ${SOURCE_OPENAPI_FILE}`); process.exit(1); }
 
-  const sourceDoc = yaml.load(fs.readFileSync(openApiPath, "utf8"));
+  const sourceDoc = YAML.parse(fs.readFileSync(openApiPath, "utf8"));
   const sourceOperations = collectOperations(sourceDoc);
 
   generateAuthDispatcher(sourceDoc, sourceOperations);

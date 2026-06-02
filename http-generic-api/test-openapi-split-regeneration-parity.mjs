@@ -3,7 +3,7 @@ import { mkdtempSync, cpSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import yaml from "js-yaml";
+import YAML from "yaml";
 
 const GENERATED_SPLIT_FILES = [
   "openapi.tenant-gpt.auth.yaml",
@@ -13,7 +13,7 @@ const METHODS = new Set(["get", "post", "put", "delete", "patch", "options", "he
 
 function readGeneratedSpecs(root) {
   return Object.fromEntries(
-    GENERATED_SPLIT_FILES.map((file) => [file, yaml.load(readFileSync(join(root, file), "utf8"))])
+    GENERATED_SPLIT_FILES.map((file) => [file, YAML.parse(readFileSync(join(root, file), "utf8"))])
   );
 }
 
@@ -43,7 +43,10 @@ const tempRoot = mkdtempSync(join(tmpdir(), "openapi-split-parity-"));
 try {
   cpSync(sourceRoot, tempRoot, {
     recursive: true,
-    filter: (source) => !source.includes("/node_modules") && !source.includes("/.git"),
+    filter: (source) => {
+      const normalized = source.replace(/\\/g, "/");
+      return !normalized.includes("/node_modules") && !normalized.includes("/.git");
+    },
   });
 
   const before = readGeneratedSpecs(tempRoot);

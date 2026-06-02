@@ -10,7 +10,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import yaml from "js-yaml";
+import YAML from "yaml";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -83,7 +83,7 @@ function section(name) {
 }
 
 function loadSchema(file) {
-  return yaml.load(readFileSync(resolve(__dirname, file), "utf8"));
+  return YAML.parse(readFileSync(resolve(__dirname, file), "utf8"));
 }
 
 function collectOperations(doc) {
@@ -571,7 +571,7 @@ section("Sprint 56: device-tools MCP facade");
 section("Sprint 57: Local Manager device-link schema coverage");
 {
   const parentDoc = loadSchema("openapi.yaml");
-  const childDoc = yaml.load(readFileSync(resolve(__dirname, "schemas/http-generic-api/http-generic-api.yaml"), "utf8"));
+  const childDoc = YAML.parse(readFileSync(resolve(__dirname, "schemas/http-generic-api/http-generic-api.yaml"), "utf8"));
   const expectedPaths = [
     "/local-manager/device-link/start",
     "/local-manager/device-link/preview",
