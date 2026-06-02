@@ -1131,6 +1131,50 @@ components:
           additionalProperties: true
         secrets_included: { type: boolean, enum: [false] }
 
+    WordpressPublishAuthorityDiagnosticRequest:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, user_id]
+      properties:
+        tenant_id: { type: string, minLength: 1 }
+        user_id: { type: string, minLength: 1 }
+        connection_id: { type: string }
+        brand_key: { type: string }
+        target_key: { type: string }
+        title: { type: string }
+        content: { type: string }
+        status: { type: string, enum: [draft, publish], default: draft }
+        publish_status: { type: string, enum: [draft, publish] }
+      anyOf:
+        - required: [brand_key]
+        - required: [target_key]
+
+    WordpressPublishAuthorityDiagnosticResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, status, decision, executes_publish, applies_wordpress_post, secrets_included]
+      properties:
+        ok: { type: boolean }
+        status: { type: string }
+        decision: { type: string, enum: [allowed, legacy_allowed, blocked] }
+        target_key: { type: string }
+        requested_status: { type: string, enum: [draft, publish] }
+        post_type: { type: string }
+        site_id: { type: string, nullable: true }
+        grant_id: { type: string, nullable: true }
+        grant_status: { type: string, nullable: true }
+        grant_required: { type: boolean }
+        authority_checks:
+          type: object
+          additionalProperties: true
+        error:
+          oneOf:
+            - $ref: "#/components/schemas/ErrorObject"
+            - type: "null"
+        executes_publish: { type: boolean, enum: [false] }
+        applies_wordpress_post: { type: boolean, enum: [false] }
+        secrets_included: { type: boolean, enum: [false] }
+
     ReleaseDashboardResponse:
       type: object
       additionalProperties: true
