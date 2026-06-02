@@ -31,11 +31,12 @@ const ALLOWED_MIGRATIONS = new Set([
 const RUNNER_VERSION = "governed-migration-runner-v2";
 
 function parseArgs(argv = process.argv.slice(2)) {
-  const parsed = { mode: "dry_run", migration: "", confirm: "" };
+  const parsed = { mode: "dry_run", migration: "", confirm: "", recordOnly: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = String(argv[i] || "");
     if (arg === "--dry-run") parsed.mode = "dry_run";
     else if (arg === "--apply") parsed.mode = "apply";
+    else if (arg === "--record-ledger") parsed.recordOnly = true;
     else if (arg === "--migration") parsed.migration = String(argv[++i] || "");
     else if (arg.startsWith("--migration=")) parsed.migration = arg.slice("--migration=".length);
     else if (arg === "--confirm") parsed.confirm = String(argv[++i] || "");
@@ -45,8 +46,9 @@ function parseArgs(argv = process.argv.slice(2)) {
   return parsed;
 }
 
-function confirmationFor(filename = "") {
-  return `APPLY_${String(filename).replace(/\.sql$/i, "").replace(/[^A-Za-z0-9]+/g, "_").toUpperCase()}`;
+function confirmationFor(filename = "", { recordOnly = false } = {}) {
+  const prefix = recordOnly ? "RECORD" : "APPLY";
+  return `${prefix}_${String(filename).replace(/\.sql$/i, "").replace(/[^A-Za-z0-9]+/g, "_").toUpperCase()}`;
 }
 
 function artifactNames(requirements = {}) {
@@ -85,6 +87,19 @@ function sha256(value = "") {
   return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
 }
 
+async function findLedgerEntry(migration, checksum, mode = "record_only") {
+  try {
+    const [rows] = await getPool().query(
+      "SELECT run_id, migration_file, migration_checksum_sha256, mode, applied_at FROM governed_migration_ledger WHERE migration_file = ? AND migration_checksum_sha256 = ? AND mode = ? ORDER BY applied_at DESC LIMIT 1",
+      [migration, checksum, mode]
+    );
+    return rows?.[0] || null;
+  } catch (error) {
+    if (/doesn't exist|ER_NO_SUCH_TABLE/i.test(String(error?.message || ""))) return null;
+    throw error;
+  }
+}
+
 async function recordMigrationLedger({
   migration,
   checksum,
@@ -94,25 +109,30 @@ async function recordMigrationLedger({
   results,
   before_schema_objects,
   after_schema_objects,
+  ledgerMode = "apply",
+  appliedBy = process.env.GOVERNED_MIGRATION_APPLIED_BY || "governed_migration_runner",
+  extraMetadata = {},
 }) {
   const run_id = randomUUID();
   const metadata = {
     node_version: process.version,
     platform: process.platform,
     runner_pid: process.pid,
+    ...extraMetadata,
   };
   await getPool().query(
     `INSERT INTO governed_migration_ledger
       (run_id, migration_file, migration_checksum_sha256, applied_by, runner_version, mode,
        statement_count, preflight_status, preflight_risk_count, requirements_json, results_json,
        before_schema_objects_json, after_schema_objects_json, metadata_json, secrets_included)
-     VALUES (?, ?, ?, ?, ?, 'apply', ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
     [
       run_id,
       migration,
       checksum,
-      process.env.GOVERNED_MIGRATION_APPLIED_BY || "governed_migration_runner",
+      appliedBy,
       RUNNER_VERSION,
+      ledgerMode,
       statement_count,
       preflight?.status || "unknown",
       Number(preflight?.risk_count || 0),
@@ -178,26 +198,81 @@ async function main() {
     return;
   }
 
+  const existingRecordOnlyLedger = args.recordOnly
+    ? await findLedgerEntry(migration, migration_checksum_sha256, "record_only")
+    : null;
+
   if (args.mode !== "apply") {
     console.log(JSON.stringify({
       ok: true,
-      mode: "dry_run",
+      mode: args.recordOnly ? "record_only_dry_run" : "dry_run",
       migration,
       migration_checksum_sha256,
       applies_sql: false,
+      records_ledger_only: Boolean(args.recordOnly),
+      existing_record_only_ledger: existingRecordOnlyLedger,
       preflight,
       statement_count: statements.length,
       requirements: artifactNames(requirements),
       before_schema_objects,
-      required_confirmation: confirmationFor(migration),
+      required_confirmation: confirmationFor(migration, { recordOnly: args.recordOnly }),
       secrets_included: false,
     }, null, 2));
     return;
   }
 
-  const requiredConfirm = confirmationFor(migration);
+  const requiredConfirm = confirmationFor(migration, { recordOnly: args.recordOnly });
   if (args.confirm !== requiredConfirm) {
-    throw new Error(`Apply requires --confirm=${requiredConfirm}`);
+    throw new Error(`${args.recordOnly ? "Record-only ledger backfill" : "Apply"} requires --confirm=${requiredConfirm}`);
+  }
+
+  if (args.recordOnly) {
+    if (existingRecordOnlyLedger) {
+      console.log(JSON.stringify({
+        ok: true,
+        mode: "record_only",
+        migration,
+        migration_checksum_sha256,
+        applies_sql: false,
+        recorded: false,
+        duplicate: true,
+        existing_ledger: existingRecordOnlyLedger,
+        preflight,
+        statement_count,
+        requirements: artifactNames(requirements),
+        before_schema_objects,
+        secrets_included: false,
+      }, null, 2));
+      return;
+    }
+    const ledger = await recordMigrationLedger({
+      migration,
+      checksum: migration_checksum_sha256,
+      preflight,
+      statement_count,
+      requirements,
+      results: [],
+      before_schema_objects,
+      after_schema_objects: before_schema_objects,
+      ledgerMode: "record_only",
+      appliedBy: "governed_migration_runner_backfill",
+      extraMetadata: { record_only_backfill: true, sql_applied_by_this_run: false },
+    });
+    console.log(JSON.stringify({
+      ok: true,
+      mode: "record_only",
+      migration,
+      migration_checksum_sha256,
+      applies_sql: false,
+      recorded: true,
+      preflight,
+      statement_count,
+      requirements: artifactNames(requirements),
+      before_schema_objects,
+      ledger,
+      secrets_included: false,
+    }, null, 2));
+    return;
   }
 
   const results = await applyStatements(statements);

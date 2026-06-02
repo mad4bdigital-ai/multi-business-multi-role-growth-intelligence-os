@@ -1300,6 +1300,24 @@ function builtInShellAllowlist() {
       timeout_ms: 600000,
       built_in: true
     },
+    migration_ledger_record_dry_run: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--record-ledger", "--dry-run"],
+      display_name: "Governed migration ledger record-only dry-run",
+      allow_extra_args: true,
+      max_extra_args: 4,
+      timeout_ms: 300000,
+      built_in: true
+    },
+    migration_ledger_record_apply: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--record-ledger", "--apply"],
+      display_name: "Governed migration ledger record-only apply",
+      allow_extra_args: true,
+      max_extra_args: 6,
+      timeout_ms: 600000,
+      built_in: true
+    },
     local_gateway_hostinger_proxy: {
       command: process.execPath,
       args: ["http-generic-api/scripts/local-gateway-hostinger-proxy.mjs"],

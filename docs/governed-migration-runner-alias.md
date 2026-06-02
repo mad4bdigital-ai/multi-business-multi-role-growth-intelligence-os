@@ -8,8 +8,10 @@ The governed migration runner provides a narrow, auditable shell-alias path for 
 
 - `migration_apply_guarded_dry_run`
 - `migration_apply_guarded_apply`
+- `migration_ledger_record_dry_run`
+- `migration_ledger_record_apply`
 
-Both aliases execute `http-generic-api/scripts/governed-migration-runner.mjs` through `admin_control` shell dispatch.
+All aliases execute `http-generic-api/scripts/governed-migration-runner.mjs` through `admin_control` shell dispatch.
 
 ## Safety contract
 
@@ -20,6 +22,8 @@ The runner is intentionally constrained:
 - It refuses apply unless preflight status is `pass`.
 - Dry-run mode never applies SQL.
 - Apply mode requires an explicit typed confirmation token derived from the migration filename.
+- Record-only ledger mode never executes migration SQL; it records checksum/preflight evidence for previously applied migrations.
+- Record-only ledger apply requires a `RECORD_...` confirmation token and deduplicates by migration filename + checksum + mode.
 - The output is bounded JSON and does not include secrets.
 
 ## Current allowlist
@@ -47,6 +51,17 @@ admin_control shell migration_apply_guarded_dry_run --migration=166_sprint65_ai_
 admin_control shell migration_apply_guarded_apply \
   --migration=166_sprint65_ai_intelligence_runtime_governance.sql \
   --confirm=APPLY_166_SPRINT65_AI_INTELLIGENCE_RUNTIME_GOVERNANCE
+```
+
+## Example ledger record-only backfill
+
+```bash
+admin_control shell migration_ledger_record_dry_run \
+  --migration=166_sprint65_ai_intelligence_runtime_governance.sql
+
+admin_control shell migration_ledger_record_apply \
+  --migration=166_sprint65_ai_intelligence_runtime_governance.sql \
+  --confirm=RECORD_166_SPRINT65_AI_INTELLIGENCE_RUNTIME_GOVERNANCE
 ```
 
 ## Output evidence
