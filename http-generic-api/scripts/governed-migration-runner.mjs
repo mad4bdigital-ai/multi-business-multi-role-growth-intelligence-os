@@ -96,6 +96,9 @@ async function recordMigrationLedger({
   results,
   before_schema_objects,
   after_schema_objects,
+  ledgerMode = "apply",
+  appliedBy = process.env.GOVERNED_MIGRATION_APPLIED_BY || "governed_migration_runner",
+  extraMetadata = {},
 }) {
   const run_id = randomUUID();
   const metadata = {
