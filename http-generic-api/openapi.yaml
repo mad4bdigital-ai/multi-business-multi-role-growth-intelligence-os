@@ -12066,6 +12066,121 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /tenant/docs:
+    get:
+      tags: [tenant-docs]
+      operationId: tenantDocsCatalog
+      summary: List tenant-safe live repository documents
+      description: Returns the allowlisted tenant-facing documentation files available to the signed-in tenant user. Does not expose admin-only docs, migrations, or secrets.
+      security:
+        - backendBearerAuth: []
+      responses:
+        "200":
+          description: Tenant-safe docs catalog.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantDocsCatalogResponse" }
+        "401":
+          description: Missing or invalid user JWT.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active tenant membership required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /tenant/docs/read:
+    get:
+      tags: [tenant-docs]
+      operationId: tenantDocRead
+      summary: Read one tenant-safe live repository document
+      description: Reads a bounded allowlisted tenant-facing repository document by path. Blocks path traversal, absolute paths, non-allowlisted docs, admin-only guides, migrations, and schema dumps.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - GPT_Tenant_Connector_Instructions.md
+              - GPT_Tenant_Connector_Knowledge.md
+              - docs/tenant-platform-plugin-self-serve.md
+              - docs/local-manager-n8n-runtime-governance.md
+              - docs/platform-plugin-tenant-install.md
+              - docs/platform-plugin-private-runtime.md
+        - name: max_chars
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 500
+            maximum: 20000
+            default: 20000
+      responses:
+        "200":
+          description: Bounded tenant-safe document content.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantDocReadResponse" }
+        "401":
+          description: Missing or invalid user JWT.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active tenant membership required or blocked path.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Document is not tenant-safe or is not allowlisted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /release/dashboard:
+    get:
+      tags: [release]
+      operationId: getReleaseDashboard
+      summary: Read compact release dashboard
+      description: Returns a compact read-only projection over release_readiness. The dashboard is not a second source of truth.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        "200":
+          description: Compact release dashboard.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleaseDashboardResponse" }
+        "500":
+          description: Dashboard generation failed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /admin/release/dashboard:
+    get:
+      tags: [release]
+      operationId: getAdminReleaseDashboard
+      summary: Read compact admin release dashboard
+      description: Admin alias for the compact read-only release dashboard backed by release_readiness.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        "200":
+          description: Compact release dashboard.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleaseDashboardResponse" }
+        "500":
+          description: Dashboard generation failed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /tenant/platform/plugins/catalog:
     get:
       tags: [platform-plugins]
