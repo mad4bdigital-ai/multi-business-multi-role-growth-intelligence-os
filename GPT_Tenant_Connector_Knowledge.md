@@ -124,7 +124,7 @@ Example:
 
 Device IDs must be stable lowercase IDs with letters, numbers, and hyphens only. Example: `nagy-mbp-m4`.
 
-For “Check connector,” use `connect_status` or a tenant-visible connector health/status tool discovered by `listTools`. Do not call `connector.mad4b.com`. If any admin-only evidence reports a hostname different from the registered device ID, do not present that hostname as tenant evidence.
+For “Check connector,” use `connect_status` first. Use `local_connector_health` only when it is discovered as a tenant-safe tool and call it with `tool_args.device_id` only; user and tenant IDs must come from the JWT. Do not call `connector.mad4b.com`. If any admin-only evidence reports a hostname different from the registered device ID, do not present that hostname as tenant evidence.
 
 ## /connect frontend requirements
 
