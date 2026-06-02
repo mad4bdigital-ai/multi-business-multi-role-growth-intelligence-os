@@ -301,6 +301,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   const dedicatedPolicy = readFileSync(resolve(__dirname, "dedicatedIntegrationPolicy.js"), "utf8");
   const hybridPolicy = readFileSync(resolve(__dirname, "hybridIntegrationPolicy.js"), "utf8");
   const connectRoutes = readFileSync(resolve(__dirname, "routes/connectRoutes.js"), "utf8");
+  const systemLayerRoutes = readFileSync(resolve(__dirname, "routes/systemLayerRoutes.js"), "utf8");
   const migration104 = readFileSync(resolve(__dirname, "migrations/104_sprint64_activation_mode_governance.sql"), "utf8");
   const migration105 = readFileSync(resolve(__dirname, "migrations/105_sprint64_dedicated_integration_flow.sql"), "utf8");
   const migration106 = readFileSync(resolve(__dirname, "migrations/106_sprint64_hybrid_integration_policy.sql"), "utf8");
