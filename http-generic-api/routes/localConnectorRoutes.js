@@ -120,7 +120,7 @@ export function buildLocalConnectorRoutes(deps) {
           signal: AbortSignal.timeout(10000),
         });
         const data = await response.json();
-        return res.status(200).json({ ok: true, tunnel_url: tunnelUrl, agent: data });
+        return res.status(200).json({ ok: true, tunnel_url: tunnelUrl, agent: data, auth_derived });
       } catch (e) {
         return res.status(200).json({ ok: false, tunnel_url: tunnelUrl, error: { code: "connector_unreachable", message: e.message } });
       }
