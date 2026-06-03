@@ -57,7 +57,7 @@ VALUES
       )
     ),
     NULL,
-    'platform_engine,database_lifecycle,scheduler_approval,metadata_write,confirmation_required,no_drop,no_delete,no_archive_execution,no_secret_read,admin',
+    'platform_engine,database_lifecycle,scheduler_approval,metadata_write,confirmation_required,typed_confirmation_required,no_drop,no_delete,no_archive_execution,no_secret_read,admin',
     1,
     4316
   )
