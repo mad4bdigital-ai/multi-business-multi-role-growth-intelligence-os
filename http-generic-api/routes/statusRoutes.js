@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
+import { getDatabaseLifecycleOperationalStatus } from "../databaseTableLifecycle.js";
 
 // Components and the DB table each one proves healthy by querying
 const COMPONENTS = [
@@ -11,6 +12,7 @@ const COMPONENTS = [
   { id: "intent_resolution",   label: "Intent Resolution",    table: "intent_resolutions" },
   { id: "observability",       label: "Observability",        table: "telemetry_spans" },
   { id: "release_readiness",   label: "Release Readiness",    table: "release_readiness_log" },
+  { id: "database_lifecycle",  label: "Database Lifecycle",   table: null },
 ];
 
 const SEVERITY_RANK = { critical: 4, high: 3, medium: 2, low: 1 };
@@ -53,6 +55,27 @@ async function gatherStatus() {
   const componentStatuses = await Promise.all(COMPONENTS.map(async (c) => {
     if (c.id === "api") return { ...c, status: "operational", latency_ms: null };
     if (c.id === "database") return { ...c, status: dbOk ? "operational" : "major_outage", latency_ms: null };
+    if (c.id === "database_lifecycle") {
+      if (!dbOk) return { ...c, status: "major_outage", latency_ms: null };
+      const t0 = Date.now();
+      try {
+        const lifecycle = await getDatabaseLifecycleOperationalStatus({ limit: 3 }, { pool });
+        return {
+          ...c,
+          status: lifecycle.ok ? "operational" : "degraded",
+          latency_ms: Date.now() - t0,
+          details: {
+            operational_state: lifecycle.operational_state,
+            blockers: lifecycle.blockers,
+            latest_snapshot_id: lifecycle.latest_snapshot?.snapshot_id || null,
+            snapshot_freshness: lifecycle.snapshot_freshness,
+            secrets_included: false,
+          },
+        };
+      } catch {
+        return { ...c, status: "degraded", latency_ms: null };
+      }
+    }
     if (!dbOk) return { ...c, status: "major_outage", latency_ms: null };
 
     const t0 = Date.now();
@@ -90,7 +113,14 @@ async function gatherStatus() {
   return {
     status,
     status_label: statusLabel(status),
-    components: componentStatuses.map(({ id, label, status, latency_ms }) => ({ id, label, status, status_label: statusLabel(status), latency_ms })),
+    components: componentStatuses.map(({ id, label, status, latency_ms, details }) => ({
+      id,
+      label,
+      status,
+      status_label: statusLabel(status),
+      latency_ms,
+      ...(details ? { details } : {}),
+    })),
     active_incidents: openIncidents,
     past_incidents: pastIncidents,
     updated_at: now,
