@@ -17,6 +17,7 @@ const ALLOWED_AUTH_TYPES = new Set([
   "oauth2",
   "custom_headers",
   "client_credentials",
+  "ssh_key_pair",
 ]);
 
 const ALLOWED_FIELD_TARGETS = new Set(["credentials", "connection", "metadata"]);
