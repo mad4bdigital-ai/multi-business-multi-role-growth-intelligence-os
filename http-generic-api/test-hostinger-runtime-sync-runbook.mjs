@@ -8,7 +8,13 @@ assert(runbook.includes("release_readiness") && runbook.includes("overall: pass"
 assert(runbook.includes("repo_inspect"), "runbook must require live-code readback");
 assert(runbook.includes("remote_database"), "runbook must guard remote database intake readiness");
 assert(runbook.includes("DB_HOST") && runbook.includes("DB_PASSWORD"), "runbook must list remote DB credential fields");
-assert(runbook.includes("ssh_private_key") && !runbook.match(/SSH credential intake fields[\s\S]{0,300}DB_NAME/), "runbook must keep DB_NAME out of SSH intake");
+const sshFieldBlock = `SSH credential intake fields are only:
+
+- \`ssh_host\`
+- \`ssh_port\`
+- \`ssh_user\`
+- \`ssh_private_key\``;
+assert(runbook.includes(sshFieldBlock), "runbook must keep DB fields out of SSH intake and list only SSH fields");
 assert(runbook.includes("Do not paste SSH, DB, API, or Hostinger credentials into chat"), "runbook must forbid secrets in chat");
 assert(runbook.includes("Do not set `remote_runtime_targets.validation_status = 'valid'` without a real probe"), "runbook must forbid manual valid status shortcuts");
 assert(runbook.includes("maybeAutoPromotePlatformSecrets"), "runbook must require auto-promotion code readback before issuing intake");
