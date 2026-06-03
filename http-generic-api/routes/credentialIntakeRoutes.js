@@ -131,6 +131,15 @@ function defaultCredentialSchema(authType) {
       { name: "ssh_private_key", label: "SSH private key", type: "textarea", target: "credentials", required: true, secret: true, autocomplete: "new-password", help: "Paste the private key. It is encrypted server-side and never shown again." },
     ];
   }
+  if (authType === "remote_database") {
+    return [
+      { name: "db_host", label: "DB_HOST", type: "text", target: "credentials", required: true, secret: false, autocomplete: "off" },
+      { name: "db_port", label: "DB_PORT", type: "number", target: "credentials", required: true, secret: false, autocomplete: "off" },
+      { name: "db_name", label: "DB_NAME", type: "text", target: "credentials", required: true, secret: false, autocomplete: "off" },
+      { name: "db_user", label: "DB_USER", type: "text", target: "credentials", required: true, secret: false, autocomplete: "username" },
+      { name: "db_password", label: "DB_PASSWORD", type: "password", target: "credentials", required: true, secret: true, autocomplete: "new-password" },
+    ];
+  }
   if (authType === "custom_headers") {
     return [
       { name: "header_name", label: "Header name", type: "text", target: "metadata", required: true, secret: false },
