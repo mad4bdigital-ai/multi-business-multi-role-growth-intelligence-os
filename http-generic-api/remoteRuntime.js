@@ -163,7 +163,7 @@ async function loadHostingSshCredentialReadiness(pool, target = {}, system = nul
             CASE WHEN COALESCE(ps.value_ciphertext, '') <> '' THEN 1 ELSE 0 END AS has_secret_value
        FROM credential_bindings cb
        LEFT JOIN platform_secrets ps
-         ON cb.credential_ref = CONCAT('platform_secret:', ps.secret_key)
+         ON cb.credential_ref COLLATE utf8mb4_unicode_ci = CONCAT('platform_secret:', ps.secret_key) COLLATE utf8mb4_unicode_ci
       WHERE ${filters.join(" AND ")}
       ORDER BY cb.resolution_priority ASC, cb.updated_at DESC`,
     params

@@ -389,6 +389,9 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     remoteRuntime.includes('loadHostingSshCredentialReadiness') &&
     remoteRuntime.includes('db_credential_bindings_present_pending_secret_values') &&
     remoteRuntime.includes('db_credential_values_present_ssh_not_probed'));
+  assert("remote runtime credential binding join is collation-safe",
+    remoteRuntime.includes('cb.credential_ref COLLATE utf8mb4_unicode_ci') &&
+    remoteRuntime.includes('CONCAT(\'platform_secret:\', ps.secret_key) COLLATE utf8mb4_unicode_ci'));
   assert("migration 182 registers platform brand DB-encrypted Hostinger SSH refs",
     migration182.includes('@platform_brand_key := \'growth_intelligence_platform\'') &&
     migration182.includes('platform_secret:hostinger_ssh_prod_private_key') &&
