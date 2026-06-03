@@ -122,6 +122,14 @@ function defaultCredentialSchema(authType) {
       { name: "scope", label: "Scope", type: "text", target: "metadata", required: false, secret: false },
     ];
   }
+  if (authType === "ssh_key_pair") {
+    return [
+      { name: "ssh_host", label: "SSH host", type: "text", target: "credentials", required: true, secret: false, autocomplete: "off" },
+      { name: "ssh_port", label: "SSH port", type: "number", target: "credentials", required: true, secret: false, autocomplete: "off" },
+      { name: "ssh_user", label: "SSH username", type: "text", target: "credentials", required: true, secret: false, autocomplete: "username" },
+      { name: "ssh_private_key", label: "SSH private key", type: "textarea", target: "credentials", required: true, secret: true, autocomplete: "new-password", help: "Paste the private key. It is encrypted server-side and never shown again." },
+    ];
+  }
   if (authType === "custom_headers") {
     return [
       { name: "header_name", label: "Header name", type: "text", target: "metadata", required: true, secret: false },
