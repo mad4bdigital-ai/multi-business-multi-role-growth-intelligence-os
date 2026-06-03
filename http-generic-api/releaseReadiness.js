@@ -51,6 +51,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "186_sprint66_database_lifecycle_scheduler_approval_readback.sql",
   "187_sprint66_connected_execution_continuity_api_tools.sql",
   "187_sprint66_platform_secret_intake_promotion_tool.sql",
+  "188_sprint66_hostinger_db_name_intake_autopromotion.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
