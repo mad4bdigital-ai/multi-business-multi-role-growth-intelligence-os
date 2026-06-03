@@ -418,6 +418,10 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     migration187.includes('/credentials/intake/promote-platform-secrets') &&
     migration187.includes('no_secrets') &&
     migration187.includes('requires_approval'));
+  assert("migration 187 allows ssh_key_pair in credential intake session tool schema",
+    migration187.includes("'$.properties.auth_type.enum'") &&
+    migration187.includes("'ssh_key_pair'") &&
+    migration187.includes('credential_intake_session_create'));
   assert("openapi documents platform secret intake promotion without raw secret fields",
     parentDoc.paths?.["/credentials/intake/promote-platform-secrets"]?.post?.operationId === "credentialIntakePromotePlatformSecrets" &&
     !JSON.stringify(parentDoc.paths?.["/credentials/intake/promote-platform-secrets"] || {}).includes('secret_value'));
