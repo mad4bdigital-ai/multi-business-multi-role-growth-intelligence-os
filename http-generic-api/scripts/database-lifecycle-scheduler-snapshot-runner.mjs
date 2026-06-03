@@ -22,6 +22,7 @@ function parseArgs(argv) {
     limit: "",
     notes: "",
     schedule_key: DEFAULT_SCHEDULE_KEY,
+    summary_only: false,
     tenant_id: "",
     trace_id: "",
   };
@@ -29,6 +30,10 @@ function parseArgs(argv) {
     const arg = argv[index];
     if (arg === "--apply") {
       args.apply = true;
+      continue;
+    }
+    if (arg === "--summary-only") {
+      args.summary_only = true;
       continue;
     }
     if (!arg.startsWith("--")) {
@@ -62,6 +67,70 @@ function collectBlockers(scheduleReadiness, bindingReadiness, approvalReadbacks 
     }
   }
   return [...new Set(blockers)];
+}
+
+function summarizeReadiness(rows = [], readyKey) {
+  return {
+    total_count: rows.length,
+    ready_count: rows.filter((row) => row?.[readyKey] === true).length,
+    first_key: rows[0]?.schedule_key || rows[0]?.binding_key || null,
+  };
+}
+
+function buildBoundedOutput({
+  binding,
+  bindingApprovalReadback,
+  blockers,
+  gate,
+  ok,
+  schedule,
+  scheduleApprovalReadback,
+  snapshot,
+  write_result,
+}) {
+  return {
+    ok,
+    mode: gate.mode,
+    dry_run: !gate.allowed,
+    will_write: gate.allowed && blockers.length === 0,
+    will_execute: false,
+    no_drop: true,
+    no_delete: true,
+    no_archive_execution: true,
+    no_compaction_execution: true,
+    secrets_included: false,
+    summary_only: true,
+    schedule_readiness_summary: summarizeReadiness(schedule.schedules || [], "scheduler_ready"),
+    binding_readiness_summary: summarizeReadiness(binding.bindings || [], "binding_ready"),
+    approval_readback_summary: {
+      schedule: {
+        ok: scheduleApprovalReadback?.ok === true,
+        event_id: scheduleApprovalReadback?.event_id || null,
+        verification_blockers: scheduleApprovalReadback?.verification_blockers || [],
+      },
+      binding: {
+        ok: bindingApprovalReadback?.ok === true,
+        event_id: bindingApprovalReadback?.event_id || null,
+        verification_blockers: bindingApprovalReadback?.verification_blockers || [],
+      },
+    },
+    blocked_reasons: blockers,
+    snapshot_summary: {
+      snapshot_id: snapshot.snapshot_id,
+      snapshot_key: snapshot.snapshot_key,
+      snapshot_type: snapshot.snapshot_type,
+      report_type: snapshot.report_type,
+      table_count: snapshot.table_count,
+      approval_required_count: snapshot.approval_required_count,
+      high_risk_count: snapshot.high_risk_count,
+      archive_candidate_count: snapshot.archive_candidate_count,
+      dry_run: snapshot.dry_run,
+      will_execute: snapshot.will_execute,
+      secrets_included: snapshot.secrets_included,
+      source_options: snapshot.source_options,
+    },
+    write_result,
+  };
 }
 
 async function main() {
@@ -105,7 +174,17 @@ async function main() {
       ? await writeDatabaseLifecycleReportSnapshot(snapshot, { pool })
       : null;
     const ok = blockers.length === 0;
-    console.log(JSON.stringify({
+    const output = args.summary_only ? buildBoundedOutput({
+      binding,
+      bindingApprovalReadback,
+      blockers,
+      gate,
+      ok,
+      schedule,
+      scheduleApprovalReadback,
+      snapshot,
+      write_result,
+    }) : {
       ok,
       mode: gate.mode,
       dry_run: !gate.allowed,
@@ -125,7 +204,8 @@ async function main() {
       blocked_reasons: blockers,
       snapshot,
       write_result,
-    }, null, 2));
+    };
+    console.log(JSON.stringify(output, null, 2));
     if (!ok) process.exitCode = 1;
   } finally {
     await pool.end();

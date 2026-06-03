@@ -16,6 +16,13 @@ assert(runner.includes("assessDatabaseLifecycleSchedulerBindingReadiness"));
 assert(runner.includes("verifyDatabaseLifecycleSchedulerApprovalReadback"));
 assert(runner.includes("assertDatabaseLifecycleReportSnapshotAllowed"));
 assert(runner.includes("writeDatabaseLifecycleReportSnapshot"));
+assert(runner.includes("summary_only: false"));
+assert(runner.includes("--summary-only"));
+assert(runner.includes("buildBoundedOutput"));
+assert(runner.includes("snapshot_summary"));
+assert(runner.includes("schedule_readiness_summary"));
+assert(runner.includes("binding_readiness_summary"));
+assert(runner.includes("approval_readback_summary"));
 assert(runner.includes("blocked_reasons"));
 assert(runner.includes("will_execute: false"));
 assert(runner.includes("no_drop: true"));
@@ -32,6 +39,8 @@ assert(docs.includes("Scheduler snapshot runner"));
 assert(docs.includes("database-lifecycle-scheduler-snapshot-runner.mjs"));
 assert(docs.includes("readback is verified"));
 assert(docs.includes("does not enable cron"));
+assert(docs.includes("--summary-only"));
+assert(docs.includes("bounded live output"));
 
 assert(
   manifest.includes("node test-database-lifecycle-scheduler-snapshot-runner.mjs"),
