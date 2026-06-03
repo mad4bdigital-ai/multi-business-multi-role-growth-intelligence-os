@@ -22,6 +22,10 @@ const runner = fs.readFileSync(
   new URL("./scripts/database-lifecycle-scheduler-approval-metadata.mjs", import.meta.url),
   "utf8"
 );
+const proofRunner = fs.readFileSync(
+  new URL("./scripts/database-lifecycle-scheduler-approval-proof.mjs", import.meta.url),
+  "utf8"
+);
 const routesSource = fs.readFileSync(new URL("./routes/platformEngineRoutes.js", import.meta.url), "utf8");
 const openapi = fs.readFileSync(new URL("./openapi.yaml", import.meta.url), "utf8");
 const releaseReadiness = fs.readFileSync(new URL("./releaseReadiness.js", import.meta.url), "utf8");
@@ -215,6 +219,15 @@ assert(runner.includes("--readback-only"));
 assert(runner.includes("confirm"));
 assert(!runner.includes("DROP TABLE"));
 assert(!runner.includes("DELETE FROM"));
+assert(proofRunner.includes("DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_CONFIRMATION"));
+assert(proofRunner.includes("readback_verified"));
+assert(proofRunner.includes("will_execute: false"));
+assert(proofRunner.includes("no_drop: true"));
+assert(proofRunner.includes("no_delete: true"));
+assert(proofRunner.includes("no_archive_execution: true"));
+assert(proofRunner.includes("no_compaction_execution: true"));
+assert(!proofRunner.includes("DROP TABLE"));
+assert(!proofRunner.includes("DELETE FROM"));
 assert(routesSource.includes("/platform/engines/database-lifecycle/scheduler-approval-metadata"));
 assert(routesSource.includes("/platform/engines/database-lifecycle/scheduler-approval-readback"));
 assert(routesSource.includes("assertDatabaseLifecycleSchedulerApprovalAllowed"));
