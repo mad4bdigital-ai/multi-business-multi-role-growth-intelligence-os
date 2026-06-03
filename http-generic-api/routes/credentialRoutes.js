@@ -419,6 +419,7 @@ export function buildCredentialRoutes(deps) {
             { credential_field: "ssh_port", secret_key: "hostinger_ssh_prod_port", secret_type: "ssh_port" },
             { credential_field: "ssh_user", secret_key: "hostinger_ssh_prod_user", secret_type: "ssh_user" },
             { credential_field: "ssh_private_key", secret_key: "hostinger_ssh_prod_private_key", secret_type: "ssh_private_key" },
+            { credential_field: "db_name", secret_key: "hostinger_ssh_prod_db_name", secret_type: "db_name" },
           ];
 
       if (!approved || promotionReason.length < 12) {
