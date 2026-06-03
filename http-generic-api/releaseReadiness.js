@@ -47,6 +47,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "183_sprint66_database_lifecycle_snapshot_schedule_readiness.sql",
   "184_sprint66_database_lifecycle_scheduler_binding_readiness.sql",
   "185_sprint66_database_lifecycle_scheduler_approval_metadata.sql",
+  "186_sprint66_database_lifecycle_scheduler_approval_readback.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [

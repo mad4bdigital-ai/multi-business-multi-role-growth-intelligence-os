@@ -38,6 +38,15 @@ The runner is intentionally constrained:
 - `166_sprint65_ai_intelligence_runtime_governance.sql`
 - `168_sprint65_database_table_lifecycle_governance.sql`
 - `176_sprint66_governed_migration_ledger.sql`
+- `178_sprint66_runtime_authority_certification_registries.sql`
+- `179_sprint66_dynamic_capability_audit_foundation.sql`
+- `180_sprint66_wordpress_publish_authority_diagnostic_tool.sql`
+- `181_sprint66_connected_execution_continuity_foundation.sql`
+- `182_sprint66_database_lifecycle_report_snapshots.sql`
+- `183_sprint66_database_lifecycle_snapshot_schedule_readiness.sql`
+- `184_sprint66_database_lifecycle_scheduler_binding_readiness.sql`
+- `185_sprint66_database_lifecycle_scheduler_approval_metadata.sql`
+- `186_sprint66_database_lifecycle_scheduler_approval_readback.sql`
 
 ## Example dry run
 
