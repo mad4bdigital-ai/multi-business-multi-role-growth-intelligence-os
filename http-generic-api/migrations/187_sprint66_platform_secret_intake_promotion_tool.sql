@@ -30,3 +30,12 @@ ON DUPLICATE KEY UPDATE
   `tags` = VALUES(`tags`),
   `is_enabled` = VALUES(`is_enabled`),
   `sort_order` = VALUES(`sort_order`);
+
+UPDATE `admin_platform_endpoint_tools`
+   SET `input_schema` = JSON_SET(
+       COALESCE(`input_schema`, JSON_OBJECT()),
+       '$.properties.auth_type.enum',
+       JSON_ARRAY('api_key','bearer_token','mcp','webhook','basic_auth','oauth2','custom_headers','client_credentials','ssh_key_pair')
+     ),
+       `description` = 'Create a short-lived, single-use secure web form URL for entering connector credentials. Supports schema-driven fields for API keys, bearer tokens, MCP, webhook, basic auth, custom headers, client credentials, and SSH key-pair credentials.'
+ WHERE `tool_key` = 'credential_intake_session_create';
