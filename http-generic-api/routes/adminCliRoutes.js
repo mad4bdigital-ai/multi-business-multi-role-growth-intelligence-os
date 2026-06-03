@@ -34,6 +34,22 @@ const WINDOWS_PATH_ARG_KEYS = new Set([
 function isLocalProjectPathHelperAlias(alias = "") {
   return alias === "local_project_path_helper_dry_run" || alias === "local_project_path_helper_apply";
 }
+const DRY_RUN_ONLY_SHELL_ALIASES = new Set([
+  "session_archive_relink_repair_dry_run",
+  "local_project_path_helper_dry_run",
+  "backup_copy_governance_helper_dry_run",
+  "backup_executor_guard_dry_run",
+  "database_lifecycle_scheduler_approval_proof_dry_run",
+  "database_lifecycle_scheduler_snapshot_dry_run",
+]);
+const APPLY_ONLY_SHELL_ALIASES = new Set([
+  "session_archive_relink_repair_apply",
+  "local_project_path_helper_apply",
+  "backup_copy_governance_helper_apply",
+  "backup_executor_guard_apply",
+  "database_lifecycle_scheduler_approval_proof_apply",
+  "database_lifecycle_scheduler_snapshot_apply",
+]);
 function isSafeLocalProjectPathArg(arg = "") {
   const value = String(arg || "");
   const [key] = value.split("=", 1);
@@ -1327,6 +1343,42 @@ function builtInShellAllowlist() {
       timeout_ms: 600000,
       built_in: true
     },
+    database_lifecycle_scheduler_approval_proof_dry_run: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/database-lifecycle-scheduler-approval-proof.mjs"],
+      display_name: "Database lifecycle scheduler approval proof dry-run",
+      allow_extra_args: true,
+      max_extra_args: 12,
+      timeout_ms: 300000,
+      built_in: true
+    },
+    database_lifecycle_scheduler_approval_proof_apply: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/database-lifecycle-scheduler-approval-proof.mjs", "--apply"],
+      display_name: "Database lifecycle scheduler approval proof apply",
+      allow_extra_args: true,
+      max_extra_args: 14,
+      timeout_ms: 600000,
+      built_in: true
+    },
+    database_lifecycle_scheduler_snapshot_dry_run: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/database-lifecycle-scheduler-snapshot-runner.mjs"],
+      display_name: "Database lifecycle scheduler snapshot runner dry-run",
+      allow_extra_args: true,
+      max_extra_args: 8,
+      timeout_ms: 300000,
+      built_in: true
+    },
+    database_lifecycle_scheduler_snapshot_apply: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/database-lifecycle-scheduler-snapshot-runner.mjs", "--apply"],
+      display_name: "Database lifecycle scheduler snapshot runner apply",
+      allow_extra_args: true,
+      max_extra_args: 10,
+      timeout_ms: 600000,
+      built_in: true
+    },
     local_gateway_hostinger_proxy: {
       command: process.execPath,
       args: ["http-generic-api/scripts/local-gateway-hostinger-proxy.mjs"],
@@ -1457,38 +1509,14 @@ async function executeShellControl(body = {}) {
       if (!entry.allow_extra_args) {
         const e = new Error(`extra_args not permitted for alias '${alias}'.`); e.status = 400; e.code = "extra_args_not_allowed"; throw e;
       }
-      if (alias === "session_archive_relink_repair_dry_run" && extraArgs.includes("--apply")) {
-        const e = new Error("dry-run relink alias must not receive --apply in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
+      if (DRY_RUN_ONLY_SHELL_ALIASES.has(alias) && extraArgs.includes("--apply")) {
+        const e = new Error(`dry-run alias '${alias}' must not receive --apply in extra_args.`); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
       }
-      if (alias === "session_archive_relink_repair_apply" && extraArgs.includes("--dry-run")) {
-        const e = new Error("apply relink alias must not receive --dry-run in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
+      if (APPLY_ONLY_SHELL_ALIASES.has(alias) && extraArgs.includes("--dry-run")) {
+        const e = new Error(`apply alias '${alias}' must not receive --dry-run in extra_args.`); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
       }
       if (extraArgs.length > entry.max_extra_args) {
         const e = new Error(`Too many extra_args (max ${entry.max_extra_args}).`); e.status = 400; e.code = "too_many_extra_args"; throw e;
-      }
-      if (alias === "session_archive_relink_repair_dry_run" && extraArgs.includes("--apply")) {
-        const e = new Error("dry-run relink alias must not receive --apply in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
-      }
-      if (alias === "session_archive_relink_repair_apply" && extraArgs.includes("--dry-run")) {
-        const e = new Error("apply relink alias must not receive --dry-run in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
-      }
-      if (alias === "local_project_path_helper_dry_run" && extraArgs.includes("--apply")) {
-        const e = new Error("dry-run local project path alias must not receive --apply in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
-      }
-      if (alias === "local_project_path_helper_apply" && extraArgs.includes("--dry-run")) {
-        const e = new Error("apply local project path alias must not receive --dry-run in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
-      }
-      if (alias === "backup_copy_governance_helper_dry_run" && extraArgs.includes("--apply")) {
-        const e = new Error("dry-run backup governance alias must not receive --apply in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
-      }
-      if (alias === "backup_copy_governance_helper_apply" && extraArgs.includes("--dry-run")) {
-        const e = new Error("apply backup governance alias must not receive --dry-run in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
-      }
-      if (alias === "backup_executor_guard_dry_run" && extraArgs.includes("--apply")) {
-        const e = new Error("dry-run backup executor guard alias must not receive --apply in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
-      }
-      if (alias === "backup_executor_guard_apply" && extraArgs.includes("--dry-run")) {
-        const e = new Error("apply backup executor guard alias must not receive --dry-run in extra_args."); e.status = 400; e.code = "conflicting_mode_flags"; throw e;
       }
       for (const arg of extraArgs) {
         if (isLocalProjectPathHelperAlias(alias) && isSafeLocalProjectPathArg(arg)) continue;

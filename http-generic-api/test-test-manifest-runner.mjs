@@ -20,6 +20,7 @@ for (const requiredCommand of [
   "node test-database-lifecycle-report-schedule-readiness.mjs",
   "node test-database-lifecycle-scheduler-binding-readiness.mjs",
   "node test-database-lifecycle-scheduler-approval-metadata.mjs",
+  "node test-database-lifecycle-scheduler-admin-aliases.mjs",
   "node test-database-lifecycle-scheduler-snapshot-runner.mjs",
   "node test-dynamic-capability-audit-foundation.mjs",
   "node test-platform-engine-orchestration.mjs",

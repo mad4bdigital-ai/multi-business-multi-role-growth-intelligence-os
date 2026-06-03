@@ -191,6 +191,24 @@ node scripts/database-lifecycle-scheduler-approval-proof.mjs `
 The proof runner exits non-zero if planning is blocked or post-apply readback is
 not verified. It still does not enable scheduler jobs or execute snapshots.
 
+Governed `admin_control` shell aliases keep live proof calls short and bounded:
+
+```powershell
+admin_control shell database_lifecycle_scheduler_approval_proof_dry_run `
+  --notification-target admin_ops `
+  --executor-policy-key database_lifecycle_report_snapshot_schedule_policy_v1 `
+  --actor-id admin
+
+admin_control shell database_lifecycle_scheduler_approval_proof_apply `
+  --notification-target admin_ops `
+  --executor-policy-key database_lifecycle_report_snapshot_schedule_policy_v1 `
+  --actor-id admin `
+  --confirm APPROVE_DATABASE_LIFECYCLE_SCHEDULER_METADATA
+```
+
+The dry-run alias rejects `--apply` in extra arguments, and the apply alias
+rejects `--dry-run`.
+
 ## Scheduler snapshot runner
 
 `http-generic-api/scripts/database-lifecycle-scheduler-snapshot-runner.mjs`
@@ -221,6 +239,24 @@ node scripts/database-lifecycle-scheduler-snapshot-runner.mjs `
 The runner exits non-zero when schedule readiness, binding readiness, or approval
 readback is not verified. Apply mode writes an evidence snapshot only; it does
 not archive, delete, drop, truncate, compact, or read secrets.
+
+Governed `admin_control` shell aliases keep live snapshot calls short and
+bounded:
+
+```powershell
+admin_control shell database_lifecycle_scheduler_snapshot_dry_run `
+  --schedule-key database_lifecycle_retention_plan_weekly `
+  --binding-key database_lifecycle_retention_plan_weekly_binding
+
+admin_control shell database_lifecycle_scheduler_snapshot_apply `
+  --schedule-key database_lifecycle_retention_plan_weekly `
+  --binding-key database_lifecycle_retention_plan_weekly_binding `
+  --actor-id scheduler_runner `
+  --confirm APPLY_DATABASE_LIFECYCLE_REPORT_SNAPSHOT
+```
+
+The dry-run alias rejects `--apply` in extra arguments, and the apply alias
+rejects `--dry-run`.
 
 ## Operating rules
 
