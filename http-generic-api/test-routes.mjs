@@ -119,6 +119,8 @@ async function main() {
     assert("health reports degraded when Redis is unavailable", healthBody.status === "degraded", JSON.stringify(healthBody));
     assert("health reports worker disabled", healthBody?.dependencies?.worker?.enabled === false, JSON.stringify(healthBody?.dependencies?.worker || {}));
     assert("health reports queue disconnected", healthBody?.dependencies?.queue?.connected === false, JSON.stringify(healthBody?.dependencies?.queue || {}));
+    assert("health redacts configured Redis URL", healthBody?.dependencies?.redis?.url_redacted === "<redacted>", JSON.stringify(healthBody?.dependencies?.redis || {}));
+    assert("health does not expose raw Redis URL", !Object.prototype.hasOwnProperty.call(healthBody?.dependencies?.redis || {}, "url"), JSON.stringify(healthBody?.dependencies?.redis || {}));
 
     section("status host root route");
 
