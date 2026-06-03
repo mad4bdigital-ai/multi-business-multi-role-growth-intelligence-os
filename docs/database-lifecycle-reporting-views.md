@@ -191,6 +191,37 @@ node scripts/database-lifecycle-scheduler-approval-proof.mjs `
 The proof runner exits non-zero if planning is blocked or post-apply readback is
 not verified. It still does not enable scheduler jobs or execute snapshots.
 
+## Scheduler snapshot runner
+
+`http-generic-api/scripts/database-lifecycle-scheduler-snapshot-runner.mjs`
+is the bounded integration runner for the approved lifecycle report schedule.
+It checks schedule readiness, binding readiness, and approval metadata readback
+before creating a report snapshot. It does not enable cron or background
+scheduler jobs.
+
+Dry-run:
+
+```powershell
+node scripts/database-lifecycle-scheduler-snapshot-runner.mjs `
+  --schedule-key database_lifecycle_retention_plan_weekly `
+  --binding-key database_lifecycle_retention_plan_weekly_binding
+```
+
+Apply a snapshot only after readiness is ready and approval readback is verified:
+
+```powershell
+node scripts/database-lifecycle-scheduler-snapshot-runner.mjs `
+  --schedule-key database_lifecycle_retention_plan_weekly `
+  --binding-key database_lifecycle_retention_plan_weekly_binding `
+  --actor-id scheduler_runner `
+  --apply `
+  --confirm APPLY_DATABASE_LIFECYCLE_REPORT_SNAPSHOT
+```
+
+The runner exits non-zero when schedule readiness, binding readiness, or approval
+readback is not verified. Apply mode writes an evidence snapshot only; it does
+not archive, delete, drop, truncate, compact, or read secrets.
+
 ## Operating rules
 
 - Treat all reports as decision support, not automatic action.
