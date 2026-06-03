@@ -64,6 +64,7 @@ export const testCommands = [
   "node test-gpt-schema-db-coverage-migration.mjs",
   "node test-gpt-schema-db-coverage-guard.mjs",
   "node test-tenant-platform-plugin-routes.mjs",
+  "node test-tenant-gpt-operating-guide.mjs",
   "node test-tenant-evolution-checkpoint-routes.mjs",
   "node test-tenant-platform-plugin-openapi.mjs",
   "node test-tenant-tool-surface-guard.mjs",
