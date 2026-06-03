@@ -429,6 +429,11 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   assert("migration 187 platform secret intake promotion is governed-runner allowlisted",
     governedMigrationRunner.includes('187_sprint66_platform_secret_intake_promotion_tool.sql') &&
     releaseReadiness.includes('187_sprint66_platform_secret_intake_promotion_tool.sql'));
+  assert("migration 188 registers DB_NAME and auto-promotion governance",
+    migration188.includes('hostinger_ssh_prod_db_name') &&
+    migration188.includes("'db_name'") &&
+    migration188.includes('auto_promote_platform_secrets') &&
+    migration188.includes('platform_secret:hostinger_ssh_prod_db_name'));
   assert("migration 187 allows ssh_key_pair in credential intake session tool schema",
     migration187.includes("'$.properties.auth_type.enum'") &&
     migration187.includes("'ssh_key_pair'") &&
