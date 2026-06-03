@@ -21,6 +21,7 @@ const status = buildDatabaseLifecycleOperationalStatus({
   }],
   schedules: [{
     schedule_key: "database_lifecycle_retention_plan_weekly",
+    cron_expression: "0 3 * * 1",
     status: "active",
     approval_status: "approved",
   }],
@@ -35,7 +36,7 @@ const status = buildDatabaseLifecycleOperationalStatus({
     no_compaction_execution: 1,
     secrets_included: 0,
   }],
-});
+}, { now: "2026-06-03T06:00:00Z" });
 
 assert.equal(status.ok, true);
 assert.equal(status.status_type, "database_lifecycle_operational_status_v1");
@@ -48,6 +49,8 @@ assert.equal(status.no_archive_execution, true);
 assert.equal(status.no_compaction_execution, true);
 assert.equal(status.secrets_included, false);
 assert.equal(status.latest_snapshot.snapshot_id, "snap_1");
+assert.equal(status.snapshot_freshness.fresh, true);
+assert.equal(status.snapshot_freshness.max_age_hours, 192);
 assert.equal(status.summary.approved_schedule_count, 1);
 assert.equal(status.summary.approved_binding_count, 1);
 assert.deepEqual(status.blockers, []);
@@ -76,13 +79,47 @@ assert(blockedStatus.blockers.includes("no_active_scheduler_binding"));
 assert(blockedStatus.blockers.includes("no_approved_scheduler_binding"));
 assert(blockedStatus.blockers.includes("scheduler_binding_guard_violation"));
 
+const staleStatus = buildDatabaseLifecycleOperationalStatus({
+  snapshots: [{
+    snapshot_id: "snap_old",
+    snapshot_key: "retention_plan:snap_old",
+    report_type: "retention_plan",
+    table_count: 12,
+    created_at: "2026-06-01T00:00:00Z",
+  }],
+  schedules: [{
+    schedule_key: "database_lifecycle_retention_plan_hourly",
+    cron_expression: "0 * * * *",
+    status: "active",
+    approval_status: "approved",
+  }],
+  bindings: [{
+    binding_key: "database_lifecycle_retention_plan_hourly_binding",
+    status: "active",
+    approval_status: "approved",
+    will_execute: 0,
+    no_drop: 1,
+    no_delete: 1,
+    no_archive_execution: 1,
+    no_compaction_execution: 1,
+    secrets_included: 0,
+  }],
+}, { now: "2026-06-03T06:00:00Z" });
+
+assert.equal(staleStatus.ok, false);
+assert.equal(staleStatus.snapshot_freshness.fresh, false);
+assert.equal(staleStatus.snapshot_freshness.max_age_hours, 2);
+assert(staleStatus.blockers.includes("latest_lifecycle_report_snapshot_stale"));
+
 assert(routes.includes("getDatabaseLifecycleOperationalStatus"));
 assert(routes.includes('router.get("/platform/engines/database-lifecycle/operational-status"'));
 assert(openapi.includes("/platform/engines/database-lifecycle/operational-status"));
 assert(openapi.includes("operationId: databaseLifecycleOperationalStatus"));
 assert(openapi.includes("Read database lifecycle operational status"));
+assert(openapi.includes("max_snapshot_age_hours"));
 assert(docs.includes("Operational status"));
 assert(docs.includes("database-lifecycle/operational-status"));
+assert(docs.includes("latest_lifecycle_report_snapshot_stale"));
 assert(manifest.includes("node test-database-lifecycle-operational-status.mjs"));
 
 console.log("database lifecycle operational status tests passed");

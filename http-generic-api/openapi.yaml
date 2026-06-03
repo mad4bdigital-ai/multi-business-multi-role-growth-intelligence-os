@@ -12155,6 +12155,10 @@ paths:
           in: query
           required: false
           schema: { type: integer, minimum: 1, maximum: 25, default: 5 }
+        - name: max_snapshot_age_hours
+          in: query
+          required: false
+          schema: { type: number, minimum: 1, maximum: 8760 }
       responses:
         "200": { description: Database lifecycle operational status, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
