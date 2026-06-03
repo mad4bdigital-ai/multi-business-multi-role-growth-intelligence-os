@@ -308,6 +308,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   const credentialRoutes = readFileSync(resolve(__dirname, "routes/credentialRoutes.js"), "utf8");
   const governedMigrationRunner = readFileSync(resolve(__dirname, "scripts/governed-migration-runner.mjs"), "utf8");
   const migration187 = readFileSync(resolve(__dirname, "migrations/187_sprint66_platform_secret_intake_promotion_tool.sql"), "utf8");
+  const migration188RemoteDb = readFileSync(resolve(__dirname, "migrations/188_sprint66_remote_database_intake_autopromotion.sql"), "utf8");
   const releaseReadiness = readFileSync(resolve(__dirname, "releaseReadiness.js"), "utf8");
   const migration104 = readFileSync(resolve(__dirname, "migrations/104_sprint64_activation_mode_governance.sql"), "utf8");
   const migration105 = readFileSync(resolve(__dirname, "migrations/105_sprint64_dedicated_integration_flow.sql"), "utf8");
