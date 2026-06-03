@@ -24,6 +24,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "162_sprint66_cms_site_resource_access_grants.sql",
   "163_sprint65_session_archive_smoke_tool.sql",
   "166_sprint65_ai_intelligence_runtime_governance.sql",
+  "167_sprint65_ai_intelligence_runtime_governance_tools.sql",
   "168_sprint65_database_table_lifecycle_governance.sql",
   "176_sprint66_governed_migration_ledger.sql",
   "178_sprint66_runtime_authority_certification_registries.sql",
