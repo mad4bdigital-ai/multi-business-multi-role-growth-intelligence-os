@@ -5,6 +5,9 @@ export const DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION = "APPLY_DATABASE_TABL
 export const DATABASE_LIFECYCLE_REPORT_SNAPSHOT_CONFIRMATION = "APPLY_DATABASE_LIFECYCLE_REPORT_SNAPSHOT";
 export const DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_CONFIRMATION = "APPROVE_DATABASE_LIFECYCLE_SCHEDULER_METADATA";
 export const DATABASE_LIFECYCLE_INCIDENT_BRIDGE_CONFIRMATION = "APPLY_DATABASE_LIFECYCLE_INCIDENT_BRIDGE";
+export const DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE = "database_lifecycle_report_snapshot";
+export const DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY = "database_lifecycle_retention_plan_weekly";
+export const DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_BINDING_KEY = "database_lifecycle_retention_plan_weekly_binding";
 
 function text(value = "") {
   return String(value || "").trim();
@@ -423,6 +426,177 @@ export function buildDatabaseLifecycleReportSnapshot(report = {}, options = {}) 
 
 function cryptoRandomId(prefix) {
   return `${prefix}_${randomUUID()}`;
+}
+
+function firstReadyLifecycleRow(rows = [], readyKey) {
+  return (rows || []).find((row) => row?.[readyKey] === true) || null;
+}
+
+function collectSchedulerSnapshotBlockers(scheduleReadiness, bindingReadiness, approvalReadbacks = []) {
+  const blockers = [];
+  if (!scheduleReadiness?.scheduler_ready) {
+    blockers.push(...(scheduleReadiness?.readiness_blockers || ["schedule_not_ready"]));
+  }
+  if (!bindingReadiness?.binding_ready) {
+    blockers.push(...(bindingReadiness?.readiness_blockers || ["binding_not_ready"]));
+  }
+  for (const readback of approvalReadbacks) {
+    if (readback?.ok !== true) {
+      blockers.push(...(readback?.verification_blockers || [`${readback?.target_type || "approval"}_readback_not_verified`]));
+    }
+  }
+  return [...new Set(blockers)];
+}
+
+function summarizeLifecycleReadinessRows(rows = [], readyKey) {
+  return {
+    total_count: rows.length,
+    ready_count: rows.filter((row) => row?.[readyKey] === true).length,
+    first_key: rows[0]?.schedule_key || rows[0]?.binding_key || null,
+  };
+}
+
+function buildSchedulerSnapshotBoundedOutput({
+  binding,
+  bindingApprovalReadback,
+  blockers,
+  gate,
+  ok,
+  schedule,
+  scheduleApprovalReadback,
+  snapshot,
+  write_result,
+}) {
+  return {
+    ok,
+    mode: gate.mode,
+    dry_run: !gate.allowed,
+    will_write: gate.allowed && blockers.length === 0,
+    will_execute: false,
+    no_drop: true,
+    no_delete: true,
+    no_archive_execution: true,
+    no_compaction_execution: true,
+    secrets_included: false,
+    summary_only: true,
+    schedule_readiness_summary: summarizeLifecycleReadinessRows(schedule.schedules || [], "scheduler_ready"),
+    binding_readiness_summary: summarizeLifecycleReadinessRows(binding.bindings || [], "binding_ready"),
+    approval_readback_summary: {
+      schedule: {
+        ok: scheduleApprovalReadback?.ok === true,
+        event_id: scheduleApprovalReadback?.event_id || null,
+        verification_blockers: scheduleApprovalReadback?.verification_blockers || [],
+      },
+      binding: {
+        ok: bindingApprovalReadback?.ok === true,
+        event_id: bindingApprovalReadback?.event_id || null,
+        verification_blockers: bindingApprovalReadback?.verification_blockers || [],
+      },
+    },
+    blocked_reasons: blockers,
+    snapshot_summary: {
+      snapshot_id: snapshot.snapshot_id,
+      snapshot_key: snapshot.snapshot_key,
+      snapshot_type: snapshot.snapshot_type,
+      report_type: snapshot.report_type,
+      table_count: snapshot.table_count,
+      approval_required_count: snapshot.approval_required_count,
+      high_risk_count: snapshot.high_risk_count,
+      archive_candidate_count: snapshot.archive_candidate_count,
+      dry_run: snapshot.dry_run,
+      will_execute: snapshot.will_execute,
+      secrets_included: snapshot.secrets_included,
+      source_options: snapshot.source_options,
+    },
+    write_result,
+  };
+}
+
+export async function runDatabaseLifecycleSchedulerSnapshot(input = {}, deps = {}) {
+  const args = {
+    actor_id: text(input.actor_id || input.actorId || input.requested_by),
+    apply: input.apply === true,
+    binding_key: text(input.binding_key || input.bindingKey) || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_BINDING_KEY,
+    confirm: text(input.confirm),
+    limit: input.limit,
+    notes: text(input.notes),
+    schedule_key: text(input.schedule_key || input.scheduleKey) || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY,
+    summary_only: input.summary_only !== false,
+    tenant_id: text(input.tenant_id || input.tenantId),
+    trace_id: text(input.trace_id || input.traceId),
+  };
+  const gate = assertDatabaseLifecycleReportSnapshotAllowed(args);
+  const pool = deps.pool || getPool();
+  const schedule = await assessDatabaseLifecycleReportSnapshotScheduleReadiness({
+    schedule_key: args.schedule_key,
+    report_type: "retention_plan",
+    limit: 1,
+  }, { pool });
+  const binding = await assessDatabaseLifecycleSchedulerBindingReadiness({
+    binding_key: args.binding_key,
+    schedule_key: args.schedule_key,
+    limit: 1,
+  }, { pool });
+  const scheduleRow = firstReadyLifecycleRow(schedule.schedules, "scheduler_ready") || schedule.schedules?.[0] || null;
+  const bindingRow = firstReadyLifecycleRow(binding.bindings, "binding_ready") || binding.bindings?.[0] || null;
+  const scheduleApprovalReadback = await verifyDatabaseLifecycleSchedulerApprovalReadback({
+    target_type: "schedule",
+    target_key: args.schedule_key,
+  }, { pool });
+  const bindingApprovalReadback = await verifyDatabaseLifecycleSchedulerApprovalReadback({
+    target_type: "binding",
+    target_key: args.binding_key,
+  }, { pool });
+  const blockers = collectSchedulerSnapshotBlockers(scheduleRow, bindingRow, [scheduleApprovalReadback, bindingApprovalReadback]);
+  const limit = args.limit || scheduleRow?.report_limit || 80;
+  const report = await planDatabaseLifecycleRetentionReview({ limit }, { pool });
+  const snapshot = buildDatabaseLifecycleReportSnapshot(report, {
+    actor_id: args.actor_id,
+    apply: gate.allowed && blockers.length === 0,
+    limit,
+    notes: args.notes || `scheduler:${args.schedule_key};binding:${args.binding_key}`,
+    report_type: "retention_plan",
+    tenant_id: args.tenant_id,
+    trace_id: args.trace_id,
+  });
+  const write_result = gate.allowed && blockers.length === 0
+    ? await writeDatabaseLifecycleReportSnapshot(snapshot, { pool })
+    : null;
+  const ok = blockers.length === 0;
+  if (args.summary_only) {
+    return buildSchedulerSnapshotBoundedOutput({
+      binding,
+      bindingApprovalReadback,
+      blockers,
+      gate,
+      ok,
+      schedule,
+      scheduleApprovalReadback,
+      snapshot,
+      write_result,
+    });
+  }
+  return {
+    ok,
+    mode: gate.mode,
+    dry_run: !gate.allowed,
+    will_write: gate.allowed && blockers.length === 0,
+    will_execute: false,
+    no_drop: true,
+    no_delete: true,
+    no_archive_execution: true,
+    no_compaction_execution: true,
+    secrets_included: false,
+    schedule_readiness: schedule,
+    binding_readiness: binding,
+    approval_readback: {
+      schedule: scheduleApprovalReadback,
+      binding: bindingApprovalReadback,
+    },
+    blocked_reasons: blockers,
+    snapshot,
+    write_result,
+  };
 }
 
 export function assertDatabaseLifecycleReportSnapshotAllowed({ apply = false, confirm } = {}) {

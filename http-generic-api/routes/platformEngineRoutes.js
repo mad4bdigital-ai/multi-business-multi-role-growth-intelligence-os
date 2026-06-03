@@ -6,6 +6,9 @@ import {
   applyDatabaseLifecycleSchedulerApproval,
   buildDatabaseLifecycleReportSnapshot,
   assertDatabaseLifecycleSchedulerApprovalAllowed,
+  DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE,
+  DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_BINDING_KEY,
+  DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY,
   getDatabaseLifecycleOperationalStatus,
   listDatabaseLifecycleReportSnapshotSchedules,
   listDatabaseLifecycleReportSnapshots,
@@ -14,6 +17,7 @@ import {
   planDatabaseTableLifecycleRegistryUpsert,
   planDatabaseLifecycleRetentionReview,
   runDatabaseLifecycleIncidentBridge,
+  runDatabaseLifecycleSchedulerSnapshot,
   runDatabaseTableLifecycleCensus,
   verifyDatabaseLifecycleSchedulerApprovalReadback,
   writeDatabaseLifecycleReportSnapshot,
@@ -183,6 +187,62 @@ export function buildPlatformEngineRoutes(deps = {}) {
       res.json(result);
     } catch (error) {
       res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_incident_bridge_failed", message: error.message } });
+    }
+  });
+
+  router.post("/platform/engines/database-lifecycle/scheduler-snapshot-runner", ...requireAdmin, async (req, res) => {
+    try {
+      const result = await runDatabaseLifecycleSchedulerSnapshot({ ...(req.body || {}), summary_only: req.body?.summary_only !== false }, deps);
+      res.status(result.ok ? 200 : 409).json(result);
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_scheduler_snapshot_runner_failed", message: error.message } });
+    }
+  });
+
+  router.post("/platform/engines/database-lifecycle/scheduler-snapshot-jobs", ...requireAdmin, async (req, res) => {
+    try {
+      if (!deps.executionFacade || typeof deps.executionFacade.submitJob !== "function") {
+        const err = new Error("executionFacade.submitJob is required to enqueue lifecycle snapshot jobs.");
+        err.status = 503;
+        err.code = "database_lifecycle_snapshot_job_enqueue_unavailable";
+        throw err;
+      }
+      const body = req.body || {};
+      const requestPayload = {
+        actor_id: body.actor_id || body.requested_by || "",
+        apply: body.apply === true,
+        binding_key: body.binding_key || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_BINDING_KEY,
+        confirm: body.confirm || "",
+        limit: body.limit || "",
+        notes: body.notes || "queued_database_lifecycle_snapshot",
+        schedule_key: body.schedule_key || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY,
+        summary_only: body.summary_only !== false,
+        tenant_id: body.tenant_id || "",
+        trace_id: body.trace_id || "",
+      };
+      const requestedBy = body.requested_by || req.auth?.email || req.auth?.sub || "database_lifecycle_scheduler";
+      const idempotencyKey = String(body.idempotency_key || req.header("Idempotency-Key") || "").trim();
+      const { status, body: job } = await deps.executionFacade.submitJob({
+        job_type: DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE,
+        request_payload: requestPayload,
+        max_attempts: body.max_attempts || 1,
+        webhook_url: body.webhook_url || "",
+        callback_secret: body.callback_secret || "",
+      }, requestedBy, idempotencyKey);
+      res.status(status).json({
+        ok: status >= 200 && status < 300,
+        dry_run: requestPayload.apply !== true,
+        will_write: requestPayload.apply === true,
+        will_execute: false,
+        no_drop: true,
+        no_delete: true,
+        no_archive_execution: true,
+        no_compaction_execution: true,
+        secrets_included: false,
+        job,
+      });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_snapshot_job_enqueue_failed", message: error.message } });
     }
   });
 

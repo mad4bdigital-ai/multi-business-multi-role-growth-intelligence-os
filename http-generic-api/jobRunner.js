@@ -17,6 +17,10 @@ import {
 import { githubGitBlobChunkRead } from "./github.js";
 import { hostingerSshRuntimeRead as hostingerSshRuntimeReadBase } from "./hostinger.js";
 import { resumeValidationJob as resumeValidationJobBase, SOLVER_JOB_TYPE } from "./registryValidationAsyncSolver.js";
+import {
+  DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE,
+  runDatabaseLifecycleSchedulerSnapshot,
+} from "./databaseTableLifecycle.js";
 
 function createExecutionTraceId() {
   return `trace_${crypto.randomUUID().replace(/-/g, "")}`;
@@ -378,6 +382,22 @@ export function configureJobRunner(
   async function executeQueuedJobByType(job) {
     const jobType = String(job?.job_type || "http_execute").trim();
     if (jobType === "site_migration") return await executeSiteMigrationJob(job);
+    if (jobType === DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE) {
+      try {
+        const payload = await (deps.runDatabaseLifecycleSchedulerSnapshot || runDatabaseLifecycleSchedulerSnapshot)(job.request_payload || {});
+        return {
+          success: payload?.ok === true,
+          statusCode: payload?.ok === true ? 200 : 409,
+          payload,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          statusCode: err?.status || 500,
+          payload: { ok: false, error: { code: err?.code || "database_lifecycle_snapshot_job_failed", message: err?.message || String(err) }, secrets_included: false },
+        };
+      }
+    }
     if (jobType === SOLVER_JOB_TYPE) {
       if (!sheetsClient) {
         return {
