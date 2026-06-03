@@ -13,6 +13,7 @@ import {
   planDatabaseLifecycleSchedulerApproval,
   planDatabaseTableLifecycleRegistryUpsert,
   planDatabaseLifecycleRetentionReview,
+  runDatabaseLifecycleIncidentBridge,
   runDatabaseTableLifecycleCensus,
   verifyDatabaseLifecycleSchedulerApprovalReadback,
   writeDatabaseLifecycleReportSnapshot,
@@ -173,6 +174,15 @@ export function buildPlatformEngineRoutes(deps = {}) {
       res.json({ ok: true, status });
     } catch (error) {
       res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_operational_status_failed", message: error.message } });
+    }
+  });
+
+  router.post("/platform/engines/database-lifecycle/incident-bridge", ...requireAdmin, async (req, res) => {
+    try {
+      const result = await runDatabaseLifecycleIncidentBridge(req.body || {}, deps);
+      res.json(result);
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_incident_bridge_failed", message: error.message } });
     }
   });
 

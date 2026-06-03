@@ -275,6 +275,18 @@ threshold. A stale latest snapshot returns the blocker
 This route does not enable scheduler jobs, write snapshots, archive, delete,
 drop, truncate, compact, or read secrets.
 
+## Incident bridge
+
+`POST /platform/engines/database-lifecycle/incident-bridge` turns a degraded
+database lifecycle operational status into a bounded incident candidate.
+Dry-run is the default. Apply mode requires typed confirmation
+`APPLY_DATABASE_LIFECYCLE_INCIDENT_BRIDGE` and creates at most one open
+operational incident titled `Database lifecycle readiness degraded`.
+
+The bridge is evidence-only apart from the optional incident row. It does not
+enable scheduler jobs, write snapshots, archive, delete, drop, truncate,
+compact, or read secrets.
+
 Governed `admin_control` shell aliases keep live snapshot calls short and
 bounded:
 
