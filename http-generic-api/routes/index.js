@@ -71,6 +71,7 @@ import { buildBrowserRuntimeRoutes } from "./browserRuntimeRoutes.js";
 import { buildPlatformSmokeRoutes } from "./platformSmokeRoutes.js";
 import { buildPlatformEvolutionRoutes } from "./platformEvolutionRoutes.js";
 import { buildPlatformEngineRoutes } from "./platformEngineRoutes.js";
+import { buildConnectedExecutionRoutes } from "./connectedExecutionRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
