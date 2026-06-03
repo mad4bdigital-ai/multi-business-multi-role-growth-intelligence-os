@@ -444,6 +444,11 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     migration188RemoteDb.includes('remote_mysql_database') &&
     migration188RemoteDb.includes('DB_HOST') &&
     migration188RemoteDb.includes('DB_PASSWORD'));
+  assert("migration 188 defines metadata auto-promotion schema as an object",
+    migration188RemoteDb.includes("'$.properties.metadata'") &&
+    migration188RemoteDb.includes('auto_promote_platform_secrets') &&
+    migration188RemoteDb.includes('platform_secret_mappings') &&
+    migration188RemoteDb.includes('minLength'));
   assert("migration 187 allows ssh_key_pair in credential intake session tool schema",
     migration187.includes("'$.properties.auth_type.enum'") &&
     migration187.includes("'ssh_key_pair'") &&

@@ -30,10 +30,17 @@ UPDATE `admin_platform_endpoint_tools`
        COALESCE(`input_schema`, JSON_OBJECT()),
        '$.properties.auth_type.enum',
        JSON_ARRAY('api_key','bearer_token','mcp','webhook','basic_auth','oauth2','custom_headers','client_credentials','ssh_key_pair','remote_database'),
-       '$.properties.metadata.properties.auto_promote_platform_secrets', JSON_OBJECT('type','boolean'),
-       '$.properties.metadata.properties.platform_secret_mappings', JSON_OBJECT('type','array'),
-       '$.properties.metadata.properties.promotion_approved', JSON_OBJECT('type','boolean'),
-       '$.properties.metadata.properties.promotion_reason', JSON_OBJECT('type','string')
+       '$.properties.metadata',
+       JSON_OBJECT(
+         'type','object',
+         'additionalProperties',true,
+         'properties',JSON_OBJECT(
+           'auto_promote_platform_secrets',JSON_OBJECT('type','boolean'),
+           'platform_secret_mappings',JSON_OBJECT('type','array','items',JSON_OBJECT('type','object','required',JSON_ARRAY('credential_field','secret_key'),'properties',JSON_OBJECT('credential_field',JSON_OBJECT('type','string'),'secret_key',JSON_OBJECT('type','string'),'secret_type',JSON_OBJECT('type','string')))),
+           'promotion_approved',JSON_OBJECT('type','boolean'),
+           'promotion_reason',JSON_OBJECT('type','string','minLength',12)
+         )
+       )
      ),
        `description` = 'Create a short-lived, single-use secure web form URL for entering connector credentials. Supports schema-driven fields for API keys, bearer tokens, MCP, webhook, basic auth, custom headers, client credentials, SSH key-pair credentials, and remote database credentials. Metadata may request server-side auto-promotion to platform secrets after form submission.'
  WHERE `tool_key` = 'credential_intake_session_create';
