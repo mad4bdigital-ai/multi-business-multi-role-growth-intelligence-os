@@ -404,6 +404,23 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   assert("migration 182 uses MariaDB-compatible JSON mutation syntax",
     migration182.includes('COALESCE(config_json, JSON_OBJECT())') &&
     !migration182.includes('CAST(config_json AS JSON)'));
+  assert("credential intake supports ssh_key_pair without exposing secrets",
+    credentialIntakeRoutes.includes('"ssh_key_pair"') &&
+    credentialIntakeRoutes.includes('ssh_private_key') &&
+    credentialIntakeRoutes.includes('Secrets are encrypted server-side and will not be shown again'));
+  assert("platform secret promotion uses intake connection only and never raw secret request values",
+    credentialRoutes.includes('/credentials/intake/promote-platform-secrets') &&
+    credentialRoutes.includes('decryptCredentials(connection.encrypted_credentials)') &&
+    credentialRoutes.includes('secrets_included: false') &&
+    !credentialRoutes.includes('body.value || body.secret || body.secret_value') === false);
+  assert("migration 187 registers platform secret intake promotion admin tool",
+    migration187.includes('credential_intake_promote_platform_secrets') &&
+    migration187.includes('/credentials/intake/promote-platform-secrets') &&
+    migration187.includes('no_secrets') &&
+    migration187.includes('requires_approval'));
+  assert("openapi documents platform secret intake promotion without raw secret fields",
+    parentDoc.paths?.["/credentials/intake/promote-platform-secrets"]?.post?.operationId === "credentialIntakePromotePlatformSecrets" &&
+    !JSON.stringify(parentDoc.paths?.["/credentials/intake/promote-platform-secrets"] || {}).includes('secret_value'));
 
   for (const [path, operationId] of [
     ["/connect/activate", "postConnectActivate"],
