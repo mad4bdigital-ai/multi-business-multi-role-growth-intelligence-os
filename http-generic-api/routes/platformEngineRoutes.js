@@ -6,6 +6,7 @@ import {
   applyDatabaseLifecycleSchedulerApproval,
   buildDatabaseLifecycleReportSnapshot,
   assertDatabaseLifecycleSchedulerApprovalAllowed,
+  getDatabaseLifecycleOperationalStatus,
   listDatabaseLifecycleReportSnapshotSchedules,
   listDatabaseLifecycleReportSnapshots,
   listDatabaseLifecycleSchedulerBindings,
@@ -159,6 +160,18 @@ export function buildPlatformEngineRoutes(deps = {}) {
       res.json({ ok: true, snapshots });
     } catch (error) {
       res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_report_snapshots_failed", message: error.message } });
+    }
+  });
+
+  router.get("/platform/engines/database-lifecycle/operational-status", ...requireAdmin, async (req, res) => {
+    try {
+      const status = await getDatabaseLifecycleOperationalStatus({
+        report_type: req.query.report_type || "retention_plan",
+        limit: req.query.limit,
+      }, deps);
+      res.json({ ok: true, status });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_operational_status_failed", message: error.message } });
     }
   });
 

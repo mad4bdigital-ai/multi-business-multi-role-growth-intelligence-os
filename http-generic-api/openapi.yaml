@@ -12134,6 +12134,31 @@ paths:
         "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /platform/engines/database-lifecycle/operational-status:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleOperationalStatus
+      summary: Read database lifecycle operational status
+      description: >
+        Returns a bounded, read-only operational status for database lifecycle snapshots, schedules, and scheduler bindings.
+        It does not enable scheduler jobs, write snapshots, archive, delete, drop, truncate, compact, or read secrets.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: report_type
+          in: query
+          required: false
+          schema: { type: string, enum: [retention_plan], default: retention_plan }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 25, default: 5 }
+      responses:
+        "200": { description: Database lifecycle operational status, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
   /platform/engines/database-lifecycle/report-snapshot-schedules:
     get:
       x-openai-isConsequential: false
