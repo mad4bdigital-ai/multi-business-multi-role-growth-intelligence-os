@@ -83,6 +83,8 @@ tags:
     description: Brand, tenant, and user scoped Platform Evolution checkpoints, thread maps, and linked evidence surfaces.
   - name: platform-intelligence
     description: Admin-governed AI Intelligence Runtime planning, policy, lifecycle, and decision evidence surfaces.
+  - name: connected-execution
+    description: DB-backed connected execution session, checkpoint, evidence, and resume-action metadata surfaces.
 
 components:
   securitySchemes:
