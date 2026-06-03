@@ -162,6 +162,35 @@ node scripts/database-lifecycle-scheduler-approval-metadata.mjs `
 Approval readback is evidence-only. It does not enable scheduler jobs, write
 snapshots, archive, delete, drop, truncate, compact, or read secrets.
 
+## Scheduler approval proof runner
+
+`http-generic-api/scripts/database-lifecycle-scheduler-approval-proof.mjs`
+combines schedule and binding approval planning, optional metadata apply, and
+post-apply readback verification.
+
+Dry-run:
+
+```powershell
+node scripts/database-lifecycle-scheduler-approval-proof.mjs `
+  --notification-target admin_ops `
+  --executor-policy-key database_lifecycle_report_snapshot_schedule_policy_v1 `
+  --actor-id admin
+```
+
+Apply metadata and verify readback:
+
+```powershell
+node scripts/database-lifecycle-scheduler-approval-proof.mjs `
+  --notification-target admin_ops `
+  --executor-policy-key database_lifecycle_report_snapshot_schedule_policy_v1 `
+  --actor-id admin `
+  --apply `
+  --confirm APPROVE_DATABASE_LIFECYCLE_SCHEDULER_METADATA
+```
+
+The proof runner exits non-zero if planning is blocked or post-apply readback is
+not verified. It still does not enable scheduler jobs or execute snapshots.
+
 ## Operating rules
 
 - Treat all reports as decision support, not automatic action.
