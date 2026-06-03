@@ -194,6 +194,113 @@ components:
         - type: boolean
         - type: "null"
 
+    ConnectedExecutionSessionUpsertRequest:
+      type: object
+      additionalProperties: true
+      properties:
+        connected_session_id: { type: string }
+        tenant_id: { type: string }
+        user_id: { type: string }
+        root_plan_id: { type: string }
+        current_run_id: { type: string }
+        current_step_run_id: { type: string }
+        mode: { type: string, enum: [single_turn, connected_rounds, worker_driven], default: connected_rounds }
+        status: { type: string, enum: [draft, ready, running, paused, awaiting_user, awaiting_approval, blocked, completed, failed, cancelled], default: ready }
+        resume_policy: { $ref: "#/components/schemas/JsonValue" }
+        budget_policy: { $ref: "#/components/schemas/JsonValue" }
+        checkpoint_policy: { $ref: "#/components/schemas/JsonValue" }
+        resume_cursor: { $ref: "#/components/schemas/JsonValue" }
+        last_checkpoint: { $ref: "#/components/schemas/JsonValue" }
+        next_action: { $ref: "#/components/schemas/JsonValue" }
+        max_rounds: { type: integer, minimum: 1, maximum: 1000 }
+
+    ConnectedExecutionSessionResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, session, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        session:
+          type: object
+          additionalProperties: true
+        secrets_included: { type: boolean, enum: [false] }
+
+    ConnectedExecutionCheckpointResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, checkpoint, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        checkpoint:
+          type: object
+          additionalProperties: true
+        secrets_included: { type: boolean, enum: [false] }
+
+    ConnectedExecutionEvidenceReportCreateRequest:
+      type: object
+      additionalProperties: true
+      required: [stage]
+      properties:
+        evidence_report_id: { type: string }
+        tenant_id: { type: string }
+        user_id: { type: string }
+        plan_id: { type: string }
+        run_id: { type: string }
+        step_run_id: { type: string }
+        stage: { type: string, minLength: 1 }
+        status: { type: string, enum: [checkpoint, progress, blocked, handoff, resume_ready, completed, failed], default: checkpoint }
+        summary: { $ref: "#/components/schemas/JsonValue" }
+        evidence: { $ref: "#/components/schemas/JsonValue" }
+        ci: { $ref: "#/components/schemas/JsonValue" }
+        readiness: { $ref: "#/components/schemas/JsonValue" }
+        artifact_refs:
+          type: array
+          items: { $ref: "#/components/schemas/JsonValue" }
+        blockers:
+          type: array
+          items: { $ref: "#/components/schemas/JsonValue" }
+        next_action: { $ref: "#/components/schemas/JsonValue" }
+        first_resume_instruction: { type: string, maxLength: 512 }
+
+    ConnectedExecutionEvidenceReportResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, evidence_report_id, connected_session_id, status, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        evidence_report_id: { type: string }
+        connected_session_id: { type: string }
+        status: { type: string }
+        secrets_included: { type: boolean, enum: [false] }
+
+    ConnectedExecutionResumeActionCreateRequest:
+      type: object
+      additionalProperties: true
+      required: [action_kind]
+      properties:
+        resume_action_id: { type: string }
+        tenant_id: { type: string }
+        user_id: { type: string }
+        action_order: { type: integer, minimum: 1 }
+        action_kind:
+          type: string
+          enum: [tool_call, repo_operation, db_operation, provider_operation, local_device_operation, document_generation, analysis_step, approval_request, user_prompt, stop]
+        action_key: { type: string }
+        action_payload: { $ref: "#/components/schemas/JsonValue" }
+        guardrails: { $ref: "#/components/schemas/JsonValue" }
+
+    ConnectedExecutionResumeActionResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, resume_action_id, connected_session_id, status, executes_action, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        resume_action_id: { type: string }
+        connected_session_id: { type: string }
+        status: { type: string, enum: [pending] }
+        executes_action: { type: boolean, enum: [false] }
+        secrets_included: { type: boolean, enum: [false] }
+
     HardActivationRunRequest:
       type: object
       additionalProperties: false
