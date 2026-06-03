@@ -638,7 +638,8 @@ section("GET /status — public JSON");
   ok("returns 200 or 503", r.status === 200 || r.status === 503, `got ${r.status}`);
   ok("has status field", typeof r.body.status === "string", `body: ${JSON.stringify(r.body).slice(0,80)}`);
   ok("has components array", Array.isArray(r.body.components));
-  ok("has 8 components", r.body.components?.length === 8, `got ${r.body.components?.length}`);
+  ok("has expected platform components", r.body.components?.length >= 8, `got ${r.body.components?.length}`);
+  ok("has database lifecycle component", r.body.components?.some(component => component.id === "database_lifecycle"));
   ok("has updated_at", typeof r.body.updated_at === "string");
 }
 

@@ -1,27 +1,20 @@
 #!/usr/bin/env node
 import { getPool } from "../db.js";
 import {
-  assertDatabaseLifecycleReportSnapshotAllowed,
-  assessDatabaseLifecycleReportSnapshotScheduleReadiness,
-  assessDatabaseLifecycleSchedulerBindingReadiness,
-  buildDatabaseLifecycleReportSnapshot,
-  planDatabaseLifecycleRetentionReview,
-  verifyDatabaseLifecycleSchedulerApprovalReadback,
-  writeDatabaseLifecycleReportSnapshot,
+  DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_BINDING_KEY,
+  DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY,
+  runDatabaseLifecycleSchedulerSnapshot,
 } from "../databaseTableLifecycle.js";
-
-const DEFAULT_SCHEDULE_KEY = "database_lifecycle_retention_plan_weekly";
-const DEFAULT_BINDING_KEY = "database_lifecycle_retention_plan_weekly_binding";
 
 function parseArgs(argv) {
   const args = {
     actor_id: "",
     apply: false,
-    binding_key: DEFAULT_BINDING_KEY,
+    binding_key: DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_BINDING_KEY,
     confirm: "",
     limit: "",
     notes: "",
-    schedule_key: DEFAULT_SCHEDULE_KEY,
+    schedule_key: DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY,
     summary_only: false,
     tenant_id: "",
     trace_id: "",
@@ -49,164 +42,13 @@ function parseArgs(argv) {
   return args;
 }
 
-function firstReady(rows = [], readyKey) {
-  return (rows || []).find((row) => row?.[readyKey] === true) || null;
-}
-
-function collectBlockers(scheduleReadiness, bindingReadiness, approvalReadbacks = []) {
-  const blockers = [];
-  if (!scheduleReadiness?.scheduler_ready) {
-    blockers.push(...(scheduleReadiness?.readiness_blockers || ["schedule_not_ready"]));
-  }
-  if (!bindingReadiness?.binding_ready) {
-    blockers.push(...(bindingReadiness?.readiness_blockers || ["binding_not_ready"]));
-  }
-  for (const readback of approvalReadbacks) {
-    if (readback?.ok !== true) {
-      blockers.push(...(readback?.verification_blockers || [`${readback?.target_type || "approval"}_readback_not_verified`]));
-    }
-  }
-  return [...new Set(blockers)];
-}
-
-function summarizeReadiness(rows = [], readyKey) {
-  return {
-    total_count: rows.length,
-    ready_count: rows.filter((row) => row?.[readyKey] === true).length,
-    first_key: rows[0]?.schedule_key || rows[0]?.binding_key || null,
-  };
-}
-
-function buildBoundedOutput({
-  binding,
-  bindingApprovalReadback,
-  blockers,
-  gate,
-  ok,
-  schedule,
-  scheduleApprovalReadback,
-  snapshot,
-  write_result,
-}) {
-  return {
-    ok,
-    mode: gate.mode,
-    dry_run: !gate.allowed,
-    will_write: gate.allowed && blockers.length === 0,
-    will_execute: false,
-    no_drop: true,
-    no_delete: true,
-    no_archive_execution: true,
-    no_compaction_execution: true,
-    secrets_included: false,
-    summary_only: true,
-    schedule_readiness_summary: summarizeReadiness(schedule.schedules || [], "scheduler_ready"),
-    binding_readiness_summary: summarizeReadiness(binding.bindings || [], "binding_ready"),
-    approval_readback_summary: {
-      schedule: {
-        ok: scheduleApprovalReadback?.ok === true,
-        event_id: scheduleApprovalReadback?.event_id || null,
-        verification_blockers: scheduleApprovalReadback?.verification_blockers || [],
-      },
-      binding: {
-        ok: bindingApprovalReadback?.ok === true,
-        event_id: bindingApprovalReadback?.event_id || null,
-        verification_blockers: bindingApprovalReadback?.verification_blockers || [],
-      },
-    },
-    blocked_reasons: blockers,
-    snapshot_summary: {
-      snapshot_id: snapshot.snapshot_id,
-      snapshot_key: snapshot.snapshot_key,
-      snapshot_type: snapshot.snapshot_type,
-      report_type: snapshot.report_type,
-      table_count: snapshot.table_count,
-      approval_required_count: snapshot.approval_required_count,
-      high_risk_count: snapshot.high_risk_count,
-      archive_candidate_count: snapshot.archive_candidate_count,
-      dry_run: snapshot.dry_run,
-      will_execute: snapshot.will_execute,
-      secrets_included: snapshot.secrets_included,
-      source_options: snapshot.source_options,
-    },
-    write_result,
-  };
-}
-
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const gate = assertDatabaseLifecycleReportSnapshotAllowed(args);
   const pool = getPool();
   try {
-    const schedule = await assessDatabaseLifecycleReportSnapshotScheduleReadiness({
-      schedule_key: args.schedule_key,
-      report_type: "retention_plan",
-      limit: 1,
-    }, { pool });
-    const binding = await assessDatabaseLifecycleSchedulerBindingReadiness({
-      binding_key: args.binding_key,
-      schedule_key: args.schedule_key,
-      limit: 1,
-    }, { pool });
-    const scheduleRow = firstReady(schedule.schedules, "scheduler_ready") || schedule.schedules?.[0] || null;
-    const bindingRow = firstReady(binding.bindings, "binding_ready") || binding.bindings?.[0] || null;
-    const scheduleApprovalReadback = await verifyDatabaseLifecycleSchedulerApprovalReadback({
-      target_type: "schedule",
-      target_key: args.schedule_key,
-    }, { pool });
-    const bindingApprovalReadback = await verifyDatabaseLifecycleSchedulerApprovalReadback({
-      target_type: "binding",
-      target_key: args.binding_key,
-    }, { pool });
-    const blockers = collectBlockers(scheduleRow, bindingRow, [scheduleApprovalReadback, bindingApprovalReadback]);
-    const limit = args.limit || scheduleRow?.report_limit || 80;
-    const report = await planDatabaseLifecycleRetentionReview({ limit }, { pool });
-    const snapshot = buildDatabaseLifecycleReportSnapshot(report, {
-      actor_id: args.actor_id,
-      apply: gate.allowed && blockers.length === 0,
-      limit,
-      notes: args.notes || `scheduler:${args.schedule_key};binding:${args.binding_key}`,
-      report_type: "retention_plan",
-      tenant_id: args.tenant_id,
-      trace_id: args.trace_id,
-    });
-    const write_result = gate.allowed && blockers.length === 0
-      ? await writeDatabaseLifecycleReportSnapshot(snapshot, { pool })
-      : null;
-    const ok = blockers.length === 0;
-    const output = args.summary_only ? buildBoundedOutput({
-      binding,
-      bindingApprovalReadback,
-      blockers,
-      gate,
-      ok,
-      schedule,
-      scheduleApprovalReadback,
-      snapshot,
-      write_result,
-    }) : {
-      ok,
-      mode: gate.mode,
-      dry_run: !gate.allowed,
-      will_write: gate.allowed && blockers.length === 0,
-      will_execute: false,
-      no_drop: true,
-      no_delete: true,
-      no_archive_execution: true,
-      no_compaction_execution: true,
-      secrets_included: false,
-      schedule_readiness: schedule,
-      binding_readiness: binding,
-      approval_readback: {
-        schedule: scheduleApprovalReadback,
-        binding: bindingApprovalReadback,
-      },
-      blocked_reasons: blockers,
-      snapshot,
-      write_result,
-    };
+    const output = await runDatabaseLifecycleSchedulerSnapshot(args, { pool });
     console.log(JSON.stringify(output, null, 2));
-    if (!ok) process.exitCode = 1;
+    if (output.ok !== true) process.exitCode = 1;
   } finally {
     await pool.end();
   }

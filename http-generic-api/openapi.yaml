@@ -12194,6 +12194,86 @@ paths:
         "400": { description: Confirmation or validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /platform/engines/database-lifecycle/scheduler-snapshot-runner:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleSchedulerSnapshotRunner
+      summary: Run governed database lifecycle scheduler snapshot
+      description: >
+        Runs the scheduler snapshot readiness/readback gate and returns bounded output. Dry-run is default. Apply mode
+        requires typed confirmation and writes only a lifecycle report snapshot after schedule, binding, and approval
+        readback are all ready. It does not enable cron, archive, delete, drop, truncate, compact, or read secrets.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                apply: { type: boolean, default: false }
+                confirm: { type: string }
+                schedule_key: { type: string }
+                binding_key: { type: string }
+                limit: { type: integer, minimum: 1, maximum: 500, default: 80 }
+                actor_id: { type: string }
+                tenant_id: { type: string }
+                trace_id: { type: string }
+                notes: { type: string }
+                summary_only: { type: boolean, default: true }
+      responses:
+        "200": { description: Database lifecycle scheduler snapshot runner result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Confirmation or validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { description: Scheduler snapshot runner blocked by readiness/readback gates, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/engines/database-lifecycle/scheduler-snapshot-jobs:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleSchedulerSnapshotJobEnqueue
+      summary: Enqueue governed database lifecycle scheduler snapshot job
+      description: >
+        Enqueues a bounded internal job of type database_lifecycle_report_snapshot. The job uses the same scheduler
+        snapshot readiness/readback gate as the direct runner. Dry-run is default. Apply mode requires typed confirmation
+        in the queued request payload and writes only a lifecycle report snapshot when all guards pass.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                apply: { type: boolean, default: false }
+                confirm: { type: string }
+                schedule_key: { type: string }
+                binding_key: { type: string }
+                limit: { type: integer, minimum: 1, maximum: 500, default: 80 }
+                actor_id: { type: string }
+                requested_by: { type: string }
+                tenant_id: { type: string }
+                trace_id: { type: string }
+                notes: { type: string }
+                summary_only: { type: boolean, default: true }
+                idempotency_key: { type: string }
+                max_attempts: { type: integer, minimum: 1, maximum: 10, default: 1 }
+                webhook_url: { type: string }
+                callback_secret: { type: string }
+      responses:
+        "200": { description: Existing idempotent database lifecycle scheduler snapshot job, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "202": { description: Database lifecycle scheduler snapshot job queued, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { description: Queue unavailable, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
   /platform/engines/database-lifecycle/report-snapshot-schedules:
     get:
       x-openai-isConsequential: false

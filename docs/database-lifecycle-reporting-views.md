@@ -253,6 +253,18 @@ The runner exits non-zero when schedule readiness, binding readiness, or approva
 readback is not verified. Apply mode writes an evidence snapshot only; it does
 not archive, delete, drop, truncate, compact, or read secrets.
 
+The same governed runner is exposed to admin routes:
+
+- `POST /platform/engines/database-lifecycle/scheduler-snapshot-runner`
+- `POST /platform/engines/database-lifecycle/scheduler-snapshot-jobs`
+
+The direct runner executes the same readiness/readback gates as the CLI. The
+jobs route enqueues an internal `database_lifecycle_report_snapshot` job for the
+queue worker. Both surfaces default to dry-run. Apply mode still requires
+`APPLY_DATABASE_LIFECYCLE_REPORT_SNAPSHOT`, and the queued job writes only a
+lifecycle report snapshot after all gates pass. These routes do not enable cron
+and do not perform archive, delete, drop, truncate, compaction, or secret reads.
+
 ## Operational status
 
 `GET /platform/engines/database-lifecycle/operational-status` returns a bounded,

@@ -7,6 +7,7 @@ import {
   configureJobRunner,
   executeJobThroughHttpEndpoint
 } from "./jobRunner.js";
+import { DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE } from "./databaseTableLifecycle.js";
 
 let passed = 0;
 let failed = 0;
@@ -106,6 +107,50 @@ section("jobRunner — enqueueJob");
 }
 
 section("jobRunner — solver with null sheetsClient fails fast (no retries)");
+
+{
+  const lifecycleJob = {
+    job_id: "job_lifecycle_snapshot",
+    job_type: DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE,
+    status: "queued",
+    attempt_count: 0,
+    max_attempts: 1,
+    request_payload: { schedule_key: "database_lifecycle_retention_plan_weekly", summary_only: true },
+    parent_action_key: "database_lifecycle_scheduler",
+    endpoint_key: "database_lifecycle_report_snapshot",
+    target_key: "database_lifecycle_retention_plan_weekly",
+    route_id: "database_lifecycle_scheduler_snapshot_runner",
+    target_module: "database_lifecycle",
+    target_workflow: "wf_database_lifecycle_report_snapshot",
+    brand_name: "",
+    execution_trace_id: ""
+  };
+  const lifecycleCalls = [];
+  const lifecycleRunner = configureJobRunner(
+    {
+      jobRepository: createJobRepository(lifecycleJob),
+      async executeSiteMigrationJob() {
+        return { success: false, statusCode: 500, payload: { ok: false } };
+      },
+      async performUniversalServerWriteback(payload) {
+        lifecycleCalls.push({ type: "writeback", payload });
+      },
+      async logRetryWriteback() {}
+    },
+    {
+      async runDatabaseLifecycleSchedulerSnapshot(payload) {
+        lifecycleCalls.push({ type: "runner", payload });
+        return { ok: true, mode: "dry_run", dry_run: true, will_write: false, secrets_included: false };
+      }
+    }
+  );
+  await lifecycleRunner.executeSingleQueuedJob(lifecycleJob);
+  assert("lifecycle snapshot job invokes governed runner", lifecycleCalls.some(call => call.type === "runner"), JSON.stringify(lifecycleCalls));
+  assert("lifecycle snapshot job succeeds", lifecycleJob.status === "succeeded", JSON.stringify(lifecycleJob));
+  assert("lifecycle snapshot job writes async evidence", lifecycleCalls.some(call => call.type === "writeback"), JSON.stringify(lifecycleCalls));
+}
+
+section("jobRunner - solver with null sheetsClient fails fast (no retries)");
 
 {
   const solverJob0 = {
