@@ -408,11 +408,11 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     credentialIntakeRoutes.includes('"ssh_key_pair"') &&
     credentialIntakeRoutes.includes('ssh_private_key') &&
     credentialIntakeRoutes.includes('Secrets are encrypted server-side and will not be shown again'));
-  assert("platform secret promotion uses intake connection only and never raw secret request values",
-    credentialRoutes.includes('/credentials/intake/promote-platform-secrets') &&
+  assert("platform secret promotion uses intake connection only and never returns raw secrets",
+    credentialRoutes.includes('router.post("/credentials/intake/promote-platform-secrets"') &&
     credentialRoutes.includes('decryptCredentials(connection.encrypted_credentials)') &&
-    credentialRoutes.includes('secrets_included: false') &&
-    !credentialRoutes.includes('body.value || body.secret || body.secret_value') === false);
+    credentialRoutes.includes('connection.auth_type !== "ssh_key_pair"') &&
+    credentialRoutes.includes('secrets_included: false'));
   assert("migration 187 registers platform secret intake promotion admin tool",
     migration187.includes('credential_intake_promote_platform_secrets') &&
     migration187.includes('/credentials/intake/promote-platform-secrets') &&
