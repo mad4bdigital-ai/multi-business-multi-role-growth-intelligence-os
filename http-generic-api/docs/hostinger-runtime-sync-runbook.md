@@ -1,0 +1,85 @@
+# Hostinger Runtime Sync Guard
+
+## Purpose
+
+This runbook prevents credential-intake or deployment flows from being treated as live-ready when the SQL registry and GitHub `main` are newer than the running Hostinger Node.js runtime.
+
+## Trigger condition
+
+Use this runbook when any of the following are true:
+
+- `release_readiness` is passing but `repo_inspect` against the live Hostinger path does not show the expected code.
+- A credential-intake profile exists in `admin_platform_endpoint_tools`, but the live `credentialIntakeRoutes.js` does not render the matching fields.
+- `main` contains a merged change, but `https://auth.mad4b.com/health` still reports an older runtime version.
+
+## Required preflight
+
+Before issuing any secure intake link or declaring a runtime target ready:
+
+1. Confirm `main` CI and OpenAPI Auto Sync passed.
+2. Run `release_readiness` and require `overall: pass`.
+3. Run live-code readback against the Hostinger runtime path.
+4. For remote database credential intake, confirm the live route file includes all of:
+   - `remote_database`
+   - `DB_HOST`
+   - `DB_PORT`
+   - `DB_NAME`
+   - `DB_USER`
+   - `DB_PASSWORD`
+   - `maybeAutoPromotePlatformSecrets`
+5. Confirm `/health` reports the expected runtime surface after sync.
+
+## One-time Hostinger sync path
+
+When the live runtime has not picked up `main`, use Hostinger hPanel Git deployment or Node.js web app deployment to sync the application from GitHub. Do not bypass this by marking runtime targets as valid manually.
+
+The safe operational sequence is:
+
+1. Open Hostinger hPanel for the `auth.mad4b.com` Node.js app.
+2. Use the configured Git/GitHub deployment surface to pull the latest `main` commit.
+3. Let Hostinger rebuild/restart the Node.js app.
+4. Re-run `/health`.
+5. Re-run live-code readback for the expected route symbols.
+6. Only then issue the secure credential-intake link.
+
+## Prohibited shortcuts
+
+- Do not paste SSH, DB, API, or Hostinger credentials into chat.
+- Do not set `remote_runtime_targets.validation_status = 'valid'` without a real probe.
+- Do not issue a credential-intake link if the live route code cannot render the expected fields.
+- Do not use arbitrary shell or unregistered deploy commands.
+- Do not claim deploy/sync completed unless the live runtime readback confirms it.
+
+## Remote database intake readiness
+
+Remote database credentials are separate from SSH credentials.
+
+SSH credential intake fields are only:
+
+- `ssh_host`
+- `ssh_port`
+- `ssh_user`
+- `ssh_private_key`
+
+Remote database credential intake fields are:
+
+- `DB_HOST`
+- `DB_PORT`
+- `DB_NAME`
+- `DB_USER`
+- `DB_PASSWORD`
+
+A remote database intake link may be issued only after the live runtime confirms `remote_database` and the `DB_*` fields are present in `credentialIntakeRoutes.js`.
+
+## Evidence to record
+
+When resolving a runtime sync gap, record:
+
+- GitHub `main` SHA.
+- CI/OpenAPI status.
+- `release_readiness` result.
+- `/health` result before and after sync.
+- live `repo_inspect` readback showing expected symbols.
+- credential-intake session ID only after sync.
+
+Never record raw secret values.

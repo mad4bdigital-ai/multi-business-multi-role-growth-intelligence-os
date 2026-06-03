@@ -66,6 +66,7 @@ export const testCommands = [
   "node test-tenant-platform-plugin-routes.mjs",
   "node test-tenant-gpt-operating-guide.mjs",
   "node test-tenant-gpt-operating-guide-tools.mjs",
+  "node test-hostinger-runtime-sync-runbook.mjs",
   "node test-workspace-lifecycle-foundation.mjs",
   "node test-tenant-evolution-checkpoint-routes.mjs",
   "node test-tenant-platform-plugin-openapi.mjs",
