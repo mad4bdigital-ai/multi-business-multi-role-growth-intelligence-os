@@ -4,7 +4,7 @@
 -- delete, drop, truncate, compact, or read secrets.
 
 INSERT INTO admin_platform_endpoint_tools
-  (tool_key, display_name, description, method, path, path_params_json, input_schema_json, output_schema_json, tags, is_active, sort_order)
+  (tool_key, display_name, description, http_method, http_path, path_param_keys, input_schema, fixed_body, tags, is_enabled, sort_order)
 VALUES
   (
     'database_lifecycle_scheduler_approval_readback',
@@ -31,26 +31,11 @@ VALUES
 ON DUPLICATE KEY UPDATE
   display_name = VALUES(display_name),
   description = VALUES(description),
-  method = VALUES(method),
-  path = VALUES(path),
-  input_schema_json = VALUES(input_schema_json),
+  http_method = VALUES(http_method),
+  http_path = VALUES(http_path),
+  input_schema = VALUES(input_schema),
   tags = VALUES(tags),
-  is_active = VALUES(is_active),
+  is_enabled = VALUES(is_enabled),
   sort_order = VALUES(sort_order);
 
-INSERT INTO tool_policy_registry (tool_key, policy_key, risk_class, approval_required, allowed_roles_json, metadata_json, status)
-SELECT tool_key,
-       CONCAT(tool_key, '_policy_v1'),
-       'read_only',
-       0,
-       JSON_ARRAY('admin'),
-       JSON_OBJECT('readback_only', true, 'will_execute', false, 'no_drop', true, 'no_delete', true, 'no_archive_execution', true, 'no_secret_read', true),
-       'active'
-FROM admin_platform_endpoint_tools
-WHERE tool_key = 'database_lifecycle_scheduler_approval_readback'
-ON DUPLICATE KEY UPDATE
-  risk_class = VALUES(risk_class),
-  approval_required = VALUES(approval_required),
-  allowed_roles_json = VALUES(allowed_roles_json),
-  metadata_json = VALUES(metadata_json),
-  status = VALUES(status);
+-- Policy metadata for this readback tool is carried through the admin tool tags and governed runtime registry surfaces.
