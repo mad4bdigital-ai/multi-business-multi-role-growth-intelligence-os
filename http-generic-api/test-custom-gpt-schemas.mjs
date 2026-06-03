@@ -419,6 +419,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     credentialRoutes.includes('router.post("/credentials/intake/promote-platform-secrets"') &&
     credentialRoutes.includes('decryptCredentials(connection.encrypted_credentials)') &&
     credentialRoutes.includes('connection.auth_type !== "ssh_key_pair"') &&
+    credentialRoutes.includes('hostinger_ssh_prod_db_name') &&
     credentialRoutes.includes('secrets_included: false'));
   assert("migration 187 registers platform secret intake promotion admin tool",
     migration187.includes('credential_intake_promote_platform_secrets') &&
