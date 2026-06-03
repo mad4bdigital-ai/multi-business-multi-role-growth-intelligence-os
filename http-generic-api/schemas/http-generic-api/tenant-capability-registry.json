@@ -31,7 +31,7 @@
       "status": "planned",
       "required_role": "owner",
       "tools": [],
-      "next_best_action": "Explain that role changes are planned and currently require admin-governed support."
+      "next_best_action": "Explain that role changes beyond invite/request approval are planned and currently require admin-governed support."
     },
     "tenant_profile_preferences": {
       "status": "active",
@@ -66,19 +66,19 @@
     "tenant_docs_read": {
       "status": "active",
       "required_role": "member",
-      "tools": ["tenant_docs_catalog", "tenant_docs_read"],
+      "tools": ["tenant_docs_catalog", "tenant_docs_read", "tenant_gpt_operating_guide_read", "tenant_capability_registry_read"],
       "next_best_action": "Read the operating guide and capability registry before advising the tenant user."
     }
   },
   "role_policy": {
-    "owner": ["workspace_create", "workspace_list", "tenant_profile_preferences", "wordpress_cms_claim", "wordpress_auth_context_diagnostic", "wordpress_publish", "tenant_docs_read"],
-    "admin": ["workspace_list", "tenant_profile_preferences", "wordpress_cms_claim", "wordpress_auth_context_diagnostic", "wordpress_publish", "tenant_docs_read"],
+    "owner": ["workspace_create", "workspace_list", "workspace_member_invitation", "workspace_access_request", "tenant_profile_preferences", "wordpress_cms_claim", "wordpress_auth_context_diagnostic", "wordpress_publish", "tenant_docs_read"],
+    "admin": ["workspace_list", "workspace_member_invitation", "workspace_access_request", "tenant_profile_preferences", "wordpress_cms_claim", "wordpress_auth_context_diagnostic", "wordpress_publish", "tenant_docs_read"],
     "editor": ["workspace_list", "tenant_profile_preferences", "wordpress_publish", "tenant_docs_read"],
     "viewer": ["workspace_list", "tenant_docs_read"],
     "operator": ["workspace_list", "tenant_profile_preferences", "wordpress_auth_context_diagnostic", "tenant_docs_read"]
   },
   "daily_journeys": {
-    "owner": ["Confirm workspace", "Complete profile", "Connect apps", "Add sites/brands", "Create grants", "Invite members when capability is active", "Review approvals and audit"],
+    "owner": ["Confirm workspace", "Complete profile", "Connect apps", "Add sites/brands", "Create grants", "Invite members", "Review access requests", "Review approvals and audit"],
     "content_editor": ["Select workspace and brand", "Create draft", "Use Drive assets", "Request approval", "Publish only through active grants"],
     "integration_operator": ["Validate app connections", "Run diagnostics", "Route credential gaps to secure intake", "Avoid raw secret handling"],
     "client_reviewer": ["Review deliverables", "Comment or approve", "Request revisions", "Avoid integration or credential operations"]
