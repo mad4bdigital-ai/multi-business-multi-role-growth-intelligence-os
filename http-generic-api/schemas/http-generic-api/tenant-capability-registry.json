@@ -16,16 +16,16 @@
       "next_best_action": "List active workspaces and ask the user which one to operate on."
     },
     "workspace_member_invitation": {
-      "status": "planned",
-      "required_role": "owner",
-      "tools": [],
-      "next_best_action": "Collect email and role, then explain that owner-managed invitations are not yet self-service unless an admin-assisted path is used."
+      "status": "active",
+      "required_role": "owner_or_admin",
+      "tools": ["workspace_invitation_create", "workspace_invitations_list", "workspace_invitation_accept"],
+      "next_best_action": "Collect invitee email and role, create a workspace invitation, and tell the invited user to accept it while signed in with the matching email."
     },
     "workspace_access_request": {
-      "status": "planned",
+      "status": "active",
       "required_role": "signed_in_user",
-      "tools": [],
-      "next_best_action": "Collect target workspace identity and reason, then explain that access-request workflow is planned."
+      "tools": ["workspace_access_request_create", "workspace_access_requests_list", "workspace_access_request_approve", "workspace_access_request_reject"],
+      "next_best_action": "Collect target workspace, requested role, and reason; submit access request; route owner/admin to approve or reject pending requests."
     },
     "workspace_member_role_management": {
       "status": "planned",
