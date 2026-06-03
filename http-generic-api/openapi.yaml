@@ -12510,6 +12510,150 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /connected-execution/sessions:
+    post:
+      tags: [connected-execution]
+      operationId: upsertConnectedExecutionSession
+      summary: Create or update a connected execution session
+      description: Creates or updates DB-backed connected execution session metadata. Does not execute pending actions and does not enable background work.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectedExecutionSessionUpsertRequest" }
+      responses:
+        "201":
+          description: Connected execution session created or updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectedExecutionSessionResponse" }
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Request failed unexpectedly.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /connected-execution/sessions/{connected_session_id}/checkpoint:
+    get:
+      tags: [connected-execution]
+      operationId: getConnectedExecutionLatestCheckpoint
+      summary: Read latest connected execution checkpoint
+      description: Returns the latest checkpoint view for a connected execution session. Read-only and secret-free by contract.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: connected_session_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: Latest checkpoint returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectedExecutionCheckpointResponse" }
+        "404":
+          description: Session or checkpoint not found.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Request failed unexpectedly.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /connected-execution/sessions/{connected_session_id}/evidence-reports:
+    post:
+      tags: [connected-execution]
+      operationId: createConnectedExecutionEvidenceReport
+      summary: Append connected execution evidence report
+      description: Appends a sanitized evidence report to a connected execution session and advances its checkpoint cursor. Does not execute actions.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: connected_session_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectedExecutionEvidenceReportCreateRequest" }
+      responses:
+        "201":
+          description: Evidence report appended.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectedExecutionEvidenceReportResponse" }
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Connected execution session not found.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Request failed unexpectedly.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /connected-execution/sessions/{connected_session_id}/resume-actions:
+    post:
+      tags: [connected-execution]
+      operationId: enqueueConnectedExecutionResumeAction
+      summary: Enqueue connected execution resume action metadata
+      description: Records a pending resume action for a connected execution session. This only stores metadata; it does not claim or execute the action.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: connected_session_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectedExecutionResumeActionCreateRequest" }
+      responses:
+        "201":
+          description: Resume action metadata recorded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectedExecutionResumeActionResponse" }
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Connected execution session not found.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Request failed unexpectedly.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /tenant/docs:
     get:
       tags: [tenant-docs]
