@@ -168,6 +168,7 @@ export function buildPlatformEngineRoutes(deps = {}) {
       const status = await getDatabaseLifecycleOperationalStatus({
         report_type: req.query.report_type || "retention_plan",
         limit: req.query.limit,
+        max_snapshot_age_hours: req.query.max_snapshot_age_hours,
       }, deps);
       res.json({ ok: true, status });
     } catch (error) {

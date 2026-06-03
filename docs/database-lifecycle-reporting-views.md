@@ -266,6 +266,12 @@ binding metadata are active and approved. Otherwise it returns
 `needs_attention` with blocker keys such as `no_active_snapshot_schedule` or
 `no_approved_scheduler_binding`.
 
+The status also checks snapshot freshness against the active schedule cadence.
+For example, the default weekly schedule is considered stale after eight days.
+Diagnostics may pass `max_snapshot_age_hours` to use a stricter temporary
+threshold. A stale latest snapshot returns the blocker
+`latest_lifecycle_report_snapshot_stale`.
+
 This route does not enable scheduler jobs, write snapshots, archive, delete,
 drop, truncate, compact, or read secrets.
 

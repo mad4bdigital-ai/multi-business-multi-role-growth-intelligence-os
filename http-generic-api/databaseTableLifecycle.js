@@ -538,12 +538,56 @@ function boolFlag(value) {
   return value === true || value === 1 || value === "1";
 }
 
-export function buildDatabaseLifecycleOperationalStatus({ snapshots = [], schedules = [], bindings = [] } = {}) {
+function parseDateMs(value) {
+  const ms = Date.parse(value || "");
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function snapshotFreshnessWindowHours(schedule = {}, explicitMaxAgeHours = null) {
+  const explicit = Number(explicitMaxAgeHours);
+  if (Number.isFinite(explicit) && explicit > 0) return Math.min(Math.max(explicit, 1), 8760);
+  const cron = text(schedule?.cron_expression);
+  const parts = cron.split(/\s+/).filter(Boolean);
+  if (parts.length !== 5) return 168;
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+  const isEveryMinute = minute === "*" && hour === "*" && dayOfMonth === "*" && month === "*" && dayOfWeek === "*";
+  if (isEveryMinute) return 1;
+  if (hour === "*" && dayOfMonth === "*" && month === "*" && dayOfWeek === "*") return 2;
+  if (dayOfMonth === "*" && month === "*" && dayOfWeek === "*") return 36;
+  if (dayOfMonth === "*" && month === "*" && dayOfWeek !== "*") return 192;
+  if (month === "*" && dayOfMonth !== "*") return 840;
+  return 192;
+}
+
+function buildSnapshotFreshness(latestSnapshot, schedule, options = {}) {
+  const nowMs = parseDateMs(options.now) ?? Date.now();
+  const createdAtMs = parseDateMs(latestSnapshot?.created_at);
+  const maxAgeHours = snapshotFreshnessWindowHours(schedule, options.max_snapshot_age_hours);
+  if (!latestSnapshot || createdAtMs === null) {
+    return {
+      fresh: false,
+      age_hours: null,
+      max_age_hours: maxAgeHours,
+      checked_at: new Date(nowMs).toISOString(),
+    };
+  }
+  const ageHours = Math.max(0, (nowMs - createdAtMs) / 1000 / 60 / 60);
+  return {
+    fresh: ageHours <= maxAgeHours,
+    age_hours: Number(ageHours.toFixed(3)),
+    max_age_hours: maxAgeHours,
+    checked_at: new Date(nowMs).toISOString(),
+  };
+}
+
+export function buildDatabaseLifecycleOperationalStatus({ snapshots = [], schedules = [], bindings = [] } = {}, options = {}) {
   const latestSnapshot = snapshots[0] || null;
   const activeSchedules = schedules.filter((row) => text(row.status) === "active");
   const approvedSchedules = schedules.filter((row) => text(row.approval_status) === "approved");
   const activeBindings = bindings.filter((row) => text(row.status) === "active");
   const approvedBindings = bindings.filter((row) => text(row.approval_status) === "approved");
+  const freshnessSchedule = activeSchedules[0] || approvedSchedules[0] || schedules[0] || {};
+  const snapshotFreshness = buildSnapshotFreshness(latestSnapshot, freshnessSchedule, options);
   const unsafeBinding = bindings.find((row) => (
     boolFlag(row.will_execute)
     || !boolFlag(row.no_drop)
@@ -555,6 +599,7 @@ export function buildDatabaseLifecycleOperationalStatus({ snapshots = [], schedu
 
   const blockers = [];
   if (!latestSnapshot) blockers.push("no_lifecycle_report_snapshot_recorded");
+  if (latestSnapshot && !snapshotFreshness.fresh) blockers.push("latest_lifecycle_report_snapshot_stale");
   if (!activeSchedules.length) blockers.push("no_active_snapshot_schedule");
   if (!approvedSchedules.length) blockers.push("no_approved_snapshot_schedule");
   if (!activeBindings.length) blockers.push("no_active_scheduler_binding");
@@ -584,6 +629,7 @@ export function buildDatabaseLifecycleOperationalStatus({ snapshots = [], schedu
       dry_run: boolFlag(latestSnapshot.dry_run),
       created_at: latestSnapshot.created_at || null,
     } : null,
+    snapshot_freshness: snapshotFreshness,
     summary: {
       snapshot_count: snapshots.length,
       schedule_count: schedules.length,
@@ -604,14 +650,14 @@ export function buildDatabaseLifecycleOperationalStatus({ snapshots = [], schedu
   };
 }
 
-export async function getDatabaseLifecycleOperationalStatus({ report_type = "retention_plan", limit = 5 } = {}, deps = {}) {
+export async function getDatabaseLifecycleOperationalStatus({ report_type = "retention_plan", limit = 5, max_snapshot_age_hours = null } = {}, deps = {}) {
   const boundedLimit = Math.max(1, Math.min(number(limit, 5), 25));
   const [snapshots, schedules, bindings] = await Promise.all([
     listDatabaseLifecycleReportSnapshots({ report_type, limit: boundedLimit }, deps),
     listDatabaseLifecycleReportSnapshotSchedules({ report_type, limit: boundedLimit }, deps),
     listDatabaseLifecycleSchedulerBindings({ limit: boundedLimit }, deps),
   ]);
-  return buildDatabaseLifecycleOperationalStatus({ snapshots, schedules, bindings });
+  return buildDatabaseLifecycleOperationalStatus({ snapshots, schedules, bindings }, { max_snapshot_age_hours });
 }
 
 function normalizeScheduleRow(row = {}) {
