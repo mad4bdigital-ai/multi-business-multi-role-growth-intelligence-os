@@ -7483,7 +7483,7 @@ paths:
       summary: Public system status JSON - component health and open incidents
       description: >
         Returns live DB-backed component health (API, DB, tenant_management, identity,
-        connector_execution, intent_resolution, observability, release_readiness),
+        connector_execution, intent_resolution, observability, release_readiness, database_lifecycle),
         open incidents, and past 30-day incident history.
         Returns HTTP 503 when overall status is partial_outage or major_outage.
       responses:
