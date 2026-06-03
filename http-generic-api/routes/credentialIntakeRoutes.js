@@ -368,6 +368,126 @@ function collectSubmission({ authType, schema, body = {}, session = {} }) {
   return { credentials, metadata, connection, displayLabel };
 }
 
+function normalizePlatformSecretMappings(metadata = {}) {
+  const raw = Array.isArray(metadata.platform_secret_mappings) ? metadata.platform_secret_mappings : [];
+  return raw
+    .map((mapping = {}) => ({
+      credential_field: normalizeFieldName(mapping.credential_field || mapping.field),
+      secret_key: normalizeFieldName(mapping.secret_key || mapping.secretKey),
+      secret_type: normalizeFieldName(mapping.secret_type || mapping.secretType || mapping.credential_role || mapping.credentialRole),
+    }))
+    .filter((mapping) => mapping.credential_field && mapping.secret_key)
+    .slice(0, 20);
+}
+
+async function maybeAutoPromotePlatformSecrets({ session, credentials = {}, metadata = {}, connectionId, req }) {
+  if (metadata.auto_promote_platform_secrets !== true) return null;
+  const promotionReason = String(metadata.promotion_reason || "").trim();
+  if (metadata.promotion_approved !== true || promotionReason.length < 12) {
+    return { ok: false, skipped: true, reason: "promotion_approval_required", secrets_included: false };
+  }
+  const mappings = normalizePlatformSecretMappings(metadata);
+  if (!mappings.length) {
+    return { ok: false, skipped: true, reason: "platform_secret_mappings_required", secrets_included: false };
+  }
+
+  const systemId = String(metadata.system_id || "").trim() || null;
+  const ownerId = String(metadata.owner_id || "growth_intelligence_platform").trim();
+  const providerFamily = String(metadata.provider_family || "").trim() || null;
+  const connectorFamily = String(metadata.connector_family || "").trim() || null;
+  const targetKey = String(metadata.target_key || "").trim() || null;
+  const missingFields = mappings
+    .filter((mapping) => !String(credentials[mapping.credential_field] || "").trim())
+    .map((mapping) => mapping.credential_field);
+  if (missingFields.length) {
+    return { ok: false, skipped: true, reason: "mapped_intake_fields_missing", missing_fields: [...new Set(missingFields)], secrets_included: false };
+  }
+
+  const pool = getPool();
+  const promoted = [];
+  for (const mapping of mappings) {
+    const value = String(credentials[mapping.credential_field] || "").trim();
+    const secretType = mapping.secret_type || mapping.credential_field;
+    const hash = sha256(value);
+    const metadataJson = JSON.stringify({
+      provisioning_status: "stored",
+      stored_at: new Date().toISOString(),
+      provider_family: providerFamily,
+      connector_family: connectorFamily,
+      credential_type: secretType,
+      source: "credential_intake_auto_platform_secret_promotion",
+      connection_id: connectionId,
+      target_key: targetKey,
+      promotion_reason: promotionReason,
+    });
+
+    await pool.query(
+      `INSERT INTO platform_secrets
+         (secret_key, secret_type, storage_backend, secret_ref, value_sha256, value_ciphertext, metadata_json, status, created_by)
+       VALUES (?, ?, 'db_encrypted', NULL, ?, ?, ?, 'active', ?)
+       ON DUPLICATE KEY UPDATE
+         secret_type = VALUES(secret_type),
+         storage_backend = 'db_encrypted',
+         secret_ref = NULL,
+         value_sha256 = VALUES(value_sha256),
+         value_ciphertext = VALUES(value_ciphertext),
+         metadata_json = VALUES(metadata_json),
+         status = 'active',
+         updated_at = CURRENT_TIMESTAMP`,
+      [mapping.secret_key, secretType, hash, encryptToken(value), metadataJson, metadata.created_by || "credential_intake_auto_platform_secret_promotion"]
+    );
+
+    const params = [ownerId, systemId, providerFamily, connectorFamily, secretType, mapping.secret_key];
+    await pool.query(
+      `UPDATE secret_references
+          SET owner_type = 'platform',
+              owner_id = ?,
+              system_id = COALESCE(?, system_id),
+              provider_family = COALESCE(?, provider_family),
+              connector_family = COALESCE(?, connector_family),
+              credential_type = ?,
+              store_type = 'db_encrypted',
+              env_var_name = NULL,
+              vault_path = NULL,
+              validation_status = 'stored',
+              status = 'active'
+        WHERE secret_key = ?
+          AND owner_type = 'platform'`,
+      params
+    );
+    promoted.push({ secret_key: mapping.secret_key, credential_field: mapping.credential_field, value_sha256: hash });
+  }
+
+  await pool.query(
+    `UPDATE user_app_connections
+        SET validation_status = 'promoted_to_platform_secrets', last_used_at = NOW()
+      WHERE connection_id = ?`,
+    [connectionId]
+  ).catch(() => {});
+
+  writeAuditLogAsync({
+    tenant_id: session.tenant_id,
+    actor_id: session.user_id,
+    actor_type: "credential_intake_link",
+    action: "credential_intake.platform_secrets_auto_promoted",
+    resource_type: "user_app_connection",
+    resource_id: connectionId,
+    after_json: {
+      system_id: systemId,
+      owner_id: ownerId,
+      target_key: targetKey,
+      auth_type: session.auth_type,
+      promoted_count: promoted.length,
+      secret_keys: promoted.map((item) => item.secret_key),
+      secrets_included: false,
+    },
+    ip_address: req?.ip || null,
+    user_agent: req?.headers?.["user-agent"] || null,
+  });
+
+  return { ok: true, promoted_count: promoted.length, promoted, secrets_included: false };
+}
+
 function renderCredentialForm({ session, app, error = "" }) {
   const fields = sessionSchema(session);
   const oauthNotice = session.auth_type === "oauth2"
