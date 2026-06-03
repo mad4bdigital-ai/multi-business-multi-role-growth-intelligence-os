@@ -128,6 +128,7 @@ function defaultCredentialSchema(authType) {
       { name: "ssh_port", label: "SSH port", type: "number", target: "credentials", required: true, secret: false, autocomplete: "off" },
       { name: "ssh_user", label: "SSH username", type: "text", target: "credentials", required: true, secret: false, autocomplete: "username" },
       { name: "ssh_private_key", label: "SSH private key", type: "textarea", target: "credentials", required: true, secret: true, autocomplete: "new-password", help: "Paste the private key. It is encrypted server-side and never shown again." },
+      { name: "db_name", label: "DB_NAME", type: "text", target: "credentials", required: true, secret: false, autocomplete: "off", help: "Production database name used by governed deploy and migration validation." },
     ];
   }
   if (authType === "custom_headers") {
