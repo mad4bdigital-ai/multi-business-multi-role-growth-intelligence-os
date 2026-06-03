@@ -35,6 +35,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "184_sprint66_database_lifecycle_scheduler_binding_readiness.sql",
   "185_sprint66_database_lifecycle_scheduler_approval_metadata.sql",
   "186_sprint66_database_lifecycle_scheduler_approval_readback.sql",
+  "187_sprint66_connected_execution_continuity_api_tools.sql",
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v2";
