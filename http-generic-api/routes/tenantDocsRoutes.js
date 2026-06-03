@@ -17,6 +17,8 @@ const TENANT_SAFE_DOC_ALLOWLIST = new Map([
   ["docs/local-manager-n8n-runtime-governance.md", "docs/local-manager-n8n-runtime-governance.md"],
   ["docs/platform-plugin-tenant-install.md", "docs/platform-plugin-tenant-install.md"],
   ["docs/platform-plugin-private-runtime.md", "docs/platform-plugin-private-runtime.md"],
+  ["docs/tenant-gpt-operating-guide.md", "docs/tenant-gpt-operating-guide.md"],
+  ["schemas/http-generic-api/tenant-capability-registry.json", "schemas/http-generic-api/tenant-capability-registry.json"],
 ]);
 
 function verifyUserJwt(authHeader) {
