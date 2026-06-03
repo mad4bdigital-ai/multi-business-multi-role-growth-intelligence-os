@@ -122,7 +122,7 @@ function readinessForTarget(target, activeCommands = []) {
   };
 }
 
-const HOSTING_SSH_CREDENTIAL_ROLES = ["ssh_host", "ssh_port", "ssh_user", "ssh_private_key"];
+const HOSTING_SSH_CREDENTIAL_ROLES = ["ssh_host", "ssh_port", "ssh_user", "ssh_private_key", "db_name"];
 
 async function loadHostingSshCredentialReadiness(pool, target = {}, system = null, connection = null) {
   if (!target?.tenant_id) {
