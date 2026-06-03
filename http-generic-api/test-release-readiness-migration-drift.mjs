@@ -46,6 +46,14 @@ VALUES
 `;
 
 const requirements = extractMigrationReadinessRequirementsFromSql(sampleSql);
+const backtickedInsertRequirements = extractMigrationReadinessRequirementsFromSql(`
+INSERT INTO \`admin_platform_endpoint_tools\`
+  (\`tool_key\`, \`display_name\`, \`description\`, \`http_method\`, \`http_path\`)
+VALUES
+  ('backticked_admin_tool', 'Backticked Tool', 'Read-only.', 'GET', '/admin/backticked')
+ON DUPLICATE KEY UPDATE
+  \`display_name\` = VALUES(\`display_name\`);
+`);
 
 assert(requirements.schema_objects.includes("platform_resource_authority_requirements"), "must detect CREATE TABLE objects");
 assert(requirements.schema_objects.includes("v_resource_authority_sample"), "must detect CREATE VIEW objects");
@@ -61,6 +69,7 @@ assert(requirements.engine_policies.includes("resource_authority_policy_v1"), "m
 assert(requirements.engine_strategies.includes("resource_authority_gate_check"), "must detect engine strategy rows");
 assert(requirements.engine_rules.includes("resource_authority_publish_gate"), "must detect engine policy rule rows");
 assert(requirements.engine_skills.includes("resource_authority"), "must detect engine skill prompt rows");
+assert(backtickedInsertRequirements.admin_tools.includes("backticked_admin_tool"), "must detect admin tool tuple when table and columns use backticks");
 
 const sourceToolNames = extractNamedToolKeysFromSource(`
   const TOOLS = [

@@ -306,7 +306,9 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   const remoteRuntime = readFileSync(resolve(__dirname, "remoteRuntime.js"), "utf8");
   const credentialIntakeRoutes = readFileSync(resolve(__dirname, "routes/credentialIntakeRoutes.js"), "utf8");
   const credentialRoutes = readFileSync(resolve(__dirname, "routes/credentialRoutes.js"), "utf8");
+  const governedMigrationRunner = readFileSync(resolve(__dirname, "scripts/governed-migration-runner.mjs"), "utf8");
   const migration187 = readFileSync(resolve(__dirname, "migrations/187_sprint66_platform_secret_intake_promotion_tool.sql"), "utf8");
+  const releaseReadiness = readFileSync(resolve(__dirname, "releaseReadiness.js"), "utf8");
   const migration104 = readFileSync(resolve(__dirname, "migrations/104_sprint64_activation_mode_governance.sql"), "utf8");
   const migration105 = readFileSync(resolve(__dirname, "migrations/105_sprint64_dedicated_integration_flow.sql"), "utf8");
   const migration106 = readFileSync(resolve(__dirname, "migrations/106_sprint64_hybrid_integration_policy.sql"), "utf8");
@@ -418,6 +420,9 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     migration187.includes('/credentials/intake/promote-platform-secrets') &&
     migration187.includes('no_secrets') &&
     migration187.includes('requires_approval'));
+  assert("migration 187 platform secret intake promotion is governed-runner allowlisted",
+    governedMigrationRunner.includes('187_sprint66_platform_secret_intake_promotion_tool.sql') &&
+    releaseReadiness.includes('187_sprint66_platform_secret_intake_promotion_tool.sql'));
   assert("migration 187 allows ssh_key_pair in credential intake session tool schema",
     migration187.includes("'$.properties.auth_type.enum'") &&
     migration187.includes("'ssh_key_pair'") &&
