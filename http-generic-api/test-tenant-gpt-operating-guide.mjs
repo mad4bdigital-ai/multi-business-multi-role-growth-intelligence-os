@@ -17,7 +17,10 @@ assert(guide.includes("Do not claim a self-service UI exists"), "guide must prev
 const registry = JSON.parse(readFileSync("schemas/http-generic-api/tenant-capability-registry.json", "utf8"));
 assert.equal(registry.tenant_facing, true, "capability registry must be tenant-facing");
 assert.equal(registry.capabilities.workspace_create.status, "active", "workspace create capability must be active");
-assert.equal(registry.capabilities.workspace_member_invitation.status, "planned", "member invitations must remain honestly marked planned until implemented");
+assert.equal(registry.capabilities.workspace_member_invitation.status, "active", "member invitations must be active after workspace lifecycle foundation");
+assert.equal(registry.capabilities.workspace_access_request.status, "active", "workspace access requests must be active after workspace lifecycle foundation");
+assert(registry.capabilities.workspace_member_invitation.tools.includes("workspace_invitation_create"), "invitation capability must expose create tool");
+assert(registry.capabilities.workspace_access_request.tools.includes("workspace_access_request_approve"), "access request capability must expose approval tool");
 assert.equal(registry.capabilities.wordpress_publish.status, "active", "WordPress publish capability must be active");
 assert(registry.role_policy.owner.includes("wordpress_publish"), "owner role policy should include WordPress publish where grant allows it");
 
