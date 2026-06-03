@@ -4,7 +4,7 @@
 -- delete, drop, truncate, compact, or read secrets.
 
 INSERT INTO admin_platform_endpoint_tools
-  (tool_key, display_name, description, method, path, path_params_json, input_schema_json, output_schema_json, tags, is_active, sort_order)
+  (tool_key, display_name, description, http_method, http_path, path_param_keys, input_schema, fixed_body, tags, is_enabled, sort_order)
 VALUES
   (
     'database_lifecycle_scheduler_approval_readback',
