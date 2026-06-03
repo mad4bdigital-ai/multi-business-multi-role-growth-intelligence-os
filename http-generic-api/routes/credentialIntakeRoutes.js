@@ -18,6 +18,7 @@ const ALLOWED_AUTH_TYPES = new Set([
   "custom_headers",
   "client_credentials",
   "ssh_key_pair",
+  "remote_database",
 ]);
 
 const ALLOWED_FIELD_TARGETS = new Set(["credentials", "connection", "metadata"]);
