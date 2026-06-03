@@ -49,6 +49,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "185_sprint66_database_lifecycle_scheduler_approval_metadata.sql",
   "186_sprint66_database_lifecycle_scheduler_approval_readback.sql",
   "187_sprint66_connected_execution_continuity_api_tools.sql",
+  "187_sprint66_platform_secret_intake_promotion_tool.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
@@ -163,13 +164,14 @@ export function extractMigrationReadinessRequirementsFromSql(sqlText = "") {
 
 function extractFirstColumnInsertKeys(sql = "", tableName = "") {
   const escapedTable = tableName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const insertRegex = new RegExp(`INSERT\\s+INTO\\s+\`?${escapedTable}\`?[\\s\\S]*?;`, "gi");
+  const insertRegex = new RegExp(`\\bINSERT\\s+(?:IGNORE\\s+)?INTO\\s+\`?${escapedTable}\`?\\b`, "i");
   const keys = new Set();
-  for (const statementMatch of sql.matchAll(insertRegex)) {
-    const statement = statementMatch[0] || "";
+  for (const statement of splitSqlStatements(sql)) {
+    if (!insertRegex.test(statement)) continue;
     const valuesIndex = statement.search(/\bVALUES\b/i);
     if (valuesIndex === -1) continue;
-    const valuesPart = statement.slice(valuesIndex);
+    const onDuplicateIndex = statement.search(/\bON\s+DUPLICATE\s+KEY\s+UPDATE\b/i);
+    const valuesPart = statement.slice(valuesIndex, onDuplicateIndex === -1 ? undefined : onDuplicateIndex);
     for (const tuple of extractTopLevelSqlTuples(valuesPart)) {
       const firstValue = firstSqlStringValue(tuple);
       if (firstValue) keys.add(firstValue);
