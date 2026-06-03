@@ -24,6 +24,11 @@ const runner = fs.readFileSync(
 );
 const routesSource = fs.readFileSync(new URL("./routes/platformEngineRoutes.js", import.meta.url), "utf8");
 const openapi = fs.readFileSync(new URL("./openapi.yaml", import.meta.url), "utf8");
+const releaseReadiness = fs.readFileSync(new URL("./releaseReadiness.js", import.meta.url), "utf8");
+const governedMigrationRunner = fs.readFileSync(
+  new URL("./scripts/governed-migration-runner.mjs", import.meta.url),
+  "utf8"
+);
 
 assert(migration.includes("CREATE TABLE IF NOT EXISTS database_lifecycle_scheduler_approval_events"));
 assert(migration.includes("database_lifecycle_scheduler_approval_metadata"));
@@ -31,6 +36,14 @@ assert(migration.includes("confirmation_required"));
 assert(migration.includes("typed_confirmation_required"));
 assert(readbackMigration.includes("database_lifecycle_scheduler_approval_readback"));
 assert(readbackMigration.includes("read_only"));
+assert(
+  releaseReadiness.includes("186_sprint66_database_lifecycle_scheduler_approval_readback.sql"),
+  "release readiness governed ledger expectation must include migration 186"
+);
+assert(
+  governedMigrationRunner.includes("186_sprint66_database_lifecycle_scheduler_approval_readback.sql"),
+  "governed migration runner allowlist must include migration 186"
+);
 for (const forbidden of [/\bDROP\s+TABLE\b/i, /\bTRUNCATE\s+TABLE\b/i, /\bDELETE\s+FROM\b/i, /\bUPDATE\s+database_table_lifecycle_registry\b/i]) {
   assert(!forbidden.test(migration), `approval metadata migration must not include destructive operation: ${forbidden}`);
   assert(!forbidden.test(readbackMigration), `approval readback migration must not include destructive operation: ${forbidden}`);
