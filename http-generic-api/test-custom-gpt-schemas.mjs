@@ -436,6 +436,14 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   assert("migration 187 platform secret intake promotion is governed-runner allowlisted",
     governedMigrationRunner.includes('187_sprint66_platform_secret_intake_promotion_tool.sql') &&
     releaseReadiness.includes('187_sprint66_platform_secret_intake_promotion_tool.sql'));
+  assert("migration 188 remote database intake is governed-runner allowlisted",
+    governedMigrationRunner.includes('188_sprint66_remote_database_intake_autopromotion.sql') &&
+    releaseReadiness.includes('188_sprint66_remote_database_intake_autopromotion.sql'));
+  assert("migration 188 registers remote database auth type and MySQL app integration",
+    migration188RemoteDb.includes('remote_database') &&
+    migration188RemoteDb.includes('remote_mysql_database') &&
+    migration188RemoteDb.includes('DB_HOST') &&
+    migration188RemoteDb.includes('DB_PASSWORD'));
   assert("migration 187 allows ssh_key_pair in credential intake session tool schema",
     migration187.includes("'$.properties.auth_type.enum'") &&
     migration187.includes("'ssh_key_pair'") &&
