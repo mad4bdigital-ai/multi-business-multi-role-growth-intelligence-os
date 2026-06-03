@@ -304,6 +304,9 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   const systemLayerRoutes = readFileSync(resolve(__dirname, "routes/systemLayerRoutes.js"), "utf8");
   const localConnectorRoutes = readFileSync(resolve(__dirname, "routes/localConnectorRoutes.js"), "utf8");
   const remoteRuntime = readFileSync(resolve(__dirname, "remoteRuntime.js"), "utf8");
+  const credentialIntakeRoutes = readFileSync(resolve(__dirname, "routes/credentialIntakeRoutes.js"), "utf8");
+  const credentialRoutes = readFileSync(resolve(__dirname, "routes/credentialRoutes.js"), "utf8");
+  const migration187 = readFileSync(resolve(__dirname, "migrations/187_sprint66_platform_secret_intake_promotion_tool.sql"), "utf8");
   const migration104 = readFileSync(resolve(__dirname, "migrations/104_sprint64_activation_mode_governance.sql"), "utf8");
   const migration105 = readFileSync(resolve(__dirname, "migrations/105_sprint64_dedicated_integration_flow.sql"), "utf8");
   const migration106 = readFileSync(resolve(__dirname, "migrations/106_sprint64_hybrid_integration_policy.sql"), "utf8");
@@ -401,6 +404,27 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   assert("migration 182 uses MariaDB-compatible JSON mutation syntax",
     migration182.includes('COALESCE(config_json, JSON_OBJECT())') &&
     !migration182.includes('CAST(config_json AS JSON)'));
+  assert("credential intake supports ssh_key_pair without exposing secrets",
+    credentialIntakeRoutes.includes('"ssh_key_pair"') &&
+    credentialIntakeRoutes.includes('ssh_private_key') &&
+    credentialIntakeRoutes.includes('Secrets are encrypted server-side and will not be shown again'));
+  assert("platform secret promotion uses intake connection only and never returns raw secrets",
+    credentialRoutes.includes('router.post("/credentials/intake/promote-platform-secrets"') &&
+    credentialRoutes.includes('decryptCredentials(connection.encrypted_credentials)') &&
+    credentialRoutes.includes('connection.auth_type !== "ssh_key_pair"') &&
+    credentialRoutes.includes('secrets_included: false'));
+  assert("migration 187 registers platform secret intake promotion admin tool",
+    migration187.includes('credential_intake_promote_platform_secrets') &&
+    migration187.includes('/credentials/intake/promote-platform-secrets') &&
+    migration187.includes('no_secrets') &&
+    migration187.includes('requires_approval'));
+  assert("migration 187 allows ssh_key_pair in credential intake session tool schema",
+    migration187.includes("'$.properties.auth_type.enum'") &&
+    migration187.includes("'ssh_key_pair'") &&
+    migration187.includes('credential_intake_session_create'));
+  assert("openapi documents platform secret intake promotion without raw secret fields",
+    parentDoc.paths?.["/credentials/intake/promote-platform-secrets"]?.post?.operationId === "credentialIntakePromotePlatformSecrets" &&
+    !JSON.stringify(parentDoc.paths?.["/credentials/intake/promote-platform-secrets"] || {}).includes('secret_value'));
 
   for (const [path, operationId] of [
     ["/connect/activate", "postConnectActivate"],

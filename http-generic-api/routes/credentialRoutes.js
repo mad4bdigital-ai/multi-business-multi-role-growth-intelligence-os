@@ -396,6 +396,153 @@ export function buildCredentialRoutes(deps) {
     }
   });
 
+  // Promote a secure intake connection into platform_secrets. This route never
+  // accepts raw secret values and never returns decrypted values; it decrypts
+  // one active intake connection server-side and writes selected fields into
+  // platform-scoped DB-encrypted secret slots.
+  router.post("/credentials/intake/promote-platform-secrets", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const connectionId = str(body.connection_id || body.connectionId);
+      const systemId = str(body.system_id || body.systemId || "98d6a18b-5578-11f1-9baf-8e76a7e1749f");
+      const ownerId = str(body.owner_id || body.ownerId || "growth_intelligence_platform");
+      const providerFamily = str(body.provider_family || body.providerFamily || "hostinger");
+      const connectorFamily = str(body.connector_family || body.connectorFamily || "hostinger_ssh");
+      const targetKey = str(body.target_key || body.targetKey || "hostinger_ssh_prod_platform");
+      const approved = body.promotion_approved === true || body.promotionApproved === true;
+      const promotionReason = str(body.promotion_reason || body.promotionReason);
+      const createdBy = str(body.created_by || body.createdBy || "credential_intake_platform_secret_promotion");
+      const mappings = Array.isArray(body.secret_mappings || body.secretMappings)
+        ? (body.secret_mappings || body.secretMappings)
+        : [
+            { credential_field: "ssh_host", secret_key: "hostinger_ssh_prod_host", secret_type: "ssh_host" },
+            { credential_field: "ssh_port", secret_key: "hostinger_ssh_prod_port", secret_type: "ssh_port" },
+            { credential_field: "ssh_user", secret_key: "hostinger_ssh_prod_user", secret_type: "ssh_user" },
+            { credential_field: "ssh_private_key", secret_key: "hostinger_ssh_prod_private_key", secret_type: "ssh_private_key" },
+          ];
+
+      if (!approved || promotionReason.length < 12) {
+        return res.status(400).json({ ok: false, error: { code: "promotion_approval_required", message: "promotion_approved=true and a promotion_reason of at least 12 characters are required." }, secrets_included: false });
+      }
+      if (!connectionId) {
+        return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      }
+      if (!mappings.length) {
+        return res.status(400).json({ ok: false, error: { code: "secret_mappings_required", message: "At least one secret mapping is required." }, secrets_included: false });
+      }
+
+      const pool = getPool();
+      const [connections] = await pool.query(
+        `SELECT connection_id, user_id, tenant_id, app_key, auth_type, encrypted_credentials, status, validation_status
+           FROM user_app_connections
+          WHERE connection_id = ?
+          LIMIT 1`,
+        [connectionId]
+      );
+      const connection = connections[0];
+      if (!connection || connection.status !== "active" || !connection.encrypted_credentials) {
+        return res.status(400).json({ ok: false, error: { code: "active_intake_connection_required", message: "An active encrypted intake connection is required." }, secrets_included: false });
+      }
+      if (connection.auth_type !== "ssh_key_pair") {
+        return res.status(400).json({ ok: false, error: { code: "ssh_key_pair_connection_required", message: "Only ssh_key_pair intake connections can be promoted to Hostinger SSH platform secrets." }, auth_type: connection.auth_type, secrets_included: false });
+      }
+
+      const credentials = decryptCredentials(connection.encrypted_credentials) || {};
+      const normalizedMappings = mappings.map((mapping = {}) => ({
+        credential_field: str(mapping.credential_field || mapping.field),
+        secret_key: str(mapping.secret_key || mapping.secretKey),
+        secret_type: str(mapping.secret_type || mapping.secretType || mapping.credential_role || mapping.credentialRole),
+      })).filter((mapping) => mapping.credential_field && mapping.secret_key);
+      const missingFields = normalizedMappings
+        .filter((mapping) => !str(credentials[mapping.credential_field]))
+        .map((mapping) => mapping.credential_field);
+      if (!normalizedMappings.length || missingFields.length) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "intake_secret_fields_missing", message: "The intake connection is missing one or more mapped fields." },
+          missing_fields: [...new Set(missingFields)],
+          secrets_included: false,
+        });
+      }
+
+      const promoted = [];
+      for (const mapping of normalizedMappings) {
+        const value = str(credentials[mapping.credential_field]);
+        const ciphertext = encryptToken(value);
+        const hash = sha256(value);
+        const secretType = mapping.secret_type || mapping.credential_field;
+        const metadata = JSON.stringify({
+          provisioning_status: "stored",
+          stored_at: new Date().toISOString(),
+          provider_family: providerFamily,
+          connector_family: connectorFamily,
+          credential_type: secretType,
+          source: "credential_intake_platform_secret_promotion",
+          connection_id: connectionId,
+          target_key: targetKey,
+          promotion_reason: promotionReason,
+        });
+
+        await pool.query(
+          `INSERT INTO platform_secrets
+             (secret_key, secret_type, storage_backend, secret_ref, value_sha256, value_ciphertext, metadata_json, status, created_by)
+           VALUES (?, ?, 'db_encrypted', NULL, ?, ?, ?, 'active', ?)
+           ON DUPLICATE KEY UPDATE
+             secret_type = VALUES(secret_type),
+             storage_backend = 'db_encrypted',
+             secret_ref = NULL,
+             value_sha256 = VALUES(value_sha256),
+             value_ciphertext = VALUES(value_ciphertext),
+             metadata_json = VALUES(metadata_json),
+             status = 'active',
+             updated_at = CURRENT_TIMESTAMP`,
+          [mapping.secret_key, secretType, hash, ciphertext, metadata, createdBy]
+        );
+
+        await pool.query(
+          `UPDATE secret_references
+              SET owner_type = 'platform',
+                  owner_id = ?,
+                  system_id = ?,
+                  provider_family = ?,
+                  connector_family = ?,
+                  credential_type = ?,
+                  store_type = 'db_encrypted',
+                  env_var_name = NULL,
+                  vault_path = NULL,
+                  validation_status = 'stored',
+                  status = 'active'
+            WHERE secret_key = ?
+              AND owner_type = 'platform'`,
+          [ownerId, systemId, providerFamily, connectorFamily, secretType, mapping.secret_key]
+        );
+
+        promoted.push({ secret_key: mapping.secret_key, credential_field: mapping.credential_field, value_sha256: hash });
+      }
+
+      await pool.query(
+        `UPDATE user_app_connections
+            SET validation_status = 'promoted_to_platform_secrets', last_used_at = NOW()
+          WHERE connection_id = ?`,
+        [connectionId]
+      ).catch(() => {});
+
+      return res.json({
+        ok: true,
+        owner_type: "platform",
+        owner_id: ownerId,
+        system_id: systemId,
+        target_key: targetKey,
+        connection_id: connectionId,
+        promoted_count: promoted.length,
+        promoted,
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: { code: err.code || "platform_secret_promotion_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   // Promote an intake-created connection secret into the local connector registry.
   // This is intentionally narrow: it only writes connector_local_api_key for one
   // user/tenant/device config and never returns the decrypted secret.

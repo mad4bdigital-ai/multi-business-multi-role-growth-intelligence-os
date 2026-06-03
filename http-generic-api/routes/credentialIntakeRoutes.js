@@ -17,6 +17,7 @@ const ALLOWED_AUTH_TYPES = new Set([
   "oauth2",
   "custom_headers",
   "client_credentials",
+  "ssh_key_pair",
 ]);
 
 const ALLOWED_FIELD_TARGETS = new Set(["credentials", "connection", "metadata"]);
@@ -119,6 +120,14 @@ function defaultCredentialSchema(authType) {
       { name: "client_secret", label: "Client secret", type: "password", target: "credentials", required: true, secret: true },
       { name: "token_url", label: "Token URL", type: "url", target: "metadata", required: false, secret: false },
       { name: "scope", label: "Scope", type: "text", target: "metadata", required: false, secret: false },
+    ];
+  }
+  if (authType === "ssh_key_pair") {
+    return [
+      { name: "ssh_host", label: "SSH host", type: "text", target: "credentials", required: true, secret: false, autocomplete: "off" },
+      { name: "ssh_port", label: "SSH port", type: "number", target: "credentials", required: true, secret: false, autocomplete: "off" },
+      { name: "ssh_user", label: "SSH username", type: "text", target: "credentials", required: true, secret: false, autocomplete: "username" },
+      { name: "ssh_private_key", label: "SSH private key", type: "textarea", target: "credentials", required: true, secret: true, autocomplete: "new-password", help: "Paste the private key. It is encrypted server-side and never shown again." },
     ];
   }
   if (authType === "custom_headers") {

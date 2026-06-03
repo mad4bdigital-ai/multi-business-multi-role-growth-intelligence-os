@@ -10080,6 +10080,56 @@ paths:
       responses:
         "201": { description: Credential intake submitted, content: { text/html: { schema: { type: string } } } }
 
+  /credentials/intake/promote-platform-secrets:
+    post:
+      x-openai-isConsequential: true
+      tags: [security]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: credentialIntakePromotePlatformSecrets
+      summary: Promote an SSH intake connection into platform DB-encrypted secrets
+      description: >
+        Admin-only promotion path for Hostinger SSH runtime credentials. The request
+        references an existing secure credential-intake connection and maps encrypted
+        connection fields into platform_secrets. Raw secret values are not accepted
+        by this endpoint and are never returned.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [connection_id, promotion_approved, promotion_reason]
+              additionalProperties: false
+              properties:
+                connection_id: { type: string }
+                system_id: { type: string, default: "98d6a18b-5578-11f1-9baf-8e76a7e1749f" }
+                owner_id: { type: string, default: growth_intelligence_platform }
+                target_key: { type: string, default: hostinger_ssh_prod_platform }
+                provider_family: { type: string, default: hostinger }
+                connector_family: { type: string, default: hostinger_ssh }
+                promotion_approved: { type: boolean }
+                promotion_reason: { type: string, minLength: 12 }
+                created_by: { type: string }
+                secret_mappings:
+                  type: array
+                  items:
+                    type: object
+                    required: [credential_field, secret_key]
+                    properties:
+                      credential_field: { type: string }
+                      secret_key: { type: string }
+                      secret_type: { type: string }
+      responses:
+        "200":
+          description: Platform secret slots updated without returning secret values.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400": { description: Missing approval, inactive intake connection, or mapped field missing. }
   /credentials/intake/promote-local-connector-key:
     post:
       x-openai-isConsequential: true
