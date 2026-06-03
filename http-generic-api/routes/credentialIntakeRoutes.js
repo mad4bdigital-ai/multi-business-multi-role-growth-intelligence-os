@@ -712,7 +712,9 @@ export function buildCredentialIntakeRoutes(deps = {}) {
         user_agent: req.headers["user-agent"] || null,
       });
 
-      return res.status(201).type("html").send(renderDone(connectionId));
+      const autoPromotion = await maybeAutoPromotePlatformSecrets({ session, credentials, metadata, connectionId, req });
+
+      return res.status(201).type("html").send(renderDone(connectionId, autoPromotion));
     } catch (err) {
       const loaded = await loadPendingSession(req.params.token).catch(() => null);
       const app = loaded?.session ? await loadApp(loaded.session.app_key).catch(() => ({})) : {};
