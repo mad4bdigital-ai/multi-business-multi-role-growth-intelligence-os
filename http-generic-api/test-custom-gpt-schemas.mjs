@@ -308,6 +308,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   const credentialRoutes = readFileSync(resolve(__dirname, "routes/credentialRoutes.js"), "utf8");
   const governedMigrationRunner = readFileSync(resolve(__dirname, "scripts/governed-migration-runner.mjs"), "utf8");
   const migration187 = readFileSync(resolve(__dirname, "migrations/187_sprint66_platform_secret_intake_promotion_tool.sql"), "utf8");
+  const migration188RemoteDb = readFileSync(resolve(__dirname, "migrations/188_sprint66_remote_database_intake_autopromotion.sql"), "utf8");
   const releaseReadiness = readFileSync(resolve(__dirname, "releaseReadiness.js"), "utf8");
   const migration104 = readFileSync(resolve(__dirname, "migrations/104_sprint64_activation_mode_governance.sql"), "utf8");
   const migration105 = readFileSync(resolve(__dirname, "migrations/105_sprint64_dedicated_integration_flow.sql"), "utf8");
@@ -409,7 +410,19 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   assert("credential intake supports ssh_key_pair without exposing secrets",
     credentialIntakeRoutes.includes('"ssh_key_pair"') &&
     credentialIntakeRoutes.includes('ssh_private_key') &&
+    !credentialIntakeRoutes.match(/authType === \"ssh_key_pair\"[\s\S]{0,900}db_name/) &&
     credentialIntakeRoutes.includes('Secrets are encrypted server-side and will not be shown again'));
+  assert("credential intake models remote database separately from SSH",
+    credentialIntakeRoutes.includes('"remote_database"') &&
+    credentialIntakeRoutes.includes('DB_HOST') &&
+    credentialIntakeRoutes.includes('DB_PORT') &&
+    credentialIntakeRoutes.includes('DB_NAME') &&
+    credentialIntakeRoutes.includes('DB_USER') &&
+    credentialIntakeRoutes.includes('DB_PASSWORD'));
+  assert("credential intake can auto-promote mapped platform secrets after submit",
+    credentialIntakeRoutes.includes('maybeAutoPromotePlatformSecrets') &&
+    credentialIntakeRoutes.includes('platform_secret_mappings') &&
+    credentialIntakeRoutes.includes('credential_intake.platform_secrets_auto_promoted'));
   assert("platform secret promotion uses intake connection only and never returns raw secrets",
     credentialRoutes.includes('router.post("/credentials/intake/promote-platform-secrets"') &&
     credentialRoutes.includes('decryptCredentials(connection.encrypted_credentials)') &&
@@ -423,6 +436,14 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   assert("migration 187 platform secret intake promotion is governed-runner allowlisted",
     governedMigrationRunner.includes('187_sprint66_platform_secret_intake_promotion_tool.sql') &&
     releaseReadiness.includes('187_sprint66_platform_secret_intake_promotion_tool.sql'));
+  assert("migration 188 remote database intake is governed-runner allowlisted",
+    governedMigrationRunner.includes('188_sprint66_remote_database_intake_autopromotion.sql') &&
+    releaseReadiness.includes('188_sprint66_remote_database_intake_autopromotion.sql'));
+  assert("migration 188 registers remote database auth type and MySQL app integration",
+    migration188RemoteDb.includes('remote_database') &&
+    migration188RemoteDb.includes('remote_mysql_database') &&
+    migration188RemoteDb.includes('DB_HOST') &&
+    migration188RemoteDb.includes('DB_PASSWORD'));
   assert("migration 187 allows ssh_key_pair in credential intake session tool schema",
     migration187.includes("'$.properties.auth_type.enum'") &&
     migration187.includes("'ssh_key_pair'") &&
