@@ -236,6 +236,19 @@ node scripts/database-lifecycle-scheduler-snapshot-runner.mjs `
   --confirm APPLY_DATABASE_LIFECYCLE_REPORT_SNAPSHOT
 ```
 
+Use `--summary-only` for bounded live output through `admin_control` or other
+HTTP tool surfaces. The runner still builds the full report and, in apply mode,
+writes the same snapshot evidence, but the response omits the full embedded
+report payload and returns readiness, approval, snapshot, and writeback
+summaries only:
+
+```powershell
+node scripts/database-lifecycle-scheduler-snapshot-runner.mjs `
+  --schedule-key database_lifecycle_retention_plan_weekly `
+  --binding-key database_lifecycle_retention_plan_weekly_binding `
+  --summary-only
+```
+
 The runner exits non-zero when schedule readiness, binding readiness, or approval
 readback is not verified. Apply mode writes an evidence snapshot only; it does
 not archive, delete, drop, truncate, compact, or read secrets.
@@ -246,12 +259,14 @@ bounded:
 ```powershell
 admin_control shell database_lifecycle_scheduler_snapshot_dry_run `
   --schedule-key database_lifecycle_retention_plan_weekly `
-  --binding-key database_lifecycle_retention_plan_weekly_binding
+  --binding-key database_lifecycle_retention_plan_weekly_binding `
+  --summary-only
 
 admin_control shell database_lifecycle_scheduler_snapshot_apply `
   --schedule-key database_lifecycle_retention_plan_weekly `
   --binding-key database_lifecycle_retention_plan_weekly_binding `
   --actor-id scheduler_runner `
+  --summary-only `
   --confirm APPLY_DATABASE_LIFECYCLE_REPORT_SNAPSHOT
 ```
 
