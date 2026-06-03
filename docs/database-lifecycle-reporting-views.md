@@ -253,6 +253,22 @@ The runner exits non-zero when schedule readiness, binding readiness, or approva
 readback is not verified. Apply mode writes an evidence snapshot only; it does
 not archive, delete, drop, truncate, compact, or read secrets.
 
+## Operational status
+
+`GET /platform/engines/database-lifecycle/operational-status` returns a bounded,
+read-only status for the latest lifecycle snapshot plus schedule and binding
+approval coverage. It is intended for admin dashboards and GPT tool diagnostics
+that need one compact answer instead of separate snapshot, schedule, and binding
+queries.
+
+The response reports `ready` only when a snapshot exists and both schedule and
+binding metadata are active and approved. Otherwise it returns
+`needs_attention` with blocker keys such as `no_active_snapshot_schedule` or
+`no_approved_scheduler_binding`.
+
+This route does not enable scheduler jobs, write snapshots, archive, delete,
+drop, truncate, compact, or read secrets.
+
 Governed `admin_control` shell aliases keep live snapshot calls short and
 bounded:
 

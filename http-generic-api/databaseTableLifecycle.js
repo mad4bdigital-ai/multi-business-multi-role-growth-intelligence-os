@@ -525,6 +525,95 @@ export async function listDatabaseLifecycleReportSnapshots({ report_type = "", l
   return rows;
 }
 
+function countRowsBy(rows = [], field) {
+  const counts = {};
+  for (const row of rows) {
+    const key = text(row?.[field] || "unknown") || "unknown";
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  return counts;
+}
+
+function boolFlag(value) {
+  return value === true || value === 1 || value === "1";
+}
+
+export function buildDatabaseLifecycleOperationalStatus({ snapshots = [], schedules = [], bindings = [] } = {}) {
+  const latestSnapshot = snapshots[0] || null;
+  const activeSchedules = schedules.filter((row) => text(row.status) === "active");
+  const approvedSchedules = schedules.filter((row) => text(row.approval_status) === "approved");
+  const activeBindings = bindings.filter((row) => text(row.status) === "active");
+  const approvedBindings = bindings.filter((row) => text(row.approval_status) === "approved");
+  const unsafeBinding = bindings.find((row) => (
+    boolFlag(row.will_execute)
+    || !boolFlag(row.no_drop)
+    || !boolFlag(row.no_delete)
+    || !boolFlag(row.no_archive_execution)
+    || !boolFlag(row.no_compaction_execution)
+    || boolFlag(row.secrets_included)
+  ));
+
+  const blockers = [];
+  if (!latestSnapshot) blockers.push("no_lifecycle_report_snapshot_recorded");
+  if (!activeSchedules.length) blockers.push("no_active_snapshot_schedule");
+  if (!approvedSchedules.length) blockers.push("no_approved_snapshot_schedule");
+  if (!activeBindings.length) blockers.push("no_active_scheduler_binding");
+  if (!approvedBindings.length) blockers.push("no_approved_scheduler_binding");
+  if (unsafeBinding) blockers.push("scheduler_binding_guard_violation");
+
+  return {
+    ok: blockers.length === 0,
+    status_type: "database_lifecycle_operational_status_v1",
+    engine_key: "database_table_lifecycle_engine",
+    operational_state: blockers.length ? "needs_attention" : "ready",
+    dry_run: true,
+    will_execute: false,
+    no_drop: true,
+    no_delete: true,
+    no_archive_execution: true,
+    no_compaction_execution: true,
+    secrets_included: false,
+    latest_snapshot: latestSnapshot ? {
+      snapshot_id: text(latestSnapshot.snapshot_id),
+      snapshot_key: text(latestSnapshot.snapshot_key),
+      report_type: text(latestSnapshot.report_type),
+      table_count: number(latestSnapshot.table_count),
+      approval_required_count: number(latestSnapshot.approval_required_count),
+      high_risk_count: number(latestSnapshot.high_risk_count),
+      archive_candidate_count: number(latestSnapshot.archive_candidate_count),
+      dry_run: boolFlag(latestSnapshot.dry_run),
+      created_at: latestSnapshot.created_at || null,
+    } : null,
+    summary: {
+      snapshot_count: snapshots.length,
+      schedule_count: schedules.length,
+      active_schedule_count: activeSchedules.length,
+      approved_schedule_count: approvedSchedules.length,
+      binding_count: bindings.length,
+      active_binding_count: activeBindings.length,
+      approved_binding_count: approvedBindings.length,
+      schedules_by_status: countRowsBy(schedules, "status"),
+      schedules_by_approval_status: countRowsBy(schedules, "approval_status"),
+      bindings_by_status: countRowsBy(bindings, "status"),
+      bindings_by_approval_status: countRowsBy(bindings, "approval_status"),
+    },
+    blockers,
+    required_next_step: blockers.length
+      ? "review_blockers_then_run_approval_proof_and_snapshot_runner"
+      : "run_bounded_snapshot_runner_on_approved_external_schedule",
+  };
+}
+
+export async function getDatabaseLifecycleOperationalStatus({ report_type = "retention_plan", limit = 5 } = {}, deps = {}) {
+  const boundedLimit = Math.max(1, Math.min(number(limit, 5), 25));
+  const [snapshots, schedules, bindings] = await Promise.all([
+    listDatabaseLifecycleReportSnapshots({ report_type, limit: boundedLimit }, deps),
+    listDatabaseLifecycleReportSnapshotSchedules({ report_type, limit: boundedLimit }, deps),
+    listDatabaseLifecycleSchedulerBindings({ limit: boundedLimit }, deps),
+  ]);
+  return buildDatabaseLifecycleOperationalStatus({ snapshots, schedules, bindings });
+}
+
 function normalizeScheduleRow(row = {}) {
   return {
     schedule_key: text(row.schedule_key),
