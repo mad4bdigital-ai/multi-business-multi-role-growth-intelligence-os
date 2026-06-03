@@ -412,6 +412,8 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   assert("credential intake supports ssh_key_pair without exposing secrets",
     credentialIntakeRoutes.includes('"ssh_key_pair"') &&
     credentialIntakeRoutes.includes('ssh_private_key') &&
+    credentialIntakeRoutes.includes('db_name') &&
+    credentialIntakeRoutes.includes('maybeAutoPromotePlatformSecrets') &&
     credentialIntakeRoutes.includes('Secrets are encrypted server-side and will not be shown again'));
   assert("platform secret promotion uses intake connection only and never returns raw secrets",
     credentialRoutes.includes('router.post("/credentials/intake/promote-platform-secrets"') &&
