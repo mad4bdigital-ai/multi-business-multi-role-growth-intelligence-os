@@ -4,6 +4,7 @@ import { getPool } from "./db.js";
 export const DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION = "APPLY_DATABASE_TABLE_LIFECYCLE_REGISTRY_UPSERT";
 export const DATABASE_LIFECYCLE_REPORT_SNAPSHOT_CONFIRMATION = "APPLY_DATABASE_LIFECYCLE_REPORT_SNAPSHOT";
 export const DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_CONFIRMATION = "APPROVE_DATABASE_LIFECYCLE_SCHEDULER_METADATA";
+export const DATABASE_LIFECYCLE_INCIDENT_BRIDGE_CONFIRMATION = "APPLY_DATABASE_LIFECYCLE_INCIDENT_BRIDGE";
 
 function text(value = "") {
   return String(value || "").trim();
@@ -658,6 +659,148 @@ export async function getDatabaseLifecycleOperationalStatus({ report_type = "ret
     listDatabaseLifecycleSchedulerBindings({ limit: boundedLimit }, deps),
   ]);
   return buildDatabaseLifecycleOperationalStatus({ snapshots, schedules, bindings }, { max_snapshot_age_hours });
+}
+
+function lifecycleIncidentSeverity(status = {}) {
+  const blockers = Array.isArray(status.blockers) ? status.blockers : [];
+  if (blockers.includes("no_lifecycle_report_snapshot_recorded")) return "high";
+  if (blockers.includes("scheduler_binding_guard_violation")) return "high";
+  if (blockers.includes("latest_lifecycle_report_snapshot_stale")) return "medium";
+  return blockers.length ? "medium" : "low";
+}
+
+export function buildDatabaseLifecycleIncidentBridgePlan(status = {}, input = {}) {
+  const blockers = Array.isArray(status.blockers) ? status.blockers : [];
+  const shouldOpenIncident = status.ok === false || blockers.length > 0;
+  const severity = lifecycleIncidentSeverity(status);
+  const title = "Database lifecycle readiness degraded";
+  const latestSnapshotId = text(status.latest_snapshot?.snapshot_id);
+  const description = [
+    `Operational state: ${text(status.operational_state || "unknown")}`,
+    `Blockers: ${blockers.length ? blockers.join(", ") : "none"}`,
+    latestSnapshotId ? `Latest snapshot: ${latestSnapshotId}` : "Latest snapshot: none",
+    status.snapshot_freshness ? `Snapshot freshness: ${JSON.stringify(status.snapshot_freshness)}` : "Snapshot freshness: unavailable",
+  ].join("\n");
+
+  return {
+    ok: true,
+    plan_type: "database_lifecycle_incident_bridge_plan_v1",
+    dry_run: input.apply !== true,
+    will_write: input.apply === true && shouldOpenIncident,
+    will_execute: false,
+    no_drop: true,
+    no_delete: true,
+    no_archive_execution: true,
+    no_compaction_execution: true,
+    secrets_included: false,
+    should_open_incident: shouldOpenIncident,
+    incident_candidate: shouldOpenIncident ? {
+      title,
+      severity,
+      category: "operational",
+      status: "open",
+      tenant_id: null,
+      assigned_to: text(input.assigned_to || input.assignedTo),
+      description,
+      dedupe_key: "database_lifecycle_readiness_degraded",
+    } : null,
+    source_status: {
+      operational_state: text(status.operational_state),
+      blockers,
+      latest_snapshot_id: latestSnapshotId || null,
+      snapshot_freshness: status.snapshot_freshness || null,
+    },
+    required_confirmation: DATABASE_LIFECYCLE_INCIDENT_BRIDGE_CONFIRMATION,
+  };
+}
+
+export function assertDatabaseLifecycleIncidentBridgeAllowed({ apply = false, confirm } = {}) {
+  if (!apply) {
+    return {
+      allowed: false,
+      mode: "dry_run",
+      required_confirmation: DATABASE_LIFECYCLE_INCIDENT_BRIDGE_CONFIRMATION,
+    };
+  }
+  if (confirm !== DATABASE_LIFECYCLE_INCIDENT_BRIDGE_CONFIRMATION) {
+    const err = new Error(`Apply requires --confirm ${DATABASE_LIFECYCLE_INCIDENT_BRIDGE_CONFIRMATION}.`);
+    err.code = "DATABASE_LIFECYCLE_INCIDENT_BRIDGE_CONFIRMATION_REQUIRED";
+    err.status = 400;
+    throw err;
+  }
+  return { allowed: true, mode: "apply" };
+}
+
+async function findOpenDatabaseLifecycleIncident(pool, candidate = {}) {
+  const [rows] = await pool.query(
+    `SELECT incident_id, title, severity, category, status, created_at, updated_at
+       FROM incidents
+      WHERE title = ?
+        AND category = 'operational'
+        AND status NOT IN ('resolved', 'closed')
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [candidate.title]
+  );
+  return rows[0] || null;
+}
+
+export async function runDatabaseLifecycleIncidentBridge(input = {}, deps = {}) {
+  const gate = assertDatabaseLifecycleIncidentBridgeAllowed({
+    apply: input.apply === true,
+    confirm: input.confirm,
+  });
+  const pool = deps.pool || getPool();
+  const status = input.status && typeof input.status === "object"
+    ? input.status
+    : await getDatabaseLifecycleOperationalStatus({
+        limit: input.limit,
+        max_snapshot_age_hours: input.max_snapshot_age_hours,
+      }, { pool });
+  const plan = buildDatabaseLifecycleIncidentBridgePlan(status, { ...input, apply: gate.allowed });
+  let existing_incident = null;
+  let write_result = null;
+
+  if (plan.incident_candidate) {
+    existing_incident = await findOpenDatabaseLifecycleIncident(pool, plan.incident_candidate);
+  }
+  if (gate.allowed && plan.incident_candidate && !existing_incident) {
+    const incidentId = randomUUID();
+    await pool.query(
+      `INSERT INTO incidents (incident_id, tenant_id, title, severity, category, description, assigned_to)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        incidentId,
+        plan.incident_candidate.tenant_id,
+        plan.incident_candidate.title,
+        plan.incident_candidate.severity,
+        plan.incident_candidate.category,
+        plan.incident_candidate.description,
+        plan.incident_candidate.assigned_to || null,
+      ]
+    );
+    write_result = {
+      incident_id: incidentId,
+      status: "open",
+      created: true,
+    };
+  }
+
+  return {
+    ok: true,
+    mode: gate.mode,
+    dry_run: !gate.allowed,
+    will_write: gate.allowed && plan.should_open_incident && !existing_incident,
+    will_execute: false,
+    no_drop: true,
+    no_delete: true,
+    no_archive_execution: true,
+    no_compaction_execution: true,
+    secrets_included: false,
+    plan,
+    existing_incident,
+    write_result,
+  };
 }
 
 function normalizeScheduleRow(row = {}) {
