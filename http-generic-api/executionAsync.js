@@ -334,7 +334,13 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
           ).trim()
         : String(requestPayload.brand_name || requestPayload.brand || "").trim(),
     execution_trace_id,
-    request_payload: normalizedJobType === "site_migration" ? normalizedSiteMigrationPayload : isDatabaseLifecycleSnapshotJob ? databaseLifecycleSnapshotPayload : requestPayload,
+    request_payload: normalizedJobType === "site_migration"
+      ? normalizedSiteMigrationPayload
+      : isDatabaseLifecycleSnapshotJob
+      ? databaseLifecycleSnapshotPayload
+      : isConnectedExecutionResumeActionJob
+      ? connectedExecutionResumeActionPayload
+      : requestPayload,
     attempt_count: 0,
     max_attempts: normalizeMaxAttempts(body.max_attempts),
     result_payload: null,
