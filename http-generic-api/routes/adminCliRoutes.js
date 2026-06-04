@@ -690,6 +690,56 @@ function githubContentsMutationAllowed(apiTarget = "", method = "GET") {
   return String(method || "").toUpperCase() === "PUT" && String(apiTarget || "").startsWith("/contents/");
 }
 
+function githubBranchRefUpdateAllowed(apiTarget = "", method = "GET") {
+  return String(method || "").toUpperCase() === "PATCH" && String(apiTarget || "").startsWith("/git/refs/heads/");
+}
+
+function githubRefUpdateConfirmation(branchName = "") {
+  return `RESET_BRANCH_REF_${String(branchName || "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase()}`;
+}
+
+function assertGithubBranchRefUpdateAllowed(apiTarget = "", fieldValues = {}) {
+  const marker = "/git/refs/heads/";
+  const branchName = String(apiTarget || "").slice(String(apiTarget || "").indexOf(marker) + marker.length);
+  const decodedBranch = decodeGithubApiPathSegment(branchName);
+  const protectedBranches = new Set(["main", "master", "production", "prod", "staging", "release"]);
+  if (!decodedBranch || protectedBranches.has(decodedBranch)) {
+    const err = new Error("Refusing to update a protected/default branch through GitHub REST fallback.");
+    err.status = 403;
+    err.code = "github_rest_ref_update_protected_branch";
+    throw err;
+  }
+  if (!/^(gpt|chore|fix|feature|docs|hotfix)\//.test(decodedBranch)) {
+    const err = new Error("GitHub branch ref update fallback only allows governed non-production branch prefixes.");
+    err.status = 403;
+    err.code = "github_rest_ref_update_branch_prefix_blocked";
+    err.details = { branch: decodedBranch, allowed_prefixes: ["gpt/", "chore/", "fix/", "feature/", "docs/", "hotfix/"] };
+    throw err;
+  }
+  const sha = String(fieldValues.sha || "").trim();
+  if (!/^[0-9a-f]{40}$/i.test(sha)) {
+    const err = new Error("sha must be a 40-character Git commit SHA for branch ref update fallback.");
+    err.status = 400;
+    err.code = "github_rest_ref_update_invalid_sha";
+    throw err;
+  }
+  if (fieldValues.force !== true) {
+    const err = new Error("Branch ref update fallback requires force=true so destructive intent is explicit.");
+    err.status = 400;
+    err.code = "github_rest_ref_update_force_required";
+    throw err;
+  }
+  const expectedConfirm = githubRefUpdateConfirmation(decodedBranch);
+  if (String(fieldValues.confirm || "") !== expectedConfirm) {
+    const err = new Error(`Branch ref update fallback requires confirm=${expectedConfirm}.`);
+    err.status = 400;
+    err.code = "github_rest_ref_update_confirmation_required";
+    err.details = { branch: decodedBranch, expected_confirm: expectedConfirm };
+    throw err;
+  }
+  return { branch: decodedBranch, body: { sha, force: true } };
+}
+
 async function githubRestJson({ owner, repo, apiPath, token, method = "GET", body = null }) {
   const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${apiPath}`, {
     method,
@@ -904,16 +954,19 @@ async function executeGitHubRestFallback(args = []) {
     const fieldValues = parseGithubFieldValues(args);
     const allowedRead = method === "GET" && (apiTarget.startsWith("/compare/") || apiTarget.startsWith("/pulls") || apiTarget.startsWith("/commits/"));
     const allowedContentsMutation = githubContentsMutationAllowed(apiTarget, method);
+    const allowedBranchRefUpdate = githubBranchRefUpdateAllowed(apiTarget, method);
     if (allowedContentsMutation) assertGithubContentsWritePathAllowed(apiTarget);
+    const branchRefUpdate = allowedBranchRefUpdate ? assertGithubBranchRefUpdateAllowed(apiTarget, fieldValues) : null;
     const allowedMutation = (["POST", "PUT", "PATCH"].includes(method) || allowedContentsMutation) && (
       /^\/pulls\/\d+\/update-branch$/.test(apiTarget)
       || /^\/pulls\/\d+\/merge$/.test(apiTarget)
       || /^\/actions\/workflows\/[^/]+\/dispatches$/.test(apiTarget)
       || apiTarget === "/merges"
       || allowedContentsMutation
+      || allowedBranchRefUpdate
     );
     if (!allowedRead && !allowedMutation) {
-      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, workflow dispatches, repo merges, and guarded contents PUT mutations.");
+      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, workflow dispatches, repo merges, guarded branch ref updates, and guarded contents PUT mutations.");
       err.status = 501;
       err.code = "github_rest_api_unsupported_path";
       err.details = { apiTarget, method };
@@ -925,7 +978,7 @@ async function executeGitHubRestFallback(args = []) {
       apiPath: apiTarget,
       token,
       method,
-      body: allowedMutation ? fieldValues : null,
+      body: allowedBranchRefUpdate ? branchRefUpdate.body : allowedMutation ? fieldValues : null,
     });
     const output = apiTarget.startsWith("/compare/")
       ? {
@@ -937,7 +990,16 @@ async function executeGitHubRestFallback(args = []) {
           total_commits: payload.total_commits,
           files: (payload.files || []).map((file) => ({ filename: file.filename, status: file.status, changes: file.changes })),
         }
-      : payload;
+      : allowedBranchRefUpdate
+        ? {
+            ref_updated: true,
+            branch: branchRefUpdate.branch,
+            ref: payload.ref || null,
+            sha: payload.object?.sha || null,
+            force: true,
+            secrets_included: false,
+          }
+        : payload;
     return { stdout: JSON.stringify(output, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
   }
 

@@ -26,6 +26,7 @@ export const testCommands = [
   "node test-admin-control.mjs",
   "node test-github-rest-fallback-hardening.mjs",
   "node test-github-workflow-dispatch-fallback.mjs",
+  "node test-github-branch-maintenance-fallbacks.mjs",
   "node test-remote-ssh-runtime-foundation.mjs",
   "node test-remote-runtime-catalog-probe.mjs",
   "node test-remote-runtime-target-management.mjs",
