@@ -1,17 +1,26 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const route = readFileSync("routes/credentialRoutes.js", "utf8");
+const tenantLifecycleRoute = readFileSync("routes/tenantLifecycleRoutes.js", "utf8");
+const credentialRoute = readFileSync("routes/credentialRoutes.js", "utf8");
+const routesIndex = readFileSync("routes/index.js", "utf8");
 const migration = readFileSync("migrations/191_sprint66_tenant_credential_intake_connection_status.sql", "utf8");
 
-assert(route.includes('/me/connections/:connection_id/credential-intake-status'), "route must expose connection_id status path");
-assert(route.includes('requireBackendApiKey, async (req, res)'), "route must reuse shared auth middleware for user JWT/backend auth parsing");
-assert(route.includes('tenantScoped'), "route must distinguish tenant-scoped callers");
-assert(route.includes('c.tenant_id = ?'), "tenant callers must be scoped to their tenant_id");
-assert(route.includes('c.user_id = ?'), "tenant callers with user_id must be scoped to their own connection");
-assert(route.includes('secrets_included: false'), "route must never include secrets");
-assert(!route.includes('decryptCredentials(row.encrypted_credentials)'), "status route must not decrypt credentials");
-assert(route.includes('promoted_to_platform_secrets'), "route must summarize auto-promotion completion status");
+assert(tenantLifecycleRoute.includes('/me/connections/:connection_id/credential-intake-status'), "tenant-safe router must expose connection_id status path");
+assert(tenantLifecycleRoute.includes('router.get("/me/connections/:connection_id/credential-intake-status", requireUserJwt'), "status route must use tenant user JWT auth, not admin backend key auth");
+assert(tenantLifecycleRoute.includes('c.tenant_id = ?'), "tenant callers must be scoped to their tenant_id");
+assert(tenantLifecycleRoute.includes('c.user_id = ?'), "tenant callers must be scoped to their own connection");
+assert(tenantLifecycleRoute.includes('secrets_included: false'), "status route must never include secrets");
+assert(!tenantLifecycleRoute.includes('decryptCredentials(row.encrypted_credentials)'), "status route must not decrypt credentials");
+assert(tenantLifecycleRoute.includes('promoted_to_platform_secrets'), "status route must summarize auto-promotion completion status");
+
+const tenantLifecycleMount = routesIndex.indexOf('app.use(buildTenantLifecycleRoutes())');
+const credentialMount = routesIndex.indexOf('app.use(buildCredentialRoutes(deps))');
+assert(tenantLifecycleMount >= 0, "tenant lifecycle routes must be mounted");
+assert(credentialMount >= 0, "credential routes must be mounted");
+assert(tenantLifecycleMount < credentialMount, "tenant-safe credential status route must mount before credential/admin guarded routes");
+
+assert(!credentialRoute.includes('router.get("/me/connections/:connection_id/credential-intake-status", requireBackendApiKey'), "credential status route must not be admin/backend-key guarded");
 
 assert(migration.includes('credential_intake_connection_status'), "migration must register tenant tool");
 assert(migration.includes('/me/connections/{connection_id}/credential-intake-status'), "tenant tool must dispatch by connection_id path");
