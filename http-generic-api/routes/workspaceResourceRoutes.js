@@ -1,8 +1,12 @@
 import { Router } from "express";
+import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
+const OWNER_ROLES = new Set(["owner", "admin"]);
+const VALID_RESOURCE_TYPES = new Set(["workspace", "brand", "site", "app", "asset", "workflow", "agent", "vault"]);
+const VALID_PERMISSIONS = new Set(["owner", "admin", "manage", "operate", "edit", "comment", "view"]);
 
 function verifyUserJwt(authHeader) {
   if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
@@ -35,10 +39,40 @@ async function requireActiveMembership(req, res, tenantId) {
   return membership;
 }
 
+async function requireWorkspaceOwner(req, res, tenantId) {
+  const membership = await requireActiveMembership(req, res, tenantId);
+  if (!membership) return null;
+  if (!OWNER_ROLES.has(String(membership.role || "").toLowerCase())) {
+    res.status(403).json({ ok: false, error: { code: "workspace_owner_required", message: "Workspace owner/admin role required." }, secrets_included: false });
+    return null;
+  }
+  return membership;
+}
+
 function optionalFilter(query, fieldName, value, params) {
   if (!value) return "";
   params.push(String(value));
   return ` AND ${fieldName} = ?`;
+}
+
+function normalizeResourceType(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return VALID_RESOURCE_TYPES.has(normalized) ? normalized : "";
+}
+
+function normalizePermission(value) {
+  const normalized = String(value || "view").trim().toLowerCase();
+  if (!VALID_PERMISSIONS.has(normalized)) return "view";
+  return normalized === "owner" ? "admin" : normalized;
+}
+
+function normalizeResourceRef(value) {
+  return String(value || "").trim();
+}
+
+function jsonMeta(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return JSON.stringify(value);
 }
 
 export function buildWorkspaceResourceRoutes() {
@@ -63,6 +97,49 @@ export function buildWorkspaceResourceRoutes() {
       return res.json({ ok: true, tenant_id: req.params.tenant_id, grants: rows, count: rows.length, secrets_included: false });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "workspace_resource_grants_list_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/me/workspaces/:tenant_id/resource-grants", requireUserJwt, async (req, res) => {
+    try {
+      const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+      if (!owner) return;
+      const granteeUserId = String(req.body?.grantee_user_id || "").trim();
+      const resourceType = normalizeResourceType(req.body?.resource_type);
+      const resourceRef = normalizeResourceRef(req.body?.resource_ref || (resourceType === "workspace" ? req.params.tenant_id : ""));
+      const permission = normalizePermission(req.body?.permission || "view");
+      if (!granteeUserId) return res.status(400).json({ ok: false, error: { code: "grantee_user_id_required", message: "grantee_user_id is required." }, secrets_included: false });
+      if (!resourceType) return res.status(400).json({ ok: false, error: { code: "invalid_resource_type", message: "Valid resource_type is required." }, secrets_included: false });
+      if (!resourceRef) return res.status(400).json({ ok: false, error: { code: "resource_ref_required", message: "resource_ref is required." }, secrets_included: false });
+      const [memberRows] = await getPool().query(
+        "SELECT user_id, role, status FROM memberships WHERE tenant_id=? AND user_id=? AND status='active' LIMIT 1",
+        [req.params.tenant_id, granteeUserId]
+      );
+      if (!memberRows[0]) return res.status(403).json({ ok: false, error: { code: "grantee_membership_required", message: "Grantee must be an active workspace member." }, secrets_included: false });
+      const grantId = randomUUID();
+      await getPool().query(
+        `INSERT INTO workspace_resource_grants (grant_id, tenant_id, grantee_user_id, resource_type, resource_ref, permission, status, source, granted_by, expires_at, metadata_json)
+         VALUES (?, ?, ?, ?, ?, ?, 'active', 'owner_assignment', ?, ?, ?)
+         ON DUPLICATE KEY UPDATE status='active', granted_by=VALUES(granted_by), expires_at=VALUES(expires_at), metadata_json=VALUES(metadata_json), updated_at=NOW()`,
+        [grantId, req.params.tenant_id, granteeUserId, resourceType, resourceRef, permission, req.auth.user_id, req.body?.expires_at || null, jsonMeta(req.body?.metadata_json)]
+      );
+      return res.status(201).json({ ok: true, tenant_id: req.params.tenant_id, grant: { grant_id: grantId, grantee_user_id: granteeUserId, resource_type: resourceType, resource_ref: resourceRef, permission, status: "active" }, secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspace_resource_grant_create_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/me/workspaces/:tenant_id/resource-grants/:grant_id/revoke", requireUserJwt, async (req, res) => {
+    try {
+      const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+      if (!owner) return;
+      const [result] = await getPool().query(
+        "UPDATE workspace_resource_grants SET status='revoked', revoked_by=?, revoked_at=NOW(), updated_at=NOW() WHERE tenant_id=? AND grant_id=? AND status='active'",
+        [req.auth.user_id, req.params.tenant_id, req.params.grant_id]
+      );
+      return res.status(result.affectedRows ? 200 : 404).json({ ok: Boolean(result.affectedRows), tenant_id: req.params.tenant_id, grant_id: req.params.grant_id, status: result.affectedRows ? "revoked" : "not_found", secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspace_resource_grant_revoke_failed", message: err.message }, secrets_included: false });
     }
   });
 
@@ -112,4 +189,8 @@ export function buildWorkspaceResourceRoutes() {
 
 export const _testingWorkspaceResourceRoutes = {
   optionalFilter,
+  normalizeResourceType,
+  normalizePermission,
+  normalizeResourceRef,
+  OWNER_ROLES,
 };
