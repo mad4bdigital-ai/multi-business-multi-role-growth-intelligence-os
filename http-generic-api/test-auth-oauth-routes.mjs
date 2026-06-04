@@ -292,7 +292,9 @@ try {
     const issuedPayload = jwt.verify(issuedBody.access_token, process.env.JWT_SECRET);
     assert("platform JWT token has user claim", issuedPayload.user_id === "user-1", JSON.stringify(issuedPayload));
     assert("platform JWT token has tenant claim", issuedPayload.tenant_id === "tenant-1", JSON.stringify(issuedPayload));
-    assert("platform JWT token carries client purpose", issuedPayload.purpose === "platform_jwt_client", JSON.stringify(issuedPayload));
+    assert("platform JWT token carries tenant GPT purpose", issuedPayload.purpose === "tenant_gpt_access", JSON.stringify(issuedPayload));
+assert("platform JWT token carries tenant GPT audience", issuedPayload.aud === "mad4b-tenant-gpt", JSON.stringify(issuedPayload));
+assert("platform JWT token carries tenant GPT scope", String(issuedPayload.scope || "").includes("tenant.status"), JSON.stringify(issuedPayload));
 
     const wrongTenant = await fetch(`${jwtClientServer.baseUrl}/auth/platform-jwt/issue`, {
       method: "POST",
