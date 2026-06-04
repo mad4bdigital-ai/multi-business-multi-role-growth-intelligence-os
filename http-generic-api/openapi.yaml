@@ -13206,6 +13206,61 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /connected-execution/sessions/{connected_session_id}/resume-actions/{resume_action_id}/enqueue:
+    post:
+      tags: [connected-execution]
+      operationId: enqueueConnectedExecutionResumeActionDryRun
+      summary: Enqueue connected execution resume action for metadata-only worker processing
+      description: Enqueues one pending analysis_step resume action for the connected execution worker bridge. The worker writes evidence/checkpoint metadata only and does not call tools, mutate repo, call providers, call local devices, or execute apply operations.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: connected_session_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resume_action_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectedExecutionResumeActionEnqueueRequest" }
+      responses:
+        "202":
+          description: Resume action job enqueued for metadata-only processing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectedExecutionResumeActionEnqueueResponse" }
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Session or resume action not found.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Resume action is not pending.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "422":
+          description: Resume action kind is not supported by this worker bridge phase.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "503":
+          description: Queue/worker submission unavailable.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /tenant/docs:
     get:
       tags: [tenant-docs]
