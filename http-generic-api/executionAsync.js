@@ -166,6 +166,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       ? validateSiteMigrationPayload(normalizeSiteMigrationPayload(requestPayload)).errors
       : requestedJobType === DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE
       ? []
+      : requestedJobType === CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE
+      ? []
       : validateAsyncJobRequest(requestPayload);
 
   if (body.max_attempts !== undefined) {
