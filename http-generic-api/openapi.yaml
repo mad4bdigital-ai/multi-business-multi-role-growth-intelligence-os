@@ -1088,6 +1088,24 @@ components:
             - type: object
               additionalProperties: true
 
+    JobTickResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, ticked, before_status, job, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        ticked: { type: boolean, enum: [true] }
+        before_status: { type: string, enum: [queued] }
+        job: { $ref: "#/components/schemas/JobSummary" }
+        result: { $ref: "#/components/schemas/JsonValue" }
+        error:
+          oneOf:
+            - $ref: "#/components/schemas/ErrorResponse"
+            - type: object
+              additionalProperties: true
+            - type: "null"
+        secrets_included: { type: boolean, enum: [false] }
+
     HealthResponse:
       type: object
       additionalProperties: false
