@@ -15,9 +15,15 @@ assert(!tenantLifecycleRoute.includes('decryptCredentials(row.encrypted_credenti
 assert(tenantLifecycleRoute.includes('promoted_to_platform_secrets'), "status route must summarize auto-promotion completion status");
 
 const tenantLifecycleMount = routesIndex.indexOf('app.use(buildTenantLifecycleRoutes())');
+const connectedExecutionMount = routesIndex.indexOf('app.use(buildConnectedExecutionRoutes({ ...deps, requireAdminPrincipal }))');
+const platformEvolutionMount = routesIndex.indexOf('app.use(buildPlatformEvolutionRoutes({ ...deps, requireAdminPrincipal }))');
 const credentialMount = routesIndex.indexOf('app.use(buildCredentialRoutes(deps))');
 assert(tenantLifecycleMount >= 0, "tenant lifecycle routes must be mounted");
+assert(connectedExecutionMount >= 0, "connected execution routes must be mounted");
+assert(platformEvolutionMount >= 0, "platform evolution routes must be mounted");
 assert(credentialMount >= 0, "credential routes must be mounted");
+assert(tenantLifecycleMount < connectedExecutionMount, "tenant-safe credential status route must mount before connected execution root admin guard");
+assert(tenantLifecycleMount < platformEvolutionMount, "tenant-safe credential status route must mount before platform evolution root admin guard");
 assert(tenantLifecycleMount < credentialMount, "tenant-safe credential status route must mount before credential/admin guarded routes");
 
 assert(!credentialRoute.includes('router.get("/me/connections/:connection_id/credential-intake-status", requireBackendApiKey'), "credential status route must not be admin/backend-key guarded");
