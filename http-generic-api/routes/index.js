@@ -133,6 +133,7 @@ export function registerRoutes(app, deps) {
   app.use(buildTenantPlatformPluginRoutes());
   app.use(buildTenantDocsRoutes());
   app.use(buildTenantLifecycleRoutes());
+  app.use(buildWorkspaceResourceRoutes());
   app.use(buildTenantEvolutionRoutes());
   app.use(buildPlatformPluginRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildBrowserRuntimeRoutes({ ...deps, requireAdminPrincipal }));
