@@ -367,9 +367,16 @@ export function buildTenantLifecycleRoutes() {
          ON DUPLICATE KEY UPDATE role=VALUES(role), status='active', updated_at=NOW()`,
         [request.requester_user_id, req.params.tenant_id, role]
       );
+      const defaultGrant = await ensureWorkspaceMembershipDefaultGrant(connection, {
+        tenantId: req.params.tenant_id,
+        userId: request.requester_user_id,
+        role,
+        source: "access_request_approval",
+        grantedBy: req.auth.user_id,
+      });
       await connection.query("UPDATE workspace_access_requests SET status='approved', reviewed_by=?, reviewed_at=NOW() WHERE request_id=?", [req.auth.user_id, req.params.request_id]);
       await connection.commit();
-      return res.json({ ok: true, request_id: req.params.request_id, tenant_id: req.params.tenant_id, user_id: request.requester_user_id, role, status: "approved", secrets_included: false });
+      return res.json({ ok: true, request_id: req.params.request_id, tenant_id: req.params.tenant_id, user_id: request.requester_user_id, role, status: "approved", default_workspace_grant: defaultGrant, secrets_included: false });
     } catch (err) {
       await connection.rollback();
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_access_request_approve_failed", message: err.message }, secrets_included: false });
