@@ -3136,6 +3136,7 @@ const executionFacade = createExecutionFacade({
 registerRoutes(app, {
   // --- health ---
   jobRepository,
+  executeSingleQueuedJob,
   normalizeJobStatus,
   getWaitingCountSafe,
   getRedisRuntimeStatus,
