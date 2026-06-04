@@ -69,6 +69,7 @@ export const testCommands = [
   "node test-tenant-gpt-operating-guide-tools.mjs",
   "node test-hostinger-runtime-sync-runbook.mjs",
   "node test-tenant-credential-intake-connection-status.mjs",
+  "node test-platform-jwt-tenant-compatible.mjs",
   "node test-workspace-lifecycle-foundation.mjs",
   "node test-workspace-lifecycle-collation-alignment.mjs",
   "node test-tenant-evolution-checkpoint-routes.mjs",
