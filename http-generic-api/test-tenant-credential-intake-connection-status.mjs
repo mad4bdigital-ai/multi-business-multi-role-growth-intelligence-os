@@ -10,6 +10,8 @@ assert(tenantLifecycleRoute.includes('/me/connections/:connection_id/credential-
 assert(tenantLifecycleRoute.includes('router.get("/me/connections/:connection_id/credential-intake-status", requireUserJwt'), "status route must use tenant user JWT auth, not admin backend key auth");
 assert(tenantLifecycleRoute.includes('c.tenant_id = ?'), "tenant callers must be scoped to their tenant_id");
 assert(tenantLifecycleRoute.includes('c.user_id = ?'), "tenant callers must be scoped to their own connection");
+assert(tenantLifecycleRoute.includes('c.connected_at') && tenantLifecycleRoute.includes('c.last_validated_at'), "status route must use live user_app_connections timestamp columns");
+assert(!tenantLifecycleRoute.includes('c.created_at') && !tenantLifecycleRoute.includes('c.updated_at'), "status route must not query nonexistent user_app_connections created_at/updated_at columns");
 assert(tenantLifecycleRoute.includes('secrets_included: false'), "status route must never include secrets");
 assert(!tenantLifecycleRoute.includes('decryptCredentials(row.encrypted_credentials)'), "status route must not decrypt credentials");
 assert(tenantLifecycleRoute.includes('promoted_to_platform_secrets'), "status route must summarize auto-promotion completion status");
