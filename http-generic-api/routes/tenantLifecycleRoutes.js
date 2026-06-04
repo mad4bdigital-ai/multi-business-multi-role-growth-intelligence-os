@@ -132,7 +132,7 @@ export function buildTenantLifecycleRoutes() {
       const [rows] = await getPool().query(
         `SELECT c.connection_id, c.user_id, c.tenant_id, c.app_key, c.auth_type,
                 c.display_label, c.account_label, c.account_metadata, c.status,
-                c.validation_status, c.created_at, c.updated_at, c.last_used_at,
+                c.validation_status, c.connected_at, c.last_validated_at, c.last_used_at,
                 s.session_id, s.status AS intake_status, s.used_at, s.expires_at,
                 s.credential_schema_json
            FROM user_app_connections c
@@ -162,8 +162,8 @@ export function buildTenantLifecycleRoutes() {
         account_label: row.account_label,
         status: row.status,
         validation_status: row.validation_status,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
+        connected_at: row.connected_at,
+        last_validated_at: row.last_validated_at,
         last_used_at: row.last_used_at,
         account_metadata: row.account_metadata,
       };
@@ -185,8 +185,8 @@ export function buildTenantLifecycleRoutes() {
           account_label: row.account_label,
           status: row.status,
           validation_status: row.validation_status,
-          created_at: row.created_at,
-          updated_at: row.updated_at,
+          connected_at: row.connected_at,
+          last_validated_at: row.last_validated_at,
           last_used_at: row.last_used_at,
         },
         intake: intakePromotionSummary(connection, intake),
