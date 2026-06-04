@@ -1088,6 +1088,24 @@ components:
             - type: object
               additionalProperties: true
 
+    JobTickResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, ticked, before_status, job, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        ticked: { type: boolean, enum: [true] }
+        before_status: { type: string, enum: [queued] }
+        job: { $ref: "#/components/schemas/JobSummary" }
+        result: { $ref: "#/components/schemas/JsonValue" }
+        error:
+          oneOf:
+            - $ref: "#/components/schemas/ErrorResponse"
+            - type: object
+              additionalProperties: true
+            - type: "null"
+        secrets_included: { type: boolean, enum: [false] }
+
     HealthResponse:
       type: object
       additionalProperties: false
@@ -13275,6 +13293,62 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
         "500":
           description: Request failed unexpectedly.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /jobs/{job_id}/tick:
+    post:
+      tags: [jobs]
+      operationId: tickExecutionJobAdmin
+      summary: Manually process one queued job through the governed job runner
+      description: Admin-only recovery and smoke helper that processes exactly one existing queued job through the same executeSingleQueuedJob runner used by the worker. It does not create jobs, change queue configuration, grant new execution capability, or expose secrets.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: Queued job was processed through the runner.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobTickResponse" }
+        "400":
+          description: Invalid job identifier.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Admin authorization required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Job not found.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Job is not queued and cannot be ticked manually.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Manual job tick failed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "503":
+          description: Job tick dependencies unavailable.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }

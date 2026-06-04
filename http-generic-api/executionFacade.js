@@ -9,7 +9,8 @@ import {
   getExecutionJob,
   pollExecutionJobResult,
   submitGenericExecutionJob,
-  submitSiteMigrationJob
+  submitSiteMigrationJob,
+  tickExecutionJob
 } from "./executionAsync.js";
 
 export function createExecutionFacade(deps) {
@@ -114,6 +115,7 @@ export function createExecutionFacade(deps) {
     updateJob,
     jobRepository,
     enqueueJob,
+    executeSingleQueuedJob,
     failAsyncSubmission,
     toJobSummary,
     // job read
@@ -594,6 +596,15 @@ export function createExecutionFacade(deps) {
         updateJob,
         normalizeJobStatus,
         performUniversalServerWriteback
+      });
+    },
+
+    async tickJob(jobId) {
+      return tickExecutionJob(jobId, {
+        resolveJob,
+        executeSingleQueuedJob,
+        toJobSummary,
+        normalizeJobStatus,
       });
     }
   };
