@@ -67,6 +67,7 @@ import { buildPlatformPluginRoutes } from "./platformPluginRoutes.js";
 import { buildTenantPlatformPluginRoutes } from "./tenantPlatformPluginRoutes.js";
 import { buildTenantDocsRoutes } from "./tenantDocsRoutes.js";
 import { buildTenantLifecycleRoutes } from "./tenantLifecycleRoutes.js";
+import { buildWorkspaceResourceRoutes } from "./workspaceResourceRoutes.js";
 import { buildTenantEvolutionRoutes } from "./tenantEvolutionRoutes.js";
 import { buildBrowserRuntimeRoutes } from "./browserRuntimeRoutes.js";
 import { buildPlatformSmokeRoutes } from "./platformSmokeRoutes.js";
@@ -132,6 +133,7 @@ export function registerRoutes(app, deps) {
   app.use(buildTenantPlatformPluginRoutes());
   app.use(buildTenantDocsRoutes());
   app.use(buildTenantLifecycleRoutes());
+  app.use(buildWorkspaceResourceRoutes());
   app.use(buildTenantEvolutionRoutes());
   app.use(buildPlatformPluginRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildBrowserRuntimeRoutes({ ...deps, requireAdminPrincipal }));
