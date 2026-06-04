@@ -19,14 +19,19 @@ assert(tenantLifecycleRoute.includes('promoted_to_platform_secrets'), "status ro
 const tenantLifecycleMount = routesIndex.indexOf('app.use(buildTenantLifecycleRoutes())');
 const connectedExecutionMount = routesIndex.indexOf('app.use(buildConnectedExecutionRoutes({ ...deps, requireAdminPrincipal }))');
 const platformEvolutionMount = routesIndex.indexOf('app.use(buildPlatformEvolutionRoutes({ ...deps, requireAdminPrincipal }))');
+const gptToolsMount = routesIndex.indexOf('app.use(buildGptToolsRoutes(deps))');
 const credentialMount = routesIndex.indexOf('app.use(buildCredentialRoutes(deps))');
 assert(tenantLifecycleMount >= 0, "tenant lifecycle routes must be mounted");
+assert(gptToolsMount >= 0, "GPT tools dispatcher routes must be mounted");
 assert(connectedExecutionMount >= 0, "connected execution routes must be mounted");
 assert(platformEvolutionMount >= 0, "platform evolution routes must be mounted");
 assert(credentialMount >= 0, "credential routes must be mounted");
 assert(tenantLifecycleMount < connectedExecutionMount, "tenant-safe credential status route must mount before connected execution root admin guard");
 assert(tenantLifecycleMount < platformEvolutionMount, "tenant-safe credential status route must mount before platform evolution root admin guard");
 assert(tenantLifecycleMount < credentialMount, "tenant-safe credential status route must mount before credential/admin guarded routes");
+assert(gptToolsMount < connectedExecutionMount, "tenant GPT tools dispatcher must mount before connected execution root admin guard");
+assert(gptToolsMount < platformEvolutionMount, "tenant GPT tools dispatcher must mount before platform evolution root admin guard");
+assert(gptToolsMount < credentialMount, "tenant GPT tools dispatcher must mount before credential/admin guarded routes");
 
 assert(!credentialRoute.includes('router.get("/me/connections/:connection_id/credential-intake-status", requireBackendApiKey'), "credential status route must not be admin/backend-key guarded");
 

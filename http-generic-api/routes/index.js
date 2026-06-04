@@ -132,6 +132,8 @@ export function registerRoutes(app, deps) {
   app.use(buildTenantLifecycleRoutes());
   app.use(buildWorkspaceResourceRoutes());
   app.use(buildTenantEvolutionRoutes());
+  app.use(buildGptSessionRoutes(deps));
+  app.use(buildGptToolsRoutes(deps));
   app.use(buildPlatformGraphRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformSmokeRoutes());
   app.use(buildPlatformEvolutionRoutes({ ...deps, requireAdminPrincipal }));
@@ -176,8 +178,6 @@ export function registerRoutes(app, deps) {
   app.use(buildMemberGoogleOAuthRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildConnectorProxyRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildConnectApiRoutes(deps));
-  app.use(buildGptSessionRoutes(deps));
-  app.use(buildGptToolsRoutes(deps));
   app.use(buildAdminScopeGrantsRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildDeviceToolsRoutes(deps));
   app.use(buildLocalGatewayToolsRoutes(deps));
