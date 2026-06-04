@@ -21,6 +21,10 @@ import {
   DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE,
   runDatabaseLifecycleSchedulerSnapshot,
 } from "./databaseTableLifecycle.js";
+import {
+  CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE,
+  runConnectedExecutionResumeAction,
+} from "./connectedExecutionWorker.js";
 
 function createExecutionTraceId() {
   return `trace_${crypto.randomUUID().replace(/-/g, "")}`;
