@@ -537,10 +537,16 @@ export function buildAuthRoutes(deps) {
         const resolvedTenantId = requestedTenantId || membership?.tenant_id || null;
         const token = jwt.sign(
           {
+            iss: PLATFORM_JWT_ISSUER,
+            aud: TENANT_GPT_JWT_AUDIENCE,
+            sub: resolvedTenantId ? `tenant:${resolvedTenantId}:user:${user.user_id}` : `user:${user.user_id}`,
             user_id: user.user_id,
             email: user.email,
             tenant_id: resolvedTenantId,
-            purpose: "platform_jwt_client",
+            scope: TENANT_GPT_SCOPE,
+            scope_links: TENANT_GPT_SCOPE_LINKS,
+            purpose: "tenant_gpt_access",
+            client_id: TENANT_GPT_OAUTH_CLIENT_ID,
             client: "admin_assistant",
             reason: cleanText(reason, 120) || "admin_assistant_jwt_client",
           },
