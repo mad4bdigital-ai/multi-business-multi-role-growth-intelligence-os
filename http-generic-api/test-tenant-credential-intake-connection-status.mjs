@@ -29,6 +29,9 @@ assert(credentialMount >= 0, "credential routes must be mounted");
 assert(tenantLifecycleMount < connectedExecutionMount, "tenant-safe credential status route must mount before connected execution root admin guard");
 assert(tenantLifecycleMount < platformEvolutionMount, "tenant-safe credential status route must mount before platform evolution root admin guard");
 assert(tenantLifecycleMount < credentialMount, "tenant-safe credential status route must mount before credential/admin guarded routes");
+assert(gptToolsMount < connectedExecutionMount, "tenant GPT tools dispatcher must mount before connected execution root admin guard");
+assert(gptToolsMount < platformEvolutionMount, "tenant GPT tools dispatcher must mount before platform evolution root admin guard");
+assert(gptToolsMount < credentialMount, "tenant GPT tools dispatcher must mount before credential/admin guarded routes");
 
 assert(!credentialRoute.includes('router.get("/me/connections/:connection_id/credential-intake-status", requireBackendApiKey'), "credential status route must not be admin/backend-key guarded");
 
