@@ -432,6 +432,57 @@ export async function getExecutionJob(jobId, deps = {}) {
   };
 }
 
+export async function tickExecutionJob(jobId, deps = {}) {
+  const {
+    resolveJob,
+    executeSingleQueuedJob,
+    toJobSummary,
+    normalizeJobStatus,
+  } = deps;
+
+  const job = await resolveJob(jobId);
+  if (!job) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        error: { code: "job_not_found", message: "Job not found." },
+        secrets_included: false,
+      },
+    };
+  }
+
+  const currentStatus = normalizeJobStatus(job.status);
+  if (currentStatus !== "queued") {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        error: {
+          code: "job_not_queued",
+          message: "Only queued jobs can be ticked manually.",
+          details: { job_id: job.job_id, current_status: currentStatus },
+        },
+        secrets_included: false,
+      },
+    };
+  }
+
+  await executeSingleQueuedJob(job);
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      ticked: true,
+      before_status: currentStatus,
+      job: toJobSummary(job),
+      result: job.result_payload || null,
+      error: job.error_payload || null,
+      secrets_included: false,
+    },
+  };
+}
+
 export async function createJob({ type, payload, delaySeconds } = {}) {
   const id = `solver_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   return { id };
