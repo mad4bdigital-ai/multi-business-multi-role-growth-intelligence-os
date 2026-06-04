@@ -402,6 +402,22 @@ export function configureJobRunner(
         };
       }
     }
+    if (jobType === CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE) {
+      try {
+        const payload = await (deps.runConnectedExecutionResumeAction || runConnectedExecutionResumeAction)(job.request_payload || {});
+        return {
+          success: payload?.ok === true,
+          statusCode: payload?.ok === true ? 200 : 409,
+          payload,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          statusCode: err?.status || 500,
+          payload: { ok: false, error: { code: err?.code || "connected_execution_resume_action_job_failed", message: err?.message || String(err) }, secrets_included: false },
+        };
+      }
+    }
     if (jobType === SOLVER_JOB_TYPE) {
       if (!sheetsClient) {
         return {
