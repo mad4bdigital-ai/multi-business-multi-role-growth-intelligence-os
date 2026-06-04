@@ -115,6 +115,7 @@ export function createExecutionFacade(deps) {
     updateJob,
     jobRepository,
     enqueueJob,
+    executeSingleQueuedJob,
     failAsyncSubmission,
     toJobSummary,
     // job read
