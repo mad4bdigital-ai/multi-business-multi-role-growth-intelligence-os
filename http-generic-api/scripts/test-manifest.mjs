@@ -177,6 +177,7 @@ export const testCommands = [
   "node test-database-lifecycle-scheduler-snapshot-runner.mjs",
   "node test-database-lifecycle-operational-status.mjs",
   "node test-database-lifecycle-incident-bridge.mjs",
+  "node test-platform-private-capability-vault.mjs",
   "node test-database-lifecycle-reporting-views.mjs",
   "node test-connected-execution-continuity-api.mjs",
   "node test-dynamic-capability-audit-foundation.mjs",

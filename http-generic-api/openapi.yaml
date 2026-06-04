@@ -11757,6 +11757,341 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /platform/capability-vault/packages:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultPackageList
+      summary: List private capability vault packages
+      description: >
+        Admin/service scoped read of private capability packages. This route returns registry rows only and never
+        imports source assets, installs packages, reads secrets, or executes package content.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200": { description: Package registry rows, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/capability-vault/repo-ingestion-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultRepoIngestionPlan
+      summary: Plan repo-to-capability ingestion
+      description: >
+        Builds a dry-run ingestion plan for a pinned repository snapshot. It classifies assets into catalog,
+        knowledge, skill, tool, runtime, restricted, or quarantine lanes and never installs or executes content.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required: [source_repo_full_name, source_commit_sha, files]
+              properties:
+                source_repo_full_name: { type: string }
+                source_commit_sha: { type: string }
+                parent_repo_full_name: { type: string }
+                license_spdx: { type: string }
+                description: { type: string }
+                files:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+      responses:
+        '200':
+          description: Dry-run ingestion plan.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /platform/capability-vault/install-request-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultInstallRequestPlan
+      summary: Plan tenant, brand, or user package install request
+      description: >
+        Plans installation from an already sanitized private capability package. It never writes installs,
+        resets grants, or enables runtime dispatch.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required: [package_key]
+              properties:
+                package_key: { type: string }
+                tenant_id: { type: string }
+                brand_key: { type: string }
+                user_id: { type: string }
+                scope_type: { type: string }
+                requested_install_mode: { type: string }
+                package_plan:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Dry-run install request plan.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /platform/capability-vault/variant-merge-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultVariantMergePlan
+      summary: Plan three-way merge of scoped variant patches
+      description: >
+        Plans how tenant, brand, user, or task-context variant patches rebase onto a newer package base.
+        It preserves user patches and reports conflicts without applying changes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required: [variant_id, old_base_version_id, new_base_version_id]
+              properties:
+                variant_id: { type: string }
+                old_base_version_id: { type: string }
+                new_base_version_id: { type: string }
+                variant_patches:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+                changed_base_assets:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+      responses:
+        '200':
+          description: Dry-run variant merge plan.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /platform/capability-vault/mirror-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultMirrorPlan
+      summary: Plan an immutable private repo mirror
+      description: >
+        Builds a dry-run raw mirror plan for external repository evidence. The mirror is immutable, read-only, and
+        never executed by runtime.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required: [source_repo_full_name, source_commit_sha]
+              properties:
+                source_repo_full_name: { type: string }
+                source_commit_sha: { type: string }
+                platform_repo_full_name: { type: string }
+                storage_ref: { type: string }
+                license_spdx: { type: string }
+      responses:
+        "200": { description: Raw mirror plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/capability-vault/package-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultPackagePlan
+      summary: Plan sanitized private capability package intake
+      description: >
+        Classifies source assets into safe runtime assets and blocked evidence-only assets. It never installs,
+        executes, clones, or reads live external content.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required: [package_key, files]
+              properties:
+                package_key: { type: string }
+                package_type: { type: string, enum: [skill_pack, knowledge_pack, tool_candidate, runtime_candidate], default: skill_pack }
+                source_mirror_id: { type: string }
+                source_commit_sha: { type: string }
+                version: { type: string }
+                license_spdx: { type: string }
+                license_allowed: { type: boolean, default: true }
+                secrets_required: { type: boolean, default: false }
+                files:
+                  type: array
+                  items: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Sanitized package plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/capability-vault/reinstall-diff-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultReinstallDiffPlan
+      summary: Plan idempotent reinstall or upgrade diff
+      description: >
+        Builds a dry-run reinstall/upgrade plan. It preserves tenant overrides, brand bindings, agent grants,
+        disabled skills, thresholds, and approval states; it never duplicates installs.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required: [package_key]
+              properties:
+                package_key: { type: string }
+                tenant_id: { type: string }
+                current_version: { type: string }
+                incoming_version: { type: string }
+                existing_assets:
+                  type: array
+                  items: { type: object, additionalProperties: true }
+                incoming_assets:
+                  type: array
+                  items: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Reinstall diff plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/capability-vault/variant-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultVariantPlan
+      summary: Plan scoped package variant patches
+      description: >
+        Plans tenant, brand, business type, user, or platform variant patches. Lower layers can specialize or narrow
+        policy, but cannot expand upper-layer permissions without approval and certification.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                package_id: { type: string }
+                base_package_version_id: { type: string }
+                scope_type: { type: string, enum: [platform, tenant, brand, business_type, user] }
+                scope_id: { type: string }
+                variant_key: { type: string }
+                patches:
+                  type: array
+                  items: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Variant patch plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/capability-vault/runtime-resolve:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultRuntimeResolve
+      summary: Resolve effective private capability runtime layer
+      description: >
+        Resolves the package base version, scoped variants, and task overlay into a dispatch readiness decision.
+        It does not dispatch, install, or execute tools.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required: [package_key, base_version]
+              properties:
+                package_key: { type: string }
+                base_version: { type: string }
+                variants:
+                  type: array
+                  items: { type: object, additionalProperties: true }
+                task_overlay: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Runtime resolution, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/capability-vault/google-file-read/resolve:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultGoogleFileReadResolve
+      summary: Resolve Google Workspace file read strategy
+      description: >
+        Resolves a Google Docs, Sheets, Slides, Drive file URL, or fileId into a bounded governed read strategy.
+        It does not fetch browser URLs, perform live provider reads, or return file content. Drive metadata probes
+        must use supportsAllDrives=true.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                url: { type: string }
+                file_id: { type: string }
+                metadata: { type: object, additionalProperties: true }
+                mime_type: { type: string }
+                title: { type: string }
+                drive_jsonl_id: { type: string }
+                session_jsonl_candidate: { type: boolean }
+                max_chars_per_chunk: { type: integer, minimum: 1000, maximum: 50000, default: 12000 }
+      responses:
+        "200": { description: Google file read strategy decision, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
   /platform/engines:
     get:
       x-openai-isConsequential: false
