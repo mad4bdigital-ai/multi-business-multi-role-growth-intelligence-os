@@ -9,7 +9,8 @@ import {
   getExecutionJob,
   pollExecutionJobResult,
   submitGenericExecutionJob,
-  submitSiteMigrationJob
+  submitSiteMigrationJob,
+  tickExecutionJob
 } from "./executionAsync.js";
 
 export function createExecutionFacade(deps) {
