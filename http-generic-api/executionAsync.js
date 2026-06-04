@@ -282,36 +282,48 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
           ).trim()
         : isDatabaseLifecycleSnapshotJob
         ? String(databaseLifecycleSnapshotPayload.schedule_key || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY).trim()
+        : isConnectedExecutionResumeActionJob
+        ? String(connectedExecutionResumeActionPayload.connected_session_id || "").trim()
         : String(requestPayload.target_key || "").trim(),
     parent_action_key:
       normalizedJobType === "site_migration"
         ? "site_migration_controller"
         : isDatabaseLifecycleSnapshotJob
         ? "database_lifecycle_scheduler"
+        : isConnectedExecutionResumeActionJob
+        ? "connected_execution_worker"
         : String(requestPayload.parent_action_key || "").trim(),
     endpoint_key:
       normalizedJobType === "site_migration"
         ? "site_migrate"
         : isDatabaseLifecycleSnapshotJob
         ? "database_lifecycle_report_snapshot"
+        : isConnectedExecutionResumeActionJob
+        ? "connected_execution_resume_action"
         : String(requestPayload.endpoint_key || "").trim(),
     route_id:
       normalizedJobType === "site_migration"
         ? "site_migration"
         : isDatabaseLifecycleSnapshotJob
         ? "database_lifecycle_scheduler_snapshot_runner"
+        : isConnectedExecutionResumeActionJob
+        ? "connected_execution_resume_action_worker_bridge"
         : String(requestPayload.route_id || "").trim(),
     target_module:
       normalizedJobType === "site_migration"
         ? "wordpress_site_migration"
         : isDatabaseLifecycleSnapshotJob
         ? "database_lifecycle"
+        : isConnectedExecutionResumeActionJob
+        ? "connected_execution"
         : String(requestPayload.target_module || "").trim(),
     target_workflow:
       normalizedJobType === "site_migration"
         ? "wf_wordpress_site_migration"
         : isDatabaseLifecycleSnapshotJob
         ? "wf_database_lifecycle_report_snapshot"
+        : isConnectedExecutionResumeActionJob
+        ? "wf_connected_execution_resume_action"
         : String(requestPayload.target_workflow || "").trim(),
     brand_name:
       normalizedJobType === "site_migration"
