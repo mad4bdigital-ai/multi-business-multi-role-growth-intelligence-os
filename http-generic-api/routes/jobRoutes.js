@@ -61,13 +61,14 @@ export function buildJobRoutes(deps) {
         return res.status(409).json({ ok: false, error: { code: "job_not_queued", message: "Only queued jobs can be ticked manually.", details: { job_id: job.job_id, current_status: beforeStatus } }, secrets_included: false });
       }
       await executeSingleQueuedJob(job);
+      const refreshedJob = await jobRepository.getWithFallback(jobId) || job;
       return res.status(200).json({
         ok: true,
         ticked: true,
         before_status: beforeStatus,
-        job: typeof toJobSummary === "function" ? toJobSummary(job) : { job_id: job.job_id, status: job.status },
-        result: job.result_payload || null,
-        error: job.error_payload || null,
+        job: typeof toJobSummary === "function" ? toJobSummary(refreshedJob) : { job_id: refreshedJob.job_id, status: refreshedJob.status },
+        result: refreshedJob.result_payload || null,
+        error: refreshedJob.error_payload || null,
         secrets_included: false,
       });
     } catch (err) {
