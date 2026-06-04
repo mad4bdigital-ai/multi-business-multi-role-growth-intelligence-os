@@ -10267,6 +10267,79 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /me/connections/{connection_id}/credential-intake-status:
+    get:
+      x-openai-isConsequential: false
+      tags: [security]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: credentialIntakeConnectionStatus
+      summary: Read secure credential intake completion status by connection ID
+      description: >
+        Tenant-safe read-only status endpoint for checking a secure credential-intake
+        submission after the one-time intake token has been used. Tenant callers are
+        scoped to their own tenant/user connection. The response never returns raw,
+        decrypted, or encrypted credential values.
+      parameters:
+        - name: connection_id
+          in: path
+          required: true
+          schema: { type: string }
+          description: Connection ID returned after secure credential intake submission.
+      responses:
+        "200":
+          description: Connection intake status was found for the caller.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, connection_id, app_key, auth_type, status, validation_status, intake, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  connection_id: { type: string }
+                  app_key: { type: string }
+                  auth_type: { type: string }
+                  status: { type: string }
+                  validation_status: { type: string }
+                  connection:
+                    type: object
+                    additionalProperties: true
+                  intake:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      status: { type: string, nullable: true }
+                      session_id: { type: string, nullable: true }
+                      used_at: { type: string, nullable: true }
+                      expires_at: { type: string, nullable: true }
+                      field_count: { type: integer }
+                      auto_promotion_status: { type: string }
+                      promoted_count: { type: integer }
+                      secrets_included: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400":
+          description: Connection ID is missing or invalid.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Tenant/user authentication is required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Connection was not found for this caller.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Credential intake connection status lookup failed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /credentials/effective/status:
     post:
       x-openai-isConsequential: false
