@@ -250,9 +250,130 @@ async function buildCredentialResolutionPlan(input = {}) {
   };
 }
 
+function fieldCountFromCredentialSchema(value) {
+  const parsed = typeof value === "object" ? value : (() => { try { return JSON.parse(value || "{}"); } catch { return {}; } })();
+  if (Array.isArray(parsed?.fields)) return parsed.fields.length;
+  if (parsed?.properties && typeof parsed.properties === "object") return Object.keys(parsed.properties).length;
+  return 0;
+}
+
+function intakePromotionSummary(connection = {}, intake = {}) {
+  const validationStatus = str(connection.validation_status);
+  const metadata = (() => { try { return JSON.parse(connection.account_metadata || "{}"); } catch { return {}; } })();
+  const promoted = validationStatus === "promoted_to_platform_secrets";
+  return {
+    status: intake?.status || null,
+    session_id: intake?.session_id || metadata.intake_session_id || null,
+    used_at: intake?.used_at || null,
+    expires_at: intake?.expires_at || null,
+    field_count: fieldCountFromCredentialSchema(intake?.credential_schema_json),
+    auto_promotion_status: promoted ? "completed" : validationStatus === "pending_validation" ? "pending_validation" : validationStatus || "unknown",
+    promoted_count: promoted ? fieldCountFromCredentialSchema(intake?.credential_schema_json) : 0,
+    secrets_included: false,
+  };
+}
+
 export function buildCredentialRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
+
+  // Tenant-safe completion/status readback for secure credential intake.
+  // This intentionally accepts user JWT through the shared auth middleware,
+  // scopes tenant callers to their own connection, and never returns secret
+  // values or decrypted credential payloads.
+  router.get("/me/connections/:connection_id/credential-intake-status", requireBackendApiKey, async (req, res) => {
+    try {
+      const connectionId = str(req.params.connection_id || req.query.connection_id);
+      if (!connectionId) {
+        return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      }
+      const auth = req.auth || {};
+      if (!auth.tenant_id && auth.mode !== "backend_api_key") {
+        return res.status(401).json({ ok: false, error: { code: "tenant_auth_required", message: "A signed-in tenant user or admin/service credential is required." }, secrets_included: false });
+      }
+
+      const tenantScoped = auth.mode !== "backend_api_key" && auth.is_admin !== true;
+      const clauses = ["c.connection_id = ?"];
+      const params = [connectionId];
+      if (tenantScoped) {
+        clauses.push("c.tenant_id = ?");
+        params.push(auth.tenant_id);
+        if (auth.user_id) {
+          clauses.push("c.user_id = ?");
+          params.push(auth.user_id);
+        }
+      }
+
+      const [rows] = await getPool().query(
+        `SELECT c.connection_id, c.user_id, c.tenant_id, c.app_key, c.auth_type,
+                c.display_label, c.account_label, c.account_metadata, c.status,
+                c.validation_status, c.created_at, c.updated_at, c.last_used_at,
+                s.session_id, s.status AS intake_status, s.used_at, s.expires_at,
+                s.credential_schema_json
+           FROM user_app_connections c
+           LEFT JOIN credential_intake_sessions s ON s.connection_id = c.connection_id
+          WHERE ${clauses.join(" AND ")}
+          ORDER BY s.used_at DESC, s.expires_at DESC
+          LIMIT 1`,
+        params
+      );
+      const row = rows[0];
+      if (!row) {
+        return res.status(404).json({ ok: false, error: { code: "connection_not_found", message: "Connection was not found for this caller." }, secrets_included: false });
+      }
+
+      const intake = {
+        session_id: row.session_id || null,
+        status: row.intake_status || null,
+        used_at: row.used_at || null,
+        expires_at: row.expires_at || null,
+        credential_schema_json: row.credential_schema_json || null,
+      };
+      const connection = {
+        connection_id: row.connection_id,
+        tenant_id: row.tenant_id,
+        user_id: row.user_id,
+        app_key: row.app_key,
+        auth_type: row.auth_type,
+        display_label: row.display_label,
+        account_label: row.account_label,
+        status: row.status,
+        validation_status: row.validation_status,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        last_used_at: row.last_used_at,
+        account_metadata: row.account_metadata,
+      };
+
+      return res.json({
+        ok: true,
+        connection_id: row.connection_id,
+        app_key: row.app_key,
+        auth_type: row.auth_type,
+        status: row.status,
+        validation_status: row.validation_status,
+        connection: {
+          connection_id: row.connection_id,
+          tenant_id: row.tenant_id,
+          user_id: row.user_id,
+          app_key: row.app_key,
+          auth_type: row.auth_type,
+          display_label: row.display_label,
+          account_label: row.account_label,
+          status: row.status,
+          validation_status: row.validation_status,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          last_used_at: row.last_used_at,
+        },
+        intake: intakePromotionSummary(connection, intake),
+        secrets_included: false,
+      });
+    } catch (err) {
+      res.status(err.status || 500).json({ ok: false, error: { code: err.code || "credential_intake_connection_status_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   router.use(requireBackendApiKey);
 
   // Safe status-only resolver. Never returns secret values; used by admin/GPT,
