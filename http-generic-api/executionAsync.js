@@ -247,12 +247,21 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       ? normalizeSiteMigrationPayload(requestPayload)
       : null;
   const isDatabaseLifecycleSnapshotJob = normalizedJobType === DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE;
+  const isConnectedExecutionResumeActionJob = normalizedJobType === CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE;
   const databaseLifecycleSnapshotPayload = isDatabaseLifecycleSnapshotJob
     ? {
         ...requestPayload,
         schedule_key: String(requestPayload.schedule_key || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY).trim(),
         binding_key: String(requestPayload.binding_key || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_BINDING_KEY).trim(),
         summary_only: requestPayload.summary_only !== false,
+      }
+    : null;
+  const connectedExecutionResumeActionPayload = isConnectedExecutionResumeActionJob
+    ? {
+        ...requestPayload,
+        connected_session_id: String(requestPayload.connected_session_id || "").trim(),
+        resume_action_id: String(requestPayload.resume_action_id || "").trim(),
+        dry_run: true,
       }
     : null;
 
