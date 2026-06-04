@@ -301,6 +301,33 @@ components:
         executes_action: { type: boolean, enum: [false] }
         secrets_included: { type: boolean, enum: [false] }
 
+    ConnectedExecutionResumeActionEnqueueRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        requested_by: { type: string }
+        idempotency_key: { type: string }
+        trace_id: { type: string }
+
+    ConnectedExecutionResumeActionEnqueueResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, connected_session_id, resume_action_id, action_kind, dry_run, will_execute_external_action, will_call_tools, will_mutate_repo, will_call_provider, will_call_local_device, secrets_included, job]
+      properties:
+        ok: { type: boolean }
+        connected_session_id: { type: string }
+        resume_action_id: { type: string }
+        action_kind: { type: string, enum: [analysis_step] }
+        dry_run: { type: boolean, enum: [true] }
+        will_execute_external_action: { type: boolean, enum: [false] }
+        will_call_tools: { type: boolean, enum: [false] }
+        will_mutate_repo: { type: boolean, enum: [false] }
+        will_call_provider: { type: boolean, enum: [false] }
+        will_call_local_device: { type: boolean, enum: [false] }
+        secrets_included: { type: boolean, enum: [false] }
+        job:
+          $ref: "#/components/schemas/JobSummary"
+
     HardActivationRunRequest:
       type: object
       additionalProperties: false
@@ -13248,6 +13275,61 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
         "500":
           description: Request failed unexpectedly.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /connected-execution/sessions/{connected_session_id}/resume-actions/{resume_action_id}/enqueue:
+    post:
+      tags: [connected-execution]
+      operationId: enqueueConnectedExecutionResumeActionDryRun
+      summary: Enqueue connected execution resume action for metadata-only worker processing
+      description: Enqueues one pending analysis_step resume action for the connected execution worker bridge. The worker writes evidence/checkpoint metadata only and does not call tools, mutate repo, call providers, call local devices, or execute apply operations.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: connected_session_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resume_action_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectedExecutionResumeActionEnqueueRequest" }
+      responses:
+        "202":
+          description: Resume action job enqueued for metadata-only processing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectedExecutionResumeActionEnqueueResponse" }
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Session or resume action not found.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Resume action is not pending.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "422":
+          description: Resume action kind is not supported by this worker bridge phase.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "503":
+          description: Queue/worker submission unavailable.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }

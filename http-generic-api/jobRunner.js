@@ -21,6 +21,10 @@ import {
   DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE,
   runDatabaseLifecycleSchedulerSnapshot,
 } from "./databaseTableLifecycle.js";
+import {
+  CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE,
+  runConnectedExecutionResumeAction,
+} from "./connectedExecutionWorker.js";
 
 function createExecutionTraceId() {
   return `trace_${crypto.randomUUID().replace(/-/g, "")}`;
@@ -395,6 +399,22 @@ export function configureJobRunner(
           success: false,
           statusCode: err?.status || 500,
           payload: { ok: false, error: { code: err?.code || "database_lifecycle_snapshot_job_failed", message: err?.message || String(err) }, secrets_included: false },
+        };
+      }
+    }
+    if (jobType === CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE) {
+      try {
+        const payload = await (deps.runConnectedExecutionResumeAction || runConnectedExecutionResumeAction)(job.request_payload || {});
+        return {
+          success: payload?.ok === true,
+          statusCode: payload?.ok === true ? 200 : 409,
+          payload,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          statusCode: err?.status || 500,
+          payload: { ok: false, error: { code: err?.code || "connected_execution_resume_action_job_failed", message: err?.message || String(err) }, secrets_included: false },
         };
       }
     }

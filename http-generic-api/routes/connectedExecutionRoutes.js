@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
+import { CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE } from "../connectedExecutionWorker.js";
 
 const SESSION_MODES = new Set(["single_turn", "connected_rounds", "worker_driven"]);
 const SESSION_STATUSES = new Set(["draft", "ready", "running", "paused", "awaiting_user", "awaiting_approval", "blocked", "completed", "failed", "cancelled"]);
@@ -262,6 +263,74 @@ export function buildConnectedExecutionRoutes(deps = {}) {
       return res.status(201).json({ ok: true, resume_action_id: resumeActionId, connected_session_id: connectedSessionId, status: "pending", executes_action: false, secrets_included: false });
     } catch (err) {
       return errorResponse(res, err, "connected_execution_resume_action_create_failed");
+    }
+  });
+
+  router.post("/connected-execution/sessions/:connected_session_id/resume-actions/:resume_action_id/enqueue", async (req, res) => {
+    try {
+      const connectedSessionId = nonEmptyString(req.params.connected_session_id);
+      const resumeActionId = nonEmptyString(req.params.resume_action_id);
+      if (!connectedSessionId) throw validationError("connected_session_id is required.", "connected_execution_session_id_required");
+      if (!resumeActionId) throw validationError("resume_action_id is required.", "connected_execution_resume_action_id_required");
+      if (!deps.executionFacade || typeof deps.executionFacade.submitJob !== "function") {
+        const err = new Error("executionFacade.submitJob is required to enqueue connected execution resume actions.");
+        err.status = 503;
+        err.code = "connected_execution_resume_action_enqueue_unavailable";
+        throw err;
+      }
+      const pool = getPool();
+      const session = await ensureConnectedSession(pool, connectedSessionId);
+      const [rows] = await pool.query(
+        `SELECT resume_action_id, connected_session_id, tenant_id, user_id, action_kind, action_key, status
+           FROM connected_execution_resume_actions
+          WHERE connected_session_id = ? AND resume_action_id = ?
+          LIMIT 1`,
+        [connectedSessionId, resumeActionId]
+      );
+      const action = rows[0];
+      if (!action) {
+        return res.status(404).json({ ok: false, error: { code: "connected_execution_resume_action_not_found", message: "Resume action not found." }, secrets_included: false });
+      }
+      if (action.status !== "pending") {
+        return res.status(409).json({ ok: false, error: { code: "connected_execution_resume_action_not_pending", message: "Resume action must be pending before enqueue.", details: { current_status: action.status } }, secrets_included: false });
+      }
+      if (action.action_kind !== "analysis_step") {
+        return res.status(422).json({ ok: false, error: { code: "connected_execution_resume_action_kind_not_supported", message: "This worker bridge phase only supports analysis_step resume actions.", details: { action_kind: action.action_kind } }, secrets_included: false });
+      }
+      const body = req.body || {};
+      const requestedBy = nonEmptyString(body.requested_by || req.auth?.email || req.auth?.sub, "connected_execution_worker_bridge");
+      const idempotencyKey = nonEmptyString(body.idempotency_key || req.header("Idempotency-Key"), `connected_execution:${connectedSessionId}:${resumeActionId}`);
+      const traceId = nonEmptyString(body.trace_id || body.execution_trace_id, `trace_connected_execution_${resumeActionId.replace(/[^A-Za-z0-9]+/g, "_")}`);
+      const { status, body: job } = await deps.executionFacade.submitJob({
+        job_type: CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE,
+        request_payload: {
+          connected_session_id: connectedSessionId,
+          resume_action_id: resumeActionId,
+          tenant_id: action.tenant_id || session.tenant_id || "",
+          user_id: action.user_id || session.user_id || "",
+          dry_run: true,
+          execution_trace_id: traceId,
+        },
+        max_attempts: 1,
+        webhook_url: "",
+        callback_secret: "",
+      }, requestedBy, idempotencyKey);
+      return res.status(status).json({
+        ok: status >= 200 && status < 300,
+        connected_session_id: connectedSessionId,
+        resume_action_id: resumeActionId,
+        action_kind: action.action_kind,
+        dry_run: true,
+        will_execute_external_action: false,
+        will_call_tools: false,
+        will_mutate_repo: false,
+        will_call_provider: false,
+        will_call_local_device: false,
+        secrets_included: false,
+        job,
+      });
+    } catch (err) {
+      return errorResponse(res, err, "connected_execution_resume_action_enqueue_failed");
     }
   });
 

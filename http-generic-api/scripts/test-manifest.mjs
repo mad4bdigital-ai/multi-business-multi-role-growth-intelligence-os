@@ -184,6 +184,7 @@ export const testCommands = [
   "node test-platform-private-capability-vault.mjs",
   "node test-database-lifecycle-reporting-views.mjs",
   "node test-connected-execution-continuity-api.mjs",
+  "node test-connected-execution-worker-bridge.mjs",
   "node test-dynamic-capability-audit-foundation.mjs",
   "node test-dependency-performance-diagnostic-triage.mjs",
   "node test-agent-intelligence-runtime.mjs",

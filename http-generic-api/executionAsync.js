@@ -3,6 +3,7 @@ import {
   DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_BINDING_KEY,
   DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY,
 } from "./databaseTableLifecycle.js";
+import { CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE } from "./connectedExecutionWorker.js";
 
 export async function submitSiteMigrationJob(reqBody, requestedBy, idempotencyKey, deps = {}) {
   const {
@@ -165,6 +166,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       ? validateSiteMigrationPayload(normalizeSiteMigrationPayload(requestPayload)).errors
       : requestedJobType === DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE
       ? []
+      : requestedJobType === CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE
+      ? []
       : validateAsyncJobRequest(requestPayload);
 
   if (body.max_attempts !== undefined) {
@@ -244,12 +247,21 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       ? normalizeSiteMigrationPayload(requestPayload)
       : null;
   const isDatabaseLifecycleSnapshotJob = normalizedJobType === DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE;
+  const isConnectedExecutionResumeActionJob = normalizedJobType === CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE;
   const databaseLifecycleSnapshotPayload = isDatabaseLifecycleSnapshotJob
     ? {
         ...requestPayload,
         schedule_key: String(requestPayload.schedule_key || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY).trim(),
         binding_key: String(requestPayload.binding_key || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_BINDING_KEY).trim(),
         summary_only: requestPayload.summary_only !== false,
+      }
+    : null;
+  const connectedExecutionResumeActionPayload = isConnectedExecutionResumeActionJob
+    ? {
+        ...requestPayload,
+        connected_session_id: String(requestPayload.connected_session_id || "").trim(),
+        resume_action_id: String(requestPayload.resume_action_id || "").trim(),
+        dry_run: true,
       }
     : null;
 
@@ -270,36 +282,48 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
           ).trim()
         : isDatabaseLifecycleSnapshotJob
         ? String(databaseLifecycleSnapshotPayload.schedule_key || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY).trim()
+        : isConnectedExecutionResumeActionJob
+        ? String(connectedExecutionResumeActionPayload.connected_session_id || "").trim()
         : String(requestPayload.target_key || "").trim(),
     parent_action_key:
       normalizedJobType === "site_migration"
         ? "site_migration_controller"
         : isDatabaseLifecycleSnapshotJob
         ? "database_lifecycle_scheduler"
+        : isConnectedExecutionResumeActionJob
+        ? "connected_execution_worker"
         : String(requestPayload.parent_action_key || "").trim(),
     endpoint_key:
       normalizedJobType === "site_migration"
         ? "site_migrate"
         : isDatabaseLifecycleSnapshotJob
         ? "database_lifecycle_report_snapshot"
+        : isConnectedExecutionResumeActionJob
+        ? "connected_execution_resume_action"
         : String(requestPayload.endpoint_key || "").trim(),
     route_id:
       normalizedJobType === "site_migration"
         ? "site_migration"
         : isDatabaseLifecycleSnapshotJob
         ? "database_lifecycle_scheduler_snapshot_runner"
+        : isConnectedExecutionResumeActionJob
+        ? "connected_execution_resume_action_worker_bridge"
         : String(requestPayload.route_id || "").trim(),
     target_module:
       normalizedJobType === "site_migration"
         ? "wordpress_site_migration"
         : isDatabaseLifecycleSnapshotJob
         ? "database_lifecycle"
+        : isConnectedExecutionResumeActionJob
+        ? "connected_execution"
         : String(requestPayload.target_module || "").trim(),
     target_workflow:
       normalizedJobType === "site_migration"
         ? "wf_wordpress_site_migration"
         : isDatabaseLifecycleSnapshotJob
         ? "wf_database_lifecycle_report_snapshot"
+        : isConnectedExecutionResumeActionJob
+        ? "wf_connected_execution_resume_action"
         : String(requestPayload.target_workflow || "").trim(),
     brand_name:
       normalizedJobType === "site_migration"
@@ -310,7 +334,13 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
           ).trim()
         : String(requestPayload.brand_name || requestPayload.brand || "").trim(),
     execution_trace_id,
-    request_payload: normalizedJobType === "site_migration" ? normalizedSiteMigrationPayload : isDatabaseLifecycleSnapshotJob ? databaseLifecycleSnapshotPayload : requestPayload,
+    request_payload: normalizedJobType === "site_migration"
+      ? normalizedSiteMigrationPayload
+      : isDatabaseLifecycleSnapshotJob
+      ? databaseLifecycleSnapshotPayload
+      : isConnectedExecutionResumeActionJob
+      ? connectedExecutionResumeActionPayload
+      : requestPayload,
     attempt_count: 0,
     max_attempts: normalizeMaxAttempts(body.max_attempts),
     result_payload: null,
