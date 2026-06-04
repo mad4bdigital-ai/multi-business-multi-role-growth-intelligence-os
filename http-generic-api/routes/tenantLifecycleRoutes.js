@@ -294,9 +294,17 @@ export function buildTenantLifecycleRoutes() {
          ON DUPLICATE KEY UPDATE role = VALUES(role), status = 'active', updated_at = NOW()`,
         [req.auth.user_id, invitation.tenant_id, normalizeRole(invitation.role)]
       );
+      const acceptedRole = normalizeRole(invitation.role);
+      const defaultGrant = await ensureWorkspaceMembershipDefaultGrant(connection, {
+        tenantId: invitation.tenant_id,
+        userId: req.auth.user_id,
+        role: acceptedRole,
+        source: "invitation_accept",
+        grantedBy: invitation.created_by || null,
+      });
       await connection.query("UPDATE invitations SET status='accepted', accepted_by=?, accepted_at=NOW() WHERE invitation_id=?", [req.auth.user_id, invitation.invitation_id]);
       await connection.commit();
-      return res.json({ ok: true, tenant_id: invitation.tenant_id, role: normalizeRole(invitation.role), invitation_id: invitation.invitation_id, status: "accepted", secrets_included: false });
+      return res.json({ ok: true, tenant_id: invitation.tenant_id, role: acceptedRole, invitation_id: invitation.invitation_id, status: "accepted", default_workspace_grant: defaultGrant, secrets_included: false });
     } catch (err) {
       await connection.rollback();
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "invitation_accept_failed", message: err.message }, secrets_included: false });
