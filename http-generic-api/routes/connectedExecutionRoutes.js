@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
+import { CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE } from "../connectedExecutionWorker.js";
 
 const SESSION_MODES = new Set(["single_turn", "connected_rounds", "worker_driven"]);
 const SESSION_STATUSES = new Set(["draft", "ready", "running", "paused", "awaiting_user", "awaiting_approval", "blocked", "completed", "failed", "cancelled"]);
