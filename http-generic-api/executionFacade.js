@@ -597,6 +597,15 @@ export function createExecutionFacade(deps) {
         normalizeJobStatus,
         performUniversalServerWriteback
       });
+    },
+
+    async tickJob(jobId) {
+      return tickExecutionJob(jobId, {
+        resolveJob,
+        executeSingleQueuedJob,
+        toJobSummary,
+        normalizeJobStatus,
+      });
     }
   };
 }
