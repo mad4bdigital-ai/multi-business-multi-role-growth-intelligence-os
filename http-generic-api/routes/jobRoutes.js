@@ -1,7 +1,16 @@
 import { Router } from "express";
 
 export function buildJobRoutes(deps) {
-  const { requireBackendApiKey, executionFacade, resolveRequestedBy } = deps;
+  const {
+    requireBackendApiKey,
+    requireAdminPrincipal = (_req, _res, next) => next(),
+    executionFacade,
+    resolveRequestedBy,
+    jobRepository,
+    executeSingleQueuedJob,
+    normalizeJobStatus,
+    toJobSummary,
+  } = deps;
 
   const router = Router();
 
