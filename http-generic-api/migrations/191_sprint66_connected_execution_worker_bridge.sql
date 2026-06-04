@@ -64,5 +64,5 @@ ON DUPLICATE KEY UPDATE
   requires_resource_authority = VALUES(requires_resource_authority),
   requires_dry_run = VALUES(requires_dry_run),
   requires_audit_evidence = VALUES(requires_audit_evidence),
-  requires_readback = VALUES(readback),
+  requires_readback = VALUES(requires_readback),
   notes = VALUES(notes);
