@@ -86,6 +86,26 @@ function publicMembership(row) {
   };
 }
 
+function defaultWorkspacePermissionForRole(role = "member") {
+  const normalized = normalizeRole(role, "member");
+  if (normalized === "admin") return "admin";
+  if (normalized === "editor" || normalized === "operator") return "operate";
+  if (normalized === "viewer") return "view";
+  return "view";
+}
+
+async function ensureWorkspaceMembershipDefaultGrant(connection, { tenantId, userId, role, source, grantedBy }) {
+  const grantId = randomUUID();
+  const permission = defaultWorkspacePermissionForRole(role);
+  await connection.query(
+    `INSERT INTO workspace_resource_grants (grant_id, tenant_id, grantee_user_id, resource_type, resource_ref, permission, status, source, granted_by, metadata_json)
+     VALUES (?, ?, ?, 'workspace', ?, ?, 'active', ?, ?, JSON_OBJECT('default_workspace_membership_grant', true, 'role', ?))
+     ON DUPLICATE KEY UPDATE status='active', permission=VALUES(permission), source=VALUES(source), granted_by=VALUES(granted_by), metadata_json=VALUES(metadata_json), updated_at=NOW()`,
+    [grantId, tenantId, userId, tenantId, permission, source, grantedBy || null, role]
+  );
+  return { grant_id: grantId, permission };
+}
+
 function fieldCountFromCredentialSchema(value) {
   const parsed = typeof value === "object" ? value : (() => { try { return JSON.parse(value || "{}"); } catch { return {}; } })();
   if (Array.isArray(parsed?.fields)) return parsed.fields.length;
