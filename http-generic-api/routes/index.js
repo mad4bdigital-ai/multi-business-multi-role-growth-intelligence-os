@@ -124,17 +124,20 @@ export function registerRoutes(app, deps) {
   app.use(buildHealthRoutes(deps));
   app.use(buildMcpRoutes(deps));
   app.use(buildGovernanceRoutes(deps));
+  // Tenant-safe routes must mount before root-level admin/protected routers
+  // that call router.use(requireBackendApiKey), otherwise user JWT requests
+  // such as /me/connections/... are intercepted before reaching tenant guards.
+  app.use(buildTenantPlatformPluginRoutes());
+  app.use(buildTenantDocsRoutes());
+  app.use(buildTenantLifecycleRoutes());
+  app.use(buildWorkspaceResourceRoutes());
+  app.use(buildTenantEvolutionRoutes());
   app.use(buildPlatformGraphRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformSmokeRoutes());
   app.use(buildPlatformEvolutionRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformEngineRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformPrivateCapabilityVaultRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildConnectedExecutionRoutes({ ...deps, requireAdminPrincipal }));
-  app.use(buildTenantPlatformPluginRoutes());
-  app.use(buildTenantDocsRoutes());
-  app.use(buildTenantLifecycleRoutes());
-  app.use(buildWorkspaceResourceRoutes());
-  app.use(buildTenantEvolutionRoutes());
   app.use(buildPlatformPluginRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildBrowserRuntimeRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildGithubRoutes(deps));
