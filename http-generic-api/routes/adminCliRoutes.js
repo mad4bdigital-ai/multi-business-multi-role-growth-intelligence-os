@@ -954,16 +954,19 @@ async function executeGitHubRestFallback(args = []) {
     const fieldValues = parseGithubFieldValues(args);
     const allowedRead = method === "GET" && (apiTarget.startsWith("/compare/") || apiTarget.startsWith("/pulls") || apiTarget.startsWith("/commits/"));
     const allowedContentsMutation = githubContentsMutationAllowed(apiTarget, method);
+    const allowedBranchRefUpdate = githubBranchRefUpdateAllowed(apiTarget, method);
     if (allowedContentsMutation) assertGithubContentsWritePathAllowed(apiTarget);
+    const branchRefUpdate = allowedBranchRefUpdate ? assertGithubBranchRefUpdateAllowed(apiTarget, fieldValues) : null;
     const allowedMutation = (["POST", "PUT", "PATCH"].includes(method) || allowedContentsMutation) && (
       /^\/pulls\/\d+\/update-branch$/.test(apiTarget)
       || /^\/pulls\/\d+\/merge$/.test(apiTarget)
       || /^\/actions\/workflows\/[^/]+\/dispatches$/.test(apiTarget)
       || apiTarget === "/merges"
       || allowedContentsMutation
+      || allowedBranchRefUpdate
     );
     if (!allowedRead && !allowedMutation) {
-      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, workflow dispatches, repo merges, and guarded contents PUT mutations.");
+      const err = new Error("GitHub REST API fallback only supports repo-scoped compare/pulls/commits reads plus PR update-branch, PR merge, workflow dispatches, repo merges, guarded branch ref updates, and guarded contents PUT mutations.");
       err.status = 501;
       err.code = "github_rest_api_unsupported_path";
       err.details = { apiTarget, method };
@@ -975,7 +978,7 @@ async function executeGitHubRestFallback(args = []) {
       apiPath: apiTarget,
       token,
       method,
-      body: allowedMutation ? fieldValues : null,
+      body: allowedBranchRefUpdate ? branchRefUpdate.body : allowedMutation ? fieldValues : null,
     });
     const output = apiTarget.startsWith("/compare/")
       ? {
@@ -987,7 +990,16 @@ async function executeGitHubRestFallback(args = []) {
           total_commits: payload.total_commits,
           files: (payload.files || []).map((file) => ({ filename: file.filename, status: file.status, changes: file.changes })),
         }
-      : payload;
+      : allowedBranchRefUpdate
+        ? {
+            ref_updated: true,
+            branch: branchRefUpdate.branch,
+            ref: payload.ref || null,
+            sha: payload.object?.sha || null,
+            force: true,
+            secrets_included: false,
+          }
+        : payload;
     return { stdout: JSON.stringify(output, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
   }
 
