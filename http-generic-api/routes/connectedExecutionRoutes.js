@@ -298,6 +298,11 @@ export function buildConnectedExecutionRoutes(deps = {}) {
       if (!["analysis_step", "tool_call"].includes(action.action_kind)) {
         return res.status(422).json({ ok: false, error: { code: "connected_execution_resume_action_kind_not_supported", message: "This worker bridge phase only supports analysis_step actions and read-only tool_call preflight actions.", details: { action_kind: action.action_kind } }, secrets_included: false });
       }
+      const actionPayload = normalizeJson(action.action_payload_json, {});
+      const guardrails = normalizeJson(action.guardrails_json, {});
+      const willExecuteReadOnlyToolCall = action.action_kind === "tool_call"
+        && actionPayload?.execute_read_only_tool_call === true
+        && guardrails?.allow_read_only_tool_execution === true;
       const body = req.body || {};
       const requestedBy = nonEmptyString(body.requested_by || req.auth?.email || req.auth?.sub, "connected_execution_worker_bridge");
       const idempotencyKey = nonEmptyString(body.idempotency_key || req.header("Idempotency-Key"), `connected_execution:${connectedSessionId}:${resumeActionId}`);
