@@ -384,7 +384,7 @@ export async function evaluateConnectorDispatchPreflight({ plan = {}, connectorT
 }
 
 export async function evaluateAgentLoopPreflight({ plan = {}, workflow = null, logicKey = "", executionClass = "standard", toolCount = 0, context = {} } = {}, deps = {}) {
-  const policies = await loadActiveExecutionPolicies({
+  const { runtimePolicyResolution, policies } = await resolvePolicies({
     execution_scope: [
       "agent_loop",
       "model_tool_loop",
@@ -399,7 +399,7 @@ export async function evaluateAgentLoopPreflight({ plan = {}, workflow = null, l
   }, deps);
 
   if (!policies.length) {
-    return makePreflightResult({ evidence: { operation: "agent_loop", workflow_key: plan.workflow_key || null, reason: "no_matching_active_execution_policy" } });
+    return makePreflightResult({ evidence: { operation: "agent_loop", workflow_key: plan.workflow_key || null, reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
   }
 
   const warnings = [];
