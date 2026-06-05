@@ -135,6 +135,44 @@ async function resolvePublicProbeAddress(host) {
   return addresses[0].address;
 }
 
+const SSH_CLI_DRY_RUN_ALLOWLIST = Object.freeze({
+  pwd: { argv: ["pwd"], description: "Print current working directory", risk: "low" },
+  whoami: { argv: ["whoami"], description: "Print remote username", risk: "low" },
+  uname_s: { argv: ["uname", "-s"], description: "Print kernel/system name", risk: "low" },
+  uptime: { argv: ["uptime"], description: "Print system uptime", risk: "low" },
+});
+
+function buildSshCliDryRunPlan(options = {}) {
+  const commandKey = String(options.command_key || "").trim();
+  if (!commandKey) {
+    const err = new Error("command_key is required.");
+    err.status = 400;
+    err.code = "ssh_cli_command_key_required";
+    throw err;
+  }
+  const command = SSH_CLI_DRY_RUN_ALLOWLIST[commandKey];
+  if (!command) {
+    const err = new Error("command_key is not allowlisted for tenant SSH CLI dry-run.");
+    err.status = 400;
+    err.code = "ssh_cli_command_not_allowlisted";
+    err.details = { allowed_command_keys: Object.keys(SSH_CLI_DRY_RUN_ALLOWLIST) };
+    throw err;
+  }
+  return {
+    command_key: commandKey,
+    description: command.description,
+    risk: command.risk,
+    argv: command.argv,
+    will_decrypt_credentials: false,
+    will_authenticate_ssh: false,
+    will_open_network_connection: false,
+    will_execute_command: false,
+    execution_enabled: false,
+    next_required_tool: "tenant_ssh_cli_allowlisted_execute_not_enabled_yet",
+    secrets_included: false,
+  };
+}
+
 async function probeSshTcpBanner(row, options = {}) {
   const cfg = sshConfigFromConnection(row);
   const timeout_ms = clampInt(options.timeout_ms, 5000, 1000, 10000);
