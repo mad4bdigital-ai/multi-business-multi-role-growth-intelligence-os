@@ -141,3 +141,25 @@ old base + scoped variant patches + new base -> merge plan
 Append/narrowing patches can auto-merge. Overrides against changed base assets
 become conflicts. Tool, permission, or runtime-surface expansion is blocked until
 approval and certification.
+
+## Safe Additive Repair Doctrine
+
+When a canonical migration, registry row, or vault contract references a useful
+missing schema field, the preferred repair is a safe additive schema change, not
+omitting the field from the migration or runtime update. For example, if a
+registry update needs `updated_at`, the platform should add a compatible
+`updated_at` audit column when absent, then rerun the canonical update.
+
+Omission is only a temporary compatibility fallback when the additive repair is
+unsafe or blocked by preflight. Safe additive repair requires:
+
+- no destructive DDL
+- no secret exposure
+- no runtime capability expansion
+- idempotent column/table/index handling where supported
+- audit or ledger evidence
+- release-readiness readback after the repair
+
+This doctrine is registered under
+`platform_repair_governance.safe_additive_repair_preferred_over_omission` and is
+blocking for platform schema repair work.
