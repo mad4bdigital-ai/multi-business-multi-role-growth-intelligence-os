@@ -57,6 +57,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "192_sprint66_execution_job_tick_admin_tool.sql",
   "193_sprint66_connected_execution_read_only_tool_call_preflight.sql",
   "194_sprint66_admin_tool_registry_updated_at_column.sql",
+  "194_sprint66_runtime_policy_reconciliation.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
@@ -73,6 +74,15 @@ const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
 
 const LEGACY_NON_REQUIRED_ADMIN_TOOLS = [
   "governance_execution_log_sheets_recovery",
+];
+
+const REQUIRED_RUNTIME_POLICY_SEEDS = [
+  { check_key: "repo_mutation_guard", policy_group: "Repository Mutation Governance", policy_key: "Stale Duplicate Branch Merge Guard", required_blocking: true, required_scope_tokens: ["repo_patch_apply", "gpt_tools_call"], required_affects_layer_tokens: ["gptToolsRoutes", "repo_patch_apply"] },
+  { check_key: "app_action_visibility", policy_group: "External App Action Governance", policy_key: "External App Action Preflight Visibility", required_blocking: false, required_scope_tokens: ["app_action", "external_app_action"], required_affects_layer_tokens: ["appAdapters", "appAdapters/index.js"] },
+  { check_key: "n8n_workflow_execution_guard", policy_group: "External App Action Governance", policy_key: "n8n Workflow Execution Guard", required_blocking: true, required_scope_tokens: ["n8n", "execute_workflow"], required_affects_layer_tokens: ["appAdapters", "n8n"] },
+  { check_key: "connector_dispatch_visibility", policy_group: "Connector Dispatch Governance", policy_key: "Connector Dispatch Preflight Visibility", required_blocking: false, required_scope_tokens: ["connector_dispatch", "workflow_dispatch"], required_affects_layer_tokens: ["connectorExecutor", "connectorExecutor.js"] },
+  { check_key: "agent_loop_visibility", policy_group: "Agent Loop Governance", policy_key: "Agent Loop Preflight Visibility", required_blocking: false, required_scope_tokens: ["agent_loop", "logic_execution"], required_affects_layer_tokens: ["agentLoopRunner", "agentLoopRunner.js"] },
+  { check_key: "brand_core_writing_guard", policy_group: "Agent Loop Governance", policy_key: "Brand Writing Requires Brand Core", required_blocking: true, required_scope_tokens: ["write", "publish", "seo"], required_affects_layer_tokens: ["agentLoopRunner", "brand_core"] },
 ];
 
 // ── All platform tables that must exist ───────────────────────────────────────
@@ -1090,6 +1100,71 @@ async function checkAdminToolRegistrySmokeSafe() {
   }
 }
 
+function runtimePolicyFlagMatches(value, expectedBoolean) {
+  const normalized = String(value || "").trim().toLowerCase();
+  const actual = ["true", "1", "yes", "active", "blocking"].includes(normalized);
+  return actual === expectedBoolean;
+}
+
+function listMissingTokens(text = "", tokens = []) {
+  const source = String(text || "");
+  return (tokens || []).filter((token) => !source.includes(token));
+}
+
+async function checkRuntimePolicySeedReadiness() {
+  const pool = getPool();
+  const [[tableRow]] = await pool.query(
+    "SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'execution_policies'"
+  );
+  if (!tableRow?.cnt) {
+    return { status: "fail", detail: "execution_policies table is missing; runtime policy preflight cannot load required seeds.", table_exists: false, expected_count: REQUIRED_RUNTIME_POLICY_SEEDS.length, covered_count: 0, missing_required_policies: REQUIRED_RUNTIME_POLICY_SEEDS.map((seed) => seed.check_key), policies: [], secrets_included: false };
+  }
+
+  const where = REQUIRED_RUNTIME_POLICY_SEEDS.map(() => "(policy_group = ? AND policy_key = ?)").join(" OR ");
+  const params = REQUIRED_RUNTIME_POLICY_SEEDS.flatMap((seed) => [seed.policy_group, seed.policy_key]);
+  const [rows] = await pool.query(
+    `SELECT id, policy_group, policy_key, active, execution_scope, affects_layer, blocking,
+            CASE WHEN policy_value IS NULL OR policy_value = '' THEN 0 ELSE JSON_VALID(policy_value) END AS policy_value_json_valid,
+            updated_at
+       FROM execution_policies
+      WHERE ${where}
+      ORDER BY policy_group, policy_key`,
+    params
+  );
+  const byKey = new Map((rows || []).map((row) => [`${row.policy_group}\u001f${row.policy_key}`, row]));
+  const policies = [];
+  const missingRequired = [];
+  const invalidRequired = [];
+
+  for (const seed of REQUIRED_RUNTIME_POLICY_SEEDS) {
+    const row = byKey.get(`${seed.policy_group}\u001f${seed.policy_key}`);
+    if (!row) {
+      missingRequired.push(seed.check_key);
+      policies.push({ check_key: seed.check_key, present: false, expected_blocking: seed.required_blocking });
+      continue;
+    }
+    const activeOk = runtimePolicyFlagMatches(row.active, true);
+    const blockingOk = runtimePolicyFlagMatches(row.blocking, seed.required_blocking);
+    const missingScopeTokens = listMissingTokens(row.execution_scope, seed.required_scope_tokens);
+    const missingLayerTokens = listMissingTokens(row.affects_layer, seed.required_affects_layer_tokens);
+    const jsonOk = Number(row.policy_value_json_valid || 0) === 1;
+    const ok = activeOk && blockingOk && !missingScopeTokens.length && !missingLayerTokens.length && jsonOk;
+    if (!ok) invalidRequired.push(seed.check_key);
+    policies.push({ check_key: seed.check_key, present: true, ok, policy_group: row.policy_group, policy_key: row.policy_key, active: row.active, expected_blocking: seed.required_blocking, blocking: row.blocking, active_ok: activeOk, blocking_ok: blockingOk, policy_value_json_valid: jsonOk, missing_scope_tokens: missingScopeTokens, missing_affects_layer_tokens: missingLayerTokens, updated_at: row.updated_at });
+  }
+
+  const status = missingRequired.length || invalidRequired.length ? "fail" : "pass";
+  return { status, detail: status === "pass" ? `Runtime policy seed readiness covers ${REQUIRED_RUNTIME_POLICY_SEEDS.length}/${REQUIRED_RUNTIME_POLICY_SEEDS.length} required policy seed(s).` : `Runtime policy seed readiness failed: ${missingRequired.length} missing and ${invalidRequired.length} invalid required policy seed(s).`, table_exists: true, expected_count: REQUIRED_RUNTIME_POLICY_SEEDS.length, covered_count: REQUIRED_RUNTIME_POLICY_SEEDS.length - missingRequired.length, missing_required_policies: missingRequired, invalid_required_policies: invalidRequired, policies, executes_tools: false, secrets_included: false };
+}
+
+async function checkRuntimePolicySeedReadinessSafe() {
+  try {
+    return await checkRuntimePolicySeedReadiness();
+  } catch (err) {
+    return { status: "warn", detail: `Runtime policy seed readiness unavailable: ${err?.message || "unknown error"}`, expected_count: REQUIRED_RUNTIME_POLICY_SEEDS.length, covered_count: 0, missing_required_policies: REQUIRED_RUNTIME_POLICY_SEEDS.map((seed) => seed.check_key), executes_tools: false, secrets_included: false };
+  }
+}
+
 function graphMemoryCheckResult(memory = {}) {
   const assetCount = Number(memory.asset_count || 0);
   const resolved = Boolean(memory.resolved);
@@ -1160,6 +1235,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     governed_migration_ledger: null,
     admin_tool_registry_smoke: null,
     migration_drift: null,
+    runtime_policy_seed_readiness: null,
     graph_memory_diagnostics: null,
   };
 
@@ -1211,6 +1287,20 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   if (report.migration_drift.status === "warn" && report.overall === "pass") report.overall = "warn";
   if (report.migration_drift.status === "fail") report.overall = "fail";
 
+  // Runtime policy seed readiness — verifies the live DB has the policy rows
+  // required by governedExecutionPreflight. This catches missing seed rows that
+  // source-code and migration-file checks alone cannot detect.
+  report.runtime_policy_seed_readiness = await checkRuntimePolicySeedReadinessSafe();
+  if (report.runtime_policy_seed_readiness.status === "warn" && report.overall === "pass") report.overall = "warn";
+  if (report.runtime_policy_seed_readiness.status === "fail") report.overall = "fail";
+
+  // Runtime policy seed readiness — verifies the live DB has the policy rows
+  // required by governedExecutionPreflight. This catches missing seed rows that
+  // source-code and migration-file checks alone cannot detect.
+  report.runtime_policy_seed_readiness = await checkRuntimePolicySeedReadinessSafe();
+  if (report.runtime_policy_seed_readiness.status === "warn" && report.overall === "pass") report.overall = "warn";
+  if (report.runtime_policy_seed_readiness.status === "fail") report.overall = "fail";
+
   // Graph memory diagnostics — non-blocking admin context enrichment.
   report.graph_memory_diagnostics = await checkGraphMemoryDiagnostics();
 
@@ -1224,6 +1314,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     report.governed_migration_ledger,
     report.admin_tool_registry_smoke,
     report.migration_drift,
+    report.runtime_policy_seed_readiness,
     report.graph_memory_diagnostics,
   ];
   report.summary = {
@@ -1251,6 +1342,11 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     migration_drift_actionable_missing_total: report.migration_drift?.actionable_missing_total ?? null,
     migration_drift_files_scanned: report.migration_drift?.files_scanned ?? 0,
     migration_drift_classification_counts: report.migration_drift?.missing_classification?.counts || {},
+    runtime_policy_seed_readiness_status: report.runtime_policy_seed_readiness?.status || null,
+    runtime_policy_seed_expected_count: report.runtime_policy_seed_readiness?.expected_count ?? null,
+    runtime_policy_seed_covered_count: report.runtime_policy_seed_readiness?.covered_count ?? null,
+    runtime_policy_seed_missing_count: report.runtime_policy_seed_readiness?.missing_required_policies?.length ?? null,
+    runtime_policy_seed_invalid_count: report.runtime_policy_seed_readiness?.invalid_required_policies?.length ?? null,
     migration_drift_candidate_files: report.migration_drift?.migration_apply_plan?.candidate_files || [],
     migration_apply_preflight_status: report.migration_drift?.migration_apply_preflight?.status || null,
     migration_apply_preflight_risk_count: report.migration_drift?.migration_apply_preflight?.risk_count ?? null,

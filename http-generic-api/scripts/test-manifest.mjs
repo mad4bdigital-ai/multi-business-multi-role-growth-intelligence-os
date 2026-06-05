@@ -194,6 +194,7 @@ export const testCommands = [
   "node test-connected-execution-continuity-api.mjs",
   "node test-connected-execution-worker-bridge.mjs",
   "node test-connected-execution-read-only-tool-call-preflight.mjs",
+  "node test-runtime-policy-reconciliation.mjs",
   "node test-execution-job-tick-admin.mjs",
   "node test-dynamic-capability-audit-foundation.mjs",
   "node test-dependency-performance-diagnostic-triage.mjs",

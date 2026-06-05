@@ -59,6 +59,14 @@ export async function writeExecutionEvidence({
   artifactJsonAssetId = null,
   targetModuleWriteback = null,
   targetWorkflowWriteback = null,
+  usedLogicId = null,
+  usedLogicName = null,
+  resolvedLogicMode = null,
+  logicAssociationStatus = "not_associated",
+  usedEngineNames = "",
+  usedEngineRegistryRefs = "",
+  engineResolutionStatus = null,
+  engineAssociationStatus = "not_associated",
   skipSurfaceAuthority = false,
 } = {}) {
   if (!traceId) {
@@ -98,8 +106,12 @@ export async function writeExecutionEvidence({
         route_status, route_source, intake_validation_status, execution_ready_status,
         failure_reason, artifact_json_asset_id, target_module_writeback,
         target_workflow_writeback, execution_trace_id_writeback,
-        log_source_writeback, created_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+        log_source_writeback, used_logic_id, used_logic_name,
+        resolved_logic_mode, logic_association_status,
+        used_engine_names, used_engine_registry_refs,
+        engine_resolution_status, engine_association_status,
+        created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
     [
       sqlDate(now),
       now,
@@ -127,6 +139,14 @@ export async function writeExecutionEvidence({
       targetWorkflowWriteback === null || targetWorkflowWriteback === undefined ? null : compact(targetWorkflowWriteback, 255),
       compact(traceId, 255),
       compact(logSource, 255),
+      usedLogicId === null || usedLogicId === undefined ? null : compact(usedLogicId, 255),
+      usedLogicName === null || usedLogicName === undefined ? null : compact(usedLogicName, 255),
+      resolvedLogicMode === null || resolvedLogicMode === undefined ? null : compact(resolvedLogicMode, 255),
+      compact(logicAssociationStatus || "not_associated", 255),
+      compact(usedEngineNames, 1000),
+      compact(usedEngineRegistryRefs, 1000),
+      engineResolutionStatus === null || engineResolutionStatus === undefined ? null : compact(engineResolutionStatus, 255),
+      compact(engineAssociationStatus || "not_associated", 255),
     ]
   );
 
