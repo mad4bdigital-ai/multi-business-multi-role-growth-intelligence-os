@@ -144,6 +144,7 @@ assert.equal(__test__.normalizeWpJsonBase("https://example.com/wp-json/wp/v2"), 
     brands: [brand],
     cmsSites: [{ site_id: "site-1", canonical_target_key: "almallah_wp", normalized_domain: "tourism.almallahgroup-mg.com" }],
     cmsGrants: [{ grant_id: "grant-1", site_id: "site-1", tenant_id: "tenant-1", user_id: "user-1", scope: "personal", status: "active", draft_allowed: 1, publish_allowed: 0 }],
+    workspaceGrants: [{ grant_id: "wrg-1", tenant_id: "tenant-1", grantee_user_id: "user-1", resource_type: "site", resource_ref: "site-1", permission: "edit", grant_status: "active" }],
     connections: [{
       connection_id: "conn-wp",
       user_id: "user-1",
