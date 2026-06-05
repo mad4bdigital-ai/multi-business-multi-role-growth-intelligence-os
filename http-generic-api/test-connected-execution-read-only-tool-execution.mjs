@@ -60,5 +60,7 @@ assert(docs.includes("max_tool_calls: 1"), "docs must document tool-call budget"
 assert(docs.includes("output_redaction"), "docs must document output redaction");
 assert(docs.includes("read_only_tool_call_allowlist_v2"), "docs must document the bumped allowlist version");
 assert(docs.includes("platform_graph_status"), "docs must document the second diagnostic GET tool");
+assert(docs.includes("Safe boolean metadata keys"), "docs must document safe boolean metadata preservation");
+assert(docs.includes("Non-boolean values under sensitive key names remain redacted"), "docs must preserve sensitive-value redaction contract");
 
 console.log("connected execution read-only tool execution contract tests passed");
