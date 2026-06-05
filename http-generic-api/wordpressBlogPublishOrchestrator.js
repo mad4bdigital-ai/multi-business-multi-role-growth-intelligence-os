@@ -262,6 +262,25 @@ export async function dispatchWordpressBlogPublish(plan = {}, deps = {}) {
     };
   }
 
+  let workspaceGrant = null;
+  if (grant.grant_required && grant.site_id) {
+    workspaceGrant = await resolveWorkspaceResourceGrant({ plan, siteId: grant.site_id, requestedStatus }, deps);
+    if (!workspaceGrant.ok) {
+      return {
+        ok: false,
+        status: "blocked",
+        error: { code: workspaceGrant.status, message: "Workspace resource grant is required for this WordPress site operation." },
+        target_key: brand.target_key || plan.target_key || "",
+        site_id: grant.site_id || null,
+        grant_id: grant.grant_id || null,
+        grant_status: grant.status,
+        workspace_resource_grant_id: null,
+        workspace_resource_grant_required: true,
+        required_permission: workspaceGrant.required_permission,
+      };
+    }
+  }
+
   const credential = await resolveWpCredential({ plan, brand }, deps);
   if (credential.status !== "resolved" || !credential.secret_present || !credential.secret) {
     const intake = await createCredentialIntakeSession({ plan, brand, reason: credential.status || "credential_missing" }, deps);
