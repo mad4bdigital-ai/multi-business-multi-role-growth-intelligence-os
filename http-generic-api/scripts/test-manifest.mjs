@@ -26,6 +26,7 @@ export const testCommands = [
   "node test-access-control-matrix.mjs",
   "node test-admin-control.mjs",
   "node test-admin-tool-registry-updated-at-column.mjs",
+  "node test-admin-tool-registry-tags-text.mjs",
   "node test-github-rest-fallback-hardening.mjs",
   "node test-github-workflow-dispatch-fallback.mjs",
   "node test-github-branch-maintenance-fallbacks.mjs",
