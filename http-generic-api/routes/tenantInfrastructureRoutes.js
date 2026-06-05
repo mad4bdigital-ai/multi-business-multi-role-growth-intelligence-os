@@ -95,6 +95,95 @@ function databaseConfigFromConnection(row) {
   };
 }
 
+function sshConfigFromConnection(row) {
+  const credentials = decryptCredentials(row.encrypted_credentials);
+  return {
+    host: requiredCredential(credentials, "ssh_host"),
+    port: clampInt(requiredCredential(credentials, "ssh_port"), 22, 1, 65535),
+    user_present: Boolean(requiredCredential(credentials, "ssh_user")),
+    private_key_present: Boolean(requiredCredential(credentials, "ssh_private_key")),
+  };
+}
+
+function isBlockedProbeIp(ip = "") {
+  const value = String(ip || "").toLowerCase();
+  if (!value) return true;
+  if (value === "::1" || value === "0:0:0:0:0:0:0:1" || value === "0.0.0.0") return true;
+  if (value.startsWith("127.") || value.startsWith("10.") || value.startsWith("169.254.")) return true;
+  if (value.startsWith("192.168.")) return true;
+  const parts = value.split(".").map((part) => Number.parseInt(part, 10));
+  if (parts.length === 4 && parts.every(Number.isFinite) && parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+  if (value.startsWith("fc") || value.startsWith("fd") || value.startsWith("fe80:")) return true;
+  return false;
+}
+
+async function resolvePublicProbeAddress(host) {
+  const value = String(host || "").trim();
+  if (!value) {
+    const err = new Error("ssh_host is required.");
+    err.status = 422;
+    err.code = "missing_ssh_credential_field";
+    throw err;
+  }
+  const addresses = net.isIP(value) ? [{ address: value }] : await dns.lookup(value, { all: true, verbatim: false });
+  if (!addresses.length || addresses.some((entry) => isBlockedProbeIp(entry.address))) {
+    const err = new Error("SSH probe target resolves to a blocked or private address.");
+    err.status = 400;
+    err.code = "ssh_probe_target_blocked";
+    throw err;
+  }
+  return addresses[0].address;
+}
+
+async function probeSshTcpBanner(row, options = {}) {
+  const cfg = sshConfigFromConnection(row);
+  const timeout_ms = clampInt(options.timeout_ms, 5000, 1000, 10000);
+  const address = await resolvePublicProbeAddress(cfg.host);
+  return new Promise((resolve) => {
+    let settled = false;
+    let banner = "";
+    const started_at = new Date().toISOString();
+    const socket = net.createConnection({ host: address, port: cfg.port });
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve({
+        tcp_connected: false,
+        ssh_banner_detected: false,
+        authenticated: false,
+        command_executed: false,
+        private_key_used_for_auth: false,
+        timeout_ms,
+        started_at,
+        finished_at: new Date().toISOString(),
+        user_present: cfg.user_present,
+        private_key_present: cfg.private_key_present,
+        secrets_included: false,
+        ...result,
+      });
+    };
+    socket.setTimeout(timeout_ms);
+    socket.on("connect", () => {
+      setTimeout(() => finish({
+        tcp_connected: true,
+        ssh_banner_detected: /^SSH-/.test(banner),
+        protocol_hint: /^SSH-/.test(banner) ? "ssh" : "unknown",
+      }), Math.min(750, timeout_ms));
+    });
+    socket.on("data", (chunk) => {
+      banner += chunk.toString("utf8").slice(0, 256);
+      finish({
+        tcp_connected: true,
+        ssh_banner_detected: /^SSH-/.test(banner),
+        protocol_hint: /^SSH-/.test(banner) ? "ssh" : "unknown",
+      });
+    });
+    socket.on("timeout", () => finish({ tcp_connected: true, timed_out_waiting_for_banner: true, protocol_hint: "unknown" }));
+    socket.on("error", (error) => finish({ tcp_connected: false, failure_code: error?.code || "ssh_probe_connect_failed" }));
+  });
+}
+
 function validateReadonlySql(sql) {
   const text = String(sql || "").trim();
   if (!text) {
