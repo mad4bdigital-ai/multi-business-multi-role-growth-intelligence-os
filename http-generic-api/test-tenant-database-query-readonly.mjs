@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const routes = readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");
 const migration = readFileSync("migrations/197_sprint66_tenant_database_query_readonly_tool.sql", "utf8");
+const openapi = readFileSync("openapi.yaml", "utf8");
 
 assert(routes.includes('/me/infrastructure/database/connections/:connection_id/query-readonly'), "explicit tenant database read-only query route must exist");
 assert(routes.includes('requireUserJwt'), "query route must require tenant user JWT");
