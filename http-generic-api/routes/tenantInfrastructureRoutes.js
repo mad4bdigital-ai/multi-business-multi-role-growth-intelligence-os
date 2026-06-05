@@ -266,6 +266,29 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
 
   router.get("/me/infrastructure/database/connections/:connection_id/status", requireUserJwt, (req, res) => sendStatus(req, res, "remote_database"));
   router.post("/me/infrastructure/database/connections/:connection_id/preflight", requireUserJwt, (req, res) => sendPreflight(req, res, "remote_database"));
+  router.get("/me/infrastructure/database/connections/:connection_id/schema", requireUserJwt, async (req, res) => {
+    try {
+      const connectionId = String(req.params.connection_id || "").trim();
+      if (!connectionId) return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      const row = await loadTenantConnection(pool, req, connectionId, "remote_database");
+      const readiness = readinessFor(row, "remote_database");
+      if (!readiness.ready) {
+        return res.status(409).json({ ok: false, error: { code: "database_connection_not_ready", message: "Database connection is not ready for schema read.", details: readiness.blocked_reasons }, readiness, secrets_included: false });
+      }
+      const schema = await readRemoteDatabaseSchema(row, req.query || {});
+      return res.json({
+        ok: true,
+        kind: "database",
+        read_only: true,
+        source: "information_schema",
+        connection: safeConnection(row),
+        schema,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_database_schema_read_failed", message: err.message }, secrets_included: false });
+    }
+  });
   router.get("/me/infrastructure/ssh/connections/:connection_id/status", requireUserJwt, (req, res) => sendStatus(req, res, "ssh_key_pair"));
   router.post("/me/infrastructure/ssh/connections/:connection_id/preflight", requireUserJwt, (req, res) => sendPreflight(req, res, "ssh_key_pair"));
 
