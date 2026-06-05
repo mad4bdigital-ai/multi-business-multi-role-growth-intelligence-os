@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const routes = readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");
 const migration = readFileSync("migrations/199_sprint66_tenant_ssh_cli_dry_run_tool.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
+const openapi = readFileSync("openapi.yaml", "utf8");
 
 assert(routes.includes('SSH_CLI_DRY_RUN_ALLOWLIST'), "SSH CLI dry-run must use a fixed allowlist");
 assert(routes.includes('/me/infrastructure/ssh/connections/:connection_id/cli/dry-run'), "explicit tenant SSH CLI dry-run route must exist");
