@@ -1,3 +1,5 @@
+import { promises as dns } from "node:dns";
+import net from "node:net";
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import mysql from "mysql2/promise";
