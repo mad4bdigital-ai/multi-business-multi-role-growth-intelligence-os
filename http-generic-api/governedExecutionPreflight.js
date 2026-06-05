@@ -235,12 +235,12 @@ export async function evaluateRepoPatchApplyPreflight({ args = {}, repo = {}, br
 }
 
 export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", toolKey = "", args = {} } = {}, deps = {}) {
-  const policies = await loadActiveExecutionPolicies({
+  const { runtimePolicyResolution, policies } = await resolvePolicies({
     execution_scope: ["gpt_tools_call", "tool_dispatch", toolKey].filter(Boolean),
     affects_layer: ["gptToolsRoutes", callerType].filter(Boolean),
   }, deps);
   if (!policies.length) {
-    return makePreflightResult({ evidence: { operation: "gpt_tools_call", tool_key: toolKey, reason: "no_matching_active_execution_policy" } });
+    return makePreflightResult({ evidence: { operation: "gpt_tools_call", tool_key: toolKey, reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
   }
   const blockingPolicies = policies.filter(policyAllowsBlocking);
   return makePreflightResult({
