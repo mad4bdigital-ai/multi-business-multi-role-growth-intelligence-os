@@ -103,7 +103,6 @@ when available, then fall back to the Doc.
 The resolver returns decisions only. Chunk reads and live provider calls are
 separate governed operations that require runtime credentials and live testing.
 
-
 ## Repo Ingestion Contract
 
 Repository intake is snapshot-first and diff-aware. A tenant or user never installs
@@ -141,3 +140,58 @@ old base + scoped variant patches + new base -> merge plan
 Append/narrowing patches can auto-merge. Overrides against changed base assets
 become conflicts. Tool, permission, or runtime-surface expansion is blocked until
 approval and certification.
+
+## Safe Additive Repair Doctrine
+
+When a registry or migration update encounters a missing live schema element,
+the platform must distinguish safe additive repair from destructive repair. If a
+migration needs a nullable/defaulted audit column, guard table, or diagnostic
+view, the preferred response is to add it idempotently and continue the intended
+registry update.
+
+Safe additive repair is preferred over omission when all of the following hold:
+
+- the change is additive and non-destructive
+- existing rows preserve behavior
+- no runtime capability is expanded by the repair alone
+- same-cycle readback validates the repaired schema and intended mutation
+- ledger and execution evidence are recorded
+
+Skipping the intended update because the schema is missing is not an acceptable
+recovery path. A skipped mutation must remain degraded or blocked until the
+schema gap is repaired and read back.
+
+This doctrine is registered under
+`platform_repair_governance.safe_additive_repair_preferred_over_omission` and is
+blocking for platform schema repair work.
+
+## Database Collation Guard
+
+Capability-vault and workspace-authority joins must not rely on permanent
+`BINARY` workarounds. New database DDL must use the platform default charset and
+collation:
+
+```sql
+DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+```
+
+JSON-like longtext columns may use `utf8mb4_bin` only when the exception is
+intentional and registered. Mixed-collation join keys are policy violations.
+The guard surfaces are:
+
+- `database_collation_policy_registry`
+- `database_collation_policy_exception_registry`
+- `v_database_collation_policy_violations`
+- `v_database_collation_policy_status`
+- `database_schema_governance.unified_collation_required`
+
+Legacy mismatches can be tracked as expiring exceptions, but new unregistered
+mismatches are actionable drift.
+
+## Tenant Draft Skillpack Routing
+
+Tenant-private draft installs expose package and skill catalog assets without
+enabling runtime tools. Superpowers and SEO/GEO skillpacks follow the same
+pattern as GSAP: workspace catalog visibility first, advisory-only routing next,
+and explicit runtime/tool grants later only after approval. SEO/GEO WebFetch is
+blocked by default and requires an explicit runtime grant.
