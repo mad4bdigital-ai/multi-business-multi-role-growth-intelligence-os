@@ -12,7 +12,7 @@ const openapi = readFileSync("openapi.yaml", "utf8");
 const doc = readFileSync("../docs/connected-execution-worker-bridge-2026-06-04.md", "utf8");
 
 assert(worker.includes('CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE = "connected_execution_resume_action"'));
-assert(worker.includes('actionKind !== "analysis_step"'));
+assert(worker.includes('["analysis_step", "tool_call"].includes(actionKind)'));
 assert(worker.includes("unsupported_action_kind_for_worker_bridge"));
 assert(worker.includes("external_tool_calls_executed: false"));
 assert(worker.includes("repo_mutation_executed: false"));
