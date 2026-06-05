@@ -294,8 +294,8 @@ export function buildConnectedExecutionRoutes(deps = {}) {
       if (action.status !== "pending") {
         return res.status(409).json({ ok: false, error: { code: "connected_execution_resume_action_not_pending", message: "Resume action must be pending before enqueue.", details: { current_status: action.status } }, secrets_included: false });
       }
-      if (action.action_kind !== "analysis_step") {
-        return res.status(422).json({ ok: false, error: { code: "connected_execution_resume_action_kind_not_supported", message: "This worker bridge phase only supports analysis_step resume actions.", details: { action_kind: action.action_kind } }, secrets_included: false });
+      if (!["analysis_step", "tool_call"].includes(action.action_kind)) {
+        return res.status(422).json({ ok: false, error: { code: "connected_execution_resume_action_kind_not_supported", message: "This worker bridge phase only supports analysis_step actions and read-only tool_call preflight actions.", details: { action_kind: action.action_kind } }, secrets_included: false });
       }
       const body = req.body || {};
       const requestedBy = nonEmptyString(body.requested_by || req.auth?.email || req.auth?.sub, "connected_execution_worker_bridge");
@@ -323,6 +323,7 @@ export function buildConnectedExecutionRoutes(deps = {}) {
         dry_run: true,
         will_execute_external_action: false,
         will_call_tools: false,
+        will_preflight_tool_call: action.action_kind === "tool_call",
         will_mutate_repo: false,
         will_call_provider: false,
         will_call_local_device: false,

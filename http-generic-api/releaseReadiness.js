@@ -55,6 +55,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "188_sprint66_remote_database_intake_autopromotion.sql",
   "191_sprint66_connected_execution_worker_bridge.sql",
   "192_sprint66_execution_job_tick_admin_tool.sql",
+  "193_sprint66_connected_execution_read_only_tool_call_preflight.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [

@@ -317,10 +317,11 @@ components:
         ok: { type: boolean }
         connected_session_id: { type: string }
         resume_action_id: { type: string }
-        action_kind: { type: string, enum: [analysis_step] }
+        action_kind: { type: string, enum: [analysis_step, tool_call] }
         dry_run: { type: boolean, enum: [true] }
         will_execute_external_action: { type: boolean, enum: [false] }
         will_call_tools: { type: boolean, enum: [false] }
+        will_preflight_tool_call: { type: boolean }
         will_mutate_repo: { type: boolean, enum: [false] }
         will_call_provider: { type: boolean, enum: [false] }
         will_call_local_device: { type: boolean, enum: [false] }
@@ -13358,7 +13359,7 @@ paths:
       tags: [connected-execution]
       operationId: enqueueConnectedExecutionResumeActionDryRun
       summary: Enqueue connected execution resume action for metadata-only worker processing
-      description: Enqueues one pending analysis_step resume action for the connected execution worker bridge. The worker writes evidence/checkpoint metadata only and does not call tools, mutate repo, call providers, call local devices, or execute apply operations.
+      description: Enqueues one pending analysis_step resume action or read-only tool_call preflight action for the connected execution worker bridge. The worker writes evidence/checkpoint metadata only. For tool_call actions it validates the read-only allowlist and records preflight evidence without executing tools, mutating repos, calling providers, calling local devices, or executing apply operations.
       security:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
