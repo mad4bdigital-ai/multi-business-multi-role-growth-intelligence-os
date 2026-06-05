@@ -50,6 +50,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "197_sprint66_tenant_database_query_readonly_tool.sql",
   "198_sprint66_tenant_ssh_probe_tool.sql",
   "199_sprint66_tenant_ssh_cli_dry_run_tool.sql",
+  "198_sprint67_runtime_policy_resolver_monitoring_and_mirror_classification.sql",
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v2";
