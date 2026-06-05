@@ -27,7 +27,15 @@ function policyAllowsBlocking(policy) {
   return policy.blocking_bool && parseBoolean(value.blocking, policy.blocking_bool);
 }
 
-function makePreflightResult({ classification = "allow", policies = [], blockingPolicies = [], warnings = [], errors = [], evidence = {}, runtimePolicyResolution = null } = {}) {
+function makePreflightResult({
+  classification = "allow",
+  policies = [],
+  blockingPolicies = [],
+  warnings = [],
+  errors = [],
+  evidence = {},
+  runtimePolicyResolution = null,
+} = {}) {
   const targetRules = runtimePolicyResolution?.target_rules || [];
   return {
     ok: classification !== "blocked",
@@ -169,7 +177,7 @@ export async function evaluateRepositoryMutationPreflight({ operation, args = []
   }
 
   if (blockingPolicies.length) {
-    return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence });
+    return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
   }
   return makePreflightResult({
     classification: warnings.length ? "allow_with_policy_warnings" : "allow",
@@ -177,6 +185,7 @@ export async function evaluateRepositoryMutationPreflight({ operation, args = []
     warnings,
     errors,
     evidence,
+    runtimePolicyResolution,
   });
 }
 
@@ -223,7 +232,7 @@ export async function evaluateRepoPatchApplyPreflight({ args = {}, repo = {}, br
   }
 
   if (blockingPolicies.length) {
-    return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence });
+    return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
   }
   return makePreflightResult({
     classification: warnings.length ? "allow_with_policy_warnings" : "allow",
@@ -231,6 +240,7 @@ export async function evaluateRepoPatchApplyPreflight({ args = {}, repo = {}, br
     warnings,
     errors,
     evidence,
+    runtimePolicyResolution,
   });
 }
 
@@ -248,6 +258,7 @@ export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", 
     policies,
     warnings: blockingPolicies.length ? ["matching_blocking_tool_dispatch_policies_require_specific_evaluation"] : [],
     evidence: { operation: "gpt_tools_call", caller_type: callerType, tool_key: toolKey, matching_policy_count: policies.length },
+    runtimePolicyResolution,
   });
 }
 
@@ -297,7 +308,7 @@ export async function evaluateAppActionPreflight({ connection = {}, appKey = "",
   }
 
   if (enforcedBlockingPolicies.length) {
-    return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence });
+    return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
   }
 
   if (genericBlockingPolicies.length) {
@@ -310,6 +321,7 @@ export async function evaluateAppActionPreflight({ connection = {}, appKey = "",
     warnings,
     errors,
     evidence,
+    runtimePolicyResolution,
   });
 }
 
@@ -367,7 +379,7 @@ export async function evaluateConnectorDispatchPreflight({ plan = {}, connectorT
   }
 
   if (enforcedBlockingPolicies.length) {
-    return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence });
+    return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
   }
 
   if (genericBlockingPolicies.length) {
@@ -380,6 +392,7 @@ export async function evaluateConnectorDispatchPreflight({ plan = {}, connectorT
     warnings,
     errors,
     evidence,
+    runtimePolicyResolution,
   });
 }
 
@@ -456,7 +469,7 @@ export async function evaluateAgentLoopPreflight({ plan = {}, workflow = null, l
   }
 
   if (enforcedBlockingPolicies.length) {
-    return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence });
+    return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
   }
 
   if (genericBlockingPolicies.length) {
@@ -469,6 +482,7 @@ export async function evaluateAgentLoopPreflight({ plan = {}, workflow = null, l
     warnings,
     errors,
     evidence,
+    runtimePolicyResolution,
   });
 }
 
