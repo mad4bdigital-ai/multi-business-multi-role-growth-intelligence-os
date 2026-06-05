@@ -31,6 +31,35 @@ function normalizeRole(value = "member", fallback = "member") {
   return role === "owner" ? fallback : role;
 }
 
+function normalizeManagedRole(value = "member", fallback = "member") {
+  const role = String(value || fallback).trim().toLowerCase();
+  if (!VALID_MEMBER_ROLES.has(role)) return fallback;
+  return role;
+}
+
+async function countActiveOwners(connection, tenantId) {
+  const [rows] = await connection.query(
+    "SELECT COUNT(*) AS owner_count FROM memberships WHERE tenant_id=? AND role='owner' AND status='active'",
+    [tenantId]
+  );
+  return Number(rows?.[0]?.owner_count || 0);
+}
+
+async function assertNotLastOwnerChange(connection, { tenantId, targetUserId, nextRole = null, nextStatus = "active" }) {
+  const [rows] = await connection.query(
+    "SELECT role, status FROM memberships WHERE tenant_id=? AND user_id=? LIMIT 1",
+    [tenantId, targetUserId]
+  );
+  const current = rows[0] || null;
+  if (!current || current.role !== "owner" || current.status !== "active") return;
+  const removesOwner = nextStatus !== "active" || (nextRole && nextRole !== "owner");
+  if (!removesOwner) return;
+  const ownerCount = await countActiveOwners(connection, tenantId);
+  if (ownerCount <= 1) {
+    throw Object.assign(new Error("Cannot remove or demote the last active workspace owner."), { status: 409, code: "last_workspace_owner_required" });
+  }
+}
+
 function jsonMeta(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return JSON.stringify(value);
