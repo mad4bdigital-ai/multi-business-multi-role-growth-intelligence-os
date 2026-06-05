@@ -59,6 +59,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "194_sprint66_admin_tool_registry_updated_at_column.sql",
   "194_sprint66_runtime_policy_reconciliation.sql",
   "195_sprint66_connected_execution_read_only_tool_execution.sql",
+  "196_sprint66_admin_tool_registry_tags_text.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
@@ -467,6 +468,8 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
     if (/^ALTER\s+TABLE\b/i.test(normalized)) {
       counts.alter_table += 1;
       if (/^ALTER\s+TABLE\s+`?[A-Za-z0-9_]+`?\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b/i.test(normalized)) {
+        counts.alter_table_idempotent += 1;
+      } else if (/^ALTER\s+TABLE\s+`?admin_platform_endpoint_tools`?\s+MODIFY\s+COLUMN\s+`?tags`?\s+TEXT\b/i.test(normalized)) {
         counts.alter_table_idempotent += 1;
       } else {
         risks.push({ severity: "warn", code: "alter_table_requires_manual_idempotency_review", statement: normalized.slice(0, 140) });
