@@ -323,14 +323,33 @@ export async function dispatchWordpressBlogPublish(plan = {}, deps = {}) {
     }
   }
 
+  let workspaceGrant = null;
+  if (grant.grant_required && grant.site_id) {
+    workspaceGrant = await resolveWorkspaceResourceGrant({ plan, siteId: grant.site_id, requestedStatus }, deps);
+    if (!workspaceGrant.ok) {
+      return {
+        ok: false,
+        status: "blocked",
+        error: { code: workspaceGrant.status, message: "Workspace resource grant is required for this WordPress site operation." },
+        target_key: brand.target_key || plan.target_key || "",
+        site_id: grant.site_id || null,
+        grant_id: grant.grant_id || null,
+        grant_status: grant.status,
+        workspace_resource_grant_id: null,
+        workspace_resource_grant_required: true,
+        required_permission: workspaceGrant.required_permission,
+      };
+    }
+  }
+
   const credential = await resolveWpCredential({ plan, brand }, deps);
   if (credential.status !== "resolved" || !credential.secret_present || !credential.secret) {
     const intake = await createCredentialIntakeSession({ plan, brand, reason: credential.status || "credential_missing" }, deps);
-    return { ok: true, status: "credential_intake_required", credential_status: credential.status || "missing", target_key: brand.target_key || plan.target_key || "", site_id: grant.site_id || null, grant_id: grant.grant_id || null, grant_status: grant.status, intake, resume: { workflow_key: WORKFLOW_KEY, plan_id: plan.plan_id || "", original_request_preserved: true }, output: { intake_url: intake.intake_url } };
+    return { ok: true, status: "credential_intake_required", credential_status: credential.status || "missing", target_key: brand.target_key || plan.target_key || "", site_id: grant.site_id || null, grant_id: grant.grant_id || null, grant_status: grant.status, workspace_resource_grant_id: workspaceGrant?.grant_id || null, workspace_resource_grant_status: workspaceGrant?.status || null, intake, resume: { workflow_key: WORKFLOW_KEY, plan_id: plan.plan_id || "", original_request_preserved: true }, output: { intake_url: intake.intake_url } };
   }
 
   const created = await createPost({ brand, credential, postType, payload }, deps);
-  return { ok: true, status: "completed", credential_status: "resolved", target_key: brand.target_key || plan.target_key || "", site_id: grant.site_id || null, grant_id: grant.grant_id || null, grant_status: grant.status, post_status: requestedStatus, post_id: created.post_id, link: created.link, readback_status: created.readback_status, result: created, output: { post_id: created.post_id, link: created.link, status: created.status, readback_status: created.readback_status } };
+  return { ok: true, status: "completed", credential_status: "resolved", target_key: brand.target_key || plan.target_key || "", site_id: grant.site_id || null, grant_id: grant.grant_id || null, grant_status: grant.status, workspace_resource_grant_id: workspaceGrant?.grant_id || null, workspace_resource_grant_status: workspaceGrant?.status || null, post_status: requestedStatus, post_id: created.post_id, link: created.link, readback_status: created.readback_status, result: created, output: { post_id: created.post_id, link: created.link, status: created.status, readback_status: created.readback_status } };
 }
 
 export async function diagnoseWordpressPublishAuthority(plan = {}, deps = {}) {
