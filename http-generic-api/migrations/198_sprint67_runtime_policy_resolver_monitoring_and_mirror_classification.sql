@@ -2,24 +2,32 @@
 -- Additive diagnostics only. No destructive SQL.
 
 CREATE OR REPLACE VIEW v_execution_association_monitoring_summary AS
-SELECT 'last_24h_logic_null' AS check_key, COUNT(*) AS issue_count
-  FROM execution_log
- WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+WITH monitoring_baseline AS (
+  SELECT COALESCE(
+    (SELECT MAX(applied_at)
+       FROM governed_migration_ledger
+      WHERE migration_file = '198_sprint67_runtime_policy_resolver_monitoring_and_mirror_classification.sql'),
+    DATE_SUB(NOW(), INTERVAL 24 HOUR)
+  ) AS baseline_at
+)
+SELECT 'post_baseline_logic_null' AS check_key, COUNT(*) AS issue_count
+  FROM execution_log, monitoring_baseline
+ WHERE created_at >= monitoring_baseline.baseline_at
    AND logic_association_status IS NULL
 UNION ALL
-SELECT 'last_24h_logic_unknown' AS check_key, COUNT(*) AS issue_count
-  FROM execution_log
- WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+SELECT 'post_baseline_logic_unknown' AS check_key, COUNT(*) AS issue_count
+  FROM execution_log, monitoring_baseline
+ WHERE created_at >= monitoring_baseline.baseline_at
    AND logic_association_status = 'unknown'
 UNION ALL
-SELECT 'last_24h_engine_null' AS check_key, COUNT(*) AS issue_count
-  FROM execution_log
- WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+SELECT 'post_baseline_engine_null' AS check_key, COUNT(*) AS issue_count
+  FROM execution_log, monitoring_baseline
+ WHERE created_at >= monitoring_baseline.baseline_at
    AND engine_association_status IS NULL
 UNION ALL
-SELECT 'last_24h_engine_unknown' AS check_key, COUNT(*) AS issue_count
-  FROM execution_log
- WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+SELECT 'post_baseline_engine_unknown' AS check_key, COUNT(*) AS issue_count
+  FROM execution_log, monitoring_baseline
+ WHERE created_at >= monitoring_baseline.baseline_at
    AND engine_association_status = 'unknown';
 
 CREATE OR REPLACE VIEW v_runtime_policy_resolver_rule_coverage AS
