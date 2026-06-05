@@ -183,6 +183,14 @@ assert.equal(passPreflight.status, "pass", "idempotent create table and insert i
 assert.equal(passPreflight.counts.create_table_idempotent, 1, "must count idempotent CREATE TABLE");
 assert.equal(passPreflight.counts.insert_idempotent, 1, "must count idempotent INSERT");
 
+const idempotentAlterPreflight = assessMigrationSqlPreflight(
+  "idempotent-alter.sql",
+  "ALTER TABLE admin_platform_endpoint_tools ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at;"
+);
+assert.equal(idempotentAlterPreflight.status, "pass", "ADD COLUMN IF NOT EXISTS should pass as an idempotent additive ALTER");
+assert.equal(idempotentAlterPreflight.counts.alter_table, 1, "must count ALTER TABLE statements");
+assert.equal(idempotentAlterPreflight.counts.alter_table_idempotent, 1, "must count idempotent ADD COLUMN IF NOT EXISTS");
+
 const warnPreflight = assessMigrationSqlPreflight(
   "warn.sql",
   "CREATE TABLE cms_sites (site_id varchar(36) PRIMARY KEY); INSERT INTO admin_platform_endpoint_tools (tool_key) VALUES ('unsafe_tool');"

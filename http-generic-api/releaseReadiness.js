@@ -420,6 +420,7 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
     insert: 0,
     insert_idempotent: 0,
     alter_table: 0,
+    alter_table_idempotent: 0,
     destructive: 0,
   };
 
@@ -454,7 +455,11 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
     }
     if (/^ALTER\s+TABLE\b/i.test(normalized)) {
       counts.alter_table += 1;
-      risks.push({ severity: "warn", code: "alter_table_requires_manual_idempotency_review", statement: normalized.slice(0, 140) });
+      if (/^ALTER\s+TABLE\s+`?[A-Za-z0-9_]+`?\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b/i.test(normalized)) {
+        counts.alter_table_idempotent += 1;
+      } else {
+        risks.push({ severity: "warn", code: "alter_table_requires_manual_idempotency_review", statement: normalized.slice(0, 140) });
+      }
     }
     if (/^(DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b/i.test(normalized)) {
       counts.destructive += 1;
