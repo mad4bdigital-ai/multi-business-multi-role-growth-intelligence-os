@@ -281,7 +281,8 @@ export function buildConnectedExecutionRoutes(deps = {}) {
       const pool = getPool();
       const session = await ensureConnectedSession(pool, connectedSessionId);
       const [rows] = await pool.query(
-        `SELECT resume_action_id, connected_session_id, tenant_id, user_id, action_kind, action_key, status
+        `SELECT resume_action_id, connected_session_id, tenant_id, user_id, action_kind, action_key, status,
+                action_payload_json, guardrails_json
            FROM connected_execution_resume_actions
           WHERE connected_session_id = ? AND resume_action_id = ?
           LIMIT 1`,
