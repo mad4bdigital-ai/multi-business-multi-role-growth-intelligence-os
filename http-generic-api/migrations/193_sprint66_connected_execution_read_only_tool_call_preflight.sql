@@ -5,6 +5,14 @@
 -- tool execution, apply operations, repo mutation, provider calls, local-device
 -- calls, or secret exposure.
 
+-- Safe additive repair note:
+-- This migration updates admin_platform_endpoint_tools.updated_at below. Older
+-- live databases may not have the column yet. Add it idempotently rather than
+-- omitting the registry update, so a schema gap is repaired while preserving
+-- all existing rows and behavior.
+ALTER TABLE `admin_platform_endpoint_tools`
+  ADD COLUMN IF NOT EXISTS `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp();
+
 INSERT INTO runtime_dispatch_certification_registry
   (certification_key, surface_key, surface_family, tool_or_action_key, risk_class, certification_status,
    smoke_strategy, dispatch_allowed, apply_allowed, requires_resource_authority, requires_dry_run,
@@ -44,5 +52,6 @@ ON DUPLICATE KEY UPDATE
 UPDATE admin_platform_endpoint_tools
    SET description = 'Enqueue one connected execution resume action for worker bridge processing. Supports analysis_step metadata-only actions and tool_call read-only preflight/evidence for the allowlisted phase. No external tool execution, repo mutation, provider call, local-device call, apply operation, or secret exposure is allowed.',
        tags = 'admin,connected_execution,worker_bridge,resume_action,queue_enqueue,dry_run,analysis_step_only,read_only_tool_call_preflight,metadata_write,evidence_write,no_tool_execution,no_repo_mutation,no_provider_call,no_local_device_call,no_secrets',
-       fixed_body = '{"dry_run":true,"max_attempts":1,"read_only_tool_call_preflight":true}'
+       fixed_body = '{"dry_run":true,"max_attempts":1,"read_only_tool_call_preflight":true}',
+       updated_at = CURRENT_TIMESTAMP
  WHERE tool_key = 'connected_execution_resume_action_enqueue_dry_run';
