@@ -57,9 +57,9 @@ async function resolvePolicies(context = {}, deps = {}) {
 }
 
 export async function governedExecutionPreflight(context = {}, deps = {}) {
-  const policies = await loadActiveExecutionPolicies(context, deps);
+  const { runtimePolicyResolution, policies } = await resolvePolicies(context, deps);
   if (!hasMeaningfulPolicy(policies)) {
-    return makePreflightResult({ evidence: { reason: "no_matching_active_execution_policy" } });
+    return makePreflightResult({ evidence: { reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
   }
   const blockingPolicies = policies.filter(policyAllowsBlocking);
   return makePreflightResult({
@@ -67,6 +67,7 @@ export async function governedExecutionPreflight(context = {}, deps = {}) {
     policies,
     warnings: blockingPolicies.length ? ["matching_blocking_policies_require_specific_evaluation"] : [],
     evidence: { matching_policy_count: policies.length },
+    runtimePolicyResolution,
   });
 }
 
