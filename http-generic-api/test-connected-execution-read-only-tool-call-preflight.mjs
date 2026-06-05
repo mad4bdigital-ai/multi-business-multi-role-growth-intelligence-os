@@ -25,7 +25,7 @@ assert(!worker.includes("exec("), "worker must not execute shell commands");
 
 assert(routes.includes('["analysis_step", "tool_call"].includes(action.action_kind)'), "enqueue route must allow tool_call preflight");
 assert(routes.includes("will_preflight_tool_call"), "enqueue response must expose preflight flag");
-assert(routes.includes("will_call_tools: false"), "enqueue response must still say no tool execution");
+assert(routes.includes("will_call_tools: willExecuteReadOnlyToolCall"), "enqueue response must keep preflight separate from opt-in execution");
 
 assert(migration.includes("connected_execution_worker_bridge_v2_read_only_tool_call_preflight"), "migration must register v2 certification");
 assert(migration.includes("read_only_tool_call_preflight"), "migration must update tool tags/description");
