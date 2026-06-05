@@ -503,21 +503,24 @@ export async function runConnectedExecutionResumeAction(jobPayload = {}, deps = 
     connectedSessionId,
     session,
     action,
-    status: "progress",
-    stage: "connected_execution_worker_bridge",
+    status: finalActionStatus === "failed" ? "failed" : "progress",
+    stage: toolShouldExecute ? "connected_execution_worker_bridge_read_only_tool_execution" : "connected_execution_worker_bridge",
     summary,
     evidence,
-    blockers: [],
-    nextAction: { resume_action_id: resumeActionId, status: "completed", action_kind: actionKind },
+    blockers: finalActionStatus === "failed" ? ["read_only_tool_call_dispatch_failed"] : [],
+    nextAction: { resume_action_id: resumeActionId, status: finalActionStatus, action_kind: actionKind },
     firstResumeInstruction: cleanString(actionPayload.first_resume_instruction || "Load latest connected execution checkpoint and continue with the next pending resume action."),
   });
 
   const result = { ...summary, evidence_report_id: evidenceReportId };
+  const errorJson = finalActionStatus === "failed"
+    ? JSON.stringify({ ok: false, code: "read_only_tool_call_dispatch_failed", tool_key: toolPreflight?.evidence?.tool_key || null, status: toolExecution?.status || null, secrets_included: false })
+    : null;
   await pool.query(
     `UPDATE connected_execution_resume_actions
-        SET status = 'completed', completed_at = NOW(), result_json = ?, error_json = NULL, updated_at = NOW(), secrets_included = 0
+        SET status = ?, completed_at = NOW(), result_json = ?, error_json = ?, updated_at = NOW(), secrets_included = 0
       WHERE connected_session_id = ? AND resume_action_id = ? AND claim_token = ?`,
-    [JSON.stringify(result), connectedSessionId, resumeActionId, claimToken]
+    [finalActionStatus, JSON.stringify(result), errorJson, connectedSessionId, resumeActionId, claimToken]
   );
 
   return result;
