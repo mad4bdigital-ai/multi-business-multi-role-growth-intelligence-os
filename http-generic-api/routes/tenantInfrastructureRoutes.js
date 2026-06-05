@@ -112,6 +112,57 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
   const router = Router();
   const pool = deps.pool || { query: (...args) => getPool().query(...args) };
 
+  async function sendStatus(req, res, authType) {
+    try {
+      const connectionId = String(req.params.connection_id || "").trim();
+      if (!connectionId) return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      const row = await loadTenantConnection(pool, req, connectionId, authType);
+      return res.json({
+        ok: true,
+        kind: authType === "ssh_key_pair" ? "ssh" : "database",
+        connection: safeConnection(row),
+        readiness: readinessFor(row, authType),
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_infrastructure_status_failed", message: err.message }, secrets_included: false });
+    }
+  }
+
+  async function sendPreflight(req, res, authType) {
+    try {
+      const connectionId = String(req.params.connection_id || "").trim();
+      if (!connectionId) return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      const row = await loadTenantConnection(pool, req, connectionId, authType);
+      const readiness = readinessFor(row, authType);
+      return res.json({
+        ok: true,
+        dry_run: true,
+        will_decrypt_credentials: false,
+        will_open_network_connection: false,
+        will_execute_command: false,
+        will_query_database: false,
+        kind: authType === "ssh_key_pair" ? "ssh" : "database",
+        connection: safeConnection(row),
+        readiness,
+        allowed_next_tools: authType === "ssh_key_pair"
+          ? ["tenant_ssh_connection_status", "tenant_ssh_preflight"]
+          : ["tenant_database_connection_status", "tenant_database_preflight"],
+        blocked_runtime_tools: authType === "ssh_key_pair"
+          ? ["tenant_ssh_cli_allowlisted_execute"]
+          : ["tenant_database_schema_read", "tenant_database_query_readonly"],
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_infrastructure_preflight_failed", message: err.message }, secrets_included: false });
+    }
+  }
+
+  router.get("/me/infrastructure/database/connections/:connection_id/status", requireUserJwt, (req, res) => sendStatus(req, res, "remote_database"));
+  router.post("/me/infrastructure/database/connections/:connection_id/preflight", requireUserJwt, (req, res) => sendPreflight(req, res, "remote_database"));
+  router.get("/me/infrastructure/ssh/connections/:connection_id/status", requireUserJwt, (req, res) => sendStatus(req, res, "ssh_key_pair"));
+  router.post("/me/infrastructure/ssh/connections/:connection_id/preflight", requireUserJwt, (req, res) => sendPreflight(req, res, "ssh_key_pair"));
+
   router.get("/me/infrastructure/connections/:connection_id/status", requireUserJwt, async (req, res) => {
     try {
       const connectionId = String(req.params.connection_id || "").trim();

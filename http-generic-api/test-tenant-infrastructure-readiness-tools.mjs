@@ -5,8 +5,12 @@ const routes = readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");
 const index = readFileSync("routes/index.js", "utf8");
 const migration = readFileSync("migrations/194_sprint66_tenant_infrastructure_readiness_tools.sql", "utf8");
 
-assert(routes.includes('/me/infrastructure/connections/:connection_id/status'), "tenant infrastructure status route must exist");
-assert(routes.includes('/me/infrastructure/connections/:connection_id/preflight'), "tenant infrastructure preflight route must exist");
+assert(routes.includes('/me/infrastructure/database/connections/:connection_id/status'), "tenant database status route must use explicit database path");
+assert(routes.includes('/me/infrastructure/database/connections/:connection_id/preflight'), "tenant database preflight route must use explicit database path");
+assert(routes.includes('/me/infrastructure/ssh/connections/:connection_id/status'), "tenant SSH status route must use explicit SSH path");
+assert(routes.includes('/me/infrastructure/ssh/connections/:connection_id/preflight'), "tenant SSH preflight route must use explicit SSH path");
+assert(routes.includes('/me/infrastructure/connections/:connection_id/status'), "legacy generic tenant infrastructure status route may remain for direct callers");
+assert(routes.includes('/me/infrastructure/connections/:connection_id/preflight'), "legacy generic tenant infrastructure preflight route may remain for direct callers");
 assert(routes.includes('requireUserJwt'), "routes must require tenant user JWT");
 assert(routes.includes('tenant_id = ?') && routes.includes('user_id = ?'), "routes must scope by tenant_id and user_id");
 assert(routes.includes('encrypted_credentials'), "routes may check credential presence");
