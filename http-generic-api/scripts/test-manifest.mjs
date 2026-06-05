@@ -95,6 +95,7 @@ export const testCommands = [
   "node ../local-connector/test-n8n-fallthrough.mjs",
   "node ../local-connector/test-n8n-workflow-templates.mjs",
   "node test-connect-routes.mjs",
+  "node test-tenant-infrastructure-intake.mjs",
   "node test-task-route-authority-resolver.mjs",
   "node test-workflow-registry-authority-resolver.mjs",
   "node test-action-registry-authority-resolver.mjs",

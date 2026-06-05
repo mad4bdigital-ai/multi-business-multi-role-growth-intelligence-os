@@ -90,6 +90,19 @@ function defaultCredentialSchema(authType) {
     { name: "header_value", label: "Header value", type: "password", target: "credentials", required: true, secret: true },
     { name: "api_base_url", label: "API base URL", type: "url", target: "connection", required: false, secret: false },
   ] };
+  if (authType === "ssh_key_pair") return { fields: [
+    { name: "ssh_host", label: "SSH_HOST", type: "text", target: "credentials", required: true, secret: false },
+    { name: "ssh_port", label: "SSH_PORT", type: "number", target: "credentials", required: true, secret: false },
+    { name: "ssh_user", label: "SSH_USER", type: "text", target: "credentials", required: true, secret: false },
+    { name: "ssh_private_key", label: "SSH_PRIVATE_KEY", type: "textarea", target: "credentials", required: true, secret: true },
+  ] };
+  if (authType === "remote_database") return { fields: [
+    { name: "db_host", label: "DB_HOST", type: "text", target: "credentials", required: true, secret: false },
+    { name: "db_port", label: "DB_PORT", type: "number", target: "credentials", required: true, secret: false },
+    { name: "db_name", label: "DB_NAME", type: "text", target: "credentials", required: true, secret: false },
+    { name: "db_user", label: "DB_USER", type: "text", target: "credentials", required: true, secret: false },
+    { name: "db_password", label: "DB_PASSWORD", type: "password", target: "credentials", required: true, secret: true },
+  ] };
   return { fields: [] };
 }
 
@@ -135,10 +148,16 @@ export function buildConnectApiRoutes(deps = {}) {
       const [rows] = await pool.query(
         `SELECT app_key, display_name, category, auth_type, status
            FROM \`app_integrations\`
-          WHERE status = 'active'
+          WHERE status IN ('active','beta')
           ORDER BY display_name ASC`
       );
-      res.json({ ok: true, items: rows || [] });
+      res.json({
+        ok: true,
+        items: rows || [],
+        beta_included: true,
+        infrastructure_auth_types: ['ssh_key_pair', 'remote_database'],
+        secrets_included: false,
+      });
     } catch (err) {
       next(err);
     }

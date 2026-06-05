@@ -13855,7 +13855,7 @@ paths:
                 app_key: { type: string }
                 auth_type:
                   type: string
-                  enum: [api_key, bearer_token, basic_auth, mcp, webhook, custom_headers, client_credentials]
+                  enum: [api_key, bearer_token, basic_auth, mcp, webhook, custom_headers, client_credentials, ssh_key_pair, remote_database]
                 display_label: { type: string }
                 api_base_url: { type: string, format: uri }
                 mcp_endpoint: { type: string, format: uri }
