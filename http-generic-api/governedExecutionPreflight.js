@@ -76,7 +76,7 @@ function statusBlocksMerge(status = "") {
 }
 
 async function loadRepositoryMutationPolicies(operation, affectsLayer, deps = {}) {
-  return loadActiveExecutionPolicies({
+  return resolvePolicies({
     execution_scope: ["repo_mutation", "github_pr_merge", "branch_delete", "repo_patch_apply", operation].filter(Boolean),
     affects_layer: ["adminCliRoutes", "github_rest_fallback", "gptToolsRoutes", "repo_patch_apply", affectsLayer].filter(Boolean),
     policy_group: "Repository Mutation Governance",
