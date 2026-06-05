@@ -95,11 +95,11 @@ assert("string used_engine_names passes through", rowStringEngine.used_engine_na
 assert("retired_shadow_target_module is empty", row.retired_shadow_target_module === "", JSON.stringify(row.retired_shadow_target_module));
 assert("retired_shadow_performance_impact_row is empty", row.retired_shadow_performance_impact_row === "", JSON.stringify(row.retired_shadow_performance_impact_row));
 
-// omitted logic fields default to empty / unknown
+// omitted association fields default to not_associated; invalid explicit values remain unknown
 const rowNoLogic = toExecutionLogUnifiedRow({ started_at: "2026-04-28T00:00:00.000Z" });
 assert("missing used_logic_id defaults to empty", rowNoLogic.used_logic_id === "", JSON.stringify(rowNoLogic.used_logic_id));
-assert("missing logic_association_status defaults to unknown", rowNoLogic.logic_association_status === "unknown", JSON.stringify(rowNoLogic.logic_association_status));
-assert("missing engine_association_status defaults to unknown", rowNoLogic.engine_association_status === "unknown", JSON.stringify(rowNoLogic.engine_association_status));
+assert("missing logic_association_status defaults to not_associated", rowNoLogic.logic_association_status === "not_associated", JSON.stringify(rowNoLogic.logic_association_status));
+assert("missing engine_association_status defaults to not_associated", rowNoLogic.engine_association_status === "not_associated", JSON.stringify(rowNoLogic.engine_association_status));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

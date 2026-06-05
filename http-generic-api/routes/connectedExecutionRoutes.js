@@ -281,7 +281,8 @@ export function buildConnectedExecutionRoutes(deps = {}) {
       const pool = getPool();
       const session = await ensureConnectedSession(pool, connectedSessionId);
       const [rows] = await pool.query(
-        `SELECT resume_action_id, connected_session_id, tenant_id, user_id, action_kind, action_key, status
+        `SELECT resume_action_id, connected_session_id, tenant_id, user_id, action_kind, action_key, status,
+                action_payload_json, guardrails_json
            FROM connected_execution_resume_actions
           WHERE connected_session_id = ? AND resume_action_id = ?
           LIMIT 1`,
@@ -295,8 +296,13 @@ export function buildConnectedExecutionRoutes(deps = {}) {
         return res.status(409).json({ ok: false, error: { code: "connected_execution_resume_action_not_pending", message: "Resume action must be pending before enqueue.", details: { current_status: action.status } }, secrets_included: false });
       }
       if (!["analysis_step", "tool_call"].includes(action.action_kind)) {
-        return res.status(422).json({ ok: false, error: { code: "connected_execution_resume_action_kind_not_supported", message: "This worker bridge phase only supports analysis_step actions and read-only tool_call preflight actions.", details: { action_kind: action.action_kind } }, secrets_included: false });
+        return res.status(422).json({ ok: false, error: { code: "connected_execution_resume_action_kind_not_supported", message: "This worker bridge phase only supports analysis_step actions plus read-only tool_call preflight or opt-in read-only execution actions.", details: { action_kind: action.action_kind } }, secrets_included: false });
       }
+      const actionPayload = normalizeJson(action.action_payload_json, {});
+      const guardrails = normalizeJson(action.guardrails_json, {});
+      const willExecuteReadOnlyToolCall = action.action_kind === "tool_call"
+        && actionPayload?.execute_read_only_tool_call === true
+        && guardrails?.allow_read_only_tool_execution === true;
       const body = req.body || {};
       const requestedBy = nonEmptyString(body.requested_by || req.auth?.email || req.auth?.sub, "connected_execution_worker_bridge");
       const idempotencyKey = nonEmptyString(body.idempotency_key || req.header("Idempotency-Key"), `connected_execution:${connectedSessionId}:${resumeActionId}`);
@@ -322,8 +328,9 @@ export function buildConnectedExecutionRoutes(deps = {}) {
         action_kind: action.action_kind,
         dry_run: true,
         will_execute_external_action: false,
-        will_call_tools: false,
-        will_preflight_tool_call: action.action_kind === "tool_call",
+        will_call_tools: willExecuteReadOnlyToolCall,
+        will_preflight_tool_call: action.action_kind === "tool_call" && !willExecuteReadOnlyToolCall,
+        will_execute_read_only_tool_call: willExecuteReadOnlyToolCall,
         will_mutate_repo: false,
         will_call_provider: false,
         will_call_local_device: false,

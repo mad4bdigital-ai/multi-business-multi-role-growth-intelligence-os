@@ -25,7 +25,7 @@ assert(!worker.includes("exec("), "worker must not execute shell commands");
 
 assert(routes.includes('["analysis_step", "tool_call"].includes(action.action_kind)'), "enqueue route must allow tool_call preflight");
 assert(routes.includes("will_preflight_tool_call"), "enqueue response must expose preflight flag");
-assert(routes.includes("will_call_tools: false"), "enqueue response must still say no tool execution");
+assert(routes.includes("will_call_tools: willExecuteReadOnlyToolCall"), "enqueue response must keep preflight separate from opt-in execution");
 
 assert(migration.includes("connected_execution_worker_bridge_v2_read_only_tool_call_preflight"), "migration must register v2 certification");
 assert(migration.includes("read_only_tool_call_preflight"), "migration must update tool tags/description");
@@ -38,6 +38,6 @@ assert(runner.includes("193_sprint66_connected_execution_read_only_tool_call_pre
 assert(readiness.includes("193_sprint66_connected_execution_read_only_tool_call_preflight.sql"), "readiness must expect migration 193");
 assert(openapi.includes("enum: [analysis_step, tool_call]"), "OpenAPI must document tool_call enqueue action kind");
 assert(openapi.includes("will_preflight_tool_call"), "OpenAPI must document preflight flag");
-assert(docs.includes("Actual read-only tool execution is intentionally out of scope"), "docs must state execution is out of scope");
+assert(docs.includes("read-only preflight and evidence"), "docs must state preflight scope");
 
 console.log("connected execution read-only tool call preflight contract tests passed");

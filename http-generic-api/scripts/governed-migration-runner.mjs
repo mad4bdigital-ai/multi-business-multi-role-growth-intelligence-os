@@ -45,6 +45,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "193_sprint66_connected_execution_read_only_tool_call_preflight.sql",
   "194_sprint66_admin_tool_registry_updated_at_column.sql",
   "194_sprint66_runtime_policy_reconciliation.sql",
+  "195_sprint66_connected_execution_read_only_tool_execution.sql",
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v2";
