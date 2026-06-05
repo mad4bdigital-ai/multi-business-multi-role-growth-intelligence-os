@@ -31,6 +31,35 @@ function normalizeRole(value = "member", fallback = "member") {
   return role === "owner" ? fallback : role;
 }
 
+function normalizeManagedRole(value = "member", fallback = "member") {
+  const role = String(value || fallback).trim().toLowerCase();
+  if (!VALID_MEMBER_ROLES.has(role)) return fallback;
+  return role;
+}
+
+async function countActiveOwners(connection, tenantId) {
+  const [rows] = await connection.query(
+    "SELECT COUNT(*) AS owner_count FROM memberships WHERE tenant_id=? AND role='owner' AND status='active'",
+    [tenantId]
+  );
+  return Number(rows?.[0]?.owner_count || 0);
+}
+
+async function assertNotLastOwnerChange(connection, { tenantId, targetUserId, nextRole = null, nextStatus = "active" }) {
+  const [rows] = await connection.query(
+    "SELECT role, status FROM memberships WHERE tenant_id=? AND user_id=? LIMIT 1",
+    [tenantId, targetUserId]
+  );
+  const current = rows[0] || null;
+  if (!current || current.role !== "owner" || current.status !== "active") return;
+  const removesOwner = nextStatus !== "active" || (nextRole && nextRole !== "owner");
+  if (!removesOwner) return;
+  const ownerCount = await countActiveOwners(connection, tenantId);
+  if (ownerCount <= 1) {
+    throw Object.assign(new Error("Cannot remove or demote the last active workspace owner."), { status: 409, code: "last_workspace_owner_required" });
+  }
+}
+
 function jsonMeta(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return JSON.stringify(value);
@@ -235,6 +264,89 @@ export function buildTenantLifecycleRoutes() {
     }
   });
 
+  router.patch("/me/workspaces/:tenant_id/members/:user_id", requireUserJwt, async (req, res) => {
+    const connection = await getPool().getConnection();
+    try {
+      const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+      if (!owner) return;
+      const role = normalizeManagedRole(req.body?.role || "member");
+      await connection.beginTransaction();
+      await assertNotLastOwnerChange(connection, { tenantId: req.params.tenant_id, targetUserId: req.params.user_id, nextRole: role, nextStatus: "active" });
+      const [result] = await connection.query(
+        "UPDATE memberships SET role=?, status='active', updated_at=NOW() WHERE tenant_id=? AND user_id=? AND status='active'",
+        [role, req.params.tenant_id, req.params.user_id]
+      );
+      if (!result.affectedRows) throw Object.assign(new Error("Workspace member was not found."), { status: 404, code: "workspace_member_not_found" });
+      const defaultGrant = await ensureWorkspaceMembershipDefaultGrant(connection, {
+        tenantId: req.params.tenant_id,
+        userId: req.params.user_id,
+        role,
+        source: "owner_assignment",
+        grantedBy: req.auth.user_id,
+      });
+      await connection.commit();
+      return res.json({ ok: true, tenant_id: req.params.tenant_id, user_id: req.params.user_id, role, status: "active", default_workspace_grant: defaultGrant, secrets_included: false });
+    } catch (err) {
+      await connection.rollback();
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_member_update_failed", message: err.message }, secrets_included: false });
+    } finally {
+      connection.release();
+    }
+  });
+
+  router.post("/me/workspaces/:tenant_id/members/:user_id/remove", requireUserJwt, async (req, res) => {
+    const connection = await getPool().getConnection();
+    try {
+      const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+      if (!owner) return;
+      await connection.beginTransaction();
+      await assertNotLastOwnerChange(connection, { tenantId: req.params.tenant_id, targetUserId: req.params.user_id, nextStatus: "revoked" });
+      const [result] = await connection.query(
+        "UPDATE memberships SET status='revoked', updated_at=NOW() WHERE tenant_id=? AND user_id=? AND status='active'",
+        [req.params.tenant_id, req.params.user_id]
+      );
+      if (!result.affectedRows) throw Object.assign(new Error("Workspace member was not found."), { status: 404, code: "workspace_member_not_found" });
+      await connection.query(
+        "UPDATE workspace_resource_grants SET status='revoked', revoked_by=?, revoked_at=NOW(), updated_at=NOW() WHERE tenant_id=? AND grantee_user_id=? AND status='active'",
+        [req.auth.user_id, req.params.tenant_id, req.params.user_id]
+      );
+      await connection.commit();
+      return res.json({ ok: true, tenant_id: req.params.tenant_id, user_id: req.params.user_id, status: "revoked", secrets_included: false });
+    } catch (err) {
+      await connection.rollback();
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_member_remove_failed", message: err.message }, secrets_included: false });
+    } finally {
+      connection.release();
+    }
+  });
+
+  router.post("/me/workspaces/:tenant_id/ownership/transfer", requireUserJwt, async (req, res) => {
+    const connection = await getPool().getConnection();
+    try {
+      const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+      if (!owner) return;
+      const targetUserId = String(req.body?.target_user_id || "").trim();
+      if (!targetUserId) return res.status(400).json({ ok: false, error: { code: "target_user_id_required", message: "target_user_id is required." }, secrets_included: false });
+      await connection.beginTransaction();
+      const [targetRows] = await connection.query("SELECT user_id, role, status FROM memberships WHERE tenant_id=? AND user_id=? AND status='active' LIMIT 1", [req.params.tenant_id, targetUserId]);
+      if (!targetRows[0]) throw Object.assign(new Error("Target user must be an active workspace member."), { status: 404, code: "target_member_not_found" });
+      await connection.query("UPDATE memberships SET role='owner', updated_at=NOW() WHERE tenant_id=? AND user_id=?", [req.params.tenant_id, targetUserId]);
+      await ensureWorkspaceMembershipDefaultGrant(connection, { tenantId: req.params.tenant_id, userId: targetUserId, role: "owner", source: "owner_assignment", grantedBy: req.auth.user_id });
+      if (req.body?.demote_current_owner !== false && targetUserId !== req.auth.user_id) {
+        await assertNotLastOwnerChange(connection, { tenantId: req.params.tenant_id, targetUserId: req.auth.user_id, nextRole: "admin", nextStatus: "active" });
+        await connection.query("UPDATE memberships SET role='admin', updated_at=NOW() WHERE tenant_id=? AND user_id=? AND role='owner'", [req.params.tenant_id, req.auth.user_id]);
+        await ensureWorkspaceMembershipDefaultGrant(connection, { tenantId: req.params.tenant_id, userId: req.auth.user_id, role: "admin", source: "owner_assignment", grantedBy: req.auth.user_id });
+      }
+      await connection.commit();
+      return res.json({ ok: true, tenant_id: req.params.tenant_id, previous_owner_user_id: req.auth.user_id, new_owner_user_id: targetUserId, demoted_previous_owner: req.body?.demote_current_owner !== false && targetUserId !== req.auth.user_id, secrets_included: false });
+    } catch (err) {
+      await connection.rollback();
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_ownership_transfer_failed", message: err.message }, secrets_included: false });
+    } finally {
+      connection.release();
+    }
+  });
+
   router.post("/me/workspaces/:tenant_id/invitations", requireUserJwt, async (req, res) => {
     try {
       const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -407,5 +519,6 @@ export const _testingTenantLifecycleRoutes = {
   VALID_MEMBER_ROLES,
   normalizeEmail,
   normalizeRole,
+  normalizeManagedRole,
   defaultWorkspacePermissionForRole,
 };
