@@ -57,7 +57,7 @@ async function buildReadOnlyToolCallPreflight(pool, actionPayload = {}) {
     return {
       allowed: false,
       blockers: ["tool_key_required"],
-      evidence: { tool_key: null, allowlist_version: "read_only_tool_call_allowlist_v1" },
+      evidence: { tool_key: null, allowlist_version: READ_ONLY_TOOL_CALL_ALLOWLIST_VERSION },
     };
   }
 
