@@ -174,6 +174,7 @@ export function buildArtifactFileName(input = {}) {
 
 function normalizeAssociationStatus(value = "") {
   const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return "not_associated";
   if (normalized === "associated") return "associated";
   if (normalized === "not_associated") return "not_associated";
   return "unknown";
@@ -341,7 +342,7 @@ export function buildEngineEvidenceFromWorkflow({
       used_engine_registry_refs: used_engine_registry_refs ?? "",
       used_engine_file_ids: used_engine_file_ids ?? "",
       engine_resolution_status: engine_resolution_status ?? "",
-      engine_association_status: engine_association_status ?? "unknown"
+      engine_association_status: engine_association_status ?? "not_associated"
     };
   }
 
@@ -358,7 +359,7 @@ export function buildEngineEvidenceFromWorkflow({
       used_engine_registry_refs: "",
       used_engine_file_ids: "",
       engine_resolution_status: engine_resolution_status ?? "",
-      engine_association_status: engine_association_status ?? "unknown"
+      engine_association_status: engine_association_status ?? "not_associated"
     };
   }
 
