@@ -88,8 +88,8 @@ SELECT
   ep.blocking,
   CASE WHEN target_binding.binding_id IS NULL THEN 0 ELSE 1 END AS has_target_rule_binding,
   CASE
-    WHEN ld.logic_key IS NULL THEN 'policy_without_legacy_logic_mirror'
     WHEN target_binding.binding_id IS NOT NULL THEN 'runtime_target_rule_backed'
+    WHEN ld.logic_key IS NULL THEN 'policy_without_legacy_logic_mirror'
     WHEN LOWER(COALESCE(ld.logic_type, '')) <> 'supervisory' THEN 'keep_as_logic_review'
     WHEN LOWER(COALESCE(ep.blocking, '')) IN ('true','1','yes','block','blocking') THEN 'migrate_to_platform_policy_rule_blocking'
     WHEN LOWER(COALESCE(ep.active, '')) IN ('true','1','yes','active','global') THEN 'migrate_to_platform_policy_rule_advisory'
