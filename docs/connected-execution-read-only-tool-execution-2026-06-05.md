@@ -8,6 +8,17 @@ This phase extends the connected execution worker bridge from read-only `tool_ca
 
 Execution remains opt-in and guarded.
 
+## Current diagnostic allowlist
+
+The execution allowlist is intentionally narrow. `read_only_tool_call_allowlist_v2` includes two no-argument diagnostic GET tools suitable for smoke coverage:
+
+```text
+platform_data_source_census
+platform_graph_status
+```
+
+Other allowlisted tools remain preflight/execution-capable only when their required path/query arguments are supplied by the action payload.
+
 ## Required opt-in
 
 A `tool_call` resume action executes the read-only tool only when both conditions are true:
