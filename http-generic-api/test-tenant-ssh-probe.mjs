@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const routes = readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");
 const migration = readFileSync("migrations/198_sprint66_tenant_ssh_probe_tool.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
+const openapi = readFileSync("openapi.yaml", "utf8");
 const pkg = readFileSync("package.json", "utf8");
 
 assert(routes.includes('net from "node:net"'), "SSH probe must use built-in net module");
