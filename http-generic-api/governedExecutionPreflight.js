@@ -85,10 +85,10 @@ async function loadRepositoryMutationPolicies(operation, affectsLayer, deps = {}
 }
 
 export async function evaluateRepositoryMutationPreflight({ operation, args = [], repo = {}, pr = null, compare = null, branch = "" } = {}, deps = {}) {
-  const policies = await loadRepositoryMutationPolicies(operation, "adminCliRoutes", deps);
+  const { runtimePolicyResolution, policies } = await loadRepositoryMutationPolicies(operation, "adminCliRoutes", deps);
 
   if (!policies.length) {
-    return makePreflightResult({ evidence: { operation, reason: "repository_mutation_policy_not_configured" } });
+    return makePreflightResult({ evidence: { operation, reason: "repository_mutation_policy_not_configured" }, runtimePolicyResolution });
   }
 
   const blockingPolicies = [];
