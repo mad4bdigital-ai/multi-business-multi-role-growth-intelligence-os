@@ -148,10 +148,16 @@ export function buildConnectApiRoutes(deps = {}) {
       const [rows] = await pool.query(
         `SELECT app_key, display_name, category, auth_type, status
            FROM \`app_integrations\`
-          WHERE status = 'active'
+          WHERE status IN ('active','beta')
           ORDER BY display_name ASC`
       );
-      res.json({ ok: true, items: rows || [] });
+      res.json({
+        ok: true,
+        items: rows || [],
+        beta_included: true,
+        infrastructure_auth_types: ['ssh_key_pair', 'remote_database'],
+        secrets_included: false,
+      });
     } catch (err) {
       next(err);
     }
