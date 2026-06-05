@@ -19,7 +19,8 @@ assert(routes.includes('will_execute_command: false'), "SSH CLI dry-run must not
 assert(routes.includes('execution_enabled: false'), "SSH CLI dry-run must not enable execution");
 assert(routes.includes('tenant_ssh_cli_allowlisted_execute_not_enabled_yet'), "SSH CLI dry-run must identify the gated future execute tool");
 assert(!routes.includes('/cli/execute'), "SSH CLI execute route must not exist in dry-run phase");
-assert(!routes.includes('tenant_ssh_cli_allowlisted_execute'), "SSH CLI execute tool must not be implemented in this phase");
+assert(migration.includes('tenant_ssh_cli_allowlisted_dry_run'), "migration must register dry-run tool");
+assert(!migration.includes('tenant_ssh_cli_allowlisted_execute'), "migration must not register execute tool in dry-run phase");
 assert(routes.includes('secrets_included: false'), "SSH CLI dry-run must never return secrets");
 
 for (const commandKey of ['pwd', 'whoami', 'uname_s', 'uptime']) {
