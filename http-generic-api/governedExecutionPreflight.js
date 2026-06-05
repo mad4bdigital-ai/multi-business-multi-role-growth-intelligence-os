@@ -315,7 +315,7 @@ export async function evaluateAppActionPreflight({ connection = {}, appKey = "",
 
 export async function evaluateConnectorDispatchPreflight({ plan = {}, connectorType = "", workflowDef = null, apply = false } = {}, deps = {}) {
   const resolvedConnectorType = String(connectorType || "").trim();
-  const policies = await loadActiveExecutionPolicies({
+  const { runtimePolicyResolution, policies } = await resolvePolicies({
     execution_scope: [
       "connector_dispatch",
       "workflow_dispatch",
@@ -326,7 +326,7 @@ export async function evaluateConnectorDispatchPreflight({ plan = {}, connectorT
     affects_layer: ["connectorExecutor", "connectorExecutor.js", resolvedConnectorType].filter(Boolean),
   }, deps);
   if (!policies.length) {
-    return makePreflightResult({ evidence: { operation: "connector_dispatch", connector_type: resolvedConnectorType, reason: "no_matching_active_execution_policy" } });
+    return makePreflightResult({ evidence: { operation: "connector_dispatch", connector_type: resolvedConnectorType, reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
   }
 
   const warnings = [];
