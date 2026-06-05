@@ -53,6 +53,110 @@ function safeConnection(row) {
   };
 }
 
+function clampInt(value, fallback, min, max) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(parsed, min), max);
+}
+
+function safeIdentifierLike(value, maxLength = 128) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (!/^[A-Za-z0-9_$%*.-]+$/.test(text) || text.length > maxLength) {
+    const err = new Error("Filter contains unsupported characters.");
+    err.status = 400;
+    err.code = "invalid_schema_filter";
+    throw err;
+  }
+  return text.replace(/\*/g, "%");
+}
+
+function requiredCredential(credentials, key) {
+  const value = credentials?.[key];
+  if (value === null || value === undefined || String(value).trim() === "") {
+    const err = new Error(`${key} is missing from the encrypted credential payload.`);
+    err.status = 422;
+    err.code = "missing_database_credential_field";
+    throw err;
+  }
+  return String(value).trim();
+}
+
+function databaseConfigFromConnection(row) {
+  const credentials = decryptCredentials(row.encrypted_credentials);
+  return {
+    host: requiredCredential(credentials, "db_host"),
+    port: clampInt(requiredCredential(credentials, "db_port"), 3306, 1, 65535),
+    database: requiredCredential(credentials, "db_name"),
+    user: requiredCredential(credentials, "db_user"),
+    password: requiredCredential(credentials, "db_password"),
+  };
+}
+
+function sanitizeColumn(row) {
+  return {
+    table_schema: row.TABLE_SCHEMA,
+    table_name: row.TABLE_NAME,
+    column_name: row.COLUMN_NAME,
+    ordinal_position: row.ORDINAL_POSITION,
+    data_type: row.DATA_TYPE,
+    column_type: row.COLUMN_TYPE,
+    is_nullable: row.IS_NULLABLE,
+    column_key: row.COLUMN_KEY || "",
+    extra: row.EXTRA || "",
+  };
+}
+
+async function readRemoteDatabaseSchema(row, options = {}) {
+  const cfg = databaseConfigFromConnection(row);
+  const tableFilter = safeIdentifierLike(options.table || options.table_like || "");
+  const limit = clampInt(options.limit, 100, 1, 500);
+  let connection;
+  try {
+    connection = await mysql.createConnection({
+      host: cfg.host,
+      port: cfg.port,
+      database: cfg.database,
+      user: cfg.user,
+      password: cfg.password,
+      connectTimeout: 8000,
+      multipleStatements: false,
+      namedPlaceholders: false,
+    });
+    await connection.query("SET SESSION TRANSACTION READ ONLY").catch(() => {});
+    const params = [cfg.database];
+    let filterSql = "";
+    if (tableFilter) {
+      filterSql = " AND c.TABLE_NAME LIKE ?";
+      params.push(tableFilter);
+    }
+    params.push(limit);
+    const [columns] = await connection.execute(
+      `SELECT c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME, c.ORDINAL_POSITION,
+              c.DATA_TYPE, c.COLUMN_TYPE, c.IS_NULLABLE, c.COLUMN_KEY, c.EXTRA
+         FROM information_schema.COLUMNS c
+        WHERE c.TABLE_SCHEMA = ?${filterSql}
+        ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION
+        LIMIT ?`,
+      params
+    );
+    const tableNames = [...new Set(columns.map((item) => item.TABLE_NAME))];
+    return {
+      database: cfg.database,
+      table_count_returned: tableNames.length,
+      column_count_returned: columns.length,
+      limit,
+      tables: tableNames.map((tableName) => ({
+        table_name: tableName,
+        columns: columns.filter((item) => item.TABLE_NAME === tableName).map(sanitizeColumn),
+      })),
+      secrets_included: false,
+    };
+  } finally {
+    if (connection) await connection.end().catch(() => {});
+  }
+}
+
 function readinessFor(row, expectedAuthType) {
   const checks = {
     tenant_scoped: Boolean(row?.tenant_id && row?.user_id),
