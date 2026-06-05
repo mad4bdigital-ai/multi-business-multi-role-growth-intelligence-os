@@ -162,4 +162,6 @@ The next safe architecture step is a `runtimePolicyResolver` that can:
 3. emit evidence about which source made the decision
 ```
 
+During the compatibility phase, failure to read `platform_engine_policy_rules` must not disable the established runtime guard. The resolver records `target_rule_load_status=unavailable_fallback_applied` and continues enforcement from `execution_policies`. Failure to read `execution_policies` remains an enforcement error.
+
 Do not remove `execution_policies` runtime reads until target-rule parity is proven for every active execution path.

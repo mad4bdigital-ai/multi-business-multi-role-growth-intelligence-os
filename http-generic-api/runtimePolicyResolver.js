@@ -31,7 +31,9 @@ function resourcePatternMatches(pattern = "*", requested = []) {
   const requestedTokens = splitTokens(requested);
   if (!requestedTokens.length) return true;
   if (requestedTokens.includes(normalizedPattern)) return true;
-  if (normalizedPattern.includes("|")) return splitTokens(normalizedPattern).some((token) => requestedTokens.includes(token));
+  if (normalizedPattern.includes("|")) {
+    return splitTokens(normalizedPattern).some((token) => requestedTokens.includes(token));
+  }
   return false;
 }
 
@@ -61,18 +63,29 @@ function ruleReferencesPolicy(rule = {}, policy = {}) {
   const condition = rule.condition_json || {};
   const group = String(condition.execution_policy_group || "").trim();
   const key = String(condition.execution_policy_key || "").trim();
-  return Boolean(group && key && normalizeToken(group) === normalizeToken(policy.policy_group) && normalizeToken(key) === normalizeToken(policy.policy_key));
+  return Boolean(
+    group && key &&
+    normalizeToken(group) === normalizeToken(policy.policy_group) &&
+    normalizeToken(key) === normalizeToken(policy.policy_key)
+  );
 }
 
 function ruleMatchesContext(rule = {}, context = {}, executionPolicies = []) {
   if (executionPolicies.some((policy) => ruleReferencesPolicy(rule, policy))) return true;
+
   const condition = rule.condition_json || {};
-  if (context.policy_group && condition.execution_policy_group && normalizeToken(condition.execution_policy_group) !== normalizeToken(context.policy_group)) return false;
-  if (context.policy_key && condition.execution_policy_key && normalizeToken(condition.execution_policy_key) !== normalizeToken(context.policy_key)) return false;
+  if (context.policy_group && condition.execution_policy_group) {
+    if (normalizeToken(condition.execution_policy_group) !== normalizeToken(context.policy_group)) return false;
+  }
+  if (context.policy_key && condition.execution_policy_key) {
+    if (normalizeToken(condition.execution_policy_key) !== normalizeToken(context.policy_key)) return false;
+  }
+
   const executionScopes = context.execution_scope || context.execution_scopes || [];
   const affectsLayers = context.affects_layer || context.affects_layers || [];
   const resourceKinds = context.resource_kind || executionScopes;
   const resourcePatterns = context.resource_pattern || executionScopes;
+
   const taskOk = tokenMatches(rule.task_class, executionScopes) || tokenMatches(rule.task_class, affectsLayers);
   const kindOk = tokenMatches(rule.resource_kind, resourceKinds) || tokenMatches(rule.resource_kind, executionScopes);
   const patternOk = resourcePatternMatches(rule.resource_pattern, resourcePatterns);
@@ -94,7 +107,9 @@ export async function loadActivePlatformPolicyRules(context = {}, executionPolic
         AND p.status = 'active'
       ORDER BY r.priority DESC, r.rule_key ASC`
   );
-  return (rows || []).map(normalizeRuleRow).filter((rule) => ruleMatchesContext(rule, context, executionPolicies));
+  return (rows || [])
+    .map(normalizeRuleRow)
+    .filter((rule) => ruleMatchesContext(rule, context, executionPolicies));
 }
 
 export function summarizePlatformPolicyRules(rules = []) {
@@ -113,13 +128,24 @@ export function summarizePlatformPolicyRules(rules = []) {
 
 export async function resolveRuntimePolicyContext(context = {}, deps = {}) {
   const executionPolicies = await loadActiveExecutionPolicies(context, deps);
-  const targetRules = await loadActivePlatformPolicyRules(context, executionPolicies, deps);
-  const policySource = targetRules.length ? "platform_engine_policy_rules_with_execution_policies_fallback" : "execution_policies";
+  let targetRules = [];
+  let targetRuleLoadStatus = "loaded";
+  try {
+    targetRules = await loadActivePlatformPolicyRules(context, executionPolicies, deps);
+  } catch {
+    targetRuleLoadStatus = "unavailable_fallback_applied";
+  }
+  const policySource = targetRuleLoadStatus !== "loaded"
+    ? "execution_policies_fallback_after_target_rule_error"
+    : targetRules.length
+      ? "platform_engine_policy_rules_with_execution_policies_fallback"
+      : "execution_policies";
   return {
     ok: true,
     policy_source: policySource,
     enforcement_source: "execution_policies",
     target_rule_source: targetRules.length ? "platform_engine_policy_rules" : null,
+    target_rule_load_status: targetRuleLoadStatus,
     fallback_source: "execution_policies",
     cutover_enabled: false,
     policies: executionPolicies,
@@ -133,6 +159,7 @@ export async function resolveRuntimePolicyContext(context = {}, deps = {}) {
       target_rule_count: targetRules.length,
       execution_policy_count: executionPolicies.length,
       target_rule_keys: targetRules.map((rule) => rule.rule_key),
+      target_rule_load_status: targetRuleLoadStatus,
     },
     secrets_included: false,
   };

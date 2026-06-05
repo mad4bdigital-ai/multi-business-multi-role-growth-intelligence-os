@@ -43,6 +43,7 @@ function makePreflightResult({
     policy_source: runtimePolicyResolution?.policy_source || "execution_policies",
     enforcement_source: runtimePolicyResolution?.enforcement_source || "execution_policies",
     target_rule_source: runtimePolicyResolution?.target_rule_source || null,
+    target_rule_load_status: runtimePolicyResolution?.target_rule_load_status || null,
     policies: summarizePolicies(policies),
     target_rules: summarizePlatformPolicyRules(targetRules),
     blocking_policies: summarizePolicies(blockingPolicies),
