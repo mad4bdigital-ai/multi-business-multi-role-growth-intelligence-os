@@ -118,6 +118,9 @@ const SENSITIVE_RESULT_KEYS = [
   "password", "secret", "token", "api_key", "apikey", "credential", "private_key",
   "client_secret", "refresh_token", "access_token", "authorization", "cookie", "set-cookie",
 ];
+const SAFE_BOOLEAN_METADATA_KEYS = new Set([
+  "secrets_included",
+]);
 const READ_ONLY_TOOL_OUTPUT_DEFAULT_MAX_CHARS = 6000;
 const READ_ONLY_TOOL_OUTPUT_HARD_MAX_CHARS = 10000;
 
