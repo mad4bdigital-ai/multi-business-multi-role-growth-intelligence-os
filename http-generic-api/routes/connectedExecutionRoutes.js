@@ -296,7 +296,7 @@ export function buildConnectedExecutionRoutes(deps = {}) {
         return res.status(409).json({ ok: false, error: { code: "connected_execution_resume_action_not_pending", message: "Resume action must be pending before enqueue.", details: { current_status: action.status } }, secrets_included: false });
       }
       if (!["analysis_step", "tool_call"].includes(action.action_kind)) {
-        return res.status(422).json({ ok: false, error: { code: "connected_execution_resume_action_kind_not_supported", message: "This worker bridge phase only supports analysis_step actions and read-only tool_call preflight actions.", details: { action_kind: action.action_kind } }, secrets_included: false });
+        return res.status(422).json({ ok: false, error: { code: "connected_execution_resume_action_kind_not_supported", message: "This worker bridge phase only supports analysis_step actions plus read-only tool_call preflight or opt-in read-only execution actions.", details: { action_kind: action.action_kind } }, secrets_included: false });
       }
       const actionPayload = normalizeJson(action.action_payload_json, {});
       const guardrails = normalizeJson(action.guardrails_json, {});
