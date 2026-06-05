@@ -38,6 +38,6 @@ assert(runner.includes("193_sprint66_connected_execution_read_only_tool_call_pre
 assert(readiness.includes("193_sprint66_connected_execution_read_only_tool_call_preflight.sql"), "readiness must expect migration 193");
 assert(openapi.includes("enum: [analysis_step, tool_call]"), "OpenAPI must document tool_call enqueue action kind");
 assert(openapi.includes("will_preflight_tool_call"), "OpenAPI must document preflight flag");
-assert(docs.includes("Actual read-only tool execution is intentionally out of scope"), "docs must state execution is out of scope");
+assert(docs.includes("read-only preflight and evidence"), "docs must state preflight scope");
 
 console.log("connected execution read-only tool call preflight contract tests passed");
