@@ -106,8 +106,12 @@ export async function writeExecutionEvidence({
         route_status, route_source, intake_validation_status, execution_ready_status,
         failure_reason, artifact_json_asset_id, target_module_writeback,
         target_workflow_writeback, execution_trace_id_writeback,
-        log_source_writeback, created_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+        log_source_writeback, used_logic_id, used_logic_name,
+        resolved_logic_mode, logic_association_status,
+        used_engine_names, used_engine_registry_refs,
+        engine_resolution_status, engine_association_status,
+        created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
     [
       sqlDate(now),
       now,
