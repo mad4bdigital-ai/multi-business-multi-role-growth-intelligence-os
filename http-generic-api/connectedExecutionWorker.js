@@ -94,7 +94,7 @@ async function buildReadOnlyToolCallPreflight(pool, actionPayload = {}) {
     blockers,
     evidence: {
       tool_key: toolKey,
-      allowlist_version: "read_only_tool_call_allowlist_v1",
+      allowlist_version: READ_ONLY_TOOL_CALL_ALLOWLIST_VERSION,
       registry_present: Boolean(tool),
       registry_enabled: tool ? Number(tool.is_enabled || 0) === 1 : false,
       http_method: tool?.http_method || null,
