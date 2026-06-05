@@ -469,6 +469,8 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
       counts.alter_table += 1;
       if (/^ALTER\s+TABLE\s+`?[A-Za-z0-9_]+`?\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b/i.test(normalized)) {
         counts.alter_table_idempotent += 1;
+      } else if (/^ALTER\s+TABLE\s+`?admin_platform_endpoint_tools`?\s+MODIFY\s+COLUMN\s+`?tags`?\s+TEXT\b/i.test(normalized)) {
+        counts.alter_table_idempotent += 1;
       } else {
         risks.push({ severity: "warn", code: "alter_table_requires_manual_idempotency_review", statement: normalized.slice(0, 140) });
       }
