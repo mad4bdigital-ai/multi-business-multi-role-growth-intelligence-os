@@ -33,5 +33,8 @@ assert(migration.includes('no_command'), "migration tags must disclose no comman
 assert(migration.includes('no_private_network'), "migration tags must disclose private-network block");
 assert(migration.includes('no_secrets'), "migration tags must include no_secrets");
 assert(runner.includes('"198_sprint66_tenant_ssh_probe_tool.sql"'), "governed migration runner must allowlist migration 198");
+assert(openapi.includes('/me/infrastructure/ssh/connections/{connection_id}/probe'), "OpenAPI must document tenant SSH probe endpoint");
+assert(openapi.includes('tenantSshProbe'), "OpenAPI must expose a stable operationId for tenant SSH probe");
+assert(openapi.includes('Does not authenticate, execute commands'), "OpenAPI must document no-auth/no-command scope");
 
 console.log("Tenant SSH probe guard passed");
