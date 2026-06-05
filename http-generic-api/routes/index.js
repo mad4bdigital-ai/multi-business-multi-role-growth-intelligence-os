@@ -69,6 +69,7 @@ import { buildTenantDocsRoutes } from "./tenantDocsRoutes.js";
 import { buildTenantLifecycleRoutes } from "./tenantLifecycleRoutes.js";
 import { buildWorkspaceResourceRoutes } from "./workspaceResourceRoutes.js";
 import { buildTenantEvolutionRoutes } from "./tenantEvolutionRoutes.js";
+import { buildTenantInfrastructureRoutes } from "./tenantInfrastructureRoutes.js";
 import { buildBrowserRuntimeRoutes } from "./browserRuntimeRoutes.js";
 import { buildPlatformSmokeRoutes } from "./platformSmokeRoutes.js";
 import { buildPlatformEvolutionRoutes } from "./platformEvolutionRoutes.js";
