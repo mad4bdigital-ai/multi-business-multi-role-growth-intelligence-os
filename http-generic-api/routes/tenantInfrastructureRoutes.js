@@ -377,6 +377,29 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
 
   router.get("/me/infrastructure/database/connections/:connection_id/status", requireUserJwt, (req, res) => sendStatus(req, res, "remote_database"));
   router.post("/me/infrastructure/database/connections/:connection_id/preflight", requireUserJwt, (req, res) => sendPreflight(req, res, "remote_database"));
+  router.post("/me/infrastructure/database/connections/:connection_id/query-readonly", requireUserJwt, async (req, res) => {
+    try {
+      const connectionId = String(req.params.connection_id || "").trim();
+      if (!connectionId) return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      const row = await loadTenantConnection(pool, req, connectionId, "remote_database");
+      const readiness = readinessFor(row, "remote_database");
+      if (!readiness.ready) {
+        return res.status(409).json({ ok: false, error: { code: "database_connection_not_ready", message: "Database connection is not ready for read-only query execution.", details: readiness.blocked_reasons }, readiness, secrets_included: false });
+      }
+      const result = await executeReadonlyDatabaseQuery(row, req.body || {});
+      return res.json({
+        ok: true,
+        kind: "database",
+        read_only: true,
+        source: "tenant_database_query_readonly",
+        connection: safeConnection(row),
+        result,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_database_query_readonly_failed", message: err.message, details: err.details }, secrets_included: false });
+    }
+  });
   router.get("/me/infrastructure/database/connections/:connection_id/schema", requireUserJwt, async (req, res) => {
     try {
       const connectionId = String(req.params.connection_id || "").trim();
