@@ -116,6 +116,9 @@ export function registerRoutes(app, deps) {
   app.use(buildLegalRoutes(deps));
   app.use(buildRootDiscoveryRoutes());
   app.use(buildConnectRoutes(deps));
+  // Tenant Connect API must mount before root-level admin/protected routers
+  // so user JWT callers can create secure intake sessions and list app catalog.
+  app.use(buildConnectApiRoutes(deps));
   app.use(buildSystemLayerRoutes(deps));
   app.use("/auth", buildAuthRoutes(deps));
   app.use(buildOnboardingRoutes(deps));
@@ -177,7 +180,6 @@ export function registerRoutes(app, deps) {
   app.use(buildLocalConnectorRoutes(deps));
   app.use(buildMemberGoogleOAuthRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildConnectorProxyRoutes({ ...deps, requireAdminPrincipal }));
-  app.use(buildConnectApiRoutes(deps));
   app.use(buildAdminScopeGrantsRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildDeviceToolsRoutes(deps));
   app.use(buildLocalGatewayToolsRoutes(deps));
