@@ -1,6 +1,8 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
+import mysql from "mysql2/promise";
 import { getPool } from "../db.js";
+import { decryptCredentials } from "../tokenEncryption.js";
 
 function verifyUserJwt(authorization) {
   if (!authorization || !authorization.startsWith("Bearer ")) return null;
