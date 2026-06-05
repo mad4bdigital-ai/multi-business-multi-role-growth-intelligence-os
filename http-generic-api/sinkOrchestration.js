@@ -281,7 +281,7 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
     used_engine_registry_refs: normalizedUsedEngineRegistryRefs,
     used_engine_file_ids: normalizedUsedEngineFileIds,
     engine_resolution_status: input.engine_resolution_status ?? "",
-    engine_association_status: input.engine_association_status ?? "unknown",
+    engine_association_status: input.engine_association_status ?? "not_associated",
 
     // execution context evidence
     user_input: input.user_input ?? "",
