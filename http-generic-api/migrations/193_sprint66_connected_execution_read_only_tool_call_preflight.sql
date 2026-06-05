@@ -4,6 +4,13 @@
 -- registry descriptions and registers a v2 certification. It does not enable
 -- tool execution, apply operations, repo mutation, provider calls, local-device
 -- calls, or secret exposure.
+--
+-- Safe additive repair note: this migration updates admin_platform_endpoint_tools.updated_at.
+-- The column is useful audit metadata, so create it when absent instead of omitting
+-- the canonical registry timestamp update.
+
+ALTER TABLE `admin_platform_endpoint_tools`
+  ADD COLUMN IF NOT EXISTS `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp();
 
 INSERT INTO runtime_dispatch_certification_registry
   (certification_key, surface_key, surface_family, tool_or_action_key, risk_class, certification_status,
