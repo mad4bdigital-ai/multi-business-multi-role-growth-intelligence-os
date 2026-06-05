@@ -1136,6 +1136,120 @@ async function checkAdminToolRegistrySmokeSafe() {
   }
 }
 
+function normalizePolicyFlag(value = "") {
+  return String(value || "").trim().toLowerCase();
+}
+
+function runtimePolicyFlagMatches(value, expectedBoolean) {
+  const normalized = normalizePolicyFlag(value);
+  const actual = ["true", "1", "yes", "active", "blocking"].includes(normalized);
+  return actual === expectedBoolean;
+}
+
+function listMissingTokens(text = "", tokens = []) {
+  const source = String(text || "");
+  return (tokens || []).filter((token) => !source.includes(token));
+}
+
+async function checkRuntimePolicySeedReadiness() {
+  const pool = getPool();
+  const [[tableRow]] = await pool.query(
+    "SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'execution_policies'"
+  );
+  if (!tableRow?.cnt) {
+    return {
+      status: "fail",
+      detail: "execution_policies table is missing; runtime policy preflight cannot load required seeds.",
+      table_exists: false,
+      expected_count: REQUIRED_RUNTIME_POLICY_SEEDS.length,
+      covered_count: 0,
+      missing_required_policies: REQUIRED_RUNTIME_POLICY_SEEDS.map((seed) => seed.check_key),
+      policies: [],
+      secrets_included: false,
+    };
+  }
+
+  const where = REQUIRED_RUNTIME_POLICY_SEEDS.map(() => "(policy_group = ? AND policy_key = ?)").join(" OR ");
+  const params = REQUIRED_RUNTIME_POLICY_SEEDS.flatMap((seed) => [seed.policy_group, seed.policy_key]);
+  const [rows] = await pool.query(
+    `SELECT id, policy_group, policy_key, active, execution_scope, affects_layer, blocking,
+            CASE WHEN policy_value IS NULL OR policy_value = '' THEN 0 ELSE JSON_VALID(policy_value) END AS policy_value_json_valid,
+            updated_at
+       FROM execution_policies
+      WHERE ${where}
+      ORDER BY policy_group, policy_key`,
+    params
+  );
+  const byKey = new Map((rows || []).map((row) => [`${row.policy_group}\u001f${row.policy_key}`, row]));
+  const policies = [];
+  const missingRequired = [];
+  const invalidRequired = [];
+
+  for (const seed of REQUIRED_RUNTIME_POLICY_SEEDS) {
+    const row = byKey.get(`${seed.policy_group}\u001f${seed.policy_key}`);
+    if (!row) {
+      missingRequired.push(seed.check_key);
+      policies.push({ check_key: seed.check_key, present: false, expected_blocking: seed.required_blocking });
+      continue;
+    }
+    const activeOk = runtimePolicyFlagMatches(row.active, true);
+    const blockingOk = runtimePolicyFlagMatches(row.blocking, seed.required_blocking);
+    const missingScopeTokens = listMissingTokens(row.execution_scope, seed.required_scope_tokens);
+    const missingLayerTokens = listMissingTokens(row.affects_layer, seed.required_affects_layer_tokens);
+    const jsonOk = Number(row.policy_value_json_valid || 0) === 1;
+    const ok = activeOk && blockingOk && !missingScopeTokens.length && !missingLayerTokens.length && jsonOk;
+    if (!ok) invalidRequired.push(seed.check_key);
+    policies.push({
+      check_key: seed.check_key,
+      present: true,
+      ok,
+      policy_group: row.policy_group,
+      policy_key: row.policy_key,
+      active: row.active,
+      expected_blocking: seed.required_blocking,
+      blocking: row.blocking,
+      active_ok: activeOk,
+      blocking_ok: blockingOk,
+      policy_value_json_valid: jsonOk,
+      missing_scope_tokens: missingScopeTokens,
+      missing_affects_layer_tokens: missingLayerTokens,
+      updated_at: row.updated_at,
+    });
+  }
+
+  const status = missingRequired.length || invalidRequired.length ? "fail" : "pass";
+  return {
+    status,
+    detail: status === "pass"
+      ? `Runtime policy seed readiness covers ${REQUIRED_RUNTIME_POLICY_SEEDS.length}/${REQUIRED_RUNTIME_POLICY_SEEDS.length} required policy seed(s).`
+      : `Runtime policy seed readiness failed: ${missingRequired.length} missing and ${invalidRequired.length} invalid required policy seed(s).`,
+    table_exists: true,
+    expected_count: REQUIRED_RUNTIME_POLICY_SEEDS.length,
+    covered_count: REQUIRED_RUNTIME_POLICY_SEEDS.length - missingRequired.length,
+    missing_required_policies: missingRequired,
+    invalid_required_policies: invalidRequired,
+    policies,
+    executes_tools: false,
+    secrets_included: false,
+  };
+}
+
+async function checkRuntimePolicySeedReadinessSafe() {
+  try {
+    return await checkRuntimePolicySeedReadiness();
+  } catch (err) {
+    return {
+      status: "warn",
+      detail: `Runtime policy seed readiness unavailable: ${err?.message || "unknown error"}`,
+      expected_count: REQUIRED_RUNTIME_POLICY_SEEDS.length,
+      covered_count: 0,
+      missing_required_policies: REQUIRED_RUNTIME_POLICY_SEEDS.map((seed) => seed.check_key),
+      executes_tools: false,
+      secrets_included: false,
+    };
+  }
+}
+
 function graphMemoryCheckResult(memory = {}) {
   const assetCount = Number(memory.asset_count || 0);
   const resolved = Boolean(memory.resolved);
