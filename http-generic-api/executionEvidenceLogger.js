@@ -59,6 +59,14 @@ export async function writeExecutionEvidence({
   artifactJsonAssetId = null,
   targetModuleWriteback = null,
   targetWorkflowWriteback = null,
+  usedLogicId = null,
+  usedLogicName = null,
+  resolvedLogicMode = null,
+  logicAssociationStatus = "not_associated",
+  usedEngineNames = "",
+  usedEngineRegistryRefs = "",
+  engineResolutionStatus = null,
+  engineAssociationStatus = "not_associated",
   skipSurfaceAuthority = false,
 } = {}) {
   if (!traceId) {
