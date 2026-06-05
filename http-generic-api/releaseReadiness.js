@@ -420,6 +420,7 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
     insert: 0,
     insert_idempotent: 0,
     alter_table: 0,
+    alter_table_idempotent: 0,
     destructive: 0,
   };
 
