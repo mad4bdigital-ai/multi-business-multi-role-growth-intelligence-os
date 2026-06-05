@@ -1,3 +1,5 @@
+import { promises as dns } from "node:dns";
+import net from "node:net";
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import mysql from "mysql2/promise";
@@ -91,6 +93,95 @@ function databaseConfigFromConnection(row) {
     user: requiredCredential(credentials, "db_user"),
     password: requiredCredential(credentials, "db_password"),
   };
+}
+
+function sshConfigFromConnection(row) {
+  const credentials = decryptCredentials(row.encrypted_credentials);
+  return {
+    host: requiredCredential(credentials, "ssh_host"),
+    port: clampInt(requiredCredential(credentials, "ssh_port"), 22, 1, 65535),
+    user_present: Boolean(requiredCredential(credentials, "ssh_user")),
+    private_key_present: Boolean(requiredCredential(credentials, "ssh_private_key")),
+  };
+}
+
+function isBlockedProbeIp(ip = "") {
+  const value = String(ip || "").toLowerCase();
+  if (!value) return true;
+  if (value === "::1" || value === "0:0:0:0:0:0:0:1" || value === "0.0.0.0") return true;
+  if (value.startsWith("127.") || value.startsWith("10.") || value.startsWith("169.254.")) return true;
+  if (value.startsWith("192.168.")) return true;
+  const parts = value.split(".").map((part) => Number.parseInt(part, 10));
+  if (parts.length === 4 && parts.every(Number.isFinite) && parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+  if (value.startsWith("fc") || value.startsWith("fd") || value.startsWith("fe80:")) return true;
+  return false;
+}
+
+async function resolvePublicProbeAddress(host) {
+  const value = String(host || "").trim();
+  if (!value) {
+    const err = new Error("ssh_host is required.");
+    err.status = 422;
+    err.code = "missing_ssh_credential_field";
+    throw err;
+  }
+  const addresses = net.isIP(value) ? [{ address: value }] : await dns.lookup(value, { all: true, verbatim: false });
+  if (!addresses.length || addresses.some((entry) => isBlockedProbeIp(entry.address))) {
+    const err = new Error("SSH probe target resolves to a blocked or private address.");
+    err.status = 400;
+    err.code = "ssh_probe_target_blocked";
+    throw err;
+  }
+  return addresses[0].address;
+}
+
+async function probeSshTcpBanner(row, options = {}) {
+  const cfg = sshConfigFromConnection(row);
+  const timeout_ms = clampInt(options.timeout_ms, 5000, 1000, 10000);
+  const address = await resolvePublicProbeAddress(cfg.host);
+  return new Promise((resolve) => {
+    let settled = false;
+    let banner = "";
+    const started_at = new Date().toISOString();
+    const socket = net.createConnection({ host: address, port: cfg.port });
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve({
+        tcp_connected: false,
+        ssh_banner_detected: false,
+        authenticated: false,
+        command_executed: false,
+        private_key_used_for_auth: false,
+        timeout_ms,
+        started_at,
+        finished_at: new Date().toISOString(),
+        user_present: cfg.user_present,
+        private_key_present: cfg.private_key_present,
+        secrets_included: false,
+        ...result,
+      });
+    };
+    socket.setTimeout(timeout_ms);
+    socket.on("connect", () => {
+      setTimeout(() => finish({
+        tcp_connected: true,
+        ssh_banner_detected: /^SSH-/.test(banner),
+        protocol_hint: /^SSH-/.test(banner) ? "ssh" : "unknown",
+      }), Math.min(750, timeout_ms));
+    });
+    socket.on("data", (chunk) => {
+      banner += chunk.toString("utf8").slice(0, 256);
+      finish({
+        tcp_connected: true,
+        ssh_banner_detected: /^SSH-/.test(banner),
+        protocol_hint: /^SSH-/.test(banner) ? "ssh" : "unknown",
+      });
+    });
+    socket.on("timeout", () => finish({ tcp_connected: true, timed_out_waiting_for_banner: true, protocol_hint: "unknown" }));
+    socket.on("error", (error) => finish({ tcp_connected: false, failure_code: error?.code || "ssh_probe_connect_failed" }));
+  });
 }
 
 function validateReadonlySql(sql) {
@@ -425,6 +516,30 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
   });
   router.get("/me/infrastructure/ssh/connections/:connection_id/status", requireUserJwt, (req, res) => sendStatus(req, res, "ssh_key_pair"));
   router.post("/me/infrastructure/ssh/connections/:connection_id/preflight", requireUserJwt, (req, res) => sendPreflight(req, res, "ssh_key_pair"));
+  router.post("/me/infrastructure/ssh/connections/:connection_id/probe", requireUserJwt, async (req, res) => {
+    try {
+      const connectionId = String(req.params.connection_id || "").trim();
+      if (!connectionId) return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      const row = await loadTenantConnection(pool, req, connectionId, "ssh_key_pair");
+      const readiness = readinessFor(row, "ssh_key_pair");
+      if (!readiness.ready) {
+        return res.status(409).json({ ok: false, error: { code: "ssh_connection_not_ready", message: "SSH connection is not ready for probe.", details: readiness.blocked_reasons }, readiness, secrets_included: false });
+      }
+      const probe = await probeSshTcpBanner(row, req.body || {});
+      return res.json({
+        ok: true,
+        kind: "ssh",
+        probe_type: "tcp_banner",
+        authenticated: false,
+        command_executed: false,
+        connection: safeConnection(row),
+        probe,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_probe_failed", message: err.message }, secrets_included: false });
+    }
+  });
 
   router.get("/me/infrastructure/connections/:connection_id/status", requireUserJwt, async (req, res) => {
     try {

@@ -2674,6 +2674,72 @@ x-tenant-gpt-auth:
 
 paths:
 
+  /me/infrastructure/ssh/connections/{connection_id}/probe:
+    post:
+      tags: [tenant-infrastructure]
+      security:
+        - backendBearerAuth: []
+      operationId: tenantSshProbe
+      summary: Probe tenant SSH TCP/banner reachability
+      description: Performs a TCP/banner probe for a tenant-owned SSH connection. Does not authenticate, execute commands, use the private key for auth, or return credentials. Blocks private/local probe targets.
+      parameters:
+        - name: connection_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                timeout_ms:
+                  type: integer
+                  minimum: 1000
+                  maximum: 10000
+                  default: 5000
+      responses:
+        "200":
+          description: SSH TCP/banner probe completed.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok:
+                    type: boolean
+                  kind:
+                    type: string
+                    enum: [ssh]
+                  probe_type:
+                    type: string
+                    enum: [tcp_banner]
+                  authenticated:
+                    type: boolean
+                    enum: [false]
+                  command_executed:
+                    type: boolean
+                    enum: [false]
+                  connection:
+                    type: object
+                    additionalProperties: true
+                  probe:
+                    type: object
+                    additionalProperties: true
+                  secrets_included:
+                    type: boolean
+                    enum: [false]
+        "400": { description: Invalid request or blocked probe target. }
+        "401": { description: Missing or invalid tenant user JWT. }
+        "404": { description: Connection not found for this tenant user. }
+        "409": { description: Connection is not ready or has the wrong auth type. }
+        "422": { description: Required encrypted credential field is missing. }
+        "500": { description: Unexpected SSH probe failure. }
+
   /me/infrastructure/database/connections/{connection_id}/query-readonly:
     post:
       tags: [tenant-infrastructure]
