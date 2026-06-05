@@ -32,5 +32,8 @@ assert(migration.includes('no_multiple_statements'), "migration tags must disclo
 assert(migration.includes('no_select_star'), "migration tags must disclose SELECT * restriction");
 assert(migration.includes('no_secret_columns'), "migration tags must disclose secret-like column restriction");
 assert(migration.includes('no_secrets'), "migration tags must include no_secrets");
+assert(openapi.includes('/me/infrastructure/database/connections/{connection_id}/query-readonly'), "OpenAPI must document the read-only query endpoint");
+assert(openapi.includes('tenantDatabaseQueryReadonly'), "OpenAPI must expose a stable operationId for read-only query");
+assert(openapi.includes('SELECT-only query'), "OpenAPI must document SELECT-only scope");
 
 console.log("Tenant database read-only query guard passed");
