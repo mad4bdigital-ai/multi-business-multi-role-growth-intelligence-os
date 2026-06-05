@@ -19,8 +19,11 @@ function errorPayload(code, message, details = {}) {
   return { ok: false, error: { code, message, details }, secrets_included: false };
 }
 
+const READ_ONLY_TOOL_CALL_ALLOWLIST_VERSION = "read_only_tool_call_allowlist_v2";
+
 const READ_ONLY_TOOL_CALL_ALLOWLIST = new Set([
   "platform_data_source_census",
+  "platform_graph_status",
   "connected_execution_latest_checkpoint_get",
   "schema_import_jobs_list",
   "schema_import_job_get",
@@ -54,7 +57,7 @@ async function buildReadOnlyToolCallPreflight(pool, actionPayload = {}) {
     return {
       allowed: false,
       blockers: ["tool_key_required"],
-      evidence: { tool_key: null, allowlist_version: "read_only_tool_call_allowlist_v1" },
+      evidence: { tool_key: null, allowlist_version: READ_ONLY_TOOL_CALL_ALLOWLIST_VERSION },
     };
   }
 
@@ -91,7 +94,7 @@ async function buildReadOnlyToolCallPreflight(pool, actionPayload = {}) {
     blockers,
     evidence: {
       tool_key: toolKey,
-      allowlist_version: "read_only_tool_call_allowlist_v1",
+      allowlist_version: READ_ONLY_TOOL_CALL_ALLOWLIST_VERSION,
       registry_present: Boolean(tool),
       registry_enabled: tool ? Number(tool.is_enabled || 0) === 1 : false,
       http_method: tool?.http_method || null,

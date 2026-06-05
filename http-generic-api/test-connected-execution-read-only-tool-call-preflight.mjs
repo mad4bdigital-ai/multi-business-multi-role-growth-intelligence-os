@@ -10,7 +10,9 @@ const openapi = readFileSync("openapi.yaml", "utf8");
 const docs = readFileSync("../docs/connected-execution-read-only-tool-call-preflight-2026-06-05.md", "utf8");
 
 assert(worker.includes("READ_ONLY_TOOL_CALL_ALLOWLIST"), "worker must define read-only tool call allowlist");
-assert(worker.includes("platform_data_source_census"), "allowlist should include a safe diagnostic read tool");
+assert(worker.includes("platform_data_source_census"), "allowlist should include the SQL data source diagnostic read tool");
+assert(worker.includes("platform_graph_status"), "allowlist should include a second safe graph diagnostic read tool");
+assert(worker.includes("read_only_tool_call_allowlist_v2"), "allowlist version should be bumped when the read-only execution surface expands");
 assert(worker.includes("buildReadOnlyToolCallPreflight"), "worker must build preflight evidence");
 assert(worker.includes("tool_not_in_read_only_allowlist"), "worker must block non-allowlisted tools");
 assert(worker.includes("tool_method_not_get_read_only"), "worker must block non-GET tools");
