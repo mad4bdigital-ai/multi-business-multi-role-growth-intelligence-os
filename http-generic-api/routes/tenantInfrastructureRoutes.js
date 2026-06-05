@@ -516,6 +516,30 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
   });
   router.get("/me/infrastructure/ssh/connections/:connection_id/status", requireUserJwt, (req, res) => sendStatus(req, res, "ssh_key_pair"));
   router.post("/me/infrastructure/ssh/connections/:connection_id/preflight", requireUserJwt, (req, res) => sendPreflight(req, res, "ssh_key_pair"));
+  router.post("/me/infrastructure/ssh/connections/:connection_id/probe", requireUserJwt, async (req, res) => {
+    try {
+      const connectionId = String(req.params.connection_id || "").trim();
+      if (!connectionId) return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      const row = await loadTenantConnection(pool, req, connectionId, "ssh_key_pair");
+      const readiness = readinessFor(row, "ssh_key_pair");
+      if (!readiness.ready) {
+        return res.status(409).json({ ok: false, error: { code: "ssh_connection_not_ready", message: "SSH connection is not ready for probe.", details: readiness.blocked_reasons }, readiness, secrets_included: false });
+      }
+      const probe = await probeSshTcpBanner(row, req.body || {});
+      return res.json({
+        ok: true,
+        kind: "ssh",
+        probe_type: "tcp_banner",
+        authenticated: false,
+        command_executed: false,
+        connection: safeConnection(row),
+        probe,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_probe_failed", message: err.message }, secrets_included: false });
+    }
+  });
 
   router.get("/me/infrastructure/connections/:connection_id/status", requireUserJwt, async (req, res) => {
     try {
