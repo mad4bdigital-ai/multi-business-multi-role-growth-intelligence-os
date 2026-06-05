@@ -254,12 +254,12 @@ export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", 
 export async function evaluateAppActionPreflight({ connection = {}, appKey = "", actionKey = "", args = {} } = {}, deps = {}) {
   const resolvedAppKey = String(appKey || connection?.app_key || "").trim();
   const resolvedActionKey = String(actionKey || "").trim();
-  const policies = await loadActiveExecutionPolicies({
+  const { runtimePolicyResolution, policies } = await resolvePolicies({
     execution_scope: ["app_action", "external_app_action", resolvedAppKey, resolvedActionKey].filter(Boolean),
     affects_layer: ["appAdapters", "appAdapters/index.js", resolvedAppKey].filter(Boolean),
   }, deps);
   if (!policies.length) {
-    return makePreflightResult({ evidence: { operation: "app_action", app_key: resolvedAppKey, action_key: resolvedActionKey, reason: "no_matching_active_execution_policy" } });
+    return makePreflightResult({ evidence: { operation: "app_action", app_key: resolvedAppKey, action_key: resolvedActionKey, reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
   }
 
   const warnings = [];
