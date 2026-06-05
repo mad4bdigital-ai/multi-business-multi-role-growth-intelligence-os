@@ -317,10 +317,11 @@ components:
         ok: { type: boolean }
         connected_session_id: { type: string }
         resume_action_id: { type: string }
-        action_kind: { type: string, enum: [analysis_step] }
+        action_kind: { type: string, enum: [analysis_step, tool_call] }
         dry_run: { type: boolean, enum: [true] }
         will_execute_external_action: { type: boolean, enum: [false] }
         will_call_tools: { type: boolean, enum: [false] }
+        will_preflight_tool_call: { type: boolean }
         will_mutate_repo: { type: boolean, enum: [false] }
         will_call_provider: { type: boolean, enum: [false] }
         will_call_local_device: { type: boolean, enum: [false] }
