@@ -435,17 +435,26 @@ export async function runConnectedExecutionResumeAction(jobPayload = {}, deps = 
     return { ...blocked, evidence_report_id: evidenceReportId };
   }
 
+  const toolShouldExecute = Boolean(toolPreflight && shouldExecuteReadOnlyToolCall(actionPayload, guardrails));
+  const toolExecution = toolShouldExecute
+    ? await executeReadOnlyToolCall({ session, action, actionPayload, guardrails, preflight: toolPreflight })
+    : null;
+  const finalActionStatus = toolExecution && !toolExecution.ok ? "failed" : "completed";
+
   const summary = actionKind === "tool_call"
     ? {
-        ok: true,
-        status: "completed",
+        ok: finalActionStatus !== "failed",
+        status: finalActionStatus,
         action_kind: actionKind,
         action_key: cleanString(action.action_key) || "tool_call",
-        executes_action: false,
-        tool_call_executed: false,
-        worker_bridge_phase: "read_only_tool_call_preflight_only",
+        executes_action: toolShouldExecute,
+        tool_call_executed: Boolean(toolExecution),
+        worker_bridge_phase: toolShouldExecute ? "read_only_tool_call_execution_v1" : "read_only_tool_call_preflight_only",
         tool_key: toolPreflight.evidence.tool_key,
         allowlist_version: toolPreflight.evidence.allowlist_version,
+        tool_dispatch_status: toolExecution?.status || null,
+        tool_dispatch_ok: toolExecution?.ok ?? null,
+        tool_execution_budget: toolExecution?.budget || null,
         secrets_included: false,
       }
     : {
@@ -466,11 +475,16 @@ export async function runConnectedExecutionResumeAction(jobPayload = {}, deps = 
         resume_action_id: resumeActionId,
         claim_token_present: true,
         ...toolPreflight.evidence,
-        external_tool_calls_executed: false,
-        tool_call_executed: false,
+        executes_tool_call: toolShouldExecute,
+        preflight_only: !toolShouldExecute,
+        tool_execution_budget: toolExecution?.budget || { max_tool_calls: 0, used_tool_calls: 0 },
+        tool_result_redacted: toolExecution?.body || null,
+        ...(toolExecution?.evidence || {}),
+        tool_call_executed: Boolean(toolExecution),
         repo_mutation_executed: false,
         provider_calls_executed: false,
         local_device_calls_executed: false,
+        apply_operation_executed: false,
         secrets_included: false,
       }
     : {
