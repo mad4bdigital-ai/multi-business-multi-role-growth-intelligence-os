@@ -180,7 +180,6 @@ export function registerRoutes(app, deps) {
   app.use(buildLocalConnectorRoutes(deps));
   app.use(buildMemberGoogleOAuthRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildConnectorProxyRoutes({ ...deps, requireAdminPrincipal }));
-  app.use(buildConnectApiRoutes(deps));
   app.use(buildAdminScopeGrantsRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildDeviceToolsRoutes(deps));
   app.use(buildLocalGatewayToolsRoutes(deps));
