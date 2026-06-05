@@ -519,5 +519,6 @@ export const _testingTenantLifecycleRoutes = {
   VALID_MEMBER_ROLES,
   normalizeEmail,
   normalizeRole,
+  normalizeManagedRole,
   defaultWorkspacePermissionForRole,
 };
