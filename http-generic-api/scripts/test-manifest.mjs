@@ -71,6 +71,7 @@ export const testCommands = [
   "node test-tenant-credential-intake-connection-status.mjs",
   "node test-platform-jwt-tenant-compatible.mjs",
   "node test-workspace-lifecycle-foundation.mjs",
+  "node test-workspace-lifecycle-default-resource-grants.mjs",
   "node test-workspace-lifecycle-collation-alignment.mjs",
   "node test-workspace-resource-authority-foundation.mjs",
   "node test-workspace-resource-grant-assignment.mjs",

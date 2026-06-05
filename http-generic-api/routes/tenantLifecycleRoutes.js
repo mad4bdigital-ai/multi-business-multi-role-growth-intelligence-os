@@ -86,6 +86,26 @@ function publicMembership(row) {
   };
 }
 
+function defaultWorkspacePermissionForRole(role = "member") {
+  const normalized = normalizeRole(role, "member");
+  if (normalized === "admin") return "admin";
+  if (normalized === "editor" || normalized === "operator") return "operate";
+  if (normalized === "viewer") return "view";
+  return "view";
+}
+
+async function ensureWorkspaceMembershipDefaultGrant(connection, { tenantId, userId, role, source, grantedBy }) {
+  const grantId = randomUUID();
+  const permission = defaultWorkspacePermissionForRole(role);
+  await connection.query(
+    `INSERT INTO workspace_resource_grants (grant_id, tenant_id, grantee_user_id, resource_type, resource_ref, permission, status, source, granted_by, metadata_json)
+     VALUES (?, ?, ?, 'workspace', ?, ?, 'active', ?, ?, JSON_OBJECT('default_workspace_membership_grant', true, 'role', ?))
+     ON DUPLICATE KEY UPDATE status='active', permission=VALUES(permission), source=VALUES(source), granted_by=VALUES(granted_by), metadata_json=VALUES(metadata_json), updated_at=NOW()`,
+    [grantId, tenantId, userId, tenantId, permission, source, grantedBy || null, role]
+  );
+  return { grant_id: grantId, permission };
+}
+
 function fieldCountFromCredentialSchema(value) {
   const parsed = typeof value === "object" ? value : (() => { try { return JSON.parse(value || "{}"); } catch { return {}; } })();
   if (Array.isArray(parsed?.fields)) return parsed.fields.length;
@@ -274,9 +294,17 @@ export function buildTenantLifecycleRoutes() {
          ON DUPLICATE KEY UPDATE role = VALUES(role), status = 'active', updated_at = NOW()`,
         [req.auth.user_id, invitation.tenant_id, normalizeRole(invitation.role)]
       );
+      const acceptedRole = normalizeRole(invitation.role);
+      const defaultGrant = await ensureWorkspaceMembershipDefaultGrant(connection, {
+        tenantId: invitation.tenant_id,
+        userId: req.auth.user_id,
+        role: acceptedRole,
+        source: "invitation_accept",
+        grantedBy: invitation.created_by || null,
+      });
       await connection.query("UPDATE invitations SET status='accepted', accepted_by=?, accepted_at=NOW() WHERE invitation_id=?", [req.auth.user_id, invitation.invitation_id]);
       await connection.commit();
-      return res.json({ ok: true, tenant_id: invitation.tenant_id, role: normalizeRole(invitation.role), invitation_id: invitation.invitation_id, status: "accepted", secrets_included: false });
+      return res.json({ ok: true, tenant_id: invitation.tenant_id, role: acceptedRole, invitation_id: invitation.invitation_id, status: "accepted", default_workspace_grant: defaultGrant, secrets_included: false });
     } catch (err) {
       await connection.rollback();
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "invitation_accept_failed", message: err.message }, secrets_included: false });
@@ -339,9 +367,16 @@ export function buildTenantLifecycleRoutes() {
          ON DUPLICATE KEY UPDATE role=VALUES(role), status='active', updated_at=NOW()`,
         [request.requester_user_id, req.params.tenant_id, role]
       );
+      const defaultGrant = await ensureWorkspaceMembershipDefaultGrant(connection, {
+        tenantId: req.params.tenant_id,
+        userId: request.requester_user_id,
+        role,
+        source: "access_request_approval",
+        grantedBy: req.auth.user_id,
+      });
       await connection.query("UPDATE workspace_access_requests SET status='approved', reviewed_by=?, reviewed_at=NOW() WHERE request_id=?", [req.auth.user_id, req.params.request_id]);
       await connection.commit();
-      return res.json({ ok: true, request_id: req.params.request_id, tenant_id: req.params.tenant_id, user_id: request.requester_user_id, role, status: "approved", secrets_included: false });
+      return res.json({ ok: true, request_id: req.params.request_id, tenant_id: req.params.tenant_id, user_id: request.requester_user_id, role, status: "approved", default_workspace_grant: defaultGrant, secrets_included: false });
     } catch (err) {
       await connection.rollback();
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_access_request_approve_failed", message: err.message }, secrets_included: false });
@@ -372,4 +407,5 @@ export const _testingTenantLifecycleRoutes = {
   VALID_MEMBER_ROLES,
   normalizeEmail,
   normalizeRole,
+  defaultWorkspacePermissionForRole,
 };
