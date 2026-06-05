@@ -32,6 +32,15 @@ function makePool({ brands = [], connections = [], cmsSites = [], cmsGrants = []
           (!row.user_id || row.user_id === userId)
         )).slice(0, 1)];
       }
+      if (compact.includes("FROM v_workspace_resource_grant_effective")) {
+        const [tenantId, userId, siteId, workspaceRef] = params;
+        return [workspaceGrants.filter((row) => (
+          row.tenant_id === tenantId &&
+          row.grantee_user_id === userId &&
+          row.grant_status === "active" &&
+          ((row.resource_type === "site" && row.resource_ref === siteId) || (row.resource_type === "workspace" && row.resource_ref === workspaceRef))
+        ))];
+      }
       if (compact.includes("FROM `credential_bindings`")) return [[]];
       if (compact.includes("FROM `user_app_connections`")) {
         const [connectionId] = params;
