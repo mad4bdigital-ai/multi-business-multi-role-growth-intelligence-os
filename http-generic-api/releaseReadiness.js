@@ -56,6 +56,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "191_sprint66_connected_execution_worker_bridge.sql",
   "192_sprint66_execution_job_tick_admin_tool.sql",
   "193_sprint66_connected_execution_read_only_tool_call_preflight.sql",
+  "194_sprint66_runtime_policy_reconciliation.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
