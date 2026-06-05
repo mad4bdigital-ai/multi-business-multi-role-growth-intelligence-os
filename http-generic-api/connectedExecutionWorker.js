@@ -26,6 +26,10 @@ const READ_ONLY_TOOL_CALL_ALLOWLIST = new Set([
   "schema_import_job_get",
 ]);
 
+const READ_ONLY_TOOL_EXECUTION_ALLOWLIST = new Set([
+  "platform_data_source_census",
+]);
+
 const MUTATING_TOOL_TAGS = new Set([
   "state_changing",
   "apply",
