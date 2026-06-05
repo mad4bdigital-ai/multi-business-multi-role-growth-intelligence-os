@@ -111,6 +111,131 @@ async function buildReadOnlyToolCallPreflight(pool, actionPayload = {}) {
   };
 }
 
+const SENSITIVE_RESULT_KEYS = [
+  "password", "secret", "token", "api_key", "apikey", "credential", "private_key",
+  "client_secret", "refresh_token", "access_token", "authorization", "cookie", "set-cookie",
+];
+const READ_ONLY_TOOL_OUTPUT_DEFAULT_MAX_CHARS = 6000;
+const READ_ONLY_TOOL_OUTPUT_HARD_MAX_CHARS = 10000;
+
+function clampNumber(value, fallback, min, max) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(parsed)));
+}
+
+function hasSensitiveKey(key = "") {
+  const lower = String(key || "").toLowerCase();
+  return SENSITIVE_RESULT_KEYS.some((part) => lower.includes(part));
+}
+
+function redactString(value = "") {
+  return String(value || "")
+    .replace(/Bearer\s+[A-Za-z0-9._~+\/-]+=*/gi, "Bearer [redacted]")
+    .replace(/(api[_-]?key|token|secret|password)=([^&\s]+)/gi, "$1=[redacted]");
+}
+
+function redactForEvidence(value, { depth = 0, maxDepth = 6, maxArray = 25, maxKeys = 80, maxString = 1200 } = {}) {
+  if (depth > maxDepth) return "[redacted:depth_limit]";
+  if (value === null || value === undefined) return value ?? null;
+  if (typeof value === "string") {
+    const text = redactString(value);
+    return text.length > maxString ? `${text.slice(0, maxString)}...[truncated]` : text;
+  }
+  if (typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    const items = value.slice(0, maxArray).map((item) => redactForEvidence(item, { depth: depth + 1, maxDepth, maxArray, maxKeys, maxString }));
+    if (value.length > maxArray) items.push({ truncated_array_items: value.length - maxArray });
+    return items;
+  }
+  const out = {};
+  const entries = Object.entries(value).slice(0, maxKeys);
+  for (const [key, child] of entries) {
+    out[key] = hasSensitiveKey(key) ? "[redacted]" : redactForEvidence(child, { depth: depth + 1, maxDepth, maxArray, maxKeys, maxString });
+  }
+  if (Object.keys(value).length > maxKeys) out.truncated_object_keys = Object.keys(value).length - maxKeys;
+  return out;
+}
+
+function truncateEvidencePayload(value, maxChars = READ_ONLY_TOOL_OUTPUT_DEFAULT_MAX_CHARS) {
+  const serialized = JSON.stringify(value ?? null);
+  if (serialized.length <= maxChars) return value;
+  return {
+    truncated: true,
+    original_chars: serialized.length,
+    max_chars: maxChars,
+    preview: serialized.slice(0, maxChars),
+  };
+}
+
+function shouldExecuteReadOnlyToolCall(actionPayload = {}, guardrails = {}) {
+  return actionPayload.execute_read_only_tool_call === true
+    && guardrails.allow_read_only_tool_execution === true;
+}
+
+function readOnlyToolArgs(actionPayload = {}, guardrails = {}) {
+  const rawArgs = actionPayload.tool_args && typeof actionPayload.tool_args === "object"
+    ? actionPayload.tool_args
+    : actionPayload.args && typeof actionPayload.args === "object" ? actionPayload.args : {};
+  const maxResponseChars = clampNumber(
+    actionPayload.max_response_chars ?? guardrails.max_response_chars,
+    READ_ONLY_TOOL_OUTPUT_DEFAULT_MAX_CHARS,
+    500,
+    READ_ONLY_TOOL_OUTPUT_HARD_MAX_CHARS
+  );
+  return {
+    args: { ...rawArgs, _response: { max_chars: maxResponseChars } },
+    budget: {
+      max_tool_calls: 1,
+      used_tool_calls: 1,
+      max_response_chars: maxResponseChars,
+      output_redaction: "key_and_string_pattern_redaction_v1",
+    },
+  };
+}
+
+async function executeReadOnlyToolCall({ session, action, actionPayload, guardrails, preflight }) {
+  const toolKey = preflight.evidence.tool_key;
+  const { args, budget } = readOnlyToolArgs(actionPayload, guardrails);
+  const fakeReq = {
+    auth: {
+      mode: "backend_api_key",
+      is_admin: true,
+      tenant_id: action.tenant_id || session.tenant_id || null,
+      user_id: action.user_id || session.user_id || null,
+    },
+    headers: {},
+    ip: "connected-execution-worker",
+  };
+  const dispatched = await dispatchToolForCaller("admin", toolKey, args, fakeReq);
+  const status = Number(dispatched?.status || 0);
+  const rawBody = dispatched?.body ?? {};
+  const redactedBody = truncateEvidencePayload(redactForEvidence(rawBody), budget.max_response_chars);
+  const ok = status >= 200 && status < 300 && rawBody?.ok !== false;
+  return {
+    ok,
+    status,
+    body: redactedBody,
+    budget,
+    evidence: {
+      tool_key: toolKey,
+      dispatcher_status: status,
+      dispatcher_ok: ok,
+      body_redacted: true,
+      result_truncated: Boolean(redactedBody?.truncated),
+      tool_call_executed: true,
+      internal_tool_dispatch_executed: true,
+      external_tool_calls_executed: true,
+      mutating_call_executed: false,
+      repo_mutation_executed: false,
+      provider_calls_executed: false,
+      local_device_calls_executed: false,
+      apply_operation_executed: false,
+      secrets_included: false,
+    },
+  };
+}
+
 async function appendEvidenceReport(pool, {
   connectedSessionId,
   session,
