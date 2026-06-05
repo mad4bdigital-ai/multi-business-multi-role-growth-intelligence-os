@@ -29,6 +29,15 @@ assert(connectRoutes.includes('DB_PASSWORD') && connectRoutes.includes('secret: 
 assert(migration.includes("'ssh_key_pair'") && migration.includes("'remote_database'"), "tenant tool schema migration must register infrastructure auth types");
 assert(migration.includes('no_secret_chat') && migration.includes('infrastructure_intake'), "tenant tool migration must retain no-secret-chat and infrastructure tags");
 
+const connectApiMount = routesIndex.indexOf('app.use(buildConnectApiRoutes(deps))');
+const connectedExecutionMount = routesIndex.indexOf('app.use(buildConnectedExecutionRoutes({ ...deps, requireAdminPrincipal }))');
+const platformEvolutionMount = routesIndex.indexOf('app.use(buildPlatformEvolutionRoutes({ ...deps, requireAdminPrincipal }))');
+const credentialMount = routesIndex.indexOf('app.use(buildCredentialRoutes(deps))');
+assert(connectApiMount >= 0, "Connect API routes must be mounted");
+assert(connectedExecutionMount >= 0 && platformEvolutionMount >= 0 && credentialMount >= 0, "root admin guarded routes must be present for mount-order guard");
+assert(connectApiMount < connectedExecutionMount, "Connect API must mount before connected execution root admin guard");
+assert(connectApiMount < platformEvolutionMount, "Connect API must mount before platform evolution root admin guard");
+assert(connectApiMount < credentialMount, "Connect API must mount before credential/admin guarded routes");
 assert(openapi.includes('ssh_key_pair') && openapi.includes('remote_database'), "OpenAPI must document infrastructure auth types");
 
 console.log("Tenant infrastructure credential intake guard passed");
