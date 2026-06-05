@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
+import { dispatchToolForCaller } from "./routes/gptToolsRoutes.js";
 
 export const CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE = "connected_execution_resume_action";
 
