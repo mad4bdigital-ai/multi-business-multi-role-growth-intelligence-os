@@ -26,7 +26,8 @@ assert(routes.includes("/connected-execution/sessions/:connected_session_id/resu
 assert(routes.includes("CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE"));
 assert(routes.includes('["analysis_step", "tool_call"].includes(action.action_kind)'));
 assert(routes.includes("will_execute_external_action: false"));
-assert(routes.includes("will_call_tools: false"));
+assert(routes.includes("will_call_tools: willExecuteReadOnlyToolCall"));
+assert(routes.includes("will_execute_read_only_tool_call"));
 assert(routes.includes("will_mutate_repo: false"));
 assert(routes.includes("will_call_provider: false"));
 assert(routes.includes("will_call_local_device: false"));
