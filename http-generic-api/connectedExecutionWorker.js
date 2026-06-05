@@ -158,7 +158,7 @@ function redactForEvidence(value, { depth = 0, maxDepth = 6, maxArray = 25, maxK
   const out = {};
   const entries = Object.entries(value).slice(0, maxKeys);
   for (const [key, child] of entries) {
-    out[key] = hasSensitiveKey(key) ? "[redacted]" : redactForEvidence(child, { depth: depth + 1, maxDepth, maxArray, maxKeys, maxString });
+    out[key] = hasSensitiveKey(key, child) ? "[redacted]" : redactForEvidence(child, { depth: depth + 1, maxDepth, maxArray, maxKeys, maxString });
   }
   if (Object.keys(value).length > maxKeys) out.truncated_object_keys = Object.keys(value).length - maxKeys;
   return out;
