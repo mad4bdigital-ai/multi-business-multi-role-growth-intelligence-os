@@ -19,8 +19,11 @@ function errorPayload(code, message, details = {}) {
   return { ok: false, error: { code, message, details }, secrets_included: false };
 }
 
+const READ_ONLY_TOOL_CALL_ALLOWLIST_VERSION = "read_only_tool_call_allowlist_v2";
+
 const READ_ONLY_TOOL_CALL_ALLOWLIST = new Set([
   "platform_data_source_census",
+  "platform_graph_status",
   "connected_execution_latest_checkpoint_get",
   "schema_import_jobs_list",
   "schema_import_job_get",
