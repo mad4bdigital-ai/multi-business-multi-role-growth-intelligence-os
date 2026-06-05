@@ -18,7 +18,8 @@ assert(routes.includes('multipleStatements: false'), "schema read must disable m
 assert(routes.includes('SET SESSION TRANSACTION READ ONLY'), "schema read should request a read-only session");
 assert(!routes.includes('SHOW CREATE TABLE'), "schema read must not expose table DDL in this phase");
 assert(!routes.includes('SELECT * FROM ${'), "schema read must not build arbitrary SELECTs");
-assert(!routes.includes('/query'), "arbitrary/read-only SQL query route must remain a future phase");
+assert(!routes.includes('/query-write'), "write SQL query route must remain blocked");
+assert(!routes.includes('tenant_database_query_write'), "write SQL query tool must not exist");
 assert(routes.includes('secrets_included: false'), "schema read must never return secrets");
 
 assert(migration.includes('tenant_database_schema_read'), "migration must register tenant_database_schema_read");
@@ -26,6 +27,6 @@ assert(migration.includes('/me/infrastructure/database/connections/{connection_i
 assert(migration.includes('information_schema'), "migration tags/description must disclose information_schema scope");
 assert(migration.includes('no_arbitrary_sql'), "migration tags must prevent arbitrary SQL expectation");
 assert(migration.includes('no_secrets'), "migration tags must include no_secrets");
-assert(!migration.includes('tenant_database_query_readonly'), "schema-read migration must not register an arbitrary/read-only SQL query tool");
+assert(!migration.includes('tenant_database_query_readonly'), "schema-read migration must not register the read-only query tool");
 
 console.log("Tenant database schema read guard passed");
