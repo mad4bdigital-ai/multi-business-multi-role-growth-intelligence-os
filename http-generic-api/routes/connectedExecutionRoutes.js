@@ -323,6 +323,7 @@ export function buildConnectedExecutionRoutes(deps = {}) {
         dry_run: true,
         will_execute_external_action: false,
         will_call_tools: false,
+        will_preflight_tool_call: action.action_kind === "tool_call",
         will_mutate_repo: false,
         will_call_provider: false,
         will_call_local_device: false,
