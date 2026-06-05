@@ -75,6 +75,57 @@ const LEGACY_NON_REQUIRED_ADMIN_TOOLS = [
   "governance_execution_log_sheets_recovery",
 ];
 
+const REQUIRED_RUNTIME_POLICY_SEEDS = [
+  {
+    check_key: "repo_mutation_guard",
+    policy_group: "Repository Mutation Governance",
+    policy_key: "Stale Duplicate Branch Merge Guard",
+    required_blocking: true,
+    required_scope_tokens: ["repo_patch_apply", "gpt_tools_call"],
+    required_affects_layer_tokens: ["gptToolsRoutes", "repo_patch_apply"],
+  },
+  {
+    check_key: "app_action_visibility",
+    policy_group: "External App Action Governance",
+    policy_key: "External App Action Preflight Visibility",
+    required_blocking: false,
+    required_scope_tokens: ["app_action", "external_app_action"],
+    required_affects_layer_tokens: ["appAdapters", "appAdapters/index.js"],
+  },
+  {
+    check_key: "n8n_workflow_execution_guard",
+    policy_group: "External App Action Governance",
+    policy_key: "n8n Workflow Execution Guard",
+    required_blocking: true,
+    required_scope_tokens: ["n8n", "execute_workflow"],
+    required_affects_layer_tokens: ["appAdapters", "n8n"],
+  },
+  {
+    check_key: "connector_dispatch_visibility",
+    policy_group: "Connector Dispatch Governance",
+    policy_key: "Connector Dispatch Preflight Visibility",
+    required_blocking: false,
+    required_scope_tokens: ["connector_dispatch", "workflow_dispatch"],
+    required_affects_layer_tokens: ["connectorExecutor", "connectorExecutor.js"],
+  },
+  {
+    check_key: "agent_loop_visibility",
+    policy_group: "Agent Loop Governance",
+    policy_key: "Agent Loop Preflight Visibility",
+    required_blocking: false,
+    required_scope_tokens: ["agent_loop", "logic_execution"],
+    required_affects_layer_tokens: ["agentLoopRunner", "agentLoopRunner.js"],
+  },
+  {
+    check_key: "brand_core_writing_guard",
+    policy_group: "Agent Loop Governance",
+    policy_key: "Brand Writing Requires Brand Core",
+    required_blocking: true,
+    required_scope_tokens: ["write", "publish", "seo"],
+    required_affects_layer_tokens: ["agentLoopRunner", "brand_core"],
+  },
+];
+
 // ── All platform tables that must exist ───────────────────────────────────────
 const REQUIRED_TABLES = [
   // Sprint 02
