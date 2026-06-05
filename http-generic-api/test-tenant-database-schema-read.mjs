@@ -18,7 +18,7 @@ assert(routes.includes('multipleStatements: false'), "schema read must disable m
 assert(routes.includes('SET SESSION TRANSACTION READ ONLY'), "schema read should request a read-only session");
 assert(!routes.includes('SHOW CREATE TABLE'), "schema read must not expose table DDL in this phase");
 assert(!routes.includes('SELECT * FROM ${'), "schema read must not build arbitrary SELECTs");
-assert(!routes.includes('tenant_database_query_readonly'), "arbitrary/read-only SQL query tool must remain a future phase");
+assert(!migration.includes('tenant_database_query_readonly'), "schema-read migration must not register the arbitrary SQL query tool");
 assert(routes.includes('secrets_included: false'), "schema read must never return secrets");
 
 assert(migration.includes('tenant_database_schema_read'), "migration must register tenant_database_schema_read");
