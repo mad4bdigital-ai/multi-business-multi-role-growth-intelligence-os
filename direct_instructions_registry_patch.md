@@ -23,6 +23,7 @@ Open the source file listed below for the relevant domain instead of loading thi
 | Context resolver layer | `canonicals/direct_instructions_registry_patch/12_context_resolver_layer.md` | Resolver-first enforcement, resolver precedence rules, and blocked context handling. |
 | Agent execution runtime | `canonicals/direct_instructions_registry_patch/13_agent_execution_runtime.md` | Agent runtime enforcement, model tier selection, verify pass, engine dispatch, and Drive knowledge layer. |
 | Dispatch and local connector governance | `canonicals/direct_instructions_registry_patch/14_dispatch_local_connector_governance.md` | task_routes mutation rules, MODULE_EXECUTORS registration, agent skills/grants/bindings, supervision policy, and DNS enforcement. |
+| Schema repair governance | `canonicals/direct_instructions_registry_patch/15_schema_repair_governance.md` | Safe additive schema repair, omission fallback limits, readback evidence, and release readiness repair policy. |
 
 ---
 
