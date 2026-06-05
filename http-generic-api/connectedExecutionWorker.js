@@ -130,8 +130,9 @@ function clampNumber(value, fallback, min, max) {
   return Math.max(min, Math.min(max, Math.floor(parsed)));
 }
 
-function hasSensitiveKey(key = "") {
+function hasSensitiveKey(key = "", value = undefined) {
   const lower = String(key || "").toLowerCase();
+  if (SAFE_BOOLEAN_METADATA_KEYS.has(lower) && typeof value === "boolean") return false;
   return SENSITIVE_RESULT_KEYS.some((part) => lower.includes(part));
 }
 
