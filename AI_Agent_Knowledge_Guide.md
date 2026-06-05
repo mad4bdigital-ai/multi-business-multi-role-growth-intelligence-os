@@ -25,8 +25,12 @@ Tenant GPTs must not use admin repo tools. Tenant knowledge must come from OAuth
 |---|---|
 | `actions` | Action keys, auth mode, schema binding |
 | `endpoints` | Endpoint keys, method, path, domain |
+| `execution_policies` | Current transitional runtime preflight authority for governed execution paths |
+| `platform_engine_policy_registry` | Target platform-engine policy authority |
+| `platform_engine_policy_rules` | Target enforceable policy/rule representation |
+| `policy_logic_bindings` | Traceability bridge between runtime policies, target rules, and legacy logic mirrors; not enforcement |
 | `workflows` | Workflow authority, `execution_class`, `review_required` |
-| `logic_definitions` | Execution logic, engine prompts, Drive links |
+| `logic_definitions` | Execution logic, engine prompts, Drive links; not policy authority |
 | `business_activity_types` | Activity resolution |
 | `task_routes` | Routing authority |
 | `brands` | Brand context, auth target binding |
@@ -110,6 +114,25 @@ Do not start GitHub until the bootstrap row resolves. Halt if Sheets is rate-lim
 ### Runtime validation
 
 Every execution must validate surface bindings, route/workflow authority, dependency readiness, and credential resolution. Recovered classification is forbidden without same-cycle validation.
+
+### Runtime policy preflight governance
+
+`execution_policies` is the active transitional runtime preflight authority. Agents must treat it as required runtime policy evidence until a target-rule resolver bridge proves parity with `platform_engine_policy_rules`.
+
+Current required runtime policy seeds cover:
+
+- repository mutation safety and stale/diverged `repo_patch_apply` branches
+- external app action preflight visibility
+- blocking `n8n execute_workflow` side-effect guard
+- connector dispatch preflight visibility
+- agent-loop preflight visibility
+- Brand Core requirement for writing/content/SEO/publish/strategy flows
+
+`platform_engine_policy_registry` and `platform_engine_policy_rules` contain additive target representations. They must not be treated as full runtime replacement until `runtimePolicyResolver` emits source evidence and compatibility fallback is validated.
+
+`policy_logic_bindings` is a traceability bridge only. It must not be used as an enforcement source, and new policy rows must not be mirrored into `logic_definitions` by default.
+
+Release readiness must include `runtime_policy_seed_readiness`; missing or invalid runtime seeds block release readiness.
 
 ### Platform Plugin smoke certification governance
 

@@ -32,6 +32,18 @@ The following registry surfaces resolve from SQL tables (mapped 1:1 by `sqlAdapt
 
 References to these surfaces by their conceptual name (e.g. "Brand Registry", "Actions Registry") remain valid identifiers; resolution at runtime always targets the SQL table.
 
+Execution Policy Transitional Authority
+
+`execution_policies` remains the active runtime preflight authority for current governed execution paths. It is a transitional compatibility authority, not a target for new policy-to-logic mirroring.
+
+The target policy representation is:
+- `platform_engine_policy_registry`
+- `platform_engine_policy_rules`
+
+`policy_logic_bindings` is a traceability bridge between current runtime policies, target policy rules, and historical `logic_definitions` mirrors. It is not an enforcement surface.
+
+`logic_definitions` must remain the logic/orchestration/engine behavior layer. New policy rows must not be mirrored into `logic_definitions` unless a separate orchestration logic is explicitly required.
+
 Runtime Read Authority Rule
 
 - runtime reads must resolve through `dataSource.js` or `sqlAdapter.js`
