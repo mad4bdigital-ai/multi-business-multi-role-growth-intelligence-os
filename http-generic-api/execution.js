@@ -342,7 +342,7 @@ export function buildEngineEvidenceFromWorkflow({
       used_engine_registry_refs: used_engine_registry_refs ?? "",
       used_engine_file_ids: used_engine_file_ids ?? "",
       engine_resolution_status: engine_resolution_status ?? "",
-      engine_association_status: engine_association_status ?? "unknown"
+      engine_association_status: engine_association_status ?? "not_associated"
     };
   }
 
