@@ -191,6 +191,14 @@ assert.equal(idempotentAlterPreflight.status, "pass", "ADD COLUMN IF NOT EXISTS 
 assert.equal(idempotentAlterPreflight.counts.alter_table, 1, "must count ALTER TABLE statements");
 assert.equal(idempotentAlterPreflight.counts.alter_table_idempotent, 1, "must count idempotent ADD COLUMN IF NOT EXISTS");
 
+const tagsWideningPreflight = assessMigrationSqlPreflight(
+  "tags-text.sql",
+  "ALTER TABLE admin_platform_endpoint_tools MODIFY COLUMN tags TEXT NULL;"
+);
+assert.equal(tagsWideningPreflight.status, "pass", "admin tool registry tags widening to TEXT should pass as a safe non-destructive ALTER");
+assert.equal(tagsWideningPreflight.counts.alter_table, 1, "must count tags widening ALTER TABLE");
+assert.equal(tagsWideningPreflight.counts.alter_table_idempotent, 1, "must count approved tags widening as idempotent/safe ALTER");
+
 const warnPreflight = assessMigrationSqlPreflight(
   "warn.sql",
   "CREATE TABLE cms_sites (site_id varchar(36) PRIMARY KEY); INSERT INTO admin_platform_endpoint_tools (tool_key) VALUES ('unsafe_tool');"
