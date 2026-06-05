@@ -51,7 +51,7 @@ function hasMutatingTag(tags = new Set()) {
   return false;
 }
 
-async function buildReadOnlyToolCallPreflight(pool, actionPayload = {}) {
+export async function buildReadOnlyToolCallPreflight(pool, actionPayload = {}) {
   const toolKey = cleanString(actionPayload.tool_key || actionPayload.toolKey || actionPayload.name);
   if (!toolKey) {
     return {
