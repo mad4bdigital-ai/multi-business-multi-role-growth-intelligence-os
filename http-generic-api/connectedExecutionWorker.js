@@ -52,6 +52,77 @@ function hasMutatingTag(tags = new Set()) {
   return false;
 }
 
+function wantsReadOnlyToolExecution(actionPayload = {}, guardrails = {}) {
+  return Boolean(
+    actionPayload.execute_read_only === true
+    || actionPayload.executeReadOnly === true
+    || guardrails.execute_read_only === true
+    || guardrails.executeReadOnly === true
+  );
+}
+
+function boundedResultLimit(value, fallback = 25) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.min(parsed, 50));
+}
+
+async function executePlatformDataSourceCensus(pool, actionPayload = {}, guardrails = {}) {
+  const maxItems = boundedResultLimit(actionPayload.max_result_items ?? actionPayload.maxResultItems ?? guardrails.max_result_items ?? guardrails.maxResultItems, 25);
+  const [rows] = await pool.query(
+    `SELECT table_name, table_rows, update_time
+       FROM information_schema.tables
+      WHERE table_schema = DATABASE()
+      ORDER BY table_name ASC
+      LIMIT ?`,
+    [maxItems]
+  );
+  const [[totalRow]] = await pool.query(
+    `SELECT COUNT(*) AS total_tables
+       FROM information_schema.tables
+      WHERE table_schema = DATABASE()`
+  );
+  return {
+    ok: true,
+    tool_key: "platform_data_source_census",
+    execution_mode: "read_only_internal_executor",
+    total_tables: Number(totalRow?.total_tables || 0),
+    returned_tables: rows.length,
+    max_result_items: maxItems,
+    output_redacted: Number(totalRow?.total_tables || 0) > rows.length,
+    tables: rows.map((row) => ({
+      table_name: row.table_name,
+      approx_rows: Number(row.table_rows || 0),
+      update_time: row.update_time || null,
+    })),
+    secrets_included: false,
+  };
+}
+
+async function executeReadOnlyToolCall(pool, actionPayload = {}, guardrails = {}, preflight = {}) {
+  const toolKey = cleanString(preflight?.evidence?.tool_key || actionPayload.tool_key || actionPayload.toolKey || actionPayload.name);
+  if (!READ_ONLY_TOOL_EXECUTION_ALLOWLIST.has(toolKey)) {
+    return {
+      ok: false,
+      blocked: true,
+      blockers: ["read_only_tool_execution_not_enabled_for_tool"],
+      result: null,
+      secrets_included: false,
+    };
+  }
+  if (toolKey === "platform_data_source_census") {
+    const result = await executePlatformDataSourceCensus(pool, actionPayload, guardrails);
+    return { ok: true, blocked: false, blockers: [], result, secrets_included: false };
+  }
+  return {
+    ok: false,
+    blocked: true,
+    blockers: ["read_only_tool_executor_missing"],
+    result: null,
+    secrets_included: false,
+  };
+}
+
 async function buildReadOnlyToolCallPreflight(pool, actionPayload = {}) {
   const toolKey = cleanString(actionPayload.tool_key || actionPayload.toolKey || actionPayload.name);
   if (!toolKey) {
