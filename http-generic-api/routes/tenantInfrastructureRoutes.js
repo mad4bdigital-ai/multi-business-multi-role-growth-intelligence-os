@@ -93,6 +93,117 @@ function databaseConfigFromConnection(row) {
   };
 }
 
+function validateReadonlySql(sql) {
+  const text = String(sql || "").trim();
+  if (!text) {
+    const err = new Error("sql is required.");
+    err.status = 400;
+    err.code = "sql_required";
+    throw err;
+  }
+  if (text.length > 6000) {
+    const err = new Error("sql is too long for the read-only query tool.");
+    err.status = 400;
+    err.code = "sql_too_long";
+    throw err;
+  }
+  if (!/^select\b/i.test(text)) {
+    const err = new Error("Only SELECT statements are allowed.");
+    err.status = 400;
+    err.code = "readonly_sql_select_only";
+    throw err;
+  }
+  const forbiddenPatterns = [
+    /;/,
+    /--/,
+    /\/\*/,
+    /\*\//,
+    /#/,
+    /\?/,
+    /\b(insert|update|delete|drop|alter|create|truncate|replace|merge|grant|revoke|call|execute|prepare|load|handler|lock|unlock|set|show|describe|explain|analyze|optimize|repair|use|start|commit|rollback)\b/i,
+    /\b(sleep|benchmark|load_file)\s*\(/i,
+    /\binto\s+(out|dump)file\b/i,
+  ];
+  if (forbiddenPatterns.some((pattern) => pattern.test(text))) {
+    const err = new Error("SQL contains a blocked token for the read-only query tool.");
+    err.status = 400;
+    err.code = "readonly_sql_blocked_token";
+    throw err;
+  }
+  if (/\bselect\s+\*/i.test(text) || /,\s*\*/.test(text)) {
+    const err = new Error("SELECT * is not allowed. Choose explicit non-sensitive columns.");
+    err.status = 400;
+    err.code = "readonly_sql_explicit_columns_required";
+    throw err;
+  }
+  const secretLikeSql = /\b(password|passwd|secret|token|credential|credentials|encrypted_credentials|private_key|client_secret|api_key|access_token|refresh_token|authorization)\b/i;
+  if (secretLikeSql.test(text)) {
+    const err = new Error("SQL references a secret-like field or token.");
+    err.status = 400;
+    err.code = "readonly_sql_secret_like_reference_blocked";
+    throw err;
+  }
+  return text;
+}
+
+function assertSafeReadonlyFields(fields = []) {
+  const secretLikeField = /(^|_)(password|passwd|secret|token|credential|credentials|private_key|client_secret|api_key|access_token|refresh_token|authorization)($|_)/i;
+  const blocked = fields.map((field) => field?.name || "").filter((name) => secretLikeField.test(name));
+  if (blocked.length) {
+    const err = new Error("Read-only query selected secret-like columns.");
+    err.status = 400;
+    err.code = "readonly_query_secret_like_column_blocked";
+    err.details = blocked;
+    throw err;
+  }
+}
+
+function sanitizeReadonlyValue(value) {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "bigint") return value.toString();
+  if (Buffer.isBuffer(value)) return `[binary:${value.length}]`;
+  return value;
+}
+
+function sanitizeReadonlyRow(row) {
+  return Object.fromEntries(Object.entries(row || {}).map(([key, value]) => [key, sanitizeReadonlyValue(value)]));
+}
+
+async function executeReadonlyDatabaseQuery(row, options = {}) {
+  const cfg = databaseConfigFromConnection(row);
+  const sql = validateReadonlySql(options.sql);
+  const limit = clampInt(options.limit, 25, 1, 100);
+  let connection;
+  try {
+    connection = await mysql.createConnection({
+      host: cfg.host,
+      port: cfg.port,
+      database: cfg.database,
+      user: cfg.user,
+      password: cfg.password,
+      connectTimeout: 8000,
+      multipleStatements: false,
+      namedPlaceholders: false,
+    });
+    await connection.query("SET SESSION TRANSACTION READ ONLY").catch(() => {});
+    await connection.query("SET SESSION MAX_EXECUTION_TIME=5000").catch(() => {});
+    const wrappedSql = `SELECT tenant_readonly_query.* FROM (${sql}) AS tenant_readonly_query LIMIT ?`;
+    const [rows, fields] = await connection.execute(wrappedSql, [limit]);
+    assertSafeReadonlyFields(fields || []);
+    return {
+      database: cfg.database,
+      read_only: true,
+      limit,
+      row_count: rows.length,
+      columns: (fields || []).map((field) => ({ name: field.name, column_type: field.columnType })),
+      rows: rows.map(sanitizeReadonlyRow),
+      secrets_included: false,
+    };
+  } finally {
+    if (connection) await connection.end().catch(() => {});
+  }
+}
+
 function sanitizeColumn(row) {
   return {
     table_schema: row.TABLE_SCHEMA,
@@ -266,6 +377,29 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
 
   router.get("/me/infrastructure/database/connections/:connection_id/status", requireUserJwt, (req, res) => sendStatus(req, res, "remote_database"));
   router.post("/me/infrastructure/database/connections/:connection_id/preflight", requireUserJwt, (req, res) => sendPreflight(req, res, "remote_database"));
+  router.post("/me/infrastructure/database/connections/:connection_id/query-readonly", requireUserJwt, async (req, res) => {
+    try {
+      const connectionId = String(req.params.connection_id || "").trim();
+      if (!connectionId) return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      const row = await loadTenantConnection(pool, req, connectionId, "remote_database");
+      const readiness = readinessFor(row, "remote_database");
+      if (!readiness.ready) {
+        return res.status(409).json({ ok: false, error: { code: "database_connection_not_ready", message: "Database connection is not ready for read-only query execution.", details: readiness.blocked_reasons }, readiness, secrets_included: false });
+      }
+      const result = await executeReadonlyDatabaseQuery(row, req.body || {});
+      return res.json({
+        ok: true,
+        kind: "database",
+        read_only: true,
+        source: "tenant_database_query_readonly",
+        connection: safeConnection(row),
+        result,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_database_query_readonly_failed", message: err.message, details: err.details }, secrets_included: false });
+    }
+  });
   router.get("/me/infrastructure/database/connections/:connection_id/schema", requireUserJwt, async (req, res) => {
     try {
       const connectionId = String(req.params.connection_id || "").trim();
