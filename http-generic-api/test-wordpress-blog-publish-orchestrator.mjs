@@ -6,7 +6,7 @@ import {
   __test__,
 } from "./wordpressBlogPublishOrchestrator.js";
 
-function makePool({ brands = [], connections = [], cmsSites = [], cmsGrants = [], insertedIntake = [] } = {}) {
+function makePool({ brands = [], connections = [], cmsSites = [], cmsGrants = [], workspaceGrants = [], insertedIntake = [] } = {}) {
   return {
     async query(sql, params = []) {
       const compact = String(sql).replace(/\s+/g, " ");
@@ -31,6 +31,15 @@ function makePool({ brands = [], connections = [], cmsSites = [], cmsGrants = []
           row.status === "active" &&
           (!row.user_id || row.user_id === userId)
         )).slice(0, 1)];
+      }
+      if (compact.includes("FROM v_workspace_resource_grant_effective")) {
+        const [tenantId, userId, siteId, workspaceRef] = params;
+        return [workspaceGrants.filter((row) => (
+          row.tenant_id === tenantId &&
+          row.grantee_user_id === userId &&
+          row.grant_status === "active" &&
+          ((row.resource_type === "site" && row.resource_ref === siteId) || (row.resource_type === "workspace" && row.resource_ref === workspaceRef))
+        ))];
       }
       if (compact.includes("FROM `credential_bindings`")) return [[]];
       if (compact.includes("FROM `user_app_connections`")) {
@@ -135,6 +144,7 @@ assert.equal(__test__.normalizeWpJsonBase("https://example.com/wp-json/wp/v2"), 
     brands: [brand],
     cmsSites: [{ site_id: "site-1", canonical_target_key: "almallah_wp", normalized_domain: "tourism.almallahgroup-mg.com" }],
     cmsGrants: [{ grant_id: "grant-1", site_id: "site-1", tenant_id: "tenant-1", user_id: "user-1", scope: "personal", status: "active", draft_allowed: 1, publish_allowed: 0 }],
+    workspaceGrants: [{ grant_id: "wrg-1", tenant_id: "tenant-1", grantee_user_id: "user-1", resource_type: "site", resource_ref: "site-1", permission: "edit", grant_status: "active" }],
     connections: [{
       connection_id: "conn-wp",
       user_id: "user-1",
@@ -227,6 +237,7 @@ assert.equal(__test__.normalizeWpJsonBase("https://example.com/wp-json/wp/v2"), 
     brands: [brand],
     cmsSites: [{ site_id: "site-1", canonical_target_key: "almallah_wp", normalized_domain: "tourism.almallahgroup-mg.com" }],
     cmsGrants: [{ grant_id: "grant-2", site_id: "site-1", tenant_id: "tenant-1", user_id: "user-1", scope: "personal", status: "active", draft_allowed: 1, publish_allowed: 1 }],
+    workspaceGrants: [{ grant_id: "wrg-2", tenant_id: "tenant-1", grantee_user_id: "user-1", resource_type: "workspace", resource_ref: "tenant-1", permission: "operate", grant_status: "active" }],
     connections: [{
       connection_id: "conn-wp",
       user_id: "user-1",

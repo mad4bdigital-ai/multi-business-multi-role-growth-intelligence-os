@@ -161,6 +161,42 @@ async function resolveCmsSiteGrant({ plan, brand, requestedStatus }, deps = {}) 
   }
 }
 
+function permissionRank(permission = "") {
+  const ranks = { view: 1, comment: 2, edit: 3, operate: 4, manage: 5, admin: 6, owner: 7 };
+  return ranks[str(permission).toLowerCase()] || 0;
+}
+
+function requiredWorkspacePermissionForStatus(requestedStatus = "draft") {
+  return str(requestedStatus).toLowerCase() === "publish" ? "operate" : "edit";
+}
+
+async function resolveWorkspaceResourceGrant({ plan, siteId, requestedStatus }, deps = {}) {
+  const pool = deps.pool || getPool();
+  const tenantId = str(plan.tenant_id);
+  const userId = str(plan.user_id || plan.actor_user_id);
+  const requiredPermission = requiredWorkspacePermissionForStatus(requestedStatus);
+  if (!tenantId || !userId) return { ok: false, status: "workspace_resource_grant_subject_required", required_permission: requiredPermission, site_id: siteId || null };
+  try {
+    const [rows] = await pool.query(
+      `SELECT grant_id, resource_type, resource_ref, permission, source
+         FROM v_workspace_resource_grant_effective
+        WHERE tenant_id = ?
+          AND grantee_user_id = ?
+          AND ((resource_type = 'site' AND resource_ref = ?) OR (resource_type = 'workspace' AND resource_ref = ?))
+        ORDER BY CASE WHEN resource_type = 'site' THEN 0 ELSE 1 END,
+                 FIELD(permission, 'owner','admin','manage','operate','edit','comment','view')
+        LIMIT 10`,
+      [tenantId, userId, str(siteId), tenantId]
+    );
+    const grant = (rows || []).find((row) => permissionRank(row.permission) >= permissionRank(requiredPermission));
+    if (!grant) return { ok: false, status: "workspace_resource_grant_required", required_permission: requiredPermission, site_id: siteId || null };
+    return { ok: true, status: "workspace_resource_grant_resolved", required_permission: requiredPermission, grant_id: grant.grant_id, resource_type: grant.resource_type, resource_ref: grant.resource_ref, permission: grant.permission, source: grant.source };
+  } catch (err) {
+    if (["ER_NO_SUCH_TABLE", "ER_BAD_TABLE_ERROR"].includes(err?.code)) return { ok: false, status: "workspace_resource_grants_unavailable", required_permission: requiredPermission, site_id: siteId || null };
+    throw err;
+  }
+}
+
 async function resolveWpCredential({ plan, brand }, deps = {}) {
   const input = extractInput(plan);
   return resolveEffectiveCredential({
@@ -224,6 +260,25 @@ export async function dispatchWordpressBlogPublish(plan = {}, deps = {}) {
       grant_id: grant.grant_id || null,
       grant_required: true,
     };
+  }
+
+  let workspaceGrant = null;
+  if (grant.grant_required && grant.site_id) {
+    workspaceGrant = await resolveWorkspaceResourceGrant({ plan, siteId: grant.site_id, requestedStatus }, deps);
+    if (!workspaceGrant.ok) {
+      return {
+        ok: false,
+        status: "blocked",
+        error: { code: workspaceGrant.status, message: "Workspace resource grant is required for this WordPress site operation." },
+        target_key: brand.target_key || plan.target_key || "",
+        site_id: grant.site_id || null,
+        grant_id: grant.grant_id || null,
+        grant_status: grant.status,
+        workspace_resource_grant_id: null,
+        workspace_resource_grant_required: true,
+        required_permission: workspaceGrant.required_permission,
+      };
+    }
   }
 
   const credential = await resolveWpCredential({ plan, brand }, deps);
