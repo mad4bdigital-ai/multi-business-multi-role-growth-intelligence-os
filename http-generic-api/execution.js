@@ -174,6 +174,7 @@ export function buildArtifactFileName(input = {}) {
 
 function normalizeAssociationStatus(value = "") {
   const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return "not_associated";
   if (normalized === "associated") return "associated";
   if (normalized === "not_associated") return "not_associated";
   return "unknown";
