@@ -107,6 +107,7 @@ export const testCommands = [
   "node test-tenant-database-query-readonly.mjs",
   "node test-governed-migration-runner-tenant-db-query-readonly-allowlist.mjs",
   "node test-tenant-ssh-probe.mjs",
+  "node test-tenant-ssh-cli-dry-run.mjs",
   "node test-task-route-authority-resolver.mjs",
   "node test-workflow-registry-authority-resolver.mjs",
   "node test-action-registry-authority-resolver.mjs",
