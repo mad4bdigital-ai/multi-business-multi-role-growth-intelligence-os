@@ -139,6 +139,14 @@ export async function writeExecutionEvidence({
       targetWorkflowWriteback === null || targetWorkflowWriteback === undefined ? null : compact(targetWorkflowWriteback, 255),
       compact(traceId, 255),
       compact(logSource, 255),
+      usedLogicId === null || usedLogicId === undefined ? null : compact(usedLogicId, 255),
+      usedLogicName === null || usedLogicName === undefined ? null : compact(usedLogicName, 255),
+      resolvedLogicMode === null || resolvedLogicMode === undefined ? null : compact(resolvedLogicMode, 255),
+      compact(logicAssociationStatus || "not_associated", 255),
+      compact(usedEngineNames, 1000),
+      compact(usedEngineRegistryRefs, 1000),
+      engineResolutionStatus === null || engineResolutionStatus === undefined ? null : compact(engineResolutionStatus, 255),
+      compact(engineAssociationStatus || "not_associated", 255),
     ]
   );
 
