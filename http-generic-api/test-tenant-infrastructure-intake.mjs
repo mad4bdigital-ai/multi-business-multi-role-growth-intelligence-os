@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const connectRoutes = readFileSync("routes/connectApiRoutes.js", "utf8");
+const routesIndex = readFileSync("routes/index.js", "utf8");
 const migration = readFileSync("migrations/193_sprint66_tenant_infrastructure_intake.sql", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
 
