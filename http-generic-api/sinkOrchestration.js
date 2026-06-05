@@ -274,7 +274,7 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
     logic_pointer_resolution_status: input.logic_pointer_resolution_status ?? "",
     logic_knowledge_status: input.logic_knowledge_status ?? "",
     logic_rollback_status: input.logic_rollback_status ?? "",
-    logic_association_status: input.logic_association_status ?? "unknown",
+    logic_association_status: input.logic_association_status ?? "not_associated",
 
     // governed engine evidence
     used_engine_names: normalizedUsedEngineNames,
