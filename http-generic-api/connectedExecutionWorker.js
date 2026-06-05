@@ -18,6 +18,98 @@ function errorPayload(code, message, details = {}) {
   return { ok: false, error: { code, message, details }, secrets_included: false };
 }
 
+const READ_ONLY_TOOL_CALL_ALLOWLIST = new Set([
+  "platform_data_source_census",
+  "connected_execution_latest_checkpoint_get",
+  "schema_import_jobs_list",
+  "schema_import_job_get",
+]);
+
+const MUTATING_TOOL_TAGS = new Set([
+  "state_changing",
+  "apply",
+  "write",
+  "mutation",
+  "repo_mutation",
+  "provider_call",
+  "local_device_call",
+  "tool_execution",
+]);
+
+function tagSet(value = "") {
+  return new Set(String(value || "").split(",").map((tag) => tag.trim()).filter(Boolean));
+}
+
+function hasMutatingTag(tags = new Set()) {
+  for (const tag of tags) {
+    if (MUTATING_TOOL_TAGS.has(tag)) return true;
+  }
+  return false;
+}
+
+async function buildReadOnlyToolCallPreflight(pool, actionPayload = {}) {
+  const toolKey = cleanString(actionPayload.tool_key || actionPayload.toolKey || actionPayload.name);
+  if (!toolKey) {
+    return {
+      allowed: false,
+      blockers: ["tool_key_required"],
+      evidence: { tool_key: null, allowlist_version: "read_only_tool_call_allowlist_v1" },
+    };
+  }
+
+  const [toolRows] = await pool.query(
+    `SELECT tool_key, is_enabled, http_method, http_path, tags
+       FROM admin_platform_endpoint_tools
+      WHERE tool_key = ?
+      LIMIT 1`,
+    [toolKey]
+  );
+  const tool = toolRows[0] || null;
+  const tags = tagSet(tool?.tags || "");
+
+  const [certRows] = await pool.query(
+    `SELECT certification_key, risk_class, certification_status, dispatch_allowed, apply_allowed
+       FROM runtime_dispatch_certification_registry
+      WHERE tool_or_action_key = ?
+      ORDER BY updated_at DESC, created_at DESC
+      LIMIT 1`,
+    [toolKey]
+  ).catch(() => [[]]);
+  const certification = certRows?.[0] || null;
+
+  const blockers = [];
+  if (!READ_ONLY_TOOL_CALL_ALLOWLIST.has(toolKey)) blockers.push("tool_not_in_read_only_allowlist");
+  if (!tool) blockers.push("tool_registry_row_not_found");
+  if (tool && Number(tool.is_enabled || 0) !== 1) blockers.push("tool_not_enabled");
+  if (tool && String(tool.http_method || "").toUpperCase() !== "GET") blockers.push("tool_method_not_get_read_only");
+  if (hasMutatingTag(tags)) blockers.push("tool_has_mutating_tag");
+  if (certification && Number(certification.apply_allowed || 0) !== 0) blockers.push("certification_allows_apply");
+
+  return {
+    allowed: blockers.length === 0,
+    blockers,
+    evidence: {
+      tool_key: toolKey,
+      allowlist_version: "read_only_tool_call_allowlist_v1",
+      registry_present: Boolean(tool),
+      registry_enabled: tool ? Number(tool.is_enabled || 0) === 1 : false,
+      http_method: tool?.http_method || null,
+      http_path: tool?.http_path || null,
+      tags: [...tags],
+      certification: certification ? {
+        certification_key: certification.certification_key,
+        risk_class: certification.risk_class,
+        certification_status: certification.certification_status,
+        dispatch_allowed: Number(certification.dispatch_allowed || 0) === 1,
+        apply_allowed: Number(certification.apply_allowed || 0) === 1,
+      } : null,
+      executes_tool_call: false,
+      preflight_only: true,
+      secrets_included: false,
+    },
+  };
+}
+
 async function appendEvidenceReport(pool, {
   connectedSessionId,
   session,
