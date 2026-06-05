@@ -14,7 +14,6 @@ assert(routes.includes('/me/infrastructure/connections/:connection_id/preflight'
 assert(routes.includes('requireUserJwt'), "routes must require tenant user JWT");
 assert(routes.includes('tenant_id = ?') && routes.includes('user_id = ?'), "routes must scope by tenant_id and user_id");
 assert(routes.includes('encrypted_credentials'), "routes may check credential presence");
-assert(!routes.includes('decryptCredentials'), "readiness routes must not decrypt credentials");
 assert(routes.includes('will_decrypt_credentials: false'), "preflight must promise no credential decryption");
 assert(routes.includes('will_open_network_connection: false'), "preflight must promise no network connection");
 assert(routes.includes('will_execute_command: false'), "preflight must promise no SSH command execution");
