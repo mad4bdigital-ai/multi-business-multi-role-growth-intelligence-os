@@ -1294,6 +1294,13 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   if (report.runtime_policy_seed_readiness.status === "warn" && report.overall === "pass") report.overall = "warn";
   if (report.runtime_policy_seed_readiness.status === "fail") report.overall = "fail";
 
+  // Runtime policy seed readiness — verifies the live DB has the policy rows
+  // required by governedExecutionPreflight. This catches missing seed rows that
+  // source-code and migration-file checks alone cannot detect.
+  report.runtime_policy_seed_readiness = await checkRuntimePolicySeedReadinessSafe();
+  if (report.runtime_policy_seed_readiness.status === "warn" && report.overall === "pass") report.overall = "warn";
+  if (report.runtime_policy_seed_readiness.status === "fail") report.overall = "fail";
+
   // Graph memory diagnostics — non-blocking admin context enrichment.
   report.graph_memory_diagnostics = await checkGraphMemoryDiagnostics();
 
