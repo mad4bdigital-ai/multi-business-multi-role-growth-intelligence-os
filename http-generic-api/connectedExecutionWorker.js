@@ -246,11 +246,11 @@ export async function runConnectedExecutionResumeAction(jobPayload = {}, deps = 
   const guardrails = parseJson(action.guardrails_json, {});
   const actionKind = cleanString(action.action_kind);
 
-  if (actionKind !== "analysis_step") {
+  if (!["analysis_step", "tool_call"].includes(actionKind)) {
     const blocked = {
       ok: true,
       status: "blocked",
-      blocked_reason: "connected_execution_worker_allows_analysis_step_only",
+      blocked_reason: "connected_execution_worker_allows_analysis_step_or_read_only_tool_call_preflight_only",
       action_kind: actionKind,
       executes_action: false,
       secrets_included: false,
@@ -262,10 +262,10 @@ export async function runConnectedExecutionResumeAction(jobPayload = {}, deps = 
       status: "blocked",
       stage: "connected_execution_worker_bridge",
       summary: blocked,
-      evidence: { guardrails, worker_bridge: "analysis_step_only" },
+      evidence: { guardrails, worker_bridge: "analysis_step_or_read_only_tool_call_preflight_only" },
       blockers: ["unsupported_action_kind_for_worker_bridge"],
       nextAction: { resume_action_id: resumeActionId, status: "blocked", action_kind: actionKind },
-      firstResumeInstruction: "Review action_kind and enqueue only analysis_step actions for this worker bridge phase.",
+      firstResumeInstruction: "Review action_kind and enqueue only analysis_step or read-only tool_call preflight actions for this worker bridge phase.",
     });
     await pool.query(
       `UPDATE connected_execution_resume_actions
@@ -276,28 +276,90 @@ export async function runConnectedExecutionResumeAction(jobPayload = {}, deps = 
     return { ...blocked, evidence_report_id: evidenceReportId };
   }
 
-  const summary = {
-    ok: true,
-    status: "completed",
-    action_kind: actionKind,
-    action_key: cleanString(action.action_key) || "analysis_step",
-    executes_action: false,
-    worker_bridge_phase: "analysis_step_metadata_only",
-    objective: cleanString(actionPayload.objective || actionPayload.summary || actionPayload.note || "analysis_step completed by metadata-only worker bridge"),
-    secrets_included: false,
-  };
-  const evidence = {
-    action_payload: actionPayload,
-    guardrails,
-    connected_session_id: connectedSessionId,
-    resume_action_id: resumeActionId,
-    claim_token_present: true,
-    external_tool_calls_executed: false,
-    repo_mutation_executed: false,
-    provider_calls_executed: false,
-    local_device_calls_executed: false,
-    secrets_included: false,
-  };
+  const toolPreflight = actionKind === "tool_call" ? await buildReadOnlyToolCallPreflight(pool, actionPayload) : null;
+  if (toolPreflight && !toolPreflight.allowed) {
+    const blocked = {
+      ok: true,
+      status: "blocked",
+      blocked_reason: "read_only_tool_call_preflight_blocked",
+      action_kind: actionKind,
+      action_key: cleanString(action.action_key) || "tool_call",
+      executes_action: false,
+      tool_call_executed: false,
+      blockers: toolPreflight.blockers,
+      secrets_included: false,
+    };
+    const evidenceReportId = await appendEvidenceReport(pool, {
+      connectedSessionId,
+      session,
+      action,
+      status: "blocked",
+      stage: "connected_execution_worker_bridge_read_only_tool_call_preflight",
+      summary: blocked,
+      evidence: { action_payload: actionPayload, guardrails, ...toolPreflight.evidence },
+      blockers: toolPreflight.blockers,
+      nextAction: { resume_action_id: resumeActionId, status: "blocked", action_kind: actionKind },
+      firstResumeInstruction: "Review read-only tool_call allowlist blockers before enqueueing another tool_call action.",
+    });
+    await pool.query(
+      `UPDATE connected_execution_resume_actions
+          SET status = 'blocked', completed_at = NOW(), result_json = ?, error_json = NULL, updated_at = NOW(), secrets_included = 0
+        WHERE connected_session_id = ? AND resume_action_id = ? AND claim_token = ?`,
+      [JSON.stringify({ ...blocked, evidence_report_id: evidenceReportId }), connectedSessionId, resumeActionId, claimToken]
+    );
+    return { ...blocked, evidence_report_id: evidenceReportId };
+  }
+
+  const summary = actionKind === "tool_call"
+    ? {
+        ok: true,
+        status: "completed",
+        action_kind: actionKind,
+        action_key: cleanString(action.action_key) || "tool_call",
+        executes_action: false,
+        tool_call_executed: false,
+        worker_bridge_phase: "read_only_tool_call_preflight_only",
+        tool_key: toolPreflight.evidence.tool_key,
+        allowlist_version: toolPreflight.evidence.allowlist_version,
+        secrets_included: false,
+      }
+    : {
+        ok: true,
+        status: "completed",
+        action_kind: actionKind,
+        action_key: cleanString(action.action_key) || "analysis_step",
+        executes_action: false,
+        worker_bridge_phase: "analysis_step_metadata_only",
+        objective: cleanString(actionPayload.objective || actionPayload.summary || actionPayload.note || "analysis_step completed by metadata-only worker bridge"),
+        secrets_included: false,
+      };
+  const evidence = actionKind === "tool_call"
+    ? {
+        action_payload: actionPayload,
+        guardrails,
+        connected_session_id: connectedSessionId,
+        resume_action_id: resumeActionId,
+        claim_token_present: true,
+        ...toolPreflight.evidence,
+        external_tool_calls_executed: false,
+        tool_call_executed: false,
+        repo_mutation_executed: false,
+        provider_calls_executed: false,
+        local_device_calls_executed: false,
+        secrets_included: false,
+      }
+    : {
+        action_payload: actionPayload,
+        guardrails,
+        connected_session_id: connectedSessionId,
+        resume_action_id: resumeActionId,
+        claim_token_present: true,
+        external_tool_calls_executed: false,
+        repo_mutation_executed: false,
+        provider_calls_executed: false,
+        local_device_calls_executed: false,
+        secrets_included: false,
+      };
   const evidenceReportId = await appendEvidenceReport(pool, {
     connectedSessionId,
     session,
