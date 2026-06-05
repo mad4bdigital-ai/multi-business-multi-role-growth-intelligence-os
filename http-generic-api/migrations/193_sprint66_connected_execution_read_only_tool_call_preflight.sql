@@ -44,6 +44,5 @@ ON DUPLICATE KEY UPDATE
 UPDATE admin_platform_endpoint_tools
    SET description = 'Enqueue one connected execution resume action for worker bridge processing. Supports analysis_step metadata-only actions and tool_call read-only preflight/evidence for the allowlisted phase. No external tool execution, repo mutation, provider call, local-device call, apply operation, or secret exposure is allowed.',
        tags = 'admin,connected_execution,worker_bridge,resume_action,queue_enqueue,dry_run,analysis_step_only,read_only_tool_call_preflight,metadata_write,evidence_write,no_tool_execution,no_repo_mutation,no_provider_call,no_local_device_call,no_secrets',
-       fixed_body = '{"dry_run":true,"max_attempts":1,"read_only_tool_call_preflight":true}',
-       updated_at = CURRENT_TIMESTAMP
+       fixed_body = '{"dry_run":true,"max_attempts":1,"read_only_tool_call_preflight":true}'
  WHERE tool_key = 'connected_execution_resume_action_enqueue_dry_run';
