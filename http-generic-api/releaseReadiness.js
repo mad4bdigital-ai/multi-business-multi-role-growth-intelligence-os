@@ -1235,6 +1235,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     governed_migration_ledger: null,
     admin_tool_registry_smoke: null,
     migration_drift: null,
+    runtime_policy_seed_readiness: null,
     graph_memory_diagnostics: null,
   };
 
