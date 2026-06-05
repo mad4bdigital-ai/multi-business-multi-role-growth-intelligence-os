@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 
 export const DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION = "APPLY_DATABASE_TABLE_LIFECYCLE_REGISTRY_UPSERT";
+export const DATABASE_TABLE_LIFECYCLE_REFRESH_CONFIRMATION = "APPLY_DATABASE_TABLE_LIFECYCLE_REGISTRY_REFRESH_EXISTING";
 export const DATABASE_LIFECYCLE_REPORT_SNAPSHOT_CONFIRMATION = "APPLY_DATABASE_LIFECYCLE_REPORT_SNAPSHOT";
 export const DATABASE_LIFECYCLE_SCHEDULER_APPROVAL_CONFIRMATION = "APPROVE_DATABASE_LIFECYCLE_SCHEDULER_METADATA";
 export const DATABASE_LIFECYCLE_INCIDENT_BRIDGE_CONFIRMATION = "APPLY_DATABASE_LIFECYCLE_INCIDENT_BRIDGE";
@@ -80,6 +81,81 @@ export function classifyDatabaseTableLifecycle(row = {}) {
     cleanupStrategy = "dedupe_and_compact";
     riskLevel = sizeMb > 10 ? "high" : "medium";
     reasons.push("graph_or_artifact_authority");
+  } else if (includesAny(tableName, ["policy_logic_", "platform_contract_"])) {
+    tableFamily = "platform_contract_governance";
+    ownerEngineKey = "platform_contract_governance_engine";
+    usageStatus = rows > 0 ? "runtime_registry" : "planned_placeholder";
+    retentionClass = "registry";
+    archiveStrategy = "archive_disabled_rows";
+    cleanupStrategy = "review_superseded_contract_rows";
+    riskLevel = "medium";
+    reasons.push("policy_or_contract_governance_family");
+  } else if (includesAny(tableName, ["workspace_resource_", "workspace_access_", "workspace_assets"])) {
+    tableFamily = "workspace_resource_authority";
+    ownerEngineKey = "resource_authority_engine";
+    usageStatus = rows > 0 ? "runtime_canonical" : "planned_placeholder";
+    retentionClass = "business_record";
+    archiveStrategy = "manual_review";
+    cleanupStrategy = "none";
+    riskLevel = "high";
+    reasons.push("workspace_resource_authority_family");
+  } else if (includesAny(tableName, ["connected_execution_"])) {
+    tableFamily = "connected_execution";
+    ownerEngineKey = "workflow_runtime_engine";
+    usageStatus = rows > 0 ? "runtime_registry" : "planned_placeholder";
+    retentionClass = "hot_then_archive";
+    retentionDays = 90;
+    archiveStrategy = "time_window_archive";
+    cleanupStrategy = "archive_completed_execution_records";
+    riskLevel = sizeMb > 8 ? "high" : "medium";
+    reasons.push("connected_execution_family");
+  } else if (includesAny(tableName, ["database_lifecycle_", "database_collation_"])) {
+    tableFamily = includesAny(tableName, ["database_collation_"]) ? "schema_collation_governance" : "database_lifecycle";
+    ownerEngineKey = includesAny(tableName, ["database_collation_"])
+      ? "schema_cleanup_engine"
+      : "database_table_lifecycle_engine";
+    usageStatus = rows > 0 ? "runtime_registry" : "planned_placeholder";
+    retentionClass = "registry";
+    archiveStrategy = "archive_disabled_rows";
+    cleanupStrategy = "expire_superseded_registry_rows";
+    riskLevel = "medium";
+    reasons.push("database_lifecycle_or_collation_family");
+  } else if (includesAny(tableName, ["platform_private_", "platform_package_", "platform_variant_", "tenant_package_installs", "workspace_vaults"])) {
+    tableFamily = "platform_private_capability";
+    ownerEngineKey = "platform_private_capability_vault_engine";
+    usageStatus = rows > 0 ? "runtime_registry" : "planned_placeholder";
+    retentionClass = "registry";
+    archiveStrategy = "archive_disabled_rows";
+    cleanupStrategy = "review_superseded_private_assets";
+    riskLevel = "high";
+    reasons.push("platform_private_capability_family");
+  } else if (includesAny(tableName, ["repo_", "repo_source_"])) {
+    tableFamily = "developer_repository";
+    ownerEngineKey = "developer_platform_lifecycle_engine";
+    usageStatus = rows > 0 ? "runtime_registry" : "planned_placeholder";
+    retentionClass = "registry";
+    archiveStrategy = "archive_disabled_rows";
+    cleanupStrategy = "expire_stale_repo_runs";
+    riskLevel = "medium";
+    reasons.push("developer_repository_family");
+  } else if (includesAny(tableName, ["platform_capability_source_resolutions"])) {
+    tableFamily = "recovery_capability_taxonomy";
+    ownerEngineKey = "recovery_capability_taxonomy_engine";
+    usageStatus = rows > 0 ? "runtime_registry" : "planned_placeholder";
+    retentionClass = "registry";
+    archiveStrategy = "archive_disabled_rows";
+    cleanupStrategy = "review_superseded_resolutions";
+    riskLevel = "medium";
+    reasons.push("capability_taxonomy_family");
+  } else if (includesAny(tableName, ["asset_equivalence_"])) {
+    tableFamily = "platform_graph";
+    ownerEngineKey = "platform_graph_memory_lifecycle_engine";
+    usageStatus = rows > 0 ? "runtime_registry" : "planned_placeholder";
+    retentionClass = "canonical_with_compaction";
+    archiveStrategy = "compact_superseded_versions";
+    cleanupStrategy = "dedupe_and_compact";
+    riskLevel = "medium";
+    reasons.push("asset_equivalence_graph_family");
   } else if (/^(repair_backup_|rb_|collation_backup_|zz_collation_backup_)/i.test(tableName)) {
     tableFamily = "backup_repair_snapshot";
     ownerEngineKey = "repair_archive_engine";
@@ -196,7 +272,9 @@ function lifecycleBucket(row) {
   if (row.usage_status === "archive_candidate" || /archive_candidate/.test(row.cleanup_strategy)) {
     return "archive_candidate";
   }
-  if (row.usage_status === "runtime_unclassified" || row.owner_engine_key === "database_table_lifecycle_engine") {
+  const defaultLifecycleOwnership = row.owner_engine_key === "database_table_lifecycle_engine"
+    && ["uncategorized", "runtime_or_registry", "tenant_scoped_runtime"].includes(row.table_family);
+  if (row.usage_status === "runtime_unclassified" || defaultLifecycleOwnership) {
     return "unlinked";
   }
   if (row.owner_engine_key && ["runtime_canonical", "runtime_derived", "runtime_registry", "runtime_log", "backup_snapshot"].includes(row.usage_status)) {
@@ -1552,20 +1630,29 @@ export async function applyDatabaseLifecycleSchedulerApproval(plan = {}, deps = 
   return { event_id: eventId, event_key: eventKey, target_type: plan.target_type, target_key: plan.target_key };
 }
 
-export function assertDatabaseTableLifecycleRegistryUpsertAllowed({ apply = false, confirm } = {}) {
+export function assertDatabaseTableLifecycleRegistryUpsertAllowed({ apply = false, confirm, includeExisting = false } = {}) {
+  const requiredConfirmation = includeExisting
+    ? DATABASE_TABLE_LIFECYCLE_REFRESH_CONFIRMATION
+    : DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION;
   if (!apply) {
     return {
       allowed: false,
       mode: "dry_run",
-      required_confirmation: DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION,
+      selection_mode: includeExisting ? "include_existing" : "missing_only",
+      required_confirmation: requiredConfirmation,
     };
   }
-  if (confirm !== DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION) {
-    const err = new Error(`Apply requires --confirm ${DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION}.`);
+  if (confirm !== requiredConfirmation) {
+    const err = new Error(`Apply requires --confirm ${requiredConfirmation}.`);
     err.code = "DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION_REQUIRED";
     throw err;
   }
-  return { allowed: true, mode: "apply" };
+  return {
+    allowed: true,
+    mode: "apply",
+    selection_mode: includeExisting ? "include_existing" : "missing_only",
+    required_confirmation: requiredConfirmation,
+  };
 }
 
 async function loadDatabaseLifecycleRows(pool) {
@@ -1582,7 +1669,8 @@ async function loadDatabaseLifecycleRows(pool) {
        dmi.authority_model,
        dmi.write_strategy,
        dmi.migration_status,
-       dmi.table_name IS NOT NULL AS inventory_registered
+       dmi.table_name IS NOT NULL AS inventory_registered,
+       lifecycle.table_name IS NOT NULL AS lifecycle_registered
      FROM information_schema.tables t
      LEFT JOIN information_schema.columns c
        ON c.table_schema = t.table_schema AND c.table_name = t.table_name
@@ -1592,10 +1680,12 @@ async function loadDatabaseLifecycleRows(pool) {
       AND k.referenced_table_name IS NOT NULL
      LEFT JOIN data_migration_inventory dmi
        ON dmi.table_name = t.table_name
+     LEFT JOIN database_table_lifecycle_registry lifecycle
+       ON lifecycle.table_name = t.table_name
      WHERE t.table_schema = DATABASE() AND t.table_type = 'BASE TABLE'
      GROUP BY t.table_name, t.table_type, t.table_rows, t.data_length, t.index_length,
               t.update_time, t.create_time, dmi.authority_model, dmi.write_strategy,
-              dmi.migration_status, dmi.table_name
+              dmi.migration_status, dmi.table_name, lifecycle.table_name
      ORDER BY size_mb DESC, t.table_name`
   );
   return rows;
@@ -1608,11 +1698,20 @@ export async function runDatabaseTableLifecycleCensus({ limit = 250 } = {}, deps
   return buildDatabaseTableLifecycleDecisionBrief(capped);
 }
 
-export async function planDatabaseTableLifecycleRegistryUpsert({ limit = 250 } = {}, deps = {}) {
+export async function planDatabaseTableLifecycleRegistryUpsert({ limit = 250, include_existing = false } = {}, deps = {}) {
   const pool = deps.pool || getPool();
   const rows = await loadDatabaseLifecycleRows(pool);
-  const capped = rows.slice(0, Math.max(1, Math.min(number(limit, 250), 1000)));
-  return buildDatabaseTableLifecycleRegisterPlan(capped);
+  const includeExisting = Boolean(include_existing);
+  const isLifecycleRegistered = (row) => number(row.lifecycle_registered) > 0;
+  const candidates = includeExisting ? rows : rows.filter((row) => !isLifecycleRegistered(row));
+  const capped = candidates.slice(0, Math.max(1, Math.min(number(limit, 250), 1000)));
+  return {
+    ...buildDatabaseTableLifecycleRegisterPlan(capped),
+    selection_mode: includeExisting ? "include_existing" : "missing_only",
+    live_table_count: rows.length,
+    existing_registry_count: rows.filter(isLifecycleRegistered).length,
+    selected_table_count: capped.length,
+  };
 }
 
 export async function planDatabaseLifecycleRetentionReview({ limit = 50 } = {}, deps = {}) {
