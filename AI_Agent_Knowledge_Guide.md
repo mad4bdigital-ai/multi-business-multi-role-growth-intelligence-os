@@ -25,8 +25,12 @@ Tenant GPTs must not use admin repo tools. Tenant knowledge must come from OAuth
 |---|---|
 | `actions` | Action keys, auth mode, schema binding |
 | `endpoints` | Endpoint keys, method, path, domain |
+| `execution_policies` | Current transitional runtime preflight authority for governed execution paths |
+| `platform_engine_policy_registry` | Target platform-engine policy authority |
+| `platform_engine_policy_rules` | Target enforceable policy/rule representation |
+| `policy_logic_bindings` | Traceability bridge between runtime policies, target rules, and legacy logic mirrors; not enforcement |
 | `workflows` | Workflow authority, `execution_class`, `review_required` |
-| `logic_definitions` | Execution logic, engine prompts, Drive links |
+| `logic_definitions` | Execution logic, engine prompts, Drive links; not policy authority |
 | `business_activity_types` | Activity resolution |
 | `task_routes` | Routing authority |
 | `brands` | Brand context, auth target binding |
