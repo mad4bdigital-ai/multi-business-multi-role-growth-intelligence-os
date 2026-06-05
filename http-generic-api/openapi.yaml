@@ -320,8 +320,11 @@ components:
         action_kind: { type: string, enum: [analysis_step, tool_call] }
         dry_run: { type: boolean, enum: [true] }
         will_execute_external_action: { type: boolean, enum: [false] }
-        will_call_tools: { type: boolean, enum: [false] }
+        will_call_tools:
+          type: boolean
+          description: True only when an allowlisted read-only tool_call action explicitly opts into execution.
         will_preflight_tool_call: { type: boolean }
+        will_execute_read_only_tool_call: { type: boolean }
         will_mutate_repo: { type: boolean, enum: [false] }
         will_call_provider: { type: boolean, enum: [false] }
         will_call_local_device: { type: boolean, enum: [false] }
