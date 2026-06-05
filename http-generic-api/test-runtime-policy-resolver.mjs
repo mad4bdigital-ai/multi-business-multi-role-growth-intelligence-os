@@ -133,7 +133,7 @@ assert.equal(fallbackBlocked.target_rule_load_status, "unavailable_fallback_appl
 assert.deepEqual(fallbackBlocked.errors, ["n8n_workflow_execution_requires_explicit_reason"]);
 
 const migration = readFileSync(
-  new URL("./migrations/198_sprint67_runtime_policy_resolver_monitoring_and_mirror_classification.sql", import.meta.url),
+  new URL("./migrations/199_sprint67_runtime_policy_resolver_monitoring_and_mirror_classification.sql", import.meta.url),
   "utf8",
 );
 assert.match(migration, /CREATE OR REPLACE VIEW v_execution_association_monitoring_summary/i);

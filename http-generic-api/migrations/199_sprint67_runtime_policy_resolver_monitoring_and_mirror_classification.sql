@@ -6,7 +6,7 @@ WITH monitoring_baseline AS (
   SELECT COALESCE(
     (SELECT MAX(applied_at)
        FROM governed_migration_ledger
-      WHERE migration_file = '198_sprint67_runtime_policy_resolver_monitoring_and_mirror_classification.sql'),
+      WHERE migration_file = '199_sprint67_runtime_policy_resolver_monitoring_and_mirror_classification.sql'),
     DATE_SUB(NOW(), INTERVAL 24 HOUR)
   ) AS baseline_at
 )
