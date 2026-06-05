@@ -99,6 +99,7 @@ export const testCommands = [
   "node test-connect-routes.mjs",
   "node test-tenant-infrastructure-intake.mjs",
   "node test-tenant-infrastructure-readiness-tools.mjs",
+  "node test-tenant-database-schema-read.mjs",
   "node test-task-route-authority-resolver.mjs",
   "node test-workflow-registry-authority-resolver.mjs",
   "node test-action-registry-authority-resolver.mjs",
