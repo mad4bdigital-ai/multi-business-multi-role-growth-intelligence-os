@@ -118,6 +118,9 @@ const SENSITIVE_RESULT_KEYS = [
   "password", "secret", "token", "api_key", "apikey", "credential", "private_key",
   "client_secret", "refresh_token", "access_token", "authorization", "cookie", "set-cookie",
 ];
+const SAFE_BOOLEAN_METADATA_KEYS = new Set([
+  "secrets_included",
+]);
 const READ_ONLY_TOOL_OUTPUT_DEFAULT_MAX_CHARS = 6000;
 const READ_ONLY_TOOL_OUTPUT_HARD_MAX_CHARS = 10000;
 
@@ -127,8 +130,9 @@ function clampNumber(value, fallback, min, max) {
   return Math.max(min, Math.min(max, Math.floor(parsed)));
 }
 
-function hasSensitiveKey(key = "") {
+function hasSensitiveKey(key = "", value = undefined) {
   const lower = String(key || "").toLowerCase();
+  if (SAFE_BOOLEAN_METADATA_KEYS.has(lower) && typeof value === "boolean") return false;
   return SENSITIVE_RESULT_KEYS.some((part) => lower.includes(part));
 }
 
@@ -154,7 +158,7 @@ function redactForEvidence(value, { depth = 0, maxDepth = 6, maxArray = 25, maxK
   const out = {};
   const entries = Object.entries(value).slice(0, maxKeys);
   for (const [key, child] of entries) {
-    out[key] = hasSensitiveKey(key) ? "[redacted]" : redactForEvidence(child, { depth: depth + 1, maxDepth, maxArray, maxKeys, maxString });
+    out[key] = hasSensitiveKey(key, child) ? "[redacted]" : redactForEvidence(child, { depth: depth + 1, maxDepth, maxArray, maxKeys, maxString });
   }
   if (Object.keys(value).length > maxKeys) out.truncated_object_keys = Object.keys(value).length - maxKeys;
   return out;

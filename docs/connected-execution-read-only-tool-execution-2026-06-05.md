@@ -73,6 +73,8 @@ output_redaction: key_and_string_pattern_redaction_v1
 
 Evidence stores a redacted/truncated result preview. Sensitive keys and common bearer/API-key/token patterns are redacted before evidence writeback.
 
+Safe boolean metadata keys, currently `secrets_included`, are preserved when their value is a boolean so evidence can distinguish `false` from an actual redacted secret. Non-boolean values under sensitive key names remain redacted.
+
 ## Out of scope
 
 The worker still does not allow:

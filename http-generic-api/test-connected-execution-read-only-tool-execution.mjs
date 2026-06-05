@@ -17,6 +17,10 @@ assert(worker.includes("READ_ONLY_TOOL_OUTPUT_DEFAULT_MAX_CHARS = 6000"), "worke
 assert(worker.includes("READ_ONLY_TOOL_OUTPUT_HARD_MAX_CHARS = 10000"), "worker must define hard output cap");
 assert(worker.includes("max_tool_calls: 1"), "worker must budget one tool call per action");
 assert(worker.includes("redactForEvidence"), "worker must redact output before evidence");
+assert(worker.includes("SAFE_BOOLEAN_METADATA_KEYS"), "worker must preserve approved boolean metadata while redacting sensitive values");
+assert(worker.includes("\"secrets_included\""), "worker must recognize secrets_included as safe boolean metadata");
+assert(worker.includes("typeof value === \"boolean\""), "worker must only preserve safe metadata when the value is boolean");
+assert(worker.includes("hasSensitiveKey(key, child)"), "worker must inspect values before deciding key redaction");
 assert(worker.includes("tool_result_redacted"), "worker must store redacted result evidence");
 assert(worker.includes("read_only_tool_call_execution_v1"), "worker must mark execution phase");
 assert(worker.includes("internal_tool_dispatch_executed: true"), "execution evidence must record internal dispatch");
@@ -56,5 +60,7 @@ assert(docs.includes("max_tool_calls: 1"), "docs must document tool-call budget"
 assert(docs.includes("output_redaction"), "docs must document output redaction");
 assert(docs.includes("read_only_tool_call_allowlist_v2"), "docs must document the bumped allowlist version");
 assert(docs.includes("platform_graph_status"), "docs must document the second diagnostic GET tool");
+assert(docs.includes("Safe boolean metadata keys"), "docs must document safe boolean metadata preservation");
+assert(docs.includes("Non-boolean values under sensitive key names remain redacted"), "docs must preserve sensitive-value redaction contract");
 
 console.log("connected execution read-only tool execution contract tests passed");
