@@ -399,8 +399,12 @@ export async function diagnoseWordpressPublishAuthority(plan = {}, deps = {}) {
   }
 
   const grant = await resolveCmsSiteGrant({ plan, brand, requestedStatus }, deps);
-  const allowed = Boolean(grant.ok);
-  const legacyAllowed = allowed && ["legacy_site_not_registered", "cms_site_grants_unavailable_legacy_allowed"].includes(grant.status);
+  const cmsAllowed = Boolean(grant.ok);
+  const legacyAllowed = cmsAllowed && ["legacy_site_not_registered", "cms_site_grants_unavailable_legacy_allowed"].includes(grant.status);
+  const workspaceGrant = cmsAllowed && !legacyAllowed && grant.grant_required && grant.site_id
+    ? await resolveWorkspaceResourceGrant({ plan, siteId: grant.site_id, requestedStatus }, deps)
+    : null;
+  const allowed = cmsAllowed && (!workspaceGrant || workspaceGrant.ok);
   const status = allowed
     ? (legacyAllowed ? "wordpress_publish_authority_legacy_allowed" : "wordpress_publish_authority_allowed")
     : "wordpress_publish_authority_blocked";
