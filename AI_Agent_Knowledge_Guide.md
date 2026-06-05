@@ -115,6 +115,25 @@ Do not start GitHub until the bootstrap row resolves. Halt if Sheets is rate-lim
 
 Every execution must validate surface bindings, route/workflow authority, dependency readiness, and credential resolution. Recovered classification is forbidden without same-cycle validation.
 
+### Runtime policy preflight governance
+
+`execution_policies` is the active transitional runtime preflight authority. Agents must treat it as required runtime policy evidence until a target-rule resolver bridge proves parity with `platform_engine_policy_rules`.
+
+Current required runtime policy seeds cover:
+
+- repository mutation safety and stale/diverged `repo_patch_apply` branches
+- external app action preflight visibility
+- blocking `n8n execute_workflow` side-effect guard
+- connector dispatch preflight visibility
+- agent-loop preflight visibility
+- Brand Core requirement for writing/content/SEO/publish/strategy flows
+
+`platform_engine_policy_registry` and `platform_engine_policy_rules` contain additive target representations. They must not be treated as full runtime replacement until `runtimePolicyResolver` emits source evidence and compatibility fallback is validated.
+
+`policy_logic_bindings` is a traceability bridge only. It must not be used as an enforcement source, and new policy rows must not be mirrored into `logic_definitions` by default.
+
+Release readiness must include `runtime_policy_seed_readiness`; missing or invalid runtime seeds block release readiness.
+
 ### Platform Plugin smoke certification governance
 
 Platform Plugin REST actions must not be treated as dispatch-ready just because `app_integrations`, action bindings, or endpoint rows exist. The public dispatch path must resolve readiness, credential/connection state, action grants, and smoke certification before execution.
