@@ -15,6 +15,7 @@ export const testCommands = [
   "node test-credential-intake-enforcement.mjs",
   "node test-local-connector-key-promotion.mjs",
   "node test-wordpress-blog-publish-orchestrator.mjs",
+  "node test-wordpress-resource-grant-enforcement.mjs",
   "node test-wordpress-blog-publish-connector-binding.mjs",
   "node test-execution-plan-dispatch-route.mjs",
   "node test-wordpress-auth-context-diagnostic-route.mjs",
