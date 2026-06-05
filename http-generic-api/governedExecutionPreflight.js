@@ -27,17 +27,32 @@ function policyAllowsBlocking(policy) {
   return policy.blocking_bool && parseBoolean(value.blocking, policy.blocking_bool);
 }
 
-function makePreflightResult({ classification = "allow", policies = [], blockingPolicies = [], warnings = [], errors = [], evidence = {} } = {}) {
+function makePreflightResult({ classification = "allow", policies = [], blockingPolicies = [], warnings = [], errors = [], evidence = {}, runtimePolicyResolution = null } = {}) {
+  const targetRules = runtimePolicyResolution?.target_rules || [];
   return {
     ok: classification !== "blocked",
     classification,
-    policy_source: "execution_policies",
+    policy_source: runtimePolicyResolution?.policy_source || "execution_policies",
+    enforcement_source: runtimePolicyResolution?.enforcement_source || "execution_policies",
+    target_rule_source: runtimePolicyResolution?.target_rule_source || null,
     policies: summarizePolicies(policies),
+    target_rules: summarizePlatformPolicyRules(targetRules),
     blocking_policies: summarizePolicies(blockingPolicies),
     warnings,
     errors,
-    evidence,
+    evidence: {
+      ...evidence,
+      runtime_policy_resolution: runtimePolicyResolution?.evidence || null,
+    },
     secrets_included: false,
+  };
+}
+
+async function resolvePolicies(context = {}, deps = {}) {
+  const runtimePolicyResolution = await resolveRuntimePolicyContext(context, deps);
+  return {
+    runtimePolicyResolution,
+    policies: runtimePolicyResolution.policies || [],
   };
 }
 
