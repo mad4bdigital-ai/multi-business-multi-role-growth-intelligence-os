@@ -10,7 +10,7 @@ UPDATE execution_policies
 SET policy_value = JSON_OBJECT(
     'rule','safe_additive_repair_preferred_over_omission',
     'scope','platform_schema_repair',
-    'safe_additive_operations',JSON_ARRAY('ADD COLUMN IF NOT EXISTS nullable column','ADD COLUMN IF NOT EXISTS timestamp audit column','idempotent registry guard table creation','CREATE OR REPLACE diagnostic view'),
+    'safe_additive_operations',JSON_ARRAY('idempotent nullable column add','idempotent timestamp audit column add','idempotent registry guard table creation','idempotent diagnostic view replacement'),
     'forbidden_shortcuts',JSON_ARRAY('omit registry update because a required column is missing','claim readiness after skipping intended mutation','mark recovered without same-cycle readback'),
     'requirements',JSON_ARRAY('preflight existing schema','apply only additive repair','perform same-cycle readback','record ledger/audit evidence')
   ),
@@ -29,7 +29,7 @@ SELECT 'platform_repair_governance', 'safe_additive_repair_preferred_over_omissi
   JSON_OBJECT(
     'rule','safe_additive_repair_preferred_over_omission',
     'scope','platform_schema_repair',
-    'safe_additive_operations',JSON_ARRAY('ADD COLUMN IF NOT EXISTS nullable column','ADD COLUMN IF NOT EXISTS timestamp audit column','idempotent registry guard table creation','CREATE OR REPLACE diagnostic view'),
+    'safe_additive_operations',JSON_ARRAY('idempotent nullable column add','idempotent timestamp audit column add','idempotent registry guard table creation','idempotent diagnostic view replacement'),
     'forbidden_shortcuts',JSON_ARRAY('omit registry update because a required column is missing','claim readiness after skipping intended mutation','mark recovered without same-cycle readback'),
     'requirements',JSON_ARRAY('preflight existing schema','apply only additive repair','perform same-cycle readback','record ledger/audit evidence')
   ),
