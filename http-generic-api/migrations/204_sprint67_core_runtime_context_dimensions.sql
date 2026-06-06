@@ -244,7 +244,7 @@ JOIN customer_sessions s ON e.session_id COLLATE utf8mb4_unicode_ci = s.session_
  WHERE e.user_id IS NULL OR e.actor_id IS NULL OR e.actor_type IS NULL OR e.brand_key IS NULL OR e.workspace_key IS NULL OR e.correlation_id IS NULL OR e.action_key IS NULL;
 
 UPDATE workflow_runs wr
-LEFT JOIN execution_plans ep ON ep.plan_id = wr.plan_id
+LEFT JOIN execution_plans ep ON ep.plan_id COLLATE utf8mb4_unicode_ci = wr.plan_id COLLATE utf8mb4_unicode_ci
    SET wr.workspace_id = COALESCE(wr.workspace_id, ep.workspace_id),
        wr.workspace_key = COALESCE(wr.workspace_key, ep.workspace_key),
        wr.actor_id = COALESCE(wr.actor_id, wr.user_id, ep.user_id),
