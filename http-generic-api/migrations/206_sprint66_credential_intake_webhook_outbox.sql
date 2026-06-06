@@ -22,9 +22,9 @@ CREATE TABLE IF NOT EXISTS webhook_deliveries (
   KEY idx_webhook_deliveries_webhook (webhook_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO admin_tool_registry (
+INSERT INTO admin_platform_endpoint_tools (
   tool_key, display_name, description, http_method, http_path,
-  input_schema, tags, is_enabled, sort_order
+  path_param_keys, input_schema, fixed_body, tags, is_enabled, sort_order
 ) VALUES (
   'webhook_delivery_dispatch',
   'Webhook Delivery Dispatch',
