@@ -19,6 +19,10 @@ const REASON_CODES = Object.freeze({
  *   partial provider success → validating
  *   default → degraded
  */
+function sheetsStepSatisfied(evidence = {}) {
+  return evidence.sheets_ok || evidence.sheets_required === false || evidence.sheets_skipped === true;
+}
+
 export function classifyActivationFromEvidence(evidence = {}) {
   if (!evidence.transport_attempted) {
     return {
