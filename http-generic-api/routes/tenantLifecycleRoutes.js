@@ -368,6 +368,49 @@ export function buildTenantLifecycleRoutes() {
     }
   });
 
+  router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/revoke", requireUserJwt, async (req, res) => {
+    try {
+      const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+      if (!owner) return;
+      const [result] = await getPool().query(
+        "UPDATE invitations SET status='revoked', revoked_by=?, revoked_at=NOW() WHERE tenant_id=? AND invitation_id=? AND status='pending'",
+        [req.auth.user_id, req.params.tenant_id, req.params.invitation_id]
+      );
+      return res.status(result.affectedRows ? 200 : 404).json({ ok: Boolean(result.affectedRows), tenant_id: req.params.tenant_id, invitation_id: req.params.invitation_id, status: result.affectedRows ? "revoked" : "not_found", secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspace_invitation_revoke_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/resend", requireUserJwt, async (req, res) => {
+    try {
+      const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+      if (!owner) return;
+      const token = randomBytes(32).toString("hex");
+      const [result] = await getPool().query(
+        "UPDATE invitations SET token=?, status='pending', created_by=?, expires_at=DATE_ADD(NOW(), INTERVAL 14 DAY), revoked_by=NULL, revoked_at=NULL WHERE tenant_id=? AND invitation_id=? AND status IN ('pending','expired','revoked')",
+        [token, req.auth.user_id, req.params.tenant_id, req.params.invitation_id]
+      );
+      return res.status(result.affectedRows ? 200 : 404).json({ ok: Boolean(result.affectedRows), tenant_id: req.params.tenant_id, invitation_id: req.params.invitation_id, status: result.affectedRows ? "pending" : "not_found", token: result.affectedRows ? token : null, expires_in_days: result.affectedRows ? 14 : null, secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspace_invitation_resend_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/me/workspaces/:tenant_id/invitations/expire-stale", requireUserJwt, async (req, res) => {
+    try {
+      const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+      if (!owner) return;
+      const [result] = await getPool().query(
+        "UPDATE invitations SET status='expired' WHERE tenant_id=? AND status='pending' AND expires_at < NOW()",
+        [req.params.tenant_id]
+      );
+      return res.json({ ok: true, tenant_id: req.params.tenant_id, expired_count: result.affectedRows || 0, secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspace_invitations_expire_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   router.get("/me/workspaces/:tenant_id/invitations", requireUserJwt, async (req, res) => {
     try {
       const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
