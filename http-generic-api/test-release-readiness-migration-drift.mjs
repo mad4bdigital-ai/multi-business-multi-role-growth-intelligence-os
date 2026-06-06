@@ -71,6 +71,15 @@ assert(requirements.engine_rules.includes("resource_authority_publish_gate"), "m
 assert(requirements.engine_skills.includes("resource_authority"), "must detect engine skill prompt rows");
 assert(backtickedInsertRequirements.admin_tools.includes("backticked_admin_tool"), "must detect admin tool tuple when table and columns use backticks");
 
+const stringLiteralRequirements = extractMigrationReadinessRequirementsFromSql(`
+UPDATE execution_policies
+SET policy_value = JSON_OBJECT(
+  'safe_additive_operations', JSON_ARRAY('CREATE TABLE IF NOT EXISTS registry guard table')
+)
+WHERE policy_key = 'safe_additive_repair_preferred_over_omission';
+`);
+assert(!stringLiteralRequirements.schema_objects.includes("registry"), "must not detect CREATE TABLE phrases inside SQL string literals as schema objects");
+
 const sourceToolNames = extractNamedToolKeysFromSource(`
   const TOOLS = [
     { name: "activation_sheets_bootstrap_read" },
