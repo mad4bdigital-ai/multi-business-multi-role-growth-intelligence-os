@@ -236,9 +236,9 @@ export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, work
       const events = await sinkChainEvents({ source_run_id: run_id, source_agent_id: agent_id, linked_workflows, tenant_id, output, passed: rulePassed });
       for (const e of events) {
         dispatched.push({ sink: "chain_event", id: e.event_id, target: e.target_workflow_key });
-        await logSink(run_id, agent_id, tenant_id, "chain_event", e.event_id, "ok");
+        await logSink(run_id, agent_id, tenant_id, "chain_event", e.event_id, "ok", null, sinkContext);
       }
-    } catch (err) { await logSink(run_id, agent_id, tenant_id, "chain_event", null, "failed", err.message); }
+    } catch (err) { await logSink(run_id, agent_id, tenant_id, "chain_event", null, "failed", err.message, sinkContext); }
   }
 
   try {
