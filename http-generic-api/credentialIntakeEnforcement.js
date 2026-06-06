@@ -104,6 +104,35 @@ function credentialSchemaForRequirement(input = {}, effective = {}, authType = "
   const fieldName = inferCredentialField(input, effective, authType);
   const label = str(input.credential_label || input.credentialLabel)
     || fieldName.toUpperCase();
+  if (authType === "ssh_key_pair") {
+    const sshFieldTypes = {
+      ssh_host: { label: "SSH host", type: "text", secret: false, autocomplete: "off" },
+      ssh_port: { label: "SSH port", type: "number", secret: false, autocomplete: "off" },
+      ssh_user: { label: "SSH username", type: "text", secret: false, autocomplete: "username" },
+      ssh_private_key: { label: "SSH private key", type: "textarea", secret: true, autocomplete: "new-password" },
+    };
+    const config = sshFieldTypes[fieldName] || { label, type: fieldName.includes("key") ? "textarea" : "text", secret: fieldName.includes("key"), autocomplete: "off" };
+    return {
+      fields: [
+        { name: fieldName, label: str(input.credential_label || input.credentialLabel) || config.label, type: config.type, target: "credentials", required: true, secret: config.secret, autocomplete: config.autocomplete },
+      ],
+    };
+  }
+  if (authType === "remote_database") {
+    const dbFieldTypes = {
+      db_host: { label: "DB host", type: "text", secret: false },
+      db_port: { label: "DB port", type: "number", secret: false },
+      db_name: { label: "DB name", type: "text", secret: false },
+      db_user: { label: "DB username", type: "text", secret: false },
+      db_password: { label: "DB password", type: "password", secret: true },
+    };
+    const config = dbFieldTypes[fieldName] || { label, type: "password", secret: true };
+    return {
+      fields: [
+        { name: fieldName, label: str(input.credential_label || input.credentialLabel) || config.label, type: config.type, target: "credentials", required: true, secret: config.secret, autocomplete: config.secret ? "new-password" : "off" },
+      ],
+    };
+  }
   if (authType === "basic_auth") {
     return {
       fields: [
