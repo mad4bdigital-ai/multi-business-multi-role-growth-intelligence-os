@@ -31,20 +31,12 @@ ON DUPLICATE KEY UPDATE
  updated_at=CURRENT_TIMESTAMP;
 
 INSERT INTO readiness_checks
-(check_key, scope, status, severity, check_payload_json, notes)
+(check_id, tenant_id, check_key, check_status, detail)
 VALUES
-('missing-credential-intake-handoff-v1','credential_intake','pending','high',
- JSON_OBJECT(
-   'expected_behavior','blocked_missing_secret returns credential_intake_required handoff when auto intake is enabled',
-   'platform_admin_example','ssh_port missing for hostinger_ssh_prod_platform creates remote_ssh_runtime ssh_key_pair intake with platform_secret mapping',
-   'tenant_example','tenant api_key/app_password missing creates tenant/user-scoped intake and does not auto-promote platform secrets',
-   'secrets_included',false
- ),
- 'Readiness passes when CI covers credentialIntakeEnforcement missing credential handoff and at least one runtime route surfaces credential_intake details on missing credential.'
+(UUID(), 'e989a841-fce0-4ced-be76-463e8202a066', 'missing-credential-intake-handoff-v1', 'pending',
+ 'Credential intake handoff must be returned for blocked_missing_secret across platform/admin and tenant/user scopes. CI must cover no-secret responses, platform auto-promotion metadata, and tenant scope boundaries.'
 )
 ON DUPLICATE KEY UPDATE
- status=VALUES(status),
- severity=VALUES(severity),
- check_payload_json=VALUES(check_payload_json),
- notes=VALUES(notes),
- updated_at=CURRENT_TIMESTAMP;
+ check_status=VALUES(check_status),
+ detail=VALUES(detail),
+ checked_at=CURRENT_TIMESTAMP;
