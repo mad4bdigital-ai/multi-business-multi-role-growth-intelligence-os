@@ -634,6 +634,7 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     expected_commit_sha: expectedCommitSha,
     force_clean: forceClean,
     restart,
+    ssh_auth_mode: sshAuthMode,
     dry_run: dryRun,
     will_execute: !dryRun,
     dispatch_plan: {
