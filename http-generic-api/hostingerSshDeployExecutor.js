@@ -114,20 +114,51 @@ async function loadTarget(pool, targetId) {
   };
 }
 
-async function resolveSshCredential(pool, target, role) {
+async function resolveSshCredential(pool, target, role, input = {}) {
   const result = await resolveEffectiveCredential({
     tenantId: target.tenant_id,
-    userId: target.user_id || undefined,
+    userId: target.user_id || input.user_id || input.userId || undefined,
     systemId: target.system_id || undefined,
     credentialRole: role,
     includeSecret: true,
     allowPlatformFallback: true,
   }, { pool });
   if (result?.status !== "resolved" || !compact(result.secret, 20000)) {
+    const credentialIntake = await maybeCreateCredentialIntakeRequirement({
+      tenantId: target.tenant_id,
+      userId: input.user_id || input.userId || target.user_id || undefined,
+      platformAdminUserId: input.platform_admin_user_id || input.platformAdminUserId,
+      systemId: target.system_id || undefined,
+      appKey: "remote_ssh_runtime",
+      authType: "ssh_key_pair",
+      credentialRole: role,
+      credentialField: role,
+      credentialLabel: role === "ssh_port" ? "SSH port" : role,
+      displayLabel: `${target.host_label || "Hostinger SSH"} ${role}`,
+      intakeScope: result?.owner_type === "platform" || String(result?.credential_ref || "").startsWith("platform_secret:") ? "platform" : "tenant",
+      providerFamily: target.provider_family,
+      connectorFamily: target.connector_family,
+      ownerId: result?.owner_id || "growth_intelligence_platform",
+      metadata: {
+        target_id: target.target_id,
+        target_kind: target.target_kind,
+        source_route: "remote_runtime_hostinger_ssh_probe_or_deploy",
+        auto_handoff_reason: "missing_required_ssh_credential",
+        secrets_included: false,
+      },
+      autoIntake: true,
+      requireCredentialIntakeOnMissing: true,
+      expiresInMinutes: 24 * 60,
+      createdBy: "remote_runtime_missing_ssh_credential_handoff",
+    }, result || {}, { pool }).catch((handoffErr) => ({
+      status: "credential_intake_handoff_failed",
+      reason: handoffErr.message,
+      secrets_included: false,
+    }));
     const err = new Error(`Required SSH credential ${role} is not resolved.`);
     err.status = 409;
     err.code = "remote_runtime_ssh_credential_not_resolved";
-    err.details = { role, status: result?.status || "missing" };
+    err.details = { role, status: result?.status || "missing", credential_intake: credentialIntake, secrets_included: false };
     throw err;
   }
   return String(result.secret);
