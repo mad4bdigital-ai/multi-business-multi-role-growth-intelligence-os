@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   actionableMigrationDriftCounts,
   assessMigrationSqlPreflight,
@@ -199,6 +200,50 @@ const guardedInsertSelectPreflight = assessMigrationSqlPreflight(
 );
 assert.equal(guardedInsertSelectPreflight.status, "pass", "INSERT SELECT guarded by NOT EXISTS should pass as idempotent");
 assert.equal(guardedInsertSelectPreflight.counts.insert_idempotent, 1, "must count NOT EXISTS-guarded INSERT SELECT as idempotent");
+
+const guardedUpdatePreflight = assessMigrationSqlPreflight(
+  "guarded-update.sql",
+  "UPDATE execution_plans SET workflow_id = 'wf.example' WHERE workflow_id IS NULL;"
+);
+assert.equal(guardedUpdatePreflight.status, "pass", "UPDATE guarded by WHERE should pass preflight");
+assert.equal(guardedUpdatePreflight.counts.update, 1, "must count UPDATE statements");
+assert.equal(guardedUpdatePreflight.counts.update_guarded, 1, "must count WHERE-guarded UPDATE statements");
+
+const unguardedUpdatePreflight = assessMigrationSqlPreflight(
+  "unguarded-update.sql",
+  "UPDATE execution_plans SET workflow_id = 'wf.example';"
+);
+assert.equal(unguardedUpdatePreflight.status, "warn", "UPDATE without WHERE should warn");
+assert(
+  unguardedUpdatePreflight.risks.some((risk) => risk.code === "update_without_where"),
+  "must flag UPDATE without WHERE"
+);
+
+const subqueryOnlyGuardUpdatePreflight = assessMigrationSqlPreflight(
+  "subquery-only-guard-update.sql",
+  "UPDATE execution_plans ep JOIN (SELECT workflow_key FROM workflows WHERE active = 1) wf ON wf.workflow_key = ep.workflow_key SET ep.workflow_id = wf.workflow_key;"
+);
+assert.equal(subqueryOnlyGuardUpdatePreflight.status, "warn", "UPDATE must not treat a subquery WHERE as a target-row guard");
+assert.equal(subqueryOnlyGuardUpdatePreflight.counts.update_guarded, 0, "must require a top-level UPDATE WHERE clause");
+
+const commentOnlyGuardUpdatePreflight = assessMigrationSqlPreflight(
+  "comment-only-guard-update.sql",
+  "UPDATE execution_plans SET workflow_id = 'wf.example' -- WHERE workflow_id IS NULL"
+);
+assert.equal(commentOnlyGuardUpdatePreflight.status, "warn", "UPDATE must not treat an inline-comment WHERE as a target-row guard");
+assert.equal(commentOnlyGuardUpdatePreflight.counts.update_guarded, 0, "must ignore inline comments when finding a top-level WHERE");
+
+const workflowIdentityBackfillSql = readFileSync(
+  new URL("migrations/209_sprint67_execution_plan_workflow_identity_backfill.sql", import.meta.url),
+  "utf8"
+);
+const workflowIdentityBackfillPreflight = assessMigrationSqlPreflight(
+  "209_sprint67_execution_plan_workflow_identity_backfill.sql",
+  workflowIdentityBackfillSql
+);
+assert.equal(workflowIdentityBackfillPreflight.status, "pass", "workflow identity backfill must pass governed migration preflight");
+assert.equal(workflowIdentityBackfillPreflight.counts.statements, 1, "workflow identity backfill must remain one bounded UPDATE");
+assert.equal(workflowIdentityBackfillPreflight.counts.update_guarded, 1, "workflow identity backfill must retain a top-level WHERE guard");
 
 const idempotentAlterPreflight = assessMigrationSqlPreflight(
   "idempotent-alter.sql",
