@@ -80,8 +80,17 @@ When resolving a runtime sync gap, record:
 - GitHub `main` SHA.
 - CI/OpenAPI status.
 - `release_readiness` result.
-- `/health` result before and after sync.
+- Hostinger filesystem checkout SHA when available.
+- `/health` result before and after sync, including `version` and expected runtime profile.
 - live `repo_inspect` readback showing expected symbols.
 - credential-intake session ID only after sync.
+
+When a DB repair temporarily clears a live blocker before process reload, record it separately from deployment status:
+
+- exact SQL repair scope and safety class
+- readback of altered column definitions
+- rerun of the exact failing query shape
+- whether runtime `/health.version` is still stale
+- migration/test/docs PR that codifies the repair
 
 Never record raw secret values.
