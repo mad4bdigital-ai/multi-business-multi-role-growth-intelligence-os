@@ -24,6 +24,8 @@ assert(probeBlock.includes("activate_on_success"), "target activation must be ex
 assert(probeBlock.includes("status = 'active'"), "target active status must only be set after probe success");
 assert(probeBlock.includes("probeOk && activateOnSuccess"), "activation must require same-cycle probe success and explicit flag");
 assert(probeBlock.includes("secrets_included: false"), "probe responses and evidence must mark secrets excluded");
+assert(executor.includes("isPlatformManagedTarget"), "managed platform Hostinger targets must route missing credentials to platform-scoped intake");
+assert(executor.includes("intakeScope: result?.owner_type === \"platform\""), "credential intake scope must prefer platform ownership signals");
 assert(!probeBlock.includes("git fetch"), "probe must not fetch remote git data");
 assert(!probeBlock.includes("git checkout"), "probe must not checkout or mutate repo state");
 assert(!probeBlock.includes("touch tmp/restart.txt"), "probe must not restart the app");

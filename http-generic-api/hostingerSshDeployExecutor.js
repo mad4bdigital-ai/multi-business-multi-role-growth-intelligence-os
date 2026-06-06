@@ -114,6 +114,16 @@ async function loadTarget(pool, targetId) {
   };
 }
 
+function isPlatformManagedTarget(target = {}) {
+  const systemKey = String(target.metadata?.system_key || "");
+  return !target.user_id && (
+    target.metadata?.service_mode === "managed" ||
+    systemKey.endsWith("_platform") ||
+    systemKey.includes("prod_platform") ||
+    String(target.host_label || "").toLowerCase().includes("platform")
+  );
+}
+
 async function resolveSshCredential(pool, target, role, input = {}) {
   const result = await resolveEffectiveCredential({
     tenantId: target.tenant_id,
@@ -135,7 +145,7 @@ async function resolveSshCredential(pool, target, role, input = {}) {
       credentialField: role,
       credentialLabel: role === "ssh_port" ? "SSH port" : role,
       displayLabel: `${target.host_label || "Hostinger SSH"} ${role}`,
-      intakeScope: result?.owner_type === "platform" || String(result?.credential_ref || "").startsWith("platform_secret:") ? "platform" : "tenant",
+      intakeScope: result?.owner_type === "platform" || String(result?.credential_ref || "").startsWith("platform_secret:") || isPlatformManagedTarget(target) ? "platform" : "tenant",
       providerFamily: target.provider_family,
       connectorFamily: target.connector_family,
       ownerId: result?.owner_id || "growth_intelligence_platform",
