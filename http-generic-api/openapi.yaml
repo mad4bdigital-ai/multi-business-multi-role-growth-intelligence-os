@@ -2674,6 +2674,70 @@ x-tenant-gpt-auth:
 
 paths:
 
+  /me/infrastructure/ssh/connections/{connection_id}/cli/approval-request:
+    post:
+      tags: [tenant-infrastructure]
+      security:
+        - backendBearerAuth: []
+      operationId: tenantSshCliApprovalRequestCreate
+      summary: Create tenant SSH allowlisted CLI approval request
+      description: Creates a reviewable approval request for future allowlisted SSH CLI execution. Validates a fixed command key and stores a no-secret plan. Does not authenticate, open a network connection, execute commands, or enable execution.
+      parameters:
+        - name: connection_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [command_key]
+              additionalProperties: false
+              properties:
+                command_key:
+                  type: string
+                  enum: [pwd, whoami, uname_s, uptime]
+      responses:
+        "201":
+          description: SSH CLI approval request created.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok:
+                    type: boolean
+                  kind:
+                    type: string
+                    enum: [ssh]
+                  approval_required:
+                    type: boolean
+                    enum: [true]
+                  execution_enabled:
+                    type: boolean
+                    enum: [false]
+                  connection:
+                    type: object
+                    additionalProperties: true
+                  plan:
+                    type: object
+                    additionalProperties: true
+                  approval_request:
+                    type: object
+                    additionalProperties: true
+                  secrets_included:
+                    type: boolean
+                    enum: [false]
+        "400": { description: Missing or non-allowlisted command key. }
+        "401": { description: Missing or invalid tenant user JWT. }
+        "404": { description: Connection not found for this tenant user. }
+        "409": { description: Connection is not ready or has the wrong auth type. }
+        "500": { description: Unexpected SSH CLI approval request failure. }
+
   /me/infrastructure/ssh/connections/{connection_id}/cli/dry-run:
     post:
       tags: [tenant-infrastructure]
