@@ -120,6 +120,7 @@ export const testCommands = [
   "node test-tenant-ssh-cli-allowlisted-execute.mjs",
   "node test-tenant-ssh-execute-runtime-config.mjs",
   "node test-tenant-ssh-dedicated-worker-runtime.mjs",
+  "node test-tenant-ssh-dedicated-worker-smoke-runner.mjs",
   "node test-task-route-authority-resolver.mjs",
   "node test-workflow-registry-authority-resolver.mjs",
   "node test-runtime-workflow-resolver.mjs",
