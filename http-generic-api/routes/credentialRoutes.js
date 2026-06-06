@@ -494,24 +494,41 @@ export function buildCredentialRoutes(deps) {
       if (!connection || connection.status !== "active" || !connection.encrypted_credentials) {
         return res.status(400).json({ ok: false, error: { code: "active_intake_connection_required", message: "An active encrypted intake connection is required." }, secrets_included: false });
       }
-      if (connection.auth_type !== "ssh_key_pair") {
-        return res.status(400).json({ ok: false, error: { code: "ssh_key_pair_connection_required", message: "Only ssh_key_pair intake connections can be promoted to Hostinger SSH platform secrets." }, auth_type: connection.auth_type, secrets_included: false });
+      const credentials = decryptCredentials(connection.encrypted_credentials) || {};
+      const connectionMetadata = safeJsonObject(connection.account_metadata);
+      const metadataMappings = normalizePromotionMappings(connectionMetadata.platform_secret_mappings);
+      const normalizedMappings = requestedMappings.length ? requestedMappings : metadataMappings;
+      const systemId = requestedSystemId || str(connectionMetadata.system_id);
+      const ownerId = requestedOwnerId || str(connectionMetadata.owner_id) || "growth_intelligence_platform";
+      const providerFamily = requestedProviderFamily || str(connectionMetadata.provider_family) || str(connection.app_key) || "generic";
+      const connectorFamily = requestedConnectorFamily || str(connectionMetadata.connector_family) || str(connection.auth_type) || str(connection.app_key) || "generic";
+      const targetKey = requestedTargetKey || str(connectionMetadata.target_key) || `${str(connection.app_key) || "connection"}_${str(connection.auth_type) || "credentials"}_platform`;
+
+      if (!normalizedMappings.length) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "platform_secret_mappings_required",
+            message: "Provide secret_mappings in the request or connection.account_metadata.platform_secret_mappings. Dynamic promotion supports any encrypted connection auth_type, but mapped fields must be explicit.",
+          },
+          app_key: connection.app_key,
+          auth_type: connection.auth_type,
+          available_credential_fields: safeCredentialFieldNames(credentials),
+          secrets_included: false,
+        });
       }
 
-      const credentials = decryptCredentials(connection.encrypted_credentials) || {};
-      const normalizedMappings = mappings.map((mapping = {}) => ({
-        credential_field: str(mapping.credential_field || mapping.field),
-        secret_key: str(mapping.secret_key || mapping.secretKey),
-        secret_type: str(mapping.secret_type || mapping.secretType || mapping.credential_role || mapping.credentialRole),
-      })).filter((mapping) => mapping.credential_field && mapping.secret_key);
       const missingFields = normalizedMappings
-        .filter((mapping) => !str(credentials[mapping.credential_field]))
+        .filter((mapping) => !credentialValueToSecretString(credentials[mapping.credential_field]))
         .map((mapping) => mapping.credential_field);
-      if (!normalizedMappings.length || missingFields.length) {
+      if (missingFields.length) {
         return res.status(400).json({
           ok: false,
           error: { code: "intake_secret_fields_missing", message: "The intake connection is missing one or more mapped fields." },
           missing_fields: [...new Set(missingFields)],
+          app_key: connection.app_key,
+          auth_type: connection.auth_type,
+          available_credential_fields: safeCredentialFieldNames(credentials),
           secrets_included: false,
         });
       }
