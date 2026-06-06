@@ -32,5 +32,8 @@ assert(migration.includes('no_network'), "migration tags must disclose no networ
 assert(migration.includes('no_auth'), "migration tags must disclose no auth");
 assert(migration.includes('no_secrets'), "migration tags must include no_secrets");
 assert(runner.includes('"200_sprint66_tenant_ssh_cli_approval_request_tool.sql"'), "governed migration runner must allowlist migration 200");
+assert(openapi.includes('/me/infrastructure/ssh/connections/{connection_id}/cli/approval-request'), "OpenAPI must document tenant SSH CLI approval request endpoint");
+assert(openapi.includes('tenantSshCliApprovalRequestCreate'), "OpenAPI must expose a stable operationId for SSH CLI approval request");
+assert(openapi.includes('Does not authenticate, open a network connection, execute commands'), "OpenAPI must document no-auth/no-network/no-command scope");
 
 console.log("Tenant SSH CLI approval request guard passed");
