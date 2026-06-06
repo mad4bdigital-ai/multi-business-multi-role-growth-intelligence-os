@@ -4,6 +4,8 @@ import { getPool } from "./db.js";
 const TOKEN_BYTES = 32;
 const DEFAULT_TTL_MINUTES = 30;
 const MAX_TTL_MINUTES = 24 * 60;
+const PLATFORM_ADMIN_USER_ID = "00000000-0000-4000-a000-000000000020";
+
 const ALLOWED_AUTH_TYPES = new Set([
   "api_key",
   "webhook",
@@ -13,6 +15,8 @@ const ALLOWED_AUTH_TYPES = new Set([
   "oauth2",
   "custom_headers",
   "client_credentials",
+  "ssh_key_pair",
+  "remote_database",
 ]);
 
 function str(value) {
