@@ -299,6 +299,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? String(databaseLifecycleSnapshotPayload.schedule_key || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY).trim()
         : isConnectedExecutionResumeActionJob
         ? String(connectedExecutionResumeActionPayload.connected_session_id || "").trim()
+        : isTenantSshCliExecuteJob
+        ? String(tenantSshCliExecutePayload.connection_id || "").trim()
         : String(requestPayload.target_key || "").trim(),
     parent_action_key:
       normalizedJobType === "site_migration"
