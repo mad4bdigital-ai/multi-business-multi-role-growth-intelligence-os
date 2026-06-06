@@ -25,6 +25,10 @@ import {
   CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE,
   runConnectedExecutionResumeAction,
 } from "./connectedExecutionWorker.js";
+import {
+  TENANT_SSH_CLI_EXECUTE_JOB_TYPE,
+  runTenantSshCliExecuteJob,
+} from "./tenantSshCliExecutionWorker.js";
 
 function createExecutionTraceId() {
   return `trace_${crypto.randomUUID().replace(/-/g, "")}`;
