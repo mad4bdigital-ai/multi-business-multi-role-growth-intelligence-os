@@ -20,6 +20,7 @@ The runner is intentionally constrained:
 - It accepts only files in its internal allowlist.
 - It runs SQL preflight before apply.
 - It refuses apply unless preflight status is `pass`.
+- It treats `UPDATE` as guarded only when the statement has a top-level `WHERE`; a `WHERE` inside a joined subquery is not sufficient.
 - Dry-run mode never applies SQL.
 - Apply mode requires an explicit typed confirmation token derived from the migration filename.
 - Record-only ledger mode never executes migration SQL; it records checksum/preflight evidence for previously applied migrations.
@@ -28,25 +29,7 @@ The runner is intentionally constrained:
 
 ## Current allowlist
 
-- `051_sprint48_cloudflare_and_self_repair_tools.sql`
-- `052_sprint49_local_connector_install_bundle.sql`
-- `054_sprint50_admin_device_seed_and_self_repair_tool.sql`
-- `055_sprint51_sql_primary_data_source.sql`
-- `057_sprint53_admin_session_turn_tools.sql`
-- `162_sprint66_cms_site_resource_access_grants.sql`
-- `163_sprint65_session_archive_smoke_tool.sql`
-- `166_sprint65_ai_intelligence_runtime_governance.sql`
-- `168_sprint65_database_table_lifecycle_governance.sql`
-- `176_sprint66_governed_migration_ledger.sql`
-- `178_sprint66_runtime_authority_certification_registries.sql`
-- `179_sprint66_dynamic_capability_audit_foundation.sql`
-- `180_sprint66_wordpress_publish_authority_diagnostic_tool.sql`
-- `181_sprint66_connected_execution_continuity_foundation.sql`
-- `182_sprint66_database_lifecycle_report_snapshots.sql`
-- `183_sprint66_database_lifecycle_snapshot_schedule_readiness.sql`
-- `184_sprint66_database_lifecycle_scheduler_binding_readiness.sql`
-- `185_sprint66_database_lifecycle_scheduler_approval_metadata.sql`
-- `186_sprint66_database_lifecycle_scheduler_approval_readback.sql`
+The authoritative allowlist is the `ALLOWED_MIGRATIONS` set in `http-generic-api/scripts/governed-migration-runner.mjs`. Do not duplicate the full list in documentation because each approved migration must be reviewed and added in code with its regression coverage.
 
 ## Example dry run
 

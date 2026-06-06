@@ -1,6 +1,6 @@
 import { getPool } from "./db.js";
 
-const ACTIVE_WORKFLOW_SQL =
+export const ACTIVE_WORKFLOW_SQL =
   "(active = 1 OR active = '1' OR active = 'TRUE' OR status IN ('active', 'ready', 'enabled', 'beta'))";
 
 function compactCandidates(rows = []) {
