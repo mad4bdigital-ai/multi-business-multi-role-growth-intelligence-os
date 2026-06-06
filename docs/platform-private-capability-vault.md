@@ -195,3 +195,11 @@ enabling runtime tools. Superpowers and SEO/GEO skillpacks follow the same
 pattern as GSAP: workspace catalog visibility first, advisory-only routing next,
 and explicit runtime/tool grants later only after approval. SEO/GEO WebFetch is
 blocked by default and requires an explicit runtime grant.
+
+## Migration Drift Scanner-Safe Policy Seeds
+
+Policy seed text inside SQL migrations must avoid SQL-looking phrases that are
+not meant to be executed. When a policy stores examples of safe operations, use
+plain descriptive wording such as `idempotent registry guard table creation`
+rather than executable-looking strings. This keeps migration-drift diagnostics
+focused on real DDL statements instead of JSON policy prose.
