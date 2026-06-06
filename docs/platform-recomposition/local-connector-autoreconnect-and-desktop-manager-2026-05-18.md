@@ -102,14 +102,6 @@ Validated behavior:
 - Tenant JWT `GET /local/tools` returns tenant-safe tools only and hides `local.admin.*`.
 - Tenant `local.connector.health` succeeds through device-scoped credentials.
 
-### Admin / break-glass connector
-
-```text
-https://connector.mad4b.com
-```
-
-This remains an admin/break-glass surface. It is not the tenant/member default gateway.
-
 ## Implemented DB metadata
 
 Migration:
@@ -555,7 +547,7 @@ Implementation status as of this doc update:
 - Shared provisioning creates deterministic `lc-*` hostname values.
 - Shared provisioning has helpers to create Cloudflare DNS CNAME and publish tunnel ingress routes.
 - Signed installer generation reads `COALESCE(device_runtime_url, tunnel_url)`.
-- The legacy direct `POST /local-connector/install` route still contains older duplicate provisioning logic and should be refactored to call `provisionLocalConnectorInstall()` directly to avoid drift.
+- Resolved after this review: the active direct `POST /local-connector/install` route delegates to `provisionLocalConnectorInstall()`; regression coverage guards the shared provisioning path.
 
 ## Autopilot customer-selectable route modes
 
@@ -662,7 +654,6 @@ The installed `essam-pc` runtime still needs the updated connector installer or 
 ## Next implementation steps
 
 1. Run updated installer/safe-upgrade on `essam-pc`, then verify `db_restore_certify_probe` and `n8n_restore_certify_probe` appear in `connector_shell list`.
-2. Refactor legacy direct `POST /local-connector/install` to call `provisionLocalConnectorInstall()` instead of duplicating provisioning logic.
 2. Implement route selector in `connectorProxyRoutes.js` using `local_connector_device_routes` with fallback.
 3. Add route registration/update endpoints for Desktop Manager.
 4. Add a small regression smoke test for token-gated installer route that checks status/headers without printing installer content.

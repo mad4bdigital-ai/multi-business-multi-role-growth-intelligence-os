@@ -1,8 +1,8 @@
 # module_loader.clean-v1
 
-Clean-room staging overlay for the platform loader contract.
+Consolidated reference overlay for the platform loader contract.
 
-This file is not runtime authority yet. It defines how loaders should behave after recomposition.
+This file is not runtime authority. Use it to review desired loader behavior against active runtime code and the current-state checkpoint.
 
 ## 1. Loader purpose
 
@@ -42,7 +42,7 @@ Allowed Sheets/Drive uses:
 - user-facing artifact writes;
 - documented Drive knowledge files when registered by SQL rows.
 
-## 4. Context resolution dependency
+## 5. Context resolution dependency
 
 `runAgentLoop` must receive governed context dependencies by default, not optionally.
 
@@ -55,7 +55,7 @@ Required injected dependencies:
 - HTTP action dispatcher for action-backed engines
 - MCP dispatcher for MCP-backed engines
 
-## 5. Access and service-mode loading rule
+## 6. Access and service-mode loading rule
 
 Before execution dispatch, loaders must build a minimum runtime envelope:
 
@@ -71,7 +71,7 @@ Before execution dispatch, loaders must build a minimum runtime envelope:
 
 Missing required envelope fields classify as `blocked.access_context_unresolved` or `validating.activity_unresolved`; they must not silently fall back to admin/system defaults.
 
-## 6. Workflow loading
+## 7. Workflow loading
 
 Loaders must avoid `workflow_key LIMIT 1` ambiguity.
 
@@ -81,7 +81,7 @@ Acceptable patterns:
 - load by `(workflow_key, workflow_variant_key)`;
 - load a group intentionally and return all candidates with disambiguation advice.
 
-## 6. Schema resolution
+## 8. Schema resolution
 
 Schema resolution precedence:
 
@@ -93,7 +93,7 @@ Schema resolution precedence:
 
 A runtime-callable action without schema must be classified `degraded_contract` unless it is explicitly native-runtime and has a registered internal contract.
 
-## 7. Credential resolution
+## 9. Credential resolution
 
 Credentials resolve through registry and secret references. Loaders must never accept prompt-supplied tokens as runtime authority.
 
@@ -104,7 +104,7 @@ Resolution order:
 3. platform-managed credential only when policy allows fallback;
 4. blocked state when unresolved.
 
-## 8. Output/sink dependencies
+## 10. Output/sink dependencies
 
 For governed execution, the loader must prepare sink metadata:
 
@@ -115,7 +115,7 @@ For governed execution, the loader must prepare sink metadata:
 - review requirement;
 - write/readback policy.
 
-## 9. Validation result shape
+## 11. Validation result shape
 
 All loader failures return a structured state:
 
@@ -131,7 +131,7 @@ All loader failures return a structured state:
 }
 ```
 
-## 10. Promotion targets
+## 12. Review targets
 
 - `agentRuntime.js`
 - `agentLoopRunner.js`
