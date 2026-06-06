@@ -791,8 +791,9 @@ export function buildCredentialIntakeRoutes(deps = {}) {
       });
 
       const autoPromotion = await maybeAutoPromotePlatformSecrets({ session, credentials, metadata, connectionId, req });
+      const continuationTask = await writeCredentialIntakeContinuationTask({ session, connectionId, metadata, autoPromotion, req }).catch((err) => ({ ok: false, error: err.message, secrets_included: false }));
 
-      return res.status(201).type("html").send(renderDone(connectionId, autoPromotion));
+      return res.status(201).type("html").send(renderDone(connectionId, { ...autoPromotion, continuationTask }));
     } catch (err) {
       const loaded = await loadPendingSession(req.params.token).catch(() => null);
       const app = loaded?.session ? await loadApp(loaded.session.app_key).catch(() => ({})) : {};
