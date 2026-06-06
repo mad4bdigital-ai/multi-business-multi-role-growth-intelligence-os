@@ -134,7 +134,7 @@ Required invariants:
 
 Secrets must not be stored in visible JSON config fields. Runtime config rows must reference secrets using `*_secret_ref` fields.
 
-Known clean-up target: `tenant_gpt.oauth.client` should be migrated from inline `client_secret` to `client_secret_ref`.
+`tenant_gpt.oauth.client` uses `client_secret_ref` as the governed contract. Inspect it with secret-free `tenant_gpt_oauth_client_status`, then promote legacy inline rows through `tenant_gpt_oauth_client_upsert`, which preserves the current secret in encrypted `platform_secrets` and removes the inline field.
 
 ## 13. Workbook role
 

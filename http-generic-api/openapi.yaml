@@ -2627,7 +2627,8 @@ x-tenant-gpt-auth:
     authentication_type: OAuth
     schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml
     client_id: mad4b-tenant-gpt
-    client_secret: <stored-in-platform-runtime-config>
+    client_secret: <resolved-from-governed-platform-secret>
+    client_secret_ref: platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET
     client_secret_config_key: tenant_gpt.oauth.client
     authorization_url: https://auth.mad4b.com/auth/oauth/authorize
     token_url: https://auth.mad4b.com/auth/oauth/token
@@ -6213,7 +6214,7 @@ paths:
               properties:
                 name:
                   type: string
-                  enum: [connector_registry_list, connector_registry_get, connect_status, connect_activate, connect_device_install, local_gateway_tools_list, local_gateway_tools_call, activation_drive_probe, activation_sheets_bootstrap_read, activation_github_validate, activation_provider_bootstrap_validate, activation_bootstrap_config_upsert, tenant_gpt_oauth_client_upsert, credential_client_config_upsert, credential_client_config_list, google_auth_platform_config_upsert, google_auth_platform_config_get]
+                  enum: [connector_registry_list, connector_registry_get, connect_status, connect_activate, connect_device_install, local_gateway_tools_list, local_gateway_tools_call, activation_drive_probe, activation_sheets_bootstrap_read, activation_github_validate, activation_provider_bootstrap_validate, activation_bootstrap_config_upsert, tenant_gpt_oauth_client_status, tenant_gpt_oauth_client_upsert, credential_client_config_upsert, credential_client_config_list, google_auth_platform_config_upsert, google_auth_platform_config_get]
                 arguments:
                   type: object
                   additionalProperties: true

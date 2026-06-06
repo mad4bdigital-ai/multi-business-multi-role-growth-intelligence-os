@@ -32,7 +32,7 @@ When an overlay statement conflicts with current code or an active canonical:
 
 | Priority | Follow-up | Reason |
 |---|---|---|
-| High | Migrate `tenant_gpt.oauth.client` away from inline `client_secret` storage to `client_secret_ref`. | The current compatibility path still resolves an inline DB-backed secret. |
+| High | Run `tenant_gpt_oauth_client_status`, promote the live legacy row through `tenant_gpt_oauth_client_upsert`, then retain a second safe status readback. | Runtime support now stores the secret in encrypted `platform_secrets` and writes only `client_secret_ref`; the live legacy row still requires one governed promotion run. |
 | Medium | Classify and remove dead Sheets-era compatibility helpers and historical surface IDs only after alias/replacement migrations exist. | Names are not runtime authority, but blind renames can break registry identity. |
 | Medium | Continue live readback for migrations 203/204 and lifecycle governance reports. | Schema presence is not enough; context coverage and retention need operational evidence. |
 | Medium | Manually classify or retire the remaining 2 unresolved `wordpress_connector_readiness` draft plans and the 1 identityless plan. | Governed post-backfill readback confirms they are not executable and cannot be safely assigned an identity by deterministic backfill. |
