@@ -187,19 +187,36 @@ async function assertSshCliExecuteRuntimeEnabled(pool) {
   const config = await loadSshCliExecuteRuntimeConfig(pool);
   const enabled = config?.enabled === true;
   const driver = String(config?.driver || "").toLowerCase();
-  if (!enabled || driver !== "host_ssh_spawn") {
-    const err = new Error("Tenant SSH CLI execution runtime is not enabled on this host.");
+  if (enabled && driver === "host_ssh_spawn") {
+    const err = new Error("Tenant SSH CLI host_ssh_spawn is blocked on the web runtime after live 502 validation.");
+    err.status = 503;
+    err.code = "ssh_cli_execute_driver_blocked_on_web_host";
+    err.details = {
+      config_key: "tenant_ssh_cli_execute_runtime",
+      current_driver: driver,
+      blocked_reason: "host_ssh_spawn_caused_cloudflare_502_on_web_host",
+      required_driver: "dedicated_worker_or_connector_runtime",
+      secrets_included: false,
+    };
+    throw err;
+  }
+  if (!enabled || driver !== "dedicated_worker_or_connector_runtime") {
+    const err = new Error("Tenant SSH CLI execution runtime is not enabled on a dedicated worker or connector runtime.");
     err.status = 503;
     err.code = "ssh_cli_execute_runtime_not_enabled";
     err.details = {
       required_config_key: "tenant_ssh_cli_execute_runtime",
-      required_config_json: { enabled: true, driver: "host_ssh_spawn" },
+      required_config_json: { enabled: true, driver: "dedicated_worker_or_connector_runtime" },
       current_driver: driver || "disabled",
       recommended_runtime: "dedicated_worker_or_connector_runtime",
     };
     throw err;
   }
-  return config;
+  const err = new Error("Tenant SSH CLI dedicated execution driver is not implemented in the web runtime.");
+  err.status = 503;
+  err.code = "ssh_cli_execute_dedicated_driver_not_implemented";
+  err.details = { required_driver: "dedicated_worker_or_connector_runtime", secrets_included: false };
+  throw err;
 }
 
 async function executeApprovedSshCli(pool, row, approvalRow, commandKey, options = {}) {
