@@ -107,6 +107,13 @@ function credentialSchemaForRequirement(input = {}, effective = {}, authType = "
   const fieldName = inferCredentialField(input, effective, authType);
   const label = str(input.credential_label || input.credentialLabel)
     || fieldName.toUpperCase();
+  if (authType === "ssh_password") {
+    return {
+      fields: [
+        { name: "ssh_password", label: str(input.credential_label || input.credentialLabel) || "SSH password", type: "password", target: "credentials", required: true, secret: true, autocomplete: "new-password" },
+      ],
+    };
+  }
   if (authType === "ssh_key_pair") {
     const sshFieldTypes = {
       ssh_host: { label: "SSH host", type: "text", secret: false, autocomplete: "off" },
