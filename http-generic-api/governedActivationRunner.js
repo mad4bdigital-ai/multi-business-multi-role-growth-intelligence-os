@@ -23,6 +23,9 @@ function blankEvidence() {
     drive_ok: false,
     sheets_attempted: false,
     sheets_ok: false,
+    sheets_required: true,
+    sheets_skipped: false,
+    sheets_skip_reason: "",
     github_attempted: false,
     github_ok: false,
     bootstrap_row_read: false,
@@ -180,12 +183,17 @@ export async function runGovernedActivation(deps = {}) {
     parent_action_key: "google_sheets_api",
     endpoint_key: ALLOWED_SHEETS_BINDINGS[0]
   });
-  if (!sheetsResult.ok) {
+  if (sheetsResult?.not_required === true || sheetsResult?.skipped === true) {
+    evidence.sheets_required = false;
+    evidence.sheets_skipped = true;
+    evidence.sheets_skip_reason = sheetsResult.reason || "not_required";
+  } else if (!sheetsResult.ok) {
     if (sheetsResult.rate_limited) evidence.rate_limited = true;
     if (sheetsResult.auth_failed) evidence.auth_failed = true;
     return { evidence, ...buildActivationEnvelope(evidence) };
+  } else {
+    evidence.sheets_ok = true;
   }
-  evidence.sheets_ok = true;
 
   // ── Step 3: Bootstrap row ───────────────────────────────────────────────────
   const workbookResult = await resolveActivationBootstrapWorkbook({

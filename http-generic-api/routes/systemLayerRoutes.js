@@ -26,7 +26,6 @@ import {
 } from "../googleAuthPlatformConfig.js";
 import { requireAdminPrincipal } from "./adminCliRoutes.js";
 import { decodeGitHubAppPrivateKey, resolveGitHubAppConfig } from "../githubAppAuth.js";
-import { DATA_SOURCE_MODE } from "../dataSource.js";
 import { derivePrincipalExecutionContext } from "../executionControlResolvers.js";
 import { fetchToolsForCaller, dispatchToolForCaller } from "./gptToolsRoutes.js";
 
@@ -85,8 +84,14 @@ const SYSTEM_LAYER_TOOLS = [
     inputSchema: { type: "object", properties: {}, required: [] },
   },
   {
+    name: "activation_bootstrap_config_read",
+    description: "Admin-only DB-native read of the Activation Bootstrap Config from backend runtime authority. Does not call Google Sheets; returns source=backend_runtime/db_runtime and sheets_required=false.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
     name: "activation_sheets_bootstrap_read",
-    description: "Admin-only Sheets-mirror parity check that reads the Activation Bootstrap Config row from the legacy workbook. Use to compare against /activation/bootstrap-config (the SQL authority) during recovery or migration verification. Sheets is an async mirror, not the runtime registry.",
+    description: "Deprecated compatibility alias for activation_bootstrap_config_read. Google Sheets is no longer a valid bootstrap source and is not called; use the DB-native bootstrap config read instead.",
     requires_admin: true,
     inputSchema: { type: "object", properties: {}, required: [] },
   },
@@ -106,7 +111,7 @@ const SYSTEM_LAYER_TOOLS = [
   },
   {
     name: "activation_provider_bootstrap_validate",
-    description: "Admin-only same-cycle Drive, Sheets mirror, and GitHub provider-connectivity validation chain. Proves all three providers are reachable; does NOT replace /activation/bootstrap-config (SQL runtime authority). Use for hard activation evidence.",
+    description: "Admin-only same-cycle Drive, DB bootstrap config, and GitHub validation chain. Google Sheets is deprecated and not called; SQL/backend runtime is the bootstrap authority.",
     requires_admin: true,
     inputSchema: { type: "object", properties: {}, required: [] },
   },
@@ -751,7 +756,54 @@ async function activationDriveProbe() {
   }
 }
 
+async function activationBootstrapConfigRead() {
+  const runtimeBootstrap = await resolveActivationBootstrapConfig();
+  if (!runtimeBootstrap.ok) {
+    return {
+      ok: false,
+      provider: "backend_runtime",
+      source: "unresolved",
+      sheets_required: false,
+      sheets_called: false,
+      code: runtimeBootstrap.error || "activation_bootstrap_config_unresolved",
+      db_error: runtimeBootstrap.db_error || null,
+      env_error: runtimeBootstrap.env_error || null,
+      secrets_included: false,
+    };
+  }
+
+  const bootstrapRow = bootstrapConfigToRunnerRow(runtimeBootstrap.config);
+  return {
+    ok: true,
+    provider: "backend_runtime",
+    source: runtimeBootstrap.source || "db_runtime",
+    sheets_required: false,
+    sheets_called: false,
+    bootstrap_row_read: true,
+    bootstrap_row: bootstrapRow,
+    config: runtimeBootstrap.config,
+    secrets_included: false,
+  };
+}
+
 async function activationSheetsBootstrapRead() {
+  const replacement = await activationBootstrapConfigRead();
+  return {
+    ...replacement,
+    ok: replacement.ok,
+    status: "deprecated_not_required",
+    provider: "backend_runtime",
+    legacy_tool: "activation_sheets_bootstrap_read",
+    replacement_tool: "activation_bootstrap_config_read",
+    diagnostic_only: true,
+    sheets_required: false,
+    sheets_called: false,
+    google_sheets_called: false,
+    message: "Google Sheets bootstrap reads are deprecated; backend runtime DB bootstrap config is authoritative.",
+  };
+}
+
+async function activationSheetsBootstrapReadLegacy() {
   try {
     const { sheets, spreadsheetId } = await getGoogleClientsForSpreadsheet(ACTIVATION_BOOTSTRAP_SPREADSHEET_ID);
     const metadata = await withProbeTimeout(
@@ -958,13 +1010,24 @@ async function activationProviderBootstrapValidate(args = {}, deps = {}) {
       return { ok: probe.ok, auth_failed: probe.auth_failed };
     },
     attemptSheets: async () => {
-      if (DATA_SOURCE_MODE === "sql") {
-        sheetsDiagnostic = { skipped: true, diagnostic_only: true, reason: "sql_mode" };
-        return { ok: true };
-      }
-      const probe = await activationSheetsBootstrapRead();
-      sheetsDiagnostic = probe;
-      return { ok: probe.ok, auth_failed: probe.auth_failed, rate_limited: probe.rate_limited };
+      sheetsDiagnostic = {
+        attempted: false,
+        ok: false,
+        skipped: true,
+        not_required: true,
+        diagnostic_only: true,
+        status: "deprecated_not_required",
+        reason: "db_runtime_bootstrap_authority",
+        replacement_tool: "activation_bootstrap_config_read",
+        source: runtimeBootstrap.ok ? runtimeBootstrap.source : "unresolved",
+        sheets_called: false,
+      };
+      return {
+        ok: true,
+        skipped: true,
+        not_required: true,
+        reason: "db_runtime_bootstrap_authority",
+      };
     },
     getSpreadsheet: async () => {
       if (runtimeBootstrap.ok) {
@@ -1003,13 +1066,20 @@ async function activationProviderBootstrapValidate(args = {}, deps = {}) {
     drive_diagnostic: driveDiagnostic || { attempted: false },
     sheets_diagnostic: sheetsDiagnostic
       ? {
-          attempted: true,
+          attempted: sheetsDiagnostic.attempted === true,
           ok: sheetsDiagnostic.ok === true,
+          skipped: sheetsDiagnostic.skipped === true,
+          not_required: sheetsDiagnostic.not_required === true,
           diagnostic_only: true,
+          status: sheetsDiagnostic.status || (sheetsDiagnostic.skipped ? "deprecated_not_required" : undefined),
+          reason: sheetsDiagnostic.reason || null,
+          replacement_tool: sheetsDiagnostic.replacement_tool || null,
+          source: sheetsDiagnostic.source || null,
+          sheets_called: sheetsDiagnostic.sheets_called === true,
           spreadsheet_id: sheetsDiagnostic.spreadsheet_id || null,
           range: sheetsDiagnostic.range || null,
         }
-      : { attempted: false, diagnostic_only: true },
+      : { attempted: false, diagnostic_only: true, sheets_called: false },
     ...result,
   };
 }

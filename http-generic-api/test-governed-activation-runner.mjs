@@ -245,6 +245,29 @@ section("resolveActivationBootstrapWorkbook rejects unconstrained discovery fall
   assert("fallback requires explicit constraints", result.reason === "activation_bootstrap_discovery_requires_explicit_constraints", JSON.stringify(result));
 }
 
+section("DB runtime bootstrap can skip Sheets without reporting Sheets success");
+{
+  const result = await runGovernedActivation(fullDeps({
+    attemptSheets: async () => ({
+      ok: true,
+      skipped: true,
+      not_required: true,
+      reason: "db_runtime_bootstrap_authority"
+    })
+  }));
+
+  assert("db runtime skip → active", result.runtime_classification?.activation_status === "active", JSON.stringify(result.runtime_classification));
+  assert("db runtime skip → sheets_required false", result.evidence?.sheets_required === false, JSON.stringify(result.evidence));
+  assert("db runtime skip → sheets_skipped true", result.evidence?.sheets_skipped === true, JSON.stringify(result.evidence));
+  assert("db runtime skip → sheets_ok remains false", result.evidence?.sheets_ok === false, JSON.stringify(result.evidence));
+  assert("db runtime skip → skip reason captured", result.evidence?.sheets_skip_reason === "db_runtime_bootstrap_authority", JSON.stringify(result.evidence));
+  assert("db runtime skip → sheets_not_required progress", result.runtime_classification?.progress?.completed_stages?.includes("sheets_not_required"), JSON.stringify(result.runtime_classification?.progress));
+  assert("db runtime skip → no sheets_validation success stage", !result.runtime_classification?.progress?.completed_stages?.includes("sheets_validation"), JSON.stringify(result.runtime_classification?.progress));
+  assert("db runtime skip → operator view names DB bootstrap", result.operator_view?.what_succeeded?.includes("DB bootstrap config"), JSON.stringify(result.operator_view));
+  assert("db runtime skip → operator view does not claim Google Sheets", !result.operator_view?.what_succeeded?.includes("Google Sheets"), JSON.stringify(result.operator_view));
+  assert("db runtime skip → consistency remains clean", result.runtime_classification?.evidence_consistency === "consistent", JSON.stringify(result.runtime_classification));
+}
+
 section("full provider chain → active");
 {
   const result = await runGovernedActivation(fullDeps());
