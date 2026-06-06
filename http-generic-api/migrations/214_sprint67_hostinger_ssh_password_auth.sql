@@ -16,7 +16,7 @@ WHERE plugin_key='remote_ssh_runtime'
 
 UPDATE admin_platform_endpoint_tools
 SET input_schema = JSON_SET(
-      COALESCE(CAST(input_schema AS JSON), JSON_OBJECT('type','object','properties',JSON_OBJECT())),
+      COALESCE(input_schema, JSON_OBJECT('type','object','properties',JSON_OBJECT())),
       '$.properties.ssh_auth_mode', JSON_OBJECT('type','string','enum',JSON_ARRAY('password','private_key'),'default','password')
     ),
     description = CONCAT(COALESCE(description,''), ' Supports ssh_auth_mode=password through stored ssh_password credential intake; no inline password is accepted.'),
