@@ -525,13 +525,22 @@ export async function dispatchPlan(plan_id, {
 
   writeAuditLogAsync({
     actor_id: actor_id || plan.user_id || "system",
-    actor_type: "system",
+    actor_type: actor_id || plan.user_id ? "user" : "system",
+    user_id: plan.user_id || null,
+    tenant_id: plan.tenant_id,
+    workspace_id: plan.workspace_id || null,
+    workspace_key: plan.workspace_key || null,
+    brand_id: plan.brand_id || null,
+    brand_key: plan.brand_key || plan.target_key || null,
+    request_id: plan.request_id || null,
+    session_id: plan.session_id || null,
+    conversation_id: plan.conversation_id || null,
+    correlation_id: trace_id,
     action: "connector.dispatch",
     resource_type: "execution_plan",
     resource_id: plan_id,
-    tenant_id: plan.tenant_id,
     outcome: succeeded ? "success" : "failure",
-    metadata: { run_id, trace_id, connector_type, apply, duration_ms },
+    metadata: { run_id, trace_id, connector_type, apply, duration_ms, secrets_included: false },
   });
 
   return {
