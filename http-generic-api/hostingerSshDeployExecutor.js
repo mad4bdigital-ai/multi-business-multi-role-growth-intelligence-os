@@ -239,36 +239,61 @@ function buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClea
   ].join(" && ");
 }
 
-function runSshDeploy({ host, port, user, privateKey, remoteScript, timeoutMs }) {
+function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", privateKey, password, remoteScript, timeoutMs }) {
   return new Promise(async (resolve) => {
-    const tempDir = await mkdtemp(join(tmpdir(), "mad4b-hostinger-ssh-"));
-    const keyFile = join(tempDir, "id_ed25519");
+    const usePassword = authMode === "password";
+    const tempDir = usePassword ? null : await mkdtemp(join(tmpdir(), "mad4b-hostinger-ssh-"));
+    const keyFile = tempDir ? join(tempDir, "id_ed25519") : null;
     let settled = false;
     let child = null;
     const cleanup = async () => {
+      if (!tempDir) return;
       try { await rm(tempDir, { recursive: true, force: true }); } catch { /* noop */ }
     };
     try {
-      await writeFile(keyFile, privateKey, { mode: 0o600 });
-      const args = [
-        "-i", keyFile,
-        "-p", String(port || 22),
-        "-o", "BatchMode=yes",
-        "-o", "IdentitiesOnly=yes",
-        "-o", "StrictHostKeyChecking=accept-new",
-        `${user}@${host}`,
-        "bash",
-        "-lc",
-        remoteScript,
-      ];
-      child = spawn("ssh", args, { stdio: ["ignore", "pipe", "pipe"], shell: false });
+      let command = "ssh";
+      let args;
+      let stdio = ["ignore", "pipe", "pipe"];
+      if (usePassword) {
+        command = "sshpass";
+        args = [
+          "-d", "3",
+          "ssh",
+          "-p", String(port || 22),
+          "-o", "PreferredAuthentications=password",
+          "-o", "PubkeyAuthentication=no",
+          "-o", "StrictHostKeyChecking=accept-new",
+          `${user}@${host}`,
+          "bash",
+          "-lc",
+          remoteScript,
+        ];
+        stdio = ["ignore", "pipe", "pipe", "pipe"];
+      } else {
+        await writeFile(keyFile, privateKey, { mode: 0o600 });
+        args = [
+          "-i", keyFile,
+          "-p", String(port || 22),
+          "-o", "BatchMode=yes",
+          "-o", "IdentitiesOnly=yes",
+          "-o", "StrictHostKeyChecking=accept-new",
+          `${user}@${host}`,
+          "bash",
+          "-lc",
+          remoteScript,
+        ];
+      }
+      child = spawn(command, args, { stdio, shell: false });
+      if (usePassword && child.stdio?.[3]) {
+        child.stdio[3].end(`${password}\n`);
+      }
       let stdout = "";
       let stderr = "";
       const timer = setTimeout(() => {
         if (settled) return;
         settled = true;
         try { child.kill("SIGTERM"); } catch { /* noop */ }
-        cleanup().finally(() => resolve({ ok: false, exit_code: 124, timed_out: true, stdout: sanitizeSshOutput(stdout), stderr: sanitizeSshOutput(stderr) }));
+        cleanup().finally(() => resolve({ ok: false, exit_code: 124, timed_out: true, auth_mode: authMode, stdout: sanitizeSshOutput(stdout), stderr: sanitizeSshOutput(stderr) }));
       }, timeoutMs);
       child.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8"); });
       child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
@@ -280,6 +305,7 @@ function runSshDeploy({ host, port, user, privateKey, remoteScript, timeoutMs })
           ok: Number(code) === 0,
           exit_code: Number(code),
           timed_out: false,
+          auth_mode: authMode,
           stdout: sanitizeSshOutput(stdout),
           stderr: sanitizeSshOutput(stderr),
         }));
@@ -288,13 +314,13 @@ function runSshDeploy({ host, port, user, privateKey, remoteScript, timeoutMs })
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        cleanup().finally(() => resolve({ ok: false, exit_code: 127, timed_out: false, stdout: "", stderr: sanitizeSshOutput(err.message) }));
+        cleanup().finally(() => resolve({ ok: false, exit_code: 127, timed_out: false, auth_mode: authMode, stdout: "", stderr: sanitizeSshOutput(err.message) }));
       });
     } catch (err) {
       if (!settled) {
         settled = true;
         await cleanup();
-        resolve({ ok: false, exit_code: 1, timed_out: false, stdout: "", stderr: sanitizeSshOutput(err.message) });
+        resolve({ ok: false, exit_code: 1, timed_out: false, auth_mode: authMode, stdout: "", stderr: sanitizeSshOutput(err.message) });
       }
     }
   });
