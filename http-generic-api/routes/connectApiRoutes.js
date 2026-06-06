@@ -94,8 +94,9 @@ function defaultCredentialSchema(authType) {
     { name: "ssh_host", label: "SSH_HOST", type: "text", target: "credentials", required: true, secret: false },
     { name: "ssh_port", label: "SSH_PORT", type: "number", target: "credentials", required: true, secret: false },
     { name: "ssh_user", label: "SSH_USER", type: "text", target: "credentials", required: true, secret: false },
-    { name: "ssh_private_key", label: "SSH_PRIVATE_KEY", type: "textarea", target: "credentials", required: true, secret: true },
-  ] };
+    { name: "ssh_private_key", label: "SSH_PRIVATE_KEY (optional)", type: "textarea", target: "credentials", required: false, secret: true },
+    { name: "ssh_password", label: "SSH_PASSWORD (Hostinger password, optional)", type: "password", target: "credentials", required: false, secret: true },
+  ], credential_rule: "provide ssh_private_key or ssh_password" };
   if (authType === "remote_database") return { fields: [
     { name: "db_host", label: "DB_HOST", type: "text", target: "credentials", required: true, secret: false },
     { name: "db_port", label: "DB_PORT", type: "number", target: "credentials", required: true, secret: false },
