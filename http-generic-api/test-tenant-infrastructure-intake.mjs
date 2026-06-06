@@ -10,6 +10,12 @@ assert(connectRoutes.includes("status IN ('active','beta')"), "tenant connect ca
 assert(connectRoutes.includes("beta_included: true"), "connect catalog response should mark beta visibility explicitly");
 assert(connectRoutes.includes("infrastructure_auth_types: ['ssh_key_pair', 'remote_database']"), "connect catalog should advertise infrastructure auth types");
 
+assert(connectRoutes.includes('intake_url: intakeUrl'), "secure intake response must return the intake_url to the requesting user");
+assert(connectRoutes.includes('secret_exposed: false'), "secure intake response must mark secrets as not exposed");
+assert(connectRoutes.includes('intake_url_user_visible: true'), "intake_url must be explicitly classified as user-visible, not a secret");
+assert(connectRoutes.includes('show_to_requesting_user_temporary_secret_entry_link'), "intake_url redaction policy must tell assistants/tools to show the temporary entry link");
+assert(connectRoutes.includes('redact_submitted_credential_values_only'), "redaction policy must target submitted credential values, not the intake URL");
+
 assert(connectRoutes.includes('authType === "ssh_key_pair"'), "connect secure intake must support ssh_key_pair schema");
 assert(connectRoutes.includes('name: "ssh_host"'), "ssh intake must include ssh_host");
 assert(connectRoutes.includes('name: "ssh_port"'), "ssh intake must include ssh_port");
