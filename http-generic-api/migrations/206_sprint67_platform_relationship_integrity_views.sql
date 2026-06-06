@@ -64,23 +64,23 @@ UNION ALL SELECT 'connected_resume.session -> connected_sessions', 'connected_ex
   FROM connected_execution_resume_actions a LEFT JOIN connected_execution_sessions s ON s.connected_session_id COLLATE utf8mb4_unicode_ci = a.connected_session_id COLLATE utf8mb4_unicode_ci;
 
 CREATE OR REPLACE VIEW v_platform_relationship_integrity_issues AS
-SELECT 'approval_holds.run_id -> workflow_runs/local_gateway' AS relationship_name,
-       'approval_chain' AS relationship_group,
-       ah.hold_id AS source_id,
-       ah.run_id AS target_ref,
-       'unresolved_run_reference' AS issue_code,
-       JSON_OBJECT('tenant_id',ah.tenant_id,'status',ah.status,'hold_type',ah.hold_type,'requested_by',ah.requested_by,'created_at',ah.created_at,'secrets_included',false) AS evidence_json
+SELECT CAST('approval_holds.run_id -> workflow_runs/local_gateway' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS relationship_name,
+       CAST('approval_chain' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS relationship_group,
+       CAST(ah.hold_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS source_id,
+       CAST(ah.run_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS target_ref,
+       CAST('unresolved_run_reference' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS issue_code,
+       CAST(JSON_OBJECT('tenant_id',ah.tenant_id,'status',ah.status,'hold_type',ah.hold_type,'requested_by',ah.requested_by,'created_at',ah.created_at,'secrets_included',false) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS evidence_json
   FROM approval_holds ah
   LEFT JOIN workflow_runs wr ON wr.run_id COLLATE utf8mb4_unicode_ci = ah.run_id COLLATE utf8mb4_unicode_ci
   LEFT JOIN local_gateway_tool_call_log lg ON lg.call_id COLLATE utf8mb4_unicode_ci = ah.run_id COLLATE utf8mb4_unicode_ci
  WHERE ah.run_id IS NOT NULL AND wr.run_id IS NULL AND lg.call_id IS NULL
 UNION ALL
-SELECT 'app_integration_tool_bindings.tool -> resolved tool registry',
-       'plugin_binding_chain',
-       b.binding_id,
-       b.tool_key,
-       'unresolved_tool_binding',
-       JSON_OBJECT('app_key',b.app_key,'status',b.status,'notes',b.notes,'secrets_included',false)
+SELECT CAST('app_integration_tool_bindings.tool -> resolved tool registry' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+       CAST('plugin_binding_chain' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+       CAST(b.binding_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+       CAST(b.tool_key AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+       CAST('unresolved_tool_binding' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+       CAST(JSON_OBJECT('app_key',b.app_key,'status',b.status,'notes',b.notes,'secrets_included',false) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
   FROM app_integration_tool_bindings b
   LEFT JOIN admin_platform_endpoint_tools t ON t.tool_key COLLATE utf8mb4_unicode_ci = b.tool_key COLLATE utf8mb4_unicode_ci
   LEFT JOIN agent_tool_index ati ON ati.tool_key COLLATE utf8mb4_unicode_ci = b.tool_key COLLATE utf8mb4_unicode_ci
