@@ -1,8 +1,8 @@
 # system_bootstrap.clean-v1
 
-Clean-room staging overlay for the Growth Intelligence Platform runtime contract.
+Consolidated reference overlay for the Growth Intelligence Platform runtime contract.
 
-This file is not runtime authority yet. It is a promotion candidate that reconciles the current SQL-first architecture with the older Drive/Sheets workbook-era instructions.
+This file is not runtime authority. Many principles were promoted through active canonicals, schemas, migrations, and runtime modules; unresolved items remain follow-ups in `current-state-checkpoint-2026-06-06.md`.
 
 ## 1. Runtime authority
 
@@ -72,9 +72,9 @@ All AI-driven execution flows through:
 
 No route should call a model directly.
 
-## 5. Governance validation enforcement
+## 7. Governance validation enforcement
 
-The platform has `governanceValidationEngine`, but the clean contract requires it to be wired, not merely imported.
+The platform has `governanceValidationEngine` and active write/readback integrations. The clean contract still requires coverage to be verified at every governed mutation boundary, not inferred from an import or a partial integration.
 
 Required enforcement points:
 
@@ -84,9 +84,9 @@ Required enforcement points:
 | pre-write | target table compatibility, payload schema, duplicate checks, approval holds when applicable |
 | post-write | readback confirmation and sink/audit correlation |
 
-Until these are wired, features must be classified as `validating` or `degraded_contract`, not `fully_enforced`.
+Where an enforcement point lacks runtime evidence, the affected feature must be classified as `validating` or `degraded_contract`, not `fully_enforced`.
 
-## 6. Workflow key authority
+## 8. Workflow key authority
 
 Current DB contains repeated `workflow_key` values for workflow families. Clean contract:
 
@@ -94,7 +94,7 @@ Current DB contains repeated `workflow_key` values for workflow families. Clean 
 - `workflow_key` may be a stable group key only when explicitly paired with a unique `workflow_id` or `workflow_variant_key`.
 - Any loader using `WHERE workflow_key = ? LIMIT 1` is non-deterministic when duplicates exist and must be repaired.
 
-## 7. Agent and model classes
+## 9. Agent and model classes
 
 Canonical execution classes:
 
@@ -107,7 +107,7 @@ Canonical execution classes:
 
 `tool_orchestrated` and `governed` must be normalized by runtime policy instead of falling through silently to `standard`.
 
-## 8. Output sink authority
+## 10. Output sink authority
 
 Every completed governed execution should produce a canonical row in `output_artifacts`, unless explicitly classified as diagnostic-only.
 
@@ -118,7 +118,7 @@ Additional sink behavior:
 - sink writes require pre-write validation and post-write readback.
 - status enum drift (`ok/failed/skipped` vs `dispatched/completed/failed/skipped`) must be normalized before promotion.
 
-## 9. Local connector governance
+## 11. Local connector governance
 
 All local device operations flow through `/dispatch` using `intent_key` from `task_routes`.
 
@@ -130,13 +130,13 @@ Required invariants:
 - local config resolves from `local_connector_user_configs`; caller-supplied tunnel URLs/secrets are ignored.
 - shell/file checks run both on cloud orchestrator and device connector.
 
-## 10. Secret handling
+## 12. Secret handling
 
 Secrets must not be stored in visible JSON config fields. Runtime config rows must reference secrets using `*_secret_ref` fields.
 
 Known clean-up target: `tenant_gpt.oauth.client` should be migrated from inline `client_secret` to `client_secret_ref`.
 
-## 11. Workbook role
+## 13. Workbook role
 
 Workbooks in the Production Drive folder are legacy/runtime-mirror evidence. Clean bootstrap must treat them as:
 
@@ -147,15 +147,13 @@ Workbooks in the Production Drive folder are legacy/runtime-mirror evidence. Cle
 
 They are not primary runtime read paths.
 
-## 12. Promotion checklist
+## 14. Remaining implementation checklist
 
-Before promoting this overlay:
+Before treating every statement in this overlay as fully enforced:
 
-1. Fix `memory_schema.json` parsing.
-2. Decide workflow key uniqueness model.
-3. Wire `governanceValidationEngine` into execution and writes.
-4. Normalize execution classes.
-5. Normalize sink status contract.
-6. Remove inline secrets from runtime config.
-7. Validate Drive/Sheets workbook inventory against SQL mirrors.
-8. Run release readiness and schema validation.
+1. Decide and enforce the workflow key uniqueness model.
+2. Verify governance validation coverage at every governed write boundary.
+3. Normalize any remaining execution-class and sink-status drift.
+4. Remove inline secrets from runtime config.
+5. Validate Drive/Sheets workbook inventory only for explicit recovery/parity/archive decisions.
+6. Run release readiness, schema validation, and live readback.

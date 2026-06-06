@@ -7,11 +7,11 @@ This plan tracks the cleanup from workbook-era memory/schema contracts to the SQ
 The repository had two conflicting states:
 
 1. Root `memory_schema.json` was invalid JSON and still contained workbook/sheet-era assumptions.
-2. `docs/platform-recomposition/memory_schema.clean-v1.json` already staged a cleaner SQL-first contract, but it was not promoted.
+2. `docs/platform-recomposition/memory_schema.clean-v1.json` staged the cleaner SQL-first contract that was subsequently promoted.
 
-## Current promotion decision
+## Promotion decision
 
-Promote `docs/platform-recomposition/memory_schema.clean-v1.json` to root `memory_schema.json` with root-relative `$ref` paths.
+`docs/platform-recomposition/memory_schema.clean-v1.json` was promoted to root `memory_schema.json` with root-relative `$ref` paths.
 
 Promoted root schema requirements:
 
@@ -42,9 +42,9 @@ Not every occurrence has the same severity:
 - Some are still referenced by active root schema `$ref` entries and must be cleaned or reclassified.
 - Some live in unused or legacy definitions and should be deprecated in a later focused phase.
 
-## Immediate cleanup scope
+## Completed cleanup scope
 
-The first safe promotion scope is:
+The completed promotion scope was:
 
 1. Replace invalid root `memory_schema.json` with the clean SQL-first schema.
 2. Keep the root under the 45 KB validation limit.
@@ -53,9 +53,9 @@ The first safe promotion scope is:
 5. Document remaining workbook-era schema cleanup as follow-up work.
 6. Run `node validate-memory-schema.mjs` and CI.
 
-## Remaining schema cleanup inventory
+## Original schema cleanup inventory
 
-The following areas require staged cleanup after the root schema promotion lands:
+The following areas were used as the staged cleanup inventory after the root schema promotion:
 
 | File | Legacy term class | Cleanup direction |
 |---|---|---|
@@ -71,7 +71,7 @@ The following areas require staged cleanup after the root schema promotion lands
 
 ### Phase S1 — Root schema promotion
 
-Status: in progress.
+Status: completed.
 
 Deliverables:
 
@@ -85,7 +85,7 @@ CI validation green
 
 ### Phase S2 — Governance and execution schema cleanup
 
-Status: in progress.
+Status: completed.
 
 Clean the definitions that directly influence runtime validation:
 
@@ -119,7 +119,7 @@ governance patch parity evidence source now defaults to table.execution_log
 
 ### Phase S3 — Operations and repair schema cleanup
 
-Status: in progress.
+Status: completed.
 
 Clean operational/audit naming:
 
@@ -150,7 +150,7 @@ repair cluster_source_mode direct_sheet renamed to recovery_mirror_import
 
 ### Phase S4 — Analytics, WordPress, and asset schema cleanup
 
-Status: in progress.
+Status: completed.
 
 Clean source-specific remnants:
 
@@ -183,7 +183,7 @@ business identity spreadsheet metadata removed from runtime schema contracts
 
 ### Phase S5 — Runtime enforcement alignment
 
-Status: in progress.
+Status: completed.
 
 After schema cleanup, confirm runtime enforcement uses the same model:
 
@@ -222,9 +222,20 @@ S1 does not rewrite all historical schemas in one PR. Large semantic rewrites sh
 
 S1 also does not remove governed Drive/Sheets provider probes from activation. They remain connectivity evidence only, not runtime authority.
 
-## Validation checklist
+## Post-S5 follow-up register
 
-Before merging S1:
+S1-S5 closed the workbook-authority migration. Remaining work is tracked separately because it changes other contracts:
+
+1. Migrate historical registry identity keys such as `surface.operations_log_unified_sheet` through aliases/replacement IDs before renaming code constants.
+2. Remove or explicitly classify dead compatibility helpers that still carry Sheets-era names.
+3. Resolve non-deterministic workflow selection where runtime code still uses `workflow_key ... LIMIT 1`.
+4. Complete the `tenant_gpt.oauth.client` transition from inline `client_secret` storage to governed secret references.
+5. Keep core runtime context dimensions and lifecycle governance aligned with live DB migrations and readback evidence.
+6. Maintain this directory as a governed evidence register rather than a second source of runtime authority.
+
+## Historical validation checklist
+
+Used before merging S1:
 
 ```text
 node validate-memory-schema.mjs
@@ -235,7 +246,7 @@ confirm platform-recomposition README marks clean schema promoted
 confirm CI green
 ```
 
-Before merging S2-S4:
+Used before merging S2-S4:
 
 ```text
 search schemas/ for sheet/spreadsheet/worksheet_gid/workbook/gid

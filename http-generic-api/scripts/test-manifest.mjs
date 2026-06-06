@@ -49,6 +49,7 @@ export const testCommands = [
   "node test-auto-browser-local-tool-candidate.mjs",
   "node test-platform-evolution-checkpoint-tools.mjs",
   "node test-platform-evolution-openapi-docs.mjs",
+  "node test-platform-recomposition-docs.mjs",
   "node test-platform-evolution-tenant-smoke.mjs",
   "node test-platform-evolution-cms-claim-smoke.mjs",
   "node test-local-manager-tool-release-owner.mjs",
