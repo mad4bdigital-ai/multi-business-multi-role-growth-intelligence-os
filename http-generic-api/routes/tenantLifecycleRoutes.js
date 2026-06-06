@@ -368,6 +368,49 @@ export function buildTenantLifecycleRoutes() {
     }
   });
 
+  router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/revoke", requireUserJwt, async (req, res) => {
+    try {
+      const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+      if (!owner) return;
+      const [result] = await getPool().query(
+        "UPDATE invitations SET status='revoked', revoked_by=?, revoked_at=NOW() WHERE tenant_id=? AND invitation_id=? AND status='pending'",
+        [req.auth.user_id, req.params.tenant_id, req.params.invitation_id]
+      );
+      return res.status(result.affectedRows ? 200 : 404).json({ ok: Boolean(result.affectedRows), tenant_id: req.params.tenant_id, invitation_id: req.params.invitation_id, status: result.affectedRows ? "revoked" : "not_found", secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspace_invitation_revoke_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/resend", requireUserJwt, async (req, res) => {
+    try {
+      const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+      if (!owner) return;
+      const token = randomBytes(32).toString("hex");
+      const [result] = await getPool().query(
+        "UPDATE invitations SET token=?, status='pending', created_by=?, expires_at=DATE_ADD(NOW(), INTERVAL 14 DAY), revoked_by=NULL, revoked_at=NULL WHERE tenant_id=? AND invitation_id=? AND status IN ('pending','expired','revoked')",
+        [token, req.auth.user_id, req.params.tenant_id, req.params.invitation_id]
+      );
+      return res.status(result.affectedRows ? 200 : 404).json({ ok: Boolean(result.affectedRows), tenant_id: req.params.tenant_id, invitation_id: req.params.invitation_id, status: result.affectedRows ? "pending" : "not_found", token: result.affectedRows ? token : null, expires_in_days: result.affectedRows ? 14 : null, secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspace_invitation_resend_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/me/workspaces/:tenant_id/invitations/expire-stale", requireUserJwt, async (req, res) => {
+    try {
+      const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
+      if (!owner) return;
+      const [result] = await getPool().query(
+        "UPDATE invitations SET status='expired' WHERE tenant_id=? AND status='pending' AND expires_at < NOW()",
+        [req.params.tenant_id]
+      );
+      return res.json({ ok: true, tenant_id: req.params.tenant_id, expired_count: result.affectedRows || 0, secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspace_invitations_expire_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   router.get("/me/workspaces/:tenant_id/invitations", requireUserJwt, async (req, res) => {
     try {
       const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -422,6 +465,64 @@ export function buildTenantLifecycleRoutes() {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "invitation_accept_failed", message: err.message }, secrets_included: false });
     } finally {
       connection.release();
+    }
+  });
+
+  router.get("/me/access-requests", requireUserJwt, async (req, res) => {
+    try {
+      const status = String(req.query.status || "all");
+      const [rows] = await getPool().query(
+        `SELECT r.request_id, r.tenant_id, t.display_name AS tenant_display_name, r.requester_user_id, r.requester_email, r.requested_role, r.status, r.reason, r.reviewed_by, r.reviewed_at, r.created_at, r.updated_at
+           FROM workspace_access_requests r
+           LEFT JOIN tenants t ON t.tenant_id = r.tenant_id
+          WHERE r.requester_user_id = ? AND (? = 'all' OR r.status = ?)
+          ORDER BY r.created_at DESC LIMIT 100`,
+        [req.auth.user_id, status, status]
+      );
+      return res.json({ ok: true, access_requests: rows, count: rows.length, secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspace_my_access_requests_list_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/me/workspaces/:tenant_id/access-requests/:request_id/cancel", requireUserJwt, async (req, res) => {
+    try {
+      const [result] = await getPool().query(
+        "UPDATE workspace_access_requests SET status='cancelled', updated_at=NOW() WHERE request_id=? AND tenant_id=? AND requester_user_id=? AND status='pending'",
+        [req.params.request_id, req.params.tenant_id, req.auth.user_id]
+      );
+      return res.status(result.affectedRows ? 200 : 404).json({ ok: Boolean(result.affectedRows), request_id: req.params.request_id, tenant_id: req.params.tenant_id, status: result.affectedRows ? "cancelled" : "not_found", secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspace_access_request_cancel_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.get("/me/access-requests", requireUserJwt, async (req, res) => {
+    try {
+      const status = String(req.query.status || "all");
+      const [rows] = await getPool().query(
+        `SELECT r.request_id, r.tenant_id, t.display_name AS tenant_display_name, r.requester_user_id, r.requester_email, r.requested_role, r.status, r.reason, r.reviewed_by, r.reviewed_at, r.created_at, r.updated_at
+           FROM workspace_access_requests r
+           LEFT JOIN tenants t ON t.tenant_id = r.tenant_id
+          WHERE r.requester_user_id = ? AND (? = 'all' OR r.status = ?)
+          ORDER BY r.created_at DESC LIMIT 100`,
+        [req.auth.user_id, status, status]
+      );
+      return res.json({ ok: true, access_requests: rows, count: rows.length, secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspace_my_access_requests_list_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/me/workspaces/:tenant_id/access-requests/:request_id/cancel", requireUserJwt, async (req, res) => {
+    try {
+      const [result] = await getPool().query(
+        "UPDATE workspace_access_requests SET status='cancelled', updated_at=NOW() WHERE request_id=? AND tenant_id=? AND requester_user_id=? AND status='pending'",
+        [req.params.request_id, req.params.tenant_id, req.auth.user_id]
+      );
+      return res.status(result.affectedRows ? 200 : 404).json({ ok: Boolean(result.affectedRows), request_id: req.params.request_id, tenant_id: req.params.tenant_id, status: result.affectedRows ? "cancelled" : "not_found", secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspace_access_request_cancel_failed", message: err.message }, secrets_included: false });
     }
   });
 
