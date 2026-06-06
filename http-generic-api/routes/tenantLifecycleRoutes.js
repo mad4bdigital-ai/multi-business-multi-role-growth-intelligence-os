@@ -497,6 +497,35 @@ export function buildTenantLifecycleRoutes() {
     }
   });
 
+  router.get("/me/access-requests", requireUserJwt, async (req, res) => {
+    try {
+      const status = String(req.query.status || "all");
+      const [rows] = await getPool().query(
+        `SELECT r.request_id, r.tenant_id, t.display_name AS tenant_display_name, r.requester_user_id, r.requester_email, r.requested_role, r.status, r.reason, r.reviewed_by, r.reviewed_at, r.created_at, r.updated_at
+           FROM workspace_access_requests r
+           LEFT JOIN tenants t ON t.tenant_id = r.tenant_id
+          WHERE r.requester_user_id = ? AND (? = 'all' OR r.status = ?)
+          ORDER BY r.created_at DESC LIMIT 100`,
+        [req.auth.user_id, status, status]
+      );
+      return res.json({ ok: true, access_requests: rows, count: rows.length, secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspace_my_access_requests_list_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/me/workspaces/:tenant_id/access-requests/:request_id/cancel", requireUserJwt, async (req, res) => {
+    try {
+      const [result] = await getPool().query(
+        "UPDATE workspace_access_requests SET status='cancelled', updated_at=NOW() WHERE request_id=? AND tenant_id=? AND requester_user_id=? AND status='pending'",
+        [req.params.request_id, req.params.tenant_id, req.auth.user_id]
+      );
+      return res.status(result.affectedRows ? 200 : 404).json({ ok: Boolean(result.affectedRows), request_id: req.params.request_id, tenant_id: req.params.tenant_id, status: result.affectedRows ? "cancelled" : "not_found", secrets_included: false });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspace_access_request_cancel_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   router.post("/me/workspaces/:tenant_id/access-requests", requireUserJwt, async (req, res) => {
     try {
       const user = await fetchUser(req.auth.user_id);
