@@ -80,6 +80,10 @@ const LEGACY_NON_REQUIRED_ADMIN_TOOLS = [
   "governance_execution_log_sheets_recovery",
 ];
 
+const DEPRECATED_DB_BOOTSTRAP_REPLACED_ADMIN_TOOLS = new Set([
+  "activation_sheets_bootstrap_read",
+]);
+
 const REQUIRED_RUNTIME_POLICY_SEEDS = [
   { check_key: "repo_mutation_guard", policy_group: "Repository Mutation Governance", policy_key: "Stale Duplicate Branch Merge Guard", required_blocking: true, required_scope_tokens: ["repo_patch_apply", "gpt_tools_call"], required_affects_layer_tokens: ["gptToolsRoutes", "repo_patch_apply"] },
   { check_key: "app_action_visibility", policy_group: "External App Action Governance", policy_key: "External App Action Preflight Visibility", required_blocking: false, required_scope_tokens: ["app_action", "external_app_action"], required_affects_layer_tokens: ["appAdapters", "appAdapters/index.js"] },
