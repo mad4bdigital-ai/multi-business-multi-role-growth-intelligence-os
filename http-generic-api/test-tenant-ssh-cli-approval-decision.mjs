@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const routes = readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");
 const migration = readFileSync("migrations/201_sprint66_tenant_ssh_cli_approval_decision_tools.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
+const openapi = readFileSync("openapi.yaml", "utf8");
 
 assert(routes.includes('/me/infrastructure/ssh/cli/approval-requests/:request_id'), "approval status route must exist");
 assert(routes.includes('/me/infrastructure/ssh/cli/approval-requests/:request_id/decision'), "approval decision route must exist");
