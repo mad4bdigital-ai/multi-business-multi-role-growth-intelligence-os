@@ -73,3 +73,5 @@ JSON payloads written to the ledger are passed as regular `JSON.stringify(...)` 
 ## Operational notes
 
 Use dry-run first, review the reported preflight and artifact readback, then apply one migration file at a time. After apply, run `release_readiness` to verify that dynamic migration drift decreased as expected.
+
+Migration ledger identity is the full migration filename plus checksum, not the leading numeric prefix alone. Historical numeric-prefix collisions exist, so operators must always use and review the complete filename; new migrations should avoid introducing another collision.
