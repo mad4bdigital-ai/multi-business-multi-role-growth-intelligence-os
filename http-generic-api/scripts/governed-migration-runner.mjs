@@ -70,6 +70,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "210_sprint67_openrouter_docs_agent_provider_contract.sql",
   "210_sprint67_approval_hold_tenant_ssh_relationship_alignment.sql",
   "215_sprint67_dynamic_platform_secret_promotion.sql",
+  "216_sprint67_platform_secret_promotion_monitoring.sql",
   "201_sprint68_lifecycle_owner_engine_registry_alignment.sql",
 ]);
 
