@@ -15,6 +15,7 @@ export const testCommands = [
   "node test-credential-tenant-promotion.mjs",
   "node test-credential-intake-enforcement.mjs",
   "node test-credential-intake-missing-credential-handoff.mjs",
+  "node test-credential-intake-ssh-password.mjs",
   "node test-local-connector-key-promotion.mjs",
   "node test-wordpress-blog-publish-orchestrator.mjs",
   "node test-wordpress-resource-grant-enforcement.mjs",
