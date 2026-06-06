@@ -15,7 +15,7 @@ assert.ok(migration.includes("repo_inspect"));
 assert.ok(migration.includes("repo_patch_apply"));
 assert.ok(migration.includes("secrets_included"));
 assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
-assert.ok(runner.includes("206_sprint67_platform_relationship_integrity_views.sql"));
+assert.ok(runner.includes("207_sprint67_platform_relationship_integrity_views.sql"));
 
 for (const token of ["workspace_id", "workspace_key", "brand_id", "brand_key", "request_id", "session_id", "conversation_id", "correlation_id", "execution_context_json"]) {
   assert.ok(workflowRoutes.includes(token), `workflow orchestration route should write ${token}`);
