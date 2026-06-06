@@ -21,7 +21,12 @@ assert(connectRoutes.includes('name: "ssh_host"'), "ssh intake must include ssh_
 assert(connectRoutes.includes('name: "ssh_port"'), "ssh intake must include ssh_port");
 assert(connectRoutes.includes('name: "ssh_user"'), "ssh intake must include ssh_user");
 assert(connectRoutes.includes('name: "ssh_private_key"'), "ssh intake must include ssh_private_key");
+assert(connectRoutes.includes('name: "ssh_password"'), "ssh intake must include ssh_password for Hostinger password-based SSH");
+assert(connectRoutes.includes('provide ssh_private_key or ssh_password'), "ssh intake must describe either private key or password rule");
 assert(connectRoutes.includes('secret: true') && connectRoutes.includes('SSH_PRIVATE_KEY'), "ssh private key must be secret");
+assert(connectRoutes.includes('SSH_PASSWORD') && connectRoutes.includes('secret: true'), "ssh password must be secret");
+assert(connectRoutes.includes('/connect/api/credential-intake/sessions/:session_id/wait'), "connect API must expose tenant-safe credential intake wait route");
+assert(connectRoutes.includes('webhook_safe_event'), "wait route must provide webhook-safe completion event metadata");
 assert(!connectRoutes.match(/authType === "ssh_key_pair"[\s\S]{0,700}db_name/), "SSH schema must not include DB fields");
 
 assert(connectRoutes.includes('authType === "remote_database"'), "connect secure intake must support remote_database schema");
