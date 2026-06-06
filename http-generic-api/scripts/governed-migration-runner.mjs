@@ -60,6 +60,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "203_sprint67_execution_log_context_dimensions.sql",
   "204_sprint67_core_runtime_context_dimensions.sql",
   "205_sprint67_runtime_context_dimension_enrichment.sql",
+  "206_sprint67_deterministic_workflow_execution_identity.sql",
   "201_sprint68_lifecycle_owner_engine_registry_alignment.sql",
 ]);
 

@@ -446,7 +446,7 @@ export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces 
 }
 
 export function splitSqlStatements(sql = "") {
-  const boundaryStart = "(?:CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:TABLE|VIEW)|INSERT\\s+(?:IGNORE\\s+)?INTO|UPDATE\\s+`?[A-Za-z0-9_]+`?|ALTER\\s+TABLE|DROP\\s+TABLE|TRUNCATE\\s+TABLE|DELETE\\s+FROM)\\b";
+  const boundaryStart = "(?:CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:TABLE|VIEW)|CREATE\\s+(?:UNIQUE\\s+)?INDEX|INSERT\\s+(?:IGNORE\\s+)?INTO|UPDATE\\s+`?[A-Za-z0-9_]+`?|ALTER\\s+TABLE|DROP\\s+TABLE|TRUNCATE\\s+TABLE|DELETE\\s+FROM)\\b";
   const interStatementTrivia = "(?:\\s|--[^\\n]*(?:\\n|$)|/\\*[\\s\\S]*?\\*/)*";
   const statementBoundary = new RegExp(`;${interStatementTrivia}(?=${interStatementTrivia}(?:${boundaryStart})|$)`, "i");
   return String(sql || "")
@@ -470,6 +470,8 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
     create_table_idempotent: 0,
     create_view: 0,
     create_view_idempotent: 0,
+    create_index: 0,
+    create_index_idempotent: 0,
     insert: 0,
     insert_idempotent: 0,
     alter_table: 0,
@@ -496,6 +498,14 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
         counts.create_view_idempotent += 1;
       } else {
         risks.push({ severity: "warn", code: "create_view_without_or_replace", statement: normalized.slice(0, 140) });
+      }
+    }
+    if (/^CREATE\s+(?:UNIQUE\s+)?INDEX\b/i.test(normalized)) {
+      counts.create_index += 1;
+      if (/^CREATE\s+(?:UNIQUE\s+)?INDEX\s+IF\s+NOT\s+EXISTS\b/i.test(normalized)) {
+        counts.create_index_idempotent += 1;
+      } else {
+        risks.push({ severity: "warn", code: "create_index_without_if_not_exists", statement: normalized.slice(0, 140) });
       }
     }
     if (/^INSERT\s+(?:IGNORE\s+)?INTO\b/i.test(normalized)) {

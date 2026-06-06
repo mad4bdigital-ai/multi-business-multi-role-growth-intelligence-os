@@ -16,7 +16,7 @@ Platform recomposition is no longer an unpromoted clean-room exercise. The SQL-p
 | Activation bootstrap | DB-native bootstrap config is authority; Sheets alias is compatibility-only and must not call Sheets. | Active canonicals, guides, and activation tests. |
 | Execution evidence | `execution_log` has context dimensions and governed backfill evidence. | Migration 203 and live readback. |
 | Core runtime context | Additive context-dimension migration is registered across core activity/runtime tables; live coverage readback remains a follow-up. | Migration 204 and contract test. |
-| Runtime workflow selection | Runtime loaders resolve explicit `workflow_id` first, accept only unique active `workflow_key` matches, and block ambiguous keys. | `runtimeWorkflowResolver.js`; `test-runtime-workflow-resolver.mjs`. |
+| Runtime workflow selection | Runtime loaders resolve explicit `workflow_id` first, accept only unique active `workflow_key` matches, and block ambiguous keys. Migration 206 promotes the exact identity into execution plans; the governed readback verifies schema, ledger, and live resolver behavior. | `runtimeWorkflowResolver.js`; migration 206; `scripts/workflow-execution-identity-readback.mjs`; `test-runtime-workflow-resolver.mjs`. |
 
 ## Reference overlays
 
@@ -35,6 +35,7 @@ When an overlay statement conflicts with current code or an active canonical:
 | High | Migrate `tenant_gpt.oauth.client` away from inline `client_secret` storage to `client_secret_ref`. | The current compatibility path still resolves an inline DB-backed secret. |
 | Medium | Classify and remove dead Sheets-era compatibility helpers and historical surface IDs only after alias/replacement migrations exist. | Names are not runtime authority, but blind renames can break registry identity. |
 | Medium | Continue live readback for migrations 203/204 and lifecycle governance reports. | Schema presence is not enough; context coverage and retention need operational evidence. |
+| Medium | Apply migration 206 through the governed runner and retain its live readback evidence. | Runtime behavior is deterministic already, but execution plans cannot persist the exact workflow variant until the additive column and index exist. |
 | Medium | Review the remaining unique remote branches before deletion or promotion. | Unique patches may contain architecture-aligned work not yet integrated. |
 | Low | Re-read historical Drive workbook inventory only when a recovery, parity, or archive decision requires it. | Workbook inventory is not runtime authority. |
 
@@ -46,6 +47,7 @@ Run these checks after changing this directory:
 node validate-memory-schema.mjs
 node http-generic-api/test-platform-recomposition-docs.mjs
 node http-generic-api/validate-architecture.mjs
+node http-generic-api/scripts/workflow-execution-identity-readback.mjs
 git diff --check
 ```
 
