@@ -105,8 +105,25 @@ for (const path of [
     new URL("migrations/206_sprint67_deterministic_workflow_execution_identity.sql", import.meta.url),
     "utf8"
   );
+  const runner = readFileSync(
+    new URL("scripts/governed-migration-runner.mjs", import.meta.url),
+    "utf8"
+  );
+  const readback = readFileSync(
+    new URL("scripts/workflow-execution-identity-readback.mjs", import.meta.url),
+    "utf8"
+  );
   assert.match(migration, /ADD COLUMN IF NOT EXISTS `workflow_id`/);
   assert.match(migration, /idx_execution_plans_workflow_id/);
+  assert.match(
+    runner,
+    /206_sprint67_deterministic_workflow_execution_identity\.sql/,
+    "migration 206 must be allowlisted for the governed runner"
+  );
+  assert.match(readback, /information_schema\.columns/);
+  assert.match(readback, /information_schema\.statistics/);
+  assert.match(readback, /resolveRuntimeWorkflow/);
+  assert.match(readback, /secrets_included:\s*false/);
 }
 
 console.log("runtime workflow resolver tests passed");
