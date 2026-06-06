@@ -16,6 +16,7 @@ Platform recomposition is no longer an unpromoted clean-room exercise. The SQL-p
 | Activation bootstrap | DB-native bootstrap config is authority; Sheets alias is compatibility-only and must not call Sheets. | Active canonicals, guides, and activation tests. |
 | Execution evidence | `execution_log` has context dimensions and governed backfill evidence. | Migration 203 and live readback. |
 | Core runtime context | Additive context-dimension migration is registered across core activity/runtime tables; live coverage readback remains a follow-up. | Migration 204 and contract test. |
+| Runtime workflow selection | Runtime loaders resolve explicit `workflow_id` first, accept only unique active `workflow_key` matches, and block ambiguous keys. | `runtimeWorkflowResolver.js`; `test-runtime-workflow-resolver.mjs`. |
 
 ## Reference overlays
 
@@ -31,7 +32,6 @@ When an overlay statement conflicts with current code or an active canonical:
 
 | Priority | Follow-up | Reason |
 |---|---|---|
-| High | Replace ambiguous `workflow_key ... LIMIT 1` runtime selection with unique workflow execution identity or explicit variant selection. | Duplicate workflow-family keys can produce non-deterministic execution. |
 | High | Migrate `tenant_gpt.oauth.client` away from inline `client_secret` storage to `client_secret_ref`. | The current compatibility path still resolves an inline DB-backed secret. |
 | Medium | Classify and remove dead Sheets-era compatibility helpers and historical surface IDs only after alias/replacement migrations exist. | Names are not runtime authority, but blind renames can break registry identity. |
 | Medium | Continue live readback for migrations 203/204 and lifecycle governance reports. | Schema presence is not enough; context coverage and retention need operational evidence. |

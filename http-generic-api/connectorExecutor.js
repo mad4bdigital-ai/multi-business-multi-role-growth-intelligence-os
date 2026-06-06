@@ -19,6 +19,7 @@ import { runAgentLoop } from "./agentLoopRunner.js";
 import { getAgentDeps } from "./agentRuntime.js";
 import { routeOutput }  from "./outputSinkRouter.js";
 import { evaluateConnectorDispatchPreflight, assertPreflightAllowed } from "./governedExecutionPreflight.js";
+import { resolveRuntimeWorkflow } from "./runtimeWorkflowResolver.js";
 import {
   dispatchWordpressBlogPublish,
   isWordpressBlogPublishWorkflow,
@@ -64,17 +65,6 @@ async function loadConnectedSystem(tenant_id, brand_key) {
      FROM \`connected_systems\`
      WHERE tenant_id = ? AND (system_key = ? OR system_key LIKE ?) AND status = 'active' LIMIT 1`,
     [tenant_id, brand_key, `%${brand_key}%`]
-  );
-  return rows[0] || null;
-}
-
-async function loadWorkflowDef(workflow_key) {
-  if (!workflow_key) return null;
-  const [rows] = await getPool().query(
-    `SELECT workflow_key, execution_mode, execution_class, target_module, review_required
-     FROM \`workflows\`
-     WHERE workflow_key = ? AND (active = 1 OR active = 'TRUE' OR active = '1') LIMIT 1`,
-    [workflow_key]
   );
   return rows[0] || null;
 }
@@ -133,6 +123,8 @@ async function createWorkflowRun(run_id, trace_id, plan, service_mode) {
     brand_key: plan.brand_key || null,
     target_key: plan.target_key || null,
     intent_key: plan.intent_key || null,
+    workflow_id: plan.workflow_id || null,
+    workflow_key: plan.workflow_key || null,
     trace_id,
     run_id,
     secrets_included: false,
@@ -398,12 +390,27 @@ export async function dispatchPlan(plan_id, {
     };
   }
 
-  const [brand, connectedSystem, workflowDef, actionRow] = await Promise.all([
+  const [brand, connectedSystem, workflowResolution, actionRow] = await Promise.all([
     loadBrand(plan.brand_key || plan.target_key),
     loadConnectedSystem(plan.tenant_id, plan.brand_key || plan.target_key),
-    loadWorkflowDef(plan.workflow_key),
+    resolveRuntimeWorkflow({
+      workflow_id: plan.workflow_id,
+      workflow_key: plan.workflow_key,
+    }),
     loadAction(plan.workflow_key || plan.intent_key),
   ]);
+  if (!workflowResolution.ok && workflowResolution.resolution.code !== "workflow_identity_missing") {
+    return {
+      ok: false,
+      plan_id,
+      error: {
+        code: workflowResolution.resolution.code,
+        message: workflowResolution.resolution.message,
+        resolution: workflowResolution.resolution,
+      },
+    };
+  }
+  const workflowDef = workflowResolution.ok ? workflowResolution.workflow : null;
 
   const isWordpress =
     brand?.auth_type === "basic_auth_app_password" ||
@@ -507,7 +514,9 @@ export async function dispatchPlan(plan_id, {
       [succeeded ? "completed" : "failed", plan_id]
     ),
     createSpan(trace_id, run_id, `connector.${connector_type}`, succeeded ? "ok" : "error", duration_ms, plan, {
-      plan_id, run_id, connector_type, apply, brand_key: plan.brand_key, workflow_key: plan.workflow_key,
+      plan_id, run_id, connector_type, apply, brand_key: plan.brand_key,
+      workflow_id: plan.workflow_id || workflowDef?.workflow_id || null,
+      workflow_key: plan.workflow_key,
     }),
   ]);
 
@@ -519,6 +528,7 @@ export async function dispatchPlan(plan_id, {
       tenant_id:    plan.tenant_id,
       brand_key:    plan.brand_key || null,
       workflow_key: plan.workflow_key || null,
+      workflow_id: plan.workflow_id || workflowDef?.workflow_id || null,
       output:       result.output,
     }).catch(err => console.warn("[outputSinkRouter] non-fatal:", err?.message));
   }

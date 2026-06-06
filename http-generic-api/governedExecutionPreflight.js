@@ -159,13 +159,13 @@ export async function evaluateAppActionPreflight({ connection = {}, appKey = "",
 
 export async function evaluateConnectorDispatchPreflight({ plan = {}, connectorType = "", workflowDef = null, apply = false } = {}, deps = {}) {
   const resolvedConnectorType = String(connectorType || "").trim();
-  const { runtimePolicyResolution, policies } = await resolvePolicies({ execution_scope: ["connector_dispatch", "workflow_dispatch", resolvedConnectorType, plan.workflow_key, plan.intent_key].filter(Boolean), affects_layer: ["connectorExecutor", "connectorExecutor.js", resolvedConnectorType].filter(Boolean) }, deps);
+  const { runtimePolicyResolution, policies } = await resolvePolicies({ execution_scope: ["connector_dispatch", "workflow_dispatch", resolvedConnectorType, plan.workflow_id, plan.workflow_key, plan.intent_key].filter(Boolean), affects_layer: ["connectorExecutor", "connectorExecutor.js", resolvedConnectorType].filter(Boolean) }, deps);
   if (!policies.length) return makePreflightResult({ evidence: { operation: "connector_dispatch", connector_type: resolvedConnectorType, reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
   const warnings = [];
   const errors = [];
   const enforcedBlockingPolicies = [];
   const genericBlockingPolicies = [];
-  const evidence = { operation: "connector_dispatch", plan_id: plan.plan_id || null, tenant_id: plan.tenant_id || null, workflow_key: plan.workflow_key || null, intent_key: plan.intent_key || null, brand_key: plan.brand_key || null, connector_type: resolvedConnectorType, workflow_execution_class: workflowDef?.execution_class || null, workflow_review_required: workflowDef?.review_required ?? null, apply: Boolean(apply), matching_policy_count: policies.length };
+  const evidence = { operation: "connector_dispatch", plan_id: plan.plan_id || null, tenant_id: plan.tenant_id || null, workflow_id: plan.workflow_id || workflowDef?.workflow_id || null, workflow_key: plan.workflow_key || workflowDef?.workflow_key || null, intent_key: plan.intent_key || null, brand_key: plan.brand_key || null, connector_type: resolvedConnectorType, workflow_execution_class: workflowDef?.execution_class || null, workflow_review_required: workflowDef?.review_required ?? null, apply: Boolean(apply), matching_policy_count: policies.length };
   for (const policy of policies) {
     if (!policyAllowsBlocking(policy)) continue;
     const group = String(policy.policy_group || "").trim();
@@ -185,13 +185,13 @@ export async function evaluateConnectorDispatchPreflight({ plan = {}, connectorT
 }
 
 export async function evaluateAgentLoopPreflight({ plan = {}, workflow = null, logicKey = "", executionClass = "standard", toolCount = 0, context = {} } = {}, deps = {}) {
-  const { runtimePolicyResolution, policies } = await resolvePolicies({ execution_scope: ["agent_loop", "model_tool_loop", "logic_execution", executionClass, workflow?.workflow_key, plan.workflow_key, plan.intent_key, logicKey].filter(Boolean), affects_layer: ["agentLoopRunner", "agentLoopRunner.js", executionClass].filter(Boolean) }, deps);
+  const { runtimePolicyResolution, policies } = await resolvePolicies({ execution_scope: ["agent_loop", "model_tool_loop", "logic_execution", executionClass, workflow?.workflow_id, plan.workflow_id, workflow?.workflow_key, plan.workflow_key, plan.intent_key, logicKey].filter(Boolean), affects_layer: ["agentLoopRunner", "agentLoopRunner.js", executionClass].filter(Boolean) }, deps);
   if (!policies.length) return makePreflightResult({ evidence: { operation: "agent_loop", workflow_key: plan.workflow_key || null, reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
   const warnings = [];
   const errors = [];
   const enforcedBlockingPolicies = [];
   const genericBlockingPolicies = [];
-  const evidence = { operation: "agent_loop", plan_id: plan.plan_id || null, tenant_id: plan.tenant_id || null, agent_id: plan.agent_id || null, workflow_key: plan.workflow_key || workflow?.workflow_key || null, intent_key: plan.intent_key || null, brand_key: plan.brand_key || null, logic_key: logicKey || null, execution_class: executionClass, tool_count: Number(toolCount || 0), review_required: workflow?.review_required ?? null, workspace_app_connection_count: context?.workspace_app_connection_count ?? null, matching_policy_count: policies.length };
+  const evidence = { operation: "agent_loop", plan_id: plan.plan_id || null, tenant_id: plan.tenant_id || null, agent_id: plan.agent_id || null, workflow_id: plan.workflow_id || workflow?.workflow_id || null, workflow_key: plan.workflow_key || workflow?.workflow_key || null, intent_key: plan.intent_key || null, brand_key: plan.brand_key || null, logic_key: logicKey || null, execution_class: executionClass, tool_count: Number(toolCount || 0), review_required: workflow?.review_required ?? null, workspace_app_connection_count: context?.workspace_app_connection_count ?? null, matching_policy_count: policies.length };
   for (const policy of policies) {
     if (!policyAllowsBlocking(policy)) continue;
     const group = String(policy.policy_group || "").trim();
