@@ -876,6 +876,34 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
     }
   });
 
+  router.post("/me/infrastructure/ssh/connections/:connection_id/cli/execute", requireUserJwt, async (req, res) => {
+    try {
+      const connectionId = String(req.params.connection_id || "").trim();
+      const approvalRequestId = String(req.body?.approval_request_id || req.body?.request_id || "").trim();
+      const commandKey = String(req.body?.command_key || "").trim();
+      if (!connectionId) return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      if (!approvalRequestId) return res.status(400).json({ ok: false, error: { code: "approval_request_id_required", message: "approval_request_id is required." }, secrets_included: false });
+      const row = await loadTenantConnection(pool, req, connectionId, "ssh_key_pair");
+      const readiness = readinessFor(row, "ssh_key_pair");
+      if (!readiness.ready) {
+        return res.status(409).json({ ok: false, error: { code: "ssh_connection_not_ready", message: "SSH connection is not ready for CLI execution.", details: readiness.blocked_reasons }, readiness, secrets_included: false });
+      }
+      const approvalRow = await loadSshCliApprovalRequest(pool, req, approvalRequestId);
+      const execution = await executeApprovedSshCli(row, approvalRow, commandKey || approvalRow.command_key, req.body || {});
+      return res.status(execution.ok ? 200 : 502).json({
+        ok: execution.ok,
+        kind: "ssh",
+        source: "tenant_ssh_cli_allowlisted_execute",
+        connection: safeConnection(row),
+        approval_request: sanitizeApprovalRequest(approvalRow),
+        execution,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_cli_execute_failed", message: err.message, details: err.details }, secrets_included: false });
+    }
+  });
+
   router.post("/me/infrastructure/ssh/connections/:connection_id/cli/approval-request", requireUserJwt, async (req, res) => {
     try {
       const connectionId = String(req.params.connection_id || "").trim();
