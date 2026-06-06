@@ -58,7 +58,7 @@ export function classifyActivationFromEvidence(evidence = {}) {
 
   if (
     evidence.drive_ok &&
-    evidence.sheets_ok &&
+    sheetsStepSatisfied(evidence) &&
     evidence.github_ok &&
     evidence.bootstrap_row_read &&
     evidence.binding_resolved &&
