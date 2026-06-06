@@ -13,7 +13,7 @@ const script = fs.readFileSync(
   "utf8"
 );
 const ownerEngineMigration = fs.readFileSync(
-  new URL("./migrations/200_sprint68_lifecycle_owner_engine_registry_alignment.sql", import.meta.url),
+  new URL("./migrations/201_sprint68_lifecycle_owner_engine_registry_alignment.sql", import.meta.url),
   "utf8"
 );
 const governedMigrationRunner = fs.readFileSync(
@@ -152,7 +152,7 @@ for (const engineKey of [
 }
 assert(ownerEngineMigration.includes("ON DUPLICATE KEY UPDATE"), "owner engine alignment migration must be idempotent");
 assert(
-  governedMigrationRunner.includes('"200_sprint68_lifecycle_owner_engine_registry_alignment.sql"'),
+  governedMigrationRunner.includes('"201_sprint68_lifecycle_owner_engine_registry_alignment.sql"'),
   "owner engine alignment migration must be allowlisted for governed apply",
 );
 

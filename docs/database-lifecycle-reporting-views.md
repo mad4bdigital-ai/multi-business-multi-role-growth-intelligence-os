@@ -56,7 +56,7 @@ delete, compact, or mutate application-table rows.
 
 Lifecycle owner engines referenced by the classifier must also be reproducible
 from the migration ledger. Migration
-`200_sprint68_lifecycle_owner_engine_registry_alignment.sql` aligns the
+`201_sprint68_lifecycle_owner_engine_registry_alignment.sql` aligns the
 developer-platform, platform-contract, and workflow-runtime lifecycle owners
 that already exist in the live engine registry. It is allowlisted for the
 governed migration runner so live alignment remains dry-run-first, explicitly
