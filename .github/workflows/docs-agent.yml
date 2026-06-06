@@ -53,6 +53,7 @@ jobs:
           git add docs/auto-docs-agent
           git commit -m "Docs agent: update PR impact note"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          gh workflow run ci.yml --ref ${{ github.event.pull_request.head.ref }} || true
 
       - name: Enable auto-merge when explicitly labeled
         if: contains(github.event.pull_request.labels.*.name, 'docs-agent-automerge')
