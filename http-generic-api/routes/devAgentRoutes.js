@@ -662,6 +662,153 @@ export function buildDevAgentRoutes(deps) {
     }
   });
 
+  // ── GET /dev-agent/openclaude/bridge/v1/health ───────────────────────────
+  router.get("/dev-agent/openclaude/bridge/v1/health", async (req, res) => {
+    try {
+      const [[contract]] = await getPool().query(
+        "SELECT config_key, config_json, status, note, updated_at FROM `platform_runtime_config` WHERE config_key = ? LIMIT 1",
+        ["openclaude_provider_bridge_contract_v1"]
+      );
+      const [[runtime]] = await getPool().query(
+        "SELECT runtime_key, status, device_id, command_hint, policy_json, updated_at FROM `dev_agent_runtime_registry` WHERE runtime_key = ? LIMIT 1",
+        ["openclaude_essam_local_v1"]
+      );
+      const [[profile]] = await getPool().query(
+        "SELECT profile_key, provider_key, status, endpoint_url, policy_json, metadata_json, updated_at FROM `dev_agent_runtime_provider_profiles` WHERE profile_key = ? LIMIT 1",
+        ["openclaude_essam_platform_bridge_v1"]
+      );
+      const [[certification]] = await getPool().query(
+        "SELECT certification_key, certification_status, dispatch_allowed, apply_allowed, requires_readback, updated_at FROM `runtime_dispatch_certification_registry` WHERE certification_key = ? LIMIT 1",
+        ["openclaude_platform_provider_bridge_v1"]
+      );
+
+      const contractJson = safeParseJsonObject(contract?.config_json);
+      const runtimePolicy = safeParseJsonObject(runtime?.policy_json);
+      const profilePolicy = safeParseJsonObject(profile?.policy_json);
+      const profileMetadata = safeParseJsonObject(profile?.metadata_json);
+      const endpointLive = profileMetadata.endpoint_live === true || profileMetadata.endpoint_live === "true";
+      const dispatchAllowed = Boolean(Number(certification?.dispatch_allowed || 0));
+
+      return res.json({
+        ok: true,
+        readiness: endpointLive && dispatchAllowed ? "ready_for_dry_run_dispatch" : "contract_registered_pending_provider_dispatch",
+        bridge: {
+          contract_key: contract?.config_key || "openclaude_provider_bridge_contract_v1",
+          contract_status: contractJson.status || "missing_contract",
+          route_live: true,
+          provider_dispatch_enabled: dispatchAllowed,
+          chat_completions_endpoint: "/dev-agent/openclaude/bridge/v1/chat/completions",
+          health_endpoint: "/dev-agent/openclaude/bridge/v1/health",
+        },
+        runtime: {
+          runtime_key: runtime?.runtime_key || "openclaude_essam_local_v1",
+          status: runtime?.status || "missing_runtime",
+          device_id: runtime?.device_id || "essam-pc",
+          execution_status: runtimePolicy.execution_status || "blocked_pending_provider_bridge_route",
+        },
+        profile: {
+          profile_key: profile?.profile_key || "openclaude_essam_platform_bridge_v1",
+          provider_key: profile?.provider_key || "platform_model_provider_bridge",
+          status: profile?.status || "missing_profile",
+          endpoint_live: endpointLive,
+        },
+        policy: {
+          allowed_tools: profilePolicy.allowed_tools || contractJson.allowed_openclaude_tools || ["Read", "Grep", "Glob", "LS"],
+          denied_tools: profilePolicy.denied_tools || contractJson.denied_openclaude_tools || ["Edit", "Write", "MultiEdit", "NotebookEdit", "Bash", "git push", "git commit", "apply_patch"],
+          copy_platform_secret_to_device: false,
+          return_provider_api_key_to_agent: false,
+          repo_mutation_allowed: false,
+          local_shell_execution_allowed: false,
+          secrets_included: false,
+        },
+        certification: certification || null,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(500).json({
+        ok: false,
+        readiness: "error",
+        error: { code: "openclaude_bridge_health_failed", message: String(err.message || err).slice(0, 240) },
+        secrets_included: false,
+      });
+    }
+  });
+
+  // ── POST /dev-agent/openclaude/bridge/v1/chat/completions ────────────────
+  router.post("/dev-agent/openclaude/bridge/v1/chat/completions", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const dryRun = body.dry_run === true || String(req.get("x-openclaude-bridge-dry-run") || "").toLowerCase() === "true";
+      if (!dryRun) {
+        return res.status(403).json({
+          ok: false,
+          error: {
+            code: "openclaude_bridge_dispatch_disabled",
+            message: "Provider dispatch is disabled until scoped token verification and provider call governance are certified. Send dry_run=true for a no-provider-call compatibility check.",
+          },
+          bridge: {
+            provider_dispatch_attempted: false,
+            provider_dispatch_enabled: false,
+            local_execution_attempted: false,
+            repo_mutation_allowed: false,
+          },
+          secrets_included: false,
+        });
+      }
+
+      const messages = Array.isArray(body.messages) ? body.messages.slice(0, 20) : [];
+      const lastUserMessage = [...messages].reverse().find((message) => String(message?.role || "") === "user");
+      const prompt = normalizeProviderBridgePrompt(
+        lastUserMessage?.content || body.prompt || body.input || "OpenClaude provider bridge dry-run health check.",
+        4000
+      );
+      const model = String(body.model || "openclaude-platform-bridge-dry-run").slice(0, 191);
+      const nowSeconds = Math.floor(Date.now() / 1000);
+
+      return res.json({
+        id: `chatcmpl_dryrun_${randomUUID()}`,
+        object: "chat.completion",
+        created: nowSeconds,
+        model,
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: "assistant",
+              content: "OpenClaude provider bridge dry-run passed. No provider call was made, no local command was executed, no repository mutation was attempted, and no provider secrets were returned.",
+            },
+            finish_reason: "stop",
+          },
+        ],
+        usage: {
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0,
+          estimated_prompt_chars: prompt.length,
+        },
+        bridge: {
+          mode: "dry_run_no_provider_call",
+          contract_key: "openclaude_provider_bridge_contract_v1",
+          runtime_key: "openclaude_essam_local_v1",
+          profile_key: "openclaude_essam_platform_bridge_v1",
+          provider_dispatch_attempted: false,
+          local_execution_attempted: false,
+          repo_mutation_allowed: false,
+          allowed_tools: ["Read", "Grep", "Glob", "LS"],
+          denied_tools: ["Edit", "Write", "MultiEdit", "NotebookEdit", "Bash", "git push", "git commit", "apply_patch"],
+          prompt_preview: clampText(prompt, 500),
+        },
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 400).json({
+        ok: false,
+        error: { code: err.code || "openclaude_bridge_dry_run_failed", message: String(err.message || err).slice(0, 240) },
+        secrets_included: false,
+      });
+    }
+  });
+
   // ── POST /dev-agent/summary-comparison/run ───────────────────────────────
   router.post("/dev-agent/summary-comparison/run", async (req, res) => {
     const body = req.body || {};
