@@ -1,6 +1,6 @@
 # Updating Registry Patch Index
 
-Last updated: 2026-05-04 (live registry rows confirmed)
+Last updated: 2026-06-06 (tenant WordPress validation collation repair and docs alignment)
 
 ## Current Patch Set
 
