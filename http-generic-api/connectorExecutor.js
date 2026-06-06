@@ -426,7 +426,7 @@ export async function dispatchPlan(plan_id, {
     apply,
   }));
 
-  await createWorkflowRun(run_id, plan, service_mode);
+  await createWorkflowRun(run_id, trace_id, plan, service_mode);
   await getPool().query(
     "UPDATE `execution_plans` SET plan_status = 'executing' WHERE plan_id = ?",
     [plan_id]
