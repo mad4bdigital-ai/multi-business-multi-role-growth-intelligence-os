@@ -461,6 +461,30 @@ function stripSqlComments(sql = "") {
     .replace(/^\s*--.*$/gm, "");
 }
 
+function hasTopLevelSqlKeyword(sql = "", keyword = "") {
+  const source = stripSqlComments(stripSqlStringLiterals(sql)).replace(/--[^\n]*(?:\n|$)/g, "");
+  const target = String(keyword || "").toUpperCase();
+  let depth = 0;
+
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i];
+    if (ch === "(") {
+      depth += 1;
+      continue;
+    }
+    if (ch === ")" && depth > 0) {
+      depth -= 1;
+      continue;
+    }
+    if (depth !== 0 || source.slice(i, i + target.length).toUpperCase() !== target) continue;
+
+    const before = source[i - 1] || "";
+    const after = source[i + target.length] || "";
+    if (!/[A-Za-z0-9_]/.test(before) && !/[A-Za-z0-9_]/.test(after)) return true;
+  }
+  return false;
+}
+
 export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
   const statements = splitSqlStatements(sqlText);
   const risks = [];
