@@ -60,6 +60,8 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "194_sprint66_runtime_policy_reconciliation.sql",
   "195_sprint66_connected_execution_read_only_tool_execution.sql",
   "196_sprint66_admin_tool_registry_tags_text.sql",
+  "198_sprint67_runtime_policy_resolver_monitoring_and_mirror_classification.sql",
+  "200_sprint67_runtime_policy_target_rule_backfill.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
