@@ -89,6 +89,7 @@ function inferAppKey(input = {}, effective = {}) {
 function inferCredentialField(input = {}, effective = {}, authType = "api_key") {
   const requested = normalizeFieldName(input.credential_field || input.credentialField || effective.missing_secret_key || "");
   const role = normalizeFieldName(input.credential_role || input.credentialRole || input.role || effective.credential_role || "");
+  if (authType === "ssh_password") return "ssh_password";
   if (authType === "ssh_key_pair" && role.startsWith("ssh_")) return role;
   if (authType === "remote_database" && role.startsWith("db_")) return role;
   if (requested && requested !== "api_key" && requested !== "secret" && requested !== "token") return requested;
