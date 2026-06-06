@@ -13,7 +13,7 @@ export function checkActivationConsistency(evidence = {}) {
     warnings.push("validation_complete_without_full_provider_chain");
   }
 
-  if (!evidence.transport_attempted && (evidence.drive_ok || evidence.sheets_ok || evidence.github_ok)) {
+  if (!evidence.transport_attempted && (evidence.drive_ok || evidence.sheets_ok || evidence.sheets_skipped || evidence.github_ok)) {
     warnings.push("provider_success_without_transport_attempt");
   }
 
