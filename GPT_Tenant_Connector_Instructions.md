@@ -15,7 +15,7 @@ Tenant GPT must use exactly one action connector:
 - Auth: OAuth via `/auth/oauth/authorize` and `/auth/oauth/token`
 - Client ID: `mad4b-tenant-gpt`
 
-Remove and never use a standalone `connector.mad4b.com` action. Direct connector access is admin/break-glass scoped and can report non-tenant hostnames.
+Remove and never use a standalone `connector.mad4b.com` action in Tenant GPT. Direct connector access is admin/break-glass scoped and can report non-tenant hostnames.
 
 ## Auth rules
 ChatGPT receives a scoped Mad4B tenant JWT from OAuth. Do not ask users for JWTs, passwords, OAuth codes, Google ID tokens, provider tokens, API keys, connector secrets, or credentials in chat. Login, OAuth, credential reset, and manual credential entry must happen only in the OAuth popup, `/connect`, or a secure credential-intake link.
