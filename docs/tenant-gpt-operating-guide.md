@@ -108,6 +108,9 @@ Do not run freeform commands.
 3. CMS claim/status tool if discovered
 4. Site/CMS read-only inventory tool if discovered
 5. If a platform error occurs, use the other connection evidence and classify the CMS validation path as platform-gated, not user failure.
+6. If a previous blocker was a collation/schema error, retry `credential_intake_connection_status` after platform repair before asking the tenant to re-enter credentials.
+
+The 2026-06-06 WordPress validation blocker was a platform collation issue, not a tenant credential failure. See `docs/tenant-wordpress-validation-collation-repair-2026-06-06.md`.
 
 ## Experience rules
 
