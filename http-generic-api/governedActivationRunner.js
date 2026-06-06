@@ -160,7 +160,7 @@ export async function runGovernedActivation(deps = {}) {
     attemptGitHub,
     getSpreadsheet,
     listDriveFiles,
-    expectedBootstrapSpreadsheetId = ACTIVATION_BOOTSTRAP_SPREADSHEET_ID,
+    expectedBootstrapSpreadsheetId = ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
     bootstrapRange = ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
     allowBootstrapDiscoveryFallback = ALLOW_ACTIVATION_BOOTSTRAP_DISCOVERY_FALLBACK
   } = deps;
