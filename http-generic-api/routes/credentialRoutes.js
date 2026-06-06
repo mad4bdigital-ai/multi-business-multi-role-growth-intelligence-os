@@ -481,9 +481,6 @@ export function buildCredentialRoutes(deps) {
       if (!connectionId) {
         return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
       }
-      if (!mappings.length) {
-        return res.status(400).json({ ok: false, error: { code: "secret_mappings_required", message: "At least one secret mapping is required." }, secrets_included: false });
-      }
 
       const pool = getPool();
       const [connections] = await pool.query(
