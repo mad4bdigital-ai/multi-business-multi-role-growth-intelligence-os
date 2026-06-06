@@ -2,6 +2,7 @@ import { getPool } from "../db.js";
 import crypto from "node:crypto";
 import { validateByJsonSchema } from "../schemaValidation.js";
 import { getCanonicalSurfaceMetadata } from "../surfaceMetadata.js";
+import { resolveRuntimeWorkflow } from "../runtimeWorkflowResolver.js";
 
 /**
  * Generates a unique validation ID.
@@ -29,12 +30,11 @@ async function getAgentSkills(agentId) {
  * @param {string} workflowKey - The key of the workflow.
  * @returns {Promise<Object|null>} A promise that resolves to the workflow row or null.
  */
-async function getWorkflowDetails(workflowKey) {
-  const [rows] = await getPool().query(
-    "SELECT * FROM `workflows` WHERE workflow_key = ? LIMIT 1",
-    [workflowKey]
-  );
-  return rows[0] || null;
+async function getWorkflowDetails(workflowKey, workflowId = null) {
+  return resolveRuntimeWorkflow({
+    workflow_id: workflowId,
+    workflow_key: workflowKey,
+  });
 }
 
 /**
@@ -61,13 +61,16 @@ async function getRouteDetails(routeId) {
  */
 async function validatePreExecution(runContext) {
   const validationId = createValidationId();
-  const { agent_id, workflow_key, input_payload, memory_schema } = runContext;
+  const { agent_id, workflow_id, workflow_key, input_payload, memory_schema } = runContext;
   const errors = [];
+  const workflowResolution = workflow_id || workflow_key
+    ? await getWorkflowDetails(workflow_key, workflow_id)
+    : null;
+  const workflowDetails = workflowResolution?.ok ? workflowResolution.workflow : null;
 
   // 1. Agent Skill Grants Check
   if (agent_id) {
     const agentSkills = await getAgentSkills(agent_id);
-    const workflowDetails = await getWorkflowDetails(workflow_key);
     if (workflowDetails && !agentSkills.some(s => s.skill_id === workflowDetails.required_skill)) {
       errors.push({
         code: "agent_skill_missing",
@@ -89,12 +92,11 @@ async function validatePreExecution(runContext) {
   }
 
   // 3. Workflow and Route Authority Check (simplified, assumes workflow_key implies route)
-  if (workflow_key) {
-    const workflowDetails = await getWorkflowDetails(workflow_key);
-    if (!workflowDetails || workflowDetails.status !== 'active') {
+  if (workflow_id || workflow_key) {
+    if (!workflowResolution?.ok) {
       errors.push({
-        code: "workflow_authority_invalid",
-        message: `Workflow ${workflow_key} is not active or not found.`
+        code: workflowResolution?.resolution?.code || "workflow_authority_invalid",
+        message: workflowResolution?.resolution?.message || `Workflow ${workflow_key} is not active or not found.`
       });
     }
     // Further checks could involve task_routes if a route_id is present in workflowDetails

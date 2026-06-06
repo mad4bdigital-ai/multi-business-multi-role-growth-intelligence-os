@@ -17,7 +17,7 @@ export function buildConnectorRoutes(deps) {
     try {
       const {
         plan_id,
-        tenant_id, user_id, brand_key, target_key, workflow_key, intent_key,
+        tenant_id, user_id, brand_key, target_key, workflow_id, workflow_key, intent_key,
         apply = false,
         post_types = ["post"],
         publish_status = "draft",
@@ -36,7 +36,9 @@ export function buildConnectorRoutes(deps) {
 
         const steps = [];
         if (intent_key) steps.push({ step: 1, type: "intent_resolution", key: intent_key });
-        if (workflow_key) steps.push({ step: 2, type: "workflow", key: workflow_key });
+        if (workflow_id || workflow_key) {
+          steps.push({ step: 2, type: "workflow", workflow_id: workflow_id || null, key: workflow_key || null });
+        }
         if (brand_key || target_key) steps.push({ step: 3, type: "target_resolution", brand_key: brand_key || null, target_key: target_key || null });
         steps.push({ step: steps.length + 1, type: "connector_dispatch", mode: access.service_mode });
 
@@ -44,12 +46,12 @@ export function buildConnectorRoutes(deps) {
 
         await getPool().query(
           `INSERT INTO \`execution_plans\`
-             (plan_id, tenant_id, user_id, intent_key, brand_key, target_key, workflow_key,
+             (plan_id, tenant_id, user_id, intent_key, brand_key, target_key, workflow_key, workflow_id,
               service_mode, access_decision, plan_status, steps_json)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             resolved_plan_id, tenant_id, user_id || null,
-            intent_key || null, brand_key || null, target_key || null, workflow_key || null,
+            intent_key || null, brand_key || null, target_key || null, workflow_key || null, workflow_id || null,
             access.service_mode || "self_serve", access.decision, plan_status,
             JSON.stringify(steps),
           ]

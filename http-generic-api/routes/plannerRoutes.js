@@ -96,7 +96,7 @@ export function buildPlannerRoutes(deps) {
     try {
       const {
         tenant_id, user_id, resolution_id,
-        intent_key, brand_key, target_key, workflow_key, route_key,
+        intent_key, brand_key, target_key, workflow_id, workflow_key, route_key,
         risk_level = "low",
       } = req.body || {};
 
@@ -134,24 +134,26 @@ export function buildPlannerRoutes(deps) {
       // Build steps preview
       const steps = [];
       if (intent_key) steps.push({ step: 1, type: "intent_resolution", key: intent_key });
-      if (workflow_key) steps.push({ step: 2, type: "workflow", key: workflow_key });
+      if (workflow_id || workflow_key) {
+        steps.push({ step: 2, type: "workflow", workflow_id: workflow_id || null, key: workflow_key || null });
+      }
       if (brand_key || target_key) steps.push({ step: 3, type: "target_resolution", brand_key: brand_key || null, target_key: target_key || null });
       steps.push({ step: steps.length + 1, type: "execution_dispatch", mode: access.service_mode || "self_serve" });
 
       const validation_errors = [];
-      if (!workflow_key && !intent_key) validation_errors.push("No workflow_key or intent_key specified.");
+      if (!workflow_id && !workflow_key && !intent_key) validation_errors.push("No workflow_id, workflow_key, or intent_key specified.");
       if (access.decision === "DENY") validation_errors.push(`Access denied: ${access.reason}`);
 
       const plan_status = validation_errors.length > 0 ? "draft" : "validated";
 
       await getPool().query(
         `INSERT INTO \`execution_plans\`
-           (plan_id, tenant_id, user_id, resolution_id, intent_key, brand_key, target_key, workflow_key, route_key,
+           (plan_id, tenant_id, user_id, resolution_id, intent_key, brand_key, target_key, workflow_key, workflow_id, route_key,
             agent_id, service_mode, access_decision, plan_status, steps_json, validation_errors)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           plan_id, tenant_id, user_id || null, resolution_id || null,
-          intent_key || null, brand_key || null, target_key || null, workflow_key || null, route_key || null,
+          intent_key || null, brand_key || null, target_key || null, workflow_key || null, workflow_id || null, route_key || null,
           plan_agent_id,
           access.service_mode || "self_serve", access.decision, plan_status,
           JSON.stringify(steps),
