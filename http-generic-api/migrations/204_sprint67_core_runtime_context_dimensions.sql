@@ -221,7 +221,7 @@ UPDATE audit_log
  WHERE user_id IS NULL OR correlation_id IS NULL OR execution_context_json IS NULL;
 
 UPDATE gpt_session_turns t
-JOIN customer_sessions s ON s.session_id = t.session_id
+JOIN customer_sessions s ON t.session_id COLLATE utf8mb4_unicode_ci = s.session_id COLLATE utf8mb4_unicode_ci
    SET t.tenant_id = COALESCE(t.tenant_id, s.tenant_id),
        t.user_id = COALESCE(t.user_id, s.user_id),
        t.actor_id = COALESCE(t.actor_id, s.user_id),
