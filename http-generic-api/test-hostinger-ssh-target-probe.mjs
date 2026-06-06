@@ -16,7 +16,8 @@ const probeBlock = executor.slice(start, end);
 
 assert(executor.includes("REMOTE_RUNTIME_HOSTINGER_SSH_PROBE_ENABLED"), "actual SSH probe must be behind an explicit feature flag");
 assert(probeBlock.includes("dry_run_only"), "probe must support dry-run mode");
-assert(probeBlock.includes("resolveEffectiveCredential"), "probe must use governed credential resolver");
+assert(probeBlock.includes("resolveSshCredential"), "probe must use governed SSH credential resolver wrapper");
+assert(executor.includes("resolveEffectiveCredential"), "SSH credential resolver wrapper must use governed credential resolver");
 assert(probeBlock.includes("planRemoteRuntimeDispatchDryRun"), "probe must reuse remote runtime dry-run planning");
 assert(probeBlock.includes("ssh_probe"), "probe must use the ssh_probe command key");
 assert(probeBlock.includes("activate_on_success"), "target activation must be explicit");
