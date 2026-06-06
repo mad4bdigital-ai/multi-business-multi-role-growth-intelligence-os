@@ -381,6 +381,7 @@ export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces 
   const classification = {
     schema_objects: classifyNames(missing.schema_objects, () => "migration_apply_candidate"),
     admin_tools: classifyNames(missing.admin_tools, (name) => {
+      if (DEPRECATED_DB_BOOTSTRAP_REPLACED_ADMIN_TOOLS.has(name)) return "deprecated_replaced_by_db_bootstrap";
       if (systemLayerTools.has(name)) return "system_layer_replacement_present";
       if (virtualAdminTools.has(name)) return "virtual_replacement_present";
       const httpPath = adminToolMetadata?.[name]?.http_path;
