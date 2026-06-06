@@ -208,6 +208,15 @@ assert.equal(idempotentAlterPreflight.status, "pass", "ADD COLUMN IF NOT EXISTS 
 assert.equal(idempotentAlterPreflight.counts.alter_table, 1, "must count ALTER TABLE statements");
 assert.equal(idempotentAlterPreflight.counts.alter_table_idempotent, 1, "must count idempotent ADD COLUMN IF NOT EXISTS");
 
+const indexStatements = splitSqlStatements(
+  "ALTER TABLE execution_plans ADD COLUMN IF NOT EXISTS workflow_id VARCHAR(191) NULL; CREATE INDEX IF NOT EXISTS idx_execution_plans_workflow_id ON execution_plans (workflow_id);"
+);
+assert.equal(indexStatements.length, 2, "must split CREATE INDEX from the preceding migration statement");
+const idempotentIndexPreflight = assessMigrationSqlPreflight("idempotent-index.sql", indexStatements.join("; "));
+assert.equal(idempotentIndexPreflight.status, "pass", "CREATE INDEX IF NOT EXISTS should pass preflight");
+assert.equal(idempotentIndexPreflight.counts.create_index, 1, "must count CREATE INDEX statements");
+assert.equal(idempotentIndexPreflight.counts.create_index_idempotent, 1, "must count idempotent CREATE INDEX");
+
 const tagsWideningPreflight = assessMigrationSqlPreflight(
   "tags-text.sql",
   "ALTER TABLE admin_platform_endpoint_tools MODIFY COLUMN tags TEXT NULL;"

@@ -6,6 +6,16 @@ import { ensureSessionArchive } from "../sessionArchiveService.js";
 import { loadSessionSummaryGraphMemory } from "../sessionSummaryService.js";
 import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
 import { buildHardActivationEvidenceMatrix } from "../activationHardEvidence.js";
+import {
+  REGISTRY_SPREADSHEET_ID,
+  ACTIVITY_SPREADSHEET_ID,
+  ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
+  ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
+  ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
+  REGISTRY_CACHE_TTL_SECONDS,
+  ACTIVATION_WORKBOOK_CACHE_TTL_SECONDS,
+  ACTIVATION_BOOTSTRAP_ROW_CACHE_TTL_SECONDS,
+} from "../config.js";
 export function capLimit(value, fallback = 50, max = 200) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
@@ -1106,7 +1116,9 @@ export function buildActivationRoutes(deps) {
       bootstrap: {
         registry_spreadsheet_id: REGISTRY_SPREADSHEET_ID,
         activity_spreadsheet_id: ACTIVITY_SPREADSHEET_ID,
-        activation_bootstrap_spreadsheet_id: ACTIVATION_BOOTSTRAP_SPREADSHEET_ID,
+        activation_google_workspace_probe_spreadsheet_id: ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
+        legacy_activation_bootstrap_spreadsheet_id_alias: ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
+        activation_bootstrap_authority: "db_runtime",
         activation_bootstrap_config_sheet: ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
         activation_bootstrap_config_range: ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
       },
