@@ -19,8 +19,8 @@ assert(routes.includes('will_open_network_connection: false'), "preflight must p
 assert(routes.includes('will_execute_command: false'), "preflight must promise no SSH command execution");
 assert(routes.includes('will_query_database: false'), "preflight must promise no database query execution");
 assert(routes.includes('secrets_included: false'), "routes must never return secrets");
-assert(routes.includes('tenant_database_runtime_tools_not_enabled_yet'), "database runtime execution must remain blocked in this phase");
-assert(routes.includes('tenant_ssh_allowlisted_runtime_tools_not_enabled_yet'), "SSH runtime execution must remain blocked in this phase");
+assert(routes.includes('tenant_database_runtime_tools_enabled_read_only') || routes.includes('tenant_database_runtime_tools_not_enabled_yet'), "database readiness must expose stable runtime next-step metadata");
+assert(routes.includes('tenant_ssh_cli_approval_required_before_allowlisted_execute') || routes.includes('tenant_ssh_allowlisted_runtime_tools_not_enabled_yet'), "SSH readiness must expose approval-gated runtime next-step metadata");
 
 assert(index.includes('buildTenantInfrastructureRoutes'), "tenant infrastructure routes must be imported/mounted");
 const infraMount = index.indexOf('app.use(buildTenantInfrastructureRoutes(deps))');

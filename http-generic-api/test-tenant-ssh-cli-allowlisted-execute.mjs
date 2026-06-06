@@ -1,0 +1,54 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const routes = readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");
+const migration = readFileSync("migrations/202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql", "utf8");
+const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
+const openapi = readFileSync("openapi.yaml", "utf8");
+
+assert(routes.includes('spawn } from "node:child_process"'), "execute route must use spawn without shell");
+assert(routes.includes('mkdtemp, rm, writeFile'), "execute route must write private key to temporary file and clean it up");
+assert(routes.includes('sshExecutionConfigFromConnection'), "execute route must explicitly decrypt SSH credentials only in execute helper");
+assert(routes.includes('executeApprovedSshCli'), "execute route must use approved execution helper");
+assert(routes.includes('/me/infrastructure/ssh/connections/:connection_id/cli/execute'), "explicit SSH CLI execute route must exist");
+assert(routes.includes('approval_request_id_required'), "execute route must require approval_request_id");
+assert(routes.includes('loadTenantConnection(pool, req, connectionId, "ssh_key_pair")'), "execute route must load tenant-scoped SSH connection");
+assert(routes.includes('loadSshCliApprovalRequest(pool, req, approvalRequestId)'), "execute route must load tenant-scoped approval request");
+assert(routes.includes('assertApprovedSshCliExecution'), "execute helper must validate approval before execution");
+assert(routes.includes('approvalRow.status !== "approved" || approvalRow.hold_status !== "approved"'), "execute helper must require approved request and hold");
+assert(routes.includes('approval_connection_mismatch'), "execute helper must reject connection mismatch");
+assert(routes.includes('approval_command_mismatch'), "execute helper must reject command mismatch");
+assert(routes.includes('approval_argv_mismatch'), "execute helper must reject stale argv mismatch");
+assert(routes.includes('approval_request_expired'), "execute helper must reject expired approvals");
+assert(routes.includes('resolvePublicProbeAddress(cfg.host)'), "execute route must block private/local targets before SSH");
+assert(routes.includes('timeout_ms = clampInt(options.timeout_ms, 5000, 1000, 10000)'), "execute timeout must be bounded");
+assert(routes.includes('spawn("ssh", sshArgs, { shell: false'), "execute route must not use shell execution");
+assert(routes.includes('StrictHostKeyChecking=no'), "execute route must disclose current host-key verification posture");
+assert(routes.includes('capOutput'), "execute route must cap output");
+assert(routes.includes('redactExecutionOutput'), "execute route must redact known secrets from output");
+assert(routes.includes('rm(tempDir, { recursive: true, force: true })'), "execute route must clean temporary key directory");
+assert(routes.includes('source: "tenant_ssh_cli_allowlisted_execute"'), "execute response must expose stable source");
+assert(routes.includes('secrets_included: false'), "execute route must never return secrets");
+assert(!routes.includes('exec('), "execute route must not use shell exec");
+assert(routes.includes('const commandKey = String(req.body?.command_key || "").trim();'), "execute route must accept only command_key, not freeform command text");
+assert(!migration.includes('"command"'), "execute migration must not define a freeform command field");
+
+for (const commandKey of ['pwd', 'whoami', 'uname_s', 'uptime']) {
+  assert(migration.includes(commandKey), `execute migration input schema must include ${commandKey}`);
+  assert(routes.includes(commandKey), `execute allowlist must include ${commandKey}`);
+}
+assert(migration.includes('tenant_ssh_cli_allowlisted_execute'), "migration must register tenant_ssh_cli_allowlisted_execute");
+assert(migration.includes('/me/infrastructure/ssh/connections/{connection_id}/cli/execute'), "migration must use explicit execute path");
+assert(migration.includes('approval_required'), "migration tags must disclose approval requirement");
+assert(migration.includes('no_freeform_command'), "migration tags must disclose no freeform command");
+assert(migration.includes('uses_ssh_auth'), "migration tags must disclose SSH auth");
+assert(migration.includes('opens_network'), "migration tags must disclose network access");
+assert(migration.includes('executes_command'), "migration tags must disclose command execution");
+assert(migration.includes('output_capped'), "migration tags must disclose output cap");
+assert(migration.includes('no_secrets'), "migration tags must include no_secrets");
+assert(runner.includes('"202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql"'), "governed migration runner must allowlist migration 202");
+assert(openapi.includes('/me/infrastructure/ssh/connections/{connection_id}/cli/execute'), "OpenAPI must document SSH CLI execute endpoint");
+assert(openapi.includes('tenantSshCliAllowlistedExecute'), "OpenAPI must expose stable operationId for SSH CLI execute");
+assert(openapi.includes('Rejects freeform commands, caps output, uses a bounded timeout'), "OpenAPI must document execute constraints");
+
+console.log("Tenant SSH CLI allowlisted execute guard passed");

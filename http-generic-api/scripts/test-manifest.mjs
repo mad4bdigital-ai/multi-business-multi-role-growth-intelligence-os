@@ -115,6 +115,7 @@ export const testCommands = [
   "node test-tenant-ssh-cli-dry-run.mjs",
   "node test-tenant-ssh-cli-approval-request.mjs",
   "node test-tenant-ssh-cli-approval-decision.mjs",
+  "node test-tenant-ssh-cli-allowlisted-execute.mjs",
   "node test-task-route-authority-resolver.mjs",
   "node test-workflow-registry-authority-resolver.mjs",
   "node test-action-registry-authority-resolver.mjs",

@@ -1,6 +1,10 @@
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { promises as dns } from "node:dns";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
+import os from "node:os";
+import path from "node:path";
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import mysql from "mysql2/promise";
@@ -104,6 +108,146 @@ function sshConfigFromConnection(row) {
     user_present: Boolean(requiredCredential(credentials, "ssh_user")),
     private_key_present: Boolean(requiredCredential(credentials, "ssh_private_key")),
   };
+}
+
+function sshExecutionConfigFromConnection(row) {
+  const credentials = decryptCredentials(row.encrypted_credentials);
+  return {
+    host: requiredCredential(credentials, "ssh_host"),
+    port: clampInt(requiredCredential(credentials, "ssh_port"), 22, 1, 65535),
+    user: requiredCredential(credentials, "ssh_user"),
+    private_key: requiredCredential(credentials, "ssh_private_key"),
+  };
+}
+
+function redactExecutionOutput(text, secrets = []) {
+  let value = String(text || "");
+  for (const secret of secrets) {
+    const token = String(secret || "");
+    if (token && token.length >= 6) value = value.split(token).join("[redacted]");
+  }
+  return value;
+}
+
+function capOutput(text, maxChars = 4096) {
+  const value = String(text || "");
+  return { text: value.slice(0, maxChars), truncated: value.length > maxChars };
+}
+
+function assertApprovedSshCliExecution(row, approvalRow, commandKey) {
+  const plan = buildSshCliDryRunPlan({ command_key: commandKey });
+  if (approvalRow.connection_id !== row.connection_id) {
+    const err = new Error("Approval request does not match this SSH connection.");
+    err.status = 409;
+    err.code = "approval_connection_mismatch";
+    throw err;
+  }
+  if (approvalRow.status !== "approved" || approvalRow.hold_status !== "approved") {
+    const err = new Error("SSH CLI execution requires an approved approval request.");
+    err.status = 409;
+    err.code = "approval_not_approved";
+    throw err;
+  }
+  if (approvalRow.command_key !== plan.command_key) {
+    const err = new Error("Approval request command_key does not match requested command_key.");
+    err.status = 409;
+    err.code = "approval_command_mismatch";
+    throw err;
+  }
+  const approvedArgv = JSON.stringify(JSON.parse(approvalRow.command_argv_json || "[]"));
+  if (approvedArgv !== JSON.stringify(plan.argv)) {
+    const err = new Error("Approval request argv no longer matches the allowlisted command plan.");
+    err.status = 409;
+    err.code = "approval_argv_mismatch";
+    throw err;
+  }
+  if (approvalRow.expires_at && new Date(approvalRow.expires_at).getTime() <= Date.now()) {
+    const err = new Error("Approval request has expired.");
+    err.status = 409;
+    err.code = "approval_request_expired";
+    throw err;
+  }
+  return plan;
+}
+
+async function executeApprovedSshCli(row, approvalRow, commandKey, options = {}) {
+  const cfg = sshExecutionConfigFromConnection(row);
+  const plan = assertApprovedSshCliExecution(row, approvalRow, commandKey);
+  const address = await resolvePublicProbeAddress(cfg.host);
+  const timeout_ms = clampInt(options.timeout_ms, 5000, 1000, 10000);
+  const started_at = new Date().toISOString();
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "tenant-ssh-"));
+  const keyPath = path.join(tempDir, "id_key");
+  await writeFile(keyPath, cfg.private_key, { mode: 0o600 });
+  return new Promise((resolve) => {
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+    const sshArgs = [
+      "-i", keyPath,
+      "-p", String(cfg.port),
+      "-o", "BatchMode=yes",
+      "-o", "ConnectTimeout=8",
+      "-o", "StrictHostKeyChecking=no",
+      "-o", "UserKnownHostsFile=/dev/null",
+      "-o", "LogLevel=ERROR",
+      `${cfg.user}@${address}`,
+      "--",
+      ...plan.argv,
+    ];
+    const child = spawn("ssh", sshArgs, { shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGTERM");
+      setTimeout(() => child.kill("SIGKILL"), 500).unref?.();
+    }, timeout_ms);
+    child.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8"); });
+    child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      rm(tempDir, { recursive: true, force: true }).catch(() => {});
+      resolve({
+        ok: false,
+        error_code: error?.code === "ENOENT" ? "ssh_cli_runtime_unavailable" : "ssh_cli_spawn_failed",
+        message: error?.code === "ENOENT" ? "ssh binary is not available on this runtime." : "SSH process could not be started.",
+        command_key: plan.command_key,
+        command_argv: plan.argv,
+        authenticated_ssh: false,
+        command_executed: false,
+        timed_out: false,
+        timeout_ms,
+        started_at,
+        finished_at: new Date().toISOString(),
+        host_key_verified: false,
+        secrets_included: false,
+      });
+    });
+    child.on("close", (exitCode, signal) => {
+      clearTimeout(timer);
+      rm(tempDir, { recursive: true, force: true }).catch(() => {});
+      const redactedStdout = capOutput(redactExecutionOutput(stdout, [cfg.private_key, cfg.user]));
+      const redactedStderr = capOutput(redactExecutionOutput(stderr, [cfg.private_key, cfg.user]));
+      resolve({
+        ok: exitCode === 0 && !timedOut,
+        command_key: plan.command_key,
+        command_argv: plan.argv,
+        exit_code: exitCode,
+        signal,
+        timed_out: timedOut,
+        timeout_ms,
+        started_at,
+        finished_at: new Date().toISOString(),
+        authenticated_ssh: exitCode !== null,
+        command_executed: exitCode !== null && !timedOut,
+        host_key_verified: false,
+        stdout: redactedStdout.text,
+        stderr: redactedStderr.text,
+        stdout_truncated: redactedStdout.truncated,
+        stderr_truncated: redactedStderr.truncated,
+        secrets_included: false,
+      });
+    });
+  });
 }
 
 function isBlockedProbeIp(ip = "") {
@@ -548,8 +692,8 @@ function readinessFor(row, expectedAuthType) {
     blocked_reasons: blocked,
     execution_enabled: false,
     execution_next_step: expectedAuthType === "ssh_key_pair"
-      ? "tenant_ssh_allowlisted_runtime_tools_not_enabled_yet"
-      : "tenant_database_runtime_tools_not_enabled_yet",
+      ? "tenant_ssh_cli_approval_required_before_allowlisted_execute"
+      : "tenant_database_runtime_tools_enabled_read_only",
     secrets_included: false,
   };
 }
@@ -729,6 +873,34 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
       return res.json({ ok: true, kind: "ssh", approval_request, execution_enabled: false, execute_tool_enabled: false, secrets_included: false });
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_cli_approval_decision_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/me/infrastructure/ssh/connections/:connection_id/cli/execute", requireUserJwt, async (req, res) => {
+    try {
+      const connectionId = String(req.params.connection_id || "").trim();
+      const approvalRequestId = String(req.body?.approval_request_id || req.body?.request_id || "").trim();
+      const commandKey = String(req.body?.command_key || "").trim();
+      if (!connectionId) return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      if (!approvalRequestId) return res.status(400).json({ ok: false, error: { code: "approval_request_id_required", message: "approval_request_id is required." }, secrets_included: false });
+      const row = await loadTenantConnection(pool, req, connectionId, "ssh_key_pair");
+      const readiness = readinessFor(row, "ssh_key_pair");
+      if (!readiness.ready) {
+        return res.status(409).json({ ok: false, error: { code: "ssh_connection_not_ready", message: "SSH connection is not ready for CLI execution.", details: readiness.blocked_reasons }, readiness, secrets_included: false });
+      }
+      const approvalRow = await loadSshCliApprovalRequest(pool, req, approvalRequestId);
+      const execution = await executeApprovedSshCli(row, approvalRow, commandKey || approvalRow.command_key, req.body || {});
+      return res.status(execution.ok ? 200 : 502).json({
+        ok: execution.ok,
+        kind: "ssh",
+        source: "tenant_ssh_cli_allowlisted_execute",
+        connection: safeConnection(row),
+        approval_request: sanitizeApprovalRequest(approvalRow),
+        execution,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_cli_execute_failed", message: err.message, details: err.details }, secrets_included: false });
     }
   });
 
