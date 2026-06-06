@@ -1387,6 +1387,15 @@ function builtInShellAllowlist() {
       timeout_ms: 600000,
       built_in: true
     },
+    tenant_ssh_dedicated_worker_smoke: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/tenant-ssh-dedicated-worker-smoke.mjs"],
+      display_name: "Tenant SSH dedicated worker smoke",
+      allow_extra_args: true,
+      max_extra_args: 8,
+      timeout_ms: 180000,
+      built_in: true
+    },
     migration_ledger_record_dry_run: {
       command: process.execPath,
       args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--record-ledger", "--dry-run"],
