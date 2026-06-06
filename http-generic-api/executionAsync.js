@@ -367,6 +367,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       ? databaseLifecycleSnapshotPayload
       : isConnectedExecutionResumeActionJob
       ? connectedExecutionResumeActionPayload
+      : isTenantSshCliExecuteJob
+      ? tenantSshCliExecutePayload
       : requestPayload,
     attempt_count: 0,
     max_attempts: normalizeMaxAttempts(body.max_attempts),
