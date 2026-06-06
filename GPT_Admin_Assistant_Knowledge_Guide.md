@@ -334,9 +334,10 @@ All platform capabilities beyond the dispatcher's direct ops are reached through
 3. Call `callAdminTool` or `callTool` with `{ name, tool_args }`. Do not use `arguments` — that field name is reserved by OpenAI and causes `UnrecognizedKwargsError`.
 
 Admin-only activation tools accessible via `callTool`:
-- `activation_provider_bootstrap_validate` — full hard activation provider chain: Drive probe, Sheets bootstrap row read, and GitHub validation.
+- `activation_provider_bootstrap_validate` — full hard activation provider chain: Drive probe, DB-native bootstrap config read, and GitHub validation.
 - `activation_drive_probe` — checks Google Drive transport for targeted recovery.
-- `activation_sheets_bootstrap_read` — reads the Activation Bootstrap Config row for targeted recovery.
+- `activation_bootstrap_config_read` — reads the authoritative DB/runtime Activation Bootstrap Config for targeted recovery.
+- `activation_sheets_bootstrap_read` — deprecated compatibility alias for `activation_bootstrap_config_read`; it must not call Google Sheets.
 - `activation_github_validate` — validates GitHub using the bootstrap-resolved repository binding. Optional args: `github_owner`, `github_repo`, `github_branch`. The `github_api_mcp` action uses `api_key_mode=github_app` with `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_ID`, and `GITHUB_APP_PRIVATE_KEY` (raw PEM). PAT-based `GITHUB_TOKEN` is not the activation authority. DB-unavailable fallback: `ACTIVATION_GITHUB_REPOSITORY=owner/repo` + `ACTIVATION_GITHUB_BRANCH`, or split `ACTIVATION_GITHUB_OWNER` + `ACTIVATION_GITHUB_REPO`.
 - `activation_bootstrap_config_upsert` — writes the GitHub activation binding into DB runtime config so activation can recover without a Cloud Run env update.
 
