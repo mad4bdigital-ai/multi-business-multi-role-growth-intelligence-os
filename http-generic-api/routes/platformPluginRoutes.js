@@ -43,7 +43,10 @@ import {
   validateRemoteRuntimeTarget,
   planRemoteRuntimeDispatchDryRun,
 } from "../remoteRuntime.js";
-import { executeHostingerSshDeployRelease } from "../hostingerSshDeployExecutor.js";
+import {
+  executeHostingerSshDeployRelease,
+  executeHostingerSshTargetProbe,
+} from "../hostingerSshDeployExecutor.js";
 import {
   certifyPlatformPluginContribution,
   promotePlatformPluginContribution,
