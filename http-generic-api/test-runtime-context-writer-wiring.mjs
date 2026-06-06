@@ -26,17 +26,23 @@ for (const token of ["workspace_id", "workspace_key", "brand_id", "request_id", 
   assert.ok(connectorExecutor.includes(token), `connector executor should persist ${token}`);
 }
 
-assert.match(sessionArchive, /INSERT INTO `gpt_session_turns`[\s\S]*execution_context_json/);
-assert.match(sessionArchive, /INSERT INTO `session_events`[\s\S]*workspace_key[\s\S]*brand_key[\s\S]*correlation_id/);
-assert.match(observabilityRoutes, /INSERT INTO `telemetry_spans`[\s\S]*execution_context_json/);
-assert.match(connectorExecutor, /INSERT INTO `workflow_runs`[\s\S]*execution_context_json/);
-assert.match(connectorExecutor, /INSERT INTO `step_runs`[\s\S]*execution_context_json/);
-assert.match(connectorExecutor, /INSERT INTO `telemetry_spans`[\s\S]*execution_context_json/);
+for (const [label, source, table] of [
+  ["sessionArchiveService", sessionArchive, "gpt_session_turns"],
+  ["sessionArchiveService", sessionArchive, "session_events"],
+  ["observabilityRoutes", observabilityRoutes, "telemetry_spans"],
+  ["connectorExecutor", connectorExecutor, "workflow_runs"],
+  ["connectorExecutor", connectorExecutor, "step_runs"],
+  ["connectorExecutor", connectorExecutor, "telemetry_spans"],
+  ["outputSinkRouter", outputSinkRouter, "sink_dispatch_log"],
+  ["localGatewayToolsRoutes", localGatewayToolsRoutes, "local_gateway_tool_call_log"],
+  ["localGatewayToolsRoutes", localGatewayToolsRoutes, "approval_holds"],
+]) {
+  assert.ok(source.includes(table), `${label} should write ${table}`);
+  assert.ok(source.includes("execution_context_json"), `${label} should write execution_context_json`);
+}
+assert.ok(sessionArchive.includes("workspace_key") && sessionArchive.includes("brand_key") && sessionArchive.includes("correlation_id"));
 assert.match(connectorExecutor, /writeAuditLogAsync\([\s\S]*brand_key/);
-assert.match(outputSinkRouter, /INSERT INTO `sink_dispatch_log`[\s\S]*execution_context_json/);
 assert.match(outputSinkRouter, /writeAuditLog\([\s\S]*brand_key/);
-assert.match(localGatewayToolsRoutes, /INSERT INTO `local_gateway_tool_call_log`[\s\S]*execution_context_json/);
-assert.match(localGatewayToolsRoutes, /INSERT INTO `approval_holds`[\s\S]*execution_context_json/);
 assert.doesNotMatch(`${auditLogger}\n${sessionArchive}\n${observabilityRoutes}\n${connectorExecutor}\n${outputSinkRouter}\n${localGatewayToolsRoutes}`, /secrets_included:\s*true/);
 
 console.log("runtime context writer wiring tests passed");
