@@ -212,6 +212,7 @@ export const testCommands = [
   "node test-connected-execution-read-only-tool-mutating-tag-drift.mjs",
   "node test-connected-execution-read-only-tool-apply-cert-drift.mjs",
   "node test-runtime-policy-reconciliation.mjs",
+  "node test-runtime-policy-resolver.mjs",
   "node test-execution-job-tick-admin.mjs",
   "node test-dynamic-capability-audit-foundation.mjs",
   "node test-dependency-performance-diagnostic-triage.mjs",
