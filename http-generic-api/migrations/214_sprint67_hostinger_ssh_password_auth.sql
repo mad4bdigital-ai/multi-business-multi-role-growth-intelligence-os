@@ -14,6 +14,15 @@ SET input_schema_json = JSON_SET(
 WHERE plugin_key='remote_ssh_runtime'
   AND command_key IN ('ssh_probe','deploy_release');
 
+UPDATE admin_platform_endpoint_tools
+SET input_schema = JSON_SET(
+      COALESCE(CAST(input_schema AS JSON), JSON_OBJECT('type','object','properties',JSON_OBJECT())),
+      '$.properties.ssh_auth_mode', JSON_OBJECT('type','string','enum',JSON_ARRAY('password','private_key'),'default','password')
+    ),
+    description = CONCAT(COALESCE(description,''), ' Supports ssh_auth_mode=password through stored ssh_password credential intake; no inline password is accepted.'),
+    updated_at = CURRENT_TIMESTAMP
+WHERE tool_key IN ('remote_runtime_hostinger_ssh_probe','remote_runtime_hostinger_deploy_release');
+
 INSERT INTO execution_policies
 (policy_group, policy_key, policy_value, active, execution_scope, affects_layer, blocking, notes)
 VALUES
