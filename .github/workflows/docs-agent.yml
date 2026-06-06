@@ -44,7 +44,7 @@ jobs:
         if: steps.agent.outputs.should_write == 'true'
         run: |
           set -e
-          if git diff --quiet -- docs/auto-docs-agent; then
+          if [ -z "$(git status --porcelain -- docs/auto-docs-agent)" ]; then
             echo "Docs Agent: no generated docs changes to commit."
             exit 0
           fi
