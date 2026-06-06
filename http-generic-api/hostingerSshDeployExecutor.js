@@ -114,6 +114,16 @@ async function loadTarget(pool, targetId) {
   };
 }
 
+function isPlatformManagedTarget(target = {}) {
+  const systemKey = String(target.metadata?.system_key || "");
+  return !target.user_id && (
+    target.metadata?.service_mode === "managed" ||
+    systemKey.endsWith("_platform") ||
+    systemKey.includes("prod_platform") ||
+    String(target.host_label || "").toLowerCase().includes("platform")
+  );
+}
+
 async function resolveSshCredential(pool, target, role, input = {}) {
   const result = await resolveEffectiveCredential({
     tenantId: target.tenant_id,
