@@ -220,13 +220,38 @@ async function createStepRun(run_id, trace_id, plan, step_key, status, input, ou
   } catch { /* non-blocking */ }
 }
 
-async function createSpan(trace_id, run_id, span_name, status, duration_ms, tenant_id, attrs) {
+async function createSpan(trace_id, run_id, span_name, status, duration_ms, plan, attrs) {
   try {
+    const actorId = plan.user_id || null;
     await getPool().query(
       `INSERT INTO \`telemetry_spans\`
-         (span_id, trace_id, run_id, tenant_id, span_name, span_type, status, duration_ms, attributes_json, started_at)
-       VALUES (?, ?, ?, ?, ?, 'internal', ?, ?, ?, NOW())`,
-      [randomUUID(), trace_id, run_id, tenant_id || null, span_name, status, duration_ms || 0, JSON.stringify(attrs || {})]
+         (span_id, trace_id, run_id, tenant_id, workspace_id, workspace_key,
+          user_id, actor_id, actor_type, brand_id, brand_key,
+          request_id, session_id, conversation_id, correlation_id, execution_context_json,
+          span_name, span_type, status, duration_ms, attributes_json, started_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'internal', ?, ?, ?, NOW())`,
+      [
+        randomUUID(),
+        trace_id,
+        run_id,
+        plan.tenant_id || null,
+        plan.workspace_id || null,
+        plan.workspace_key || null,
+        plan.user_id || null,
+        actorId,
+        actorId ? "user" : "system",
+        plan.brand_id || null,
+        plan.brand_key || plan.target_key || null,
+        plan.request_id || null,
+        plan.session_id || null,
+        plan.conversation_id || null,
+        trace_id || run_id,
+        JSON.stringify({ source: "connector_executor", trace_id, run_id, secrets_included: false }),
+        span_name,
+        status,
+        duration_ms || 0,
+        JSON.stringify(attrs || {}),
+      ]
     );
   } catch { /* non-blocking */ }
 }
