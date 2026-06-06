@@ -101,6 +101,17 @@ other canonical guide/checklist files
 
 This CI gate is the enforcement layer; database rows such as `agent_supervision_policy` are advisory/operational policy unless a runtime gate explicitly reads and enforces them.
 
+## Docs Agent automation
+
+The Docs Agent workflow is the default automation path for keeping documentation aligned after PRs and commits.
+
+- PR mode writes `docs/auto-docs-agent/pr-<number>.md` back to the PR branch when non-doc files change.
+- Main follow-up mode opens a docs-only PR from `docs-agent/<sha>` after a merge to `main` when documentation impact evidence is missing.
+- Docs-only follow-up PRs request GitHub auto-merge and remain subject to branch protection and CI.
+- Runtime/code PRs are not auto-merged by default; they require the explicit `docs-agent-automerge` label.
+
+The generated impact note does not replace targeted documentation for high-risk changes. It makes the required docs visible and keeps the end-to-end process mergeable while deeper docs are added.
+
 ## Post-push verification
 
 After every push:
@@ -109,6 +120,7 @@ After every push:
 2. If in progress, inspect jobs until all complete.
 3. If any job fails, read logs, classify the failure, repair, push again, and repeat.
 4. Do not mark the change complete until the target run has `status=completed` and `conclusion=success`.
+5. If the Docs Agent opened a follow-up PR, verify that it is docs-only and auto-merge is enabled or explicitly explain why auto-merge was unavailable.
 
 ## Backup boundary
 
