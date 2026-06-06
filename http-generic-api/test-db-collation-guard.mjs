@@ -113,6 +113,21 @@ assert(
   !/ALTER\s+TABLE[\s\S]*CONVERT\s+TO\s+CHARACTER\s+SET/i.test(pluginCollationHardeningWithoutComments),
   "hardening migration must avoid broad ALTER TABLE CONVERT TO so JSON utf8mb4_bin columns stay intact"
 );
+assert(
+  /ALTER\s+TABLE\s+user_app_connections/i.test(userAppConnectionRuntimeRepairMigration),
+  "runtime repair migration must alter only user_app_connections"
+);
+for (const column of ["connection_id", "app_key"]) {
+  assert(
+    userAppConnectionRuntimeRepairMigration.includes(`MODIFY ${column}`) &&
+      userAppConnectionRuntimeRepairMigration.includes("COLLATE utf8mb4_unicode_ci"),
+    `runtime repair migration must normalize ${column} to utf8mb4_unicode_ci`
+  );
+}
+assert(
+  !/encrypted_credentials|api_key_value|access_token|refresh_token|client_secret/i.test(userAppConnectionRuntimeRepairMigration),
+  "runtime repair migration must not mention secret payload fields"
+);
 
 for (const forbidden of [
   "encrypted_credentials",
