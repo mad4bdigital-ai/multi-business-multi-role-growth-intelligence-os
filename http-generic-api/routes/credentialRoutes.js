@@ -273,6 +273,43 @@ function intakePromotionSummary(connection = {}, intake = {}) {
   };
 }
 
+function safeJsonObject(value) {
+  if (!value) return {};
+  if (typeof value === "object" && !Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizePromotionMappings(input = []) {
+  return (Array.isArray(input) ? input : [])
+    .map((mapping = {}) => ({
+      credential_field: str(mapping.credential_field || mapping.credentialField || mapping.field),
+      secret_key: str(mapping.secret_key || mapping.secretKey),
+      secret_type: str(mapping.secret_type || mapping.secretType || mapping.credential_role || mapping.credentialRole),
+    }))
+    .filter((mapping) => mapping.credential_field && mapping.secret_key)
+    .slice(0, 50);
+}
+
+function credentialValueToSecretString(value) {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value).trim();
+  return JSON.stringify(value);
+}
+
+function safeCredentialFieldNames(credentials = {}) {
+  return Object.keys(credentials || {})
+    .map((field) => str(field))
+    .filter((field) => /^[A-Za-z0-9_\-.]{1,96}$/.test(field))
+    .sort()
+    .slice(0, 100);
+}
+
 export function buildCredentialRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
@@ -428,22 +465,15 @@ export function buildCredentialRoutes(deps) {
     try {
       const body = req.body || {};
       const connectionId = str(body.connection_id || body.connectionId);
-      const systemId = str(body.system_id || body.systemId || "98d6a18b-5578-11f1-9baf-8e76a7e1749f");
-      const ownerId = str(body.owner_id || body.ownerId || "growth_intelligence_platform");
-      const providerFamily = str(body.provider_family || body.providerFamily || "hostinger");
-      const connectorFamily = str(body.connector_family || body.connectorFamily || "hostinger_ssh");
-      const targetKey = str(body.target_key || body.targetKey || "hostinger_ssh_prod_platform");
+      const requestedSystemId = str(body.system_id || body.systemId);
+      const requestedOwnerId = str(body.owner_id || body.ownerId);
+      const requestedProviderFamily = str(body.provider_family || body.providerFamily);
+      const requestedConnectorFamily = str(body.connector_family || body.connectorFamily);
+      const requestedTargetKey = str(body.target_key || body.targetKey);
       const approved = body.promotion_approved === true || body.promotionApproved === true;
       const promotionReason = str(body.promotion_reason || body.promotionReason);
       const createdBy = str(body.created_by || body.createdBy || "credential_intake_platform_secret_promotion");
-      const mappings = Array.isArray(body.secret_mappings || body.secretMappings)
-        ? (body.secret_mappings || body.secretMappings)
-        : [
-            { credential_field: "ssh_host", secret_key: "hostinger_ssh_prod_host", secret_type: "ssh_host" },
-            { credential_field: "ssh_port", secret_key: "hostinger_ssh_prod_port", secret_type: "ssh_port" },
-            { credential_field: "ssh_user", secret_key: "hostinger_ssh_prod_user", secret_type: "ssh_user" },
-            { credential_field: "ssh_private_key", secret_key: "hostinger_ssh_prod_private_key", secret_type: "ssh_private_key" },
-          ];
+      const requestedMappings = normalizePromotionMappings(body.secret_mappings || body.secretMappings);
 
       if (!approved || promotionReason.length < 12) {
         return res.status(400).json({ ok: false, error: { code: "promotion_approval_required", message: "promotion_approved=true and a promotion_reason of at least 12 characters are required." }, secrets_included: false });
@@ -451,13 +481,10 @@ export function buildCredentialRoutes(deps) {
       if (!connectionId) {
         return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
       }
-      if (!mappings.length) {
-        return res.status(400).json({ ok: false, error: { code: "secret_mappings_required", message: "At least one secret mapping is required." }, secrets_included: false });
-      }
 
       const pool = getPool();
       const [connections] = await pool.query(
-        `SELECT connection_id, user_id, tenant_id, app_key, auth_type, encrypted_credentials, status, validation_status
+        `SELECT connection_id, user_id, tenant_id, app_key, auth_type, encrypted_credentials, account_metadata, status, validation_status
            FROM user_app_connections
           WHERE connection_id = ?
           LIMIT 1`,
@@ -467,31 +494,48 @@ export function buildCredentialRoutes(deps) {
       if (!connection || connection.status !== "active" || !connection.encrypted_credentials) {
         return res.status(400).json({ ok: false, error: { code: "active_intake_connection_required", message: "An active encrypted intake connection is required." }, secrets_included: false });
       }
-      if (connection.auth_type !== "ssh_key_pair") {
-        return res.status(400).json({ ok: false, error: { code: "ssh_key_pair_connection_required", message: "Only ssh_key_pair intake connections can be promoted to Hostinger SSH platform secrets." }, auth_type: connection.auth_type, secrets_included: false });
+      const credentials = decryptCredentials(connection.encrypted_credentials) || {};
+      const connectionMetadata = safeJsonObject(connection.account_metadata);
+      const metadataMappings = normalizePromotionMappings(connectionMetadata.platform_secret_mappings);
+      const normalizedMappings = requestedMappings.length ? requestedMappings : metadataMappings;
+      const systemId = requestedSystemId || str(connectionMetadata.system_id);
+      const ownerId = requestedOwnerId || str(connectionMetadata.owner_id) || "growth_intelligence_platform";
+      const providerFamily = requestedProviderFamily || str(connectionMetadata.provider_family) || str(connection.app_key) || "generic";
+      const connectorFamily = requestedConnectorFamily || str(connectionMetadata.connector_family) || str(connection.auth_type) || str(connection.app_key) || "generic";
+      const targetKey = requestedTargetKey || str(connectionMetadata.target_key) || `${str(connection.app_key) || "connection"}_${str(connection.auth_type) || "credentials"}_platform`;
+
+      if (!normalizedMappings.length) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: "platform_secret_mappings_required",
+            message: "Provide secret_mappings in the request or connection.account_metadata.platform_secret_mappings. Dynamic promotion supports any encrypted connection auth_type, but mapped fields must be explicit.",
+          },
+          app_key: connection.app_key,
+          auth_type: connection.auth_type,
+          available_credential_fields: safeCredentialFieldNames(credentials),
+          secrets_included: false,
+        });
       }
 
-      const credentials = decryptCredentials(connection.encrypted_credentials) || {};
-      const normalizedMappings = mappings.map((mapping = {}) => ({
-        credential_field: str(mapping.credential_field || mapping.field),
-        secret_key: str(mapping.secret_key || mapping.secretKey),
-        secret_type: str(mapping.secret_type || mapping.secretType || mapping.credential_role || mapping.credentialRole),
-      })).filter((mapping) => mapping.credential_field && mapping.secret_key);
       const missingFields = normalizedMappings
-        .filter((mapping) => !str(credentials[mapping.credential_field]))
+        .filter((mapping) => !credentialValueToSecretString(credentials[mapping.credential_field]))
         .map((mapping) => mapping.credential_field);
-      if (!normalizedMappings.length || missingFields.length) {
+      if (missingFields.length) {
         return res.status(400).json({
           ok: false,
           error: { code: "intake_secret_fields_missing", message: "The intake connection is missing one or more mapped fields." },
           missing_fields: [...new Set(missingFields)],
+          app_key: connection.app_key,
+          auth_type: connection.auth_type,
+          available_credential_fields: safeCredentialFieldNames(credentials),
           secrets_included: false,
         });
       }
 
       const promoted = [];
       for (const mapping of normalizedMappings) {
-        const value = str(credentials[mapping.credential_field]);
+        const value = credentialValueToSecretString(credentials[mapping.credential_field]);
         const ciphertext = encryptToken(value);
         const hash = sha256(value);
         const secretType = mapping.secret_type || mapping.credential_field;
@@ -523,11 +567,11 @@ export function buildCredentialRoutes(deps) {
           [mapping.secret_key, secretType, hash, ciphertext, metadata, createdBy]
         );
 
-        await pool.query(
+        const [secretReferenceUpdate] = await pool.query(
           `UPDATE secret_references
               SET owner_type = 'platform',
                   owner_id = ?,
-                  system_id = ?,
+                  system_id = COALESCE(?, system_id),
                   provider_family = ?,
                   connector_family = ?,
                   credential_type = ?,
@@ -538,8 +582,26 @@ export function buildCredentialRoutes(deps) {
                   status = 'active'
             WHERE secret_key = ?
               AND owner_type = 'platform'`,
-          [ownerId, systemId, providerFamily, connectorFamily, secretType, mapping.secret_key]
+          [ownerId, systemId || null, providerFamily, connectorFamily, secretType, mapping.secret_key]
         );
+        if (!secretReferenceUpdate?.affectedRows) {
+          await pool.query(
+            `INSERT INTO secret_references
+               (ref_id, tenant_id, owner_type, owner_id, system_id, secret_key, store_type, env_var_name, vault_path,
+                description, provider_family, connector_family, credential_type, consent_status, validation_status, status, created_at)
+             VALUES (UUID(), ?, 'platform', ?, ?, ?, 'db_encrypted', NULL, NULL, ?, ?, ?, ?, 'not_required', 'stored', 'active', NOW())`,
+            [
+              connection.tenant_id || 'f2795a7f-8d06-4053-8bee-35ca9af8b460',
+              ownerId,
+              systemId || null,
+              mapping.secret_key,
+              `Platform secret promoted from ${connection.app_key}/${connection.auth_type} intake connection`,
+              providerFamily,
+              connectorFamily,
+              secretType,
+            ]
+          );
+        }
 
         promoted.push({ secret_key: mapping.secret_key, credential_field: mapping.credential_field, value_sha256: hash });
       }
