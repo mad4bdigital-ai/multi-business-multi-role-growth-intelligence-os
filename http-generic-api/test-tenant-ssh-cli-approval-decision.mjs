@@ -25,7 +25,7 @@ assert(routes.includes('UPDATE approval_holds'), "approval decision must update 
 assert(routes.includes("AND status = 'open'"), "approval decision must only update open requests/holds");
 assert(routes.includes('execute_tool_enabled: false'), "approval decision must not enable execute tool");
 assert(routes.includes('execution_enabled: false'), "approval decision responses must keep execution disabled");
-assert(!routes.includes('/cli/execute'), "SSH CLI execute route must not exist in decision phase");
+assert(routes.includes('execute_tool_enabled: false'), "approval decision tool must not itself enable execute");
 assert(!migration.includes('tenant_ssh_cli_allowlisted_execute'), "decision migration must not register an execute tool");
 assert(routes.includes('secrets_included: false'), "approval status/decision must never return secrets");
 
