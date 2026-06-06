@@ -90,9 +90,8 @@ Activation order:
 4. Admin GPT path: call `/system/tools/call` with `name: "activation_provider_bootstrap_validate"` through `auth.mad4b.com` to run the governed Drive probe, DB-native bootstrap config read, and GitHub validation in one same-cycle tool call. This validates provider/bootstrap only; it does not open or read GPT Session Context and must not replace step 2.
 5. Preferred Admin GPT hard activation path: call `POST /activation/hard-run` through the governed tool `activation_hard_run` when available. Treat hard activation as complete only when the response includes `activation_complete=true`, `evidence_matrix.session_context.ok=true`, and `evidence_matrix.provider_bootstrap.ok=true`.
 6. Direct runtime path, when not using the auth-host system layer: Drive probe with `parent_action_key=google_drive_api`, `endpoint_key=listDriveFiles`.
-6. Direct runtime path: Sheets bootstrap with `parent_action_key=google_sheets_api`, `endpoint_key=getSheetValues`, `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>`, `query.range=Activation Bootstrap Config!A2:J2`.
-7. Resolve the bootstrap row.
-8. GitHub validation only with `parent_action_key` and `endpoint_key` resolved from bootstrap/registry authority.
+7. Direct runtime path: read the DB-native activation bootstrap config through registry/bootstrap authority; do not read Google Sheets for activation bootstrap.
+8. GitHub validation only with `parent_action_key` and `endpoint_key` resolved from DB bootstrap/registry authority.
 9. Run live validation and classify readiness.
 
 Session Context may include previous session history, related scopes, scoped request transcripts, bounded raw dumps when `include_raw=true`, a `platform_access` summary, `session_management`, and `conversation_memory`. Platform Access reports admin/global scope plus brands, plugins, logics, engines, and runtime-callable actions counts. User JWT sessions inspect only their own user context. Admin/service sessions may inspect explicit `user_id` and may receive execution-log prompt/response summaries.
@@ -109,7 +108,7 @@ Graph memory is advisory context, not authority. It may add `graph_memory_contex
 
 See `docs/session-context-graph-memory-archive-notes.md` for the current implementation notes and follow-up backlog.
 
-Do not start GitHub until the bootstrap row resolves. Halt if Sheets is rate-limited. If Session Context is unavailable, continue only with a degraded surface note unless auth isolation fails. If Drive/Sheets are not attempted, classify as `degraded (missing_required_provider_bootstrap_attempt)`.
+Do not start GitHub until the DB bootstrap row resolves. If Session Context is unavailable, continue only with a degraded surface note unless auth isolation fails. If Drive or DB bootstrap validation is not attempted when required, classify as `degraded (missing_required_provider_bootstrap_attempt)`.
 
 ### Runtime validation
 
