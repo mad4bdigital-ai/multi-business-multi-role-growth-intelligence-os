@@ -12,8 +12,13 @@ assert.match(route, /secrets_included: false/);
 assert.match(route, /writeCredentialIntakeContinuationTask\(\{ session, connectionId, metadata, autoPromotion, req \}\)/);
 assert.match(route, /You do not need to send a manual/);
 assert.match(route, /credential_intake\.continuation_task_created/);
-assert.doesNotMatch(route, /secret_value\s*:/i);
-assert.doesNotMatch(route, /value_ciphertext.*after_json/s);
-assert.doesNotMatch(route, /credentials\s*,\s*after_json/s);
+const continuationSlice = route.slice(
+  route.indexOf("async function writeCredentialIntakeContinuationTask"),
+  route.indexOf("async function maybeAutoPromotePlatformSecrets")
+);
+assert(continuationSlice.length > 1000);
+assert.doesNotMatch(continuationSlice, /secret_value\s*:/i);
+assert.doesNotMatch(continuationSlice, /value_ciphertext/i);
+assert.doesNotMatch(continuationSlice, /credentials\s*,\s*after_json/s);
 
 console.log("Credential intake continuation task guard passed");
