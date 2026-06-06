@@ -785,6 +785,7 @@ async function loadTenantConnection(pool, req, connectionId, expectedAuthType) {
 export function buildTenantInfrastructureRoutes(deps = {}) {
   const router = Router();
   const pool = deps.pool || { query: (...args) => getPool().query(...args) };
+  const executionFacade = deps.executionFacade || null;
 
   async function sendStatus(req, res, authType) {
     try {
