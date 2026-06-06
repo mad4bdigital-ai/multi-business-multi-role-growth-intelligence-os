@@ -100,13 +100,31 @@ function databaseConfigFromConnection(row) {
   };
 }
 
+function optionalCredential(credentials, key) {
+  const value = credentials?.[key];
+  if (value === null || value === undefined || String(value).trim() === "") return "";
+  return String(value);
+}
+
+function looksLikePrivateKey(value = "") {
+  return /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/.test(String(value || ""));
+}
+
 function sshConfigFromConnection(row) {
   const credentials = decryptCredentials(row.encrypted_credentials);
+  const privateKey = optionalCredential(credentials, "ssh_private_key");
+  const explicitPassword = optionalCredential(credentials, "ssh_password");
+  const passwordFallback = privateKey && !looksLikePrivateKey(privateKey) ? privateKey : "";
+  const passwordPresent = Boolean(explicitPassword || passwordFallback);
+  const privateKeyPresent = looksLikePrivateKey(privateKey);
   return {
     host: requiredCredential(credentials, "ssh_host"),
     port: clampInt(requiredCredential(credentials, "ssh_port"), 22, 1, 65535),
     user_present: Boolean(requiredCredential(credentials, "ssh_user")),
-    private_key_present: Boolean(requiredCredential(credentials, "ssh_private_key")),
+    private_key_present: privateKeyPresent,
+    password_present: passwordPresent,
+    authentication_secret_present: privateKeyPresent || passwordPresent,
+    auth_method: privateKeyPresent ? "private_key" : passwordPresent ? "password" : "missing",
   };
 }
 
