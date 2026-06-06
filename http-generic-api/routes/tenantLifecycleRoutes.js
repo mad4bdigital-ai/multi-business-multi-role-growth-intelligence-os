@@ -185,8 +185,11 @@ export function buildTenantLifecycleRoutes() {
                 s.session_id, s.status AS intake_status, s.used_at, s.expires_at,
                 s.credential_schema_json
            FROM user_app_connections c
-           LEFT JOIN credential_intake_sessions s ON s.connection_id = c.connection_id
-          WHERE c.connection_id = ? AND c.tenant_id = ? AND c.user_id = ?
+           LEFT JOIN credential_intake_sessions s
+             ON s.connection_id COLLATE utf8mb4_unicode_ci = c.connection_id COLLATE utf8mb4_unicode_ci
+          WHERE c.connection_id COLLATE utf8mb4_unicode_ci = ?
+            AND c.tenant_id = ?
+            AND c.user_id = ?
           ORDER BY s.used_at DESC, s.expires_at DESC
           LIMIT 1`,
         [connectionId, req.auth.tenant_id, req.auth.user_id]
