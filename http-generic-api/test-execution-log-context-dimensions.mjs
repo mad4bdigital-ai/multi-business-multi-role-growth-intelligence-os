@@ -11,7 +11,10 @@ for (const token of [
   "credential_ref_id", "resource_type", "resource_id", "target_type", "target_id", "environment",
   "correlation_id", "idempotency_key", "execution_context_json",
 ]) {
-  assert.match(migration, new RegExp(`ADD COLUMN IF NOT EXISTS ${token}|ADD COLUMN IF NOT EXISTS \\`${token}\\``));
+  assert.ok(
+    migration.includes(`ADD COLUMN IF NOT EXISTS ${token}`) || migration.includes(`ADD COLUMN IF NOT EXISTS \`${token}\``),
+    `migration should add ${token}`
+  );
 }
 assert.match(migration, /idx_execution_log_tenant_created/);
 assert.match(migration, /idx_execution_log_action_created/);
