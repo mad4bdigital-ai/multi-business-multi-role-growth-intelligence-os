@@ -271,7 +271,7 @@ async function decideSshCliApprovalRequest(pool, req, requestId, body = {}) {
   await pool.query(
     `UPDATE approval_holds
         SET status = ?, decision_by = ?, decision_note = ?, decided_at = CURRENT_TIMESTAMP
-      WHERE hold_id = ? AND tenant_id = ? AND status = 'open'`,
+      WHERE hold_id COLLATE utf8mb4_unicode_ci = ? AND tenant_id COLLATE utf8mb4_unicode_ci = ? AND status = 'open'`,
     [decision, req.auth.user_id, note || null, row.hold_id, req.auth.tenant_id]
   );
   return sanitizeApprovalRequest(await loadSshCliApprovalRequest(pool, req, requestId));
