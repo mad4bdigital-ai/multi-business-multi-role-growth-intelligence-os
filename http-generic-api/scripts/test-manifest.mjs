@@ -129,6 +129,7 @@ export const testCommands = [
   "node test-provider-fetch-timeout.mjs",
   "node test-execution-response.mjs",
   "node test-execution-log-evidence.mjs",
+  "node test-execution-log-context-dimensions.mjs",
   "node test-audit-payload-evidence.mjs",
   "node test-logic-evidence-plumbing.mjs",
   "node test-engine-evidence-derivation.mjs",
