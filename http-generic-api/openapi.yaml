@@ -2674,6 +2674,64 @@ x-tenant-gpt-auth:
 
 paths:
 
+  /me/infrastructure/ssh/connections/{connection_id}/cli/dry-run:
+    post:
+      tags: [tenant-infrastructure]
+      security:
+        - backendBearerAuth: []
+      operationId: tenantSshCliAllowlistedDryRun
+      summary: Build tenant SSH allowlisted CLI dry-run plan
+      description: Validates a tenant-owned SSH connection and an allowlisted command key, then returns a dry-run plan only. Does not decrypt credentials, authenticate, open a network connection, execute commands, or return credentials.
+      parameters:
+        - name: connection_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [command_key]
+              additionalProperties: false
+              properties:
+                command_key:
+                  type: string
+                  enum: [pwd, whoami, uname_s, uptime]
+      responses:
+        "200":
+          description: SSH CLI dry-run plan returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok:
+                    type: boolean
+                  kind:
+                    type: string
+                    enum: [ssh]
+                  dry_run:
+                    type: boolean
+                    enum: [true]
+                  connection:
+                    type: object
+                    additionalProperties: true
+                  plan:
+                    type: object
+                    additionalProperties: true
+                  secrets_included:
+                    type: boolean
+                    enum: [false]
+        "400": { description: Missing or non-allowlisted command key. }
+        "401": { description: Missing or invalid tenant user JWT. }
+        "404": { description: Connection not found for this tenant user. }
+        "409": { description: Connection is not ready or has the wrong auth type. }
+        "500": { description: Unexpected SSH CLI dry-run failure. }
+
   /me/infrastructure/ssh/connections/{connection_id}/probe:
     post:
       tags: [tenant-infrastructure]
