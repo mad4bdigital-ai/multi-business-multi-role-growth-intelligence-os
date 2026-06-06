@@ -311,7 +311,7 @@ UPDATE local_gateway_tool_call_log
  WHERE actor_id IS NULL OR actor_type IS NULL OR correlation_id IS NULL OR app_key IS NULL OR resource_type IS NULL OR resource_id IS NULL;
 
 UPDATE approval_holds ah
-LEFT JOIN workflow_runs wr ON wr.run_id = ah.run_id
+LEFT JOIN workflow_runs wr ON wr.run_id COLLATE utf8mb4_unicode_ci = ah.run_id COLLATE utf8mb4_unicode_ci
    SET ah.user_id = COALESCE(ah.user_id, ah.requested_by, wr.user_id),
        ah.workspace_id = COALESCE(ah.workspace_id, wr.workspace_id),
        ah.workspace_key = COALESCE(ah.workspace_key, wr.workspace_key),
