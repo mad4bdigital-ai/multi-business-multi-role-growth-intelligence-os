@@ -259,7 +259,7 @@ LEFT JOIN execution_plans ep ON ep.plan_id COLLATE utf8mb4_unicode_ci = wr.plan_
  WHERE wr.actor_id IS NULL OR wr.actor_type IS NULL OR wr.brand_key IS NULL OR wr.correlation_id IS NULL OR wr.execution_context_json IS NULL;
 
 UPDATE step_runs sr
-LEFT JOIN workflow_runs wr ON wr.run_id = sr.run_id
+LEFT JOIN workflow_runs wr ON wr.run_id COLLATE utf8mb4_unicode_ci = sr.run_id COLLATE utf8mb4_unicode_ci
    SET sr.user_id = COALESCE(sr.user_id, wr.user_id),
        sr.workspace_id = COALESCE(sr.workspace_id, wr.workspace_id),
        sr.workspace_key = COALESCE(sr.workspace_key, wr.workspace_key),
