@@ -188,6 +188,16 @@ The guard surfaces are:
 Legacy mismatches can be tracked as expiring exceptions, but new unregistered
 mismatches are actionable drift.
 
+When a live runtime path is blocked by `ER_CANT_AGGREGATE_2COLLATIONS`, the preferred recovery order is:
+
+1. Identify the exact failing query shape and involved columns.
+2. Verify column types, indexes, and formal foreign-key constraints.
+3. Prefer a narrow migration or hotfix on named non-secret join columns when it aligns with the canonical runtime side.
+4. Rerun the exact failing query shape and record readback evidence.
+5. Codify the repair in a migration and guard test.
+
+Do not treat a tenant validation error caused by mixed-collation platform joins as user credential failure. The 2026-06-06 WordPress CMS validation repair is documented in `docs/tenant-wordpress-validation-collation-repair-2026-06-06.md`.
+
 ## Tenant Draft Skillpack Routing
 
 Tenant-private draft installs expose package and skill catalog assets without
