@@ -10,7 +10,10 @@ export function buildObservabilityRoutes(deps) {
   router.post("/telemetry/spans", requireBackendApiKey, async (req, res) => {
     try {
       const {
-        trace_id, tenant_id, run_id, span_name, span_type = "internal",
+        trace_id, tenant_id, workspace_id, workspace_key, run_id,
+        user_id, actor_id, actor_type, brand_id, brand_key,
+        request_id, session_id, conversation_id, correlation_id,
+        span_name, span_type = "internal",
         service_mode = "self_serve", status = "ok", duration_ms, attributes_json, error_message,
       } = req.body || {};
       if (!trace_id || !span_name) {
