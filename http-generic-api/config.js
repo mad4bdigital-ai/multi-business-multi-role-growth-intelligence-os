@@ -47,9 +47,16 @@ export const ACTIVATION_BOOTSTRAP_CONFIG_SHEET =
   process.env.ACTIVATION_BOOTSTRAP_CONFIG_SHEET || "Activation Bootstrap Config";
 export const ACTIVATION_BOOTSTRAP_CONFIG_RANGE =
   process.env.ACTIVATION_BOOTSTRAP_CONFIG_RANGE || "Activation Bootstrap Config!A2:J2";
-export const ACTIVATION_BOOTSTRAP_SPREADSHEET_ID =
+export const ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID =
+  process.env.ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID ||
+  process.env.ACTIVATION_PROVIDER_PROBE_SPREADSHEET_ID ||
   process.env.ACTIVATION_BOOTSTRAP_SPREADSHEET_ID ||
   "1RV185rQo58pGppg27r81eD9hPE8pXPyBY1pfHANip4o";
+
+// Deprecated compatibility alias. Activation bootstrap authority is DB-native;
+// this ID is only used for Google Workspace/provider connectivity probes and
+// legacy getSheetValues placeholder compatibility.
+export const ACTIVATION_BOOTSTRAP_SPREADSHEET_ID = ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID;
 export const ALLOW_ACTIVATION_BOOTSTRAP_DISCOVERY_FALLBACK =
   String(process.env.ALLOW_ACTIVATION_BOOTSTRAP_DISCOVERY_FALLBACK || "false")
     .trim()
