@@ -66,6 +66,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "203_sprint67_execution_log_context_dimensions.sql",
   "204_sprint67_core_runtime_context_dimensions.sql",
   "205_sprint67_runtime_context_dimension_enrichment.sql",
+  "216_sprint67_platform_secret_promotion_monitoring.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
@@ -972,6 +973,69 @@ async function checkDynamicMigrationDriftSafe() {
   }
 }
 
+async function checkPlatformSecretPromotionMonitoring() {
+  const pool = getPool();
+  const [[summaryViewRow]] = await pool.query(
+    "SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'v_platform_secret_promotion_monitoring_summary'"
+  );
+  const [[issuesViewRow]] = await pool.query(
+    "SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'v_platform_secret_promotion_monitoring_issues'"
+  );
+  if (!summaryViewRow?.cnt || !issuesViewRow?.cnt) {
+    return {
+      status: "fail",
+      detail: "Platform secret promotion monitoring views are missing.",
+      views_present: false,
+      promoted_secret_rows: 0,
+      issue_rows: null,
+      issues: [],
+      secrets_included: false,
+    };
+  }
+
+  const [[summary]] = await pool.query(
+    "SELECT promoted_secret_rows, passing_rows, issue_rows, storage_issue_rows, reference_issue_rows, source_connection_issue_rows FROM v_platform_secret_promotion_monitoring_summary LIMIT 1"
+  );
+  const issueRows = Number(summary?.issue_rows || 0);
+  const [issues] = await pool.query(
+    `SELECT secret_key, connection_id, issue_code, evidence_json
+       FROM v_platform_secret_promotion_monitoring_issues
+      ORDER BY secret_key
+      LIMIT 25`
+  );
+
+  return {
+    status: issueRows > 0 ? "fail" : "pass",
+    detail: issueRows > 0
+      ? `Platform secret promotion monitoring found ${issueRows} issue row(s).`
+      : `Platform secret promotion monitoring passed for ${Number(summary?.promoted_secret_rows || 0)} promoted platform secret row(s).`,
+    views_present: true,
+    promoted_secret_rows: Number(summary?.promoted_secret_rows || 0),
+    passing_rows: Number(summary?.passing_rows || 0),
+    issue_rows: issueRows,
+    storage_issue_rows: Number(summary?.storage_issue_rows || 0),
+    reference_issue_rows: Number(summary?.reference_issue_rows || 0),
+    source_connection_issue_rows: Number(summary?.source_connection_issue_rows || 0),
+    issues,
+    secrets_included: false,
+  };
+}
+
+async function checkPlatformSecretPromotionMonitoringSafe() {
+  try {
+    return await checkPlatformSecretPromotionMonitoring();
+  } catch (err) {
+    return {
+      status: "warn",
+      detail: `Platform secret promotion monitoring unavailable: ${err?.message || "unknown error"}`,
+      promoted_secret_rows: null,
+      issue_rows: null,
+      issues: [],
+      secrets_included: false,
+    };
+  }
+}
+
 async function checkDbConnectivity() {
   try {
     await getPool().query("SELECT 1");
@@ -1350,6 +1414,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     admin_tool_registry_smoke: null,
     migration_drift: null,
     runtime_policy_seed_readiness: null,
+    platform_secret_promotion_monitoring: null,
     graph_memory_diagnostics: null,
   };
 
