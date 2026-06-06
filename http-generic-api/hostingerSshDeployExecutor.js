@@ -221,6 +221,225 @@ function runSshDeploy({ host, port, user, privateKey, remoteScript, timeoutMs })
   });
 }
 
+function buildRemoteProbeScript({ appPath, expectedCommitSha }) {
+  const safeAppPath = shellQuote(appPath);
+  const expectedCheck = expectedCommitSha
+    ? `echo \"expected_sha=${shellQuote(expectedCommitSha).slice(1, -1)}\" && test \"$(git rev-parse HEAD)\" = ${shellQuote(expectedCommitSha)}`
+    : "echo \"expected_sha=not_required\"";
+  return [
+    "set -euo pipefail",
+    `cd ${safeAppPath}`,
+    "echo \"probe_pwd=$(pwd)\"",
+    "echo \"probe_host=$(hostname | tr -d '\\r\\n')\"",
+    "echo \"git_head=$(git rev-parse HEAD)\"",
+    "echo \"git_branch=$(git rev-parse --abbrev-ref HEAD)\"",
+    "echo \"worktree_status_count=$(git status --short | wc -l | tr -d ' ')\"",
+    "test -f package.json",
+    "test -d routes",
+    expectedCheck,
+    "echo \"probe_result=ok\"",
+  ].join(" && ");
+}
+
+function parseProbeOutput(stdout = "") {
+  const out = {};
+  for (const line of String(stdout || "").split(/\r?\n/)) {
+    const match = line.match(/^([A-Za-z0-9_]+)=(.*)$/);
+    if (match) out[match[1]] = match[2];
+  }
+  return out;
+}
+
+export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
+  const pool = deps.pool || getPool();
+  const env = deps.env || process.env;
+  const targetId = compact(input.target_id || input.targetId, 64);
+  const appKey = compact(input.app_key || input.appKey || "auth.mad4b.com", 191);
+  const appPath = assertSafeRemotePath(input.app_path || input.appPath || (appKey === "auth.mad4b.com" ? DEFAULT_AUTH_APP_PATH : ""));
+  const expectedCommitSha = compact(input.expected_commit_sha || input.expectedCommitSha || input.commit_sha || input.commitSha || "", 64).toLowerCase();
+  const dryRun = input.dry_run === undefined ? true : bool(input.dry_run);
+  const activateOnSuccess = bool(input.activate_on_success || input.activateOnSuccess);
+  const approvalReason = compact(input.approval_reason || input.approvalReason || input.break_glass_reason || input.breakGlassReason, 1000);
+  const timeoutMs = boundedInt(input.timeout_ms || input.timeoutMs, 60000, 1000, MAX_TIMEOUT_MS);
+  const traceId = `hostinger_ssh_probe_${randomUUID()}`;
+
+  if (!targetId) {
+    const err = new Error("target_id is required.");
+    err.status = 400;
+    err.code = "remote_runtime_hosting_probe_target_required";
+    throw err;
+  }
+  if (expectedCommitSha && !/^[0-9a-f]{40}$/.test(expectedCommitSha)) {
+    const err = new Error("expected_commit_sha must be a 40-character git SHA when supplied.");
+    err.status = 400;
+    err.code = "remote_runtime_hosting_probe_sha_invalid";
+    throw err;
+  }
+  if (!dryRun && approvalReason.length < 20) {
+    const err = new Error("approval_reason/break_glass_reason with at least 20 characters is required for SSH probe execution.");
+    err.status = 403;
+    err.code = "remote_runtime_hosting_probe_approval_required";
+    throw err;
+  }
+
+  const target = await loadTarget(pool, targetId);
+  if (!target) {
+    const err = new Error("Remote Runtime target was not found.");
+    err.status = 404;
+    err.code = "remote_runtime_target_not_found";
+    throw err;
+  }
+  if (target.target_kind !== "hosting_account" || target.provider_family !== "hostinger") {
+    const err = new Error("This probe only supports Hostinger hosting_account targets.");
+    err.status = 409;
+    err.code = "remote_runtime_hosting_probe_target_not_supported";
+    throw err;
+  }
+  if (!Array.isArray(target.command_allowlist) || !target.command_allowlist.includes("ssh_probe")) {
+    const err = new Error("Target does not allow ssh_probe.");
+    err.status = 409;
+    err.code = "remote_runtime_target_ssh_probe_not_allowed";
+    throw err;
+  }
+  if (!pathAllowedByTarget(appPath, target)) {
+    const err = new Error("app_path is outside target path allowlist.");
+    err.status = 409;
+    err.code = "remote_runtime_app_path_not_allowed";
+    err.details = { app_path: appPath, path_allowlist: target.path_allowlist };
+    throw err;
+  }
+
+  const plan = await planRemoteRuntimeDispatchDryRun({
+    pool,
+    targetId,
+    commandKey: "ssh_probe",
+    inputs: { app_key: appKey, app_path: appPath, expected_commit_sha: expectedCommitSha || null, activate_on_success: activateOnSuccess },
+    approvalReason,
+  });
+
+  const baseResponse = {
+    ok: true,
+    plugin_key: "remote_ssh_runtime",
+    execution_mode: "hostinger_ssh_target_probe",
+    target_id: targetId,
+    app_key: appKey,
+    app_path: appPath,
+    expected_commit_sha: expectedCommitSha || null,
+    activate_on_success: activateOnSuccess,
+    dry_run: dryRun,
+    will_execute: !dryRun,
+    dispatch_plan: {
+      dispatch_ready: plan.dispatch_ready,
+      reason: plan.reason,
+      checks: plan.checks,
+    },
+    secrets_included: false,
+  };
+
+  if (dryRun) {
+    await writeExecutionEvidence({
+      pool,
+      traceId,
+      entryType: "hostinger_ssh_target_probe_dry_run",
+      executionClass: "remote_runtime_target_probe_plan",
+      sourceLayer: "hostingerSshDeployExecutor",
+      userInput: "hostinger ssh target probe dry-run",
+      routeKeys: "remote_runtime_hosting_ssh_probe",
+      selectedWorkflows: "hostinger_ssh_target_probe_dry_run",
+      executionMode: "dry_run_only",
+      decisionTrigger: "admin_tool",
+      executionStatus: "success",
+      outputSummary: { ...baseResponse, secrets_included: false },
+      routeStatus: "dry_run_only",
+      routeSource: "sql_primary",
+      intakeValidationStatus: "validated",
+      executionReadyStatus: plan.dispatch_ready ? "ready" : "degraded",
+      logSource: "sql_primary",
+    }).catch(() => null);
+    return { ...baseResponse, execution: { will_execute: false, executed: false, reason: "dry_run_only" } };
+  }
+
+  if (env[PROBE_FLAG] !== "true") {
+    const err = new Error(`Hostinger SSH probe executor is disabled. Set ${PROBE_FLAG}=true only after approval and route readiness.`);
+    err.status = 403;
+    err.code = "remote_runtime_hostinger_ssh_probe_disabled";
+    err.details = { flag: PROBE_FLAG, secrets_included: false };
+    throw err;
+  }
+
+  const [host, port, user, privateKey] = await Promise.all(SSH_ROLES.map((role) => resolveSshCredential(pool, target, role)));
+  const remoteScript = buildRemoteProbeScript({ appPath, expectedCommitSha });
+  const sshResult = await runSshDeploy({ host, port, user, privateKey, remoteScript, timeoutMs });
+  const parsed = parseProbeOutput(sshResult.stdout);
+  const probeOk = sshResult.ok && parsed.probe_result === "ok";
+
+  if (probeOk && activateOnSuccess) {
+    await pool.query(
+      `UPDATE remote_runtime_targets
+          SET status = 'active', validation_status = 'validated', updated_by = 'hostinger_ssh_target_probe', updated_at = CURRENT_TIMESTAMP
+        WHERE target_id = ? AND plugin_key = 'remote_ssh_runtime'`,
+      [targetId]
+    );
+  }
+
+  await writeExecutionEvidence({
+    pool,
+    traceId,
+    entryType: "hostinger_ssh_target_probe",
+    executionClass: "remote_runtime_target_probe_execution",
+    sourceLayer: "hostingerSshDeployExecutor",
+    userInput: "hostinger ssh target probe",
+    routeKeys: "remote_runtime_hosting_ssh_probe",
+    selectedWorkflows: "hostinger_ssh_target_probe",
+    executionMode: "approval_gated_readonly_ssh_probe",
+    decisionTrigger: "admin_tool",
+    executionStatus: probeOk ? "success" : "failed",
+    outputSummary: {
+      ...baseResponse,
+      dry_run: false,
+      executed: true,
+      probe_ok: probeOk,
+      activated_target: probeOk && activateOnSuccess,
+      exit_code: sshResult.exit_code,
+      timed_out: sshResult.timed_out,
+      parsed_probe: parsed,
+      stdout_preview: sshResult.stdout.slice(0, 2000),
+      stderr_preview: sshResult.stderr.slice(0, 2000),
+      secrets_included: false,
+    },
+    routeStatus: probeOk ? "executed" : "failed",
+    routeSource: "sql_primary",
+    intakeValidationStatus: "validated",
+    executionReadyStatus: probeOk ? "complete" : "failed",
+    failureReason: probeOk ? null : "ssh_probe_failed",
+    logSource: "sql_primary",
+  }).catch(() => null);
+
+  return {
+    ...baseResponse,
+    ok: probeOk,
+    dry_run: false,
+    execution: {
+      will_execute: true,
+      executed: true,
+      ssh_used: true,
+      shell_freeform: false,
+      readonly_probe_only: true,
+      target_activated: probeOk && activateOnSuccess,
+      exit_code: sshResult.exit_code,
+      timed_out: sshResult.timed_out,
+    },
+    probe: {
+      ok: probeOk,
+      parsed,
+      stdout: sshResult.stdout,
+      stderr: sshResult.stderr,
+      bounded: true,
+    },
+    secrets_included: false,
+  };
+}
+
 export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
   const pool = deps.pool || getPool();
   const env = deps.env || process.env;
