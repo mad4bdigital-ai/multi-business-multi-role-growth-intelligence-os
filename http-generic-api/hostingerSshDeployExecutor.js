@@ -127,7 +127,27 @@ function isPlatformManagedTarget(target = {}) {
   );
 }
 
-async function resolveSshCredential(pool, target, role, input = {}) {
+function sshAuthTypeForRole(role) {
+  return role === SSH_PASSWORD_ROLE ? "ssh_password" : "ssh_key_pair";
+}
+
+function sshCredentialLabel(role) {
+  if (role === "ssh_port") return "SSH port";
+  if (role === "ssh_host") return "SSH host";
+  if (role === "ssh_user") return "SSH username";
+  if (role === SSH_PASSWORD_ROLE) return "SSH password";
+  if (role === SSH_KEY_ROLE) return "SSH private key";
+  return role;
+}
+
+function preferredSshAuthMode(input = {}, target = {}) {
+  const requested = compact(input.ssh_auth_mode || input.sshAuthMode || input.auth_mode || input.authMode || "", 32).toLowerCase();
+  if (SSH_AUTH_MODES.has(requested)) return requested;
+  if (target.provider_family === "hostinger") return "password";
+  return "private_key";
+}
+
+async function resolveSshCredential(pool, target, role, input = {}, options = {}) {
   const result = await resolveEffectiveCredential({
     tenantId: target.tenant_id,
     userId: target.user_id || input.user_id || input.userId || undefined,
@@ -137,17 +157,19 @@ async function resolveSshCredential(pool, target, role, input = {}) {
     allowPlatformFallback: true,
   }, { pool });
   if (result?.status !== "resolved" || !compact(result.secret, 20000)) {
+    if (options.createHandoff === false) return null;
+    const authType = sshAuthTypeForRole(role);
     const credentialIntake = await maybeCreateCredentialIntakeRequirement({
       tenantId: target.tenant_id,
       userId: input.user_id || input.userId || target.user_id || undefined,
       platformAdminUserId: input.platform_admin_user_id || input.platformAdminUserId,
       systemId: target.system_id || undefined,
       appKey: "remote_ssh_runtime",
-      authType: "ssh_key_pair",
+      authType,
       credentialRole: role,
       credentialField: role,
-      credentialLabel: role === "ssh_port" ? "SSH port" : role,
-      displayLabel: `${target.host_label || "Hostinger SSH"} ${role}`,
+      credentialLabel: sshCredentialLabel(role),
+      displayLabel: `${target.host_label || "Hostinger SSH"} ${sshCredentialLabel(role)}`,
       intakeScope: result?.owner_type === "platform" || String(result?.credential_ref || "").startsWith("platform_secret:") || isPlatformManagedTarget(target) ? "platform" : "tenant",
       providerFamily: target.provider_family,
       connectorFamily: target.connector_family,
@@ -157,6 +179,7 @@ async function resolveSshCredential(pool, target, role, input = {}) {
         target_kind: target.target_kind,
         source_route: "remote_runtime_hostinger_ssh_probe_or_deploy",
         auto_handoff_reason: "missing_required_ssh_credential",
+        ssh_auth_mode: role === SSH_PASSWORD_ROLE ? "password" : "private_key",
         secrets_included: false,
       },
       autoIntake: true,
@@ -175,6 +198,17 @@ async function resolveSshCredential(pool, target, role, input = {}) {
     throw err;
   }
   return String(result.secret);
+}
+
+async function resolveSshConnectionCredentials(pool, target, input = {}) {
+  const [host, port, user] = await Promise.all(SSH_COMMON_ROLES.map((role) => resolveSshCredential(pool, target, role, input)));
+  const authMode = preferredSshAuthMode(input, target);
+  if (authMode === "password") {
+    const password = await resolveSshCredential(pool, target, SSH_PASSWORD_ROLE, input);
+    return { host, port, user, auth_mode: "password", password };
+  }
+  const privateKey = await resolveSshCredential(pool, target, SSH_KEY_ROLE, input);
+  return { host, port, user, auth_mode: "private_key", privateKey };
 }
 
 function buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClean, restart }) {
