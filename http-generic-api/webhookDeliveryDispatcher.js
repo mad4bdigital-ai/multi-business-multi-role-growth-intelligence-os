@@ -178,7 +178,9 @@ export async function dispatchPendingWebhookDeliveries({ pool = getPool(), limit
     `SELECT d.delivery_id, d.webhook_id, d.tenant_id, d.event_type, d.payload_json, d.attempts,
             w.url, w.secret_hash
        FROM webhook_deliveries d
-       JOIN webhooks w ON w.webhook_id = d.webhook_id AND w.tenant_id = d.tenant_id
+       JOIN webhooks w
+         ON w.webhook_id COLLATE utf8mb4_unicode_ci = d.webhook_id COLLATE utf8mb4_unicode_ci
+        AND w.tenant_id COLLATE utf8mb4_unicode_ci = d.tenant_id COLLATE utf8mb4_unicode_ci
       WHERE d.status IN ('queued','failed')
         AND d.attempts < 3
         AND w.status = 'active'
