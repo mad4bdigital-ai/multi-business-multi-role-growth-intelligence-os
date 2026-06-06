@@ -89,7 +89,7 @@ jobs:
           DOCS_AGENT_SHA: ${{ github.event.after }}
         run: |
           set -e
-          if git diff --quiet -- docs/auto-docs-agent; then
+          if [ -z "$(git status --porcelain -- docs/auto-docs-agent)" ]; then
             echo "Docs Agent: no generated docs changes to publish."
             exit 0
           fi
