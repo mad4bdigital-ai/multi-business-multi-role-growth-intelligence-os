@@ -180,7 +180,9 @@ ALTER TABLE platform_graph_query_log
   ADD COLUMN IF NOT EXISTS session_id VARCHAR(128) NULL AFTER request_id,
   ADD COLUMN IF NOT EXISTS conversation_id VARCHAR(128) NULL AFTER session_id,
   ADD COLUMN IF NOT EXISTS correlation_id VARCHAR(191) NULL AFTER conversation_id,
-  ADD COLUMN IF NOT EXISTS execution_context_json JSON NULL AFTER correlation_id;
+  ADD COLUMN IF NOT EXISTS resource_type VARCHAR(128) NULL AFTER correlation_id,
+  ADD COLUMN IF NOT EXISTS resource_id VARCHAR(191) NULL AFTER resource_type,
+  ADD COLUMN IF NOT EXISTS execution_context_json JSON NULL AFTER resource_id;
 
 ALTER TABLE repo_ingestion_jobs
   ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NULL AFTER job_id,
