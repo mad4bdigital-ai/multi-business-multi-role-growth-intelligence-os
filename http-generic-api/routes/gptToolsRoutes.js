@@ -566,7 +566,7 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
 
   const fetchOpts = {
     method: httpMethod,
-    headers: buildInternalToolDispatchHeaders(req),
+    headers: buildInternalToolDispatchHeaders(req, process.env, { force_backend: effectiveCallerType === "admin" }),
     signal: AbortSignal.timeout(300_000),
   };
 
