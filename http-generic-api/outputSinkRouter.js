@@ -212,8 +212,8 @@ export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, work
       const { adaptation_id, passed } = await sinkAdaptationRecord({ run_id, agent_id, tenant_id, workflow_key, target_module, output, execution_class });
       rulePassed = passed;
       dispatched.push({ sink: "adaptation_record", id: adaptation_id, passed });
-      await logSink(run_id, agent_id, tenant_id, "adaptation_record", adaptation_id, "ok");
-    } catch (err) { await logSink(run_id, agent_id, tenant_id, "adaptation_record", null, "failed", err.message); }
+      await logSink(run_id, agent_id, tenant_id, "adaptation_record", adaptation_id, "ok", null, sinkContext);
+    } catch (err) { await logSink(run_id, agent_id, tenant_id, "adaptation_record", null, "failed", err.message, sinkContext); }
   }
 
   if (REPORT_TYPES.has(artifact_type)) {
