@@ -136,6 +136,7 @@ export function registerRoutes(app, deps) {
   app.use(buildTenantDocsRoutes());
   app.use(buildTenantLifecycleRoutes());
   app.use(buildWorkspaceResourceRoutes());
+  app.use(buildAdminWorkspaceAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildTenantEvolutionRoutes());
   app.use(buildTenantInfrastructureRoutes(deps));
   app.use(buildGptSessionRoutes(deps));
