@@ -137,7 +137,8 @@ ALTER TABLE local_gateway_tool_call_log
   ADD COLUMN IF NOT EXISTS app_key VARCHAR(191) NULL AFTER correlation_id,
   ADD COLUMN IF NOT EXISTS action_key VARCHAR(191) NULL AFTER app_key,
   ADD COLUMN IF NOT EXISTS resource_type VARCHAR(128) NULL AFTER action_key,
-  ADD COLUMN IF NOT EXISTS resource_id VARCHAR(191) NULL AFTER resource_type;
+  ADD COLUMN IF NOT EXISTS resource_id VARCHAR(191) NULL AFTER resource_type,
+  ADD COLUMN IF NOT EXISTS execution_context_json JSON NULL AFTER resource_id;
 
 ALTER TABLE approval_holds
   ADD COLUMN IF NOT EXISTS workspace_id VARCHAR(64) NULL AFTER tenant_id,
