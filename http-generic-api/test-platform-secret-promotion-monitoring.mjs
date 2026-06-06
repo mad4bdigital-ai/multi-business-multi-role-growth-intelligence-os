@@ -22,6 +22,8 @@ assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 assert.ok(runner.includes("216_sprint67_platform_secret_promotion_monitoring.sql"));
 assert.ok(readiness.includes("216_sprint67_platform_secret_promotion_monitoring.sql"));
 assert.ok(readiness.includes("checkPlatformSecretPromotionMonitoring"));
+assert.ok(readiness.includes("checkPlatformSecretPromotionMonitoringSafe"));
+assert.ok(readiness.includes("report.platform_secret_promotion_monitoring = await checkPlatformSecretPromotionMonitoringSafe()"));
 assert.ok(readiness.includes("platform_secret_promotion_monitoring"));
 assert.ok(readiness.includes("v_platform_secret_promotion_monitoring_summary"));
 assert.ok(readiness.includes("v_platform_secret_promotion_monitoring_issues"));
