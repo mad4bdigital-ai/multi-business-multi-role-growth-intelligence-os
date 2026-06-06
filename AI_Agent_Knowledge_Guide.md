@@ -177,6 +177,10 @@ Use the separate dev dispatcher OpenAPI schema (`http-generic-api/openapi.gpt-ac
 
 Promotion rule: validate CI, dev deployment, release readiness, and explicit approval before merging/promoting to `main` and `auth.mad4b.com`.
 
+Deployment evidence rule: a current Hostinger checkout is not proof that the running Node.js process loaded the change. Verify `/health`, `/deployment-info` when available, and `SERVICE_VERSION`/runtime profile. If files are current but `/health.version` is old, classify as Hostinger/LiteSpeed process reload lag. Use hPanel restart/redeploy or a governed Hostinger SSH deploy executor only when the target is active, smoke-validated, and approval-gated.
+
+Tenant validation repair rule: when a tenant-safe status route fails with a platform collation/schema/query error, classify it as platform-gated validation rather than tenant credential failure. For runtime join-key collation repairs, prefer narrow, governed fixes to named non-secret join columns plus same-cycle readback of the failing query shape. Do not use permanent `BINARY` joins, broad table conversion, or secret-payload alteration as a shortcut. See `docs/tenant-wordpress-validation-collation-repair-2026-06-06.md`.
+
 ### External endpoint credential selection
 
 External endpoint auth is governed at the parent action level. `actions.runtime_binding_profile.auth_strategy` is the default policy for all child endpoints. Endpoints inherit it unless `endpoints.runtime_binding_profile.auth_strategy_override` is explicitly defined for a narrower operation.
