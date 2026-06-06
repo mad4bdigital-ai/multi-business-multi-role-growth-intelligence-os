@@ -138,9 +138,13 @@ async function loadRows(pool, input = {}) {
             e.method AS current_method,
             e.endpoint_path_or_function AS current_path
        FROM platform_plugin_smoke_certifications c
-       LEFT JOIN user_app_connections u ON u.connection_id = c.connection_id AND u.status = 'active'
-       LEFT JOIN endpoints e ON (e.endpoint_key = c.endpoint_key OR e.parent_action_key = c.action_key)
-        AND (e.status IS NULL OR e.status NOT IN ('deprecated','archived','disabled','inactive'))
+       LEFT JOIN user_app_connections u
+        ON u.connection_id COLLATE utf8mb4_unicode_ci = c.connection_id COLLATE utf8mb4_unicode_ci
+       AND u.status = 'active'
+       LEFT JOIN endpoints e
+        ON (e.endpoint_key = c.endpoint_key
+          OR e.parent_action_key COLLATE utf8mb4_unicode_ci = c.action_key COLLATE utf8mb4_unicode_ci)
+       AND (e.status IS NULL OR e.status NOT IN ('deprecated','archived','disabled','inactive'))
       WHERE ${where.join(" AND ")}
       ORDER BY c.certification_expires_at ASC, c.certified_at ASC
       LIMIT ?`,
