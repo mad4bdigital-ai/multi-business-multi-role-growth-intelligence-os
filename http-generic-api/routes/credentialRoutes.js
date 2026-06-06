@@ -567,11 +567,11 @@ export function buildCredentialRoutes(deps) {
           [mapping.secret_key, secretType, hash, ciphertext, metadata, createdBy]
         );
 
-        await pool.query(
+        const [secretReferenceUpdate] = await pool.query(
           `UPDATE secret_references
               SET owner_type = 'platform',
                   owner_id = ?,
-                  system_id = ?,
+                  system_id = COALESCE(?, system_id),
                   provider_family = ?,
                   connector_family = ?,
                   credential_type = ?,
@@ -582,8 +582,26 @@ export function buildCredentialRoutes(deps) {
                   status = 'active'
             WHERE secret_key = ?
               AND owner_type = 'platform'`,
-          [ownerId, systemId, providerFamily, connectorFamily, secretType, mapping.secret_key]
+          [ownerId, systemId || null, providerFamily, connectorFamily, secretType, mapping.secret_key]
         );
+        if (!secretReferenceUpdate?.affectedRows) {
+          await pool.query(
+            `INSERT INTO secret_references
+               (ref_id, tenant_id, owner_type, owner_id, system_id, secret_key, store_type, env_var_name, vault_path,
+                description, provider_family, connector_family, credential_type, consent_status, validation_status, status, created_at)
+             VALUES (UUID(), ?, 'platform', ?, ?, ?, 'db_encrypted', NULL, NULL, ?, ?, ?, ?, 'not_required', 'stored', 'active', NOW())`,
+            [
+              connection.tenant_id || 'f2795a7f-8d06-4053-8bee-35ca9af8b460',
+              ownerId,
+              systemId || null,
+              mapping.secret_key,
+              `Platform secret promoted from ${connection.app_key}/${connection.auth_type} intake connection`,
+              providerFamily,
+              connectorFamily,
+              secretType,
+            ]
+          );
+        }
 
         promoted.push({ secret_key: mapping.secret_key, credential_field: mapping.credential_field, value_sha256: hash });
       }
