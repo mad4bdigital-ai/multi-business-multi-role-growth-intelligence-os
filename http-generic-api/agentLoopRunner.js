@@ -3,6 +3,7 @@ import { getPool } from "./db.js";
 import { loadWorkspaceAppContext } from "./appConnectionResolver.js";
 import { evaluateAgentLoopPreflight, assertPreflightAllowed } from "./governedExecutionPreflight.js";
 import { resolveSurfaceAuthority, SURFACE_KEYS } from "./surfaceAuthorityResolver.js";
+import { resolveRuntimeWorkflow } from "./runtimeWorkflowResolver.js";
 
 function isTruthy(val) {
   return val === true || val === 1 || val === "1" || val === "TRUE";
@@ -73,14 +74,6 @@ async function writeReviewStepRun(run_id, tenant_id, reviewResult) {
       ]
     );
   } catch { /* non-blocking */ }
-}
-
-async function loadWorkflow(workflow_key) {
-  const [rows] = await getPool().query(
-    "SELECT * FROM `workflows` WHERE workflow_key = ? AND (active = 1 OR active = '1' OR active = 'TRUE') LIMIT 1",
-    [workflow_key]
-  );
-  return rows[0] || null;
 }
 
 async function loadBrandCoreEvidence(brand_key) {
@@ -229,10 +222,20 @@ async function writeRunResult(run_id, result, tenant_id) {
 export async function runAgentLoop(plan, deps = {}) {
   const run_id = plan.run_id || randomUUID();
 
-  const workflow = await loadWorkflow(plan.workflow_key);
-  if (!workflow) {
-    return { ok: false, error: "workflow_not_found", workflow_key: plan.workflow_key };
+  const workflowResolution = await resolveRuntimeWorkflow({
+    workflow_id: plan.workflow_id,
+    workflow_key: plan.workflow_key,
+  });
+  if (!workflowResolution.ok) {
+    return {
+      ok: false,
+      error: workflowResolution.resolution.code,
+      workflow_id: plan.workflow_id || null,
+      workflow_key: plan.workflow_key || null,
+      resolution: workflowResolution.resolution,
+    };
   }
+  const workflow = workflowResolution.workflow;
 
   const logicDef = await loadLogicDefinition(workflow.target_module);
   const logicBody = logicDef?.body_json || {};

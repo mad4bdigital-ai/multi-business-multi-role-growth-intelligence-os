@@ -5192,6 +5192,8 @@ paths:
                 tenant_id: { type: string, format: uuid }
                 user_id: { type: string, format: uuid }
                 intent_key: { type: string }
+                workflow_id: { type: string, description: "Exact workflow execution identity. Takes precedence over workflow_key." }
+                workflow_key: { type: string, description: "Workflow family or compatibility key. Must resolve to one active workflow when workflow_id is omitted." }
                 input_context: { type: object, additionalProperties: true }
       responses:
         "201": { description: Plan created, content: { application/json: { schema: { $ref: "#/components/schemas/OkResponse" } } } }
@@ -7870,7 +7872,8 @@ paths:
                 user_id: { type: string, format: uuid }
                 brand_key: { type: string }
                 target_key: { type: string }
-                workflow_key: { type: string }
+                workflow_id: { type: string, description: "Exact workflow execution identity. Takes precedence over workflow_key." }
+                workflow_key: { type: string, description: "Workflow family or compatibility key. Must resolve to one active workflow when workflow_id is omitted." }
                 intent_key: { type: string }
                 apply: { type: boolean, default: false }
                 post_types: { type: array, items: { type: string }, default: ["post"] }

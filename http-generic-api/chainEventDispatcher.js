@@ -9,6 +9,7 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { dispatchPlan } from "./connectorExecutor.js"; // Assuming this is the correct dispatcher
+import { resolveRuntimeWorkflow } from "./runtimeWorkflowResolver.js";
 
 // ─── Loaders ───────────────────────────────────────────────────────────────────
 
@@ -16,17 +17,6 @@ async function loadEvent(event_id) {
   const [rows] = await getPool().query(
     "SELECT * FROM `agent_chain_events` WHERE event_id = ? LIMIT 1",
     [event_id]
-  );
-  return rows[0] || null;
-}
-
-async function loadWorkflowDef(workflow_key) {
-  if (!workflow_key) return null;
-  const [rows] = await getPool().query(
-    `SELECT workflow_key, execution_mode, execution_class, target_module, review_required
-     FROM \`workflows\`
-     WHERE workflow_key = ? AND (active = 1 OR active = 'TRUE' OR active = '1') LIMIT 1`,
-    [workflow_key]
   );
   return rows[0] || null;
 }
@@ -56,12 +46,12 @@ async function createChainPlan(event, workflowDef) {
 
   await getPool().query(
     `INSERT INTO \`execution_plans\`
-       (plan_id, tenant_id, user_id, agent_id, workflow_key, intent_key,
+       (plan_id, tenant_id, user_id, agent_id, workflow_key, workflow_id, intent_key,
         plan_status, access_decision, service_mode, steps_json, created_at)
-     VALUES (?,?,?,?,?,?, 'validated','ALLOW_SELF_SERVE','self_serve',?,NOW())`,
+     VALUES (?,?,?,?,?,?,?, 'validated','ALLOW_SELF_SERVE','self_serve',?,NOW())`,
     [
       plan_id, event.tenant_id, null, agent_id,
-      event.target_workflow_key, event.target_workflow_key,
+      event.target_workflow_key, workflowDef.workflow_id || null, event.target_workflow_key,
       JSON.stringify([{
         step_key: "chain_trigger",
         source_event: event.event_id,
@@ -92,8 +82,15 @@ export async function dispatchChainEvent(event_id) {
 
   let plan_id, dispatchResult, dispatchError;
   try {
-    const workflowDef = await loadWorkflowDef(event.target_workflow_key);
-    if (!workflowDef) throw new Error(`Workflow '${event.target_workflow_key}' not found or inactive`);
+    const workflowResolution = await resolveRuntimeWorkflow({
+      workflow_key: event.target_workflow_key,
+    });
+    if (!workflowResolution.ok) {
+      const error = new Error(workflowResolution.resolution.message);
+      error.code = workflowResolution.resolution.code;
+      throw error;
+    }
+    const workflowDef = workflowResolution.workflow;
 
     ({ plan_id } = await createChainPlan(event, workflowDef));
     dispatchResult = await dispatchPlan(plan_id, { apply: false, actor_id: `chain:${event.source_agent_id || "system"}` });

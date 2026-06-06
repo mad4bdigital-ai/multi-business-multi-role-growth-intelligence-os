@@ -14,6 +14,7 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { writeAuditLog } from "./auditLogger.js"; // Assuming auditLogger.js exists
+import { resolveRuntimeWorkflow } from "./runtimeWorkflowResolver.js";
 
 const REPORT_TYPES = new Set([
   "Report", "Analysis", "Scorecard", "Dataset", "Research", "Map",
@@ -22,16 +23,6 @@ const REPORT_TYPES = new Set([
 const PASS_KEYS = ["passed", "ok", "valid", "pass", "true", "1"];
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
-
-async function loadWorkflowMeta(workflow_key) {
-  if (!workflow_key) return null;
-  const [rows] = await getPool().query(
-    `SELECT output_artifact_type, primary_output, linked_workflows, execution_class, target_module
-     FROM \`workflows\` WHERE workflow_key = ? LIMIT 1`,
-    [workflow_key]
-  );
-  return rows[0] || null;
-}
 
 async function loadAgentMeta(agent_id) {
   if (!agent_id) return null;
@@ -189,13 +180,21 @@ async function sinkChainEvents({ source_run_id, source_agent_id, linked_workflow
 
 // ─── Public entry point ───────────────────────────────────────────────────────
 
-export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, workflow_key, output }) {
+export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, workflow_id, workflow_key, output }) {
   if (!run_id || !tenant_id) return { ok: false, error: "run_id and tenant_id required" };
 
-  const [wfMeta, agentMeta] = await Promise.all([
-    loadWorkflowMeta(workflow_key),
+  const [workflowResolution, agentMeta] = await Promise.all([
+    resolveRuntimeWorkflow({ workflow_id, workflow_key }),
     loadAgentMeta(agent_id),
   ]);
+  if (!workflowResolution.ok && workflowResolution.resolution.code !== "workflow_identity_missing") {
+    return {
+      ok: false,
+      error: workflowResolution.resolution.code,
+      resolution: workflowResolution.resolution,
+    };
+  }
+  const wfMeta = workflowResolution.ok ? workflowResolution.workflow : null;
 
   const execution_class = agentMeta?.execution_class || wfMeta?.execution_class || "standard";
   const artifact_type = wfMeta?.output_artifact_type || "Operational";
