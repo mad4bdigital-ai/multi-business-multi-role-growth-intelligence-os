@@ -30,7 +30,8 @@ assert(routes.includes('rm(tempDir, { recursive: true, force: true })'), "execut
 assert(routes.includes('source: "tenant_ssh_cli_allowlisted_execute"'), "execute response must expose stable source");
 assert(routes.includes('secrets_included: false'), "execute route must never return secrets");
 assert(!routes.includes('exec('), "execute route must not use shell exec");
-assert(!routes.includes('req.body?.command'), "execute route must not accept freeform command text");
+assert(routes.includes('const commandKey = String(req.body?.command_key || "").trim();'), "execute route must accept only command_key, not freeform command text");
+assert(!migration.includes('freeform'), "execute migration must not define a freeform command field");
 
 for (const commandKey of ['pwd', 'whoami', 'uname_s', 'uptime']) {
   assert(migration.includes(commandKey), `execute migration input schema must include ${commandKey}`);
