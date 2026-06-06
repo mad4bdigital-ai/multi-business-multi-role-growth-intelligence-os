@@ -23,7 +23,7 @@ function deriveCompletedStages(evidence) {
 function deriveBlockedStage(evidence) {
   if (!evidence.transport_attempted) return "transport_attempting";
   if (!evidence.drive_ok) return "drive_validation";
-  if (!evidence.sheets_ok) return "sheets_validation";
+  if (!sheetsStepSatisfied(evidence)) return "sheets_validation";
   if (!(evidence.bootstrap_row_read && evidence.binding_resolved)) return "bootstrap_resolution";
   if (!evidence.github_ok) return "github_validation";
   if (!evidence.validation_complete) return "final_validation";
