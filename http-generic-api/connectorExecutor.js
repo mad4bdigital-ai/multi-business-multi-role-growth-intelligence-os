@@ -495,7 +495,7 @@ export async function dispatchPlan(plan_id, {
   await Promise.all([
     finaliseWorkflowRun(run_id, final_status, succeeded ? result : null, dispatchError?.message),
     createStepRun(
-      run_id, plan.tenant_id,
+      run_id, trace_id, plan,
       `connector_dispatch.${connector_type}`,
       succeeded ? "completed" : "failed",
       { plan_id, connector_type, apply },
