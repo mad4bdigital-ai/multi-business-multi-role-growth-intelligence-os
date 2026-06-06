@@ -5,7 +5,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { decryptCredentials } from "./services/tokenEncryption.js";
+import { decryptCredentials } from "./tokenEncryption.js";
 import { getPool } from "./db.js";
 
 export const TENANT_SSH_CLI_EXECUTE_JOB_TYPE = "tenant_ssh_cli_allowlisted_execute";
