@@ -4,11 +4,16 @@ import { getRecoveryPolicy } from "./activationRecoveryPolicy.js";
 import { buildActivationOperatorView } from "./activationOperatorView.js";
 import { checkActivationConsistency } from "./activationConsistencyCheck.js";
 
+function sheetsStepSatisfied(evidence = {}) {
+  return evidence.sheets_ok || evidence.sheets_required === false || evidence.sheets_skipped === true;
+}
+
 function deriveCompletedStages(evidence) {
   const stages = [];
   if (evidence.transport_attempted) stages.push("transport_attempting");
   if (evidence.drive_ok) stages.push("drive_validation");
   if (evidence.sheets_ok) stages.push("sheets_validation");
+  else if (evidence.sheets_required === false || evidence.sheets_skipped === true) stages.push("sheets_not_required");
   if (evidence.bootstrap_row_read && evidence.binding_resolved) stages.push("bootstrap_resolution");
   if (evidence.github_ok) stages.push("github_validation");
   if (evidence.validation_complete) stages.push("final_validation");
