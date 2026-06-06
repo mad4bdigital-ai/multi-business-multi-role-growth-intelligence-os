@@ -118,7 +118,7 @@ function buildWpContext(brand) {
 
 // ── DB write helpers (all non-throwing) ──────────────────────────────────────
 
-async function createWorkflowRun(run_id, plan, service_mode) {
+async function createWorkflowRun(run_id, trace_id, plan, service_mode) {
   // Resolve agent_id from execution plan if not already on plan object
   let agent_id = plan.agent_id || null;
   if (!agent_id && plan.plan_id) {
@@ -128,19 +128,41 @@ async function createWorkflowRun(run_id, plan, service_mode) {
     agent_id = planRow[0]?.agent_id || null;
   }
 
+  const actorId = plan.user_id || null;
+  const inputContext = {
+    brand_key: plan.brand_key || null,
+    target_key: plan.target_key || null,
+    intent_key: plan.intent_key || null,
+    trace_id,
+    run_id,
+    secrets_included: false,
+  };
   await getPool().query(
     `INSERT INTO \`workflow_runs\`
-       (run_id, tenant_id, user_id, workflow_key, agent_id, plan_id, service_mode, status, input_json, started_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'running', ?, NOW())`,
+       (run_id, tenant_id, workspace_id, workspace_key, user_id, actor_id, actor_type,
+        brand_id, brand_key, request_id, session_id, conversation_id, correlation_id,
+        execution_context_json, workflow_key, agent_id, plan_id, service_mode, status, input_json, started_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'running', ?, NOW())`,
     [
       run_id,
       plan.tenant_id || null,
+      plan.workspace_id || null,
+      plan.workspace_key || null,
       plan.user_id || null,
+      actorId,
+      actorId ? "user" : "system",
+      plan.brand_id || null,
+      plan.brand_key || plan.target_key || null,
+      plan.request_id || null,
+      plan.session_id || null,
+      plan.conversation_id || null,
+      trace_id || run_id,
+      JSON.stringify({ source: "connector_executor", ...inputContext }),
       plan.workflow_key || "connector_dispatch",
       agent_id,
       plan.plan_id,
       service_mode || "self_serve",
-      JSON.stringify({ brand_key: plan.brand_key, target_key: plan.target_key, intent_key: plan.intent_key }),
+      JSON.stringify(inputContext),
     ]
   );
 }
