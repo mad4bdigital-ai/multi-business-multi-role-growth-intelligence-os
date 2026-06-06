@@ -348,7 +348,7 @@ Do not edit generated root canonical files directly. The authoritative canonical
 ## Documentation Integrity Architecture
 This repository employs a strict cross-referencing documentation pattern to ensure AI Agents and future developers maintain context when the code changes:
 1. **Central Canonical Enforcement:** Any behavioral change in the backend must be reflected in the relevant `canonicals/` source files, followed by `node build-canonicals.mjs`.
-2. **Agent Knowledge Guide:** `AI_Agent_Knowledge_Guide.md` represents the runtime persona. If structural constraints change (e.g., placeholder auto-resolution for `<activation_bootstrap_spreadsheet_id>`), they must be updated there.
+2. **Agent Knowledge Guide:** `AI_Agent_Knowledge_Guide.md` represents the runtime persona. If structural constraints change (e.g., DB-native activation bootstrap authority through `/activation/bootstrap-config`), they must be updated there.
 3. **Architectural Maps:** Files like `runtime_boundary_map.md` and `runtime_confirmation_procedure.md` outline execution topologies. 
 **Rule:** When you update one layer (e.g., extracting `server.js` to `stateManager.js`), trace the update across the Canonical sources, the Agent Knowledge Guide, and the Architectural Maps to maintain absolute documentation parity.
 
