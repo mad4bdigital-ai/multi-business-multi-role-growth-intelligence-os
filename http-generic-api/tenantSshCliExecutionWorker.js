@@ -35,13 +35,22 @@ function requiredCredential(credentials, key) {
   return String(value);
 }
 
+function normalizePrivateKey(value = "") {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const withNewlines = text.includes("\\n") && !text.includes("\n")
+    ? text.replace(/\\n/g, "\n")
+    : text;
+  return withNewlines.endsWith("\n") ? withNewlines : `${withNewlines}\n`;
+}
+
 function sshExecutionConfigFromConnection(row) {
   const credentials = decryptCredentials(row.encrypted_credentials);
   return {
     host: requiredCredential(credentials, "ssh_host"),
     port: clampInt(requiredCredential(credentials, "ssh_port"), 22, 1, 65535),
     user: requiredCredential(credentials, "ssh_user"),
-    private_key: requiredCredential(credentials, "ssh_private_key"),
+    private_key: normalizePrivateKey(requiredCredential(credentials, "ssh_private_key")),
   };
 }
 
