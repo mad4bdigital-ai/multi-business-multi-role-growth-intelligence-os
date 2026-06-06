@@ -20,7 +20,7 @@ assert(executor.includes("git checkout --detach"), "deploy must checkout a fixed
 assert(executor.includes("pathAllowedByTarget"), "executor must enforce target path allowlists");
 assert(executor.includes("approval_reason") || executor.includes("approvalReason"), "executor must require approval reason for execution");
 assert(executor.includes("secrets_included: false"), "responses and evidence must mark secrets as excluded");
-assert(!executor.includes("privateKey,"), "executor response must not serialize privateKey shorthand");
+assert(!executor.includes("privateKey:"), "executor response must not serialize privateKey fields");
 assert(!executor.includes("private_key:"), "executor response must not expose private_key fields");
 assert(!executor.includes("exec("), "executor must not use exec shell freeform");
 
