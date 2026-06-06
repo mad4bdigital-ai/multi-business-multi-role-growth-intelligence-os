@@ -268,6 +268,17 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         dry_run: true,
       }
     : null;
+  const tenantSshCliExecutePayload = isTenantSshCliExecuteJob
+    ? {
+        connection_id: String(requestPayload.connection_id || "").trim(),
+        approval_request_id: String(requestPayload.approval_request_id || "").trim(),
+        command_key: String(requestPayload.command_key || "").trim(),
+        tenant_id: String(requestPayload.tenant_id || "").trim(),
+        user_id: String(requestPayload.user_id || "").trim(),
+        timeout_ms: requestPayload.timeout_ms,
+        secrets_included: false,
+      }
+    : null;
 
   const job = {
     job_id: buildJobId(),
