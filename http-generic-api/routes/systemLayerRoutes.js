@@ -757,7 +757,54 @@ async function activationDriveProbe() {
   }
 }
 
+async function activationBootstrapConfigRead() {
+  const runtimeBootstrap = await resolveActivationBootstrapConfig();
+  if (!runtimeBootstrap.ok) {
+    return {
+      ok: false,
+      provider: "backend_runtime",
+      source: "unresolved",
+      sheets_required: false,
+      sheets_called: false,
+      code: runtimeBootstrap.error || "activation_bootstrap_config_unresolved",
+      db_error: runtimeBootstrap.db_error || null,
+      env_error: runtimeBootstrap.env_error || null,
+      secrets_included: false,
+    };
+  }
+
+  const bootstrapRow = bootstrapConfigToRunnerRow(runtimeBootstrap.config);
+  return {
+    ok: true,
+    provider: "backend_runtime",
+    source: runtimeBootstrap.source || "db_runtime",
+    sheets_required: false,
+    sheets_called: false,
+    bootstrap_row_read: true,
+    bootstrap_row: bootstrapRow,
+    config: runtimeBootstrap.config,
+    secrets_included: false,
+  };
+}
+
 async function activationSheetsBootstrapRead() {
+  const replacement = await activationBootstrapConfigRead();
+  return {
+    ...replacement,
+    ok: replacement.ok,
+    status: "deprecated_not_required",
+    provider: "backend_runtime",
+    legacy_tool: "activation_sheets_bootstrap_read",
+    replacement_tool: "activation_bootstrap_config_read",
+    diagnostic_only: true,
+    sheets_required: false,
+    sheets_called: false,
+    google_sheets_called: false,
+    message: "Google Sheets bootstrap reads are deprecated; backend runtime DB bootstrap config is authoritative.",
+  };
+}
+
+async function activationSheetsBootstrapReadLegacy() {
   try {
     const { sheets, spreadsheetId } = await getGoogleClientsForSpreadsheet(ACTIVATION_BOOTSTRAP_SPREADSHEET_ID);
     const metadata = await withProbeTimeout(
