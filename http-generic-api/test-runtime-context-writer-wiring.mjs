@@ -33,6 +33,10 @@ assert.match(connectorExecutor, /INSERT INTO `workflow_runs`[\s\S]*execution_con
 assert.match(connectorExecutor, /INSERT INTO `step_runs`[\s\S]*execution_context_json/);
 assert.match(connectorExecutor, /INSERT INTO `telemetry_spans`[\s\S]*execution_context_json/);
 assert.match(connectorExecutor, /writeAuditLogAsync\([\s\S]*brand_key/);
-assert.doesNotMatch(`${auditLogger}\n${sessionArchive}\n${observabilityRoutes}\n${connectorExecutor}`, /secrets_included:\s*true/);
+assert.match(outputSinkRouter, /INSERT INTO `sink_dispatch_log`[\s\S]*execution_context_json/);
+assert.match(outputSinkRouter, /writeAuditLog\([\s\S]*brand_key/);
+assert.match(localGatewayToolsRoutes, /INSERT INTO `local_gateway_tool_call_log`[\s\S]*execution_context_json/);
+assert.match(localGatewayToolsRoutes, /INSERT INTO `approval_holds`[\s\S]*execution_context_json/);
+assert.doesNotMatch(`${auditLogger}\n${sessionArchive}\n${observabilityRoutes}\n${connectorExecutor}\n${outputSinkRouter}\n${localGatewayToolsRoutes}`, /secrets_included:\s*true/);
 
 console.log("runtime context writer wiring tests passed");
