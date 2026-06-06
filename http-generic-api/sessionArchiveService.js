@@ -309,15 +309,23 @@ export async function recordGptSessionTurn({
 
   await pool.query(
     `INSERT INTO \`session_events\`
-       (event_id, session_id, turn_id, tenant_id, record_type, event_type,
-        payload_json, payload_preview, payload_sha256, drive_artifact_id,
-        drive_artifact_url, redaction_status, event_timestamp)
-     VALUES (?, ?, ?, ?, 'message', ?, ?, ?, ?, ?, ?, 'not_required', NOW())`,
+       (event_id, session_id, turn_id, tenant_id, workspace_key, user_id,
+        actor_id, actor_type, brand_key, correlation_id, action_key,
+        record_type, event_type, payload_json, payload_preview, payload_sha256,
+        drive_artifact_id, drive_artifact_url, redaction_status, event_timestamp)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'message', ?, ?, ?, ?, ?, ?, 'not_required', NOW())`,
     [
       eventId,
       session.session_id,
       turnId,
       session.tenant_id || PLATFORM_TENANT_ID,
+      session.workspace_key || null,
+      session.user_id || null,
+      session.user_id || null,
+      session.user_id ? "user" : "system",
+      session.brand_key || null,
+      eventId,
+      action_key || null,
       role,
       JSON.stringify(eventPayload),
       contentPreview,
