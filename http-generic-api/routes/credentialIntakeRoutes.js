@@ -715,6 +715,19 @@ export function buildCredentialIntakeRoutes(deps = {}) {
       });
 
       const autoPromotion = await maybeAutoPromotePlatformSecrets({ session, credentials, metadata, connectionId, req });
+      await enqueueCredentialIntakeCompletedWebhook({ pool: getPool(), session, connectionId }).catch((error) => {
+        writeAuditLogAsync({
+          tenant_id: session.tenant_id,
+          actor_id: session.user_id,
+          actor_type: "credential_intake_link",
+          action: "credential_intake.webhook_enqueue_failed",
+          resource_type: "credential_intake_session",
+          resource_id: session.session_id,
+          after_json: { error_code: error.code || "credential_intake_webhook_enqueue_failed", secrets_included: false },
+          ip_address: req.ip,
+          user_agent: req.headers["user-agent"] || null,
+        });
+      });
 
       return res.status(201).type("html").send(renderDone(connectionId, autoPromotion));
     } catch (err) {
