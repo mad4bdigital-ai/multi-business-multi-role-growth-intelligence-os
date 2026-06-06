@@ -244,8 +244,8 @@ export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, work
   try {
     const artifact_id = await sinkOutputArtifact({ run_id, agent_id, tenant_id, brand_key, workflow_key, artifact_type, primary_output, output, sink_targets: dispatched.map(d => d.sink) });
     dispatched.unshift({ sink: "output_artifact", id: artifact_id });
-    await logSink(run_id, agent_id, tenant_id, "output_artifact", artifact_id, "ok");
-  } catch (err) { await logSink(run_id, agent_id, tenant_id, "output_artifact", null, "failed", err.message); }
+    await logSink(run_id, agent_id, tenant_id, "output_artifact", artifact_id, "ok", null, sinkContext);
+  } catch (err) { await logSink(run_id, agent_id, tenant_id, "output_artifact", null, "failed", err.message, sinkContext); }
 
   return { ok: true, run_id, execution_class, artifact_type, dispatched };
 }
