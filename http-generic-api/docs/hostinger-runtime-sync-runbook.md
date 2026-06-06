@@ -11,6 +11,8 @@ Use this runbook when any of the following are true:
 - `release_readiness` is passing but `repo_inspect` against the live Hostinger path does not show the expected code.
 - A credential-intake profile exists in `admin_platform_endpoint_tools`, but the live `credentialIntakeRoutes.js` does not render the matching fields.
 - `main` contains a merged change, but `https://auth.mad4b.com/health` still reports an older runtime version.
+- Hostinger filesystem readback shows the expected commit, but `/health.version` or runtime profile still reflects the old process.
+- A live validation blocker was cleared by SQL repair before process reload, and the operator needs to distinguish DB state from loaded code state.
 
 ## Required preflight
 
