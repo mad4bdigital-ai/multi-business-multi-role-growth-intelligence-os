@@ -53,12 +53,12 @@ Do not duplicate patch numbers. If duplication is found, fix the ledger before a
 
 For SQL mutations, record:
 
-- target tables
-- key predicates
+- target tables and exact columns
+- key predicates or join keys affected
 - whether the change was dry-run or apply
-- exact safety class: `CREATE IF NOT EXISTS`, `INSERT ... ON DUPLICATE`, scoped `UPDATE`, scoped `INSERT ... SELECT`, etc.
-- confirmation that no `DROP`, `TRUNCATE`, or broad `DELETE` was used
-- verification query/results
+- exact safety class: `CREATE IF NOT EXISTS`, `INSERT ... ON DUPLICATE`, scoped `UPDATE`, scoped `INSERT ... SELECT`, scoped `ALTER TABLE MODIFY` for named non-secret join columns, etc.
+- confirmation that no `DROP`, `TRUNCATE`, broad `DELETE`, broad table conversion, or secret-payload alteration was used
+- verification query/results, including rerun of the query shape that previously failed when this was a runtime repair
 
 ## Repo mutation note rule
 
