@@ -65,8 +65,7 @@ jobs:
     name: Main follow-up docs PR
     if: >-
       github.event_name == 'push' &&
-      github.actor != 'github-actions[bot]' &&
-      github.actor != 'admin-assitant-growth-os[bot]'
+      github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
