@@ -785,6 +785,7 @@ async function loadTenantConnection(pool, req, connectionId, expectedAuthType) {
 export function buildTenantInfrastructureRoutes(deps = {}) {
   const router = Router();
   const pool = deps.pool || { query: (...args) => getPool().query(...args) };
+  const executionFacade = deps.executionFacade || null;
 
   async function sendStatus(req, res, authType) {
     try {
@@ -939,7 +940,41 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
         return res.status(409).json({ ok: false, error: { code: "ssh_connection_not_ready", message: "SSH connection is not ready for CLI execution.", details: readiness.blocked_reasons }, readiness, secrets_included: false });
       }
       const approvalRow = await loadSshCliApprovalRequest(pool, req, approvalRequestId);
-      const execution = await executeApprovedSshCli(pool, row, approvalRow, commandKey || approvalRow.command_key, req.body || {});
+      const effectiveCommandKey = commandKey || approvalRow.command_key;
+      assertApprovedSshCliExecution(row, approvalRow, effectiveCommandKey);
+      const runtimeConfig = await loadSshCliExecuteRuntimeConfig(pool);
+      const runtimeDriver = String(runtimeConfig?.driver || "").toLowerCase();
+      if (runtimeConfig?.enabled === true && runtimeDriver === "dedicated_worker_or_connector_runtime") {
+        if (!executionFacade || typeof executionFacade.submitJob !== "function") {
+          return res.status(503).json({ ok: false, error: { code: "tenant_ssh_execute_job_submission_unavailable", message: "Execution job submission is unavailable." }, secrets_included: false });
+        }
+        const { status, body } = await executionFacade.submitJob({
+          job_type: "tenant_ssh_cli_allowlisted_execute",
+          request_payload: {
+            connection_id: connectionId,
+            approval_request_id: approvalRequestId,
+            command_key: effectiveCommandKey,
+            tenant_id: req.auth.tenant_id,
+            user_id: req.auth.user_id,
+            timeout_ms: req.body?.timeout_ms,
+            secrets_included: false,
+          },
+          max_attempts: 1,
+          idempotency_key: `tenant_ssh_cli_execute:${approvalRequestId}:${effectiveCommandKey}`,
+        }, req.auth.user_id, `tenant_ssh_cli_execute:${approvalRequestId}:${effectiveCommandKey}`);
+        return res.status(status).json({
+          ...body,
+          ok: status >= 200 && status < 300,
+          kind: "ssh",
+          source: "tenant_ssh_cli_allowlisted_execute",
+          queued_for_dedicated_worker: true,
+          connection: safeConnection(row),
+          approval_request: sanitizeApprovalRequest(approvalRow),
+          result_url: body?.job_id ? `/me/infrastructure/ssh/connections/${connectionId}/cli/execute-jobs/${body.job_id}/result` : undefined,
+          secrets_included: false,
+        });
+      }
+      const execution = await executeApprovedSshCli(pool, row, approvalRow, effectiveCommandKey, req.body || {});
       return res.status(execution.ok ? 200 : 502).json({
         ok: execution.ok,
         kind: "ssh",
@@ -951,6 +986,27 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
       });
     } catch (err) {
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_cli_execute_failed", message: err.message, details: err.details }, secrets_included: false });
+    }
+  });
+
+  router.get("/me/infrastructure/ssh/connections/:connection_id/cli/execute-jobs/:job_id/result", requireUserJwt, async (req, res) => {
+    try {
+      if (!executionFacade || typeof executionFacade.getJob !== "function" || typeof executionFacade.pollJobResult !== "function") {
+        return res.status(503).json({ ok: false, error: { code: "tenant_ssh_execute_job_status_unavailable", message: "Execution job status is unavailable." }, secrets_included: false });
+      }
+      const connectionId = String(req.params.connection_id || "").trim();
+      const jobId = String(req.params.job_id || "").trim();
+      if (!connectionId) return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      if (!jobId) return res.status(400).json({ ok: false, error: { code: "job_id_required", message: "job_id is required." }, secrets_included: false });
+      const jobRead = await executionFacade.getJob(jobId);
+      if (jobRead.status >= 400) return res.status(jobRead.status).json({ ...jobRead.body, secrets_included: false });
+      if (jobRead.body?.target_key !== connectionId || jobRead.body?.requested_by !== req.auth.user_id || jobRead.body?.job_type !== "tenant_ssh_cli_allowlisted_execute") {
+        return res.status(404).json({ ok: false, error: { code: "tenant_ssh_execute_job_not_found", message: "Execution job was not found for this tenant connection." }, secrets_included: false });
+      }
+      const polled = await executionFacade.pollJobResult(jobId);
+      return res.status(polled.status).json({ ...polled.body, kind: "ssh", source: "tenant_ssh_cli_allowlisted_execute", secrets_included: false });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_execute_job_result_failed", message: err.message }, secrets_included: false });
     }
   });
 

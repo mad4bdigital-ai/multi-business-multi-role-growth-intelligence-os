@@ -25,6 +25,10 @@ import {
   CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE,
   runConnectedExecutionResumeAction,
 } from "./connectedExecutionWorker.js";
+import {
+  TENANT_SSH_CLI_EXECUTE_JOB_TYPE,
+  runTenantSshCliExecuteJob,
+} from "./tenantSshCliExecutionWorker.js";
 
 function createExecutionTraceId() {
   return `trace_${crypto.randomUUID().replace(/-/g, "")}`;
@@ -415,6 +419,22 @@ export function configureJobRunner(
           success: false,
           statusCode: err?.status || 500,
           payload: { ok: false, error: { code: err?.code || "connected_execution_resume_action_job_failed", message: err?.message || String(err) }, secrets_included: false },
+        };
+      }
+    }
+    if (jobType === TENANT_SSH_CLI_EXECUTE_JOB_TYPE) {
+      try {
+        const payload = await (deps.runTenantSshCliExecuteJob || runTenantSshCliExecuteJob)({ ...(job.request_payload || {}), worker_job_id: job.job_id });
+        return {
+          success: payload?.ok === true,
+          statusCode: payload?.ok === true ? 200 : 409,
+          payload,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          statusCode: err?.status || 500,
+          payload: { ok: false, error: { code: err?.code || "tenant_ssh_cli_execute_job_failed", message: err?.message || String(err) }, secrets_included: false },
         };
       }
     }
