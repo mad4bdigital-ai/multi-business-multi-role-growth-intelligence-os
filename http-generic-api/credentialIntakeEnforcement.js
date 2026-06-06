@@ -201,21 +201,46 @@ async function findPendingSession(pool, key) {
   return rows?.[0] || null;
 }
 
+function inferIntakeScope(input = {}, effective = {}) {
+  const requested = str(input.intake_scope || input.intakeScope).toLowerCase();
+  if (["platform", "admin", "tenant", "user"].includes(requested)) return requested === "admin" ? "platform" : requested;
+  const ref = str(effective.credential_ref || input.credential_ref || input.credentialRef);
+  if (effective.owner_type === "platform" || ref.startsWith("platform_secret:")) return "platform";
+  return "tenant";
+}
+
+function platformSecretMappingsForRequirement(input = {}, effective = {}, credentialField = "") {
+  const explicitMappings = Array.isArray(input.platform_secret_mappings || input.platformSecretMappings)
+    ? (input.platform_secret_mappings || input.platformSecretMappings)
+    : [];
+  if (explicitMappings.length) return explicitMappings;
+  const secretKey = normalizeFieldName(input.platform_secret_key || input.platformSecretKey || effective.missing_secret_key || "");
+  if (!secretKey) return [];
+  return [{
+    credential_field: credentialField,
+    secret_key: secretKey,
+    secret_type: normalizeFieldName(input.credential_role || input.credentialRole || input.role || effective.credential_role || credentialField),
+  }];
+}
+
 export async function createCredentialIntakeRequirement(input = {}, effective = {}, options = {}) {
   const tenantId = str(input.tenant_id || input.tenantId);
-  const userId = str(input.user_id || input.userId);
+  const intakeScope = inferIntakeScope(input, effective);
+  const platformAdminUserId = str(input.platform_admin_user_id || input.platformAdminUserId || process.env.PLATFORM_ADMIN_USER_ID || PLATFORM_ADMIN_USER_ID);
+  const userId = str(input.user_id || input.userId) || (intakeScope === "platform" ? platformAdminUserId : "");
   if (!tenantId || !userId) {
     return {
       status: "credential_intake_unavailable",
       reason: !tenantId ? "tenant_id_required" : "user_id_required",
+      intake_scope: intakeScope,
       secrets_included: false,
     };
   }
 
   const pool = options.pool || getPool();
+  const authType = inferAuthType(input, effective);
   const requestedAppKey = inferAppKey(input, effective);
   const appKey = await appExists(pool, requestedAppKey) ? requestedAppKey : "api_key";
-  const authType = inferAuthType(input, effective);
   const schema = input.credential_schema || input.credentialSchema || credentialSchemaForRequirement(input, effective, authType);
   const ttl = clampTtlMinutes(input.expires_in_minutes || input.expiresInMinutes || 30);
   const key = requirementKey(input, effective, appKey, authType);
