@@ -432,6 +432,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     app_path: appPath,
     expected_commit_sha: expectedCommitSha || null,
     activate_on_success: activateOnSuccess,
+    ssh_auth_mode: sshAuthMode,
     dry_run: dryRun,
     will_execute: !dryRun,
     dispatch_plan: {
