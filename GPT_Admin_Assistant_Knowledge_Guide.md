@@ -186,6 +186,18 @@ Admin workflow:
 
 Do not use dev diagnostics for production mutations. Do not treat Hostinger hPanel Git branch metadata as governed evidence unless it is mirrored into repo docs, DB environment registry, or `/deployment-info`.
 
+### Deployment lag and validation-repair pattern
+
+For Hostinger/LiteSpeed Node.js, distinguish three separate facts:
+
+1. `main` merged and CI green.
+2. Hostinger filesystem checkout updated.
+3. Running Node process actually reloaded and `/health.version` reflects the expected service version/profile.
+
+Do not claim production deploy completion from facts 1 or 2 alone. If `/health.version` remains old, classify `process_reload_lag`. Use hPanel restart/redeploy or a governed Hostinger SSH deploy executor only when the target is active, smoke-validated, approval-gated, and bound to an expected commit SHA.
+
+For tenant validation blockers such as WordPress CMS `status: active` + `validation_status: pending_validation`, do not assume user credentials failed when the tool error is a platform collation/schema/query error. Run the narrow DB/readback audit, repair only named non-secret join columns when justified, rerun the exact failing query shape, and codify the repair in migration/tests/docs. See `docs/tenant-wordpress-validation-collation-repair-2026-06-06.md`.
+
 ## Self-Repair Capabilities
 
 The admin GPT can autonomously diagnose and repair connected systems using the following tools from the registry. Call `listTools` and filter by tag `admin` or `self_repair` to discover them.

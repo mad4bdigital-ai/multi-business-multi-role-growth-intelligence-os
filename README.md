@@ -311,6 +311,9 @@ Operations and validation:
 - [`docs/platform-plugin-governance-roadmap-2026-05-28.md`](docs/platform-plugin-governance-roadmap-2026-05-28.md)
 - [`deployment_parity_checklist.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/deployment_parity_checklist.md>)
 - [`docs/development-environment-governance.md`](docs/development-environment-governance.md)
+- [`docs/hostinger-node-deploy.md`](docs/hostinger-node-deploy.md)
+- [`http-generic-api/docs/hostinger-runtime-sync-runbook.md`](http-generic-api/docs/hostinger-runtime-sync-runbook.md)
+- [`docs/tenant-wordpress-validation-collation-repair-2026-06-06.md`](docs/tenant-wordpress-validation-collation-repair-2026-06-06.md)
 - [`runtime_confirmation_procedure.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/runtime_confirmation_procedure.md>)
 
 Agent-facing guide:
