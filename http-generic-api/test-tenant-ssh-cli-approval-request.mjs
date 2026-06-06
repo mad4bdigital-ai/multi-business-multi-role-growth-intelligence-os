@@ -14,6 +14,9 @@ assert(routes.includes('buildSshCliDryRunPlan'), "approval request must reuse al
 assert(routes.includes('createSshCliApprovalRequest'), "approval request must persist a reviewable request");
 assert(routes.includes('tenant_ssh_cli_approval_requests'), "approval request must write the dedicated approval table");
 assert(routes.includes('approval_holds'), "approval request must create a platform approval hold");
+assert(routes.includes('execution_context_json'), "approval request hold must write execution context JSON");
+assert(routes.includes('tenant_ssh_cli_approval_requests'), "approval hold context must identify tenant SSH approval request as parent");
+assert(routes.includes('resolved_parent_reference'), "approval hold context must classify the parent relationship as resolved");
 assert(routes.includes('supervisor_approval'), "approval request must require supervisor/workspace approval");
 assert(routes.includes('workspace_owner'), "approval request must require workspace owner role");
 assert(routes.includes('execution_enabled: false'), "approval request must not enable execution");
