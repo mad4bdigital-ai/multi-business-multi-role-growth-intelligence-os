@@ -17,6 +17,6 @@ assert(driveGuide.includes("workspace_assets"), "Drive guide must reference work
 assert(driveGuide.includes("workspace_resource_grants"), "Drive guide must require platform authority checks");
 assert(driveGuide.includes("Do not rely only on Drive sharing"), "Drive guide must not treat Drive sharing as sole authority");
 assert(driveGuide.includes("07_Sessions"), "Drive guide must include session storage folder");
-assert(!driveGuide.includes("raw credentials in Drive"), "Drive guide must not recommend storing raw credentials in Drive");
+assert(driveGuide.includes("Never store raw credentials in Drive"), "Drive guide must explicitly forbid raw credentials in Drive");
 
 console.log("workspace lifecycle guides tests passed");
