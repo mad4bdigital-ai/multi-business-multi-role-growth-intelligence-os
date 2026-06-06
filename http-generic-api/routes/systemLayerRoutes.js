@@ -1011,13 +1011,24 @@ async function activationProviderBootstrapValidate(args = {}, deps = {}) {
       return { ok: probe.ok, auth_failed: probe.auth_failed };
     },
     attemptSheets: async () => {
-      if (DATA_SOURCE_MODE === "sql") {
-        sheetsDiagnostic = { skipped: true, diagnostic_only: true, reason: "sql_mode" };
-        return { ok: true };
-      }
-      const probe = await activationSheetsBootstrapRead();
-      sheetsDiagnostic = probe;
-      return { ok: probe.ok, auth_failed: probe.auth_failed, rate_limited: probe.rate_limited };
+      sheetsDiagnostic = {
+        attempted: false,
+        ok: false,
+        skipped: true,
+        not_required: true,
+        diagnostic_only: true,
+        status: "deprecated_not_required",
+        reason: "db_runtime_bootstrap_authority",
+        replacement_tool: "activation_bootstrap_config_read",
+        source: runtimeBootstrap.ok ? runtimeBootstrap.source : "unresolved",
+        sheets_called: false,
+      };
+      return {
+        ok: true,
+        skipped: true,
+        not_required: true,
+        reason: "db_runtime_bootstrap_authority",
+      };
     },
     getSpreadsheet: async () => {
       if (runtimeBootstrap.ok) {
