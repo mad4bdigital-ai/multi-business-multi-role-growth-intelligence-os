@@ -549,6 +549,14 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
         risks.push({ severity: "warn", code: "insert_without_ignore_or_on_duplicate", statement: normalized.slice(0, 140) });
       }
     }
+    if (/^UPDATE\s+`?[A-Za-z0-9_]+`?\b/i.test(normalized)) {
+      counts.update += 1;
+      if (hasTopLevelSqlKeyword(statement, "WHERE")) {
+        counts.update_guarded += 1;
+      } else {
+        risks.push({ severity: "warn", code: "update_without_where", statement: normalized.slice(0, 140) });
+      }
+    }
     if (/^ALTER\s+TABLE\b/i.test(normalized)) {
       counts.alter_table += 1;
       if (/^ALTER\s+TABLE\s+`?[A-Za-z0-9_]+`?\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b/i.test(normalized)) {
