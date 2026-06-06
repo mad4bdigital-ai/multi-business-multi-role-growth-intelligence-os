@@ -20,13 +20,28 @@ export function buildObservabilityRoutes(deps) {
         return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "trace_id and span_name are required." } });
       }
       const span_id = randomUUID();
+      const resolvedCorrelationId = correlation_id || trace_id;
       const attrs = attributes_json ? JSON.stringify(attributes_json) : null;
+      const contextJson = JSON.stringify({
+        source: "observability_routes",
+        trace_id,
+        run_id: run_id || null,
+        request_id: request_id || null,
+        session_id: session_id || null,
+        secrets_included: false,
+      });
       await getPool().query(
         `INSERT INTO \`telemetry_spans\`
-           (span_id, trace_id, tenant_id, run_id, span_name, span_type, service_mode, status, duration_ms, attributes_json, error_message)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [span_id, trace_id, tenant_id || null, run_id || null, span_name, span_type,
-         service_mode, status, duration_ms || null, attrs, error_message || null]
+           (span_id, trace_id, tenant_id, workspace_id, workspace_key, run_id,
+            user_id, actor_id, actor_type, brand_id, brand_key,
+            request_id, session_id, conversation_id, correlation_id, execution_context_json,
+            span_name, span_type, service_mode, status, duration_ms, attributes_json, error_message)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [span_id, trace_id, tenant_id || null, workspace_id || null, workspace_key || null,
+         run_id || null, user_id || null, actor_id || user_id || null,
+         actor_type || (actor_id || user_id ? "user_or_service" : null), brand_id || null, brand_key || null,
+         request_id || null, session_id || null, conversation_id || null, resolvedCorrelationId, contextJson,
+         span_name, span_type, service_mode, status, duration_ms || null, attrs, error_message || null]
       );
       return res.status(201).json({ ok: true, span_id, trace_id });
     } catch (err) {
