@@ -54,6 +54,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "201_sprint66_tenant_ssh_cli_approval_decision_tools.sql",
   "202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql",
   "203_sprint66_tenant_ssh_execute_runtime_config.sql",
+  "204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql",
   "199_sprint67_runtime_policy_resolver_monitoring_and_mirror_classification.sql",
   "200_sprint67_runtime_policy_target_rule_backfill.sql",
   "202_sprint67_policy_only_runtime_policy_target_rules.sql",
