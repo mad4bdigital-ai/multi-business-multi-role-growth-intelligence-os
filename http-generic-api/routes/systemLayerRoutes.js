@@ -803,52 +803,6 @@ async function activationSheetsBootstrapRead() {
   };
 }
 
-async function activationSheetsBootstrapReadLegacy() {
-  try {
-    const { sheets, spreadsheetId } = await getGoogleClientsForSpreadsheet(ACTIVATION_BOOTSTRAP_SPREADSHEET_ID);
-    const metadata = await withProbeTimeout(
-      sheets.spreadsheets.get({
-        spreadsheetId,
-        fields: "spreadsheetId,properties.title,sheets.properties.title",
-      }),
-      "Sheets metadata"
-    );
-    const sheetExists = (metadata.data?.sheets || []).some(
-      (sheet) => String(sheet?.properties?.title || "").trim() === ACTIVATION_BOOTSTRAP_CONFIG_SHEET
-    );
-    if (!sheetExists) {
-      return {
-        ok: false,
-        provider: "google_sheets",
-        code: "activation_bootstrap_sheet_missing",
-        message: `Missing sheet ${ACTIVATION_BOOTSTRAP_CONFIG_SHEET}.`,
-        spreadsheet_id: spreadsheetId,
-      };
-    }
-
-    const values = await withProbeTimeout(
-      sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
-      }),
-      "Sheets values"
-    );
-    const row = bootstrapRowObject(values.data?.values || []);
-    return {
-      ok: true,
-      provider: "google_sheets",
-      attempted_binding: { parent_action_key: "google_sheets_api", endpoint_key: "getSheetValues" },
-      spreadsheet_id: spreadsheetId,
-      range: ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
-      workbook_title: metadata.data?.properties?.title || null,
-      bootstrap_row_read: Array.isArray(values.data?.values?.[0]),
-      bootstrap_row: row,
-    };
-  } catch (err) {
-    return { provider: "google_sheets", ...providerProbeError(err) };
-  }
-}
-
 function resolveGithubValidationTarget(args = {}, bootstrapRow = {}) {
   const explicit = args.github_owner && args.github_repo ? { owner: args.github_owner, repo: args.github_repo } : null;
   const fromBootstrap = bootstrapRow.github_owner && bootstrapRow.github_repo
