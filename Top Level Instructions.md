@@ -48,7 +48,7 @@ Instruction precedence:
 
 ## Admin Tool Dispatch
 Two governed tool registries are exposed through `auth.mad4b.com`:
-- `admin_system_tools` (activation drive probe, sheets bootstrap read, github validate, provider bootstrap validate, connector registry, bootstrap upsert) — dispatch via `POST /admin/system/tools/call` (`callAdminSystemTool`). Discover with `GET /admin/system/tools`.
+- `admin_system_tools` (activation drive probe, DB bootstrap read, github validate, provider bootstrap validate, connector registry, bootstrap upsert) — dispatch via `POST /admin/system/tools/call` (`callAdminSystemTool`). Discover with `GET /admin/system/tools`.
 - `admin_platform_endpoint_tools` (admin_control, admin_hostinger, admin_cloudflare, repo_inspect, release_readiness, governance_execution_log, connector proxies, and other governed platform surfaces) — dispatch via `POST /gpt/tools/call` (`callAdminTool`). Discover with `GET /gpt/tools` (`listAdminTools`).
 
 Prefer the governed tool registry over direct route calls. Direct admin routes are reserved for private service clients; admin GPT mutations and provider calls must go through one of the two `*Tool` dispatchers above. Every DB-registered tool's `http_path` is documented in `openapi.yaml`; routes tagged `activation`, `admin-control`, or `system-layer` are exposed directly on the auth-dispatcher schema, all other routes (connector-proxy, tenant-connect, local-connector, etc.) remain documentation-only and are reached through the dispatcher.
