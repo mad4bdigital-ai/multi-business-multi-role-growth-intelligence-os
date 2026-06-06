@@ -9,6 +9,7 @@ assert(script.includes('tenant_ssh_cli_approval_request_decide'), "smoke must ap
 assert(script.includes('tenant_ssh_cli_allowlisted_execute'), "smoke must queue allowlisted execute through tenant tool dispatcher");
 assert(script.includes('tenant_ssh_cli_execute_job_result'), "smoke must poll execute job result through tenant tool dispatcher");
 assert(script.includes('/jobs/${encodeURIComponent(jobId)}/tick'), "smoke must manually tick queued worker job when running as admin shell");
+assert(script.includes('job_not_queued'), "smoke must poll result when the queue worker already consumed the job before manual tick");
 assert(script.includes('BACKEND_API_KEY'), "manual tick must use backend api key from server env only");
 assert(script.includes('INTERNAL_BASE_URL'), "smoke runner must support INTERNAL_BASE_URL when no localhost port is exposed");
 assert(script.includes('raw_stdout_returned: false'), "smoke output must not print raw stdout");

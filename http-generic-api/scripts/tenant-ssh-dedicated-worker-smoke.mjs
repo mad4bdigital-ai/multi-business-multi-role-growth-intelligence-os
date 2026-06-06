@@ -143,7 +143,8 @@ async function main() {
 
   const tick = await tickJob(baseUrl, jobId);
   summaries.push(summarize("job_tick", tick));
-  assertPass(tick.status >= 200 && tick.status < 300, "job_tick_failed", { summary: summaries.at(-1), body_error: tick.body?.error || null });
+  const tickAlreadyTerminal = tick.status === 409 && tick.body?.error?.code === "job_not_queued";
+  assertPass((tick.status >= 200 && tick.status < 300) || tickAlreadyTerminal, "job_tick_failed", { summary: summaries.at(-1), body_error: tick.body?.error || null });
 
   const result = await callTenantTool(baseUrl, token, "tenant_ssh_cli_execute_job_result", {
     connection_id: args.connection_id,

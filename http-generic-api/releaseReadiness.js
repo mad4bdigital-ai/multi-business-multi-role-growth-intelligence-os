@@ -461,6 +461,30 @@ function stripSqlComments(sql = "") {
     .replace(/^\s*--.*$/gm, "");
 }
 
+function hasTopLevelSqlKeyword(sql = "", keyword = "") {
+  const source = stripSqlComments(stripSqlStringLiterals(sql)).replace(/--[^\n]*(?:\n|$)/g, "");
+  const target = String(keyword || "").toUpperCase();
+  let depth = 0;
+
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i];
+    if (ch === "(") {
+      depth += 1;
+      continue;
+    }
+    if (ch === ")" && depth > 0) {
+      depth -= 1;
+      continue;
+    }
+    if (depth !== 0 || source.slice(i, i + target.length).toUpperCase() !== target) continue;
+
+    const before = source[i - 1] || "";
+    const after = source[i + target.length] || "";
+    if (!/[A-Za-z0-9_]/.test(before) && !/[A-Za-z0-9_]/.test(after)) return true;
+  }
+  return false;
+}
+
 export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
   const statements = splitSqlStatements(sqlText);
   const risks = [];
@@ -474,6 +498,8 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
     create_index_idempotent: 0,
     insert: 0,
     insert_idempotent: 0,
+    update: 0,
+    update_guarded: 0,
     alter_table: 0,
     alter_table_idempotent: 0,
     destructive: 0,
@@ -521,6 +547,14 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
         counts.insert_idempotent += 1;
       } else {
         risks.push({ severity: "warn", code: "insert_without_ignore_or_on_duplicate", statement: normalized.slice(0, 140) });
+      }
+    }
+    if (/^UPDATE\s+`?[A-Za-z0-9_]+`?\b/i.test(normalized)) {
+      counts.update += 1;
+      if (hasTopLevelSqlKeyword(statement, "WHERE")) {
+        counts.update_guarded += 1;
+      } else {
+        risks.push({ severity: "warn", code: "update_without_where", statement: normalized.slice(0, 140) });
       }
     }
     if (/^ALTER\s+TABLE\b/i.test(normalized)) {

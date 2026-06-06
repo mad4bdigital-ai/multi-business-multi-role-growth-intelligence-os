@@ -28,6 +28,8 @@ For each change, update at least one of the following, depending on scope:
 | Registry/taxonomy change | `docs/registry-taxonomy.md`, `Updating Registry Patch Index.md` |
 | Auth/credential behavior | `docs/external-endpoint-auth-strategy.md`, `connector_contracts.md` |
 | Restore/relink/incident recovery | incident runbook under `docs/`, `Updating Registry Patch Index.md`, `deployment_parity_checklist.md` |
+| Live SQL repair / schema hotfix | exact SQL scope, safety class, readback query, affected routes/tools, `Updating Registry Patch Index.md`, and a dedicated `docs/*` runbook |
+| Runtime join-key collation repair | migration/test guard, impacted query paths, explicit no-secret/no-payload statement, tenant-facing validation guidance |
 | New migration or repair script | migration/script inline comments, runbook or operations doc, patch index |
 | GPT action/tool schema change | OpenAPI/schema docs and affected tool registry notes |
 | Deployment or CI behavior | `deployment_parity_checklist.md` |
@@ -51,12 +53,12 @@ Do not duplicate patch numbers. If duplication is found, fix the ledger before a
 
 For SQL mutations, record:
 
-- target tables
-- key predicates
+- target tables and exact columns
+- key predicates or join keys affected
 - whether the change was dry-run or apply
-- exact safety class: `CREATE IF NOT EXISTS`, `INSERT ... ON DUPLICATE`, scoped `UPDATE`, scoped `INSERT ... SELECT`, etc.
-- confirmation that no `DROP`, `TRUNCATE`, or broad `DELETE` was used
-- verification query/results
+- exact safety class: `CREATE IF NOT EXISTS`, `INSERT ... ON DUPLICATE`, scoped `UPDATE`, scoped `INSERT ... SELECT`, scoped `ALTER TABLE MODIFY` for named non-secret join columns, etc.
+- confirmation that no `DROP`, `TRUNCATE`, broad `DELETE`, broad table conversion, or secret-payload alteration was used
+- verification query/results, including rerun of the query shape that previously failed when this was a runtime repair
 
 ## Repo mutation note rule
 

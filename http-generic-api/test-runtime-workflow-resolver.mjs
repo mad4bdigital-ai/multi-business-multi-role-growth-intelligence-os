@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { assessMigrationSqlPreflight } from "./releaseReadiness.js";
 import { resolveRuntimeWorkflow } from "./runtimeWorkflowResolver.js";
 
 function poolWith(rows) {
@@ -105,6 +106,10 @@ for (const path of [
     new URL("migrations/206_sprint67_deterministic_workflow_execution_identity.sql", import.meta.url),
     "utf8"
   );
+  const backfillMigration = readFileSync(
+    new URL("migrations/209_sprint67_execution_plan_workflow_identity_backfill.sql", import.meta.url),
+    "utf8"
+  );
   const runner = readFileSync(
     new URL("scripts/governed-migration-runner.mjs", import.meta.url),
     "utf8"
@@ -120,8 +125,31 @@ for (const path of [
     /206_sprint67_deterministic_workflow_execution_identity\.sql/,
     "migration 206 must be allowlisted for the governed runner"
   );
+  assert.match(
+    runner,
+    /209_sprint67_execution_plan_workflow_identity_backfill\.sql/,
+    "migration 209 must be allowlisted for the governed runner"
+  );
+  assert.match(backfillMigration, /HAVING COUNT\(\*\) = 1/, "backfill must resolve only unique workflow keys");
+  assert.match(
+    backfillMigration,
+    /SUM\(workflow_id IS NOT NULL AND workflow_id <> ''\) = 1/,
+    "backfill unique-candidate counting must also require that candidate to have an exact workflow_id"
+  );
+  assert.match(backfillMigration, /ep\.workflow_id IS NULL OR ep\.workflow_id = ''/, "backfill must not overwrite explicit workflow identities");
+  assert.match(backfillMigration, /COLLATE utf8mb4_unicode_ci/, "backfill must handle the live workflow-key collation difference explicitly");
+  assert.doesNotMatch(backfillMigration, /\b(?:DELETE|DROP|TRUNCATE)\b/i, "backfill must not contain destructive SQL");
+  const backfillPreflight = assessMigrationSqlPreflight("209_sprint67_execution_plan_workflow_identity_backfill.sql", backfillMigration);
+  assert.equal(backfillPreflight.status, "pass", "migration 209 must pass governed SQL preflight");
+  assert.equal(backfillPreflight.counts.update, 1, "migration 209 must contain one UPDATE");
+  assert.equal(backfillPreflight.counts.update_guarded, 1, "migration 209 UPDATE must have a top-level WHERE guard");
   assert.match(readback, /information_schema\.columns/);
   assert.match(readback, /information_schema\.statistics/);
+  assert.match(readback, /uniquely_resolvable_fallback_plans/);
+  assert.match(readback, /identity_missing_fallback_plans/);
+  assert.match(readback, /unresolved_fallback_plans/);
+  assert.match(readback, /identityless_plans/);
+  assert.match(readback, /ACTIVE_WORKFLOW_SQL/, "readback must reuse the runtime active-workflow predicate");
   assert.match(readback, /resolveRuntimeWorkflow/);
   assert.match(readback, /secrets_included:\s*false/);
 }
