@@ -121,6 +121,8 @@ Repository documentation alignment is now automated through the Docs Agent workf
 
 Agents should treat the generated note as reviewable evidence, not as a replacement for targeted high-risk documentation. Runtime/code PRs are not auto-merged by default unless the explicit `docs-agent-automerge` label is present. Docs-only follow-up PRs may auto-merge only through branch-protected GitHub auto-merge. See `docs/ai-docs-agent-governance.md`.
 
+OpenRouter is the priority model-provider candidate for future Docs Agent drafting, but it must run only through the platform-managed OpenAI-compatible bridge and `docs_agent_openrouter_instruction_contract_v1`. Do not call OpenRouter directly from agent code, do not copy provider secrets to prompts/devices, and do not promote the provider from `planned` to `active` until credential binding plus bridge smoke validation pass. See `docs/openrouter-docs-agent-provider-contract.md`.
+
 ### Runtime policy preflight governance
 
 `execution_policies` is the active transitional runtime preflight authority. Agents must treat it as required runtime policy evidence until a target-rule resolver bridge proves parity with `platform_engine_policy_rules`.
