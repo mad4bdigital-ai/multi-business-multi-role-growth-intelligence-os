@@ -1,6 +1,6 @@
 import {
   ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
-  ACTIVATION_BOOTSTRAP_SPREADSHEET_ID
+  ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID
 } from "./config.js";
 
 export async function resolveExecutionRequest(reqBody = {}, deps = {}) {
