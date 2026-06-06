@@ -4,6 +4,8 @@ import { getPool } from "./db.js";
 const TOKEN_BYTES = 32;
 const DEFAULT_TTL_MINUTES = 30;
 const MAX_TTL_MINUTES = 24 * 60;
+const PLATFORM_ADMIN_USER_ID = "00000000-0000-4000-a000-000000000020";
+
 const ALLOWED_AUTH_TYPES = new Set([
   "api_key",
   "webhook",
@@ -13,6 +15,8 @@ const ALLOWED_AUTH_TYPES = new Set([
   "oauth2",
   "custom_headers",
   "client_credentials",
+  "ssh_key_pair",
+  "remote_database",
 ]);
 
 function str(value) {
@@ -61,6 +65,9 @@ function inferAuthType(input = {}, effective = {}) {
   const requested = str(input.auth_type || input.authType || effective.auth_type);
   if (ALLOWED_AUTH_TYPES.has(requested)) return requested;
   const role = roleText(input, effective);
+  const appKey = str(input.app_key || input.appKey || effective.app_key).toLowerCase();
+  if (role.startsWith("ssh_") || appKey.includes("ssh") || appKey === "remote_ssh_runtime") return "ssh_key_pair";
+  if (role.startsWith("db_") || role.includes("database")) return "remote_database";
   if (role.includes("bearer")) return "bearer_token";
   if (role.includes("webhook")) return "webhook";
   if (role.includes("mcp")) return "mcp";
@@ -69,12 +76,19 @@ function inferAuthType(input = {}, effective = {}) {
 }
 
 function inferAppKey(input = {}, effective = {}) {
-  return str(input.app_key || input.appKey || effective.app_key || effective.connector_family || effective.provider_family || "api_key") || "api_key";
+  const authType = inferAuthType(input, effective);
+  const requested = str(input.app_key || input.appKey || effective.app_key || effective.connector_family || effective.provider_family || "");
+  if (requested) return requested;
+  if (authType === "ssh_key_pair") return "remote_ssh_runtime";
+  if (authType === "remote_database") return "remote_database";
+  return "api_key";
 }
 
 function inferCredentialField(input = {}, effective = {}, authType = "api_key") {
   const requested = normalizeFieldName(input.credential_field || input.credentialField || effective.missing_secret_key || "");
-  const role = roleText(input, effective);
+  const role = normalizeFieldName(input.credential_role || input.credentialRole || input.role || effective.credential_role || "");
+  if (authType === "ssh_key_pair" && role.startsWith("ssh_")) return role;
+  if (authType === "remote_database" && role.startsWith("db_")) return role;
   if (requested && requested !== "api_key" && requested !== "secret" && requested !== "token") return requested;
   if (role.includes("wordpress") || role.includes("app_password")) return "application_password";
   if (role.includes("mcp")) return "mcp_bearer";
@@ -90,6 +104,35 @@ function credentialSchemaForRequirement(input = {}, effective = {}, authType = "
   const fieldName = inferCredentialField(input, effective, authType);
   const label = str(input.credential_label || input.credentialLabel)
     || fieldName.toUpperCase();
+  if (authType === "ssh_key_pair") {
+    const sshFieldTypes = {
+      ssh_host: { label: "SSH host", type: "text", secret: false, autocomplete: "off" },
+      ssh_port: { label: "SSH port", type: "number", secret: false, autocomplete: "off" },
+      ssh_user: { label: "SSH username", type: "text", secret: false, autocomplete: "username" },
+      ssh_private_key: { label: "SSH private key", type: "textarea", secret: true, autocomplete: "new-password" },
+    };
+    const config = sshFieldTypes[fieldName] || { label, type: fieldName.includes("key") ? "textarea" : "text", secret: fieldName.includes("key"), autocomplete: "off" };
+    return {
+      fields: [
+        { name: fieldName, label: str(input.credential_label || input.credentialLabel) || config.label, type: config.type, target: "credentials", required: true, secret: config.secret, autocomplete: config.autocomplete },
+      ],
+    };
+  }
+  if (authType === "remote_database") {
+    const dbFieldTypes = {
+      db_host: { label: "DB host", type: "text", secret: false },
+      db_port: { label: "DB port", type: "number", secret: false },
+      db_name: { label: "DB name", type: "text", secret: false },
+      db_user: { label: "DB username", type: "text", secret: false },
+      db_password: { label: "DB password", type: "password", secret: true },
+    };
+    const config = dbFieldTypes[fieldName] || { label, type: "password", secret: true };
+    return {
+      fields: [
+        { name: fieldName, label: str(input.credential_label || input.credentialLabel) || config.label, type: config.type, target: "credentials", required: true, secret: config.secret, autocomplete: config.secret ? "new-password" : "off" },
+      ],
+    };
+  }
   if (authType === "basic_auth") {
     return {
       fields: [
@@ -158,23 +201,54 @@ async function findPendingSession(pool, key) {
   return rows?.[0] || null;
 }
 
+function inferIntakeScope(input = {}, effective = {}) {
+  const requested = str(input.intake_scope || input.intakeScope).toLowerCase();
+  if (["platform", "admin", "tenant", "user"].includes(requested)) return requested === "admin" ? "platform" : requested;
+  const ref = str(effective.credential_ref || input.credential_ref || input.credentialRef);
+  if (effective.owner_type === "platform" || ref.startsWith("platform_secret:")) return "platform";
+  return "tenant";
+}
+
+function platformSecretMappingsForRequirement(input = {}, effective = {}, credentialField = "") {
+  const explicitMappings = Array.isArray(input.platform_secret_mappings || input.platformSecretMappings)
+    ? (input.platform_secret_mappings || input.platformSecretMappings)
+    : [];
+  if (explicitMappings.length) return explicitMappings;
+  const secretKey = normalizeFieldName(input.platform_secret_key || input.platformSecretKey || effective.missing_secret_key || "");
+  if (!secretKey) return [];
+  return [{
+    credential_field: credentialField,
+    secret_key: secretKey,
+    secret_type: normalizeFieldName(input.credential_role || input.credentialRole || input.role || effective.credential_role || credentialField),
+  }];
+}
+
 export async function createCredentialIntakeRequirement(input = {}, effective = {}, options = {}) {
   const tenantId = str(input.tenant_id || input.tenantId);
-  const userId = str(input.user_id || input.userId);
+  const intakeScope = inferIntakeScope(input, effective);
+  const platformAdminUserId = str(input.platform_admin_user_id || input.platformAdminUserId || process.env.PLATFORM_ADMIN_USER_ID || PLATFORM_ADMIN_USER_ID);
+  const userId = str(input.user_id || input.userId) || (intakeScope === "platform" ? platformAdminUserId : "");
   if (!tenantId || !userId) {
     return {
       status: "credential_intake_unavailable",
       reason: !tenantId ? "tenant_id_required" : "user_id_required",
+      intake_scope: intakeScope,
       secrets_included: false,
     };
   }
 
   const pool = options.pool || getPool();
+  const authType = inferAuthType(input, effective);
   const requestedAppKey = inferAppKey(input, effective);
   const appKey = await appExists(pool, requestedAppKey) ? requestedAppKey : "api_key";
-  const authType = inferAuthType(input, effective);
   const schema = input.credential_schema || input.credentialSchema || credentialSchemaForRequirement(input, effective, authType);
-  const ttl = clampTtlMinutes(input.expires_in_minutes || input.expiresInMinutes || 30);
+  const credentialField = Array.isArray(schema?.fields) && schema.fields[0]?.name
+    ? normalizeFieldName(schema.fields[0].name)
+    : inferCredentialField(input, effective, authType);
+  const platformSecretMappings = intakeScope === "platform"
+    ? platformSecretMappingsForRequirement(input, effective, credentialField)
+    : [];
+  const ttl = clampTtlMinutes(input.expires_in_minutes || input.expiresInMinutes || (intakeScope === "platform" ? 24 * 60 : 30));
   const key = requirementKey(input, effective, appKey, authType);
   const existing = await findPendingSession(pool, key);
   if (existing) {
@@ -198,16 +272,33 @@ export async function createCredentialIntakeRequirement(input = {}, effective = 
   const metadata = {
     ...(input.metadata && typeof input.metadata === "object" ? input.metadata : {}),
     intake_enforcement: true,
+    credential_intake_handoff: true,
+    intake_scope: intakeScope,
     intake_requirement_key: key,
     requested_app_key: requestedAppKey,
     action_key: str(input.action_key || input.actionKey) || null,
     target_key: str(input.target_key || input.targetKey) || null,
     connection_id: str(input.connection_id || input.connectionId) || null,
     credential_role: str(input.credential_role || input.credentialRole || input.role || effective.credential_role) || null,
+    credential_field: credentialField || null,
     missing_secret_key: effective.missing_secret_key || null,
     resolver_status: effective.status || null,
+    owner_type: effective.owner_type || null,
+    owner_id: effective.owner_id || null,
+    source: effective.source || null,
     secrets_must_not_be_returned: true,
   };
+  if (intakeScope === "platform" && platformSecretMappings.length) {
+    metadata.auto_promote_platform_secrets = true;
+    metadata.promotion_approved = true;
+    metadata.promotion_reason = str(input.promotion_reason || input.promotionReason)
+      || `Auto-promote missing platform credential ${effective.missing_secret_key || credentialField}`;
+    metadata.platform_secret_mappings = platformSecretMappings;
+    metadata.system_id = str(input.system_id || input.systemId) || null;
+    metadata.provider_family = str(input.provider_family || input.providerFamily || effective.provider_family) || null;
+    metadata.connector_family = str(input.connector_family || input.connectorFamily || effective.connector_family) || null;
+    metadata.owner_id = str(input.owner_id || input.ownerId || effective.owner_id || "growth_intelligence_platform") || metadata.owner_id;
+  }
 
   await pool.query(
     `INSERT INTO credential_intake_sessions
