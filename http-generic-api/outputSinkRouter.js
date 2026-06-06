@@ -71,12 +71,23 @@ function normaliseOutput(output) {
   return { text: null, json: JSON.stringify(output) };
 }
 
-async function logSink(run_id, agent_id, tenant_id, sink_type, sink_ref_id, status, error_msg) {
+async function logSink(run_id, agent_id, tenant_id, sink_type, sink_ref_id, status, error_msg, context = {}) {
+  const actorId = context.actor_id || context.user_id || agent_id || null;
   await getPool().query(
     `INSERT INTO \`sink_dispatch_log\`
-       (dispatch_id, run_id, agent_id, tenant_id, sink_type, sink_ref_id, status, error_msg)
-     VALUES (?,?,?,?,?,?,?,?)`,
+       (dispatch_id, run_id, agent_id, tenant_id, workspace_id, workspace_key,
+        user_id, actor_id, actor_type, brand_id, brand_key,
+        request_id, session_id, conversation_id, correlation_id, execution_context_json,
+        sink_type, sink_ref_id, status, error_msg)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [randomUUID(), run_id, agent_id || null, tenant_id || null,
+     context.workspace_id || null, context.workspace_key || null,
+     context.user_id || null, actorId,
+     context.actor_type || (actorId ? "agent_or_user" : null),
+     context.brand_id || null, context.brand_key || null,
+     context.request_id || null, context.session_id || null, context.conversation_id || null,
+     context.correlation_id || run_id,
+     JSON.stringify({ source: "output_sink_router", run_id, sink_type, secrets_included: false }),
      sink_type, sink_ref_id || null, status, error_msg || null]
   ).catch(err => console.error("CRITICAL: sink_dispatch_log failed to write.", err));
 }
@@ -192,6 +203,7 @@ export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, work
   const linked_workflows = wfMeta?.linked_workflows || null;
   const target_module = wfMeta?.target_module || null;
 
+  const sinkContext = { brand_key: brand_key || null, correlation_id: run_id };
   const dispatched = [];
   let rulePassed = null;
 
@@ -200,23 +212,23 @@ export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, work
       const { adaptation_id, passed } = await sinkAdaptationRecord({ run_id, agent_id, tenant_id, workflow_key, target_module, output, execution_class });
       rulePassed = passed;
       dispatched.push({ sink: "adaptation_record", id: adaptation_id, passed });
-      await logSink(run_id, agent_id, tenant_id, "adaptation_record", adaptation_id, "ok");
-    } catch (err) { await logSink(run_id, agent_id, tenant_id, "adaptation_record", null, "failed", err.message); }
+      await logSink(run_id, agent_id, tenant_id, "adaptation_record", adaptation_id, "ok", null, sinkContext);
+    } catch (err) { await logSink(run_id, agent_id, tenant_id, "adaptation_record", null, "failed", err.message, sinkContext); }
   }
 
   if (REPORT_TYPES.has(artifact_type)) {
     try {
       const view_id = await sinkReportingView({ run_id, agent_id, tenant_id, workflow_key, output, primary_output });
       dispatched.push({ sink: "reporting_view", id: view_id });
-      await logSink(run_id, agent_id, tenant_id, "reporting_view", view_id, "ok");
-    } catch (err) { await logSink(run_id, agent_id, tenant_id, "reporting_view", null, "failed", err.message); }
+      await logSink(run_id, agent_id, tenant_id, "reporting_view", view_id, "ok", null, sinkContext);
+    } catch (err) { await logSink(run_id, agent_id, tenant_id, "reporting_view", null, "failed", err.message, sinkContext); }
   }
 
   if (execution_class === "authority") {
     try {
-      await writeAuditLog({ actor_id: agent_id || "system", actor_type: "agent", action: "agent.authority_output", resource_type: "workflow_run", resource_id: run_id, tenant_id, outcome: "success", metadata: { artifact_type, primary_output, requires_supervisor_review: true, agent_id } });
+      await writeAuditLog({ actor_id: agent_id || "system", actor_type: "agent", action: "agent.authority_output", resource_type: "workflow_run", resource_id: run_id, tenant_id, brand_key: brand_key || null, correlation_id: run_id, outcome: "success", metadata: { artifact_type, primary_output, requires_supervisor_review: true, agent_id, secrets_included: false } });
       dispatched.push({ sink: "audit_log" });
-    } catch (err) { await logSink(run_id, agent_id, tenant_id, "audit_log", null, "failed", err.message); }
+    } catch (err) { await logSink(run_id, agent_id, tenant_id, "audit_log", null, "failed", err.message, sinkContext); }
   }
 
   if (linked_workflows) {
@@ -224,16 +236,16 @@ export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, work
       const events = await sinkChainEvents({ source_run_id: run_id, source_agent_id: agent_id, linked_workflows, tenant_id, output, passed: rulePassed });
       for (const e of events) {
         dispatched.push({ sink: "chain_event", id: e.event_id, target: e.target_workflow_key });
-        await logSink(run_id, agent_id, tenant_id, "chain_event", e.event_id, "ok");
+        await logSink(run_id, agent_id, tenant_id, "chain_event", e.event_id, "ok", null, sinkContext);
       }
-    } catch (err) { await logSink(run_id, agent_id, tenant_id, "chain_event", null, "failed", err.message); }
+    } catch (err) { await logSink(run_id, agent_id, tenant_id, "chain_event", null, "failed", err.message, sinkContext); }
   }
 
   try {
     const artifact_id = await sinkOutputArtifact({ run_id, agent_id, tenant_id, brand_key, workflow_key, artifact_type, primary_output, output, sink_targets: dispatched.map(d => d.sink) });
     dispatched.unshift({ sink: "output_artifact", id: artifact_id });
-    await logSink(run_id, agent_id, tenant_id, "output_artifact", artifact_id, "ok");
-  } catch (err) { await logSink(run_id, agent_id, tenant_id, "output_artifact", null, "failed", err.message); }
+    await logSink(run_id, agent_id, tenant_id, "output_artifact", artifact_id, "ok", null, sinkContext);
+  } catch (err) { await logSink(run_id, agent_id, tenant_id, "output_artifact", null, "failed", err.message, sinkContext); }
 
   return { ok: true, run_id, execution_class, artifact_type, dispatched };
 }

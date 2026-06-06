@@ -279,11 +279,21 @@ export async function recordGptSessionTurn({
 
   await pool.query(
     `INSERT INTO \`gpt_session_turns\`
-       (session_id, turn_id, turn_index, role, content, action_key, content_preview,
+       (session_id, tenant_id, workspace_key, user_id, actor_id, actor_type,
+        brand_key, correlation_id, execution_context_json,
+        turn_id, turn_index, role, content, action_key, content_preview,
         content_sha256, drive_doc_id, drive_anchor, storage_mode, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
     [
       session.session_id,
+      session.tenant_id || PLATFORM_TENANT_ID,
+      session.workspace_key || null,
+      session.user_id || null,
+      session.user_id || null,
+      session.user_id ? "user" : "system",
+      session.brand_key || null,
+      turnId,
+      JSON.stringify({ source: "session_archive_service", session_id: session.session_id, turn_id: turnId, secrets_included: false }),
       turnId,
       turnIndex,
       role,
@@ -299,15 +309,23 @@ export async function recordGptSessionTurn({
 
   await pool.query(
     `INSERT INTO \`session_events\`
-       (event_id, session_id, turn_id, tenant_id, record_type, event_type,
-        payload_json, payload_preview, payload_sha256, drive_artifact_id,
-        drive_artifact_url, redaction_status, event_timestamp)
-     VALUES (?, ?, ?, ?, 'message', ?, ?, ?, ?, ?, ?, 'not_required', NOW())`,
+       (event_id, session_id, turn_id, tenant_id, workspace_key, user_id,
+        actor_id, actor_type, brand_key, correlation_id, action_key,
+        record_type, event_type, payload_json, payload_preview, payload_sha256,
+        drive_artifact_id, drive_artifact_url, redaction_status, event_timestamp)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'message', ?, ?, ?, ?, ?, ?, 'not_required', NOW())`,
     [
       eventId,
       session.session_id,
       turnId,
       session.tenant_id || PLATFORM_TENANT_ID,
+      session.workspace_key || null,
+      session.user_id || null,
+      session.user_id || null,
+      session.user_id ? "user" : "system",
+      session.brand_key || null,
+      eventId,
+      action_key || null,
       role,
       JSON.stringify(eventPayload),
       contentPreview,
