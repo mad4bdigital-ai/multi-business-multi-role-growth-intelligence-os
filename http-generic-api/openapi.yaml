@@ -2674,6 +2674,75 @@ x-tenant-gpt-auth:
 
 paths:
 
+  /me/infrastructure/ssh/connections/{connection_id}/cli/execute:
+    post:
+      tags: [tenant-infrastructure]
+      security:
+        - backendBearerAuth: []
+      operationId: tenantSshCliAllowlistedExecute
+      summary: Execute tenant SSH allowlisted CLI command after approval
+      description: Executes a fixed allowlisted SSH command for a tenant-owned SSH connection after a matching approval request is approved. Rejects freeform commands, caps output, uses a bounded timeout, and never returns credentials.
+      parameters:
+        - name: connection_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approval_request_id, command_key]
+              additionalProperties: false
+              properties:
+                approval_request_id:
+                  type: string
+                command_key:
+                  type: string
+                  enum: [pwd, whoami, uname_s, uptime]
+                timeout_ms:
+                  type: integer
+                  minimum: 1000
+                  maximum: 10000
+                  default: 5000
+      responses:
+        "200":
+          description: SSH CLI allowlisted command executed.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok:
+                    type: boolean
+                  kind:
+                    type: string
+                    enum: [ssh]
+                  source:
+                    type: string
+                    enum: [tenant_ssh_cli_allowlisted_execute]
+                  connection:
+                    type: object
+                    additionalProperties: true
+                  approval_request:
+                    type: object
+                    additionalProperties: true
+                  execution:
+                    type: object
+                    additionalProperties: true
+                  secrets_included:
+                    type: boolean
+                    enum: [false]
+        "400": { description: Missing request fields or non-allowlisted command key. }
+        "401": { description: Missing or invalid tenant user JWT. }
+        "404": { description: Connection or approval request not found for this tenant. }
+        "409": { description: Connection not ready, approval not approved, expired, or command mismatch. }
+        "502": { description: SSH command failed, timed out, or SSH runtime unavailable. }
+        "500": { description: Unexpected SSH CLI execution failure. }
+
   /me/infrastructure/ssh/cli/approval-requests/{request_id}:
     get:
       tags: [tenant-infrastructure]
