@@ -15,7 +15,10 @@ const EXECUTOR_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED";
 const PROBE_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_PROBE_ENABLED";
 const ALLOWED_BRANCHES = new Set(["main"]);
 const DEFAULT_AUTH_APP_PATH = "/home/u338416126/domains/auth.mad4b.com/nodejs";
-const SSH_ROLES = ["ssh_host", "ssh_port", "ssh_user", "ssh_private_key"];
+const SSH_COMMON_ROLES = ["ssh_host", "ssh_port", "ssh_user"];
+const SSH_KEY_ROLE = "ssh_private_key";
+const SSH_PASSWORD_ROLE = "ssh_password";
+const SSH_AUTH_MODES = new Set(["private_key", "password"]);
 
 function compact(value = "", max = 255) {
   return String(value ?? "").trim().slice(0, max);
@@ -124,7 +127,27 @@ function isPlatformManagedTarget(target = {}) {
   );
 }
 
-async function resolveSshCredential(pool, target, role, input = {}) {
+function sshAuthTypeForRole(role) {
+  return role === SSH_PASSWORD_ROLE ? "ssh_password" : "ssh_key_pair";
+}
+
+function sshCredentialLabel(role) {
+  if (role === "ssh_port") return "SSH port";
+  if (role === "ssh_host") return "SSH host";
+  if (role === "ssh_user") return "SSH username";
+  if (role === SSH_PASSWORD_ROLE) return "SSH password";
+  if (role === SSH_KEY_ROLE) return "SSH private key";
+  return role;
+}
+
+function preferredSshAuthMode(input = {}, target = {}) {
+  const requested = compact(input.ssh_auth_mode || input.sshAuthMode || input.auth_mode || input.authMode || "", 32).toLowerCase();
+  if (SSH_AUTH_MODES.has(requested)) return requested;
+  if (target.provider_family === "hostinger") return "password";
+  return "private_key";
+}
+
+async function resolveSshCredential(pool, target, role, input = {}, options = {}) {
   const result = await resolveEffectiveCredential({
     tenantId: target.tenant_id,
     userId: target.user_id || input.user_id || input.userId || undefined,
@@ -134,17 +157,19 @@ async function resolveSshCredential(pool, target, role, input = {}) {
     allowPlatformFallback: true,
   }, { pool });
   if (result?.status !== "resolved" || !compact(result.secret, 20000)) {
+    if (options.createHandoff === false) return null;
+    const authType = sshAuthTypeForRole(role);
     const credentialIntake = await maybeCreateCredentialIntakeRequirement({
       tenantId: target.tenant_id,
       userId: input.user_id || input.userId || target.user_id || undefined,
       platformAdminUserId: input.platform_admin_user_id || input.platformAdminUserId,
       systemId: target.system_id || undefined,
       appKey: "remote_ssh_runtime",
-      authType: "ssh_key_pair",
+      authType,
       credentialRole: role,
       credentialField: role,
-      credentialLabel: role === "ssh_port" ? "SSH port" : role,
-      displayLabel: `${target.host_label || "Hostinger SSH"} ${role}`,
+      credentialLabel: sshCredentialLabel(role),
+      displayLabel: `${target.host_label || "Hostinger SSH"} ${sshCredentialLabel(role)}`,
       intakeScope: result?.owner_type === "platform" || String(result?.credential_ref || "").startsWith("platform_secret:") || isPlatformManagedTarget(target) ? "platform" : "tenant",
       providerFamily: target.provider_family,
       connectorFamily: target.connector_family,
@@ -154,6 +179,7 @@ async function resolveSshCredential(pool, target, role, input = {}) {
         target_kind: target.target_kind,
         source_route: "remote_runtime_hostinger_ssh_probe_or_deploy",
         auto_handoff_reason: "missing_required_ssh_credential",
+        ssh_auth_mode: role === SSH_PASSWORD_ROLE ? "password" : "private_key",
         secrets_included: false,
       },
       autoIntake: true,
@@ -172,6 +198,17 @@ async function resolveSshCredential(pool, target, role, input = {}) {
     throw err;
   }
   return String(result.secret);
+}
+
+async function resolveSshConnectionCredentials(pool, target, input = {}) {
+  const [host, port, user] = await Promise.all(SSH_COMMON_ROLES.map((role) => resolveSshCredential(pool, target, role, input)));
+  const authMode = preferredSshAuthMode(input, target);
+  if (authMode === "password") {
+    const password = await resolveSshCredential(pool, target, SSH_PASSWORD_ROLE, input);
+    return { host, port, user, auth_mode: "password", password };
+  }
+  const privateKey = await resolveSshCredential(pool, target, SSH_KEY_ROLE, input);
+  return { host, port, user, auth_mode: "private_key", privateKey };
 }
 
 function buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClean, restart }) {
@@ -202,36 +239,61 @@ function buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClea
   ].join(" && ");
 }
 
-function runSshDeploy({ host, port, user, privateKey, remoteScript, timeoutMs }) {
+function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", privateKey, password, remoteScript, timeoutMs }) {
   return new Promise(async (resolve) => {
-    const tempDir = await mkdtemp(join(tmpdir(), "mad4b-hostinger-ssh-"));
-    const keyFile = join(tempDir, "id_ed25519");
+    const usePassword = authMode === "password";
+    const tempDir = usePassword ? null : await mkdtemp(join(tmpdir(), "mad4b-hostinger-ssh-"));
+    const keyFile = tempDir ? join(tempDir, "id_ed25519") : null;
     let settled = false;
     let child = null;
     const cleanup = async () => {
+      if (!tempDir) return;
       try { await rm(tempDir, { recursive: true, force: true }); } catch { /* noop */ }
     };
     try {
-      await writeFile(keyFile, privateKey, { mode: 0o600 });
-      const args = [
-        "-i", keyFile,
-        "-p", String(port || 22),
-        "-o", "BatchMode=yes",
-        "-o", "IdentitiesOnly=yes",
-        "-o", "StrictHostKeyChecking=accept-new",
-        `${user}@${host}`,
-        "bash",
-        "-lc",
-        remoteScript,
-      ];
-      child = spawn("ssh", args, { stdio: ["ignore", "pipe", "pipe"], shell: false });
+      let command = "ssh";
+      let args;
+      let stdio = ["ignore", "pipe", "pipe"];
+      if (usePassword) {
+        command = "sshpass";
+        args = [
+          "-d", "3",
+          "ssh",
+          "-p", String(port || 22),
+          "-o", "PreferredAuthentications=password",
+          "-o", "PubkeyAuthentication=no",
+          "-o", "StrictHostKeyChecking=accept-new",
+          `${user}@${host}`,
+          "bash",
+          "-lc",
+          remoteScript,
+        ];
+        stdio = ["ignore", "pipe", "pipe", "pipe"];
+      } else {
+        await writeFile(keyFile, privateKey, { mode: 0o600 });
+        args = [
+          "-i", keyFile,
+          "-p", String(port || 22),
+          "-o", "BatchMode=yes",
+          "-o", "IdentitiesOnly=yes",
+          "-o", "StrictHostKeyChecking=accept-new",
+          `${user}@${host}`,
+          "bash",
+          "-lc",
+          remoteScript,
+        ];
+      }
+      child = spawn(command, args, { stdio, shell: false });
+      if (usePassword && child.stdio?.[3]) {
+        child.stdio[3].end(`${password}\n`);
+      }
       let stdout = "";
       let stderr = "";
       const timer = setTimeout(() => {
         if (settled) return;
         settled = true;
         try { child.kill("SIGTERM"); } catch { /* noop */ }
-        cleanup().finally(() => resolve({ ok: false, exit_code: 124, timed_out: true, stdout: sanitizeSshOutput(stdout), stderr: sanitizeSshOutput(stderr) }));
+        cleanup().finally(() => resolve({ ok: false, exit_code: 124, timed_out: true, auth_mode: authMode, stdout: sanitizeSshOutput(stdout), stderr: sanitizeSshOutput(stderr) }));
       }, timeoutMs);
       child.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8"); });
       child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
@@ -243,6 +305,7 @@ function runSshDeploy({ host, port, user, privateKey, remoteScript, timeoutMs })
           ok: Number(code) === 0,
           exit_code: Number(code),
           timed_out: false,
+          auth_mode: authMode,
           stdout: sanitizeSshOutput(stdout),
           stderr: sanitizeSshOutput(stderr),
         }));
@@ -251,13 +314,13 @@ function runSshDeploy({ host, port, user, privateKey, remoteScript, timeoutMs })
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        cleanup().finally(() => resolve({ ok: false, exit_code: 127, timed_out: false, stdout: "", stderr: sanitizeSshOutput(err.message) }));
+        cleanup().finally(() => resolve({ ok: false, exit_code: 127, timed_out: false, auth_mode: authMode, stdout: "", stderr: sanitizeSshOutput(err.message) }));
       });
     } catch (err) {
       if (!settled) {
         settled = true;
         await cleanup();
-        resolve({ ok: false, exit_code: 1, timed_out: false, stdout: "", stderr: sanitizeSshOutput(err.message) });
+        resolve({ ok: false, exit_code: 1, timed_out: false, auth_mode: authMode, stdout: "", stderr: sanitizeSshOutput(err.message) });
       }
     }
   });
@@ -350,12 +413,13 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     err.details = { app_path: appPath, path_allowlist: target.path_allowlist };
     throw err;
   }
+  const sshAuthMode = preferredSshAuthMode(input, target);
 
   const plan = await planRemoteRuntimeDispatchDryRun({
     pool,
     targetId,
     commandKey: "ssh_probe",
-    inputs: { app_key: appKey, app_path: appPath, expected_commit_sha: expectedCommitSha || null, activate_on_success: activateOnSuccess },
+    inputs: { app_key: appKey, app_path: appPath, expected_commit_sha: expectedCommitSha || null, activate_on_success: activateOnSuccess, ssh_auth_mode: sshAuthMode },
     approvalReason,
   });
 
@@ -368,6 +432,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     app_path: appPath,
     expected_commit_sha: expectedCommitSha || null,
     activate_on_success: activateOnSuccess,
+    ssh_auth_mode: sshAuthMode,
     dry_run: dryRun,
     will_execute: !dryRun,
     dispatch_plan: {
@@ -409,9 +474,9 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     throw err;
   }
 
-  const [host, port, user, privateKey] = await Promise.all(SSH_ROLES.map((role) => resolveSshCredential(pool, target, role, input)));
+  const sshConnection = await resolveSshConnectionCredentials(pool, target, input);
   const remoteScript = buildRemoteProbeScript({ appPath, expectedCommitSha });
-  const sshResult = await runSshDeploy({ host, port, user, privateKey, remoteScript, timeoutMs });
+  const sshResult = await runSshCommand({ ...sshConnection, remoteScript, timeoutMs });
   const parsed = parseProbeOutput(sshResult.stdout);
   const probeOk = sshResult.ok && parsed.probe_result === "ok";
 
@@ -548,12 +613,13 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     err.details = { app_path: appPath, path_allowlist: target.path_allowlist };
     throw err;
   }
+  const sshAuthMode = preferredSshAuthMode(input, target);
 
   const plan = await planRemoteRuntimeDispatchDryRun({
     pool,
     targetId,
     commandKey: "deploy_release",
-    inputs: { app_key: appKey, app_path: appPath, branch, expected_commit_sha: expectedCommitSha, force_clean: forceClean, restart },
+    inputs: { app_key: appKey, app_path: appPath, branch, expected_commit_sha: expectedCommitSha, force_clean: forceClean, restart, ssh_auth_mode: sshAuthMode },
     approvalReason,
   });
 
@@ -568,6 +634,7 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     expected_commit_sha: expectedCommitSha,
     force_clean: forceClean,
     restart,
+    ssh_auth_mode: sshAuthMode,
     dry_run: dryRun,
     will_execute: !dryRun,
     dispatch_plan: {
@@ -619,9 +686,9 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     throw err;
   }
 
-  const [host, port, user, privateKey] = await Promise.all(SSH_ROLES.map((role) => resolveSshCredential(pool, target, role, input)));
+  const sshConnection = await resolveSshConnectionCredentials(pool, target, input);
   const remoteScript = buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClean, restart });
-  const sshResult = await runSshDeploy({ host, port, user, privateKey, remoteScript, timeoutMs });
+  const sshResult = await runSshCommand({ ...sshConnection, remoteScript, timeoutMs });
   const status = sshResult.ok ? "success" : "failed";
 
   await writeExecutionEvidence({

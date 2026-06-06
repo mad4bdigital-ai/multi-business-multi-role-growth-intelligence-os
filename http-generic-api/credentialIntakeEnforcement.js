@@ -16,6 +16,7 @@ const ALLOWED_AUTH_TYPES = new Set([
   "custom_headers",
   "client_credentials",
   "ssh_key_pair",
+  "ssh_password",
   "remote_database",
 ]);
 
@@ -66,6 +67,7 @@ function inferAuthType(input = {}, effective = {}) {
   if (ALLOWED_AUTH_TYPES.has(requested)) return requested;
   const role = roleText(input, effective);
   const appKey = str(input.app_key || input.appKey || effective.app_key).toLowerCase();
+  if (role === "ssh_password") return "ssh_password";
   if (role.startsWith("ssh_") || appKey.includes("ssh") || appKey === "remote_ssh_runtime") return "ssh_key_pair";
   if (role.startsWith("db_") || role.includes("database")) return "remote_database";
   if (role.includes("bearer")) return "bearer_token";
@@ -87,6 +89,7 @@ function inferAppKey(input = {}, effective = {}) {
 function inferCredentialField(input = {}, effective = {}, authType = "api_key") {
   const requested = normalizeFieldName(input.credential_field || input.credentialField || effective.missing_secret_key || "");
   const role = normalizeFieldName(input.credential_role || input.credentialRole || input.role || effective.credential_role || "");
+  if (authType === "ssh_password") return "ssh_password";
   if (authType === "ssh_key_pair" && role.startsWith("ssh_")) return role;
   if (authType === "remote_database" && role.startsWith("db_")) return role;
   if (requested && requested !== "api_key" && requested !== "secret" && requested !== "token") return requested;
@@ -104,6 +107,13 @@ function credentialSchemaForRequirement(input = {}, effective = {}, authType = "
   const fieldName = inferCredentialField(input, effective, authType);
   const label = str(input.credential_label || input.credentialLabel)
     || fieldName.toUpperCase();
+  if (authType === "ssh_password") {
+    return {
+      fields: [
+        { name: "ssh_password", label: str(input.credential_label || input.credentialLabel) || "SSH password", type: "password", target: "credentials", required: true, secret: true, autocomplete: "new-password" },
+      ],
+    };
+  }
   if (authType === "ssh_key_pair") {
     const sshFieldTypes = {
       ssh_host: { label: "SSH host", type: "text", secret: false, autocomplete: "off" },
