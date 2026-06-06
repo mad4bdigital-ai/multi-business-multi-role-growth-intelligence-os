@@ -31,6 +31,7 @@ INSERT INTO admin_platform_endpoint_tools (
   'Dispatch queued outbound webhook deliveries from the governed webhook outbox. Payloads are metadata-only and exclude secrets.',
   'POST',
   '/admin/control',
+  JSON_ARRAY(),
   JSON_OBJECT(
     'type','object',
     'properties',JSON_OBJECT(
