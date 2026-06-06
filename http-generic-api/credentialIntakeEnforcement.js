@@ -242,7 +242,13 @@ export async function createCredentialIntakeRequirement(input = {}, effective = 
   const requestedAppKey = inferAppKey(input, effective);
   const appKey = await appExists(pool, requestedAppKey) ? requestedAppKey : "api_key";
   const schema = input.credential_schema || input.credentialSchema || credentialSchemaForRequirement(input, effective, authType);
-  const ttl = clampTtlMinutes(input.expires_in_minutes || input.expiresInMinutes || 30);
+  const credentialField = Array.isArray(schema?.fields) && schema.fields[0]?.name
+    ? normalizeFieldName(schema.fields[0].name)
+    : inferCredentialField(input, effective, authType);
+  const platformSecretMappings = intakeScope === "platform"
+    ? platformSecretMappingsForRequirement(input, effective, credentialField)
+    : [];
+  const ttl = clampTtlMinutes(input.expires_in_minutes || input.expiresInMinutes || (intakeScope === "platform" ? 24 * 60 : 30));
   const key = requirementKey(input, effective, appKey, authType);
   const existing = await findPendingSession(pool, key);
   if (existing) {
