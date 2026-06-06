@@ -197,25 +197,35 @@ export async function runGovernedActivation(deps = {}) {
   }
 
   // ── Step 3: Bootstrap row ───────────────────────────────────────────────────
-  const workbookResult = await resolveActivationBootstrapWorkbook({
-    getSpreadsheet,
-    listDriveFiles,
-    expectedSpreadsheetId: expectedBootstrapSpreadsheetId,
-    allowFallbackDiscovery: allowBootstrapDiscoveryFallback
-  });
-  if (!workbookResult.ok) {
-    evidence.bootstrap_workbook_resolved = false;
-    evidence.bootstrap_workbook_reason = workbookResult.reason;
-    evidence.bootstrap_spreadsheet_id = workbookResult.spreadsheetId || "";
-    return { evidence, ...buildActivationEnvelope(evidence) };
-  }
-  evidence.bootstrap_workbook_resolved = true;
-  evidence.bootstrap_spreadsheet_id = workbookResult.spreadsheetId;
+  let bootstrapResult;
+  if (evidence.sheets_required === false || evidence.sheets_skipped === true) {
+    evidence.bootstrap_workbook_resolved = true;
+    evidence.bootstrap_source = "db_runtime";
+    bootstrapResult = await readBootstrapRow({
+      source: "db_runtime",
+      range: bootstrapRange
+    });
+  } else {
+    const workbookResult = await resolveActivationBootstrapWorkbook({
+      getSpreadsheet,
+      listDriveFiles,
+      expectedSpreadsheetId: expectedBootstrapSpreadsheetId,
+      allowFallbackDiscovery: allowBootstrapDiscoveryFallback
+    });
+    if (!workbookResult.ok) {
+      evidence.bootstrap_workbook_resolved = false;
+      evidence.bootstrap_workbook_reason = workbookResult.reason;
+      evidence.bootstrap_spreadsheet_id = workbookResult.spreadsheetId || "";
+      return { evidence, ...buildActivationEnvelope(evidence) };
+    }
+    evidence.bootstrap_workbook_resolved = true;
+    evidence.bootstrap_spreadsheet_id = workbookResult.spreadsheetId;
 
-  const bootstrapResult = await readBootstrapRow({
-    spreadsheetId: workbookResult.spreadsheetId,
-    range: bootstrapRange
-  });
+    bootstrapResult = await readBootstrapRow({
+      spreadsheetId: workbookResult.spreadsheetId,
+      range: bootstrapRange
+    });
+  }
   if (!bootstrapResult.ok || !bootstrapResult.row) {
     return { evidence, ...buildActivationEnvelope(evidence) };
   }
