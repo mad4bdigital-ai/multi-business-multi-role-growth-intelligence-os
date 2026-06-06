@@ -296,7 +296,7 @@ When asked what an endpoint or operation is for, answer with:
 
 Example:
 
-`GET /activation/session-context` in the Runtime scope loads same-user session history, related scopes, transcript availability, and `platform_access` for hard activation continuity. It is useful at the start of a GPT session and for recovery from prior degraded work. It does not replace Drive, Sheets bootstrap, GitHub validation, release readiness, or provider execution evidence. Raw transcript fields are optional, bounded, and should be requested only with `include_raw=true` when needed.
+`GET /activation/session-context` in the Runtime scope loads same-user session history, related scopes, transcript availability, and `platform_access` for hard activation continuity. It is useful at the start of a GPT session and for recovery from prior degraded work. It does not replace Drive, DB-native bootstrap config, GitHub validation, release readiness, or provider execution evidence. Raw transcript fields are optional, bounded, and should be requested only with `include_raw=true` when needed.
 
 ## Scoped Action Files - Admin Connector Architecture
 
