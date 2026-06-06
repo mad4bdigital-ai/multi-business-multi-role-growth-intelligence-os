@@ -28,6 +28,8 @@ assert(credentialRoutes.includes('credential_intake.webhook_enqueue_failed'), "e
 assert(migration.includes('CREATE TABLE IF NOT EXISTS webhook_deliveries'), "migration must create webhook_deliveries outbox table");
 assert(migration.includes("ENUM('queued','delivered','failed','skipped')"), "delivery status enum must be bounded");
 assert(migration.includes('webhook_delivery_dispatch'), "migration must register admin dispatcher tool");
+assert(migration.includes('INSERT INTO admin_platform_endpoint_tools'), "migration must register dispatcher in the live admin_platform_endpoint_tools table");
+assert(!migration.includes('admin_tool_registry'), "migration must not reference legacy/nonexistent admin_tool_registry table");
 assert(migration.includes('no_secrets') && migration.includes('ssrf_guard'), "dispatcher registry tags must include no_secrets and ssrf_guard");
 assert(runner.includes('"206_sprint66_credential_intake_webhook_outbox.sql"'), "governed runner must allow migration 206");
 
