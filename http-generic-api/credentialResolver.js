@@ -379,6 +379,16 @@ async function resolveCredentialRef(ref, context, deps) {
   }, Boolean(context.includeSecret));
 }
 
+export async function resolveCredentialReference(reference, options = {}, deps = {}) {
+  const runtimeDeps = {
+    pool: deps.pool || getPool(),
+    decryptCredentials: deps.decryptCredentials || defaultDecryptCredentials,
+    decryptToken: deps.decryptToken || defaultDecryptToken,
+    env: deps.env || process.env
+  };
+  return resolveCredentialRef(reference, { includeSecret: options.includeSecret === true }, runtimeDeps);
+}
+
 function bindingSpecificityScore(binding = {}) {
   return [binding.connection_id, binding.user_id, binding.owner_id, binding.installation_id, binding.system_id, binding.action_key, binding.target_key].filter(Boolean).length;
 }

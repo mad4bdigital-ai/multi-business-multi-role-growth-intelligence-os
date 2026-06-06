@@ -127,6 +127,7 @@ export const testCommands = [
   "node test-task-route-authority-resolver.mjs",
   "node test-workflow-registry-authority-resolver.mjs",
   "node test-runtime-workflow-resolver.mjs",
+  "node test-tenant-gpt-oauth-secret-ref.mjs",
   "node test-action-registry-authority-resolver.mjs",
   "node test-action-endpoint-tool-manifest-resolver.mjs",
   "node test-auth-oauth-routes.mjs",
