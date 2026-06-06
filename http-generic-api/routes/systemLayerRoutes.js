@@ -85,8 +85,14 @@ const SYSTEM_LAYER_TOOLS = [
     inputSchema: { type: "object", properties: {}, required: [] },
   },
   {
+    name: "activation_bootstrap_config_read",
+    description: "Admin-only DB-native read of the Activation Bootstrap Config from backend runtime authority. Does not call Google Sheets; returns source=backend_runtime/db_runtime and sheets_required=false.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
     name: "activation_sheets_bootstrap_read",
-    description: "Admin-only Sheets-mirror parity check that reads the Activation Bootstrap Config row from the legacy workbook. Use to compare against /activation/bootstrap-config (the SQL authority) during recovery or migration verification. Sheets is an async mirror, not the runtime registry.",
+    description: "Deprecated compatibility alias for activation_bootstrap_config_read. Google Sheets is no longer a valid bootstrap source and is not called; use the DB-native bootstrap config read instead.",
     requires_admin: true,
     inputSchema: { type: "object", properties: {}, required: [] },
   },
