@@ -90,7 +90,7 @@ For connector checks, use tenant-visible `auth.mad4b.com` tools only. Use `local
 Do not remotely enable or validate high-risk Local Manager capabilities such as `powershell_admin` or `windows_control` from Tenant GPT. Those remain local-consent/UAC flows.
 
 ## `/connect` frontend expectation
-`https://auth.mad4b.com/connect?activation_mode=managed&device_id=...` should preserve params through sign-in, activate Managed automatically when allowed, provision the device bundle, show the real installer, and avoid fake DNS/tunnel artifacts or JWT copy blocks.
+`/connect?activation_mode=managed&device_id=...` should preserve params through sign-in, activate Managed when allowed, show the real installer, and avoid fake artifacts or JWT copy blocks.
 
 ## Error handling
 - `user_jwt_required`: use the sign-in template.
