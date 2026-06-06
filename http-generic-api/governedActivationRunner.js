@@ -65,7 +65,7 @@ function hasBootstrapSheet(spreadsheet, expectedSheetTitle = ACTIVATION_BOOTSTRA
 export async function resolveActivationBootstrapWorkbook({
   getSpreadsheet,
   listDriveFiles,
-  expectedSpreadsheetId = ACTIVATION_BOOTSTRAP_SPREADSHEET_ID,
+  expectedSpreadsheetId = ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
   expectedSheetTitle = ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
   allowFallbackDiscovery = ALLOW_ACTIVATION_BOOTSTRAP_DISCOVERY_FALLBACK
 } = {}) {
