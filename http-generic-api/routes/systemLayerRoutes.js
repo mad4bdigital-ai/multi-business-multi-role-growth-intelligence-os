@@ -1067,13 +1067,20 @@ async function activationProviderBootstrapValidate(args = {}, deps = {}) {
     drive_diagnostic: driveDiagnostic || { attempted: false },
     sheets_diagnostic: sheetsDiagnostic
       ? {
-          attempted: true,
+          attempted: sheetsDiagnostic.attempted === true,
           ok: sheetsDiagnostic.ok === true,
+          skipped: sheetsDiagnostic.skipped === true,
+          not_required: sheetsDiagnostic.not_required === true,
           diagnostic_only: true,
+          status: sheetsDiagnostic.status || (sheetsDiagnostic.skipped ? "deprecated_not_required" : undefined),
+          reason: sheetsDiagnostic.reason || null,
+          replacement_tool: sheetsDiagnostic.replacement_tool || null,
+          source: sheetsDiagnostic.source || null,
+          sheets_called: sheetsDiagnostic.sheets_called === true,
           spreadsheet_id: sheetsDiagnostic.spreadsheet_id || null,
           range: sheetsDiagnostic.range || null,
         }
-      : { attempted: false, diagnostic_only: true },
+      : { attempted: false, diagnostic_only: true, sheets_called: false },
     ...result,
   };
 }
