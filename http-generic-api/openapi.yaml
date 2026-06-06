@@ -14358,6 +14358,59 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /connect/api/credential-intake/sessions/{session_id}/wait:
+    get:
+      tags: [connect]
+      security:
+        - backendBearerAuth: []
+      operationId: waitConnectCredentialIntakeSession
+      summary: Wait for tenant credential intake completion
+      description: Long-polls a tenant-scoped credential-intake session and returns completion metadata plus connection_id without exposing submitted secrets. Intended for automated post-intake verification flows and webhook-safe completion handling.
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: timeout_ms
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1000
+            maximum: 60000
+            default: 15000
+        - name: interval_ms
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 250
+            maximum: 5000
+            default: 1000
+      responses:
+        "200":
+          description: Intake completed and connection_id is available.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  session_id: { type: string }
+                  status: { type: string }
+                  completed: { type: boolean }
+                  connection_id: { type: string, nullable: true }
+                  webhook_safe_event: { type: string }
+                  secrets_included: { type: boolean, enum: [false] }
+        "202":
+          description: Intake is still pending or timed out without completion.
+        "400": { description: Missing or invalid session_id. }
+        "401": { description: Missing or invalid tenant user JWT. }
+        "404": { description: Intake session not found for this caller. }
+        "500": { description: Unexpected intake wait failure. }
+
   /connect/api/cms/claims:
     get:
       tags: [connect-api]

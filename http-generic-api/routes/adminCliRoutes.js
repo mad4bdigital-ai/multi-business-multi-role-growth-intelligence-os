@@ -1387,6 +1387,15 @@ function builtInShellAllowlist() {
       timeout_ms: 600000,
       built_in: true
     },
+    workflow_execution_identity_readback: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/workflow-execution-identity-readback.mjs"],
+      display_name: "Workflow execution identity live readback",
+      allow_extra_args: false,
+      max_extra_args: 0,
+      timeout_ms: 120000,
+      built_in: true
+    },
     tenant_ssh_dedicated_worker_smoke: {
       command: process.execPath,
       args: ["http-generic-api/scripts/tenant-ssh-dedicated-worker-smoke.mjs"],

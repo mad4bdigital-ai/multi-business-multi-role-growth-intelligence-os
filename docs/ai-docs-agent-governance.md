@@ -62,13 +62,18 @@ Each family maps to required documentation targets and risk level. The generated
 
 ## Optional AI layer
 
-The current implementation is deterministic so the workflow remains reliable without external model credentials. A model-backed drafting layer may be added later, but it must keep these guardrails:
+The current implementation is deterministic so the workflow remains reliable without external model credentials. OpenRouter is the priority model provider candidate for the first model-backed drafting layer because it can be exposed through an OpenAI-compatible, platform-managed bridge.
+
+The OpenRouter contract is tracked in `docs/openrouter-docs-agent-provider-contract.md` and registry key `docs_agent_openrouter_instruction_contract_v1`. It must keep these guardrails:
 
 - model output must be converted into a normal Git diff
+- all model calls must go through the Growth Intelligence Platform governed API/orchestrator
+- no direct OpenRouter calls from the agent
 - no direct `main` writes
 - no secret ingestion or emission
 - no live provider calls from untrusted fork PRs
 - docs-only follow-up PRs remain the auto-merge unit
+- provider status remains `planned` until platform credential binding and bridge smoke validation pass
 
 ## Auto-merge contract
 

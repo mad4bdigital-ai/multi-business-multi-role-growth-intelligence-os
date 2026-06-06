@@ -55,6 +55,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql",
   "203_sprint66_tenant_ssh_execute_runtime_config.sql",
   "204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql",
+  "205_sprint66_tenant_ssh_password_and_intake_wait.sql",
   "199_sprint67_runtime_policy_resolver_monitoring_and_mirror_classification.sql",
   "200_sprint67_runtime_policy_target_rule_backfill.sql",
   "202_sprint67_policy_only_runtime_policy_target_rules.sql",
@@ -65,6 +66,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "207_sprint67_platform_relationship_integrity_views.sql",
   "208_sprint67_user_app_connection_runtime_collation_repair.sql",
   "209_sprint67_execution_plan_workflow_identity_backfill.sql",
+  "210_sprint67_openrouter_docs_agent_provider_contract.sql",
   "210_sprint67_approval_hold_tenant_ssh_relationship_alignment.sql",
   "201_sprint68_lifecycle_owner_engine_registry_alignment.sql",
 ]);

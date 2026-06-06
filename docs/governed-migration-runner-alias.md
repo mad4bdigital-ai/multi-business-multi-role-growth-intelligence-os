@@ -10,8 +10,11 @@ The governed migration runner provides a narrow, auditable shell-alias path for 
 - `migration_apply_guarded_apply`
 - `migration_ledger_record_dry_run`
 - `migration_ledger_record_apply`
+- `workflow_execution_identity_readback`
 
-All aliases execute `http-generic-api/scripts/governed-migration-runner.mjs` through `admin_control` shell dispatch.
+The migration apply and ledger aliases execute `http-generic-api/scripts/governed-migration-runner.mjs` through `admin_control` shell dispatch.
+
+`workflow_execution_identity_readback` is a separate read-only alias that executes the canonical workflow-identity readback on the deployed server. It accepts no caller-controlled arguments and uses the server DB environment without returning secrets.
 
 ## Safety contract
 
@@ -73,5 +76,7 @@ JSON payloads written to the ledger are passed as regular `JSON.stringify(...)` 
 ## Operational notes
 
 Use dry-run first, review the reported preflight and artifact readback, then apply one migration file at a time. After apply, run `release_readiness` to verify that dynamic migration drift decreased as expected.
+
+For workflow-identity backfill, run `workflow_execution_identity_readback` immediately before and after apply. The pre-apply result must preserve zero ambiguous and zero identity-missing candidates; post-apply must report zero uniquely resolvable plans remaining.
 
 Migration ledger identity is the full migration filename plus checksum, not the leading numeric prefix alone. Historical numeric-prefix collisions exist, so operators must always use and review the complete filename; new migrations should avoid introducing another collision.
