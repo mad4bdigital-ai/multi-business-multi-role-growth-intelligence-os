@@ -43,6 +43,7 @@ INSERT INTO admin_platform_endpoint_tools (
     'required',JSON_ARRAY('tool','action','alias'),
     'additionalProperties',false
   ),
+  NULL,
   'admin,webhook,delivery,outbox,dispatcher,no_secrets,ssrf_guard,rate_limited,built_in_shell_alias',
   1,
   226
