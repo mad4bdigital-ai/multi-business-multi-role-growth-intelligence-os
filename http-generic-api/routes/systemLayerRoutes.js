@@ -26,7 +26,6 @@ import {
 } from "../googleAuthPlatformConfig.js";
 import { requireAdminPrincipal } from "./adminCliRoutes.js";
 import { decodeGitHubAppPrivateKey, resolveGitHubAppConfig } from "../githubAppAuth.js";
-import { DATA_SOURCE_MODE } from "../dataSource.js";
 import { derivePrincipalExecutionContext } from "../executionControlResolvers.js";
 import { fetchToolsForCaller, dispatchToolForCaller } from "./gptToolsRoutes.js";
 
