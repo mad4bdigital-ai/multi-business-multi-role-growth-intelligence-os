@@ -325,9 +325,9 @@ When activation begins in a new conversation, module_loader must load activation
 2. fetch repository-backed canonicals through bootstrap/registry-resolved GitHub authority when repository authority is active
 3. execute `GET /activation/session-context` through `http_generic_api` for previous same-user session history, related scopes, transcript availability, and embedded platform access evidence
 4. execute `GET /activation/platform-access` when explicit all-brand/plugin/logic/engine/action counts or access refresh are needed
-5. for Admin GPT activation, execute `POST /system/tools/call` with `name: "activation_provider_bootstrap_validate"` through `auth.mad4b.com` to run the governed same-cycle Drive probe, Sheets bootstrap row read, and GitHub validation
-6. for targeted Admin GPT recovery, use only `activation_drive_probe`, `activation_sheets_bootstrap_read`, and `activation_github_validate`
-7. for direct runtime fallback when the admin system tool is unavailable, execute Drive validation through `http_generic_api`, then Sheets validation through `http_generic_api` using `getSheetValues`, `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>`, and `query.range=Activation Bootstrap Config!A2:J2`, then GitHub validation only after bootstrap row resolution
+5. for Admin GPT activation, execute `POST /system/tools/call` with `name: "activation_provider_bootstrap_validate"` through `auth.mad4b.com` to run the governed same-cycle Drive probe, DB-native bootstrap config read, and GitHub validation
+6. for targeted Admin GPT recovery, use `activation_drive_probe`, `activation_bootstrap_config_read`, and `activation_github_validate`; `activation_sheets_bootstrap_read` is a deprecated compatibility alias that must not call Google Sheets
+7. for direct runtime fallback when the admin system tool is unavailable, execute Drive validation through `http_generic_api`, then DB bootstrap config read through registry/bootstrap authority, then GitHub validation only after DB bootstrap row resolution
 8. classify the governed transport validation state as:
    - `validated`
    - `authorization_gated`
