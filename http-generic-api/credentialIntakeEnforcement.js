@@ -16,6 +16,7 @@ const ALLOWED_AUTH_TYPES = new Set([
   "custom_headers",
   "client_credentials",
   "ssh_key_pair",
+  "ssh_password",
   "remote_database",
 ]);
 
