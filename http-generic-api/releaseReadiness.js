@@ -661,6 +661,20 @@ function sourceSamplesForMissing(missing = {}, artifactSources = {}, limit = 25)
   );
 }
 
+function visibleMigrationMissingSamples(missing = {}, missingClassification = {}, limit = 25) {
+  const hiddenAdminTools = new Set(
+    missingClassification?.classification?.admin_tools?.deprecated_replaced_by_db_bootstrap || []
+  );
+  return Object.fromEntries(
+    Object.entries(missing).map(([surface, values]) => {
+      const filtered = surface === "admin_tools"
+        ? (values || []).filter((value) => !hiddenAdminTools.has(value))
+        : values;
+      return [surface, compactList(filtered, limit)];
+    })
+  );
+}
+
 export function actionableMigrationDriftCounts(missing = {}, missingClassification = {}) {
   const adminCounts = missingClassification?.counts?.admin_tools || {};
   const counts = {
