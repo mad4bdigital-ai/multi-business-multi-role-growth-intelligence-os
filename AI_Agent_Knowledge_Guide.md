@@ -115,6 +115,12 @@ Do not start GitHub until the DB bootstrap row resolves. If Session Context is u
 
 Every execution must validate surface bindings, route/workflow authority, dependency readiness, and credential resolution. Recovered classification is forbidden without same-cycle validation.
 
+### Docs Agent automation
+
+Repository documentation alignment is now automated through the Docs Agent workflow. On pull requests, it generates `docs/auto-docs-agent/pr-<number>.md` on the PR branch when non-doc files change. On pushes to `main`, it opens a docs-only follow-up PR from `docs-agent/<sha>` and requests GitHub auto-merge after CI.
+
+Agents should treat the generated note as reviewable evidence, not as a replacement for targeted high-risk documentation. Runtime/code PRs are not auto-merged by default unless the explicit `docs-agent-automerge` label is present. Docs-only follow-up PRs may auto-merge only through branch-protected GitHub auto-merge. See `docs/ai-docs-agent-governance.md`.
+
 ### Runtime policy preflight governance
 
 `execution_policies` is the active transitional runtime preflight authority. Agents must treat it as required runtime policy evidence until a target-rule resolver bridge proves parity with `platform_engine_policy_rules`.
