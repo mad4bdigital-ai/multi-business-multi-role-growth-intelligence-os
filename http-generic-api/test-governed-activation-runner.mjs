@@ -247,13 +247,23 @@ section("resolveActivationBootstrapWorkbook rejects unconstrained discovery fall
 
 section("DB runtime bootstrap can skip Sheets without reporting Sheets success");
 {
+  let getSpreadsheetCalled = false;
+  let readBootstrapArgs = null;
   const result = await runGovernedActivation(fullDeps({
     attemptSheets: async () => ({
       ok: true,
       skipped: true,
       not_required: true,
       reason: "db_runtime_bootstrap_authority"
-    })
+    }),
+    getSpreadsheet: async () => {
+      getSpreadsheetCalled = true;
+      throw new Error("DB-native bootstrap must not resolve the legacy workbook.");
+    },
+    readBootstrapRow: async (args) => {
+      readBootstrapArgs = args;
+      return { ok: true, row: VALID_BOOTSTRAP_ROW };
+    }
   }));
 
   assert("db runtime skip → active", result.runtime_classification?.activation_status === "active", JSON.stringify(result.runtime_classification));
@@ -261,6 +271,10 @@ section("DB runtime bootstrap can skip Sheets without reporting Sheets success")
   assert("db runtime skip → sheets_skipped true", result.evidence?.sheets_skipped === true, JSON.stringify(result.evidence));
   assert("db runtime skip → sheets_ok remains false", result.evidence?.sheets_ok === false, JSON.stringify(result.evidence));
   assert("db runtime skip → skip reason captured", result.evidence?.sheets_skip_reason === "db_runtime_bootstrap_authority", JSON.stringify(result.evidence));
+  assert("db runtime skip → legacy workbook not resolved", getSpreadsheetCalled === false, JSON.stringify(result.evidence));
+  assert("db runtime skip → bootstrap source captured", result.evidence?.bootstrap_source === "db_runtime", JSON.stringify(result.evidence));
+  assert("db runtime skip → no bootstrap spreadsheet evidence", !Object.prototype.hasOwnProperty.call(result.evidence || {}, "bootstrap_spreadsheet_id"), JSON.stringify(result.evidence));
+  assert("db runtime skip → readBootstrapRow uses DB source", readBootstrapArgs?.source === "db_runtime", JSON.stringify(readBootstrapArgs));
   assert("db runtime skip → sheets_not_required progress", result.runtime_classification?.progress?.completed_stages?.includes("sheets_not_required"), JSON.stringify(result.runtime_classification?.progress));
   assert("db runtime skip → no sheets_validation success stage", !result.runtime_classification?.progress?.completed_stages?.includes("sheets_validation"), JSON.stringify(result.runtime_classification?.progress));
   assert("db runtime skip → operator view names DB bootstrap", result.operator_view?.what_succeeded?.includes("DB bootstrap config"), JSON.stringify(result.operator_view));
