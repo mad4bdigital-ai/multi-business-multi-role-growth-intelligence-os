@@ -273,6 +273,43 @@ function intakePromotionSummary(connection = {}, intake = {}) {
   };
 }
 
+function safeJsonObject(value) {
+  if (!value) return {};
+  if (typeof value === "object" && !Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizePromotionMappings(input = []) {
+  return (Array.isArray(input) ? input : [])
+    .map((mapping = {}) => ({
+      credential_field: str(mapping.credential_field || mapping.credentialField || mapping.field),
+      secret_key: str(mapping.secret_key || mapping.secretKey),
+      secret_type: str(mapping.secret_type || mapping.secretType || mapping.credential_role || mapping.credentialRole),
+    }))
+    .filter((mapping) => mapping.credential_field && mapping.secret_key)
+    .slice(0, 50);
+}
+
+function credentialValueToSecretString(value) {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value).trim();
+  return JSON.stringify(value);
+}
+
+function safeCredentialFieldNames(credentials = {}) {
+  return Object.keys(credentials || {})
+    .map((field) => str(field))
+    .filter((field) => /^[A-Za-z0-9_\-.]{1,96}$/.test(field))
+    .sort()
+    .slice(0, 100);
+}
+
 export function buildCredentialRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
