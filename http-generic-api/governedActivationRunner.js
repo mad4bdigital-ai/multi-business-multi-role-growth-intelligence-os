@@ -177,7 +177,7 @@ export async function runGovernedActivation(deps = {}) {
   }
   evidence.drive_ok = true;
 
-  // ── Step 2: Google Sheets ───────────────────────────────────────────────────
+  // ── Step 2: Google Sheets compatibility state ───────────────────────────────
   evidence.sheets_attempted = true;
 
   const sheetsResult = await attemptSheets({
