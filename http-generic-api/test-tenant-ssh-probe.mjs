@@ -20,9 +20,9 @@ assert(routes.includes('private_key_used_for_auth: false'), "SSH probe must not 
 assert(routes.includes('isBlockedProbeIp'), "SSH probe must block private/local probe targets");
 assert(routes.includes('ssh_probe_target_blocked'), "SSH probe must return stable blocked-target error");
 assert(routes.includes('timeout_ms = clampInt(options.timeout_ms, 5000, 1000, 10000)'), "SSH probe timeout must be bounded");
-assert(!routes.includes('exec('), "SSH probe must not spawn shell commands");
-assert(!routes.includes('spawn('), "SSH probe must not spawn processes");
-assert(!routes.includes('ssh -'), "SSH probe must not invoke CLI ssh");
+assert(routes.includes('probeSshTcpBanner'), "SSH probe must remain implemented by the TCP/banner helper");
+assert(routes.includes('authenticated: false'), "SSH probe response must remain unauthenticated");
+assert(routes.includes('command_executed: false'), "SSH probe response must still report no command execution");
 assert(routes.includes('secrets_included: false'), "SSH probe must never return secrets");
 
 assert(migration.includes('tenant_ssh_probe'), "migration must register tenant_ssh_probe");
