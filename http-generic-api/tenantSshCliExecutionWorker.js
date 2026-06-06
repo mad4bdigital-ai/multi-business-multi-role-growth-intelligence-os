@@ -254,7 +254,9 @@ function shellSingleQuote(value = "") {
 async function spawnSshCommand(cfg, plan, timeoutMs) {
   const address = await resolvePublicSshAddress(cfg.host);
   const started_at = new Date().toISOString();
-  const tempDir = await mkdtemp(path.join(os.tmpdir(), "tenant-ssh-worker-"));
+  const tempRoot = process.env.TENANT_SSH_WORKER_TMP_DIR || path.join(process.cwd(), ".tenant-ssh-worker-tmp");
+  await mkdir(tempRoot, { recursive: true, mode: 0o700 });
+  const tempDir = await mkdtemp(path.join(tempRoot, "tenant-ssh-worker-"));
   const cleanup = () => rm(tempDir, { recursive: true, force: true }).catch(() => {});
   const authArgs = [];
   const childEnv = { ...process.env };
