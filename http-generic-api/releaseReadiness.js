@@ -853,9 +853,13 @@ async function checkDynamicMigrationDrift() {
     actionable_missing_counts: actionable_missing.counts,
     actionable_missing_total: actionable_missing.total,
     registry_tables_missing: compactList(registry_tables_missing, 50),
-    missing_samples: Object.fromEntries(
-      Object.entries(missing).map(([key, values]) => [key, compactList(values, 25)])
-    ),
+    missing_samples: visibleMigrationMissingSamples(missing, missing_classification, 25),
+    deprecated_replaced_samples: {
+      admin_tools: compactList(
+        missing_classification?.classification?.admin_tools?.deprecated_replaced_by_db_bootstrap || [],
+        25
+      ),
+    },
     missing_source_samples,
     admin_tool_route_evidence,
     missing_classification,
