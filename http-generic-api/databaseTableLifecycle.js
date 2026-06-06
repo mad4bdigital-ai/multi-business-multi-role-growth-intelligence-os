@@ -81,6 +81,16 @@ export function classifyDatabaseTableLifecycle(row = {}) {
     cleanupStrategy = "dedupe_and_compact";
     riskLevel = sizeMb > 10 ? "high" : "medium";
     reasons.push("graph_or_artifact_authority");
+  } else if (tableName === "tenant_ssh_cli_approval_requests") {
+    tableFamily = "tenant_infrastructure_approval";
+    ownerEngineKey = "workflow_runtime_engine";
+    usageStatus = "runtime_canonical";
+    retentionClass = "approval_audit";
+    retentionDays = 365;
+    archiveStrategy = "archive_terminal_requests_after_retention";
+    cleanupStrategy = "expire_open_requests_and_archive_terminal_records";
+    riskLevel = "high";
+    reasons.push("tenant_infrastructure_approval_authority");
   } else if (includesAny(tableName, ["policy_logic_", "platform_contract_"])) {
     tableFamily = "platform_contract_governance";
     ownerEngineKey = "platform_contract_governance_engine";

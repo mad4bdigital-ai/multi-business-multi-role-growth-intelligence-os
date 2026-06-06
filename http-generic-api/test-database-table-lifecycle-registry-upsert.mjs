@@ -122,6 +122,7 @@ const ownershipPlan = buildDatabaseTableLifecycleRegisterPlan([
   { table_name: "platform_private_packages", approx_rows: 10, size_mb: 0.1 },
   { table_name: "repo_ingestion_jobs", approx_rows: 10, size_mb: 0.1 },
   { table_name: "database_lifecycle_report_snapshots", approx_rows: 10, size_mb: 0.1 },
+  { table_name: "tenant_ssh_cli_approval_requests", approx_rows: 0, size_mb: 0.1 },
 ]);
 assert.deepEqual(
   ownershipPlan.upsert_rows.map(({ owner_engine_key }) => owner_engine_key),
@@ -133,12 +134,22 @@ assert.deepEqual(
     "platform_private_capability_vault_engine",
     "developer_platform_lifecycle_engine",
     "database_table_lifecycle_engine",
+    "workflow_runtime_engine",
   ],
 );
 assert(ownershipPlan.upsert_rows.every(({ usage_status }) => usage_status !== "runtime_unclassified"));
 assert(
   !ownershipPlan.buckets.unlinked.includes("database_lifecycle_report_snapshots"),
   "explicit database lifecycle family ownership must not be reported as unlinked",
+);
+const tenantSshApprovalLifecycle = ownershipPlan.upsert_rows.find(
+  ({ table_name }) => table_name === "tenant_ssh_cli_approval_requests"
+);
+assert.equal(tenantSshApprovalLifecycle.usage_status, "runtime_canonical");
+assert.equal(tenantSshApprovalLifecycle.retention_class, "approval_audit");
+assert(
+  !ownershipPlan.buckets.archive_candidate.includes("tenant_ssh_cli_approval_requests"),
+  "active tenant SSH approval authority must never be classified as an archive candidate",
 );
 for (const engineKey of [
   "developer_platform_lifecycle_engine",
