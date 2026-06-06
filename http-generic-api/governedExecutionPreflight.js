@@ -1,4 +1,5 @@
-import { loadActiveExecutionPolicies, summarizePolicies } from "./runtimePolicyLoader.js";
+import { summarizePolicies } from "./runtimePolicyLoader.js";
+import { resolveRuntimePolicyContext, summarizePlatformPolicyRules } from "./runtimePolicyResolver.js";
 import { resolveBrandCoreRepairCandidates } from "./repairPolicyRouter.js";
 
 function parseBoolean(value, fallback = false) {
@@ -26,24 +27,48 @@ function policyAllowsBlocking(policy) {
   return policy.blocking_bool && parseBoolean(value.blocking, policy.blocking_bool);
 }
 
-function makePreflightResult({ classification = "allow", policies = [], blockingPolicies = [], warnings = [], errors = [], evidence = {} } = {}) {
+function makePreflightResult({
+  classification = "allow",
+  policies = [],
+  blockingPolicies = [],
+  warnings = [],
+  errors = [],
+  evidence = {},
+  runtimePolicyResolution = null,
+} = {}) {
+  const targetRules = runtimePolicyResolution?.target_rules || [];
   return {
     ok: classification !== "blocked",
     classification,
-    policy_source: "execution_policies",
+    policy_source: runtimePolicyResolution?.policy_source || "execution_policies",
+    enforcement_source: runtimePolicyResolution?.enforcement_source || "execution_policies",
+    target_rule_source: runtimePolicyResolution?.target_rule_source || null,
+    target_rule_load_status: runtimePolicyResolution?.target_rule_load_status || null,
     policies: summarizePolicies(policies),
+    target_rules: summarizePlatformPolicyRules(targetRules),
     blocking_policies: summarizePolicies(blockingPolicies),
     warnings,
     errors,
-    evidence,
+    evidence: {
+      ...evidence,
+      runtime_policy_resolution: runtimePolicyResolution?.evidence || null,
+    },
     secrets_included: false,
   };
 }
 
+async function resolvePolicies(context = {}, deps = {}) {
+  const runtimePolicyResolution = await resolveRuntimePolicyContext(context, deps);
+  return {
+    runtimePolicyResolution,
+    policies: runtimePolicyResolution.policies || [],
+  };
+}
+
 export async function governedExecutionPreflight(context = {}, deps = {}) {
-  const policies = await loadActiveExecutionPolicies(context, deps);
+  const { runtimePolicyResolution, policies } = await resolvePolicies(context, deps);
   if (!hasMeaningfulPolicy(policies)) {
-    return makePreflightResult({ evidence: { reason: "no_matching_active_execution_policy" } });
+    return makePreflightResult({ evidence: { reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
   }
   const blockingPolicies = policies.filter(policyAllowsBlocking);
   return makePreflightResult({
@@ -51,6 +76,7 @@ export async function governedExecutionPreflight(context = {}, deps = {}) {
     policies,
     warnings: blockingPolicies.length ? ["matching_blocking_policies_require_specific_evaluation"] : [],
     evidence: { matching_policy_count: policies.length },
+    runtimePolicyResolution,
   });
 }
 
@@ -59,7 +85,7 @@ function statusBlocksMerge(status = "") {
 }
 
 async function loadRepositoryMutationPolicies(operation, affectsLayer, deps = {}) {
-  return loadActiveExecutionPolicies({
+  return resolvePolicies({
     execution_scope: ["repo_mutation", "github_pr_merge", "branch_delete", "repo_patch_apply", operation].filter(Boolean),
     affects_layer: ["adminCliRoutes", "github_rest_fallback", "gptToolsRoutes", "repo_patch_apply", affectsLayer].filter(Boolean),
     policy_group: "Repository Mutation Governance",
@@ -68,10 +94,10 @@ async function loadRepositoryMutationPolicies(operation, affectsLayer, deps = {}
 }
 
 export async function evaluateRepositoryMutationPreflight({ operation, args = [], repo = {}, pr = null, compare = null, branch = "" } = {}, deps = {}) {
-  const policies = await loadRepositoryMutationPolicies(operation, "adminCliRoutes", deps);
+  const { runtimePolicyResolution, policies } = await loadRepositoryMutationPolicies(operation, "adminCliRoutes", deps);
 
   if (!policies.length) {
-    return makePreflightResult({ evidence: { operation, reason: "repository_mutation_policy_not_configured" } });
+    return makePreflightResult({ evidence: { operation, reason: "repository_mutation_policy_not_configured" }, runtimePolicyResolution });
   }
 
   const blockingPolicies = [];
@@ -152,7 +178,7 @@ export async function evaluateRepositoryMutationPreflight({ operation, args = []
   }
 
   if (blockingPolicies.length) {
-    return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence });
+    return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
   }
   return makePreflightResult({
     classification: warnings.length ? "allow_with_policy_warnings" : "allow",
@@ -160,13 +186,14 @@ export async function evaluateRepositoryMutationPreflight({ operation, args = []
     warnings,
     errors,
     evidence,
+    runtimePolicyResolution,
   });
 }
 
 export async function evaluateRepoPatchApplyPreflight({ args = {}, repo = {}, branch = "", defaultBranch = "main", branchExists = false, compare = null } = {}, deps = {}) {
-  const policies = await loadRepositoryMutationPolicies("repo_patch_apply", "gptToolsRoutes", deps);
+  const { runtimePolicyResolution, policies } = await loadRepositoryMutationPolicies("repo_patch_apply", "gptToolsRoutes", deps);
   if (!policies.length) {
-    return makePreflightResult({ evidence: { operation: "repo_patch_apply", reason: "repository_mutation_policy_not_configured" } });
+    return makePreflightResult({ evidence: { operation: "repo_patch_apply", reason: "repository_mutation_policy_not_configured" }, runtimePolicyResolution });
   }
 
   const blockingPolicies = [];
@@ -206,7 +233,7 @@ export async function evaluateRepoPatchApplyPreflight({ args = {}, repo = {}, br
   }
 
   if (blockingPolicies.length) {
-    return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence });
+    return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
   }
   return makePreflightResult({
     classification: warnings.length ? "allow_with_policy_warnings" : "allow",
@@ -214,16 +241,17 @@ export async function evaluateRepoPatchApplyPreflight({ args = {}, repo = {}, br
     warnings,
     errors,
     evidence,
+    runtimePolicyResolution,
   });
 }
 
 export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", toolKey = "", args = {} } = {}, deps = {}) {
-  const policies = await loadActiveExecutionPolicies({
+  const { runtimePolicyResolution, policies } = await resolvePolicies({
     execution_scope: ["gpt_tools_call", "tool_dispatch", toolKey].filter(Boolean),
     affects_layer: ["gptToolsRoutes", callerType].filter(Boolean),
   }, deps);
   if (!policies.length) {
-    return makePreflightResult({ evidence: { operation: "gpt_tools_call", tool_key: toolKey, reason: "no_matching_active_execution_policy" } });
+    return makePreflightResult({ evidence: { operation: "gpt_tools_call", tool_key: toolKey, reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
   }
   const blockingPolicies = policies.filter(policyAllowsBlocking);
   return makePreflightResult({
@@ -231,18 +259,19 @@ export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", 
     policies,
     warnings: blockingPolicies.length ? ["matching_blocking_tool_dispatch_policies_require_specific_evaluation"] : [],
     evidence: { operation: "gpt_tools_call", caller_type: callerType, tool_key: toolKey, matching_policy_count: policies.length },
+    runtimePolicyResolution,
   });
 }
 
 export async function evaluateAppActionPreflight({ connection = {}, appKey = "", actionKey = "", args = {} } = {}, deps = {}) {
   const resolvedAppKey = String(appKey || connection?.app_key || "").trim();
   const resolvedActionKey = String(actionKey || "").trim();
-  const policies = await loadActiveExecutionPolicies({
+  const { runtimePolicyResolution, policies } = await resolvePolicies({
     execution_scope: ["app_action", "external_app_action", resolvedAppKey, resolvedActionKey].filter(Boolean),
     affects_layer: ["appAdapters", "appAdapters/index.js", resolvedAppKey].filter(Boolean),
   }, deps);
   if (!policies.length) {
-    return makePreflightResult({ evidence: { operation: "app_action", app_key: resolvedAppKey, action_key: resolvedActionKey, reason: "no_matching_active_execution_policy" } });
+    return makePreflightResult({ evidence: { operation: "app_action", app_key: resolvedAppKey, action_key: resolvedActionKey, reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
   }
 
   const warnings = [];
@@ -280,7 +309,7 @@ export async function evaluateAppActionPreflight({ connection = {}, appKey = "",
   }
 
   if (enforcedBlockingPolicies.length) {
-    return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence });
+    return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
   }
 
   if (genericBlockingPolicies.length) {
@@ -293,12 +322,13 @@ export async function evaluateAppActionPreflight({ connection = {}, appKey = "",
     warnings,
     errors,
     evidence,
+    runtimePolicyResolution,
   });
 }
 
 export async function evaluateConnectorDispatchPreflight({ plan = {}, connectorType = "", workflowDef = null, apply = false } = {}, deps = {}) {
   const resolvedConnectorType = String(connectorType || "").trim();
-  const policies = await loadActiveExecutionPolicies({
+  const { runtimePolicyResolution, policies } = await resolvePolicies({
     execution_scope: [
       "connector_dispatch",
       "workflow_dispatch",
@@ -309,7 +339,7 @@ export async function evaluateConnectorDispatchPreflight({ plan = {}, connectorT
     affects_layer: ["connectorExecutor", "connectorExecutor.js", resolvedConnectorType].filter(Boolean),
   }, deps);
   if (!policies.length) {
-    return makePreflightResult({ evidence: { operation: "connector_dispatch", connector_type: resolvedConnectorType, reason: "no_matching_active_execution_policy" } });
+    return makePreflightResult({ evidence: { operation: "connector_dispatch", connector_type: resolvedConnectorType, reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
   }
 
   const warnings = [];
@@ -350,7 +380,7 @@ export async function evaluateConnectorDispatchPreflight({ plan = {}, connectorT
   }
 
   if (enforcedBlockingPolicies.length) {
-    return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence });
+    return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
   }
 
   if (genericBlockingPolicies.length) {
@@ -363,11 +393,12 @@ export async function evaluateConnectorDispatchPreflight({ plan = {}, connectorT
     warnings,
     errors,
     evidence,
+    runtimePolicyResolution,
   });
 }
 
 export async function evaluateAgentLoopPreflight({ plan = {}, workflow = null, logicKey = "", executionClass = "standard", toolCount = 0, context = {} } = {}, deps = {}) {
-  const policies = await loadActiveExecutionPolicies({
+  const { runtimePolicyResolution, policies } = await resolvePolicies({
     execution_scope: [
       "agent_loop",
       "model_tool_loop",
@@ -382,7 +413,7 @@ export async function evaluateAgentLoopPreflight({ plan = {}, workflow = null, l
   }, deps);
 
   if (!policies.length) {
-    return makePreflightResult({ evidence: { operation: "agent_loop", workflow_key: plan.workflow_key || null, reason: "no_matching_active_execution_policy" } });
+    return makePreflightResult({ evidence: { operation: "agent_loop", workflow_key: plan.workflow_key || null, reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
   }
 
   const warnings = [];
@@ -439,7 +470,7 @@ export async function evaluateAgentLoopPreflight({ plan = {}, workflow = null, l
   }
 
   if (enforcedBlockingPolicies.length) {
-    return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence });
+    return makePreflightResult({ classification: "blocked", policies, blockingPolicies: enforcedBlockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
   }
 
   if (genericBlockingPolicies.length) {
@@ -452,6 +483,7 @@ export async function evaluateAgentLoopPreflight({ plan = {}, workflow = null, l
     warnings,
     errors,
     evidence,
+    runtimePolicyResolution,
   });
 }
 
