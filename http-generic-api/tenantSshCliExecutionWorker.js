@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { promises as dns } from "node:dns";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -254,7 +254,9 @@ function shellSingleQuote(value = "") {
 async function spawnSshCommand(cfg, plan, timeoutMs) {
   const address = await resolvePublicSshAddress(cfg.host);
   const started_at = new Date().toISOString();
-  const tempDir = await mkdtemp(path.join(os.tmpdir(), "tenant-ssh-worker-"));
+  const tempRoot = process.env.TENANT_SSH_WORKER_TMP_DIR || path.join(process.cwd(), ".tenant-ssh-worker-tmp");
+  await mkdir(tempRoot, { recursive: true, mode: 0o700 });
+  const tempDir = await mkdtemp(path.join(tempRoot, "tenant-ssh-worker-"));
   const cleanup = () => rm(tempDir, { recursive: true, force: true }).catch(() => {});
   const authArgs = [];
   const childEnv = { ...process.env };
