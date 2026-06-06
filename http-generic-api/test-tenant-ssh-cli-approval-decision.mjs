@@ -36,5 +36,10 @@ assert(migration.includes('no_network'), "migration tags must disclose no networ
 assert(migration.includes('no_auth'), "migration tags must disclose no auth");
 assert(migration.includes('no_secrets'), "migration tags must include no_secrets");
 assert(runner.includes('"201_sprint66_tenant_ssh_cli_approval_decision_tools.sql"'), "governed migration runner must allowlist migration 201");
+assert(openapi.includes('/me/infrastructure/ssh/cli/approval-requests/{request_id}'), "OpenAPI must document approval status endpoint");
+assert(openapi.includes('/me/infrastructure/ssh/cli/approval-requests/{request_id}/decision'), "OpenAPI must document approval decision endpoint");
+assert(openapi.includes('tenantSshCliApprovalRequestStatus'), "OpenAPI must expose status operationId");
+assert(openapi.includes('tenantSshCliApprovalRequestDecide'), "OpenAPI must expose decision operationId");
+assert(openapi.includes('does not authenticate, open a network connection, execute commands, or enable execution'), "OpenAPI must document no-auth/no-network/no-command/no-execute scope");
 
 console.log("Tenant SSH CLI approval decision guard passed");
