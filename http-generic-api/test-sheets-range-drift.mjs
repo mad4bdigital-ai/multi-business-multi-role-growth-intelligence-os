@@ -228,7 +228,7 @@ section("resolveExecutionRequest — pre-encoded range decoded before path encod
       parent_action_key: "google_sheets_api",
       endpoint_key: "getSheetValues",
       method: "GET",
-      path_params: { spreadsheetId: ACTIVATION_BOOTSTRAP_SPREADSHEET_ID },
+      path_params: { spreadsheetId: ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID },
       query: { range: preEncoded }
     },
     makeMinimalDeps({ resolveHttpExecutionContext: sentinelAwareMock })
