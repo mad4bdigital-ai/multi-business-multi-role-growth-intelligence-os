@@ -65,6 +65,9 @@ function inferAuthType(input = {}, effective = {}) {
   const requested = str(input.auth_type || input.authType || effective.auth_type);
   if (ALLOWED_AUTH_TYPES.has(requested)) return requested;
   const role = roleText(input, effective);
+  const appKey = str(input.app_key || input.appKey || effective.app_key).toLowerCase();
+  if (role.startsWith("ssh_") || appKey.includes("ssh") || appKey === "remote_ssh_runtime") return "ssh_key_pair";
+  if (role.startsWith("db_") || role.includes("database")) return "remote_database";
   if (role.includes("bearer")) return "bearer_token";
   if (role.includes("webhook")) return "webhook";
   if (role.includes("mcp")) return "mcp";
@@ -73,13 +76,20 @@ function inferAuthType(input = {}, effective = {}) {
 }
 
 function inferAppKey(input = {}, effective = {}) {
-  return str(input.app_key || input.appKey || effective.app_key || effective.connector_family || effective.provider_family || "api_key") || "api_key";
+  const authType = inferAuthType(input, effective);
+  const requested = str(input.app_key || input.appKey || effective.app_key || effective.connector_family || effective.provider_family || "");
+  if (requested) return requested;
+  if (authType === "ssh_key_pair") return "remote_ssh_runtime";
+  if (authType === "remote_database") return "remote_database";
+  return "api_key";
 }
 
 function inferCredentialField(input = {}, effective = {}, authType = "api_key") {
-  const requested = normalizeFieldName(input.credential_field || input.credentialField || effective.missing_secret_key || "");
-  const role = roleText(input, effective);
+  const requested = normalizeFieldName(input.credential_field || input.credentialField || "");
+  const role = normalizeFieldName(input.credential_role || input.credentialRole || input.role || effective.credential_role || effective.missing_secret_key || "");
   if (requested && requested !== "api_key" && requested !== "secret" && requested !== "token") return requested;
+  if (authType === "ssh_key_pair" && role.startsWith("ssh_")) return role;
+  if (authType === "remote_database" && role.startsWith("db_")) return role;
   if (role.includes("wordpress") || role.includes("app_password")) return "application_password";
   if (role.includes("mcp")) return "mcp_bearer";
   if (role.includes("bearer")) return "bearer_token";
