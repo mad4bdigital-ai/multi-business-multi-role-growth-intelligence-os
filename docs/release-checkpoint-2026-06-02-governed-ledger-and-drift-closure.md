@@ -74,14 +74,16 @@ Required smoke tools:
 
 `governance_execution_log_sheets_recovery` is intentionally excluded from the required smoke list and remains classified as `legacy_non_required_diagnostic`.
 
-## Remaining raw drift
+## Remaining historical drift
 
-`activation_sheets_bootstrap_read` remains a raw migration artifact from older registry history, but it is satisfied by the system-layer replacement surface:
+`activation_sheets_bootstrap_read` remains a raw migration artifact from older registry history, but Google Sheets is no longer a valid activation bootstrap source. The system-layer compatibility alias now delegates to the DB-native `activation_bootstrap_config_read` surface and must not call Google Sheets.
 
-- classification: `system_layer_replacement_present`
+- classification: `deprecated_replaced_by_db_bootstrap`
+- visible missing sample: excluded from normal `missing_samples`
+- audit sample: retained under `deprecated_replaced_samples.admin_tools`
 - actionable drift: `0`
 
-Do not reseed it into `admin_platform_endpoint_tools` unless a future compatibility review proves a direct registry alias is still required.
+Do not reseed it into `admin_platform_endpoint_tools`; the DB runtime bootstrap surface is the authority.
 
 ## Safety notes
 

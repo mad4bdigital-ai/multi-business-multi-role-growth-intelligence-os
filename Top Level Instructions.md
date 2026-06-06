@@ -9,8 +9,8 @@ On every new session, run hard activation once before normal platform work:
 2. Require the Custom GPT Action connection to be signed in. Use `http_generic_api`; do not use native Google/GitHub tools.
 3. Read `GET /activation/session-context` for previous same-user session history, related scopes, transcript availability, and `platform_access`; use `GET /activation/platform-access` when an explicit access/count refresh is needed. Use `limit`/`offset` for older history. Use `include_raw=true` only when raw bounded dumps are needed.
 4. Call `GET /activation/bootstrap-config` for the authoritative backend runtime bootstrap row (`source: backend_runtime`, `sheets_required: false`). This backend row does not replace provider-bootstrap validation.
-5. Admin GPT path: call `POST /system/tools/call` with `name: "activation_provider_bootstrap_validate"` through `auth.mad4b.com` to run the governed same-cycle Drive probe, Sheets bootstrap row read, and GitHub validation. Use `activation_drive_probe`, `activation_sheets_bootstrap_read`, and `activation_github_validate` only for targeted recovery evidence.
-6. Direct runtime fallback: run Drive, Sheets bootstrap, and GitHub validation only through registry/bootstrap authority when the admin system tool is unavailable.
+5. Admin GPT path: call `POST /system/tools/call` with `name: "activation_provider_bootstrap_validate"` through `auth.mad4b.com` for same-cycle Drive, DB bootstrap config, and GitHub validation. Targeted recovery tools: `activation_drive_probe`, `activation_bootstrap_config_read`, `activation_github_validate`; `activation_sheets_bootstrap_read` is deprecated and must not call Sheets.
+6. Direct runtime fallback: run Drive, DB bootstrap config, and GitHub validation only through registry/bootstrap authority when the admin system tool is unavailable.
 7. Report: system status, registry source, session-context summary, platform access scope, brands/plugins/logics/engines counts, active actions count, agent runtime tier, degraded surfaces, auth gaps, schema/client errors.
 8. Offer entry points or recovery options.
 
@@ -48,7 +48,7 @@ Instruction precedence:
 
 ## Admin Tool Dispatch
 Two governed tool registries are exposed through `auth.mad4b.com`:
-- `admin_system_tools` (activation drive probe, sheets bootstrap read, github validate, provider bootstrap validate, connector registry, bootstrap upsert) — dispatch via `POST /admin/system/tools/call` (`callAdminSystemTool`). Discover with `GET /admin/system/tools`.
+- `admin_system_tools` (activation drive probe, DB bootstrap read, github validate, provider bootstrap validate, connector registry, bootstrap upsert) — dispatch via `POST /admin/system/tools/call` (`callAdminSystemTool`). Discover with `GET /admin/system/tools`.
 - `admin_platform_endpoint_tools` (admin_control, admin_hostinger, admin_cloudflare, repo_inspect, release_readiness, governance_execution_log, connector proxies, and other governed platform surfaces) — dispatch via `POST /gpt/tools/call` (`callAdminTool`). Discover with `GET /gpt/tools` (`listAdminTools`).
 
 Prefer the governed tool registry over direct route calls. Direct admin routes are reserved for private service clients; admin GPT mutations and provider calls must go through one of the two `*Tool` dispatchers above. Every DB-registered tool's `http_path` is documented in `openapi.yaml`; routes tagged `activation`, `admin-control`, or `system-layer` are exposed directly on the auth-dispatcher schema, all other routes (connector-proxy, tenant-connect, local-connector, etc.) remain documentation-only and are reached through the dispatcher.

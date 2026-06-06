@@ -81,6 +81,10 @@ const LEGACY_NON_REQUIRED_ADMIN_TOOLS = [
   "governance_execution_log_sheets_recovery",
 ];
 
+const DEPRECATED_DB_BOOTSTRAP_REPLACED_ADMIN_TOOLS = new Set([
+  "activation_sheets_bootstrap_read",
+]);
+
 const REQUIRED_RUNTIME_POLICY_SEEDS = [
   { check_key: "repo_mutation_guard", policy_group: "Repository Mutation Governance", policy_key: "Stale Duplicate Branch Merge Guard", required_blocking: true, required_scope_tokens: ["repo_patch_apply", "gpt_tools_call"], required_affects_layer_tokens: ["gptToolsRoutes", "repo_patch_apply"] },
   { check_key: "app_action_visibility", policy_group: "External App Action Governance", policy_key: "External App Action Preflight Visibility", required_blocking: false, required_scope_tokens: ["app_action", "external_app_action"], required_affects_layer_tokens: ["appAdapters", "appAdapters/index.js"] },
@@ -378,6 +382,7 @@ export function classifyMigrationDriftMissing(missing = {}, replacementSurfaces 
   const classification = {
     schema_objects: classifyNames(missing.schema_objects, () => "migration_apply_candidate"),
     admin_tools: classifyNames(missing.admin_tools, (name) => {
+      if (DEPRECATED_DB_BOOTSTRAP_REPLACED_ADMIN_TOOLS.has(name)) return "deprecated_replaced_by_db_bootstrap";
       if (systemLayerTools.has(name)) return "system_layer_replacement_present";
       if (virtualAdminTools.has(name)) return "virtual_replacement_present";
       const httpPath = adminToolMetadata?.[name]?.http_path;
@@ -657,6 +662,20 @@ function sourceSamplesForMissing(missing = {}, artifactSources = {}, limit = 25)
   );
 }
 
+function visibleMigrationMissingSamples(missing = {}, missingClassification = {}, limit = 25) {
+  const hiddenAdminTools = new Set(
+    missingClassification?.classification?.admin_tools?.deprecated_replaced_by_db_bootstrap || []
+  );
+  return Object.fromEntries(
+    Object.entries(missing).map(([surface, values]) => {
+      const filtered = surface === "admin_tools"
+        ? (values || []).filter((value) => !hiddenAdminTools.has(value))
+        : values;
+      return [surface, compactList(filtered, limit)];
+    })
+  );
+}
+
 export function actionableMigrationDriftCounts(missing = {}, missingClassification = {}) {
   const adminCounts = missingClassification?.counts?.admin_tools || {};
   const counts = {
@@ -835,9 +854,13 @@ async function checkDynamicMigrationDrift() {
     actionable_missing_counts: actionable_missing.counts,
     actionable_missing_total: actionable_missing.total,
     registry_tables_missing: compactList(registry_tables_missing, 50),
-    missing_samples: Object.fromEntries(
-      Object.entries(missing).map(([key, values]) => [key, compactList(values, 25)])
-    ),
+    missing_samples: visibleMigrationMissingSamples(missing, missing_classification, 25),
+    deprecated_replaced_samples: {
+      admin_tools: compactList(
+        missing_classification?.classification?.admin_tools?.deprecated_replaced_by_db_bootstrap || [],
+        25
+      ),
+    },
     missing_source_samples,
     admin_tool_route_evidence,
     missing_classification,

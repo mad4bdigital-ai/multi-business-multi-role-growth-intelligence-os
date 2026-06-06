@@ -105,7 +105,8 @@ const classified = classifyMigrationDriftMissing(
   }
 );
 assert.deepEqual(classified.classification.schema_objects.migration_apply_candidate, ["cms_sites"], "schema gaps should be migration apply candidates");
-assert.deepEqual(classified.classification.admin_tools.system_layer_replacement_present, ["activation_sheets_bootstrap_read"], "system-layer replacements should be separated");
+assert.deepEqual(classified.classification.admin_tools.deprecated_replaced_by_db_bootstrap, ["activation_sheets_bootstrap_read"], "legacy Sheets bootstrap drift should be classified as DB-bootstrap replaced");
+assert.equal(classified.classification.admin_tools.system_layer_replacement_present, undefined, "deprecated DB-bootstrap replacements should not be reported as generic system-layer replacements");
 assert.deepEqual(classified.classification.admin_tools.virtual_replacement_present, ["repo_inspect"], "virtual replacements should be separated");
 assert.deepEqual(classified.classification.admin_tools.live_route_registry_exposure_missing, ["route_present_tool"], "live route tools should be separated from hard missing runtime artifacts");
 assert.deepEqual(classified.classification.admin_tools.documented_route_registry_exposure_missing, ["documented_route_tool"], "documented route tools should be separated from hard missing runtime artifacts");
@@ -125,11 +126,11 @@ const actionableReplacementOnly = actionableMigrationDriftCounts(
   },
   {
     counts: {
-      admin_tools: { system_layer_replacement_present: 1 },
+      admin_tools: { deprecated_replaced_by_db_bootstrap: 1 },
     },
   }
 );
-assert.equal(actionableReplacementOnly.total, 0, "system-layer replacement drift should not be actionable");
+assert.equal(actionableReplacementOnly.total, 0, "DB-bootstrap replaced drift should not be actionable");
 
 const dryRunPlan = buildMigrationDriftApplyPlan(
   {

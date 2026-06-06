@@ -94,11 +94,11 @@ For `system_activation_check` and governed activation readiness validation:
 
 Activation validation must occur in this order:
 1. knowledge-layer canonical traceability
-2. Admin GPT path: `POST /system/tools/call` with `name: "activation_provider_bootstrap_validate"` through `auth.mad4b.com` to run the governed same-cycle Drive probe, Sheets bootstrap row read, and GitHub validation
-3. Targeted Admin GPT recovery: use only `activation_drive_probe`, `activation_sheets_bootstrap_read`, and `activation_github_validate`
+2. Admin GPT path: `POST /system/tools/call` with `name: "activation_provider_bootstrap_validate"` through `auth.mad4b.com` to run the governed same-cycle Drive probe, DB-native bootstrap config read, and GitHub validation
+3. Targeted Admin GPT recovery: use `activation_drive_probe`, `activation_bootstrap_config_read`, and `activation_github_validate`; `activation_sheets_bootstrap_read` is a deprecated compatibility alias that delegates to DB bootstrap and must not call Google Sheets
 4. Direct runtime fallback when the admin system tool is unavailable: Drive validation through `http_generic_api` using `parent_action_key=google_drive_api` and registry-resolved endpoint authority
-5. Direct runtime fallback: Sheets validation through `http_generic_api` using `parent_action_key=google_sheets_api`, `endpoint_key=getSheetValues`, `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>` (use this exact literal string, the backend auto-resolves it), and `query.range=Activation Bootstrap Config!A2:J2`
-6. Direct runtime fallback: GitHub validation only after bootstrap row resolution, using bootstrap/registry-resolved action and endpoint keys
+5. Direct runtime fallback: DB bootstrap config read through registry/bootstrap authority; do not read Google Sheets for activation bootstrap
+6. Direct runtime fallback: GitHub validation only after DB bootstrap row resolution, using bootstrap/registry-resolved action and endpoint keys
 7. readiness classification
 
 Platform-owned activation files use managed service account ADC by default. Refresh-token auth is reserved for user-owned Drive/Sheets files and user-connected input sources.

@@ -79,7 +79,7 @@ Activation Bootstrap Read Path
 
 `GET /activation/bootstrap-config` is the authoritative runtime bootstrap row source. It returns `source: backend_runtime`, `sheets_required: false`, and live platform_state from SQL.
 
-The Sheets bootstrap row read (`activation_sheets_bootstrap_read`) and Drive probe (`activation_drive_probe`) remain governed admin tools, but their role is provider connectivity proof during same-cycle activation validation, not bootstrap authority. They are diagnostic helpers, not registry sources.
+The DB-native bootstrap read (`activation_bootstrap_config_read`) and Drive probe (`activation_drive_probe`) are governed admin tools for same-cycle activation validation. `activation_sheets_bootstrap_read` remains only as a deprecated compatibility alias that delegates to DB runtime bootstrap and must not call Google Sheets. These tools are diagnostic helpers, not registry sources.
 
 Native Google Workspace Action Governance
 
