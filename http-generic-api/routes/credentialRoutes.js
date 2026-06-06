@@ -465,22 +465,15 @@ export function buildCredentialRoutes(deps) {
     try {
       const body = req.body || {};
       const connectionId = str(body.connection_id || body.connectionId);
-      const systemId = str(body.system_id || body.systemId || "98d6a18b-5578-11f1-9baf-8e76a7e1749f");
-      const ownerId = str(body.owner_id || body.ownerId || "growth_intelligence_platform");
-      const providerFamily = str(body.provider_family || body.providerFamily || "hostinger");
-      const connectorFamily = str(body.connector_family || body.connectorFamily || "hostinger_ssh");
-      const targetKey = str(body.target_key || body.targetKey || "hostinger_ssh_prod_platform");
+      const requestedSystemId = str(body.system_id || body.systemId);
+      const requestedOwnerId = str(body.owner_id || body.ownerId);
+      const requestedProviderFamily = str(body.provider_family || body.providerFamily);
+      const requestedConnectorFamily = str(body.connector_family || body.connectorFamily);
+      const requestedTargetKey = str(body.target_key || body.targetKey);
       const approved = body.promotion_approved === true || body.promotionApproved === true;
       const promotionReason = str(body.promotion_reason || body.promotionReason);
       const createdBy = str(body.created_by || body.createdBy || "credential_intake_platform_secret_promotion");
-      const mappings = Array.isArray(body.secret_mappings || body.secretMappings)
-        ? (body.secret_mappings || body.secretMappings)
-        : [
-            { credential_field: "ssh_host", secret_key: "hostinger_ssh_prod_host", secret_type: "ssh_host" },
-            { credential_field: "ssh_port", secret_key: "hostinger_ssh_prod_port", secret_type: "ssh_port" },
-            { credential_field: "ssh_user", secret_key: "hostinger_ssh_prod_user", secret_type: "ssh_user" },
-            { credential_field: "ssh_private_key", secret_key: "hostinger_ssh_prod_private_key", secret_type: "ssh_private_key" },
-          ];
+      const requestedMappings = normalizePromotionMappings(body.secret_mappings || body.secretMappings);
 
       if (!approved || promotionReason.length < 12) {
         return res.status(400).json({ ok: false, error: { code: "promotion_approval_required", message: "promotion_approved=true and a promotion_reason of at least 12 characters are required." }, secrets_included: false });
