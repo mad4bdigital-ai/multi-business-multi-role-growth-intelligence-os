@@ -493,6 +493,16 @@ async function createSshCliApprovalRequest(pool, req, row, plan) {
   const requestId = randomUUID();
   const holdId = randomUUID();
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  const executionContextJson = JSON.stringify({
+    source: "tenant_infrastructure_routes",
+    parent_table: "tenant_ssh_cli_approval_requests",
+    request_id: requestId,
+    hold_id: holdId,
+    connection_id: row.connection_id,
+    command_key: plan.command_key,
+    relationship_status: "resolved_parent_reference",
+    secrets_included: false,
+  });
   await pool.query(
     `INSERT INTO tenant_ssh_cli_approval_requests
        (request_id, hold_id, tenant_id, user_id, connection_id, command_key, command_argv_json, status, expires_at)
@@ -501,9 +511,23 @@ async function createSshCliApprovalRequest(pool, req, row, plan) {
   );
   await pool.query(
     `INSERT INTO approval_holds
-       (hold_id, run_id, tenant_id, hold_type, requested_by, required_role, status, expires_at)
-     VALUES (?, ?, ?, 'supervisor_approval', ?, 'workspace_owner', 'open', ?)`,
-    [holdId, requestId, req.auth.tenant_id, req.auth.user_id, expiresAt]
+       (hold_id, run_id, tenant_id, user_id, actor_id, actor_type,
+        request_id, correlation_id, execution_context_json,
+        hold_type, requested_by, required_role, status, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'supervisor_approval', ?, 'workspace_owner', 'open', ?)`,
+    [
+      holdId,
+      requestId,
+      req.auth.tenant_id,
+      req.auth.user_id,
+      req.auth.user_id,
+      req.auth.user_id ? "user" : "system",
+      requestId,
+      requestId,
+      executionContextJson,
+      req.auth.user_id,
+      expiresAt,
+    ]
   );
   return {
     request_id: requestId,
