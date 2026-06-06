@@ -275,6 +275,17 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
     } catch (err) { return errorResponse(res, err, "remote_runtime_dispatch_dry_run_failed"); }
   });
 
+  router.post("/platform/remote-runtime/hosting/ssh-probe", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await executeHostingerSshTargetProbe({
+        ...input,
+        dry_run: input.dry_run === undefined ? true : input.dry_run,
+      });
+      return res.status(result.ok ? 200 : 502).json(result);
+    } catch (err) { return errorResponse(res, err, "remote_runtime_hosting_ssh_probe_failed"); }
+  });
+
   router.post("/platform/remote-runtime/hosting/deploy-release", ...requireAdmin, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
