@@ -84,6 +84,7 @@ export const testCommands = [
   "node test-workspace-invitation-controls.mjs",
   "node test-workspace-access-request-controls.mjs",
   "node test-admin-workspace-authority-routes.mjs",
+  "node test-workspace-lifecycle-guides.mjs",
   "node test-workspace-authority-reconciliation-views.mjs",
   "node test-tenant-evolution-checkpoint-routes.mjs",
   "node test-tenant-platform-plugin-openapi.mjs",
