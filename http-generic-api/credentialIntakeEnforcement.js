@@ -67,6 +67,7 @@ function inferAuthType(input = {}, effective = {}) {
   if (ALLOWED_AUTH_TYPES.has(requested)) return requested;
   const role = roleText(input, effective);
   const appKey = str(input.app_key || input.appKey || effective.app_key).toLowerCase();
+  if (role === "ssh_password") return "ssh_password";
   if (role.startsWith("ssh_") || appKey.includes("ssh") || appKey === "remote_ssh_runtime") return "ssh_key_pair";
   if (role.startsWith("db_") || role.includes("database")) return "remote_database";
   if (role.includes("bearer")) return "bearer_token";
