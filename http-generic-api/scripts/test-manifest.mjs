@@ -1,5 +1,6 @@
 export const testCommands = [
   "node test-hostinger-startup-imports.mjs",
+  "node test-docs-impact-classifier.mjs",
   "node test-db-collation-guard.mjs",
   "node test-agent-runtime-provider-selection.mjs",
   "node test-agent-model-runtime-settings.mjs",
