@@ -204,7 +204,9 @@ async function loadSshCliApprovalRequest(pool, req, requestId) {
             r.decision_note, r.expires_at, r.decided_at, r.created_at,
             h.status AS hold_status, h.required_role, h.requested_by
        FROM tenant_ssh_cli_approval_requests r
-       LEFT JOIN approval_holds h ON h.hold_id = r.hold_id AND h.tenant_id = r.tenant_id
+       LEFT JOIN approval_holds h
+         ON h.hold_id COLLATE utf8mb4_unicode_ci = r.hold_id
+        AND h.tenant_id COLLATE utf8mb4_unicode_ci = r.tenant_id
       WHERE r.request_id = ? AND r.tenant_id = ?
       LIMIT 1`,
     [requestId, req.auth.tenant_id]
@@ -269,7 +271,7 @@ async function decideSshCliApprovalRequest(pool, req, requestId, body = {}) {
   await pool.query(
     `UPDATE approval_holds
         SET status = ?, decision_by = ?, decision_note = ?, decided_at = CURRENT_TIMESTAMP
-      WHERE hold_id = ? AND tenant_id = ? AND status = 'open'`,
+      WHERE hold_id COLLATE utf8mb4_unicode_ci = ? AND tenant_id COLLATE utf8mb4_unicode_ci = ? AND status = 'open'`,
     [decision, req.auth.user_id, note || null, row.hold_id, req.auth.tenant_id]
   );
   return sanitizeApprovalRequest(await loadSshCliApprovalRequest(pool, req, requestId));
