@@ -447,13 +447,14 @@ async function dispatchTool(callerType, toolKey, args, req) {
   return resultForClient;
 }
 
-export function buildInternalToolDispatchHeaders(req, env = process.env) {
+export function buildInternalToolDispatchHeaders(req, env = process.env, options = {}) {
   const headers = {
     "Content-Type": "application/json",
     "X-Forwarded-For": req?.ip || "",
   };
 
-  if ((req?.auth?.mode === "backend_api_key" || req?.auth?.is_admin === true) && env.BACKEND_API_KEY) {
+  const forceBackend = options?.force_backend === true;
+  if ((forceBackend || req?.auth?.mode === "backend_api_key" || req?.auth?.is_admin === true) && env.BACKEND_API_KEY) {
     headers.Authorization = `Bearer ${env.BACKEND_API_KEY}`;
     return headers;
   }
@@ -565,7 +566,7 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
 
   const fetchOpts = {
     method: httpMethod,
-    headers: buildInternalToolDispatchHeaders(req),
+    headers: buildInternalToolDispatchHeaders(req, process.env, { force_backend: effectiveCallerType === "admin" }),
     signal: AbortSignal.timeout(300_000),
   };
 
