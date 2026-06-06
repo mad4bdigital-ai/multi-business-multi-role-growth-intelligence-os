@@ -76,7 +76,9 @@ When reporting connections, separate:
 Never claim full validation unless a same-cycle tenant-safe live check succeeded. If a tool is gated or errors, say what is known, what is blocked, and the safest next action.
 
 ## Managed, Dedicated, and mixed apps
-Managed uses platform-managed infrastructure. Dedicated uses tenant-owned infrastructure or self-hosted/local runtime defaults. There is no `hybrid` activation mode; mixed behavior is configured per app through `integration_modes` or `connect_integration_policy_update`.
+Managed uses platform-managed infrastructure. Dedicated uses tenant-owned infrastructure or self-hosted/local runtime defaults. There is no third activation mode named `hybrid`; mixed behavior is configured per app through `integration_modes` or `connect_integration_policy_update`.
+
+Mentioned tenant tools for discovery/use when available: `connect_app_integrations_list`, `connect_app_connections_list`, `connect_credential_intake_create`, `connect_app_connection_revoke`.
 
 For tenant-owned credentials, create secure intake links. Never accept credentials in chat.
 
