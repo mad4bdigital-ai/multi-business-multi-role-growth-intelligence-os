@@ -31,6 +31,37 @@ Lists credential/secret/token-related lifecycle entries without exposing secret 
 ### `v_database_lifecycle_backup_snapshot_review`
 Lists backup and repair snapshot tables for retention review.
 
+## Registry coverage upsert
+
+`http-generic-api/scripts/database-table-lifecycle-registry-upsert.mjs` closes
+registry coverage without changing application-table data. Dry-run and apply
+mode select only live base tables missing from
+`database_table_lifecycle_registry` by default. This preserves curated ownership,
+retention, and risk metadata already stored in the registry.
+
+```powershell
+node scripts/database-table-lifecycle-registry-upsert.mjs --dry-run --limit 1000
+node scripts/database-table-lifecycle-registry-upsert.mjs `
+  --apply `
+  --confirm APPLY_DATABASE_TABLE_LIFECYCLE_REGISTRY_UPSERT `
+  --limit 1000
+```
+
+Refreshing existing registry rows is a separate, higher-risk operation. It
+requires both `--include-existing` and the distinct confirmation token
+`APPLY_DATABASE_TABLE_LIFECYCLE_REGISTRY_REFRESH_EXISTING`.
+
+The upsert writes lifecycle metadata only. It does not drop, archive, truncate,
+delete, compact, or mutate application-table rows.
+
+Lifecycle owner engines referenced by the classifier must also be reproducible
+from the migration ledger. Migration
+`201_sprint68_lifecycle_owner_engine_registry_alignment.sql` aligns the
+developer-platform, platform-contract, and workflow-runtime lifecycle owners
+that already exist in the live engine registry. It is allowlisted for the
+governed migration runner so live alignment remains dry-run-first, explicitly
+confirmed, and auditable.
+
 ## Retention plan CLI
 
 `http-generic-api/scripts/database-lifecycle-retention-plan.mjs` reads the
