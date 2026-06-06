@@ -327,7 +327,7 @@ LEFT JOIN workflow_runs wr ON wr.run_id COLLATE utf8mb4_unicode_ci = ah.run_id C
  WHERE ah.user_id IS NULL OR ah.actor_id IS NULL OR ah.actor_type IS NULL OR ah.brand_key IS NULL OR ah.correlation_id IS NULL OR ah.execution_context_json IS NULL;
 
 UPDATE sink_dispatch_log sd
-LEFT JOIN workflow_runs wr ON wr.run_id = sd.run_id
+LEFT JOIN workflow_runs wr ON wr.run_id COLLATE utf8mb4_unicode_ci = sd.run_id COLLATE utf8mb4_unicode_ci
    SET sd.user_id = COALESCE(sd.user_id, wr.user_id),
        sd.workspace_id = COALESCE(sd.workspace_id, wr.workspace_id),
        sd.workspace_key = COALESCE(sd.workspace_key, wr.workspace_key),
