@@ -306,6 +306,8 @@ Operations and validation:
 - [`connector_contracts.md`](</d:/Nagy/Multi-Business-Multi-Role-Growth-Intelligence-OS/connector_contracts.md>)
 - [`docs/external-endpoint-auth-strategy.md`](docs/external-endpoint-auth-strategy.md)
 - [`docs/live-repo-knowledge-loading-governance.md`](docs/live-repo-knowledge-loading-governance.md)
+- [`docs/ai-docs-agent-governance.md`](docs/ai-docs-agent-governance.md)
+- [`docs/auto-docs-agent/README.md`](docs/auto-docs-agent/README.md)
 - [`docs/platform-plugin-smoke-certification-governance.md`](docs/platform-plugin-smoke-certification-governance.md)
 - [`docs/platform-plugin-recertification-policy-governance.md`](docs/platform-plugin-recertification-policy-governance.md)
 - [`docs/platform-plugin-governance-roadmap-2026-05-28.md`](docs/platform-plugin-governance-roadmap-2026-05-28.md)

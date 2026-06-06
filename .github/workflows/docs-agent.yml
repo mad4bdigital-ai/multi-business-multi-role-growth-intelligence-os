@@ -1,0 +1,110 @@
+name: Docs Agent
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled]
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: docs-agent-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  pr-impact-note:
+    name: PR docs impact note
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.actor != 'github-actions[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Generate docs impact note
+        id: agent
+        run: node http-generic-api/scripts/docs-agent-runner.mjs --write --mode pull_request
+
+      - name: Commit docs impact note to PR branch
+        if: steps.agent.outputs.should_write == 'true'
+        run: |
+          set -e
+          if [ -z "$(git status --porcelain -- docs/auto-docs-agent)" ]; then
+            echo "Docs Agent: no generated docs changes to commit."
+            exit 0
+          fi
+          git config user.name "docs-agent[bot]"
+          git config user.email "docs-agent[bot]@users.noreply.github.com"
+          git add docs/auto-docs-agent
+          git commit -m "Docs agent: update PR impact note"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          gh workflow run ci.yml --ref ${{ github.event.pull_request.head.ref }} || true
+
+      - name: Enable auto-merge when explicitly labeled
+        if: contains(github.event.pull_request.labels.*.name, 'docs-agent-automerge')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} --auto --squash || true
+
+  main-followup-pr:
+    name: Main follow-up docs PR
+    if: >-
+      github.event_name == 'push' &&
+      github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Generate docs impact note for merged commit
+        id: agent
+        run: node http-generic-api/scripts/docs-agent-runner.mjs --write --mode push --base '${{ github.event.before }}' --head '${{ github.event.after }}'
+
+      - name: Create docs-only follow-up PR and enable auto-merge
+        if: steps.agent.outputs.should_write == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCS_AGENT_BRANCH: docs-agent/${{ github.event.after }}
+          DOCS_AGENT_SHA: ${{ github.event.after }}
+        run: |
+          set -e
+          if [ -z "$(git status --porcelain -- docs/auto-docs-agent)" ]; then
+            echo "Docs Agent: no generated docs changes to publish."
+            exit 0
+          fi
+          git config user.name "docs-agent[bot]"
+          git config user.email "docs-agent[bot]@users.noreply.github.com"
+          git checkout -b "$DOCS_AGENT_BRANCH"
+          git add docs/auto-docs-agent
+          git commit -m "Docs agent: impact note for ${DOCS_AGENT_SHA:0:12}"
+          git push origin "$DOCS_AGENT_BRANCH"
+          PR_URL=$(gh pr create \
+            --base main \
+            --head "$DOCS_AGENT_BRANCH" \
+            --title "Docs agent: impact note for ${DOCS_AGENT_SHA:0:12}" \
+            --body "Automated docs-only impact note for merged commit ${DOCS_AGENT_SHA}. This PR contains no runtime code, schema, DB, or credential changes.")
+          echo "Created $PR_URL"
+          gh workflow run ci.yml --ref "$DOCS_AGENT_BRANCH" || true
+          gh pr merge "$PR_URL" --auto --squash || true
