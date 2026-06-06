@@ -293,14 +293,23 @@ async function getApprovedApprovalHold({ holdId, tenantId, row }) {
 async function createApprovalHold({ callId, req, row, tenantId }) {
   const holdId = crypto.randomUUID();
   const ttlMinutes = Math.max(15, Math.min(10080, Number(row.approval_ttl_minutes || 1440)));
+  const requestId = req.headers?.["x-request-id"] || callId;
   await getPool().query(
     `INSERT INTO \`approval_holds\`
-       (hold_id, run_id, tenant_id, hold_type, requested_by, required_role, status, expires_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'open', DATE_ADD(NOW(), INTERVAL ? MINUTE), NOW())`,
+       (hold_id, run_id, tenant_id, user_id, actor_id, actor_type,
+        request_id, correlation_id, execution_context_json,
+        hold_type, requested_by, required_role, status, expires_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', DATE_ADD(NOW(), INTERVAL ? MINUTE), NOW())`,
     [
       holdId,
       callId,
       tenantId,
+      req.auth?.user_id || null,
+      req.auth?.user_id || null,
+      req.auth?.user_id ? "user" : "system",
+      requestId,
+      requestId,
+      JSON.stringify({ source: "local_gateway_tools_routes", call_id: callId, approval_hold_id: holdId, secrets_included: false }),
       row.approval_hold_type || "review",
       req.auth?.user_id || null,
       row.approval_required_role || null,
