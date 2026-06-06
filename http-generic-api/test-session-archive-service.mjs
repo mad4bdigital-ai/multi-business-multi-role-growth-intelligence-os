@@ -97,7 +97,9 @@ function flattenParams(value) {
     session: {
       session_id: "sess-1",
       tenant_id: "tenant-1",
+      workspace_key: "workspace-1",
       user_id: "user-1",
+      brand_key: "brand-1",
       started_at: "2026-05-16T10:00:00.000Z",
     },
     role: "assistant",
