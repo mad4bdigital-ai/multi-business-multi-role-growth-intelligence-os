@@ -555,7 +555,7 @@ DB-native bootstrap config read:
 }
 ```
 
-Do not omit `path_params.spreadsheetId` for the activation bootstrap range. You must pass the literal string `"<activation_bootstrap_spreadsheet_id>"` so the backend can automatically resolve it to the configured environment variable. Do NOT search Drive for the ID.
+Do not pass a Google Sheets spreadsheet ID for activation bootstrap. The authoritative bootstrap row is DB-native and should be read through `/activation/bootstrap-config` or `activation_bootstrap_config_read`.
 
 ### Activation classification guide
 
