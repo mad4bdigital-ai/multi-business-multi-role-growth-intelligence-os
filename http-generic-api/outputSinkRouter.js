@@ -226,9 +226,9 @@ export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, work
 
   if (execution_class === "authority") {
     try {
-      await writeAuditLog({ actor_id: agent_id || "system", actor_type: "agent", action: "agent.authority_output", resource_type: "workflow_run", resource_id: run_id, tenant_id, outcome: "success", metadata: { artifact_type, primary_output, requires_supervisor_review: true, agent_id } });
+      await writeAuditLog({ actor_id: agent_id || "system", actor_type: "agent", action: "agent.authority_output", resource_type: "workflow_run", resource_id: run_id, tenant_id, brand_key: brand_key || null, correlation_id: run_id, outcome: "success", metadata: { artifact_type, primary_output, requires_supervisor_review: true, agent_id, secrets_included: false } });
       dispatched.push({ sink: "audit_log" });
-    } catch (err) { await logSink(run_id, agent_id, tenant_id, "audit_log", null, "failed", err.message); }
+    } catch (err) { await logSink(run_id, agent_id, tenant_id, "audit_log", null, "failed", err.message, sinkContext); }
   }
 
   if (linked_workflows) {
