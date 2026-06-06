@@ -413,12 +413,13 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     err.details = { app_path: appPath, path_allowlist: target.path_allowlist };
     throw err;
   }
+  const sshAuthMode = preferredSshAuthMode(input, target);
 
   const plan = await planRemoteRuntimeDispatchDryRun({
     pool,
     targetId,
     commandKey: "ssh_probe",
-    inputs: { app_key: appKey, app_path: appPath, expected_commit_sha: expectedCommitSha || null, activate_on_success: activateOnSuccess },
+    inputs: { app_key: appKey, app_path: appPath, expected_commit_sha: expectedCommitSha || null, activate_on_success: activateOnSuccess, ssh_auth_mode: sshAuthMode },
     approvalReason,
   });
 
