@@ -126,11 +126,11 @@ const actionableReplacementOnly = actionableMigrationDriftCounts(
   },
   {
     counts: {
-      admin_tools: { system_layer_replacement_present: 1 },
+      admin_tools: { deprecated_replaced_by_db_bootstrap: 1 },
     },
   }
 );
-assert.equal(actionableReplacementOnly.total, 0, "system-layer replacement drift should not be actionable");
+assert.equal(actionableReplacementOnly.total, 0, "DB-bootstrap replaced drift should not be actionable");
 
 const dryRunPlan = buildMigrationDriftApplyPlan(
   {
