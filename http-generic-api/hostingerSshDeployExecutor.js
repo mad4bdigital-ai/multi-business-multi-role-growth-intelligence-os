@@ -609,7 +609,7 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     throw err;
   }
 
-  const [host, port, user, privateKey] = await Promise.all(SSH_ROLES.map((role) => resolveSshCredential(pool, target, role)));
+  const [host, port, user, privateKey] = await Promise.all(SSH_ROLES.map((role) => resolveSshCredential(pool, target, role, input)));
   const remoteScript = buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClean, restart });
   const sshResult = await runSshDeploy({ host, port, user, privateKey, remoteScript, timeoutMs });
   const status = sshResult.ok ? "success" : "failed";
