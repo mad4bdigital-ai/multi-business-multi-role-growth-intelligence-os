@@ -169,6 +169,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       ? []
       : requestedJobType === CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE
       ? []
+      : requestedJobType === TENANT_SSH_CLI_EXECUTE_JOB_TYPE
+      ? []
       : validateAsyncJobRequest(requestPayload);
 
   if (body.max_attempts !== undefined) {
