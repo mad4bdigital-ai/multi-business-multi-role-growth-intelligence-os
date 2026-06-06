@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const routes = readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");
 const migration = readFileSync("migrations/200_sprint66_tenant_ssh_cli_approval_request_tool.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
+const openapi = readFileSync("openapi.yaml", "utf8");
 
 assert(routes.includes('randomUUID'), "approval requests must use generated UUID identifiers");
 assert(routes.includes('/me/infrastructure/ssh/connections/:connection_id/cli/approval-request'), "explicit SSH CLI approval request route must exist");
