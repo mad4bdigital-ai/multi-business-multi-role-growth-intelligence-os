@@ -183,14 +183,35 @@ async function finaliseWorkflowRun(run_id, final_status, output, error_msg) {
   );
 }
 
-async function createStepRun(run_id, tenant_id, step_key, status, input, output, error_msg) {
+async function createStepRun(run_id, trace_id, plan, step_key, status, input, output, error_msg) {
   try {
+    const stepRunId = randomUUID();
+    const actorId = plan.user_id || null;
     await getPool().query(
       `INSERT INTO \`step_runs\`
-         (step_run_id, run_id, tenant_id, step_key, step_type, status, input_json, output_json, error_message, started_at, completed_at)
-       VALUES (?, ?, ?, ?, 'action', ?, ?, ?, ?, NOW(), NOW())`,
+         (step_run_id, run_id, tenant_id, workspace_id, workspace_key, user_id,
+          actor_id, actor_type, brand_id, brand_key, request_id, session_id,
+          conversation_id, correlation_id, execution_context_json,
+          step_key, step_type, status, input_json, output_json, error_message, started_at, completed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'action', ?, ?, ?, ?, NOW(), NOW())`,
       [
-        randomUUID(), run_id, tenant_id || null, step_key, status,
+        stepRunId,
+        run_id,
+        plan.tenant_id || null,
+        plan.workspace_id || null,
+        plan.workspace_key || null,
+        plan.user_id || null,
+        actorId,
+        actorId ? "user" : "system",
+        plan.brand_id || null,
+        plan.brand_key || plan.target_key || null,
+        plan.request_id || null,
+        plan.session_id || null,
+        plan.conversation_id || null,
+        trace_id || run_id,
+        JSON.stringify({ source: "connector_executor", run_id, step_run_id: stepRunId, step_key, secrets_included: false }),
+        step_key,
+        status,
         input ? JSON.stringify(input) : null,
         output ? JSON.stringify(output) : null,
         error_msg || null,
