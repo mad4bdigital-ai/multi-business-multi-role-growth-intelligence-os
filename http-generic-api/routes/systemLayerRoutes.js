@@ -1,7 +1,7 @@
 ﻿import { Router } from "express";
 import {
   ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
-  ACTIVATION_BOOTSTRAP_SPREADSHEET_ID,
+  ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
   OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID,
 } from "../config.js";
 import { getPool } from "../db.js";
@@ -731,7 +731,7 @@ function withProbeTimeout(promise, label) {
 
 async function activationDriveProbe() {
   try {
-    const { drive } = await getGoogleClientsForSpreadsheet(ACTIVATION_BOOTSTRAP_SPREADSHEET_ID);
+    const { drive } = await getGoogleClientsForSpreadsheet(ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID);
     const response = await withProbeTimeout(
       drive.files.list({
         pageSize: 1,

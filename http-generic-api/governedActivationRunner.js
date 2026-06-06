@@ -2,7 +2,7 @@ import { buildActivationEnvelope } from "./activationResponse.js";
 import {
   ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
   ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
-  ACTIVATION_BOOTSTRAP_SPREADSHEET_ID,
+  ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
   ALLOW_ACTIVATION_BOOTSTRAP_DISCOVERY_FALLBACK
 } from "./config.js";
 
@@ -65,7 +65,7 @@ function hasBootstrapSheet(spreadsheet, expectedSheetTitle = ACTIVATION_BOOTSTRA
 export async function resolveActivationBootstrapWorkbook({
   getSpreadsheet,
   listDriveFiles,
-  expectedSpreadsheetId = ACTIVATION_BOOTSTRAP_SPREADSHEET_ID,
+  expectedSpreadsheetId = ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
   expectedSheetTitle = ACTIVATION_BOOTSTRAP_CONFIG_SHEET,
   allowFallbackDiscovery = ALLOW_ACTIVATION_BOOTSTRAP_DISCOVERY_FALLBACK
 } = {}) {
@@ -134,20 +134,21 @@ export async function resolveActivationBootstrapWorkbook({
 }
 
 /**
- * Runs the governed three-step provider chain:
- *   1. Google Drive  (parent_action_key: google_drive_api, endpoint_key: listDriveFiles)
- *   2. Google Sheets (parent_action_key: google_sheets_api, endpoint_key: getSpreadsheet|getSheetValues)
- *   3. Resolve direct bootstrap workbook ID, then read Activation Bootstrap Config!A2:J2
- *      → resolve GitHub bindings
- *   4. GitHub        (parent_action_key/endpoint_key resolved from bootstrap row only)
+ * Runs the governed provider/bootstrap activation chain:
+ *   1. Google Drive provider probe (connectivity/auth evidence only)
+ *   2. DB-native activation bootstrap row read; Google Sheets may be skipped as not required
+ *   3. GitHub validation with bindings resolved from the DB bootstrap row
+ *
+ * Legacy workbook arguments remain for compatibility with old tests/fallbacks, but
+ * activation bootstrap authority is the backend runtime DB config.
  *
  * Each step records boolean evidence before classifying.
  * Returns { evidence, runtime_classification, recovery, operator_view }.
  *
  * deps must supply:
  *   attemptDrive()       → { ok, auth_failed? }
- *   attemptSheets()      → { ok, rate_limited?, auth_failed? }
- *   getSpreadsheet({ spreadsheetId }) → { ok, data? } with sheets[].properties.title
+ *   attemptSheets()      → { ok, skipped?, not_required?, rate_limited?, auth_failed? }
+ *   getSpreadsheet({ spreadsheetId }) → legacy compatibility shim or provider probe metadata
  *   readBootstrapRow({ spreadsheetId, range }) → { ok, row? } row has github_* fields
  *   attemptGitHub(bindings) → { ok, auth_failed? }
  */
@@ -159,7 +160,7 @@ export async function runGovernedActivation(deps = {}) {
     attemptGitHub,
     getSpreadsheet,
     listDriveFiles,
-    expectedBootstrapSpreadsheetId = ACTIVATION_BOOTSTRAP_SPREADSHEET_ID,
+    expectedBootstrapSpreadsheetId = ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
     bootstrapRange = ACTIVATION_BOOTSTRAP_CONFIG_RANGE,
     allowBootstrapDiscoveryFallback = ALLOW_ACTIVATION_BOOTSTRAP_DISCOVERY_FALLBACK
   } = deps;
