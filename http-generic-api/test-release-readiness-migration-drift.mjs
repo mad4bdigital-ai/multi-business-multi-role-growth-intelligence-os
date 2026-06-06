@@ -193,6 +193,13 @@ assert.equal(passPreflight.status, "pass", "idempotent create table and insert i
 assert.equal(passPreflight.counts.create_table_idempotent, 1, "must count idempotent CREATE TABLE");
 assert.equal(passPreflight.counts.insert_idempotent, 1, "must count idempotent INSERT");
 
+const guardedInsertSelectPreflight = assessMigrationSqlPreflight(
+  "guarded-insert-select.sql",
+  "INSERT INTO policy_logic_bindings (source_policy_id) SELECT ep.id FROM execution_policies ep WHERE ep.active = 'TRUE' AND NOT EXISTS (SELECT 1 FROM policy_logic_bindings b WHERE b.source_policy_id = ep.id);"
+);
+assert.equal(guardedInsertSelectPreflight.status, "pass", "INSERT SELECT guarded by NOT EXISTS should pass as idempotent");
+assert.equal(guardedInsertSelectPreflight.counts.insert_idempotent, 1, "must count NOT EXISTS-guarded INSERT SELECT as idempotent");
+
 const idempotentAlterPreflight = assessMigrationSqlPreflight(
   "idempotent-alter.sql",
   "ALTER TABLE admin_platform_endpoint_tools ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at;"

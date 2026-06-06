@@ -498,7 +498,14 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
     }
     if (/^INSERT\s+(?:IGNORE\s+)?INTO\b/i.test(normalized)) {
       counts.insert += 1;
-      if (/^INSERT\s+IGNORE\s+INTO\b/i.test(normalized) || /\bON\s+DUPLICATE\s+KEY\s+UPDATE\b/i.test(normalized)) {
+      if (
+        /^INSERT\s+IGNORE\s+INTO\b/i.test(normalized)
+        || /\bON\s+DUPLICATE\s+KEY\s+UPDATE\b/i.test(normalized)
+        || (
+          /\bINSERT\s+INTO\b[\s\S]*\bSELECT\b/i.test(normalized)
+          && /\b(?:WHERE|AND)\s+NOT\s+EXISTS\s*\(/i.test(normalized)
+        )
+      ) {
         counts.insert_idempotent += 1;
       } else {
         risks.push({ severity: "warn", code: "insert_without_ignore_or_on_duplicate", statement: normalized.slice(0, 140) });
