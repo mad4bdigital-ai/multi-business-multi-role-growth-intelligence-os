@@ -28,6 +28,7 @@
     "POST /browser-runtime/stealth-extract/run",
     "POST /connector/{device_id}/auto-browser",
     "POST /platform/remote-runtime/hosting/deploy-release",
+    "POST /platform/remote-runtime/hosting/ssh-probe",
     "GET /connector-agent/policy"
   ],
   "prefixes": [
