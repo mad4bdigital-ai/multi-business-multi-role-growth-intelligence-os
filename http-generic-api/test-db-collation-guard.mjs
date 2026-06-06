@@ -34,6 +34,10 @@ const pluginCollationHardeningMigration = readFileSync(
   join(__dirname, "migrations/143_sprint65_platform_plugin_collation_hardening.sql"),
   "utf8"
 );
+const userAppConnectionRuntimeRepairMigration = readFileSync(
+  join(__dirname, "migrations/208_sprint67_user_app_connection_runtime_collation_repair.sql"),
+  "utf8"
+);
 const pluginCollationHardeningWithoutComments = pluginCollationHardeningMigration
   .split("\n")
   .filter((line) => !line.trim().startsWith("--"))
