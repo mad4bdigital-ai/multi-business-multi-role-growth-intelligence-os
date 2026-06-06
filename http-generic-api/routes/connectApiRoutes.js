@@ -309,6 +309,9 @@ export function buildConnectApiRoutes(deps = {}) {
         app_key,
         auth_type,
         secret_exposed: false,
+        intake_url_user_visible: true,
+        intake_url_redaction_policy: "show_to_requesting_user_temporary_secret_entry_link",
+        secret_fields_redaction_policy: "redact_submitted_credential_values_only",
         next_action: "open_intake_url_and_submit_credentials",
       });
     } catch (err) {
