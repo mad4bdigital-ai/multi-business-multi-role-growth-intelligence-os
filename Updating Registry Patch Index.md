@@ -1282,3 +1282,77 @@ Cloudflare/DNS export requires authenticated Cloudflare surface
 Full isolated DB import and isolated n8n boot test are recommended for full DR certification
 Automation intentionally disabled until off-device/key escrow are finalized
 ```
+
+---
+
+## Patch 26 — Tenant WordPress Validation Collation Repair and Documentation Alignment
+
+- Status: applied, codified, documented
+- Date: 2026-06-06
+- Production DB repair: applied narrowly to `user_app_connections.connection_id` and `user_app_connections.app_key`
+- Runtime code PRs: #684, #690
+- Schema codification PR: #699
+- Documentation PR: #702
+- Incident runbook: `docs/tenant-wordpress-validation-collation-repair-2026-06-06.md`
+
+### Scope
+
+A tenant WordPress CMS connection was `status: active` but remained `validation_status: pending_validation` because the credential-intake status route was blocked by a platform mixed-collation join error. This was a platform validation-path issue, not proof of bad tenant WordPress credentials.
+
+### Confirmed failing joins before repair
+
+```text
+user_app_connections.connection_id -> credential_intake_sessions.connection_id
+workspace_app_links.connection_id -> user_app_connections.connection_id
+app_integrations.app_key -> user_app_connections.app_key
+platform_plugin_smoke_certifications.connection_id -> user_app_connections.connection_id
+```
+
+The failure class was `ER_CANT_AGGREGATE_2COLLATIONS`.
+
+### Production repair
+
+```sql
+ALTER TABLE user_app_connections
+  DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  MODIFY connection_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  MODIFY app_key VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL;
+```
+
+No encrypted credential payload, token, JSON, secret, or user-entered credential field was modified.
+
+### Codified files
+
+```text
+http-generic-api/migrations/208_sprint67_user_app_connection_runtime_collation_repair.sql
+http-generic-api/test-runtime-collation-safe-joins.mjs
+http-generic-api/test-db-collation-guard.mjs
+http-generic-api/routes/tenantLifecycleRoutes.js
+http-generic-api/appConnectionResolver.js
+http-generic-api/platformPluginSmokeRecertification.js
+```
+
+### Documentation updates
+
+```text
+docs/tenant-wordpress-validation-collation-repair-2026-06-06.md
+docs/tenant-gpt-operating-guide.md
+GPT_Tenant_Connector_Knowledge.md
+deployment_parity_checklist.md
+docs/hostinger-node-deploy.md
+```
+
+### Verification
+
+```text
+previously failing raw joins now execute
+credential-intake status reads back the WordPress connection row
+release_readiness passed 66/66 after repair
+PR #699 CI green and merged
+PR #702 CI green and merged
+```
+
+### Remaining operational note
+
+Hostinger/LiteSpeed may continue serving an older `SERVICE_VERSION` until process reload. The DB hotfix cleared the live validation blocker immediately; merged code fixes become active after the next production process restart/redeploy.
+
