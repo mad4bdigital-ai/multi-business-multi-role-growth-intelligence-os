@@ -498,6 +498,8 @@ export function assessMigrationSqlPreflight(filename = "", sqlText = "") {
     create_index_idempotent: 0,
     insert: 0,
     insert_idempotent: 0,
+    update: 0,
+    update_guarded: 0,
     alter_table: 0,
     alter_table_idempotent: 0,
     destructive: 0,
