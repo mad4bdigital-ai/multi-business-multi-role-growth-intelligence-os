@@ -38,9 +38,12 @@ function requiredCredential(credentials, key) {
 function normalizePrivateKey(value = "") {
   const text = String(value || "").trim();
   if (!text) return "";
-  const withNewlines = text.includes("\\n") && !text.includes("\n")
-    ? text.replace(/\\n/g, "\n")
-    : text;
+  const withNewlines = text
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
   return withNewlines.endsWith("\n") ? withNewlines : `${withNewlines}\n`;
 }
 
