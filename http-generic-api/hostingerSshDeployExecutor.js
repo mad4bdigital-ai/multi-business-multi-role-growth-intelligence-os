@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { getPool } from "./db.js";
 import { resolveEffectiveCredential } from "./credentialResolver.js";
+import { maybeCreateCredentialIntakeRequirement } from "./credentialIntakeEnforcement.js";
 import { planRemoteRuntimeDispatchDryRun } from "./remoteRuntime.js";
 import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 
