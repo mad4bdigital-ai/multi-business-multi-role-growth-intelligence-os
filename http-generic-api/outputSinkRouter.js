@@ -220,8 +220,8 @@ export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, work
     try {
       const view_id = await sinkReportingView({ run_id, agent_id, tenant_id, workflow_key, output, primary_output });
       dispatched.push({ sink: "reporting_view", id: view_id });
-      await logSink(run_id, agent_id, tenant_id, "reporting_view", view_id, "ok");
-    } catch (err) { await logSink(run_id, agent_id, tenant_id, "reporting_view", null, "failed", err.message); }
+      await logSink(run_id, agent_id, tenant_id, "reporting_view", view_id, "ok", null, sinkContext);
+    } catch (err) { await logSink(run_id, agent_id, tenant_id, "reporting_view", null, "failed", err.message, sinkContext); }
   }
 
   if (execution_class === "authority") {
