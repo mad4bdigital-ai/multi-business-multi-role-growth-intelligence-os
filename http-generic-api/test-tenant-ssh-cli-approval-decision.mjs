@@ -8,6 +8,8 @@ const openapi = readFileSync("openapi.yaml", "utf8");
 
 assert(routes.includes('/me/infrastructure/ssh/cli/approval-requests/:request_id'), "approval status route must exist");
 assert(routes.includes('/me/infrastructure/ssh/cli/approval-requests/:request_id/decision'), "approval decision route must exist");
+assert(routes.includes('tenant_ssh_cli_approval_status_failed'), "approval status route must expose a stable error code");
+assert(routes.includes('tenant_ssh_cli_approval_decision_failed'), "approval decision route must expose a stable error code");
 assert(routes.includes('loadSshCliApprovalRequest'), "approval routes must load tenant-scoped approval requests");
 assert(routes.includes('WHERE r.request_id = ? AND r.tenant_id = ?'), "approval readback must scope by tenant_id");
 assert(routes.includes('assertWorkspaceApprovalRole'), "approval decisions must enforce workspace approval role");
