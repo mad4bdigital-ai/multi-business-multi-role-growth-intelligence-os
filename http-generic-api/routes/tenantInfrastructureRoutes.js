@@ -940,7 +940,41 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
         return res.status(409).json({ ok: false, error: { code: "ssh_connection_not_ready", message: "SSH connection is not ready for CLI execution.", details: readiness.blocked_reasons }, readiness, secrets_included: false });
       }
       const approvalRow = await loadSshCliApprovalRequest(pool, req, approvalRequestId);
-      const execution = await executeApprovedSshCli(pool, row, approvalRow, commandKey || approvalRow.command_key, req.body || {});
+      const effectiveCommandKey = commandKey || approvalRow.command_key;
+      assertApprovedSshCliExecution(row, approvalRow, effectiveCommandKey);
+      const runtimeConfig = await loadSshCliExecuteRuntimeConfig(pool);
+      const runtimeDriver = String(runtimeConfig?.driver || "").toLowerCase();
+      if (runtimeConfig?.enabled === true && runtimeDriver === "dedicated_worker_or_connector_runtime") {
+        if (!executionFacade || typeof executionFacade.submitJob !== "function") {
+          return res.status(503).json({ ok: false, error: { code: "tenant_ssh_execute_job_submission_unavailable", message: "Execution job submission is unavailable." }, secrets_included: false });
+        }
+        const { status, body } = await executionFacade.submitJob({
+          job_type: "tenant_ssh_cli_allowlisted_execute",
+          request_payload: {
+            connection_id: connectionId,
+            approval_request_id: approvalRequestId,
+            command_key: effectiveCommandKey,
+            tenant_id: req.auth.tenant_id,
+            user_id: req.auth.user_id,
+            timeout_ms: req.body?.timeout_ms,
+            secrets_included: false,
+          },
+          max_attempts: 1,
+          idempotency_key: `tenant_ssh_cli_execute:${approvalRequestId}:${effectiveCommandKey}`,
+        }, req.auth.user_id, `tenant_ssh_cli_execute:${approvalRequestId}:${effectiveCommandKey}`);
+        return res.status(status).json({
+          ...body,
+          ok: status >= 200 && status < 300,
+          kind: "ssh",
+          source: "tenant_ssh_cli_allowlisted_execute",
+          queued_for_dedicated_worker: true,
+          connection: safeConnection(row),
+          approval_request: sanitizeApprovalRequest(approvalRow),
+          result_url: body?.job_id ? `/me/infrastructure/ssh/connections/${connectionId}/cli/execute-jobs/${body.job_id}/result` : undefined,
+          secrets_included: false,
+        });
+      }
+      const execution = await executeApprovedSshCli(pool, row, approvalRow, effectiveCommandKey, req.body || {});
       return res.status(execution.ok ? 200 : 502).json({
         ok: execution.ok,
         kind: "ssh",
