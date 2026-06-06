@@ -71,7 +71,7 @@ export function classifyActivationFromEvidence(evidence = {}) {
     };
   }
 
-  if (evidence.drive_ok || evidence.sheets_ok || evidence.github_ok || evidence.bootstrap_row_read) {
+  if (evidence.drive_ok || evidence.sheets_ok || evidence.sheets_skipped || evidence.github_ok || evidence.bootstrap_row_read) {
     return {
       activation_status: "validating",
       status_authority: "runtime_canonical",
