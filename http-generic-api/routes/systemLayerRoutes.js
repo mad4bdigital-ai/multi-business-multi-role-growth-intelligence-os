@@ -112,7 +112,7 @@ const SYSTEM_LAYER_TOOLS = [
   },
   {
     name: "activation_provider_bootstrap_validate",
-    description: "Admin-only same-cycle Drive, Sheets mirror, and GitHub provider-connectivity validation chain. Proves all three providers are reachable; does NOT replace /activation/bootstrap-config (SQL runtime authority). Use for hard activation evidence.",
+    description: "Admin-only same-cycle Drive, DB bootstrap config, and GitHub validation chain. Google Sheets is deprecated and not called; SQL/backend runtime is the bootstrap authority.",
     requires_admin: true,
     inputSchema: { type: "object", properties: {}, required: [] },
   },
