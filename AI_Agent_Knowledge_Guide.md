@@ -504,15 +504,15 @@ Use it for:
 ## 4. Activation model
 Activation is not considered complete unless the required governed execution and validation conditions are met.
 
-Agents should assume activation requires the concrete provider bootstrap chain through `http_generic_api`:
+Agents should assume activation requires the concrete governed bootstrap chain through `http_generic_api` / auth-host system tools:
 
 1. Load the knowledge-layer canonicals.
 2. Run the Session Context probe through `http_generic_api` with `GET /activation/session-context` to recover same-user previous session history, scoped user request transcripts, related platform scopes, and embedded platform access evidence. Use `limit` and `offset` to page through older session history when continuity requires more than the first page. Use `include_raw=true` only when raw prompt/response dumps are needed; raw fields are bounded by `raw_max_chars`. Admin/service sessions may also receive execution-log prompt/response summaries and bounded raw dumps; user JWT sessions must not receive unscoped execution-log transcripts.
 3. Run `GET /activation/platform-access` when the embedded summary is missing or a fresh access/count refresh is needed. Report `access_scope`, all-brand/admin access evidence, brands, plugins, logics, engines, and runtime-callable actions counts.
-4. Run the Drive probe through `http_generic_api` with `parent_action_key=google_drive_api` and `endpoint_key=listDriveFiles`.
-5. Run the Sheets bootstrap probe through `http_generic_api` with `parent_action_key=google_sheets_api`, `endpoint_key=getSheetValues`, `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>` (use this exact literal string, the backend auto-resolves it), and `query.range=Activation Bootstrap Config!A2:J2`.
-6. Resolve the bootstrap row before attempting GitHub validation.
-7. Run GitHub validation only with `parent_action_key` and `endpoint_key` resolved from bootstrap or registry authority.
+4. Run the Drive probe through the governed system-layer/provider path.
+5. Read the DB-native activation bootstrap config via `activation_bootstrap_config_read` or `/activation/bootstrap-config`; Google Sheets must not be used as activation bootstrap authority.
+6. Resolve the DB bootstrap row before attempting GitHub validation.
+7. Run GitHub validation only with `parent_action_key` and `endpoint_key` resolved from DB bootstrap or registry authority.
 8. Classify readiness from execution evidence, not from narrative or health checks alone.
 
 Health, `/status`, release readiness, tenant listing, brand counts, and action counts are diagnostics only. They prove reachability or registry health, but they do not replace Drive, Sheets bootstrap, or GitHub validation.
