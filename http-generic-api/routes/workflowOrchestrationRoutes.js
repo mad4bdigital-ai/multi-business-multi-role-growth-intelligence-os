@@ -13,6 +13,10 @@ export function buildWorkflowOrchestrationRoutes(deps) {
     try {
       const {
         tenant_id, user_id, workflow_key, plan_id,
+        workspace_id = null, workspace_key = null,
+        brand_id = null, brand_key = null,
+        request_id = null, session_id = null, conversation_id = null,
+        correlation_id = null,
         service_mode = "self_serve", risk_level = "low", input_json,
       } = req.body || {};
 
