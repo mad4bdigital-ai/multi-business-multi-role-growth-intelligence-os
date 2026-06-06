@@ -293,14 +293,23 @@ async function getApprovedApprovalHold({ holdId, tenantId, row }) {
 async function createApprovalHold({ callId, req, row, tenantId }) {
   const holdId = crypto.randomUUID();
   const ttlMinutes = Math.max(15, Math.min(10080, Number(row.approval_ttl_minutes || 1440)));
+  const requestId = req.headers?.["x-request-id"] || callId;
   await getPool().query(
     `INSERT INTO \`approval_holds\`
-       (hold_id, run_id, tenant_id, hold_type, requested_by, required_role, status, expires_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'open', DATE_ADD(NOW(), INTERVAL ? MINUTE), NOW())`,
+       (hold_id, run_id, tenant_id, user_id, actor_id, actor_type,
+        request_id, correlation_id, execution_context_json,
+        hold_type, requested_by, required_role, status, expires_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', DATE_ADD(NOW(), INTERVAL ? MINUTE), NOW())`,
     [
       holdId,
       callId,
       tenantId,
+      req.auth?.user_id || null,
+      req.auth?.user_id || null,
+      req.auth?.user_id ? "user" : "system",
+      requestId,
+      requestId,
+      JSON.stringify({ source: "local_gateway_tools_routes", call_id: callId, approval_hold_id: holdId, secrets_included: false }),
       row.approval_hold_type || "review",
       req.auth?.user_id || null,
       row.approval_required_role || null,
@@ -312,21 +321,41 @@ async function createApprovalHold({ callId, req, row, tenantId }) {
 
 async function insertCallLog({ tool, req, args, deviceConfig, callId, publicHost, serviceMode = null, entitlementKey = null, consentStatus = "not_required", approvalHoldId = null }) {
   const redactedArgs = redactArgs(args || {});
+  const userId = deviceConfig?.user_id || req.auth?.user_id || args.user_id || null;
+  const tenantId = deviceConfig?.tenant_id || req.auth?.tenant_id || args.tenant_id || null;
+  const requestId = req.headers?.["x-request-id"] || args.request_id || callId;
   await getPool().query(
     `INSERT INTO \`local_gateway_tool_call_log\`
        (call_id, tool_key, dispatch_tool_key, public_host, public_path,
-        user_id, tenant_id, device_id, config_id, approval_hold_id, auth_mode, caller_type,
+        user_id, tenant_id, workspace_id, workspace_key, actor_id, actor_type,
+        brand_id, brand_key, request_id, session_id, conversation_id, correlation_id,
+        app_key, action_key, resource_type, resource_id,
+        device_id, config_id, approval_hold_id, auth_mode, caller_type,
         service_mode, entitlement_key, request_args_hash, request_args_json,
-        redaction_status, consent_status, status, trace_id, started_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'redacted', ?, 'started', ?, NOW())`,
+        redaction_status, consent_status, status, trace_id, execution_context_json, started_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'redacted', ?, 'started', ?, ?, NOW())`,
     [
       callId,
       tool.tool_key,
       tool.dispatch_tool_key,
       publicHost,
       tool.public_path,
-      deviceConfig?.user_id || req.auth?.user_id || args.user_id || null,
-      deviceConfig?.tenant_id || req.auth?.tenant_id || args.tenant_id || null,
+      userId,
+      tenantId,
+      args.workspace_id || null,
+      args.workspace_key || null,
+      userId,
+      userId ? "user" : "system",
+      args.brand_id || null,
+      args.brand_key || null,
+      requestId,
+      args.session_id || null,
+      args.conversation_id || null,
+      requestId,
+      "local_gateway",
+      tool.dispatch_tool_key || tool.tool_key,
+      "local_gateway_tool_call",
+      callId,
       args.device_id || null,
       deviceConfig?.config_id || null,
       approvalHoldId,
@@ -337,7 +366,8 @@ async function insertCallLog({ tool, req, args, deviceConfig, callId, publicHost
       hashArgs(redactedArgs),
       JSON.stringify(redactedArgs),
       consentStatus,
-      req.headers?.["x-request-id"] || null,
+      req.headers?.["x-request-id"] || requestId,
+      JSON.stringify({ source: "local_gateway_tools_routes", call_id: callId, tool_key: tool.tool_key, secrets_included: false }),
     ]
   );
 }

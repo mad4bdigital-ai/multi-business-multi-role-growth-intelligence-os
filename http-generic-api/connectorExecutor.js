@@ -118,7 +118,7 @@ function buildWpContext(brand) {
 
 // ── DB write helpers (all non-throwing) ──────────────────────────────────────
 
-async function createWorkflowRun(run_id, plan, service_mode) {
+async function createWorkflowRun(run_id, trace_id, plan, service_mode) {
   // Resolve agent_id from execution plan if not already on plan object
   let agent_id = plan.agent_id || null;
   if (!agent_id && plan.plan_id) {
@@ -128,19 +128,41 @@ async function createWorkflowRun(run_id, plan, service_mode) {
     agent_id = planRow[0]?.agent_id || null;
   }
 
+  const actorId = plan.user_id || null;
+  const inputContext = {
+    brand_key: plan.brand_key || null,
+    target_key: plan.target_key || null,
+    intent_key: plan.intent_key || null,
+    trace_id,
+    run_id,
+    secrets_included: false,
+  };
   await getPool().query(
     `INSERT INTO \`workflow_runs\`
-       (run_id, tenant_id, user_id, workflow_key, agent_id, plan_id, service_mode, status, input_json, started_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'running', ?, NOW())`,
+       (run_id, tenant_id, workspace_id, workspace_key, user_id, actor_id, actor_type,
+        brand_id, brand_key, request_id, session_id, conversation_id, correlation_id,
+        execution_context_json, workflow_key, agent_id, plan_id, service_mode, status, input_json, started_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'running', ?, NOW())`,
     [
       run_id,
       plan.tenant_id || null,
+      plan.workspace_id || null,
+      plan.workspace_key || null,
       plan.user_id || null,
+      actorId,
+      actorId ? "user" : "system",
+      plan.brand_id || null,
+      plan.brand_key || plan.target_key || null,
+      plan.request_id || null,
+      plan.session_id || null,
+      plan.conversation_id || null,
+      trace_id || run_id,
+      JSON.stringify({ source: "connector_executor", ...inputContext }),
       plan.workflow_key || "connector_dispatch",
       agent_id,
       plan.plan_id,
       service_mode || "self_serve",
-      JSON.stringify({ brand_key: plan.brand_key, target_key: plan.target_key, intent_key: plan.intent_key }),
+      JSON.stringify(inputContext),
     ]
   );
 }
@@ -161,14 +183,35 @@ async function finaliseWorkflowRun(run_id, final_status, output, error_msg) {
   );
 }
 
-async function createStepRun(run_id, tenant_id, step_key, status, input, output, error_msg) {
+async function createStepRun(run_id, trace_id, plan, step_key, status, input, output, error_msg) {
   try {
+    const stepRunId = randomUUID();
+    const actorId = plan.user_id || null;
     await getPool().query(
       `INSERT INTO \`step_runs\`
-         (step_run_id, run_id, tenant_id, step_key, step_type, status, input_json, output_json, error_message, started_at, completed_at)
-       VALUES (?, ?, ?, ?, 'action', ?, ?, ?, ?, NOW(), NOW())`,
+         (step_run_id, run_id, tenant_id, workspace_id, workspace_key, user_id,
+          actor_id, actor_type, brand_id, brand_key, request_id, session_id,
+          conversation_id, correlation_id, execution_context_json,
+          step_key, step_type, status, input_json, output_json, error_message, started_at, completed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'action', ?, ?, ?, ?, NOW(), NOW())`,
       [
-        randomUUID(), run_id, tenant_id || null, step_key, status,
+        stepRunId,
+        run_id,
+        plan.tenant_id || null,
+        plan.workspace_id || null,
+        plan.workspace_key || null,
+        plan.user_id || null,
+        actorId,
+        actorId ? "user" : "system",
+        plan.brand_id || null,
+        plan.brand_key || plan.target_key || null,
+        plan.request_id || null,
+        plan.session_id || null,
+        plan.conversation_id || null,
+        trace_id || run_id,
+        JSON.stringify({ source: "connector_executor", run_id, step_run_id: stepRunId, step_key, secrets_included: false }),
+        step_key,
+        status,
         input ? JSON.stringify(input) : null,
         output ? JSON.stringify(output) : null,
         error_msg || null,
@@ -177,13 +220,38 @@ async function createStepRun(run_id, tenant_id, step_key, status, input, output,
   } catch { /* non-blocking */ }
 }
 
-async function createSpan(trace_id, run_id, span_name, status, duration_ms, tenant_id, attrs) {
+async function createSpan(trace_id, run_id, span_name, status, duration_ms, plan, attrs) {
   try {
+    const actorId = plan.user_id || null;
     await getPool().query(
       `INSERT INTO \`telemetry_spans\`
-         (span_id, trace_id, run_id, tenant_id, span_name, span_type, status, duration_ms, attributes_json, started_at)
-       VALUES (?, ?, ?, ?, ?, 'internal', ?, ?, ?, NOW())`,
-      [randomUUID(), trace_id, run_id, tenant_id || null, span_name, status, duration_ms || 0, JSON.stringify(attrs || {})]
+         (span_id, trace_id, run_id, tenant_id, workspace_id, workspace_key,
+          user_id, actor_id, actor_type, brand_id, brand_key,
+          request_id, session_id, conversation_id, correlation_id, execution_context_json,
+          span_name, span_type, status, duration_ms, attributes_json, started_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'internal', ?, ?, ?, NOW())`,
+      [
+        randomUUID(),
+        trace_id,
+        run_id,
+        plan.tenant_id || null,
+        plan.workspace_id || null,
+        plan.workspace_key || null,
+        plan.user_id || null,
+        actorId,
+        actorId ? "user" : "system",
+        plan.brand_id || null,
+        plan.brand_key || plan.target_key || null,
+        plan.request_id || null,
+        plan.session_id || null,
+        plan.conversation_id || null,
+        trace_id || run_id,
+        JSON.stringify({ source: "connector_executor", trace_id, run_id, secrets_included: false }),
+        span_name,
+        status,
+        duration_ms || 0,
+        JSON.stringify(attrs || {}),
+      ]
     );
   } catch { /* non-blocking */ }
 }
@@ -358,7 +426,7 @@ export async function dispatchPlan(plan_id, {
     apply,
   }));
 
-  await createWorkflowRun(run_id, plan, service_mode);
+  await createWorkflowRun(run_id, trace_id, plan, service_mode);
   await getPool().query(
     "UPDATE `execution_plans` SET plan_status = 'executing' WHERE plan_id = ?",
     [plan_id]
@@ -427,7 +495,7 @@ export async function dispatchPlan(plan_id, {
   await Promise.all([
     finaliseWorkflowRun(run_id, final_status, succeeded ? result : null, dispatchError?.message),
     createStepRun(
-      run_id, plan.tenant_id,
+      run_id, trace_id, plan,
       `connector_dispatch.${connector_type}`,
       succeeded ? "completed" : "failed",
       { plan_id, connector_type, apply },
@@ -438,7 +506,7 @@ export async function dispatchPlan(plan_id, {
       "UPDATE `execution_plans` SET plan_status = ? WHERE plan_id = ?",
       [succeeded ? "completed" : "failed", plan_id]
     ),
-    createSpan(trace_id, run_id, `connector.${connector_type}`, succeeded ? "ok" : "error", duration_ms, plan.tenant_id, {
+    createSpan(trace_id, run_id, `connector.${connector_type}`, succeeded ? "ok" : "error", duration_ms, plan, {
       plan_id, run_id, connector_type, apply, brand_key: plan.brand_key, workflow_key: plan.workflow_key,
     }),
   ]);
@@ -457,13 +525,22 @@ export async function dispatchPlan(plan_id, {
 
   writeAuditLogAsync({
     actor_id: actor_id || plan.user_id || "system",
-    actor_type: "system",
+    actor_type: actor_id || plan.user_id ? "user" : "system",
+    user_id: plan.user_id || null,
+    tenant_id: plan.tenant_id,
+    workspace_id: plan.workspace_id || null,
+    workspace_key: plan.workspace_key || null,
+    brand_id: plan.brand_id || null,
+    brand_key: plan.brand_key || plan.target_key || null,
+    request_id: plan.request_id || null,
+    session_id: plan.session_id || null,
+    conversation_id: plan.conversation_id || null,
+    correlation_id: trace_id,
     action: "connector.dispatch",
     resource_type: "execution_plan",
     resource_id: plan_id,
-    tenant_id: plan.tenant_id,
     outcome: succeeded ? "success" : "failure",
-    metadata: { run_id, trace_id, connector_type, apply, duration_ms },
+    metadata: { run_id, trace_id, connector_type, apply, duration_ms, secrets_included: false },
   });
 
   return {

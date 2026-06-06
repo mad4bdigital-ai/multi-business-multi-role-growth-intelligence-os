@@ -49,15 +49,19 @@ function makePool() {
       if (compact.startsWith("INSERT INTO `gpt_session_turns`")) {
         state.turns.push({
           session_id: params[0],
-          turn_id: params[1],
-          turn_index: params[2],
-          role: params[3],
-          content: params[4],
-          content_preview: params[6],
-          content_sha256: params[7],
-          drive_doc_id: params[8],
-          drive_anchor: params[9],
-          storage_mode: params[10],
+          tenant_id: params[1],
+          user_id: params[3],
+          actor_type: params[5],
+          correlation_id: params[7],
+          turn_id: params[9],
+          turn_index: params[10],
+          role: params[11],
+          content: params[12],
+          content_preview: params[14],
+          content_sha256: params[15],
+          drive_doc_id: params[16],
+          drive_anchor: params[17],
+          storage_mode: params[18],
         });
         return [{ affectedRows: 1 }];
       }

@@ -97,7 +97,9 @@ function flattenParams(value) {
     session: {
       session_id: "sess-1",
       tenant_id: "tenant-1",
+      workspace_key: "workspace-1",
       user_id: "user-1",
+      brand_key: "brand-1",
       started_at: "2026-05-16T10:00:00.000Z",
     },
     role: "assistant",
@@ -125,17 +127,29 @@ function flattenParams(value) {
   assert(sqlParamStrings.some((value) => value.includes("...[truncated]")), "SQL should contain a bounded preview");
   const turnInsert = pool.calls.find((call) => call.sql.includes("INSERT INTO `gpt_session_turns`"));
   assert(turnInsert, "turn write should index gpt_session_turns");
-  assert.equal(turnInsert.params[4], null, "gpt_session_turns.content must stay null for Drive-mode archival");
-  assert.equal(turnInsert.params[6], previewText(fullContent), "bounded preview should live only in content_preview");
-  assert.equal(turnInsert.params[10], "drive", "Drive archive writes should keep storage_mode=drive");
-  assert(
-    pool.calls.some((call) => call.sql.includes("INSERT INTO `gpt_session_turns`")),
-    "turn write should index gpt_session_turns"
-  );
-  assert(
-    pool.calls.some((call) => call.sql.includes("INSERT INTO `session_events`")),
-    "turn write should index session_events"
-  );
+  assert.match(turnInsert.sql, /tenant_id/);
+  assert.match(turnInsert.sql, /workspace_key/);
+  assert.match(turnInsert.sql, /brand_key/);
+  assert.match(turnInsert.sql, /execution_context_json/);
+  assert.equal(turnInsert.params[1], "tenant-1");
+  assert.equal(turnInsert.params[2], "workspace-1");
+  assert.equal(turnInsert.params[3], "user-1");
+  assert.equal(turnInsert.params[5], "user");
+  assert.equal(turnInsert.params[6], "brand-1");
+  assert.equal(turnInsert.params[12], null, "gpt_session_turns.content must stay null for Drive-mode archival");
+  assert.equal(turnInsert.params[14], previewText(fullContent), "bounded preview should live only in content_preview");
+  assert.equal(turnInsert.params[18], "drive", "Drive archive writes should keep storage_mode=drive");
+  const eventInsert = pool.calls.find((call) => call.sql.includes("INSERT INTO `session_events`"));
+  assert(eventInsert, "turn write should index session_events");
+  assert.match(eventInsert.sql, /workspace_key/);
+  assert.match(eventInsert.sql, /brand_key/);
+  assert.match(eventInsert.sql, /correlation_id/);
+  assert.equal(eventInsert.params[3], "tenant-1");
+  assert.equal(eventInsert.params[4], "workspace-1");
+  assert.equal(eventInsert.params[5], "user-1");
+  assert.equal(eventInsert.params[7], "user");
+  assert.equal(eventInsert.params[8], "brand-1");
+  assert.equal(eventInsert.params[10], "example_action");
 }
 
 console.log("session archive service tests passed");
