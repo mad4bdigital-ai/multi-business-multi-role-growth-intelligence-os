@@ -308,8 +308,9 @@ UPDATE local_gateway_tool_call_log
        app_key = COALESCE(app_key, tool_key),
        action_key = COALESCE(action_key, dispatch_tool_key),
        resource_type = COALESCE(resource_type, 'local_gateway_tool_call'),
-       resource_id = COALESCE(resource_id, call_id)
- WHERE actor_id IS NULL OR actor_type IS NULL OR correlation_id IS NULL OR app_key IS NULL OR resource_type IS NULL OR resource_id IS NULL;
+       resource_id = COALESCE(resource_id, call_id),
+       execution_context_json = COALESCE(execution_context_json, JSON_OBJECT('source','local_gateway_tool_call_backfill','metadata_present',metadata_json IS NOT NULL,'secrets_included',false))
+ WHERE actor_id IS NULL OR actor_type IS NULL OR correlation_id IS NULL OR app_key IS NULL OR resource_type IS NULL OR resource_id IS NULL OR execution_context_json IS NULL;
 
 UPDATE approval_holds ah
 LEFT JOIN workflow_runs wr ON wr.run_id COLLATE utf8mb4_unicode_ci = ah.run_id COLLATE utf8mb4_unicode_ci
