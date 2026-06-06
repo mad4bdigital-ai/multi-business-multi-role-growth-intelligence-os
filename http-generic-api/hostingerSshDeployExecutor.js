@@ -490,11 +490,12 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     return { ...baseResponse, execution: { will_execute: false, executed: false, reason: "dry_run_only" } };
   }
 
-  if (env[PROBE_FLAG] !== "true") {
-    const err = new Error(`Hostinger SSH probe executor is disabled. Set ${PROBE_FLAG}=true only after approval and route readiness.`);
+  const probeGate = await loadHostingerSshProbeGate(pool, targetId, env);
+  if (!probeGate.enabled) {
+    const err = new Error(`Hostinger SSH probe executor is disabled. Set ${PROBE_FLAG}=true or enable ${PROBE_DB_FLAG_KEY} only after approval and route readiness.`);
     err.status = 403;
     err.code = "remote_runtime_hostinger_ssh_probe_disabled";
-    err.details = { flag: PROBE_FLAG, secrets_included: false };
+    err.details = { flag: PROBE_FLAG, db_gate: probeGate, secrets_included: false };
     throw err;
   }
 
