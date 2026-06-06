@@ -7,6 +7,7 @@ const executionAsync = readFileSync("executionAsync.js", "utf8");
 const routes = readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");
 const migration = readFileSync("migrations/204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
+const openapi = readFileSync("openapi.yaml", "utf8");
 
 assert(worker.includes('TENANT_SSH_CLI_EXECUTE_JOB_TYPE = "tenant_ssh_cli_allowlisted_execute"'), "worker must export stable SSH execute job type");
 assert(worker.includes('loadTenantSshConnection'), "worker must load tenant-scoped SSH connection");
