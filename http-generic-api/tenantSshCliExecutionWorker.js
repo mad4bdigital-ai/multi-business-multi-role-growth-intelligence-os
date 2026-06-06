@@ -247,21 +247,42 @@ function safeConnection(row) {
   };
 }
 
+function shellSingleQuote(value = "") {
+  return `'${String(value || "").replace(/'/g, `'"'"'`)}'`;
+}
+
 async function spawnSshCommand(cfg, plan, timeoutMs) {
   const address = await resolvePublicSshAddress(cfg.host);
   const started_at = new Date().toISOString();
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "tenant-ssh-worker-"));
-  const keyPath = path.join(tempDir, "id_key");
-  await writeFile(keyPath, cfg.private_key, { mode: 0o600 });
+  const cleanup = () => rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  const authArgs = [];
+  const childEnv = { ...process.env };
+  if (cfg.auth_method === "private_key") {
+    const keyPath = path.join(tempDir, "id_key");
+    await writeFile(keyPath, cfg.private_key, { mode: 0o600 });
+    authArgs.push("-i", keyPath, "-o", "BatchMode=yes");
+  } else {
+    const askpassPath = path.join(tempDir, "askpass.sh");
+    await writeFile(askpassPath, `#!/bin/sh\nprintf '%s\\n' ${shellSingleQuote(cfg.password)}\n`, { mode: 0o700 });
+    childEnv.SSH_ASKPASS = askpassPath;
+    childEnv.SSH_ASKPASS_REQUIRE = "force";
+    childEnv.DISPLAY = childEnv.DISPLAY || "tenant-ssh-worker:0";
+    authArgs.push(
+      "-o", "BatchMode=no",
+      "-o", "PreferredAuthentications=password,keyboard-interactive",
+      "-o", "PubkeyAuthentication=no",
+      "-o", "NumberOfPasswordPrompts=1"
+    );
+  }
   return new Promise((resolve) => {
     let stdout = "";
     let stderr = "";
     let settled = false;
     let timedOut = false;
     const sshArgs = [
-      "-i", keyPath,
+      ...authArgs,
       "-p", String(cfg.port),
-      "-o", "BatchMode=yes",
       "-o", "ConnectTimeout=8",
       "-o", "StrictHostKeyChecking=no",
       "-o", "UserKnownHostsFile=/dev/null",
@@ -270,8 +291,7 @@ async function spawnSshCommand(cfg, plan, timeoutMs) {
       "--",
       ...plan.argv,
     ];
-    const cleanup = () => rm(tempDir, { recursive: true, force: true }).catch(() => {});
-    const child = spawn("ssh", sshArgs, { shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn("ssh", sshArgs, { shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: childEnv });
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill("SIGTERM");
