@@ -153,6 +153,7 @@ export const testCommands = [
   "node test-session-archive-service.mjs",
   "node test-summary-comparison-route.mjs",
   "node test-summary-development-automation.mjs",
+  "node test-openclaude-provider-bridge-routes.mjs",
   "node test-session-summary-service.mjs",
   "node test-session-archive-smoke.mjs",
   "node test-session-summary-autosweep.mjs",
