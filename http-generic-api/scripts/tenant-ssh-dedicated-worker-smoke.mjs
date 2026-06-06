@@ -8,7 +8,8 @@ function parseArgs(argv = process.argv.slice(2)) {
     user_id: "0e76b224-7671-47dd-ad68-014fb042df80",
     command_key: "pwd",
     timeout_ms: 8000,
-    port: process.env.PORT || "3000",
+    port: process.env.PORT || "",
+    base_url: process.env.INTERNAL_BASE_URL || "",
   };
   for (const raw of argv) {
     const match = String(raw || "").match(/^--([^=]+)=(.*)$/);
