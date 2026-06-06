@@ -203,6 +203,7 @@ export async function routeOutput({ run_id, agent_id, tenant_id, brand_key, work
   const linked_workflows = wfMeta?.linked_workflows || null;
   const target_module = wfMeta?.target_module || null;
 
+  const sinkContext = { brand_key: brand_key || null, correlation_id: run_id };
   const dispatched = [];
   let rulePassed = null;
 
