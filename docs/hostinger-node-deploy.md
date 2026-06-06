@@ -137,7 +137,9 @@ Then verify via platform device tool:
 
 ## Deployment authority
 
-Hostinger hPanel Auto Deploy is the sole repository-to-Hostinger deployment path for `dev.mad4b.com` and `auth.mad4b.com`. The repository intentionally does not contain a GitHub Actions SSH fallback workflow and does not require Hostinger SSH secrets in GitHub.
+Hostinger hPanel Auto Deploy is the primary repository-to-Hostinger deployment path for `dev.mad4b.com` and `auth.mad4b.com`. The repository intentionally does not contain a GitHub Actions SSH fallback workflow and does not require Hostinger SSH secrets in GitHub.
+
+A current checkout on the Hostinger filesystem is not enough to prove production is serving the new code. Always verify the running process through `/health` and `SERVICE_VERSION`. If files are updated but `/health.version` still reports an older version, classify it as process reload lag and use hPanel **Settings and redeploy** / **Restart**, or the governed Hostinger SSH deploy executor only after its target is active and smoke-validated.
 
 Do not use GitHub Actions to deploy `connector.mad4b.com`; that hostname must stay on the Cloudflare Tunnel/local-service path so it can recover Hostinger/auth outages.
 

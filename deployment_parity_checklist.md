@@ -104,8 +104,10 @@ If any Layer 2-4 check fails after a successful Layer 1 (CI) pass, the failure c
 | `retryMutationEnabled is not defined` at runtime | Deployment lag - deploy from `46affb6` or later |
 | `transport_required` governance rejection on correctly-configured endpoint | Registry data gap - verify `transport_action_key` is set on endpoint row |
 | Drive schema/config returns `404 File not found` for shared-drive files | Missing `supportsAllDrives` - deploy from `c3286cf` or later |
+| `ER_CANT_AGGREGATE_2COLLATIONS` on tenant connection or plugin runtime joins | Database join-key collation drift - prefer narrow, governed join-key repair or explicit query collation; do not use broad table conversion without migration review |
+| Host repo checkout is current but `/health.version` still reports an older `SERVICE_VERSION` | Process reload lag - Hostinger/LiteSpeed Node process has not restarted even though files are updated |
 
-Record any drift in the deployment log and do not mark the deployment complete until all four layers pass.
+Record any drift in the deployment log and do not mark the deployment complete until all four layers pass. For a DB hotfix that clears a live blocker before process reload, record both the schema readback and the still-pending runtime reload separately.
 
 ---
 
