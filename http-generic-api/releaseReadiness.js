@@ -66,6 +66,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "203_sprint67_execution_log_context_dimensions.sql",
   "204_sprint67_core_runtime_context_dimensions.sql",
   "205_sprint67_runtime_context_dimension_enrichment.sql",
+  "216_sprint67_platform_secret_promotion_monitoring.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
