@@ -170,23 +170,40 @@ function assertApprovedSshCliExecution(row, approvalRow, commandKey) {
   return plan;
 }
 
-function assertSshCliExecuteRuntimeEnabled() {
-  const enabled = String(process.env.TENANT_SSH_CLI_EXECUTE_ENABLED || "").toLowerCase() === "true";
-  const driver = String(process.env.TENANT_SSH_CLI_EXECUTE_DRIVER || "").toLowerCase();
+async function loadSshCliExecuteRuntimeConfig(pool) {
+  const [rows] = await pool.query(
+    `SELECT config_json, status FROM platform_runtime_config WHERE config_key = 'tenant_ssh_cli_execute_runtime' LIMIT 1`
+  );
+  const row = rows?.[0];
+  if (!row || row.status !== "active") return { enabled: false, driver: "disabled" };
+  try {
+    return JSON.parse(row.config_json || "{}");
+  } catch {
+    return { enabled: false, driver: "invalid_config" };
+  }
+}
+
+async function assertSshCliExecuteRuntimeEnabled(pool) {
+  const config = await loadSshCliExecuteRuntimeConfig(pool);
+  const enabled = config?.enabled === true;
+  const driver = String(config?.driver || "").toLowerCase();
   if (!enabled || driver !== "host_ssh_spawn") {
     const err = new Error("Tenant SSH CLI execution runtime is not enabled on this host.");
     err.status = 503;
     err.code = "ssh_cli_execute_runtime_not_enabled";
     err.details = {
-      required_env: ["TENANT_SSH_CLI_EXECUTE_ENABLED=true", "TENANT_SSH_CLI_EXECUTE_DRIVER=host_ssh_spawn"],
+      required_config_key: "tenant_ssh_cli_execute_runtime",
+      required_config_json: { enabled: true, driver: "host_ssh_spawn" },
+      current_driver: driver || "disabled",
       recommended_runtime: "dedicated_worker_or_connector_runtime",
     };
     throw err;
   }
+  return config;
 }
 
-async function executeApprovedSshCli(row, approvalRow, commandKey, options = {}) {
-  assertSshCliExecuteRuntimeEnabled();
+async function executeApprovedSshCli(pool, row, approvalRow, commandKey, options = {}) {
+  await assertSshCliExecuteRuntimeEnabled(pool);
   const cfg = sshExecutionConfigFromConnection(row);
   const plan = assertApprovedSshCliExecution(row, approvalRow, commandKey);
   const address = await resolvePublicProbeAddress(cfg.host);
