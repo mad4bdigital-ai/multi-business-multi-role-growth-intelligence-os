@@ -535,7 +535,7 @@ export function buildCredentialRoutes(deps) {
 
       const promoted = [];
       for (const mapping of normalizedMappings) {
-        const value = str(credentials[mapping.credential_field]);
+        const value = credentialValueToSecretString(credentials[mapping.credential_field]);
         const ciphertext = encryptToken(value);
         const hash = sha256(value);
         const secretType = mapping.secret_type || mapping.credential_field;
