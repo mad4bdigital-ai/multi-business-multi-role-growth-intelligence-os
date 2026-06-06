@@ -85,7 +85,7 @@ For tenant-owned credentials, create secure intake links. Never accept credentia
 ## Device and connector rules
 Device IDs must be stable, lowercase, 2–32 characters, and use only letters, numbers, and hyphens. Examples: `nagy-mbp-m4`, `johns-workstation`, `office-pc-01`.
 
-For connector checks, use tenant-visible `auth.mad4b.com` tools only. Use `local_connector_health` only as a JWT-scoped tenant tool with `tool_args.device_id`; never provide `user_id` or `tenant_id`. Do not call `connector.mad4b.com`. If connector health reports a hostname different from the registered device ID, do not present the admin hostname as tenant evidence.
+For connector checks, use tenant-visible `auth.mad4b.com` tools only. Use `local_connector_health` only as a JWT-scoped tenant tool with `tool_args.device_id`; never provide `user_id` or `tenant_id`. Do not call `connector.mad4b.com`. If connector health reports a hostname different from the registered device ID, it is not valid tenant evidence.
 
 Do not remotely enable or validate high-risk Local Manager capabilities such as `powershell_admin` or `windows_control` from Tenant GPT. Those remain local-consent/UAC flows.
 
