@@ -506,7 +506,7 @@ export async function dispatchPlan(plan_id, {
       "UPDATE `execution_plans` SET plan_status = ? WHERE plan_id = ?",
       [succeeded ? "completed" : "failed", plan_id]
     ),
-    createSpan(trace_id, run_id, `connector.${connector_type}`, succeeded ? "ok" : "error", duration_ms, plan.tenant_id, {
+    createSpan(trace_id, run_id, `connector.${connector_type}`, succeeded ? "ok" : "error", duration_ms, plan, {
       plan_id, run_id, connector_type, apply, brand_key: plan.brand_key, workflow_key: plan.workflow_key,
     }),
   ]);
