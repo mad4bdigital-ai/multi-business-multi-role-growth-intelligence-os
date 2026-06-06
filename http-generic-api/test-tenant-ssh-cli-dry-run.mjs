@@ -18,7 +18,7 @@ assert(routes.includes('will_open_network_connection: false'), "SSH CLI dry-run 
 assert(routes.includes('will_execute_command: false'), "SSH CLI dry-run must not execute commands");
 assert(routes.includes('execution_enabled: false'), "SSH CLI dry-run must not enable execution");
 assert(routes.includes('tenant_ssh_cli_allowlisted_execute_not_enabled_yet'), "SSH CLI dry-run must identify the gated future execute tool");
-assert(!routes.includes('/cli/execute'), "SSH CLI execute route must not exist in dry-run phase");
+assert(routes.includes('will_execute_command: false'), "SSH CLI dry-run must remain non-executing after execute phase exists");
 assert(migration.includes('tenant_ssh_cli_allowlisted_dry_run'), "migration must register dry-run tool");
 assert(!migration.includes('tenant_ssh_cli_allowlisted_execute'), "migration must not register execute tool in dry-run phase");
 assert(routes.includes('secrets_included: false'), "SSH CLI dry-run must never return secrets");
