@@ -22,6 +22,31 @@ function safeJson(value) {
   }
 }
 
+function asObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function firstNonEmpty(...values) {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+    const text = String(value).trim();
+    if (text && text !== "null" && text !== "undefined") return text;
+  }
+  return null;
+}
+
+function pickContext(output = {}, explicit, keys = []) {
+  return firstNonEmpty(explicit, ...keys.map((key) => output[key]));
+}
+
+function contextJson(context = {}) {
+  const clean = { ...context, secrets_included: false };
+  for (const key of Object.keys(clean)) {
+    if (clean[key] === undefined) delete clean[key];
+  }
+  return safeJson(clean);
+}
+
 async function safeQuery(pool, sql, params = []) {
   try {
     const [rows] = await pool.query(sql, params);
@@ -67,6 +92,35 @@ export async function writeExecutionEvidence({
   usedEngineRegistryRefs = "",
   engineResolutionStatus = null,
   engineAssociationStatus = "not_associated",
+  tenantId = null,
+  tenantKey = null,
+  workspaceId = null,
+  workspaceKey = null,
+  userId = null,
+  actorId = null,
+  actorType = null,
+  brandId = null,
+  brandKey = null,
+  activityId = null,
+  activityType = null,
+  requestId = null,
+  sessionId = null,
+  conversationId = null,
+  parentActionKey = null,
+  endpointKey = null,
+  toolKey = null,
+  appKey = null,
+  actionKey = null,
+  connectedSystemId = null,
+  credentialRefId = null,
+  resourceType = null,
+  resourceId = null,
+  targetType = null,
+  targetId = null,
+  environment = process.env.NODE_ENV || "production",
+  correlationId = null,
+  idempotencyKey = null,
+  executionContext = null,
   skipSurfaceAuthority = false,
 } = {}) {
   if (!traceId) {
@@ -93,9 +147,50 @@ export async function writeExecutionEvidence({
 
   const now = createdAt || isoNow();
   const end = endedAt || now;
-  const output = typeof outputSummary === "object" && outputSummary !== null && !Array.isArray(outputSummary)
-    ? { ...outputSummary, secrets_included: outputSummary.secrets_included === true ? true : false }
+  const outputObject = asObject(outputSummary);
+  const output = Object.keys(outputObject).length
+    ? { ...outputObject, secrets_included: outputObject.secrets_included === true ? true : false }
     : outputSummary;
+
+  const contextDimensions = {
+    tenant_id: pickContext(outputObject, tenantId, ["tenant_id", "tenantId"]),
+    tenant_key: pickContext(outputObject, tenantKey, ["tenant_key", "tenantKey"]),
+    workspace_id: pickContext(outputObject, workspaceId, ["workspace_id", "workspaceId"]),
+    workspace_key: pickContext(outputObject, workspaceKey, ["workspace_key", "workspaceKey"]),
+    user_id: pickContext(outputObject, userId, ["user_id", "userId"]),
+    actor_id: pickContext(outputObject, actorId, ["actor_id", "actorId", "user_id", "userId"]),
+    actor_type: pickContext(outputObject, actorType, ["actor_type", "actorType"]),
+    brand_id: pickContext(outputObject, brandId, ["brand_id", "brandId"]),
+    brand_key: pickContext(outputObject, brandKey, ["brand_key", "brandKey"]),
+    activity_id: pickContext(outputObject, activityId, ["activity_id", "activityId"]),
+    activity_type: pickContext(outputObject, activityType, ["activity_type", "activityType"]),
+    request_id: pickContext(outputObject, requestId, ["request_id", "requestId"]),
+    session_id: pickContext(outputObject, sessionId, ["session_id", "sessionId"]),
+    conversation_id: pickContext(outputObject, conversationId, ["conversation_id", "conversationId"]),
+    parent_action_key: pickContext(outputObject, parentActionKey, ["parent_action_key", "parentActionKey"]),
+    endpoint_key: pickContext(outputObject, endpointKey, ["endpoint_key", "endpointKey"]),
+    tool_key: pickContext(outputObject, toolKey, ["tool_key", "toolKey"]),
+    app_key: pickContext(outputObject, appKey, ["app_key", "appKey", "plugin_key", "pluginKey"]),
+    action_key: pickContext(outputObject, actionKey, ["action_key", "actionKey"]),
+    connected_system_id: pickContext(outputObject, connectedSystemId, ["connected_system_id", "connectedSystemId", "connection_id", "connectionId"]),
+    credential_ref_id: pickContext(outputObject, credentialRefId, ["credential_ref_id", "credentialRefId", "credential_ref", "credentialRef"]),
+    resource_type: pickContext(outputObject, resourceType, ["resource_type", "resourceType"]),
+    resource_id: pickContext(outputObject, resourceId, ["resource_id", "resourceId"]),
+    target_type: pickContext(outputObject, targetType, ["target_type", "targetType"]),
+    target_id: pickContext(outputObject, targetId, ["target_id", "targetId"]),
+    environment: pickContext(outputObject, environment, ["environment", "env"]),
+    correlation_id: pickContext(outputObject, correlationId, ["correlation_id", "correlationId", "trace_id", "traceId"]) || traceId,
+    idempotency_key: pickContext(outputObject, idempotencyKey, ["idempotency_key", "idempotencyKey"]),
+  };
+  if (!contextDimensions.actor_type && contextDimensions.actor_id) contextDimensions.actor_type = contextDimensions.user_id ? "user" : "system";
+
+  const executionContextJson = contextJson({
+    ...asObject(executionContext),
+    dimensions: contextDimensions,
+    route_keys: routeKeys,
+    selected_workflows: selectedWorkflows,
+    trace_id: traceId,
+  });
 
   await pool.query(
     `INSERT INTO execution_log
@@ -106,12 +201,18 @@ export async function writeExecutionEvidence({
         route_status, route_source, intake_validation_status, execution_ready_status,
         failure_reason, artifact_json_asset_id, target_module_writeback,
         target_workflow_writeback, execution_trace_id_writeback,
-        log_source_writeback, used_logic_id, used_logic_name,
+        log_source_writeback, tenant_id, tenant_key, workspace_id, workspace_key,
+        user_id, actor_id, actor_type, brand_id, brand_key,
+        activity_id, activity_type, request_id, session_id, conversation_id,
+        parent_action_key, endpoint_key, tool_key, app_key, action_key,
+        connected_system_id, credential_ref_id, resource_type, resource_id,
+        target_type, target_id, environment, correlation_id, idempotency_key,
+        execution_context_json, used_logic_id, used_logic_name,
         resolved_logic_mode, logic_association_status,
         used_engine_names, used_engine_registry_refs,
         engine_resolution_status, engine_association_status,
         created_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
     [
       sqlDate(now),
       now,
@@ -139,6 +240,35 @@ export async function writeExecutionEvidence({
       targetWorkflowWriteback === null || targetWorkflowWriteback === undefined ? null : compact(targetWorkflowWriteback, 255),
       compact(traceId, 255),
       compact(logSource, 255),
+      contextDimensions.tenant_id === null ? null : compact(contextDimensions.tenant_id, 64),
+      contextDimensions.tenant_key === null ? null : compact(contextDimensions.tenant_key, 128),
+      contextDimensions.workspace_id === null ? null : compact(contextDimensions.workspace_id, 64),
+      contextDimensions.workspace_key === null ? null : compact(contextDimensions.workspace_key, 128),
+      contextDimensions.user_id === null ? null : compact(contextDimensions.user_id, 64),
+      contextDimensions.actor_id === null ? null : compact(contextDimensions.actor_id, 64),
+      contextDimensions.actor_type === null ? null : compact(contextDimensions.actor_type, 64),
+      contextDimensions.brand_id === null ? null : compact(contextDimensions.brand_id, 64),
+      contextDimensions.brand_key === null ? null : compact(contextDimensions.brand_key, 128),
+      contextDimensions.activity_id === null ? null : compact(contextDimensions.activity_id, 64),
+      contextDimensions.activity_type === null ? null : compact(contextDimensions.activity_type, 128),
+      contextDimensions.request_id === null ? null : compact(contextDimensions.request_id, 128),
+      contextDimensions.session_id === null ? null : compact(contextDimensions.session_id, 128),
+      contextDimensions.conversation_id === null ? null : compact(contextDimensions.conversation_id, 128),
+      contextDimensions.parent_action_key === null ? null : compact(contextDimensions.parent_action_key, 191),
+      contextDimensions.endpoint_key === null ? null : compact(contextDimensions.endpoint_key, 191),
+      contextDimensions.tool_key === null ? null : compact(contextDimensions.tool_key, 191),
+      contextDimensions.app_key === null ? null : compact(contextDimensions.app_key, 191),
+      contextDimensions.action_key === null ? null : compact(contextDimensions.action_key, 191),
+      contextDimensions.connected_system_id === null ? null : compact(contextDimensions.connected_system_id, 64),
+      contextDimensions.credential_ref_id === null ? null : compact(contextDimensions.credential_ref_id, 191),
+      contextDimensions.resource_type === null ? null : compact(contextDimensions.resource_type, 128),
+      contextDimensions.resource_id === null ? null : compact(contextDimensions.resource_id, 191),
+      contextDimensions.target_type === null ? null : compact(contextDimensions.target_type, 128),
+      contextDimensions.target_id === null ? null : compact(contextDimensions.target_id, 191),
+      contextDimensions.environment === null ? null : compact(contextDimensions.environment, 64),
+      contextDimensions.correlation_id === null ? null : compact(contextDimensions.correlation_id, 191),
+      contextDimensions.idempotency_key === null ? null : compact(contextDimensions.idempotency_key, 191),
+      executionContextJson,
       usedLogicId === null || usedLogicId === undefined ? null : compact(usedLogicId, 255),
       usedLogicName === null || usedLogicName === undefined ? null : compact(usedLogicName, 255),
       resolvedLogicMode === null || resolvedLogicMode === undefined ? null : compact(resolvedLogicMode, 255),

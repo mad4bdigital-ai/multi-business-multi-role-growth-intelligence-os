@@ -56,6 +56,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "199_sprint67_runtime_policy_resolver_monitoring_and_mirror_classification.sql",
   "200_sprint67_runtime_policy_target_rule_backfill.sql",
   "202_sprint67_policy_only_runtime_policy_target_rules.sql",
+  "203_sprint67_execution_log_context_dimensions.sql",
   "201_sprint68_lifecycle_owner_engine_registry_alignment.sql",
 ]);
 
