@@ -47,13 +47,36 @@ function normalizePrivateKey(value = "") {
   return withNewlines.endsWith("\n") ? withNewlines : `${withNewlines}\n`;
 }
 
+function optionalCredential(credentials, key) {
+  const value = credentials?.[key];
+  if (value === null || value === undefined || String(value).trim() === "") return "";
+  return String(value);
+}
+
+function looksLikePrivateKey(value = "") {
+  return /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/.test(String(value || ""));
+}
+
 function sshExecutionConfigFromConnection(row) {
   const credentials = decryptCredentials(row.encrypted_credentials);
+  const rawPrivateKey = optionalCredential(credentials, "ssh_private_key");
+  const rawPassword = optionalCredential(credentials, "ssh_password");
+  const privateKey = normalizePrivateKey(rawPrivateKey);
+  const password = rawPassword || (!looksLikePrivateKey(privateKey) ? rawPrivateKey : "");
+  const authMethod = looksLikePrivateKey(privateKey) ? "private_key" : password ? "password" : "missing";
+  if (authMethod === "missing") {
+    const err = new Error("SSH authentication requires ssh_private_key or ssh_password.");
+    err.status = 422;
+    err.code = "missing_ssh_authentication_secret";
+    throw err;
+  }
   return {
     host: requiredCredential(credentials, "ssh_host"),
     port: clampInt(requiredCredential(credentials, "ssh_port"), 22, 1, 65535),
     user: requiredCredential(credentials, "ssh_user"),
-    private_key: normalizePrivateKey(requiredCredential(credentials, "ssh_private_key")),
+    auth_method: authMethod,
+    private_key: authMethod === "private_key" ? privateKey : "",
+    password: authMethod === "password" ? password : "",
   };
 }
 
@@ -224,21 +247,42 @@ function safeConnection(row) {
   };
 }
 
+function shellSingleQuote(value = "") {
+  return `'${String(value || "").replace(/'/g, `'"'"'`)}'`;
+}
+
 async function spawnSshCommand(cfg, plan, timeoutMs) {
   const address = await resolvePublicSshAddress(cfg.host);
   const started_at = new Date().toISOString();
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "tenant-ssh-worker-"));
-  const keyPath = path.join(tempDir, "id_key");
-  await writeFile(keyPath, cfg.private_key, { mode: 0o600 });
+  const cleanup = () => rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  const authArgs = [];
+  const childEnv = { ...process.env };
+  if (cfg.auth_method === "private_key") {
+    const keyPath = path.join(tempDir, "id_key");
+    await writeFile(keyPath, cfg.private_key, { mode: 0o600 });
+    authArgs.push("-i", keyPath, "-o", "BatchMode=yes");
+  } else {
+    const askpassPath = path.join(tempDir, "askpass.sh");
+    await writeFile(askpassPath, `#!/bin/sh\nprintf '%s\\n' ${shellSingleQuote(cfg.password)}\n`, { mode: 0o700 });
+    childEnv.SSH_ASKPASS = askpassPath;
+    childEnv.SSH_ASKPASS_REQUIRE = "force";
+    childEnv.DISPLAY = childEnv.DISPLAY || "tenant-ssh-worker:0";
+    authArgs.push(
+      "-o", "BatchMode=no",
+      "-o", "PreferredAuthentications=password,keyboard-interactive",
+      "-o", "PubkeyAuthentication=no",
+      "-o", "NumberOfPasswordPrompts=1"
+    );
+  }
   return new Promise((resolve) => {
     let stdout = "";
     let stderr = "";
     let settled = false;
     let timedOut = false;
     const sshArgs = [
-      "-i", keyPath,
+      ...authArgs,
       "-p", String(cfg.port),
-      "-o", "BatchMode=yes",
       "-o", "ConnectTimeout=8",
       "-o", "StrictHostKeyChecking=no",
       "-o", "UserKnownHostsFile=/dev/null",
@@ -247,8 +291,7 @@ async function spawnSshCommand(cfg, plan, timeoutMs) {
       "--",
       ...plan.argv,
     ];
-    const cleanup = () => rm(tempDir, { recursive: true, force: true }).catch(() => {});
-    const child = spawn("ssh", sshArgs, { shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn("ssh", sshArgs, { shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: childEnv });
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill("SIGTERM");
@@ -281,8 +324,8 @@ async function spawnSshCommand(cfg, plan, timeoutMs) {
       settled = true;
       clearTimeout(timer);
       cleanup();
-      const redactedStdout = capOutput(redactExecutionOutput(stdout, [cfg.private_key, cfg.user]));
-      const redactedStderr = capOutput(redactExecutionOutput(stderr, [cfg.private_key, cfg.user]));
+      const redactedStdout = capOutput(redactExecutionOutput(stdout, [cfg.private_key, cfg.password, cfg.user]));
+      const redactedStderr = capOutput(redactExecutionOutput(stderr, [cfg.private_key, cfg.password, cfg.user]));
       resolve({
         ok: exitCode === 0 && !timedOut,
         command_key: plan.command_key,

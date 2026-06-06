@@ -18,6 +18,10 @@ assert(worker.includes('SSH_CLI_COMMAND_ALLOWLIST'), "worker must use fixed comm
 assert(worker.includes('spawn("ssh", sshArgs, { shell: false'), "worker must spawn ssh without shell");
 assert(worker.includes('mkdtemp') && worker.includes('rm(tempDir'), "worker must use and clean a temporary key file");
 assert(worker.includes('normalizePrivateKey'), "worker must normalize escaped newline SSH private key payloads before writing the temp key file");
+assert(worker.includes('ssh_password'), "worker must support Hostinger password-based SSH credentials");
+assert(worker.includes('SSH_ASKPASS'), "worker must use SSH_ASKPASS for password auth without passing secrets on argv");
+assert(worker.includes('PreferredAuthentications=password,keyboard-interactive'), "worker must restrict password auth mode when password is used");
+assert(worker.includes('missing_ssh_authentication_secret'), "worker must reject SSH execution when neither key nor password is present");
 assert(worker.includes('.replace(/\\\\r\\\\n/g, "\\n")'), "worker must convert literal escaped CRLF to PEM newlines");
 assert(worker.includes('.replace(/\\\\n/g, "\\n")'), "worker must convert literal escaped newlines to PEM newlines");
 assert(worker.includes('.replace(/\\\\r/g, "\\n")'), "worker must convert literal escaped CR to PEM newlines");
