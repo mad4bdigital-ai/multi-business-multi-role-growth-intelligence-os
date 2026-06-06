@@ -28,6 +28,8 @@ For each change, update at least one of the following, depending on scope:
 | Registry/taxonomy change | `docs/registry-taxonomy.md`, `Updating Registry Patch Index.md` |
 | Auth/credential behavior | `docs/external-endpoint-auth-strategy.md`, `connector_contracts.md` |
 | Restore/relink/incident recovery | incident runbook under `docs/`, `Updating Registry Patch Index.md`, `deployment_parity_checklist.md` |
+| Live SQL repair / schema hotfix | exact SQL scope, safety class, readback query, affected routes/tools, `Updating Registry Patch Index.md`, and a dedicated `docs/*` runbook |
+| Runtime join-key collation repair | migration/test guard, impacted query paths, explicit no-secret/no-payload statement, tenant-facing validation guidance |
 | New migration or repair script | migration/script inline comments, runbook or operations doc, patch index |
 | GPT action/tool schema change | OpenAPI/schema docs and affected tool registry notes |
 | Deployment or CI behavior | `deployment_parity_checklist.md` |
