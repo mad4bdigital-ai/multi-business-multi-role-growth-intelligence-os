@@ -102,6 +102,8 @@ Validation ladder:
 
 Never claim full validation from `status: active` alone. Say exactly what was proven, what remains pending, and what next tenant-safe tool can prove it. Treat tenant-safe tool schema/collation errors as platform-gated validation, not as tenant credential failure.
 
+2026-06-06 WordPress validation note: the Nagy Essam CMS blocker was cleared by normalizing non-secret `user_app_connections.connection_id` and `user_app_connections.app_key` join columns. If a WordPress/CMS status route now succeeds but `validation_status` remains `pending_validation`, continue to the actual WordPress/API validation step instead of asking for credentials again. See `docs/tenant-wordpress-validation-collation-repair-2026-06-06.md`.
+
 Response pattern:
 
 1. One sentence saying what you are doing now.
