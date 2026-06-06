@@ -12,7 +12,7 @@ import { fetchRange } from "./googleSheets.js";
 import { validateEndpointRowConsistency } from "./registryExecutionEligibility.js";
 import { resolveExecutionRequest } from "./executionResolution.js";
 
-const ACTIVATION_BOOTSTRAP_SPREADSHEET_ID = "1RV185rQo58pGppg27r81eD9hPE8pXPyBY1pfHANip4o";
+const ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID = "1RV185rQo58pGppg27r81eD9hPE8pXPyBY1pfHANip4o";
 
 let passed = 0;
 let failed = 0;
@@ -189,7 +189,7 @@ section("resolveExecutionRequest — query.range accepted and preferred over pat
       parent_action_key: "google_sheets_api",
       endpoint_key: "getSheetValues",
       method: "GET",
-      path_params: { spreadsheetId: ACTIVATION_BOOTSTRAP_SPREADSHEET_ID },
+      path_params: { spreadsheetId: ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID },
       query: { range }
     },
     makeMinimalDeps({ resolveHttpExecutionContext: sentinelAwareMock })
@@ -208,7 +208,7 @@ section("resolveExecutionRequest — query.range accepted and preferred over pat
       parent_action_key: "google_sheets_api",
       endpoint_key: "getSheetValues",
       method: "GET",
-      path_params: { spreadsheetId: ACTIVATION_BOOTSTRAP_SPREADSHEET_ID, range: wrongRange },
+      path_params: { spreadsheetId: ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID, range: wrongRange },
       query: { range }
     },
     makeMinimalDeps({ resolveHttpExecutionContext: sentinelAwareMock })
@@ -228,7 +228,7 @@ section("resolveExecutionRequest — pre-encoded range decoded before path encod
       parent_action_key: "google_sheets_api",
       endpoint_key: "getSheetValues",
       method: "GET",
-      path_params: { spreadsheetId: ACTIVATION_BOOTSTRAP_SPREADSHEET_ID },
+      path_params: { spreadsheetId: ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID },
       query: { range: preEncoded }
     },
     makeMinimalDeps({ resolveHttpExecutionContext: sentinelAwareMock })
@@ -257,7 +257,7 @@ section("resolveExecutionRequest - activation bootstrap placeholder auto-resolut
 
   assert(
     "placeholder spreadsheet ID is auto-resolved to configured ID",
-    placeholderResult.ok === true && placeholderResult.pathParams.spreadsheetId === ACTIVATION_BOOTSTRAP_SPREADSHEET_ID,
+    placeholderResult.ok === true && placeholderResult.pathParams.spreadsheetId === ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
     `got: ${placeholderResult.pathParams?.spreadsheetId}`
   );
 
