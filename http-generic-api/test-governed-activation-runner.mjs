@@ -247,13 +247,23 @@ section("resolveActivationBootstrapWorkbook rejects unconstrained discovery fall
 
 section("DB runtime bootstrap can skip Sheets without reporting Sheets success");
 {
+  let getSpreadsheetCalled = false;
+  let readBootstrapArgs = null;
   const result = await runGovernedActivation(fullDeps({
     attemptSheets: async () => ({
       ok: true,
       skipped: true,
       not_required: true,
       reason: "db_runtime_bootstrap_authority"
-    })
+    }),
+    getSpreadsheet: async () => {
+      getSpreadsheetCalled = true;
+      throw new Error("DB-native bootstrap must not resolve the legacy workbook.");
+    },
+    readBootstrapRow: async (args) => {
+      readBootstrapArgs = args;
+      return { ok: true, row: VALID_BOOTSTRAP_ROW };
+    }
   }));
 
   assert("db runtime skip → active", result.runtime_classification?.activation_status === "active", JSON.stringify(result.runtime_classification));
