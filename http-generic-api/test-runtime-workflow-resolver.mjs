@@ -114,6 +114,10 @@ for (const path of [
     new URL("scripts/governed-migration-runner.mjs", import.meta.url),
     "utf8"
   );
+  const adminCliRoutes = readFileSync(
+    new URL("routes/adminCliRoutes.js", import.meta.url),
+    "utf8"
+  );
   const readback = readFileSync(
     new URL("scripts/workflow-execution-identity-readback.mjs", import.meta.url),
     "utf8"
@@ -152,6 +156,13 @@ for (const path of [
   assert.match(readback, /ACTIVE_WORKFLOW_SQL/, "readback must reuse the runtime active-workflow predicate");
   assert.match(readback, /resolveRuntimeWorkflow/);
   assert.match(readback, /secrets_included:\s*false/);
+  assert.match(adminCliRoutes, /workflow_execution_identity_readback/, "admin shell must expose governed workflow identity readback");
+  assert.match(adminCliRoutes, /scripts\/workflow-execution-identity-readback\.mjs/, "governed readback alias must execute the canonical readback script");
+  assert.match(
+    adminCliRoutes,
+    /workflow_execution_identity_readback:[\s\S]*?allow_extra_args:\s*false[\s\S]*?max_extra_args:\s*0/,
+    "governed readback alias must reject caller-controlled arguments"
+  );
 }
 
 console.log("runtime workflow resolver tests passed");
