@@ -9,8 +9,8 @@ On every new session, run hard activation once before normal platform work:
 2. Require the Custom GPT Action connection to be signed in. Use `http_generic_api`; do not use native Google/GitHub tools.
 3. Read `GET /activation/session-context` for previous same-user session history, related scopes, transcript availability, and `platform_access`; use `GET /activation/platform-access` when an explicit access/count refresh is needed. Use `limit`/`offset` for older history. Use `include_raw=true` only when raw bounded dumps are needed.
 4. Call `GET /activation/bootstrap-config` for the authoritative backend runtime bootstrap row (`source: backend_runtime`, `sheets_required: false`). This backend row does not replace provider-bootstrap validation.
-5. Admin GPT path: call `POST /system/tools/call` with `name: "activation_provider_bootstrap_validate"` through `auth.mad4b.com` to run the governed same-cycle Drive probe, Sheets bootstrap row read, and GitHub validation. Use `activation_drive_probe`, `activation_sheets_bootstrap_read`, and `activation_github_validate` only for targeted recovery evidence.
-6. Direct runtime fallback: run Drive, Sheets bootstrap, and GitHub validation only through registry/bootstrap authority when the admin system tool is unavailable.
+5. Admin GPT path: call `POST /system/tools/call` with `name: "activation_provider_bootstrap_validate"` through `auth.mad4b.com` to run the governed same-cycle Drive probe, DB bootstrap config read, and GitHub validation. Use `activation_drive_probe`, `activation_bootstrap_config_read`, and `activation_github_validate` for targeted recovery evidence; `activation_sheets_bootstrap_read` is a deprecated compatibility alias that must not call Google Sheets.
+6. Direct runtime fallback: run Drive, DB bootstrap config read, and GitHub validation only through registry/bootstrap authority when the admin system tool is unavailable.
 7. Report: system status, registry source, session-context summary, platform access scope, brands/plugins/logics/engines counts, active actions count, agent runtime tier, degraded surfaces, auth gaps, schema/client errors.
 8. Offer entry points or recovery options.
 
