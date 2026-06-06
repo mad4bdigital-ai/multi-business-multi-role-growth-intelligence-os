@@ -58,8 +58,10 @@ export async function loadWorkspaceAppContext(workspace_key, tenant_id, agent_id
             ai.category AS app_category,
             ai.default_action_grants
      FROM \`workspace_app_links\` wal
-     JOIN \`user_app_connections\` uac ON uac.connection_id = wal.connection_id
-     JOIN \`app_integrations\`     ai  ON ai.app_key = uac.app_key
+     JOIN \`user_app_connections\` uac
+       ON uac.connection_id COLLATE utf8mb4_unicode_ci = wal.connection_id COLLATE utf8mb4_unicode_ci
+     JOIN \`app_integrations\` ai
+       ON ai.app_key COLLATE utf8mb4_unicode_ci = uac.app_key COLLATE utf8mb4_unicode_ci
      WHERE wal.workspace_id = ? AND wal.status = 'active' AND uac.status = 'active'
      ORDER BY uac.app_key ASC, uac.is_primary DESC`,
     [workspace_id]
