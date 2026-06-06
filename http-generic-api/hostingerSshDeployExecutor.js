@@ -13,6 +13,7 @@ const DEFAULT_TIMEOUT_MS = 120000;
 const MAX_TIMEOUT_MS = 300000;
 const EXECUTOR_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED";
 const PROBE_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_PROBE_ENABLED";
+const PROBE_DB_FLAG_KEY = "remote_runtime_hostinger_ssh_probe_enabled";
 const ALLOWED_BRANCHES = new Set(["main"]);
 const DEFAULT_AUTH_APP_PATH = "/home/u338416126/domains/auth.mad4b.com/nodejs";
 const SSH_COMMON_ROLES = ["ssh_host", "ssh_port", "ssh_user"];
