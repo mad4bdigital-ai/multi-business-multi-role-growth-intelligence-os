@@ -10,7 +10,7 @@ This file is not runtime authority yet. It is a promotion candidate that reconci
 - Google Sheets workbooks are async mirrors, diagnostic evidence, and recovery helpers only.
 - Drive files are canonical knowledge/document assets when explicitly registered, not implicit runtime authority.
 - Activation bootstrap authority resolves from `platform_runtime_config`, then server environment fallback.
-- Sheets bootstrap row read is provider-connectivity evidence only.
+- DB-native bootstrap config read is activation bootstrap authority; `activation_sheets_bootstrap_read` is a deprecated compatibility alias and must not call Google Sheets.
 
 ## 2. Canonical file model
 
