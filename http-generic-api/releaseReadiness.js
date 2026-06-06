@@ -151,10 +151,40 @@ function unescapeSqlString(value = "") {
   return String(value || "").replace(/''/g, "'");
 }
 
+function stripSqlStringLiterals(sql = "") {
+  let out = "";
+  let inString = false;
+  for (let i = 0; i < String(sql || "").length; i += 1) {
+    const ch = sql[i];
+    if (!inString) {
+      if (ch === "'") {
+        inString = true;
+        out += " ";
+      } else {
+        out += ch;
+      }
+      continue;
+    }
+    if (ch === "'" && sql[i + 1] === "'") {
+      out += "  ";
+      i += 1;
+      continue;
+    }
+    if (ch === "'") {
+      inString = false;
+      out += " ";
+    } else {
+      out += " ";
+    }
+  }
+  return out;
+}
+
 const RESERVED_SCHEMA_OBJECT_NAMES = new Set(["IF", "NOT", "EXISTS", "SELECT", "AS"]);
 
 export function extractMigrationReadinessRequirementsFromSql(sqlText = "") {
   const sql = String(sqlText || "");
+  const schemaScanSql = stripSqlStringLiterals(stripSqlComments(sql));
   const schemaObjects = new Set();
   const requirements = {
     schema_objects: [],
@@ -168,7 +198,7 @@ export function extractMigrationReadinessRequirementsFromSql(sqlText = "") {
   };
 
   const createObjectRegex = /CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW)\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/gi;
-  for (const match of sql.matchAll(createObjectRegex)) {
+  for (const match of schemaScanSql.matchAll(createObjectRegex)) {
     const objectName = String(match?.[1] || "").trim();
     if (objectName && !RESERVED_SCHEMA_OBJECT_NAMES.has(objectName.toUpperCase())) {
       schemaObjects.add(objectName);
