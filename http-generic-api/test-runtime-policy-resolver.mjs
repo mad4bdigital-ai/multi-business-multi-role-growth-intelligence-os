@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { resolveRuntimePolicyContext, summarizePlatformPolicyRules } from "./runtimePolicyResolver.js";
+import { evaluateAppActionPreflight } from "./governedExecutionPreflight.js";
 
 function makePool() {
   const executionPolicyRows = [
@@ -82,5 +83,35 @@ assert.deepEqual(summary, [
     approval_required: true,
   },
 ]);
+
+const blocked = await evaluateAppActionPreflight({
+  appKey: "n8n",
+  actionKey: "execute_workflow",
+  args: {},
+}, deps);
+
+assert.equal(blocked.ok, false);
+assert.equal(blocked.classification, "blocked");
+assert.equal(blocked.enforcement_source, "execution_policies");
+assert.equal(blocked.target_rule_source, "platform_engine_policy_rules");
+assert.equal(blocked.target_rules.length, 1);
+assert.equal(blocked.target_rules[0].rule_key, "runtime_n8n_execute_workflow_guard");
+assert.deepEqual(blocked.errors, ["n8n_workflow_execution_requires_explicit_reason"]);
+assert.equal(blocked.evidence.runtime_policy_resolution.cutover_enabled, false);
+
+const allowed = await evaluateAppActionPreflight({
+  appKey: "n8n",
+  actionKey: "execute_workflow",
+  args: {
+    allow_n8n_workflow_execution: true,
+    execution_reason: "Approved explicit safe smoke run.",
+  },
+}, deps);
+
+assert.equal(allowed.ok, true);
+assert.equal(allowed.classification, "allow_with_policy_advisory");
+assert.equal(allowed.enforcement_source, "execution_policies");
+assert.equal(allowed.target_rule_source, "platform_engine_policy_rules");
+assert.equal(allowed.target_rules.length, 1);
 
 console.log("runtime policy resolver regression tests passed");
