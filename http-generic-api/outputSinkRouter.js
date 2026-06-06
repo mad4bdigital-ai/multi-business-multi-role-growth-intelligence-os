@@ -71,12 +71,23 @@ function normaliseOutput(output) {
   return { text: null, json: JSON.stringify(output) };
 }
 
-async function logSink(run_id, agent_id, tenant_id, sink_type, sink_ref_id, status, error_msg) {
+async function logSink(run_id, agent_id, tenant_id, sink_type, sink_ref_id, status, error_msg, context = {}) {
+  const actorId = context.actor_id || context.user_id || agent_id || null;
   await getPool().query(
     `INSERT INTO \`sink_dispatch_log\`
-       (dispatch_id, run_id, agent_id, tenant_id, sink_type, sink_ref_id, status, error_msg)
-     VALUES (?,?,?,?,?,?,?,?)`,
+       (dispatch_id, run_id, agent_id, tenant_id, workspace_id, workspace_key,
+        user_id, actor_id, actor_type, brand_id, brand_key,
+        request_id, session_id, conversation_id, correlation_id, execution_context_json,
+        sink_type, sink_ref_id, status, error_msg)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [randomUUID(), run_id, agent_id || null, tenant_id || null,
+     context.workspace_id || null, context.workspace_key || null,
+     context.user_id || null, actorId,
+     context.actor_type || (actorId ? "agent_or_user" : null),
+     context.brand_id || null, context.brand_key || null,
+     context.request_id || null, context.session_id || null, context.conversation_id || null,
+     context.correlation_id || run_id,
+     JSON.stringify({ source: "output_sink_router", run_id, sink_type, secrets_included: false }),
      sink_type, sink_ref_id || null, status, error_msg || null]
   ).catch(err => console.error("CRITICAL: sink_dispatch_log failed to write.", err));
 }
