@@ -174,6 +174,107 @@ function buildSshCliDryRunPlan(options = {}) {
   };
 }
 
+function sanitizeApprovalRequest(row) {
+  return {
+    request_id: row.request_id,
+    hold_id: row.hold_id,
+    tenant_id: row.tenant_id,
+    user_id: row.user_id,
+    connection_id: row.connection_id,
+    command_key: row.command_key,
+    command_argv: JSON.parse(row.command_argv_json || "[]"),
+    status: row.status,
+    hold_status: row.hold_status,
+    required_role: row.required_role,
+    requested_by: row.requested_by,
+    decision_by: row.decision_by,
+    decision_note: row.decision_note,
+    expires_at: row.expires_at,
+    decided_at: row.decided_at,
+    created_at: row.created_at,
+    execution_enabled: false,
+    secrets_included: false,
+  };
+}
+
+async function loadSshCliApprovalRequest(pool, req, requestId) {
+  const [rows] = await pool.query(
+    `SELECT r.request_id, r.hold_id, r.tenant_id, r.user_id, r.connection_id,
+            r.command_key, r.command_argv_json, r.status, r.decision_by,
+            r.decision_note, r.expires_at, r.decided_at, r.created_at,
+            h.status AS hold_status, h.required_role, h.requested_by
+       FROM tenant_ssh_cli_approval_requests r
+       LEFT JOIN approval_holds h ON h.hold_id = r.hold_id AND h.tenant_id = r.tenant_id
+      WHERE r.request_id = ? AND r.tenant_id = ?
+      LIMIT 1`,
+    [requestId, req.auth.tenant_id]
+  );
+  const row = rows?.[0];
+  if (!row) {
+    const err = new Error("Approval request was not found for this tenant.");
+    err.status = 404;
+    err.code = "approval_request_not_found";
+    throw err;
+  }
+  return row;
+}
+
+async function assertWorkspaceApprovalRole(pool, req) {
+  const [rows] = await pool.query(
+    `SELECT role, status FROM memberships WHERE tenant_id = ? AND user_id = ? AND status = 'active' LIMIT 1`,
+    [req.auth.tenant_id, req.auth.user_id]
+  );
+  const role = String(rows?.[0]?.role || "").toLowerCase();
+  if (!["owner", "workspace_owner", "admin"].includes(role)) {
+    const err = new Error("Workspace owner approval is required for SSH CLI approval decisions.");
+    err.status = 403;
+    err.code = "workspace_owner_approval_required";
+    throw err;
+  }
+  return role;
+}
+
+function normalizeApprovalDecision(value) {
+  const decision = String(value || "").trim().toLowerCase();
+  if (!["approved", "rejected"].includes(decision)) {
+    const err = new Error("decision must be approved or rejected.");
+    err.status = 400;
+    err.code = "invalid_approval_decision";
+    throw err;
+  }
+  return decision;
+}
+
+function normalizeDecisionNote(value) {
+  return String(value || "").trim().slice(0, 512);
+}
+
+async function decideSshCliApprovalRequest(pool, req, requestId, body = {}) {
+  const row = await loadSshCliApprovalRequest(pool, req, requestId);
+  await assertWorkspaceApprovalRole(pool, req);
+  if (row.status !== "open" || row.hold_status !== "open") {
+    const err = new Error("Approval request is not open.");
+    err.status = 409;
+    err.code = "approval_request_not_open";
+    throw err;
+  }
+  const decision = normalizeApprovalDecision(body.decision);
+  const note = normalizeDecisionNote(body.decision_note);
+  await pool.query(
+    `UPDATE tenant_ssh_cli_approval_requests
+        SET status = ?, decision_by = ?, decision_note = ?, decided_at = CURRENT_TIMESTAMP
+      WHERE request_id = ? AND tenant_id = ? AND status = 'open'`,
+    [decision, req.auth.user_id, note || null, requestId, req.auth.tenant_id]
+  );
+  await pool.query(
+    `UPDATE approval_holds
+        SET status = ?, decision_by = ?, decision_note = ?, decided_at = CURRENT_TIMESTAMP
+      WHERE hold_id = ? AND tenant_id = ? AND status = 'open'`,
+    [decision, req.auth.user_id, note || null, row.hold_id, req.auth.tenant_id]
+  );
+  return sanitizeApprovalRequest(await loadSshCliApprovalRequest(pool, req, requestId));
+}
+
 async function createSshCliApprovalRequest(pool, req, row, plan) {
   const requestId = randomUUID();
   const holdId = randomUUID();
@@ -585,6 +686,28 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
   });
   router.get("/me/infrastructure/ssh/connections/:connection_id/status", requireUserJwt, (req, res) => sendStatus(req, res, "ssh_key_pair"));
   router.post("/me/infrastructure/ssh/connections/:connection_id/preflight", requireUserJwt, (req, res) => sendPreflight(req, res, "ssh_key_pair"));
+  router.get("/me/infrastructure/ssh/cli/approval-requests/:request_id", requireUserJwt, async (req, res) => {
+    try {
+      const requestId = String(req.params.request_id || "").trim();
+      if (!requestId) return res.status(400).json({ ok: false, error: { code: "request_id_required", message: "request_id is required." }, secrets_included: false });
+      const approval_request = sanitizeApprovalRequest(await loadSshCliApprovalRequest(pool, req, requestId));
+      return res.json({ ok: true, kind: "ssh", approval_request, execution_enabled: false, secrets_included: false });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_cli_approval_status_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/me/infrastructure/ssh/cli/approval-requests/:request_id/decision", requireUserJwt, async (req, res) => {
+    try {
+      const requestId = String(req.params.request_id || "").trim();
+      if (!requestId) return res.status(400).json({ ok: false, error: { code: "request_id_required", message: "request_id is required." }, secrets_included: false });
+      const approval_request = await decideSshCliApprovalRequest(pool, req, requestId, req.body || {});
+      return res.json({ ok: true, kind: "ssh", approval_request, execution_enabled: false, execute_tool_enabled: false, secrets_included: false });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_cli_approval_decision_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   router.post("/me/infrastructure/ssh/connections/:connection_id/cli/approval-request", requireUserJwt, async (req, res) => {
     try {
       const connectionId = String(req.params.connection_id || "").trim();

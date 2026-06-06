@@ -2,16 +2,16 @@
 import { getPool } from "../db.js";
 import {
   assertDatabaseTableLifecycleRegistryUpsertAllowed,
-  DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION,
   planDatabaseTableLifecycleRegistryUpsert,
 } from "../databaseTableLifecycle.js";
 
 function parseArgs(argv) {
-  const args = { apply: false, confirm: null, limit: 1000 };
+  const args = { apply: false, confirm: null, includeExisting: false, limit: 1000 };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--apply") args.apply = true;
     if (arg === "--dry-run") args.apply = false;
+    if (arg === "--include-existing") args.includeExisting = true;
     if (arg === "--confirm") {
       args.confirm = argv[index + 1] || null;
       index += 1;
@@ -101,11 +101,18 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const gate = assertDatabaseTableLifecycleRegistryUpsertAllowed(args);
   const pool = getPool();
-  const plan = await planDatabaseTableLifecycleRegistryUpsert({ limit: args.limit }, { pool });
+  const plan = await planDatabaseTableLifecycleRegistryUpsert({
+    limit: args.limit,
+    include_existing: args.includeExisting,
+  }, { pool });
   const response = {
     ok: true,
     mode: gate.mode,
-    required_confirmation: gate.allowed ? undefined : DATABASE_TABLE_LIFECYCLE_UPSERT_CONFIRMATION,
+    selection_mode: plan.selection_mode,
+    required_confirmation: gate.allowed ? undefined : gate.required_confirmation,
+    live_table_count: plan.live_table_count,
+    existing_registry_count: plan.existing_registry_count,
+    selected_table_count: plan.selected_table_count,
     summary: plan.summary,
     buckets: plan.buckets,
     upsert_count: plan.upsert_count,
