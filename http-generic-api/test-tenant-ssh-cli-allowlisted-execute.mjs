@@ -10,8 +10,9 @@ assert(routes.includes('spawn } from "node:child_process"'), "execute route must
 assert(routes.includes('mkdtemp, rm, writeFile'), "execute route must write private key to temporary file and clean it up");
 assert(routes.includes('sshExecutionConfigFromConnection'), "execute route must explicitly decrypt SSH credentials only in execute helper");
 assert(routes.includes('assertSshCliExecuteRuntimeEnabled'), "execute route must check explicit runtime capability before spawning ssh");
-assert(routes.includes('TENANT_SSH_CLI_EXECUTE_ENABLED'), "execute route must require TENANT_SSH_CLI_EXECUTE_ENABLED");
-assert(routes.includes('TENANT_SSH_CLI_EXECUTE_DRIVER'), "execute route must require TENANT_SSH_CLI_EXECUTE_DRIVER");
+assert(routes.includes('platform_runtime_config'), "execute route must read runtime capability from SQL-primary platform_runtime_config");
+assert(routes.includes("config_key = 'tenant_ssh_cli_execute_runtime'"), "execute route must use the tenant SSH execute runtime config key");
+assert(routes.includes('required_config_json'), "execute runtime-disabled response must identify required config JSON");
 assert(routes.includes('ssh_cli_execute_runtime_not_enabled'), "execute route must return a structured runtime-disabled error instead of causing gateway failures");
 assert(routes.includes('dedicated_worker_or_connector_runtime'), "execute route must point to a safer dedicated runtime when disabled");
 assert(routes.includes('executeApprovedSshCli'), "execute route must use approved execution helper");
