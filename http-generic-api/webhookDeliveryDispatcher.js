@@ -55,7 +55,7 @@ async function assertWebhookTargetAllowed(rawUrl = "") {
     throw err;
   }
   const records = await dns.lookup(hostname, { all: true, verbatim: false });
-  if (!records.length || records.some((record) => isBlockedIp(record.address) || net.isIP(hostname) && isBlockedIp(hostname))) {
+  if (!records.length || records.some((record) => isBlockedIp(record.address) || (net.isIP(hostname) && isBlockedIp(hostname)))) {
     const err = new Error("Webhook URL resolves to a blocked address.");
     err.code = "webhook_url_address_blocked";
     throw err;
@@ -154,11 +154,8 @@ async function deliverOne(pool, row) {
         WHERE delivery_id = ?`,
       [delivered ? "delivered" : "failed", response.status, delivered ? null : `http_${response.status}`, delivered ? "delivered" : "failed", row.delivery_id]
     );
-    if (delivered) {
-      await pool.query(`UPDATE webhooks SET last_fired_at = NOW(), failure_count = 0 WHERE webhook_id = ?`, [row.webhook_id]).catch(() => {});
-    } else {
-      await pool.query(`UPDATE webhooks SET failure_count = failure_count + 1 WHERE webhook_id = ?`, [row.webhook_id]).catch(() => {});
-    }
+    if (delivered) await pool.query(`UPDATE webhooks SET last_fired_at = NOW(), failure_count = 0 WHERE webhook_id = ?`, [row.webhook_id]).catch(() => {});
+    else await pool.query(`UPDATE webhooks SET failure_count = failure_count + 1 WHERE webhook_id = ?`, [row.webhook_id]).catch(() => {});
     return { delivery_id: row.delivery_id, delivered, response_status: response.status };
   } catch (err) {
     await pool.query(
