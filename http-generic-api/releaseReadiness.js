@@ -198,7 +198,7 @@ export function extractMigrationReadinessRequirementsFromSql(sqlText = "") {
   };
 
   const createObjectRegex = /CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW)\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/gi;
-  for (const match of sql.matchAll(createObjectRegex)) {
+  for (const match of schemaScanSql.matchAll(createObjectRegex)) {
     const objectName = String(match?.[1] || "").trim();
     if (objectName && !RESERVED_SCHEMA_OBJECT_NAMES.has(objectName.toUpperCase())) {
       schemaObjects.add(objectName);
