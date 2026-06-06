@@ -9,7 +9,7 @@ export function checkActivationConsistency(evidence = {}) {
     warnings.push("github_ok_without_binding_resolved");
   }
 
-  if (evidence.validation_complete && !(evidence.drive_ok && evidence.sheets_ok && evidence.github_ok)) {
+  if (evidence.validation_complete && !(evidence.drive_ok && sheetsStepSatisfied(evidence) && evidence.github_ok)) {
     warnings.push("validation_complete_without_full_provider_chain");
   }
 
