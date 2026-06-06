@@ -683,7 +683,7 @@ It is forbidden to:
 - simulate transport validation
 - classify activation as `active`, `validated`, or `authorization_gated` without machine-verifiable transport attempt evidence
 
-Session-context failures classify the session-context surface as `degraded` or `authorization_gated` without replacing Drive, Sheets bootstrap, or GitHub validation. Raw transcript dumps are allowed only when explicitly requested and bounded by pagination and `raw_max_chars`; user-authenticated session-context reads must remain same-user scoped unless admin/service authority is present.
+Session-context failures classify the session-context surface as `degraded` or `authorization_gated` without replacing Drive, DB-native bootstrap config, or GitHub validation. Raw transcript dumps are allowed only when explicitly requested and bounded by pagination and `raw_max_chars`; user-authenticated session-context reads must remain same-user scoped unless admin/service authority is present.
 
 Direct Governed HTTP Activation Transport Enforcement Rule
 

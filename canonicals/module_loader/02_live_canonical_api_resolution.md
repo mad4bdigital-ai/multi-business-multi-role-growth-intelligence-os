@@ -334,7 +334,7 @@ When activation begins in a new conversation, module_loader must load activation
    - `degraded`
    - `blocked`
 
-Health, `/status`, release readiness, tenant listing, and count reads are diagnostics only and must not replace `activation_provider_bootstrap_validate` or, in direct runtime fallback, the Drive, Sheets bootstrap, and GitHub activation probes.
+Health, `/status`, release readiness, tenant listing, and count reads are diagnostics only and must not replace `activation_provider_bootstrap_validate` or, in direct runtime fallback, the Drive, DB-native bootstrap config, and GitHub activation probes.
 
 Session context is an activation evidence layer, not a replacement for provider probes. module_loader must preserve:
 - `session_context_attempted`

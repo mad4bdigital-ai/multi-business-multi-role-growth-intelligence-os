@@ -90,9 +90,10 @@ Activation order:
 4. Admin GPT path: call `/system/tools/call` with `name: "activation_provider_bootstrap_validate"` through `auth.mad4b.com` to run the governed Drive probe, DB-native bootstrap config read, and GitHub validation in one same-cycle tool call. This validates provider/bootstrap only; it does not open or read GPT Session Context and must not replace step 2.
 5. Preferred Admin GPT hard activation path: call `POST /activation/hard-run` through the governed tool `activation_hard_run` when available. Treat hard activation as complete only when the response includes `activation_complete=true`, `evidence_matrix.session_context.ok=true`, and `evidence_matrix.provider_bootstrap.ok=true`.
 6. Direct runtime path, when not using the auth-host system layer: Drive probe with `parent_action_key=google_drive_api`, `endpoint_key=listDriveFiles`.
-7. Direct runtime path: read the DB-native activation bootstrap config through registry/bootstrap authority; do not read Google Sheets for activation bootstrap.
-8. GitHub validation only with `parent_action_key` and `endpoint_key` resolved from DB bootstrap/registry authority.
-9. Run live validation and classify readiness.
+7. Direct runtime path: read `GET /activation/bootstrap-config` through registry/bootstrap authority; do not read Google Sheets for activation bootstrap.
+8. Resolve the authoritative DB-native bootstrap row.
+9. GitHub validation only with `parent_action_key` and `endpoint_key` resolved from DB bootstrap/registry authority.
+10. Run live validation and classify readiness.
 
 Session Context may include previous session history, related scopes, scoped request transcripts, bounded raw dumps when `include_raw=true`, a `platform_access` summary, `session_management`, and `conversation_memory`. Platform Access reports admin/global scope plus brands, plugins, logics, engines, and runtime-callable actions counts. User JWT sessions inspect only their own user context. Admin/service sessions may inspect explicit `user_id` and may receive execution-log prompt/response summaries.
 
@@ -510,12 +511,12 @@ Agents should assume activation requires the concrete provider bootstrap chain t
 2. Run the Session Context probe through `http_generic_api` with `GET /activation/session-context` to recover same-user previous session history, scoped user request transcripts, related platform scopes, and embedded platform access evidence. Use `limit` and `offset` to page through older session history when continuity requires more than the first page. Use `include_raw=true` only when raw prompt/response dumps are needed; raw fields are bounded by `raw_max_chars`. Admin/service sessions may also receive execution-log prompt/response summaries and bounded raw dumps; user JWT sessions must not receive unscoped execution-log transcripts.
 3. Run `GET /activation/platform-access` when the embedded summary is missing or a fresh access/count refresh is needed. Report `access_scope`, all-brand/admin access evidence, brands, plugins, logics, engines, and runtime-callable actions counts.
 4. Run the Drive probe through `http_generic_api` with `parent_action_key=google_drive_api` and `endpoint_key=listDriveFiles`.
-5. Run the Sheets bootstrap probe through `http_generic_api` with `parent_action_key=google_sheets_api`, `endpoint_key=getSheetValues`, `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>` (use this exact literal string, the backend auto-resolves it), and `query.range=Activation Bootstrap Config!A2:J2`.
+5. Read `GET /activation/bootstrap-config` through `http_generic_api` for the authoritative DB-native bootstrap config.
 6. Resolve the bootstrap row before attempting GitHub validation.
 7. Run GitHub validation only with `parent_action_key` and `endpoint_key` resolved from bootstrap or registry authority.
 8. Classify readiness from execution evidence, not from narrative or health checks alone.
 
-Health, `/status`, release readiness, tenant listing, brand counts, and action counts are diagnostics only. They prove reachability or registry health, but they do not replace Drive, Sheets bootstrap, or GitHub validation.
+Health, `/status`, release readiness, tenant listing, brand counts, and action counts are diagnostics only. They prove reachability or registry health, but they do not replace Drive, DB-native bootstrap config, or GitHub validation.
 
 Session Context is an activation context layer, not a replacement provider probe. If it fails because session tables are unavailable, continue with a degraded surface note. If it fails due auth isolation, classify `authorization_gated` and stop secured probes.
 
@@ -545,23 +546,12 @@ Drive activation probe:
 }
 ```
 
-Sheets bootstrap row read:
+DB-native bootstrap config read:
 
 ```json
 {
-  "parent_action_key": "google_sheets_api",
-  "endpoint_key": "getSheetValues",
-  "timeout_seconds": 10,
-  "path_params": {
-    "spreadsheetId": "<activation_bootstrap_spreadsheet_id>"
-  },
-  "query": {
-    "range": "Activation Bootstrap Config!A2:J2"
-  },
-  "readback": {
-    "required": false,
-    "mode": "none"
-  }
+  "method": "GET",
+  "path": "/activation/bootstrap-config"
 }
 ```
 
@@ -574,13 +564,13 @@ Use the narrowest honest classification:
 | Evidence | Classification |
 |---|---|
 | No transport attempt was made | retry once in the same cycle, then `degraded (missing_required_activation_transport_attempt)` |
-| `/health` passes but Drive or Sheets was skipped | `degraded (missing_required_provider_bootstrap_attempt)` |
-| Drive succeeds but Sheets bootstrap fails | `degraded_contract`, `authorization_gated`, or `validation_rate_limited` based on the error |
-| Sheets bootstrap row is unresolved | do not attempt GitHub; report `degraded` with the Sheets reason |
+| `/health` passes but Drive or DB bootstrap config was skipped | `degraded (missing_required_provider_bootstrap_attempt)` |
+| Drive succeeds but DB bootstrap config fails | `degraded_contract`, `authorization_gated`, or `validation_rate_limited` based on the error |
+| DB bootstrap config is unresolved | do not attempt GitHub; report `degraded` with the bootstrap reason |
 | Provider probes pass but registry readiness is incomplete | `validating` or `degraded` depending on whether execution can continue safely |
-| Drive, Sheets bootstrap, GitHub, registry readiness, and required counts pass | `active` |
+| Drive, DB bootstrap config, GitHub, registry readiness, and required counts pass | `active` |
 
-Report evidence as compact facts: transport status, DB status, Drive result, Sheets bootstrap result, GitHub result, registry source, platform access scope, brands/plugins/logics/engines counts, active actions, and any degraded surfaces.
+Report evidence as compact facts: transport status, DB status, Drive result, DB bootstrap config result, GitHub result, registry source, platform access scope, brands/plugins/logics/engines counts, active actions, and any degraded surfaces.
 
 ### Activation failure handling
 
@@ -592,7 +582,7 @@ When provider activation fails:
 - Do not claim activation is active from `/health`, `/status`, release readiness, tenant listing, or counts alone.
 
 ## 5. Registry-centered architecture
-The architecture relies on a strictly **MySQL-primary registry**. While Google Sheets is used for bootstrap, the operational registry execution authority is completely SQL-driven. Important registry families include:
+The architecture relies on a strictly **MySQL-primary registry**. Google Sheets is limited to async mirror, diagnostics, and recovery roles; DB-native bootstrap and operational registry execution authority are SQL-driven. Important registry families include:
 - Registry Surfaces Catalog
 - Validation & Repair Registry
 - Task Routes
@@ -888,7 +878,7 @@ If you are an AI agent working in this repo:
 - documentation should be aligned with canonicals before large refactors
 - platform-owned bootstrap assets use managed service account auth
 - user-owned Drive/Sheets input sources use refresh-token auth
-- active activation requires Drive, Sheets bootstrap, GitHub, and registry evidence
+- active activation requires Drive, DB-native bootstrap config, GitHub, and registry evidence
 
 ---
 

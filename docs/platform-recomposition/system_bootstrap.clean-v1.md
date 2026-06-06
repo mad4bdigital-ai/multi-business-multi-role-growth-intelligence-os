@@ -32,7 +32,7 @@ Activation is active only when the same cycle confirms:
 1. session context read succeeds;
 2. DB runtime bootstrap config resolves;
 3. Drive probe succeeds;
-4. Sheets bootstrap diagnostic read succeeds;
+4. DB-native bootstrap config read succeeds;
 5. GitHub validation succeeds using registry/bootstrap binding;
 6. platform access counts resolve without degraded required surfaces.
 
