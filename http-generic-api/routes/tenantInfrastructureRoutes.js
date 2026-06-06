@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { promises as dns } from "node:dns";
 import net from "node:net";
 import { Router } from "express";
@@ -169,6 +170,36 @@ function buildSshCliDryRunPlan(options = {}) {
     will_execute_command: false,
     execution_enabled: false,
     next_required_tool: "tenant_ssh_cli_allowlisted_execute_not_enabled_yet",
+    secrets_included: false,
+  };
+}
+
+async function createSshCliApprovalRequest(pool, req, row, plan) {
+  const requestId = randomUUID();
+  const holdId = randomUUID();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  await pool.query(
+    `INSERT INTO tenant_ssh_cli_approval_requests
+       (request_id, hold_id, tenant_id, user_id, connection_id, command_key, command_argv_json, status, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?)`,
+    [requestId, holdId, req.auth.tenant_id, req.auth.user_id, row.connection_id, plan.command_key, JSON.stringify(plan.argv), expiresAt]
+  );
+  await pool.query(
+    `INSERT INTO approval_holds
+       (hold_id, run_id, tenant_id, hold_type, requested_by, required_role, status, expires_at)
+     VALUES (?, ?, ?, 'supervisor_approval', ?, 'workspace_owner', 'open', ?)`,
+    [holdId, requestId, req.auth.tenant_id, req.auth.user_id, expiresAt]
+  );
+  return {
+    request_id: requestId,
+    hold_id: holdId,
+    status: "open",
+    required_role: "workspace_owner",
+    expires_at: expiresAt.toISOString(),
+    command_key: plan.command_key,
+    command_argv: plan.argv,
+    execution_enabled: false,
+    next_step: "approval_decision_and_execute_tool_not_enabled_yet",
     secrets_included: false,
   };
 }
@@ -554,6 +585,31 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
   });
   router.get("/me/infrastructure/ssh/connections/:connection_id/status", requireUserJwt, (req, res) => sendStatus(req, res, "ssh_key_pair"));
   router.post("/me/infrastructure/ssh/connections/:connection_id/preflight", requireUserJwt, (req, res) => sendPreflight(req, res, "ssh_key_pair"));
+  router.post("/me/infrastructure/ssh/connections/:connection_id/cli/approval-request", requireUserJwt, async (req, res) => {
+    try {
+      const connectionId = String(req.params.connection_id || "").trim();
+      if (!connectionId) return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      const row = await loadTenantConnection(pool, req, connectionId, "ssh_key_pair");
+      const readiness = readinessFor(row, "ssh_key_pair");
+      if (!readiness.ready) {
+        return res.status(409).json({ ok: false, error: { code: "ssh_connection_not_ready", message: "SSH connection is not ready for CLI approval request.", details: readiness.blocked_reasons }, readiness, secrets_included: false });
+      }
+      const plan = buildSshCliDryRunPlan(req.body || {});
+      const approval_request = await createSshCliApprovalRequest(pool, req, row, plan);
+      return res.status(201).json({
+        ok: true,
+        kind: "ssh",
+        approval_required: true,
+        execution_enabled: false,
+        connection: safeConnection(row),
+        plan,
+        approval_request,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_cli_approval_request_failed", message: err.message, details: err.details }, secrets_included: false });
+    }
+  });
   router.post("/me/infrastructure/ssh/connections/:connection_id/cli/dry-run", requireUserJwt, async (req, res) => {
     try {
       const connectionId = String(req.params.connection_id || "").trim();
