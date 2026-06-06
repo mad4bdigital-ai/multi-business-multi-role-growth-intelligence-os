@@ -585,6 +585,31 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
   });
   router.get("/me/infrastructure/ssh/connections/:connection_id/status", requireUserJwt, (req, res) => sendStatus(req, res, "ssh_key_pair"));
   router.post("/me/infrastructure/ssh/connections/:connection_id/preflight", requireUserJwt, (req, res) => sendPreflight(req, res, "ssh_key_pair"));
+  router.post("/me/infrastructure/ssh/connections/:connection_id/cli/approval-request", requireUserJwt, async (req, res) => {
+    try {
+      const connectionId = String(req.params.connection_id || "").trim();
+      if (!connectionId) return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      const row = await loadTenantConnection(pool, req, connectionId, "ssh_key_pair");
+      const readiness = readinessFor(row, "ssh_key_pair");
+      if (!readiness.ready) {
+        return res.status(409).json({ ok: false, error: { code: "ssh_connection_not_ready", message: "SSH connection is not ready for CLI approval request.", details: readiness.blocked_reasons }, readiness, secrets_included: false });
+      }
+      const plan = buildSshCliDryRunPlan(req.body || {});
+      const approval_request = await createSshCliApprovalRequest(pool, req, row, plan);
+      return res.status(201).json({
+        ok: true,
+        kind: "ssh",
+        approval_required: true,
+        execution_enabled: false,
+        connection: safeConnection(row),
+        plan,
+        approval_request,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_cli_approval_request_failed", message: err.message, details: err.details }, secrets_included: false });
+    }
+  });
   router.post("/me/infrastructure/ssh/connections/:connection_id/cli/dry-run", requireUserJwt, async (req, res) => {
     try {
       const connectionId = String(req.params.connection_id || "").trim();
