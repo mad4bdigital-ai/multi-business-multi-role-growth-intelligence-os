@@ -233,7 +233,7 @@ JOIN customer_sessions s ON t.session_id COLLATE utf8mb4_unicode_ci = s.session_
  WHERE t.tenant_id IS NULL OR t.user_id IS NULL OR t.actor_id IS NULL OR t.actor_type IS NULL OR t.brand_key IS NULL OR t.workspace_key IS NULL OR t.correlation_id IS NULL OR t.execution_context_json IS NULL;
 
 UPDATE session_events e
-JOIN customer_sessions s ON s.session_id = e.session_id
+JOIN customer_sessions s ON e.session_id COLLATE utf8mb4_unicode_ci = s.session_id COLLATE utf8mb4_unicode_ci
    SET e.user_id = COALESCE(e.user_id, s.user_id),
        e.actor_id = COALESCE(e.actor_id, s.user_id),
        e.actor_type = COALESCE(e.actor_type, CASE WHEN s.user_id IS NOT NULL THEN 'user' ELSE NULL END),
