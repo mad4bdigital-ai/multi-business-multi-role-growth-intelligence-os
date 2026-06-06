@@ -809,6 +809,28 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
     }
   });
 
+  router.get("/me/infrastructure/ssh/cli/approval-requests/:request_id", requireUserJwt, async (req, res) => {
+    try {
+      const requestId = String(req.params.request_id || "").trim();
+      if (!requestId) return res.status(400).json({ ok: false, error: { code: "request_id_required", message: "request_id is required." }, secrets_included: false });
+      const approval_request = sanitizeApprovalRequest(await loadSshCliApprovalRequest(pool, req, requestId));
+      return res.json({ ok: true, kind: "ssh", approval_request, execution_enabled: false, secrets_included: false });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_cli_approval_status_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/me/infrastructure/ssh/cli/approval-requests/:request_id/decision", requireUserJwt, async (req, res) => {
+    try {
+      const requestId = String(req.params.request_id || "").trim();
+      if (!requestId) return res.status(400).json({ ok: false, error: { code: "request_id_required", message: "request_id is required." }, secrets_included: false });
+      const approval_request = await decideSshCliApprovalRequest(pool, req, requestId, req.body || {});
+      return res.json({ ok: true, kind: "ssh", approval_request, execution_enabled: false, execute_tool_enabled: false, secrets_included: false });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_cli_approval_decision_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   router.post("/me/infrastructure/ssh/connections/:connection_id/cli/approval-request", requireUserJwt, async (req, res) => {
     try {
       const connectionId = String(req.params.connection_id || "").trim();
