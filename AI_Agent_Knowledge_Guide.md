@@ -108,7 +108,7 @@ Graph memory is advisory context, not authority. It may add `graph_memory_contex
 
 See `docs/session-context-graph-memory-archive-notes.md` for the current implementation notes and follow-up backlog.
 
-Do not start GitHub until the bootstrap row resolves. Halt if Sheets is rate-limited. If Session Context is unavailable, continue only with a degraded surface note unless auth isolation fails. If Drive/Sheets are not attempted, classify as `degraded (missing_required_provider_bootstrap_attempt)`.
+Do not start GitHub until the DB bootstrap row resolves. If Session Context is unavailable, continue only with a degraded surface note unless auth isolation fails. If Drive or DB bootstrap validation is not attempted when required, classify as `degraded (missing_required_provider_bootstrap_attempt)`.
 
 ### Runtime validation
 
