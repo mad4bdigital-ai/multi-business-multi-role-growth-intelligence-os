@@ -189,7 +189,7 @@ section("resolveExecutionRequest — query.range accepted and preferred over pat
       parent_action_key: "google_sheets_api",
       endpoint_key: "getSheetValues",
       method: "GET",
-      path_params: { spreadsheetId: ACTIVATION_BOOTSTRAP_SPREADSHEET_ID },
+      path_params: { spreadsheetId: ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID },
       query: { range }
     },
     makeMinimalDeps({ resolveHttpExecutionContext: sentinelAwareMock })
