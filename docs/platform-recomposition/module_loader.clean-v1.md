@@ -79,7 +79,10 @@ Acceptable patterns:
 
 - load by `workflow_id` for execution;
 - load by `(workflow_key, workflow_variant_key)`;
+- load by `workflow_key` only when exactly one active candidate exists;
 - load a group intentionally and return all candidates with disambiguation advice.
+
+Execution plans must persist the resolved `workflow_id`. Legacy plans may be backfilled only from a unique active `workflow_key` match; ambiguous and unresolved keys remain unmodified and require explicit review.
 
 ## 8. Schema resolution
 
