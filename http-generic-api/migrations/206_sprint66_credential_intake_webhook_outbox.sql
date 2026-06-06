@@ -53,7 +53,9 @@ ON DUPLICATE KEY UPDATE
   description = VALUES(description),
   http_method = VALUES(http_method),
   http_path = VALUES(http_path),
+  path_param_keys = VALUES(path_param_keys),
   input_schema = VALUES(input_schema),
+  fixed_body = VALUES(fixed_body),
   tags = VALUES(tags),
   is_enabled = VALUES(is_enabled),
   sort_order = VALUES(sort_order);
