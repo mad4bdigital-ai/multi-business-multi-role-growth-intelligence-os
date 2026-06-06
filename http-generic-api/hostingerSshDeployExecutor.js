@@ -15,7 +15,10 @@ const EXECUTOR_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED";
 const PROBE_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_PROBE_ENABLED";
 const ALLOWED_BRANCHES = new Set(["main"]);
 const DEFAULT_AUTH_APP_PATH = "/home/u338416126/domains/auth.mad4b.com/nodejs";
-const SSH_ROLES = ["ssh_host", "ssh_port", "ssh_user", "ssh_private_key"];
+const SSH_COMMON_ROLES = ["ssh_host", "ssh_port", "ssh_user"];
+const SSH_KEY_ROLE = "ssh_private_key";
+const SSH_PASSWORD_ROLE = "ssh_password";
+const SSH_AUTH_MODES = new Set(["private_key", "password"]);
 
 function compact(value = "", max = 255) {
   return String(value ?? "").trim().slice(0, max);
