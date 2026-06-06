@@ -106,4 +106,5 @@ jobs:
             --title "Docs agent: impact note for ${DOCS_AGENT_SHA:0:12}" \
             --body "Automated docs-only impact note for merged commit ${DOCS_AGENT_SHA}. This PR contains no runtime code, schema, DB, or credential changes.")
           echo "Created $PR_URL"
+          gh workflow run ci.yml --ref "$DOCS_AGENT_BRANCH" || true
           gh pr merge "$PR_URL" --auto --squash || true
