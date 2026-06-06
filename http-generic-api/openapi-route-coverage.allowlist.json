@@ -27,6 +27,7 @@
     "POST /browser-runtime/cloud-extract/run",
     "POST /browser-runtime/stealth-extract/run",
     "POST /connector/{device_id}/auto-browser",
+    "POST /platform/remote-runtime/hosting/deploy-release",
     "GET /connector-agent/policy"
   ],
   "prefixes": [

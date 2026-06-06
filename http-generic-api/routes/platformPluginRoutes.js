@@ -43,6 +43,7 @@ import {
   validateRemoteRuntimeTarget,
   planRemoteRuntimeDispatchDryRun,
 } from "../remoteRuntime.js";
+import { executeHostingerSshDeployRelease } from "../hostingerSshDeployExecutor.js";
 import {
   certifyPlatformPluginContribution,
   promotePlatformPluginContribution,
@@ -269,6 +270,17 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
       });
       return res.status(200).json(result);
     } catch (err) { return errorResponse(res, err, "remote_runtime_dispatch_dry_run_failed"); }
+  });
+
+  router.post("/platform/remote-runtime/hosting/deploy-release", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await executeHostingerSshDeployRelease({
+        ...input,
+        dry_run: input.dry_run === undefined ? true : input.dry_run,
+      });
+      return res.status(result.ok ? 200 : 502).json(result);
+    } catch (err) { return errorResponse(res, err, "remote_runtime_hosting_deploy_release_failed"); }
   });
 
   router.post("/platform/remote-runtime/local-path/execute-readonly", ...requireAdmin, async (req, res) => {
