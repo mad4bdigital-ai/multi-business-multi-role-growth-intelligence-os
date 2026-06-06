@@ -151,10 +151,40 @@ function unescapeSqlString(value = "") {
   return String(value || "").replace(/''/g, "'");
 }
 
+function stripSqlStringLiterals(sql = "") {
+  let out = "";
+  let inString = false;
+  for (let i = 0; i < String(sql || "").length; i += 1) {
+    const ch = sql[i];
+    if (!inString) {
+      if (ch === "'") {
+        inString = true;
+        out += " ";
+      } else {
+        out += ch;
+      }
+      continue;
+    }
+    if (ch === "'" && sql[i + 1] === "'") {
+      out += "  ";
+      i += 1;
+      continue;
+    }
+    if (ch === "'") {
+      inString = false;
+      out += " ";
+    } else {
+      out += " ";
+    }
+  }
+  return out;
+}
+
 const RESERVED_SCHEMA_OBJECT_NAMES = new Set(["IF", "NOT", "EXISTS", "SELECT", "AS"]);
 
 export function extractMigrationReadinessRequirementsFromSql(sqlText = "") {
   const sql = String(sqlText || "");
+  const schemaScanSql = stripSqlStringLiterals(stripSqlComments(sql));
   const schemaObjects = new Set();
   const requirements = {
     schema_objects: [],
