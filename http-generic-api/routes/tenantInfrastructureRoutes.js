@@ -692,8 +692,8 @@ function readinessFor(row, expectedAuthType) {
     blocked_reasons: blocked,
     execution_enabled: false,
     execution_next_step: expectedAuthType === "ssh_key_pair"
-      ? "tenant_ssh_allowlisted_runtime_tools_not_enabled_yet"
-      : "tenant_database_runtime_tools_not_enabled_yet",
+      ? "tenant_ssh_cli_approval_required_before_allowlisted_execute"
+      : "tenant_database_runtime_tools_enabled_read_only",
     secrets_included: false,
   };
 }
