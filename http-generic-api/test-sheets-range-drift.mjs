@@ -257,7 +257,7 @@ section("resolveExecutionRequest - activation bootstrap placeholder auto-resolut
 
   assert(
     "placeholder spreadsheet ID is auto-resolved to configured ID",
-    placeholderResult.ok === true && placeholderResult.pathParams.spreadsheetId === ACTIVATION_BOOTSTRAP_SPREADSHEET_ID,
+    placeholderResult.ok === true && placeholderResult.pathParams.spreadsheetId === ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
     `got: ${placeholderResult.pathParams?.spreadsheetId}`
   );
 
