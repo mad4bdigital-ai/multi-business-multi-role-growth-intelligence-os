@@ -484,7 +484,7 @@ export function buildCredentialRoutes(deps) {
 
       const pool = getPool();
       const [connections] = await pool.query(
-        `SELECT connection_id, user_id, tenant_id, app_key, auth_type, encrypted_credentials, status, validation_status
+        `SELECT connection_id, user_id, tenant_id, app_key, auth_type, encrypted_credentials, account_metadata, status, validation_status
            FROM user_app_connections
           WHERE connection_id = ?
           LIMIT 1`,
