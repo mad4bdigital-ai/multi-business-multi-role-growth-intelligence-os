@@ -272,16 +272,33 @@ export async function createCredentialIntakeRequirement(input = {}, effective = 
   const metadata = {
     ...(input.metadata && typeof input.metadata === "object" ? input.metadata : {}),
     intake_enforcement: true,
+    credential_intake_handoff: true,
+    intake_scope: intakeScope,
     intake_requirement_key: key,
     requested_app_key: requestedAppKey,
     action_key: str(input.action_key || input.actionKey) || null,
     target_key: str(input.target_key || input.targetKey) || null,
     connection_id: str(input.connection_id || input.connectionId) || null,
     credential_role: str(input.credential_role || input.credentialRole || input.role || effective.credential_role) || null,
+    credential_field: credentialField || null,
     missing_secret_key: effective.missing_secret_key || null,
     resolver_status: effective.status || null,
+    owner_type: effective.owner_type || null,
+    owner_id: effective.owner_id || null,
+    source: effective.source || null,
     secrets_must_not_be_returned: true,
   };
+  if (intakeScope === "platform" && platformSecretMappings.length) {
+    metadata.auto_promote_platform_secrets = true;
+    metadata.promotion_approved = true;
+    metadata.promotion_reason = str(input.promotion_reason || input.promotionReason)
+      || `Auto-promote missing platform credential ${effective.missing_secret_key || credentialField}`;
+    metadata.platform_secret_mappings = platformSecretMappings;
+    metadata.system_id = str(input.system_id || input.systemId) || null;
+    metadata.provider_family = str(input.provider_family || input.providerFamily || effective.provider_family) || null;
+    metadata.connector_family = str(input.connector_family || input.connectorFamily || effective.connector_family) || null;
+    metadata.owner_id = str(input.owner_id || input.ownerId || effective.owner_id || "growth_intelligence_platform") || metadata.owner_id;
+  }
 
   await pool.query(
     `INSERT INTO credential_intake_sessions
