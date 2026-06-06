@@ -1245,6 +1245,8 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       return { connector: await getConnectorRegistrySystem(args.system_id, auth) };
     case "activation_drive_probe":
       return await activationDriveProbe(args);
+    case "activation_bootstrap_config_read":
+      return await activationBootstrapConfigRead(args);
     case "activation_sheets_bootstrap_read":
       return await activationSheetsBootstrapRead(args);
     case "activation_github_validate": {
