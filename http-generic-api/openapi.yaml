@@ -2743,6 +2743,33 @@ paths:
         "502": { description: SSH command failed, timed out, or SSH runtime unavailable. }
         "500": { description: Unexpected SSH CLI execution failure. }
 
+  /me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result:
+    get:
+      tags: [tenant-infrastructure]
+      security:
+        - backendBearerAuth: []
+      operationId: tenantSshCliExecuteJobResult
+      summary: Read tenant SSH CLI execute job result
+      description: Reads a tenant-scoped allowlisted SSH CLI execution job result. The job must belong to the requesting user and connection. Results are redacted and never include SSH credentials.
+      parameters:
+        - name: connection_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200": { description: Job completed and result returned. }
+        "202": { description: Job is still queued or running. }
+        "400": { description: Missing connection_id or job_id. }
+        "401": { description: Missing or invalid tenant user JWT. }
+        "404": { description: Job not found for this tenant connection. }
+        "500": { description: Unexpected job result read failure. }
+
   /me/infrastructure/ssh/cli/approval-requests/{request_id}:
     get:
       tags: [tenant-infrastructure]

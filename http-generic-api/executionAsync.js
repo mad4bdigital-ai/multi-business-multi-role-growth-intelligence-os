@@ -4,6 +4,7 @@ import {
   DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY,
 } from "./databaseTableLifecycle.js";
 import { CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE } from "./connectedExecutionWorker.js";
+import { TENANT_SSH_CLI_EXECUTE_JOB_TYPE } from "./tenantSshCliExecutionWorker.js";
 
 export async function submitSiteMigrationJob(reqBody, requestedBy, idempotencyKey, deps = {}) {
   const {
@@ -168,6 +169,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       ? []
       : requestedJobType === CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE
       ? []
+      : requestedJobType === TENANT_SSH_CLI_EXECUTE_JOB_TYPE
+      ? []
       : validateAsyncJobRequest(requestPayload);
 
   if (body.max_attempts !== undefined) {
@@ -248,6 +251,7 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       : null;
   const isDatabaseLifecycleSnapshotJob = normalizedJobType === DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE;
   const isConnectedExecutionResumeActionJob = normalizedJobType === CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE;
+  const isTenantSshCliExecuteJob = normalizedJobType === TENANT_SSH_CLI_EXECUTE_JOB_TYPE;
   const databaseLifecycleSnapshotPayload = isDatabaseLifecycleSnapshotJob
     ? {
         ...requestPayload,
@@ -262,6 +266,17 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         connected_session_id: String(requestPayload.connected_session_id || "").trim(),
         resume_action_id: String(requestPayload.resume_action_id || "").trim(),
         dry_run: true,
+      }
+    : null;
+  const tenantSshCliExecutePayload = isTenantSshCliExecuteJob
+    ? {
+        connection_id: String(requestPayload.connection_id || "").trim(),
+        approval_request_id: String(requestPayload.approval_request_id || "").trim(),
+        command_key: String(requestPayload.command_key || "").trim(),
+        tenant_id: String(requestPayload.tenant_id || "").trim(),
+        user_id: String(requestPayload.user_id || "").trim(),
+        timeout_ms: requestPayload.timeout_ms,
+        secrets_included: false,
       }
     : null;
 
@@ -284,6 +299,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? String(databaseLifecycleSnapshotPayload.schedule_key || DEFAULT_DATABASE_LIFECYCLE_SNAPSHOT_SCHEDULE_KEY).trim()
         : isConnectedExecutionResumeActionJob
         ? String(connectedExecutionResumeActionPayload.connected_session_id || "").trim()
+        : isTenantSshCliExecuteJob
+        ? String(tenantSshCliExecutePayload.connection_id || "").trim()
         : String(requestPayload.target_key || "").trim(),
     parent_action_key:
       normalizedJobType === "site_migration"
@@ -292,6 +309,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "database_lifecycle_scheduler"
         : isConnectedExecutionResumeActionJob
         ? "connected_execution_worker"
+        : isTenantSshCliExecuteJob
+        ? "tenant_ssh_cli_worker"
         : String(requestPayload.parent_action_key || "").trim(),
     endpoint_key:
       normalizedJobType === "site_migration"
@@ -300,6 +319,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "database_lifecycle_report_snapshot"
         : isConnectedExecutionResumeActionJob
         ? "connected_execution_resume_action"
+        : isTenantSshCliExecuteJob
+        ? "tenant_ssh_cli_allowlisted_execute"
         : String(requestPayload.endpoint_key || "").trim(),
     route_id:
       normalizedJobType === "site_migration"
@@ -308,6 +329,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "database_lifecycle_scheduler_snapshot_runner"
         : isConnectedExecutionResumeActionJob
         ? "connected_execution_resume_action_worker_bridge"
+        : isTenantSshCliExecuteJob
+        ? "tenant_ssh_cli_dedicated_worker_runtime"
         : String(requestPayload.route_id || "").trim(),
     target_module:
       normalizedJobType === "site_migration"
@@ -316,6 +339,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "database_lifecycle"
         : isConnectedExecutionResumeActionJob
         ? "connected_execution"
+        : isTenantSshCliExecuteJob
+        ? "tenant_infrastructure"
         : String(requestPayload.target_module || "").trim(),
     target_workflow:
       normalizedJobType === "site_migration"
@@ -324,6 +349,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "wf_database_lifecycle_report_snapshot"
         : isConnectedExecutionResumeActionJob
         ? "wf_connected_execution_resume_action"
+        : isTenantSshCliExecuteJob
+        ? "wf_tenant_ssh_cli_allowlisted_execute"
         : String(requestPayload.target_workflow || "").trim(),
     brand_name:
       normalizedJobType === "site_migration"
@@ -340,6 +367,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       ? databaseLifecycleSnapshotPayload
       : isConnectedExecutionResumeActionJob
       ? connectedExecutionResumeActionPayload
+      : isTenantSshCliExecuteJob
+      ? tenantSshCliExecutePayload
       : requestPayload,
     attempt_count: 0,
     max_attempts: normalizeMaxAttempts(body.max_attempts),
