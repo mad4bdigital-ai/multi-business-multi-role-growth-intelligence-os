@@ -324,8 +324,8 @@ async function spawnSshCommand(cfg, plan, timeoutMs) {
       settled = true;
       clearTimeout(timer);
       cleanup();
-      const redactedStdout = capOutput(redactExecutionOutput(stdout, [cfg.private_key, cfg.user]));
-      const redactedStderr = capOutput(redactExecutionOutput(stderr, [cfg.private_key, cfg.user]));
+      const redactedStdout = capOutput(redactExecutionOutput(stdout, [cfg.private_key, cfg.password, cfg.user]));
+      const redactedStderr = capOutput(redactExecutionOutput(stderr, [cfg.private_key, cfg.password, cfg.user]));
       resolve({
         ok: exitCode === 0 && !timedOut,
         command_key: plan.command_key,
