@@ -47,13 +47,36 @@ function normalizePrivateKey(value = "") {
   return withNewlines.endsWith("\n") ? withNewlines : `${withNewlines}\n`;
 }
 
+function optionalCredential(credentials, key) {
+  const value = credentials?.[key];
+  if (value === null || value === undefined || String(value).trim() === "") return "";
+  return String(value);
+}
+
+function looksLikePrivateKey(value = "") {
+  return /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/.test(String(value || ""));
+}
+
 function sshExecutionConfigFromConnection(row) {
   const credentials = decryptCredentials(row.encrypted_credentials);
+  const rawPrivateKey = optionalCredential(credentials, "ssh_private_key");
+  const rawPassword = optionalCredential(credentials, "ssh_password");
+  const privateKey = normalizePrivateKey(rawPrivateKey);
+  const password = rawPassword || (!looksLikePrivateKey(privateKey) ? rawPrivateKey : "");
+  const authMethod = looksLikePrivateKey(privateKey) ? "private_key" : password ? "password" : "missing";
+  if (authMethod === "missing") {
+    const err = new Error("SSH authentication requires ssh_private_key or ssh_password.");
+    err.status = 422;
+    err.code = "missing_ssh_authentication_secret";
+    throw err;
+  }
   return {
     host: requiredCredential(credentials, "ssh_host"),
     port: clampInt(requiredCredential(credentials, "ssh_port"), 22, 1, 65535),
     user: requiredCredential(credentials, "ssh_user"),
-    private_key: normalizePrivateKey(requiredCredential(credentials, "ssh_private_key")),
+    auth_method: authMethod,
+    private_key: authMethod === "private_key" ? privateKey : "",
+    password: authMethod === "password" ? password : "",
   };
 }
 
