@@ -474,9 +474,9 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     throw err;
   }
 
-  const [host, port, user, privateKey] = await Promise.all(SSH_ROLES.map((role) => resolveSshCredential(pool, target, role, input)));
+  const sshConnection = await resolveSshConnectionCredentials(pool, target, input);
   const remoteScript = buildRemoteProbeScript({ appPath, expectedCommitSha });
-  const sshResult = await runSshDeploy({ host, port, user, privateKey, remoteScript, timeoutMs });
+  const sshResult = await runSshCommand({ ...sshConnection, remoteScript, timeoutMs });
   const parsed = parseProbeOutput(sshResult.stdout);
   const probeOk = sshResult.ok && parsed.probe_result === "ok";
 
