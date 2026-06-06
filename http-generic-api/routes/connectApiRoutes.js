@@ -320,6 +320,52 @@ export function buildConnectApiRoutes(deps = {}) {
     }
   });
 
+  // GET /connect/api/credential-intake/sessions/:session_id/wait — long-poll completion without exposing secrets.
+  router.get("/connect/api/credential-intake/sessions/:session_id/wait", async (req, res, next) => {
+    try {
+      const sessionId = String(req.params.session_id || "").trim();
+      if (!sessionId) return res.status(400).json({ ok: false, error: { code: "session_id_required", message: "session_id is required." }, secrets_included: false });
+      const timeoutMs = Math.min(Math.max(Number.parseInt(req.query.timeout_ms || "15000", 10) || 15000, 1000), 60000);
+      const intervalMs = Math.min(Math.max(Number.parseInt(req.query.interval_ms || "1000", 10) || 1000, 250), 5000);
+      const deadline = Date.now() + timeoutMs;
+      let row = null;
+      do {
+        const [rows] = await pool.query(
+          `SELECT session_id, user_id, tenant_id, app_key, auth_type, status, expires_at, used_at, connection_id, credential_schema_json
+             FROM credential_intake_sessions
+            WHERE session_id = ? AND user_id = ? AND tenant_id = ?
+            LIMIT 1`,
+          [sessionId, req.auth.user_id, req.auth.tenant_id]
+        );
+        row = rows?.[0] || null;
+        if (!row) return res.status(404).json({ ok: false, error: { code: "intake_session_not_found", message: "Credential intake session was not found for this caller." }, secrets_included: false });
+        if (row.status !== "pending" || new Date(row.expires_at).getTime() <= Date.now()) break;
+        await new Promise((resolve) => setTimeout(resolve, Math.min(intervalMs, Math.max(0, deadline - Date.now()))));
+      } while (Date.now() < deadline);
+
+      const completed = row.status === "used" && Boolean(row.connection_id);
+      return res.status(completed ? 200 : 202).json({
+        ok: true,
+        session_id: row.session_id,
+        app_key: row.app_key,
+        auth_type: row.auth_type,
+        status: row.status,
+        completed,
+        connection_id: row.connection_id || null,
+        used_at: row.used_at || null,
+        expires_at: row.expires_at || null,
+        timed_out: !completed && row.status === "pending" && Date.now() >= deadline,
+        next_tools: completed && row.auth_type === "ssh_key_pair"
+          ? ["tenant_ssh_connection_status", "tenant_ssh_probe", "tenant_ssh_cli_allowlisted_dry_run", "tenant_ssh_cli_approval_request_create", "tenant_ssh_cli_allowlisted_execute", "tenant_ssh_cli_execute_job_result"]
+          : [],
+        webhook_safe_event: completed ? "credential_intake.completed" : "credential_intake.pending",
+        secrets_included: false,
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // POST /connect/api/cms/claims — verify WordPress credentials + create claim.
   router.post("/connect/api/cms/claims", async (req, res) => {
     try {
