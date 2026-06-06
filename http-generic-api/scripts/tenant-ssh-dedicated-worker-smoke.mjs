@@ -111,7 +111,7 @@ function assertPass(condition, code, details = {}) {
 
 async function main() {
   const args = parseArgs();
-  const baseUrl = `http://127.0.0.1:${args.port}`;
+  const baseUrl = String(args.base_url || "").trim() || `http://127.0.0.1:${args.port || "3000"}`;
   const token = mintTenantJwt(args);
   const summaries = [];
 
