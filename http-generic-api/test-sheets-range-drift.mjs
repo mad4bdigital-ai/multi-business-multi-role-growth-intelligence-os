@@ -12,7 +12,7 @@ import { fetchRange } from "./googleSheets.js";
 import { validateEndpointRowConsistency } from "./registryExecutionEligibility.js";
 import { resolveExecutionRequest } from "./executionResolution.js";
 
-const ACTIVATION_BOOTSTRAP_SPREADSHEET_ID = "1RV185rQo58pGppg27r81eD9hPE8pXPyBY1pfHANip4o";
+const ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID = "1RV185rQo58pGppg27r81eD9hPE8pXPyBY1pfHANip4o";
 
 let passed = 0;
 let failed = 0;
