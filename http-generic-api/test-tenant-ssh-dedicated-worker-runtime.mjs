@@ -40,5 +40,7 @@ assert(migration.includes('tenant_ssh_cli_execute_job_result'), "migration must 
 assert(migration.includes('/me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result'), "migration must use scoped result path");
 assert(migration.includes('read_only') && migration.includes('no_secrets'), "result tool must be read-only/no-secrets");
 assert(runner.includes('"204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql"'), "governed runner must allow migration 204");
+assert(openapi.includes('/me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result'), "OpenAPI must document SSH execute job result endpoint");
+assert(openapi.includes('tenantSshCliExecuteJobResult'), "OpenAPI must expose stable operationId for SSH execute job result");
 
 console.log("Tenant SSH dedicated worker runtime guard passed");
