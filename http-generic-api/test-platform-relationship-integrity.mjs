@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const migration = readFileSync(new URL("./migrations/206_sprint67_platform_relationship_integrity_views.sql", import.meta.url), "utf8");
+const migration = readFileSync(new URL("./migrations/207_sprint67_platform_relationship_integrity_views.sql", import.meta.url), "utf8");
 const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
 const workflowRoutes = readFileSync(new URL("./routes/workflowOrchestrationRoutes.js", import.meta.url), "utf8");
 
