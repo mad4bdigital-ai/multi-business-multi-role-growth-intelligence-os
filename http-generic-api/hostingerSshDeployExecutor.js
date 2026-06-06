@@ -399,7 +399,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     throw err;
   }
 
-  const [host, port, user, privateKey] = await Promise.all(SSH_ROLES.map((role) => resolveSshCredential(pool, target, role)));
+  const [host, port, user, privateKey] = await Promise.all(SSH_ROLES.map((role) => resolveSshCredential(pool, target, role, input)));
   const remoteScript = buildRemoteProbeScript({ appPath, expectedCommitSha });
   const sshResult = await runSshDeploy({ host, port, user, privateKey, remoteScript, timeoutMs });
   const parsed = parseProbeOutput(sshResult.stdout);
