@@ -30,7 +30,7 @@ export const CANONICALS = [
   {
     output: 'direct_instructions_registry_patch.md',
     sourceDir: 'canonicals/direct_instructions_registry_patch',
-    expectedFileCount: 15,
+    expectedFileCount: 16,
     index: [
       ['Header and purpose', '00_header_purpose.md', 'Canonical identity, status, and direct patch purpose.'],
       ['Governance foundation', '01_governance_foundation.md', 'Canonical presentation, pointer authority, brand core, activation, and early logging governance.'],
@@ -47,6 +47,7 @@ export const CANONICALS = [
       ['Context resolver layer', '12_context_resolver_layer.md', 'Resolver-first enforcement, resolver precedence rules, and blocked context handling.'],
       ['Agent execution runtime', '13_agent_execution_runtime.md', 'Agent runtime enforcement, model tier selection, verify pass, engine dispatch, and Drive knowledge layer.'],
       ['Dispatch and local connector governance', '14_dispatch_local_connector_governance.md', 'task_routes mutation rules, MODULE_EXECUTORS registration, agent skills/grants/bindings, supervision policy, and DNS enforcement.'],
+      ['Schema repair governance', '15_schema_repair_governance.md', 'Safe additive schema repair, collation guard, and capability-vault draft runtime safety.'],
     ],
   },
   {
