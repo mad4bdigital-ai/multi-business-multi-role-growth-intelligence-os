@@ -110,6 +110,146 @@ function sshConfigFromConnection(row) {
   };
 }
 
+function sshExecutionConfigFromConnection(row) {
+  const credentials = decryptCredentials(row.encrypted_credentials);
+  return {
+    host: requiredCredential(credentials, "ssh_host"),
+    port: clampInt(requiredCredential(credentials, "ssh_port"), 22, 1, 65535),
+    user: requiredCredential(credentials, "ssh_user"),
+    private_key: requiredCredential(credentials, "ssh_private_key"),
+  };
+}
+
+function redactExecutionOutput(text, secrets = []) {
+  let value = String(text || "");
+  for (const secret of secrets) {
+    const token = String(secret || "");
+    if (token && token.length >= 6) value = value.split(token).join("[redacted]");
+  }
+  return value;
+}
+
+function capOutput(text, maxChars = 4096) {
+  const value = String(text || "");
+  return { text: value.slice(0, maxChars), truncated: value.length > maxChars };
+}
+
+function assertApprovedSshCliExecution(row, approvalRow, commandKey) {
+  const plan = buildSshCliDryRunPlan({ command_key: commandKey });
+  if (approvalRow.connection_id !== row.connection_id) {
+    const err = new Error("Approval request does not match this SSH connection.");
+    err.status = 409;
+    err.code = "approval_connection_mismatch";
+    throw err;
+  }
+  if (approvalRow.status !== "approved" || approvalRow.hold_status !== "approved") {
+    const err = new Error("SSH CLI execution requires an approved approval request.");
+    err.status = 409;
+    err.code = "approval_not_approved";
+    throw err;
+  }
+  if (approvalRow.command_key !== plan.command_key) {
+    const err = new Error("Approval request command_key does not match requested command_key.");
+    err.status = 409;
+    err.code = "approval_command_mismatch";
+    throw err;
+  }
+  const approvedArgv = JSON.stringify(JSON.parse(approvalRow.command_argv_json || "[]"));
+  if (approvedArgv !== JSON.stringify(plan.argv)) {
+    const err = new Error("Approval request argv no longer matches the allowlisted command plan.");
+    err.status = 409;
+    err.code = "approval_argv_mismatch";
+    throw err;
+  }
+  if (approvalRow.expires_at && new Date(approvalRow.expires_at).getTime() <= Date.now()) {
+    const err = new Error("Approval request has expired.");
+    err.status = 409;
+    err.code = "approval_request_expired";
+    throw err;
+  }
+  return plan;
+}
+
+async function executeApprovedSshCli(row, approvalRow, commandKey, options = {}) {
+  const cfg = sshExecutionConfigFromConnection(row);
+  const plan = assertApprovedSshCliExecution(row, approvalRow, commandKey);
+  const address = await resolvePublicProbeAddress(cfg.host);
+  const timeout_ms = clampInt(options.timeout_ms, 5000, 1000, 10000);
+  const started_at = new Date().toISOString();
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "tenant-ssh-"));
+  const keyPath = path.join(tempDir, "id_key");
+  await writeFile(keyPath, cfg.private_key, { mode: 0o600 });
+  return new Promise((resolve) => {
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+    const sshArgs = [
+      "-i", keyPath,
+      "-p", String(cfg.port),
+      "-o", "BatchMode=yes",
+      "-o", "ConnectTimeout=8",
+      "-o", "StrictHostKeyChecking=no",
+      "-o", "UserKnownHostsFile=/dev/null",
+      "-o", "LogLevel=ERROR",
+      `${cfg.user}@${address}`,
+      "--",
+      ...plan.argv,
+    ];
+    const child = spawn("ssh", sshArgs, { shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGTERM");
+      setTimeout(() => child.kill("SIGKILL"), 500).unref?.();
+    }, timeout_ms);
+    child.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8"); });
+    child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      rm(tempDir, { recursive: true, force: true }).catch(() => {});
+      resolve({
+        ok: false,
+        error_code: error?.code === "ENOENT" ? "ssh_cli_runtime_unavailable" : "ssh_cli_spawn_failed",
+        message: error?.code === "ENOENT" ? "ssh binary is not available on this runtime." : "SSH process could not be started.",
+        command_key: plan.command_key,
+        command_argv: plan.argv,
+        authenticated_ssh: false,
+        command_executed: false,
+        timed_out: false,
+        timeout_ms,
+        started_at,
+        finished_at: new Date().toISOString(),
+        host_key_verified: false,
+        secrets_included: false,
+      });
+    });
+    child.on("close", (exitCode, signal) => {
+      clearTimeout(timer);
+      rm(tempDir, { recursive: true, force: true }).catch(() => {});
+      const redactedStdout = capOutput(redactExecutionOutput(stdout, [cfg.private_key, cfg.user]));
+      const redactedStderr = capOutput(redactExecutionOutput(stderr, [cfg.private_key, cfg.user]));
+      resolve({
+        ok: exitCode === 0 && !timedOut,
+        command_key: plan.command_key,
+        command_argv: plan.argv,
+        exit_code: exitCode,
+        signal,
+        timed_out: timedOut,
+        timeout_ms,
+        started_at,
+        finished_at: new Date().toISOString(),
+        authenticated_ssh: exitCode !== null,
+        command_executed: exitCode !== null && !timedOut,
+        host_key_verified: false,
+        stdout: redactedStdout.text,
+        stderr: redactedStderr.text,
+        stdout_truncated: redactedStdout.truncated,
+        stderr_truncated: redactedStderr.truncated,
+        secrets_included: false,
+      });
+    });
+  });
+}
+
 function isBlockedProbeIp(ip = "") {
   const value = String(ip || "").toLowerCase();
   if (!value) return true;
