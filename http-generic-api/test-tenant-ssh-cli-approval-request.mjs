@@ -19,7 +19,7 @@ assert(routes.includes('workspace_owner'), "approval request must require worksp
 assert(routes.includes('execution_enabled: false'), "approval request must not enable execution");
 assert(routes.includes('approval_decision_and_execute_tool_not_enabled_yet'), "approval request must identify gated future execution");
 assert(!routes.includes('/cli/execute'), "SSH CLI execute route must not exist in approval request phase");
-assert(!routes.includes('tenant_ssh_cli_allowlisted_execute'), "SSH CLI execute tool must not be implemented in this phase");
+assert(!migration.includes('tenant_ssh_cli_allowlisted_execute'), "approval request migration must not register an execute tool");
 assert(routes.includes('secrets_included: false'), "approval request must never return secrets");
 
 assert(migration.includes('CREATE TABLE IF NOT EXISTS tenant_ssh_cli_approval_requests'), "migration must create approval request table idempotently");
