@@ -136,6 +136,7 @@ export const testCommands = [
   "node test-core-runtime-context-dimensions.mjs",
   "node test-runtime-context-writer-wiring.mjs",
   "node test-runtime-context-dimension-enrichment.mjs",
+  "node test-platform-relationship-integrity.mjs",
   "node test-context-activation-followup.mjs",
   "node test-audit-payload-evidence.mjs",
   "node test-logic-evidence-plumbing.mjs",
