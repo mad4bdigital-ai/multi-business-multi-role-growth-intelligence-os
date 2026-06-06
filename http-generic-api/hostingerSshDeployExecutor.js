@@ -145,7 +145,7 @@ async function resolveSshCredential(pool, target, role, input = {}) {
       credentialField: role,
       credentialLabel: role === "ssh_port" ? "SSH port" : role,
       displayLabel: `${target.host_label || "Hostinger SSH"} ${role}`,
-      intakeScope: result?.owner_type === "platform" || String(result?.credential_ref || "").startsWith("platform_secret:") ? "platform" : "tenant",
+      intakeScope: result?.owner_type === "platform" || String(result?.credential_ref || "").startsWith("platform_secret:") || isPlatformManagedTarget(target) ? "platform" : "tenant",
       providerFamily: target.provider_family,
       connectorFamily: target.connector_family,
       ownerId: result?.owner_id || "growth_intelligence_platform",
