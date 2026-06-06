@@ -37,15 +37,26 @@ export function buildWorkflowOrchestrationRoutes(deps) {
         "pending";
 
       const run_id = randomUUID();
+      const resolvedCorrelationId = correlation_id || run_id;
       const input = input_json ? JSON.stringify(input_json) : null;
+      const executionContextJson = JSON.stringify({
+        source: "workflow_orchestration_routes",
+        run_id,
+        plan_id: plan_id || null,
+        request_id: request_id || null,
+        secrets_included: false,
+      });
 
       await getPool().query(
         `INSERT INTO \`workflow_runs\`
-           (run_id, tenant_id, user_id, workflow_key, plan_id, service_mode, status, input_json, started_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [run_id, tenant_id, user_id || null, workflow_key, plan_id || null,
-         service_mode, initialStatus, input,
-         initialStatus === "pending" ? new Date() : null]
+           (run_id, tenant_id, workspace_id, workspace_key, user_id, actor_id, actor_type,
+            brand_id, brand_key, request_id, session_id, conversation_id, correlation_id,
+            execution_context_json, workflow_key, plan_id, service_mode, status, input_json, started_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [run_id, tenant_id, workspace_id, workspace_key, user_id || null, user_id || null,
+         user_id ? "user" : "system", brand_id, brand_key, request_id, session_id,
+         conversation_id, resolvedCorrelationId, executionContextJson, workflow_key, plan_id || null,
+         service_mode, initialStatus, input, initialStatus === "pending" ? new Date() : null]
       );
 
       // If review/approval needed, auto-create an approval hold
@@ -55,9 +66,17 @@ export function buildWorkflowOrchestrationRoutes(deps) {
         const hold_type = access.decision === "REQUIRE_REVIEW" ? "review" : "supervisor_approval";
         const required_role = hold_type === "review" ? "certified_reviewer" : "supervisor";
         await getPool().query(
-          `INSERT INTO \`approval_holds\` (hold_id, run_id, tenant_id, hold_type, requested_by, required_role)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [hold_id, run_id, tenant_id, hold_type, user_id || null, required_role]
+          `INSERT INTO \`approval_holds\`
+             (hold_id, run_id, tenant_id, workspace_id, workspace_key, user_id,
+              actor_id, actor_type, brand_id, brand_key, request_id, session_id,
+              conversation_id, correlation_id, execution_context_json,
+              hold_type, requested_by, required_role)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [hold_id, run_id, tenant_id, workspace_id, workspace_key, user_id || null,
+           user_id || null, user_id ? "user" : "system", brand_id, brand_key,
+           request_id, session_id, conversation_id, resolvedCorrelationId,
+           JSON.stringify({ source: "workflow_orchestration_routes", run_id, hold_id, secrets_included: false }),
+           hold_type, user_id || null, required_role]
         );
       }
 
@@ -144,15 +163,28 @@ export function buildWorkflowOrchestrationRoutes(deps) {
       const { step_key, step_type = "action", assigned_to, input_json } = req.body || {};
       if (!step_key) return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "step_key is required." } });
 
-      const [runRows] = await getPool().query("SELECT tenant_id FROM `workflow_runs` WHERE run_id = ? LIMIT 1", [req.params.id]);
+      const [runRows] = await getPool().query("SELECT tenant_id, workspace_id, workspace_key, user_id, actor_id, actor_type, brand_id, brand_key, request_id, session_id, conversation_id, correlation_id FROM `workflow_runs` WHERE run_id = ? LIMIT 1", [req.params.id]);
       if (!runRows.length) return res.status(404).json({ ok: false, error: { code: "run_not_found", message: "Workflow run not found." } });
 
+      const runContext = runRows[0];
       const step_run_id = randomUUID();
       const input = input_json ? JSON.stringify(input_json) : null;
       await getPool().query(
-        `INSERT INTO \`step_runs\` (step_run_id, run_id, tenant_id, step_key, step_type, assigned_to, input_json)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [step_run_id, req.params.id, runRows[0].tenant_id, step_key, step_type, assigned_to || null, input]
+        `INSERT INTO \`step_runs\`
+           (step_run_id, run_id, tenant_id, workspace_id, workspace_key, user_id,
+            actor_id, actor_type, brand_id, brand_key, request_id, session_id,
+            conversation_id, correlation_id, execution_context_json,
+            step_key, step_type, assigned_to, input_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [step_run_id, req.params.id, runContext.tenant_id, runContext.workspace_id || null,
+         runContext.workspace_key || null, runContext.user_id || null,
+         runContext.actor_id || runContext.user_id || null,
+         runContext.actor_type || (runContext.user_id ? "user" : "system"),
+         runContext.brand_id || null, runContext.brand_key || null,
+         runContext.request_id || null, runContext.session_id || null,
+         runContext.conversation_id || null, runContext.correlation_id || req.params.id,
+         JSON.stringify({ source: "workflow_orchestration_routes", run_id: req.params.id, step_run_id, secrets_included: false }),
+         step_key, step_type, assigned_to || null, input]
       );
       return res.status(201).json({ ok: true, step_run_id, run_id: req.params.id, step_key, step_type, status: "pending" });
     } catch (err) {
