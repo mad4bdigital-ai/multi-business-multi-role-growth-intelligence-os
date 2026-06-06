@@ -613,12 +613,13 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     err.details = { app_path: appPath, path_allowlist: target.path_allowlist };
     throw err;
   }
+  const sshAuthMode = preferredSshAuthMode(input, target);
 
   const plan = await planRemoteRuntimeDispatchDryRun({
     pool,
     targetId,
     commandKey: "deploy_release",
-    inputs: { app_key: appKey, app_path: appPath, branch, expected_commit_sha: expectedCommitSha, force_clean: forceClean, restart },
+    inputs: { app_key: appKey, app_path: appPath, branch, expected_commit_sha: expectedCommitSha, force_clean: forceClean, restart, ssh_auth_mode: sshAuthMode },
     approvalReason,
   });
 
