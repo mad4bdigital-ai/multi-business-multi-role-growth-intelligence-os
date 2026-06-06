@@ -228,17 +228,16 @@ Owns:
 
 Activation readiness spans transport, provider bootstrap, registry authority, and canonical guidance. Health and status routes are diagnostics only.
 
-Required provider bootstrap evidence:
-- Drive probe through `http_generic_api` with `parent_action_key=google_drive_api`
-- Sheets probe through `http_generic_api` with `parent_action_key=google_sheets_api`, `endpoint_key=getSheetValues`, and `path_params.spreadsheetId=<activation_bootstrap_spreadsheet_id>`
-- readback of `query.range=Activation Bootstrap Config!A2:J2`
-- GitHub validation only after bootstrap row resolution, using bootstrap/registry-resolved action and endpoint keys
+Required provider/bootstrap evidence:
+- Drive probe through governed `http_generic_api` / system-layer transport
+- DB-native activation bootstrap config read through `/activation/bootstrap-config` or `activation_bootstrap_config_read`
+- GitHub validation only after DB bootstrap row resolution, using bootstrap/registry-resolved action and endpoint keys
 
 Boundary rules:
 - `hard_activation_wrapper` and `system_auto_bootstrap` are routing labels, not provider action keys
-- `/health`, `/status`, release readiness, tenant listing, brand counts, and action counts must not replace provider bootstrap evidence
-- if Drive or Sheets is skipped while activation tooling is available, activation remains degraded with `missing_required_provider_bootstrap_attempt`
-- platform-owned bootstrap files use managed service account ADC; user-owned Drive/Sheets input sources use refresh-token auth
+- `/health`, `/status`, release readiness, tenant listing, brand counts, and action counts must not replace provider/bootstrap evidence
+- if Drive or DB bootstrap validation is skipped while activation tooling is available, activation remains degraded with `missing_required_provider_bootstrap_attempt`
+- `activation_sheets_bootstrap_read` is a deprecated compatibility alias and must not call Google Sheets; user-owned Drive/Sheets input sources still use refresh-token auth when required
 
 ### Google client boundary
 
