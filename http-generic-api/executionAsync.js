@@ -309,6 +309,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "database_lifecycle_scheduler"
         : isConnectedExecutionResumeActionJob
         ? "connected_execution_worker"
+        : isTenantSshCliExecuteJob
+        ? "tenant_ssh_cli_worker"
         : String(requestPayload.parent_action_key || "").trim(),
     endpoint_key:
       normalizedJobType === "site_migration"
@@ -317,6 +319,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "database_lifecycle_report_snapshot"
         : isConnectedExecutionResumeActionJob
         ? "connected_execution_resume_action"
+        : isTenantSshCliExecuteJob
+        ? "tenant_ssh_cli_allowlisted_execute"
         : String(requestPayload.endpoint_key || "").trim(),
     route_id:
       normalizedJobType === "site_migration"
@@ -325,6 +329,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "database_lifecycle_scheduler_snapshot_runner"
         : isConnectedExecutionResumeActionJob
         ? "connected_execution_resume_action_worker_bridge"
+        : isTenantSshCliExecuteJob
+        ? "tenant_ssh_cli_dedicated_worker_runtime"
         : String(requestPayload.route_id || "").trim(),
     target_module:
       normalizedJobType === "site_migration"
@@ -333,6 +339,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "database_lifecycle"
         : isConnectedExecutionResumeActionJob
         ? "connected_execution"
+        : isTenantSshCliExecuteJob
+        ? "tenant_infrastructure"
         : String(requestPayload.target_module || "").trim(),
     target_workflow:
       normalizedJobType === "site_migration"
@@ -341,6 +349,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "wf_database_lifecycle_report_snapshot"
         : isConnectedExecutionResumeActionJob
         ? "wf_connected_execution_resume_action"
+        : isTenantSshCliExecuteJob
+        ? "wf_tenant_ssh_cli_allowlisted_execute"
         : String(requestPayload.target_workflow || "").trim(),
     brand_name:
       normalizedJobType === "site_migration"
