@@ -66,6 +66,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "207_sprint67_platform_relationship_integrity_views.sql",
   "208_sprint67_user_app_connection_runtime_collation_repair.sql",
   "209_sprint67_execution_plan_workflow_identity_backfill.sql",
+  "210_sprint67_openrouter_docs_agent_provider_contract.sql",
   "210_sprint67_approval_hold_tenant_ssh_relationship_alignment.sql",
   "201_sprint68_lifecycle_owner_engine_registry_alignment.sql",
 ]);
