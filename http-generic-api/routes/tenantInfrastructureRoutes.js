@@ -989,6 +989,27 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
     }
   });
 
+  router.get("/me/infrastructure/ssh/connections/:connection_id/cli/execute-jobs/:job_id/result", requireUserJwt, async (req, res) => {
+    try {
+      if (!executionFacade || typeof executionFacade.getJob !== "function" || typeof executionFacade.pollJobResult !== "function") {
+        return res.status(503).json({ ok: false, error: { code: "tenant_ssh_execute_job_status_unavailable", message: "Execution job status is unavailable." }, secrets_included: false });
+      }
+      const connectionId = String(req.params.connection_id || "").trim();
+      const jobId = String(req.params.job_id || "").trim();
+      if (!connectionId) return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
+      if (!jobId) return res.status(400).json({ ok: false, error: { code: "job_id_required", message: "job_id is required." }, secrets_included: false });
+      const jobRead = await executionFacade.getJob(jobId);
+      if (jobRead.status >= 400) return res.status(jobRead.status).json({ ...jobRead.body, secrets_included: false });
+      if (jobRead.body?.target_key !== connectionId || jobRead.body?.requested_by !== req.auth.user_id || jobRead.body?.job_type !== "tenant_ssh_cli_allowlisted_execute") {
+        return res.status(404).json({ ok: false, error: { code: "tenant_ssh_execute_job_not_found", message: "Execution job was not found for this tenant connection." }, secrets_included: false });
+      }
+      const polled = await executionFacade.pollJobResult(jobId);
+      return res.status(polled.status).json({ ...polled.body, kind: "ssh", source: "tenant_ssh_cli_allowlisted_execute", secrets_included: false });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_execute_job_result_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   router.post("/me/infrastructure/ssh/connections/:connection_id/cli/approval-request", requireUserJwt, async (req, res) => {
     try {
       const connectionId = String(req.params.connection_id || "").trim();
