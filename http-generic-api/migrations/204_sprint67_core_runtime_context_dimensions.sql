@@ -344,9 +344,10 @@ LEFT JOIN workflow_runs wr ON wr.run_id COLLATE utf8mb4_unicode_ci = sd.run_id C
 
 UPDATE platform_graph_query_log
    SET correlation_id = COALESCE(correlation_id, query_id),
-       resource_type = subject_type,
+       resource_type = COALESCE(resource_type, subject_type),
+       resource_id = COALESCE(resource_id, subject_ref),
        execution_context_json = COALESCE(execution_context_json, JSON_OBJECT('source','graph_query_context_backfill','subject_type',subject_type,'subject_ref',subject_ref,'secrets_included',false))
- WHERE correlation_id IS NULL OR execution_context_json IS NULL;
+ WHERE correlation_id IS NULL OR resource_type IS NULL OR resource_id IS NULL OR execution_context_json IS NULL;
 
 UPDATE repo_ingestion_jobs
    SET tenant_id = COALESCE(tenant_id, CASE WHEN request_scope_type='tenant' THEN request_scope_id ELSE NULL END),
