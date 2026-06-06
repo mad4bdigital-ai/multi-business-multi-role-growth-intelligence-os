@@ -204,7 +204,9 @@ async function loadSshCliApprovalRequest(pool, req, requestId) {
             r.decision_note, r.expires_at, r.decided_at, r.created_at,
             h.status AS hold_status, h.required_role, h.requested_by
        FROM tenant_ssh_cli_approval_requests r
-       LEFT JOIN approval_holds h ON h.hold_id = r.hold_id AND h.tenant_id = r.tenant_id
+       LEFT JOIN approval_holds h
+         ON h.hold_id COLLATE utf8mb4_unicode_ci = r.hold_id
+        AND h.tenant_id COLLATE utf8mb4_unicode_ci = r.tenant_id
       WHERE r.request_id = ? AND r.tenant_id = ?
       LIMIT 1`,
     [requestId, req.auth.tenant_id]
@@ -269,7 +271,7 @@ async function decideSshCliApprovalRequest(pool, req, requestId, body = {}) {
   await pool.query(
     `UPDATE approval_holds
         SET status = ?, decision_by = ?, decision_note = ?, decided_at = CURRENT_TIMESTAMP
-      WHERE hold_id = ? AND tenant_id = ? AND status = 'open'`,
+      WHERE hold_id COLLATE utf8mb4_unicode_ci = ? AND tenant_id COLLATE utf8mb4_unicode_ci = ? AND status = 'open'`,
     [decision, req.auth.user_id, note || null, row.hold_id, req.auth.tenant_id]
   );
   return sanitizeApprovalRequest(await loadSshCliApprovalRequest(pool, req, requestId));
@@ -686,6 +688,28 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
   });
   router.get("/me/infrastructure/ssh/connections/:connection_id/status", requireUserJwt, (req, res) => sendStatus(req, res, "ssh_key_pair"));
   router.post("/me/infrastructure/ssh/connections/:connection_id/preflight", requireUserJwt, (req, res) => sendPreflight(req, res, "ssh_key_pair"));
+  router.get("/me/infrastructure/ssh/cli/approval-requests/:request_id", requireUserJwt, async (req, res) => {
+    try {
+      const requestId = String(req.params.request_id || "").trim();
+      if (!requestId) return res.status(400).json({ ok: false, error: { code: "request_id_required", message: "request_id is required." }, secrets_included: false });
+      const approval_request = sanitizeApprovalRequest(await loadSshCliApprovalRequest(pool, req, requestId));
+      return res.json({ ok: true, kind: "ssh", approval_request, execution_enabled: false, secrets_included: false });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_cli_approval_status_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  router.post("/me/infrastructure/ssh/cli/approval-requests/:request_id/decision", requireUserJwt, async (req, res) => {
+    try {
+      const requestId = String(req.params.request_id || "").trim();
+      if (!requestId) return res.status(400).json({ ok: false, error: { code: "request_id_required", message: "request_id is required." }, secrets_included: false });
+      const approval_request = await decideSshCliApprovalRequest(pool, req, requestId, req.body || {});
+      return res.json({ ok: true, kind: "ssh", approval_request, execution_enabled: false, execute_tool_enabled: false, secrets_included: false });
+    } catch (err) {
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_cli_approval_decision_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   router.get("/me/infrastructure/ssh/cli/approval-requests/:request_id", requireUserJwt, async (req, res) => {
     try {
       const requestId = String(req.params.request_id || "").trim();

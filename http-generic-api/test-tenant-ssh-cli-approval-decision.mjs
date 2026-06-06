@@ -8,8 +8,13 @@ const openapi = readFileSync("openapi.yaml", "utf8");
 
 assert(routes.includes('/me/infrastructure/ssh/cli/approval-requests/:request_id'), "approval status route must exist");
 assert(routes.includes('/me/infrastructure/ssh/cli/approval-requests/:request_id/decision'), "approval decision route must exist");
+assert(routes.includes('tenant_ssh_cli_approval_status_failed'), "approval status route must expose a stable error code");
+assert(routes.includes('tenant_ssh_cli_approval_decision_failed'), "approval decision route must expose a stable error code");
 assert(routes.includes('loadSshCliApprovalRequest'), "approval routes must load tenant-scoped approval requests");
 assert(routes.includes('WHERE r.request_id = ? AND r.tenant_id = ?'), "approval readback must scope by tenant_id");
+assert(routes.includes('h.hold_id COLLATE utf8mb4_unicode_ci = r.hold_id'), "approval hold join must avoid cross-table collation mismatch");
+assert(routes.includes('h.tenant_id COLLATE utf8mb4_unicode_ci = r.tenant_id'), "approval hold tenant join must avoid cross-table collation mismatch");
+assert(routes.includes('hold_id COLLATE utf8mb4_unicode_ci = ?'), "approval hold decision update must avoid parameter collation mismatch");
 assert(routes.includes('assertWorkspaceApprovalRole'), "approval decisions must enforce workspace approval role");
 assert(routes.includes('memberships WHERE tenant_id = ? AND user_id = ?'), "approval decisions must verify tenant membership");
 assert(routes.includes('["owner", "workspace_owner", "admin"].includes(role)'), "approval decisions must restrict allowed approver roles");
