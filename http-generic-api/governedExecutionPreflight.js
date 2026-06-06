@@ -181,9 +181,9 @@ export async function evaluateRepositoryMutationPreflight({ operation, args = []
 }
 
 export async function evaluateRepoPatchApplyPreflight({ args = {}, repo = {}, branch = "", defaultBranch = "main", branchExists = false, compare = null } = {}, deps = {}) {
-  const policies = await loadRepositoryMutationPolicies("repo_patch_apply", "gptToolsRoutes", deps);
+  const { runtimePolicyResolution, policies } = await loadRepositoryMutationPolicies("repo_patch_apply", "gptToolsRoutes", deps);
   if (!policies.length) {
-    return makePreflightResult({ evidence: { operation: "repo_patch_apply", reason: "repository_mutation_policy_not_configured" } });
+    return makePreflightResult({ evidence: { operation: "repo_patch_apply", reason: "repository_mutation_policy_not_configured" }, runtimePolicyResolution });
   }
 
   const blockingPolicies = [];
