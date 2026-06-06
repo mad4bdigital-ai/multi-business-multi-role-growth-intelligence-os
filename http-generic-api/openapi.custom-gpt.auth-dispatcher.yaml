@@ -680,6 +680,7 @@ paths:
                     - activation_github_validate
                     - activation_provider_bootstrap_validate
                     - activation_bootstrap_config_upsert
+                    - tenant_gpt_oauth_client_status
                     - tenant_gpt_oauth_client_upsert
                     - credential_client_config_upsert
                     - credential_client_config_list

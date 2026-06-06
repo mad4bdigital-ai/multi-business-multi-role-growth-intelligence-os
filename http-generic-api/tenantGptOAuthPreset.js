@@ -26,7 +26,8 @@ export function buildTenantGptOAuthPreset({
     auth_type: "OAuth",
     schema_url: schemaUrl,
     client_id: TENANT_GPT_OAUTH_CLIENT_ID,
-    client_secret: "<stored-in-platform-runtime-config>",
+    client_secret: "<resolved-from-governed-platform-secret>",
+    client_secret_ref: "platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET",
     client_secret_config_key: "tenant_gpt.oauth.client",
     authorization_url: `${baseUrl}/auth/oauth/authorize`,
     token_url: `${baseUrl}/auth/oauth/token`,
@@ -36,7 +37,7 @@ export function buildTenantGptOAuthPreset({
     callback_urls_to_allow: callbackUrlsToAllow,
     notes: [
       "Configure the Custom GPT Action Authentication Type as OAuth.",
-      "Use the DB-backed client secret stored under platform_runtime_config config_key=tenant_gpt.oauth.client.",
+      "Use the governed client_secret_ref stored under platform_runtime_config config_key=tenant_gpt.oauth.client.",
       "The public preset endpoint does not reveal the raw client secret.",
       "ChatGPT sends the returned Mad4B tenant JWT as Authorization: Bearer <token> on action calls.",
     ],

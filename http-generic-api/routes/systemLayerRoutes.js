@@ -12,7 +12,7 @@ import {
   resolveActivationBootstrapConfig,
   validateActivationBootstrapConfig,
 } from "../activationBootstrapConfig.js";
-import { upsertTenantGptOAuthClientConfig } from "../tenantGptOAuthClientConfig.js";
+import { getTenantGptOAuthClientConfigStatus, upsertTenantGptOAuthClientConfig } from "../tenantGptOAuthClientConfig.js";
 import {
   listPlatformCredentialClientConfigs,
   PLATFORM_CREDENTIAL_CLIENT_TYPES,
@@ -138,14 +138,21 @@ const SYSTEM_LAYER_TOOLS = [
     },
   },
   {
+    name: "tenant_gpt_oauth_client_status",
+    description: "Read-only status for the Tenant GPT OAuth client secret reference. Never returns the secret value.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
     name: "tenant_gpt_oauth_client_upsert",
-    description: "Admin-only DB runtime upsert for the default Custom GPT Tenant OAuth client secret.",
+    description: "Admin-only upsert that stores the default Custom GPT Tenant OAuth client secret in platform_secrets and keeps only client_secret_ref in runtime config.",
     requires_admin: true,
     inputSchema: {
       type: "object",
       properties: {
         client_id: { type: "string", default: "mad4b-tenant-gpt" },
         client_secret: { type: "string", description: "Optional explicit secret. If omitted, one is generated or the current one is retained." },
+        client_secret_ref: { type: "string", default: "platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET", description: "Governed platform secret reference. Inline runtime-config secret storage is not written." },
         callback_urls_to_allow: { type: "array", items: { type: "string" } },
         rotate: { type: "boolean", default: false },
         note: { type: "string" },
@@ -1236,6 +1243,8 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       return await activationBootstrapConfigUpsert(args);
     case "tenant_gpt_oauth_client_upsert":
       return await upsertTenantGptOAuthClientConfig(args);
+    case "tenant_gpt_oauth_client_status":
+      return await getTenantGptOAuthClientConfigStatus();
     case "credential_client_config_upsert":
       return await upsertPlatformCredentialClientConfig(args);
     case "credential_client_config_list":
