@@ -422,6 +422,22 @@ export function configureJobRunner(
         };
       }
     }
+    if (jobType === TENANT_SSH_CLI_EXECUTE_JOB_TYPE) {
+      try {
+        const payload = await (deps.runTenantSshCliExecuteJob || runTenantSshCliExecuteJob)({ ...(job.request_payload || {}), worker_job_id: job.job_id });
+        return {
+          success: payload?.ok === true,
+          statusCode: payload?.ok === true ? 200 : 409,
+          payload,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          statusCode: err?.status || 500,
+          payload: { ok: false, error: { code: err?.code || "tenant_ssh_cli_execute_job_failed", message: err?.message || String(err) }, secrets_included: false },
+        };
+      }
+    }
     if (jobType === SOLVER_JOB_TYPE) {
       if (!sheetsClient) {
         return {
