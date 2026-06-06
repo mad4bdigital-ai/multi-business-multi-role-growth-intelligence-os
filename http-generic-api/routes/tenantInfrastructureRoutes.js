@@ -922,7 +922,7 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
         return res.status(409).json({ ok: false, error: { code: "ssh_connection_not_ready", message: "SSH connection is not ready for CLI execution.", details: readiness.blocked_reasons }, readiness, secrets_included: false });
       }
       const approvalRow = await loadSshCliApprovalRequest(pool, req, approvalRequestId);
-      const execution = await executeApprovedSshCli(row, approvalRow, commandKey || approvalRow.command_key, req.body || {});
+      const execution = await executeApprovedSshCli(pool, row, approvalRow, commandKey || approvalRow.command_key, req.body || {});
       return res.status(execution.ok ? 200 : 502).json({
         ok: execution.ok,
         kind: "ssh",
