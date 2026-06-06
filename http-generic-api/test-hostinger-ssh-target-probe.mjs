@@ -26,6 +26,10 @@ assert(probeBlock.includes("probeOk && activateOnSuccess"), "activation must req
 assert(probeBlock.includes("secrets_included: false"), "probe responses and evidence must mark secrets excluded");
 assert(executor.includes("isPlatformManagedTarget"), "managed platform Hostinger targets must route missing credentials to platform-scoped intake");
 assert(executor.includes("intakeScope: result?.owner_type === \"platform\""), "credential intake scope must prefer platform ownership signals");
+assert(executor.includes("ssh_password"), "Hostinger SSH password credential role must be supported");
+assert(executor.includes("sshpass"), "password auth must use sshpass helper rather than interactive shell prompts");
+assert(executor.includes("\"-d\", \"3\""), "sshpass must read password from a file descriptor, not argv or environment");
+assert(!executor.includes("SSHPASS"), "SSH password must not be exposed through environment variables");
 assert(!probeBlock.includes("git fetch"), "probe must not fetch remote git data");
 assert(!probeBlock.includes("git checkout"), "probe must not checkout or mutate repo state");
 assert(!probeBlock.includes("touch tmp/restart.txt"), "probe must not restart the app");
