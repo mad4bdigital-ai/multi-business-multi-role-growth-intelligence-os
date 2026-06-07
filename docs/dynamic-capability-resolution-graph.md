@@ -234,6 +234,36 @@ operation_intent in deploy/restart/write/deploy_release
 
 The existing Hostinger deploy protections still apply: `REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED=true`, approval reason, fixed expected main commit SHA, target path allowlist, bounded output, and no freeform shell.
 
+## Shared envelope guard
+
+`capabilityResolutionEnvelopeGuard.js` is the shared runtime verifier for family-specific execution gates. New state-changing families should call `resolveCapabilityExecutionEnvelope` rather than duplicating SQL checks.
+
+Each family supplies only its context:
+
+```text
+acceptedAppKeys
+acceptedIntents
+expectedTenantId
+expectedUserId
+optional expectedCommitSha
+executionRef for markCapabilityEnvelopeReferenced
+```
+
+The shared guard enforces the common contract:
+
+```text
+ready_for_dispatch
+dispatch_allowed
+no approval_required
+no blocking gaps
+not expired
+not already consumed/cancelled
+secrets_included = false
+tenant/user match when present
+```
+
+WordPress and Hostinger currently use this helper while keeping their family-specific wrappers and response style.
+
 ## Dry-run tool
 
 The governed tool is:
