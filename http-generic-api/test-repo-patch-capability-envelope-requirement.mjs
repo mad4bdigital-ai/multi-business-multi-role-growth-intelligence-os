@@ -1,0 +1,51 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const gptTools = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
+const migration = readFileSync(new URL("./migrations/229_sprint67_repo_patch_capability_envelope_requirement.sql", import.meta.url), "utf8");
+const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
+
+assert.match(gptTools, /repo_patch_apply/);
+assert.match(gptTools, /capability_envelope_id/);
+assert.match(gptTools, /requireRepoPatchCapabilityEnvelope/);
+assert.match(gptTools, /resolveCapabilityExecutionEnvelope/);
+assert.match(gptTools, /acceptedAppKeys: \["github"\]/);
+assert.match(gptTools, /repo_patch_apply/);
+assert.match(gptTools, /markCapabilityEnvelopeReferenced/);
+assert.match(gptTools, /getGitHubAppInstallationToken/);
+assert.match(gptTools, /evaluateRepoPatchApplyPreflight/);
+assert.match(gptTools, /assertRepoPatchBranchPolicy/);
+assert.match(gptTools, /secrets_included: false/);
+assert.doesNotMatch(gptTools, /value_ciphertext|private_key|oauth_token|decryptToken\(/i);
+
+const repoPatchSchemaIndex = gptTools.indexOf('name: "repo_patch_apply"');
+const repoInspectSchemaIndex = gptTools.indexOf('name: "repo_inspect"');
+assert.ok(repoInspectSchemaIndex > -1 && repoPatchSchemaIndex > repoInspectSchemaIndex, "repo_inspect remains a separate read-only virtual tool.");
+const repoPatchBlock = gptTools.slice(repoPatchSchemaIndex, gptTools.indexOf('const REPO_PATCH_MAX_BYTES'));
+assert.match(repoPatchBlock, /required: \["action", "path", "commit_message", "capability_envelope_id"\]/);
+
+const applyFunctionIndex = gptTools.indexOf("export async function applyRepoPatch");
+const branchPolicyIndex = gptTools.indexOf("assertRepoPatchBranchPolicy", applyFunctionIndex);
+const envelopeGateIndex = gptTools.indexOf("await requireRepoPatchCapabilityEnvelope", applyFunctionIndex);
+const tokenIndex = gptTools.indexOf("await getGitHubAppInstallationToken", applyFunctionIndex);
+const preflightIndex = gptTools.indexOf("evaluateRepoPatchApplyPreflight", applyFunctionIndex);
+assert.ok(applyFunctionIndex > -1, "applyRepoPatch must exist.");
+assert.ok(branchPolicyIndex > applyFunctionIndex, "branch policy must remain in repo patch execution path.");
+assert.ok(envelopeGateIndex > branchPolicyIndex, "capability envelope gate must run after branch policy.");
+assert.ok(tokenIndex > envelopeGateIndex, "GitHub App token must be resolved only after capability envelope gate.");
+assert.ok(preflightIndex > tokenIndex, "existing branch compare/preflight remains after token resolution.");
+
+assert.match(migration, /repo_patch_apply_capability_envelope_requirement_v1/);
+assert.match(migration, /read_only_repo_inspect_requires_envelope',false/);
+assert.match(migration, /repo_patch_apply_requires_envelope',true/);
+assert.match(migration, /github_app_token_blocked_without_envelope',true/);
+assert.match(migration, /github_content_mutation_blocked_without_envelope',true/);
+assert.match(migration, /existing_preflight_still_required',true/);
+assert.match(migration, /protected_branch_guard_still_required',true/);
+assert.match(migration, /stale_branch_guard_still_required',true/);
+assert.match(migration, /secrets_included',false/);
+assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
+assert.doesNotMatch(migration, /GITHUB_TOKEN\s*[:=]|OPENAI_API_KEY\s*[:=]|OPENROUTER_API_KEY\s*[:=]|sk-[A-Za-z0-9_\-]{12,}/i);
+assert.match(runner, /229_sprint67_repo_patch_capability_envelope_requirement\.sql/);
+
+console.log("repo_patch_apply capability envelope requirement guard passed");
