@@ -69,6 +69,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "216_sprint67_platform_secret_promotion_monitoring.sql",
   "219_sprint67_gpt_session_turn_batch_write_tool.sql",
   "223_sprint67_gpt_session_conversation_refs.sql",
+  "225_sprint67_gpt_session_conversation_ref_primary.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
