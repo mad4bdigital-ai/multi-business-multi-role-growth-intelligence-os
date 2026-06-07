@@ -114,12 +114,105 @@ function buildConversationRefInput(body = {}) {
     share_url: share?.url || null,
     source: String(body.source || "manual_user_supplied").trim().slice(0, 64),
     captured_by: String(body.captured_by || "custom_gpt").trim().slice(0, 128),
+    correction_reason: String(body.correction_reason || body.reason || "").trim().slice(0, 512) || null,
     metadata_json: JSON.stringify({
       known_interfaces: CHATGPT_INTERFACES,
       note: "Personal ChatGPT conversation URLs are private to the GPT account owner; share URLs are optional public/shareable references.",
       secrets_included: false,
     }),
   };
+}
+
+function conversationRefSelectSql() {
+  return `SELECT ref_id, session_id, interface_scope, interface_display_name,
+                 gpt_app_id, gpt_slug, conversation_id, personal_conversation_url,
+                 share_id, share_url, source, captured_by, status,
+                 COALESCE(is_primary, 0) AS is_primary,
+                 superseded_by_ref_id, superseded_at, correction_reason,
+                 created_at, updated_at
+            FROM \`gpt_session_conversation_refs\``;
+}
+
+async function listConversationRefs(pool, sessionId, { includeSuperseded = true } = {}) {
+  const statusFilter = includeSuperseded ? "" : " AND status = 'active'";
+  const [rows] = await pool.query(
+    `${conversationRefSelectSql()}
+      WHERE session_id = ?${statusFilter}
+      ORDER BY is_primary DESC, updated_at DESC
+      LIMIT 20`,
+    [sessionId]
+  );
+  return rows;
+}
+
+async function upsertConversationRef(pool, session, ref) {
+  await pool.query(
+    `INSERT INTO \`gpt_session_conversation_refs\`
+       (ref_id, session_id, tenant_id, user_id, interface_scope, interface_display_name,
+        gpt_app_id, gpt_slug, conversation_id, personal_conversation_url,
+        share_id, share_url, source, captured_by, status, metadata_json, correction_reason)
+     VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
+     ON DUPLICATE KEY UPDATE
+       tenant_id = VALUES(tenant_id),
+       user_id = VALUES(user_id),
+       interface_scope = VALUES(interface_scope),
+       interface_display_name = VALUES(interface_display_name),
+       gpt_slug = VALUES(gpt_slug),
+       personal_conversation_url = COALESCE(VALUES(personal_conversation_url), personal_conversation_url),
+       share_id = COALESCE(VALUES(share_id), share_id),
+       share_url = COALESCE(VALUES(share_url), share_url),
+       source = VALUES(source),
+       captured_by = VALUES(captured_by),
+       status = 'active',
+       metadata_json = VALUES(metadata_json),
+       correction_reason = COALESCE(VALUES(correction_reason), correction_reason),
+       updated_at = NOW()`,
+    [
+      session.session_id,
+      session.tenant_id || null,
+      session.user_id || null,
+      ref.interface_scope,
+      ref.interface_display_name,
+      ref.gpt_app_id,
+      ref.gpt_slug,
+      ref.conversation_id,
+      ref.personal_conversation_url,
+      ref.share_id,
+      ref.share_url,
+      ref.source,
+      ref.captured_by,
+      ref.metadata_json,
+      ref.correction_reason,
+    ]
+  );
+}
+
+async function findConversationRefTarget(pool, sessionId, body = {}) {
+  const refId = String(body.ref_id || "").trim();
+  if (refId) {
+    const [rows] = await pool.query(`${conversationRefSelectSql()} WHERE session_id = ? AND ref_id = ? LIMIT 1`, [sessionId, refId]);
+    return rows[0] || null;
+  }
+  const ref = buildConversationRefInput(body);
+  const where = [];
+  const params = [sessionId];
+  if (ref.conversation_id) {
+    where.push("conversation_id = ?");
+    params.push(ref.conversation_id);
+    if (ref.gpt_app_id) {
+      where.push("gpt_app_id = ?");
+      params.push(ref.gpt_app_id);
+    }
+  } else if (ref.share_id) {
+    where.push("share_id = ?");
+    params.push(ref.share_id);
+  }
+  if (!where.length) return null;
+  const [rows] = await pool.query(
+    `${conversationRefSelectSql()} WHERE session_id = ? AND ${where.join(" AND ")} ORDER BY updated_at DESC LIMIT 1`,
+    params
+  );
+  return rows[0] || null;
 }
 
 async function resolveSessionForCaller(pool, sessionId, req) {
