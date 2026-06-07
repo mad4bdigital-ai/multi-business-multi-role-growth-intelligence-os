@@ -17,6 +17,7 @@ export const testCommands = [
   "node test-credential-tenant-promotion.mjs",
   "node test-credential-intake-enforcement.mjs",
   "node test-credential-intake-missing-credential-handoff.mjs",
+  "node test-credential-intake-continuation-task.mjs",
   "node test-credential-intake-ssh-password.mjs",
   "node test-credential-intake-webhook-outbox.mjs",
   "node test-credential-intake-platform-secret-promotion.mjs",
