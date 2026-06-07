@@ -207,4 +207,54 @@ function flattenParams(value) {
   );
 }
 
+{
+  const pool = makePool();
+  const driveWrites = { jsonl: "", textSnapshot: "" };
+  const fullContent = "text snapshot fallback preserves full transcript content";
+  const deps = {
+    sessionsDriveFolderId: "root-folder",
+    now: () => new Date("2026-05-16T13:00:00.000Z"),
+    async getOrCreateDriveFolder(name, parentId) { return `${parentId}/${name}`; },
+    async createGoogleDocInDrive() { return { drive_file_id: "doc-snapshot", drive_web_url: "https://drive/doc-snapshot" }; },
+    async createGoogleDocFromTextInDrive() { throw new Error("Bad Request"); },
+    async appendTextToGoogleDoc() { throw new Error("Precondition check failed."); },
+    async uploadContentToDrive(content, filename, mimeType) {
+      if (mimeType === "text/plain") {
+        driveWrites.textSnapshot = content;
+        driveWrites.textSnapshotFilename = filename;
+        return { drive_file_id: "txt-rebuilt", drive_web_url: "https://drive/txt-rebuilt" };
+      }
+      driveWrites.jsonl = content;
+      return { drive_file_id: "jsonl-snapshot", drive_web_url: "https://drive/jsonl-snapshot" };
+    },
+    async fetchDriveContent() { return driveWrites.jsonl; },
+    async updateDriveFileContent(_fileId, content) { driveWrites.jsonl = content; return { drive_file_id: "jsonl-snapshot" }; },
+  };
+
+  const result = await recordGptSessionTurn({
+    pool,
+    session: {
+      session_id: "sess-snapshot",
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      started_at: "2026-05-16T10:00:00.000Z",
+    },
+    role: "assistant",
+    content: fullContent,
+    turnIndex: 0,
+    injectedDeps: deps,
+  });
+
+  assert.equal(result.archive_status, "ready_text_snapshot");
+  assert.equal(result.archive_error, null);
+  assert.equal(result.drive_doc_id, "txt-rebuilt");
+  assert.match(driveWrites.textSnapshotFilename, /Session_Transcript_Rebuilt_/);
+  assert(driveWrites.textSnapshot.includes(fullContent), "text snapshot should be rendered from full JSONL content");
+  assert(driveWrites.textSnapshot.includes("rebuilt_from_jsonl"), "text snapshot should preserve rebuild evidence");
+  assert(
+    pool.calls.some((call) => call.sql.includes("archive_status = ?") && call.params[0] === "ready_text_snapshot"),
+    "Google Doc import fallback should mark the session ready_text_snapshot"
+  );
+}
+
 console.log("session archive service tests passed");
