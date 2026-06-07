@@ -14,6 +14,14 @@ assert(executor.includes("planRemoteRuntimeDispatchDryRun"), "executor must reus
 assert(executor.includes("command = \"ssh\"") || executor.includes("spawn(\"ssh\""), "executor must use argv-based ssh invocation, not shell freeform");
 assert(executor.includes("spawn(command, args") || executor.includes("spawn(\"ssh\""), "executor must spawn an allowlisted SSH command with argv args");
 assert(executor.includes("shell: false"), "executor must disable local shell interpolation");
+assert(executor.includes('command: "timeout"'), "executor must wrap SSH with coreutils timeout to avoid stuck probes");
+assert(executor.includes("detached: true"), "executor must spawn SSH wrapper in its own process group");
+assert(executor.includes("killProcessTree"), "executor must kill the process group on timeout fallback");
+assert(executor.includes("ConnectTimeout=${SSH_CONNECT_TIMEOUT_SECONDS}"), "executor must bound SSH connection establishment");
+assert(executor.includes("ConnectionAttempts=1"), "executor must avoid repeated SSH connection attempts");
+assert(executor.includes("ServerAliveInterval"), "executor must bound established SSH liveness checks");
+assert(executor.includes("NumberOfPasswordPrompts=1"), "password auth must not hang on repeated prompts");
+assert(executor.includes("MAX_PROBE_TIMEOUT_MS = 75000"), "read-only probe timeout must stay below proxy/request limits");
 assert(executor.includes("mkdtemp"), "private key must be written only to a temporary file");
 assert(executor.includes("rm(tempDir"), "temporary private key directory must be cleaned up");
 assert(executor.includes("expected_commit_sha"), "executor must require an expected commit SHA");

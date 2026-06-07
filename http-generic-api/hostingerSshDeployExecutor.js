@@ -10,7 +10,13 @@ import { planRemoteRuntimeDispatchDryRun } from "./remoteRuntime.js";
 import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 
 const DEFAULT_TIMEOUT_MS = 120000;
+const DEFAULT_PROBE_TIMEOUT_MS = 45000;
+const MAX_PROBE_TIMEOUT_MS = 75000;
 const MAX_TIMEOUT_MS = 300000;
+const SSH_CONNECT_TIMEOUT_SECONDS = 10;
+const SSH_SERVER_ALIVE_INTERVAL_SECONDS = 5;
+const SSH_SERVER_ALIVE_COUNT_MAX = 1;
+const SSH_PROCESS_KILL_GRACE_MS = 5000;
 const EXECUTOR_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED";
 const PROBE_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_PROBE_ENABLED";
 const PROBE_DB_FLAG_KEY = "remote_runtime_hostinger_ssh_probe_enabled";
@@ -181,7 +187,7 @@ export function normalizeHostingerSshTargetProbeJobPayload(input = {}) {
     ssh_auth_mode: compact(input.ssh_auth_mode || input.sshAuthMode || "password", 32).toLowerCase(),
     activate_on_success: bool(input.activate_on_success || input.activateOnSuccess),
     approval_reason: compact(input.approval_reason || input.approvalReason || input.break_glass_reason || input.breakGlassReason, 1000),
-    timeout_ms: boundedInt(input.timeout_ms || input.timeoutMs, 120000, 1000, MAX_TIMEOUT_MS),
+    timeout_ms: boundedInt(input.timeout_ms || input.timeoutMs, DEFAULT_PROBE_TIMEOUT_MS, 1000, MAX_PROBE_TIMEOUT_MS),
     dry_run: false,
     secrets_included: false,
   };
@@ -269,6 +275,38 @@ async function resolveSshConnectionCredentials(pool, target, input = {}) {
   return { host, port, user, auth_mode: "private_key", privateKey };
 }
 
+function hardenedSshOptions({ usePassword = false } = {}) {
+  const options = [
+    "-T",
+    "-o", `ConnectTimeout=${SSH_CONNECT_TIMEOUT_SECONDS}`,
+    "-o", "ConnectionAttempts=1",
+    "-o", `ServerAliveInterval=${SSH_SERVER_ALIVE_INTERVAL_SECONDS}`,
+    "-o", `ServerAliveCountMax=${SSH_SERVER_ALIVE_COUNT_MAX}`,
+    "-o", "StrictHostKeyChecking=accept-new",
+    "-o", "LogLevel=ERROR",
+  ];
+  if (usePassword) {
+    options.push("-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no", "-o", "NumberOfPasswordPrompts=1");
+  } else {
+    options.push("-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes");
+  }
+  return options;
+}
+
+function withCoreutilsTimeout(command, args = [], timeoutMs = DEFAULT_TIMEOUT_MS) {
+  const seconds = Math.max(1, Math.ceil(Number(timeoutMs || DEFAULT_TIMEOUT_MS) / 1000));
+  return {
+    command: "timeout",
+    args: ["-k", `${Math.ceil(SSH_PROCESS_KILL_GRACE_MS / 1000)}s`, `${seconds}s`, command, ...args],
+  };
+}
+
+function killProcessTree(child, signal = "SIGTERM") {
+  if (!child?.pid) return;
+  try { process.kill(-child.pid, signal); return; } catch { /* fall back */ }
+  try { child.kill(signal); } catch { /* noop */ }
+}
+
 function buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClean, restart }) {
   const safeAppPath = shellQuote(appPath);
   const safeBranch = shellQuote(branch);
@@ -317,10 +355,8 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         args = [
           "-d", "3",
           "ssh",
+          ...hardenedSshOptions({ usePassword: true }),
           "-p", String(port || 22),
-          "-o", "PreferredAuthentications=password",
-          "-o", "PubkeyAuthentication=no",
-          "-o", "StrictHostKeyChecking=accept-new",
           `${user}@${host}`,
           "bash",
           "-lc",
@@ -331,17 +367,18 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         await writeFile(keyFile, privateKey, { mode: 0o600 });
         args = [
           "-i", keyFile,
+          ...hardenedSshOptions({ usePassword: false }),
           "-p", String(port || 22),
-          "-o", "BatchMode=yes",
-          "-o", "IdentitiesOnly=yes",
-          "-o", "StrictHostKeyChecking=accept-new",
           `${user}@${host}`,
           "bash",
           "-lc",
           remoteScript,
         ];
       }
-      child = spawn(command, args, { stdio, shell: false });
+      const wrapped = withCoreutilsTimeout(command, args, timeoutMs);
+      command = wrapped.command;
+      args = wrapped.args;
+      child = spawn(command, args, { stdio, shell: false, detached: true });
       if (usePassword && child.stdio?.[3]) {
         child.stdio[3].end(`${password}\n`);
       }
@@ -350,19 +387,21 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
       const timer = setTimeout(() => {
         if (settled) return;
         settled = true;
-        try { child.kill("SIGTERM"); } catch { /* noop */ }
+        killProcessTree(child, "SIGTERM");
+        setTimeout(() => killProcessTree(child, "SIGKILL"), SSH_PROCESS_KILL_GRACE_MS).unref?.();
         cleanup().finally(() => resolve({ ok: false, exit_code: 124, timed_out: true, auth_mode: authMode, stdout: sanitizeSshOutput(stdout), stderr: sanitizeSshOutput(stderr) }));
-      }, timeoutMs);
+      }, Number(timeoutMs || DEFAULT_TIMEOUT_MS) + SSH_PROCESS_KILL_GRACE_MS + 1000);
       child.stdout.on("data", (chunk) => { stdout += chunk.toString("utf8"); });
       child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
       child.on("close", (code) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        const exitCode = Number(code);
         cleanup().finally(() => resolve({
-          ok: Number(code) === 0,
-          exit_code: Number(code),
-          timed_out: false,
+          ok: exitCode === 0,
+          exit_code: exitCode,
+          timed_out: exitCode === 124,
           auth_mode: authMode,
           stdout: sanitizeSshOutput(stdout),
           stderr: sanitizeSshOutput(stderr),
@@ -423,7 +462,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
   const dryRun = input.dry_run === undefined ? true : bool(input.dry_run);
   const activateOnSuccess = bool(input.activate_on_success || input.activateOnSuccess);
   const approvalReason = compact(input.approval_reason || input.approvalReason || input.break_glass_reason || input.breakGlassReason, 1000);
-  const timeoutMs = boundedInt(input.timeout_ms || input.timeoutMs, 60000, 1000, MAX_TIMEOUT_MS);
+  const timeoutMs = boundedInt(input.timeout_ms || input.timeoutMs, DEFAULT_PROBE_TIMEOUT_MS, 1000, MAX_PROBE_TIMEOUT_MS);
   const traceId = `hostinger_ssh_probe_${randomUUID()}`;
 
   if (!targetId) {
