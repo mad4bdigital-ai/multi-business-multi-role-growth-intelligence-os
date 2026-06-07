@@ -1069,6 +1069,16 @@ export async function buildActivationSessionContext(req) {
       installations: installations.rows.map((row) => ({ ...row, scope: parseScopes(row.scope) }))
     },
     gpt_sessions: gptSessions.rows,
+    turn_capture_policy: {
+      status: "required_for_full_transcript",
+      write_tool: "gpt_session_turns_write_batch",
+      write_path: `/gpt/sessions/${newSessionId}/turns`,
+      intended_use: "After each conversational exchange, write the user prompt and assistant reply together so Drive archives contain non-tool transcript turns.",
+      sql_content_mode: "preview_hash_only",
+      full_content_storage: "drive_doc_and_jsonl",
+      current_session_id: newSessionId,
+      secrets_included: false,
+    },
     conversation_memory: conversationMemory,
     platform_access: platformAccess,
     platform_evolution: platformEvolution,

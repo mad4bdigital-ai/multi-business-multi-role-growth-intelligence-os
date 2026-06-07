@@ -4,6 +4,9 @@ import { exportSessionToDrive } from "../sessionExportPipeline.js";
 import { closeGptSessionArchive, recordGptSessionTurn } from "../sessionArchiveService.js";
 import { summarizeSessionIfNeeded, writeProvidedSessionSummary } from "../sessionSummaryService.js";
 
+const VALID_TURN_ROLES = new Set(["user", "assistant", "tool"]);
+const MAX_BATCH_TURNS = 20;
+
 async function resolveSessionForCaller(pool, sessionId, req) {
   const [rows] = await pool.query(
     "SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1",
@@ -21,6 +24,43 @@ async function resolveSessionForCaller(pool, sessionId, req) {
   return session;
 }
 
+function validateTurnInput(turn = {}) {
+  const role = String(turn.role || "").trim();
+  const content = typeof turn.content === "string" ? turn.content : "";
+  if (!role || !content) {
+    return { ok: false, error: { code: "missing_fields", message: "role and content are required." } };
+  }
+  if (!VALID_TURN_ROLES.has(role)) {
+    return { ok: false, error: { code: "invalid_role", message: "role must be user, assistant, or tool." } };
+  }
+  return { ok: true, turn: { role, content, action_key: turn.action_key || null } };
+}
+
+async function resolveWritableSession(pool, req) {
+  const session = await resolveSessionForCaller(pool, req.params.id, req);
+  if (!session) {
+    const err = new Error("Session not found.");
+    err.status = 404;
+    err.code = "session_not_found";
+    throw err;
+  }
+  if (session.session_status === "completed" || session.session_status === "closed") {
+    const err = new Error("Cannot add turns to a closed session.");
+    err.status = 409;
+    err.code = "session_closed";
+    throw err;
+  }
+  return session;
+}
+
+async function nextTurnIndex(pool, sessionId) {
+  const [[{ max_idx }]] = await pool.query(
+    "SELECT COALESCE(MAX(turn_index), -1) AS max_idx FROM `gpt_session_turns` WHERE session_id = ?",
+    [sessionId]
+  );
+  return Number(max_idx) + 1;
+}
+
 export function buildGptSessionRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
@@ -29,27 +69,14 @@ export function buildGptSessionRoutes(deps) {
   router.post("/gpt/sessions/:id/turn", requireBackendApiKey, async (req, res) => {
     const pool = getPool();
     try {
-      const { role, content, action_key = null } = req.body || {};
-      if (!role || !content) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "role and content are required." } });
+      const validation = validateTurnInput(req.body || {});
+      if (!validation.ok) {
+        return res.status(400).json({ ok: false, error: validation.error });
       }
-      if (!["user", "assistant", "tool"].includes(role)) {
-        return res.status(400).json({ ok: false, error: { code: "invalid_role", message: "role must be user, assistant, or tool." } });
-      }
+      const { role, content, action_key = null } = validation.turn;
 
-      const session = await resolveSessionForCaller(pool, req.params.id, req);
-      if (!session) {
-        return res.status(404).json({ ok: false, error: { code: "session_not_found", message: "Session not found." } });
-      }
-      if (session.session_status === "completed" || session.session_status === "closed") {
-        return res.status(409).json({ ok: false, error: { code: "session_closed", message: "Cannot add turns to a closed session." } });
-      }
-
-      const [[{ max_idx }]] = await pool.query(
-        "SELECT COALESCE(MAX(turn_index), -1) AS max_idx FROM `gpt_session_turns` WHERE session_id = ?",
-        [session.session_id]
-      );
-      const turnIndex = Number(max_idx) + 1;
+      const session = await resolveWritableSession(pool, req);
+      const turnIndex = await nextTurnIndex(pool, session.session_id);
 
       const writeback = await recordGptSessionTurn({
         pool,
@@ -72,6 +99,69 @@ export function buildGptSessionRoutes(deps) {
     } catch (err) {
       if (err.status === 403) return res.status(403).json({ ok: false, error: { code: "forbidden", message: err.message } });
       return res.status(500).json({ ok: false, error: { code: "turn_write_failed", message: err.message } });
+    }
+  });
+
+  // POST /gpt/sessions/:id/turns
+  router.post("/gpt/sessions/:id/turns", requireBackendApiKey, async (req, res) => {
+    const pool = getPool();
+    try {
+      const turns = Array.isArray(req.body?.turns) ? req.body.turns : [];
+      if (!turns.length || turns.length > MAX_BATCH_TURNS) {
+        return res.status(400).json({
+          ok: false,
+          error: { code: "invalid_turn_batch", message: `turns must contain 1-${MAX_BATCH_TURNS} items.` },
+        });
+      }
+      const normalizedTurns = [];
+      for (const turn of turns) {
+        const validation = validateTurnInput(turn);
+        if (!validation.ok) {
+          return res.status(400).json({ ok: false, error: validation.error });
+        }
+        normalizedTurns.push(validation.turn);
+      }
+
+      const session = await resolveWritableSession(pool, req);
+      let turnIndex = await nextTurnIndex(pool, session.session_id);
+      const written = [];
+      for (const turn of normalizedTurns) {
+        const writeback = await recordGptSessionTurn({
+          pool,
+          session,
+          role: turn.role,
+          content: turn.content,
+          action_key: turn.action_key,
+          turnIndex,
+        });
+        written.push({
+          role: turn.role,
+          turn_index: turnIndex,
+          turn_id: writeback.turn_id,
+          drive_doc_id: writeback.drive_doc_id,
+          drive_anchor: writeback.drive_anchor,
+          archive_status: writeback.archive_status,
+        });
+        turnIndex += 1;
+      }
+
+      return res.status(200).json({
+        ok: true,
+        session_id: session.session_id,
+        turn_count: written.length,
+        turns: written,
+        capture_policy: {
+          intended_use: "Call once per conversational exchange with the user prompt and assistant reply so Drive archives contain non-tool transcript turns.",
+          sql_content_mode: "preview_hash_only",
+          full_content_storage: "drive_doc_and_jsonl",
+          secrets_included: false,
+        },
+      });
+    } catch (err) {
+      if (err.status === 403) return res.status(403).json({ ok: false, error: { code: "forbidden", message: err.message } });
+      if (err.status === 404) return res.status(404).json({ ok: false, error: { code: err.code || "session_not_found", message: err.message } });
+      if (err.status === 409) return res.status(409).json({ ok: false, error: { code: err.code || "session_closed", message: err.message } });
+      return res.status(500).json({ ok: false, error: { code: "turn_batch_write_failed", message: err.message } });
     }
   });
 
