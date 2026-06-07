@@ -282,53 +282,8 @@ export function buildGptSessionRoutes(deps) {
         return res.status(404).json({ ok: false, error: { code: "session_not_found", message: "Session not found." } });
       }
       const ref = buildConversationRefInput(req.body || {});
-      await pool.query(
-        `INSERT INTO \`gpt_session_conversation_refs\`
-           (ref_id, session_id, tenant_id, user_id, interface_scope, interface_display_name,
-            gpt_app_id, gpt_slug, conversation_id, personal_conversation_url,
-            share_id, share_url, source, captured_by, status, metadata_json)
-         VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
-         ON DUPLICATE KEY UPDATE
-           tenant_id = VALUES(tenant_id),
-           user_id = VALUES(user_id),
-           interface_scope = VALUES(interface_scope),
-           interface_display_name = VALUES(interface_display_name),
-           gpt_slug = VALUES(gpt_slug),
-           personal_conversation_url = COALESCE(VALUES(personal_conversation_url), personal_conversation_url),
-           share_id = COALESCE(VALUES(share_id), share_id),
-           share_url = COALESCE(VALUES(share_url), share_url),
-           source = VALUES(source),
-           captured_by = VALUES(captured_by),
-           status = 'active',
-           metadata_json = VALUES(metadata_json),
-           updated_at = NOW()`,
-        [
-          session.session_id,
-          session.tenant_id || null,
-          session.user_id || null,
-          ref.interface_scope,
-          ref.interface_display_name,
-          ref.gpt_app_id,
-          ref.gpt_slug,
-          ref.conversation_id,
-          ref.personal_conversation_url,
-          ref.share_id,
-          ref.share_url,
-          ref.source,
-          ref.captured_by,
-          ref.metadata_json,
-        ]
-      );
-      const [rows] = await pool.query(
-        `SELECT ref_id, session_id, interface_scope, interface_display_name,
-                gpt_app_id, gpt_slug, conversation_id, personal_conversation_url,
-                share_id, share_url, source, captured_by, status, created_at, updated_at
-           FROM \`gpt_session_conversation_refs\`
-          WHERE session_id = ?
-          ORDER BY updated_at DESC
-          LIMIT 10`,
-        [session.session_id]
-      );
+      await upsertConversationRef(pool, session, ref);
+      const rows = await listConversationRefs(pool, session.session_id);
       return res.status(200).json({
         ok: true,
         session_id: session.session_id,
