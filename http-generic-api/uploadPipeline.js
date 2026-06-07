@@ -206,39 +206,68 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function appendTextToGoogleDocAtEndOfSegment(docs, documentId, text) {
+  await docs.documents.batchUpdate({
+    documentId,
+    requestBody: {
+      requests: [
+        {
+          insertText: {
+            endOfSegmentLocation: {},
+            text,
+          },
+        },
+      ],
+    },
+  });
+}
+
+async function appendTextToGoogleDocByIndex(docs, documentId, text) {
+  const doc = await docs.documents.get({
+    documentId,
+    fields: "body(content(endIndex))",
+  });
+  const content = doc.data.body?.content || [];
+  const endIndex = Math.max(...content.map((item) => Number(item.endIndex || 1)), 1);
+  await docs.documents.batchUpdate({
+    documentId,
+    requestBody: {
+      requests: [
+        {
+          insertText: {
+            location: { index: Math.max(1, endIndex - 1) },
+            text,
+          },
+        },
+      ],
+    },
+  });
+}
+
 export async function appendTextToGoogleDoc(documentId, text) {
   if (!documentId) throw new Error("documentId is required");
   if (!text) return { ok: true, skipped: true };
   const docs = getDocs();
   const maxAttempts = 3;
+  let lastError = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      const doc = await docs.documents.get({
-        documentId,
-        fields: "body(content(endIndex))",
-      });
-      const content = doc.data.body?.content || [];
-      const endIndex = Math.max(...content.map((item) => Number(item.endIndex || 1)), 1);
-      await docs.documents.batchUpdate({
-        documentId,
-        requestBody: {
-          requests: [
-            {
-              insertText: {
-                location: { index: Math.max(1, endIndex - 1) },
-                text,
-              },
-            },
-          ],
-        },
-      });
-      return { ok: true, attempts: attempt };
+      await appendTextToGoogleDocAtEndOfSegment(docs, documentId, text);
+      return { ok: true, attempts: attempt, method: "end_of_segment" };
     } catch (err) {
-      if (attempt >= maxAttempts || !isRetryableGoogleDocAppendError(err)) throw err;
+      lastError = err;
+      if (attempt >= maxAttempts || !isRetryableGoogleDocAppendError(err)) break;
       await sleep(150 * attempt);
     }
   }
-  return { ok: true };
+
+  try {
+    await appendTextToGoogleDocByIndex(docs, documentId, text);
+    return { ok: true, attempts: maxAttempts + 1, method: "index_fallback" };
+  } catch (fallbackErr) {
+    fallbackErr.message = `Google Doc append failed after end_of_segment and index fallback: ${fallbackErr.message || lastError?.message || "unknown error"}`;
+    throw fallbackErr;
+  }
 }
 
 export async function updateDriveFileContent(driveFileId, content, mimeType = "text/plain") {
