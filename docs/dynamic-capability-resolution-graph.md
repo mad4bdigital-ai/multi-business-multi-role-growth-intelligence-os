@@ -195,6 +195,25 @@ Example:
 
 The ledger creator does not execute the selected capability. It runs `capability_resolution_dry_run`, redacts dangerous keys defensively, stores the envelope JSON and hash, and returns an `envelope_id`. Future execution tools should require this ID and must reject expired envelopes or envelopes whose gates do not permit dispatch/apply.
 
+## First enforced family: WordPress write/publish
+
+`wordpress_write_capability_envelope_requirement_v1` makes WordPress post creation require a valid `capability_envelope_id` before the orchestrator calls WordPress. Credential intake and diagnostics remain available without an envelope because they do not execute a WordPress write.
+
+Runtime enforcement checks:
+
+```text
+envelope_status = ready_for_dispatch
+dispatch_allowed = true
+approval_required = false
+blocking_gap_count = 0
+app_key = wordpress_rest
+tenant/user match when present
+not expired
+secrets_included = false
+```
+
+A blocked envelope produces no WordPress POST and returns a governed blocked response.
+
 ## Dry-run tool
 
 The governed tool is:
