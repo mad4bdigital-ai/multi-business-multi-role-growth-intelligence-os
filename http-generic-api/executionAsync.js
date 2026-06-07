@@ -5,6 +5,7 @@ import {
 } from "./databaseTableLifecycle.js";
 import { CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE } from "./connectedExecutionWorker.js";
 import { TENANT_SSH_CLI_EXECUTE_JOB_TYPE } from "./tenantSshCliExecutionWorker.js";
+import { buildStaleJobTimeoutPayload, isRunningJobStale } from "./jobUtils.js";
 import {
   HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE,
   normalizeHostingerSshTargetProbeJobPayload,
