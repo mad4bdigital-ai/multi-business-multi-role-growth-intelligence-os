@@ -54,6 +54,18 @@ try {
     adminCliSource.includes("mergeable_state") &&
     adminCliSource.includes("Resolve conflicts or recreate the branch"),
     "dirty PRs should produce actionable 409 diagnostics before attempting merge");
+  assert("github REST fallback supports gh pr list after capability repair",
+    adminCliSource.includes('resource === "pr" && command === "list"') &&
+    adminCliSource.includes("/pulls?") &&
+    adminCliSource.includes("capability_repair") &&
+    adminCliSource.includes("repaired missing capability"),
+    "PR list fallback should be mapped instead of forcing manual REST API calls");
+  assert("github REST fallback unsupported operations include governance evidence",
+    adminCliSource.includes("buildGithubFallbackUnsupportedError") &&
+    adminCliSource.includes("repair_missing_capability_before_fallback") &&
+    adminCliSource.includes("max_repair_attempts_before_fallback: 3") &&
+    adminCliSource.includes("fallback_reason"),
+    "unsupported fallback must carry repair-before-fallback policy evidence");
   assert("github REST fallback supports gh pr view diagnostics",
     adminCliSource.includes('resource === "pr" && command === "view"') &&
     adminCliSource.includes("stateCheckRollup") &&
