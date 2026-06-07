@@ -385,7 +385,7 @@ export async function recordGptSessionTurn({
     turn_index: turnIndex,
     drive_doc_id: archive.drive_doc_id || null,
     drive_anchor: archive.drive_doc_id ? driveAnchor : null,
-    archive_status: archiveError ? "write_failed" : archiveResult.configured ? "ready" : "not_configured",
+    archive_status: archiveStatus,
     archive_error: archiveError ? archiveError.message : null,
   };
 }
