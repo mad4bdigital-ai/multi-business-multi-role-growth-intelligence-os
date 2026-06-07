@@ -312,6 +312,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? String(connectedExecutionResumeActionPayload.connected_session_id || "").trim()
         : isTenantSshCliExecuteJob
         ? String(tenantSshCliExecutePayload.connection_id || "").trim()
+        : isHostingerSshTargetProbeJob
+        ? String(hostingerSshTargetProbePayload.target_id || "").trim()
         : String(requestPayload.target_key || "").trim(),
     parent_action_key:
       normalizedJobType === "site_migration"
