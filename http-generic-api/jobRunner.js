@@ -531,7 +531,7 @@ export function configureJobRunner(
       parent_action_key: job.parent_action_key, endpoint_key: job.endpoint_key
     });
 
-    const outcome = await executeQueuedJobByType(job);
+    const outcome = await withJobExecutionTimeout(job, () => executeQueuedJobByType(job));
     const success = outcome.success === true;
 
     if (success) {
