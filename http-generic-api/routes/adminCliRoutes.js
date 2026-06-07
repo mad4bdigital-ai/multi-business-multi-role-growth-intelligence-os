@@ -954,7 +954,7 @@ async function preflightGithubMutationArgs(args = []) {
   return null;
 }
 
-async function executeGitHubRestFallback(args = []) {
+async function executeGitHubRestFallbackCore(args = []) {
   const [resource, command, maybeId] = args;
   const { owner, repo } = await resolveGithubRepoFromArgs(args);
   const token = await getGitHubAppInstallationToken({});
