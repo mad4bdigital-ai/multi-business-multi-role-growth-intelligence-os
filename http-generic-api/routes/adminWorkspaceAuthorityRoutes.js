@@ -138,11 +138,13 @@ async function runRepairs(pool, actor) {
   return results;
 }
 
-export function buildAdminWorkspaceAuthorityRoutes({ requireAdminPrincipal } = {}) {
+export function buildAdminWorkspaceAuthorityRoutes({ requireBackendApiKey, requireAdminPrincipal } = {}) {
   const router = Router();
+  const requireBackend = typeof requireBackendApiKey === "function" ? requireBackendApiKey : (_req, _res, next) => next();
   const requireAdmin = typeof requireAdminPrincipal === "function" ? requireAdminPrincipal : (_req, _res, next) => next();
+  const adminGuard = [requireBackend, requireAdmin];
 
-  router.get("/admin/workspace-authority/reconciliation", requireAdmin, async (req, res) => {
+  router.get("/admin/workspace-authority/reconciliation", ...adminGuard, async (req, res) => {
     try {
       const pool = getPool();
       const summary = await readSummary(pool);
@@ -161,7 +163,7 @@ export function buildAdminWorkspaceAuthorityRoutes({ requireAdminPrincipal } = {
     }
   });
 
-  router.post("/admin/workspace-authority/repair", requireAdmin, async (req, res) => {
+  router.post("/admin/workspace-authority/repair", ...adminGuard, async (req, res) => {
     try {
       const pool = getPool();
       const before = await readSummary(pool);
