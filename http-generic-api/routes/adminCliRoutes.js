@@ -1406,6 +1406,7 @@ function builtInShellAllowlist() {
       built_in: true
     },
     webhook_delivery_dispatch: { command: process.execPath, args: ["http-generic-api/scripts/webhook-delivery-dispatcher.mjs"], display_name: "Webhook delivery dispatcher", allow_extra_args: true, max_extra_args: 2, timeout_ms: 180000, built_in: true },
+    openrouter_provider_smoke: { command: process.execPath, args: ["http-generic-api/scripts/openrouter-provider-smoke.mjs"], display_name: "OpenRouter provider live smoke", allow_extra_args: true, max_extra_args: 8, timeout_ms: 180000, built_in: true },
     migration_ledger_record_dry_run: {
       command: process.execPath,
       args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--record-ledger", "--dry-run"],
