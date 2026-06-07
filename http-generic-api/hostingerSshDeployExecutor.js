@@ -8,6 +8,11 @@ import { resolveEffectiveCredential } from "./credentialResolver.js";
 import { maybeCreateCredentialIntakeRequirement } from "./credentialIntakeEnforcement.js";
 import { planRemoteRuntimeDispatchDryRun } from "./remoteRuntime.js";
 import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
+import {
+  normalizeHostingerSshProbeRunnerMode,
+  validateHostingerSshProbeRunnerMode,
+  describeHostingerSshProbeRunnerMode,
+} from "./hostingerSshProbeRunnerModes.js";
 
 const DEFAULT_TIMEOUT_MS = 120000;
 const DEFAULT_PROBE_TIMEOUT_MS = 45000;
