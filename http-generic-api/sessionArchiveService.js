@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
   appendTextToGoogleDoc,
+  createGoogleDocFromTextInDrive,
   createGoogleDocInDrive,
   fetchDriveContent,
   getOrCreateDriveFolder,
