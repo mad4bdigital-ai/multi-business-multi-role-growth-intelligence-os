@@ -62,7 +62,7 @@ async function readRuntimeContract(pool) {
   try { return raw ? JSON.parse(raw) : {}; } catch { return {}; }
 }
 
-async function updateSmokeStatus(pool, { ok, model, tokensUsed, promoted }) {
+async function updateSmokeStatus(pool, { ok, model, tokensUsed, promoted, errorCode = null }) {
   const now = new Date().toISOString();
   await pool.query(
     `UPDATE platform_runtime_config
@@ -73,6 +73,7 @@ async function updateSmokeStatus(pool, { ok, model, tokensUsed, promoted }) {
               '$.last_live_smoke_model', ?,
               '$.last_live_smoke_ok', ?,
               '$.last_live_smoke_tokens_used', ?,
+              '$.last_live_smoke_error_code', ?,
               '$.provider_active_promoted', ?,
               '$.secrets_included', false
             ),
@@ -84,6 +85,7 @@ async function updateSmokeStatus(pool, { ok, model, tokensUsed, promoted }) {
       model,
       ok ? true : false,
       Number(tokensUsed || 0),
+      errorCode,
       promoted ? true : false,
     ]
   );
@@ -136,8 +138,9 @@ export async function runOpenRouterProviderSmoke(options = {}) {
       { role: "user", content: "Return exactly OK." },
     ], []);
   } catch (err) {
-    await updateSmokeStatus(pool, { ok: false, model: options.model, tokensUsed: 0, promoted: false }).catch(() => {});
-    fail("openrouter_live_smoke_failed", err.message || "OpenRouter live smoke failed", { status: err.status || null });
+    const errorCode = err?.name === "TimeoutError" ? "openrouter_live_smoke_timeout" : "openrouter_live_smoke_failed";
+    await updateSmokeStatus(pool, { ok: false, model: options.model, tokensUsed: 0, promoted: false, errorCode }).catch(() => {});
+    fail(errorCode, err.message || "OpenRouter live smoke failed", { status: err.status || null, timeout_ms: timeoutMs });
   }
 
   const content = String(response?.content || "").trim();
@@ -155,6 +158,7 @@ export async function runOpenRouterProviderSmoke(options = {}) {
     ok: true,
     provider_key: "openrouter_openai_compatible",
     model: options.model,
+    timeout_ms: timeoutMs,
     response_nonempty: content.length > 0,
     response_preview: content.slice(0, 12),
     tokens_used: response?.tokens_used || 0,
