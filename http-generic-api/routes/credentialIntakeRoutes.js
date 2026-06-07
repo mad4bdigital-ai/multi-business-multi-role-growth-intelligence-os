@@ -381,6 +381,83 @@ function normalizePlatformSecretMappings(metadata = {}) {
     .slice(0, 20);
 }
 
+async function writeCredentialIntakeContinuationTask({ session, connectionId, metadata = {}, autoPromotion = null, req }) {
+  const continuation = metadata.continuation && typeof metadata.continuation === "object" ? metadata.continuation : {};
+  const taskKey = `credential_intake_completed:${session.session_id}`;
+  const autoPromotionOk = autoPromotion?.ok === true;
+  const targetKey = String(metadata.target_key || continuation.target_key || "").trim() || null;
+  const providerFamily = String(metadata.provider_family || continuation.provider_family || "").trim() || null;
+  const connectorFamily = String(metadata.connector_family || continuation.connector_family || "").trim() || null;
+  const nextAction = continuation.next_action || (autoPromotionOk
+    ? "Run provider/runtime readback and smoke validation without asking the user to type completion text."
+    : "Read credential_intake completion status and continue the blocked workflow if promotion is complete.");
+  const context = {
+    event_type: "credential_intake.completed",
+    session_id: session.session_id,
+    connection_id: connectionId,
+    tenant_id: session.tenant_id,
+    user_id: session.user_id,
+    app_key: session.app_key,
+    auth_type: session.auth_type,
+    target_key: targetKey,
+    provider_family: providerFamily,
+    connector_family: connectorFamily,
+    auto_promotion_ok: autoPromotionOk,
+    auto_promotion_status: autoPromotion?.ok ? "completed" : autoPromotion?.skipped ? "skipped" : "not_requested",
+    promoted_count: autoPromotion?.promoted_count || 0,
+    secret_keys: Array.isArray(autoPromotion?.promoted) ? autoPromotion.promoted.map((item) => item.secret_key).filter(Boolean) : [],
+    continuation,
+    no_user_done_message_required: true,
+    secrets_included: false,
+  };
+
+  const title = continuation.title || `Credential intake completed for ${session.app_key}`;
+  await getPool().query(
+    `INSERT INTO platform_pending_tasks
+       (task_id, task_key, title, description, brief, activation_prompt, task_type, priority, status,
+        blocker_level, owner_scope, tenant_id, user_id, source_surface, source_ref,
+        activation_visibility, context_json, created_by, updated_by)
+     VALUES (UUID(), ?, ?, ?, ?, ?, 'automation', ?, 'pending', 'soft', 'platform', ?, ?,
+             'credential_intake.completed', ?, 1, ?, 'credential_intake_routes', 'credential_intake_routes')
+     ON DUPLICATE KEY UPDATE
+       title = VALUES(title),
+       description = VALUES(description),
+       brief = VALUES(brief),
+       activation_prompt = VALUES(activation_prompt),
+       priority = VALUES(priority),
+       status = IF(status = 'done', status, 'pending'),
+       context_json = VALUES(context_json),
+       updated_by = 'credential_intake_routes',
+       updated_at = NOW()`,
+    [
+      taskKey,
+      title,
+      `A secure credential intake session was submitted for ${session.app_key}. Continue from the recorded event; do not ask the user to send a manual completion message.`,
+      `Credential intake ${session.session_id} completed for ${session.app_key}; connection ${connectionId}; auto-promotion ${context.auto_promotion_status}.`,
+      nextAction,
+      continuation.priority || (autoPromotionOk ? "high" : "medium"),
+      session.tenant_id,
+      session.user_id,
+      `credential_intake_sessions:${session.session_id}`,
+      JSON.stringify(context),
+    ]
+  );
+
+  writeAuditLogAsync({
+    tenant_id: session.tenant_id,
+    actor_id: session.user_id,
+    actor_type: "credential_intake_link",
+    action: "credential_intake.continuation_task_created",
+    resource_type: "platform_pending_task",
+    resource_id: taskKey,
+    after_json: context,
+    ip_address: req?.ip || null,
+    user_agent: req?.headers?.["user-agent"] || null,
+  });
+
+  return { ok: true, task_key: taskKey, secrets_included: false };
+}
+
 async function maybeAutoPromotePlatformSecrets({ session, credentials = {}, metadata = {}, connectionId, req }) {
   if (metadata.auto_promote_platform_secrets !== true) return null;
   const promotionReason = String(metadata.promotion_reason || "").trim();
@@ -558,11 +635,14 @@ function renderCredentialForm({ session, app, error = "" }) {
 }
 
 function renderDone(connectionId, autoPromotion = null) {
+  const continuationHtml = autoPromotion?.continuationTask?.ok
+    ? `<p>Continuation signal recorded. You do not need to send a manual “done” message.</p>`
+    : "";
   const promotionHtml = autoPromotion?.ok
-    ? `<p>Platform continuation completed automatically. Promoted fields: <code>${htmlEscape(autoPromotion.promoted_count || 0)}</code>.</p>`
+    ? `<p>Platform continuation completed automatically. Promoted fields: <code>${htmlEscape(autoPromotion.promoted_count || 0)}</code>.</p>${continuationHtml}`
     : autoPromotion?.skipped
-      ? `<p>Connection saved. Automatic continuation is pending: <code>${htmlEscape(autoPromotion.reason || "skipped")}</code>.</p>`
-      : "";
+      ? `<p>Connection saved. Automatic continuation is pending: <code>${htmlEscape(autoPromotion.reason || "skipped")}</code>.</p>${continuationHtml}`
+      : continuationHtml;
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Connection saved</title><style>body{font-family:system-ui;display:grid;place-items:center;min-height:100vh;margin:0;background:#0f172a}main{background:white;padding:28px;border-radius:24px;max-width:560px}code{background:#f1f5f9;padding:3px 6px;border-radius:8px}</style></head><body><main><h1>Connection saved</h1><p>The credential was encrypted and stored successfully.</p>${promotionHtml}<p>Connection ID: <code>${htmlEscape(connectionId)}</code></p><p>You can close this page.</p></main></body></html>`;
 }
 
@@ -715,6 +795,8 @@ export function buildCredentialIntakeRoutes(deps = {}) {
       });
 
       const autoPromotion = await maybeAutoPromotePlatformSecrets({ session, credentials, metadata, connectionId, req });
+      const continuationTask = await writeCredentialIntakeContinuationTask({ session, connectionId, metadata, autoPromotion, req })
+        .catch((error) => ({ ok: false, error: error.message, secrets_included: false }));
       await enqueueCredentialIntakeCompletedWebhook({ pool: getPool(), session, connectionId }).catch((error) => {
         writeAuditLogAsync({
           tenant_id: session.tenant_id,
@@ -729,7 +811,7 @@ export function buildCredentialIntakeRoutes(deps = {}) {
         });
       });
 
-      return res.status(201).type("html").send(renderDone(connectionId, autoPromotion));
+      return res.status(201).type("html").send(renderDone(connectionId, { ...autoPromotion, continuationTask }));
     } catch (err) {
       const loaded = await loadPendingSession(req.params.token).catch(() => null);
       const app = loaded?.session ? await loadApp(loaded.session.app_key).catch(() => ({})) : {};
