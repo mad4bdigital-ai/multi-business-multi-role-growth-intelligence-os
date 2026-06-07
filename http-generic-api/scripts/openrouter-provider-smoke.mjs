@@ -193,7 +193,8 @@ export async function runOpenRouterProviderSmoke(options = {}) {
   return {
     ok: true,
     provider_key: "openrouter_openai_compatible",
-    model: options.model,
+    model: selectedModel,
+    model_source: options.model ? "runtime_override" : "openrouter_model_selection_policy_v1",
     timeout_ms: timeoutMs,
     response_nonempty: content.length > 0,
     response_preview: content.slice(0, 12),
