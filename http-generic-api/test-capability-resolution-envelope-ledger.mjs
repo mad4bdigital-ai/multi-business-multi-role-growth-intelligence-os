@@ -11,6 +11,7 @@ assert.match(script, /capability_resolution_envelope_ledger/);
 assert.match(script, /sha256Json/);
 assert.match(script, /redactDangerousKeys/);
 assert.match(script, /secrets_included: false/);
+assert.doesNotMatch(script, /CAST\(\? AS JSON\)/);
 assert.match(script, /DATE_ADD\(NOW\(\), INTERVAL \? MINUTE\)/);
 assert.match(script, /dispatch_allowed/);
 assert.match(script, /apply_allowed/);
