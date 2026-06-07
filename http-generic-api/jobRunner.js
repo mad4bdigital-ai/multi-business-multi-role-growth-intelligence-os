@@ -393,6 +393,25 @@ export function configureJobRunner(
       .catch(err => console.error("RETRY_ENQUEUE_FAILED:", { job_id: job.job_id, err: err?.message }));
   }
 
+  async function withJobExecutionTimeout(job, executor) {
+    const timeoutMs = normalizeJobExecutionTimeoutMs(job);
+    let timer = null;
+    try {
+      const timeoutOutcome = new Promise((resolve) => {
+        timer = setTimeout(() => {
+          resolve({
+            success: false,
+            statusCode: 504,
+            payload: buildStaleJobTimeoutPayload(job),
+          });
+        }, timeoutMs);
+      });
+      return await Promise.race([executor(), timeoutOutcome]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
   async function executeQueuedJobByType(job) {
     const jobType = String(job?.job_type || "http_execute").trim();
     if (jobType === "site_migration") return await executeSiteMigrationJob(job);
