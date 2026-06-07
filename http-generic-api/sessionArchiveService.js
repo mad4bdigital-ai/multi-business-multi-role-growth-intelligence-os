@@ -353,9 +353,26 @@ export async function recordGptSessionTurn({
       } catch (err) {
         archiveErrors.push({ stage: "drive_jsonl_append", message: err.message });
       }
+      if (!docWritten && jsonlWritten) {
+        try {
+          const rebuilt = await rebuildTranscriptDocFromJsonl({ pool, session, archive: archiveResult.archive, deps, timestamp });
+          if (rebuilt?.rebuilt_from_jsonl) {
+            docWritten = true;
+            archiveErrors.push({ stage: "drive_doc_rebuild", status: "rebuilt_from_jsonl", drive_doc_id: rebuilt.drive_doc_id });
+          }
+        } catch (err) {
+          archiveErrors.push({ stage: "drive_doc_rebuild", message: err.message });
+        }
+      }
+
       if (docWritten && jsonlWritten) {
-        archiveStatus = "ready";
-        await updateArchiveStatus(pool, session.session_id, "ready");
+        archiveStatus = archiveErrors.some((item) => item.stage === "drive_doc_append") ? "ready_rebuilt" : "ready";
+        await updateArchiveStatus(
+          pool,
+          session.session_id,
+          archiveStatus,
+          archiveStatus === "ready_rebuilt" ? JSON.stringify({ status: archiveStatus, notes: archiveErrors, secrets_included: false }) : null
+        );
       } else if (docWritten || jsonlWritten) {
         archiveStatus = "ready_partial";
         archiveError = new Error(JSON.stringify({ status: "ready_partial", errors: archiveErrors, secrets_included: false }));
