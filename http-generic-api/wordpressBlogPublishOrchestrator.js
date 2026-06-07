@@ -1,6 +1,11 @@
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 import { getPool } from "./db.js";
 import { resolveEffectiveCredential } from "./credentialResolver.js";
+import {
+  extractCapabilityEnvelopeId,
+  markCapabilityEnvelopeReferenced,
+  resolveCapabilityExecutionEnvelope,
+} from "./capabilityResolutionEnvelopeGuard.js";
 
 const WORKFLOW_KEY = "wordpress_blog_publish_or_recover_credentials_workflow";
 
