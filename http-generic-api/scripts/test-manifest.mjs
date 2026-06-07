@@ -7,6 +7,7 @@ export const testCommands = [
   "node test-openclaude-openrouter-activation.mjs",
   "node test-openclaude-live-dispatch.mjs",
   "node test-codex-dual-mode-policy.mjs",
+  "node test-dynamic-capability-resolution-graph.mjs",
   "node test-dynamic-platform-secret-promotion.mjs",
   "node test-db-collation-guard.mjs",
   "node test-agent-runtime-provider-selection.mjs",
