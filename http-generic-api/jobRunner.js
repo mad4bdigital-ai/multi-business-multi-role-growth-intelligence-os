@@ -29,6 +29,10 @@ import {
   TENANT_SSH_CLI_EXECUTE_JOB_TYPE,
   runTenantSshCliExecuteJob,
 } from "./tenantSshCliExecutionWorker.js";
+import {
+  HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE,
+  runHostingerSshTargetProbeJob,
+} from "./hostingerSshDeployExecutor.js";
 
 function createExecutionTraceId() {
   return `trace_${crypto.randomUUID().replace(/-/g, "")}`;
