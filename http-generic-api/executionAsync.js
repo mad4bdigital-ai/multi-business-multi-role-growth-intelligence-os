@@ -287,6 +287,9 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         secrets_included: false,
       }
     : null;
+  const hostingerSshTargetProbePayload = isHostingerSshTargetProbeJob
+    ? normalizeHostingerSshTargetProbeJobPayload(requestPayload)
+    : null;
 
   const job = {
     job_id: buildJobId(),
