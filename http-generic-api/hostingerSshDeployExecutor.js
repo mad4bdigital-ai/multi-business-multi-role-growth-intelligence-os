@@ -11,6 +11,7 @@ import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 
 const DEFAULT_TIMEOUT_MS = 120000;
 const DEFAULT_PROBE_TIMEOUT_MS = 45000;
+const MAX_PROBE_TIMEOUT_MS = 75000;
 const MAX_TIMEOUT_MS = 300000;
 const SSH_CONNECT_TIMEOUT_SECONDS = 10;
 const SSH_SERVER_ALIVE_INTERVAL_SECONDS = 5;
