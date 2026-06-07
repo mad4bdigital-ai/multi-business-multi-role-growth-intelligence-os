@@ -81,6 +81,28 @@ task_overrides.provider_smoke = openai/gpt-4o-mini
 
 Use the governed `openrouter_model_policy` tool to change model slugs. New slugs must be added to `allowed_model_slugs` and updates require `--confirm=SET_OPENROUTER_MODEL_POLICY`. The runtime smoke tool uses this policy when `--model` is not supplied and rejects unallowlisted runtime overrides.
 
+## OpenClaude OpenRouter bridge
+
+`openclaude_openrouter_openai_compatible` is the OpenClaude-facing provider profile for the same active OpenRouter platform bridge. It does not introduce a second credential. It depends on:
+
+```text
+openrouter_openai_compatible = active
+openrouter_model_selection_policy_v1 = active
+docs_agent_openrouter_instruction_contract_v1.activation_status = active_live_provider_dispatch_smoke_passed
+```
+
+The active OpenClaude profile is:
+
+```text
+profile_key = openclaude_essam_openrouter_bridge_v1
+endpoint = /dev-agent/openclaude/bridge/v1/chat/completions
+model_hint = openai/gpt-4o-mini
+allowed_tools = Read,Grep,Glob,LS
+denied_tools = Edit,Write,MultiEdit,NotebookEdit,Bash,git push,git commit,apply_patch
+```
+
+OpenClaude may use OpenRouter only through the governed platform bridge. The platform must not copy `OPENROUTER_API_KEY` to the device, return the provider key to the agent, or allow repo mutation through this profile.
+
 ## Secret boundary
 
 The model provider contract records `secrets_returned_to_agent=0`. The only allowed credential reference is an abstract platform binding key:
