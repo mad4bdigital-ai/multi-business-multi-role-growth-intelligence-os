@@ -402,6 +402,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       : isHostingerSshTargetProbeJob
       ? hostingerSshTargetProbePayload
       : requestPayload,
+    runner_mode: isHostingerSshTargetProbeJob ? normalizeHostingerSshProbeRunnerMode(hostingerSshTargetProbePayload.runner_mode) : "",
+    runner_mode_evidence: isHostingerSshTargetProbeJob ? describeHostingerSshProbeRunnerMode(hostingerSshTargetProbePayload.runner_mode) : null,
     attempt_count: 0,
     max_attempts: normalizeMaxAttempts(body.max_attempts),
     result_payload: null,
