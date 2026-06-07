@@ -462,7 +462,7 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
   const dryRun = input.dry_run === undefined ? true : bool(input.dry_run);
   const activateOnSuccess = bool(input.activate_on_success || input.activateOnSuccess);
   const approvalReason = compact(input.approval_reason || input.approvalReason || input.break_glass_reason || input.breakGlassReason, 1000);
-  const timeoutMs = boundedInt(input.timeout_ms || input.timeoutMs, 60000, 1000, MAX_TIMEOUT_MS);
+  const timeoutMs = boundedInt(input.timeout_ms || input.timeoutMs, DEFAULT_PROBE_TIMEOUT_MS, 1000, MAX_PROBE_TIMEOUT_MS);
   const traceId = `hostinger_ssh_probe_${randomUUID()}`;
 
   if (!targetId) {
