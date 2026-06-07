@@ -196,29 +196,48 @@ export async function createGoogleDocInDrive(name, parentId, initialText = "") {
   };
 }
 
+function isRetryableGoogleDocAppendError(err) {
+  const message = String(err?.message || "").toLowerCase();
+  const status = Number(err?.code || err?.status || err?.response?.status || 0);
+  return status === 400 || status === 409 || message.includes("precondition") || message.includes("stale") || message.includes("conflict");
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function appendTextToGoogleDoc(documentId, text) {
   if (!documentId) throw new Error("documentId is required");
   if (!text) return { ok: true, skipped: true };
   const docs = getDocs();
-  const doc = await docs.documents.get({
-    documentId,
-    fields: "body(content(endIndex))",
-  });
-  const content = doc.data.body?.content || [];
-  const endIndex = Math.max(...content.map((item) => Number(item.endIndex || 1)), 1);
-  await docs.documents.batchUpdate({
-    documentId,
-    requestBody: {
-      requests: [
-        {
-          insertText: {
-            location: { index: Math.max(1, endIndex - 1) },
-            text,
-          },
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const doc = await docs.documents.get({
+        documentId,
+        fields: "body(content(endIndex))",
+      });
+      const content = doc.data.body?.content || [];
+      const endIndex = Math.max(...content.map((item) => Number(item.endIndex || 1)), 1);
+      await docs.documents.batchUpdate({
+        documentId,
+        requestBody: {
+          requests: [
+            {
+              insertText: {
+                location: { index: Math.max(1, endIndex - 1) },
+                text,
+              },
+            },
+          ],
         },
-      ],
-    },
-  });
+      });
+      return { ok: true, attempts: attempt };
+    } catch (err) {
+      if (attempt >= maxAttempts || !isRetryableGoogleDocAppendError(err)) throw err;
+      await sleep(150 * attempt);
+    }
+  }
   return { ok: true };
 }
 
