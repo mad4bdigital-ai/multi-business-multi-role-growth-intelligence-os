@@ -95,9 +95,10 @@ export async function exportSessionToDrive(sessionId, userEmailOverride = null) 
   const doc = {
     exported_at: new Date().toISOString(),
     session: { ...session, base_instructions_text: baseInstructions },
-    turns,
+    turns,          // GPT turn index from gpt_session_turns; SQL stores previews/hashes only.
     events,         // lean structured index from DB
-    raw_records: rawRecords,  // full content from Drive (null if not yet available)
+    raw_records: rawRecords,  // full content from Drive JSONL (null if not yet available)
+    raw_records_source: rawRecordsSource,
     summary: summaries[0] || null,
   };
 
