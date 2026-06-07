@@ -402,7 +402,9 @@ export async function recordGptSessionTurn({
       }
 
       if (docWritten && jsonlWritten) {
-        archiveStatus = archiveErrors.some((item) => item.stage === "drive_doc_append") ? "ready_rebuilt" : "ready";
+        archiveStatus = archiveErrors.some((item) => item.status === "rebuilt_text_snapshot_from_jsonl")
+          ? "ready_text_snapshot"
+          : archiveErrors.some((item) => item.stage === "drive_doc_append") ? "ready_rebuilt" : "ready";
         await updateArchiveStatus(
           pool,
           session.session_id,
