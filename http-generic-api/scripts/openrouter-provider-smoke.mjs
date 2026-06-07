@@ -26,6 +26,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (item.startsWith("--timeout-ms=")) args.timeoutMs = Number(item.slice("--timeout-ms=".length));
   }
   args.maxTokens = Math.min(Math.max(Number(args.maxTokens) || 8, 1), 32);
+  args.timeoutMs = Math.min(Math.max(Number(args.timeoutMs) || 15000, 1000), 30000);
   return args;
 }
 
