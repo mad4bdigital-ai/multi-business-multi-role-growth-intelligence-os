@@ -170,7 +170,30 @@ registry_gap
 policy_gap
 ```
 
-Recommended expansions are recorded as proposals only. For example, `workspace_enum_expansion` is explicitly `defer_until_impact_review`, while `budget_and_quota_authority_registry` and `capability_resolution_envelope_ledger` are candidate future schema changes.
+Recommended expansions are recorded as proposals only. For example, `workspace_enum_expansion` is explicitly `defer_until_impact_review`, while `budget_and_quota_authority_registry` remains a candidate future schema change.
+
+## Envelope ledger
+
+`capability_resolution_envelope_ledger` stores the no-secret output of a dry-run resolution before execution. The stored row is an immutable authority reference with a SHA-256 hash, TTL, selected source tier, gates, blocking gap count, and execution status.
+
+Create an envelope with:
+
+```text
+capability_resolution_envelope_create
+```
+
+Example:
+
+```text
+--tenant-id <tenant>
+--user-id <user>
+--app-key wordpress_rest
+--operation-intent publish
+--requested-by gpt_admin
+--ttl-minutes 60
+```
+
+The ledger creator does not execute the selected capability. It runs `capability_resolution_dry_run`, redacts dangerous keys defensively, stores the envelope JSON and hash, and returns an `envelope_id`. Future execution tools should require this ID and must reject expired envelopes or envelopes whose gates do not permit dispatch/apply.
 
 ## Dry-run tool
 
