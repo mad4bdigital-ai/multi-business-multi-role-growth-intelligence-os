@@ -214,6 +214,26 @@ secrets_included = false
 
 A blocked envelope produces no WordPress POST and returns a governed blocked response.
 
+## Second enforced family: Hostinger SSH deploy
+
+`hostinger_deploy_capability_envelope_requirement_v1` makes Hostinger SSH deploy execution require a valid `capability_envelope_id` before the executor resolves SSH credentials or spawns SSH. Dry-run planning and read-only SSH probes remain available without a deploy envelope.
+
+Runtime enforcement checks:
+
+```text
+envelope_status = ready_for_dispatch
+dispatch_allowed = true
+approval_required = false
+blocking_gap_count = 0
+app_key in remote_ssh_runtime | hostinger
+tenant/user match when present
+not expired
+secrets_included = false
+operation_intent in deploy/restart/write/deploy_release
+```
+
+The existing Hostinger deploy protections still apply: `REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED=true`, approval reason, fixed expected main commit SHA, target path allowlist, bounded output, and no freeform shell.
+
 ## Dry-run tool
 
 The governed tool is:
