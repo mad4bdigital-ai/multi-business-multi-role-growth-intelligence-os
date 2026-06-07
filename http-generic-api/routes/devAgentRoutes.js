@@ -676,7 +676,7 @@ export function buildDevAgentRoutes(deps) {
       );
       const [[profile]] = await getPool().query(
         "SELECT profile_key, provider_key, status, endpoint_url, policy_json, metadata_json, updated_at FROM `dev_agent_runtime_provider_profiles` WHERE profile_key = ? LIMIT 1",
-        ["openclaude_essam_platform_bridge_v1"]
+        ["openclaude_essam_openrouter_bridge_v1"]
       );
       const [[certification]] = await getPool().query(
         "SELECT certification_key, certification_status, dispatch_allowed, apply_allowed, requires_readback, updated_at FROM `runtime_dispatch_certification_registry` WHERE certification_key = ? LIMIT 1",
