@@ -82,6 +82,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "216_sprint67_platform_secret_promotion_monitoring.sql",
   "222_sprint67_async_job_timeout_recovery.sql",
   "223_sprint67_gpt_session_conversation_refs.sql",
+  "223_sprint67_hostinger_ssh_probe_fast_timeout.sql",
   "201_sprint68_lifecycle_owner_engine_registry_alignment.sql",
 ]);
 
