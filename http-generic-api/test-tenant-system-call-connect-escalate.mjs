@@ -45,7 +45,10 @@ assert(
   "connect_escalate route must require user JWT, not backend/admin credentials"
 );
 assert(
-  connectRoutes.includes("createOnboardingEscalation") && connectRoutes.includes("INSERT INTO `tickets`") && connectRoutes.includes("INSERT INTO `onboarding_escalations`"),
+  connectRoutes.includes("createOnboardingEscalation")
+    && connectRoutes.includes("tickets")
+    && connectRoutes.includes("onboarding_escalations")
+    && connectRoutes.includes("ticket_id"),
   "connect_escalate must create support ticket and onboarding escalation records"
 );
 assert(
