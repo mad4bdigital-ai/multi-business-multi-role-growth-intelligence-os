@@ -358,8 +358,27 @@ export async function dispatchWordpressBlogPublish(plan = {}, deps = {}) {
     return { ok: true, status: "credential_intake_required", credential_status: credential.status || "missing", target_key: brand.target_key || plan.target_key || "", site_id: grant.site_id || null, grant_id: grant.grant_id || null, grant_status: grant.status, intake, resume: { workflow_key: WORKFLOW_KEY, plan_id: plan.plan_id || "", original_request_preserved: true }, output: { intake_url: intake.intake_url } };
   }
 
+  const envelope = await resolveCapabilityEnvelopeForWordpressWrite({ plan, requestedStatus }, deps);
+  if (!envelope.ok) {
+    return {
+      ok: false,
+      status: "blocked",
+      error: { code: envelope.status, message: envelope.message || "A valid capability resolution envelope is required before WordPress write/publish execution." },
+      target_key: brand.target_key || plan.target_key || "",
+      site_id: grant.site_id || null,
+      grant_id: grant.grant_id || null,
+      grant_status: grant.status,
+      capability_envelope_id: envelope.envelope_id || extractCapabilityEnvelopeId(plan) || null,
+      envelope_required: true,
+      executes_publish: false,
+      applies_wordpress_post: false,
+      secrets_included: false,
+    };
+  }
+
+  await markCapabilityEnvelopeReferenced(envelope.envelope_id, deps);
   const created = await createPost({ brand, credential, postType, payload }, deps);
-  return { ok: true, status: "completed", credential_status: "resolved", target_key: brand.target_key || plan.target_key || "", site_id: grant.site_id || null, grant_id: grant.grant_id || null, grant_status: grant.status, post_status: requestedStatus, post_id: created.post_id, link: created.link, readback_status: created.readback_status, result: created, output: { post_id: created.post_id, link: created.link, status: created.status, readback_status: created.readback_status } };
+  return { ok: true, status: "completed", credential_status: "resolved", target_key: brand.target_key || plan.target_key || "", site_id: grant.site_id || null, grant_id: grant.grant_id || null, grant_status: grant.status, capability_envelope_id: envelope.envelope_id, envelope_status: envelope.status, post_status: requestedStatus, post_id: created.post_id, link: created.link, readback_status: created.readback_status, result: created, output: { post_id: created.post_id, link: created.link, status: created.status, readback_status: created.readback_status, capability_envelope_id: envelope.envelope_id } };
 }
 
 export async function diagnoseWordpressPublishAuthority(plan = {}, deps = {}) {
