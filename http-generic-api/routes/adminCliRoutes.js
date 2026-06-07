@@ -604,6 +604,35 @@ function mapGithubPullForGhJson(pr, fields = []) {
   return Object.fromEntries(fields.map((field) => [field, mapped[field] ?? pr[field] ?? null]));
 }
 
+function buildGithubCapabilityRepairAuditPayload({ args = [], result = null, error = null } = {}) {
+  const capabilityRepair = result?.capability_repair || error?.details || {};
+  return {
+    policy: capabilityRepair.policy || "repair_missing_capability_before_fallback",
+    provider: "github",
+    fallback: result?.fallback || "github_rest",
+    operation: capabilityRepair.operation || args.slice(0, 2).join(" ").trim() || "unknown",
+    args_preview: args.slice(0, 6),
+    repaired: capabilityRepair.repaired === true,
+    unsupported: error?.code === "github_rest_fallback_unsupported_args",
+    max_repair_attempts_before_fallback: capabilityRepair.max_repair_attempts_before_fallback || 3,
+    repair_attempt_count: capabilityRepair.repair_attempt_count ?? (capabilityRepair.repaired === true ? 1 : null),
+    fallback_reason: capabilityRepair.fallback_reason || null,
+    secrets_included: false,
+  };
+}
+
+function auditGithubFallbackCapabilityRepair({ args = [], result = null, error = null } = {}) {
+  writeAuditLogAsync({
+    actor_type: "service",
+    action: "connector.capability_repair_fallback",
+    resource_type: "github_rest_fallback",
+    resource_id: args.slice(0, 2).join(" ").trim() || "unknown",
+    service_mode: "admin_control",
+    metadata: buildGithubCapabilityRepairAuditPayload({ args, result, error }),
+    outcome: error ? "unsupported" : "completed",
+  });
+}
+
 function buildGithubFallbackUnsupportedError(args = []) {
   const err = new Error("gh CLI is missing and GitHub REST fallback does not yet support these arguments after governed capability repair checks.");
   err.status = 501;
