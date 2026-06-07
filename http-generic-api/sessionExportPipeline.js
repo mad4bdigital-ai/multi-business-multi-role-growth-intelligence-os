@@ -63,16 +63,22 @@ export async function exportSessionToDrive(sessionId, userEmailOverride = null) 
 
   const shareEmail = await resolveShareEmail(pool, session.user_id, userEmailOverride);
 
-  // Load the full raw dump from Drive if available — it contains complete event payloads.
+  // Load the full raw dump from Drive if available. For GPT action sessions,
+  // drive_jsonl_id is the authoritative full-fidelity turn sidecar written by
+  // recordGptSessionTurn; raw_drive_id is legacy session-ingest fallback only.
   let rawRecords = null;
-  if (session.raw_drive_id) {
+  let rawRecordsSource = null;
+  const rawRecordsDriveId = session.drive_jsonl_id || session.raw_drive_id;
+  if (rawRecordsDriveId) {
     try {
-      rawRecords = (await fetchDriveContent(session.raw_drive_id))
+      rawRecords = (await fetchDriveContent(rawRecordsDriveId))
         .split("\n").filter(Boolean)
         .map(l => { try { return JSON.parse(l); } catch { return null; } })
         .filter(Boolean);
+      rawRecordsSource = session.drive_jsonl_id ? "drive_jsonl_id" : "raw_drive_id";
     } catch {
       rawRecords = null;
+      rawRecordsSource = null;
     }
   }
 
