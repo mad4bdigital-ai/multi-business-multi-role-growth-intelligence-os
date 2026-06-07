@@ -17,7 +17,7 @@ assert(executor.includes("shell: false"), "executor must disable local shell int
 assert(executor.includes('command: "timeout"'), "executor must wrap SSH with coreutils timeout to avoid stuck probes");
 assert(executor.includes("detached: true"), "executor must spawn SSH wrapper in its own process group");
 assert(executor.includes("killProcessTree"), "executor must kill the process group on timeout fallback");
-assert(executor.includes("ConnectTimeout=10"), "executor must bound SSH connection establishment");
+assert(executor.includes("ConnectTimeout=${SSH_CONNECT_TIMEOUT_SECONDS}"), "executor must bound SSH connection establishment");
 assert(executor.includes("ConnectionAttempts=1"), "executor must avoid repeated SSH connection attempts");
 assert(executor.includes("ServerAliveInterval"), "executor must bound established SSH liveness checks");
 assert(executor.includes("NumberOfPasswordPrompts=1"), "password auth must not hang on repeated prompts");
