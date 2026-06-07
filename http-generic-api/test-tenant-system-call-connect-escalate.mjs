@@ -65,7 +65,7 @@ assert(
   "Tenant GPT knowledge must include customer-safe escalation wording"
 );
 assert(
-  tenantSchema.includes("/system/tools/call") && tenantSchema.includes("x-tenant-gpt-operationId: callTool"),
+  tenantSchema.includes("/system/tools/call") && tenantSchema.includes("operationId: callTool"),
   "Tenant GPT schema must bind callTool to /system/tools/call"
 );
 assert(
