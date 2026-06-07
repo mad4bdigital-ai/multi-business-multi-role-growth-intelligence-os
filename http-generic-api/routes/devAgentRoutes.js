@@ -767,6 +767,55 @@ export function buildDevAgentRoutes(deps) {
       const model = String(body.model || "openclaude-platform-bridge-dry-run").slice(0, 191);
       const nowSeconds = Math.floor(Date.now() / 1000);
 
+      if (liveDispatch) {
+        const liveMessages = messages.length ? messages : [{ role: "user", content: prompt }];
+        const live = await runOpenClaudeOpenRouterLiveDispatch({
+          messages: liveMessages,
+          model: body.model || "",
+          maxTokens: body.max_tokens || body.maxTokens || 256,
+          timeoutMs: body.timeout_ms || body.timeoutMs || 15000,
+          profileKey: body.profile_key || "openclaude_essam_openrouter_bridge_v1",
+          providerKey: body.provider_key || "openclaude_openrouter_openai_compatible",
+        });
+        return res.json({
+          id: `chatcmpl_openclaude_bridge_${randomUUID()}`,
+          object: "chat.completion",
+          created: nowSeconds,
+          model: live.model,
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: "assistant",
+                content: live.content,
+              },
+              finish_reason: "stop",
+            },
+          ],
+          usage: {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: live.tokens_used,
+            estimated_prompt_chars: prompt.length,
+          },
+          bridge: {
+            mode: "live_provider_dispatch",
+            contract_key: "openclaude_provider_bridge_contract_v1",
+            runtime_key: "openclaude_essam_local_v1",
+            profile_key: live.profile_key,
+            provider_key: live.provider_key,
+            model_source: live.model_source,
+            provider_dispatch_attempted: true,
+            local_execution_attempted: false,
+            repo_mutation_allowed: false,
+            allowed_tools: live.allowed_tools,
+            denied_tools: live.denied_tools,
+            credential_hash_present: live.credential_hash_present,
+          },
+          secrets_included: false,
+        });
+      }
+
       return res.json({
         id: `chatcmpl_dryrun_${randomUUID()}`,
         object: "chat.completion",
