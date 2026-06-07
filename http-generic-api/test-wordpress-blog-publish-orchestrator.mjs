@@ -66,6 +66,30 @@ function makePool({ brands = [], connections = [], cmsSites = [], cmsGrants = []
   };
 }
 
+function readyEnvelope(overrides = {}) {
+  return {
+    envelope_id: "env-ready-wordpress",
+    tenant_id: "tenant-1",
+    user_id: "user-1",
+    app_key: "wordpress_rest",
+    capability_key: "wordpress_create_post",
+    operation_intent: "write",
+    envelope_status: "ready_for_dispatch",
+    decision: "ready_for_dispatch",
+    dispatch_allowed: 1,
+    apply_allowed: 1,
+    approval_required: 0,
+    quota_required: 0,
+    audit_required: 1,
+    readback_required: 1,
+    blocking_gap_count: 0,
+    execution_status: "not_executed",
+    expires_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+    secrets_included: 0,
+    ...overrides,
+  };
+}
+
 const brand = {
   brand_name: "Almallah Group",
   normalized_brand_name: "almallah group",
