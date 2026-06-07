@@ -22,7 +22,7 @@ assert(executor.includes("runHostingerSshTargetProbeJob"), "probe must expose a 
 assert(executor.includes("DEFAULT_PROBE_TIMEOUT_MS = 45000"), "probe must default to a short SSH timeout below proxy limits");
 assert(executor.includes("MAX_PROBE_TIMEOUT_MS = 75000"), "probe must cap SSH timeout below proxy limits");
 assert(executor.includes('command: "timeout"'), "probe must wrap SSH with coreutils timeout");
-assert(executor.includes("ConnectTimeout=10"), "probe must bound SSH connection establishment");
+assert(executor.includes("ConnectTimeout=${SSH_CONNECT_TIMEOUT_SECONDS}"), "probe must bound SSH connection establishment");
 assert(executor.includes("ConnectionAttempts=1"), "probe must avoid repeated SSH connection attempts");
 assert(executor.includes("killProcessTree"), "probe must kill timed-out SSH process groups");
 assert(probeBlock.includes("dry_run_only"), "probe must support dry-run mode");
