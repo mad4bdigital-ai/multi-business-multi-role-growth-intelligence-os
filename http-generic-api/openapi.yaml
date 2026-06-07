@@ -10129,6 +10129,21 @@ paths:
       responses:
         "200": { description: Current user profile, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
 
+  /me/workspaces/{tenant_id}/brands:
+    get:
+      tags: [connected-systems]
+      security:
+        - backendBearerAuth: []
+      operationId: listCurrentWorkspaceBrands
+      summary: List tenant-safe brands visible to the signed-in workspace member
+      parameters:
+        - in: path
+          name: tenant_id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Workspace brands, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
   /me/workspaces:
     get:
       tags: [connected-systems]
