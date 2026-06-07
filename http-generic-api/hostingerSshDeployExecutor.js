@@ -813,7 +813,7 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     throw err;
   }
   const envelope = await resolveCapabilityEnvelopeForHostingerDeploy({ pool, input, target, expectedCommitSha });
-  await markCapabilityEnvelopeReferenced(pool, envelope.envelope_id, "hostinger_ssh_deploy_release");
+  await markCapabilityEnvelopeReferenced({ pool, envelopeId: envelope.envelope_id, executionRef: "hostinger_ssh_deploy_release" });
 
   const sshConnection = await resolveSshConnectionCredentials(pool, target, input);
   const remoteScript = buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClean, restart });
