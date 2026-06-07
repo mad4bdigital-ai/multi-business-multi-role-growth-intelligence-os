@@ -17,6 +17,8 @@ const probeBlock = executor.slice(start, end);
 assert(executor.includes("REMOTE_RUNTIME_HOSTINGER_SSH_PROBE_ENABLED"), "actual SSH probe must be behind an explicit feature flag");
 assert(executor.includes("remote_runtime_hostinger_ssh_probe_enabled"), "probe must support governed DB-backed execution gate for stateless runtimes");
 assert(executor.includes("loadHostingerSshProbeGate"), "probe must evaluate a governed runtime gate before SSH execution");
+assert(executor.includes("HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE"), "probe must expose a queue worker job type to avoid long request 503s");
+assert(executor.includes("runHostingerSshTargetProbeJob"), "probe must expose a queue worker entrypoint");
 assert(probeBlock.includes("dry_run_only"), "probe must support dry-run mode");
 assert(probeBlock.includes("resolveSshConnectionCredentials") || probeBlock.includes("resolveSshCredential"), "probe must use governed SSH credential resolver wrapper");
 assert(executor.includes("resolveEffectiveCredential"), "SSH credential resolver wrapper must use governed credential resolver");

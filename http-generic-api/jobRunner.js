@@ -29,6 +29,10 @@ import {
   TENANT_SSH_CLI_EXECUTE_JOB_TYPE,
   runTenantSshCliExecuteJob,
 } from "./tenantSshCliExecutionWorker.js";
+import {
+  HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE,
+  runHostingerSshTargetProbeJob,
+} from "./hostingerSshDeployExecutor.js";
 
 function createExecutionTraceId() {
   return `trace_${crypto.randomUUID().replace(/-/g, "")}`;
@@ -435,6 +439,22 @@ export function configureJobRunner(
           success: false,
           statusCode: err?.status || 500,
           payload: { ok: false, error: { code: err?.code || "tenant_ssh_cli_execute_job_failed", message: err?.message || String(err) }, secrets_included: false },
+        };
+      }
+    }
+    if (jobType === HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE) {
+      try {
+        const payload = await (deps.runHostingerSshTargetProbeJob || runHostingerSshTargetProbeJob)({ ...(job.request_payload || {}), worker_job_id: job.job_id });
+        return {
+          success: payload?.ok === true,
+          statusCode: payload?.ok === true ? 200 : 409,
+          payload: { ...payload, worker_job_id: job.job_id, secrets_included: false },
+        };
+      } catch (err) {
+        return {
+          success: false,
+          statusCode: err?.status || 500,
+          payload: { ok: false, error: { code: err?.code || "hostinger_ssh_target_probe_job_failed", message: err?.message || String(err), details: err?.details || null }, worker_job_id: job.job_id, secrets_included: false },
         };
       }
     }
