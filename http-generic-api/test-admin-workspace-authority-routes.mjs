@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { _testingAdminWorkspaceAuthorityRoutes } from "./routes/adminWorkspaceAuthorityRoutes.js";
+import { buildAdminWorkspaceAuthorityRoutes, _testingAdminWorkspaceAuthorityRoutes } from "./routes/adminWorkspaceAuthorityRoutes.js";
 
 const routeSource = readFileSync("routes/adminWorkspaceAuthorityRoutes.js", "utf8");
 const indexSource = readFileSync("routes/index.js", "utf8");
