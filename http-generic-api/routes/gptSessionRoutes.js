@@ -4,6 +4,9 @@ import { exportSessionToDrive } from "../sessionExportPipeline.js";
 import { closeGptSessionArchive, recordGptSessionTurn } from "../sessionArchiveService.js";
 import { summarizeSessionIfNeeded, writeProvidedSessionSummary } from "../sessionSummaryService.js";
 
+const VALID_TURN_ROLES = new Set(["user", "assistant", "tool"]);
+const MAX_BATCH_TURNS = 20;
+
 async function resolveSessionForCaller(pool, sessionId, req) {
   const [rows] = await pool.query(
     "SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1",
@@ -19,6 +22,43 @@ async function resolveSessionForCaller(pool, sessionId, req) {
     throw err;
   }
   return session;
+}
+
+function validateTurnInput(turn = {}) {
+  const role = String(turn.role || "").trim();
+  const content = typeof turn.content === "string" ? turn.content : "";
+  if (!role || !content) {
+    return { ok: false, error: { code: "missing_fields", message: "role and content are required." } };
+  }
+  if (!VALID_TURN_ROLES.has(role)) {
+    return { ok: false, error: { code: "invalid_role", message: "role must be user, assistant, or tool." } };
+  }
+  return { ok: true, turn: { role, content, action_key: turn.action_key || null } };
+}
+
+async function resolveWritableSession(pool, req) {
+  const session = await resolveSessionForCaller(pool, req.params.id, req);
+  if (!session) {
+    const err = new Error("Session not found.");
+    err.status = 404;
+    err.code = "session_not_found";
+    throw err;
+  }
+  if (session.session_status === "completed" || session.session_status === "closed") {
+    const err = new Error("Cannot add turns to a closed session.");
+    err.status = 409;
+    err.code = "session_closed";
+    throw err;
+  }
+  return session;
+}
+
+async function nextTurnIndex(pool, sessionId) {
+  const [[{ max_idx }]] = await pool.query(
+    "SELECT COALESCE(MAX(turn_index), -1) AS max_idx FROM `gpt_session_turns` WHERE session_id = ?",
+    [sessionId]
+  );
+  return Number(max_idx) + 1;
 }
 
 export function buildGptSessionRoutes(deps) {
