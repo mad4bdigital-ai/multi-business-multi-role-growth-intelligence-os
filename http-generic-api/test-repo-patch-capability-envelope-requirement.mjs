@@ -37,6 +37,7 @@ assert.ok(applyFunctionIndex > -1, "applyRepoPatch must exist.");
 assert.ok(branchPolicyIndex > -1, "branch policy must remain in repo patch execution path.");
 assert.ok(envelopeGateIndex > -1, "capability envelope gate must run in repo patch execution path.");
 assert.ok(tokenIndex > envelopeGateIndex, "GitHub App token must be resolved only after capability envelope gate.");
+assert.ok(gptTools.includes("const envelope = await requireRepoPatchCapabilityEnvelope"), "repo patch runtime must assign envelope before token resolution.");
 assert.ok(preflightIndex > tokenIndex, "existing branch compare/preflight remains after token resolution.");
 
 assert.match(migration, /repo_patch_apply_capability_envelope_requirement_v1/);
