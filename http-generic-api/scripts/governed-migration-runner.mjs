@@ -94,6 +94,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "223_sprint67_hostinger_ssh_probe_fast_timeout.sql",
   "224_sprint67_hostinger_ssh_probe_runner_modes.sql",
   "201_sprint68_lifecycle_owner_engine_registry_alignment.sql",
+  "231_sprint68_shared_reconciliation_continuation_policy.sql",
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v2";
