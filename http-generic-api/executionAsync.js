@@ -524,6 +524,67 @@ export async function getExecutionJob(jobId, deps = {}) {
   };
 }
 
+export async function resumeExecutionJob(jobId, deps = {}) {
+  const {
+    resolveJob,
+    executeSingleQueuedJob,
+    toJobSummary,
+    normalizeJobStatus,
+  } = deps;
+
+  const job = await resolveJob(jobId);
+  if (!job) {
+    return {
+      status: 404,
+      body: { ok: false, error: { code: "job_not_found", message: "Job not found." }, secrets_included: false },
+    };
+  }
+
+  const currentStatus = normalizeJobStatus(job.status);
+  if (currentStatus === "queued") {
+    await executeSingleQueuedJob(job);
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        resumed: true,
+        before_status: currentStatus,
+        job: toJobSummary(job),
+        result: job.result_payload || null,
+        error: job.error_payload || null,
+        secrets_included: false,
+      },
+    };
+  }
+
+  if (currentStatus === "running" || currentStatus === "retrying") {
+    return {
+      status: 202,
+      body: {
+        ok: true,
+        resumed: false,
+        reason: "job_already_active",
+        job: toJobSummary(job),
+        continuation: toJobSummary(job).continuation,
+        secrets_included: false,
+      },
+    };
+  }
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      resumed: false,
+      reason: "job_already_terminal",
+      job: toJobSummary(job),
+      result: job.result_payload || null,
+      error: job.error_payload || null,
+      secrets_included: false,
+    },
+  };
+}
+
 export async function tickExecutionJob(jobId, deps = {}) {
   const {
     resolveJob,
