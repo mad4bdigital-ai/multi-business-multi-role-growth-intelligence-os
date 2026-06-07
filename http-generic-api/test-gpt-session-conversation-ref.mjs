@@ -13,6 +13,7 @@ assert.ok(routes.includes("growth-intelligence-platform-admin-assistant"));
 assert.ok(routes.includes("g-69b6e4de8fd88191ac132362e1ee300e"));
 assert.ok(routes.includes("mad4b-growth-intelligence-tenant"));
 assert.ok(routes.includes('router.post("/gpt/sessions/:id/conversation-ref"'));
+assert.ok(routes.includes('router.post("/gpt/sessions/:id/conversation-ref/mark-primary"'));
 assert.ok(routes.includes("parseChatGptUrl"));
 assert.ok(routes.includes("personal_conversation_url"));
 assert.ok(routes.includes("share_url"));
