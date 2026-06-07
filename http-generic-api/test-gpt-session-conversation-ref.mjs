@@ -74,9 +74,12 @@ assert.doesNotMatch(captureMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FR
 
 assert.ok(runner.includes("223_sprint67_gpt_session_conversation_refs.sql"));
 assert.ok(runner.includes("225_sprint67_gpt_session_conversation_ref_primary.sql"));
+assert.ok(runner.includes("230_sprint67_gpt_session_conversation_ref_capture_current.sql"));
 assert.ok(readiness.includes("223_sprint67_gpt_session_conversation_refs.sql"));
 assert.ok(readiness.includes("225_sprint67_gpt_session_conversation_ref_primary.sql"));
+assert.ok(readiness.includes("230_sprint67_gpt_session_conversation_ref_capture_current.sql"));
 assert.ok(readiness.includes("gpt_session_conversation_ref_upsert"));
 assert.ok(readiness.includes("gpt_session_conversation_ref_mark_primary"));
+assert.ok(readiness.includes("gpt_session_conversation_ref_capture_current"));
 
 console.log("GPT session conversation reference tests passed");
