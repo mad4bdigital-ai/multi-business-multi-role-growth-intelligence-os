@@ -281,7 +281,7 @@ function authorityStatus({ workspace, grants = [], brandKey, brandCore, activity
   const grantPermissions = new Set(grants.map((grant) => grant.permission));
   const strongGrant = ["owner", "admin", "manage", "operate", "edit"].some((permission) => grantPermissions.has(permission));
   if (workspace) passed.push("workspace_resolved");
-  else missing.push("workspace_context_missing_or_unresolved");
+  else if (["high", "critical"].includes(risk)) missing.push("workspace_context_missing_or_unresolved");
 
   if (grants.length) passed.push("workspace_resource_grant_present");
   else if (["high", "critical"].includes(risk)) missing.push("workspace_resource_grant_missing_for_high_risk_operation");
