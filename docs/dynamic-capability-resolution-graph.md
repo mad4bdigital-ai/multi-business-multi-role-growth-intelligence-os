@@ -264,6 +264,36 @@ tenant/user match when present
 
 WordPress and Hostinger currently use this helper while keeping their family-specific wrappers and response style.
 
+## Third enforced family: n8n state-changing workflow control
+
+`n8n_state_changing_capability_envelope_requirement_v1` makes local n8n state-changing connector actions require `capability_envelope_id` before connector forwarding.
+
+Envelope is required for:
+
+```text
+start
+stop
+restart
+activate_workflow
+deactivate_workflow
+run_workflow
+execute_workflow
+```
+
+Envelope is not required for read-only actions:
+
+```text
+status
+diagnose
+health
+list_workflows
+get_workflow
+list_executions
+open
+```
+
+The gate runs before `buildForwardOptions`, so the platform n8n API-key bridge is not injected unless the state-changing action has a valid envelope.
+
 ## Dry-run tool
 
 The governed tool is:
