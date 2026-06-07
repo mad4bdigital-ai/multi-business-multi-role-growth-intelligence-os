@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 const source = readFileSync(new URL("./sessionExportPipeline.js", import.meta.url), "utf8");
 
-assert.ok(source.includes("FROM `gpt_session_turns`"), "session export must read GPT turn index from gpt_session_turns");
+assert.match(source, /FROM\s+(?:`|\\`)gpt_session_turns(?:`|\\`)/, "session export must read GPT turn index from gpt_session_turns");
 assert.ok(source.includes("content_preview"), "session export should include bounded turn previews");
 assert.ok(source.includes("content_sha256"), "session export should include turn content hashes");
 assert.ok(source.includes("drive_doc_id"), "session export should include transcript doc references");
