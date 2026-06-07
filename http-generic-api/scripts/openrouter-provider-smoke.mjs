@@ -172,15 +172,17 @@ export async function runOpenRouterProviderSmoke(options = {}) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const args = parseArgs();
   runOpenRouterProviderSmoke(args)
-    .then((result) => {
+    .then(async (result) => {
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      await getPool().end().catch(() => {});
     })
-    .catch((err) => {
+    .catch(async (err) => {
       process.stdout.write(`${JSON.stringify({
         ok: false,
         error: { code: err.code || "openrouter_provider_smoke_failed", message: err.message, details: err.details || undefined },
         secrets_included: false,
       }, null, 2)}\n`);
+      await getPool().end().catch(() => {});
       process.exitCode = 1;
     });
 }
