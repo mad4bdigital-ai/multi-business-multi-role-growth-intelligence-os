@@ -397,10 +397,11 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        const exitCode = Number(code);
         cleanup().finally(() => resolve({
-          ok: Number(code) === 0,
-          exit_code: Number(code),
-          timed_out: false,
+          ok: exitCode === 0,
+          exit_code: exitCode,
+          timed_out: exitCode === 124,
           auth_mode: authMode,
           stdout: sanitizeSshOutput(stdout),
           stderr: sanitizeSshOutput(stderr),
