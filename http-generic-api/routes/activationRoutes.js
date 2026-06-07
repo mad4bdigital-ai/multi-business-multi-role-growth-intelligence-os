@@ -683,6 +683,20 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
       )
     : { ok: true, rows: [], skipped: true, reason: "include_turns=false" };
 
+  const conversationRefs = allRelevantSessionIds.length
+    ? await safeQuery(
+        `SELECT ref_id, session_id, interface_scope, interface_display_name,
+                gpt_app_id, gpt_slug, conversation_id, personal_conversation_url,
+                share_id, share_url, source, captured_by, status, updated_at
+           FROM \`gpt_session_conversation_refs\`
+          WHERE session_id IN (?)
+            AND status = 'active'
+          ORDER BY updated_at DESC
+          LIMIT 50`,
+        [allRelevantSessionIds]
+      )
+    : { ok: true, rows: [], skipped: true, reason: "no_relevant_sessions" };
+
   let graphMemory = {
     requested: false,
     resolved: false,
@@ -734,6 +748,7 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
       sources_checked: [
         "customer_sessions",
         "gpt_session_turns",
+        "gpt_session_conversation_refs",
         "session_summaries",
         "platform_pending_tasks.conversation_context_ref",
         "platform_graph_memory",
@@ -757,6 +772,14 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
       secrets_included: false,
     },
     referenced_contexts: referencedRefs.slice(0, 50),
+    chatgpt_conversation_refs: {
+      ok: conversationRefs.ok !== false,
+      count: conversationRefs.rows.length,
+      rows: conversationRefs.rows,
+      note: "Personal ChatGPT conversation URLs are private to the GPT account owner; share URLs are optional shareable references.",
+      secrets_included: false,
+      error: conversationRefs.error || null,
+    },
     stored_turn_previews: storedTurnPreviews.rows.map((row) => compactTurn(row, rawMaxChars)),
     graph_memory: {
       requested: Boolean(graphMemory.requested),
