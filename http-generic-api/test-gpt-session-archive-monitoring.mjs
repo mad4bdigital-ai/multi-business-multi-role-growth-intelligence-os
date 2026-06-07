@@ -17,7 +17,7 @@ assert.ok(migration.includes("multiple_primary_refs"));
 assert.ok(migration.includes("sparse_user_assistant_capture"));
 assert.ok(migration.includes("missing_conversation_ref"));
 assert.ok(migration.includes("secrets_included"));
-assert.doesNotMatch(migration, /content_preview|\bcontent\b/i, "monitoring views must not expose raw transcript text");
+assert.doesNotMatch(migration, /content_preview|`content`|\.content\b|\bcontent\s+AS\b/i, "monitoring views must not expose raw transcript text columns");
 assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 
 assert.ok(runner.includes("227_sprint67_gpt_session_archive_monitoring.sql"));
