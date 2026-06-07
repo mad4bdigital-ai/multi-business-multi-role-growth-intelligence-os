@@ -38,6 +38,7 @@ VALUES
      'current_workspace_type_enum',JSON_ARRAY('brand','project','campaign','sandbox'),
      'extended_workspace_archetypes_policy_only',JSON_ARRAY('personal_workspace','freelancer_workspace','agency_workspace','client_workspace','brand_workspace','project_workspace','campaign_workspace','sandbox_workspace'),
      'source_tier_priority_default',JSON_ARRAY('client_dedicated','brand_managed','user_owned_personal','workspace_owner_managed','freelancer_managed_service','agency_managed_service','tenant_managed','remote_dedicated_runtime','local_device_runtime','platform_managed_fallback','blocked_requires_setup'),
+     'source_tier_priority_high_risk',JSON_ARRAY('client_dedicated','remote_dedicated_runtime','brand_managed','tenant_managed','workspace_owner_managed','freelancer_managed_service','agency_managed_service','local_device_runtime','user_owned_personal','platform_managed_fallback','blocked_requires_setup'),
      'context_dimensions',JSON_ARRAY('tenant_id','workspace_id','workspace_type','user_id','user_role','brand_key','business_activity_type','app_key','capability_key','operation_intent','runtime_surface'),
      'authority_surfaces',JSON_ARRAY('workspace_resource_grants','brand_core','business_activity_types','credential_bindings','user_app_connections','runtime_dispatch_certification_registry','v_app_integration_capability_map'),
      'risk_intents',JSON_OBJECT(
