@@ -1277,6 +1277,17 @@ async function executeGitHubRestFallbackCore(args = []) {
   throw buildGithubFallbackUnsupportedError(args);
 }
 
+async function executeGitHubRestFallback(args = []) {
+  try {
+    const result = await executeGitHubRestFallbackCore(args);
+    if (result?.fallback) auditGithubFallbackCapabilityRepair({ args, result });
+    return result;
+  } catch (error) {
+    if (error?.code === "github_rest_fallback_unsupported_args") auditGithubFallbackCapabilityRepair({ args, error });
+    throw error;
+  }
+}
+
 async function executeCliTool(tool, body = {}) {
   const args = parseArgs(body.args);
 
