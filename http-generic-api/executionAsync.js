@@ -459,7 +459,9 @@ export async function getExecutionJob(jobId, deps = {}) {
     toJobSummary,
     TERMINAL_JOB_STATUSES,
     ACTIVE_JOB_STATUSES,
-    normalizeJobStatus
+    normalizeJobStatus,
+    updateJob,
+    nowIso
   } = deps;
 
   const job = await resolveJob(jobId);
