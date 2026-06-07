@@ -33,6 +33,7 @@ For each change, update at least one of the following, depending on scope:
 | New migration or repair script | migration/script inline comments, runbook or operations doc, patch index |
 | GPT action/tool schema change | OpenAPI/schema docs and affected tool registry notes |
 | Deployment or CI behavior | `deployment_parity_checklist.md` |
+| Shared reconciliation / continuation behavior | `http-generic-api/docs/shared-reconciliation-continuation-runbook.md`, `Updating Registry Patch Index.md`, `deployment_parity_checklist.md` |
 | Agent operating rule | `AI_Agent_Knowledge_Guide.md` when safe, or a dedicated `docs/*` runbook linked from checklist docs |
 
 ## Patch index rule

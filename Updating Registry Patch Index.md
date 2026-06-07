@@ -1,8 +1,37 @@
 # Updating Registry Patch Index
 
-Last updated: 2026-06-06 (tenant WordPress validation collation repair and docs alignment)
+Last updated: 2026-06-07 (shared reconciliation continuation engine and scoped resume policy)
 
 ## Current Patch Set
+
+### 2026-06-07 — Shared Reconciliation Continuation Engine
+
+- Status: PR #855 opened, CI success on branch before docs-agent note; targeted docs alignment added in PR.
+- Branch: `gpt/shared-reconciliation-continuation-20260607`
+- Scope:
+  - Added `http-generic-api/sharedReconciliationEngine.js` as the shared continuation/reconciliation contract for resumable governed operations.
+  - Added migration `231_sprint68_shared_reconciliation_continuation_policy.sql` to register the blocking policy `Shared Reconciliation Engine Continuation Contract`.
+  - Added `http-generic-api/docs/shared-reconciliation-continuation-runbook.md` for operations after tool timeout, session expiry, branch drift, deployment reload gaps, unsupported fallback, credential intake, or approval pauses.
+  - Added tests `test-shared-reconciliation-engine.mjs` and `test-shared-reconciliation-continuation-policy.mjs`, and added both to the test manifest.
+- Runtime behavior:
+  - Continuation checkpoints must include actor scope, resource scope, resource fingerprint, current stage, interruption signal, resume metadata, and `secrets_included=false`.
+  - Direct resume is allowed only when the current resource fingerprint still matches the checkpoint.
+  - Drifted resources require dry-run repair, verification, apply gate, audit, and then original-operation resume.
+  - The engine is shared across admin, tenant, user, and local/device flows, but authority remains scoped: tenant/user actors cannot reconcile platform or repository resources.
+- SQL safety class:
+  - Policy seed only; `INSERT INTO execution_policies ... ON DUPLICATE KEY UPDATE`.
+  - No `DROP`, `TRUNCATE`, broad `DELETE`, broad table conversion, or secret-payload mutation.
+- Evidence:
+  - `node test-shared-reconciliation-engine.mjs`: pass.
+  - `node test-shared-reconciliation-continuation-policy.mjs`: pass.
+  - `node scripts/run-test-manifest.mjs --grep shared-reconciliation`: pass.
+  - `node test-connection-capability-repair-before-fallback-policy.mjs`: pass.
+  - `node test-github-branch-maintenance-fallbacks.mjs`: pass.
+  - `node test-admin-workspace-authority-routes.mjs`: pass after local worktree dependency install.
+  - GitHub Actions on PR creation: CI success, Docs Agent success, PR Risk Labeler success for head `43c975fd`.
+- Operational note:
+  - Docs Agent added `docs/auto-docs-agent/pr-855.md` and requested this targeted ledger/checklist/governance update because the PR includes a policy migration.
+  - Local verification used a detached worktree and reported Node `v24.15.0` while the project engine requires `>=22 <23`; targeted tests still passed, and GitHub CI runs Node 22.
 
 ### 1. MySQL Registry Migration Baseline
 

@@ -52,6 +52,8 @@ export const testCommands = [
   "node test-admin-tool-registry-tags-text.mjs",
   "node test-github-rest-fallback-hardening.mjs",
   "node test-connection-capability-repair-before-fallback-policy.mjs",
+  "node test-shared-reconciliation-engine.mjs",
+  "node test-shared-reconciliation-continuation-policy.mjs",
   "node test-github-workflow-dispatch-fallback.mjs",
   "node test-github-branch-maintenance-fallbacks.mjs",
   "node test-remote-ssh-runtime-foundation.mjs",
