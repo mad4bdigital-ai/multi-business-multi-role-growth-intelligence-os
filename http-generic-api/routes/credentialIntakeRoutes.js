@@ -635,11 +635,14 @@ function renderCredentialForm({ session, app, error = "" }) {
 }
 
 function renderDone(connectionId, autoPromotion = null) {
+  const continuationHtml = autoPromotion?.continuationTask?.ok
+    ? `<p>Continuation signal recorded. You do not need to send a manual “done” message.</p>`
+    : "";
   const promotionHtml = autoPromotion?.ok
-    ? `<p>Platform continuation completed automatically. Promoted fields: <code>${htmlEscape(autoPromotion.promoted_count || 0)}</code>.</p>`
+    ? `<p>Platform continuation completed automatically. Promoted fields: <code>${htmlEscape(autoPromotion.promoted_count || 0)}</code>.</p>${continuationHtml}`
     : autoPromotion?.skipped
-      ? `<p>Connection saved. Automatic continuation is pending: <code>${htmlEscape(autoPromotion.reason || "skipped")}</code>.</p>`
-      : "";
+      ? `<p>Connection saved. Automatic continuation is pending: <code>${htmlEscape(autoPromotion.reason || "skipped")}</code>.</p>${continuationHtml}`
+      : continuationHtml;
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Connection saved</title><style>body{font-family:system-ui;display:grid;place-items:center;min-height:100vh;margin:0;background:#0f172a}main{background:white;padding:28px;border-radius:24px;max-width:560px}code{background:#f1f5f9;padding:3px 6px;border-radius:8px}</style></head><body><main><h1>Connection saved</h1><p>The credential was encrypted and stored successfully.</p>${promotionHtml}<p>Connection ID: <code>${htmlEscape(connectionId)}</code></p><p>You can close this page.</p></main></body></html>`;
 }
 
