@@ -180,7 +180,7 @@ async function loadConnection(pool, connectionId) {
   return rows[0] || null;
 }
 
-async function writeExecutionLog({ pool, traceId, status, payload }) {
+async function writeExecutionLog({ pool, traceId, status, payload, input }) {
   const evidence = await writeExecutionEvidence({
     pool,
     traceId,
@@ -200,6 +200,7 @@ async function writeExecutionLog({ pool, traceId, status, payload }) {
     intakeValidationStatus: "validated",
     executionReadyStatus: status === "success" ? "ready" : "degraded",
     logSource: "sql_primary",
+    contextSources: [input],
   });
   return evidence.row || null;
 }
@@ -432,7 +433,7 @@ export async function dispatchPlatformPluginRestAction({
   };
 
   if (dryRun) {
-    const log = await writeExecutionLog({ pool, traceId, status: "success", payload: { ...requestSummary, result: "dry_run" } });
+    const log = await writeExecutionLog({ pool, traceId, status: "success", payload: { ...requestSummary, result: "dry_run" }, input });
     return {
       ok: true,
       dispatched: false,
@@ -454,7 +455,7 @@ export async function dispatchPlatformPluginRestAction({
     responseText = await response.text();
   } catch (err) {
     clearTimeout(timer);
-    const log = await writeExecutionLog({ pool, traceId, status: "failed", payload: { ...requestSummary, error: err.name || err.message } });
+    const log = await writeExecutionLog({ pool, traceId, status: "failed", payload: { ...requestSummary, error: err.name || err.message }, input });
     return {
       ok: true,
       dispatched: false,
@@ -479,6 +480,7 @@ export async function dispatchPlatformPluginRestAction({
       response_ok: success,
       response_preview: responseText.slice(0, 2000),
     },
+    input,
   });
 
   return {

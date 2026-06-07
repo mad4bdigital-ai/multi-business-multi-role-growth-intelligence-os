@@ -52,6 +52,7 @@ assert(service.includes("smoke_certification_origin_drift"), "dispatcher must de
 assert(service.includes("smoke_certification_path_drift"), "dispatcher must detect smoke certification path drift");
 assert(service.includes("smoke_certification_method_drift"), "dispatcher must detect smoke certification method drift");
 assert(service.includes("writeExecutionEvidence"), "dispatcher must write execution evidence");
+assert(service.includes("contextSources: [input]"), "dispatcher must propagate exact input context dimensions into execution evidence");
 assert(service.includes("secrets_included: false"), "dispatcher must explicitly exclude secrets");
 
 assert(routes.includes("dispatchPlatformPluginRestAction"), "routes must import public dispatch service");
