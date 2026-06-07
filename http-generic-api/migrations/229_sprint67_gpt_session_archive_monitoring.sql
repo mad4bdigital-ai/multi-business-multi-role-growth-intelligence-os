@@ -61,7 +61,7 @@ LEFT JOIN (
     MAX(share_id) AS latest_share_id
   FROM `gpt_session_conversation_refs`
   GROUP BY session_id
-) r ON r.session_id = s.session_id
+) r ON r.session_id COLLATE utf8mb4_uca1400_ai_ci = s.session_id
 WHERE s.originator = 'gpt_action'
   AND s.started_at >= '2026-06-07 00:00:00';
 
