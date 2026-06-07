@@ -180,6 +180,84 @@ export function buildGptSessionRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
 
+  // POST /gpt/sessions/:id/conversation-ref
+  router.post("/gpt/sessions/:id/conversation-ref", requireBackendApiKey, async (req, res) => {
+    const pool = getPool();
+    try {
+      const session = await resolveSessionForCaller(pool, req.params.id, req);
+      if (!session) {
+        return res.status(404).json({ ok: false, error: { code: "session_not_found", message: "Session not found." } });
+      }
+      const ref = buildConversationRefInput(req.body || {});
+      await pool.query(
+        `INSERT INTO \`gpt_session_conversation_refs\`
+           (ref_id, session_id, tenant_id, user_id, interface_scope, interface_display_name,
+            gpt_app_id, gpt_slug, conversation_id, personal_conversation_url,
+            share_id, share_url, source, captured_by, status, metadata_json)
+         VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
+         ON DUPLICATE KEY UPDATE
+           tenant_id = VALUES(tenant_id),
+           user_id = VALUES(user_id),
+           interface_scope = VALUES(interface_scope),
+           interface_display_name = VALUES(interface_display_name),
+           gpt_slug = VALUES(gpt_slug),
+           personal_conversation_url = COALESCE(VALUES(personal_conversation_url), personal_conversation_url),
+           share_id = COALESCE(VALUES(share_id), share_id),
+           share_url = COALESCE(VALUES(share_url), share_url),
+           source = VALUES(source),
+           captured_by = VALUES(captured_by),
+           status = 'active',
+           metadata_json = VALUES(metadata_json),
+           updated_at = NOW()`,
+        [
+          session.session_id,
+          session.tenant_id || null,
+          session.user_id || null,
+          ref.interface_scope,
+          ref.interface_display_name,
+          ref.gpt_app_id,
+          ref.gpt_slug,
+          ref.conversation_id,
+          ref.personal_conversation_url,
+          ref.share_id,
+          ref.share_url,
+          ref.source,
+          ref.captured_by,
+          ref.metadata_json,
+        ]
+      );
+      const [rows] = await pool.query(
+        `SELECT ref_id, session_id, interface_scope, interface_display_name,
+                gpt_app_id, gpt_slug, conversation_id, personal_conversation_url,
+                share_id, share_url, source, captured_by, status, created_at, updated_at
+           FROM \`gpt_session_conversation_refs\`
+          WHERE session_id = ?
+          ORDER BY updated_at DESC
+          LIMIT 10`,
+        [session.session_id]
+      );
+      return res.status(200).json({
+        ok: true,
+        session_id: session.session_id,
+        conversation_ref: rows[0] || null,
+        conversation_refs: rows,
+        supported_interfaces: CHATGPT_INTERFACES,
+        visibility_note: "Personal ChatGPT conversation URLs are private to the GPT account owner; share URLs may be used when a shareable reference is needed.",
+        secrets_included: false,
+      });
+    } catch (err) {
+      if (err.status === 403) return res.status(403).json({ ok: false, error: { code: "forbidden", message: err.message } });
+      if (err.status === 404) return res.status(404).json({ ok: false, error: { code: err.code || "session_not_found", message: err.message } });
+      if (["missing_conversation_ref", "invalid_conversation_url_kind", "invalid_share_url_kind", "unsupported_chatgpt_url"].includes(err.code)) {
+        return res.status(400).json({ ok: false, error: { code: err.code, message: err.message } });
+      }
+      if (err instanceof TypeError || err.message?.includes("URL")) {
+        return res.status(400).json({ ok: false, error: { code: "invalid_chatgpt_url", message: err.message } });
+      }
+      return res.status(500).json({ ok: false, error: { code: "conversation_ref_write_failed", message: err.message } });
+    }
+  });
+
   // POST /gpt/sessions/:id/turn
   router.post("/gpt/sessions/:id/turn", requireBackendApiKey, async (req, res) => {
     const pool = getPool();
