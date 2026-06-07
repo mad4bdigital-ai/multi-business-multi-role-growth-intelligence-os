@@ -39,7 +39,11 @@ export async function exportSessionToDrive(sessionId, userEmailOverride = null) 
   const [[sessions], [turns], [events], [summaries]] = await Promise.all([
     pool.query("SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1", [sessionId]),
     pool.query(
-      "SELECT * FROM `session_turns` WHERE session_id = ? ORDER BY turn_index ASC",
+      `SELECT turn_id, turn_index, role, action_key, content_preview, content_sha256,
+              drive_doc_id, drive_anchor, storage_mode, created_at
+         FROM \`gpt_session_turns\`
+        WHERE session_id = ?
+        ORDER BY turn_index ASC, id ASC`,
       [sessionId]
     ),
     pool.query(
