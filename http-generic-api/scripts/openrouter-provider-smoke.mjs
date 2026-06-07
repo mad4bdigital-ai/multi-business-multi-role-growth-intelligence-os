@@ -188,7 +188,7 @@ export async function runOpenRouterProviderSmoke(options = {}) {
     fail("openrouter_active_promotion_confirmation_required", `Use --confirm ${CONFIRM_PROMOTE} with --promote-active to update provider/model statuses`, { expected_confirm: CONFIRM_PROMOTE });
   }
   if (shouldPromote) await promoteActive(pool);
-  await updateSmokeStatus(pool, { ok: true, model: options.model, tokensUsed: response?.tokens_used || 0, promoted: shouldPromote });
+  await updateSmokeStatus(pool, { ok: true, model: selectedModel, tokensUsed: response?.tokens_used || 0, promoted: shouldPromote });
 
   return {
     ok: true,
