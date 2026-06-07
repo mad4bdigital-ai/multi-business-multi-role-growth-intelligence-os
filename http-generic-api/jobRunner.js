@@ -120,8 +120,11 @@ export function toJobSummary(job) {
     runner_mode: job.runner_mode || job.request_payload?.runner_mode || null,
     runner_mode_evidence: job.runner_mode_evidence || null,
     activation_status: job.runtime_classification?.activation_status || "",
-    status_url: `/jobs/${job.job_id}`,
-    result_url: `/jobs/${job.job_id}/result`
+    status_url: continuation.status_url,
+    result_url: continuation.result_url,
+    resume_url: continuation.resume_url,
+    continuation,
+    secrets_included: false
   };
 }
 
