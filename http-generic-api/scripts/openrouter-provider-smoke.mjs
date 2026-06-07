@@ -113,6 +113,11 @@ export async function runOpenRouterProviderSmoke(options = {}) {
   const { apiKey, hasHash } = await loadOpenRouterApiKey(pool);
   if (!apiKey || apiKey.length < 16) fail("openrouter_api_key_invalid_shape", "OpenRouter API key failed local shape validation");
 
+  const timeoutMs = Math.min(Math.max(Number(options.timeoutMs) || 15000, 1000), 30000);
+  const timeoutFetch = (url, request = {}) => fetch(url, {
+    ...request,
+    signal: request.signal || AbortSignal.timeout(timeoutMs),
+  });
   const callModel = buildCallModel({
     provider: "openrouter",
     api_key: apiKey,
@@ -121,6 +126,7 @@ export async function runOpenRouterProviderSmoke(options = {}) {
     site_url: "https://auth.mad4b.com",
     app_name: "Mad4B Growth Intelligence Platform",
     max_retries: 0,
+    fetch: timeoutFetch,
   });
 
   let response;
