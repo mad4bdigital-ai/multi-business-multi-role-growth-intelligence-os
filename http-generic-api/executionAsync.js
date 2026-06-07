@@ -586,6 +586,15 @@ export async function pollExecutionJobResult(jobId, deps = {}) {
       updateJob(job, { execution_trace_id });
     }
 
+    if (isRunningJobStale(job)) {
+      updateJob(job, {
+        status: "failed",
+        completed_at: nowIso(),
+        result_payload: null,
+        error_payload: buildStaleJobTimeoutPayload(job),
+      });
+    }
+
     const status = normalizeJobStatus(job.status);
     if (status === "succeeded") {
       const responsePayload = {
