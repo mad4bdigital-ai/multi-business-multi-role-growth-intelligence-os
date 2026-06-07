@@ -683,6 +683,20 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
       )
     : { ok: true, rows: [], skipped: true, reason: "include_turns=false" };
 
+  const conversationRefs = allRelevantSessionIds.length
+    ? await safeQuery(
+        `SELECT ref_id, session_id, interface_scope, interface_display_name,
+                gpt_app_id, gpt_slug, conversation_id, personal_conversation_url,
+                share_id, share_url, source, captured_by, status, updated_at
+           FROM \`gpt_session_conversation_refs\`
+          WHERE session_id IN (?)
+            AND status = 'active'
+          ORDER BY updated_at DESC
+          LIMIT 50`,
+        [allRelevantSessionIds]
+      )
+    : { ok: true, rows: [], skipped: true, reason: "no_relevant_sessions" };
+
   let graphMemory = {
     requested: false,
     resolved: false,
