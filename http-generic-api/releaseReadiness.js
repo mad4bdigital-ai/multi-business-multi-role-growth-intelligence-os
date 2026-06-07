@@ -1557,6 +1557,10 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   if (report.platform_secret_promotion_monitoring.status === "warn" && report.overall === "pass") report.overall = "warn";
   if (report.platform_secret_promotion_monitoring.status === "fail") report.overall = "fail";
 
+  report.gpt_session_archive_monitoring = await checkGptSessionArchiveMonitoringSafe();
+  if (report.gpt_session_archive_monitoring.status === "warn" && report.overall === "pass") report.overall = "warn";
+  if (report.gpt_session_archive_monitoring.status === "fail") report.overall = "fail";
+
   // Runtime policy seed readiness — verifies the live DB has the policy rows
   // required by governedExecutionPreflight. This catches missing seed rows that
   // source-code and migration-file checks alone cannot detect.
