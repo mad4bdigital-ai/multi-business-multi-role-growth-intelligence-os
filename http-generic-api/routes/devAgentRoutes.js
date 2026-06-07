@@ -16,6 +16,7 @@ import { getPool }          from "../db.js";
 import { runDevAgentSweep } from "../devAgentRunner.js";
 import { runSessionSummaryAutosweep, summarizeTranscriptWithModel } from "../sessionSummaryService.js";
 import { runN8nWorkflowRuntime } from "../n8nWorkflowRuntime.js";
+import { runOpenClaudeOpenRouterLiveDispatch } from "../openClaudeBridgeRuntime.js";
 import {
   loadAgentModelRuntimeSettings,
   saveAgentModelRuntimeSettings,
