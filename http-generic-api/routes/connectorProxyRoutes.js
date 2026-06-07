@@ -3,6 +3,11 @@ import { getPool } from "../db.js";
 import { resolveEffectiveCredential } from "../credentialResolver.js";
 import { decryptCredentials } from "../tokenEncryption.js";
 import { connectorLocalApiKeySelectFragment } from "../connectorSchemaCompatibility.js";
+import {
+  capabilityEnvelopeError,
+  markCapabilityEnvelopeReferenced,
+  resolveCapabilityExecutionEnvelope,
+} from "../capabilityResolutionEnvelopeGuard.js";
 
 const ROUTE_TYPE_ORDER = [
   "vpn_private_ip",
