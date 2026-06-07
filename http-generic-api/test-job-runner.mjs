@@ -107,6 +107,56 @@ section("jobRunner — enqueueJob");
   assert("enqueueJob preserves queue error message", result?.error?.message === "Redis unavailable", JSON.stringify(result));
 }
 
+section("jobRunner — Hostinger SSH probe job dispatch");
+
+{
+  const probeJob = {
+    job_id: "job_hostinger_probe_1",
+    job_type: HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE,
+    status: "queued",
+    attempt_count: 0,
+    max_attempts: 1,
+    request_payload: {
+      target_id: "target-hostinger",
+      app_key: "auth.mad4b.com",
+      app_path: "/home/u338416126/domains/auth.mad4b.com/nodejs",
+      expected_commit_sha: "8b86c9498b5d327ca51025dbe60a28c85c8dea39",
+      ssh_auth_mode: "password",
+      activate_on_success: true,
+      approval_reason: "approved read-only Hostinger SSH probe queue worker test",
+      timeout_ms: 120000,
+      secrets_included: false,
+    },
+    parent_action_key: "remote_runtime_hostinger_ssh_probe_worker",
+    endpoint_key: "remote_runtime_hostinger_ssh_probe",
+    target_key: "target-hostinger",
+    route_id: "remote_runtime_hostinger_ssh_probe_queue_worker",
+    target_module: "remote_runtime",
+    target_workflow: "wf_hostinger_ssh_target_probe_queue_worker",
+    brand_name: "",
+    execution_trace_id: "",
+  };
+  const calls = [];
+  const runner = configureJobRunner(
+    {
+      jobRepository: createJobRepository(probeJob),
+      async executeSiteMigrationJob() { return { success: false, statusCode: 500, payload: { ok: false } }; },
+      async performUniversalServerWriteback(payload) { calls.push({ type: "writeback", payload }); },
+      async logRetryWriteback() {}
+    },
+    {
+      async runHostingerSshTargetProbeJob(payload) {
+        calls.push({ type: "probe", payload });
+        return { ok: true, probe: { ok: true }, execution: { executed: true, readonly_probe_only: true, target_activated: true }, secrets_included: false };
+      }
+    }
+  );
+  await runner.executeSingleQueuedJob(probeJob);
+  assert("Hostinger probe job invokes worker runner", calls.some(call => call.type === "probe"), JSON.stringify(calls));
+  assert("Hostinger probe job succeeds", probeJob.status === "succeeded", probeJob.status);
+  assert("Hostinger probe job returns no secrets", probeJob.result_payload?.secrets_included === false, JSON.stringify(probeJob.result_payload));
+}
+
 section("jobRunner — solver with null sheetsClient fails fast (no retries)");
 
 {
