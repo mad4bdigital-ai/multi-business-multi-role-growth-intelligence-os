@@ -103,6 +103,7 @@ export const testCommands = [
   "node test-backfill-default-workspace-resource-grants.mjs",
   "node test-workspace-lifecycle-collation-alignment.mjs",
   "node test-workspace-resource-authority-foundation.mjs",
+  "node test-tenant-gpt-customer-safe-resource-escalation.mjs",
   "node test-workspace-resource-grant-assignment.mjs",
   "node test-workspace-resource-grants-collation-alignment.mjs",
   "node test-workspace-ownership-member-controls.mjs",
