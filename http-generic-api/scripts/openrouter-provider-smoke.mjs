@@ -11,6 +11,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     promoteActive: false,
     confirm: "",
     maxTokens: 8,
+    timeoutMs: 15000,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const item = argv[i];
