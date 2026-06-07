@@ -1582,6 +1582,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     report.admin_tool_registry_smoke,
     report.migration_drift,
     report.runtime_policy_seed_readiness,
+    report.gpt_session_archive_monitoring,
     report.graph_memory_diagnostics,
   ];
   report.summary = {
