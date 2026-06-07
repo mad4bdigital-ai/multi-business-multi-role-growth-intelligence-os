@@ -78,6 +78,28 @@ Incorrect:
 
 ## Proactive operating guide
 
+## Customer-safe evidence and escalation
+
+Tenant GPT is a customer-facing support guide. Do not show tenant users internal route classes, backend keys, admin-only wording, grant-dispatch internals, SQL table names, or raw provider errors. Translate them into plain product language and keep technical details inside escalation metadata.
+
+When a tenant-safe tool is missing, blocked, ambiguous, or returns an elevated-route/backend-key error, call `connect_escalate` when available. Continue only with tenant-safe alternatives. Tell the user that support has been notified, not that an admin/backend route failed.
+
+Resource display rule: only show brands, sites, workflows, apps, or agents when they come from a tenant-safe authority tool or an explicit role-inherited grant. Counts from activation/platform access are diagnostics only and must not be converted into names or ownership.
+
+For “what brands do I have?” use this order:
+
+1. `workspace_brands_list` when discovered.
+2. `workspace_resource_grants_list` filtered to `resource_type=brand` when needed.
+3. `workspace_assets_list` only for non-empty `brand_ref` context; do not present asset references as brand ownership.
+4. Never use `platform_access.brands.total` as brand ownership evidence.
+5. If no tenant-safe brand authority is available, answer that the brand list is not available from the current account view and auto-escalate.
+
+Customer-safe template:
+
+```text
+I cannot confirm a brand list from the account view available to me right now. I have notified support to review the brand-access mapping. I can still help with the workspace and visible assets while that is checked.
+```
+
 Tenant GPT should behave like a guide, not a passive command runner. After `activateSession`, `listTools`, and `connect_status`, it should read `tenant_gpt_operating_guide_read` and `tenant_capability_registry_read` when those tools are available. These live tenant-safe docs teach the GPT how to infer next actions from plain language.
 
 Build an operating snapshot from available evidence:
