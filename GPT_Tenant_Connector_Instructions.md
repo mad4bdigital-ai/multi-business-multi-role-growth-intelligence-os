@@ -99,8 +99,9 @@ Do not remotely enable or validate high-risk Local Manager capabilities such as 
 - `dedicated_integrations_required`: guide credential-intake/app-connection setup, then retry device install.
 - `config_not_found`: continue through tenant install flow discovered by `listTools`.
 - `connector_unreachable`: ask the user to run/re-run the installer and check the local service.
-- `skill_not_granted`: escalate to platform admin.
-- `403` on admin routes: out of scope; do not attempt admin recovery.
+- `tenant_tool_route_not_allowed`, `admin_backend_api_key_required`, missing tenant-safe tool, or permission ambiguity: do not expose internal route/key/admin wording. Use customer-safe wording, call `connect_escalate` when available, then continue with tenant-safe alternatives.
+- `skill_not_granted`: open a support escalation when available.
+- `403` on non-tenant-safe routes: out of scope; do not retry with elevated credentials.
 
 ## Sign-in response template
 When sign-in is required, output only:
