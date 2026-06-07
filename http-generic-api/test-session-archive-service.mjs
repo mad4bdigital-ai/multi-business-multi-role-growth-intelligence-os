@@ -171,6 +171,10 @@ function flattenParams(value) {
     now: () => new Date("2026-05-16T12:30:00.000Z"),
     async getOrCreateDriveFolder(name, parentId) { return `${parentId}/${name}`; },
     async createGoogleDocInDrive() { return { drive_file_id: "doc-partial", drive_web_url: "https://drive/doc-partial" }; },
+    async createGoogleDocFromTextInDrive(_name, _parentId, text) {
+      driveWrites.rebuiltDocText = text;
+      return { drive_file_id: "doc-rebuilt", drive_web_url: "https://drive/doc-rebuilt" };
+    },
     async appendTextToGoogleDoc() { throw new Error("Precondition check failed."); },
     async uploadContentToDrive(content) { driveWrites.jsonl = content; return { drive_file_id: "jsonl-partial", drive_web_url: "https://drive/jsonl-partial" }; },
     async fetchDriveContent() { return driveWrites.jsonl; },
@@ -191,13 +195,15 @@ function flattenParams(value) {
     injectedDeps: deps,
   });
 
-  assert.equal(result.archive_status, "ready_partial");
-  assert.match(result.archive_error, /drive_doc_append/);
-  assert.match(result.archive_error, /secrets_included/);
+  assert.equal(result.archive_status, "ready_rebuilt");
+  assert.equal(result.archive_error, null);
+  assert.equal(result.drive_doc_id, "doc-rebuilt");
   assert(driveWrites.jsonl.includes(fullContent), "JSONL sidecar should still receive full content when Doc append fails");
+  assert(driveWrites.rebuiltDocText.includes(fullContent), "rebuilt Google Doc should be rendered from full JSONL content");
+  assert(driveWrites.rebuiltDocText.includes("rebuilt_from_jsonl"), "rebuilt Google Doc should carry rebuild evidence");
   assert(
-    pool.calls.some((call) => call.sql.includes("archive_status = ?") && call.params[0] === "ready_partial"),
-    "partial Drive writes should mark the session ready_partial rather than write_failed"
+    pool.calls.some((call) => call.sql.includes("archive_status = ?") && call.params[0] === "ready_rebuilt"),
+    "successful Doc rebuild should mark the session ready_rebuilt rather than ready_partial"
   );
 }
 
