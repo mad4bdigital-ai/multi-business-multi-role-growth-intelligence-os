@@ -146,6 +146,8 @@ async function promoteActive(pool) {
 export async function runOpenRouterProviderSmoke(options = {}) {
   const pool = getPool();
   const contract = await readRuntimeContract(pool);
+  const modelPolicy = await readModelPolicy(pool);
+  const selectedModel = resolveSmokeModel({ explicitModel: options.model, policy: modelPolicy });
   const { apiKey, hasHash } = await loadOpenRouterApiKey(pool);
   if (!apiKey || apiKey.length < 16) fail("openrouter_api_key_invalid_shape", "OpenRouter API key failed local shape validation");
 
