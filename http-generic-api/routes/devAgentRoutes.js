@@ -708,8 +708,8 @@ export function buildDevAgentRoutes(deps) {
           execution_status: runtimePolicy.execution_status || "blocked_pending_provider_bridge_route",
         },
         profile: {
-          profile_key: profile?.profile_key || "openclaude_essam_platform_bridge_v1",
-          provider_key: profile?.provider_key || "platform_model_provider_bridge",
+          profile_key: profile?.profile_key || "openclaude_essam_openrouter_bridge_v1",
+          provider_key: profile?.provider_key || "openclaude_openrouter_openai_compatible",
           status: profile?.status || "missing_profile",
           endpoint_live: endpointLive,
         },
