@@ -308,6 +308,7 @@ assert.equal(__test__.normalizeWpJsonBase("https://example.com/wp-json/wp/v2"), 
 {
   const pool = makePool({
     brands: [brand],
+    envelopes: [readyEnvelope({ envelope_id: "env-upstream-error" })],
     connections: [{
       connection_id: "conn-wp",
       user_id: "user-1",
