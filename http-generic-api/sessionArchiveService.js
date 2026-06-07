@@ -16,6 +16,7 @@ const DEFAULT_SESSIONS_DRIVE_FOLDER_ID = "1TIxUmnh0RrLCfXYfkjf96EwGc8OYnEw1";
 function defaultDeps() {
   return {
     getOrCreateDriveFolder,
+    createGoogleDocFromTextInDrive,
     createGoogleDocInDrive,
     appendTextToGoogleDoc,
     uploadContentToDrive,
