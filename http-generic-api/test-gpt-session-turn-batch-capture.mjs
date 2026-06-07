@@ -20,6 +20,14 @@ assert.ok(routes.includes("secrets_included: false"));
 assert.match(routes, /for \(const turn of normalizedTurns\)[\s\S]+turnIndex \+= 1/);
 assert.ok(!routes.includes("content_rows"));
 
+assert.ok(activationRoutes.includes("turn_capture_policy"));
+assert.ok(activationRoutes.includes("required_for_full_transcript"));
+assert.ok(activationRoutes.includes("gpt_session_turns_write_batch"));
+assert.ok(activationRoutes.includes("After each conversational exchange"));
+assert.ok(activationRoutes.includes("drive_doc_and_jsonl"));
+assert.ok(activationRoutes.includes("current_session_id: newSessionId"));
+assert.ok(activationRoutes.includes("secrets_included: false"));
+
 assert.ok(migration.includes("gpt_session_turns_write_batch"));
 assert.ok(migration.includes("/gpt/sessions/{id}/turns"));
 assert.ok(migration.includes("minItems"));
