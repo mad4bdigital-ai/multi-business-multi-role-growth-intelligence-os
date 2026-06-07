@@ -602,6 +602,15 @@ export function createExecutionFacade(deps) {
       });
     },
 
+    async resumeJob(jobId) {
+      return resumeExecutionJob(jobId, {
+        resolveJob,
+        executeSingleQueuedJob,
+        toJobSummary,
+        normalizeJobStatus,
+      });
+    },
+
     async tickJob(jobId) {
       return tickExecutionJob(jobId, {
         resolveJob,
