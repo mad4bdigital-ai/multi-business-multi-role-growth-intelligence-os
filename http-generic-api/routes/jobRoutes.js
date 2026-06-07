@@ -43,6 +43,22 @@ export function buildJobRoutes(deps) {
     return res.status(status).json(body);
   });
 
+  router.post("/jobs/:jobId/resume", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
+    try {
+      const jobId = String(req.params.jobId || "").trim();
+      if (!jobId) {
+        return res.status(400).json({ ok: false, error: { code: "job_id_required", message: "jobId is required." }, secrets_included: false });
+      }
+      if (!executionFacade || typeof executionFacade.resumeJob !== "function") {
+        return res.status(503).json({ ok: false, error: { code: "job_resume_unavailable", message: "Job resume dependency is unavailable." }, secrets_included: false });
+      }
+      const { status, body } = await executionFacade.resumeJob(jobId);
+      return res.status(status).json(body);
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "job_resume_failed", message: err?.message || String(err) }, secrets_included: false });
+    }
+  });
+
   router.post("/jobs/:jobId/tick", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
     try {
       const jobId = String(req.params.jobId || "").trim();
