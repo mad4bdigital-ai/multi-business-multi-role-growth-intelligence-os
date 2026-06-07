@@ -48,4 +48,13 @@ assert.match(adminCli, /capability_resolution_dry_run/);
 assert.match(adminCli, /scripts\/capability-resolution-dry-run\.mjs/);
 assert.match(runner, /221_sprint67_dynamic_capability_resolution_graph\.sql/);
 
+const refinement = readFileSync(new URL("./migrations/222_sprint67_dynamic_capability_resolution_risk_refinement.sql", import.meta.url), "utf8");
+assert.match(refinement, /source_tier_priority_high_risk/);
+assert.match(refinement, /client_dedicated','remote_dedicated_runtime/);
+assert.match(refinement, /low_risk_workspace_context_required/);
+assert.match(refinement, /false/);
+assert.match(refinement, /dynamic_capability_resolution_policy_v1/);
+assert.doesNotMatch(refinement, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
+assert.match(runner, /222_sprint67_dynamic_capability_resolution_risk_refinement\.sql/);
+
 console.log("Dynamic capability resolution graph guard passed");
