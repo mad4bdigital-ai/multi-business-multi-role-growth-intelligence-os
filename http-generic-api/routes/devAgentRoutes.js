@@ -767,7 +767,7 @@ export function buildDevAgentRoutes(deps) {
       const model = String(body.model || "openclaude-platform-bridge-dry-run").slice(0, 191);
       const nowSeconds = Math.floor(Date.now() / 1000);
 
-      if (body.live_dispatch === true || String(req.get("x-openclaude-bridge-live-dispatch") || "").toLowerCase() === "true") {
+      if (liveDispatch) {
         const liveMessages = messages.length ? messages : [{ role: "user", content: prompt }];
         const live = await runOpenClaudeOpenRouterLiveDispatch({
           messages: liveMessages,
