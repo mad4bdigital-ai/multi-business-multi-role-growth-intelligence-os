@@ -772,6 +772,14 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
       secrets_included: false,
     },
     referenced_contexts: referencedRefs.slice(0, 50),
+    chatgpt_conversation_refs: {
+      ok: conversationRefs.ok !== false,
+      count: conversationRefs.rows.length,
+      rows: conversationRefs.rows,
+      note: "Personal ChatGPT conversation URLs are private to the GPT account owner; share URLs are optional shareable references.",
+      secrets_included: false,
+      error: conversationRefs.error || null,
+    },
     stored_turn_previews: storedTurnPreviews.rows.map((row) => compactTurn(row, rawMaxChars)),
     graph_memory: {
       requested: Boolean(graphMemory.requested),
