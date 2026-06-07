@@ -82,6 +82,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "225_sprint67_capability_resolution_envelope_ledger.sql",
   "226_sprint67_wordpress_capability_envelope_requirement.sql",
   "227_sprint67_hostinger_deploy_capability_envelope_requirement.sql",
+  "228_sprint67_gpt_session_archive_monitoring.sql",
   "219_sprint67_gpt_session_turn_batch_write_tool.sql",
   "216_sprint67_platform_secret_promotion_monitoring.sql",
   "222_sprint67_async_job_timeout_recovery.sql",
