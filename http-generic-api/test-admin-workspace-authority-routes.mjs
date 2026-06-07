@@ -25,6 +25,22 @@ assert(!routeSource.includes("encrypted_credentials"), "admin authority routes m
 
 assert.equal(Object.keys(_testingAdminWorkspaceAuthorityRoutes.DETAIL_VIEWS).length, 4, "all reconciliation detail views must be registered");
 
+{
+  const calls = [];
+  const router = buildAdminWorkspaceAuthorityRoutes({
+    requireBackendApiKey: (_req, _res, next) => { calls.push("backend"); next(); },
+    requireAdminPrincipal: (_req, _res, next) => { calls.push("admin"); next(); },
+  });
+  const stack = router.stack || [];
+  const reconciliationLayer = stack.find((layer) => layer?.route?.path === "/admin/workspace-authority/reconciliation");
+  assert(reconciliationLayer, "reconciliation layer must be registered");
+  const handlers = reconciliationLayer.route.stack.map((layer) => layer.handle);
+  assert(handlers.length >= 3, "reconciliation route must include backend guard, admin guard, and handler");
+  await new Promise((resolve) => handlers[0]({}, {}, resolve));
+  await new Promise((resolve) => handlers[1]({}, {}, resolve));
+  assert.deepEqual(calls, ["backend", "admin"], "backend guard must run before admin principal guard");
+}
+
 assert(migration.includes("admin_workspace_authority_reconciliation"), "admin reconciliation tool must be registered");
 assert(migration.includes("admin_workspace_authority_repair"), "admin repair tool must be registered");
 assert(migration.includes("dry_run_default"), "repair tool must advertise dry-run default");
