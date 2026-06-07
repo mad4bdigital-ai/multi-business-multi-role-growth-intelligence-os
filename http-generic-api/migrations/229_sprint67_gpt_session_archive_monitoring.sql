@@ -49,7 +49,7 @@ LEFT JOIN (
     SUM(CASE WHEN role = 'tool' THEN 1 ELSE 0 END) AS tool_turns
   FROM `gpt_session_turns`
   GROUP BY session_id
-) t ON t.session_id = s.session_id
+) t ON t.session_id COLLATE utf8mb4_uca1400_ai_ci = s.session_id
 LEFT JOIN (
   SELECT
     session_id,
