@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const routes = readFileSync(new URL("./routes/gptSessionRoutes.js", import.meta.url), "utf8");
 const activationRoutes = readFileSync(new URL("./routes/activationRoutes.js", import.meta.url), "utf8");
 const migration = readFileSync(new URL("./migrations/223_sprint67_gpt_session_conversation_refs.sql", import.meta.url), "utf8");
+const primaryMigration = readFileSync(new URL("./migrations/225_sprint67_gpt_session_conversation_ref_primary.sql", import.meta.url), "utf8");
 const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
 const readiness = readFileSync(new URL("./releaseReadiness.js", import.meta.url), "utf8");
 
