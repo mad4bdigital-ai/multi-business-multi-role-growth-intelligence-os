@@ -208,6 +208,7 @@ export function validateHostingerSshTargetProbeJobPayload(input = {}) {
   if (payload.app_key !== "auth.mad4b.com") errors.push("app_key must be auth.mad4b.com.");
   if (payload.expected_commit_sha && !/^[0-9a-f]{40}$/.test(payload.expected_commit_sha)) errors.push("expected_commit_sha must be a 40-character git SHA when supplied.");
   if (!SSH_AUTH_MODES.has(payload.ssh_auth_mode)) errors.push("ssh_auth_mode must be password or private_key.");
+  errors.push(...validateHostingerSshProbeRunnerMode(payload.runner_mode));
   if (payload.approval_reason.length < 20) errors.push("approval_reason with at least 20 characters is required for queued SSH probe execution.");
   return errors;
 }
