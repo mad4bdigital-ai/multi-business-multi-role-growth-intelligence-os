@@ -180,6 +180,7 @@ export const testCommands = [
   "node test-activation-hard-evidence.mjs",
   "node test-session-archive-service.mjs",
   "node test-gpt-session-turn-batch-capture.mjs",
+  "node test-google-doc-append-end-segment.mjs",
   "node test-session-export-pipeline.mjs",
   "node test-summary-comparison-route.mjs",
   "node test-summary-development-automation.mjs",
