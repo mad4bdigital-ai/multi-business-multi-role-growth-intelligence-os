@@ -8,6 +8,7 @@ import {
   executeJobThroughHttpEndpoint
 } from "./jobRunner.js";
 import { DATABASE_LIFECYCLE_SCHEDULER_SNAPSHOT_JOB_TYPE } from "./databaseTableLifecycle.js";
+import { HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE } from "./hostingerSshDeployExecutor.js";
 
 let passed = 0;
 let failed = 0;
