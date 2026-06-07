@@ -20,6 +20,7 @@ const SSH_COMMON_ROLES = ["ssh_host", "ssh_port", "ssh_user"];
 const SSH_KEY_ROLE = "ssh_private_key";
 const SSH_PASSWORD_ROLE = "ssh_password";
 const SSH_AUTH_MODES = new Set(["private_key", "password"]);
+export const HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE = "hostinger_ssh_target_probe";
 
 function compact(value = "", max = 255) {
   return String(value ?? "").trim().slice(0, max);
