@@ -1026,6 +1026,19 @@ async function executeGitHubRestFallback(args = []) {
     return { stdout: JSON.stringify(output, null, 2), stderr: "gh CLI is not installed on host; used GitHub REST fallback.\n", exit_code: 0, fallback: "github_rest" };
   }
 
+  if (resource === "pr" && command === "list") {
+    const limit = Math.max(1, Math.min(100, Number(parseCliFlag(args, "--limit") || 30)));
+    const state = String(parseCliFlag(args, "--state") || "open").trim().toLowerCase();
+    const base = parseCliFlag(args, "--base");
+    const head = parseCliFlag(args, "--head");
+    const query = new URLSearchParams({ per_page: String(limit), state: ["open", "closed", "all"].includes(state) ? state : "open" });
+    if (base) query.set("base", base);
+    if (head) query.set("head", head.includes(":") ? head : `${owner}:${head}`);
+    const payload = await githubRestJson({ owner, repo, apiPath: `/pulls?${query}`, token });
+    const pulls = (payload || []).map((pr) => mapGithubPullForGhJson(pr, fields));
+    return { stdout: JSON.stringify(pulls, null, 2), stderr: "gh CLI is not installed on host; repaired missing capability and used GitHub REST fallback for pr list.\n", exit_code: 0, fallback: "github_rest", capability_repair: { policy: "repair_missing_capability_before_fallback", repaired: true, operation: "pr list" } };
+  }
+
   if (resource === "pr" && command === "view" && maybeId) {
     const prNumber = parseGithubPrNumber(maybeId);
     const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
