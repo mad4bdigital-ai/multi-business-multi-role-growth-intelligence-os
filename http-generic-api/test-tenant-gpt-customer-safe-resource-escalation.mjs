@@ -5,7 +5,7 @@ const instructions = readFileSync("../GPT_Tenant_Connector_Instructions.md", "ut
 const knowledge = readFileSync("../GPT_Tenant_Connector_Knowledge.md", "utf8");
 const operatingGuide = readFileSync("docs/tenant-gpt-operating-guide.md", "utf8");
 const routeSource = readFileSync("routes/workspaceResourceRoutes.js", "utf8");
-const migration = readFileSync("migrations/228_sprint67_workspace_brands_list_tool.sql", "utf8");
+const migration = readFileSync("migrations/229_sprint67_workspace_brands_list_tool.sql", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
 
 assert(instructions.length < 8000, "compact Tenant GPT instructions must stay under 8,000 characters");
