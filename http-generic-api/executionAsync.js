@@ -392,6 +392,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       ? connectedExecutionResumeActionPayload
       : isTenantSshCliExecuteJob
       ? tenantSshCliExecutePayload
+      : isHostingerSshTargetProbeJob
+      ? hostingerSshTargetProbePayload
       : requestPayload,
     attempt_count: 0,
     max_attempts: normalizeMaxAttempts(body.max_attempts),
