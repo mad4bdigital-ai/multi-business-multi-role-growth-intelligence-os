@@ -354,10 +354,8 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         args = [
           "-d", "3",
           "ssh",
+          ...hardenedSshOptions({ usePassword: true }),
           "-p", String(port || 22),
-          "-o", "PreferredAuthentications=password",
-          "-o", "PubkeyAuthentication=no",
-          "-o", "StrictHostKeyChecking=accept-new",
           `${user}@${host}`,
           "bash",
           "-lc",
@@ -368,17 +366,18 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
         await writeFile(keyFile, privateKey, { mode: 0o600 });
         args = [
           "-i", keyFile,
+          ...hardenedSshOptions({ usePassword: false }),
           "-p", String(port || 22),
-          "-o", "BatchMode=yes",
-          "-o", "IdentitiesOnly=yes",
-          "-o", "StrictHostKeyChecking=accept-new",
           `${user}@${host}`,
           "bash",
           "-lc",
           remoteScript,
         ];
       }
-      child = spawn(command, args, { stdio, shell: false });
+      const wrapped = withCoreutilsTimeout(command, args, timeoutMs);
+      command = wrapped.command;
+      args = wrapped.args;
+      child = spawn(command, args, { stdio, shell: false, detached: true });
       if (usePassword && child.stdio?.[3]) {
         child.stdio[3].end(`${password}\n`);
       }
