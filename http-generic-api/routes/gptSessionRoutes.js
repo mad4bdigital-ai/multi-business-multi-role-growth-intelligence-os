@@ -123,6 +123,37 @@ function buildConversationRefInput(body = {}) {
   };
 }
 
+function buildConversationRefCaptureCurrentInput(body = {}) {
+  const rawUrl = body.current_url || body.active_tab_url || body.location_href || body.conversation_url || body.share_url || null;
+  if (!rawUrl) {
+    const err = new Error("current_url, active_tab_url, location_href, conversation_url, or share_url is required.");
+    err.code = "missing_current_chatgpt_url";
+    throw err;
+  }
+  const source = String(body.source || "browser_connector").trim().slice(0, 64);
+  const allowedSources = new Set(["browser_connector", "browser_extension", "local_connector", "manual_user_supplied"]);
+  if (!allowedSources.has(source)) {
+    const err = new Error("source must be browser_connector, browser_extension, local_connector, or manual_user_supplied.");
+    err.code = "invalid_capture_source";
+    throw err;
+  }
+  const parsed = parseChatGptUrl(rawUrl);
+  const nextBody = {
+    ...body,
+    source,
+    captured_by: String(body.captured_by || source).trim().slice(0, 128),
+    correction_reason: body.correction_reason || body.reason || `Captured current ChatGPT URL via ${source}; primary session must be activation_session_context.current_session_id.`,
+  };
+  if (parsed.url_kind === "share_url") {
+    nextBody.share_url = parsed.url;
+    delete nextBody.conversation_url;
+    delete nextBody.personal_conversation_url;
+  } else {
+    nextBody.conversation_url = parsed.url;
+  }
+  return nextBody;
+}
+
 function conversationRefSelectSql() {
   return `SELECT ref_id, session_id, interface_scope, interface_display_name,
                  gpt_app_id, gpt_slug, conversation_id, personal_conversation_url,
