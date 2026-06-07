@@ -440,7 +440,7 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
     }
   }
 
-  jobRepository.set(job);
+  await jobRepository.set(job);
   if (idempotencyLookupKey) {
     await idempotencyRepository.set(idempotencyLookupKey, job.job_id);
   }
