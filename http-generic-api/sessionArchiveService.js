@@ -212,6 +212,20 @@ export async function recordGptSessionTurn({
   injectedDeps = {},
 }) {
   const deps = { ...defaultDeps(), ...injectedDeps };
+  let effectiveTurnIndex = Number(turnIndex);
+  if (!Number.isFinite(effectiveTurnIndex) || effectiveTurnIndex < 0) effectiveTurnIndex = 0;
+  try {
+    const [[freshIndexRow]] = await pool.query(
+      "SELECT COALESCE(MAX(turn_index), -1) AS max_idx FROM `gpt_session_turns` WHERE session_id = ?",
+      [session.session_id]
+    );
+    const nextAvailable = Number(freshIndexRow?.max_idx || -1) + 1;
+    if (effectiveTurnIndex < nextAvailable) effectiveTurnIndex = nextAvailable;
+  } catch {
+    // Keep caller-provided turnIndex if the collision check is unavailable.
+  }
+  turnIndex = effectiveTurnIndex;
+
   const timestamp = deps.now().toISOString();
   const turnId = randomUUID();
   const eventId = randomUUID();
