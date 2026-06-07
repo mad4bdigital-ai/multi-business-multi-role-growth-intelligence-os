@@ -162,4 +162,43 @@ function flattenParams(value) {
   assert.equal(eventInsert.params[10], "example_action");
 }
 
+{
+  const pool = makePool();
+  const driveWrites = { jsonl: "" };
+  const fullContent = "partial archive still writes JSONL full content";
+  const deps = {
+    sessionsDriveFolderId: "root-folder",
+    now: () => new Date("2026-05-16T12:30:00.000Z"),
+    async getOrCreateDriveFolder(name, parentId) { return `${parentId}/${name}`; },
+    async createGoogleDocInDrive() { return { drive_file_id: "doc-partial", drive_web_url: "https://drive/doc-partial" }; },
+    async appendTextToGoogleDoc() { throw new Error("Precondition check failed."); },
+    async uploadContentToDrive(content) { driveWrites.jsonl = content; return { drive_file_id: "jsonl-partial", drive_web_url: "https://drive/jsonl-partial" }; },
+    async fetchDriveContent() { return driveWrites.jsonl; },
+    async updateDriveFileContent(_fileId, content) { driveWrites.jsonl = content; return { drive_file_id: "jsonl-partial" }; },
+  };
+
+  const result = await recordGptSessionTurn({
+    pool,
+    session: {
+      session_id: "sess-partial",
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      started_at: "2026-05-16T10:00:00.000Z",
+    },
+    role: "assistant",
+    content: fullContent,
+    turnIndex: 0,
+    injectedDeps: deps,
+  });
+
+  assert.equal(result.archive_status, "ready_partial");
+  assert.match(result.archive_error, /drive_doc_append/);
+  assert.match(result.archive_error, /secrets_included/);
+  assert(driveWrites.jsonl.includes(fullContent), "JSONL sidecar should still receive full content when Doc append fails");
+  assert(
+    pool.calls.some((call) => call.sql.includes("archive_status = ?") && call.params[0] === "ready_partial"),
+    "partial Drive writes should mark the session ready_partial rather than write_failed"
+  );
+}
+
 console.log("session archive service tests passed");
