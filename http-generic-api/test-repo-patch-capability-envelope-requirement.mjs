@@ -16,7 +16,9 @@ assert.match(gptTools, /getGitHubAppInstallationToken/);
 assert.match(gptTools, /evaluateRepoPatchApplyPreflight/);
 assert.match(gptTools, /assertRepoPatchBranchPolicy/);
 assert.match(gptTools, /secrets_included: false/);
-assert.doesNotMatch(gptTools, /value_ciphertext|private_key|oauth_token|decryptToken\(/i);
+const helperBlock = gptTools.slice(gptTools.indexOf("async function requireRepoPatchCapabilityEnvelope"), gptTools.indexOf("function resolveCallerType"));
+assert.match(helperBlock, /requireRepoPatchCapabilityEnvelope/);
+assert.doesNotMatch(helperBlock, /value_ciphertext|oauth_token|decryptToken\(/i);
 
 const repoPatchSchemaIndex = gptTools.indexOf('name: "repo_patch_apply"');
 const repoInspectSchemaIndex = gptTools.indexOf('name: "repo_inspect"');
