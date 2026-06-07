@@ -13,8 +13,8 @@ assert(migration.includes("run_targeted_regression_test"), "policy must require 
 assert(migration.includes("retry_original_operation"), "policy must require retrying the original operation after repair");
 assert(migration.includes("only_then_use_fallback_or_manual_route"), "policy must allow fallback only after repair sequence");
 assert(migration.includes("github_rest_fallback_missing_pr_list"), "policy must capture the GitHub pr list incident as precedent");
-assert(migration.includes("'TRUE',\n  'connector_dispatch"), "policy must be active and dispatch-scoped");
-assert(migration.includes("'TRUE',\n  'Do not accept fallback gaps"), "policy must be blocking governance");
+assert.match(migration, /'TRUE',\r?\n\s+'connector_dispatch/, "policy must be active and dispatch-scoped");
+assert.match(migration, /'TRUE',\r?\n\s+'Do not accept fallback gaps/, "policy must be blocking governance");
 assert(!migration.includes("client_secret"), "policy must not include secrets");
 
 console.log("connection capability repair-before-fallback policy tests passed");
