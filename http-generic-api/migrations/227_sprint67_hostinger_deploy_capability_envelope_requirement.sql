@@ -43,7 +43,7 @@ ON DUPLICATE KEY UPDATE
   updated_at = CURRENT_TIMESTAMP;
 
 UPDATE admin_platform_endpoint_tools
-   SET input_schema = JSON_SET(CAST(input_schema AS JSON), '$.properties.capability_envelope_id', JSON_OBJECT('type','string','description','Required for dry_run=false Hostinger SSH deploy execution. Must reference capability_resolution_envelope_ledger ready_for_dispatch envelope.')),
+   SET input_schema = JSON_SET(input_schema, '$.properties.capability_envelope_id', JSON_OBJECT('type','string','description','Required for dry_run=false Hostinger SSH deploy execution. Must reference capability_resolution_envelope_ledger ready_for_dispatch envelope.')),
        description = CONCAT(description, ' Actual execution also requires capability_envelope_id from capability_resolution_envelope_ledger.'),
        tags = CONCAT(tags, ',capability_envelope_required'),
        updated_at = CURRENT_TIMESTAMP
