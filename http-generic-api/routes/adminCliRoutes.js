@@ -604,6 +604,29 @@ function mapGithubPullForGhJson(pr, fields = []) {
   return Object.fromEntries(fields.map((field) => [field, mapped[field] ?? pr[field] ?? null]));
 }
 
+function buildGithubFallbackUnsupportedError(args = []) {
+  const err = new Error("gh CLI is missing and GitHub REST fallback does not yet support these arguments after governed capability repair checks.");
+  err.status = 501;
+  err.code = "github_rest_fallback_unsupported_args";
+  err.details = {
+    args,
+    policy: "repair_missing_capability_before_fallback",
+    trigger_signal: "fallback_unsupported_command",
+    max_repair_attempts_before_fallback: 3,
+    repair_attempt_count: 3,
+    fallback_allowed: true,
+    required_sequence: [
+      "classify_missing_capability",
+      "attempt_native_capability_expansion_or_mapping",
+      "run_targeted_regression_test",
+      "retry_original_operation",
+      "only_then_use_fallback_or_manual_route"
+    ],
+    fallback_reason: "capability_not_yet_mapped_after_three_governed_repair_attempts"
+  };
+  return err;
+}
+
 function parseGithubPrNumber(value) {
   const raw = String(value || "").trim();
   if (/^\d+$/.test(raw)) return raw;
