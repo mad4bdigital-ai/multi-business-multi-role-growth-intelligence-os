@@ -7,6 +7,7 @@ import {
 
 export const TERMINAL_JOB_STATUSES = new Set(["succeeded", "failed", "cancelled"]);
 export const ACTIVE_JOB_STATUSES = new Set(["queued", "running", "retrying"]);
+export const JOB_EXECUTION_TIMEOUT_BUFFER_MS = 15_000;
 
 export function nowIso() {
   return new Date().toISOString();
