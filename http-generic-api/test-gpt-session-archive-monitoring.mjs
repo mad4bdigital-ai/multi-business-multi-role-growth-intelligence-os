@@ -20,8 +20,8 @@ assert.ok(migration.includes("secrets_included"));
 assert.doesNotMatch(migration, /content_preview|`content`|\.content\b|\bcontent\s+AS\b/i, "monitoring views must not expose raw transcript text columns");
 assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 
-assert.ok(runner.includes("227_sprint67_gpt_session_archive_monitoring.sql"));
-assert.ok(readiness.includes("227_sprint67_gpt_session_archive_monitoring.sql"));
+assert.ok(runner.includes("228_sprint67_gpt_session_archive_monitoring.sql"));
+assert.ok(readiness.includes("228_sprint67_gpt_session_archive_monitoring.sql"));
 assert.ok(readiness.includes("checkGptSessionArchiveMonitoring"));
 assert.ok(readiness.includes("v_gpt_session_archive_monitoring_summary"));
 assert.ok(readiness.includes("v_gpt_session_archive_monitoring_issues"));
