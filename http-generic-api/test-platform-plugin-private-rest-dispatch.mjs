@@ -93,6 +93,12 @@ function makePool({ baseUrl = "https://api.example.com" } = {}) {
     tenantId: "tenant-1",
     userId: "user-1",
     requestedCredentialScope: "tenant_connection",
+    input: {
+      workspace_id: "workspace-1",
+      workspace_key: "workspace-key-1",
+      request_id: "request-1",
+      session_id: "session-1",
+    },
     dryRun: true,
   });
   assert.equal(result.ok, true);
@@ -101,6 +107,12 @@ function makePool({ baseUrl = "https://api.example.com" } = {}) {
   assert.equal(result.request.url_origin, "https://api.example.com");
   assert.equal(result.execution_log.ok, true);
   assert.equal(result.secrets_included, false);
+  const executionInsert = pool.calls.find((call) => call.sql.includes("INSERT INTO execution_log"));
+  assert.ok(executionInsert, "private dispatch must write execution evidence");
+  assert.ok(executionInsert.params.includes("workspace-1"), "private dispatch must propagate workspace_id from input");
+  assert.ok(executionInsert.params.includes("workspace-key-1"), "private dispatch must propagate workspace_key from input");
+  assert.ok(executionInsert.params.includes("request-1"), "private dispatch must propagate request_id from input");
+  assert.ok(executionInsert.params.includes("session-1"), "private dispatch must propagate session_id from input");
 }
 
 {

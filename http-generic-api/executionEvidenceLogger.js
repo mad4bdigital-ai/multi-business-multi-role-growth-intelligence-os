@@ -35,8 +35,11 @@ function firstNonEmpty(...values) {
   return null;
 }
 
-function pickContext(output = {}, explicit, keys = []) {
-  return firstNonEmpty(explicit, ...keys.map((key) => output[key]));
+function pickContext(sources = [], explicit, keys = []) {
+  return firstNonEmpty(
+    explicit,
+    ...sources.flatMap((source) => keys.map((key) => source[key]))
+  );
 }
 
 function contextJson(context = {}) {
@@ -121,6 +124,7 @@ export async function writeExecutionEvidence({
   correlationId = null,
   idempotencyKey = null,
   executionContext = null,
+  contextSources = [],
   skipSurfaceAuthority = false,
 } = {}) {
   if (!traceId) {
@@ -151,36 +155,40 @@ export async function writeExecutionEvidence({
   const output = Object.keys(outputObject).length
     ? { ...outputObject, secrets_included: outputObject.secrets_included === true ? true : false }
     : outputSummary;
+  const contextObjects = [
+    outputObject,
+    ...(Array.isArray(contextSources) ? contextSources : [contextSources]).map(asObject),
+  ];
 
   const contextDimensions = {
-    tenant_id: pickContext(outputObject, tenantId, ["tenant_id", "tenantId"]),
-    tenant_key: pickContext(outputObject, tenantKey, ["tenant_key", "tenantKey"]),
-    workspace_id: pickContext(outputObject, workspaceId, ["workspace_id", "workspaceId"]),
-    workspace_key: pickContext(outputObject, workspaceKey, ["workspace_key", "workspaceKey"]),
-    user_id: pickContext(outputObject, userId, ["user_id", "userId"]),
-    actor_id: pickContext(outputObject, actorId, ["actor_id", "actorId", "user_id", "userId"]),
-    actor_type: pickContext(outputObject, actorType, ["actor_type", "actorType"]),
-    brand_id: pickContext(outputObject, brandId, ["brand_id", "brandId"]),
-    brand_key: pickContext(outputObject, brandKey, ["brand_key", "brandKey"]),
-    activity_id: pickContext(outputObject, activityId, ["activity_id", "activityId"]),
-    activity_type: pickContext(outputObject, activityType, ["activity_type", "activityType"]),
-    request_id: pickContext(outputObject, requestId, ["request_id", "requestId"]),
-    session_id: pickContext(outputObject, sessionId, ["session_id", "sessionId"]),
-    conversation_id: pickContext(outputObject, conversationId, ["conversation_id", "conversationId"]),
-    parent_action_key: pickContext(outputObject, parentActionKey, ["parent_action_key", "parentActionKey"]),
-    endpoint_key: pickContext(outputObject, endpointKey, ["endpoint_key", "endpointKey"]),
-    tool_key: pickContext(outputObject, toolKey, ["tool_key", "toolKey"]),
-    app_key: pickContext(outputObject, appKey, ["app_key", "appKey", "plugin_key", "pluginKey"]),
-    action_key: pickContext(outputObject, actionKey, ["action_key", "actionKey"]),
-    connected_system_id: pickContext(outputObject, connectedSystemId, ["connected_system_id", "connectedSystemId", "connection_id", "connectionId"]),
-    credential_ref_id: pickContext(outputObject, credentialRefId, ["credential_ref_id", "credentialRefId", "credential_ref", "credentialRef"]),
-    resource_type: pickContext(outputObject, resourceType, ["resource_type", "resourceType"]),
-    resource_id: pickContext(outputObject, resourceId, ["resource_id", "resourceId"]),
-    target_type: pickContext(outputObject, targetType, ["target_type", "targetType"]),
-    target_id: pickContext(outputObject, targetId, ["target_id", "targetId"]),
-    environment: pickContext(outputObject, environment, ["environment", "env"]),
-    correlation_id: pickContext(outputObject, correlationId, ["correlation_id", "correlationId", "trace_id", "traceId"]) || traceId,
-    idempotency_key: pickContext(outputObject, idempotencyKey, ["idempotency_key", "idempotencyKey"]),
+    tenant_id: pickContext(contextObjects, tenantId, ["tenant_id", "tenantId"]),
+    tenant_key: pickContext(contextObjects, tenantKey, ["tenant_key", "tenantKey"]),
+    workspace_id: pickContext(contextObjects, workspaceId, ["workspace_id", "workspaceId"]),
+    workspace_key: pickContext(contextObjects, workspaceKey, ["workspace_key", "workspaceKey"]),
+    user_id: pickContext(contextObjects, userId, ["user_id", "userId"]),
+    actor_id: pickContext(contextObjects, actorId, ["actor_id", "actorId", "user_id", "userId"]),
+    actor_type: pickContext(contextObjects, actorType, ["actor_type", "actorType"]),
+    brand_id: pickContext(contextObjects, brandId, ["brand_id", "brandId"]),
+    brand_key: pickContext(contextObjects, brandKey, ["brand_key", "brandKey"]),
+    activity_id: pickContext(contextObjects, activityId, ["activity_id", "activityId"]),
+    activity_type: pickContext(contextObjects, activityType, ["activity_type", "activityType"]),
+    request_id: pickContext(contextObjects, requestId, ["request_id", "requestId"]),
+    session_id: pickContext(contextObjects, sessionId, ["session_id", "sessionId"]),
+    conversation_id: pickContext(contextObjects, conversationId, ["conversation_id", "conversationId"]),
+    parent_action_key: pickContext(contextObjects, parentActionKey, ["parent_action_key", "parentActionKey"]),
+    endpoint_key: pickContext(contextObjects, endpointKey, ["endpoint_key", "endpointKey"]),
+    tool_key: pickContext(contextObjects, toolKey, ["tool_key", "toolKey"]),
+    app_key: pickContext(contextObjects, appKey, ["app_key", "appKey", "plugin_key", "pluginKey"]),
+    action_key: pickContext(contextObjects, actionKey, ["action_key", "actionKey"]),
+    connected_system_id: pickContext(contextObjects, connectedSystemId, ["connected_system_id", "connectedSystemId", "connection_id", "connectionId"]),
+    credential_ref_id: pickContext(contextObjects, credentialRefId, ["credential_ref_id", "credentialRefId", "credential_ref", "credentialRef"]),
+    resource_type: pickContext(contextObjects, resourceType, ["resource_type", "resourceType"]),
+    resource_id: pickContext(contextObjects, resourceId, ["resource_id", "resourceId"]),
+    target_type: pickContext(contextObjects, targetType, ["target_type", "targetType"]),
+    target_id: pickContext(contextObjects, targetId, ["target_id", "targetId"]),
+    environment: pickContext(contextObjects, environment, ["environment", "env"]),
+    correlation_id: pickContext(contextObjects, correlationId, ["correlation_id", "correlationId", "trace_id", "traceId"]) || traceId,
+    idempotency_key: pickContext(contextObjects, idempotencyKey, ["idempotency_key", "idempotencyKey"]),
   };
   if (!contextDimensions.actor_type && contextDimensions.actor_id) contextDimensions.actor_type = contextDimensions.user_id ? "user" : "system";
 

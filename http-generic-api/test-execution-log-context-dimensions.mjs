@@ -43,7 +43,7 @@ const result = await writeExecutionEvidence({
   sourceLayer: "test",
   outputSummary: {
     tenant_id: "tenant-1",
-    workspace_id: "workspace-1",
+    workspace_id: "workspace-output",
     user_id: "user-1",
     brand_id: "brand-1",
     brand_key: "brand_key_1",
@@ -55,6 +55,15 @@ const result = await writeExecutionEvidence({
     session_id: "session-1",
     secrets_included: false,
   },
+  workspaceId: "workspace-explicit",
+  contextSources: [
+    {
+      workspace_id: "workspace-source",
+      workspace_key: "workspace-key-source",
+      request_id: "request-source",
+      conversation_id: "conversation-source",
+    },
+  ],
 });
 
 assert.equal(result.ok, true);
@@ -65,7 +74,13 @@ for (const column of ["tenant_id", "workspace_id", "user_id", "brand_id", "brand
   assert.match(inserted.sql, new RegExp(`\\b${column}\\b`));
 }
 assert.ok(inserted.params.includes("tenant-1"));
-assert.ok(inserted.params.includes("workspace-1"));
+assert.ok(inserted.params.includes("workspace-explicit"));
+assert.ok(!inserted.params.includes("workspace-output"));
+assert.ok(!inserted.params.includes("workspace-source"));
+assert.ok(inserted.params.includes("workspace-key-source"));
+assert.ok(inserted.params.includes("request-1"));
+assert.ok(!inserted.params.includes("request-source"));
+assert.ok(inserted.params.includes("conversation-source"));
 assert.ok(inserted.params.includes("user-1"));
 assert.ok(inserted.params.includes("brand-1"));
 assert.ok(inserted.params.includes("n8n"));
