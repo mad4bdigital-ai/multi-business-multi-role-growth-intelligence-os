@@ -338,7 +338,7 @@ export async function dispatchWordpressBlogPublish(plan = {}, deps = {}) {
     };
   }
 
-  await markCapabilityEnvelopeReferenced(envelope.envelope_id, deps);
+  await markCapabilityEnvelopeReferenced({ pool: deps.pool || getPool(), envelopeId: envelope.envelope_id, executionRef: "wordpress_blog_publish_orchestrator" });
   const created = await createPost({ brand, credential, postType, payload }, deps);
   return { ok: true, status: "completed", credential_status: "resolved", target_key: brand.target_key || plan.target_key || "", site_id: grant.site_id || null, grant_id: grant.grant_id || null, grant_status: grant.status, capability_envelope_id: envelope.envelope_id, envelope_status: envelope.status, post_status: requestedStatus, post_id: created.post_id, link: created.link, readback_status: created.readback_status, result: created, output: { post_id: created.post_id, link: created.link, status: created.status, readback_status: created.readback_status, capability_envelope_id: envelope.envelope_id } };
 }
