@@ -16,6 +16,7 @@ import { getPool }          from "../db.js";
 import { runDevAgentSweep } from "../devAgentRunner.js";
 import { runSessionSummaryAutosweep, summarizeTranscriptWithModel } from "../sessionSummaryService.js";
 import { runN8nWorkflowRuntime } from "../n8nWorkflowRuntime.js";
+import { runOpenClaudeOpenRouterLiveDispatch } from "../openClaudeBridgeRuntime.js";
 import {
   loadAgentModelRuntimeSettings,
   saveAgentModelRuntimeSettings,
@@ -675,7 +676,7 @@ export function buildDevAgentRoutes(deps) {
       );
       const [[profile]] = await getPool().query(
         "SELECT profile_key, provider_key, status, endpoint_url, policy_json, metadata_json, updated_at FROM `dev_agent_runtime_provider_profiles` WHERE profile_key = ? LIMIT 1",
-        ["openclaude_essam_platform_bridge_v1"]
+        ["openclaude_essam_openrouter_bridge_v1"]
       );
       const [[certification]] = await getPool().query(
         "SELECT certification_key, certification_status, dispatch_allowed, apply_allowed, requires_readback, updated_at FROM `runtime_dispatch_certification_registry` WHERE certification_key = ? LIMIT 1",
@@ -707,8 +708,8 @@ export function buildDevAgentRoutes(deps) {
           execution_status: runtimePolicy.execution_status || "blocked_pending_provider_bridge_route",
         },
         profile: {
-          profile_key: profile?.profile_key || "openclaude_essam_platform_bridge_v1",
-          provider_key: profile?.provider_key || "platform_model_provider_bridge",
+          profile_key: profile?.profile_key || "openclaude_essam_openrouter_bridge_v1",
+          provider_key: profile?.provider_key || "openclaude_openrouter_openai_compatible",
           status: profile?.status || "missing_profile",
           endpoint_live: endpointLive,
         },
@@ -739,12 +740,13 @@ export function buildDevAgentRoutes(deps) {
     try {
       const body = req.body || {};
       const dryRun = body.dry_run === true || String(req.get("x-openclaude-bridge-dry-run") || "").toLowerCase() === "true";
-      if (!dryRun) {
+      const liveDispatch = body.live_dispatch === true || String(req.get("x-openclaude-bridge-live-dispatch") || "").toLowerCase() === "true";
+      if (!dryRun && !liveDispatch) {
         return res.status(403).json({
           ok: false,
           error: {
-            code: "openclaude_bridge_dispatch_disabled",
-            message: "Provider dispatch is disabled until scoped token verification and provider call governance are certified. Send dry_run=true for a no-provider-call compatibility check.",
+            code: "openclaude_bridge_dispatch_mode_required",
+            message: "Send dry_run=true for a no-provider-call compatibility check, or live_dispatch=true for certified provider dispatch.",
           },
           bridge: {
             provider_dispatch_attempted: false,
@@ -764,6 +766,55 @@ export function buildDevAgentRoutes(deps) {
       );
       const model = String(body.model || "openclaude-platform-bridge-dry-run").slice(0, 191);
       const nowSeconds = Math.floor(Date.now() / 1000);
+
+      if (liveDispatch) {
+        const liveMessages = messages.length ? messages : [{ role: "user", content: prompt }];
+        const live = await runOpenClaudeOpenRouterLiveDispatch({
+          messages: liveMessages,
+          model: body.model || "",
+          maxTokens: body.max_tokens || body.maxTokens || 256,
+          timeoutMs: body.timeout_ms || body.timeoutMs || 15000,
+          profileKey: body.profile_key || "openclaude_essam_openrouter_bridge_v1",
+          providerKey: body.provider_key || "openclaude_openrouter_openai_compatible",
+        });
+        return res.json({
+          id: `chatcmpl_openclaude_bridge_${randomUUID()}`,
+          object: "chat.completion",
+          created: nowSeconds,
+          model: live.model,
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: "assistant",
+                content: live.content,
+              },
+              finish_reason: "stop",
+            },
+          ],
+          usage: {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: live.tokens_used,
+            estimated_prompt_chars: prompt.length,
+          },
+          bridge: {
+            mode: "live_provider_dispatch",
+            contract_key: "openclaude_provider_bridge_contract_v1",
+            runtime_key: "openclaude_essam_local_v1",
+            profile_key: live.profile_key,
+            provider_key: live.provider_key,
+            model_source: live.model_source,
+            provider_dispatch_attempted: true,
+            local_execution_attempted: false,
+            repo_mutation_allowed: false,
+            allowed_tools: live.allowed_tools,
+            denied_tools: live.denied_tools,
+            credential_hash_present: live.credential_hash_present,
+          },
+          secrets_included: false,
+        });
+      }
 
       return res.json({
         id: `chatcmpl_dryrun_${randomUUID()}`,
@@ -790,7 +841,7 @@ export function buildDevAgentRoutes(deps) {
           mode: "dry_run_no_provider_call",
           contract_key: "openclaude_provider_bridge_contract_v1",
           runtime_key: "openclaude_essam_local_v1",
-          profile_key: "openclaude_essam_platform_bridge_v1",
+          profile_key: body.profile_key || "openclaude_essam_openrouter_bridge_v1",
           provider_dispatch_attempted: false,
           local_execution_attempted: false,
           repo_mutation_allowed: false,
