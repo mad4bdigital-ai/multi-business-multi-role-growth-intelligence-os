@@ -394,7 +394,10 @@ export function configureJobRunner(
   }
 
   async function withJobExecutionTimeout(job, executor) {
-    const timeoutMs = normalizeJobExecutionTimeoutMs(job);
+    const overrideTimeoutMs = Number(deps.jobExecutionTimeoutMs);
+    const timeoutMs = Number.isFinite(overrideTimeoutMs) && overrideTimeoutMs > 0
+      ? Math.floor(overrideTimeoutMs)
+      : normalizeJobExecutionTimeoutMs(job);
     let timer = null;
     try {
       const timeoutOutcome = new Promise((resolve) => {
