@@ -74,7 +74,28 @@ function buildWorkerTransportError({
 
 // ─── Pure exports (no runtime deps) ─────────────────────────────────────────
 
+export function buildJobContinuation(job = {}) {
+  const status = normalizeJobStatus(job.status);
+  const terminal = ["succeeded", "failed", "cancelled"].includes(status);
+  const queued = status === "queued";
+  const active = ["queued", "running", "retrying"].includes(status);
+  const jobId = String(job.job_id || "").trim();
+  return {
+    can_resume: queued,
+    can_refetch: !!jobId,
+    active,
+    terminal,
+    poll_after_ms: terminal ? null : queued ? 500 : 2000,
+    next_action: terminal ? "read_result" : queued ? "resume_or_tick" : "poll_status",
+    status_url: jobId ? `/jobs/${jobId}` : "",
+    result_url: jobId ? `/jobs/${jobId}/result` : "",
+    resume_url: jobId ? `/jobs/${jobId}/resume` : "",
+    secrets_included: false,
+  };
+}
+
 export function toJobSummary(job) {
+  const continuation = buildJobContinuation(job);
   return {
     job_id: job.job_id,
     job_type: job.job_type,
