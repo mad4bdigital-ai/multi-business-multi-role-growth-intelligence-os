@@ -3,6 +3,9 @@ import { readFileSync } from "node:fs";
 
 const uploadPipeline = readFileSync(new URL("./uploadPipeline.js", import.meta.url), "utf8");
 
+assert.ok(uploadPipeline.includes("createGoogleDocFromTextInDrive"));
+assert.ok(uploadPipeline.includes("mimeType: \"text/plain\""));
+assert.ok(uploadPipeline.includes("Readable.from([text || \"\"])"));
 assert.ok(uploadPipeline.includes("appendTextToGoogleDocAtEndOfSegment"));
 assert.ok(uploadPipeline.includes("endOfSegmentLocation: {}"));
 assert.ok(uploadPipeline.includes('method: "end_of_segment"'));
