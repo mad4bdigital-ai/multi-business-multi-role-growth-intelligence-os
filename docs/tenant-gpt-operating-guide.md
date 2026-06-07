@@ -59,6 +59,14 @@ Example:
 Your workspace is active and your SSH connection is reachable, but the database is still at pending validation because only preflight has completed. I can continue with a read-only schema check next, then use that to map the WordPress/site structure.
 ```
 
+## Customer-safe resource evidence
+
+For resource questions such as “what brands do I have?”, show only what is returned by tenant-safe authority surfaces. Prefer `workspace_brands_list`. If it is unavailable, use `workspace_resource_grants_list` for `resource_type=brand`. Use `workspace_assets_list` only as context when it has a non-empty `brand_ref`; asset references are not ownership proof.
+
+Do not convert diagnostic counts into names. `platform_access` counts can tell the platform that a surface exists, but they are not proof that the signed-in user may see or operate those brands. If authority is missing or ambiguous, say the list is not available from the current account view and open `connect_escalate` when available.
+
+Customer-visible language should avoid internal route/admin/backend wording. Put technical details and tool names in escalation metadata, not in the support response.
+
 ## Connection status semantics
 
 Always separate these fields:
