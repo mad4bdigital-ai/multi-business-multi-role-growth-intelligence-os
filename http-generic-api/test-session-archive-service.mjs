@@ -33,6 +33,16 @@ function flattenParams(value) {
 }
 
 {
+  const service = readFileSync("sessionArchiveService.js", "utf8");
+  const uploadPipeline = readFileSync("uploadPipeline.js", "utf8");
+  assert(service.includes("SELECT COALESCE(MAX(turn_index), -1) AS max_idx FROM `gpt_session_turns`"), "archive service should refresh turn index before writing");
+  assert(service.includes("effectiveTurnIndex < nextAvailable"), "archive service should avoid stale duplicate turn indexes");
+  assert(uploadPipeline.includes("isRetryableGoogleDocAppendError"), "Google Doc append should classify retryable stale-precondition errors");
+  assert(uploadPipeline.includes("maxAttempts = 3"), "Google Doc append should retry bounded attempts");
+  assert(uploadPipeline.includes("Precondition") || uploadPipeline.includes("precondition"), "Google Doc append should retry precondition failures");
+}
+
+{
   const path = buildSessionArchivePath(
     {
       session_id: "sess-1",
