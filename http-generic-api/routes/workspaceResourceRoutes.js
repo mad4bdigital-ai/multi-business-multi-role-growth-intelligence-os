@@ -70,6 +70,35 @@ function normalizeResourceRef(value) {
   return String(value || "").trim();
 }
 
+function isWorkspaceOwnerRole(role) {
+  return OWNER_ROLES.has(String(role || "").trim().toLowerCase());
+}
+
+function normalizeBrandLookupRef(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return raw.replace(/^brand:/i, "").trim();
+}
+
+function brandLookupKeys(value) {
+  const raw = String(value || "").trim();
+  const normalized = normalizeBrandLookupRef(raw);
+  return [...new Set([raw, normalized].filter(Boolean))];
+}
+
+function brandRowKeys(row = {}) {
+  return [row.target_key, row.normalized_brand_name, row.brand_name]
+    .flatMap((value) => brandLookupKeys(value))
+    .map((value) => value.toLowerCase());
+}
+
+function pickBrandRow(brandMap, brandRef) {
+  for (const key of brandLookupKeys(brandRef).map((value) => value.toLowerCase())) {
+    if (brandMap.has(key)) return brandMap.get(key);
+  }
+  return null;
+}
+
 function jsonMeta(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return JSON.stringify(value);
@@ -166,6 +195,120 @@ export function buildWorkspaceResourceRoutes() {
     }
   });
 
+  router.get("/me/workspaces/:tenant_id/brands", requireUserJwt, async (req, res) => {
+    try {
+      const membership = await requireActiveMembership(req, res, req.params.tenant_id);
+      if (!membership) return;
+      const ownerScoped = isWorkspaceOwnerRole(membership.role);
+      const grantParams = [req.params.tenant_id];
+      let grantUserClause = "";
+      if (!ownerScoped) {
+        grantUserClause = " AND grantee_user_id = ?";
+        grantParams.push(req.auth.user_id);
+      }
+
+      const [grantRows] = await getPool().query(
+        `SELECT grant_id, tenant_id, grantee_user_id, resource_ref, permission, grant_status, source, granted_at, expires_at, membership_role
+           FROM v_workspace_resource_grant_effective
+          WHERE tenant_id = ?
+            AND resource_type = 'brand'
+            ${grantUserClause}
+          ORDER BY resource_ref, permission
+          LIMIT 200`,
+        grantParams
+      );
+
+      const [assetBrandRows] = await getPool().query(
+        `SELECT DISTINCT brand_ref
+           FROM workspace_assets
+          WHERE tenant_id = ?
+            AND lifecycle_status <> 'deleted'
+            AND brand_ref IS NOT NULL
+            AND TRIM(brand_ref) <> ''
+          ORDER BY brand_ref
+          LIMIT 200`,
+        [req.params.tenant_id]
+      );
+
+      const lookupValues = [...new Set([
+        ...grantRows.flatMap((row) => brandLookupKeys(row.resource_ref)),
+        ...assetBrandRows.flatMap((row) => brandLookupKeys(row.brand_ref)),
+      ])];
+      let brandRows = [];
+      if (lookupValues.length) {
+        [brandRows] = await getPool().query(
+          `SELECT brand_name, normalized_brand_name, brand_domain, target_key, base_url, status, brand_core_ready
+             FROM brands
+            WHERE target_key IN (?)
+               OR normalized_brand_name IN (?)
+               OR brand_name IN (?)
+            LIMIT 200`,
+          [lookupValues, lookupValues, lookupValues]
+        );
+      }
+
+      const brandMap = new Map();
+      for (const row of brandRows) {
+        for (const key of brandRowKeys(row)) brandMap.set(key, row);
+      }
+
+      const brands = grantRows.map((grant) => {
+        const meta = pickBrandRow(brandMap, grant.resource_ref);
+        return {
+          brand_ref: grant.resource_ref,
+          display_name: meta?.brand_name || normalizeBrandLookupRef(grant.resource_ref) || grant.resource_ref,
+          target_key: meta?.target_key || null,
+          brand_domain: meta?.brand_domain || null,
+          base_url: meta?.base_url || null,
+          status: meta?.status || null,
+          brand_core_ready: meta?.brand_core_ready || null,
+          permission: grant.permission,
+          permission_source: grant.source || "workspace_resource_grant",
+          inherited_from_role: false,
+          grantee_scope: grant.grantee_user_id === req.auth.user_id ? "self" : "workspace_member",
+          granted_at: grant.granted_at,
+        };
+      });
+
+      const grantedRefs = new Set(grantRows.flatMap((row) => brandLookupKeys(row.resource_ref).map((value) => value.toLowerCase())));
+      const brandReferences = assetBrandRows
+        .filter((row) => !brandLookupKeys(row.brand_ref).some((value) => grantedRefs.has(value.toLowerCase())))
+        .map((row) => {
+          const meta = pickBrandRow(brandMap, row.brand_ref);
+          return {
+            brand_ref: row.brand_ref,
+            display_name: meta?.brand_name || normalizeBrandLookupRef(row.brand_ref) || row.brand_ref,
+            target_key: meta?.target_key || null,
+            evidence_source: "workspace_assets.brand_ref",
+            claim_limit: "Visible asset context only; operations still require a brand or site grant.",
+          };
+        });
+
+      return res.json({
+        ok: true,
+        tenant_id: req.params.tenant_id,
+        membership: {
+          role: membership.role,
+          access_scope: ownerScoped ? "workspace_owner_admin" : "signed_in_user",
+          inherited_permissions: ownerScoped ? ["workspace_resource_review"] : [],
+        },
+        authority: {
+          primary_source: "v_workspace_resource_grant_effective",
+          grants_scope: ownerScoped ? "workspace_visible_brand_grants" : "signed_in_user_brand_grants",
+          diagnostic_counts_used_as_authority: false,
+        },
+        brands,
+        brand_references: brandReferences,
+        count: brands.length,
+        reference_count: brandReferences.length,
+        escalation_recommended: brands.length === 0 && brandReferences.length === 0,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: { code: "workspace_brands_list_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
   router.get("/me/workspaces/:tenant_id/vaults", requireUserJwt, async (req, res) => {
     try {
       const membership = await requireActiveMembership(req, res, req.params.tenant_id);
@@ -192,5 +335,8 @@ export const _testingWorkspaceResourceRoutes = {
   normalizeResourceType,
   normalizePermission,
   normalizeResourceRef,
+  isWorkspaceOwnerRole,
+  normalizeBrandLookupRef,
+  brandLookupKeys,
   OWNER_ROLES,
 };
