@@ -306,6 +306,98 @@ export function buildGptSessionRoutes(deps) {
     }
   });
 
+  // POST /gpt/sessions/:id/conversation-ref/mark-primary
+  router.post("/gpt/sessions/:id/conversation-ref/mark-primary", requireBackendApiKey, async (req, res) => {
+    const pool = getPool();
+    try {
+      const session = await resolveSessionForCaller(pool, req.params.id, req);
+      if (!session) {
+        return res.status(404).json({ ok: false, error: { code: "session_not_found", message: "Session not found." } });
+      }
+
+      let target = null;
+      if (!req.body?.ref_id) {
+        const ref = buildConversationRefInput(req.body || {});
+        await upsertConversationRef(pool, session, ref);
+      }
+      target = await findConversationRefTarget(pool, session.session_id, req.body || {});
+      if (!target) {
+        return res.status(404).json({ ok: false, error: { code: "conversation_ref_not_found", message: "Conversation reference was not found for this session." } });
+      }
+
+      const reason = String(req.body?.correction_reason || req.body?.reason || "primary reference selected from current activation session evidence").slice(0, 512);
+      const supersedeParams = [target.ref_id, reason, session.session_id, target.ref_id];
+      let matchClause = "";
+      if (target.conversation_id) {
+        matchClause = "conversation_id = ? AND COALESCE(gpt_app_id, '') = COALESCE(?, '')";
+        supersedeParams.push(target.conversation_id, target.gpt_app_id || null);
+      } else if (target.share_id) {
+        matchClause = "share_id = ?";
+        supersedeParams.push(target.share_id);
+      } else {
+        return res.status(400).json({ ok: false, error: { code: "conversation_ref_not_markable", message: "Reference needs a conversation_id or share_id before it can be marked primary." } });
+      }
+
+      await pool.query(
+        `UPDATE \`gpt_session_conversation_refs\`
+            SET is_primary = 0,
+                status = 'superseded',
+                superseded_by_ref_id = ?,
+                superseded_at = NOW(),
+                correction_reason = COALESCE(correction_reason, ?),
+                updated_at = NOW()
+          WHERE session_id <> ?
+            AND ref_id <> ?
+            AND ${matchClause}`,
+        supersedeParams
+      );
+
+      await pool.query(
+        `UPDATE \`gpt_session_conversation_refs\`
+            SET is_primary = 1,
+                status = 'active',
+                superseded_by_ref_id = NULL,
+                superseded_at = NULL,
+                correction_reason = ?,
+                updated_at = NOW()
+          WHERE ref_id = ?
+            AND session_id = ?`,
+        [reason, target.ref_id, session.session_id]
+      );
+
+      const [allRefs] = await pool.query(
+        `${conversationRefSelectSql()}
+          WHERE (conversation_id = ? AND COALESCE(gpt_app_id, '') = COALESCE(?, ''))
+             OR (share_id IS NOT NULL AND share_id = ?)
+          ORDER BY is_primary DESC, updated_at DESC
+          LIMIT 25`,
+        [target.conversation_id || "", target.gpt_app_id || null, target.share_id || ""]
+      );
+      const rows = await listConversationRefs(pool, session.session_id);
+      return res.status(200).json({
+        ok: true,
+        session_id: session.session_id,
+        primary_ref: rows.find((row) => row.ref_id === target.ref_id) || null,
+        related_refs: allRefs,
+        policy: {
+          source_of_truth: "activation_session_context.current_session_id",
+          old_session_refs_for_same_chatgpt_conversation: "superseded",
+          secrets_included: false,
+        },
+      });
+    } catch (err) {
+      if (err.status === 403) return res.status(403).json({ ok: false, error: { code: "forbidden", message: err.message } });
+      if (err.status === 404) return res.status(404).json({ ok: false, error: { code: err.code || "session_not_found", message: err.message } });
+      if (["missing_conversation_ref", "invalid_conversation_url_kind", "invalid_share_url_kind", "unsupported_chatgpt_url"].includes(err.code)) {
+        return res.status(400).json({ ok: false, error: { code: err.code, message: err.message } });
+      }
+      if (err instanceof TypeError || err.message?.includes("URL")) {
+        return res.status(400).json({ ok: false, error: { code: "invalid_chatgpt_url", message: err.message } });
+      }
+      return res.status(500).json({ ok: false, error: { code: "conversation_ref_primary_failed", message: err.message } });
+    }
+  });
+
   // POST /gpt/sessions/:id/turn
   router.post("/gpt/sessions/:id/turn", requireBackendApiKey, async (req, res) => {
     const pool = getPool();
