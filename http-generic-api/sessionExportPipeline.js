@@ -39,7 +39,11 @@ export async function exportSessionToDrive(sessionId, userEmailOverride = null) 
   const [[sessions], [turns], [events], [summaries]] = await Promise.all([
     pool.query("SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1", [sessionId]),
     pool.query(
-      "SELECT * FROM `session_turns` WHERE session_id = ? ORDER BY turn_index ASC",
+      `SELECT turn_id, turn_index, role, action_key, content_preview, content_sha256,
+              drive_doc_id, drive_anchor, storage_mode, created_at
+         FROM \`gpt_session_turns\`
+        WHERE session_id = ?
+        ORDER BY turn_index ASC, id ASC`,
       [sessionId]
     ),
     pool.query(
@@ -59,16 +63,22 @@ export async function exportSessionToDrive(sessionId, userEmailOverride = null) 
 
   const shareEmail = await resolveShareEmail(pool, session.user_id, userEmailOverride);
 
-  // Load the full raw dump from Drive if available — it contains complete event payloads.
+  // Load the full raw dump from Drive if available. For GPT action sessions,
+  // drive_jsonl_id is the authoritative full-fidelity turn sidecar written by
+  // recordGptSessionTurn; raw_drive_id is legacy session-ingest fallback only.
   let rawRecords = null;
-  if (session.raw_drive_id) {
+  let rawRecordsSource = null;
+  const rawRecordsDriveId = session.drive_jsonl_id || session.raw_drive_id;
+  if (rawRecordsDriveId) {
     try {
-      rawRecords = (await fetchDriveContent(session.raw_drive_id))
+      rawRecords = (await fetchDriveContent(rawRecordsDriveId))
         .split("\n").filter(Boolean)
         .map(l => { try { return JSON.parse(l); } catch { return null; } })
         .filter(Boolean);
+      rawRecordsSource = session.drive_jsonl_id ? "drive_jsonl_id" : "raw_drive_id";
     } catch {
       rawRecords = null;
+      rawRecordsSource = null;
     }
   }
 
@@ -85,9 +95,10 @@ export async function exportSessionToDrive(sessionId, userEmailOverride = null) 
   const doc = {
     exported_at: new Date().toISOString(),
     session: { ...session, base_instructions_text: baseInstructions },
-    turns,
+    turns,          // GPT turn index from gpt_session_turns; SQL stores previews/hashes only.
     events,         // lean structured index from DB
-    raw_records: rawRecords,  // full content from Drive (null if not yet available)
+    raw_records: rawRecords,  // full content from Drive JSONL (null if not yet available)
+    raw_records_source: rawRecordsSource,
     summary: summaries[0] || null,
   };
 
