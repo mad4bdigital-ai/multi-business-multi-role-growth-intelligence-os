@@ -21,6 +21,7 @@ export const testCommands = [
   "node test-connector-disabled-capability-health.mjs",
   "node test-credential-intake-json-fields.mjs",
   "node test-n8n-credential-bridge.mjs",
+  "node test-n8n-capability-envelope-requirement.mjs",
   "node test-config.mjs",
   "node test-credential-resolver.mjs",
   "node test-credential-resolution-plan.mjs",
