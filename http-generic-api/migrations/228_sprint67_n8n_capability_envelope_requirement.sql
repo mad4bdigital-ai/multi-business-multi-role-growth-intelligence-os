@@ -53,9 +53,8 @@ UPDATE tenant_platform_endpoint_tools
    AND description NOT LIKE '%State-changing n8n actions require capability_envelope_id%';
 
 UPDATE local_gateway_tools
-   SET request_schema_json = JSON_SET(request_schema_json, '$.properties.capability_envelope_id', JSON_OBJECT('type','string','description','Required for state-changing n8n actions. Not required for read-only actions.')),
-       approval_policy_json = JSON_SET(COALESCE(approval_policy_json, JSON_OBJECT()), '$.capability_envelope_required_for_state_change', true),
-       notes = CONCAT(notes, ' State-changing n8n actions require capability envelope before connector forwarding.'),
+   SET input_schema = JSON_SET(input_schema, '$.properties.capability_envelope_id', JSON_OBJECT('type','string','description','Required for state-changing n8n actions. Not required for read-only actions.')),
+       notes = CONCAT(COALESCE(notes, ''), ' State-changing n8n actions require capability envelope before connector forwarding.'),
        updated_at = CURRENT_TIMESTAMP
  WHERE tool_key = 'local.connector.n8n'
-   AND notes NOT LIKE '%capability envelope before connector forwarding%';
+   AND (notes IS NULL OR notes NOT LIKE '%capability envelope before connector forwarding%');
