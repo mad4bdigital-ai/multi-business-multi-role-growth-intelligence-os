@@ -64,6 +64,14 @@ assert.ok(primaryMigration.includes("/gpt/sessions/{id}/conversation-ref/mark-pr
 assert.ok(primaryMigration.includes("tenant_platform_endpoint_tools"));
 assert.doesNotMatch(primaryMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 
+assert.ok(captureMigration.includes("gpt_session_conversation_ref_capture_current"));
+assert.ok(captureMigration.includes("/gpt/sessions/{id}/conversation-ref/capture-current"));
+assert.ok(captureMigration.includes("browser_connector"));
+assert.ok(captureMigration.includes("browser_extension"));
+assert.ok(captureMigration.includes("admin_platform_endpoint_tools"));
+assert.ok(captureMigration.includes("tenant_platform_endpoint_tools"));
+assert.doesNotMatch(captureMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
+
 assert.ok(runner.includes("223_sprint67_gpt_session_conversation_refs.sql"));
 assert.ok(runner.includes("225_sprint67_gpt_session_conversation_ref_primary.sql"));
 assert.ok(readiness.includes("223_sprint67_gpt_session_conversation_refs.sql"));
