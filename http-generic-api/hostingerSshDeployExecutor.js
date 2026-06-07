@@ -9,6 +9,12 @@ import { maybeCreateCredentialIntakeRequirement } from "./credentialIntakeEnforc
 import { planRemoteRuntimeDispatchDryRun } from "./remoteRuntime.js";
 import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 import {
+  capabilityEnvelopeError,
+  extractCapabilityEnvelopeId,
+  markCapabilityEnvelopeReferenced,
+  resolveCapabilityExecutionEnvelope,
+} from "./capabilityResolutionEnvelopeGuard.js";
+import {
   normalizeHostingerSshProbeRunnerMode,
   validateHostingerSshProbeRunnerMode,
   describeHostingerSshProbeRunnerMode,
