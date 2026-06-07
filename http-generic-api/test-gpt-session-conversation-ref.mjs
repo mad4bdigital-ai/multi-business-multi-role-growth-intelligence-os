@@ -37,7 +37,7 @@ assert.ok(migration.includes("gpt_session_conversation_ref_upsert"));
 assert.ok(migration.includes("admin_platform_endpoint_tools"));
 assert.ok(migration.includes("tenant_platform_endpoint_tools"));
 assert.ok(migration.includes("g-69b6e4de8fd88191ac132362e1ee300e"));
-assert.ok(migration.includes("g-69c82c73bd6081918c52e38525b2d154"));
+assert.ok(migration.includes("admin_custom_gpt"));
 assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 
 assert.ok(runner.includes("223_sprint67_gpt_session_conversation_refs.sql"));
