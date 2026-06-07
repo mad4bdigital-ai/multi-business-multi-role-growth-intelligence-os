@@ -387,7 +387,14 @@ export async function recordGptSessionTurn({
           const rebuilt = await rebuildTranscriptDocFromJsonl({ pool, session, archive: archiveResult.archive, deps, timestamp });
           if (rebuilt?.rebuilt_from_jsonl) {
             docWritten = true;
-            archiveErrors.push({ stage: "drive_doc_rebuild", status: "rebuilt_from_jsonl", drive_doc_id: rebuilt.drive_doc_id });
+            archiveErrors.push({
+              stage: "drive_doc_rebuild",
+              status: rebuilt.artifact_type === "text_snapshot" ? "rebuilt_text_snapshot_from_jsonl" : "rebuilt_google_doc_from_jsonl",
+              artifact_type: rebuilt.artifact_type || "google_doc",
+              drive_doc_id: rebuilt.drive_doc_id,
+              google_doc_import_error: rebuilt.google_doc_import_error || null,
+              secrets_included: false,
+            });
           }
         } catch (err) {
           archiveErrors.push({ stage: "drive_doc_rebuild", message: err.message });
