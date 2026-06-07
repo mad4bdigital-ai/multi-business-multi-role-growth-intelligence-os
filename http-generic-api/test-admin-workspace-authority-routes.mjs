@@ -9,6 +9,10 @@ const migration = readFileSync("migrations/202_sprint68_admin_workspace_authorit
 assert(indexSource.includes("buildAdminWorkspaceAuthorityRoutes"), "admin workspace authority routes must be mounted");
 assert(routeSource.includes('/admin/workspace-authority/reconciliation'), "reconciliation route must exist");
 assert(routeSource.includes('/admin/workspace-authority/repair'), "repair route must exist");
+assert(routeSource.includes("requireBackendApiKey"), "admin workspace authority routes must parse backend API key before principal guard");
+assert(routeSource.includes("const adminGuard = [requireBackend, requireAdmin]"), "admin workspace authority routes must compose backend and admin guards");
+assert(routeSource.includes('router.get("/admin/workspace-authority/reconciliation", ...adminGuard'), "reconciliation route must use backend+admin guard");
+assert(routeSource.includes('router.post("/admin/workspace-authority/repair", ...adminGuard'), "repair route must use backend+admin guard");
 assert(routeSource.includes("dry_run"), "repair route must default to dry-run behavior");
 assert(routeSource.includes("workspace_authority_reconciliation_failed"), "reconciliation route must use stable error code");
 assert(routeSource.includes("workspace_authority_repair_failed"), "repair route must use stable error code");
