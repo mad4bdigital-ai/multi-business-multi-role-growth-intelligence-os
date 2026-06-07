@@ -13,6 +13,7 @@ const DEFAULT_TIMEOUT_MS = 120000;
 const MAX_TIMEOUT_MS = 300000;
 const EXECUTOR_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED";
 const PROBE_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_PROBE_ENABLED";
+const PROBE_DB_FLAG_KEY = "remote_runtime_hostinger_ssh_probe_enabled";
 const ALLOWED_BRANCHES = new Set(["main"]);
 const DEFAULT_AUTH_APP_PATH = "/home/u338416126/domains/auth.mad4b.com/nodejs";
 const SSH_COMMON_ROLES = ["ssh_host", "ssh_port", "ssh_user"];
@@ -89,6 +90,29 @@ async function safeQuery(pool, sql, params = []) {
     if (["ER_NO_SUCH_TABLE", "ER_BAD_FIELD_ERROR"].includes(err?.code)) return [];
     throw err;
   }
+}
+
+async function loadHostingerSshProbeGate(pool, targetId, env = process.env) {
+  if (env[PROBE_FLAG] === "true") return { enabled: true, source: "env", key: PROBE_FLAG };
+  const rows = await safeQuery(
+    pool,
+    "SELECT config_json, status FROM platform_runtime_config WHERE config_key = ? LIMIT 1",
+    [PROBE_DB_FLAG_KEY]
+  );
+  const row = rows[0];
+  const config = parseJson(row?.config_json, {});
+  const expiresAt = compact(config.expires_at || config.expiresAt || "", 64);
+  const targetAllowed = !config.target_id || String(config.target_id) === String(targetId);
+  const notExpired = !expiresAt || Number.isNaN(Date.parse(expiresAt)) || Date.parse(expiresAt) > Date.now();
+  return {
+    enabled: row?.status === "active" && config.enabled === true && targetAllowed && notExpired,
+    source: "platform_runtime_config",
+    key: PROBE_DB_FLAG_KEY,
+    target_allowed: targetAllowed,
+    expires_at: expiresAt || null,
+    expired: expiresAt ? !notExpired : false,
+    reason: !row ? "db_gate_missing" : row.status !== "active" ? "db_gate_disabled" : config.enabled !== true ? "db_gate_not_enabled" : !targetAllowed ? "db_gate_target_mismatch" : !notExpired ? "db_gate_expired" : "enabled",
+  };
 }
 
 async function loadTarget(pool, targetId) {
@@ -466,11 +490,12 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     return { ...baseResponse, execution: { will_execute: false, executed: false, reason: "dry_run_only" } };
   }
 
-  if (env[PROBE_FLAG] !== "true") {
-    const err = new Error(`Hostinger SSH probe executor is disabled. Set ${PROBE_FLAG}=true only after approval and route readiness.`);
+  const probeGate = await loadHostingerSshProbeGate(pool, targetId, env);
+  if (!probeGate.enabled) {
+    const err = new Error(`Hostinger SSH probe executor is disabled. Set ${PROBE_FLAG}=true or enable ${PROBE_DB_FLAG_KEY} only after approval and route readiness.`);
     err.status = 403;
     err.code = "remote_runtime_hostinger_ssh_probe_disabled";
-    err.details = { flag: PROBE_FLAG, secrets_included: false };
+    err.details = { flag: PROBE_FLAG, db_gate: probeGate, secrets_included: false };
     throw err;
   }
 
