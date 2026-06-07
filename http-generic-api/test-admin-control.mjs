@@ -66,6 +66,19 @@ try {
     adminCliSource.includes("max_repair_attempts_before_fallback: 3") &&
     adminCliSource.includes("fallback_reason"),
     "unsupported fallback must carry repair-before-fallback policy evidence");
+  assert("github REST fallback writes capability repair audit ledger",
+    adminCliSource.includes("buildGithubCapabilityRepairAuditPayload") &&
+    adminCliSource.includes("auditGithubFallbackCapabilityRepair") &&
+    adminCliSource.includes("connector.capability_repair_fallback") &&
+    adminCliSource.includes("github_rest_fallback") &&
+    adminCliSource.includes("secrets_included: false"),
+    "fallback capability repair events must be auditable without exposing secrets");
+  assert("github REST fallback core is wrapped by audit ledger",
+    adminCliSource.includes("executeGitHubRestFallbackCore") &&
+    adminCliSource.includes("const result = await executeGitHubRestFallbackCore(args)") &&
+    adminCliSource.includes("if (result?.fallback) auditGithubFallbackCapabilityRepair") &&
+    adminCliSource.includes("if (error?.code === \"github_rest_fallback_unsupported_args\") auditGithubFallbackCapabilityRepair"),
+    "fallback execution must audit both repaired fallback results and unsupported gaps");
   assert("github REST fallback supports gh pr view diagnostics",
     adminCliSource.includes('resource === "pr" && command === "view"') &&
     adminCliSource.includes("stateCheckRollup") &&
