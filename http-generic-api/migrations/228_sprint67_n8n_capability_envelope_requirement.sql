@@ -48,8 +48,7 @@ UPDATE admin_platform_endpoint_tools
 
 UPDATE tenant_platform_endpoint_tools
    SET input_schema = JSON_SET(input_schema, '$.properties.capability_envelope_id', JSON_OBJECT('type','string','description','Required for state-changing n8n actions. Not required for read-only actions.')),
-       description = CONCAT(description, ' State-changing n8n actions require capability_envelope_id before connector forwarding.'),
-       updated_at = CURRENT_TIMESTAMP
+       description = CONCAT(description, ' State-changing n8n actions require capability_envelope_id before connector forwarding.')
  WHERE tool_key = 'connector_n8n'
    AND description NOT LIKE '%State-changing n8n actions require capability_envelope_id%';
 
