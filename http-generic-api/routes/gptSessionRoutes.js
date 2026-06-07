@@ -114,12 +114,105 @@ function buildConversationRefInput(body = {}) {
     share_url: share?.url || null,
     source: String(body.source || "manual_user_supplied").trim().slice(0, 64),
     captured_by: String(body.captured_by || "custom_gpt").trim().slice(0, 128),
+    correction_reason: String(body.correction_reason || body.reason || "").trim().slice(0, 512) || null,
     metadata_json: JSON.stringify({
       known_interfaces: CHATGPT_INTERFACES,
       note: "Personal ChatGPT conversation URLs are private to the GPT account owner; share URLs are optional public/shareable references.",
       secrets_included: false,
     }),
   };
+}
+
+function conversationRefSelectSql() {
+  return `SELECT ref_id, session_id, interface_scope, interface_display_name,
+                 gpt_app_id, gpt_slug, conversation_id, personal_conversation_url,
+                 share_id, share_url, source, captured_by, status,
+                 COALESCE(is_primary, 0) AS is_primary,
+                 superseded_by_ref_id, superseded_at, correction_reason,
+                 created_at, updated_at
+            FROM \`gpt_session_conversation_refs\``;
+}
+
+async function listConversationRefs(pool, sessionId, { includeSuperseded = true } = {}) {
+  const statusFilter = includeSuperseded ? "" : " AND status = 'active'";
+  const [rows] = await pool.query(
+    `${conversationRefSelectSql()}
+      WHERE session_id = ?${statusFilter}
+      ORDER BY is_primary DESC, updated_at DESC
+      LIMIT 20`,
+    [sessionId]
+  );
+  return rows;
+}
+
+async function upsertConversationRef(pool, session, ref) {
+  await pool.query(
+    `INSERT INTO \`gpt_session_conversation_refs\`
+       (ref_id, session_id, tenant_id, user_id, interface_scope, interface_display_name,
+        gpt_app_id, gpt_slug, conversation_id, personal_conversation_url,
+        share_id, share_url, source, captured_by, status, metadata_json, correction_reason)
+     VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
+     ON DUPLICATE KEY UPDATE
+       tenant_id = VALUES(tenant_id),
+       user_id = VALUES(user_id),
+       interface_scope = VALUES(interface_scope),
+       interface_display_name = VALUES(interface_display_name),
+       gpt_slug = VALUES(gpt_slug),
+       personal_conversation_url = COALESCE(VALUES(personal_conversation_url), personal_conversation_url),
+       share_id = COALESCE(VALUES(share_id), share_id),
+       share_url = COALESCE(VALUES(share_url), share_url),
+       source = VALUES(source),
+       captured_by = VALUES(captured_by),
+       status = 'active',
+       metadata_json = VALUES(metadata_json),
+       correction_reason = COALESCE(VALUES(correction_reason), correction_reason),
+       updated_at = NOW()`,
+    [
+      session.session_id,
+      session.tenant_id || null,
+      session.user_id || null,
+      ref.interface_scope,
+      ref.interface_display_name,
+      ref.gpt_app_id,
+      ref.gpt_slug,
+      ref.conversation_id,
+      ref.personal_conversation_url,
+      ref.share_id,
+      ref.share_url,
+      ref.source,
+      ref.captured_by,
+      ref.metadata_json,
+      ref.correction_reason,
+    ]
+  );
+}
+
+async function findConversationRefTarget(pool, sessionId, body = {}) {
+  const refId = String(body.ref_id || "").trim();
+  if (refId) {
+    const [rows] = await pool.query(`${conversationRefSelectSql()} WHERE session_id = ? AND ref_id = ? LIMIT 1`, [sessionId, refId]);
+    return rows[0] || null;
+  }
+  const ref = buildConversationRefInput(body);
+  const where = [];
+  const params = [sessionId];
+  if (ref.conversation_id) {
+    where.push("conversation_id = ?");
+    params.push(ref.conversation_id);
+    if (ref.gpt_app_id) {
+      where.push("gpt_app_id = ?");
+      params.push(ref.gpt_app_id);
+    }
+  } else if (ref.share_id) {
+    where.push("share_id = ?");
+    params.push(ref.share_id);
+  }
+  if (!where.length) return null;
+  const [rows] = await pool.query(
+    `${conversationRefSelectSql()} WHERE session_id = ? AND ${where.join(" AND ")} ORDER BY updated_at DESC LIMIT 1`,
+    params
+  );
+  return rows[0] || null;
 }
 
 async function resolveSessionForCaller(pool, sessionId, req) {
@@ -189,53 +282,8 @@ export function buildGptSessionRoutes(deps) {
         return res.status(404).json({ ok: false, error: { code: "session_not_found", message: "Session not found." } });
       }
       const ref = buildConversationRefInput(req.body || {});
-      await pool.query(
-        `INSERT INTO \`gpt_session_conversation_refs\`
-           (ref_id, session_id, tenant_id, user_id, interface_scope, interface_display_name,
-            gpt_app_id, gpt_slug, conversation_id, personal_conversation_url,
-            share_id, share_url, source, captured_by, status, metadata_json)
-         VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
-         ON DUPLICATE KEY UPDATE
-           tenant_id = VALUES(tenant_id),
-           user_id = VALUES(user_id),
-           interface_scope = VALUES(interface_scope),
-           interface_display_name = VALUES(interface_display_name),
-           gpt_slug = VALUES(gpt_slug),
-           personal_conversation_url = COALESCE(VALUES(personal_conversation_url), personal_conversation_url),
-           share_id = COALESCE(VALUES(share_id), share_id),
-           share_url = COALESCE(VALUES(share_url), share_url),
-           source = VALUES(source),
-           captured_by = VALUES(captured_by),
-           status = 'active',
-           metadata_json = VALUES(metadata_json),
-           updated_at = NOW()`,
-        [
-          session.session_id,
-          session.tenant_id || null,
-          session.user_id || null,
-          ref.interface_scope,
-          ref.interface_display_name,
-          ref.gpt_app_id,
-          ref.gpt_slug,
-          ref.conversation_id,
-          ref.personal_conversation_url,
-          ref.share_id,
-          ref.share_url,
-          ref.source,
-          ref.captured_by,
-          ref.metadata_json,
-        ]
-      );
-      const [rows] = await pool.query(
-        `SELECT ref_id, session_id, interface_scope, interface_display_name,
-                gpt_app_id, gpt_slug, conversation_id, personal_conversation_url,
-                share_id, share_url, source, captured_by, status, created_at, updated_at
-           FROM \`gpt_session_conversation_refs\`
-          WHERE session_id = ?
-          ORDER BY updated_at DESC
-          LIMIT 10`,
-        [session.session_id]
-      );
+      await upsertConversationRef(pool, session, ref);
+      const rows = await listConversationRefs(pool, session.session_id);
       return res.status(200).json({
         ok: true,
         session_id: session.session_id,
@@ -255,6 +303,97 @@ export function buildGptSessionRoutes(deps) {
         return res.status(400).json({ ok: false, error: { code: "invalid_chatgpt_url", message: err.message } });
       }
       return res.status(500).json({ ok: false, error: { code: "conversation_ref_write_failed", message: err.message } });
+    }
+  });
+
+  // POST /gpt/sessions/:id/conversation-ref/mark-primary
+  router.post("/gpt/sessions/:id/conversation-ref/mark-primary", requireBackendApiKey, async (req, res) => {
+    const pool = getPool();
+    try {
+      const session = await resolveSessionForCaller(pool, req.params.id, req);
+      if (!session) {
+        return res.status(404).json({ ok: false, error: { code: "session_not_found", message: "Session not found." } });
+      }
+
+      if (!req.body?.ref_id) {
+        const ref = buildConversationRefInput(req.body || {});
+        await upsertConversationRef(pool, session, ref);
+      }
+      const target = await findConversationRefTarget(pool, session.session_id, req.body || {});
+      if (!target) {
+        return res.status(404).json({ ok: false, error: { code: "conversation_ref_not_found", message: "Conversation reference was not found for this session." } });
+      }
+
+      const reason = String(req.body?.correction_reason || req.body?.reason || "primary reference selected from current activation session evidence").slice(0, 512);
+      const supersedeParams = [target.ref_id, reason, session.session_id, target.ref_id];
+      let matchClause = "";
+      if (target.conversation_id) {
+        matchClause = "conversation_id = ? AND COALESCE(gpt_app_id, '') = COALESCE(?, '')";
+        supersedeParams.push(target.conversation_id, target.gpt_app_id || null);
+      } else if (target.share_id) {
+        matchClause = "share_id = ?";
+        supersedeParams.push(target.share_id);
+      } else {
+        return res.status(400).json({ ok: false, error: { code: "conversation_ref_not_markable", message: "Reference needs a conversation_id or share_id before it can be marked primary." } });
+      }
+
+      await pool.query(
+        `UPDATE \`gpt_session_conversation_refs\`
+            SET is_primary = 0,
+                status = 'superseded',
+                superseded_by_ref_id = ?,
+                superseded_at = NOW(),
+                correction_reason = COALESCE(correction_reason, ?),
+                updated_at = NOW()
+          WHERE session_id <> ?
+            AND ref_id <> ?
+            AND ${matchClause}`,
+        supersedeParams
+      );
+
+      await pool.query(
+        `UPDATE \`gpt_session_conversation_refs\`
+            SET is_primary = 1,
+                status = 'active',
+                superseded_by_ref_id = NULL,
+                superseded_at = NULL,
+                correction_reason = ?,
+                updated_at = NOW()
+          WHERE ref_id = ?
+            AND session_id = ?`,
+        [reason, target.ref_id, session.session_id]
+      );
+
+      const [allRefs] = await pool.query(
+        `${conversationRefSelectSql()}
+          WHERE (conversation_id = ? AND COALESCE(gpt_app_id, '') = COALESCE(?, ''))
+             OR (share_id IS NOT NULL AND share_id = ?)
+          ORDER BY is_primary DESC, updated_at DESC
+          LIMIT 25`,
+        [target.conversation_id || "", target.gpt_app_id || null, target.share_id || ""]
+      );
+      const rows = await listConversationRefs(pool, session.session_id);
+      return res.status(200).json({
+        ok: true,
+        session_id: session.session_id,
+        primary_ref: rows.find((row) => row.ref_id === target.ref_id) || null,
+        related_refs: allRefs,
+        policy: {
+          source_of_truth: "activation_session_context.current_session_id",
+          old_session_refs_for_same_chatgpt_conversation: "superseded",
+          secrets_included: false,
+        },
+      });
+    } catch (err) {
+      if (err.status === 403) return res.status(403).json({ ok: false, error: { code: "forbidden", message: err.message } });
+      if (err.status === 404) return res.status(404).json({ ok: false, error: { code: err.code || "session_not_found", message: err.message } });
+      if (["missing_conversation_ref", "invalid_conversation_url_kind", "invalid_share_url_kind", "unsupported_chatgpt_url"].includes(err.code)) {
+        return res.status(400).json({ ok: false, error: { code: err.code, message: err.message } });
+      }
+      if (err instanceof TypeError || err.message?.includes("URL")) {
+        return res.status(400).json({ ok: false, error: { code: "invalid_chatgpt_url", message: err.message } });
+      }
+      return res.status(500).json({ ok: false, error: { code: "conversation_ref_primary_failed", message: err.message } });
     }
   });
 
