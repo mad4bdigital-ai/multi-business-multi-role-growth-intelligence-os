@@ -10,7 +10,13 @@ import { planRemoteRuntimeDispatchDryRun } from "./remoteRuntime.js";
 import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 
 const DEFAULT_TIMEOUT_MS = 120000;
+const DEFAULT_PROBE_TIMEOUT_MS = 45000;
+const MAX_PROBE_TIMEOUT_MS = 75000;
 const MAX_TIMEOUT_MS = 300000;
+const SSH_CONNECT_TIMEOUT_SECONDS = 10;
+const SSH_SERVER_ALIVE_INTERVAL_SECONDS = 5;
+const SSH_SERVER_ALIVE_COUNT_MAX = 1;
+const SSH_PROCESS_KILL_GRACE_MS = 5000;
 const EXECUTOR_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED";
 const PROBE_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_PROBE_ENABLED";
 const PROBE_DB_FLAG_KEY = "remote_runtime_hostinger_ssh_probe_enabled";
