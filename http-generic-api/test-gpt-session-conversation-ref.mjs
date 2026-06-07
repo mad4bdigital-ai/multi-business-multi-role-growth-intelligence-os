@@ -48,8 +48,18 @@ assert.ok(migration.includes("g-69b6e4de8fd88191ac132362e1ee300e"));
 assert.ok(migration.includes("admin_custom_gpt"));
 assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 
+assert.ok(primaryMigration.includes("ADD COLUMN IF NOT EXISTS `is_primary`"));
+assert.ok(primaryMigration.includes("superseded_by_ref_id"));
+assert.ok(primaryMigration.includes("gpt_session_conversation_ref_mark_primary"));
+assert.ok(primaryMigration.includes("/gpt/sessions/{id}/conversation-ref/mark-primary"));
+assert.ok(primaryMigration.includes("tenant_platform_endpoint_tools"));
+assert.doesNotMatch(primaryMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
+
 assert.ok(runner.includes("223_sprint67_gpt_session_conversation_refs.sql"));
+assert.ok(runner.includes("225_sprint67_gpt_session_conversation_ref_primary.sql"));
 assert.ok(readiness.includes("223_sprint67_gpt_session_conversation_refs.sql"));
+assert.ok(readiness.includes("225_sprint67_gpt_session_conversation_ref_primary.sql"));
 assert.ok(readiness.includes("gpt_session_conversation_ref_upsert"));
+assert.ok(readiness.includes("gpt_session_conversation_ref_mark_primary"));
 
 console.log("GPT session conversation reference tests passed");
