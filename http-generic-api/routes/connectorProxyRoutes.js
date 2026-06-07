@@ -3,6 +3,11 @@ import { getPool } from "../db.js";
 import { resolveEffectiveCredential } from "../credentialResolver.js";
 import { decryptCredentials } from "../tokenEncryption.js";
 import { connectorLocalApiKeySelectFragment } from "../connectorSchemaCompatibility.js";
+import {
+  capabilityEnvelopeError,
+  markCapabilityEnvelopeReferenced,
+  resolveCapabilityExecutionEnvelope,
+} from "../capabilityResolutionEnvelopeGuard.js";
 
 const ROUTE_TYPE_ORDER = [
   "vpn_private_ip",
@@ -449,6 +454,41 @@ function pickFirstString(values = []) {
   return "";
 }
 
+const N8N_ENVELOPE_REQUIRED_ACTIONS = new Set([
+  "start",
+  "stop",
+  "restart",
+  "activate_workflow",
+  "deactivate_workflow",
+  "run_workflow",
+  "execute_workflow",
+]);
+
+function normalizeN8nAction(body = {}) {
+  return String(body.action || body.n8n_action || body.operation || "").trim().toLowerCase();
+}
+
+async function requireN8nCapabilityEnvelopeIfStateChanging({ req, tenantId, userId }) {
+  const action = normalizeN8nAction(req.body || {});
+  if (!N8N_ENVELOPE_REQUIRED_ACTIONS.has(action)) return null;
+  const acceptedIntents = [action, "n8n_workflow_control", "workflow_control", "automation_workflows"];
+  if (action === "run_workflow") acceptedIntents.push("execute_workflow");
+  if (action === "execute_workflow") acceptedIntents.push("run_workflow");
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: getPool(),
+    source: req.body || {},
+    acceptedAppKeys: ["n8n"],
+    acceptedIntents,
+    expectedTenantId: tenantId,
+    expectedUserId: userId,
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "n8n state-changing workflow/lifecycle control requires a valid capability resolution envelope.");
+  }
+  await markCapabilityEnvelopeReferenced({ pool: getPool(), envelopeId: resolved.envelope_id, executionRef: `connector_n8n:${action}` });
+  return resolved;
+}
+
 async function loadPreferredN8nApiConnection({ tenantId, userId }) {
   if (!tenantId || !userId) return null;
   const [rows] = await getPool().query(
@@ -637,6 +677,25 @@ async function proxyToDevice(req, res, deviceId, targetPath) {
     : uniqueTruthy([device.connector_secret, device.connector_local_api_key]);
   if (!candidateTokens.length) {
     return res.status(503).json({ ok: false, error: { code: "connector_auth_unconfigured", message: "No per-device connector auth token is configured for this device proxy." } });
+  }
+
+  if (targetPath === "/n8n") {
+    try {
+      const envelope = await requireN8nCapabilityEnvelopeIfStateChanging({ req, tenantId, userId });
+      if (envelope?.envelope_id) req.body._capability_envelope_id = envelope.envelope_id;
+    } catch (err) {
+      return res.status(err.status || 403).json({
+        ok: false,
+        error: {
+          code: err.code || "capability_resolution_envelope_required",
+          message: err.message || "n8n state-changing workflow/lifecycle control requires a valid capability resolution envelope.",
+          details: err.details || undefined,
+        },
+        envelope_required: true,
+        connector_forwarded: false,
+        secrets_included: false,
+      });
+    }
   }
 
   const forwardedQuery = { ...req.query };
