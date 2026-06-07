@@ -163,7 +163,7 @@ export function buildAdminWorkspaceAuthorityRoutes({ requireBackendApiKey, requi
     }
   });
 
-  router.post("/admin/workspace-authority/repair", requireAdmin, async (req, res) => {
+  router.post("/admin/workspace-authority/repair", ...adminGuard, async (req, res) => {
     try {
       const pool = getPool();
       const before = await readSummary(pool);
