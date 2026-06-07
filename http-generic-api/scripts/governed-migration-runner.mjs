@@ -76,6 +76,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "219_sprint67_openclaude_live_dispatch_certification.sql",
   "220_sprint67_codex_dual_mode_policy.sql",
   "221_sprint67_dynamic_capability_resolution_graph.sql",
+  "222_sprint67_dynamic_capability_resolution_risk_refinement.sql",
   "219_sprint67_gpt_session_turn_batch_write_tool.sql",
   "216_sprint67_platform_secret_promotion_monitoring.sql",
   "201_sprint68_lifecycle_owner_engine_registry_alignment.sql",
