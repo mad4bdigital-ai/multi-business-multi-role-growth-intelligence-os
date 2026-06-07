@@ -1043,6 +1043,79 @@ async function checkPlatformSecretPromotionMonitoringSafe() {
   }
 }
 
+async function checkGptSessionArchiveMonitoring() {
+  const pool = getPool();
+  const [[summaryViewRow]] = await pool.query(
+    "SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'v_gpt_session_archive_monitoring_summary'"
+  );
+  const [[issuesViewRow]] = await pool.query(
+    "SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'v_gpt_session_archive_monitoring_issues'"
+  );
+  if (!summaryViewRow?.cnt || !issuesViewRow?.cnt) {
+    return {
+      status: "fail",
+      detail: "GPT session archive monitoring views are missing.",
+      views_present: false,
+      monitored_sessions: 0,
+      fail_issue_rows: null,
+      warn_issue_rows: null,
+      issues: [],
+      secrets_included: false,
+    };
+  }
+
+  const [[summary]] = await pool.query(
+    `SELECT monitored_sessions, fail_issue_rows, warn_issue_rows, total_issue_rows,
+            archive_ready_sessions, sessions_with_jsonl, sessions_with_one_primary_ref,
+            sessions_with_multiple_primary_refs, sessions_without_active_ref
+       FROM v_gpt_session_archive_monitoring_summary
+      LIMIT 1`
+  );
+  const failIssueRows = Number(summary?.fail_issue_rows || 0);
+  const warnIssueRows = Number(summary?.warn_issue_rows || 0);
+  const [issues] = await pool.query(
+    `SELECT session_id, issue_code, severity, evidence_json
+       FROM v_gpt_session_archive_monitoring_issues
+      ORDER BY severity, issue_code, session_id
+      LIMIT 50`
+  );
+
+  return {
+    status: failIssueRows > 0 ? "fail" : "pass",
+    detail: failIssueRows > 0
+      ? `GPT session archive monitoring found ${failIssueRows} fail issue row(s) and ${warnIssueRows} warning row(s).`
+      : `GPT session archive monitoring passed for ${Number(summary?.monitored_sessions || 0)} monitored GPT session(s); ${warnIssueRows} warning row(s) are informational.`,
+    views_present: true,
+    monitored_sessions: Number(summary?.monitored_sessions || 0),
+    fail_issue_rows: failIssueRows,
+    warn_issue_rows: warnIssueRows,
+    total_issue_rows: Number(summary?.total_issue_rows || 0),
+    archive_ready_sessions: Number(summary?.archive_ready_sessions || 0),
+    sessions_with_jsonl: Number(summary?.sessions_with_jsonl || 0),
+    sessions_with_one_primary_ref: Number(summary?.sessions_with_one_primary_ref || 0),
+    sessions_with_multiple_primary_refs: Number(summary?.sessions_with_multiple_primary_refs || 0),
+    sessions_without_active_ref: Number(summary?.sessions_without_active_ref || 0),
+    issues,
+    secrets_included: false,
+  };
+}
+
+async function checkGptSessionArchiveMonitoringSafe() {
+  try {
+    return await checkGptSessionArchiveMonitoring();
+  } catch (err) {
+    return {
+      status: "warn",
+      detail: `GPT session archive monitoring unavailable: ${err?.message || "unknown error"}`,
+      monitored_sessions: null,
+      fail_issue_rows: null,
+      warn_issue_rows: null,
+      issues: [],
+      secrets_included: false,
+    };
+  }
+}
+
 async function checkDbConnectivity() {
   try {
     await getPool().query("SELECT 1");
