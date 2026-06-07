@@ -679,6 +679,25 @@ async function proxyToDevice(req, res, deviceId, targetPath) {
     return res.status(503).json({ ok: false, error: { code: "connector_auth_unconfigured", message: "No per-device connector auth token is configured for this device proxy." } });
   }
 
+  if (targetPath === "/n8n") {
+    try {
+      const envelope = await requireN8nCapabilityEnvelopeIfStateChanging({ req, tenantId, userId });
+      if (envelope?.envelope_id) req.body._capability_envelope_id = envelope.envelope_id;
+    } catch (err) {
+      return res.status(err.status || 403).json({
+        ok: false,
+        error: {
+          code: err.code || "capability_resolution_envelope_required",
+          message: err.message || "n8n state-changing workflow/lifecycle control requires a valid capability resolution envelope.",
+          details: err.details || undefined,
+        },
+        envelope_required: true,
+        connector_forwarded: false,
+        secrets_included: false,
+      });
+    }
+  }
+
   const forwardedQuery = { ...req.query };
   delete forwardedQuery.user_id;
   delete forwardedQuery.tenant_id;
