@@ -103,6 +103,21 @@ denied_tools = Edit,Write,MultiEdit,NotebookEdit,Bash,git push,git commit,apply_
 
 OpenClaude may use OpenRouter only through the governed platform bridge. The platform must not copy `OPENROUTER_API_KEY` to the device, return the provider key to the agent, or allow repo mutation through this profile.
 
+Live OpenClaude bridge dispatch is controlled by `runtime_dispatch_certification_registry.openclaude_platform_provider_bridge_v1`. It is enabled only when `dispatch_allowed=1`, `apply_allowed=0`, the active OpenRouter provider has `secrets_returned_to_agent=0`, and the OpenRouter instruction contract has `activation_status=active_live_provider_dispatch_smoke_passed`.
+
+The live endpoint supports:
+
+```text
+POST /dev-agent/openclaude/bridge/v1/chat/completions
+{
+  "live_dispatch": true,
+  "messages": [{"role":"user","content":"..."}],
+  "model": "openai/gpt-4o-mini"
+}
+```
+
+The response must remain OpenAI-compatible but metadata-only for the bridge boundary: no provider API key, no local execution, no repo mutation, and `secrets_included=false`.
+
 ## Secret boundary
 
 The model provider contract records `secrets_returned_to_agent=0`. The only allowed credential reference is an abstract platform binding key:
