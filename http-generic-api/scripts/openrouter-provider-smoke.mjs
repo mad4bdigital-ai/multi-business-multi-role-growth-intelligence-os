@@ -175,7 +175,7 @@ export async function runOpenRouterProviderSmoke(options = {}) {
     ], []);
   } catch (err) {
     const errorCode = err?.name === "TimeoutError" ? "openrouter_live_smoke_timeout" : "openrouter_live_smoke_failed";
-    await updateSmokeStatus(pool, { ok: false, model: options.model, tokensUsed: 0, promoted: false, errorCode }).catch(() => {});
+    await updateSmokeStatus(pool, { ok: false, model: selectedModel, tokensUsed: 0, promoted: false, errorCode }).catch(() => {});
     fail(errorCode, err.message || "OpenRouter live smoke failed", { status: err.status || null, timeout_ms: timeoutMs });
   }
 
