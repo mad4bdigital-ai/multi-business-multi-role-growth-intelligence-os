@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const migration = readFileSync("migrations/231_sprint68_shared_reconciliation_continuation_policy.sql", "utf8");
+const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 
+assert(runner.includes('"231_sprint68_shared_reconciliation_continuation_policy.sql"'), "governed migration runner must allowlist migration 231");
 assert(migration.includes("Shared Reconciliation Engine Continuation Contract"), "policy key must be stable");
 assert(migration.includes("shared_reconciliation_engine_continuation_contract"), "policy rule must be explicit");
 assert(migration.includes("shared_reconciliation_continuation_v1"), "engine key must be versioned");
