@@ -18,6 +18,8 @@ assert(dispatcher.includes('parsed.protocol !== "https:"'), "dispatcher must req
 assert(dispatcher.includes('isBlockedIp'), "dispatcher must block private/local webhook targets");
 assert(dispatcher.includes('AbortSignal.timeout'), "dispatcher must bound webhook delivery time");
 assert(dispatcher.includes('X-MAD4B-Delivery'), "dispatcher must include delivery id header");
+assert(dispatcher.includes('w.webhook_id COLLATE utf8mb4_unicode_ci = d.webhook_id COLLATE utf8mb4_unicode_ci'), "dispatcher must use collation-safe webhook_id joins");
+assert(dispatcher.includes('w.tenant_id COLLATE utf8mb4_unicode_ci = d.tenant_id COLLATE utf8mb4_unicode_ci'), "dispatcher must use collation-safe tenant_id joins");
 assert(!dispatcher.includes('encrypted_credentials'), "dispatcher must not read encrypted credentials");
 assert(!dispatcher.includes('ssh_password'), "dispatcher must not include SSH password in webhook payloads");
 assert(!dispatcher.includes('ssh_private_key'), "dispatcher must not include SSH private key in webhook payloads");
