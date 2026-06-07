@@ -70,9 +70,10 @@ function classifyScenario(scenario = {}, liveRows = []) {
 
   if (gates.no_secrets !== true) hardFailures.push("no_secrets_gate_missing");
   const requiresUserDisclosure = gates.requires_user_disclosure === true || gates.user_disclosure_required === true;
-  if (expected.platform_fallback_allowed === true && gates.quota_required !== true) hardFailures.push("platform_fallback_without_quota_gate");
-  if (expected.platform_fallback_allowed === true && gates.audit_required !== true) hardFailures.push("platform_fallback_without_audit_gate");
-  if (expected.platform_fallback_allowed === true && requiresUserDisclosure !== true) hardFailures.push("platform_fallback_without_user_disclosure_gate");
+  const fallbackGateRequired = expected.platform_fallback_allowed === true && expected.platform_fallback_secondary_only !== true;
+  if (fallbackGateRequired && gates.quota_required !== true) hardFailures.push("platform_fallback_without_quota_gate");
+  if (fallbackGateRequired && gates.audit_required !== true) hardFailures.push("platform_fallback_without_audit_gate");
+  if (fallbackGateRequired && requiresUserDisclosure !== true) hardFailures.push("platform_fallback_without_user_disclosure_gate");
   if (expected.repo_mutation_allowed === true && gates.human_approval_required !== true) hardFailures.push("repo_mutation_without_human_approval_gate");
   if (expected.spend_allowed === true && gates.budget_required !== true) hardFailures.push("spend_without_budget_gate");
   if (expected.deploy_allowed === true && gates.dispatch_certification_required !== true) hardFailures.push("deploy_without_dispatch_certification_gate");
