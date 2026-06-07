@@ -748,6 +748,7 @@ async function loadConversationMemoryContext(pool, subject = {}, options = {}) {
       sources_checked: [
         "customer_sessions",
         "gpt_session_turns",
+        "gpt_session_conversation_refs",
         "session_summaries",
         "platform_pending_tasks.conversation_context_ref",
         "platform_graph_memory",
