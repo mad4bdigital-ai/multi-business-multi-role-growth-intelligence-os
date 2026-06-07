@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { _testingWorkspaceResourceRoutes } from "./routes/workspaceResourceRoutes.js";
 
 const migration = readFileSync("migrations/193_sprint67_workspace_resource_authority_foundation.sql", "utf8");
-const brandListMigration = readFileSync("migrations/228_sprint67_workspace_brands_list_tool.sql", "utf8");
+const brandListMigration = readFileSync("migrations/229_sprint67_workspace_brands_list_tool.sql", "utf8");
 const routeSource = readFileSync("routes/workspaceResourceRoutes.js", "utf8");
 const indexSource = readFileSync("routes/index.js", "utf8");
 
