@@ -10,6 +10,7 @@ export const testCommands = [
   "node test-dynamic-capability-resolution-graph.mjs",
   "node test-dynamic-capability-simulation-suite.mjs",
   "node test-capability-simulation-findings-refinement.mjs",
+  "node test-capability-resolution-envelope-ledger.mjs",
   "node test-dynamic-platform-secret-promotion.mjs",
   "node test-db-collation-guard.mjs",
   "node test-agent-runtime-provider-selection.mjs",

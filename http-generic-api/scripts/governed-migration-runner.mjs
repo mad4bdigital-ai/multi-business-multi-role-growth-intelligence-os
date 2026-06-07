@@ -79,6 +79,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "222_sprint67_dynamic_capability_resolution_risk_refinement.sql",
   "223_sprint67_dynamic_capability_simulation_suite.sql",
   "224_sprint67_capability_simulation_findings_refinement.sql",
+  "225_sprint67_capability_resolution_envelope_ledger.sql",
   "219_sprint67_gpt_session_turn_batch_write_tool.sql",
   "216_sprint67_platform_secret_promotion_monitoring.sql",
   "222_sprint67_async_job_timeout_recovery.sql",
