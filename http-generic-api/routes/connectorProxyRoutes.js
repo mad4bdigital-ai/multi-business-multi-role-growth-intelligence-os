@@ -454,6 +454,41 @@ function pickFirstString(values = []) {
   return "";
 }
 
+const N8N_ENVELOPE_REQUIRED_ACTIONS = new Set([
+  "start",
+  "stop",
+  "restart",
+  "activate_workflow",
+  "deactivate_workflow",
+  "run_workflow",
+  "execute_workflow",
+]);
+
+function normalizeN8nAction(body = {}) {
+  return String(body.action || body.n8n_action || body.operation || "").trim().toLowerCase();
+}
+
+async function requireN8nCapabilityEnvelopeIfStateChanging({ req, tenantId, userId }) {
+  const action = normalizeN8nAction(req.body || {});
+  if (!N8N_ENVELOPE_REQUIRED_ACTIONS.has(action)) return null;
+  const acceptedIntents = [action, "n8n_workflow_control", "workflow_control", "automation_workflows"];
+  if (action === "run_workflow") acceptedIntents.push("execute_workflow");
+  if (action === "execute_workflow") acceptedIntents.push("run_workflow");
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: getPool(),
+    source: req.body || {},
+    acceptedAppKeys: ["n8n"],
+    acceptedIntents,
+    expectedTenantId: tenantId,
+    expectedUserId: userId,
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "n8n state-changing workflow/lifecycle control requires a valid capability resolution envelope.");
+  }
+  await markCapabilityEnvelopeReferenced({ pool: getPool(), envelopeId: resolved.envelope_id, executionRef: `connector_n8n:${action}` });
+  return resolved;
+}
+
 async function loadPreferredN8nApiConnection({ tenantId, userId }) {
   if (!tenantId || !userId) return null;
   const [rows] = await getPool().query(
