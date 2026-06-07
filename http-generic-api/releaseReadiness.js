@@ -1641,6 +1641,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
         ["governed_migration_ledger", report.governed_migration_ledger],
         ["admin_tool_registry_smoke", report.admin_tool_registry_smoke],
         ["migration_drift", report.migration_drift],
+        ["gpt_session_archive_monitoring", report.gpt_session_archive_monitoring],
         ["graph_memory_diagnostics", report.graph_memory_diagnostics],
       ];
       await Promise.all(entries.map(([key, r]) =>
