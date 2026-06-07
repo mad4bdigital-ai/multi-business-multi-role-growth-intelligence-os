@@ -108,7 +108,7 @@ export async function createCapabilityResolutionEnvelopeLedger(args = parseArgs(
        dispatch_allowed, apply_allowed, approval_required, quota_required, audit_required, readback_required,
        blocking_gap_count, envelope_sha256, envelope_json, requested_by, expires_at, secrets_included)
      VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), 0)`,
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), 0)`,
     [
       envelopeId,
       safeText(ctx.tenant_id, 64) || null,
