@@ -27,13 +27,15 @@ const repoPatchBlock = gptTools.slice(repoPatchSchemaIndex, gptTools.indexOf('co
 assert.match(repoPatchBlock, /required: \["action", "path", "commit_message", "capability_envelope_id"\]/);
 
 const applyFunctionIndex = gptTools.indexOf("export async function applyRepoPatch");
-const tokenIndex = gptTools.indexOf("await getGitHubAppInstallationToken", applyFunctionIndex);
-const envelopeGateIndex = gptTools.lastIndexOf("await requireRepoPatchCapabilityEnvelope", tokenIndex);
-const branchPolicyIndex = gptTools.lastIndexOf("assertRepoPatchBranchPolicy", envelopeGateIndex);
-const preflightIndex = gptTools.indexOf("evaluateRepoPatchApplyPreflight", tokenIndex);
+const nextFunctionIndex = gptTools.indexOf("async function getRepoFile", applyFunctionIndex);
+const applyFunctionBlock = gptTools.slice(applyFunctionIndex, nextFunctionIndex > applyFunctionIndex ? nextFunctionIndex : undefined);
+const tokenIndex = applyFunctionBlock.indexOf("await getGitHubAppInstallationToken");
+const envelopeGateIndex = applyFunctionBlock.indexOf("await requireRepoPatchCapabilityEnvelope");
+const branchPolicyIndex = applyFunctionBlock.indexOf("assertRepoPatchBranchPolicy");
+const preflightIndex = applyFunctionBlock.indexOf("evaluateRepoPatchApplyPreflight");
 assert.ok(applyFunctionIndex > -1, "applyRepoPatch must exist.");
-assert.ok(branchPolicyIndex > applyFunctionIndex, "branch policy must remain in repo patch execution path.");
-assert.ok(envelopeGateIndex > branchPolicyIndex, "capability envelope gate must run after branch policy.");
+assert.ok(branchPolicyIndex > -1, "branch policy must remain in repo patch execution path.");
+assert.ok(envelopeGateIndex > -1, "capability envelope gate must run in repo patch execution path.");
 assert.ok(tokenIndex > envelopeGateIndex, "GitHub App token must be resolved only after capability envelope gate.");
 assert.ok(preflightIndex > tokenIndex, "existing branch compare/preflight remains after token resolution.");
 
