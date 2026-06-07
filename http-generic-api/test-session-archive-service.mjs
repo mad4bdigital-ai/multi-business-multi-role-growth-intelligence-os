@@ -171,6 +171,10 @@ function flattenParams(value) {
     now: () => new Date("2026-05-16T12:30:00.000Z"),
     async getOrCreateDriveFolder(name, parentId) { return `${parentId}/${name}`; },
     async createGoogleDocInDrive() { return { drive_file_id: "doc-partial", drive_web_url: "https://drive/doc-partial" }; },
+    async createGoogleDocFromTextInDrive(_name, _parentId, text) {
+      driveWrites.rebuiltDocText = text;
+      return { drive_file_id: "doc-rebuilt", drive_web_url: "https://drive/doc-rebuilt" };
+    },
     async appendTextToGoogleDoc() { throw new Error("Precondition check failed."); },
     async uploadContentToDrive(content) { driveWrites.jsonl = content; return { drive_file_id: "jsonl-partial", drive_web_url: "https://drive/jsonl-partial" }; },
     async fetchDriveContent() { return driveWrites.jsonl; },
