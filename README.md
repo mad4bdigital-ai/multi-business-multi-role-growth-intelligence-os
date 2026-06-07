@@ -309,6 +309,7 @@ Operations and validation:
 - [`docs/ai-docs-agent-governance.md`](docs/ai-docs-agent-governance.md)
 - [`docs/openrouter-docs-agent-provider-contract.md`](docs/openrouter-docs-agent-provider-contract.md)
 - [`docs/codex-dual-mode-tenant-policy.md`](docs/codex-dual-mode-tenant-policy.md)
+- [`docs/dynamic-capability-resolution-graph.md`](docs/dynamic-capability-resolution-graph.md)
 - [`docs/auto-docs-agent/README.md`](docs/auto-docs-agent/README.md)
 - [`docs/platform-plugin-smoke-certification-governance.md`](docs/platform-plugin-smoke-certification-governance.md)
 - [`docs/platform-plugin-recertification-policy-governance.md`](docs/platform-plugin-recertification-policy-governance.md)
