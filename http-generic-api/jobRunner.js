@@ -5,6 +5,8 @@ import {
   normalizeJobStatus,
   normalizeWebhookUrl,
   normalizeMaxAttempts,
+  normalizeJobExecutionTimeoutMs,
+  buildStaleJobTimeoutPayload,
   nextRetryDelayMs,
   nowIso,
   buildJobId
@@ -391,6 +393,28 @@ export function configureJobRunner(
       .catch(err => console.error("RETRY_ENQUEUE_FAILED:", { job_id: job.job_id, err: err?.message }));
   }
 
+  async function withJobExecutionTimeout(job, executor) {
+    const overrideTimeoutMs = Number(deps.jobExecutionTimeoutMs);
+    const timeoutMs = Number.isFinite(overrideTimeoutMs) && overrideTimeoutMs > 0
+      ? Math.floor(overrideTimeoutMs)
+      : normalizeJobExecutionTimeoutMs(job);
+    let timer = null;
+    try {
+      const timeoutOutcome = new Promise((resolve) => {
+        timer = setTimeout(() => {
+          resolve({
+            success: false,
+            statusCode: 504,
+            payload: buildStaleJobTimeoutPayload(job),
+          });
+        }, timeoutMs);
+      });
+      return await Promise.race([executor(), timeoutOutcome]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
   async function executeQueuedJobByType(job) {
     const jobType = String(job?.job_type || "http_execute").trim();
     if (jobType === "site_migration") return await executeSiteMigrationJob(job);
@@ -510,7 +534,7 @@ export function configureJobRunner(
       parent_action_key: job.parent_action_key, endpoint_key: job.endpoint_key
     });
 
-    const outcome = await executeQueuedJobByType(job);
+    const outcome = await withJobExecutionTimeout(job, () => executeQueuedJobByType(job));
     const success = outcome.success === true;
 
     if (success) {

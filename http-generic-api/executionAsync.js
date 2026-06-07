@@ -5,6 +5,7 @@ import {
 } from "./databaseTableLifecycle.js";
 import { CONNECTED_EXECUTION_RESUME_ACTION_JOB_TYPE } from "./connectedExecutionWorker.js";
 import { TENANT_SSH_CLI_EXECUTE_JOB_TYPE } from "./tenantSshCliExecutionWorker.js";
+import { buildStaleJobTimeoutPayload, isRunningJobStale } from "./jobUtils.js";
 import {
   HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE,
   normalizeHostingerSshTargetProbeJobPayload,
@@ -458,7 +459,9 @@ export async function getExecutionJob(jobId, deps = {}) {
     toJobSummary,
     TERMINAL_JOB_STATUSES,
     ACTIVE_JOB_STATUSES,
-    normalizeJobStatus
+    normalizeJobStatus,
+    updateJob,
+    nowIso
   } = deps;
 
   const job = await resolveJob(jobId);
@@ -473,6 +476,15 @@ export async function getExecutionJob(jobId, deps = {}) {
         }
       }
     };
+  }
+
+  if (typeof updateJob === "function" && isRunningJobStale(job)) {
+    updateJob(job, {
+      status: "failed",
+      completed_at: typeof nowIso === "function" ? nowIso() : new Date().toISOString(),
+      result_payload: null,
+      error_payload: buildStaleJobTimeoutPayload(job),
+    });
   }
 
   const summary = toJobSummary(job);
@@ -572,6 +584,15 @@ export async function pollExecutionJobResult(jobId, deps = {}) {
       String(job.execution_trace_id || "").trim() || createExecutionTraceId();
     if (job.execution_trace_id !== execution_trace_id) {
       updateJob(job, { execution_trace_id });
+    }
+
+    if (isRunningJobStale(job)) {
+      updateJob(job, {
+        status: "failed",
+        completed_at: nowIso(),
+        result_payload: null,
+        error_payload: buildStaleJobTimeoutPayload(job),
+      });
     }
 
     const status = normalizeJobStatus(job.status);

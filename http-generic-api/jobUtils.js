@@ -7,6 +7,7 @@ import {
 
 export const TERMINAL_JOB_STATUSES = new Set(["succeeded", "failed", "cancelled"]);
 export const ACTIVE_JOB_STATUSES = new Set(["queued", "running", "retrying"]);
+export const JOB_EXECUTION_TIMEOUT_BUFFER_MS = 15_000;
 
 export function nowIso() {
   return new Date().toISOString();
@@ -46,6 +47,51 @@ export function nextRetryDelayMs(attemptCount) {
 
 export function buildJobId() {
   return `job_${crypto.randomUUID().replace(/-/g, "")}`;
+}
+
+export function normalizeJobExecutionTimeoutMs(jobOrPayload = {}) {
+  const payload = jobOrPayload?.request_payload && typeof jobOrPayload.request_payload === "object"
+    ? jobOrPayload.request_payload
+    : jobOrPayload;
+  const rawMs = payload?.timeout_ms ?? payload?.timeoutMs;
+  const rawSeconds = payload?.timeout_seconds ?? payload?.timeoutSeconds;
+  const fromMs = Number(rawMs);
+  const fromSeconds = Number(rawSeconds);
+  const requested = Number.isFinite(fromMs) && fromMs > 0
+    ? fromMs
+    : Number.isFinite(fromSeconds) && fromSeconds > 0
+    ? fromSeconds * 1000
+    : MAX_TIMEOUT_SECONDS * 1000;
+  const capped = Math.max(1000, Math.min(Math.floor(requested), MAX_TIMEOUT_SECONDS * 1000));
+  return capped + JOB_EXECUTION_TIMEOUT_BUFFER_MS;
+}
+
+export function jobAgeMs(timestamp, nowMs = Date.now()) {
+  const parsed = Date.parse(String(timestamp || ""));
+  return Number.isFinite(parsed) ? Math.max(0, nowMs - parsed) : 0;
+}
+
+export function isRunningJobStale(job = {}, nowMs = Date.now()) {
+  if (normalizeJobStatus(job.status) !== "running") return false;
+  return jobAgeMs(job.updated_at || job.created_at, nowMs) > normalizeJobExecutionTimeoutMs(job);
+}
+
+export function buildStaleJobTimeoutPayload(job = {}, nowMs = Date.now()) {
+  return {
+    ok: false,
+    error: {
+      code: "job_execution_stale_timeout",
+      message: "Async job exceeded its governed execution timeout and was marked failed by stale-job recovery.",
+      details: {
+        job_id: normalizeJobId(job.job_id),
+        job_type: String(job.job_type || "").trim(),
+        status: normalizeJobStatus(job.status),
+        age_ms: jobAgeMs(job.updated_at || job.created_at, nowMs),
+        timeout_ms: normalizeJobExecutionTimeoutMs(job),
+      },
+    },
+    secrets_included: false,
+  };
 }
 
 export function resolveRequestedBy(req) {
