@@ -69,27 +69,14 @@ export function buildGptSessionRoutes(deps) {
   router.post("/gpt/sessions/:id/turn", requireBackendApiKey, async (req, res) => {
     const pool = getPool();
     try {
-      const { role, content, action_key = null } = req.body || {};
-      if (!role || !content) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "role and content are required." } });
+      const validation = validateTurnInput(req.body || {});
+      if (!validation.ok) {
+        return res.status(400).json({ ok: false, error: validation.error });
       }
-      if (!["user", "assistant", "tool"].includes(role)) {
-        return res.status(400).json({ ok: false, error: { code: "invalid_role", message: "role must be user, assistant, or tool." } });
-      }
+      const { role, content, action_key = null } = validation.turn;
 
-      const session = await resolveSessionForCaller(pool, req.params.id, req);
-      if (!session) {
-        return res.status(404).json({ ok: false, error: { code: "session_not_found", message: "Session not found." } });
-      }
-      if (session.session_status === "completed" || session.session_status === "closed") {
-        return res.status(409).json({ ok: false, error: { code: "session_closed", message: "Cannot add turns to a closed session." } });
-      }
-
-      const [[{ max_idx }]] = await pool.query(
-        "SELECT COALESCE(MAX(turn_index), -1) AS max_idx FROM `gpt_session_turns` WHERE session_id = ?",
-        [session.session_id]
-      );
-      const turnIndex = Number(max_idx) + 1;
+      const session = await resolveWritableSession(pool, req);
+      const turnIndex = await nextTurnIndex(pool, session.session_id);
 
       const writeback = await recordGptSessionTurn({
         pool,
