@@ -1,6 +1,11 @@
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 import { getPool } from "./db.js";
 import { resolveEffectiveCredential } from "./credentialResolver.js";
+import {
+  extractCapabilityEnvelopeId,
+  markCapabilityEnvelopeReferenced,
+  resolveCapabilityExecutionEnvelope,
+} from "./capabilityResolutionEnvelopeGuard.js";
 
 const WORKFLOW_KEY = "wordpress_blog_publish_or_recover_credentials_workflow";
 
@@ -197,75 +202,32 @@ async function resolveWorkspaceResourceGrant({ plan, siteId, requestedStatus }, 
   }
 }
 
-function extractCapabilityEnvelopeId(plan = {}) {
-  const input = extractInput(plan);
-  return str(input.capability_envelope_id || input.capabilityEnvelopeId || input.envelope_id || input.envelopeId || plan.capability_envelope_id || plan.envelope_id);
+function extractWordpressCapabilityEnvelopeId(plan = {}) {
+  return extractCapabilityEnvelopeId(extractInput(plan), [plan]);
 }
 
 async function resolveCapabilityEnvelopeForWordpressWrite({ plan, requestedStatus }, deps = {}) {
-  const envelopeId = extractCapabilityEnvelopeId(plan);
-  if (!envelopeId) {
+  const input = extractInput(plan);
+  const wantsPublish = str(requestedStatus).toLowerCase() === "publish";
+  const acceptedIntents = wantsPublish
+    ? ["publish", "write", "create", "wordpress_publish", "wordpress_create_post"]
+    : ["draft", "write", "create", "publish", "wordpress_create_post"];
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: deps.pool || getPool(),
+    source: input,
+    fallbackSources: [plan],
+    acceptedAppKeys: ["wordpress_rest"],
+    acceptedIntents,
+    expectedTenantId: plan.tenant_id,
+    expectedUserId: plan.user_id || plan.actor_user_id,
+  });
+  if (!resolved.ok && resolved.status === "capability_resolution_envelope_required") {
     return {
-      ok: false,
-      status: "capability_resolution_envelope_required",
-      envelope_required: true,
+      ...resolved,
       message: "WordPress write/publish execution requires a valid capability resolution envelope.",
     };
   }
-  const pool = deps.pool || getPool();
-  const [rows] = await pool.query(
-    `SELECT envelope_id, tenant_id, user_id, app_key, capability_key, operation_intent,
-            envelope_status, decision, dispatch_allowed, apply_allowed, approval_required,
-            quota_required, audit_required, readback_required, blocking_gap_count,
-            execution_status, expires_at, secrets_included
-       FROM capability_resolution_envelope_ledger
-      WHERE envelope_id = ?
-      LIMIT 1`,
-    [envelopeId]
-  );
-  const row = rows?.[0] || null;
-  if (!row) return { ok: false, status: "capability_resolution_envelope_not_found", envelope_id: envelopeId, envelope_required: true };
-  if (Number(row.secrets_included || 0) !== 0) return { ok: false, status: "capability_resolution_envelope_secret_boundary_failed", envelope_id: envelopeId, envelope_required: true };
-  if (row.expires_at && new Date(row.expires_at).getTime() <= Date.now()) return { ok: false, status: "capability_resolution_envelope_expired", envelope_id: envelopeId, envelope_required: true };
-  if (row.app_key && row.app_key !== "wordpress_rest") return { ok: false, status: "capability_resolution_envelope_app_mismatch", envelope_id: envelopeId, app_key: row.app_key, envelope_required: true };
-  if (row.tenant_id && str(plan.tenant_id) && row.tenant_id !== str(plan.tenant_id)) return { ok: false, status: "capability_resolution_envelope_tenant_mismatch", envelope_id: envelopeId, envelope_required: true };
-  if (row.user_id && str(plan.user_id || plan.actor_user_id) && row.user_id !== str(plan.user_id || plan.actor_user_id)) return { ok: false, status: "capability_resolution_envelope_user_mismatch", envelope_id: envelopeId, envelope_required: true };
-  const allowedStatuses = new Set(["ready_for_dispatch"]);
-  if (!allowedStatuses.has(row.envelope_status)) return { ok: false, status: "capability_resolution_envelope_not_dispatch_ready", envelope_id: envelopeId, envelope_status: row.envelope_status, decision: row.decision, envelope_required: true };
-  if (Number(row.dispatch_allowed || 0) !== 1) return { ok: false, status: "capability_resolution_envelope_dispatch_not_allowed", envelope_id: envelopeId, envelope_required: true };
-  if (Number(row.approval_required || 0) === 1) return { ok: false, status: "capability_resolution_envelope_approval_required", envelope_id: envelopeId, envelope_required: true };
-  if (Number(row.blocking_gap_count || 0) > 0) return { ok: false, status: "capability_resolution_envelope_has_blocking_gaps", envelope_id: envelopeId, blocking_gap_count: row.blocking_gap_count, envelope_required: true };
-  if (!["not_executed", "referenced"].includes(str(row.execution_status || "not_executed"))) return { ok: false, status: "capability_resolution_envelope_already_consumed_or_cancelled", envelope_id: envelopeId, execution_status: row.execution_status, envelope_required: true };
-  const intent = str(row.operation_intent || "").toLowerCase();
-  const wantsPublish = str(requestedStatus).toLowerCase() === "publish";
-  const acceptableIntent = wantsPublish
-    ? ["publish", "write", "create", "wordpress_publish", "wordpress_create_post"].includes(intent)
-    : ["draft", "write", "create", "publish", "wordpress_create_post"].includes(intent);
-  if (intent && !acceptableIntent) return { ok: false, status: "capability_resolution_envelope_intent_mismatch", envelope_id: envelopeId, operation_intent: row.operation_intent, requested_status: requestedStatus, envelope_required: true };
-  return {
-    ok: true,
-    status: "capability_resolution_envelope_resolved",
-    envelope_id: envelopeId,
-    envelope_status: row.envelope_status,
-    decision: row.decision,
-    dispatch_allowed: true,
-    apply_allowed: Number(row.apply_allowed || 0) === 1,
-    audit_required: Number(row.audit_required || 0) === 1,
-    readback_required: Number(row.readback_required || 0) === 1,
-  };
-}
-
-async function markCapabilityEnvelopeReferenced(envelopeId, deps = {}) {
-  if (!envelopeId) return;
-  const pool = deps.pool || getPool();
-  await pool.query(
-    `UPDATE capability_resolution_envelope_ledger
-        SET execution_status = CASE WHEN execution_status = 'not_executed' THEN 'referenced' ELSE execution_status END,
-            execution_ref = COALESCE(execution_ref, 'wordpress_blog_publish_orchestrator'),
-            updated_at = NOW()
-      WHERE envelope_id = ?`,
-    [envelopeId]
-  ).catch(() => {});
+  return resolved;
 }
 
 async function resolveWpCredential({ plan, brand }, deps = {}) {
@@ -368,7 +330,7 @@ export async function dispatchWordpressBlogPublish(plan = {}, deps = {}) {
       site_id: grant.site_id || null,
       grant_id: grant.grant_id || null,
       grant_status: grant.status,
-      capability_envelope_id: envelope.envelope_id || extractCapabilityEnvelopeId(plan) || null,
+      capability_envelope_id: envelope.envelope_id || extractWordpressCapabilityEnvelopeId(plan) || null,
       envelope_required: true,
       executes_publish: false,
       applies_wordpress_post: false,
@@ -376,7 +338,7 @@ export async function dispatchWordpressBlogPublish(plan = {}, deps = {}) {
     };
   }
 
-  await markCapabilityEnvelopeReferenced(envelope.envelope_id, deps);
+  await markCapabilityEnvelopeReferenced({ pool: deps.pool || getPool(), envelopeId: envelope.envelope_id, executionRef: "wordpress_blog_publish_orchestrator" });
   const created = await createPost({ brand, credential, postType, payload }, deps);
   return { ok: true, status: "completed", credential_status: "resolved", target_key: brand.target_key || plan.target_key || "", site_id: grant.site_id || null, grant_id: grant.grant_id || null, grant_status: grant.status, capability_envelope_id: envelope.envelope_id, envelope_status: envelope.status, post_status: requestedStatus, post_id: created.post_id, link: created.link, readback_status: created.readback_status, result: created, output: { post_id: created.post_id, link: created.link, status: created.status, readback_status: created.readback_status, capability_envelope_id: envelope.envelope_id } };
 }

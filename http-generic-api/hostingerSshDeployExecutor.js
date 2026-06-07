@@ -9,6 +9,12 @@ import { maybeCreateCredentialIntakeRequirement } from "./credentialIntakeEnforc
 import { planRemoteRuntimeDispatchDryRun } from "./remoteRuntime.js";
 import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
 import {
+  capabilityEnvelopeError,
+  extractCapabilityEnvelopeId,
+  markCapabilityEnvelopeReferenced,
+  resolveCapabilityExecutionEnvelope,
+} from "./capabilityResolutionEnvelopeGuard.js";
+import {
   normalizeHostingerSshProbeRunnerMode,
   validateHostingerSshProbeRunnerMode,
   describeHostingerSshProbeRunnerMode,
@@ -271,75 +277,20 @@ async function resolveSshCredential(pool, target, role, input = {}, options = {}
   return String(result.secret);
 }
 
-function extractCapabilityEnvelopeId(input = {}) {
-  return compact(input.capability_envelope_id || input.capabilityEnvelopeId || input.envelope_id || input.envelopeId, 64);
-}
-
 async function resolveCapabilityEnvelopeForHostingerDeploy({ pool, input = {}, target, expectedCommitSha }) {
-  const envelopeId = extractCapabilityEnvelopeId(input);
-  if (!envelopeId) {
-    const err = new Error("Hostinger SSH deploy execution requires a valid capability resolution envelope.");
-    err.status = 403;
-    err.code = "capability_resolution_envelope_required";
-    err.details = { envelope_required: true, secrets_included: false };
-    throw err;
-  }
-  const rows = await safeQuery(
+  const resolved = await resolveCapabilityExecutionEnvelope({
     pool,
-    `SELECT envelope_id, tenant_id, user_id, app_key, capability_key, operation_intent,
-            envelope_status, decision, dispatch_allowed, apply_allowed, approval_required,
-            quota_required, audit_required, readback_required, blocking_gap_count,
-            execution_status, expires_at, secrets_included, envelope_json
-       FROM capability_resolution_envelope_ledger
-      WHERE envelope_id = ?
-      LIMIT 1`,
-    [envelopeId]
-  );
-  const row = rows[0] || null;
-  if (!row) {
-    const err = new Error("Capability resolution envelope was not found.");
-    err.status = 403;
-    err.code = "capability_resolution_envelope_not_found";
-    err.details = { envelope_id: envelopeId, envelope_required: true, secrets_included: false };
-    throw err;
+    source: input,
+    acceptedAppKeys: ["remote_ssh_runtime", "hostinger"],
+    acceptedIntents: ["deploy", "restart", "write", "remote_runtime_deploy", "hostinger_ssh_deploy", "deploy_release"],
+    expectedTenantId: target?.tenant_id,
+    expectedUserId: target?.user_id || input.user_id || input.userId,
+    expectedCommitSha,
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "Capability resolution envelope does not allow Hostinger SSH deploy execution.");
   }
-  const fail = (code, details = {}) => {
-    const err = new Error("Capability resolution envelope does not allow Hostinger SSH deploy execution.");
-    err.status = 403;
-    err.code = code;
-    err.details = { envelope_id: envelopeId, ...details, secrets_included: false };
-    throw err;
-  };
-  if (Number(row.secrets_included || 0) !== 0) fail("capability_resolution_envelope_secret_boundary_failed");
-  if (row.expires_at && new Date(row.expires_at).getTime() <= Date.now()) fail("capability_resolution_envelope_expired");
-  const appKey = compact(row.app_key || "");
-  if (appKey && !["remote_ssh_runtime", "hostinger"].includes(appKey)) fail("capability_resolution_envelope_app_mismatch", { app_key: appKey });
-  if (row.tenant_id && target?.tenant_id && row.tenant_id !== target.tenant_id) fail("capability_resolution_envelope_tenant_mismatch");
-  const targetUser = compact(target?.user_id || input.user_id || input.userId || "", 64);
-  if (row.user_id && targetUser && row.user_id !== targetUser) fail("capability_resolution_envelope_user_mismatch");
-  if (row.envelope_status !== "ready_for_dispatch") fail("capability_resolution_envelope_not_dispatch_ready", { envelope_status: row.envelope_status, decision: row.decision });
-  if (Number(row.dispatch_allowed || 0) !== 1) fail("capability_resolution_envelope_dispatch_not_allowed");
-  if (Number(row.approval_required || 0) === 1) fail("capability_resolution_envelope_approval_required");
-  if (Number(row.blocking_gap_count || 0) > 0) fail("capability_resolution_envelope_has_blocking_gaps", { blocking_gap_count: row.blocking_gap_count });
-  if (!["not_executed", "referenced"].includes(compact(row.execution_status || "not_executed", 64))) fail("capability_resolution_envelope_already_consumed_or_cancelled", { execution_status: row.execution_status });
-  const intent = compact(row.operation_intent || "", 128).toLowerCase();
-  if (intent && !["deploy", "restart", "write", "remote_runtime_deploy", "hostinger_ssh_deploy", "deploy_release"].includes(intent)) fail("capability_resolution_envelope_intent_mismatch", { operation_intent: row.operation_intent });
-  const envelopeJson = parseJson(row.envelope_json, {});
-  const requestedSha = compact(envelopeJson?.request_context?.expected_commit_sha || envelopeJson?.capability?.expected_commit_sha || envelopeJson?.selected_source?.expected_commit_sha || "", 64).toLowerCase();
-  if (requestedSha && requestedSha !== expectedCommitSha) fail("capability_resolution_envelope_commit_mismatch", { expected_commit_sha: expectedCommitSha, envelope_commit_sha: requestedSha });
-  return { ok: true, envelope_id: envelopeId, status: "capability_resolution_envelope_resolved", readback_required: Number(row.readback_required || 0) === 1 };
-}
-
-async function markCapabilityEnvelopeReferenced(pool, envelopeId, executionRef) {
-  if (!envelopeId) return;
-  await pool.query(
-    `UPDATE capability_resolution_envelope_ledger
-        SET execution_status = CASE WHEN execution_status = 'not_executed' THEN 'referenced' ELSE execution_status END,
-            execution_ref = COALESCE(execution_ref, ?),
-            updated_at = NOW()
-      WHERE envelope_id = ?`,
-    [executionRef, envelopeId]
-  ).catch(() => null);
+  return resolved;
 }
 
 async function resolveSshConnectionCredentials(pool, target, input = {}) {
@@ -862,7 +813,7 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     throw err;
   }
   const envelope = await resolveCapabilityEnvelopeForHostingerDeploy({ pool, input, target, expectedCommitSha });
-  await markCapabilityEnvelopeReferenced(pool, envelope.envelope_id, "hostinger_ssh_deploy_release");
+  await markCapabilityEnvelopeReferenced({ pool, envelopeId: envelope.envelope_id, executionRef: "hostinger_ssh_deploy_release" });
 
   const sshConnection = await resolveSshConnectionCredentials(pool, target, input);
   const remoteScript = buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClean, restart });

@@ -7,12 +7,9 @@ const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", i
 
 assert.match(orchestrator, /extractCapabilityEnvelopeId/);
 assert.match(orchestrator, /resolveCapabilityEnvelopeForWordpressWrite/);
-assert.match(orchestrator, /capability_resolution_envelope_ledger/);
+assert.match(orchestrator, /resolveCapabilityExecutionEnvelope/);
+assert.match(orchestrator, /acceptedAppKeys: \["wordpress_rest"\]/);
 assert.match(orchestrator, /capability_resolution_envelope_required/);
-assert.match(orchestrator, /ready_for_dispatch/);
-assert.match(orchestrator, /dispatch_allowed/);
-assert.match(orchestrator, /approval_required/);
-assert.match(orchestrator, /blocking_gap_count/);
 assert.match(orchestrator, /markCapabilityEnvelopeReferenced/);
 assert.match(orchestrator, /createPost\(\{ brand, credential, postType, payload \}/);
 assert.match(orchestrator, /secrets_included: false/);
