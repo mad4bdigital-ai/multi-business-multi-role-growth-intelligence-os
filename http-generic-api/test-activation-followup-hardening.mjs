@@ -46,14 +46,23 @@ assert.ok(followupDoc.includes("credential_intake.completed"));
 assert.ok(followupDoc.includes("secrets_included=false"));
 
 const disallowedOldAliasImports = [];
-const apiEntries = readdirSync(apiRoot, { recursive: true, withFileTypes: true });
-for (const entry of apiEntries) {
-  if (!entry.isFile()) continue;
-  if (!/\.(js|mjs)$/.test(entry.name)) continue;
-  const rel = join(entry.parentPath || "", entry.name).replace(/\\/g, "/");
-  if (rel.includes("node_modules")) continue;
-  const full = new URL(`./${rel}`, apiRoot);
-  const source = readFileSync(full, "utf8");
+function walkFiles(dirUrl, prefix = "") {
+  const entries = readdirSync(dirUrl, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (rel.includes("node_modules")) continue;
+    const childUrl = new URL(`./${rel}`, apiRoot);
+    if (entry.isDirectory()) {
+      files.push(...walkFiles(childUrl, rel));
+    } else if (entry.isFile() && /\.(js|mjs)$/.test(entry.name)) {
+      files.push(rel);
+    }
+  }
+  return files;
+}
+for (const rel of walkFiles(apiRoot)) {
+  const source = readFileSync(new URL(`./${rel}`, apiRoot), "utf8");
   if (rel === "config.js") continue;
   if (rel === "executionResolution.js") continue; // legacy getSheetValues placeholder compatibility.
   if (rel === "test-sheets-range-drift.mjs") continue; // legacy placeholder test.
