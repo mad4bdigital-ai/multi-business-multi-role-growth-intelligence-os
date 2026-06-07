@@ -22,6 +22,8 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (item.startsWith("--confirm=")) args.confirm = item.slice("--confirm=".length);
     else if (item === "--max-tokens") args.maxTokens = Number(argv[++i] || args.maxTokens);
     else if (item.startsWith("--max-tokens=")) args.maxTokens = Number(item.slice("--max-tokens=".length));
+    else if (item === "--timeout-ms") args.timeoutMs = Number(argv[++i] || args.timeoutMs);
+    else if (item.startsWith("--timeout-ms=")) args.timeoutMs = Number(item.slice("--timeout-ms=".length));
   }
   args.maxTokens = Math.min(Math.max(Number(args.maxTokens) || 8, 1), 32);
   return args;
