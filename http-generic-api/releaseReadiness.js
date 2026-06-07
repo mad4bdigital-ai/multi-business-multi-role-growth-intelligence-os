@@ -70,6 +70,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "219_sprint67_gpt_session_turn_batch_write_tool.sql",
   "223_sprint67_gpt_session_conversation_refs.sql",
   "225_sprint67_gpt_session_conversation_ref_primary.sql",
+  "229_sprint67_gpt_session_archive_monitoring.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
@@ -1042,6 +1043,79 @@ async function checkPlatformSecretPromotionMonitoringSafe() {
   }
 }
 
+async function checkGptSessionArchiveMonitoring() {
+  const pool = getPool();
+  const [[summaryViewRow]] = await pool.query(
+    "SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'v_gpt_session_archive_monitoring_summary'"
+  );
+  const [[issuesViewRow]] = await pool.query(
+    "SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'v_gpt_session_archive_monitoring_issues'"
+  );
+  if (!summaryViewRow?.cnt || !issuesViewRow?.cnt) {
+    return {
+      status: "fail",
+      detail: "GPT session archive monitoring views are missing.",
+      views_present: false,
+      monitored_sessions: 0,
+      fail_issue_rows: null,
+      warn_issue_rows: null,
+      issues: [],
+      secrets_included: false,
+    };
+  }
+
+  const [[summary]] = await pool.query(
+    `SELECT monitored_sessions, fail_issue_rows, warn_issue_rows, total_issue_rows,
+            archive_ready_sessions, sessions_with_jsonl, sessions_with_one_primary_ref,
+            sessions_with_multiple_primary_refs, sessions_without_active_ref
+       FROM v_gpt_session_archive_monitoring_summary
+      LIMIT 1`
+  );
+  const failIssueRows = Number(summary?.fail_issue_rows || 0);
+  const warnIssueRows = Number(summary?.warn_issue_rows || 0);
+  const [issues] = await pool.query(
+    `SELECT session_id, issue_code, severity, evidence_json
+       FROM v_gpt_session_archive_monitoring_issues
+      ORDER BY severity, issue_code, session_id
+      LIMIT 50`
+  );
+
+  return {
+    status: failIssueRows > 0 ? "fail" : "pass",
+    detail: failIssueRows > 0
+      ? `GPT session archive monitoring found ${failIssueRows} fail issue row(s) and ${warnIssueRows} warning row(s).`
+      : `GPT session archive monitoring passed for ${Number(summary?.monitored_sessions || 0)} monitored GPT session(s); ${warnIssueRows} warning row(s) are informational.`,
+    views_present: true,
+    monitored_sessions: Number(summary?.monitored_sessions || 0),
+    fail_issue_rows: failIssueRows,
+    warn_issue_rows: warnIssueRows,
+    total_issue_rows: Number(summary?.total_issue_rows || 0),
+    archive_ready_sessions: Number(summary?.archive_ready_sessions || 0),
+    sessions_with_jsonl: Number(summary?.sessions_with_jsonl || 0),
+    sessions_with_one_primary_ref: Number(summary?.sessions_with_one_primary_ref || 0),
+    sessions_with_multiple_primary_refs: Number(summary?.sessions_with_multiple_primary_refs || 0),
+    sessions_without_active_ref: Number(summary?.sessions_without_active_ref || 0),
+    issues,
+    secrets_included: false,
+  };
+}
+
+async function checkGptSessionArchiveMonitoringSafe() {
+  try {
+    return await checkGptSessionArchiveMonitoring();
+  } catch (err) {
+    return {
+      status: "warn",
+      detail: `GPT session archive monitoring unavailable: ${err?.message || "unknown error"}`,
+      monitored_sessions: null,
+      fail_issue_rows: null,
+      warn_issue_rows: null,
+      issues: [],
+      secrets_included: false,
+    };
+  }
+}
+
 async function checkDbConnectivity() {
   try {
     await getPool().query("SELECT 1");
@@ -1483,6 +1557,10 @@ export async function runReleaseReadiness({ persist = false } = {}) {
   if (report.platform_secret_promotion_monitoring.status === "warn" && report.overall === "pass") report.overall = "warn";
   if (report.platform_secret_promotion_monitoring.status === "fail") report.overall = "fail";
 
+  report.gpt_session_archive_monitoring = await checkGptSessionArchiveMonitoringSafe();
+  if (report.gpt_session_archive_monitoring.status === "warn" && report.overall === "pass") report.overall = "warn";
+  if (report.gpt_session_archive_monitoring.status === "fail") report.overall = "fail";
+
   // Runtime policy seed readiness — verifies the live DB has the policy rows
   // required by governedExecutionPreflight. This catches missing seed rows that
   // source-code and migration-file checks alone cannot detect.
@@ -1504,6 +1582,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     report.admin_tool_registry_smoke,
     report.migration_drift,
     report.runtime_policy_seed_readiness,
+    report.gpt_session_archive_monitoring,
     report.graph_memory_diagnostics,
   ];
   report.summary = {
@@ -1539,6 +1618,12 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     migration_drift_candidate_files: report.migration_drift?.migration_apply_plan?.candidate_files || [],
     migration_apply_preflight_status: report.migration_drift?.migration_apply_preflight?.status || null,
     migration_apply_preflight_risk_count: report.migration_drift?.migration_apply_preflight?.risk_count ?? null,
+    gpt_session_archive_monitoring_status: report.gpt_session_archive_monitoring?.status || null,
+    gpt_session_archive_monitored_sessions: report.gpt_session_archive_monitoring?.monitored_sessions ?? null,
+    gpt_session_archive_fail_issue_rows: report.gpt_session_archive_monitoring?.fail_issue_rows ?? null,
+    gpt_session_archive_warn_issue_rows: report.gpt_session_archive_monitoring?.warn_issue_rows ?? null,
+    gpt_session_archive_sessions_with_one_primary_ref: report.gpt_session_archive_monitoring?.sessions_with_one_primary_ref ?? null,
+    gpt_session_archive_sessions_without_active_ref: report.gpt_session_archive_monitoring?.sessions_without_active_ref ?? null,
     graph_memory_resolved: Boolean(report.graph_memory_diagnostics?.resolved),
     graph_memory_asset_count: Number(report.graph_memory_diagnostics?.asset_count || 0),
     secrets_included: false,
@@ -1556,6 +1641,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
         ["governed_migration_ledger", report.governed_migration_ledger],
         ["admin_tool_registry_smoke", report.admin_tool_registry_smoke],
         ["migration_drift", report.migration_drift],
+        ["gpt_session_archive_monitoring", report.gpt_session_archive_monitoring],
         ["graph_memory_diagnostics", report.graph_memory_diagnostics],
       ];
       await Promise.all(entries.map(([key, r]) =>
