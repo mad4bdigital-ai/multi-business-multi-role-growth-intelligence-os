@@ -157,6 +157,57 @@ section("jobRunner — Hostinger SSH probe job dispatch");
   assert("Hostinger probe job returns no secrets", probeJob.result_payload?.secrets_included === false, JSON.stringify(probeJob.result_payload));
 }
 
+section("jobRunner — stuck Hostinger probe job times out and fails safely");
+
+{
+  const stuckProbeJob = {
+    job_id: "job_hostinger_probe_stuck",
+    job_type: HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE,
+    status: "queued",
+    attempt_count: 0,
+    max_attempts: 1,
+    request_payload: {
+      target_id: "target-hostinger",
+      app_key: "auth.mad4b.com",
+      app_path: "/home/u338416126/domains/auth.mad4b.com/nodejs",
+      expected_commit_sha: "8b86c9498b5d327ca51025dbe60a28c85c8dea39",
+      ssh_auth_mode: "password",
+      activate_on_success: true,
+      approval_reason: "approved read-only Hostinger SSH probe timeout guard test",
+      timeout_ms: 120000,
+      secrets_included: false,
+    },
+    parent_action_key: "remote_runtime_hostinger_ssh_probe_worker",
+    endpoint_key: "remote_runtime_hostinger_ssh_probe",
+    target_key: "target-hostinger",
+    route_id: "remote_runtime_hostinger_ssh_probe_queue_worker",
+    target_module: "remote_runtime",
+    target_workflow: "wf_hostinger_ssh_target_probe_queue_worker",
+    brand_name: "",
+    execution_trace_id: "",
+  };
+  const calls = [];
+  const runner = configureJobRunner(
+    {
+      jobRepository: createJobRepository(stuckProbeJob),
+      async executeSiteMigrationJob() { return { success: false, statusCode: 500, payload: { ok: false } }; },
+      async performUniversalServerWriteback(payload) { calls.push({ type: "writeback", payload }); },
+      async logRetryWriteback() {}
+    },
+    {
+      jobExecutionTimeoutMs: 25,
+      async runHostingerSshTargetProbeJob() {
+        return await new Promise(() => {});
+      }
+    }
+  );
+  await runner.executeSingleQueuedJob(stuckProbeJob);
+  assert("stuck Hostinger probe job fails", stuckProbeJob.status === "failed", stuckProbeJob.status);
+  assert("stuck Hostinger probe job has stale timeout code", stuckProbeJob.error_payload?.error?.code === "job_execution_stale_timeout", JSON.stringify(stuckProbeJob.error_payload));
+  assert("stuck Hostinger probe job returns no secrets", stuckProbeJob.error_payload?.secrets_included === false, JSON.stringify(stuckProbeJob.error_payload));
+  assert("stuck Hostinger probe writes async failure evidence", calls.some(call => call.type === "writeback"), JSON.stringify(calls));
+}
+
 section("jobRunner — solver with null sheetsClient fails fast (no retries)");
 
 {
