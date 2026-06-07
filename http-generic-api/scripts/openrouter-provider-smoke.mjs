@@ -159,7 +159,7 @@ export async function runOpenRouterProviderSmoke(options = {}) {
   const callModel = buildCallModel({
     provider: "openrouter",
     api_key: apiKey,
-    model: options.model || "openai/gpt-4o-mini",
+    model: selectedModel,
     max_tokens: options.maxTokens || 8,
     site_url: "https://auth.mad4b.com",
     app_name: "Mad4B Growth Intelligence Platform",
