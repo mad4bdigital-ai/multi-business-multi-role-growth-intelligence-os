@@ -20,11 +20,12 @@ assert.match(executor, /secrets_included: false/);
 assert.doesNotMatch(executor, /decryptToken\(|value_ciphertext|oauth_token|private_key:\s*privateKey/i);
 assert.doesNotMatch(executor, /exec\(/);
 
-const featureFlagIndex = executor.indexOf("if (env[EXECUTOR_FLAG] !== \"true\")");
-const planReadyIndex = executor.indexOf("if (!plan.dispatch_ready)");
-const envelopeGateIndex = executor.indexOf("const envelope = await resolveCapabilityEnvelopeForHostingerDeploy");
-const credentialIndex = executor.indexOf("const sshConnection = await resolveSshConnectionCredentials");
-const sshCommandIndex = executor.indexOf("const sshResult = await runSshCommand");
+const deployFunctionIndex = executor.indexOf("export async function executeHostingerSshDeployRelease");
+const featureFlagIndex = executor.indexOf("if (env[EXECUTOR_FLAG] !== \"true\")", deployFunctionIndex);
+const planReadyIndex = executor.indexOf("if (!plan.dispatch_ready)", deployFunctionIndex);
+const envelopeGateIndex = executor.indexOf("const envelope = await resolveCapabilityEnvelopeForHostingerDeploy", deployFunctionIndex);
+const credentialIndex = executor.indexOf("const sshConnection = await resolveSshConnectionCredentials", deployFunctionIndex);
+const sshCommandIndex = executor.indexOf("const sshResult = await runSshCommand", deployFunctionIndex);
 assert.ok(featureFlagIndex > -1, "Hostinger deploy execution must remain feature-flagged.");
 assert.ok(planReadyIndex > featureFlagIndex, "Dispatch plan readiness must still be checked after feature flag.");
 assert.ok(envelopeGateIndex > planReadyIndex, "Capability envelope must be checked after dispatch dry-run readiness.");
