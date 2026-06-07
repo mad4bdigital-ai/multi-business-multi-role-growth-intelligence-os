@@ -582,7 +582,9 @@ export function createExecutionFacade(deps) {
         toJobSummary,
         TERMINAL_JOB_STATUSES,
         ACTIVE_JOB_STATUSES,
-        normalizeJobStatus
+        normalizeJobStatus,
+        updateJob,
+        nowIso
       });
     },
 
