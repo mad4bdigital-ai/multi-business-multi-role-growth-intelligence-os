@@ -192,6 +192,7 @@ export const testCommands = [
   "node test-summary-development-automation.mjs",
   "node test-openclaude-provider-bridge-routes.mjs",
   "node test-hostinger-ssh-deploy-executor.mjs",
+  "node test-hostinger-deploy-capability-envelope-requirement.mjs",
   "node test-hostinger-ssh-target-probe.mjs",
   "node test-hostinger-ssh-probe-runner-modes.mjs",
   "node test-session-summary-service.mjs",
