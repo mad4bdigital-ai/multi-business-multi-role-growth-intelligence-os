@@ -330,7 +330,7 @@ export async function dispatchWordpressBlogPublish(plan = {}, deps = {}) {
       site_id: grant.site_id || null,
       grant_id: grant.grant_id || null,
       grant_status: grant.status,
-      capability_envelope_id: envelope.envelope_id || extractCapabilityEnvelopeId(plan) || null,
+      capability_envelope_id: envelope.envelope_id || extractWordpressCapabilityEnvelopeId(plan) || null,
       envelope_required: true,
       executes_publish: false,
       applies_wordpress_post: false,
