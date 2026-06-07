@@ -126,6 +126,52 @@ Automation MCP
 
 These cover personal/local tools, tenant app credentials, platform-managed fallback, and high-risk infrastructure runtimes.
 
+## Realistic simulation suite
+
+`dynamic_capability_use_case_simulation_suite_v1` captures realistic, policy-only use cases before schema or runtime expansion. It currently covers:
+
+```text
+freelancer_wordpress_publish_managed_service
+client_owned_wordpress_publish_dedicated
+codex_user_owned_local_review
+codex_platform_managed_fallback_review
+remote_ssh_production_deploy
+hostinger_dns_update
+github_docs_pr_platform_managed
+google_analytics_read_brand_dashboard
+google_ads_budget_change
+google_tag_manager_publish
+n8n_activate_workflow
+make_mcp_trigger_read_only
+browser_visual_inspection
+custom_api_webhook_write
+```
+
+Run the governed simulation tool:
+
+```text
+capability_resolution_simulation_suite
+```
+
+Optional flags:
+
+```text
+--family wordpress
+--scenario freelancer_wordpress_publish_managed_service
+--no-live-registry
+--explain
+```
+
+The simulation suite does not execute tools or provider calls. It compares each scenario to live app registry coverage and reports:
+
+```text
+covered_by_policy
+registry_gap
+policy_gap
+```
+
+Recommended expansions are recorded as proposals only. For example, `workspace_enum_expansion` is explicitly `defer_until_impact_review`, while `budget_and_quota_authority_registry` and `capability_resolution_envelope_ledger` are candidate future schema changes.
+
 ## Dry-run tool
 
 The governed tool is:
