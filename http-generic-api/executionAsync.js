@@ -176,6 +176,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       ? []
       : requestedJobType === TENANT_SSH_CLI_EXECUTE_JOB_TYPE
       ? []
+      : requestedJobType === HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE
+      ? validateHostingerSshTargetProbeJobPayload(requestPayload)
       : validateAsyncJobRequest(requestPayload);
 
   if (body.max_attempts !== undefined) {
