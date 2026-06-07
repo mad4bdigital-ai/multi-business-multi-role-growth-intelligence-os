@@ -172,6 +172,39 @@ function preferredSshAuthMode(input = {}, target = {}) {
   return "private_key";
 }
 
+export function normalizeHostingerSshTargetProbeJobPayload(input = {}) {
+  return {
+    target_id: compact(input.target_id || input.targetId, 64),
+    app_key: compact(input.app_key || input.appKey || "auth.mad4b.com", 191),
+    app_path: assertSafeRemotePath(input.app_path || input.appPath || DEFAULT_AUTH_APP_PATH),
+    expected_commit_sha: compact(input.expected_commit_sha || input.expectedCommitSha || input.commit_sha || input.commitSha || "", 64).toLowerCase(),
+    ssh_auth_mode: compact(input.ssh_auth_mode || input.sshAuthMode || "password", 32).toLowerCase(),
+    activate_on_success: bool(input.activate_on_success || input.activateOnSuccess),
+    approval_reason: compact(input.approval_reason || input.approvalReason || input.break_glass_reason || input.breakGlassReason, 1000),
+    timeout_ms: boundedInt(input.timeout_ms || input.timeoutMs, 120000, 1000, MAX_TIMEOUT_MS),
+    dry_run: false,
+    secrets_included: false,
+  };
+}
+
+export function validateHostingerSshTargetProbeJobPayload(input = {}) {
+  const errors = [];
+  let payload;
+  try { payload = normalizeHostingerSshTargetProbeJobPayload(input); }
+  catch (err) { return [err?.message || "Hostinger SSH probe job payload is invalid."]; }
+  if (!payload.target_id) errors.push("target_id is required.");
+  if (payload.app_key !== "auth.mad4b.com") errors.push("app_key must be auth.mad4b.com.");
+  if (payload.expected_commit_sha && !/^[0-9a-f]{40}$/.test(payload.expected_commit_sha)) errors.push("expected_commit_sha must be a 40-character git SHA when supplied.");
+  if (!SSH_AUTH_MODES.has(payload.ssh_auth_mode)) errors.push("ssh_auth_mode must be password or private_key.");
+  if (payload.approval_reason.length < 20) errors.push("approval_reason with at least 20 characters is required for queued SSH probe execution.");
+  return errors;
+}
+
+export async function runHostingerSshTargetProbeJob(input = {}, deps = {}) {
+  const payload = normalizeHostingerSshTargetProbeJobPayload(input);
+  return await executeHostingerSshTargetProbe({ ...payload, dry_run: false }, deps);
+}
+
 async function resolveSshCredential(pool, target, role, input = {}, options = {}) {
   const result = await resolveEffectiveCredential({
     tenantId: target.tenant_id,
