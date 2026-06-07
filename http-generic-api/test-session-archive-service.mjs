@@ -195,13 +195,15 @@ function flattenParams(value) {
     injectedDeps: deps,
   });
 
-  assert.equal(result.archive_status, "ready_partial");
-  assert.match(result.archive_error, /drive_doc_append/);
-  assert.match(result.archive_error, /secrets_included/);
+  assert.equal(result.archive_status, "ready_rebuilt");
+  assert.equal(result.archive_error, null);
+  assert.equal(result.drive_doc_id, "doc-rebuilt");
   assert(driveWrites.jsonl.includes(fullContent), "JSONL sidecar should still receive full content when Doc append fails");
+  assert(driveWrites.rebuiltDocText.includes(fullContent), "rebuilt Google Doc should be rendered from full JSONL content");
+  assert(driveWrites.rebuiltDocText.includes("rebuilt_from_jsonl"), "rebuilt Google Doc should carry rebuild evidence");
   assert(
-    pool.calls.some((call) => call.sql.includes("archive_status = ?") && call.params[0] === "ready_partial"),
-    "partial Drive writes should mark the session ready_partial rather than write_failed"
+    pool.calls.some((call) => call.sql.includes("archive_status = ?") && call.params[0] === "ready_rebuilt"),
+    "successful Doc rebuild should mark the session ready_rebuilt rather than ready_partial"
   );
 }
 
