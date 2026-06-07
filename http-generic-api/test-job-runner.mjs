@@ -52,6 +52,32 @@ const baseJob = {
   endpoint_key: "site_migrate"
 };
 
+section("jobRunner — continuation metadata");
+
+{
+  const queuedSummary = toJobSummary({
+    ...baseJob,
+    job_type: "http_execute",
+    created_at: "2026-06-07T00:00:00.000Z",
+    updated_at: "2026-06-07T00:00:00.000Z",
+    requested_by: "test",
+    target_key: "target",
+    route_id: "route",
+    target_module: "module",
+    target_workflow: "workflow",
+  });
+  assert("queued summary exposes resume_url", queuedSummary.resume_url === "/jobs/job_123/resume", JSON.stringify(queuedSummary));
+  assert("queued summary exposes continuation metadata", queuedSummary.continuation?.can_resume === true && queuedSummary.continuation?.next_action === "resume_or_tick", JSON.stringify(queuedSummary.continuation));
+  assert("queued summary gives short poll hint", queuedSummary.continuation?.poll_after_ms === 500, JSON.stringify(queuedSummary.continuation));
+  assert("queued summary is explicitly no-secret", queuedSummary.secrets_included === false && queuedSummary.continuation?.secrets_included === false, JSON.stringify(queuedSummary));
+
+  const runningContinuation = buildJobContinuation({ ...baseJob, status: "running" });
+  assert("running continuation asks client to poll", runningContinuation.can_resume === false && runningContinuation.next_action === "poll_status", JSON.stringify(runningContinuation));
+
+  const terminalContinuation = buildJobContinuation({ ...baseJob, status: "succeeded" });
+  assert("terminal continuation asks client to read result", terminalContinuation.terminal === true && terminalContinuation.next_action === "read_result" && terminalContinuation.poll_after_ms === null, JSON.stringify(terminalContinuation));
+}
+
 section("jobRunner — enqueueJob");
 
 {
