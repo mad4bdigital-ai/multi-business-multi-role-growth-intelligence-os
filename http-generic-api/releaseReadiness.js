@@ -80,6 +80,7 @@ const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
   "gpt_session_end",
   "gpt_session_conversation_ref_upsert",
   "gpt_session_conversation_ref_mark_primary",
+  "gpt_session_conversation_ref_capture_current",
   "gpt_session_turn_write",
   "gpt_session_turns_write_batch",
   "local_connector_install_bundle",
