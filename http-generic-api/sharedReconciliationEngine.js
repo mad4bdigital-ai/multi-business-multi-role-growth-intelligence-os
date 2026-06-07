@@ -191,14 +191,16 @@ export function classifyResumeRisk({ checkpoint, actor_context = {}, resource_sc
     return { classification: "unsafe", reason_code: "unknown_checkpoint_engine", resume_allowed: false, requires_reconciliation_before_resume: true };
   }
 
-  const scopeDecision = assertResourceScopeAllowed(actor_context || checkpoint.actor_scope, resource_scope || checkpoint.resource_scope);
+  const effectiveActorContext = Object.keys(actor_context || {}).length ? actor_context : checkpoint.actor_scope;
+  const effectiveResourceScope = Object.keys(resource_scope || {}).length ? resource_scope : checkpoint.resource_scope;
+  const scopeDecision = assertResourceScopeAllowed(effectiveActorContext, effectiveResourceScope);
   if (!scopeDecision.allowed) {
     return { classification: "unsafe", reason_code: scopeDecision.reason_code, resume_allowed: false, requires_reconciliation_before_resume: true };
   }
 
   const currentFingerprint = fingerprintResource({
     resource_type: checkpoint.resource_type,
-    resource_scope: sanitizeContinuationPayload(resource_scope || checkpoint.resource_scope),
+    resource_scope: sanitizeContinuationPayload(effectiveResourceScope),
     resource_state: current_resource_state,
   });
 
