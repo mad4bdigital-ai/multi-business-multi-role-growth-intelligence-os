@@ -10,6 +10,7 @@ import {
   pollExecutionJobResult,
   submitGenericExecutionJob,
   submitSiteMigrationJob,
+  resumeExecutionJob,
   tickExecutionJob
 } from "./executionAsync.js";
 
