@@ -324,6 +324,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "connected_execution_worker"
         : isTenantSshCliExecuteJob
         ? "tenant_ssh_cli_worker"
+        : isHostingerSshTargetProbeJob
+        ? "remote_runtime_hostinger_ssh_probe_worker"
         : String(requestPayload.parent_action_key || "").trim(),
     endpoint_key:
       normalizedJobType === "site_migration"
@@ -334,6 +336,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "connected_execution_resume_action"
         : isTenantSshCliExecuteJob
         ? "tenant_ssh_cli_allowlisted_execute"
+        : isHostingerSshTargetProbeJob
+        ? "remote_runtime_hostinger_ssh_probe"
         : String(requestPayload.endpoint_key || "").trim(),
     route_id:
       normalizedJobType === "site_migration"
@@ -344,6 +348,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "connected_execution_resume_action_worker_bridge"
         : isTenantSshCliExecuteJob
         ? "tenant_ssh_cli_dedicated_worker_runtime"
+        : isHostingerSshTargetProbeJob
+        ? "remote_runtime_hostinger_ssh_probe_queue_worker"
         : String(requestPayload.route_id || "").trim(),
     target_module:
       normalizedJobType === "site_migration"
@@ -354,6 +360,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "connected_execution"
         : isTenantSshCliExecuteJob
         ? "tenant_infrastructure"
+        : isHostingerSshTargetProbeJob
+        ? "remote_runtime"
         : String(requestPayload.target_module || "").trim(),
     target_workflow:
       normalizedJobType === "site_migration"
@@ -364,6 +372,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
         ? "wf_connected_execution_resume_action"
         : isTenantSshCliExecuteJob
         ? "wf_tenant_ssh_cli_allowlisted_execute"
+        : isHostingerSshTargetProbeJob
+        ? "wf_hostinger_ssh_target_probe_queue_worker"
         : String(requestPayload.target_workflow || "").trim(),
     brand_name:
       normalizedJobType === "site_migration"
