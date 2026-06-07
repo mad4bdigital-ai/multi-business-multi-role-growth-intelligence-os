@@ -11,6 +11,12 @@ import {
   normalizeHostingerSshTargetProbeJobPayload,
   validateHostingerSshTargetProbeJobPayload,
 } from "./hostingerSshDeployExecutor.js";
+import {
+  HOSTINGER_SSH_PROBE_RUNNER_MODES,
+  describeHostingerSshProbeRunnerMode,
+  normalizeHostingerSshProbeRunnerMode,
+  startDetachedHostingerSshProbeRunner,
+} from "./hostingerSshProbeRunnerModes.js";
 
 export async function submitSiteMigrationJob(reqBody, requestedBy, idempotencyKey, deps = {}) {
   const {
@@ -396,6 +402,8 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
       : isHostingerSshTargetProbeJob
       ? hostingerSshTargetProbePayload
       : requestPayload,
+    runner_mode: isHostingerSshTargetProbeJob ? normalizeHostingerSshProbeRunnerMode(hostingerSshTargetProbePayload.runner_mode) : "",
+    runner_mode_evidence: isHostingerSshTargetProbeJob ? describeHostingerSshProbeRunnerMode(hostingerSshTargetProbePayload.runner_mode) : null,
     attempt_count: 0,
     max_attempts: normalizeMaxAttempts(body.max_attempts),
     result_payload: null,
@@ -444,13 +452,31 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
     endpoint_key: job.endpoint_key
   });
 
+  if (isHostingerSshTargetProbeJob) {
+    const runnerMode = normalizeHostingerSshProbeRunnerMode(job.runner_mode || hostingerSshTargetProbePayload.runner_mode);
+    if (runnerMode === HOSTINGER_SSH_PROBE_RUNNER_MODES.DETACHED_PROCESS) {
+      const detached = startDetachedHostingerSshProbeRunner({ jobId: job.job_id, mode: runnerMode, reason: hostingerSshTargetProbePayload.approval_reason });
+      if (!detached?.ok) {
+        const failure = await failAsyncSubmission(jobRepository, idempotencyRepository, job, detached?.error, idempotencyLookupKey);
+        return { status: 503, body: failure };
+      }
+      return { status: 202, body: { ...toJobSummary(job), runner: detached, runner_mode: runnerMode, runner_mode_evidence: job.runner_mode_evidence, queued_in_bullmq: false, secrets_included: false } };
+    }
+    if (runnerMode === HOSTINGER_SSH_PROBE_RUNNER_MODES.CRON_WORKER) {
+      return { status: 202, body: { ...toJobSummary(job), runner_mode: runnerMode, runner_mode_evidence: job.runner_mode_evidence, cron_claim_required: true, cron_command: "node scripts/hostingerSshProbeDetachedRunner.mjs --mode cron_worker --limit 5", queued_in_bullmq: false, secrets_included: false } };
+    }
+    if (runnerMode === HOSTINGER_SSH_PROBE_RUNNER_MODES.EXTERNAL_RUNNER) {
+      return { status: 202, body: { ...toJobSummary(job), runner_mode: runnerMode, runner_mode_evidence: job.runner_mode_evidence, external_claim_required: true, external_runner_contract: { job_type: HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE, claim_by_job_id: job.job_id, status_url: `/jobs/${job.job_id}`, result_url: `/jobs/${job.job_id}/result`, no_secret_response: true }, queued_in_bullmq: false, secrets_included: false } };
+    }
+  }
+
   const enqueueResult = await enqueueJob(job.job_id);
   if (!enqueueResult?.ok) {
     const failure = await failAsyncSubmission(jobRepository, idempotencyRepository, job, enqueueResult?.error, idempotencyLookupKey);
     return { status: 503, body: failure };
   }
 
-  return { status: 202, body: toJobSummary(job) };
+  return { status: 202, body: { ...toJobSummary(job), runner_mode: job.runner_mode || null, runner_mode_evidence: job.runner_mode_evidence || null } };
 }
 
 export async function getExecutionJob(jobId, deps = {}) {

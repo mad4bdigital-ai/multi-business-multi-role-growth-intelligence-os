@@ -96,6 +96,8 @@ export function toJobSummary(job) {
     runtime_classification: job.runtime_classification || null,
     recovery: job.recovery || null,
     operator_view: job.operator_view || null,
+    runner_mode: job.runner_mode || job.request_payload?.runner_mode || null,
+    runner_mode_evidence: job.runner_mode_evidence || null,
     activation_status: job.runtime_classification?.activation_status || "",
     status_url: `/jobs/${job.job_id}`,
     result_url: `/jobs/${job.job_id}/result`

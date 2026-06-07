@@ -8,6 +8,11 @@ import { resolveEffectiveCredential } from "./credentialResolver.js";
 import { maybeCreateCredentialIntakeRequirement } from "./credentialIntakeEnforcement.js";
 import { planRemoteRuntimeDispatchDryRun } from "./remoteRuntime.js";
 import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
+import {
+  normalizeHostingerSshProbeRunnerMode,
+  validateHostingerSshProbeRunnerMode,
+  describeHostingerSshProbeRunnerMode,
+} from "./hostingerSshProbeRunnerModes.js";
 
 const DEFAULT_TIMEOUT_MS = 120000;
 const DEFAULT_PROBE_TIMEOUT_MS = 45000;
@@ -188,6 +193,7 @@ export function normalizeHostingerSshTargetProbeJobPayload(input = {}) {
     activate_on_success: bool(input.activate_on_success || input.activateOnSuccess),
     approval_reason: compact(input.approval_reason || input.approvalReason || input.break_glass_reason || input.breakGlassReason, 1000),
     timeout_ms: boundedInt(input.timeout_ms || input.timeoutMs, DEFAULT_PROBE_TIMEOUT_MS, 1000, MAX_PROBE_TIMEOUT_MS),
+    runner_mode: normalizeHostingerSshProbeRunnerMode(input.runner_mode || input.runnerMode || input.execution_mode || input.executionMode || "queue_worker"),
     dry_run: false,
     secrets_included: false,
   };
@@ -202,6 +208,7 @@ export function validateHostingerSshTargetProbeJobPayload(input = {}) {
   if (payload.app_key !== "auth.mad4b.com") errors.push("app_key must be auth.mad4b.com.");
   if (payload.expected_commit_sha && !/^[0-9a-f]{40}$/.test(payload.expected_commit_sha)) errors.push("expected_commit_sha must be a 40-character git SHA when supplied.");
   if (!SSH_AUTH_MODES.has(payload.ssh_auth_mode)) errors.push("ssh_auth_mode must be password or private_key.");
+  errors.push(...validateHostingerSshProbeRunnerMode(payload.runner_mode));
   if (payload.approval_reason.length < 20) errors.push("approval_reason with at least 20 characters is required for queued SSH probe execution.");
   return errors;
 }
