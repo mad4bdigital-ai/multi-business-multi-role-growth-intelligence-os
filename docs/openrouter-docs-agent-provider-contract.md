@@ -63,12 +63,23 @@ perform native GitHub mutations directly from the model
 
 ## Model profile
 
-The registry stores two planned model profiles:
+The registry stores two active model profiles:
 
 - `openrouter_docs_agent_writer_v1` for drafting documentation patches.
 - `openrouter_docs_agent_reviewer_v1` for reviewing documentation patches and required-doc coverage.
 
-The default model slug is stored as `~openai/gpt-latest` with `openai/gpt-4o-mini` as a cost-aware fallback. These are registry hints only; the runtime orchestrator must check current availability, cost policy, and credential status before dispatch.
+Model selection is controlled by `openrouter_model_selection_policy_v1`, not by hardcoded script defaults. The policy stores:
+
+```text
+provider_key = openrouter_openai_compatible
+default_model_slug = openai/gpt-4o-mini
+fallback_model_slug = openai/gpt-4o-mini
+task_overrides.docs_agent_writer = openai/gpt-4o-mini
+task_overrides.docs_agent_reviewer = openai/gpt-4o-mini
+task_overrides.provider_smoke = openai/gpt-4o-mini
+```
+
+Use the governed `openrouter_model_policy` tool to change model slugs. New slugs must be added to `allowed_model_slugs` and updates require `--confirm=SET_OPENROUTER_MODEL_POLICY`. The runtime smoke tool uses this policy when `--model` is not supplied and rejects unallowlisted runtime overrides.
 
 ## Secret boundary
 

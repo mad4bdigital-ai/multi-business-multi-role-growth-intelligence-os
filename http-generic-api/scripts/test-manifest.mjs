@@ -3,6 +3,7 @@ export const testCommands = [
   "node test-docs-impact-classifier.mjs",
   "node test-openrouter-docs-agent-provider-contract.mjs",
   "node test-openrouter-provider-live-smoke.mjs",
+  "node test-openrouter-model-policy-control.mjs",
   "node test-dynamic-platform-secret-promotion.mjs",
   "node test-db-collation-guard.mjs",
   "node test-agent-runtime-provider-selection.mjs",

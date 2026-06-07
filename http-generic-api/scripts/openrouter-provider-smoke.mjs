@@ -7,7 +7,7 @@ const CONFIRM_PROMOTE = "PROMOTE_OPENROUTER_PROVIDER_ACTIVE_AFTER_LIVE_SMOKE";
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = {
-    model: "openai/gpt-4o-mini",
+    model: "",
     promoteActive: false,
     confirm: "",
     maxTokens: 8,
@@ -51,6 +51,12 @@ async function loadOpenRouterApiKey(pool) {
   return { apiKey: decryptToken(row.value_ciphertext), hasHash: Boolean(row.has_hash) };
 }
 
+function safeParseJson(raw) {
+  if (!raw) return null;
+  if (typeof raw === "object") return raw;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
 async function readRuntimeContract(pool) {
   const [rows] = await pool.query(
     `SELECT config_json
@@ -58,8 +64,36 @@ async function readRuntimeContract(pool) {
       WHERE config_key = 'docs_agent_openrouter_instruction_contract_v1'
       LIMIT 1`
   );
-  const raw = rows[0]?.config_json;
-  try { return raw ? JSON.parse(raw) : {}; } catch { return {}; }
+  return safeParseJson(rows[0]?.config_json) || {};
+}
+
+async function readModelPolicy(pool) {
+  const [rows] = await pool.query(
+    `SELECT config_json
+       FROM platform_runtime_config
+      WHERE config_key = 'openrouter_model_selection_policy_v1'
+      LIMIT 1`
+  );
+  const policy = safeParseJson(rows[0]?.config_json) || {};
+  const allowed = Array.isArray(policy.allowed_model_slugs) ? policy.allowed_model_slugs.map((item) => String(item || "").trim()).filter(Boolean) : [];
+  return {
+    default_model_slug: String(policy.default_model_slug || "openai/gpt-4o-mini"),
+    task_overrides: policy.task_overrides && typeof policy.task_overrides === "object" ? policy.task_overrides : {},
+    allowed_model_slugs: allowed.length ? allowed : ["openai/gpt-4o-mini"],
+    require_allowlist: policy.require_allowlist !== false,
+    allow_unlisted_runtime_override: policy.allow_unlisted_runtime_override === true,
+    secrets_included: false,
+  };
+}
+
+function resolveSmokeModel({ explicitModel = "", policy = {} } = {}) {
+  const selected = String(explicitModel || policy.task_overrides?.provider_smoke || policy.default_model_slug || "openai/gpt-4o-mini").trim();
+  if (!/^[A-Za-z0-9._~/:+\-]{2,160}$/.test(selected)) fail("invalid_openrouter_model_slug", `Invalid OpenRouter model slug: ${selected}`);
+  const allowed = Array.isArray(policy.allowed_model_slugs) ? policy.allowed_model_slugs : [];
+  if (policy.require_allowlist !== false && !policy.allow_unlisted_runtime_override && !allowed.includes(selected)) {
+    fail("openrouter_model_not_allowlisted", `Model ${selected} is not in openrouter_model_selection_policy_v1.allowed_model_slugs`, { selected_model: selected, allowed_model_slugs: allowed });
+  }
+  return selected;
 }
 
 async function updateSmokeStatus(pool, { ok, model, tokensUsed, promoted, errorCode = null }) {
@@ -112,6 +146,8 @@ async function promoteActive(pool) {
 export async function runOpenRouterProviderSmoke(options = {}) {
   const pool = getPool();
   const contract = await readRuntimeContract(pool);
+  const modelPolicy = await readModelPolicy(pool);
+  const selectedModel = resolveSmokeModel({ explicitModel: options.model, policy: modelPolicy });
   const { apiKey, hasHash } = await loadOpenRouterApiKey(pool);
   if (!apiKey || apiKey.length < 16) fail("openrouter_api_key_invalid_shape", "OpenRouter API key failed local shape validation");
 
@@ -123,7 +159,7 @@ export async function runOpenRouterProviderSmoke(options = {}) {
   const callModel = buildCallModel({
     provider: "openrouter",
     api_key: apiKey,
-    model: options.model || "openai/gpt-4o-mini",
+    model: selectedModel,
     max_tokens: options.maxTokens || 8,
     site_url: "https://auth.mad4b.com",
     app_name: "Mad4B Growth Intelligence Platform",
@@ -139,7 +175,7 @@ export async function runOpenRouterProviderSmoke(options = {}) {
     ], []);
   } catch (err) {
     const errorCode = err?.name === "TimeoutError" ? "openrouter_live_smoke_timeout" : "openrouter_live_smoke_failed";
-    await updateSmokeStatus(pool, { ok: false, model: options.model, tokensUsed: 0, promoted: false, errorCode }).catch(() => {});
+    await updateSmokeStatus(pool, { ok: false, model: selectedModel, tokensUsed: 0, promoted: false, errorCode }).catch(() => {});
     fail(errorCode, err.message || "OpenRouter live smoke failed", { status: err.status || null, timeout_ms: timeoutMs });
   }
 
@@ -152,12 +188,13 @@ export async function runOpenRouterProviderSmoke(options = {}) {
     fail("openrouter_active_promotion_confirmation_required", `Use --confirm ${CONFIRM_PROMOTE} with --promote-active to update provider/model statuses`, { expected_confirm: CONFIRM_PROMOTE });
   }
   if (shouldPromote) await promoteActive(pool);
-  await updateSmokeStatus(pool, { ok: true, model: options.model, tokensUsed: response?.tokens_used || 0, promoted: shouldPromote });
+  await updateSmokeStatus(pool, { ok: true, model: selectedModel, tokensUsed: response?.tokens_used || 0, promoted: shouldPromote });
 
   return {
     ok: true,
     provider_key: "openrouter_openai_compatible",
-    model: options.model,
+    model: selectedModel,
+    model_source: options.model ? "runtime_override" : "openrouter_model_selection_policy_v1",
     timeout_ms: timeoutMs,
     response_nonempty: content.length > 0,
     response_preview: content.slice(0, 12),
