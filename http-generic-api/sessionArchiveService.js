@@ -204,6 +204,72 @@ function buildTranscriptSection({ role, content, turnIndex, timestamp, runtimeEv
   ].join("\n");
 }
 
+function parseJsonlRecords(text = "") {
+  return String(text || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      try { return JSON.parse(line); } catch { return null; }
+    })
+    .filter(Boolean);
+}
+
+function renderTranscriptTextFromJsonl(session = {}, jsonlText = "") {
+  const records = parseJsonlRecords(jsonlText);
+  const heading = [
+    `Session ${session.session_id}`,
+    `Tenant: ${session.tenant_id || PLATFORM_TENANT_ID}`,
+    `User: ${session.user_id || "platform_admin"}`,
+    `Rebuilt from JSONL: ${new Date().toISOString()}`,
+    "",
+  ];
+  const sections = records.map((record) => buildTranscriptSection({
+    role: record.role || record.event_type || "unknown",
+    content: record.content || "",
+    turnIndex: record.turn_index ?? "unknown",
+    timestamp: record.created_at || "unknown",
+    runtimeEvent: {
+      event_id: record.event_id || null,
+      session_id: record.session_id || session.session_id,
+      turn_id: record.turn_id || null,
+      turn_index: record.turn_index ?? null,
+      role: record.role || record.event_type || "unknown",
+      action_key: record.action_key || null,
+      content_sha256: record.content_sha256 || null,
+      rebuilt_from_jsonl: true,
+      secrets_included: false,
+    },
+  }));
+  return [...heading, ...sections].join("\n");
+}
+
+async function rebuildTranscriptDocFromJsonl({ pool, session, archive, deps, timestamp }) {
+  if (!archive?.drive_jsonl_id || !archive?.drive_folder_id || !deps.createGoogleDocFromTextInDrive) return null;
+  const jsonlText = await deps.fetchDriveContent(archive.drive_jsonl_id);
+  const transcriptText = renderTranscriptTextFromJsonl(session, jsonlText);
+  const safeTimestamp = String(timestamp || new Date().toISOString()).replace(/[:.]/g, "-");
+  const rebuilt = await deps.createGoogleDocFromTextInDrive(
+    `Session Transcript Rebuilt ${safeTimestamp}`,
+    archive.drive_folder_id,
+    transcriptText
+  );
+  archive.drive_doc_id = rebuilt.drive_file_id;
+  archive.drive_doc_url = rebuilt.drive_web_url || null;
+  await pool.query(
+    `UPDATE \`customer_sessions\`
+     SET drive_doc_id = ?, drive_doc_url = ?, archive_last_written_at = NOW()
+     WHERE session_id = ?`,
+    [archive.drive_doc_id, archive.drive_doc_url, session.session_id]
+  );
+  return {
+    drive_doc_id: archive.drive_doc_id,
+    drive_doc_url: archive.drive_doc_url,
+    rebuilt_from_jsonl: true,
+    secrets_included: false,
+  };
+}
+
 export async function recordGptSessionTurn({
   pool,
   session,
