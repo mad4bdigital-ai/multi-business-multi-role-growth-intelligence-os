@@ -71,6 +71,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "223_sprint67_gpt_session_conversation_refs.sql",
   "225_sprint67_gpt_session_conversation_ref_primary.sql",
   "229_sprint67_gpt_session_archive_monitoring.sql",
+  "230_sprint67_gpt_session_conversation_ref_capture_current.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
@@ -79,6 +80,7 @@ const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
   "gpt_session_end",
   "gpt_session_conversation_ref_upsert",
   "gpt_session_conversation_ref_mark_primary",
+  "gpt_session_conversation_ref_capture_current",
   "gpt_session_turn_write",
   "gpt_session_turns_write_batch",
   "local_connector_install_bundle",

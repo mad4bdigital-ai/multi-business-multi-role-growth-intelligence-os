@@ -5,6 +5,7 @@ const routes = readFileSync(new URL("./routes/gptSessionRoutes.js", import.meta.
 const activationRoutes = readFileSync(new URL("./routes/activationRoutes.js", import.meta.url), "utf8");
 const migration = readFileSync(new URL("./migrations/223_sprint67_gpt_session_conversation_refs.sql", import.meta.url), "utf8");
 const primaryMigration = readFileSync(new URL("./migrations/225_sprint67_gpt_session_conversation_ref_primary.sql", import.meta.url), "utf8");
+const captureMigration = readFileSync(new URL("./migrations/230_sprint67_gpt_session_conversation_ref_capture_current.sql", import.meta.url), "utf8");
 const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
 const readiness = readFileSync(new URL("./releaseReadiness.js", import.meta.url), "utf8");
 
@@ -15,6 +16,14 @@ assert.ok(routes.includes("g-69b6e4de8fd88191ac132362e1ee300e"));
 assert.ok(routes.includes("mad4b-growth-intelligence-tenant"));
 assert.ok(routes.includes('router.post("/gpt/sessions/:id/conversation-ref"'));
 assert.ok(routes.includes('router.post("/gpt/sessions/:id/conversation-ref/mark-primary"'));
+assert.ok(routes.includes('router.post("/gpt/sessions/:id/conversation-ref/capture-current"'));
+assert.ok(routes.includes("buildConversationRefCaptureCurrentInput"));
+assert.ok(routes.includes("missing_current_chatgpt_url"));
+assert.ok(routes.includes("invalid_capture_source"));
+assert.ok(routes.includes("conversation_ref_capture_failed"));
+assert.ok(routes.includes("current_url"));
+assert.ok(routes.includes("active_tab_url"));
+assert.ok(routes.includes("location_href"));
 assert.ok(routes.includes("parseChatGptUrl"));
 assert.ok(routes.includes("personal_conversation_url"));
 assert.ok(routes.includes("share_url"));
@@ -55,11 +64,22 @@ assert.ok(primaryMigration.includes("/gpt/sessions/{id}/conversation-ref/mark-pr
 assert.ok(primaryMigration.includes("tenant_platform_endpoint_tools"));
 assert.doesNotMatch(primaryMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 
+assert.ok(captureMigration.includes("gpt_session_conversation_ref_capture_current"));
+assert.ok(captureMigration.includes("/gpt/sessions/{id}/conversation-ref/capture-current"));
+assert.ok(captureMigration.includes("browser_connector"));
+assert.ok(captureMigration.includes("browser_extension"));
+assert.ok(captureMigration.includes("admin_platform_endpoint_tools"));
+assert.ok(captureMigration.includes("tenant_platform_endpoint_tools"));
+assert.doesNotMatch(captureMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
+
 assert.ok(runner.includes("223_sprint67_gpt_session_conversation_refs.sql"));
 assert.ok(runner.includes("225_sprint67_gpt_session_conversation_ref_primary.sql"));
+assert.ok(runner.includes("230_sprint67_gpt_session_conversation_ref_capture_current.sql"));
 assert.ok(readiness.includes("223_sprint67_gpt_session_conversation_refs.sql"));
 assert.ok(readiness.includes("225_sprint67_gpt_session_conversation_ref_primary.sql"));
+assert.ok(readiness.includes("230_sprint67_gpt_session_conversation_ref_capture_current.sql"));
 assert.ok(readiness.includes("gpt_session_conversation_ref_upsert"));
 assert.ok(readiness.includes("gpt_session_conversation_ref_mark_primary"));
+assert.ok(readiness.includes("gpt_session_conversation_ref_capture_current"));
 
 console.log("GPT session conversation reference tests passed");
