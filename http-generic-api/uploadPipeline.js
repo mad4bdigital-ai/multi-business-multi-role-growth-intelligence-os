@@ -170,11 +170,38 @@ export async function uploadContentToDrive(content, filename, mimeType, userEmai
   };
 }
 
-export async function createGoogleDocInDrive(name, parentId, initialText = "") {
+export async function createGoogleDocFromTextInDrive(name, parentId, text = "") {
   if (!parentId) throw new Error("parentId is required to create a Google Doc");
   const drive = getDrive();
   const safeName = String(name || "Session Transcript").replace(/[^\w.\- ]/g, "_");
+  const created = await drive.files.create({
+    requestBody: {
+      name: safeName,
+      parents: [parentId],
+      mimeType: "application/vnd.google-apps.document",
+    },
+    media: {
+      mimeType: "text/plain",
+      body: Readable.from([text || ""]),
+    },
+    supportsAllDrives: true,
+    fields: "id,webViewLink,name,mimeType",
+  });
+  return {
+    drive_file_id: created.data.id,
+    drive_web_url: created.data.webViewLink || null,
+    name: created.data.name,
+  };
+}
 
+export async function createGoogleDocInDrive(name, parentId, initialText = "") {
+  if (!parentId) throw new Error("parentId is required to create a Google Doc");
+  if (initialText) {
+    return createGoogleDocFromTextInDrive(name, parentId, initialText);
+  }
+
+  const drive = getDrive();
+  const safeName = String(name || "Session Transcript").replace(/[^\w.\- ]/g, "_");
   const created = await drive.files.create({
     requestBody: {
       name: safeName,
@@ -184,10 +211,6 @@ export async function createGoogleDocInDrive(name, parentId, initialText = "") {
     supportsAllDrives: true,
     fields: "id,webViewLink,name,mimeType",
   });
-
-  if (initialText) {
-    await appendTextToGoogleDoc(created.data.id, initialText);
-  }
 
   return {
     drive_file_id: created.data.id,
