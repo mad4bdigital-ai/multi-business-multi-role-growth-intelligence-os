@@ -841,7 +841,7 @@ export function buildDevAgentRoutes(deps) {
           mode: "dry_run_no_provider_call",
           contract_key: "openclaude_provider_bridge_contract_v1",
           runtime_key: "openclaude_essam_local_v1",
-          profile_key: "openclaude_essam_platform_bridge_v1",
+          profile_key: body.profile_key || "openclaude_essam_openrouter_bridge_v1",
           provider_dispatch_attempted: false,
           local_execution_attempted: false,
           repo_mutation_allowed: false,
