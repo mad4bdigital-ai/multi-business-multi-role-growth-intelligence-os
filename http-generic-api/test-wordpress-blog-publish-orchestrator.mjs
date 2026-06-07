@@ -6,7 +6,7 @@ import {
   __test__,
 } from "./wordpressBlogPublishOrchestrator.js";
 
-function makePool({ brands = [], connections = [], cmsSites = [], cmsGrants = [], workspaceGrants = [], insertedIntake = [] } = {}) {
+function makePool({ brands = [], connections = [], cmsSites = [], cmsGrants = [], workspaceGrants = [], envelopes = [], insertedIntake = [], envelopeUpdates = [] } = {}) {
   return {
     async query(sql, params = []) {
       const compact = String(sql).replace(/\s+/g, " ");
