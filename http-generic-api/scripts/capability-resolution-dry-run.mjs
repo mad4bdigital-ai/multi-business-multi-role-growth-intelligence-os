@@ -238,7 +238,22 @@ function deriveSourceTiers({ appMap = [], connections = [], credentialBindings =
   if (!sourceTiers.length && hasBinding) sourceTiers.push("tenant_managed");
 
   const configuredOrder = Array.isArray(policy?.source_tier_priority_default) ? policy.source_tier_priority_default : [];
-  const order = configuredOrder.length ? configuredOrder : [
+  const riskAwareOrder = ["critical", "high"].includes(operationRisk)
+    ? [
+        "client_dedicated",
+        "remote_dedicated_runtime",
+        "brand_managed",
+        "tenant_managed",
+        "workspace_owner_managed",
+        "freelancer_managed_service",
+        "agency_managed_service",
+        "local_device_runtime",
+        "user_owned_personal",
+        "platform_managed_fallback",
+        "blocked_requires_setup",
+      ]
+    : null;
+  const order = riskAwareOrder || (configuredOrder.length ? configuredOrder : [
     "client_dedicated",
     "brand_managed",
     "user_owned_personal",
@@ -250,7 +265,7 @@ function deriveSourceTiers({ appMap = [], connections = [], credentialBindings =
     "local_device_runtime",
     "platform_managed_fallback",
     "blocked_requires_setup",
-  ];
+  ]);
   const uniqueTiers = unique(sourceTiers);
   const selected = order.find((tier) => uniqueTiers.includes(tier)) || (operationRisk === "low" && uniqueTiers.includes("platform_managed_fallback") ? "platform_managed_fallback" : null);
   return {
@@ -266,7 +281,7 @@ function authorityStatus({ workspace, grants = [], brandKey, brandCore, activity
   const grantPermissions = new Set(grants.map((grant) => grant.permission));
   const strongGrant = ["owner", "admin", "manage", "operate", "edit"].some((permission) => grantPermissions.has(permission));
   if (workspace) passed.push("workspace_resolved");
-  else missing.push("workspace_context_missing_or_unresolved");
+  else if (["high", "critical"].includes(risk)) missing.push("workspace_context_missing_or_unresolved");
 
   if (grants.length) passed.push("workspace_resource_grant_present");
   else if (["high", "critical"].includes(risk)) missing.push("workspace_resource_grant_missing_for_high_risk_operation");
