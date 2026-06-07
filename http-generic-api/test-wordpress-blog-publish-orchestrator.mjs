@@ -41,6 +41,14 @@ function makePool({ brands = [], connections = [], cmsSites = [], cmsGrants = []
           ((row.resource_type === "site" && row.resource_ref === siteId) || (row.resource_type === "workspace" && row.resource_ref === workspaceRef))
         ))];
       }
+      if (compact.includes("FROM capability_resolution_envelope_ledger")) {
+        const [envelopeId] = params;
+        return [envelopes.filter((row) => row.envelope_id === envelopeId).slice(0, 1)];
+      }
+      if (compact.includes("UPDATE capability_resolution_envelope_ledger")) {
+        envelopeUpdates.push({ sql: compact, params });
+        return [{ affectedRows: 1, changedRows: 1 }];
+      }
       if (compact.includes("FROM `credential_bindings`")) return [[]];
       if (compact.includes("FROM `user_app_connections`")) {
         const [connectionId] = params;
