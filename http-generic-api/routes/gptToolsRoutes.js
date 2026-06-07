@@ -21,6 +21,11 @@ import {
   markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
 } from "../capabilityResolutionEnvelopeGuard.js";
+import {
+  capabilityEnvelopeError,
+  markCapabilityEnvelopeReferenced,
+  resolveCapabilityExecutionEnvelope,
+} from "../capabilityResolutionEnvelopeGuard.js";
 
 const execFileAsync = promisify(execFile);
 
