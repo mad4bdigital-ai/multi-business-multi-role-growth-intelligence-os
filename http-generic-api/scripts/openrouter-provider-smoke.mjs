@@ -7,7 +7,7 @@ const CONFIRM_PROMOTE = "PROMOTE_OPENROUTER_PROVIDER_ACTIVE_AFTER_LIVE_SMOKE";
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = {
-    model: "openai/gpt-4o-mini",
+    model: "",
     promoteActive: false,
     confirm: "",
     maxTokens: 8,
