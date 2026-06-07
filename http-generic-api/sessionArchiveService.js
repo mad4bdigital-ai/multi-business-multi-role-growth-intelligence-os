@@ -257,23 +257,49 @@ export async function recordGptSessionTurn({
     includeContent: true,
   });
   let archiveResult = { configured: false, archive: null };
+  let archiveStatus = "not_configured";
   let archiveError = null;
+  const archiveErrors = [];
 
   try {
     archiveResult = await ensureSessionArchive(pool, session, deps);
     if (archiveResult.configured) {
-      await deps.appendTextToGoogleDoc(
-        archiveResult.archive.drive_doc_id,
-        buildTranscriptSection({ role, content, turnIndex, timestamp, runtimeEvent: docRuntimeEvent })
-      );
-      await appendJsonlLine(
-        archiveResult.archive,
-        JSON.stringify(jsonlRuntimeEvent),
-        deps
-      );
-      await updateArchiveStatus(pool, session.session_id, "ready");
+      let docWritten = false;
+      let jsonlWritten = false;
+      try {
+        await deps.appendTextToGoogleDoc(
+          archiveResult.archive.drive_doc_id,
+          buildTranscriptSection({ role, content, turnIndex, timestamp, runtimeEvent: docRuntimeEvent })
+        );
+        docWritten = true;
+      } catch (err) {
+        archiveErrors.push({ stage: "drive_doc_append", message: err.message });
+      }
+      try {
+        await appendJsonlLine(
+          archiveResult.archive,
+          JSON.stringify(jsonlRuntimeEvent),
+          deps
+        );
+        jsonlWritten = true;
+      } catch (err) {
+        archiveErrors.push({ stage: "drive_jsonl_append", message: err.message });
+      }
+      if (docWritten && jsonlWritten) {
+        archiveStatus = "ready";
+        await updateArchiveStatus(pool, session.session_id, "ready");
+      } else if (docWritten || jsonlWritten) {
+        archiveStatus = "ready_partial";
+        archiveError = new Error(JSON.stringify({ status: "ready_partial", errors: archiveErrors, secrets_included: false }));
+        await updateArchiveStatus(pool, session.session_id, "ready_partial", archiveError.message);
+      } else {
+        archiveStatus = "write_failed";
+        archiveError = new Error(JSON.stringify({ status: "write_failed", errors: archiveErrors, secrets_included: false }));
+        await updateArchiveStatus(pool, session.session_id, "write_failed", archiveError.message);
+      }
     }
   } catch (err) {
+    archiveStatus = "write_failed";
     archiveError = err;
     await updateArchiveStatus(pool, session.session_id, "write_failed", err.message);
   }
