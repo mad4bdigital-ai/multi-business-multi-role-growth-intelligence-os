@@ -740,12 +740,13 @@ export function buildDevAgentRoutes(deps) {
     try {
       const body = req.body || {};
       const dryRun = body.dry_run === true || String(req.get("x-openclaude-bridge-dry-run") || "").toLowerCase() === "true";
-      if (!dryRun) {
+      const liveDispatch = body.live_dispatch === true || String(req.get("x-openclaude-bridge-live-dispatch") || "").toLowerCase() === "true";
+      if (!dryRun && !liveDispatch) {
         return res.status(403).json({
           ok: false,
           error: {
-            code: "openclaude_bridge_dispatch_disabled",
-            message: "Provider dispatch is disabled until scoped token verification and provider call governance are certified. Send dry_run=true for a no-provider-call compatibility check.",
+            code: "openclaude_bridge_dispatch_mode_required",
+            message: "Send dry_run=true for a no-provider-call compatibility check, or live_dispatch=true for certified provider dispatch.",
           },
           bridge: {
             provider_dispatch_attempted: false,
