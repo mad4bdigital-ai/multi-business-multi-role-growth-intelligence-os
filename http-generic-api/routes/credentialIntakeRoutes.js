@@ -795,6 +795,8 @@ export function buildCredentialIntakeRoutes(deps = {}) {
       });
 
       const autoPromotion = await maybeAutoPromotePlatformSecrets({ session, credentials, metadata, connectionId, req });
+      const continuationTask = await writeCredentialIntakeContinuationTask({ session, connectionId, metadata, autoPromotion, req })
+        .catch((error) => ({ ok: false, error: error.message, secrets_included: false }));
       await enqueueCredentialIntakeCompletedWebhook({ pool: getPool(), session, connectionId }).catch((error) => {
         writeAuditLogAsync({
           tenant_id: session.tenant_id,
@@ -809,7 +811,7 @@ export function buildCredentialIntakeRoutes(deps = {}) {
         });
       });
 
-      return res.status(201).type("html").send(renderDone(connectionId, autoPromotion));
+      return res.status(201).type("html").send(renderDone(connectionId, { ...autoPromotion, continuationTask }));
     } catch (err) {
       const loaded = await loadPendingSession(req.params.token).catch(() => null);
       const app = loaded?.session ? await loadApp(loaded.session.app_key).catch(() => ({})) : {};
