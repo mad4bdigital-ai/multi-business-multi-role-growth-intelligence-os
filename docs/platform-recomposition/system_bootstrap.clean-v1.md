@@ -154,6 +154,6 @@ Before treating every statement in this overlay as fully enforced:
 1. Decide and enforce the workflow key uniqueness model.
 2. Verify governance validation coverage at every governed write boundary.
 3. Normalize any remaining execution-class and sink-status drift.
-4. Remove inline secrets from runtime config.
+4. Monitor governed secret references and block regressions to inline runtime-config secrets.
 5. Validate Drive/Sheets workbook inventory only for explicit recovery/parity/archive decisions.
 6. Run release readiness, schema validation, and live readback.

@@ -17,6 +17,7 @@ Platform recomposition is no longer an unpromoted clean-room exercise. The SQL-p
 | Execution evidence | `execution_log` has context dimensions and governed backfill evidence. | Migration 203 and live readback. |
 | Core runtime context | Additive context-dimension migration is registered across core activity/runtime tables; live coverage readback remains a follow-up. | Migration 204 and contract test. |
 | Runtime workflow selection | Runtime loaders resolve explicit `workflow_id` first, accept only unique active `workflow_key` matches, and block ambiguous keys. Migrations 206 and 209 were applied live on 2026-06-06. Governed post-apply readback confirmed 10 of 13 plans now carry explicit `workflow_id`, zero uniquely resolvable fallback plans remain, zero executable plans lack `workflow_id`, and the remaining 2 unresolved drafts plus 1 identityless plan are isolated for manual review. | `runtimeWorkflowResolver.js`; migrations 206/209; governed `workflow_execution_identity_readback`; `scripts/workflow-execution-identity-readback.mjs`; `test-runtime-workflow-resolver.mjs`; PRs #705 and #720 evidence. |
+| Tenant GPT OAuth secret handling | The live `tenant_gpt.oauth.client` row now stores only `client_secret_ref=platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET`; the preserved secret resolves from encrypted `platform_secrets`, no inline secret remains, and the safe status reports no migration required. | PR #735; governed `tenant_gpt_oauth_client_upsert`; secret-free `tenant_gpt_oauth_client_status` pre/post readback on 2026-06-07. |
 
 ## Reference overlays
 
@@ -32,7 +33,6 @@ When an overlay statement conflicts with current code or an active canonical:
 
 | Priority | Follow-up | Reason |
 |---|---|---|
-| High | Run `tenant_gpt_oauth_client_status`, promote the live legacy row through `tenant_gpt_oauth_client_upsert`, then retain a second safe status readback. | Runtime support now stores the secret in encrypted `platform_secrets` and writes only `client_secret_ref`; the live legacy row still requires one governed promotion run. |
 | Medium | Classify and remove dead Sheets-era compatibility helpers and historical surface IDs only after alias/replacement migrations exist. | Names are not runtime authority, but blind renames can break registry identity. |
 | Medium | Continue live readback for migrations 203/204 and lifecycle governance reports. | Schema presence is not enough; context coverage and retention need operational evidence. |
 | Medium | Manually classify or retire the remaining 2 unresolved `wordpress_connector_readiness` draft plans and the 1 identityless plan. | Governed post-backfill readback confirms they are not executable and cannot be safely assigned an identity by deterministic backfill. |
