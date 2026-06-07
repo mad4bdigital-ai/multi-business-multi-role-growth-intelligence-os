@@ -245,15 +245,42 @@ function renderTranscriptTextFromJsonl(session = {}, jsonlText = "") {
 }
 
 async function rebuildTranscriptDocFromJsonl({ pool, session, archive, deps, timestamp }) {
-  if (!archive?.drive_jsonl_id || !archive?.drive_folder_id || !deps.createGoogleDocFromTextInDrive) return null;
+  if (!archive?.drive_jsonl_id || !archive?.drive_folder_id) return null;
   const jsonlText = await deps.fetchDriveContent(archive.drive_jsonl_id);
   const transcriptText = renderTranscriptTextFromJsonl(session, jsonlText);
   const safeTimestamp = String(timestamp || new Date().toISOString()).replace(/[:.]/g, "-");
-  const rebuilt = await deps.createGoogleDocFromTextInDrive(
-    `Session Transcript Rebuilt ${safeTimestamp}`,
-    archive.drive_folder_id,
-    transcriptText
-  );
+  let rebuilt = null;
+  let artifactType = "google_doc";
+  let rebuildError = null;
+
+  if (deps.createGoogleDocFromTextInDrive) {
+    try {
+      rebuilt = await deps.createGoogleDocFromTextInDrive(
+        `Session Transcript Rebuilt ${safeTimestamp}`,
+        archive.drive_folder_id,
+        transcriptText
+      );
+    } catch (err) {
+      rebuildError = err;
+    }
+  }
+
+  if (!rebuilt && deps.uploadContentToDrive) {
+    artifactType = "text_snapshot";
+    rebuilt = await deps.uploadContentToDrive(
+      transcriptText,
+      `Session_Transcript_Rebuilt_${safeTimestamp}.txt`,
+      "text/plain",
+      null,
+      archive.drive_folder_id
+    );
+  }
+
+  if (!rebuilt) {
+    if (rebuildError) throw rebuildError;
+    return null;
+  }
+
   archive.drive_doc_id = rebuilt.drive_file_id;
   archive.drive_doc_url = rebuilt.drive_web_url || null;
   await pool.query(
@@ -266,6 +293,8 @@ async function rebuildTranscriptDocFromJsonl({ pool, session, archive, deps, tim
     drive_doc_id: archive.drive_doc_id,
     drive_doc_url: archive.drive_doc_url,
     rebuilt_from_jsonl: true,
+    artifact_type: artifactType,
+    google_doc_import_error: rebuildError ? String(rebuildError.message || rebuildError).slice(0, 500) : null,
     secrets_included: false,
   };
 }
@@ -358,7 +387,14 @@ export async function recordGptSessionTurn({
           const rebuilt = await rebuildTranscriptDocFromJsonl({ pool, session, archive: archiveResult.archive, deps, timestamp });
           if (rebuilt?.rebuilt_from_jsonl) {
             docWritten = true;
-            archiveErrors.push({ stage: "drive_doc_rebuild", status: "rebuilt_from_jsonl", drive_doc_id: rebuilt.drive_doc_id });
+            archiveErrors.push({
+              stage: "drive_doc_rebuild",
+              status: rebuilt.artifact_type === "text_snapshot" ? "rebuilt_text_snapshot_from_jsonl" : "rebuilt_google_doc_from_jsonl",
+              artifact_type: rebuilt.artifact_type || "google_doc",
+              drive_doc_id: rebuilt.drive_doc_id,
+              google_doc_import_error: rebuilt.google_doc_import_error || null,
+              secrets_included: false,
+            });
           }
         } catch (err) {
           archiveErrors.push({ stage: "drive_doc_rebuild", message: err.message });
@@ -366,7 +402,9 @@ export async function recordGptSessionTurn({
       }
 
       if (docWritten && jsonlWritten) {
-        archiveStatus = archiveErrors.some((item) => item.stage === "drive_doc_append") ? "ready_rebuilt" : "ready";
+        archiveStatus = archiveErrors.some((item) => item.status === "rebuilt_text_snapshot_from_jsonl")
+          ? "ready_text_snapshot"
+          : archiveErrors.some((item) => item.stage === "drive_doc_append") ? "ready_rebuilt" : "ready";
         await updateArchiveStatus(
           pool,
           session.session_id,
