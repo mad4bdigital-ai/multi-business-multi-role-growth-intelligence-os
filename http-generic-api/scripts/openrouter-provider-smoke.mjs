@@ -11,6 +11,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     promoteActive: false,
     confirm: "",
     maxTokens: 8,
+    timeoutMs: 15000,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const item = argv[i];
@@ -21,8 +22,11 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (item.startsWith("--confirm=")) args.confirm = item.slice("--confirm=".length);
     else if (item === "--max-tokens") args.maxTokens = Number(argv[++i] || args.maxTokens);
     else if (item.startsWith("--max-tokens=")) args.maxTokens = Number(item.slice("--max-tokens=".length));
+    else if (item === "--timeout-ms") args.timeoutMs = Number(argv[++i] || args.timeoutMs);
+    else if (item.startsWith("--timeout-ms=")) args.timeoutMs = Number(item.slice("--timeout-ms=".length));
   }
   args.maxTokens = Math.min(Math.max(Number(args.maxTokens) || 8, 1), 32);
+  args.timeoutMs = Math.min(Math.max(Number(args.timeoutMs) || 15000, 1000), 30000);
   return args;
 }
 
@@ -58,7 +62,7 @@ async function readRuntimeContract(pool) {
   try { return raw ? JSON.parse(raw) : {}; } catch { return {}; }
 }
 
-async function updateSmokeStatus(pool, { ok, model, tokensUsed, promoted }) {
+async function updateSmokeStatus(pool, { ok, model, tokensUsed, promoted, errorCode = null }) {
   const now = new Date().toISOString();
   await pool.query(
     `UPDATE platform_runtime_config
@@ -69,6 +73,7 @@ async function updateSmokeStatus(pool, { ok, model, tokensUsed, promoted }) {
               '$.last_live_smoke_model', ?,
               '$.last_live_smoke_ok', ?,
               '$.last_live_smoke_tokens_used', ?,
+              '$.last_live_smoke_error_code', ?,
               '$.provider_active_promoted', ?,
               '$.secrets_included', false
             ),
@@ -80,6 +85,7 @@ async function updateSmokeStatus(pool, { ok, model, tokensUsed, promoted }) {
       model,
       ok ? true : false,
       Number(tokensUsed || 0),
+      errorCode,
       promoted ? true : false,
     ]
   );
@@ -109,6 +115,11 @@ export async function runOpenRouterProviderSmoke(options = {}) {
   const { apiKey, hasHash } = await loadOpenRouterApiKey(pool);
   if (!apiKey || apiKey.length < 16) fail("openrouter_api_key_invalid_shape", "OpenRouter API key failed local shape validation");
 
+  const timeoutMs = Math.min(Math.max(Number(options.timeoutMs) || 15000, 1000), 30000);
+  const timeoutFetch = (url, request = {}) => fetch(url, {
+    ...request,
+    signal: request.signal || AbortSignal.timeout(timeoutMs),
+  });
   const callModel = buildCallModel({
     provider: "openrouter",
     api_key: apiKey,
@@ -117,6 +128,7 @@ export async function runOpenRouterProviderSmoke(options = {}) {
     site_url: "https://auth.mad4b.com",
     app_name: "Mad4B Growth Intelligence Platform",
     max_retries: 0,
+    fetch: timeoutFetch,
   });
 
   let response;
@@ -126,8 +138,9 @@ export async function runOpenRouterProviderSmoke(options = {}) {
       { role: "user", content: "Return exactly OK." },
     ], []);
   } catch (err) {
-    await updateSmokeStatus(pool, { ok: false, model: options.model, tokensUsed: 0, promoted: false }).catch(() => {});
-    fail("openrouter_live_smoke_failed", err.message || "OpenRouter live smoke failed", { status: err.status || null });
+    const errorCode = err?.name === "TimeoutError" ? "openrouter_live_smoke_timeout" : "openrouter_live_smoke_failed";
+    await updateSmokeStatus(pool, { ok: false, model: options.model, tokensUsed: 0, promoted: false, errorCode }).catch(() => {});
+    fail(errorCode, err.message || "OpenRouter live smoke failed", { status: err.status || null, timeout_ms: timeoutMs });
   }
 
   const content = String(response?.content || "").trim();
@@ -145,6 +158,7 @@ export async function runOpenRouterProviderSmoke(options = {}) {
     ok: true,
     provider_key: "openrouter_openai_compatible",
     model: options.model,
+    timeout_ms: timeoutMs,
     response_nonempty: content.length > 0,
     response_preview: content.slice(0, 12),
     tokens_used: response?.tokens_used || 0,
