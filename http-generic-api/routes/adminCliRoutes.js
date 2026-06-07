@@ -622,7 +622,19 @@ function buildGithubFallbackUnsupportedError(args = []) {
       "retry_original_operation",
       "only_then_use_fallback_or_manual_route"
     ],
-    fallback_reason: "capability_not_yet_mapped_after_three_governed_repair_attempts"
+    fallback_reason: "capability_not_yet_mapped_after_three_governed_repair_attempts",
+    supported_operations: [
+      "api graphql read-only queries",
+      "pr list",
+      "pr diff <number> --name-only",
+      "workflow run <workflow> --ref <ref>",
+      "api <workflow-dispatch-path> -X POST -f ref=<ref>",
+      "run list",
+      "run view <id>",
+      "run view <id> --log-failed",
+      "pr create",
+      "pr merge <number|url>"
+    ]
   };
   return err;
 }
