@@ -15,8 +15,12 @@ assert(
   "OpenClaude OpenAI-compatible chat completions dry-run route must be registered."
 );
 assert(
-  bridgeBlock.includes("openclaude_bridge_dispatch_disabled"),
-  "Provider dispatch must be blocked unless the request is an explicit dry run."
+  bridgeBlock.includes("openclaude_bridge_dispatch_mode_required"),
+  "Bridge route must require explicit dry_run=true or live_dispatch=true."
+);
+assert(
+  bridgeBlock.includes("runOpenClaudeOpenRouterLiveDispatch"),
+  "Live dispatch must be delegated to the governed OpenClaude/OpenRouter runtime helper."
 );
 assert(
   bridgeBlock.includes("dry_run_no_provider_call"),
