@@ -24,6 +24,7 @@ The provider remains planned until all of these are true:
 3. The OpenAI-compatible bridge dry-run passes with `dry_run=true` and no provider dispatch.
 4. Provider dispatch is enabled only through a scoped platform proxy.
 5. `ai_model_providers` and `ai_model_registry` statuses are promoted to `active` only after same-cycle validation.
+6. The governed `openrouter_provider_smoke` shell alias succeeds and returns `secrets_included=false`.
 
 ## Instruction bundle
 
