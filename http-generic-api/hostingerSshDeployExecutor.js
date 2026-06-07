@@ -193,6 +193,7 @@ export function normalizeHostingerSshTargetProbeJobPayload(input = {}) {
     activate_on_success: bool(input.activate_on_success || input.activateOnSuccess),
     approval_reason: compact(input.approval_reason || input.approvalReason || input.break_glass_reason || input.breakGlassReason, 1000),
     timeout_ms: boundedInt(input.timeout_ms || input.timeoutMs, DEFAULT_PROBE_TIMEOUT_MS, 1000, MAX_PROBE_TIMEOUT_MS),
+    runner_mode: normalizeHostingerSshProbeRunnerMode(input.runner_mode || input.runnerMode || input.execution_mode || input.executionMode || "queue_worker"),
     dry_run: false,
     secrets_included: false,
   };
