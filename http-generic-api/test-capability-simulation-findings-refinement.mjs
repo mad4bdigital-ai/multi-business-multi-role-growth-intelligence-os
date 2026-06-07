@@ -13,7 +13,7 @@ assert.match(script, /gates\.user_disclosure_required/);
 assert.doesNotMatch(script, /decryptToken|value_ciphertext|private_key|oauth_token/i);
 assert.doesNotMatch(script, /fetch\(|axios|child_process|exec\(|spawn\(/);
 
-assert.match(migration, /224_sprint67_capability_simulation_findings_refinement/);
+assert.match(migration, /Refine capability simulation findings after first live run/);
 assert.match(migration, /codex_chatgpt_oauth/);
 assert.match(migration, /codex_openrouter_custom_provider/);
 assert.match(migration, /app_integrations/);
