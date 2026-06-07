@@ -275,6 +275,38 @@ async function resolveSshConnectionCredentials(pool, target, input = {}) {
   return { host, port, user, auth_mode: "private_key", privateKey };
 }
 
+function hardenedSshOptions({ usePassword = false } = {}) {
+  const options = [
+    "-T",
+    "-o", `ConnectTimeout=${SSH_CONNECT_TIMEOUT_SECONDS}`,
+    "-o", "ConnectionAttempts=1",
+    "-o", `ServerAliveInterval=${SSH_SERVER_ALIVE_INTERVAL_SECONDS}`,
+    "-o", `ServerAliveCountMax=${SSH_SERVER_ALIVE_COUNT_MAX}`,
+    "-o", "StrictHostKeyChecking=accept-new",
+    "-o", "LogLevel=ERROR",
+  ];
+  if (usePassword) {
+    options.push("-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no", "-o", "NumberOfPasswordPrompts=1");
+  } else {
+    options.push("-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes");
+  }
+  return options;
+}
+
+function withCoreutilsTimeout(command, args = [], timeoutMs = DEFAULT_TIMEOUT_MS) {
+  const seconds = Math.max(1, Math.ceil(Number(timeoutMs || DEFAULT_TIMEOUT_MS) / 1000));
+  return {
+    command: "timeout",
+    args: ["-k", `${Math.ceil(SSH_PROCESS_KILL_GRACE_MS / 1000)}s`, `${seconds}s`, command, ...args],
+  };
+}
+
+function killProcessTree(child, signal = "SIGTERM") {
+  if (!child?.pid) return;
+  try { process.kill(-child.pid, signal); return; } catch { /* fall back */ }
+  try { child.kill(signal); } catch { /* noop */ }
+}
+
 function buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClean, restart }) {
   const safeAppPath = shellQuote(appPath);
   const safeBranch = shellQuote(branch);
