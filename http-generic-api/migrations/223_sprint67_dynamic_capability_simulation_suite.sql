@@ -12,6 +12,9 @@ VALUES
      'purpose','Exercise realistic tenant/workspace/brand/user-role use cases so dynamic capability resolution can expand without assumptions.',
      'no_execution',true,
      'secrets_included',false,
+     'canonical_gate_aliases',JSON_OBJECT(
+       'requires_user_disclosure',JSON_ARRAY('requires_user_disclosure','user_disclosure_required')
+     ),
      'scenarios',JSON_ARRAY(
        JSON_OBJECT(
          'scenario_key','freelancer_wordpress_publish_managed_service',
