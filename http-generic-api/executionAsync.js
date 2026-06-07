@@ -478,6 +478,15 @@ export async function getExecutionJob(jobId, deps = {}) {
     };
   }
 
+  if (typeof updateJob === "function" && isRunningJobStale(job)) {
+    updateJob(job, {
+      status: "failed",
+      completed_at: typeof nowIso === "function" ? nowIso() : new Date().toISOString(),
+      result_payload: null,
+      error_payload: buildStaleJobTimeoutPayload(job),
+    });
+  }
+
   const summary = toJobSummary(job);
   return {
     status: 200,
