@@ -25,6 +25,9 @@ assert(executor.includes('command: "timeout"'), "probe must wrap SSH with coreut
 assert(executor.includes("ConnectTimeout=${SSH_CONNECT_TIMEOUT_SECONDS}"), "probe must bound SSH connection establishment");
 assert(executor.includes("ConnectionAttempts=1"), "probe must avoid repeated SSH connection attempts");
 assert(executor.includes("killProcessTree"), "probe must kill timed-out SSH process groups");
+assert(executor.includes("runner_mode"), "probe jobs must persist a runner_mode for queue/detached/cron/external execution");
+assert(executor.includes("normalizeHostingerSshProbeRunnerMode"), "probe jobs must normalize runner_mode aliases");
+assert(executor.includes("validateHostingerSshProbeRunnerMode"), "probe jobs must validate runner_mode values");
 assert(probeBlock.includes("dry_run_only"), "probe must support dry-run mode");
 assert(probeBlock.includes("resolveSshConnectionCredentials") || probeBlock.includes("resolveSshCredential"), "probe must use governed SSH credential resolver wrapper");
 assert(executor.includes("resolveEffectiveCredential"), "SSH credential resolver wrapper must use governed credential resolver");
