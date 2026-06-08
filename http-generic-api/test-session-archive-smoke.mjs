@@ -5,6 +5,7 @@ import { buildReleaseRoutes } from "./routes/releaseRoutes.js";
 import { runSessionArchiveSmoke } from "./sessionArchiveSmoke.js";
 
 const migration = readFileSync("migrations/163_sprint65_session_archive_smoke_tool.sql", "utf8");
+const rolloverMigration = readFileSync("migrations/244_sprint68_session_archive_rollover_smoke_schema.sql", "utf8");
 
 assert(migration.includes("release_session_archive_smoke"), "session archive smoke admin tool must be registered");
 assert(migration.includes("/release/session-archive-smoke"), "session archive smoke tool must point at release smoke route");
