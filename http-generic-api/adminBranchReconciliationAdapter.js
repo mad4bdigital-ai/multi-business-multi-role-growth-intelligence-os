@@ -1,5 +1,6 @@
 import { resolveActivationBootstrapConfig } from "./activationBootstrapConfig.js";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
+import { writeAuditLogAsync } from "./auditLogger.js";
 import {
   createContinuationCheckpoint,
   planContinuationResume,
