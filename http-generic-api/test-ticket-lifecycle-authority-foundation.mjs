@@ -86,8 +86,8 @@ assert(routes.includes('createOrAppendSupportTicket(tenantTicketEnvelope(req, me
 
 // Route ordering must expose tenant-safe /me/support before root protected routers.
 assert(routeIndex.includes('import { buildSupportTicketRoutes } from "./supportTicketRoutes.js";'), "support routes must be registered in route index");
-assert(routeIndex.indexOf("buildWorkspaceResourceRoutes") < routeIndex.indexOf("buildSupportTicketRoutes"), "support routes should mount in the tenant-safe route block");
-assert(routeIndex.indexOf("buildSupportTicketRoutes") < routeIndex.indexOf("buildAdminWorkspaceAuthorityRoutes"), "support routes must mount before later admin authority routes");
+assert(routeIndex.indexOf("app.use(buildWorkspaceResourceRoutes())") < routeIndex.indexOf("app.use(buildSupportTicketRoutes"), "support routes should mount in the tenant-safe route block");
+assert(routeIndex.indexOf("app.use(buildSupportTicketRoutes") < routeIndex.indexOf("app.use(buildAdminWorkspaceAuthorityRoutes"), "support routes must mount before later admin authority routes");
 
 // connect_escalate must no longer create a ticket through a private one-off insert.
 assert(connectRoutes.includes('import { createOrAppendSupportTicket } from "../supportTicketService.js";'), "connect escalation must import centralized ticket service");
