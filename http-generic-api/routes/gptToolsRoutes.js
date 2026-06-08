@@ -16,6 +16,11 @@ import {
 } from "../scopeGrantsService.js";
 import { cachedSqlRead, sqlCacheKey, toolCacheTtl } from "../sqlCache.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
+import {
+  capabilityEnvelopeError,
+  markCapabilityEnvelopeReferenced,
+  resolveCapabilityExecutionEnvelope,
+} from "../capabilityResolutionEnvelopeGuard.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -238,9 +243,10 @@ const VIRTUAL_ADMIN_TOOLS = [
     tags: ["repo", "mutation", "self_repair"],
     inputSchema: {
       type: "object",
-      required: ["action", "path", "commit_message"],
+      required: ["action", "path", "commit_message", "capability_envelope_id"],
       properties: {
         action: { type: "string", enum: ["write_file", "replace_block", "apply_unified_diff", "delete_file"] },
+        capability_envelope_id: { type: "string", description: "Required. Must reference a ready no-secret capability_resolution_envelope_ledger envelope for repo_patch_apply." },
         path: { type: "string", description: "Repository-relative path of the single file to modify, e.g. http-generic-api/pathResolverDbLoader.js." },
         commit_message: { type: "string", minLength: 5, maxLength: 200 },
         branch: { type: "string", description: "Target work branch. If omitted, runtime generates a non-protected gpt/repo-patch/* branch. Protected branches are blocked by default." },
@@ -258,6 +264,33 @@ const VIRTUAL_ADMIN_TOOLS = [
 ];
 
 const REPO_PATCH_MAX_BYTES = 1_000_000; // 1 MiB upper bound for new content
+
+async function requireRepoPatchCapabilityEnvelope({ args = {}, ctx = {}, owner = "", repo = "", branch = "", defaultBranch = "", filePath = "", action = "" } = {}) {
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: getPool(),
+    source: args,
+    acceptedAppKeys: ["github"],
+    acceptedIntents: ["repo_patch_apply", "repo_mutation", "github_repo_patch", "write", "create", "delete", action].filter(Boolean),
+    expectedTenantId: ctx?.auth?.tenant_id || PLATFORM_TENANT_ID,
+    expectedUserId: ctx?.auth?.user_id || "",
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "Repository patch apply requires a valid capability resolution envelope before GitHub mutation.");
+  }
+  await markCapabilityEnvelopeReferenced({ pool: getPool(), envelopeId: resolved.envelope_id, executionRef: `repo_patch_apply:${action || "mutation"}` });
+  return {
+    ...resolved,
+    repo_patch_context: {
+      owner,
+      repo,
+      branch,
+      default_branch: defaultBranch,
+      path: filePath,
+      action,
+      secrets_included: false,
+    },
+  };
+}
 
 function resolveCallerType(req) {
   if (req.auth?.mode === "backend_api_key" || req.auth?.is_admin === true) return "admin";
@@ -1245,6 +1278,7 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
   const branch = requestedBranch || defaultRepoPatchBranch({ filePath, commitMessage });
   assertRepoPatchBranchPolicy({ branch, defaultBranch, args });
 
+  const envelope = await requireRepoPatchCapabilityEnvelope({ args, ctx, owner, repo, branch, defaultBranch, filePath, action });
   const token = await getGitHubAppInstallationToken({});
   const branchCompare = await loadRepoPatchBranchCompare({ owner, repo, defaultBranch, branch, token });
   assertPreflightAllowed(await evaluateRepoPatchApplyPreflight({
