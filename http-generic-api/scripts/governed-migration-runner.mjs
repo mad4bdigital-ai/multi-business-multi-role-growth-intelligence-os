@@ -93,6 +93,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "236_sprint68_ticket_lifecycle_execution_plans.sql",
   "237_sprint68_ticket_lifecycle_workflow_runs.sql",
   "238_sprint68_ticket_lifecycle_step_runs.sql",
+  "238_sprint67_google_ads_budget_change_preflight.sql",
   "234_sprint67_repo_patch_capability_envelope_requirement.sql",
   "235_sprint67_capability_envelope_approval_tool.sql",
   "236_sprint67_budget_quota_authority_registry.sql",
