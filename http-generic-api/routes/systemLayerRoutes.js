@@ -51,6 +51,44 @@ const SYSTEM_LAYER_TOOLS = [
     },
   },
   {
+    name: "google_drive_endpoint_catalog",
+    description: "Admin-only read-only catalog for Google Drive endpoint registry rows. Supports filtering by operation, method, readiness, and search text so large Drive operation surfaces are discoverable without raw SQL.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        parent_action_key: { type: "string", default: "google_drive_api" },
+        search: { type: "string" },
+        method: { type: "string" },
+        status: { type: "string" },
+        execution_readiness: { type: "string" },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 100 },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "google_drive_folder_inspect",
+    description: "Admin-only read-only Google Drive folder inspector. Lists folder metadata and direct children through runtime_endpoint_call using governed Drive endpoint registry, supports Shared Drives, and never returns file content or secrets.",
+    requires_admin: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        folder_id: { type: "string" },
+        folder_url: { type: "string" },
+        recursive: { type: "boolean", default: false },
+        max_depth: { type: "integer", minimum: 0, maximum: 3, default: 1 },
+        page_size: { type: "integer", minimum: 1, maximum: 200, default: 100 },
+        credential_scope: { type: "string", enum: ["platform", "tenant", "user", "connection", "auto"], default: "platform" },
+        connection_id: { type: "string" },
+        tenant_id: { type: "string" },
+        user_id: { type: "string" },
+        allow_platform_fallback: { type: "boolean", default: true },
+      },
+      required: [],
+    },
+  },
+  {
     name: "connector_registry_list",
     description: "List connector systems from the connected_systems registry.",
     inputSchema: {
