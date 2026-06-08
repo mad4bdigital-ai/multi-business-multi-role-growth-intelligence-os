@@ -11,8 +11,14 @@ import {
 
 const PREVIEW_CHARS = 512;
 const TOOL_DOC_SECTION_PREVIEW_CHARS = 900;
+const DEFAULT_DOC_ROLLOVER_CHARS = 450000;
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const DEFAULT_SESSIONS_DRIVE_FOLDER_ID = "1TIxUmnh0RrLCfXYfkjf96EwGc8OYnEw1";
+
+function positiveInt(value, fallback = 1) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
 
 function defaultDeps() {
   return {
@@ -30,6 +36,7 @@ function defaultDeps() {
       process.env.OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID ||
       "",
     subfolderHint: "",
+    docRolloverChars: positiveInt(process.env.SESSION_ARCHIVE_DOC_ROLLOVER_CHARS, DEFAULT_DOC_ROLLOVER_CHARS),
     now: () => new Date(),
   };
 }
@@ -69,6 +76,20 @@ export function buildSessionArchivePath(session = {}, now = new Date()) {
   ];
 }
 
+function buildTranscriptHeading(session = {}, now = new Date(), partIndex = 1, extraLines = []) {
+  const startedAt = session.started_at ? new Date(session.started_at) : now;
+  const validStartedAt = Number.isNaN(startedAt.getTime()) ? now : startedAt;
+  return [
+    `Session ${session.session_id}`,
+    `Transcript Part: ${positiveInt(partIndex, 1)}`,
+    `Tenant: ${session.tenant_id || PLATFORM_TENANT_ID}`,
+    `User: ${session.user_id || "platform_admin"}`,
+    `Started: ${validStartedAt.toISOString()}`,
+    ...extraLines.filter(Boolean),
+    "",
+  ].join("\n");
+}
+
 async function updateArchiveStatus(pool, sessionId, status, error = null) {
   await pool.query(
     `UPDATE \`customer_sessions\`
@@ -93,15 +114,10 @@ async function createArchiveFiles(session, deps) {
   const exportsFolderId = await deps.getOrCreateDriveFolder("Exports", parentId);
   await deps.getOrCreateDriveFolder("Artifacts", parentId);
 
-  const heading = [
-    `Session ${session.session_id}`,
-    `Tenant: ${session.tenant_id || PLATFORM_TENANT_ID}`,
-    `User: ${session.user_id || "platform_admin"}`,
-    `Started: ${(session.started_at ? new Date(session.started_at) : deps.now()).toISOString()}`,
-    "",
-  ].join("\n");
+  const initialPart = 1;
+  const heading = buildTranscriptHeading(session, deps.now(), initialPart);
 
-  const transcript = await deps.createGoogleDocInDrive("Session Transcript", parentId, heading);
+  const transcript = await deps.createGoogleDocInDrive("Session Transcript Part 1", parentId, heading);
   const jsonl = await deps.uploadContentToDrive("", "Tool_Calls.jsonl", "application/x-ndjson", null, parentId);
 
   return {
@@ -109,6 +125,8 @@ async function createArchiveFiles(session, deps) {
     drive_exports_folder_id: exportsFolderId,
     drive_doc_id: transcript.drive_file_id,
     drive_doc_url: transcript.drive_web_url || null,
+    drive_doc_part_index: initialPart,
+    drive_doc_part_count: initialPart,
     drive_jsonl_id: jsonl.drive_file_id,
     drive_jsonl_url: jsonl.drive_web_url || null,
   };
@@ -124,6 +142,8 @@ export async function ensureSessionArchive(pool, session, injectedDeps = {}) {
         drive_exports_folder_id: session.drive_exports_folder_id || null,
         drive_doc_id: session.drive_doc_id,
         drive_doc_url: session.drive_doc_url || null,
+        drive_doc_part_index: positiveInt(session.drive_doc_part_index, 1),
+        drive_doc_part_count: positiveInt(session.drive_doc_part_count || session.drive_doc_part_index, 1),
         drive_jsonl_id: session.drive_jsonl_id,
         drive_jsonl_url: session.drive_jsonl_url || null,
       },
@@ -139,6 +159,7 @@ export async function ensureSessionArchive(pool, session, injectedDeps = {}) {
   await pool.query(
     `UPDATE \`customer_sessions\`
      SET drive_folder_id = ?, drive_doc_id = ?, drive_doc_url = ?,
+         drive_doc_part_index = ?, drive_doc_part_count = ?,
          drive_jsonl_id = ?, drive_jsonl_url = ?, drive_exports_folder_id = ?,
          archive_status = 'ready', archive_last_error = NULL, archive_last_written_at = NOW()
      WHERE session_id = ?`,
@@ -146,6 +167,8 @@ export async function ensureSessionArchive(pool, session, injectedDeps = {}) {
       archive.drive_folder_id,
       archive.drive_doc_id,
       archive.drive_doc_url,
+      archive.drive_doc_part_index,
+      archive.drive_doc_part_count,
       archive.drive_jsonl_id,
       archive.drive_jsonl_url,
       archive.drive_exports_folder_id,
@@ -154,6 +177,57 @@ export async function ensureSessionArchive(pool, session, injectedDeps = {}) {
   );
 
   return { configured: true, archive };
+}
+
+async function updateCurrentTranscriptDocPointer(pool, sessionId, archive) {
+  await pool.query(
+    `UPDATE \`customer_sessions\`
+     SET drive_doc_id = ?, drive_doc_url = ?, drive_doc_part_index = ?,
+         drive_doc_part_count = ?, archive_last_written_at = NOW()
+     WHERE session_id = ?`,
+    [
+      archive.drive_doc_id,
+      archive.drive_doc_url || null,
+      archive.drive_doc_part_index,
+      archive.drive_doc_part_count,
+      sessionId,
+    ]
+  );
+}
+
+async function maybeRolloverTranscriptDoc({ pool, session, archive, deps, sectionText, timestamp }) {
+  if (!archive?.drive_doc_id || !archive?.drive_folder_id) return archive;
+  const threshold = positiveInt(deps.docRolloverChars, DEFAULT_DOC_ROLLOVER_CHARS);
+  if (!threshold) return archive;
+
+  let currentDocText = "";
+  try {
+    currentDocText = await deps.fetchDriveContent(archive.drive_doc_id);
+  } catch {
+    return archive;
+  }
+  if (String(currentDocText || "").length + String(sectionText || "").length <= threshold) {
+    return archive;
+  }
+
+  const currentPart = positiveInt(archive.drive_doc_part_index || session.drive_doc_part_index, 1);
+  const nextPart = currentPart + 1;
+  const partCount = Math.max(positiveInt(archive.drive_doc_part_count || session.drive_doc_part_count, currentPart), nextPart);
+  const heading = buildTranscriptHeading(session, deps.now(), nextPart, [
+    `Continuation: true`,
+    `Previous Google Doc ID: ${archive.drive_doc_id}`,
+    `Rollover at: ${timestamp || deps.now().toISOString()}`,
+  ]);
+  const nextDoc = await deps.createGoogleDocInDrive(`Session Transcript Part ${nextPart}`, archive.drive_folder_id, heading);
+  const nextArchive = {
+    ...archive,
+    drive_doc_id: nextDoc.drive_file_id,
+    drive_doc_url: nextDoc.drive_web_url || null,
+    drive_doc_part_index: nextPart,
+    drive_doc_part_count: partCount,
+  };
+  await updateCurrentTranscriptDocPointer(pool, session.session_id, nextArchive);
+  return nextArchive;
 }
 
 async function appendJsonlLine(archive, line, deps) {
@@ -238,6 +312,8 @@ function buildRuntimeEvent({
   bookmark = null,
   docContentMode = null,
   fullContentStorage = null,
+  driveDocId = null,
+  driveDocPart = null,
 }) {
   return {
     event_id: eventId,
@@ -251,6 +327,8 @@ function buildRuntimeEvent({
     ...(bookmark ? { bookmark } : {}),
     ...(docContentMode ? { doc_content_mode: docContentMode } : {}),
     ...(fullContentStorage ? { full_content_storage: fullContentStorage } : {}),
+    ...(driveDocId ? { drive_doc_id: driveDocId } : {}),
+    ...(driveDocPart ? { drive_doc_part: driveDocPart } : {}),
     ...(includeContent ? { content } : {}),
     created_at: timestamp,
   };
@@ -403,6 +481,16 @@ export async function recordGptSessionTurn({
   }
   turnIndex = effectiveTurnIndex;
 
+  try {
+    const [[freshSession]] = await pool.query(
+      "SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1",
+      [session.session_id]
+    );
+    if (freshSession?.session_id) session = { ...session, ...freshSession };
+  } catch {
+    // Keep caller-provided session if fresh readback is unavailable.
+  }
+
   const timestamp = deps.now().toISOString();
   const turnId = randomUUID();
   const eventId = randomUUID();
@@ -411,33 +499,8 @@ export async function recordGptSessionTurn({
   const driveAnchor = `turn-${turnIndex}`;
   const docContent = buildDocContentForTurn({ role, content, actionKey: action_key, contentHash });
   const docContentMode = docContentModeForRole(role);
-  const docRuntimeEvent = buildRuntimeEvent({
-    eventId,
-    sessionId: session.session_id,
-    turnId,
-    turnIndex,
-    role,
-    actionKey: action_key,
-    contentHash,
-    content,
-    timestamp,
-    includeContent: false,
-    bookmark: driveAnchor,
-    docContentMode,
-    fullContentStorage: "jsonl_sidecar",
-  });
-  const jsonlRuntimeEvent = buildRuntimeEvent({
-    eventId,
-    sessionId: session.session_id,
-    turnId,
-    turnIndex,
-    role,
-    actionKey: action_key,
-    contentHash,
-    content,
-    timestamp,
-    includeContent: true,
-  });
+  let docRuntimeEvent = null;
+  let jsonlRuntimeEvent = null;
   let archiveResult = { configured: false, archive: null };
   let archiveStatus = "not_configured";
   let archiveError = null;
@@ -449,15 +512,76 @@ export async function recordGptSessionTurn({
       let docWritten = false;
       let jsonlWritten = false;
       try {
+        const initialPart = positiveInt(archiveResult.archive.drive_doc_part_index, 1);
+        docRuntimeEvent = buildRuntimeEvent({
+          eventId,
+          sessionId: session.session_id,
+          turnId,
+          turnIndex,
+          role,
+          actionKey: action_key,
+          contentHash,
+          content,
+          timestamp,
+          includeContent: false,
+          bookmark: driveAnchor,
+          docContentMode,
+          fullContentStorage: "jsonl_sidecar",
+          driveDocId: archiveResult.archive.drive_doc_id,
+          driveDocPart: initialPart,
+        });
+        let docSectionText = buildTranscriptSection({ role, content: docContent, turnIndex, timestamp, runtimeEvent: docRuntimeEvent });
+        const beforeRolloverDocId = archiveResult.archive.drive_doc_id;
+        archiveResult.archive = await maybeRolloverTranscriptDoc({ pool, session, archive: archiveResult.archive, deps, sectionText: docSectionText, timestamp });
+        const effectivePart = positiveInt(archiveResult.archive.drive_doc_part_index, initialPart);
+        if (archiveResult.archive.drive_doc_id !== beforeRolloverDocId) {
+          archiveErrors.push({ stage: "drive_doc_rollover", status: "new_doc_part", drive_doc_part: effectivePart, drive_doc_id: archiveResult.archive.drive_doc_id, secrets_included: false });
+          docRuntimeEvent = buildRuntimeEvent({
+            eventId,
+            sessionId: session.session_id,
+            turnId,
+            turnIndex,
+            role,
+            actionKey: action_key,
+            contentHash,
+            content,
+            timestamp,
+            includeContent: false,
+            bookmark: driveAnchor,
+            docContentMode,
+            fullContentStorage: "jsonl_sidecar",
+            driveDocId: archiveResult.archive.drive_doc_id,
+            driveDocPart: effectivePart,
+          });
+          docSectionText = buildTranscriptSection({ role, content: docContent, turnIndex, timestamp, runtimeEvent: docRuntimeEvent });
+        }
         await deps.appendTextToGoogleDoc(
           archiveResult.archive.drive_doc_id,
-          buildTranscriptSection({ role, content: docContent, turnIndex, timestamp, runtimeEvent: docRuntimeEvent })
+          docSectionText
         );
         docWritten = true;
       } catch (err) {
         archiveErrors.push({ stage: "drive_doc_append", message: err.message });
       }
       try {
+        const effectivePart = positiveInt(archiveResult.archive.drive_doc_part_index, 1);
+        jsonlRuntimeEvent = buildRuntimeEvent({
+          eventId,
+          sessionId: session.session_id,
+          turnId,
+          turnIndex,
+          role,
+          actionKey: action_key,
+          contentHash,
+          content,
+          timestamp,
+          includeContent: true,
+          bookmark: driveAnchor,
+          docContentMode,
+          fullContentStorage: "jsonl_sidecar",
+          driveDocId: archiveResult.archive.drive_doc_id,
+          driveDocPart: effectivePart,
+        });
         await appendJsonlLine(
           archiveResult.archive,
           JSON.stringify(jsonlRuntimeEvent),
@@ -522,6 +646,7 @@ export async function recordGptSessionTurn({
     content_sha256: contentHash,
     storage_mode: storageMode,
     drive_doc_id: archive.drive_doc_id || null,
+    drive_doc_part: archive.drive_doc_id ? positiveInt(archive.drive_doc_part_index, 1) : null,
     drive_anchor: archive.drive_doc_id ? driveAnchor : null,
   };
 
@@ -541,7 +666,14 @@ export async function recordGptSessionTurn({
       session.user_id ? "user" : "system",
       session.brand_key || null,
       turnId,
-      JSON.stringify({ source: "session_archive_service", session_id: session.session_id, turn_id: turnId, secrets_included: false }),
+      JSON.stringify({
+        source: "session_archive_service",
+        session_id: session.session_id,
+        turn_id: turnId,
+        drive_doc_id: archive.drive_doc_id || null,
+        drive_doc_part: archive.drive_doc_id ? positiveInt(archive.drive_doc_part_index, 1) : null,
+        secrets_included: false,
+      }),
       turnId,
       turnIndex,
       role,
@@ -554,6 +686,11 @@ export async function recordGptSessionTurn({
       storageMode,
     ]
   );
+
+  await pool.query(
+    "UPDATE `gpt_session_turns` SET drive_doc_part = ? WHERE session_id = ? AND turn_id = ?",
+    [archive.drive_doc_id ? positiveInt(archive.drive_doc_part_index, 1) : null, session.session_id, turnId]
+  ).catch(() => {});
 
   await pool.query(
     `INSERT INTO \`session_events\`
@@ -592,6 +729,7 @@ export async function recordGptSessionTurn({
     turn_id: turnId,
     turn_index: turnIndex,
     drive_doc_id: archive.drive_doc_id || null,
+    drive_doc_part: archive.drive_doc_id ? positiveInt(archive.drive_doc_part_index, 1) : null,
     drive_anchor: archive.drive_doc_id ? driveAnchor : null,
     archive_status: archiveStatus,
     archive_error: archiveError ? archiveError.message : null,
@@ -601,11 +739,29 @@ export async function recordGptSessionTurn({
 export async function closeGptSessionArchive({ pool, session, summary = null, injectedDeps = {} }) {
   const deps = { ...defaultDeps(), ...injectedDeps };
   try {
+    try {
+      const [[freshSession]] = await pool.query(
+        "SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1",
+        [session.session_id]
+      );
+      if (freshSession?.session_id) session = { ...session, ...freshSession };
+    } catch {
+      // Keep caller-provided session if fresh readback is unavailable.
+    }
     const archiveResult = await ensureSessionArchive(pool, session, deps);
     if (archiveResult.configured && summary) {
+      const summarySection = ["", "## Session Summary", "", String(summary), ""].join("\n");
+      archiveResult.archive = await maybeRolloverTranscriptDoc({
+        pool,
+        session,
+        archive: archiveResult.archive,
+        deps,
+        sectionText: summarySection,
+        timestamp: deps.now().toISOString(),
+      });
       await deps.appendTextToGoogleDoc(
         archiveResult.archive.drive_doc_id,
-        ["", "## Session Summary", "", String(summary), ""].join("\n")
+        summarySection
       );
     }
     if (archiveResult.configured) {

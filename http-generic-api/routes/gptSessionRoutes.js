@@ -541,6 +541,7 @@ export function buildGptSessionRoutes(deps) {
         turn_index: turnIndex,
         turn_id: writeback.turn_id,
         drive_doc_id: writeback.drive_doc_id,
+        drive_doc_part: writeback.drive_doc_part,
         drive_anchor: writeback.drive_anchor,
         archive_status: writeback.archive_status,
       });
@@ -587,6 +588,7 @@ export function buildGptSessionRoutes(deps) {
           turn_index: turnIndex,
           turn_id: writeback.turn_id,
           drive_doc_id: writeback.drive_doc_id,
+          drive_doc_part: writeback.drive_doc_part,
           drive_anchor: writeback.drive_anchor,
           archive_status: writeback.archive_status,
         });

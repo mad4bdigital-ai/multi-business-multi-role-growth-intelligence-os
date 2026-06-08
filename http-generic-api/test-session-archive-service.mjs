@@ -33,6 +33,13 @@ function flattenParams(value) {
 }
 
 {
+  const migration = readFileSync("migrations/243_sprint68_gpt_session_archive_doc_rollover.sql", "utf8");
+  assert(migration.includes("drive_doc_part_index"), "migration must add current doc part index");
+  assert(migration.includes("drive_doc_part_count"), "migration must add doc part count");
+  assert(migration.includes("drive_doc_part` SMALLINT"), "migration must add per-turn doc part metadata");
+}
+
+{
   const service = readFileSync("sessionArchiveService.js", "utf8");
   const uploadPipeline = readFileSync("uploadPipeline.js", "utf8");
   assert(service.includes("SELECT COALESCE(MAX(turn_index), -1) AS max_idx FROM `gpt_session_turns`"), "archive service should refresh turn index before writing");
@@ -304,6 +311,79 @@ function flattenParams(value) {
   assert(
     pool.calls.some((call) => call.sql.includes("archive_status = ?") && call.params[0] === "ready_text_snapshot"),
     "Google Doc import fallback should mark the session ready_text_snapshot"
+  );
+}
+
+{
+  const pool = makePool();
+  const driveWrites = { docs: new Map([["doc-1", "existing transcript text ".repeat(80)]]), jsonl: "", createdDocNames: [] };
+  const session = {
+    session_id: "sess-rollover",
+    tenant_id: "tenant-1",
+    user_id: "user-1",
+    started_at: "2026-05-16T10:00:00.000Z",
+    drive_folder_id: "folder-rollover",
+    drive_doc_id: "doc-1",
+    drive_doc_url: "https://drive/doc-1",
+    drive_doc_part_index: 1,
+    drive_doc_part_count: 1,
+    drive_jsonl_id: "jsonl-rollover",
+    drive_jsonl_url: "https://drive/jsonl-rollover",
+  };
+  const fullContent = "rollover turn content ".repeat(40);
+  const deps = {
+    sessionsDriveFolderId: "root-folder",
+    docRolloverChars: 1200,
+    now: () => new Date("2026-05-16T14:00:00.000Z"),
+    async getOrCreateDriveFolder(name, parentId) { return `${parentId}/${name}`; },
+    async createGoogleDocInDrive(name, _parentId, initialText) {
+      const id = `doc-${driveWrites.docs.size + 1}`;
+      driveWrites.createdDocNames.push(name);
+      driveWrites.docs.set(id, initialText);
+      return { drive_file_id: id, drive_web_url: `https://drive/${id}` };
+    },
+    async appendTextToGoogleDoc(docId, text) {
+      driveWrites.docs.set(docId, `${driveWrites.docs.get(docId) || ""}${text}`);
+    },
+    async uploadContentToDrive() { throw new Error("should not create a new JSONL when archive already exists"); },
+    async fetchDriveContent(fileId) {
+      if (driveWrites.docs.has(fileId)) return driveWrites.docs.get(fileId);
+      if (fileId === "jsonl-rollover") return driveWrites.jsonl;
+      return "";
+    },
+    async updateDriveFileContent(_fileId, content) {
+      driveWrites.jsonl = content;
+      return { drive_file_id: "jsonl-rollover" };
+    },
+  };
+
+  const result = await recordGptSessionTurn({
+    pool,
+    session,
+    role: "assistant",
+    content: fullContent,
+    action_key: "rollover_action",
+    turnIndex: 0,
+    injectedDeps: deps,
+  });
+
+  assert.equal(result.archive_status, "ready");
+  assert.equal(result.drive_doc_id, "doc-2", "large append should roll over to a new transcript doc part");
+  assert.equal(result.drive_doc_part, 2, "turn write should report the new doc part");
+  assert.equal(driveWrites.createdDocNames[0], "Session Transcript Part 2");
+  assert(!driveWrites.docs.get("doc-1").includes(fullContent), "old doc part should not receive the new turn after rollover");
+  assert(driveWrites.docs.get("doc-2").includes("Transcript Part: 2"), "new doc part should include part heading");
+  assert(driveWrites.docs.get("doc-2").includes(fullContent), "new doc part should receive the turn content");
+  assert(driveWrites.docs.get("doc-2").includes('"drive_doc_part": 2'), "runtime metadata should disclose the doc part");
+  assert.equal(JSON.parse(driveWrites.jsonl.trim()).drive_doc_id, "doc-2", "JSONL should point at the effective doc part");
+  assert.equal(JSON.parse(driveWrites.jsonl.trim()).drive_doc_part, 2, "JSONL should retain doc part metadata");
+  assert(
+    pool.calls.some((call) => call.sql.includes("drive_doc_part_index") && call.params.includes("doc-2")),
+    "customer_sessions should be updated to the current transcript part"
+  );
+  assert(
+    pool.calls.some((call) => call.sql.includes("SET drive_doc_part = ?") && call.params[0] === 2),
+    "gpt_session_turns drive_doc_part should be populated when the column exists"
   );
 }
 
