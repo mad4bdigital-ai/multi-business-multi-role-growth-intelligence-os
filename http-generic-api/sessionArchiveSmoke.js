@@ -84,6 +84,16 @@ export async function runSessionArchiveSmoke({
   const longPrefix = "smoke-context ".repeat(80);
   const userContent = `${longPrefix}user turn ${marker}`;
   const assistantContent = `${longPrefix}assistant turn ${marker}`;
+  const toolContent = [
+    "Tool: release_session_archive_smoke",
+    "Status: HTTP 200 ok=true",
+    "",
+    "Args:",
+    JSON.stringify({ include_drive_readback: true, smoke_subfolder: smokeSubfolder }, null, 2),
+    "",
+    "Result:",
+    JSON.stringify({ marker, log: `${longPrefix}${longPrefix}tool result ${marker}` }, null, 2),
+  ].join("\n");
   const archiveDeps = { subfolderHint: smokeSubfolder, ...injectedArchiveDeps };
 
   await pool.query(
