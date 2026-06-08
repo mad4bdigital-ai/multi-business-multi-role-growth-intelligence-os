@@ -424,34 +424,58 @@ export function buildAdminBranchReconcileContinuation({ owner, repo, branch, bas
 }
 
 async function getGithubRef({ owner, repo, refName, token }) {
-  return githubJsonRequest({
+  const result = await githubJsonRequest({
     method: "GET",
     owner,
     repo,
     apiPath: `/git/ref/heads/${encodeGitRefBranch(refName)}`,
     token,
-  }).then((result) => result.payload);
+  });
+  if (!result.ok) {
+    const err = new Error(`GitHub ref '${refName}' was not readable.`);
+    err.status = result.status || 502;
+    err.code = "admin_branch_reconcile_ref_read_failed";
+    err.details = { ref: refName, upstream_status: result.status, github_error: result.payload?.message || null };
+    throw err;
+  }
+  return result.payload;
 }
 
 async function compareGithubBranches({ owner, repo, baseBranch, branch, token }) {
-  return githubJsonRequest({
+  const result = await githubJsonRequest({
     method: "GET",
     owner,
     repo,
     apiPath: `/compare/${encodeURIComponent(baseBranch)}...${encodeURIComponent(branch)}`,
     token,
-  }).then((result) => result.payload);
+  });
+  if (!result.ok) {
+    const err = new Error(`GitHub compare '${baseBranch}...${branch}' was not readable.`);
+    err.status = result.status || 502;
+    err.code = "admin_branch_reconcile_compare_failed";
+    err.details = { base_branch: baseBranch, branch, upstream_status: result.status, github_error: result.payload?.message || null };
+    throw err;
+  }
+  return result.payload;
 }
 
 async function updateGithubBranchRef({ owner, repo, branch, sha, token }) {
-  return githubJsonRequest({
+  const result = await githubJsonRequest({
     method: "PATCH",
     owner,
     repo,
     apiPath: `/git/refs/heads/${encodeGitRefBranch(branch)}`,
     token,
     body: { sha, force: false },
-  }).then((result) => result.payload);
+  });
+  if (!result.ok) {
+    const err = new Error(`GitHub branch '${branch}' fast-forward failed.`);
+    err.status = result.status || 502;
+    err.code = "admin_branch_reconcile_fast_forward_failed";
+    err.details = { branch, upstream_status: result.status, github_error: result.payload?.message || null };
+    throw err;
+  }
+  return result.payload;
 }
 
 export async function reconcileAdminBranch(args = {}, ctx = {}) {
