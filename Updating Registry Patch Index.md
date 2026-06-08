@@ -1,5 +1,7 @@
 # Updating Registry Patch Index
 
+> 2026-06-08 Google Ads credential readiness note: PR adds `google_ads_credential_readiness_gate_policy_v1`, tool `google_ads_credential_readiness_gate`, and migration `246_sprint67_google_ads_credential_readiness_gate.sql`. It checks active Google Ads connection and credential binding metadata only. It does not read encrypted credentials, decrypt tokens, call Google Ads, or mutate spend. Future execution requires this gate in addition to preflight validation and explicit enablement.
+
 > 2026-06-08 Google Ads execution adapter skeleton note: PR adds `google_ads_budget_execution_adapter_skeleton_policy_v1`, audit table `google_ads_budget_execution_gate_audit`, skeleton `google_ads_budget_change_execution_adapter`, and migration `245_sprint67_google_ads_execution_adapter_skeleton.sql`. The skeleton validates `preflight_id` through `requireValidatedPreflightForExecution`, records audit, then blocks provider execution. Admin endpoint remains disabled; no Google Ads call, no credential read, no spend mutation.
 
 > 2026-06-08 preflight execution gate helper note: PR adds `preflight_execution_gate_helper_policy_v1`, helper `preflightLedgerExecutionGate.js`, and migration `243_sprint67_preflight_execution_gate_helper.sql`. Future execution adapters must use `requireValidatedPreflightForExecution` before mutation. The helper wraps `preflight_ledger_validate`, enforces ready preflight rows, optional envelope match, hash/readback, and no-provider/no-spend/no-secret markers. No execution.

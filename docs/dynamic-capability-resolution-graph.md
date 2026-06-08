@@ -412,6 +412,8 @@ Execution adapters must use this helper before any mutation. The helper wraps `p
 
 `google_ads_budget_execution_adapter_skeleton_policy_v1` adds a disabled/no-op skeleton for future Google Ads budget execution. It calls `requireValidatedPreflightForExecution`, records an audit row, then blocks with `blocked_google_ads_execution_adapter_not_implemented`. The admin endpoint registry row remains `is_enabled=0`; real Google Ads credentials and a separate execution implementation are still required before any provider call or spend mutation can exist.
 
+`google_ads_credential_readiness_gate_policy_v1` adds a separate readiness gate for future execution. It checks only `user_app_connections` and `credential_bindings` metadata: active Google Ads connection, credential reference presence, validation freshness, and active binding. It does not read encrypted credentials, decrypt tokens, call Google Ads, or mutate spend.
+
 ## Dry-run tool
 
 The governed tool is:

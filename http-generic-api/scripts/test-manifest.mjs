@@ -20,6 +20,7 @@ export const testCommands = [
   "node test-preflight-execution-gate-helper.mjs",
   "node test-preflight-execution-gate-policy-readback-fix.mjs",
   "node test-google-ads-execution-adapter-skeleton.mjs",
+  "node test-google-ads-credential-readiness-gate.mjs",
   "node test-capability-resolution-envelope-shared-guard.mjs",
   "node test-dynamic-platform-secret-promotion.mjs",
   "node test-db-collation-guard.mjs",
