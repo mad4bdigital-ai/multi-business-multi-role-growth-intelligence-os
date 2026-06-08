@@ -4,6 +4,27 @@ Last updated: 2026-06-07 (shared reconciliation continuation engine and scoped r
 
 ## Current Patch Set
 
+### 2026-06-08 — Chunked Tool Response Continuation Contract
+
+- Status: PR #868 opened; CI required before merge.
+- Branch: `gpt/chunk-read-generalized-fallback-20260608`
+- Scope:
+  - Added `CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT` in `http-generic-api/routes/gptToolsRoutes.js`.
+  - Chunked responses now include `continuation.required_tool=response_chunk_read`, `continuation.required_before_fallback`, and a `continuation.next_call` payload.
+  - Added migration `232_sprint68_chunked_tool_response_continuation_policy.sql` to register the blocking policy `Chunked Tool Response Continuation Contract`.
+  - Added migration 232 to the governed migration runner allowlist and release-readiness expected ledger coverage.
+  - Updated `AI_Agent_Knowledge_Guide.md` so agents must exhaust `response_chunk_read` before local slices, secondary search, connector reads, or external fallbacks.
+- Runtime behavior:
+  - Any governed tool response with `response_chunked=true`, `page.has_more=true`, or `page.next_cursor` must be continued through `response_chunk_read` until `has_more=false`.
+  - Alternative surfaces are allowed only after all chunks are read, the chunk cache expires and the original tool is retried, or `response_chunk_read` is unavailable/authorization-gated.
+  - Agents must not claim a file/result is fully read while the response page still has more chunks.
+- SQL safety class:
+  - Policy seed only; `INSERT INTO execution_policies ... ON DUPLICATE KEY UPDATE`.
+  - No destructive SQL, no secret values, and `secrets_included=false`.
+- Evidence:
+  - `test-gpt-tools-response-chunking.mjs` asserts runtime contract metadata, migration 232 content, runner allowlist, and release-readiness tracking.
+  - PR CI/manual CI evidence to be recorded before merge.
+
 ### 2026-06-07 — Shared Reconciliation Continuation Engine
 
 - Status: PR #855 opened, CI success on branch before docs-agent note; targeted docs alignment added in PR.
