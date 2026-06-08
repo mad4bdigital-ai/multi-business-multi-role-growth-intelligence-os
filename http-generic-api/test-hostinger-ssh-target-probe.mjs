@@ -21,6 +21,10 @@ assert(executor.includes("HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE"), "probe must exp
 assert(executor.includes("runHostingerSshTargetProbeJob"), "probe must expose a queue worker entrypoint");
 assert(executor.includes("DEFAULT_PROBE_TIMEOUT_MS = 45000"), "probe must default to a short SSH timeout below proxy limits");
 assert(executor.includes("MAX_PROBE_TIMEOUT_MS = 75000"), "probe must cap SSH timeout below proxy limits");
+assert(executor.includes("withPhaseTimeout"), "probe must return phase-specific timeout evidence before stale job recovery");
+assert(executor.includes("hostinger_probe_phase_timeout"), "probe phase timeout must use a structured no-secret error code");
+assert(executor.includes("ssh_credential_resolution"), "probe must identify credential resolution phase timeouts");
+assert(executor.includes("ssh_command_execution"), "probe must identify SSH command execution phase timeouts");
 assert(executor.includes('command: "timeout"'), "probe must wrap SSH with coreutils timeout");
 assert(executor.includes("ConnectTimeout=${SSH_CONNECT_TIMEOUT_SECONDS}"), "probe must bound SSH connection establishment");
 assert(executor.includes("ConnectionAttempts=1"), "probe must avoid repeated SSH connection attempts");
