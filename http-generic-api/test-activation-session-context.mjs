@@ -8,7 +8,8 @@ import {
   resolveSessionContextSubject,
   SESSION_CONTEXT_DEFAULT_LIMIT,
   SESSION_CONTEXT_MAX_LIMIT,
-  resolveRequestedEvolutionScope
+  resolveRequestedEvolutionScope,
+  shouldOpenActivationSession
 } from "./routes/activationRoutes.js";
 
 {
