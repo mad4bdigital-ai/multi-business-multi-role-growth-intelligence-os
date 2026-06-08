@@ -294,6 +294,25 @@ open
 
 The gate runs before `buildForwardOptions`, so the platform n8n API-key bridge is not injected unless the state-changing action has a valid envelope.
 
+## Fourth enforced family: GitHub repository patch apply
+
+`repo_patch_apply_capability_envelope_requirement_v1` makes `repo_patch_apply` require `capability_envelope_id` before GitHub App token resolution or repository content mutation.
+
+`repo_inspect` remains read-only and does not require an envelope.
+
+Runtime order:
+
+```text
+input/path validation
+protected-branch guard
+capability envelope guard
+GitHub App token resolution
+branch compare / stale-branch preflight
+GitHub contents mutation
+```
+
+The existing repository protections still apply: protected branch blocking, stale/diverged branch guard, path denylist, single-file patch scope, and governed preflight.
+
 ## Dry-run tool
 
 The governed tool is:
