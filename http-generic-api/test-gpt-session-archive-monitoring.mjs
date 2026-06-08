@@ -29,7 +29,9 @@ assert.doesNotMatch(migration, /content_preview|`content`|\.content\b|\bcontent\
 assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 
 assert.ok(runner.includes("229_sprint67_gpt_session_archive_monitoring.sql"));
+assert.ok(runner.includes("245_sprint68_gpt_tool_archive_pinning_monitoring.sql"));
 assert.ok(readiness.includes("229_sprint67_gpt_session_archive_monitoring.sql"));
+assert.ok(readiness.includes("245_sprint68_gpt_tool_archive_pinning_monitoring.sql"));
 assert.ok(readiness.includes("checkGptSessionArchiveMonitoring"));
 assert.ok(readiness.includes("v_gpt_session_archive_monitoring_summary"));
 assert.ok(readiness.includes("v_gpt_session_archive_monitoring_issues"));
