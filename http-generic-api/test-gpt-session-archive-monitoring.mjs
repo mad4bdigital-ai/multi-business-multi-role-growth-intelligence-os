@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const migration = readFileSync(new URL("./migrations/229_sprint67_gpt_session_archive_monitoring.sql", import.meta.url), "utf8");
+const pinningMigration = readFileSync(new URL("./migrations/245_sprint68_gpt_tool_archive_pinning_monitoring.sql", import.meta.url), "utf8");
 const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
 const readiness = readFileSync(new URL("./releaseReadiness.js", import.meta.url), "utf8");
 const activationRoutes = readFileSync(new URL("./routes/activationRoutes.js", import.meta.url), "utf8");
