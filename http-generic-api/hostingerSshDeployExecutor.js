@@ -482,6 +482,92 @@ function parseProbeOutput(stdout = "") {
   return out;
 }
 
+function buildHostingerDeployReloadVerification({ restart = true, parsed = {}, sshOk = false } = {}) {
+  const restartSignal = String(parsed.restart_signal || "").trim();
+  const deployResult = String(parsed.deploy_result || "").trim();
+  const restartRequested = restart === true;
+  const restartSignalOk = !restartRequested || restartSignal === "tmp/restart.txt";
+  const deployResultOk = deployResult === "ok";
+  return {
+    restart_requested: restartRequested,
+    restart_signal: restartSignal || null,
+    restart_signal_ok: restartSignalOk,
+    deploy_result: deployResult || null,
+    deploy_result_ok: deployResultOk,
+    files_updated: sshOk && deployResultOk,
+    reload_signal_emitted: sshOk && restartRequested && restartSignalOk,
+    runtime_health_readback_required: sshOk && restartRequested,
+    status: !sshOk
+      ? "ssh_deploy_failed"
+      : !deployResultOk
+        ? "deploy_result_missing_or_failed"
+        : restartRequested && !restartSignalOk
+          ? "deploy_reload_signal_missing"
+          : restartRequested
+            ? "reload_signal_emitted_pending_health_readback"
+            : "reload_not_requested",
+    secrets_included: false,
+  };
+}
+
+function buildHostingerDeployContinuationEvidence({
+  targetId,
+  appKey,
+  appPath,
+  branch,
+  expectedCommitSha,
+  restart,
+  parsed = {},
+  reloadVerification = {},
+} = {}) {
+  const checkpoint = createContinuationCheckpoint({
+    operation_key: `hostinger_deploy_reload:${targetId || "unknown"}:${expectedCommitSha || "unknown"}`,
+    resource_type: "hostinger_deploy_reload",
+    actor_context: { actor_type: "admin" },
+    resource_scope: {
+      scope_type: "deployment",
+      provider: "hostinger",
+      target_id: targetId || null,
+      app_key: appKey || null,
+    },
+    resource_state: {
+      target_id: targetId || null,
+      app_path: appPath || null,
+      branch: branch || "main",
+      expected_commit_sha: expectedCommitSha || null,
+      parsed_deploy: parsed,
+      reload_verification: reloadVerification,
+    },
+    interruption_signal: "deploy_reload_pending",
+    stage: reloadVerification?.status === "reload_signal_emitted_pending_health_readback" ? "verify" : "dry_run_repair",
+    metadata: {
+      adapter: "hostinger_deploy_reload",
+      restart_requested: restart === true,
+      requires_live_health_readback: reloadVerification?.runtime_health_readback_required === true,
+      runbook: "http-generic-api/docs/hostinger-runtime-sync-runbook.md",
+      secrets_included: false,
+    },
+  });
+  const resume_plan = planContinuationResume({
+    checkpoint,
+    actor_context: { actor_type: "admin" },
+    resource_scope: checkpoint.resource_scope,
+    current_resource_state: {
+      target_id: targetId || null,
+      app_path: appPath || null,
+      branch: branch || "main",
+      expected_commit_sha: expectedCommitSha || null,
+      parsed_deploy: parsed,
+      reload_verification: reloadVerification,
+      live_health_readback_pending: reloadVerification?.runtime_health_readback_required === true,
+    },
+    dry_run_result: { ok: reloadVerification?.files_updated === true, reload_verification: reloadVerification },
+    verify_result: { ok: reloadVerification?.runtime_health_readback_required !== true, reload_verification: reloadVerification },
+    apply_requested: false,
+  });
+  return { checkpoint, resume_plan, secrets_included: false };
+}
+
 export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
   const pool = deps.pool || getPool();
   const env = deps.env || process.env;
