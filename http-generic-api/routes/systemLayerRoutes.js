@@ -1211,6 +1211,211 @@ async function getConnectorRegistrySystem(systemId, auth = null) {
   };
 }
 
+function clampDriveToolLimit(value, fallback = 100, max = 200) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(Math.max(1, Math.floor(parsed)), max);
+}
+
+function parseGoogleDriveFolderId(args = {}) {
+  const direct = String(args.folder_id || args.file_id || "").trim();
+  if (direct) return direct;
+  const url = String(args.folder_url || args.url || "").trim();
+  if (!url) return "";
+  const folderMatch = url.match(/\/folders\/([A-Za-z0-9_-]+)/);
+  if (folderMatch?.[1]) return folderMatch[1];
+  const idMatch = url.match(/[?&]id=([A-Za-z0-9_-]+)/);
+  return idMatch?.[1] || "";
+}
+
+function sanitizeDriveFileMetadata(file = {}) {
+  return {
+    id: file.id || null,
+    name: file.name || null,
+    mimeType: file.mimeType || null,
+    modifiedTime: file.modifiedTime || null,
+    createdTime: file.createdTime || null,
+    size: file.size || null,
+    driveId: file.driveId || null,
+    parents: Array.isArray(file.parents) ? file.parents : [],
+    webViewLink: file.webViewLink || null,
+    capabilities: file.capabilities || undefined,
+    is_folder: file.mimeType === "application/vnd.google-apps.folder",
+  };
+}
+
+function driveEndpointCatalogRow(row = {}) {
+  return {
+    endpoint_id: row.endpoint_id || null,
+    parent_action_key: row.parent_action_key || null,
+    endpoint_key: row.endpoint_key || null,
+    endpoint_operation: row.endpoint_operation || null,
+    openai_action_name: row.openai_action_name || null,
+    method: row.method || null,
+    endpoint_path_or_function: row.endpoint_path_or_function || null,
+    route_target: row.route_target || null,
+    module_binding: row.module_binding || null,
+    connector_family: row.connector_family || null,
+    status: row.status || null,
+    execution_readiness: row.execution_readiness || null,
+    endpoint_role: row.endpoint_role || null,
+    execution_mode: row.execution_mode || null,
+    transport_required: row.transport_required || null,
+    secrets_included: false,
+  };
+}
+
+async function listGoogleDriveEndpointCatalog(args = {}) {
+  const parentActionKey = String(args.parent_action_key || "google_drive_api").trim() || "google_drive_api";
+  const conditions = ["parent_action_key = ?"];
+  const params = [parentActionKey];
+  for (const [argKey, column] of [["method", "method"], ["status", "status"], ["execution_readiness", "execution_readiness"]]) {
+    if (args[argKey]) {
+      conditions.push(`${column} = ?`);
+      params.push(String(args[argKey]).trim());
+    }
+  }
+  const search = String(args.search || "").trim();
+  if (search) {
+    conditions.push("(endpoint_key LIKE ? OR endpoint_operation LIKE ? OR openai_action_name LIKE ? OR endpoint_path_or_function LIKE ? OR notes LIKE ?)");
+    const like = `%${search}%`;
+    params.push(like, like, like, like, like);
+  }
+  const limit = clampDriveToolLimit(args.limit, 100, 200);
+  params.push(limit);
+  const [rows] = await getPool().query(
+    `SELECT endpoint_id, parent_action_key, endpoint_key, endpoint_operation, openai_action_name,
+            method, endpoint_path_or_function, route_target, module_binding, connector_family,
+            status, execution_readiness, endpoint_role, execution_mode, transport_required
+       FROM \`endpoints\`
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY
+        CASE WHEN status = 'active' THEN 0 ELSE 1 END,
+        CASE WHEN execution_readiness = 'ready' THEN 0 ELSE 1 END,
+        endpoint_key ASC
+      LIMIT ?`,
+    params
+  );
+  return {
+    ok: true,
+    parent_action_key: parentActionKey,
+    filters: {
+      search: search || null,
+      method: args.method || null,
+      status: args.status || null,
+      execution_readiness: args.execution_readiness || null,
+      limit,
+    },
+    count: rows.length,
+    endpoints: rows.map(driveEndpointCatalogRow),
+    secrets_included: false,
+  };
+}
+
+function buildDriveRuntimePayload({ endpointKey, pathParams = {}, query = {}, args = {}, auth = null, dryRun = false }) {
+  const guarded = derivePrincipalExecutionContext({
+    parent_action_key: "google_drive_api",
+    endpoint_key: endpointKey,
+    path_params: pathParams,
+    query,
+    credential_scope: args.credential_scope || "platform",
+    connection_id: args.connection_id,
+    tenant_id: args.tenant_id,
+    user_id: args.user_id,
+    allow_platform_fallback: args.allow_platform_fallback !== false,
+    auth_context: args.auth_context,
+    timeout_seconds: Math.min(Number(args.timeout_seconds) || 60, 120),
+    dry_run: Boolean(dryRun),
+  }, auth);
+  return {
+    ...guarded.payload,
+    _principal: guarded.principal,
+    _principal_context_guard: guarded.guard,
+  };
+}
+
+async function callDriveRuntimeEndpoint({ endpointKey, pathParams = {}, query = {}, args = {}, auth = null, deps = {} }) {
+  return await callRuntimeEndpointViaFacade(buildDriveRuntimePayload({ endpointKey, pathParams, query, args, auth }), deps);
+}
+
+function runtimeEndpointData(response) {
+  return (response?.body || response || {}).data || {};
+}
+
+async function inspectGoogleDriveFolder(args = {}, auth = null, deps = {}) {
+  const folderId = parseGoogleDriveFolderId(args);
+  if (!folderId) {
+    const err = new Error("folder_id or folder_url is required.");
+    err.status = 400;
+    err.code = "google_drive_folder_id_required";
+    throw err;
+  }
+  const maxDepth = clampDriveToolLimit(args.max_depth, 1, 3);
+  const pageSize = clampDriveToolLimit(args.page_size, 100, 200);
+  const recursive = Boolean(args.recursive);
+  const visited = new Set();
+
+  async function inspectOne(currentFolderId, depth = 0) {
+    if (visited.has(currentFolderId)) {
+      return { id: currentFolderId, skipped: true, skip_reason: "already_visited", children: [] };
+    }
+    visited.add(currentFolderId);
+    const metadata = runtimeEndpointData(await callDriveRuntimeEndpoint({
+      endpointKey: "getFileMetadata",
+      pathParams: { fileId: currentFolderId },
+      query: {
+        fields: "id,name,mimeType,driveId,parents,createdTime,modifiedTime,webViewLink,capabilities(canAddChildren,canEdit,canListChildren)",
+        supportsAllDrives: true,
+      },
+      args,
+      auth,
+      deps,
+    }));
+    const listData = runtimeEndpointData(await callDriveRuntimeEndpoint({
+      endpointKey: "listDriveFiles",
+      query: {
+        q: `'${currentFolderId}' in parents and trashed=false`,
+        fields: "files(id,name,mimeType,modifiedTime,size,parents,webViewLink),nextPageToken",
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+        pageSize,
+      },
+      args,
+      auth,
+      deps,
+    }));
+    const children = Array.isArray(listData.files) ? listData.files.map(sanitizeDriveFileMetadata) : [];
+    const childFolders = children.filter((child) => child.is_folder);
+    const nested = [];
+    if (recursive && depth < maxDepth) {
+      for (const child of childFolders) nested.push(await inspectOne(child.id, depth + 1));
+    }
+    return {
+      folder: sanitizeDriveFileMetadata(metadata),
+      depth,
+      child_count: children.length,
+      folder_count: childFolders.length,
+      file_count: children.length - childFolders.length,
+      children,
+      nested,
+      next_page_token: listData.nextPageToken || null,
+      secrets_included: false,
+    };
+  }
+
+  const tree = await inspectOne(folderId, 0);
+  return {
+    ok: true,
+    adapter: "google-drive-folder-inspect-v1",
+    requested_folder_id: folderId,
+    recursive,
+    max_depth: maxDepth,
+    page_size: pageSize,
+    tree,
+    secrets_included: false,
+  };
+}
+
 async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   if (!LOCAL_SYSTEM_TOOL_NAMES.has(name)) {
     const tenantRegistryTool = await callTenantEndpointRegistryToolIfAvailable(name, args, auth, deps);
