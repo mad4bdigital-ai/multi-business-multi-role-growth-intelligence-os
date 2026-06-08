@@ -235,6 +235,9 @@ function buildRuntimeEvent({
   content,
   timestamp,
   includeContent = false,
+  bookmark = null,
+  docContentMode = null,
+  fullContentStorage = null,
 }) {
   return {
     event_id: eventId,
