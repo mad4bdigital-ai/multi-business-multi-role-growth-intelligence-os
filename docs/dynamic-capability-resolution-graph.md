@@ -400,6 +400,14 @@ preflight_ledger_validate --family-key google_ads_budget --preflight-id <id>
 
 The validator checks active registry authority, table allowlist, ready state, optional envelope match, no-provider/no-spend markers, no-secret markers, and `preflight_sha256` against the stored JSON payload. Future execution adapters should call this validator instead of reading family ledgers directly.
 
+`preflight_execution_gate_helper_policy_v1` adds the importable helper:
+
+```text
+requireValidatedPreflightForExecution(...)
+```
+
+Execution adapters must use this helper before any mutation. The helper wraps `preflight_ledger_validate`, requires `ready_for_dispatch`, optionally enforces envelope match, returns the validated preflight context, and does not call providers or connectors.
+
 ## Dry-run tool
 
 The governed tool is:
