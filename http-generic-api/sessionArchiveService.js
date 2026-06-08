@@ -10,6 +10,7 @@ import {
 } from "./uploadPipeline.js";
 
 const PREVIEW_CHARS = 512;
+const TOOL_DOC_SECTION_PREVIEW_CHARS = 900;
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const DEFAULT_SESSIONS_DRIVE_FOLDER_ID = "1TIxUmnh0RrLCfXYfkjf96EwGc8OYnEw1";
 
@@ -162,6 +163,67 @@ async function appendJsonlLine(archive, line, deps) {
   await deps.updateDriveFileContent(archive.drive_jsonl_id, next, "application/x-ndjson");
 }
 
+function previewDocSection(value = "", limit = TOOL_DOC_SECTION_PREVIEW_CHARS) {
+  const text = String(value || "").trim();
+  if (text.length <= limit) return text;
+  return `${text.slice(0, limit)}...[truncated; full content in JSONL sidecar]`;
+}
+
+function extractArchiveSection(text = "", sectionName = "") {
+  const marker = `${sectionName}:\n`;
+  const start = String(text || "").indexOf(marker);
+  if (start === -1) return "";
+  const bodyStart = start + marker.length;
+  const tail = String(text || "").slice(bodyStart);
+  const next = tail.search(/\n\n(?:Args|Result):\n/);
+  return (next === -1 ? tail : tail.slice(0, next)).trim();
+}
+
+function firstPrefixedLine(text = "", prefix = "") {
+  return String(text || "")
+    .split(/\r?\n/)
+    .find((line) => line.startsWith(prefix))
+    ?.slice(prefix.length)
+    .trim() || "";
+}
+
+function buildToolCallDocSummary({ content, actionKey, contentHash }) {
+  const text = String(content || "");
+  const toolName = firstPrefixedLine(text, "Tool:") || actionKey || "unknown";
+  const status = firstPrefixedLine(text, "Status:") || "unknown";
+  const argsPreview = previewDocSection(extractArchiveSection(text, "Args"));
+  const resultPreview = previewDocSection(extractArchiveSection(text, "Result"));
+  return [
+    "### Tool Call Summary",
+    "",
+    `Tool: ${toolName}`,
+    `Action key: ${actionKey || toolName}`,
+    `Status: ${status}`,
+    "Full content: JSONL sidecar",
+    `Content SHA256: ${contentHash}`,
+    "",
+    argsPreview ? "Args preview:" : null,
+    argsPreview ? "```json" : null,
+    argsPreview || null,
+    argsPreview ? "```" : null,
+    argsPreview ? "" : null,
+    resultPreview ? "Result preview:" : null,
+    resultPreview ? "```json" : null,
+    resultPreview || null,
+    resultPreview ? "```" : null,
+    "",
+  ].filter((line) => line !== null).join("\n");
+}
+
+function buildDocContentForTurn({ role, content, actionKey, contentHash }) {
+  if (role === "tool") return buildToolCallDocSummary({ content, actionKey, contentHash });
+  return String(content || "");
+}
+
+function docContentModeForRole(role) {
+  return role === "tool" ? "summary_only" : "full_turn_text";
+}
+
 function buildRuntimeEvent({
   eventId,
   sessionId,
@@ -173,6 +235,9 @@ function buildRuntimeEvent({
   content,
   timestamp,
   includeContent = false,
+  bookmark = null,
+  docContentMode = null,
+  fullContentStorage = null,
 }) {
   return {
     event_id: eventId,
@@ -183,15 +248,21 @@ function buildRuntimeEvent({
     role,
     action_key: actionKey,
     content_sha256: contentHash,
+    ...(bookmark ? { bookmark } : {}),
+    ...(docContentMode ? { doc_content_mode: docContentMode } : {}),
+    ...(fullContentStorage ? { full_content_storage: fullContentStorage } : {}),
     ...(includeContent ? { content } : {}),
     created_at: timestamp,
   };
 }
 
 function buildTranscriptSection({ role, content, turnIndex, timestamp, runtimeEvent }) {
+  const bookmark = runtimeEvent?.bookmark || `turn-${turnIndex}`;
   return [
     "",
     `## Turn ${turnIndex} - ${String(role).toUpperCase()} - ${timestamp}`,
+    "",
+    `Bookmark: ${bookmark}`,
     "",
     String(content || ""),
     "",
@@ -224,23 +295,32 @@ function renderTranscriptTextFromJsonl(session = {}, jsonlText = "") {
     `Rebuilt from JSONL: ${new Date().toISOString()}`,
     "",
   ];
-  const sections = records.map((record) => buildTranscriptSection({
-    role: record.role || record.event_type || "unknown",
-    content: record.content || "",
-    turnIndex: record.turn_index ?? "unknown",
-    timestamp: record.created_at || "unknown",
-    runtimeEvent: {
-      event_id: record.event_id || null,
-      session_id: record.session_id || session.session_id,
-      turn_id: record.turn_id || null,
-      turn_index: record.turn_index ?? null,
-      role: record.role || record.event_type || "unknown",
-      action_key: record.action_key || null,
-      content_sha256: record.content_sha256 || null,
-      rebuilt_from_jsonl: true,
-      secrets_included: false,
-    },
-  }));
+  const sections = records.map((record) => {
+    const role = record.role || record.event_type || "unknown";
+    const content = record.content || "";
+    const contentHash = record.content_sha256 || sha256(content);
+    const bookmark = `turn-${record.turn_index ?? "unknown"}`;
+    return buildTranscriptSection({
+      role,
+      content: buildDocContentForTurn({ role, content, actionKey: record.action_key || null, contentHash }),
+      turnIndex: record.turn_index ?? "unknown",
+      timestamp: record.created_at || "unknown",
+      runtimeEvent: {
+        event_id: record.event_id || null,
+        session_id: record.session_id || session.session_id,
+        turn_id: record.turn_id || null,
+        turn_index: record.turn_index ?? null,
+        role,
+        action_key: record.action_key || null,
+        content_sha256: contentHash,
+        bookmark,
+        doc_content_mode: docContentModeForRole(role),
+        full_content_storage: "jsonl_sidecar",
+        rebuilt_from_jsonl: true,
+        secrets_included: false,
+      },
+    });
+  });
   return [...heading, ...sections].join("\n");
 }
 
@@ -329,6 +409,8 @@ export async function recordGptSessionTurn({
   const contentHash = sha256(content);
   const contentPreview = previewText(content);
   const driveAnchor = `turn-${turnIndex}`;
+  const docContent = buildDocContentForTurn({ role, content, actionKey: action_key, contentHash });
+  const docContentMode = docContentModeForRole(role);
   const docRuntimeEvent = buildRuntimeEvent({
     eventId,
     sessionId: session.session_id,
@@ -340,6 +422,9 @@ export async function recordGptSessionTurn({
     content,
     timestamp,
     includeContent: false,
+    bookmark: driveAnchor,
+    docContentMode,
+    fullContentStorage: "jsonl_sidecar",
   });
   const jsonlRuntimeEvent = buildRuntimeEvent({
     eventId,
@@ -366,7 +451,7 @@ export async function recordGptSessionTurn({
       try {
         await deps.appendTextToGoogleDoc(
           archiveResult.archive.drive_doc_id,
-          buildTranscriptSection({ role, content, turnIndex, timestamp, runtimeEvent: docRuntimeEvent })
+          buildTranscriptSection({ role, content: docContent, turnIndex, timestamp, runtimeEvent: docRuntimeEvent })
         );
         docWritten = true;
       } catch (err) {

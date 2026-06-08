@@ -126,8 +126,11 @@ function flattenParams(value) {
     "successful Drive writes should self-heal stale archive write_failed status"
   );
   assert(driveWrites.docText.includes(fullContent), "full content should be written to Drive doc");
+  assert(driveWrites.docText.includes("Bookmark: turn-0"), "Drive doc should include a stable text bookmark marker");
   assert(driveWrites.docText.includes("### Runtime Event"), "Drive doc should include runtime event metadata");
   assert(driveWrites.docText.includes('"action_key": "example_action"'), "Drive doc should include action metadata");
+  assert(driveWrites.docText.includes('"doc_content_mode": "full_turn_text"'), "user/assistant turns should be marked as full text in the Doc");
+  assert(driveWrites.docText.includes('"full_content_storage": "jsonl_sidecar"'), "Drive doc should point to JSONL as full-fidelity storage");
   assert(!driveWrites.docText.includes(`"content": "${fullContent}`), "Drive doc metadata should not duplicate full content JSON");
   assert(driveWrites.jsonl.includes(fullContent), "full content should be written to Drive JSONL");
   assert.equal(JSON.parse(driveWrites.jsonl.trim()).content, fullContent, "JSONL should remain parseable full-fidelity content");
@@ -160,6 +163,53 @@ function flattenParams(value) {
   assert.equal(eventInsert.params[7], "user");
   assert.equal(eventInsert.params[8], "brand-1");
   assert.equal(eventInsert.params[10], "example_action");
+}
+
+{
+  const pool = makePool();
+  const driveWrites = { folders: [], docText: "", jsonl: "" };
+  const fullToolContent = [
+    "Tool: admin_control",
+    "Status: HTTP 200 ok=true",
+    "",
+    "Args:",
+    JSON.stringify({ tool: "github", args: ["run", "view", "123", "--log-failed"] }, null, 2),
+    "",
+    "Result:",
+    `{"stdout":"${"very long tool output ".repeat(200)}"}`,
+  ].join("\n");
+  const deps = {
+    sessionsDriveFolderId: "root-folder",
+    now: () => new Date("2026-05-16T12:15:00.000Z"),
+    async getOrCreateDriveFolder(name, parentId) { driveWrites.folders.push({ name, parentId }); return `${parentId}/${name}`; },
+    async createGoogleDocInDrive(_name, _parentId, initialText) { driveWrites.docText += initialText; return { drive_file_id: "doc-tool", drive_web_url: "https://drive/doc-tool" }; },
+    async appendTextToGoogleDoc(_docId, text) { driveWrites.docText += text; },
+    async uploadContentToDrive(content) { driveWrites.jsonl = content; return { drive_file_id: "jsonl-tool", drive_web_url: "https://drive/jsonl-tool" }; },
+    async fetchDriveContent() { return driveWrites.jsonl; },
+    async updateDriveFileContent(_fileId, content) { driveWrites.jsonl = content; return { drive_file_id: "jsonl-tool", drive_web_url: "https://drive/jsonl-tool" }; },
+  };
+
+  await recordGptSessionTurn({
+    pool,
+    session: {
+      session_id: "sess-tool",
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      started_at: "2026-05-16T10:00:00.000Z",
+    },
+    role: "tool",
+    content: fullToolContent,
+    action_key: "admin_control",
+    turnIndex: 0,
+    injectedDeps: deps,
+  });
+
+  assert(driveWrites.docText.includes("Bookmark: turn-0"), "tool sections should include a stable bookmark marker");
+  assert(driveWrites.docText.includes("### Tool Call Summary"), "tool sections should be summarized in the readable Google Doc");
+  assert(driveWrites.docText.includes("Full content: JSONL sidecar"), "tool summaries should point to JSONL for full fidelity");
+  assert(driveWrites.docText.includes('"doc_content_mode": "summary_only"'), "tool runtime metadata should disclose summary-only doc content");
+  assert(!driveWrites.docText.includes(fullToolContent), "Google Doc should not contain the full tool dump");
+  assert.equal(JSON.parse(driveWrites.jsonl.trim()).content, fullToolContent, "tool JSONL should remain parseable full-fidelity content");
 }
 
 {
