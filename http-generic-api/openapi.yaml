@@ -6749,6 +6749,12 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: executeAdminControl
       summary: Execute personal admin control operation
+      x-runtime-governance:
+        github_rest_fallback_continuation:
+          policy: repair_missing_capability_before_fallback
+          shared_reconciliation_checkpoint: true
+          repair_attempts_before_fallback: 3
+          secrets_included: false
       description: >
         Root-level personal administrator endpoint for GitHub CLI, gcloud CLI,
         remote database SQL control through the configured application pool, and
