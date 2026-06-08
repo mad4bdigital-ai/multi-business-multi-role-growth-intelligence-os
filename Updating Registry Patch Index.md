@@ -1,5 +1,7 @@
 # Updating Registry Patch Index
 
+> 2026-06-08 Google Ads preflight ledger note: PR adds `google_ads_budget_preflight_ledger_policy_v1`, table `google_ads_budget_preflight_ledger`, and migration `241_sprint67_google_ads_budget_preflight_ledger.sql`. `google_ads_budget_change_preflight` now records every result with `preflight_id` and `preflight_sha256`; future Google Ads execution adapters must require a ready ledger row before mutation. No provider call, no credential read, no spend change, `secrets_included=false`.
+
 > 2026-06-08 Google Ads budget preflight note: PR adds `google_ads_budget_change_preflight_policy_v1`, tool `google_ads_budget_change_preflight`, and migration `238_sprint67_google_ads_budget_change_preflight.sql`. It requires a ready Google Ads capability envelope and `budget_quota_authority_dry_run=ready_for_dispatch` before any future budget mutation adapter. It is preflight only: no Google Ads provider call, no credential read, no spend change, `secrets_included=false`.
 
 > 2026-06-08 budget/quota authority note: PR adds `budget_quota_authority_registry_policy_v1`, table `budget_quota_authority_registry`, tool `budget_quota_authority_dry_run`, and migration `236_sprint67_budget_quota_authority_registry.sql`. It is dry-run only, blocks missing/exceeded spend authority, routes approval-required spend through envelope approval, and includes no provider spend or connector forwarding. `secrets_included=false`.
