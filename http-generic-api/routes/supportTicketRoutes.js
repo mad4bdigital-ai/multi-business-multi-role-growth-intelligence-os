@@ -13,6 +13,7 @@ import {
   listSupportTicketsForTenant,
   reconcileOpenSupportTickets,
   reconcileSupportTicketSla,
+  syncSupportTicketRuntimeStatus,
   transitionSupportTicket,
 } from "../supportTicketService.js";
 
