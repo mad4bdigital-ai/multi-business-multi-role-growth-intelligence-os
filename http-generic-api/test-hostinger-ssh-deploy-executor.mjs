@@ -28,6 +28,13 @@ assert(executor.includes("expected_commit_sha"), "executor must require an expec
 assert(executor.includes("git checkout --detach"), "deploy must checkout a fixed SHA, not a mutable branch head");
 assert(executor.includes("pathAllowedByTarget"), "executor must enforce target path allowlists");
 assert(executor.includes("approval_reason") || executor.includes("approvalReason"), "executor must require approval reason for execution");
+assert(executor.includes("buildHostingerDeployReloadVerification"), "deploy must build explicit reload verification evidence");
+assert(executor.includes("restart_signal_ok"), "deploy must verify restart signal emission when restart is requested");
+assert(executor.includes("runtime_health_readback_required"), "deploy must require live health readback after restart signal emission");
+assert(executor.includes("buildHostingerDeployContinuationEvidence"), "deploy must create continuation evidence for pending reload/health verification");
+assert(executor.includes("deploy_reload_pending"), "deploy reload gaps must use the shared deploy_reload_pending interruption signal");
+assert(executor.includes("createContinuationCheckpoint") && executor.includes("planContinuationResume"), "deploy reload continuation must use the shared reconciliation engine");
+assert(executor.includes("live_ready: deployOk && reloadVerification.runtime_health_readback_required !== true"), "deploy responses must not claim live readiness before health readback");
 assert(executor.includes("secrets_included: false"), "responses and evidence must mark secrets as excluded");
 assert(!executor.includes("privateKey:"), "executor response must not serialize privateKey fields");
 assert(!executor.includes("private_key:"), "executor response must not expose private_key fields");
