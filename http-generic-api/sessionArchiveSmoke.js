@@ -73,6 +73,8 @@ export async function runSessionArchiveSmoke({
   includeDriveReadback = true,
   cleanup: shouldCleanup = true,
   smokeSubfolder = DEFAULT_SMOKE_SUBFOLDER,
+  forceDocRollover = false,
+  docRolloverChars = null,
   activationContextReader = buildActivationSessionContext,
   fetchDriveContentFn = fetchDriveContent,
   deleteDriveFileFn = deleteDriveFile,
