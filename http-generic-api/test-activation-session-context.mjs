@@ -49,6 +49,10 @@ assert.equal(capLimit(500, SESSION_CONTEXT_DEFAULT_LIMIT, SESSION_CONTEXT_MAX_LI
 assert.equal(normalizeOffset(undefined), 0);
 assert.equal(normalizeOffset(-1), 0);
 assert.equal(normalizeOffset(40), 40);
+assert.equal(shouldOpenActivationSession({}), true);
+assert.equal(shouldOpenActivationSession({ read_only: "true" }), false);
+assert.equal(shouldOpenActivationSession({ no_open_session: "true" }), false);
+assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
 
 {
   const scope = resolveRequestedEvolutionScope({}, { is_admin: true });
