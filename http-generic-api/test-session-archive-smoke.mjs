@@ -13,6 +13,9 @@ assert(migration.includes("drive-writeback"), "session archive smoke tool must b
 assert(migration.includes("activation-readback"), "session archive smoke tool must be tagged activation-readback");
 assert(migration.includes("no_secrets"), "session archive smoke tool must be tagged no_secrets");
 assert(migration.includes("cleanup_default_true"), "session archive smoke tool must advertise cleanup_default_true");
+assert(rolloverMigration.includes("force_doc_rollover"), "rollover smoke schema must expose force_doc_rollover");
+assert(rolloverMigration.includes("doc_rollover_chars"), "rollover smoke schema must expose doc_rollover_chars");
+assert(rolloverMigration.includes("rollover-smoke"), "rollover smoke schema must tag rollover-smoke");
 
 function makePool() {
   const state = { session: null, turns: [], events: [], deletes: { session: 0, turns: 0, events: 0 } };
