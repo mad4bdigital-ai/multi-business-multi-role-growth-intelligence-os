@@ -17,6 +17,7 @@ export const GENERALIZED_INTERRUPTION_SIGNALS = Object.freeze([
   "session_expired",
   "transport_timeout",
   "connector_unavailable",
+  "connector_tunnel_provisioning_required",
   "branch_diverged",
   "deploy_reload_pending",
   "fallback_unsupported_command",
