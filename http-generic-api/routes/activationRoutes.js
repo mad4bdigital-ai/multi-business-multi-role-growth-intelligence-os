@@ -1407,6 +1407,32 @@ export function buildActivationRoutes(deps) {
     });
   });
 
+  router.get("/activation/session-context/read-only", requireBackendApiKey, async (req, res) => {
+    try {
+      const context = await buildActivationSessionContext({
+        ...req,
+        query: {
+          ...req.query,
+          read_only: "true",
+        },
+      });
+      return res.status(200).json({
+        ok: true,
+        activation_layer: "session_context",
+        read_only: true,
+        ...context
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "activation_session_context_read_only_failed",
+          message: err.message
+        }
+      });
+    }
+  });
+
   router.get("/activation/session-context", requireBackendApiKey, async (req, res) => {
     try {
       const context = await buildActivationSessionContext(req);
