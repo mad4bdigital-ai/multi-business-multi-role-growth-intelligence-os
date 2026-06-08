@@ -34,6 +34,29 @@ const MAX_TOOL_RESPONSE_MAX_CHARS = 150000;
 const TOOL_RESPONSE_CHUNK_TTL_MS = 15 * 60 * 1000;
 const TOOL_RESPONSE_CHUNK_CACHE = new Map();
 
+export const CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT = Object.freeze({
+  policy: "chunk_read_before_alternative_surface",
+  required_when: "response_chunked_true_or_page_has_more_true",
+  required_tool: "response_chunk_read",
+  required_sequence: Object.freeze([
+    "read_current_chunk",
+    "call_response_chunk_read_with_chunk_id_and_next_cursor",
+    "repeat_until_page_has_more_false",
+    "only_then_use_secondary_search_slice_or_external_fallback",
+  ]),
+  applies_to: Object.freeze([
+    "admin_tools",
+    "tenant_tools",
+    "system_tools",
+    "device_tools",
+    "repo_inspect",
+    "connector_dispatch",
+    "any_governed_tool_response",
+  ]),
+  fallback_allowed_only_after: "all_chunks_read_or_chunk_cache_expired_or_authorized_tool_unavailable",
+  secrets_included: false,
+});
+
 function redactArgsForArchive(value) {
   if (Array.isArray(value)) return value.map(redactArgsForArchive);
   if (!value || typeof value !== "object") {
@@ -269,6 +292,18 @@ function buildToolResponseChunk({ serialized, chunkId, cursor, maxChars, source 
     response_chunked: true,
     chunk_id: chunkId,
     source,
+    continuation_required: end < serialized.length,
+    continuation: {
+      policy: CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT.policy,
+      required_tool: CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT.required_tool,
+      required_before_fallback: end < serialized.length,
+      next_call: end < serialized.length ? {
+        name: "response_chunk_read",
+        tool_args: { chunk_id: chunkId, cursor: end, max_chars: maxChars },
+      } : null,
+      fallback_allowed_only_after: CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT.fallback_allowed_only_after,
+      secrets_included: false,
+    },
     page: {
       cursor: safeCursor,
       next_cursor: end < serialized.length ? end : null,

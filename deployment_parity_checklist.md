@@ -30,6 +30,8 @@ For shared reconciliation or continuation changes, verify the exact resume contr
 
 For Hostinger deployment/runtime changes, verify file sync and process reload separately. Governed deploy responses must include parsed deploy output, reload verification, and a no-secret `deploy_reload_pending` continuation checkpoint until `/health` confirms the expected running version/commit. Do not mark the runtime live-ready from filesystem checkout alone.
 
+For chunked governed tool responses, verify `response_chunked=true` or `page.has_more=true` is handled by `response_chunk_read` before any local slice, secondary search, connector read, or external fallback. The response should expose `continuation.next_call` and `continuation.required_before_fallback=true` until the chunk stream is exhausted.
+
 For local device project path changes, use the SQL-backed registry and governed helpers documented in `docs/local-project-path-governance.md`. A local path update is not a backup and must not be treated as one.
 
 - [ ] `npm test` passes from `http-generic-api/` (800+ assertions across 46+ test files: utility, job runner, execution routing, execution response, execution log evidence, logic evidence plumbing, engine evidence derivation, engine evidence integration, connectors, routes, activation bootstrap cache, Google Sheets chunking, sheets range drift, starter authority surfaces, transport governance, activation classification, activation response, governed activation runner, registry alignment validator, logic switching, WordPress, AI resolvers, SQL migration tooling, and data-flow smoke test)

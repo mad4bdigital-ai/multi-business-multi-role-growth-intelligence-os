@@ -73,6 +73,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "229_sprint67_gpt_session_archive_monitoring.sql",
   "230_sprint67_gpt_session_conversation_ref_capture_current.sql",
   "231_sprint68_shared_reconciliation_continuation_policy.sql",
+  "232_sprint68_chunked_tool_response_continuation_policy.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [

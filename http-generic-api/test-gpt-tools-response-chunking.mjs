@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
+  CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT,
   inspectRepoReadOnly,
   maybeChunkToolResponseBody,
   paginateItems,
@@ -19,8 +21,18 @@ async function main() {
     response_options: { max_chars: 5000 },
   });
 
+  assert.equal(CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT.policy, "chunk_read_before_alternative_surface");
+  assert.equal(CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT.required_tool, "response_chunk_read");
+  assert.ok(CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT.applies_to.includes("any_governed_tool_response"));
   assert.equal(firstChunk.response_chunked, true);
   assert.ok(firstChunk.chunk_id);
+  assert.equal(firstChunk.continuation_required, true);
+  assert.equal(firstChunk.continuation.policy, "chunk_read_before_alternative_surface");
+  assert.equal(firstChunk.continuation.required_tool, "response_chunk_read");
+  assert.equal(firstChunk.continuation.required_before_fallback, true);
+  assert.equal(firstChunk.continuation.next_call.name, "response_chunk_read");
+  assert.equal(firstChunk.continuation.next_call.tool_args.chunk_id, firstChunk.chunk_id);
+  assert.equal(firstChunk.continuation.next_call.tool_args.cursor, firstChunk.page.next_cursor);
   assert.equal(firstChunk.page.has_more, true);
   assert.equal(firstChunk.page.cursor, 0);
   assert.ok(firstChunk.page.next_cursor > 0);
@@ -61,6 +73,18 @@ async function main() {
   const diff = await inspectRepoReadOnly({ action: "git_diff_name_status", head_ref: "HEAD", max_chars: 10000 });
   assert.equal(diff.action, "git_diff_name_status");
   assert.ok(Array.isArray(diff.files));
+
+  const migrationName = "232_sprint68_chunked_tool_response_continuation_policy.sql";
+  const migration = readFileSync(`migrations/${migrationName}`, "utf8");
+  const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
+  const readiness = readFileSync("releaseReadiness.js", "utf8");
+  assert.ok(migration.includes("Chunked Tool Response Continuation Contract"));
+  assert.ok(migration.includes("chunk_read_before_alternative_surface"));
+  assert.ok(migration.includes("response_chunk_read"));
+  assert.ok(migration.includes("only_then_use_secondary_search_slice_or_external_fallback"));
+  assert.ok(migration.includes("claim_file_too_large_without_attempting_response_chunk_read"));
+  assert.ok(runner.includes(migrationName), "governed migration runner must allow migration 232");
+  assert.ok(readiness.includes(migrationName), "release readiness must track migration 232");
 }
 
 main().catch((err) => {
