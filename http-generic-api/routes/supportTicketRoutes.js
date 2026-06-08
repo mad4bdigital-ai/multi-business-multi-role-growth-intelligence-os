@@ -443,6 +443,48 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.post("/admin/support/tickets/:ticket_id/new-brand-ref-approval/request", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await requestSupportTicketNewBrandRefApproval({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        selected_brand_ref: req.body?.selected_brand_ref,
+        allow_new_ref: req.body?.allow_new_ref !== false,
+        required_role: req.body?.required_role || "platform_admin",
+        assigned_to: req.body?.assigned_to || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        reason: req.body?.reason || "New brand_ref approval required before remediation apply.",
+      });
+      return res.status(result.created ? 201 : 200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_new_brand_ref_approval_request_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/new-brand-ref-approval/approve", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await approveSupportTicketNewBrandRef({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        approval_hold_id: req.body?.approval_hold_id || null,
+        selected_brand_ref: req.body?.selected_brand_ref,
+        allow_new_ref: req.body?.allow_new_ref !== false,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        decision_note: req.body?.decision_note || null,
+        reason: req.body?.reason || "New brand_ref approved for remediation apply.",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_new_brand_ref_approval_approve_failed");
+    }
+  });
+
   router.post("/admin/support/tickets/:ticket_id/brand-ref-selection/approve-and-complete", ...adminGuards, async (req, res) => {
     try {
       const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
