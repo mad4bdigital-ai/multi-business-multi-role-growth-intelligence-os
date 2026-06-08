@@ -369,6 +369,8 @@ That means preflight envelopes can be created without Google Ads credentials, wh
 
 `google_ads_budget_preflight_ledger_policy_v1` records every Google Ads budget preflight result in `google_ads_budget_preflight_ledger`. The result includes `preflight_id`, `preflight_sha256`, decision, envelope ID, matched budget authority, blocking gap count, and no-provider/no-spend markers. A future Google Ads execution adapter must require a ready `preflight_id` and verify the ledger hash/readback before any API mutation.
 
+`google_ads_budget_preflight_ledger_policy_v1` records every Google Ads budget preflight result in `google_ads_budget_preflight_ledger`. The result includes `preflight_id`, `preflight_sha256`, decision, envelope ID, matched budget authority, blocking gap count, and no-provider/no-spend markers. A future Google Ads execution adapter must require a ready `preflight_id` and verify the ledger hash/readback before any API mutation.
+
 ## Fourth enforced family: GitHub repository patch apply
 
 `repo_patch_apply_capability_envelope_requirement_v1` makes `repo_patch_apply` require `capability_envelope_id` before GitHub App token resolution or repository content mutation.
