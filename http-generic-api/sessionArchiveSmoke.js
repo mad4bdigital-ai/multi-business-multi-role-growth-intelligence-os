@@ -226,6 +226,21 @@ export async function runSessionArchiveSmoke({
       driveReadError ? { error: driveReadError.message } : null
     ),
     check(
+      "drive_doc_bookmarks",
+      !includeDriveReadback || [0, 1, 2].every((idx) => docText.includes(`Bookmark: turn-${idx}`)),
+      driveReadError ? { error: driveReadError.message } : null
+    ),
+    check(
+      "drive_doc_tool_summary",
+      !includeDriveReadback || (
+        docText.includes("### Tool Call Summary") &&
+        docText.includes("Full content: JSONL sidecar") &&
+        docText.includes('"doc_content_mode": "summary_only"') &&
+        !docText.includes(toolContent)
+      ),
+      driveReadError ? { error: driveReadError.message } : null
+    ),
+    check(
       "drive_jsonl_readback",
       !includeDriveReadback || (jsonlRows.length >= 2 && jsonlRows.some((row) => String(row.content || "").includes(marker))),
       driveReadError ? { error: driveReadError.message } : null
