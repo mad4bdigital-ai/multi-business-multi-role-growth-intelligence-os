@@ -270,6 +270,7 @@ export const testCommands = [
   "node test-cms-site-access-grants-foundation.mjs",
   "node test-cms-claim-approval-grant-promotion.mjs",
   "node test-cms-authority-reconciliation.mjs",
+  "node test-cms-grant-dedupe-hardening.mjs",
   "node test-cms-authority-collation-alignment.mjs",
   "node test-database-table-lifecycle-registry-upsert.mjs",
   "node test-database-lifecycle-retention-plan.mjs",
