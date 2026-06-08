@@ -107,6 +107,10 @@ function makePool() {
         return [state.turns.map((turn) => ({ ...turn }))];
       }
 
+      if (compact.startsWith("SELECT DISTINCT drive_doc_id FROM `gpt_session_turns`")) {
+        return [[...new Set(state.turns.map((turn) => turn.drive_doc_id).filter(Boolean))].map((drive_doc_id) => ({ drive_doc_id }))];
+      }
+
       if (compact.startsWith("DELETE FROM `gpt_session_turns`")) {
         const removed = state.turns.length;
         state.turns = [];
