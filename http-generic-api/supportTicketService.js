@@ -1066,6 +1066,195 @@ export async function syncSupportTicketRuntimeStatus({ tenant_id, ticket_id, run
   }
 }
 
+function normalizePlanSteps(stepsJson) {
+  const parsed = parseJsonObject(stepsJson, []);
+  if (!Array.isArray(parsed)) return [];
+  return parsed.map((step, index) => ({
+    key: normalizeString(step?.key || step?.step_key || `step_${index + 1}`).slice(0, 128),
+    action: normalizeString(step?.action || step?.description || step?.label || "Execute step"),
+    type: ["action", "review", "approval", "managed_op", "branch", "wait", "end"].includes(step?.type) ? step.type : "action",
+    index,
+    raw: sanitizeTicketMetadata(step),
+  })).filter((step) => step.key);
+}
+
+function workflowStateFromSteps({ run = null, stepRows = [] } = {}) {
+  const total = stepRows.length;
+  const failed = stepRows.find((row) => row.status === "failed");
+  if (failed) return { run_status: "failed", plan_status: "failed", ticket_status: "in_review", lifecycle_state: "verification_failed", customer_status: "under_review", current_step: failed.step_key, reason: "step_failed" };
+  const running = stepRows.find((row) => row.status === "running");
+  if (running) return { run_status: "running", plan_status: "executing", ticket_status: "in_review", lifecycle_state: "automation_running", customer_status: "in_progress", current_step: running.step_key, reason: "step_running" };
+  const awaiting = stepRows.find((row) => row.status === "awaiting");
+  if (awaiting) return { run_status: "awaiting_review", plan_status: "executing", ticket_status: "in_review", lifecycle_state: "awaiting_internal_approval", customer_status: "waiting_for_approval", current_step: awaiting.step_key, reason: "step_awaiting" };
+  const pending = stepRows.find((row) => row.status === "pending");
+  if (pending) return { run_status: run?.status === "running" ? "running" : "pending", plan_status: "executing", ticket_status: "in_review", lifecycle_state: "automation_running", customer_status: "in_progress", current_step: pending.step_key, reason: "step_pending" };
+  if (total > 0 && stepRows.every((row) => ["completed", "skipped"].includes(row.status))) return { run_status: "completed", plan_status: "completed", ticket_status: "resolved", lifecycle_state: "verified", customer_status: "resolved", current_step: null, reason: "all_steps_completed" };
+  return { run_status: run?.status || "pending", plan_status: null, ticket_status: null, lifecycle_state: null, customer_status: null, current_step: run?.current_step || null, reason: "no_steps" };
+}
+
+export async function createSupportTicketStepRuns({ tenant_id, ticket_id, run_id = null, plan_id = null, actor_id = null, actor_type = "system", reason = "Step runs created from support ticket workflow run.", evidence_json = {} } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const run = run_id
+      ? await queryOne(connection, "SELECT * FROM workflow_runs WHERE tenant_id = ? AND run_id = ? LIMIT 1", [tenant_id, run_id])
+      : await queryOne(connection, `SELECT wr.* FROM ticket_workflow_links twl JOIN workflow_runs wr ON wr.run_id = twl.run_id AND wr.tenant_id = twl.tenant_id WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.run_id IS NOT NULL ORDER BY twl.created_at DESC LIMIT 1`, [tenant_id, ticket_id]);
+    if (!run) {
+      const err = new Error("Workflow run not found for ticket.");
+      err.status = 404;
+      err.code = "support_ticket_workflow_run_not_found";
+      throw err;
+    }
+    const plan = plan_id
+      ? await queryOne(connection, "SELECT * FROM execution_plans WHERE tenant_id = ? AND plan_id = ? LIMIT 1", [tenant_id, plan_id])
+      : run.plan_id ? await queryOne(connection, "SELECT * FROM execution_plans WHERE tenant_id = ? AND plan_id = ? LIMIT 1", [tenant_id, run.plan_id]) : await resolveTicketExecutionPlan(connection, { tenant_id, ticket_id });
+    if (!plan) {
+      const err = new Error("Execution plan not found for workflow run.");
+      err.status = 404;
+      err.code = "support_ticket_execution_plan_not_found";
+      throw err;
+    }
+    const steps = normalizePlanSteps(plan.steps_json);
+    if (!steps.length) {
+      const err = new Error("Execution plan has no steps to create.");
+      err.status = 400;
+      err.code = "support_ticket_plan_steps_missing";
+      throw err;
+    }
+    const existing = await queryRows(connection, "SELECT step_key FROM step_runs WHERE tenant_id = ? AND run_id = ?", [tenant_id, run.run_id]);
+    const existingKeys = new Set(existing.map((row) => row.step_key));
+    const created = [];
+    for (const step of steps) {
+      if (existingKeys.has(step.key)) continue;
+      const stepRunId = randomUUID();
+      await connection.query(
+        `INSERT INTO step_runs
+           (step_run_id, run_id, user_id, actor_id, actor_type, request_id, correlation_id, execution_context_json, tenant_id, step_key, step_type, status, input_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+        [stepRunId, run.run_id, ticket.user_id || run.user_id || null, actor_id || null, actor_type || null, ticket_id, `ticket:${ticket_id}`, jsonOrNull({ ticket_id, plan_id: plan.plan_id, run_id: run.run_id, step, source: "support_ticket_step_runs", evidence_json, secrets_included: false }), tenant_id, step.key, step.type, jsonOrNull({ action: step.action, step_index: step.index, step: step.raw, secrets_included: false })]
+      );
+      created.push({ step_run_id: stepRunId, step_key: step.key, step_type: step.type, status: "pending" });
+    }
+    const firstStep = created[0]?.step_key || steps[0]?.key || null;
+    await connection.query("UPDATE workflow_runs SET status = 'running', current_step = COALESCE(current_step, ?), started_at = COALESCE(started_at, NOW()), updated_at = NOW() WHERE tenant_id = ? AND run_id = ?", [firstStep, tenant_id, run.run_id]);
+    await connection.query("UPDATE execution_plans SET plan_status = 'executing', updated_at = NOW() WHERE tenant_id = ? AND plan_id = ?", [tenant_id, plan.plan_id]);
+    await connection.query("UPDATE tickets SET status = 'in_review', lifecycle_state = 'automation_running', customer_status = 'in_progress', updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?", [tenant_id, ticket_id]);
+    await insertLifecycleEvent(connection, {
+      ticket_id,
+      tenant_id,
+      event_type: "step_runs_created",
+      from_state: ticket.lifecycle_state || null,
+      to_state: "automation_running",
+      actor_id,
+      actor_type,
+      visibility: "internal_support",
+      summary: reason,
+      payload_json: { run_id: run.run_id, plan_id: plan.plan_id, created_count: created.length, step_keys: created.map((step) => step.step_key), evidence_json, secrets_included: false },
+    });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_step_runs_created", after_json: { run_id: run.run_id, plan_id: plan.plan_id, created_count: created.length, secrets_included: false } });
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, run_id: run.run_id, plan_id: plan.plan_id, created_count: created.length, steps: created, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
+export async function updateSupportTicketStepRun({ tenant_id, ticket_id, step_run_id = null, run_id = null, step_key = null, status, output_json = null, error_message = null, actor_id = null, actor_type = "system", reason = "Step run status updated." } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  const validStatus = ["pending", "running", "completed", "failed", "skipped", "awaiting"].includes(status) ? status : null;
+  if (!validStatus) {
+    const err = new Error("Valid step status is required.");
+    err.status = 400;
+    err.code = "support_ticket_step_status_invalid";
+    throw err;
+  }
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const params = [tenant_id];
+    const filters = ["tenant_id = ?"];
+    if (step_run_id) { filters.push("step_run_id = ?"); params.push(step_run_id); }
+    else {
+      if (run_id) { filters.push("run_id = ?"); params.push(run_id); }
+      if (step_key) { filters.push("step_key = ?"); params.push(step_key); }
+    }
+    const stepRun = await queryOne(connection, `SELECT * FROM step_runs WHERE ${filters.join(" AND ")} ORDER BY created_at DESC LIMIT 1`, params);
+    if (!stepRun) {
+      const err = new Error("Step run not found.");
+      err.status = 404;
+      err.code = "support_ticket_step_run_not_found";
+      throw err;
+    }
+    await connection.query(
+      `UPDATE step_runs
+          SET status = ?, output_json = COALESCE(?, output_json), error_message = ?,
+              started_at = CASE WHEN ? = 'running' THEN COALESCE(started_at, NOW()) ELSE started_at END,
+              completed_at = CASE WHEN ? IN ('completed','failed','skipped') THEN NOW() ELSE completed_at END
+        WHERE tenant_id = ? AND step_run_id = ?`,
+      [validStatus, jsonOrNull(output_json), error_message || null, validStatus, validStatus, tenant_id, stepRun.step_run_id]
+    );
+    const run = await queryOne(connection, "SELECT * FROM workflow_runs WHERE tenant_id = ? AND run_id = ? LIMIT 1", [tenant_id, stepRun.run_id]);
+    const stepRows = await queryRows(connection, "SELECT * FROM step_runs WHERE tenant_id = ? AND run_id = ? ORDER BY created_at ASC", [tenant_id, stepRun.run_id]);
+    const mergedRows = stepRows.map((row) => row.step_run_id === stepRun.step_run_id ? { ...row, status: validStatus } : row);
+    const next = workflowStateFromSteps({ run, stepRows: mergedRows });
+    await connection.query(
+      `UPDATE workflow_runs
+          SET status = ?, current_step = ?, completed_at = CASE WHEN ? IN ('completed','failed','cancelled') THEN NOW() ELSE completed_at END, updated_at = NOW()
+        WHERE tenant_id = ? AND run_id = ?`,
+      [next.run_status, next.current_step || null, next.run_status, tenant_id, stepRun.run_id]
+    );
+    if (run?.plan_id && next.plan_status) {
+      await connection.query("UPDATE execution_plans SET plan_status = ?, updated_at = NOW() WHERE tenant_id = ? AND plan_id = ?", [next.plan_status, tenant_id, run.plan_id]);
+    }
+    await connection.query(
+      `UPDATE tickets SET status = COALESCE(?, status), lifecycle_state = COALESCE(?, lifecycle_state), customer_status = COALESCE(?, customer_status), updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?`,
+      [next.ticket_status, next.lifecycle_state, next.customer_status, tenant_id, ticket_id]
+    );
+    await insertLifecycleEvent(connection, {
+      ticket_id,
+      tenant_id,
+      event_type: "step_run_updated",
+      from_state: ticket.lifecycle_state || null,
+      to_state: next.lifecycle_state || ticket.lifecycle_state || null,
+      actor_id,
+      actor_type,
+      visibility: "internal_support",
+      summary: reason,
+      payload_json: { step_run_id: stepRun.step_run_id, step_key: stepRun.step_key, step_status: validStatus, run_id: stepRun.run_id, runtime_state: next, output_json, error_message, secrets_included: false },
+    });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_step_run_updated", after_json: { step_run_id: stepRun.step_run_id, step_key: stepRun.step_key, status: validStatus, run_id: stepRun.run_id, runtime_state: next, secrets_included: false } });
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, step_run_id: stepRun.step_run_id, step_key: stepRun.step_key, status: validStatus, run_id: stepRun.run_id, runtime_state: next, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
 export function _testingTicketClassification() {
-  return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus, executionPlanTemplateForTicket, ticketStateFromRuntime };
+  return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus, executionPlanTemplateForTicket, ticketStateFromRuntime, normalizePlanSteps, workflowStateFromSteps };
 }
