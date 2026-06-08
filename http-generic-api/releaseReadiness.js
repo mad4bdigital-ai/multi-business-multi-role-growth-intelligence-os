@@ -75,7 +75,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "231_sprint68_shared_reconciliation_continuation_policy.sql",
   "232_sprint68_chunked_tool_response_continuation_policy.sql",
   "233_sprint68_local_connector_tunnel_provisioning_continuation_policy.sql",
-  "234_sprint68_admin_branch_reconcile_continuation_policy.sql",
+  "236_sprint68_admin_branch_reconciliation_policy.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
