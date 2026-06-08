@@ -2407,15 +2407,48 @@ export function buildAdminCliRoutes(deps) {
         }
       }
 
-      // 3. Generate install bundle
+      // 3. Generate install bundle, or return a resumable provisioning handoff.
       if (!tunnelToken) {
-        return res.status(404).json({
+        const continuation = buildLocalConnectorTunnelProvisioningContinuationEvidence({
+          userId,
+          deviceId,
+          tunnelStatus,
+          cfTunnelId,
+          tunnelUrl,
+          configSource,
+        });
+        writeAuditLogAsync({
+          action: "admin_cli.local_connector_self_repair.provisioning_required",
+          resource_type: "local_connector_tunnel_provisioning",
+          resource_id: deviceId,
+          payload: {
+            user_id: userId,
+            device_id: deviceId,
+            tunnel_status: tunnelStatus,
+            cf_tunnel_id: cfTunnelId,
+            config_source: configSource,
+            interruption_signal: "connector_tunnel_provisioning_required",
+            required_next_action: "provision_tunnel_token",
+            continuation,
+            secrets_included: false,
+          },
+        });
+        return res.status(409).json({
           ok: false,
-          diagnosis: { error: "no_tunnel_token", tunnel_status: tunnelStatus },
+          diagnosis: {
+            error: "no_tunnel_token",
+            tunnel_status: tunnelStatus,
+            cf_tunnel_id: cfTunnelId,
+            config_source: configSource,
+            interruption_signal: "connector_tunnel_provisioning_required",
+            required_next_action: "provision_tunnel_token",
+          },
+          continuation,
           error: {
-            code: "config_not_found",
-            message: `No cf_token in DB for user=${userId} device=${deviceId} and CLOUDFLARE_TUNNEL_TOKEN env not set. Run POST /local-connector/install to provision the device first.`,
-          }
+            code: "connector_tunnel_provisioning_required",
+            message: `No cf_token in DB for user=${userId} device=${deviceId} and CLOUDFLARE_TUNNEL_TOKEN env not set. Provision the tunnel token, then retry POST /admin/cli/local-connector/self-repair.`,
+          },
+          secrets_included: false,
         });
       }
 
