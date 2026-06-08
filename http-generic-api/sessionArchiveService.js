@@ -125,6 +125,8 @@ async function createArchiveFiles(session, deps) {
     drive_exports_folder_id: exportsFolderId,
     drive_doc_id: transcript.drive_file_id,
     drive_doc_url: transcript.drive_web_url || null,
+    drive_doc_part_index: initialPart,
+    drive_doc_part_count: initialPart,
     drive_jsonl_id: jsonl.drive_file_id,
     drive_jsonl_url: jsonl.drive_web_url || null,
   };
