@@ -236,6 +236,26 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "admin_branch_reconcile",
+    displayName: "Admin Branch Reconcile",
+    description: "Dry-run branch drift reconciliation adapter. Reads GitHub refs/compare through the GitHub App, classifies drift, returns a no-secret continuation checkpoint, and blocks apply until explicit review/confirmation surfaces exist.",
+    method: "VIRTUAL",
+    path: "internal://admin-branch-reconcile",
+    tags: ["repo", "reconciliation", "read_only", "dry_run"],
+    inputSchema: {
+      type: "object",
+      required: ["branch"],
+      properties: {
+        branch: { type: "string", description: "Governed non-production work branch, e.g. gpt/example." },
+        default_branch: { type: "string", default: "main" },
+        owner: { type: "string", description: "Optional GitHub owner override; defaults to activation bootstrap." },
+        repo: { type: "string", description: "Optional GitHub repo override; defaults to activation bootstrap." },
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
+        confirm: { type: "string", description: "Reserved for future apply mode confirmation." },
+      },
+    },
+  },
+  {
     name: "repo_patch_apply",
     displayName: "Repository Patch Apply",
     description: "Apply a patch to the repository via the GitHub App, sidestepping the local connector. Actions: write_file, replace_block, apply_unified_diff, delete_file. Path is repo-confined; secrets/build folders are blocked. Runtime defaults to a generated non-protected work branch. Protected branches are blocked unless explicit break-glass policy is enabled and justified.",
