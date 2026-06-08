@@ -242,7 +242,12 @@ export async function runSessionArchiveSmoke({
     ),
     check(
       "drive_jsonl_readback",
-      !includeDriveReadback || (jsonlRows.length >= 2 && jsonlRows.some((row) => String(row.content || "").includes(marker))),
+      !includeDriveReadback || (jsonlRows.length >= 3 && jsonlRows.some((row) => String(row.content || "").includes(marker))),
+      driveReadError ? { error: driveReadError.message } : null
+    ),
+    check(
+      "drive_jsonl_tool_full_fidelity",
+      !includeDriveReadback || jsonlRows.some((row) => row.role === "tool" && row.content === toolContent),
       driveReadError ? { error: driveReadError.message } : null
     ),
     check(
