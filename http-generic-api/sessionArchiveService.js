@@ -405,6 +405,7 @@ function renderTranscriptTextFromJsonl(session = {}, jsonlText = "") {
 async function rebuildTranscriptDocFromJsonl({ pool, session, archive, deps, timestamp }) {
   if (!archive?.drive_jsonl_id || !archive?.drive_folder_id) return null;
   const jsonlText = await deps.fetchDriveContent(archive.drive_jsonl_id);
+  const records = parseJsonlRecords(jsonlText);
   const transcriptText = renderTranscriptTextFromJsonl(session, jsonlText);
   const safeTimestamp = String(timestamp || new Date().toISOString()).replace(/[:.]/g, "-");
   let rebuilt = null;
@@ -451,8 +452,115 @@ async function rebuildTranscriptDocFromJsonl({ pool, session, archive, deps, tim
     drive_doc_id: archive.drive_doc_id,
     drive_doc_url: archive.drive_doc_url,
     rebuilt_from_jsonl: true,
+    record_count: records.length,
     artifact_type: artifactType,
     google_doc_import_error: rebuildError ? String(rebuildError.message || rebuildError).slice(0, 500) : null,
+    secrets_included: false,
+  };
+}
+
+export async function backfillGptSessionArchiveFromJsonl({ pool, sessionId, injectedDeps = {}, reason = "legacy_tool_only_backfill" }) {
+  const deps = { ...defaultDeps(), ...injectedDeps };
+  const [[session]] = await pool.query("SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1", [sessionId]);
+  if (!session?.session_id) {
+    const err = new Error(`GPT session not found: ${sessionId}`);
+    err.status = 404;
+    err.code = "gpt_session_not_found";
+    throw err;
+  }
+  if (!session.drive_folder_id || !session.drive_jsonl_id) {
+    const err = new Error("Session must have drive_folder_id and drive_jsonl_id before JSONL backfill.");
+    err.status = 400;
+    err.code = "gpt_session_archive_backfill_missing_drive_artifacts";
+    err.details = { session_id: session.session_id, has_drive_folder_id: Boolean(session.drive_folder_id), has_drive_jsonl_id: Boolean(session.drive_jsonl_id) };
+    throw err;
+  }
+
+  const timestamp = deps.now().toISOString();
+  const previousDocId = session.drive_doc_id || null;
+  const previousDocUrl = session.drive_doc_url || null;
+  const archive = {
+    drive_folder_id: session.drive_folder_id,
+    drive_exports_folder_id: session.drive_exports_folder_id || null,
+    drive_doc_id: session.drive_doc_id || null,
+    drive_doc_url: session.drive_doc_url || null,
+    drive_doc_part_index: positiveInt(session.drive_doc_part_index, 1),
+    drive_doc_part_count: positiveInt(session.drive_doc_part_count || session.drive_doc_part_index, 1),
+    drive_jsonl_id: session.drive_jsonl_id,
+    drive_jsonl_url: session.drive_jsonl_url || null,
+  };
+
+  const rebuilt = await rebuildTranscriptDocFromJsonl({ pool, session, archive, deps, timestamp });
+  if (!rebuilt?.rebuilt_from_jsonl) {
+    const err = new Error("JSONL backfill did not produce a rebuilt transcript artifact.");
+    err.status = 500;
+    err.code = "gpt_session_archive_backfill_failed";
+    throw err;
+  }
+
+  const archiveStatus = rebuilt.artifact_type === "text_snapshot" ? "ready_text_snapshot" : "ready_rebuilt";
+  await updateArchiveStatus(pool, session.session_id, archiveStatus, JSON.stringify({
+    status: archiveStatus,
+    reason,
+    previous_drive_doc_id: previousDocId,
+    rebuilt_drive_doc_id: rebuilt.drive_doc_id,
+    record_count: rebuilt.record_count,
+    secrets_included: false,
+  }));
+
+  const eventId = randomUUID();
+  const payload = {
+    action: "gpt_session_archive_backfill",
+    reason,
+    session_id: session.session_id,
+    previous_drive_doc_id: previousDocId,
+    previous_drive_doc_url: previousDocUrl,
+    rebuilt_drive_doc_id: rebuilt.drive_doc_id,
+    rebuilt_drive_doc_url: rebuilt.drive_doc_url || null,
+    drive_jsonl_id: session.drive_jsonl_id,
+    record_count: rebuilt.record_count,
+    artifact_type: rebuilt.artifact_type,
+    google_doc_import_error: rebuilt.google_doc_import_error || null,
+    backfilled_from_jsonl: true,
+    secrets_included: false,
+  };
+  const payloadText = JSON.stringify(payload);
+  await pool.query(
+    `INSERT INTO \`session_events\`
+       (event_id, session_id, tenant_id, workspace_key, user_id,
+        actor_id, actor_type, brand_key, correlation_id, action_key,
+        record_type, event_type, payload_json, payload_preview, payload_sha256,
+        drive_artifact_id, drive_artifact_url, redaction_status, event_timestamp)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'gpt_session_archive_backfill',
+        'archive', 'archive_backfill', ?, ?, ?, ?, ?, 'not_required', NOW())`,
+    [
+      eventId,
+      session.session_id,
+      session.tenant_id || PLATFORM_TENANT_ID,
+      session.workspace_key || null,
+      session.user_id || null,
+      session.user_id || null,
+      session.user_id ? "user" : "system",
+      session.brand_key || null,
+      eventId,
+      payloadText,
+      previewText(payloadText, PREVIEW_CHARS),
+      sha256(payloadText),
+      rebuilt.drive_doc_id,
+      rebuilt.drive_doc_url || null,
+    ]
+  );
+
+  return {
+    ok: true,
+    session_id: session.session_id,
+    archive_status: archiveStatus,
+    previous_drive_doc_id: previousDocId,
+    rebuilt_drive_doc_id: rebuilt.drive_doc_id,
+    rebuilt_drive_doc_url: rebuilt.drive_doc_url || null,
+    record_count: rebuilt.record_count,
+    artifact_type: rebuilt.artifact_type,
+    event_id: eventId,
     secrets_included: false,
   };
 }
