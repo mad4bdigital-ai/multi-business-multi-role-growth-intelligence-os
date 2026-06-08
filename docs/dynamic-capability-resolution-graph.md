@@ -302,6 +302,39 @@ open
 
 The gate runs before `buildForwardOptions`, so the platform n8n API-key bridge is not injected unless the state-changing action has a valid envelope.
 
+## Budget + quota authority registry
+
+`budget_quota_authority_registry_policy_v1` introduces the scoped authority layer required before spend-changing or platform-cost actions execute. It is dry-run only and does not call providers, forward connector requests, or change spend.
+
+Use:
+
+```text
+budget_quota_authority_dry_run
+```
+
+Authority can be scoped by:
+
+```text
+tenant
+workspace
+brand
+app
+capability
+operation_intent
+meter
+```
+
+The dry-run returns one of:
+
+```text
+blocked_missing_budget_quota_authority
+blocked_budget_quota_limit
+ready_requires_approval
+ready_for_dispatch
+```
+
+This is the prerequisite layer for Google Ads budget changes, OpenRouter/Codex platform fallback quota, Make/custom API writes, and browser side-effect sessions.
+
 ## Fourth enforced family: GitHub repository patch apply
 
 `repo_patch_apply_capability_envelope_requirement_v1` makes `repo_patch_apply` require `capability_envelope_id` before GitHub App token resolution or repository content mutation.
