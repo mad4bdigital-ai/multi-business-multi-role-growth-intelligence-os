@@ -6,6 +6,7 @@ import {
   assignSupportTicket,
   createOrAppendSupportTicket,
   createSupportTicketApprovalHold,
+  createSupportTicketExecutionPlan,
   getSupportTicketWithEvents,
   linkSupportTicketWorkflow,
   listSupportTicketsForTenant,
