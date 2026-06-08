@@ -61,7 +61,7 @@ Use the Git branch adapter:
 5. Push with `--force-with-lease`, never plain `--force`.
 6. Audit old head, new head, merge-base, tests, and conflict files.
 
-For the governed admin GPT surface, start with `admin_branch_reconcile` before applying stale-branch overrides. The canonical adapter is `runAdminBranchReconcile` in `adminBranchReconciliationAdapter.js`; it classifies branch drift, returns a no-secret shared reconciliation checkpoint, and keeps adapter v1 plan-only (`apply_supported=false`). Behind-only/diverged/ahead/protected branches must be reconciled through an explicit reviewed GitHub/PR workflow or a future governed recipe with capability-envelope approval; this adapter must not force-push or perform hidden ref updates.
+For the governed admin GPT surface, start with `admin_branch_reconcile` before applying stale-branch overrides. The canonical dry-run adapter is `runAdminBranchReconcile` in `adminBranchReconciliationAdapter.js`; it classifies branch drift, returns a no-secret shared reconciliation checkpoint, and keeps diagnosis plan-only (`apply_supported=false`). If and only if the dry-run classifies a governed work branch as `behind_only`, use `github_branch_fast_forward_to_base` as the separate mutation recipe. That recipe requires the dry-run `base_ref_sha` and `branch_ref_sha`, a valid capability envelope, typed `RECONCILE_BRANCH_<BRANCH_SLUG>` confirmation, a non-force GitHub ref update (`force=false`), same-cycle readback to `up_to_date`, and audit evidence. Diverged/ahead/protected branches must use manual PR/rebase workflow and must not be force-pushed by these adapters.
 
 ### Deploy reload pending
 
