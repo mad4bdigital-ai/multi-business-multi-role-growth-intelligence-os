@@ -154,6 +154,40 @@ try {
     assert("repo inspect blocks secret paths", ["repo_path_blocked", "repo_file_blocked"].includes(error.code), error.message);
   }
 
+  const aliasCandidates = buildLocalConnectorDeviceAliasCandidates("Essam");
+  assert("local connector alias candidates include normalized hostname",
+    aliasCandidates.includes("essam") && aliasCandidates.includes("essam-pc"),
+    JSON.stringify(aliasCandidates));
+  const reverseAliasCandidates = buildLocalConnectorDeviceAliasCandidates("essam-pc");
+  assert("local connector alias candidates include host without pc suffix",
+    reverseAliasCandidates.includes("essam") && reverseAliasCandidates.includes("essam-pc"),
+    JSON.stringify(reverseAliasCandidates));
+  const identityResolution = buildLocalConnectorDeviceIdentityResolution({
+    requestedUserId: "00000000-0000-4000-a000-000000000002",
+    requestedDeviceId: "Essam",
+    matchSource: "db_alias",
+    row: {
+      config_id: "8db63b00-4fce-11f1-b256-614c56cd019b",
+      user_id: "f242960c-2857-4b4d-a504-ee50f8a278b4",
+      device_id: "essam-pc",
+      cf_tunnel_id: "f85825dd-5a0d-4e37-ad57-2d229b7eb0d6",
+      cf_tunnel_name: "f242960c-2857-4b4d-a504-ee50f8a2-mohammedlap-connector",
+    },
+  });
+  assert("local connector identity resolution is no-secret and explicit",
+    identityResolution.status === "resolved_via_alias" &&
+    identityResolution.requested_device_id === "Essam" &&
+    identityResolution.resolved_device_id === "essam-pc" &&
+    identityResolution.secrets_included === false &&
+    !JSON.stringify(identityResolution).includes("cf_token"),
+    JSON.stringify(identityResolution));
+  assert("local connector self-repair exposes alias evidence",
+    adminCliSource.includes("deviceIdentityResolution") &&
+    adminCliSource.includes("resolved_device_id") &&
+    adminCliSource.includes("configSource === \"db_alias\"") &&
+    adminCliSource.includes("localConnectorDeviceAliasLikePatterns"),
+    "self-repair should resolve Essam -> essam-pc before returning connector_tunnel_provisioning_required");
+
   const connectorContinuation = buildLocalConnectorTunnelProvisioningContinuationEvidence({
     userId: "00000000-0000-4000-a000-000000000002",
     deviceId: "Essam",
