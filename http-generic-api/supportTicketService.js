@@ -1881,5 +1881,5 @@ export async function completeSupportTicketBrandMappingRemediation({ tenant_id, 
 }
 
 export function _testingTicketClassification() {
-  return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus, executionPlanTemplateForTicket, ticketStateFromRuntime, normalizePlanSteps, workflowStateFromSteps, buildDiagnosticStepOutput, normalizeBrandGrantTargets };
+  return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus, executionPlanTemplateForTicket, ticketStateFromRuntime, normalizePlanSteps, workflowStateFromSteps, buildDiagnosticStepOutput, normalizeBrandGrantTargets, mergeBrandRefCandidate };
 }
