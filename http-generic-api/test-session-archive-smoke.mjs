@@ -274,7 +274,7 @@ function makeDriveDeps() {
   const res = await fetch(`http://127.0.0.1:${port}/admin/release/session-archive-smoke`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tenant_id: "tenant-1", user_id: "daily-smoke", include_drive_readback: false }),
+    body: JSON.stringify({ tenant_id: "tenant-1", user_id: "daily-smoke", include_drive_readback: false, force_doc_rollover: true, doc_rollover_chars: 1200 }),
   });
   const body = await res.json();
   server.close();
