@@ -7,6 +7,7 @@ import {
   createOrAppendSupportTicket,
   getSupportTicketWithEvents,
   listSupportTicketsForTenant,
+  reconcileOpenSupportTickets,
   transitionSupportTicket,
 } from "../supportTicketService.js";
 
