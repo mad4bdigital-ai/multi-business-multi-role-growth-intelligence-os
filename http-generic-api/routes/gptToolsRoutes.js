@@ -1243,6 +1243,7 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
   const branch = requestedBranch || defaultRepoPatchBranch({ filePath, commitMessage });
   assertRepoPatchBranchPolicy({ branch, defaultBranch, args });
 
+  const envelope = await requireRepoPatchCapabilityEnvelope({ args, ctx, owner, repo, branch, defaultBranch, filePath, action });
   const token = await getGitHubAppInstallationToken({});
   const branchCompare = await loadRepoPatchBranchCompare({ owner, repo, defaultBranch, branch, token });
   assertPreflightAllowed(await evaluateRepoPatchApplyPreflight({
