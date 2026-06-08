@@ -18,6 +18,7 @@ for (const expected of [
   "support_ticket_remediation_requires_approved_hold",
   "support_ticket_brand_ref_required",
   "support_ticket_active_membership_required",
+  "ticketMetadata?.metadata?.user_id",
   "brand_mapping_remediation_applied",
   "admin_repair",
 ]) {

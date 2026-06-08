@@ -1586,7 +1586,8 @@ export async function applySupportTicketBrandMappingRemediation({ tenant_id, tic
       err.code = "support_ticket_brand_ref_required";
       throw err;
     }
-    const granteeUserId = ticket.user_id || hold.user_id || null;
+    const ticketMetadata = parseJsonObject(ticket.metadata_json, {});
+    const granteeUserId = ticket.user_id || hold.user_id || ticketMetadata?.metadata?.user_id || ticketMetadata?.user_id || null;
     if (!granteeUserId) {
       const err = new Error("Ticket user_id is required to apply brand mapping remediation.");
       err.status = 400;
