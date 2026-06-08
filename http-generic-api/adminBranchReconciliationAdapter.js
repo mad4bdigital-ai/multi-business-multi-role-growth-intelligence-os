@@ -221,10 +221,7 @@ async function resolveBranchReconcileTarget(args = {}) {
   return { owner, repo, branch: target.branch, default_branch: target.default_branch, mode: target.mode, required_confirm: target.required_confirm };
 }
 
-export async function runAdminBranchReconcile(args = {}, deps = {}) {
-  const target = await resolveBranchReconcileTarget(args);
-  const token = deps.token || await getGitHubAppInstallationToken({});
-  const fetchImpl = deps.fetchImpl || fetch;
+async function loadBranchReconcileEvidence({ target, token, fetchImpl }) {
   const [baseRef, branchRef] = await Promise.all([
     githubJson({ owner: target.owner, repo: target.repo, apiPath: `/git/ref/heads/${encodeRef(target.default_branch)}`, token, fetchImpl }),
     githubJson({ owner: target.owner, repo: target.repo, apiPath: `/git/ref/heads/${encodeRef(target.branch)}`, token, fetchImpl }),
@@ -234,5 +231,109 @@ export async function runAdminBranchReconcile(args = {}, deps = {}) {
     githubJson({ owner: target.owner, repo: target.repo, apiPath: `/compare/${encodeCompareRef(target.branch)}...${encodeCompareRef(target.default_branch)}`, token, fetchImpl }),
   ]);
   const classification = classifyBranchReconciliation({ branch: target.branch, default_branch: target.default_branch, base_to_branch: baseToBranch, branch_to_base: branchToBase, working_tree_dirty: false });
-  return buildBranchReconcileDryRunPlan({ owner: target.owner, repo: target.repo, branch: target.branch, default_branch: target.default_branch, base_ref: baseRef, branch_ref: branchRef, base_to_branch: baseToBranch, branch_to_base: branchToBase, classification, mode: target.mode, confirm: args.confirm || "" });
+  const plan = buildBranchReconcileDryRunPlan({ owner: target.owner, repo: target.repo, branch: target.branch, default_branch: target.default_branch, base_ref: baseRef, branch_ref: branchRef, base_to_branch: baseToBranch, branch_to_base: branchToBase, classification, mode: target.mode, confirm: target.confirm || "" });
+  return { baseRef, branchRef, baseToBranch, branchToBase, classification, plan };
+}
+
+export async function runAdminBranchReconcile(args = {}, deps = {}) {
+  const target = await resolveBranchReconcileTarget(args);
+  const token = deps.token || await getGitHubAppInstallationToken({});
+  const fetchImpl = deps.fetchImpl || fetch;
+  return (await loadBranchReconcileEvidence({ target: { ...target, confirm: args.confirm || "" }, token, fetchImpl })).plan;
+}
+
+function requireExpectedDryRunSha(value, field) {
+  const sha = String(value || "").trim();
+  if (!/^[0-9a-f]{40}$/i.test(sha)) {
+    const err = new Error(`${field} from a same-cycle admin_branch_reconcile dry-run is required.`);
+    err.status = 400;
+    err.code = "github_branch_fast_forward_dry_run_evidence_required";
+    err.details = { field, secrets_included: false };
+    throw err;
+  }
+  return sha.toLowerCase();
+}
+
+function assertExpectedDryRunEvidence({ expectedBaseSha, expectedBranchSha, baseRef, branchRef }) {
+  const currentBaseSha = String(baseRef?.object?.sha || baseRef?.sha || "").trim().toLowerCase();
+  const currentBranchSha = String(branchRef?.object?.sha || branchRef?.sha || "").trim().toLowerCase();
+  if (currentBaseSha !== expectedBaseSha || currentBranchSha !== expectedBranchSha) {
+    const err = new Error("GitHub branch fast-forward requires fresh dry-run evidence; current refs differ from expected refs.");
+    err.status = 409;
+    err.code = "github_branch_fast_forward_stale_dry_run_evidence";
+    err.details = {
+      expected_base_sha: expectedBaseSha,
+      current_base_sha: currentBaseSha || null,
+      expected_branch_sha: expectedBranchSha,
+      current_branch_sha: currentBranchSha || null,
+      secrets_included: false,
+    };
+    throw err;
+  }
+}
+
+export async function runGithubBranchFastForwardToBase(args = {}, deps = {}) {
+  const expectedBaseSha = requireExpectedDryRunSha(args.expected_base_sha || args.base_ref_sha, "expected_base_sha");
+  const expectedBranchSha = requireExpectedDryRunSha(args.expected_branch_sha || args.branch_ref_sha, "expected_branch_sha");
+  const target = await resolveBranchReconcileTarget({ ...args, mode: "apply" });
+  const token = deps.token || await getGitHubAppInstallationToken({});
+  const fetchImpl = deps.fetchImpl || fetch;
+  const before = await loadBranchReconcileEvidence({ target: { ...target, confirm: args.confirm || "" }, token, fetchImpl });
+  assertExpectedDryRunEvidence({ expectedBaseSha, expectedBranchSha, baseRef: before.baseRef, branchRef: before.branchRef });
+  if (before.classification?.classification !== "behind_only") {
+    const err = new Error("GitHub branch fast-forward only supports behind_only branches.");
+    err.status = 409;
+    err.code = "github_branch_fast_forward_classification_blocked";
+    err.details = { classification: before.classification, dry_run: before.plan?.dry_run, evidence: before.plan?.evidence, secrets_included: false };
+    throw err;
+  }
+  const baseSha = String(before.baseRef?.object?.sha || "").trim();
+  const update = await githubJson({
+    owner: target.owner,
+    repo: target.repo,
+    apiPath: `/git/refs/heads/${encodeRef(target.branch)}`,
+    method: "PATCH",
+    token,
+    fetchImpl,
+    body: { sha: baseSha, force: false },
+  });
+  const after = await loadBranchReconcileEvidence({ target: { ...target, mode: "dry_run", confirm: "" }, token, fetchImpl });
+  const readbackOk = after.classification?.classification === "up_to_date";
+  const result = {
+    ok: readbackOk,
+    adapter: ADMIN_BRANCH_RECONCILIATION_ADAPTER_VERSION,
+    recipe_key: "github.branch.fast_forward_to_base",
+    action: "github_branch_fast_forward_to_base",
+    mode: "apply",
+    target: { owner: target.owner, repo: target.repo, branch: target.branch, default_branch: target.default_branch },
+    before: { classification: before.classification, evidence: before.plan?.evidence, dry_run: before.plan?.dry_run, secrets_included: false },
+    update: { ref: update?.ref || null, branch_sha: update?.object?.sha || null, forced: false, secrets_included: false },
+    after: { classification: after.classification, evidence: after.plan?.evidence, secrets_included: false },
+    verification: { ok: readbackOk, expected_classification: "up_to_date", actual_classification: after.classification?.classification || null, secrets_included: false },
+    capability_envelope_id: args.capability_envelope_id || null,
+    secrets_included: false,
+  };
+  writeAuditLogAsync({
+    action: "github_branch_fast_forward_to_base",
+    resource_type: "github_branch",
+    resource_id: `${target.owner}/${target.repo}:${target.branch}`,
+    payload: {
+      target: result.target,
+      before: result.before,
+      update: result.update,
+      after: result.after,
+      verification: result.verification,
+      capability_envelope_id: args.capability_envelope_id || null,
+      principal: deps?.auth?.user_id || deps?.auth?.mode || "admin",
+      secrets_included: false,
+    },
+  });
+  if (!readbackOk) {
+    const err = new Error("GitHub branch fast-forward applied but readback verification did not reach up_to_date.");
+    err.status = 502;
+    err.code = "github_branch_fast_forward_readback_failed";
+    err.details = result;
+    throw err;
+  }
+  return result;
 }
