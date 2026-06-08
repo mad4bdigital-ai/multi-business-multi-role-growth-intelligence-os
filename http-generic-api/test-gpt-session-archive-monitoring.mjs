@@ -34,6 +34,7 @@ assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 
 assert.ok(runner.includes("229_sprint67_gpt_session_archive_monitoring.sql"));
 assert.ok(runner.includes("245_sprint68_gpt_tool_archive_pinning_monitoring.sql"));
+assert.ok(runner.includes("249_sprint68_gpt_archive_backfill_conversation_ref_monitoring.sql"));
 assert.ok(readiness.includes("229_sprint67_gpt_session_archive_monitoring.sql"));
 assert.ok(readiness.includes("245_sprint68_gpt_tool_archive_pinning_monitoring.sql"));
 assert.ok(readiness.includes("checkGptSessionArchiveMonitoring"));
