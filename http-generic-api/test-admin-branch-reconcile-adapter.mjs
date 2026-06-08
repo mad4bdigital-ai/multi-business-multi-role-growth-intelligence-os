@@ -49,6 +49,7 @@ assert.equal(plan.dry_run.apply_supported, false);
 assert.equal(plan.secrets_included, false);
 
 const source = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
+const adapter = readFileSync(new URL("./adminBranchReconciliationAdapter.js", import.meta.url), "utf8");
 assert.equal((source.match(/name: "admin_branch_reconcile"/g) || []).length, 1, "admin_branch_reconcile should be registered exactly once");
 assert.match(source, /runAdminBranchReconcile/);
 assert.doesNotMatch(source, /export async function reconcileAdminBranch/);
@@ -60,9 +61,26 @@ assert.match(source, /admin_branch_reconcile/);
 assert.doesNotMatch(source, /guarded_mutation/);
 assert.doesNotMatch(source, /force: true/);
 
+assert.equal((source.match(/name: "github_branch_fast_forward_to_base"/g) || []).length, 1, "github_branch_fast_forward_to_base should be registered exactly once");
+assert.match(source, /requireGithubBranchFastForwardEnvelope/);
+assert.match(source, /runGithubBranchFastForwardToBase/);
+assert.match(source, /capability_envelope_id/);
+assert.match(source, /acceptedIntents: \["github_branch_fast_forward_to_base"/);
+assert.match(adapter, /export async function runGithubBranchFastForwardToBase/);
+assert.match(adapter, /expected_base_sha/);
+assert.match(adapter, /expected_branch_sha/);
+assert.match(adapter, /github_branch_fast_forward_stale_dry_run_evidence/);
+assert.match(adapter, /body: \{ sha: baseSha, force: false \}/);
+assert.match(adapter, /github_branch_fast_forward_readback_failed/);
+assert.doesNotMatch(adapter, /force: true/);
+
 const repoPatchTokenIndex = source.indexOf("const token = await getGitHubAppInstallationToken({});");
 const envelopeGateIndex = source.lastIndexOf("await requireRepoPatchCapabilityEnvelope", repoPatchTokenIndex);
 assert.ok(envelopeGateIndex > -1, "repo_patch_apply capability envelope gate must remain before direct GitHub token resolution");
+
+const fastForwardIndex = source.indexOf("const result = await runGithubBranchFastForwardToBase");
+const fastForwardEnvelopeIndex = source.lastIndexOf("await requireGithubBranchFastForwardEnvelope", fastForwardIndex);
+assert.ok(fastForwardEnvelopeIndex > -1, "github_branch_fast_forward_to_base must require a capability envelope before ref mutation");
 
 const migrationName = "236_sprint68_admin_branch_reconciliation_policy.sql";
 const migration = readFileSync(new URL(`./migrations/${migrationName}`, import.meta.url), "utf8");
