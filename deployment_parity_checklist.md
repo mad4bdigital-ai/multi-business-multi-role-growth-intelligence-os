@@ -1,6 +1,8 @@
 # Deployment Parity Checklist
 **Authority document - run before and after every deployment**
 
+> Preflight execution gate helper parity note: verify `preflight_execution_gate_helper_policy_v1` and helper `preflightLedgerExecutionGate.js` after migration `243_sprint67_preflight_execution_gate_helper.sql`. Future execution adapters must call `requireValidatedPreflightForExecution` before mutation; smoke should validate a ready preflight row and return `execution_gate=preflight_ledger_validated`, `hash_verified=true`, `no_provider_call=true`, `no_spend_change=true`, and `secrets_included=false`.
+
 > Preflight ledger validator parity note: verify `preflight_ledger_validator_policy_v1`, table `preflight_ledger_validator_registry`, and tool `preflight_ledger_validate` after migration `242_sprint67_preflight_ledger_validator.sql`. Smoke should validate a ready Google Ads preflight row with `hash_verified=true`, `no_provider_call=true`, `no_spend_change=true`, and `secrets_included=false`.
 
 > Google Ads preflight ledger parity note: verify `google_ads_budget_preflight_ledger_policy_v1`, table `google_ads_budget_preflight_ledger`, and `google_ads_budget_change_preflight` ledger writes after migration `241_sprint67_google_ads_budget_preflight_ledger.sql`. Smoke should return `preflight_recorded=true`, `preflight_id`, `preflight_sha256`, `no_provider_call=true`, `no_spend_change=true`, and `secrets_included=false`.
