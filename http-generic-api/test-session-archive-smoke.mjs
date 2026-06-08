@@ -202,7 +202,15 @@ function makeDriveDeps() {
   assert.equal(result.drive.jsonl_id, "jsonl-1");
   assert(result.checks.every((item) => item.pass), "all smoke checks should pass");
   assert(drive.drive.docText.includes("### Runtime Event"), "doc readback should include runtime JSON");
-  assert(JSON.parse(drive.drive.jsonl.trim().split(/\r?\n/)[0]).content.includes("SESSION_ARCHIVE_SMOKE"));
+  assert(drive.drive.docText.includes("Bookmark: turn-0"), "doc readback should include user turn bookmark");
+  assert(drive.drive.docText.includes("Bookmark: turn-1"), "doc readback should include assistant turn bookmark");
+  assert(drive.drive.docText.includes("Bookmark: turn-2"), "doc readback should include tool turn bookmark");
+  assert(drive.drive.docText.includes("### Tool Call Summary"), "doc readback should summarize tool turns");
+  assert(drive.drive.docText.includes("Full content: JSONL sidecar"), "doc readback should point to JSONL for full tool content");
+  assert(drive.drive.docText.includes('"doc_content_mode": "summary_only"'), "doc runtime metadata should disclose summary-only tool content");
+  const jsonlRecords = drive.drive.jsonl.trim().split(/\r?\n/).map((line) => JSON.parse(line));
+  assert(jsonlRecords[0].content.includes("SESSION_ARCHIVE_SMOKE"));
+  assert(jsonlRecords.some((row) => row.role === "tool" && row.content.includes("Tool: release_session_archive_smoke")), "JSONL should retain full tool content");
   assert(pool.state.turns.every((turn) => turn.content === null), "SQL turn content must stay null; Drive carries the full transcript");
   assert(pool.state.turns.every((turn) => turn.storage_mode === "drive"), "Drive smoke turns should be storage_mode=drive");
 
