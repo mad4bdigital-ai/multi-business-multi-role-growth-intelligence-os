@@ -1,58 +1,62 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  adminBranchFastForwardConfirmation,
-  buildAdminBranchReconcileContinuation,
-  classifyAdminBranchReconcileState,
-} from "./routes/gptToolsRoutes.js";
+  branchReconcileConfirmation,
+  buildBranchReconcileDryRunPlan,
+  classifyBranchReconciliation,
+} from "./adminBranchReconciliationAdapter.js";
 
-assert.equal(classifyAdminBranchReconcileState({ status: "identical", ahead_by: 0, behind_by: 0 }), "clean");
-assert.equal(classifyAdminBranchReconcileState({ status: "behind", ahead_by: 0, behind_by: 3 }), "behind_only");
-assert.equal(classifyAdminBranchReconcileState({ status: "ahead", ahead_by: 2, behind_by: 0 }), "ahead_only");
-assert.equal(classifyAdminBranchReconcileState({ status: "diverged", ahead_by: 2, behind_by: 3 }), "diverged");
+assert.equal(classifyBranchReconciliation({ branch: "gpt/example", base_to_branch: { status: "identical", ahead_by: 0, behind_by: 0 } }).classification, "up_to_date");
+assert.equal(classifyBranchReconciliation({ branch: "gpt/example", base_to_branch: { status: "behind", ahead_by: 0, behind_by: 3 } }).classification, "behind_only");
+assert.equal(classifyBranchReconciliation({ branch: "gpt/example", base_to_branch: { status: "ahead", ahead_by: 2, behind_by: 0 } }).classification, "ahead_only");
+assert.equal(classifyBranchReconciliation({ branch: "gpt/example", base_to_branch: { status: "diverged", ahead_by: 2, behind_by: 3 }, branch_to_base: { files: [{ filename: "same.js" }] }, }).classification, "diverged_no_overlap");
+assert.equal(classifyBranchReconciliation({ branch: "gpt/example", base_to_branch: { status: "diverged", ahead_by: 2, behind_by: 3, files: [{ filename: "same.js" }] }, branch_to_base: { files: [{ filename: "same.js" }] }, }).classification, "diverged_same_files");
 
 assert.equal(
-  adminBranchFastForwardConfirmation("gpt/admin-branch-reconcile-adapter-20260608"),
-  "FAST_FORWARD_GPT_ADMIN_BRANCH_RECONCILE_ADAPTER_20260608"
+  branchReconcileConfirmation("gpt/admin-branch-reconcile-adapter-20260608"),
+  "RECONCILE_BRANCH_GPT_ADMIN_BRANCH_RECONCILE_ADAPTER_20260608"
 );
 
-const resourceState = {
+const classification = {
+  classification: "diverged_same_files",
+  risk: "high",
+  reason_code: "branch_and_default_changed_same_files",
+  apply_allowed: false,
+  resume_allowed: false,
+  ahead_by: 2,
+  behind_by: 3,
+  changed_files: ["http-generic-api/routes/gptToolsRoutes.js"],
+  base_changed_files: ["http-generic-api/routes/gptToolsRoutes.js"],
+  overlapping_files: ["http-generic-api/routes/gptToolsRoutes.js"],
+};
+
+const plan = buildBranchReconcileDryRunPlan({
   owner: "mad4bdigital-ai",
   repo: "multi-business-multi-role-growth-intelligence-os",
   branch: "gpt/example",
-  base_branch: "main",
-  branch_sha: "a".repeat(40),
-  base_sha: "b".repeat(40),
-  compare_status: "diverged",
-  ahead_by: 2,
-  behind_by: 3,
-  file_count: 2,
-  files: [
-    { filename: "http-generic-api/routes/gptToolsRoutes.js", status: "modified", changes: 42 },
-  ],
-};
-const continuation = buildAdminBranchReconcileContinuation({
-  owner: resourceState.owner,
-  repo: resourceState.repo,
-  branch: resourceState.branch,
-  baseBranch: resourceState.base_branch,
-  resourceState,
-  classification: "diverged",
+  default_branch: "main",
+  base_ref: { object: { sha: "b".repeat(40) } },
+  branch_ref: { object: { sha: "a".repeat(40) } },
+  base_to_branch: { status: "diverged", ahead_by: 2, behind_by: 3 },
+  branch_to_base: { status: "diverged", ahead_by: 3, behind_by: 2 },
+  classification,
 });
-assert.equal(continuation.checkpoint.engine, "shared-reconciliation-continuation-v1");
-assert.equal(continuation.checkpoint.interruption_signal, "branch_diverged");
-assert.equal(continuation.checkpoint.resource_scope.scope_type, "repository");
-assert.equal(continuation.resume_plan.next_required_step, "manual_rebase_or_recreate_branch");
-assert.equal(continuation.secrets_included, false);
+assert.equal(plan.adapter, "admin-branch-reconciliation-v1");
+assert.equal(plan.continuation.checkpoint.engine, "shared-reconciliation-continuation-v1");
+assert.equal(plan.continuation.checkpoint.interruption_signal, "branch_diverged");
+assert.equal(plan.continuation.checkpoint.resource_scope.scope_type, "repository");
+assert.equal(plan.dry_run.apply_supported, false);
+assert.equal(plan.secrets_included, false);
 
 const source = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
 assert.equal((source.match(/name: "admin_branch_reconcile"/g) || []).length, 1, "admin_branch_reconcile should be registered exactly once");
 assert.match(source, /runAdminBranchReconcile/);
 assert.doesNotMatch(source, /export async function reconcileAdminBranch/);
 assert.doesNotMatch(source, /FAST_FORWARD_/);
-assert.match(source, /force: false/);
-assert.match(source, /admin_branch_reconcile_confirmation_required/);
-assert.match(source, /admin_branch_reconcile_protected_branch/);
+assert.doesNotMatch(source, /createContinuationCheckpoint/);
+assert.doesNotMatch(source, /planContinuationResume/);
+assert.match(source, /admin_branch_reconcile_failed/);
+assert.match(source, /admin_branch_reconcile/);
 assert.doesNotMatch(source, /guarded_mutation/);
 assert.doesNotMatch(source, /force: true/);
 
