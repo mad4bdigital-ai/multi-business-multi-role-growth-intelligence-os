@@ -27,6 +27,23 @@ async function cleanupSmokeArtifacts({ pool, sessionId, archivedSession, deleteD
     errors: [],
   };
 
+  const driveFileIds = new Set([
+    archivedSession?.drive_doc_id,
+    archivedSession?.drive_jsonl_id,
+  ].filter(Boolean));
+
+  try {
+    const [docRows] = await pool.query(
+      "SELECT DISTINCT drive_doc_id FROM `gpt_session_turns` WHERE session_id = ? AND drive_doc_id IS NOT NULL",
+      [sessionId]
+    );
+    for (const row of docRows || []) {
+      if (row?.drive_doc_id) driveFileIds.add(row.drive_doc_id);
+    }
+  } catch (err) {
+    cleanup.errors.push({ stage: "collect_drive_doc_parts", message: String(err?.message || err).slice(0, 200) });
+  }
+
   try {
     const [turnRes] = await pool.query("DELETE FROM `gpt_session_turns` WHERE session_id = ?", [sessionId]);
     cleanup.sql_turns_deleted = Number(turnRes?.affectedRows || 0);
