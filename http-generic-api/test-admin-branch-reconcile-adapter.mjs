@@ -53,4 +53,16 @@ assert.match(source, /admin_branch_reconcile_confirmation_required/);
 assert.match(source, /admin_branch_reconcile_protected_branch/);
 assert.doesNotMatch(source, /force: true/);
 
+const migrationName = "234_sprint68_admin_branch_reconcile_continuation_policy.sql";
+const migration = readFileSync(new URL(`./migrations/${migrationName}`, import.meta.url), "utf8");
+const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
+const readiness = readFileSync(new URL("./releaseReadiness.js", import.meta.url), "utf8");
+assert.match(migration, /Admin Branch Reconcile Continuation Contract/);
+assert.match(migration, /admin_branch_reconcile_continuation_contract/);
+assert.match(migration, /behind_only_non_protected_branch/);
+assert.match(migration, /force_push_diverged_branch/);
+assert.match(migration, /secrets_included',false/);
+assert.ok(runner.includes(migrationName), "governed migration runner must allow migration 234");
+assert.ok(readiness.includes(migrationName), "release readiness must track migration 234");
+
 console.log("admin branch reconcile adapter tests passed");
