@@ -7,6 +7,7 @@ import {
   createOrAppendSupportTicket,
   createSupportTicketApprovalHold,
   createSupportTicketExecutionPlan,
+  createSupportTicketStepRuns,
   createSupportTicketWorkflowRun,
   getSupportTicketWithEvents,
   linkSupportTicketWorkflow,
@@ -15,6 +16,7 @@ import {
   reconcileSupportTicketSla,
   syncSupportTicketRuntimeStatus,
   transitionSupportTicket,
+  updateSupportTicketStepRun,
 } from "../supportTicketService.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
@@ -300,6 +302,49 @@ export function buildSupportTicketRoutes(deps = {}) {
       return res.status(201).json(result);
     } catch (err) {
       return sendError(res, err, "support_ticket_workflow_run_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/step-runs", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await createSupportTicketStepRuns({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        run_id: req.body?.run_id || null,
+        plan_id: req.body?.plan_id || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        reason: req.body?.reason || "Step runs created from support ticket workflow run.",
+        evidence_json: req.body?.evidence_json || {},
+      });
+      return res.status(201).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_step_runs_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/step-run", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await updateSupportTicketStepRun({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        step_run_id: req.body?.step_run_id || null,
+        run_id: req.body?.run_id || null,
+        step_key: req.body?.step_key || null,
+        status: req.body?.status,
+        output_json: req.body?.output_json || null,
+        error_message: req.body?.error_message || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        reason: req.body?.reason || "Step run status updated.",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_step_run_update_failed");
     }
   });
 
