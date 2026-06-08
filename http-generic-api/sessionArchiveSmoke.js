@@ -169,7 +169,7 @@ export async function runSessionArchiveSmoke({
   });
 
   const [sessionRows] = await pool.query(
-    `SELECT session_id, archive_status, drive_folder_id, drive_doc_id, drive_jsonl_id, drive_export_url
+    `SELECT session_id, archive_status, drive_folder_id, drive_doc_id, drive_doc_part_index, drive_doc_part_count, drive_jsonl_id, drive_export_url
      FROM \`customer_sessions\`
      WHERE session_id = ? LIMIT 1`,
     [sessionId]
