@@ -507,7 +507,8 @@ export async function reconcileAdminBranch(args = {}, ctx = {}) {
     throw err;
   }
 
-  const token = await getGitHubAppInstallationTokenForBranchReconcile();
+  const branchReconcileTokenPromise = getGitHubAppInstallationTokenForBranchReconcile();
+  const token = await branchReconcileTokenPromise;
   const [branchRef, baseRef, compare] = await Promise.all([
     getGithubRef({ owner, repo, refName: branch, token }),
     getGithubRef({ owner, repo, refName: baseBranch, token }),
