@@ -1546,6 +1546,45 @@ function normalizeBrandGrantTargets({ brand_ref = null, brand_refs = null } = {}
   return [...new Set(raw.map((ref) => normalizeString(ref).trim()).filter(Boolean))].slice(0, 25);
 }
 
+function mergeBrandRefCandidate(map, candidate = {}) {
+  const brandRef = normalizeString(candidate.brand_ref || candidate.resource_ref || candidate.linked_brand_key || candidate.target_key).trim();
+  if (!brandRef) return;
+  const existing = map.get(brandRef) || { brand_ref: brandRef, confidence: 0, sources: [], evidence: [], secrets_included: false };
+  existing.confidence = Math.max(Number(candidate.confidence || 0), Number(existing.confidence || 0));
+  existing.sources = [...new Set([...existing.sources, candidate.source].filter(Boolean))];
+  existing.evidence.push(sanitizeTicketMetadata({ source: candidate.source, confidence: candidate.confidence, reason: candidate.reason || null, evidence: candidate.evidence || {}, secrets_included: false }));
+  map.set(brandRef, existing);
+}
+
+export async function resolveSupportTicketBrandRefs({ tenant_id, ticket_id, user_id = null, brand_ref = null, brand_refs = null, min_confidence = 70, limit = 25 } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  const max = Math.min(Math.max(Number(limit) || 25, 1), 50);
+  const threshold = Math.min(Math.max(Number(min_confidence) || 70, 0), 100);
+  try {
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) { const err = new Error("Ticket not found."); err.status = 404; err.code = "support_ticket_not_found"; throw err; }
+    const ticketMetadata = parseJsonObject(ticket.metadata_json, {});
+    const granteeUserId = user_id || ticket.user_id || ticketMetadata?.metadata?.user_id || ticketMetadata?.user_id || null;
+    const candidates = new Map();
+    for (const ref of normalizeBrandGrantTargets({ brand_ref, brand_refs })) mergeBrandRefCandidate(candidates, { brand_ref: ref, source: "explicit_request", confidence: 90, reason: "brand_ref was supplied explicitly by the caller" });
+    if (granteeUserId) {
+      const grantRows = await queryRows(connection, `SELECT grant_id, resource_ref, permission, grant_status, source, granted_at FROM v_workspace_resource_grant_effective WHERE tenant_id = ? AND grantee_user_id = ? AND resource_type = 'brand' ORDER BY granted_at DESC LIMIT ?`, [tenant_id, granteeUserId, max]);
+      for (const row of grantRows) mergeBrandRefCandidate(candidates, { brand_ref: row.resource_ref, source: "effective_brand_grant", confidence: row.grant_status === "active" ? 100 : 85, reason: "brand_ref appears in effective workspace grant view", evidence: row });
+    }
+    const assetRows = await queryRows(connection, `SELECT brand_ref, COUNT(*) AS asset_count, MAX(updated_at) AS latest_asset_at FROM workspace_assets WHERE tenant_id = ? AND brand_ref IS NOT NULL AND brand_ref <> '' AND lifecycle_status <> 'deleted' GROUP BY brand_ref ORDER BY asset_count DESC, latest_asset_at DESC LIMIT ?`, [tenant_id, max]);
+    for (const row of assetRows) mergeBrandRefCandidate(candidates, { brand_ref: row.brand_ref, source: "workspace_assets", confidence: 75, reason: "brand_ref appears on active workspace assets", evidence: row });
+    const workspaceRows = await queryRows(connection, `SELECT workspace_id, workspace_key, display_name, linked_brand_key, bootstrap_status, updated_at FROM workspace_registry WHERE tenant_id = ? AND workspace_type = 'brand' AND (linked_brand_key IS NOT NULL OR workspace_key IS NOT NULL) ORDER BY updated_at DESC LIMIT ?`, [tenant_id, max]);
+    for (const row of workspaceRows) mergeBrandRefCandidate(candidates, { brand_ref: row.linked_brand_key || row.workspace_key, source: "workspace_registry", confidence: row.bootstrap_status === "ready" ? 85 : 70, reason: "brand_ref appears in workspace brand registry", evidence: row });
+    const brandRows = await queryRows(connection, `SELECT target_key, brand_name, normalized_brand_name, status, resolver_status, updated_at FROM brands WHERE target_key IS NOT NULL AND target_key <> '' ORDER BY updated_at DESC LIMIT ?`, [max]);
+    for (const row of brandRows) mergeBrandRefCandidate(candidates, { brand_ref: row.target_key, source: "legacy_brand_registry", confidence: 55, reason: "brand_ref appears in legacy global brands registry; verify tenant membership before use", evidence: { target_key: row.target_key, brand_name: row.brand_name, status: row.status, resolver_status: row.resolver_status } });
+    const sorted = [...candidates.values()].map((candidate) => ({ ...candidate, trusted_for_remediation: candidate.confidence >= threshold })).sort((a, b) => b.confidence - a.confidence || a.brand_ref.localeCompare(b.brand_ref));
+    const trusted = sorted.filter((candidate) => candidate.trusted_for_remediation);
+    return { ok: true, ticket_id, tenant_id, grantee_user_id: granteeUserId, min_confidence: threshold, count: sorted.length, trusted_count: trusted.length, selected_brand_ref: trusted.length === 1 ? trusted[0].brand_ref : null, candidates: sorted, recommendation: trusted.length === 0 ? "No trusted brand_ref candidate was found. Require explicit approved brand_ref before applying remediation." : trusted.length === 1 ? "One trusted brand_ref candidate is available for remediation." : "Multiple trusted brand_ref candidates exist; require explicit selection before applying remediation.", secrets_included: false };
+  } finally { if (ownsConnection) connection.release(); }
+}
+
 export async function applySupportTicketBrandMappingRemediation({ tenant_id, ticket_id, approval_hold_id = null, brand_ref = null, brand_refs = null, permission = "manage", dry_run = false, actor_id = null, actor_type = "system", reason = "Approved brand mapping remediation applied." } = {}, options = {}) {
   const pool = options.pool || getPool();
   const connection = options.connection || await pool.getConnection();
