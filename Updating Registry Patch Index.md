@@ -1,5 +1,7 @@
 # Updating Registry Patch Index
 
+> 2026-06-09 execution enablement registry note: PR adds `execution_enablement_registry_policy_v1`, table `execution_enablement_registry`, tool `execution_enablement_gate`, and migration `248_sprint67_execution_enablement_registry.sql`. Provider execution remains blocked unless an explicit active enablement row exists. Google Ads skeleton now calls the gate and blocks with `blocked_execution_enablement_missing_or_disabled` when no row exists. No provider call, no spend change, `secrets_included=false`.
+
 > 2026-06-08 Google Ads credential readiness note: PR adds `google_ads_credential_readiness_gate_policy_v1`, tool `google_ads_credential_readiness_gate`, and migration `246_sprint67_google_ads_credential_readiness_gate.sql`. It checks active Google Ads connection and credential binding metadata only. It does not read encrypted credentials, decrypt tokens, call Google Ads, or mutate spend. Future execution requires this gate in addition to preflight validation and explicit enablement.
 
 > 2026-06-08 Google Ads execution adapter skeleton note: PR adds `google_ads_budget_execution_adapter_skeleton_policy_v1`, audit table `google_ads_budget_execution_gate_audit`, skeleton `google_ads_budget_change_execution_adapter`, and migration `245_sprint67_google_ads_execution_adapter_skeleton.sql`. The skeleton validates `preflight_id` through `requireValidatedPreflightForExecution`, records audit, then blocks provider execution. Admin endpoint remains disabled; no Google Ads call, no credential read, no spend mutation.
