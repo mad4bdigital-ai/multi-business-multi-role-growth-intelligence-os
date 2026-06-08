@@ -200,9 +200,17 @@ export async function runSessionArchiveSmoke({
   let jsonlText = "";
   let jsonlRows = [];
   let driveReadError = null;
-  if (includeDriveReadback && archivedSession.drive_doc_id && archivedSession.drive_jsonl_id) {
+  const readbackDocIds = [...new Set([
+    ...turnRows.map((row) => row.drive_doc_id).filter(Boolean),
+    archivedSession.drive_doc_id,
+  ].filter(Boolean))];
+  if (includeDriveReadback && readbackDocIds.length && archivedSession.drive_jsonl_id) {
     try {
-      docText = await fetchDriveContentFn(archivedSession.drive_doc_id);
+      const docTexts = [];
+      for (const docId of readbackDocIds) {
+        docTexts.push(await fetchDriveContentFn(docId));
+      }
+      docText = docTexts.join("\n\n--- TRANSCRIPT DOC PART BREAK ---\n\n");
       jsonlText = await fetchDriveContentFn(archivedSession.drive_jsonl_id);
       jsonlRows = parseJsonl(jsonlText);
     } catch (err) {
