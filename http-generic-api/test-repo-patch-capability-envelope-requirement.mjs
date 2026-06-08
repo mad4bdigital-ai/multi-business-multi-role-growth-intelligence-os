@@ -43,6 +43,6 @@ assert.match(migration, /stale_branch_guard_still_required',true/);
 assert.match(migration, /secrets_included',false/);
 assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 assert.doesNotMatch(migration, /GITHUB_TOKEN\s*[:=]|OPENAI_API_KEY\s*[:=]|OPENROUTER_API_KEY\s*[:=]|sk-[A-Za-z0-9_\-]{12,}/i);
-assert.match(runner, /229_sprint67_repo_patch_capability_envelope_requirement\.sql/);
+assert.match(runner, /232_sprint67_repo_patch_capability_envelope_requirement\.sql/);
 
 console.log("repo_patch_apply capability envelope requirement guard passed");
