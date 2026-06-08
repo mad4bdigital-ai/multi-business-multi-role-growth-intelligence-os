@@ -130,6 +130,7 @@ OpenRouter is the priority model-provider candidate for future Docs Agent drafti
 Current required runtime policy seeds cover:
 
 - repository mutation safety and stale/diverged `repo_patch_apply` branches
+- repository patch capability envelopes: `repo_patch_apply` must include `capability_envelope_id`; runtime resolves `capability_resolution_envelope_ledger` for GitHub/repo mutation intent and marks the envelope referenced before GitHub App token resolution or content mutation. `repo_inspect` remains read-only and ungated.
 - external app action preflight visibility
 - blocking `n8n execute_workflow` side-effect guard
 - connector dispatch preflight visibility
