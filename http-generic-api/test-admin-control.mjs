@@ -37,6 +37,13 @@ try {
   assert("local connector JSON responses expose sanitized Drive handoff status",
     adminCliSource.includes("drive_upload_status") && adminCliSource.includes("sanitizeDriveUploadError"),
     "responses should distinguish uploaded, failed, and unconfigured Drive handoffs without exposing installer content");
+  assert("local connector missing tunnel token returns continuation handoff",
+    adminCliSource.includes("buildLocalConnectorTunnelProvisioningContinuationEvidence") &&
+    adminCliSource.includes("connector_tunnel_provisioning_required") &&
+    adminCliSource.includes("required_next_action: \"provision_tunnel_token\"") &&
+    adminCliSource.includes("continuation") &&
+    adminCliSource.includes("secrets_included: false"),
+    "missing cf_token/CLOUDFLARE_TUNNEL_TOKEN should be resumable and must not be a dead-end 404");
   assert("github admin control falls back to REST when gh is missing",
     adminCliSource.includes("executeGitHubRestFallback") &&
     adminCliSource.includes("gh CLI is not installed on host; used GitHub REST fallback") &&
