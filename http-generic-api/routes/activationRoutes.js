@@ -2,7 +2,6 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
-import { ensureSessionArchive } from "../sessionArchiveService.js";
 import { loadSessionSummaryGraphMemory } from "../sessionSummaryService.js";
 import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
 import { buildHardActivationEvidenceMatrix } from "../activationHardEvidence.js";
@@ -830,31 +829,19 @@ async function autoOpenGptSession(pool, subject, options = {}) {
 
   const sessionId = randomUUID();
   const startedAt = new Date();
+  const archiveStatus = "deferred_until_first_turn";
   await pool.query(
     `INSERT INTO \`customer_sessions\`
-       (session_id, tenant_id, user_id, originator, session_status, started_at)
-     VALUES (?, ?, ?, 'gpt_action', 'active', ?)`,
-    [sessionId, tenantId, userId, startedAt]
+       (session_id, tenant_id, user_id, originator, session_status, started_at, archive_status)
+     VALUES (?, ?, ?, 'gpt_action', 'active', ?, ?)`,
+    [sessionId, tenantId, userId, startedAt, archiveStatus]
   );
 
-  // Best-effort: allocate the Drive archive structure now so future turn writes
-  // (manual writeSessionTurn or auto-recorded tool dispatches) flow into a
-  // ready folder without lazy-allocating on first turn. Fail-open: activation
-  // must still succeed if Drive auth is unavailable.
-  let archiveStatus = "not_attempted";
-  try {
-    const archiveResult = await ensureSessionArchive(pool, {
-      session_id: sessionId,
-      tenant_id: tenantId,
-      user_id: userId,
-      started_at: startedAt,
-    });
-    archiveStatus = archiveResult?.configured ? "ready" : "not_configured";
-  } catch (err) {
-    archiveStatus = "deferred";
-    console.warn(`[activation] ensureSessionArchive failed for ${sessionId}, will lazy-allocate on first turn: ${err.message}`);
-  }
-
+  // Do not create Drive files during activation/session-context open. The archive
+  // is allocated lazily by recordGptSessionTurn() on the first real user,
+  // assistant, or tool turn. This prevents repeated diagnostics or accidental
+  // same-chat session-context calls from producing duplicate Google Docs by the
+  // platform service account before there is transcript content to preserve.
   const activeBefore = asCount(activeBeforeRow?.active_count);
   return {
     session_id: sessionId,
@@ -867,6 +854,7 @@ async function autoOpenGptSession(pool, subject, options = {}) {
       active_sessions_before_open: activeBefore,
       active_sessions_after_open: closePreviousSessions ? 1 : activeBefore + 1,
       status_written: "active",
+      archive_allocation: "lazy_on_first_turn",
     },
   };
 }
