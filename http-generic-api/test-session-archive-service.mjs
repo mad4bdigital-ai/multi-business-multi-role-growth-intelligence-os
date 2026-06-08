@@ -209,7 +209,6 @@ function flattenParams(value) {
   assert(driveWrites.docText.includes("Full content: JSONL sidecar"), "tool summaries should point to JSONL for full fidelity");
   assert(driveWrites.docText.includes('"doc_content_mode": "summary_only"'), "tool runtime metadata should disclose summary-only doc content");
   assert(!driveWrites.docText.includes(fullToolContent), "Google Doc should not contain the full tool dump");
-  assert(driveWrites.jsonl.includes(fullToolContent), "JSONL sidecar must retain the full tool dump");
   assert.equal(JSON.parse(driveWrites.jsonl.trim()).content, fullToolContent, "tool JSONL should remain parseable full-fidelity content");
 }
 
