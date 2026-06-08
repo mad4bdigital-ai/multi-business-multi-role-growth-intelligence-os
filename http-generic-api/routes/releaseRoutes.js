@@ -2,6 +2,7 @@ import { Router } from "express";
 import { getPool } from "../db.js";
 import { runReleaseReadiness } from "../releaseReadiness.js";
 import { runSessionArchiveSmoke } from "../sessionArchiveSmoke.js";
+import { backfillGptSessionArchiveFromJsonl } from "../sessionArchiveService.js";
 
 export function buildReleaseRoutes(deps) {
   const { requireBackendApiKey } = deps;
