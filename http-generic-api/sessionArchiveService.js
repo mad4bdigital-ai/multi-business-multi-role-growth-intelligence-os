@@ -512,15 +512,76 @@ export async function recordGptSessionTurn({
       let docWritten = false;
       let jsonlWritten = false;
       try {
+        const initialPart = positiveInt(archiveResult.archive.drive_doc_part_index, 1);
+        docRuntimeEvent = buildRuntimeEvent({
+          eventId,
+          sessionId: session.session_id,
+          turnId,
+          turnIndex,
+          role,
+          actionKey: action_key,
+          contentHash,
+          content,
+          timestamp,
+          includeContent: false,
+          bookmark: driveAnchor,
+          docContentMode,
+          fullContentStorage: "jsonl_sidecar",
+          driveDocId: archiveResult.archive.drive_doc_id,
+          driveDocPart: initialPart,
+        });
+        let docSectionText = buildTranscriptSection({ role, content: docContent, turnIndex, timestamp, runtimeEvent: docRuntimeEvent });
+        const beforeRolloverDocId = archiveResult.archive.drive_doc_id;
+        archiveResult.archive = await maybeRolloverTranscriptDoc({ pool, session, archive: archiveResult.archive, deps, sectionText: docSectionText, timestamp });
+        const effectivePart = positiveInt(archiveResult.archive.drive_doc_part_index, initialPart);
+        if (archiveResult.archive.drive_doc_id !== beforeRolloverDocId) {
+          archiveErrors.push({ stage: "drive_doc_rollover", status: "new_doc_part", drive_doc_part: effectivePart, drive_doc_id: archiveResult.archive.drive_doc_id, secrets_included: false });
+          docRuntimeEvent = buildRuntimeEvent({
+            eventId,
+            sessionId: session.session_id,
+            turnId,
+            turnIndex,
+            role,
+            actionKey: action_key,
+            contentHash,
+            content,
+            timestamp,
+            includeContent: false,
+            bookmark: driveAnchor,
+            docContentMode,
+            fullContentStorage: "jsonl_sidecar",
+            driveDocId: archiveResult.archive.drive_doc_id,
+            driveDocPart: effectivePart,
+          });
+          docSectionText = buildTranscriptSection({ role, content: docContent, turnIndex, timestamp, runtimeEvent: docRuntimeEvent });
+        }
         await deps.appendTextToGoogleDoc(
           archiveResult.archive.drive_doc_id,
-          buildTranscriptSection({ role, content: docContent, turnIndex, timestamp, runtimeEvent: docRuntimeEvent })
+          docSectionText
         );
         docWritten = true;
       } catch (err) {
         archiveErrors.push({ stage: "drive_doc_append", message: err.message });
       }
       try {
+        const effectivePart = positiveInt(archiveResult.archive.drive_doc_part_index, 1);
+        jsonlRuntimeEvent = buildRuntimeEvent({
+          eventId,
+          sessionId: session.session_id,
+          turnId,
+          turnIndex,
+          role,
+          actionKey: action_key,
+          contentHash,
+          content,
+          timestamp,
+          includeContent: true,
+          bookmark: driveAnchor,
+          docContentMode,
+          fullContentStorage: "jsonl_sidecar",
+          driveDocId: archiveResult.archive.drive_doc_id,
+          driveDocPart: effectivePart,
+        });
         await appendJsonlLine(
           archiveResult.archive,
           JSON.stringify(jsonlRuntimeEvent),
