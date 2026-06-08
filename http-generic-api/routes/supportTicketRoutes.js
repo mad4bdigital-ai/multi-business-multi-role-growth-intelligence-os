@@ -7,11 +7,13 @@ import {
   createOrAppendSupportTicket,
   createSupportTicketApprovalHold,
   createSupportTicketExecutionPlan,
+  createSupportTicketWorkflowRun,
   getSupportTicketWithEvents,
   linkSupportTicketWorkflow,
   listSupportTicketsForTenant,
   reconcileOpenSupportTickets,
   reconcileSupportTicketSla,
+  syncSupportTicketRuntimeStatus,
   transitionSupportTicket,
 } from "../supportTicketService.js";
 
@@ -276,6 +278,48 @@ export function buildSupportTicketRoutes(deps = {}) {
       return res.status(201).json(result);
     } catch (err) {
       return sendError(res, err, "support_ticket_execution_plan_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/workflow-run", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await createSupportTicketWorkflowRun({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        plan_id: req.body?.plan_id || null,
+        status: req.body?.status || "pending",
+        current_step: req.body?.current_step || null,
+        input_json: req.body?.input_json || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        reason: req.body?.reason || "Workflow run created from support ticket execution plan.",
+        evidence_json: req.body?.evidence_json || {},
+      });
+      return res.status(201).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_workflow_run_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/runtime-sync", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await syncSupportTicketRuntimeStatus({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        run_id: req.body?.run_id || null,
+        plan_id: req.body?.plan_id || null,
+        approval_hold_id: req.body?.approval_hold_id || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        reason: req.body?.reason || "Runtime status synchronized to support ticket.",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_runtime_sync_failed");
     }
   });
 
