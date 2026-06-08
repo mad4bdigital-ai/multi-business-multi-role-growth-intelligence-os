@@ -73,6 +73,18 @@ async function main() {
   const diff = await inspectRepoReadOnly({ action: "git_diff_name_status", head_ref: "HEAD", max_chars: 10000 });
   assert.equal(diff.action, "git_diff_name_status");
   assert.ok(Array.isArray(diff.files));
+
+  const migrationName = "232_sprint68_chunked_tool_response_continuation_policy.sql";
+  const migration = readFileSync(`migrations/${migrationName}`, "utf8");
+  const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
+  const readiness = readFileSync("releaseReadiness.js", "utf8");
+  assert.ok(migration.includes("Chunked Tool Response Continuation Contract"));
+  assert.ok(migration.includes("chunk_read_before_alternative_surface"));
+  assert.ok(migration.includes("response_chunk_read"));
+  assert.ok(migration.includes("only_then_use_secondary_search_slice_or_external_fallback"));
+  assert.ok(migration.includes("claim_file_too_large_without_attempting_response_chunk_read"));
+  assert.ok(runner.includes(migrationName), "governed migration runner must allow migration 232");
+  assert.ok(readiness.includes(migrationName), "release readiness must track migration 232");
 }
 
 main().catch((err) => {
