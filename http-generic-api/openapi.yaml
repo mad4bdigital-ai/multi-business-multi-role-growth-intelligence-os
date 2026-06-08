@@ -6542,8 +6542,16 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listAdminTools
       summary: List admin platform tools from the governed registry
-      description: "Returns paginated admin platform tools from the registry plus virtual admin tools. Use limit/cursor/q/tag for bounded discovery. If response_chunked=true or page.has_more=true on any governed tool response, call response_chunk_read with chunk_id and next_cursor until exhausted before using search/slice/local/external fallback surfaces."
+      description: "Returns paginated admin platform tools from the registry plus virtual admin tools. Use limit/cursor/q/tag for bounded discovery. If response_chunked=true or page.has_more=true on any governed tool response, call response_chunk_read with chunk_id and next_cursor until exhausted before using search/slice/local/external fallback surfaces. Virtual admin tools include admin_branch_reconcile for no-secret branch drift diagnosis and behind-only fast-forward reconciliation."
       x-runtime-governance:
+        admin_branch_reconcile_continuation:
+          policy: admin_branch_reconcile_continuation_contract
+          virtual_tool: admin_branch_reconcile
+          apply_allowed_only_for: behind_only_non_protected_branch
+          github_ref_update_force: false
+          requires_confirmation: FAST_FORWARD_<BRANCH_SLUG>
+          shared_reconciliation_checkpoint: true
+          secrets_included: false
         chunked_tool_response_continuation:
           policy: chunk_read_before_alternative_surface
           required_tool: response_chunk_read

@@ -40,6 +40,8 @@ For chunked governed tool responses, verify `response_chunked=true` or `page.has
 
 For local connector recovery changes, verify HTTP 530/1033 recovery does not stop at `no_tunnel_token`. If self-repair lacks DB `cf_token` and `CLOUDFLARE_TUNNEL_TOKEN`, it must return a 409 `connector_tunnel_provisioning_required` handoff with no-secret continuation evidence, and recovery must not be claimed until tunnel token provisioning and same-cycle connector health validation pass.
 
+For repository branch reconciliation changes, verify `admin_branch_reconcile` diagnoses stale/diverged branches with no-secret continuation evidence. Apply must be limited to non-protected `behind_only` branches, require `FAST_FORWARD_<BRANCH_SLUG>` confirmation, use GitHub ref update with `force:false`, and verify compare state after apply. Diverged/ahead/protected branches must not be force-pushed.
+
 For local device project path changes, use the SQL-backed registry and governed helpers documented in `docs/local-project-path-governance.md`. A local path update is not a backup and must not be treated as one.
 
 - [ ] `npm test` passes from `http-generic-api/` (800+ assertions across 46+ test files: utility, job runner, execution routing, execution response, execution log evidence, logic evidence plumbing, engine evidence derivation, engine evidence integration, connectors, routes, activation bootstrap cache, Google Sheets chunking, sheets range drift, starter authority surfaces, transport governance, activation classification, activation response, governed activation runner, registry alignment validator, logic switching, WordPress, AI resolvers, SQL migration tooling, and data-flow smoke test)
