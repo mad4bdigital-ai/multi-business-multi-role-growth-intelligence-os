@@ -640,7 +640,7 @@ function buildGithubFallbackContinuationEvidence({ args = [], mapped = false } =
     checkpoint,
     actor_context: { actor_type: "admin" },
     resource_scope: checkpoint.resource_scope,
-    current_resource_state: { operation, args_preview: argsPreview, mapped },
+    current_resource_state: { operation, args_preview: argsPreview, mapped, repair_attempt_count: 3 },
     dry_run_result: { ok: true, repair_attempts: buildGithubFallbackRepairAttempts({ args, mapped }) },
     verify_result: { ok: mapped === true, mapped },
     apply_requested: mapped === true,
