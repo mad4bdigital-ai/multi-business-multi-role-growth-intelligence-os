@@ -16,6 +16,11 @@ import {
 } from "../scopeGrantsService.js";
 import { cachedSqlRead, sqlCacheKey, toolCacheTtl } from "../sqlCache.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
+import {
+  capabilityEnvelopeError,
+  markCapabilityEnvelopeReferenced,
+  resolveCapabilityExecutionEnvelope,
+} from "../capabilityResolutionEnvelopeGuard.js";
 
 const execFileAsync = promisify(execFile);
 
