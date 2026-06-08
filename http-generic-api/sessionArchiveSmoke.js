@@ -214,7 +214,7 @@ export async function runSessionArchiveSmoke({
     check("drive_doc_pointer", Boolean(archivedSession.drive_doc_id)),
     check("drive_jsonl_pointer", Boolean(archivedSession.drive_jsonl_id)),
     check("drive_export_url", Boolean(archivedSession.drive_export_url)),
-    check("sql_turn_count", turnRows.length === 2, { count: turnRows.length }),
+    check("sql_turn_count", turnRows.length === 3, { count: turnRows.length }),
     check(
       "sql_stores_pointers_only",
       turnRows.every((row) => row.storage_mode === "drive" && row.drive_doc_id && row.drive_anchor && !String(row.content_preview || "").includes(marker))
