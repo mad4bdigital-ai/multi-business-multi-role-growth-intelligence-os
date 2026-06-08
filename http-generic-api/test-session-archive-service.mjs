@@ -126,8 +126,11 @@ function flattenParams(value) {
     "successful Drive writes should self-heal stale archive write_failed status"
   );
   assert(driveWrites.docText.includes(fullContent), "full content should be written to Drive doc");
+  assert(driveWrites.docText.includes("Bookmark: turn-0"), "Drive doc should include a stable text bookmark marker");
   assert(driveWrites.docText.includes("### Runtime Event"), "Drive doc should include runtime event metadata");
   assert(driveWrites.docText.includes('"action_key": "example_action"'), "Drive doc should include action metadata");
+  assert(driveWrites.docText.includes('"doc_content_mode": "full_turn_text"'), "user/assistant turns should be marked as full text in the Doc");
+  assert(driveWrites.docText.includes('"full_content_storage": "jsonl_sidecar"'), "Drive doc should point to JSONL as full-fidelity storage");
   assert(!driveWrites.docText.includes(`"content": "${fullContent}`), "Drive doc metadata should not duplicate full content JSON");
   assert(driveWrites.jsonl.includes(fullContent), "full content should be written to Drive JSONL");
   assert.equal(JSON.parse(driveWrites.jsonl.trim()).content, fullContent, "JSONL should remain parseable full-fidelity content");
