@@ -1328,6 +1328,11 @@ internal static class Program
                     await CompleteDesktopCommandAsync(client, token, commandId, true, new { action, focused = true, handled_by = "local_manager_windows", visible_desktop = true, secrets_included = false });
                     return;
                 }
+                if (string.Equals(action, "capture_chatgpt_current_url", StringComparison.OrdinalIgnoreCase))
+                {
+                    await CaptureChatGptCurrentUrlCommandAsync(client, token, commandId, payload);
+                    return;
+                }
                 if (string.Equals(action, "codex_exec_readonly", StringComparison.OrdinalIgnoreCase))
                 {
                     await ExecuteCodexReadOnlyCommandAsync(client, token, commandId, payload);
