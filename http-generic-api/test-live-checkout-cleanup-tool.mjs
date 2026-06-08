@@ -14,6 +14,7 @@ assert.match(script, /stderr\.log/);
 assert.match(script, /APPLY_LIVE_CHECKOUT_CLEANUP/);
 assert.match(script, /git\(\["show", `HEAD:\$\{repoPath\}`\]\)/);
 assert.match(script, /update-index/);
+assert.match(script, /git_checkout_after_refresh_warning/);
 assert.match(script, /checkout/);
 assert.match(script, /blocked_content_diff/);
 assert.match(script, /normalized_lf_equal/);
