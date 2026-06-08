@@ -284,6 +284,8 @@ function makeDriveDeps() {
   assert.equal(received.tenantId, "tenant-1");
   assert.equal(received.userId, "daily-smoke");
   assert.equal(received.includeDriveReadback, false);
+  assert.equal(received.forceDocRollover, true);
+  assert.equal(received.docRolloverChars, 1200);
 }
 
 console.log("session archive smoke tests passed");
