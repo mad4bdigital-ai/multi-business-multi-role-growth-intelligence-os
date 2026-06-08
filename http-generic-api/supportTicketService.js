@@ -1782,8 +1782,13 @@ export async function completeSupportTicketBrandMappingRemediation({ tenant_id, 
       throw err;
     }
     let approval = null;
-    if (approve_first || hold.status !== "approved") {
+    if (approve_first) {
       approval = await decideSupportTicketApprovalHold({ tenant_id, ticket_id, approval_hold_id: hold.hold_id, decision: "approved", decision_note: "Approved as part of brand mapping remediation completion.", actor_id, actor_type, reason: "Approval hold approved for brand mapping remediation." }, { connection });
+    } else if (hold.status !== "approved") {
+      const err = new Error("Approval hold must already be approved, or approve_first must be true.");
+      err.status = 409;
+      err.code = "support_ticket_completion_requires_approved_hold";
+      throw err;
     }
     const remediation = await applySupportTicketBrandMappingRemediation({ tenant_id, ticket_id, approval_hold_id: hold.hold_id, brand_ref, brand_refs, permission, dry_run: false, actor_id, actor_type, reason }, { connection });
     const run = await queryOne(connection, `SELECT wr.* FROM ticket_workflow_links twl JOIN workflow_runs wr ON wr.run_id = twl.run_id AND wr.tenant_id = twl.tenant_id WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.run_id IS NOT NULL ORDER BY twl.created_at DESC LIMIT 1`, [tenant_id, ticket_id]);
