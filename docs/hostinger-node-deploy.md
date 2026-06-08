@@ -141,6 +141,8 @@ Hostinger hPanel Auto Deploy is the primary repository-to-Hostinger deployment p
 
 A current checkout on the Hostinger filesystem is not enough to prove production is serving the new code. Always verify the running process through `/health` and `SERVICE_VERSION`. If files are updated but `/health.version` still reports an older version, classify it as process reload lag and use hPanel **Settings and redeploy** / **Restart**, or the governed Hostinger SSH deploy executor only after its target is active and smoke-validated.
 
+When the governed Hostinger SSH deploy executor is used, treat its deployment result as two separate states: file sync and runtime reload. The response must expose `deploy.parsed`, `deploy.reload_verification`, and `deploy.continuation`. A successful checkout with `restart_signal=tmp/restart.txt` is still `live_ready=false` until the follow-up `/health` readback confirms the expected runtime version or commit. The continuation checkpoint must use `deploy_reload_pending` and `secrets_included=false` while that health readback is outstanding.
+
 Do not use GitHub Actions to deploy `connector.mad4b.com`; that hostname must stay on the Cloudflare Tunnel/local-service path so it can recover Hostinger/auth outages.
 
 ## Security notes
