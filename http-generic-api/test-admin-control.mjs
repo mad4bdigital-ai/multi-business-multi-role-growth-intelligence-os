@@ -44,6 +44,18 @@ try {
     adminCliSource.includes("continuation") &&
     adminCliSource.includes("secrets_included: false"),
     "missing cf_token/CLOUDFLARE_TUNNEL_TOKEN should be resumable and must not be a dead-end 404");
+  const localConnectorMigrationName = "233_sprint68_local_connector_tunnel_provisioning_continuation_policy.sql";
+  const localConnectorMigration = fs.readFileSync(new URL(`./migrations/${localConnectorMigrationName}`, import.meta.url), "utf8");
+  const migrationRunnerSource = fs.readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
+  const releaseReadinessSource = fs.readFileSync(new URL("./releaseReadiness.js", import.meta.url), "utf8");
+  assert("local connector provisioning migration registers blocking policy",
+    localConnectorMigration.includes("Local Connector Tunnel Provisioning Continuation Contract") &&
+    localConnectorMigration.includes("connector_tunnel_provisioning_required") &&
+    localConnectorMigration.includes("return_dead_end_404_for_no_tunnel_token") &&
+    localConnectorMigration.includes("secrets_included',false") &&
+    migrationRunnerSource.includes(localConnectorMigrationName) &&
+    releaseReadinessSource.includes(localConnectorMigrationName),
+    "migration 233 must be allowlisted and tracked in release readiness");
   assert("github admin control falls back to REST when gh is missing",
     adminCliSource.includes("executeGitHubRestFallback") &&
     adminCliSource.includes("gh CLI is not installed on host; used GitHub REST fallback") &&
