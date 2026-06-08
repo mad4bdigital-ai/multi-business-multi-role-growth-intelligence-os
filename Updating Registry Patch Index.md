@@ -4,6 +4,28 @@ Last updated: 2026-06-07 (shared reconciliation continuation engine and scoped r
 
 ## Current Patch Set
 
+### 2026-06-08 — Local Connector Tunnel Provisioning Continuation
+
+- Status: PR pending; CI required before merge.
+- Branch: `gpt/local-connector-no-token-continuation-20260608`
+- Scope:
+  - Added `connector_tunnel_provisioning_required` to the shared reconciliation interruption signals.
+  - Added `buildLocalConnectorTunnelProvisioningContinuationEvidence()` in `adminCliRoutes.js`.
+  - Changed `POST /admin/cli/local-connector/self-repair` so missing DB `cf_token` and missing `CLOUDFLARE_TUNNEL_TOKEN` return a resumable 409 handoff instead of a dead-end 404.
+  - Added migration `233_sprint68_local_connector_tunnel_provisioning_continuation_policy.sql` to register the blocking policy `Local Connector Tunnel Provisioning Continuation Contract`.
+  - Added migration 233 to the governed migration runner allowlist and release-readiness expected ledger coverage.
+- Runtime behavior:
+  - If connector recovery starts from HTTP 530/1033 and self-repair cannot find a tunnel token, the response includes `continuation.checkpoint`, `resume_plan`, `provisioning.required_next_action=provision_tunnel_token`, and `secrets_included=false`.
+  - Agents must provision the tunnel token through an authorized secret/config path, then retry self-repair and verify connector health in the same cycle before reporting recovery.
+  - The response and audit payload must not include `cf_token`, `connector_secret`, `CLOUDFLARE_TUNNEL_TOKEN`, or `BACKEND_API_KEY`.
+- SQL safety class:
+  - Policy seed only; `INSERT INTO execution_policies ... ON DUPLICATE KEY UPDATE`.
+  - No destructive SQL, no secret values, and `secrets_included=false`.
+- Evidence:
+  - `test-admin-control.mjs` asserts continuation evidence, no-secret handoff, policy migration, runner allowlist, and release-readiness tracking.
+  - `test-shared-reconciliation-engine.mjs` asserts `connector_tunnel_provisioning_required` is a generalized signal.
+  - PR CI/manual CI evidence to be recorded before merge.
+
 ### 2026-06-08 — Chunked Tool Response Continuation Contract
 
 - Status: PR #868 opened; CI required before merge.
