@@ -459,6 +459,10 @@ async function compareGithubBranches({ owner, repo, baseBranch, branch, token })
   return result.payload;
 }
 
+function getGitHubAppInstallationTokenForBranchReconcile() {
+  return getGitHubAppInstallationToken({});
+}
+
 async function updateGithubBranchRef({ owner, repo, branch, sha, token }) {
   const result = await githubJsonRequest({
     method: "PATCH",
