@@ -1442,6 +1442,10 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
         _principal_context_guard: guarded.guard,
       }, deps);
     }
+    case "google_drive_endpoint_catalog":
+      return await listGoogleDriveEndpointCatalog(args);
+    case "google_drive_folder_inspect":
+      return await inspectGoogleDriveFolder(args, auth, deps);
     case "connector_registry_list":
       return { connectors: await listConnectorRegistry(args, auth) };
     case "connector_registry_get":
