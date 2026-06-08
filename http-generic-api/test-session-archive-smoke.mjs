@@ -38,9 +38,11 @@ function makePool() {
           drive_folder_id: params[0],
           drive_doc_id: params[1],
           drive_doc_url: params[2],
-          drive_jsonl_id: params[3],
-          drive_jsonl_url: params[4],
-          drive_exports_folder_id: params[5],
+          drive_doc_part_index: params[3],
+          drive_doc_part_count: params[4],
+          drive_jsonl_id: params[5],
+          drive_jsonl_url: params[6],
+          drive_exports_folder_id: params[7],
           archive_status: "ready",
         });
         return [{ affectedRows: 1 }];
