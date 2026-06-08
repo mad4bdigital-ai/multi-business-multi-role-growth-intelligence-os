@@ -65,10 +65,6 @@ async function cleanupSmokeArtifacts({ pool, sessionId, archivedSession, deleteD
     cleanup.errors.push({ stage: "delete_session", message: String(err?.message || err).slice(0, 200) });
   }
 
-  const driveFileIds = [
-    archivedSession?.drive_doc_id,
-    archivedSession?.drive_jsonl_id,
-  ].filter(Boolean);
   for (const fileId of driveFileIds) {
     try {
       await deleteDriveFn(fileId);
