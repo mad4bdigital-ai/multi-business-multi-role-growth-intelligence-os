@@ -195,6 +195,14 @@ Example:
 
 The ledger creator does not execute the selected capability. It runs `capability_resolution_dry_run`, redacts dangerous keys defensively, stores the envelope JSON and hash, and returns an `envelope_id`. Future execution tools should require this ID and must reject expired envelopes or envelopes whose gates do not permit dispatch/apply.
 
+Approve a `ready_requires_approval` envelope with:
+
+```text
+capability_resolution_envelope_approve
+```
+
+The approval helper writes an `approval_holds` row, flips the envelope to `ready_for_dispatch`, updates the envelope hash, and still does not execute the target capability. It rejects expired envelopes, secret-marked envelopes, envelopes with blocking gaps, and envelopes that are not already `dispatch_allowed`.
+
 ## First enforced family: WordPress write/publish
 
 `wordpress_write_capability_envelope_requirement_v1` makes WordPress post creation require a valid `capability_envelope_id` before the orchestrator calls WordPress. Credential intake and diagnostics remain available without an envelope because they do not execute a WordPress write.
