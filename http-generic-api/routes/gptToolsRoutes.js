@@ -162,8 +162,11 @@ async function findActiveSessionForCaller(pool, req, args = {}) {
 async function recordToolDispatchTurn(req, toolKey, args, result) {
   try {
     const pool = getPool();
-    const session = await findActiveSessionForCaller(pool, req);
-    if (!session) return null;
+    const session = await findActiveSessionForCaller(pool, req, args);
+    if (!session) {
+      console.warn(`[gpt-tools] skipped auto-record turn for ${toolKey}: no explicit GPT session pin and no active session with user/assistant turns`);
+      return null;
+    }
 
     const [[{ max_idx }]] = await pool.query(
       "SELECT COALESCE(MAX(turn_index), -1) AS max_idx FROM `gpt_session_turns` WHERE session_id = ?",
