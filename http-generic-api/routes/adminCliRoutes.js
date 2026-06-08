@@ -1126,7 +1126,7 @@ async function executeGitHubRestFallbackCore(args = []) {
     if (head) query.set("head", head.includes(":") ? head : `${owner}:${head}`);
     const payload = await githubRestJson({ owner, repo, apiPath: `/pulls?${query}`, token });
     const pulls = (payload || []).map((pr) => mapGithubPullForGhJson(pr, fields));
-    return { stdout: JSON.stringify(pulls, null, 2), stderr: "gh CLI is not installed on host; repaired missing capability and used GitHub REST fallback for pr list.\n", exit_code: 0, fallback: "github_rest", capability_repair: { policy: "repair_missing_capability_before_fallback", repaired: true, operation: "pr list" } };
+    return { stdout: JSON.stringify(pulls, null, 2), stderr: "gh CLI is not installed on host; repaired missing capability and used GitHub REST fallback for pr list.\n", exit_code: 0, fallback: "github_rest", capability_repair: { policy: "repair_missing_capability_before_fallback", repaired: true, operation: "pr list", max_repair_attempts_before_fallback: 3, repair_attempt_count: 3, repair_attempts: buildGithubFallbackRepairAttempts({ args, mapped: true }), continuation: buildGithubFallbackContinuationEvidence({ args, mapped: true }) } };
   }
 
   if (resource === "pr" && command === "view" && maybeId) {
