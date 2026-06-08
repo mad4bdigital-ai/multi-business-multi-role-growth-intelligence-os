@@ -23,6 +23,7 @@ import {
   reconcileSupportTicketSla,
   resolveSupportTicketBrandRefs,
   requestSupportTicketBrandRefSelection,
+  requestSupportTicketNewBrandRefApproval,
   runSupportTicketDiagnosticChain,
   syncSupportTicketRuntimeStatus,
   transitionSupportTicket,
