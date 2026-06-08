@@ -688,6 +688,11 @@ export async function recordGptSessionTurn({
   );
 
   await pool.query(
+    "UPDATE `gpt_session_turns` SET drive_doc_part = ? WHERE session_id = ? AND turn_id = ?",
+    [archive.drive_doc_id ? positiveInt(archive.drive_doc_part_index, 1) : null, session.session_id, turnId]
+  ).catch(() => {});
+
+  await pool.query(
     `INSERT INTO \`session_events\`
        (event_id, session_id, turn_id, tenant_id, workspace_key, user_id,
         actor_id, actor_type, brand_key, correlation_id, action_key,
