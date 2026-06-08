@@ -230,6 +230,11 @@ export async function runSessionArchiveSmoke({
     check("drive_export_url", Boolean(archivedSession.drive_export_url)),
     check("sql_turn_count", turnRows.length === 3, { count: turnRows.length }),
     check(
+      "drive_doc_rollover",
+      !forceDocRollover || (distinctTurnDocIds.length >= 2 && maxTurnDocPart >= 2 && Number(archivedSession.drive_doc_part_count || 0) >= 2),
+      forceDocRollover ? { distinct_doc_count: distinctTurnDocIds.length, max_turn_doc_part: maxTurnDocPart, session_part_count: Number(archivedSession.drive_doc_part_count || 0) } : null
+    ),
+    check(
       "sql_stores_pointers_only",
       turnRows.every((row) => row.storage_mode === "drive" && row.drive_doc_id && row.drive_anchor)
     ),
