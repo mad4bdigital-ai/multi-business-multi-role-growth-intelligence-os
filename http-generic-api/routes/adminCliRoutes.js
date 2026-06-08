@@ -1670,6 +1670,7 @@ function builtInShellAllowlist() {
     execution_enablement_gate: { command: process.execPath, args: ["http-generic-api/scripts/execution-enablement-gate.mjs"], display_name: "Execution enablement gate", allow_extra_args: true, max_extra_args: 16, timeout_ms: 120000, built_in: true },
     preflight_ledger_validate: { command: process.execPath, args: ["http-generic-api/scripts/preflight-ledger-validate.mjs"], display_name: "Validate preflight ledger row", allow_extra_args: true, max_extra_args: 16, timeout_ms: 120000, built_in: true },
     live_checkout_cleanup: { command: process.execPath, args: ["http-generic-api/scripts/live-checkout-cleanup.mjs"], display_name: "Live checkout cleanup dry-run/apply", allow_extra_args: true, max_extra_args: 16, timeout_ms: 120000, built_in: true },
+    hostinger_ssh_dependency_diagnostic: { command: process.execPath, args: ["http-generic-api/scripts/hostinger-ssh-dependency-diagnostic.mjs"], display_name: "Hostinger SSH dependency diagnostic", allow_extra_args: true, max_extra_args: 4, timeout_ms: 30000, built_in: true },
     migration_ledger_record_dry_run: {
       command: process.execPath,
       args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--record-ledger", "--dry-run"],
