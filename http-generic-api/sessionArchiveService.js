@@ -409,6 +409,8 @@ export async function recordGptSessionTurn({
   const contentHash = sha256(content);
   const contentPreview = previewText(content);
   const driveAnchor = `turn-${turnIndex}`;
+  const docContent = buildDocContentForTurn({ role, content, actionKey: action_key, contentHash });
+  const docContentMode = docContentModeForRole(role);
   const docRuntimeEvent = buildRuntimeEvent({
     eventId,
     sessionId: session.session_id,
