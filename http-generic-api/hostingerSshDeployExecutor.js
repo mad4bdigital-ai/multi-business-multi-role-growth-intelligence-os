@@ -19,6 +19,7 @@ import {
   validateHostingerSshProbeRunnerMode,
   describeHostingerSshProbeRunnerMode,
 } from "./hostingerSshProbeRunnerModes.js";
+import { createContinuationCheckpoint, planContinuationResume } from "./sharedReconciliationEngine.js";
 
 const DEFAULT_TIMEOUT_MS = 120000;
 const DEFAULT_PROBE_TIMEOUT_MS = 45000;
