@@ -2403,20 +2403,54 @@ export function buildAdminCliRoutes(deps) {
       let tunnelToken  = "";
       let backendKey   = "";
       let cfTunnelId   = null;
+      let cfTunnelName = null;
       let tunnelUrl    = null;
       let configSource = "env";
+      let resolvedUserId = userId;
+      let resolvedDeviceId = deviceId;
+      let deviceIdentityResolution = null;
       try {
         const pool = getPool();
         const [[row]] = await pool.query(
-          "SELECT cf_token, connector_secret, cf_tunnel_id, tunnel_url FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+          "SELECT config_id, user_id, device_id, cf_token, connector_secret, cf_tunnel_id, cf_tunnel_name, tunnel_url FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
           [userId, deviceId]
         );
-        if (row) {
-          tunnelToken  = row.cf_token || "";
-          backendKey   = row.connector_secret || "";
-          cfTunnelId   = row.cf_tunnel_id || null;
-          tunnelUrl    = row.tunnel_url || null;
-          configSource = tunnelToken ? "db" : "env_fallback";
+        let selectedRow = row || null;
+        let matchSource = "direct";
+        if (!localConnectorConfigHasUsableToken(selectedRow)) {
+          const aliasPatterns = localConnectorDeviceAliasLikePatterns(deviceId);
+          if (aliasPatterns.length) {
+            const aliasWhere = aliasPatterns.map(() => "LOWER(device_id) LIKE ?").join(" OR ");
+            const [aliasRows] = await pool.query(
+              `SELECT config_id, user_id, device_id, cf_token, connector_secret, cf_tunnel_id, cf_tunnel_name, tunnel_url, last_health_at, updated_at
+                 FROM \`local_connector_user_configs\`
+                WHERE is_enabled = 1
+                  AND COALESCE(NULLIF(cf_token,''),'') <> ''
+                  AND (${aliasWhere})
+                ORDER BY
+                  CASE WHEN user_id = ? THEN 0 ELSE 1 END,
+                  CASE WHEN last_health_at IS NULL THEN 1 ELSE 0 END,
+                  last_health_at DESC,
+                  updated_at DESC
+                LIMIT 5`,
+              [...aliasPatterns, userId]
+            );
+            if (aliasRows.length === 1) {
+              selectedRow = aliasRows[0];
+              matchSource = "db_alias";
+            }
+          }
+        }
+        if (selectedRow) {
+          tunnelToken  = selectedRow.cf_token || "";
+          backendKey   = selectedRow.connector_secret || "";
+          cfTunnelId   = selectedRow.cf_tunnel_id || null;
+          cfTunnelName = selectedRow.cf_tunnel_name || null;
+          tunnelUrl    = selectedRow.tunnel_url || null;
+          resolvedUserId = selectedRow.user_id || userId;
+          resolvedDeviceId = selectedRow.device_id || deviceId;
+          configSource = tunnelToken ? matchSource === "db_alias" ? "db_alias" : "db" : "env_fallback";
+          deviceIdentityResolution = buildLocalConnectorDeviceIdentityResolution({ requestedUserId: userId, requestedDeviceId: deviceId, row: selectedRow, matchSource });
         }
       } catch (dbErr) {
         console.warn("[self-repair] DB lookup failed:", dbErr.message);
