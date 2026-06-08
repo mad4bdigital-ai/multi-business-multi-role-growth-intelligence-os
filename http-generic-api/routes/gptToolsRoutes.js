@@ -16,7 +16,6 @@ import {
 } from "../scopeGrantsService.js";
 import { cachedSqlRead, sqlCacheKey, toolCacheTtl } from "../sqlCache.js";
 import { evaluateRepoPatchApplyPreflight, evaluateGptToolDispatchPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
-import { createContinuationCheckpoint, planContinuationResume } from "../sharedReconciliationEngine.js";
 import {
   capabilityEnvelopeError,
   markCapabilityEnvelopeReferenced,
