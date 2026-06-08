@@ -19,6 +19,7 @@ import {
   validateHostingerSshProbeRunnerMode,
   describeHostingerSshProbeRunnerMode,
 } from "./hostingerSshProbeRunnerModes.js";
+import { createContinuationCheckpoint, planContinuationResume } from "./sharedReconciliationEngine.js";
 
 const DEFAULT_TIMEOUT_MS = 120000;
 const DEFAULT_PROBE_TIMEOUT_MS = 45000;
@@ -481,6 +482,93 @@ function parseProbeOutput(stdout = "") {
   return out;
 }
 
+function buildHostingerDeployReloadVerification({ restart = true, parsed = {}, sshOk = false } = {}) {
+  const restartSignal = String(parsed.restart_signal || "").trim();
+  const deployResult = String(parsed.deploy_result || "").trim();
+  const restartRequested = restart === true;
+  const restartSignalOk = !restartRequested || restartSignal === "tmp/restart.txt";
+  const deployResultOk = deployResult === "ok";
+  return {
+    restart_requested: restartRequested,
+    restart_signal: restartSignal || null,
+    restart_signal_ok: restartSignalOk,
+    deploy_result: deployResult || null,
+    deploy_result_ok: deployResultOk,
+    files_updated: sshOk && deployResultOk,
+    reload_signal_emitted: sshOk && restartRequested && restartSignalOk,
+    runtime_health_readback_required: sshOk && restartRequested,
+    status: !sshOk
+      ? "ssh_deploy_failed"
+      : !deployResultOk
+        ? "deploy_result_missing_or_failed"
+        : restartRequested && !restartSignalOk
+          ? "deploy_reload_signal_missing"
+          : restartRequested
+            ? "reload_signal_emitted_pending_health_readback"
+            : "reload_not_requested",
+    secrets_included: false,
+  };
+}
+
+function buildHostingerDeployContinuationEvidence({
+  targetId,
+  appKey,
+  appPath,
+  branch,
+  expectedCommitSha,
+  restart,
+  parsed = {},
+  reloadVerification = {},
+} = {}) {
+  const checkpoint = createContinuationCheckpoint({
+    operation_key: `hostinger_deploy_reload:${targetId || "unknown"}:${expectedCommitSha || "unknown"}`,
+    resource_type: "hostinger_deploy_reload",
+    actor_context: { actor_type: "admin" },
+    resource_scope: {
+      scope_type: "deployment",
+      provider: "hostinger",
+      target_id: targetId || null,
+      app_key: appKey || null,
+    },
+    resource_state: {
+      target_id: targetId || null,
+      app_path: appPath || null,
+      branch: branch || "main",
+      expected_commit_sha: expectedCommitSha || null,
+      parsed_deploy: parsed,
+      reload_verification: reloadVerification,
+    },
+    interruption_signal: "deploy_reload_pending",
+    stage: reloadVerification?.status === "reload_signal_emitted_pending_health_readback" ? "verify" : "dry_run_repair",
+    metadata: {
+      adapter: "hostinger_deploy_reload",
+      restart_requested: restart === true,
+      requires_live_health_readback: reloadVerification?.runtime_health_readback_required === true,
+      runbook: "http-generic-api/docs/hostinger-runtime-sync-runbook.md",
+      secrets_included: false,
+    },
+  });
+  const currentResourceState = {
+    target_id: targetId || null,
+    app_path: appPath || null,
+    branch: branch || "main",
+    expected_commit_sha: expectedCommitSha || null,
+    parsed_deploy: parsed,
+    reload_verification: reloadVerification,
+    ...(reloadVerification?.runtime_health_readback_required === true ? { live_health_readback_pending: true } : {}),
+  };
+  const resume_plan = planContinuationResume({
+    checkpoint,
+    actor_context: { actor_type: "admin" },
+    resource_scope: checkpoint.resource_scope,
+    current_resource_state: currentResourceState,
+    dry_run_result: { ok: reloadVerification?.files_updated === true, reload_verification: reloadVerification },
+    verify_result: { ok: reloadVerification?.runtime_health_readback_required !== true, reload_verification: reloadVerification },
+    apply_requested: false,
+  });
+  return { checkpoint, resume_plan, secrets_included: false };
+}
+
 export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
   const pool = deps.pool || getPool();
   const env = deps.env || process.env;
@@ -818,7 +906,20 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
   const sshConnection = await resolveSshConnectionCredentials(pool, target, input);
   const remoteScript = buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClean, restart });
   const sshResult = await runSshCommand({ ...sshConnection, remoteScript, timeoutMs });
-  const status = sshResult.ok ? "success" : "failed";
+  const parsedDeploy = parseProbeOutput(sshResult.stdout);
+  const reloadVerification = buildHostingerDeployReloadVerification({ restart, parsed: parsedDeploy, sshOk: sshResult.ok });
+  const continuation = buildHostingerDeployContinuationEvidence({
+    targetId,
+    appKey,
+    appPath,
+    branch,
+    expectedCommitSha,
+    restart,
+    parsed: parsedDeploy,
+    reloadVerification,
+  });
+  const deployOk = sshResult.ok && reloadVerification.deploy_result_ok && reloadVerification.restart_signal_ok;
+  const status = deployOk ? "success" : "failed";
 
   await writeExecutionEvidence({
     pool,
@@ -835,33 +936,43 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     outputSummary: {
       ...baseResponse,
       dry_run: false,
-      executed: sshResult.ok,
+      executed: deployOk,
       exit_code: sshResult.exit_code,
       timed_out: sshResult.timed_out,
+      parsed_deploy: parsedDeploy,
+      reload_verification: reloadVerification,
+      continuation,
       stdout_preview: sshResult.stdout.slice(0, 2000),
       stderr_preview: sshResult.stderr.slice(0, 2000),
       secrets_included: false,
     },
-    routeStatus: sshResult.ok ? "executed" : "failed",
+    routeStatus: deployOk ? "executed" : "failed",
     routeSource: "sql_primary",
     intakeValidationStatus: "validated",
-    executionReadyStatus: sshResult.ok ? "complete" : "failed",
-    failureReason: sshResult.ok ? null : "ssh_deploy_failed",
+    executionReadyStatus: deployOk ? (reloadVerification.runtime_health_readback_required ? "pending_health_readback" : "complete") : "failed",
+    failureReason: deployOk ? null : reloadVerification.status || "ssh_deploy_failed",
     logSource: "sql_primary",
   }).catch(() => null);
 
   return {
     ...baseResponse,
-    ok: sshResult.ok,
+    ok: deployOk,
     dry_run: false,
     execution: {
       will_execute: true,
-      executed: sshResult.ok,
+      executed: deployOk,
       ssh_used: true,
       shell_freeform: false,
       allowlisted_deploy_only: true,
       exit_code: sshResult.exit_code,
       timed_out: sshResult.timed_out,
+    },
+    deploy: {
+      ok: deployOk,
+      parsed: parsedDeploy,
+      reload_verification: reloadVerification,
+      continuation,
+      live_ready: deployOk && reloadVerification.runtime_health_readback_required !== true,
     },
     output: {
       stdout: sshResult.stdout,
