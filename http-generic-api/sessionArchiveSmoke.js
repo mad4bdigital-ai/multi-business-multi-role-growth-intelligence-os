@@ -218,6 +218,9 @@ export async function runSessionArchiveSmoke({
   const distinctTurnDocIds = [...new Set(turnRows.map((row) => row.drive_doc_id).filter(Boolean))];
   const maxTurnDocPart = Math.max(0, ...turnRows.map((row) => Number(row.drive_doc_part || 0)));
 
+  const distinctTurnDocIds = [...new Set(turnRows.map((row) => row.drive_doc_id).filter(Boolean))];
+  const maxTurnDocPart = Math.max(0, ...turnRows.map((row) => Number(row.drive_doc_part || 0)));
+
   const checks = [
     check("session_created", Boolean(sessionId), { session_id: sessionId }),
     check("turn_writes_ready", firstTurn.archive_status === "ready" && secondTurn.archive_status === "ready" && thirdTurn.archive_status === "ready"),
