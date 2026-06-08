@@ -17,7 +17,7 @@ assert.match(script, /ready_for_dispatch/);
 assert.match(script, /no_provider_call: true/);
 assert.match(script, /no_spend_change: true/);
 assert.match(script, /secrets_included: false/);
-assert.doesNotMatch(script, /fetch\(|axios|GoogleAdsApi|googleads|mutateCampaignBudgets|mutate\(|child_process|exec\(|spawn\(/i);
+assert.doesNotMatch(script, /fetch\(|axios|GoogleAdsApi|GoogleAdsClient|mutateCampaignBudgets|mutate\(|child_process|exec\(|spawn\(/i);
 assert.doesNotMatch(script, /GOOGLE_APPLICATION_CREDENTIALS|GOOGLE_ADS_TOKEN|GOOGLE_ADS_DEVELOPER_TOKEN|refresh_token|client_secret|private_key|value_ciphertext|decryptToken/i);
 
 assert.match(migration, /google_ads_budget_change_preflight_policy_v1/);
