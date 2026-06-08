@@ -16,6 +16,7 @@ for (const expected of [
   "support_ticket_brand_mapping_remediation_completed",
   "support_ticket_approval_hold_not_open",
   "support_ticket_approval_decision_invalid",
+  "support_ticket_completion_requires_approved_hold",
   "approved_for_remediation",
   "close_if_verified",
 ]) {
