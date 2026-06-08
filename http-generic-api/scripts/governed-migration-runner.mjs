@@ -101,6 +101,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "236_sprint67_budget_quota_authority_registry.sql",
   "238_sprint67_google_ads_budget_change_preflight.sql",
   "239_sprint67_google_ads_budget_preflight_binding.sql",
+  "241_sprint67_google_ads_budget_preflight_ledger.sql",
   "219_sprint67_gpt_session_turn_batch_write_tool.sql",
   "236_sprint68_admin_branch_reconciliation_policy.sql",
   "216_sprint67_platform_secret_promotion_monitoring.sql",
