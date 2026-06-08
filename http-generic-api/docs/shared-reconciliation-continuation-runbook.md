@@ -61,7 +61,7 @@ Use the Git branch adapter:
 5. Push with `--force-with-lease`, never plain `--force`.
 6. Audit old head, new head, merge-base, tests, and conflict files.
 
-For the governed admin GPT surface, start with `admin_branch_reconcile` before applying stale-branch overrides. It classifies branches as `clean`, `behind_only`, `ahead_only`, `diverged`, or `unknown`, and returns a no-secret shared reconciliation checkpoint. The only built-in apply path is a non-force GitHub ref fast-forward for `behind_only` non-protected branches after explicit `FAST_FORWARD_<BRANCH_SLUG>` confirmation and post-apply compare readback. Diverged/ahead/protected branches must use manual rebase or PR workflow and must not be force-pushed by this adapter.
+For the governed admin GPT surface, start with `admin_branch_reconcile` before applying stale-branch overrides. The canonical adapter is `runAdminBranchReconcile` in `adminBranchReconciliationAdapter.js`; it classifies branch drift, returns a no-secret shared reconciliation checkpoint, and keeps adapter v1 plan-only (`apply_supported=false`). Behind-only/diverged/ahead/protected branches must be reconciled through an explicit reviewed GitHub/PR workflow or a future governed recipe with capability-envelope approval; this adapter must not force-push or perform hidden ref updates.
 
 ### Deploy reload pending
 
