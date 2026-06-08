@@ -327,6 +327,8 @@ function buildRuntimeEvent({
     ...(bookmark ? { bookmark } : {}),
     ...(docContentMode ? { doc_content_mode: docContentMode } : {}),
     ...(fullContentStorage ? { full_content_storage: fullContentStorage } : {}),
+    ...(driveDocId ? { drive_doc_id: driveDocId } : {}),
+    ...(driveDocPart ? { drive_doc_part: driveDocPart } : {}),
     ...(includeContent ? { content } : {}),
     created_at: timestamp,
   };
