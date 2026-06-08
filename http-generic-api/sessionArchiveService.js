@@ -142,6 +142,8 @@ export async function ensureSessionArchive(pool, session, injectedDeps = {}) {
         drive_exports_folder_id: session.drive_exports_folder_id || null,
         drive_doc_id: session.drive_doc_id,
         drive_doc_url: session.drive_doc_url || null,
+        drive_doc_part_index: positiveInt(session.drive_doc_part_index, 1),
+        drive_doc_part_count: positiveInt(session.drive_doc_part_count || session.drive_doc_part_index, 1),
         drive_jsonl_id: session.drive_jsonl_id,
         drive_jsonl_url: session.drive_jsonl_url || null,
       },
