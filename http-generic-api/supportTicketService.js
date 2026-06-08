@@ -1255,6 +1255,187 @@ export async function updateSupportTicketStepRun({ tenant_id, ticket_id, step_ru
   }
 }
 
+async function buildDiagnosticStepOutput(connection, { tenant_id, ticket, run, plan, stepRun }) {
+  const stepKey = stepRun.step_key;
+  if (stepKey === "read_workspace_membership") {
+    const rows = await queryRows(
+      connection,
+      `SELECT m.user_id, m.tenant_id, m.role, m.status, m.granted_at, m.updated_at, t.display_name AS tenant_display_name, t.status AS tenant_status
+         FROM memberships m
+         JOIN tenants t ON t.tenant_id = m.tenant_id
+        WHERE m.tenant_id = ? AND m.user_id = ?
+        ORDER BY m.updated_at DESC
+        LIMIT 10`,
+      [tenant_id, ticket.user_id || run.user_id || ""]
+    );
+    return {
+      diagnostic_key: stepKey,
+      status: rows.some((row) => row.status === "active") ? "passed" : "needs_review",
+      membership_count: rows.length,
+      active_membership_count: rows.filter((row) => row.status === "active").length,
+      memberships: rows,
+      recommendation: rows.some((row) => row.status === "active") ? "Requester has active workspace membership." : "Review requester workspace membership before changing brand authority.",
+      secrets_included: false,
+    };
+  }
+
+  if (stepKey === "read_brand_grants") {
+    const rows = await queryRows(
+      connection,
+      `SELECT grant_id, tenant_id, grantee_user_id, grantee_email, membership_role, membership_status, resource_type, resource_ref, permission, grant_status, source, granted_at, expires_at
+         FROM v_workspace_resource_grant_effective
+        WHERE tenant_id = ? AND grantee_user_id = ? AND resource_type = 'brand'
+        ORDER BY granted_at DESC
+        LIMIT 50`,
+      [tenant_id, ticket.user_id || run.user_id || ""]
+    );
+    return {
+      diagnostic_key: stepKey,
+      status: rows.some((row) => row.grant_status === "active") ? "passed" : "needs_mapping_review",
+      brand_grant_count: rows.length,
+      active_brand_grant_count: rows.filter((row) => row.grant_status === "active").length,
+      grants: rows,
+      recommendation: rows.length ? "Review active brand grant coverage against expected brand list." : "No effective brand grants found for requester; map brand authority before presenting brand list.",
+      secrets_included: false,
+    };
+  }
+
+  if (stepKey === "read_workspace_assets") {
+    const rows = await queryRows(
+      connection,
+      `SELECT asset_id, tenant_id, asset_type, asset_ref, display_name, brand_ref, site_ref, workflow_ref, visibility, lifecycle_status, created_at, updated_at
+         FROM workspace_assets
+        WHERE tenant_id = ? AND brand_ref IS NOT NULL AND brand_ref <> ''
+        ORDER BY updated_at DESC
+        LIMIT 50`,
+      [tenant_id]
+    );
+    return {
+      diagnostic_key: stepKey,
+      status: rows.length ? "references_found" : "no_brand_references_found",
+      brand_reference_count: rows.length,
+      brand_refs: [...new Set(rows.map((row) => row.brand_ref).filter(Boolean))],
+      assets: rows,
+      recommendation: rows.length ? "Brand references exist in workspace assets; compare them with effective grants before exposing brand names." : "No brand references found in workspace assets.",
+      secrets_included: false,
+    };
+  }
+
+  if (stepKey === "recommend_mapping_fix") {
+    const priorSteps = await queryRows(
+      connection,
+      `SELECT step_key, status, output_json
+         FROM step_runs
+        WHERE tenant_id = ? AND run_id = ?
+        ORDER BY created_at ASC`,
+      [tenant_id, run.run_id]
+    );
+    const prior = priorSteps.map((row) => ({ step_key: row.step_key, status: row.status, output: parseJsonObject(row.output_json, {}) }));
+    const grants = prior.find((row) => row.step_key === "read_brand_grants")?.output || {};
+    const assets = prior.find((row) => row.step_key === "read_workspace_assets")?.output || {};
+    const activeGrantCount = Number(grants.active_brand_grant_count || 0);
+    const assetBrandRefs = Array.isArray(assets.brand_refs) ? assets.brand_refs : [];
+    const needsMapping = activeGrantCount === 0 || assetBrandRefs.length > activeGrantCount;
+    return {
+      diagnostic_key: stepKey,
+      status: needsMapping ? "mapping_review_required" : "mapping_appears_consistent",
+      active_brand_grant_count: activeGrantCount,
+      asset_brand_refs: assetBrandRefs,
+      recommendation: needsMapping
+        ? "Create or repair workspace brand grants for the requester before answering brand-list questions. Do not use diagnostic platform counts as authority."
+        : "Brand grant evidence appears sufficient for a customer-safe brand list response.",
+      customer_safe_message: needsMapping
+        ? "لا أستطيع تأكيد قائمة البراندات من عرض الحساب المتاح لي الآن. تم فتح مراجعة ربط صلاحيات البراندات بحسابك."
+        : "تم تأكيد وجود صلاحيات براندات قابلة للمراجعة من مصدر الصلاحيات.",
+      prior_step_count: prior.length,
+      secrets_included: false,
+    };
+  }
+
+  return {
+    diagnostic_key: stepKey,
+    status: "skipped_unknown_step",
+    recommendation: `No governed diagnostic executor is registered for step ${stepKey}.`,
+    ticket_id: ticket.ticket_id,
+    run_id: run.run_id,
+    plan_id: plan?.plan_id || null,
+    secrets_included: false,
+  };
+}
+
+export async function executeSupportTicketDiagnosticStep({ tenant_id, ticket_id, step_run_id = null, run_id = null, step_key = null, actor_id = null, actor_type = "system", reason = "Diagnostic step executed for support ticket." } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const params = [tenant_id];
+    const filters = ["tenant_id = ?"];
+    if (step_run_id) { filters.push("step_run_id = ?"); params.push(step_run_id); }
+    else {
+      if (run_id) { filters.push("run_id = ?"); params.push(run_id); }
+      if (step_key) { filters.push("step_key = ?"); params.push(step_key); }
+    }
+    const stepRun = await queryOne(connection, `SELECT * FROM step_runs WHERE ${filters.join(" AND ")} ORDER BY created_at DESC LIMIT 1`, params);
+    if (!stepRun) {
+      const err = new Error("Step run not found.");
+      err.status = 404;
+      err.code = "support_ticket_step_run_not_found";
+      throw err;
+    }
+    const run = await queryOne(connection, "SELECT * FROM workflow_runs WHERE tenant_id = ? AND run_id = ? LIMIT 1", [tenant_id, stepRun.run_id]);
+    if (!run) {
+      const err = new Error("Workflow run not found.");
+      err.status = 404;
+      err.code = "support_ticket_workflow_run_not_found";
+      throw err;
+    }
+    const plan = run.plan_id ? await queryOne(connection, "SELECT * FROM execution_plans WHERE tenant_id = ? AND plan_id = ? LIMIT 1", [tenant_id, run.plan_id]) : await resolveTicketExecutionPlan(connection, { tenant_id, ticket_id });
+
+    await connection.query(
+      "UPDATE step_runs SET status = 'running', started_at = COALESCE(started_at, NOW()) WHERE tenant_id = ? AND step_run_id = ?",
+      [tenant_id, stepRun.step_run_id]
+    );
+    const output = await buildDiagnosticStepOutput(connection, { tenant_id, ticket, run, plan, stepRun });
+    const result = await updateSupportTicketStepRun({
+      tenant_id,
+      ticket_id,
+      step_run_id: stepRun.step_run_id,
+      status: output.status === "skipped_unknown_step" ? "skipped" : "completed",
+      output_json: output,
+      actor_id,
+      actor_type,
+      reason,
+    }, { connection });
+    await insertLifecycleEvent(connection, {
+      ticket_id,
+      tenant_id,
+      event_type: "diagnostic_step_executed",
+      from_state: ticket.lifecycle_state || null,
+      to_state: result.ticket?.lifecycle_state || null,
+      actor_id,
+      actor_type,
+      visibility: "internal_support",
+      summary: `${reason} (${stepRun.step_key})`,
+      payload_json: { step_run_id: stepRun.step_run_id, step_key: stepRun.step_key, diagnostic_status: output.status, output, secrets_included: false },
+    });
+    if (ownsConnection) await connection.commit();
+    return { ok: true, step_run_id: stepRun.step_run_id, step_key: stepRun.step_key, diagnostic_status: output.status, output, runtime_state: result.runtime_state, ticket: result.ticket, secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
 export function _testingTicketClassification() {
-  return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus, executionPlanTemplateForTicket, ticketStateFromRuntime, normalizePlanSteps, workflowStateFromSteps };
+  return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus, executionPlanTemplateForTicket, ticketStateFromRuntime, normalizePlanSteps, workflowStateFromSteps, buildDiagnosticStepOutput };
 }
