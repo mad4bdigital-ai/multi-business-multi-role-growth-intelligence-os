@@ -140,6 +140,26 @@ try {
     assert("repo inspect blocks secret paths", ["repo_path_blocked", "repo_file_blocked"].includes(error.code), error.message);
   }
 
+  const connectorContinuation = buildLocalConnectorTunnelProvisioningContinuationEvidence({
+    userId: "00000000-0000-4000-a000-000000000002",
+    deviceId: "Essam",
+    tunnelStatus: null,
+    cfTunnelId: null,
+    tunnelUrl: null,
+    configSource: "env",
+  });
+  assert("local connector continuation uses shared reconciliation engine",
+    connectorContinuation.checkpoint.engine === "shared-reconciliation-continuation-v1" &&
+    connectorContinuation.checkpoint.interruption_signal === "connector_tunnel_provisioning_required" &&
+    connectorContinuation.checkpoint.resource_scope.scope_type === "device" &&
+    connectorContinuation.resume_plan.next_required_step === "provision_tunnel_token" &&
+    connectorContinuation.provisioning.required_next_action === "provision_tunnel_token",
+    JSON.stringify(connectorContinuation));
+  assert("local connector continuation excludes secrets",
+    connectorContinuation.secrets_included === false &&
+    connectorContinuation.checkpoint.secrets_included === false,
+    JSON.stringify(connectorContinuation));
+
   assert("parseArgs preserves array entries", JSON.stringify(parseArgs(["a", "b c"])) === JSON.stringify(["a", "b c"]));
   assert("parseArgs splits simple strings", JSON.stringify(parseArgs("repo list")) === JSON.stringify(["repo", "list"]));
   assert("parseArgs rejects empty input", parseArgs("").length === 0);
