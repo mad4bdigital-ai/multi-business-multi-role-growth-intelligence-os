@@ -739,6 +739,15 @@ export async function recordGptSessionTurn({
 export async function closeGptSessionArchive({ pool, session, summary = null, injectedDeps = {} }) {
   const deps = { ...defaultDeps(), ...injectedDeps };
   try {
+    try {
+      const [[freshSession]] = await pool.query(
+        "SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1",
+        [session.session_id]
+      );
+      if (freshSession?.session_id) session = { ...session, ...freshSession };
+    } catch {
+      // Keep caller-provided session if fresh readback is unavailable.
+    }
     const archiveResult = await ensureSessionArchive(pool, session, deps);
     if (archiveResult.configured && summary) {
       await deps.appendTextToGoogleDoc(
