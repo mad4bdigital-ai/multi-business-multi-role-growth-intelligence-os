@@ -60,6 +60,29 @@ function boundedInt(value, fallback, min, max) {
   return Math.max(min, Math.min(max, Math.floor(n)));
 }
 
+function phaseTimeoutError(phase, timeoutMs, details = {}) {
+  const err = new Error(`Hostinger SSH probe phase timed out: ${phase}.`);
+  err.status = 504;
+  err.code = "hostinger_probe_phase_timeout";
+  err.details = { phase, timeout_ms: timeoutMs, ...details, secrets_included: false };
+  return err;
+}
+
+async function withPhaseTimeout(promise, { phase, timeoutMs, details = {} } = {}) {
+  const boundedTimeoutMs = boundedInt(timeoutMs, 15000, 1000, MAX_TIMEOUT_MS);
+  let timer = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(phaseTimeoutError(phase || "unknown", boundedTimeoutMs, details)), boundedTimeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 function assertSafeRemotePath(pathValue) {
   const value = compact(pathValue, 1024);
   if (!value || !value.startsWith("/home/") || value.includes("\0") || /[\r\n]/.test(value)) {
@@ -689,9 +712,16 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     throw err;
   }
 
-  const sshConnection = await resolveSshConnectionCredentials(pool, target, input);
+  const credentialTimeoutMs = Math.min(15000, Math.max(5000, timeoutMs - 5000));
+  const sshConnection = await withPhaseTimeout(
+    resolveSshConnectionCredentials(pool, target, input),
+    { phase: "ssh_credential_resolution", timeoutMs: credentialTimeoutMs, details: { target_id: targetId, ssh_auth_mode: sshAuthMode } }
+  );
   const remoteScript = buildRemoteProbeScript({ appPath, expectedCommitSha });
-  const sshResult = await runSshCommand({ ...sshConnection, remoteScript, timeoutMs });
+  const sshResult = await withPhaseTimeout(
+    runSshCommand({ ...sshConnection, remoteScript, timeoutMs }),
+    { phase: "ssh_command_execution", timeoutMs: timeoutMs + SSH_PROCESS_KILL_GRACE_MS + 2000, details: { target_id: targetId, ssh_auth_mode: sshAuthMode } }
+  );
   const parsed = parseProbeOutput(sshResult.stdout);
   const probeOk = sshResult.ok && parsed.probe_result === "ok";
 
