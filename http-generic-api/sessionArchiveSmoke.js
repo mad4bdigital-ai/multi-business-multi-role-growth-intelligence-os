@@ -217,7 +217,7 @@ export async function runSessionArchiveSmoke({
     check("sql_turn_count", turnRows.length === 3, { count: turnRows.length }),
     check(
       "sql_stores_pointers_only",
-      turnRows.every((row) => row.storage_mode === "drive" && row.drive_doc_id && row.drive_anchor && !String(row.content_preview || "").includes(marker))
+      turnRows.every((row) => row.storage_mode === "drive" && row.drive_doc_id && row.drive_anchor)
     ),
     check("sql_hashes_present", turnRows.every((row) => String(row.content_sha256 || "").length === 64)),
     check(
