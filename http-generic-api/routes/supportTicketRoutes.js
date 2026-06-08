@@ -6,6 +6,7 @@ import {
   applySupportTicketBrandMappingRemediation,
   approveSupportTicketBrandRefSelection,
   assignSupportTicket,
+  completeSupportTicketBrandRefSelectionRemediation,
   completeSupportTicketBrandMappingRemediation,
   createOrAppendSupportTicket,
   createSupportTicketApprovalHold,
