@@ -97,6 +97,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "201_sprint68_lifecycle_owner_engine_registry_alignment.sql",
   "231_sprint68_shared_reconciliation_continuation_policy.sql",
   "232_sprint68_chunked_tool_response_continuation_policy.sql",
+  "233_sprint68_general_mode_choice_governance.sql",
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v2";
