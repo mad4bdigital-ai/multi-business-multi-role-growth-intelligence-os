@@ -408,6 +408,10 @@ requireValidatedPreflightForExecution(...)
 
 Execution adapters must use this helper before any mutation. The helper wraps `preflight_ledger_validate`, requires `ready_for_dispatch`, optionally enforces envelope match, returns the validated preflight context, and does not call providers or connectors.
 
+## Google Ads execution adapter skeleton
+
+`google_ads_budget_execution_adapter_skeleton_policy_v1` adds a disabled/no-op skeleton for future Google Ads budget execution. It calls `requireValidatedPreflightForExecution`, records an audit row, then blocks with `blocked_google_ads_execution_adapter_not_implemented`. The admin endpoint registry row remains `is_enabled=0`; real Google Ads credentials and a separate execution implementation are still required before any provider call or spend mutation can exist.
+
 ## Dry-run tool
 
 The governed tool is:
