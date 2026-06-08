@@ -179,6 +179,57 @@ export async function ensureSessionArchive(pool, session, injectedDeps = {}) {
   return { configured: true, archive };
 }
 
+async function updateCurrentTranscriptDocPointer(pool, sessionId, archive) {
+  await pool.query(
+    `UPDATE \`customer_sessions\`
+     SET drive_doc_id = ?, drive_doc_url = ?, drive_doc_part_index = ?,
+         drive_doc_part_count = ?, archive_last_written_at = NOW()
+     WHERE session_id = ?`,
+    [
+      archive.drive_doc_id,
+      archive.drive_doc_url || null,
+      archive.drive_doc_part_index,
+      archive.drive_doc_part_count,
+      sessionId,
+    ]
+  );
+}
+
+async function maybeRolloverTranscriptDoc({ pool, session, archive, deps, sectionText, timestamp }) {
+  if (!archive?.drive_doc_id || !archive?.drive_folder_id) return archive;
+  const threshold = positiveInt(deps.docRolloverChars, DEFAULT_DOC_ROLLOVER_CHARS);
+  if (!threshold) return archive;
+
+  let currentDocText = "";
+  try {
+    currentDocText = await deps.fetchDriveContent(archive.drive_doc_id);
+  } catch {
+    return archive;
+  }
+  if (String(currentDocText || "").length + String(sectionText || "").length <= threshold) {
+    return archive;
+  }
+
+  const currentPart = positiveInt(archive.drive_doc_part_index || session.drive_doc_part_index, 1);
+  const nextPart = currentPart + 1;
+  const partCount = Math.max(positiveInt(archive.drive_doc_part_count || session.drive_doc_part_count, currentPart), nextPart);
+  const heading = buildTranscriptHeading(session, deps.now(), nextPart, [
+    `Continuation: true`,
+    `Previous Google Doc ID: ${archive.drive_doc_id}`,
+    `Rollover at: ${timestamp || deps.now().toISOString()}`,
+  ]);
+  const nextDoc = await deps.createGoogleDocInDrive(`Session Transcript Part ${nextPart}`, archive.drive_folder_id, heading);
+  const nextArchive = {
+    ...archive,
+    drive_doc_id: nextDoc.drive_file_id,
+    drive_doc_url: nextDoc.drive_web_url || null,
+    drive_doc_part_index: nextPart,
+    drive_doc_part_count: partCount,
+  };
+  await updateCurrentTranscriptDocPointer(pool, session.session_id, nextArchive);
+  return nextArchive;
+}
+
 async function appendJsonlLine(archive, line, deps) {
   if (!archive?.drive_jsonl_id) return;
   const current = await deps.fetchDriveContent(archive.drive_jsonl_id).catch(() => "");
