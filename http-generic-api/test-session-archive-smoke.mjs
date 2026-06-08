@@ -5,6 +5,7 @@ import { buildReleaseRoutes } from "./routes/releaseRoutes.js";
 import { runSessionArchiveSmoke } from "./sessionArchiveSmoke.js";
 
 const migration = readFileSync("migrations/163_sprint65_session_archive_smoke_tool.sql", "utf8");
+const rolloverMigration = readFileSync("migrations/244_sprint68_session_archive_rollover_smoke_schema.sql", "utf8");
 
 assert(migration.includes("release_session_archive_smoke"), "session archive smoke admin tool must be registered");
 assert(migration.includes("/release/session-archive-smoke"), "session archive smoke tool must point at release smoke route");
@@ -12,6 +13,9 @@ assert(migration.includes("drive-writeback"), "session archive smoke tool must b
 assert(migration.includes("activation-readback"), "session archive smoke tool must be tagged activation-readback");
 assert(migration.includes("no_secrets"), "session archive smoke tool must be tagged no_secrets");
 assert(migration.includes("cleanup_default_true"), "session archive smoke tool must advertise cleanup_default_true");
+assert(rolloverMigration.includes("force_doc_rollover"), "rollover smoke schema must expose force_doc_rollover");
+assert(rolloverMigration.includes("doc_rollover_chars"), "rollover smoke schema must expose doc_rollover_chars");
+assert(rolloverMigration.includes("rollover-smoke"), "rollover smoke schema must tag rollover-smoke");
 
 function makePool() {
   const state = { session: null, turns: [], events: [], deletes: { session: 0, turns: 0, events: 0 } };
@@ -105,6 +109,10 @@ function makePool() {
 
       if (compact.startsWith("SELECT turn_index, role, storage_mode")) {
         return [state.turns.map((turn) => ({ ...turn }))];
+      }
+
+      if (compact.startsWith("SELECT DISTINCT drive_doc_id FROM `gpt_session_turns`")) {
+        return [[...new Set(state.turns.map((turn) => turn.drive_doc_id).filter(Boolean))].map((drive_doc_id) => ({ drive_doc_id }))];
       }
 
       if (compact.startsWith("DELETE FROM `gpt_session_turns`")) {
@@ -270,7 +278,7 @@ function makeDriveDeps() {
   const res = await fetch(`http://127.0.0.1:${port}/admin/release/session-archive-smoke`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tenant_id: "tenant-1", user_id: "daily-smoke", include_drive_readback: false }),
+    body: JSON.stringify({ tenant_id: "tenant-1", user_id: "daily-smoke", include_drive_readback: false, force_doc_rollover: true, doc_rollover_chars: 1200 }),
   });
   const body = await res.json();
   server.close();
@@ -280,6 +288,8 @@ function makeDriveDeps() {
   assert.equal(received.tenantId, "tenant-1");
   assert.equal(received.userId, "daily-smoke");
   assert.equal(received.includeDriveReadback, false);
+  assert.equal(received.forceDocRollover, true);
+  assert.equal(received.docRolloverChars, 1200);
 }
 
 console.log("session archive smoke tests passed");

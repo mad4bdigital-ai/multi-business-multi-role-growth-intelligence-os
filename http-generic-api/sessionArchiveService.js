@@ -197,7 +197,7 @@ async function updateCurrentTranscriptDocPointer(pool, sessionId, archive) {
 
 async function maybeRolloverTranscriptDoc({ pool, session, archive, deps, sectionText, timestamp }) {
   if (!archive?.drive_doc_id || !archive?.drive_folder_id) return archive;
-  const threshold = positiveInt(deps.docRolloverChars, DEFAULT_DOC_ROLLOVER_CHARS);
+  const threshold = positiveInt(session.drive_doc_rollover_threshold_chars || deps.docRolloverChars, DEFAULT_DOC_ROLLOVER_CHARS);
   if (!threshold) return archive;
 
   let currentDocText = "";

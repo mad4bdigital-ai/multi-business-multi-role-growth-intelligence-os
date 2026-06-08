@@ -27,6 +27,23 @@ async function cleanupSmokeArtifacts({ pool, sessionId, archivedSession, deleteD
     errors: [],
   };
 
+  const driveFileIds = new Set([
+    archivedSession?.drive_doc_id,
+    archivedSession?.drive_jsonl_id,
+  ].filter(Boolean));
+
+  try {
+    const [docRows] = await pool.query(
+      "SELECT DISTINCT drive_doc_id FROM `gpt_session_turns` WHERE session_id = ? AND drive_doc_id IS NOT NULL",
+      [sessionId]
+    );
+    for (const row of docRows || []) {
+      if (row?.drive_doc_id) driveFileIds.add(row.drive_doc_id);
+    }
+  } catch (err) {
+    cleanup.errors.push({ stage: "collect_drive_doc_parts", message: String(err?.message || err).slice(0, 200) });
+  }
+
   try {
     const [turnRes] = await pool.query("DELETE FROM `gpt_session_turns` WHERE session_id = ?", [sessionId]);
     cleanup.sql_turns_deleted = Number(turnRes?.affectedRows || 0);
@@ -48,10 +65,6 @@ async function cleanupSmokeArtifacts({ pool, sessionId, archivedSession, deleteD
     cleanup.errors.push({ stage: "delete_session", message: String(err?.message || err).slice(0, 200) });
   }
 
-  const driveFileIds = [
-    archivedSession?.drive_doc_id,
-    archivedSession?.drive_jsonl_id,
-  ].filter(Boolean);
   for (const fileId of driveFileIds) {
     try {
       await deleteDriveFn(fileId);
@@ -73,6 +86,8 @@ export async function runSessionArchiveSmoke({
   includeDriveReadback = true,
   cleanup: shouldCleanup = true,
   smokeSubfolder = DEFAULT_SMOKE_SUBFOLDER,
+  forceDocRollover = false,
+  docRolloverChars = null,
   activationContextReader = buildActivationSessionContext,
   fetchDriveContentFn = fetchDriveContent,
   deleteDriveFileFn = deleteDriveFile,
@@ -94,7 +109,8 @@ export async function runSessionArchiveSmoke({
     "Result:",
     JSON.stringify({ marker, log: `${longPrefix}${longPrefix}tool result ${marker}` }, null, 2),
   ].join("\n");
-  const archiveDeps = { subfolderHint: smokeSubfolder, ...injectedArchiveDeps };
+  const effectiveDocRolloverChars = Number(docRolloverChars) > 0 ? Math.floor(Number(docRolloverChars)) : null;
+  const archiveDeps = { subfolderHint: smokeSubfolder, ...(!forceDocRollover && effectiveDocRolloverChars ? { docRolloverChars: effectiveDocRolloverChars } : {}), ...injectedArchiveDeps };
 
   await pool.query(
     `INSERT INTO \`customer_sessions\`
@@ -121,6 +137,12 @@ export async function runSessionArchiveSmoke({
     turnIndex: 0,
     injectedDeps: archiveDeps,
   });
+  if (forceDocRollover && effectiveDocRolloverChars) {
+    await pool.query(
+      "UPDATE `customer_sessions` SET drive_doc_rollover_threshold_chars = ? WHERE session_id = ?",
+      [effectiveDocRolloverChars, sessionId]
+    ).catch(() => {});
+  }
   const [sessionAfterFirstTurnRows] = await pool.query("SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1", [sessionId]);
   const sessionAfterFirstTurn = sessionAfterFirstTurnRows[0] || session;
   const secondTurn = await recordGptSessionTurn({
@@ -160,13 +182,13 @@ export async function runSessionArchiveSmoke({
   });
 
   const [sessionRows] = await pool.query(
-    `SELECT session_id, archive_status, drive_folder_id, drive_doc_id, drive_jsonl_id, drive_export_url
+    `SELECT session_id, archive_status, drive_folder_id, drive_doc_id, drive_doc_part_index, drive_doc_part_count, drive_jsonl_id, drive_export_url
      FROM \`customer_sessions\`
      WHERE session_id = ? LIMIT 1`,
     [sessionId]
   );
   const [turnRows] = await pool.query(
-    `SELECT turn_index, role, storage_mode, drive_doc_id, drive_anchor, content_preview, content_sha256
+    `SELECT turn_index, role, storage_mode, drive_doc_id, drive_doc_part, drive_anchor, content_preview, content_sha256
      FROM \`gpt_session_turns\`
      WHERE session_id = ?
      ORDER BY turn_index`,
@@ -206,6 +228,8 @@ export async function runSessionArchiveSmoke({
     activationError = err;
   }
   const activationSession = (activationContext?.gpt_sessions || []).find((row) => row.session_id === sessionId);
+  const distinctTurnDocIds = [...new Set(turnRows.map((row) => row.drive_doc_id).filter(Boolean))];
+  const maxTurnDocPart = Math.max(0, ...turnRows.map((row) => Number(row.drive_doc_part || 0)));
 
   const checks = [
     check("session_created", Boolean(sessionId), { session_id: sessionId }),
@@ -215,6 +239,11 @@ export async function runSessionArchiveSmoke({
     check("drive_jsonl_pointer", Boolean(archivedSession.drive_jsonl_id)),
     check("drive_export_url", Boolean(archivedSession.drive_export_url)),
     check("sql_turn_count", turnRows.length === 3, { count: turnRows.length }),
+    check(
+      "drive_doc_rollover",
+      !forceDocRollover || (distinctTurnDocIds.length >= 2 && maxTurnDocPart >= 2 && Number(archivedSession.drive_doc_part_count || 0) >= 2),
+      forceDocRollover ? { distinct_doc_count: distinctTurnDocIds.length, max_turn_doc_part: maxTurnDocPart, session_part_count: Number(archivedSession.drive_doc_part_count || 0) } : null
+    ),
     check(
       "sql_stores_pointers_only",
       turnRows.every((row) => row.storage_mode === "drive" && row.drive_doc_id && row.drive_anchor)

@@ -2558,6 +2558,15 @@ components:
           type: boolean
           default: true
           description: When true, export/read the created Drive doc and JSONL sidecar to verify persisted content.
+        force_doc_rollover:
+          type: boolean
+          default: false
+          description: When true, the smoke intentionally lowers the transcript Google Doc rollover threshold after the first turn to verify creation of a subsequent transcript part.
+        doc_rollover_chars:
+          type: integer
+          minimum: 100
+          maximum: 1000000
+          description: Optional forced rollover threshold in characters for diagnostic smoke runs.
 
     SessionArchiveSmokeResponse:
       type: object
