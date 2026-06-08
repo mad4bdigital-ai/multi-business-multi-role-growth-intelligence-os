@@ -85,11 +85,34 @@ function explicitBrandRefsFromBody(body = {}) {
   return [...new Set(refs.filter(Boolean))];
 }
 
+async function resolveApprovedBrandRefSelection({ tenant_id, ticket_id }) {
+  const [rows] = await getPool().query(
+    `SELECT ah.hold_id,
+            JSON_UNQUOTE(JSON_EXTRACT(ah.execution_context_json, '$.selected_brand_ref')) AS selected_brand_ref
+       FROM ticket_workflow_links twl
+       JOIN approval_holds ah ON ah.hold_id = twl.approval_hold_id AND ah.tenant_id = twl.tenant_id
+      WHERE twl.tenant_id = ?
+        AND twl.ticket_id = ?
+        AND twl.relationship = 'brand_ref_selection'
+        AND ah.status = 'approved'
+        AND JSON_UNQUOTE(JSON_EXTRACT(ah.execution_context_json, '$.selected_brand_ref')) IS NOT NULL
+        AND JSON_UNQUOTE(JSON_EXTRACT(ah.execution_context_json, '$.selected_brand_ref')) <> ''
+      ORDER BY ah.decided_at DESC, ah.created_at DESC
+      LIMIT 1`,
+    [tenant_id, ticket_id]
+  );
+  const row = rows[0] || null;
+  if (!row?.selected_brand_ref) return null;
+  return { hold_id: row.hold_id, selected_brand_ref: String(row.selected_brand_ref).trim() };
+}
+
 async function requireTrustedBrandRefForRemediation({ tenant_id, ticket_id, body = {} }) {
   const explicitRefs = explicitBrandRefsFromBody(body);
-  if (explicitRefs.length) return { brand_ref: explicitRefs[0], brand_refs: explicitRefs, source: "explicit_request", resolution: null };
+  if (explicitRefs.length) return { brand_ref: explicitRefs[0], brand_refs: explicitRefs, source: "explicit_request", resolution: null, selection_hold_id: null };
+  const approvedSelection = await resolveApprovedBrandRefSelection({ tenant_id, ticket_id });
+  if (approvedSelection?.selected_brand_ref) return { brand_ref: approvedSelection.selected_brand_ref, brand_refs: [approvedSelection.selected_brand_ref], source: "approved_brand_ref_selection", resolution: null, selection_hold_id: approvedSelection.hold_id };
   const resolution = await resolveSupportTicketBrandRefs({ tenant_id, ticket_id, min_confidence: body.min_confidence || 75, limit: body.limit || 25 });
-  if (resolution.selected_brand_ref) return { brand_ref: resolution.selected_brand_ref, brand_refs: [resolution.selected_brand_ref], source: "trusted_resolution", resolution };
+  if (resolution.selected_brand_ref) return { brand_ref: resolution.selected_brand_ref, brand_refs: [resolution.selected_brand_ref], source: "trusted_resolution", resolution, selection_hold_id: null };
   const err = new Error("A trusted brand_ref is required before applying brand mapping remediation.");
   err.status = 400;
   err.code = "support_ticket_trusted_brand_ref_required";
