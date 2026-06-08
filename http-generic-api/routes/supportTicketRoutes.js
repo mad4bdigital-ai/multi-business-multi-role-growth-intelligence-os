@@ -15,6 +15,7 @@ import {
   listSupportTicketsForTenant,
   reconcileOpenSupportTickets,
   reconcileSupportTicketSla,
+  runSupportTicketDiagnosticChain,
   syncSupportTicketRuntimeStatus,
   transitionSupportTicket,
   updateSupportTicketStepRun,
