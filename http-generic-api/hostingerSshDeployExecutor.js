@@ -712,9 +712,16 @@ export async function executeHostingerSshTargetProbe(input = {}, deps = {}) {
     throw err;
   }
 
-  const sshConnection = await resolveSshConnectionCredentials(pool, target, input);
+  const credentialTimeoutMs = Math.min(15000, Math.max(5000, timeoutMs - 5000));
+  const sshConnection = await withPhaseTimeout(
+    resolveSshConnectionCredentials(pool, target, input),
+    { phase: "ssh_credential_resolution", timeoutMs: credentialTimeoutMs, details: { target_id: targetId, ssh_auth_mode: sshAuthMode } }
+  );
   const remoteScript = buildRemoteProbeScript({ appPath, expectedCommitSha });
-  const sshResult = await runSshCommand({ ...sshConnection, remoteScript, timeoutMs });
+  const sshResult = await withPhaseTimeout(
+    runSshCommand({ ...sshConnection, remoteScript, timeoutMs }),
+    { phase: "ssh_command_execution", timeoutMs: timeoutMs + SSH_PROCESS_KILL_GRACE_MS + 2000, details: { target_id: targetId, ssh_auth_mode: sshAuthMode } }
+  );
   const parsed = parseProbeOutput(sshResult.stdout);
   const probeOk = sshResult.ok && parsed.probe_result === "ok";
 
