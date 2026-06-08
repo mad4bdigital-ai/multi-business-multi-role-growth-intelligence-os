@@ -499,33 +499,8 @@ export async function recordGptSessionTurn({
   const driveAnchor = `turn-${turnIndex}`;
   const docContent = buildDocContentForTurn({ role, content, actionKey: action_key, contentHash });
   const docContentMode = docContentModeForRole(role);
-  const docRuntimeEvent = buildRuntimeEvent({
-    eventId,
-    sessionId: session.session_id,
-    turnId,
-    turnIndex,
-    role,
-    actionKey: action_key,
-    contentHash,
-    content,
-    timestamp,
-    includeContent: false,
-    bookmark: driveAnchor,
-    docContentMode,
-    fullContentStorage: "jsonl_sidecar",
-  });
-  const jsonlRuntimeEvent = buildRuntimeEvent({
-    eventId,
-    sessionId: session.session_id,
-    turnId,
-    turnIndex,
-    role,
-    actionKey: action_key,
-    contentHash,
-    content,
-    timestamp,
-    includeContent: true,
-  });
+  let docRuntimeEvent = null;
+  let jsonlRuntimeEvent = null;
   let archiveResult = { configured: false, archive: null };
   let archiveStatus = "not_configured";
   let archiveError = null;
