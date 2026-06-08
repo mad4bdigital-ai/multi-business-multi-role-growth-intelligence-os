@@ -182,8 +182,18 @@ export function buildBranchReconcileDryRunPlan({ owner, repo, branch, default_br
   };
 }
 
-async function githubJson({ owner, repo, apiPath, token, fetchImpl = fetch }) {
-  const response = await fetchImpl(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${apiPath}`, { headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}`, "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "mad4b-admin-branch-reconcile" } });
+async function githubJson({ owner, repo, apiPath, token, method = "GET", body, fetchImpl = fetch }) {
+  const response = await fetchImpl(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${apiPath}`, {
+    method,
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "mad4b-admin-branch-reconcile",
+      ...(method !== "GET" ? { "Content-Type": "application/json" } : {}),
+    },
+    body: method === "GET" ? undefined : JSON.stringify(body || {}),
+  });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const err = new Error(payload?.message || `GitHub request failed with HTTP ${response.status}.`);
