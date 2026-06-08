@@ -1436,6 +1436,111 @@ export async function executeSupportTicketDiagnosticStep({ tenant_id, ticket_id,
   }
 }
 
+export async function runSupportTicketDiagnosticChain({ tenant_id, ticket_id, run_id = null, plan_id = null, max_steps = 10, create_remediation_hold = true, actor_id = null, actor_type = "system", reason = "Diagnostic chain executed for support ticket." } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  const maxSteps = Math.min(Math.max(Number(max_steps) || 10, 1), 25);
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const run = run_id
+      ? await queryOne(connection, "SELECT * FROM workflow_runs WHERE tenant_id = ? AND run_id = ? LIMIT 1", [tenant_id, run_id])
+      : await queryOne(connection, `SELECT wr.* FROM ticket_workflow_links twl JOIN workflow_runs wr ON wr.run_id = twl.run_id AND wr.tenant_id = twl.tenant_id WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.run_id IS NOT NULL ORDER BY twl.created_at DESC LIMIT 1`, [tenant_id, ticket_id]);
+    if (!run) {
+      const err = new Error("Workflow run not found for ticket.");
+      err.status = 404;
+      err.code = "support_ticket_workflow_run_not_found";
+      throw err;
+    }
+    const plan = plan_id
+      ? await queryOne(connection, "SELECT * FROM execution_plans WHERE tenant_id = ? AND plan_id = ? LIMIT 1", [tenant_id, plan_id])
+      : run.plan_id ? await queryOne(connection, "SELECT * FROM execution_plans WHERE tenant_id = ? AND plan_id = ? LIMIT 1", [tenant_id, run.plan_id]) : await resolveTicketExecutionPlan(connection, { tenant_id, ticket_id });
+
+    let steps = await queryRows(connection, "SELECT * FROM step_runs WHERE tenant_id = ? AND run_id = ? ORDER BY created_at ASC", [tenant_id, run.run_id]);
+    if (!steps.length) {
+      await createSupportTicketStepRuns({ tenant_id, ticket_id, run_id: run.run_id, plan_id: plan?.plan_id || null, actor_id, actor_type, reason: "Diagnostic chain created missing step runs.", evidence_json: { chain_reason: reason, secrets_included: false } }, { connection });
+      steps = await queryRows(connection, "SELECT * FROM step_runs WHERE tenant_id = ? AND run_id = ? ORDER BY created_at ASC", [tenant_id, run.run_id]);
+    }
+
+    const executed = [];
+    for (const step of steps) {
+      if (executed.length >= maxSteps) break;
+      if (!["pending", "running", "awaiting"].includes(step.status)) continue;
+      const result = await executeSupportTicketDiagnosticStep({
+        tenant_id,
+        ticket_id,
+        step_run_id: step.step_run_id,
+        actor_id,
+        actor_type,
+        reason: `${reason} (${step.step_key})`,
+      }, { connection });
+      executed.push({ step_run_id: step.step_run_id, step_key: step.step_key, diagnostic_status: result.diagnostic_status, output: result.output, secrets_included: false });
+      if (result.diagnostic_status === "skipped_unknown_step") break;
+    }
+
+    const finalSteps = await queryRows(connection, "SELECT step_run_id, step_key, status, output_json FROM step_runs WHERE tenant_id = ? AND run_id = ? ORDER BY created_at ASC", [tenant_id, run.run_id]);
+    const recommendationStep = finalSteps.find((step) => step.step_key === "recommend_mapping_fix");
+    const recommendation = parseJsonObject(recommendationStep?.output_json, {});
+    let remediation = null;
+    if (create_remediation_hold && recommendation?.status === "mapping_review_required") {
+      const openExisting = await queryOne(
+        connection,
+        `SELECT ah.hold_id, ah.status
+           FROM ticket_workflow_links twl
+           JOIN approval_holds ah ON ah.hold_id = twl.approval_hold_id AND ah.tenant_id = twl.tenant_id
+          WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.relationship = 'approval_gate' AND ah.status = 'open'
+          ORDER BY ah.created_at DESC LIMIT 1`,
+        [tenant_id, ticket_id]
+      );
+      if (openExisting) {
+        remediation = { created: false, hold_id: openExisting.hold_id, status: openExisting.status, reason: "existing_open_remediation_hold", secrets_included: false };
+      } else {
+        const hold = await createSupportTicketApprovalHold({
+          tenant_id,
+          ticket_id,
+          hold_type: "review",
+          required_role: "workspace_owner_admin",
+          reason: "Brand authority mapping review required by diagnostic chain.",
+          actor_id,
+          actor_type,
+          evidence_json: { recommendation, run_id: run.run_id, plan_id: plan?.plan_id || null, source: "support_ticket_diagnostic_chain", secrets_included: false },
+        }, { connection });
+        remediation = { created: true, hold_id: hold.hold_id, run_id: hold.run_id, reason: "mapping_review_required", secrets_included: false };
+      }
+    }
+
+    const refreshed = await fetchTicketById(connection, tenant_id, ticket_id);
+    await insertLifecycleEvent(connection, {
+      ticket_id,
+      tenant_id,
+      event_type: "diagnostic_chain_completed",
+      from_state: ticket.lifecycle_state || null,
+      to_state: refreshed?.lifecycle_state || null,
+      actor_id,
+      actor_type,
+      visibility: "internal_support",
+      summary: reason,
+      payload_json: { run_id: run.run_id, plan_id: plan?.plan_id || null, executed_count: executed.length, recommendation, remediation, secrets_included: false },
+    });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_diagnostic_chain_completed", after_json: { run_id: run.run_id, executed_count: executed.length, recommendation_status: recommendation?.status || null, remediation, secrets_included: false } });
+    const finalTicket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, ticket_id, tenant_id, run_id: run.run_id, plan_id: plan?.plan_id || null, executed_count: executed.length, executed, recommendation, remediation, ticket: compactTicket(finalTicket), secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
 export function _testingTicketClassification() {
   return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus, executionPlanTemplateForTicket, ticketStateFromRuntime, normalizePlanSteps, workflowStateFromSteps, buildDiagnosticStepOutput };
 }

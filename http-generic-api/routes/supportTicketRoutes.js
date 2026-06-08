@@ -15,6 +15,7 @@ import {
   listSupportTicketsForTenant,
   reconcileOpenSupportTickets,
   reconcileSupportTicketSla,
+  runSupportTicketDiagnosticChain,
   syncSupportTicketRuntimeStatus,
   transitionSupportTicket,
   updateSupportTicketStepRun,
@@ -323,6 +324,27 @@ export function buildSupportTicketRoutes(deps = {}) {
       return res.status(201).json(result);
     } catch (err) {
       return sendError(res, err, "support_ticket_step_runs_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/diagnostic-chain", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await runSupportTicketDiagnosticChain({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        run_id: req.body?.run_id || null,
+        plan_id: req.body?.plan_id || null,
+        max_steps: req.body?.max_steps || 10,
+        create_remediation_hold: req.body?.create_remediation_hold !== false,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        reason: req.body?.reason || "Diagnostic chain executed for support ticket.",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_diagnostic_chain_failed");
     }
   });
 
