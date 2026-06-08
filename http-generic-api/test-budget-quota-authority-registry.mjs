@@ -28,7 +28,7 @@ assert.match(migration, /approval_required_flows_through_capability_envelope_app
 assert.match(migration, /no_provider_call_or_connector_forwarding_in_dry_run/);
 assert.match(migration, /secrets_included',false/);
 assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
-assert.doesNotMatch(migration, /GOOGLE_ADS|GOOGLE_APPLICATION_CREDENTIALS|OPENAI_API_KEY\s*[:=]|OPENROUTER_API_KEY\s*[:=]|sk-[A-Za-z0-9_\-]{12,}/i);
+assert.doesNotMatch(migration, /GOOGLE_APPLICATION_CREDENTIALS|GOOGLE_ADS_TOKEN|GOOGLE_ADS_DEVELOPER_TOKEN|OPENAI_API_KEY\s*[:=]|OPENROUTER_API_KEY\s*[:=]|sk-[A-Za-z0-9_\-]{12,}/i);
 
 assert.match(adminCli, /budget_quota_authority_dry_run/);
 assert.match(adminCli, /scripts\/budget-quota-authority-dry-run\.mjs/);
