@@ -30,6 +30,7 @@ const tokenIndex = gptTools.indexOf("await getGitHubAppInstallationToken");
 const envelopeGateIndex = gptTools.lastIndexOf("await requireRepoPatchCapabilityEnvelope", tokenIndex);
 assert.ok(envelopeGateIndex > -1, "capability envelope gate must run before GitHub token resolution.");
 assert.ok(tokenIndex > envelopeGateIndex, "GitHub App token must be resolved only after capability envelope gate.");
+assert.ok(!gptTools.includes("await getGitHubAppInstallationTokenForBranchReconcile"), "branch reconcile token helper must not trip repo_patch_apply token-order substring guard.");
 assert.ok(gptTools.includes("const envelope = await requireRepoPatchCapabilityEnvelope"), "repo patch runtime must assign envelope before token resolution.");
 
 assert.match(migration, /repo_patch_apply_capability_envelope_requirement_v1/);
