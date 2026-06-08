@@ -144,6 +144,14 @@ Current required runtime policy seeds cover:
 
 Release readiness must include `runtime_policy_seed_readiness`; missing or invalid runtime seeds block release readiness.
 
+### General mode-choice governance
+
+Before executing any governed operation that has multiple valid modes or scope selectors, the agent must give the user a compact choice prompt and receive an explicit selection unless the user already selected the mode in the current request or policy exposes exactly one safe valid mode.
+
+This rule is general and is not limited to Hostinger `runner_mode`. It applies to any executable selector named `mode`, `*_mode`, `*_modes`, `runner_mode`, `execution_mode`, `activation_mode`, `integration_modes`, `credential_scope`, `auth_mode`, `transport_mode`, `dispatch_mode`, `sync_mode`, `deploy_mode`, `reconciliation_mode`, `approval_mode`, or any future scope/mode field declared by registry, OpenAPI, runtime policy, or tool input contracts.
+
+The user-facing prompt must include the valid modes, recommended/default mode when one exists, risk and side-effect class, expected evidence, and a clear request to choose. Agents must not silently choose the first enum value, switch modes after failure, or treat `auto` as consent for a higher-risk mode. If a selected mode fails and a fallback mode is possible, the fallback requires a fresh user-visible choice. Execution summaries should preserve `selected_mode`, `selection_source`, `mode_choices_presented`, and `secrets_included=false`. See `docs/mode-choice-governance.md`.
+
 ### Platform Plugin smoke certification governance
 
 Platform Plugin REST actions must not be treated as dispatch-ready just because `app_integrations`, action bindings, or endpoint rows exist. The public dispatch path must resolve readiness, credential/connection state, action grants, and smoke certification before execution.
