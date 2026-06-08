@@ -672,6 +672,19 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
     }
   }
 
+  if (callerType === "admin" && toolKey === "github_branch_fast_forward_to_base") {
+    try {
+      await requireGithubBranchFastForwardEnvelope({ args, ctx: { auth: req?.auth } });
+      const result = await runGithubBranchFastForwardToBase(args, { auth: req?.auth });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "github_branch_fast_forward_failed", message: err?.message || "GitHub branch fast-forward failed.", details: err?.details } },
+      };
+    }
+  }
+
   if (callerType === "admin" && toolKey === "repo_patch_apply") {
     try {
       const result = await applyRepoPatch(args, { auth: req?.auth });
