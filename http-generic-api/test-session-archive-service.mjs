@@ -167,6 +167,54 @@ function flattenParams(value) {
 
 {
   const pool = makePool();
+  const driveWrites = { folders: [], docText: "", jsonl: "" };
+  const fullToolContent = [
+    "Tool: admin_control",
+    "Status: HTTP 200 ok=true",
+    "",
+    "Args:",
+    JSON.stringify({ tool: "github", args: ["run", "view", "123", "--log-failed"] }, null, 2),
+    "",
+    "Result:",
+    `{"stdout":"${"very long tool output ".repeat(200)}"}`,
+  ].join("\n");
+  const deps = {
+    sessionsDriveFolderId: "root-folder",
+    now: () => new Date("2026-05-16T12:15:00.000Z"),
+    async getOrCreateDriveFolder(name, parentId) { driveWrites.folders.push({ name, parentId }); return `${parentId}/${name}`; },
+    async createGoogleDocInDrive(_name, _parentId, initialText) { driveWrites.docText += initialText; return { drive_file_id: "doc-tool", drive_web_url: "https://drive/doc-tool" }; },
+    async appendTextToGoogleDoc(_docId, text) { driveWrites.docText += text; },
+    async uploadContentToDrive(content) { driveWrites.jsonl = content; return { drive_file_id: "jsonl-tool", drive_web_url: "https://drive/jsonl-tool" }; },
+    async fetchDriveContent() { return driveWrites.jsonl; },
+    async updateDriveFileContent(_fileId, content) { driveWrites.jsonl = content; return { drive_file_id: "jsonl-tool", drive_web_url: "https://drive/jsonl-tool" }; },
+  };
+
+  await recordGptSessionTurn({
+    pool,
+    session: {
+      session_id: "sess-tool",
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      started_at: "2026-05-16T10:00:00.000Z",
+    },
+    role: "tool",
+    content: fullToolContent,
+    action_key: "admin_control",
+    turnIndex: 0,
+    injectedDeps: deps,
+  });
+
+  assert(driveWrites.docText.includes("Bookmark: turn-0"), "tool sections should include a stable bookmark marker");
+  assert(driveWrites.docText.includes("### Tool Call Summary"), "tool sections should be summarized in the readable Google Doc");
+  assert(driveWrites.docText.includes("Full content: JSONL sidecar"), "tool summaries should point to JSONL for full fidelity");
+  assert(driveWrites.docText.includes('"doc_content_mode": "summary_only"'), "tool runtime metadata should disclose summary-only doc content");
+  assert(!driveWrites.docText.includes(fullToolContent), "Google Doc should not contain the full tool dump");
+  assert(driveWrites.jsonl.includes(fullToolContent), "JSONL sidecar must retain the full tool dump");
+  assert.equal(JSON.parse(driveWrites.jsonl.trim()).content, fullToolContent, "tool JSONL should remain parseable full-fidelity content");
+}
+
+{
+  const pool = makePool();
   const driveWrites = { jsonl: "" };
   const fullContent = "partial archive still writes JSONL full content";
   const deps = {
