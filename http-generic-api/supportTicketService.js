@@ -2082,6 +2082,45 @@ export async function completeSupportTicketBrandRefSelectionRemediation({ tenant
   finally { if (ownsConnection) connection.release(); }
 }
 
+export async function applySupportTicketBrandMappingVerified({ tenant_id, ticket_id, approval_hold_id = null, brand_ref = null, brand_refs = null, permission = "manage", mode = "dry_run", rollback_on_failed_verification = true, actor_id = null, actor_type = "system", reason = "Verified brand mapping remediation apply." } = {}, options = {}) {
+  const runMode = mode === "apply" ? "apply" : "dry_run";
+  const targets = normalizeBrandGrantTargets({ brand_ref, brand_refs });
+  if (!targets.length) { const err = new Error("At least one brand_ref is required for verified apply."); err.status = 400; err.code = "support_ticket_verified_apply_brand_ref_required"; throw err; }
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    if (ownsConnection && runMode === "apply") await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) { const err = new Error("Ticket not found."); err.status = 404; err.code = "support_ticket_not_found"; throw err; }
+    const ticketMetadata = parseJsonObject(ticket.metadata_json, {});
+    const granteeUserId = ticket.user_id || ticketMetadata?.metadata?.user_id || ticketMetadata?.user_id || null;
+    const before_grants = granteeUserId ? await queryRows(connection, `SELECT grant_id, grantee_user_id, resource_ref, permission, status, source, granted_at FROM workspace_resource_grants WHERE tenant_id = ? AND grantee_user_id = ? AND resource_type = 'brand' AND resource_ref IN (?) ORDER BY granted_at DESC`, [tenant_id, granteeUserId, targets]) : [];
+    const before_effective = granteeUserId ? await queryRows(connection, `SELECT grant_id, grantee_user_id, resource_ref, permission, grant_status, source, granted_at FROM v_workspace_resource_grant_effective WHERE tenant_id = ? AND grantee_user_id = ? AND resource_type = 'brand' AND resource_ref IN (?) ORDER BY granted_at DESC`, [tenant_id, granteeUserId, targets]) : [];
+    const plan = { ticket_id, tenant_id, grantee_user_id: granteeUserId, brand_refs: targets, mode: runMode, before_grant_count: before_grants.length, before_effective_count: before_effective.length, rollback_on_failed_verification: Boolean(rollback_on_failed_verification), secrets_included: false };
+    if (runMode !== "apply") return { ok: true, mode: "dry_run", plan, before_grants, before_effective, secrets_included: false };
+    const applyResult = await applySupportTicketBrandMappingRemediation({ tenant_id, ticket_id, approval_hold_id, brand_refs: targets, permission, dry_run: false, actor_id, actor_type, reason }, { connection });
+    const after_grants = await queryRows(connection, `SELECT grant_id, grantee_user_id, resource_ref, permission, status, source, granted_at FROM workspace_resource_grants WHERE tenant_id = ? AND grantee_user_id = ? AND resource_type = 'brand' AND resource_ref IN (?) ORDER BY granted_at DESC`, [tenant_id, applyResult.grantee_user_id, targets]);
+    const after_effective = await queryRows(connection, `SELECT grant_id, grantee_user_id, resource_ref, permission, grant_status, source, granted_at FROM v_workspace_resource_grant_effective WHERE tenant_id = ? AND grantee_user_id = ? AND resource_type = 'brand' AND resource_ref IN (?) ORDER BY granted_at DESC`, [tenant_id, applyResult.grantee_user_id, targets]);
+    const effectiveRefs = new Set(after_effective.filter((row) => row.grant_status === "active" || row.status === "active" || !row.grant_status).map((row) => row.resource_ref));
+    const missing_refs = targets.filter((ref) => !effectiveRefs.has(ref));
+    const verified = missing_refs.length === 0;
+    if (!verified && rollback_on_failed_verification) {
+      const err = new Error("Verified apply readback failed; rolling back brand grant remediation.");
+      err.status = 409;
+      err.code = "support_ticket_verified_apply_readback_failed";
+      err.verification = { missing_refs, after_effective_count: after_effective.length, secrets_included: false };
+      throw err;
+    }
+    await insertLifecycleEvent(connection, { ticket_id, tenant_id, event_type: verified ? "brand_mapping_verified_apply_completed" : "brand_mapping_verified_apply_unverified", from_state: ticket.lifecycle_state || null, to_state: verified ? "verified" : "verification_failed", actor_id, actor_type, visibility: "internal_support", summary: reason, payload_json: { plan, apply: { grant_count: applyResult.grant_count, verification_count: applyResult.verification_count }, readback: { after_grant_count: after_grants.length, after_effective_count: after_effective.length, missing_refs }, verified, secrets_included: false } });
+    if (verified) await connection.query("UPDATE tickets SET status = 'resolved', lifecycle_state = 'verified', customer_status = 'resolved', updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?", [tenant_id, ticket_id]);
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, mode: "apply", verified, plan, apply: applyResult, readback: { after_grants, after_effective, missing_refs }, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) { if (ownsConnection && runMode === "apply") await connection.rollback(); throw error; }
+  finally { if (ownsConnection) connection.release(); }
+}
+
 export function _testingTicketClassification() {
   return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus, executionPlanTemplateForTicket, ticketStateFromRuntime, normalizePlanSteps, workflowStateFromSteps, buildDiagnosticStepOutput, normalizeBrandGrantTargets, mergeBrandRefCandidate };
 }
