@@ -21,6 +21,7 @@ import {
   upsertTenantIntegrationPolicies,
 } from "../hybridIntegrationPolicy.js";
 import { resolveActivationGraphContext } from "../activationGraphContext.js";
+import { createOrAppendSupportTicket } from "../supportTicketService.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECT_STATIC = join(__dirname, "../public/connect");
@@ -373,16 +374,45 @@ async function createOnboardingEscalation({ user, tenantId = null, title, body, 
   const escalationId = randomUUID();
   const finalTitle = String(title || "Tenant onboarding escalation").trim().slice(0, 512);
   const finalPriority = cleanEscalationPriority(priority);
-  const meta = JSON.stringify({ ...safeMetadata(metadata), onboarding_source: source });
+  const safeMeta = safeMetadata(metadata);
+  const meta = JSON.stringify({ ...safeMeta, onboarding_source: source });
   let ticketId = null;
 
   if (tenantId) {
-    ticketId = randomUUID();
-    await getPool().query(
-      `INSERT INTO \`tickets\` (ticket_id, tenant_id, title, category, priority, service_mode, metadata_json)
-       VALUES (?, ?, ?, 'escalation', ?, 'managed', ?)`,
-      [ticketId, tenantId, finalTitle, finalPriority, JSON.stringify({ body: body || null, source, metadata: safeMetadata(metadata) })]
-    );
+    const ticketResult = await createOrAppendSupportTicket({
+      tenant_id: tenantId,
+      user_id: user?.user_id || null,
+      actor_id: user?.user_id || null,
+      actor_type: "tenant_user",
+      source_layer: "tenant_connect",
+      source_tool: "connect_escalate",
+      source_event: safeMeta?.source_event || "tenant_onboarding_issue",
+      ticket_type: safeMeta?.ticket_type || "tenant_onboarding_issue",
+      title: finalTitle,
+      customer_message: safeMeta?.customer_message || "Support has been notified to review this request.",
+      internal_summary: body || "Tenant onboarding escalation created through connect_escalate.",
+      category: "escalation",
+      priority: finalPriority,
+      severity: safeMeta?.severity || "sev3",
+      service_mode: "managed",
+      resource: safeMeta?.resource || { type: safeMeta?.resource_type || "tenant", ref: tenantId },
+      authority: {
+        source: "connect_escalate",
+        decision: "active_signed_in_user_requested_escalation",
+        requested_action: "connect_escalate",
+        role_at_creation: safeMeta?.role_at_creation || null,
+      },
+      metadata_json: {
+        ...safeMeta,
+        body: body || null,
+        source,
+        onboarding_source: source,
+        customer_safe: true,
+        secrets_included: false,
+      },
+      dedupe_key: safeMeta?.dedupe_key || null,
+    });
+    ticketId = ticketResult.ticket?.ticket_id || null;
   }
 
   await getPool().query(

@@ -46,10 +46,11 @@ assert(
 );
 assert(
   connectRoutes.includes("createOnboardingEscalation")
-    && connectRoutes.includes("tickets")
+    && connectRoutes.includes('import { createOrAppendSupportTicket } from "../supportTicketService.js";')
+    && connectRoutes.includes("createOrAppendSupportTicket")
     && connectRoutes.includes("onboarding_escalations")
     && connectRoutes.includes("ticket_id"),
-  "connect_escalate must create support ticket and onboarding escalation records"
+  "connect_escalate must create governed support ticket via the centralized service and preserve onboarding escalation records"
 );
 assert(
   connectRoutes.includes("metadata_json") && connectRoutes.includes("ticket_id"),
