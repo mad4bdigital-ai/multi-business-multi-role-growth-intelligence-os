@@ -614,6 +614,152 @@ export async function reconcileOpenSupportTickets({ tenant_id = null, limit = 10
   }
 }
 
+export async function linkSupportTicketWorkflow({ tenant_id, ticket_id, plan_id = null, run_id = null, approval_hold_id = null, relationship = "diagnostic", status = "linked", evidence_json = {}, actor_id = null, actor_type = "system" } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  if (!plan_id && !run_id && !approval_hold_id) {
+    const err = new Error("At least one workflow link target is required.");
+    err.status = 400;
+    err.code = "workflow_link_target_required";
+    throw err;
+  }
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const linkId = randomUUID();
+    await connection.query(
+      `INSERT INTO ticket_workflow_links
+         (link_id, ticket_id, tenant_id, plan_id, run_id, approval_hold_id, relationship, status, evidence_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [linkId, ticket_id, tenant_id, plan_id || null, run_id || null, approval_hold_id || null, relationship || "diagnostic", status || "linked", jsonOrNull({ ...evidence_json, secrets_included: false })]
+    );
+    await insertLifecycleEvent(connection, {
+      ticket_id, tenant_id, event_type: approval_hold_id ? "approval_hold_linked" : "workflow_linked",
+      from_state: ticket.lifecycle_state || null, to_state: ticket.lifecycle_state || null,
+      actor_id, actor_type, visibility: "internal_support",
+      summary: `Linked ticket to ${approval_hold_id ? "approval hold" : "workflow artifact"}.`,
+      payload_json: { link_id: linkId, plan_id, run_id, approval_hold_id, relationship, status, evidence_json, secrets_included: false },
+    });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_workflow_linked", after_json: { link_id: linkId, plan_id, run_id, approval_hold_id, relationship, status, secrets_included: false } });
+    if (ownsConnection) await connection.commit();
+    return { ok: true, link_id: linkId, ticket_id, tenant_id, plan_id: plan_id || null, run_id: run_id || null, approval_hold_id: approval_hold_id || null, relationship, status, secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
+export async function createSupportTicketApprovalHold({ tenant_id, ticket_id, hold_type = "review", required_role = "workspace_owner_admin", assigned_to = null, reason = "Approval required for support ticket action.", expires_at = null, actor_id = null, actor_type = "system", evidence_json = {} } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const holdId = randomUUID();
+    const runId = randomUUID();
+    const allowedHoldType = ["review", "supervisor_approval", "managed_handoff", "legal_hold"].includes(hold_type) ? hold_type : "review";
+    await connection.query(
+      `INSERT INTO approval_holds
+         (hold_id, run_id, tenant_id, hold_type, requested_by, user_id, actor_id, actor_type, request_id, correlation_id, execution_context_json, assigned_to, required_role, status, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)`,
+      [holdId, runId, tenant_id, allowedHoldType, actor_id || null, ticket.user_id || null, actor_id || null, actor_type || null, ticket_id, `ticket:${ticket_id}`, jsonOrNull({ ticket_id, reason, evidence_json, customer_status: ticket.customer_status, lifecycle_state: ticket.lifecycle_state, secrets_included: false }), assigned_to || null, required_role || null, expires_at || null]
+    );
+    await connection.query(
+      `UPDATE tickets
+          SET status = 'awaiting_approval', lifecycle_state = 'awaiting_internal_approval', customer_status = 'waiting_for_approval', updated_at = NOW()
+        WHERE tenant_id = ? AND ticket_id = ?`,
+      [tenant_id, ticket_id]
+    );
+    await connection.query(
+      `INSERT INTO ticket_workflow_links
+         (link_id, ticket_id, tenant_id, approval_hold_id, relationship, status, evidence_json)
+       VALUES (?, ?, ?, ?, 'approval_gate', 'linked', ?)`,
+      [randomUUID(), ticket_id, tenant_id, holdId, jsonOrNull({ hold_type: allowedHoldType, required_role, reason, evidence_json, secrets_included: false })]
+    );
+    await insertLifecycleEvent(connection, {
+      ticket_id, tenant_id, event_type: "approval_hold_created", from_state: ticket.lifecycle_state || null, to_state: "awaiting_internal_approval",
+      actor_id, actor_type, visibility: "internal_support", summary: reason,
+      payload_json: { hold_id: holdId, run_id: runId, hold_type: allowedHoldType, required_role, assigned_to, evidence_json, secrets_included: false },
+    });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_approval_hold_created", after_json: { hold_id: holdId, hold_type: allowedHoldType, required_role, assigned_to, secrets_included: false } });
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, hold_id: holdId, run_id: runId, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
+function computeTicketSlaStatus(row = {}, now = new Date()) {
+  if (![...OPEN_TICKET_STATUSES].includes(row.status)) return { status: row.sla_status || "on_track", reason: "ticket_not_open" };
+  const dueFields = ["first_response_due_at", "triage_due_at", "resolution_due_at"];
+  const dueDates = dueFields.map((field) => ({ field, value: row[field] ? new Date(row[field]) : null })).filter((entry) => entry.value && !Number.isNaN(entry.value.getTime()));
+  if (!dueDates.length) return { status: row.sla_status || "on_track", reason: "no_due_dates" };
+  const breached = dueDates.find((entry) => entry.value.getTime() < now.getTime());
+  if (breached) return { status: "breached", reason: `${breached.field}_past_due` };
+  const soon = dueDates.find((entry) => entry.value.getTime() - now.getTime() <= 60 * 60 * 1000);
+  if (soon) return { status: "warning", reason: `${soon.field}_within_60m` };
+  return { status: "on_track", reason: "due_dates_on_track" };
+}
+
+export async function reconcileSupportTicketSla({ tenant_id = null, limit = 100, apply = false, actor_id = "ticket_sla_reconciler", actor_type = "system" } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  const max = Math.min(Math.max(Number(limit) || 100, 1), 250);
+  const params = [];
+  const filters = ["status IN ('open','in_review','awaiting_approval')"];
+  if (tenant_id) { filters.push("tenant_id = ?"); params.push(tenant_id); }
+  params.push(max);
+  try {
+    if (ownsConnection && apply) await connection.beginTransaction();
+    const rows = await queryRows(connection, `SELECT * FROM tickets WHERE ${filters.join(" AND ")} ORDER BY updated_at DESC LIMIT ?`, params);
+    const now = new Date();
+    const findings = [];
+    for (const row of rows) {
+      const computed = computeTicketSlaStatus(row, now);
+      const should_update = computed.status !== (row.sla_status || "on_track");
+      findings.push({ ticket_id: row.ticket_id, tenant_id: row.tenant_id, title: row.title, current_sla_status: row.sla_status || "on_track", computed_sla_status: computed.status, reason: computed.reason, should_update, secrets_included: false });
+      if (apply && should_update) {
+        await connection.query("UPDATE tickets SET sla_status = ?, updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?", [computed.status, row.tenant_id, row.ticket_id]);
+        await insertLifecycleEvent(connection, {
+          ticket_id: row.ticket_id, tenant_id: row.tenant_id, event_type: computed.status === "breached" ? "sla_breached" : "sla_status_changed",
+          from_state: row.sla_status || "on_track", to_state: computed.status,
+          actor_id, actor_type, visibility: "internal_support",
+          summary: `SLA status changed to ${computed.status}: ${computed.reason}.`,
+          payload_json: { reason: computed.reason, previous_sla_status: row.sla_status || "on_track", computed_sla_status: computed.status, secrets_included: false },
+        });
+      }
+    }
+    if (ownsConnection && apply) await connection.commit();
+    return { ok: true, mode: apply ? "apply" : "dry_run", count: findings.length, update_count: findings.filter((finding) => finding.should_update).length, findings, secrets_included: false };
+  } catch (error) {
+    if (ownsConnection && apply) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
 export function _testingTicketClassification() {
-  return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES] };
+  return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus };
 }

@@ -5,9 +5,12 @@ import {
   appendSupportTicketEvent,
   assignSupportTicket,
   createOrAppendSupportTicket,
+  createSupportTicketApprovalHold,
   getSupportTicketWithEvents,
+  linkSupportTicketWorkflow,
   listSupportTicketsForTenant,
   reconcileOpenSupportTickets,
+  reconcileSupportTicketSla,
   transitionSupportTicket,
 } from "../supportTicketService.js";
 
@@ -178,6 +181,21 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.post("/admin/support/tickets/sla/reconcile", ...adminGuards, async (req, res) => {
+    try {
+      const result = await reconcileSupportTicketSla({
+        tenant_id: req.body?.tenant_id || req.query?.tenant_id || null,
+        limit: req.body?.limit || req.query?.limit || 100,
+        apply: Boolean(req.body?.apply),
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_sla_reconcile_failed");
+    }
+  });
+
   router.get("/admin/support/tickets", ...adminGuards, async (req, res) => {
     try {
       const params = [];
@@ -209,6 +227,50 @@ export function buildSupportTicketRoutes(deps = {}) {
       return res.status(200).json({ ok: true, ...result, secrets_included: false });
     } catch (err) {
       return sendError(res, err, "support_ticket_admin_get_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/approval-hold", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await createSupportTicketApprovalHold({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        hold_type: req.body?.hold_type || "review",
+        required_role: req.body?.required_role || "workspace_owner_admin",
+        assigned_to: req.body?.assigned_to || null,
+        reason: req.body?.reason || "Approval required for support ticket action.",
+        expires_at: req.body?.expires_at || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        evidence_json: req.body?.evidence_json || {},
+      });
+      return res.status(201).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_approval_hold_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/link-workflow", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await linkSupportTicketWorkflow({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        plan_id: req.body?.plan_id || null,
+        run_id: req.body?.run_id || null,
+        approval_hold_id: req.body?.approval_hold_id || null,
+        relationship: req.body?.relationship || "diagnostic",
+        status: req.body?.status || "linked",
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        evidence_json: req.body?.evidence_json || {},
+      });
+      return res.status(201).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_workflow_link_failed");
     }
   });
 
