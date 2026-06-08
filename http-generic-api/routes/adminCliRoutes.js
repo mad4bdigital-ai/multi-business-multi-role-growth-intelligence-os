@@ -680,6 +680,47 @@ function auditGithubFallbackCapabilityRepair({ args = [], result = null, error =
   });
 }
 
+export function buildLocalConnectorDeviceAliasCandidates(deviceId = "") {
+  const raw = String(deviceId || "").trim();
+  const normalized = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const withoutPcSuffix = normalized.replace(/-pc$/i, "");
+  const candidates = new Set([raw, raw.toLowerCase(), normalized, withoutPcSuffix].filter(Boolean));
+  if (withoutPcSuffix && withoutPcSuffix !== normalized) candidates.add(withoutPcSuffix);
+  if (withoutPcSuffix && !normalized.endsWith("-pc")) candidates.add(`${withoutPcSuffix}-pc`);
+  return Array.from(candidates).filter(Boolean);
+}
+
+function localConnectorDeviceAliasLikePatterns(deviceId = "") {
+  return buildLocalConnectorDeviceAliasCandidates(deviceId)
+    .map((candidate) => `${candidate}%`)
+    .filter(Boolean);
+}
+
+function localConnectorConfigHasUsableToken(row = {}) {
+  return Boolean(String(row?.cf_token || "").trim());
+}
+
+export function buildLocalConnectorDeviceIdentityResolution({ requestedUserId = "", requestedDeviceId = "", row = null, matchSource = "direct" } = {}) {
+  if (!row) return null;
+  const resolvedUserId = String(row.user_id || "").trim();
+  const resolvedDeviceId = String(row.device_id || "").trim();
+  return {
+    status: matchSource === "db_alias" ? "resolved_via_alias" : "matched_directly",
+    match_source: matchSource,
+    requested_user_id: String(requestedUserId || "").trim() || null,
+    requested_device_id: String(requestedDeviceId || "").trim() || null,
+    resolved_user_id: resolvedUserId || null,
+    resolved_device_id: resolvedDeviceId || null,
+    config_id: row.config_id || null,
+    cf_tunnel_id: row.cf_tunnel_id || null,
+    cf_tunnel_name: row.cf_tunnel_name || null,
+    secrets_included: false,
+  };
+}
+
 export function buildLocalConnectorTunnelProvisioningContinuationEvidence({
   userId = "",
   deviceId = "",
@@ -2363,20 +2404,54 @@ export function buildAdminCliRoutes(deps) {
       let tunnelToken  = "";
       let backendKey   = "";
       let cfTunnelId   = null;
+      let cfTunnelName = null;
       let tunnelUrl    = null;
       let configSource = "env";
+      let resolvedUserId = userId;
+      let resolvedDeviceId = deviceId;
+      let deviceIdentityResolution = null;
       try {
         const pool = getPool();
         const [[row]] = await pool.query(
-          "SELECT cf_token, connector_secret, cf_tunnel_id, tunnel_url FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+          "SELECT config_id, user_id, device_id, cf_token, connector_secret, cf_tunnel_id, cf_tunnel_name, tunnel_url FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
           [userId, deviceId]
         );
-        if (row) {
-          tunnelToken  = row.cf_token || "";
-          backendKey   = row.connector_secret || "";
-          cfTunnelId   = row.cf_tunnel_id || null;
-          tunnelUrl    = row.tunnel_url || null;
-          configSource = tunnelToken ? "db" : "env_fallback";
+        let selectedRow = row || null;
+        let matchSource = "direct";
+        if (!localConnectorConfigHasUsableToken(selectedRow)) {
+          const aliasPatterns = localConnectorDeviceAliasLikePatterns(deviceId);
+          if (aliasPatterns.length) {
+            const aliasWhere = aliasPatterns.map(() => "LOWER(device_id) LIKE ?").join(" OR ");
+            const [aliasRows] = await pool.query(
+              `SELECT config_id, user_id, device_id, cf_token, connector_secret, cf_tunnel_id, cf_tunnel_name, tunnel_url, last_health_at, updated_at
+                 FROM \`local_connector_user_configs\`
+                WHERE is_enabled = 1
+                  AND COALESCE(NULLIF(cf_token,''),'') <> ''
+                  AND (${aliasWhere})
+                ORDER BY
+                  CASE WHEN user_id = ? THEN 0 ELSE 1 END,
+                  CASE WHEN last_health_at IS NULL THEN 1 ELSE 0 END,
+                  last_health_at DESC,
+                  updated_at DESC
+                LIMIT 5`,
+              [...aliasPatterns, userId]
+            );
+            if (aliasRows.length === 1) {
+              selectedRow = aliasRows[0];
+              matchSource = "db_alias";
+            }
+          }
+        }
+        if (selectedRow) {
+          tunnelToken  = selectedRow.cf_token || "";
+          backendKey   = selectedRow.connector_secret || "";
+          cfTunnelId   = selectedRow.cf_tunnel_id || null;
+          cfTunnelName = selectedRow.cf_tunnel_name || null;
+          tunnelUrl    = selectedRow.tunnel_url || null;
+          resolvedUserId = selectedRow.user_id || userId;
+          resolvedDeviceId = selectedRow.device_id || deviceId;
+          configSource = tunnelToken ? matchSource === "db_alias" ? "db_alias" : "db" : "env_fallback";
+          deviceIdentityResolution = buildLocalConnectorDeviceIdentityResolution({ requestedUserId: userId, requestedDeviceId: deviceId, row: selectedRow, matchSource });
         }
       } catch (dbErr) {
         console.warn("[self-repair] DB lookup failed:", dbErr.message);
@@ -2449,7 +2524,13 @@ export function buildAdminCliRoutes(deps) {
             error: "no_tunnel_token",
             tunnel_status: tunnelStatus,
             cf_tunnel_id: cfTunnelId,
+            cf_tunnel_name: cfTunnelName,
             config_source: configSource,
+            requested_user_id: userId,
+            requested_device_id: deviceId,
+            resolved_user_id: resolvedUserId,
+            resolved_device_id: resolvedDeviceId,
+            device_identity_resolution: deviceIdentityResolution,
             interruption_signal: "connector_tunnel_provisioning_required",
             required_next_action: "provision_tunnel_token",
           },
@@ -2463,7 +2544,7 @@ export function buildAdminCliRoutes(deps) {
       }
 
       const batContent = generateConnectorInstallerBat(tunnelToken, backendKey);
-      const filename   = `repair-connector-${deviceId}-${new Date().toISOString().slice(0,10)}.bat`;
+      const filename   = `repair-connector-${resolvedDeviceId}-${new Date().toISOString().slice(0,10)}.bat`;
       let driveResult  = null;
       let driveUploadStatus = typeof deps.getGoogleClients === "function" ? "attempted" : "not_configured";
       let driveError = null;
@@ -2501,22 +2582,33 @@ export function buildAdminCliRoutes(deps) {
         payload: {
           user_id: userId,
           device_id: deviceId,
+          resolved_user_id: resolvedUserId,
+          resolved_device_id: resolvedDeviceId,
+          device_identity_resolution: deviceIdentityResolution,
           tunnel_status: tunnelStatus,
           config_source: configSource,
           drive_uploaded: !!driveResult,
-          drive_upload_status: driveUploadStatus
+          drive_upload_status: driveUploadStatus,
+          secrets_included: false
         },
       });
 
       return res.status(200).json({
         ok: true,
         diagnosis: {
-          device_id: deviceId,
+          device_id: resolvedDeviceId,
+          requested_device_id: deviceId,
+          requested_user_id: userId,
+          resolved_user_id: resolvedUserId,
+          resolved_device_id: resolvedDeviceId,
+          device_identity_resolution: deviceIdentityResolution,
           tunnel_url: tunnelUrl || "https://connector.mad4b.com",
           cf_tunnel_id: cfTunnelId,
+          cf_tunnel_name: cfTunnelName,
           cf_tunnel_status: tunnelStatus,
           config_source: configSource,
-          likely_cause: "cloudflared or node connector service not running on the local device",
+          likely_cause: configSource === "db_alias" ? "requested device id was resolved to an existing active connector config; rerun health before reinstalling" : "cloudflared or node connector service not running on the local device",
+          secrets_included: false,
         },
         repair: {
           action: "Run the installer as Administrator on the Windows device. It installs cloudflared and the Node.js connector as auto-restart Windows services (via NSSM).",
