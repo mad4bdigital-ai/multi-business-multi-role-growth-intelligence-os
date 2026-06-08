@@ -6,6 +6,7 @@ import {
   assignSupportTicket,
   createOrAppendSupportTicket,
   createSupportTicketApprovalHold,
+  createSupportTicketExecutionPlan,
   getSupportTicketWithEvents,
   linkSupportTicketWorkflow,
   listSupportTicketsForTenant,
@@ -249,6 +250,32 @@ export function buildSupportTicketRoutes(deps = {}) {
       return res.status(201).json(result);
     } catch (err) {
       return sendError(res, err, "support_ticket_approval_hold_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/execution-plan", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await createSupportTicketExecutionPlan({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        workflow_key: req.body?.workflow_key || null,
+        intent_key: req.body?.intent_key || null,
+        target_key: req.body?.target_key || null,
+        route_key: req.body?.route_key || null,
+        service_mode: req.body?.service_mode || "managed",
+        access_decision: req.body?.access_decision || null,
+        steps_json: req.body?.steps_json || null,
+        preview_json: req.body?.preview_json || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        reason: req.body?.reason || "Execution plan created from support ticket.",
+        evidence_json: req.body?.evidence_json || {},
+      });
+      return res.status(201).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_execution_plan_failed");
     }
   });
 
