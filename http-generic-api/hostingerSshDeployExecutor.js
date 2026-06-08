@@ -905,7 +905,20 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
   const sshConnection = await resolveSshConnectionCredentials(pool, target, input);
   const remoteScript = buildRemoteDeployScript({ appPath, branch, expectedCommitSha, forceClean, restart });
   const sshResult = await runSshCommand({ ...sshConnection, remoteScript, timeoutMs });
-  const status = sshResult.ok ? "success" : "failed";
+  const parsedDeploy = parseProbeOutput(sshResult.stdout);
+  const reloadVerification = buildHostingerDeployReloadVerification({ restart, parsed: parsedDeploy, sshOk: sshResult.ok });
+  const continuation = buildHostingerDeployContinuationEvidence({
+    targetId,
+    appKey,
+    appPath,
+    branch,
+    expectedCommitSha,
+    restart,
+    parsed: parsedDeploy,
+    reloadVerification,
+  });
+  const deployOk = sshResult.ok && reloadVerification.deploy_result_ok && reloadVerification.restart_signal_ok;
+  const status = deployOk ? "success" : "failed";
 
   await writeExecutionEvidence({
     pool,
