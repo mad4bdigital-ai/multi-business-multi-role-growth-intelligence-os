@@ -2034,6 +2034,9 @@ export async function completeSupportTicketBrandRefSelectionRemediation({ tenant
     const legacyOnlyCandidate = Boolean(candidate) && candidateSources.length > 0 && candidateSources.every((source) => source === "legacy_brand_registry");
     const lowConfidenceCandidate = Number(candidate?.confidence || 0) < 70;
     const applyPolicyBlocked = runMode === "apply" && legacyOnlyCandidate && lowConfidenceCandidate && !allow_new_ref;
+    const newBrandRefApprovalRequired = runMode === "apply" && Boolean(allow_new_ref) && (!candidate || (legacyOnlyCandidate && lowConfidenceCandidate));
+    const newBrandRefApproval = newBrandRefApprovalRequired ? await findApprovedNewBrandRefApproval(connection, { tenant_id, ticket_id, selected_brand_ref: selected }) : null;
+    const newBrandRefApprovalBlocked = newBrandRefApprovalRequired && !newBrandRefApproval;
     const plan = {
       selected_brand_ref: selected,
       candidate,
