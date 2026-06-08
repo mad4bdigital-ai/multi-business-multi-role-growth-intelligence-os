@@ -312,6 +312,8 @@ function buildRuntimeEvent({
   bookmark = null,
   docContentMode = null,
   fullContentStorage = null,
+  driveDocId = null,
+  driveDocPart = null,
 }) {
   return {
     event_id: eventId,
