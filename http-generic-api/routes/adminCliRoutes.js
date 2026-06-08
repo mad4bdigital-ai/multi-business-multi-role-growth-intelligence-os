@@ -690,6 +690,8 @@ function buildGithubFallbackUnsupportedError(args = []) {
     trigger_signal: "fallback_unsupported_command",
     max_repair_attempts_before_fallback: 3,
     repair_attempt_count: 3,
+    repair_attempts: buildGithubFallbackRepairAttempts({ args, mapped: false }),
+    continuation: buildGithubFallbackContinuationEvidence({ args, mapped: false }),
     fallback_allowed: true,
     required_sequence: [
       "classify_missing_capability",
