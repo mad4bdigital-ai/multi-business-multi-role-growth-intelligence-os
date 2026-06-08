@@ -104,6 +104,8 @@ Use the local connector provisioning adapter when `connector.mad4b.com` returns 
 4. Do not include `cf_token`, `connector_secret`, `CLOUDFLARE_TUNNEL_TOKEN`, `BACKEND_API_KEY`, or any raw credential in the response or audit payload.
 5. After token provisioning, retry self-repair, verify connector health in the same cycle, audit, then resume the original operation.
 
+When the runtime hostname and configured `device_id` differ, such as `Essam` versus `essam-pc`, `local_connector_self_repair` must attempt a no-secret DB alias resolution before returning `connector_tunnel_provisioning_required`. A successful alias resolution should report `device_identity_resolution.status=resolved_via_alias`, `requested_device_id`, and `resolved_device_id`, and should use the resolved device id for installer naming and audit evidence. Do not include `cf_token`, `connector_secret`, or installer content in the response.
+
 ### Credential intake or approval pause
 
 Use the existing credential/approval continuation pattern. When the user completes the intake or approval, refetch the stored status, reconcile scope, verify no secrets are returned, then resume.
