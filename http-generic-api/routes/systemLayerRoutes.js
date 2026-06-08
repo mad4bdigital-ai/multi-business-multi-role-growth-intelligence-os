@@ -27,6 +27,13 @@ import { requireAdminPrincipal } from "./adminCliRoutes.js";
 import { decodeGitHubAppPrivateKey, resolveGitHubAppConfig } from "../githubAppAuth.js";
 import { derivePrincipalExecutionContext } from "../executionControlResolvers.js";
 import { fetchToolsForCaller, dispatchToolForCaller } from "./gptToolsRoutes.js";
+import {
+  PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
+  catalogGovernedResources,
+  planGovernedResource,
+  resolveGovernedResource,
+  runGovernedResource,
+} from "../platformResourceRecipeCapability.js";
 
 const SYSTEM_LAYER_TOOLS = [
   {
