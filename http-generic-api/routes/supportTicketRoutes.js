@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
 import {
   appendSupportTicketEvent,
+  applySupportTicketBrandMappingRemediation,
   assignSupportTicket,
   createOrAppendSupportTicket,
   createSupportTicketApprovalHold,
