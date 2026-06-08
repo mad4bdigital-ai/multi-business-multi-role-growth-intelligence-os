@@ -1664,6 +1664,178 @@ export async function applySupportTicketBrandMappingRemediation({ tenant_id, tic
   }
 }
 
+async function resolveTicketApprovalHold(connection, { tenant_id, ticket_id, approval_hold_id = null } = {}) {
+  if (approval_hold_id) {
+    return await queryOne(connection, "SELECT * FROM approval_holds WHERE tenant_id = ? AND hold_id = ? LIMIT 1", [tenant_id, approval_hold_id]);
+  }
+  return await queryOne(
+    connection,
+    `SELECT ah.*
+       FROM ticket_workflow_links twl
+       JOIN approval_holds ah ON ah.hold_id = twl.approval_hold_id AND ah.tenant_id = twl.tenant_id
+      WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.approval_hold_id IS NOT NULL
+      ORDER BY ah.created_at DESC
+      LIMIT 1`,
+    [tenant_id, ticket_id]
+  );
+}
+
+export async function decideSupportTicketApprovalHold({ tenant_id, ticket_id, approval_hold_id = null, decision, decision_note = null, actor_id = null, actor_type = "system", reason = "Approval hold decision recorded." } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  const allowedDecision = ["approved", "rejected", "escalated", "expired"].includes(decision) ? decision : null;
+  if (!allowedDecision) {
+    const err = new Error("A valid approval decision is required.");
+    err.status = 400;
+    err.code = "support_ticket_approval_decision_invalid";
+    throw err;
+  }
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const hold = await resolveTicketApprovalHold(connection, { tenant_id, ticket_id, approval_hold_id });
+    if (!hold) {
+      const err = new Error("Approval hold not found for ticket.");
+      err.status = 404;
+      err.code = "support_ticket_approval_hold_not_found";
+      throw err;
+    }
+    const alreadySame = hold.status === allowedDecision;
+    if (!alreadySame && hold.status !== "open") {
+      const err = new Error("Only open approval holds can be decided.");
+      err.status = 409;
+      err.code = "support_ticket_approval_hold_not_open";
+      throw err;
+    }
+    if (!alreadySame) {
+      await connection.query(
+        `UPDATE approval_holds
+            SET status = ?, decision_by = ?, decision_note = ?, decided_at = NOW()
+          WHERE tenant_id = ? AND hold_id = ?`,
+        [allowedDecision, actor_id || null, decision_note || reason, tenant_id, hold.hold_id]
+      );
+    }
+    const next = allowedDecision === "approved"
+      ? { status: "in_review", lifecycle_state: "approved_for_remediation", customer_status: "in_progress" }
+      : allowedDecision === "rejected"
+        ? { status: "in_review", lifecycle_state: "blocked", customer_status: "under_review" }
+        : allowedDecision === "escalated"
+          ? { status: "awaiting_approval", lifecycle_state: "awaiting_supervisor_approval", customer_status: "waiting_for_approval" }
+          : { status: "in_review", lifecycle_state: "approval_expired", customer_status: "under_review" };
+    if (!alreadySame) {
+      await connection.query(
+        `UPDATE tickets
+            SET status = ?, lifecycle_state = ?, customer_status = ?, updated_at = NOW()
+          WHERE tenant_id = ? AND ticket_id = ?`,
+        [next.status, next.lifecycle_state, next.customer_status, tenant_id, ticket_id]
+      );
+      await insertLifecycleEvent(connection, {
+        ticket_id,
+        tenant_id,
+        event_type: "approval_hold_decided",
+        from_state: ticket.lifecycle_state || null,
+        to_state: next.lifecycle_state,
+        actor_id,
+        actor_type,
+        visibility: "internal_support",
+        summary: reason,
+        payload_json: { approval_hold_id: hold.hold_id, decision: allowedDecision, decision_note, secrets_included: false },
+      });
+      await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_approval_hold_decided", after_json: { approval_hold_id: hold.hold_id, decision: allowedDecision, next, secrets_included: false } });
+    }
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, changed: !alreadySame, decision: allowedDecision, approval_hold_id: hold.hold_id, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
+export async function completeSupportTicketBrandMappingRemediation({ tenant_id, ticket_id, approval_hold_id = null, brand_ref = null, brand_refs = null, permission = "manage", approve_first = false, close_if_verified = true, actor_id = null, actor_type = "system", reason = "Approved brand mapping remediation completed." } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const hold = await resolveTicketApprovalHold(connection, { tenant_id, ticket_id, approval_hold_id });
+    if (!hold) {
+      const err = new Error("Approval hold not found for ticket remediation.");
+      err.status = 404;
+      err.code = "support_ticket_approval_hold_not_found";
+      throw err;
+    }
+    let approval = null;
+    if (approve_first || hold.status !== "approved") {
+      approval = await decideSupportTicketApprovalHold({ tenant_id, ticket_id, approval_hold_id: hold.hold_id, decision: "approved", decision_note: "Approved as part of brand mapping remediation completion.", actor_id, actor_type, reason: "Approval hold approved for brand mapping remediation." }, { connection });
+    }
+    const remediation = await applySupportTicketBrandMappingRemediation({ tenant_id, ticket_id, approval_hold_id: hold.hold_id, brand_ref, brand_refs, permission, dry_run: false, actor_id, actor_type, reason }, { connection });
+    const run = await queryOne(connection, `SELECT wr.* FROM ticket_workflow_links twl JOIN workflow_runs wr ON wr.run_id = twl.run_id AND wr.tenant_id = twl.tenant_id WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.run_id IS NOT NULL ORDER BY twl.created_at DESC LIMIT 1`, [tenant_id, ticket_id]);
+    let verification = null;
+    let recommendation = null;
+    if (run) {
+      const grantStep = await queryOne(connection, "SELECT step_run_id FROM step_runs WHERE tenant_id = ? AND run_id = ? AND step_key = 'read_brand_grants' LIMIT 1", [tenant_id, run.run_id]);
+      if (grantStep) {
+        verification = await executeSupportTicketDiagnosticStep({ tenant_id, ticket_id, step_run_id: grantStep.step_run_id, actor_id, actor_type, reason: "Verify brand grants after remediation." }, { connection });
+      }
+      const recommendationStep = await queryOne(connection, "SELECT step_run_id FROM step_runs WHERE tenant_id = ? AND run_id = ? AND step_key = 'recommend_mapping_fix' LIMIT 1", [tenant_id, run.run_id]);
+      if (recommendationStep) {
+        recommendation = await executeSupportTicketDiagnosticStep({ tenant_id, ticket_id, step_run_id: recommendationStep.step_run_id, actor_id, actor_type, reason: "Recompute mapping recommendation after remediation." }, { connection });
+      }
+    }
+    const verified = remediation.verification_count > 0 && (!recommendation?.output?.status || recommendation.output.status === "mapping_appears_consistent");
+    if (close_if_verified && verified) {
+      await connection.query(
+        `UPDATE tickets
+            SET status = 'resolved', lifecycle_state = 'verified', customer_status = 'resolved', updated_at = NOW()
+          WHERE tenant_id = ? AND ticket_id = ?`,
+        [tenant_id, ticket_id]
+      );
+      if (run) {
+        await connection.query("UPDATE workflow_runs SET status = 'completed', completed_at = COALESCE(completed_at, NOW()), updated_at = NOW() WHERE tenant_id = ? AND run_id = ?", [tenant_id, run.run_id]);
+        if (run.plan_id) await connection.query("UPDATE execution_plans SET plan_status = 'completed', updated_at = NOW() WHERE tenant_id = ? AND plan_id = ?", [tenant_id, run.plan_id]);
+      }
+    }
+    await insertLifecycleEvent(connection, {
+      ticket_id,
+      tenant_id,
+      event_type: "brand_mapping_remediation_completed",
+      from_state: ticket.lifecycle_state || null,
+      to_state: verified && close_if_verified ? "verified" : "verification_pending",
+      actor_id,
+      actor_type,
+      visibility: "internal_support",
+      summary: reason,
+      payload_json: { approval_hold_id: hold.hold_id, approval, remediation: { grant_count: remediation.grant_count, verification_count: remediation.verification_count }, verification_status: verification?.diagnostic_status || null, recommendation_status: recommendation?.output?.status || null, verified, close_if_verified, secrets_included: false },
+    });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_brand_mapping_remediation_completed", after_json: { approval_hold_id: hold.hold_id, verified, close_if_verified, grant_count: remediation.grant_count, verification_count: remediation.verification_count, secrets_included: false } });
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, approval_hold_id: hold.hold_id, approval, remediation, verification, recommendation, verified, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
 export function _testingTicketClassification() {
   return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus, executionPlanTemplateForTicket, ticketStateFromRuntime, normalizePlanSteps, workflowStateFromSteps, buildDiagnosticStepOutput, normalizeBrandGrantTargets };
 }
