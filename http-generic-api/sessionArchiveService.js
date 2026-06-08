@@ -76,6 +76,20 @@ export function buildSessionArchivePath(session = {}, now = new Date()) {
   ];
 }
 
+function buildTranscriptHeading(session = {}, now = new Date(), partIndex = 1, extraLines = []) {
+  const startedAt = session.started_at ? new Date(session.started_at) : now;
+  const validStartedAt = Number.isNaN(startedAt.getTime()) ? now : startedAt;
+  return [
+    `Session ${session.session_id}`,
+    `Transcript Part: ${positiveInt(partIndex, 1)}`,
+    `Tenant: ${session.tenant_id || PLATFORM_TENANT_ID}`,
+    `User: ${session.user_id || "platform_admin"}`,
+    `Started: ${validStartedAt.toISOString()}`,
+    ...extraLines.filter(Boolean),
+    "",
+  ].join("\n");
+}
+
 async function updateArchiveStatus(pool, sessionId, status, error = null) {
   await pool.query(
     `UPDATE \`customer_sessions\`
