@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const gptTools = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
-const migration = readFileSync(new URL("./migrations/229_sprint67_repo_patch_capability_envelope_requirement.sql", import.meta.url), "utf8");
+const migration = readFileSync(new URL("./migrations/232_sprint67_repo_patch_capability_envelope_requirement.sql", import.meta.url), "utf8");
 const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
 
 assert.match(gptTools, /repo_patch_apply/);
