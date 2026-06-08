@@ -11,8 +11,14 @@ import {
 
 const PREVIEW_CHARS = 512;
 const TOOL_DOC_SECTION_PREVIEW_CHARS = 900;
+const DEFAULT_DOC_ROLLOVER_CHARS = 450000;
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 const DEFAULT_SESSIONS_DRIVE_FOLDER_ID = "1TIxUmnh0RrLCfXYfkjf96EwGc8OYnEw1";
+
+function positiveInt(value, fallback = 1) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
 
 function defaultDeps() {
   return {
