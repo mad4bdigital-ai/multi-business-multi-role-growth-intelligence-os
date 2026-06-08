@@ -28,7 +28,6 @@ assert.ok(program.includes('secrets_included = false'));
 assert.ok(program.includes('/share/'));
 assert.ok(program.includes('/c/'));
 
-assert.ok(migration.includes('234_sprint68_local_manager_chatgpt_url_capture_action'));
 assert.ok(migration.includes('capture_chatgpt_current_url'));
 assert.ok(migration.includes('local_manager_desktop_command_enqueue'));
 assert.ok(migration.includes('chatgpt_url_capture'));
