@@ -143,16 +143,19 @@ async function resolveCmsSiteGrant({ plan, brand, requestedStatus }, deps = {}) 
     const site = siteRows?.[0] || null;
     if (!site) return { ok: true, status: "legacy_site_not_registered", grant_required: false };
 
+    const requestedConnectionId = str(input.connection_id || input.connectionId || plan.connection_id);
+    const connectionFilterSql = requestedConnectionId ? "\n          AND connection_id = ?" : "";
+    const connectionFilterParams = requestedConnectionId ? [requestedConnectionId] : [];
     const [grantRows] = await pool.query(
-      `SELECT grant_id, site_id, scope, draft_allowed, publish_allowed, destructive_allowed, status
+      `SELECT grant_id, site_id, scope, draft_allowed, publish_allowed, destructive_allowed, status, connection_id
          FROM \`cms_site_access_grants\`
         WHERE site_id = ?
           AND tenant_id = ?
           AND status = 'active'
-          AND (user_id IS NULL OR user_id = ?)
+          AND (user_id IS NULL OR user_id = ?)${connectionFilterSql}
         ORDER BY CASE WHEN user_id = ? THEN 0 ELSE 1 END, updated_at DESC
         LIMIT 1`,
-      [site.site_id, plan.tenant_id, plan.user_id || "", plan.user_id || ""]
+      [site.site_id, plan.tenant_id, plan.user_id || "", ...connectionFilterParams, plan.user_id || ""]
     );
     const grant = grantRows?.[0] || null;
     if (!grant) return { ok: false, status: "cms_site_access_grant_required", site_id: site.site_id, grant_required: true };
