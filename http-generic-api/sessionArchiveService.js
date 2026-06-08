@@ -248,6 +248,9 @@ function buildRuntimeEvent({
     role,
     action_key: actionKey,
     content_sha256: contentHash,
+    ...(bookmark ? { bookmark } : {}),
+    ...(docContentMode ? { doc_content_mode: docContentMode } : {}),
+    ...(fullContentStorage ? { full_content_storage: fullContentStorage } : {}),
     ...(includeContent ? { content } : {}),
     created_at: timestamp,
   };
