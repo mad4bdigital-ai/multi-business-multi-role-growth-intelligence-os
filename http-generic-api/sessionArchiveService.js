@@ -451,7 +451,7 @@ export async function recordGptSessionTurn({
       try {
         await deps.appendTextToGoogleDoc(
           archiveResult.archive.drive_doc_id,
-          buildTranscriptSection({ role, content, turnIndex, timestamp, runtimeEvent: docRuntimeEvent })
+          buildTranscriptSection({ role, content: docContent, turnIndex, timestamp, runtimeEvent: docRuntimeEvent })
         );
         docWritten = true;
       } catch (err) {
