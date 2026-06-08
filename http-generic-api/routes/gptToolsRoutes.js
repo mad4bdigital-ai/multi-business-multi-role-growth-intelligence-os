@@ -257,6 +257,24 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "admin_branch_reconcile",
+    displayName: "Admin Branch Reconcile",
+    description: "Diagnose and safely reconcile a non-protected repository work branch against the default branch. Actions: diagnose, dry_run, apply. Apply only fast-forwards a behind-only branch with explicit confirmation; diverged branches return continuation evidence and remain blocked from force mutation.",
+    method: "VIRTUAL",
+    path: "internal://admin-branch-reconcile",
+    tags: ["repo", "branch", "reconciliation", "read_only", "guarded_mutation"],
+    inputSchema: {
+      type: "object",
+      required: ["branch"],
+      properties: {
+        action: { type: "string", enum: ["diagnose", "dry_run", "apply"], default: "diagnose" },
+        branch: { type: "string", description: "Non-protected work branch to reconcile." },
+        base_branch: { type: "string", description: "Base branch. Defaults to activation bootstrap default branch." },
+        confirm: { type: "string", description: "Required only for apply on behind-only branches. Use FAST_FORWARD_<BRANCH_SLUG>." },
+      },
+    },
+  },
+  {
     name: "repo_patch_apply",
     displayName: "Repository Patch Apply",
     description: "Apply a patch to the repository via the GitHub App, sidestepping the local connector. Actions: write_file, replace_block, apply_unified_diff, delete_file. Path is repo-confined; secrets/build folders are blocked. Runtime defaults to a generated non-protected work branch. Protected branches are blocked unless explicit break-glass policy is enabled and justified.",
