@@ -46,12 +46,13 @@ assert.equal(continuation.resume_plan.next_required_step, "manual_rebase_or_recr
 assert.equal(continuation.secrets_included, false);
 
 const source = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
-assert.match(source, /name: "admin_branch_reconcile"/);
+assert.equal((source.match(/name: "admin_branch_reconcile"/g) || []).length, 1, "admin_branch_reconcile should be registered exactly once");
 assert.match(source, /runAdminBranchReconcile/);
 assert.match(source, /reconcileAdminBranch/);
 assert.match(source, /force: false/);
 assert.match(source, /admin_branch_reconcile_confirmation_required/);
 assert.match(source, /admin_branch_reconcile_protected_branch/);
+assert.doesNotMatch(source, /guarded_mutation/);
 assert.doesNotMatch(source, /force: true/);
 
 const repoPatchTokenIndex = source.indexOf("const token = await getGitHubAppInstallationToken({});");
