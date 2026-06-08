@@ -76,6 +76,25 @@ function sendError(res, err, fallbackCode) {
   return res.status(err.status || 500).json({ ok: false, error: { code: err.code || fallbackCode, message: err.message }, secrets_included: false });
 }
 
+function explicitBrandRefsFromBody(body = {}) {
+  const refs = [];
+  if (body.brand_ref) refs.push(String(body.brand_ref).trim());
+  if (Array.isArray(body.brand_refs)) refs.push(...body.brand_refs.map((ref) => String(ref || "").trim()));
+  return [...new Set(refs.filter(Boolean))];
+}
+
+async function requireTrustedBrandRefForRemediation({ tenant_id, ticket_id, body = {} }) {
+  const explicitRefs = explicitBrandRefsFromBody(body);
+  if (explicitRefs.length) return { brand_ref: explicitRefs[0], brand_refs: explicitRefs, source: "explicit_request", resolution: null };
+  const resolution = await resolveSupportTicketBrandRefs({ tenant_id, ticket_id, min_confidence: body.min_confidence || 75, limit: body.limit || 25 });
+  if (resolution.selected_brand_ref) return { brand_ref: resolution.selected_brand_ref, brand_refs: [resolution.selected_brand_ref], source: "trusted_resolution", resolution };
+  const err = new Error("A trusted brand_ref is required before applying brand mapping remediation.");
+  err.status = 400;
+  err.code = "support_ticket_trusted_brand_ref_required";
+  err.resolution = resolution;
+  throw err;
+}
+
 function tenantTicketEnvelope(req, membership) {
   const body = req.body || {};
   return {
