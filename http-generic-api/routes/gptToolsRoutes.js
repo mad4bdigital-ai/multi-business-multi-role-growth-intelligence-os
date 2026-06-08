@@ -243,9 +243,10 @@ const VIRTUAL_ADMIN_TOOLS = [
     tags: ["repo", "mutation", "self_repair"],
     inputSchema: {
       type: "object",
-      required: ["action", "path", "commit_message"],
+      required: ["action", "path", "commit_message", "capability_envelope_id"],
       properties: {
         action: { type: "string", enum: ["write_file", "replace_block", "apply_unified_diff", "delete_file"] },
+        capability_envelope_id: { type: "string", description: "Required. Must reference a ready no-secret capability_resolution_envelope_ledger envelope for repo_patch_apply." },
         path: { type: "string", description: "Repository-relative path of the single file to modify, e.g. http-generic-api/pathResolverDbLoader.js." },
         commit_message: { type: "string", minLength: 5, maxLength: 200 },
         branch: { type: "string", description: "Target work branch. If omitted, runtime generates a non-protected gpt/repo-patch/* branch. Protected branches are blocked by default." },
