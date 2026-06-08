@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 import { getPool } from "../db.js";
 import { requireValidatedPreflightForExecution } from "../preflightLedgerExecutionGate.js";
+import { runExecutionEnablementGate } from "./execution-enablement-gate.mjs";
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = {
     preflightId: "",
     expectedEnvelopeId: "",
+    tenantId: "",
+    workspaceId: "",
+    workspaceKey: "",
     customerId: "",
     campaignId: "",
     campaignBudgetResourceName: "",
@@ -19,6 +23,9 @@ function parseArgs(argv = process.argv.slice(2)) {
     const consume = !item.includes("=");
     if (item.startsWith("--preflight-id")) { args.preflightId = value || ""; if (consume) i += 1; }
     else if (item.startsWith("--expected-envelope-id")) { args.expectedEnvelopeId = value || ""; if (consume) i += 1; }
+    else if (item.startsWith("--tenant-id")) { args.tenantId = value || ""; if (consume) i += 1; }
+    else if (item.startsWith("--workspace-id")) { args.workspaceId = value || ""; if (consume) i += 1; }
+    else if (item.startsWith("--workspace-key")) { args.workspaceKey = value || ""; if (consume) i += 1; }
     else if (item.startsWith("--customer-id")) { args.customerId = value || ""; if (consume) i += 1; }
     else if (item.startsWith("--campaign-id")) { args.campaignId = value || ""; if (consume) i += 1; }
     else if (item.startsWith("--campaign-budget-resource-name")) { args.campaignBudgetResourceName = value || ""; if (consume) i += 1; }
@@ -37,7 +44,7 @@ function minor(value) {
   return Number.isFinite(value) ? Math.trunc(value) : null;
 }
 
-async function recordSkeletonAttempt({ args, gate, decision, blockingGaps = [] }) {
+async function recordSkeletonAttempt({ args, gate, enablement, decision, blockingGaps = [] }) {
   try {
     await getPool().query(
       `INSERT INTO google_ads_budget_execution_gate_audit
@@ -56,6 +63,7 @@ async function recordSkeletonAttempt({ args, gate, decision, blockingGaps = [] }
           decision,
           blocking_gaps: blockingGaps,
           gate: gate || null,
+          enablement: enablement || null,
           requested_amount_minor: minor(args.requestedAmountMinor),
           currency: clean(args.currency || "USD", 16).toUpperCase(),
           customer_id: clean(args.customerId, 64) || null,
@@ -98,13 +106,38 @@ export async function runGoogleAdsBudgetChangeExecutionAdapter(args = parseArgs(
       secrets_included: false,
     };
   }
-  await recordSkeletonAttempt({ args, gate, decision: "blocked_google_ads_execution_adapter_not_implemented", blockingGaps: ["provider_execution_not_implemented"] });
+  const enablement = await runExecutionEnablementGate({
+    familyKey: "google_ads_budget",
+    adapterKey: "google_ads_budget_change_execution_adapter",
+    tenantId: clean(args.tenantId, 64),
+    workspaceId: clean(args.workspaceId, 64),
+    workspaceKey: clean(args.workspaceKey, 191),
+    preflightId: clean(args.preflightId, 64),
+    capabilityEnvelopeId: gate.capability_envelope_id,
+  });
+  if (!enablement.execution_enabled) {
+    const enablementGaps = enablement.blocking_gaps?.length ? enablement.blocking_gaps : [enablement.decision || "execution_enablement_missing_or_disabled"];
+    await recordSkeletonAttempt({ args, gate, enablement, decision: enablement.decision || "blocked_execution_enablement_missing_or_disabled", blockingGaps: enablementGaps });
+    return {
+      ok: true,
+      decision: enablement.decision || "blocked_execution_enablement_missing_or_disabled",
+      ready_for_provider_execution: false,
+      blocking_gaps: enablementGaps,
+      gate,
+      enablement,
+      no_provider_call: true,
+      no_spend_change: true,
+      secrets_included: false,
+    };
+  }
+  await recordSkeletonAttempt({ args, gate, enablement, decision: "blocked_google_ads_execution_adapter_not_implemented", blockingGaps: ["provider_execution_not_implemented"] });
   return {
     ok: true,
     decision: "blocked_google_ads_execution_adapter_not_implemented",
     ready_for_provider_execution: false,
     blocking_gaps: ["provider_execution_not_implemented"],
     gate,
+    enablement,
     customer_id: clean(args.customerId, 64) || null,
     campaign_id: clean(args.campaignId, 64) || null,
     campaign_budget_resource_name: clean(args.campaignBudgetResourceName, 191) || null,

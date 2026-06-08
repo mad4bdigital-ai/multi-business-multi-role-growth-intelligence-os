@@ -1,6 +1,8 @@
 # Deployment Parity Checklist
 **Authority document - run before and after every deployment**
 
+> Execution enablement registry parity note: verify `execution_enablement_registry_policy_v1`, table `execution_enablement_registry`, tool `execution_enablement_gate`, and Google Ads skeleton binding after migration `248_sprint67_execution_enablement_registry.sql`. Smoke should return `blocked_execution_enablement_missing_or_disabled`, `no_provider_call=true`, `no_spend_change=true`, and `secrets_included=false`.
+
 > Google Ads credential readiness parity note: verify `google_ads_credential_readiness_gate_policy_v1` and enabled tool `google_ads_credential_readiness_gate` after migration `246_sprint67_google_ads_credential_readiness_gate.sql`. Smoke without a Google Ads connection should block with `blocked_google_ads_connection_missing` and keep `no_credential_payload_read=true`, `no_provider_call=true`, `no_spend_change=true`, and `secrets_included=false`.
 
 > Google Ads execution adapter skeleton parity note: verify `google_ads_budget_execution_adapter_skeleton_policy_v1`, `google_ads_budget_execution_gate_audit`, and disabled admin endpoint `google_ads_budget_change_execution_adapter` after migration `245_sprint67_google_ads_execution_adapter_skeleton.sql`. Smoke should validate a ready preflight, write audit, then return `blocked_google_ads_execution_adapter_not_implemented` with `no_provider_call=true`, `no_spend_change=true`, and `secrets_included=false`.
