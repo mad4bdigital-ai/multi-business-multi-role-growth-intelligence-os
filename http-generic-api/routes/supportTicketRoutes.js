@@ -441,6 +441,30 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.post("/admin/support/tickets/:ticket_id/brand-ref-selection/approve-and-complete", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await completeSupportTicketBrandRefSelectionRemediation({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        brand_ref_selection_hold_id: req.body?.brand_ref_selection_hold_id || req.body?.selection_hold_id || null,
+        remediation_approval_hold_id: req.body?.remediation_approval_hold_id || req.body?.approval_hold_id || null,
+        selected_brand_ref: req.body?.selected_brand_ref,
+        allow_new_ref: Boolean(req.body?.allow_new_ref),
+        mode: req.body?.mode || "dry_run",
+        approve_first: Boolean(req.body?.approve_first),
+        close_if_verified: req.body?.close_if_verified !== false,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        reason: req.body?.reason || "Brand ref selection and remediation completion orchestrated.",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_brand_ref_selection_completion_failed");
+    }
+  });
+
   router.post("/admin/support/tickets/:ticket_id/brand-ref-selection/approve", ...adminGuards, async (req, res) => {
     try {
       const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
