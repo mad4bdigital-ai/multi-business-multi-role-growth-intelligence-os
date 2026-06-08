@@ -760,6 +760,149 @@ export async function reconcileSupportTicketSla({ tenant_id = null, limit = 100,
   }
 }
 
+function executionPlanTemplateForTicket(ticket = {}) {
+  const type = ticket.ticket_type || ticket.source_event || "general_support";
+  const templates = {
+    brand_authority_missing: {
+      intent_key: "ticket.brand_authority_diagnostic",
+      workflow_key: "workspace_brand_authority_diagnostic",
+      target_key: "access_authority",
+      route_key: "support_ticket_access_authority_diagnostic",
+      access_decision: "REQUIRE_REVIEW",
+      steps: [
+        { key: "read_workspace_membership", action: "verify requester workspace membership and role" },
+        { key: "read_brand_grants", action: "inspect v_workspace_resource_grant_effective for brand grants" },
+        { key: "read_workspace_assets", action: "inspect workspace_assets.brand_ref for orphaned references" },
+        { key: "recommend_mapping_fix", action: "produce customer-safe mapping recommendation" },
+      ],
+    },
+    hostinger_wordpress_provisioning: {
+      intent_key: "ticket.hostinger_wordpress_provisioning_plan",
+      workflow_key: "managed_hostinger_wordpress_provisioning",
+      target_key: "managed_services",
+      route_key: "support_ticket_managed_hostinger_provisioning",
+      access_decision: "ROUTE_TO_MANAGED_SERVICE",
+      steps: [
+        { key: "verify_site_scope", action: "verify tenant/site authority" },
+        { key: "verify_credentials", action: "verify credential references without exposing secrets" },
+        { key: "prepare_deployment", action: "prepare WordPress installation plan" },
+        { key: "request_approval", action: "create approval hold before destructive/provisioning action" },
+      ],
+    },
+    platform_tool_surface_bug: {
+      intent_key: "ticket.platform_tool_surface_remediation",
+      workflow_key: "platform_tool_surface_bug_remediation",
+      target_key: "platform_engineering",
+      route_key: "support_ticket_platform_engineering_remediation",
+      access_decision: "REQUIRE_REVIEW",
+      steps: [
+        { key: "capture_repro", action: "capture route/tool/schema evidence" },
+        { key: "add_regression", action: "add regression test for tool surface" },
+        { key: "patch_surface", action: "patch governed route or registry surface" },
+        { key: "verify_release", action: "run release readiness and live smoke" },
+      ],
+    },
+    tenant_onboarding_issue: {
+      intent_key: "ticket.tenant_onboarding_diagnostic",
+      workflow_key: "tenant_onboarding_recovery_diagnostic",
+      target_key: "tenant_support",
+      route_key: "support_ticket_tenant_onboarding_diagnostic",
+      access_decision: "REQUIRE_REVIEW",
+      steps: [
+        { key: "read_onboarding_state", action: "inspect onboarding state and workspace readiness" },
+        { key: "verify_membership", action: "verify user membership and workspace access" },
+        { key: "recommend_next_action", action: "recommend activation/device/escalation next action" },
+      ],
+    },
+    general_support: {
+      intent_key: "ticket.general_support_review",
+      workflow_key: "support_ticket_general_review",
+      target_key: "tenant_support",
+      route_key: "support_ticket_general_review",
+      access_decision: "REQUIRE_REVIEW",
+      steps: [
+        { key: "review_ticket", action: "review ticket evidence" },
+        { key: "recommend_next_action", action: "recommend customer-safe next action" },
+      ],
+    },
+  };
+  return templates[type] || templates[ticket.source_event] || templates.general_support;
+}
+
+export async function createSupportTicketExecutionPlan({ tenant_id, ticket_id, workflow_key = null, intent_key = null, target_key = null, route_key = null, service_mode = "managed", access_decision = null, steps_json = null, preview_json = null, actor_id = null, actor_type = "system", reason = "Execution plan created from support ticket.", evidence_json = {} } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const template = executionPlanTemplateForTicket(ticket);
+    const planId = randomUUID();
+    const finalWorkflowKey = workflow_key || template.workflow_key;
+    const finalIntentKey = intent_key || template.intent_key;
+    const finalTargetKey = target_key || template.target_key;
+    const finalRouteKey = route_key || template.route_key;
+    const finalAccessDecision = access_decision || template.access_decision || "REQUIRE_REVIEW";
+    const finalSteps = steps_json || template.steps || [];
+    const finalPreview = preview_json || {
+      ticket_id,
+      ticket_type: ticket.ticket_type || null,
+      source_event: ticket.source_event || null,
+      queue_key: ticket.queue_key || null,
+      reason,
+      evidence_json,
+      secrets_included: false,
+    };
+    await connection.query(
+      `INSERT INTO execution_plans
+         (plan_id, tenant_id, user_id, actor_id, actor_type, intent_key, request_id, correlation_id, execution_context_json, target_key, workflow_key, route_key, service_mode, access_decision, plan_status, steps_json, preview_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)`,
+      [planId, tenant_id, ticket.user_id || null, actor_id || null, actor_type || null, finalIntentKey, ticket_id, `ticket:${ticket_id}`, jsonOrNull({ ticket_id, source: "support_ticket", ticket_type: ticket.ticket_type, lifecycle_state: ticket.lifecycle_state, customer_status: ticket.customer_status, evidence_json, secrets_included: false }), finalTargetKey, finalWorkflowKey, finalRouteKey, service_mode || ticket.service_mode || "managed", finalAccessDecision, jsonOrNull(finalSteps), jsonOrNull(finalPreview)]
+    );
+    await connection.query(
+      `INSERT INTO ticket_workflow_links
+         (link_id, ticket_id, tenant_id, plan_id, relationship, status, evidence_json)
+       VALUES (?, ?, ?, ?, 'execution_plan', 'linked', ?)`,
+      [randomUUID(), ticket_id, tenant_id, planId, jsonOrNull({ workflow_key: finalWorkflowKey, intent_key: finalIntentKey, route_key: finalRouteKey, target_key: finalTargetKey, reason, evidence_json, secrets_included: false })]
+    );
+    await connection.query(
+      `UPDATE tickets
+          SET lifecycle_state = CASE WHEN lifecycle_state IN ('triage_pending','automation_planned','permission_review_required','internal_review_required') THEN 'automation_planned' ELSE lifecycle_state END,
+              customer_status = CASE WHEN customer_status IN ('received','under_review') THEN 'in_progress' ELSE customer_status END,
+              updated_at = NOW()
+        WHERE tenant_id = ? AND ticket_id = ?`,
+      [tenant_id, ticket_id]
+    );
+    await insertLifecycleEvent(connection, {
+      ticket_id,
+      tenant_id,
+      event_type: "execution_plan_created",
+      from_state: ticket.lifecycle_state || null,
+      to_state: ticket.lifecycle_state === "awaiting_internal_approval" ? ticket.lifecycle_state : "automation_planned",
+      actor_id,
+      actor_type,
+      visibility: "internal_support",
+      summary: reason,
+      payload_json: { plan_id: planId, workflow_key: finalWorkflowKey, intent_key: finalIntentKey, target_key: finalTargetKey, route_key: finalRouteKey, access_decision: finalAccessDecision, secrets_included: false },
+    });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_execution_plan_created", after_json: { plan_id: planId, workflow_key: finalWorkflowKey, intent_key: finalIntentKey, target_key: finalTargetKey, access_decision: finalAccessDecision, secrets_included: false } });
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, plan_id: planId, workflow_key: finalWorkflowKey, intent_key: finalIntentKey, target_key: finalTargetKey, route_key: finalRouteKey, access_decision: finalAccessDecision, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
 export function _testingTicketClassification() {
-  return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus };
+  return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus, executionPlanTemplateForTicket };
 }
