@@ -680,6 +680,47 @@ function auditGithubFallbackCapabilityRepair({ args = [], result = null, error =
   });
 }
 
+export function buildLocalConnectorDeviceAliasCandidates(deviceId = "") {
+  const raw = String(deviceId || "").trim();
+  const normalized = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const withoutPcSuffix = normalized.replace(/-pc$/i, "");
+  const candidates = new Set([raw, raw.toLowerCase(), normalized, withoutPcSuffix].filter(Boolean));
+  if (withoutPcSuffix && withoutPcSuffix !== normalized) candidates.add(withoutPcSuffix);
+  if (withoutPcSuffix && !normalized.endsWith("-pc")) candidates.add(`${withoutPcSuffix}-pc`);
+  return Array.from(candidates).filter(Boolean);
+}
+
+function localConnectorDeviceAliasLikePatterns(deviceId = "") {
+  return buildLocalConnectorDeviceAliasCandidates(deviceId)
+    .map((candidate) => `${candidate}%`)
+    .filter(Boolean);
+}
+
+function localConnectorConfigHasUsableToken(row = {}) {
+  return Boolean(String(row?.cf_token || "").trim());
+}
+
+export function buildLocalConnectorDeviceIdentityResolution({ requestedUserId = "", requestedDeviceId = "", row = null, matchSource = "direct" } = {}) {
+  if (!row) return null;
+  const resolvedUserId = String(row.user_id || "").trim();
+  const resolvedDeviceId = String(row.device_id || "").trim();
+  return {
+    status: matchSource === "db_alias" ? "resolved_via_alias" : "matched_directly",
+    match_source: matchSource,
+    requested_user_id: String(requestedUserId || "").trim() || null,
+    requested_device_id: String(requestedDeviceId || "").trim() || null,
+    resolved_user_id: resolvedUserId || null,
+    resolved_device_id: resolvedDeviceId || null,
+    config_id: row.config_id || null,
+    cf_tunnel_id: row.cf_tunnel_id || null,
+    cf_tunnel_name: row.cf_tunnel_name || null,
+    secrets_included: false,
+  };
+}
+
 export function buildLocalConnectorTunnelProvisioningContinuationEvidence({
   userId = "",
   deviceId = "",
