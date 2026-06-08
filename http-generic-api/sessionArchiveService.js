@@ -114,15 +114,10 @@ async function createArchiveFiles(session, deps) {
   const exportsFolderId = await deps.getOrCreateDriveFolder("Exports", parentId);
   await deps.getOrCreateDriveFolder("Artifacts", parentId);
 
-  const heading = [
-    `Session ${session.session_id}`,
-    `Tenant: ${session.tenant_id || PLATFORM_TENANT_ID}`,
-    `User: ${session.user_id || "platform_admin"}`,
-    `Started: ${(session.started_at ? new Date(session.started_at) : deps.now()).toISOString()}`,
-    "",
-  ].join("\n");
+  const initialPart = 1;
+  const heading = buildTranscriptHeading(session, deps.now(), initialPart);
 
-  const transcript = await deps.createGoogleDocInDrive("Session Transcript", parentId, heading);
+  const transcript = await deps.createGoogleDocInDrive("Session Transcript Part 1", parentId, heading);
   const jsonl = await deps.uploadContentToDrive("", "Tool_Calls.jsonl", "application/x-ndjson", null, parentId);
 
   return {
