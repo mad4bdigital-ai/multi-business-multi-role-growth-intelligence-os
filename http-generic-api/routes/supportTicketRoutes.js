@@ -329,6 +329,49 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.post("/admin/support/tickets/:ticket_id/approval-hold/decision", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await decideSupportTicketApprovalHold({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        approval_hold_id: req.body?.approval_hold_id || null,
+        decision: req.body?.decision,
+        decision_note: req.body?.decision_note || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        reason: req.body?.reason || "Approval hold decision recorded.",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_approval_hold_decision_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/brand-mapping-remediation/complete", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await completeSupportTicketBrandMappingRemediation({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        approval_hold_id: req.body?.approval_hold_id || null,
+        brand_ref: req.body?.brand_ref || null,
+        brand_refs: req.body?.brand_refs || null,
+        permission: req.body?.permission || "manage",
+        approve_first: Boolean(req.body?.approve_first),
+        close_if_verified: req.body?.close_if_verified !== false,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        reason: req.body?.reason || "Approved brand mapping remediation completed.",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_brand_mapping_remediation_complete_failed");
+    }
+  });
+
   router.post("/admin/support/tickets/:ticket_id/brand-mapping-remediation", ...adminGuards, async (req, res) => {
     try {
       const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
