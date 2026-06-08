@@ -21,18 +21,18 @@ ON DUPLICATE KEY UPDATE
  policy_value=VALUES(policy_value), active=VALUES(active), execution_scope=VALUES(execution_scope), affects_layer=VALUES(affects_layer), blocking=VALUES(blocking), notes=VALUES(notes), updated_at=CURRENT_TIMESTAMP;
 
 INSERT INTO platform_engine_policy_registry
-(policy_key, policy_title, policy_summary, severity, enforcement_mode, active, tags)
+(policy_key, engine_key, scope_type, scope_id, mode, risk_default, approval_required_min_risk, require_scope_guard, require_audit, require_validators, validators_json, status, notes)
 VALUES
-('general_mode_choice_before_execution','General mode choice before execution','Agents must ask users to select among valid execution modes/scopes before mode-bearing execution unless the current request or policy has already selected one.','high','blocking',1,'mode_choice,scope_modes,execution_governance,user_choice,no_secrets')
+('general_mode_choice_before_execution', NULL, 'global', '*', 'blocking_guard', 'medium', 'medium', 1, 1, 0, JSON_ARRAY(), 'active', 'Agents must ask users to select among valid execution modes/scopes before mode-bearing execution unless the current request or policy has already selected one. No secrets.')
 ON DUPLICATE KEY UPDATE
- policy_title=VALUES(policy_title), policy_summary=VALUES(policy_summary), severity=VALUES(severity), enforcement_mode=VALUES(enforcement_mode), active=VALUES(active), tags=VALUES(tags), updated_at=CURRENT_TIMESTAMP;
+ engine_key=VALUES(engine_key), scope_type=VALUES(scope_type), scope_id=VALUES(scope_id), mode=VALUES(mode), risk_default=VALUES(risk_default), approval_required_min_risk=VALUES(approval_required_min_risk), require_scope_guard=VALUES(require_scope_guard), require_audit=VALUES(require_audit), require_validators=VALUES(require_validators), validators_json=VALUES(validators_json), status=VALUES(status), notes=VALUES(notes), updated_at=CURRENT_TIMESTAMP;
 
 INSERT INTO platform_engine_policy_rules
-(rule_key, policy_key, rule_title, rule_summary, rule_type, active, tags)
+(rule_key, policy_key, engine_key, priority, task_class, resource_kind, resource_pattern, condition_json, strategy_key, risk_level, auto_apply_allowed, dry_run_required, approval_required, validator_commands_json, blocked_terms_json, allowed_terms_json, required_skill_keys_json, status, notes)
 VALUES
-('general_mode_choice_before_execution_rule','general_mode_choice_before_execution','Require mode choice before execution','When more than one valid executable mode/scope exists, require a user-visible choice before execution and preserve selected_mode evidence.','blocking_guard',1,'mode_choice,scope_modes,user_prompt,execution_audit')
+('general_mode_choice_before_execution_rule','general_mode_choice_before_execution', NULL, 50, 'governed_execution', 'mode_selector', '*', JSON_OBJECT('when','multiple_valid_modes_or_scope_selectors_exist','requires','user_visible_mode_choice_before_execution'), NULL, 'medium', 0, 1, 1, JSON_ARRAY(), JSON_ARRAY('silent_first_enum_default','silent_mode_switch_after_failure'), JSON_ARRAY('selected_mode','mode_choices_presented','selection_source','secrets_included=false'), JSON_ARRAY(), 'active', 'Require a user-visible choice before executing when multiple valid mode/scope options exist.')
 ON DUPLICATE KEY UPDATE
- policy_key=VALUES(policy_key), rule_title=VALUES(rule_title), rule_summary=VALUES(rule_summary), rule_type=VALUES(rule_type), active=VALUES(active), tags=VALUES(tags), updated_at=CURRENT_TIMESTAMP;
+ policy_key=VALUES(policy_key), engine_key=VALUES(engine_key), priority=VALUES(priority), task_class=VALUES(task_class), resource_kind=VALUES(resource_kind), resource_pattern=VALUES(resource_pattern), condition_json=VALUES(condition_json), strategy_key=VALUES(strategy_key), risk_level=VALUES(risk_level), auto_apply_allowed=VALUES(auto_apply_allowed), dry_run_required=VALUES(dry_run_required), approval_required=VALUES(approval_required), validator_commands_json=VALUES(validator_commands_json), blocked_terms_json=VALUES(blocked_terms_json), allowed_terms_json=VALUES(allowed_terms_json), required_skill_keys_json=VALUES(required_skill_keys_json), status=VALUES(status), notes=VALUES(notes), updated_at=CURRENT_TIMESTAMP;
 
 INSERT INTO readiness_checks
 (check_id, tenant_id, check_key, check_status, detail)
