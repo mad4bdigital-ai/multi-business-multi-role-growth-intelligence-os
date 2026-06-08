@@ -87,3 +87,7 @@ Execution logs and pending-task updates should preserve:
 - `secrets_included=false`.
 
 This policy applies to admin GPTs, tenant GPTs, platform tools, and future connector/plugin modes unless a stricter surface-specific policy overrides it.
+
+## Registry evidence
+
+Migration `233_sprint68_general_mode_choice_governance.sql` registers the blocking execution policy and matching platform-engine policy/rule evidence. The migration is policy/readiness only: it does not enable deploy, restart, provider dispatch, credential value writes, SSH execution, or secret exposure.
