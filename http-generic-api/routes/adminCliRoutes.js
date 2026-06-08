@@ -650,7 +650,7 @@ function buildGithubFallbackContinuationEvidence({ args = [], mapped = false } =
 
 function buildGithubCapabilityRepairAuditPayload({ args = [], result = null, error = null } = {}) {
   const capabilityRepair = result?.capability_repair || error?.details || {};
-  const mapped = capabilityRepair.repaired === true;
+  const mapped = capabilityRepair.repaired === true || (Boolean(result?.fallback) && !error);
   return {
     policy: capabilityRepair.policy || "repair_missing_capability_before_fallback",
     provider: "github",
