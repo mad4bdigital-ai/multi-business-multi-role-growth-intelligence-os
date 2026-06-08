@@ -103,6 +103,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "231_sprint68_shared_reconciliation_continuation_policy.sql",
   "232_sprint68_chunked_tool_response_continuation_policy.sql",
   "233_sprint68_local_connector_tunnel_provisioning_continuation_policy.sql",
+  "235_sprint68_local_manager_chatgpt_url_capture_action.sql",
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v2";
