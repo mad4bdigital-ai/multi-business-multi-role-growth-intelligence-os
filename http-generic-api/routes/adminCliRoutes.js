@@ -2595,12 +2595,19 @@ export function buildAdminCliRoutes(deps) {
       return res.status(200).json({
         ok: true,
         diagnosis: {
-          device_id: deviceId,
+          device_id: resolvedDeviceId,
+          requested_device_id: deviceId,
+          requested_user_id: userId,
+          resolved_user_id: resolvedUserId,
+          resolved_device_id: resolvedDeviceId,
+          device_identity_resolution: deviceIdentityResolution,
           tunnel_url: tunnelUrl || "https://connector.mad4b.com",
           cf_tunnel_id: cfTunnelId,
+          cf_tunnel_name: cfTunnelName,
           cf_tunnel_status: tunnelStatus,
           config_source: configSource,
-          likely_cause: "cloudflared or node connector service not running on the local device",
+          likely_cause: configSource === "db_alias" ? "requested device id was resolved to an existing active connector config; rerun health before reinstalling" : "cloudflared or node connector service not running on the local device",
+          secrets_included: false,
         },
         repair: {
           action: "Run the installer as Administrator on the Windows device. It installs cloudflared and the Node.js connector as auto-restart Windows services (via NSSM).",
