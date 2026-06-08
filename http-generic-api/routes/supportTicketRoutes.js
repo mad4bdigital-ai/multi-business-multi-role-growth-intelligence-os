@@ -9,6 +9,7 @@ import {
   createSupportTicketExecutionPlan,
   createSupportTicketStepRuns,
   createSupportTicketWorkflowRun,
+  executeSupportTicketDiagnosticStep,
   getSupportTicketWithEvents,
   linkSupportTicketWorkflow,
   listSupportTicketsForTenant,
