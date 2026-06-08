@@ -295,23 +295,32 @@ function renderTranscriptTextFromJsonl(session = {}, jsonlText = "") {
     `Rebuilt from JSONL: ${new Date().toISOString()}`,
     "",
   ];
-  const sections = records.map((record) => buildTranscriptSection({
-    role: record.role || record.event_type || "unknown",
-    content: record.content || "",
-    turnIndex: record.turn_index ?? "unknown",
-    timestamp: record.created_at || "unknown",
-    runtimeEvent: {
-      event_id: record.event_id || null,
-      session_id: record.session_id || session.session_id,
-      turn_id: record.turn_id || null,
-      turn_index: record.turn_index ?? null,
-      role: record.role || record.event_type || "unknown",
-      action_key: record.action_key || null,
-      content_sha256: record.content_sha256 || null,
-      rebuilt_from_jsonl: true,
-      secrets_included: false,
-    },
-  }));
+  const sections = records.map((record) => {
+    const role = record.role || record.event_type || "unknown";
+    const content = record.content || "";
+    const contentHash = record.content_sha256 || sha256(content);
+    const bookmark = `turn-${record.turn_index ?? "unknown"}`;
+    return buildTranscriptSection({
+      role,
+      content: buildDocContentForTurn({ role, content, actionKey: record.action_key || null, contentHash }),
+      turnIndex: record.turn_index ?? "unknown",
+      timestamp: record.created_at || "unknown",
+      runtimeEvent: {
+        event_id: record.event_id || null,
+        session_id: record.session_id || session.session_id,
+        turn_id: record.turn_id || null,
+        turn_index: record.turn_index ?? null,
+        role,
+        action_key: record.action_key || null,
+        content_sha256: contentHash,
+        bookmark,
+        doc_content_mode: docContentModeForRole(role),
+        full_content_storage: "jsonl_sidecar",
+        rebuilt_from_jsonl: true,
+        secrets_included: false,
+      },
+    });
+  });
   return [...heading, ...sections].join("\n");
 }
 
