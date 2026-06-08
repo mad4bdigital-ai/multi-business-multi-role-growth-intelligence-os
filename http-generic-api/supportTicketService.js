@@ -1954,6 +1954,10 @@ export async function completeSupportTicketBrandRefSelectionRemediation({ tenant
       ? await queryOne(connection, "SELECT * FROM approval_holds WHERE tenant_id = ? AND hold_id = ? LIMIT 1", [tenant_id, remediation_approval_hold_id])
       : await queryOne(connection, `SELECT ah.* FROM ticket_workflow_links twl JOIN approval_holds ah ON ah.hold_id = twl.approval_hold_id AND ah.tenant_id = twl.tenant_id WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.relationship = 'approval_gate' ORDER BY ah.created_at DESC LIMIT 1`, [tenant_id, ticket_id]);
     if (!remediationHold) { const err = new Error("Remediation approval hold not found."); err.status = 404; err.code = "support_ticket_remediation_approval_hold_not_found"; throw err; }
+    const candidateSources = Array.isArray(candidate?.sources) ? candidate.sources : [];
+    const legacyOnlyCandidate = Boolean(candidate) && candidateSources.length > 0 && candidateSources.every((source) => source === "legacy_brand_registry");
+    const lowConfidenceCandidate = Number(candidate?.confidence || 0) < 70;
+    const applyPolicyBlocked = runMode === "apply" && legacyOnlyCandidate && lowConfidenceCandidate && !allow_new_ref;
     const plan = {
       selected_brand_ref: selected,
       candidate,
@@ -1963,11 +1967,20 @@ export async function completeSupportTicketBrandRefSelectionRemediation({ tenant
       remediation_hold_status: remediationHold.status,
       would_approve_selection: selectionHold.status !== "approved",
       would_complete_remediation: true,
-      would_apply_grant: runMode === "apply",
+      would_apply_grant: runMode === "apply" && !applyPolicyBlocked,
+      apply_policy_blocked: applyPolicyBlocked,
+      apply_policy_reason: applyPolicyBlocked ? "legacy_brand_registry_only_requires_allow_new_ref" : null,
       remediation_requires_approval: remediationHold.status !== "approved" && !approve_first,
       close_if_verified: Boolean(close_if_verified),
       secrets_included: false,
     };
+    if (applyPolicyBlocked) {
+      const err = new Error("Legacy-only brand_ref candidates require allow_new_ref=true before apply mode can proceed.");
+      err.status = 409;
+      err.code = "support_ticket_legacy_brand_ref_apply_requires_allow_new_ref";
+      err.plan = plan;
+      throw err;
+    }
     if (runMode !== "apply") {
       return { ok: true, mode: "dry_run", ticket_id, tenant_id, plan, resolution, ticket: compactTicket(ticket), secrets_included: false };
     }
