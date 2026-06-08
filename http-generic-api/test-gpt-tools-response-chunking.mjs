@@ -20,8 +20,18 @@ async function main() {
     response_options: { max_chars: 5000 },
   });
 
+  assert.equal(CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT.policy, "chunk_read_before_alternative_surface");
+  assert.equal(CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT.required_tool, "response_chunk_read");
+  assert.ok(CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT.applies_to.includes("any_governed_tool_response"));
   assert.equal(firstChunk.response_chunked, true);
   assert.ok(firstChunk.chunk_id);
+  assert.equal(firstChunk.continuation_required, true);
+  assert.equal(firstChunk.continuation.policy, "chunk_read_before_alternative_surface");
+  assert.equal(firstChunk.continuation.required_tool, "response_chunk_read");
+  assert.equal(firstChunk.continuation.required_before_fallback, true);
+  assert.equal(firstChunk.continuation.next_call.name, "response_chunk_read");
+  assert.equal(firstChunk.continuation.next_call.tool_args.chunk_id, firstChunk.chunk_id);
+  assert.equal(firstChunk.continuation.next_call.tool_args.cursor, firstChunk.page.next_cursor);
   assert.equal(firstChunk.page.has_more, true);
   assert.equal(firstChunk.page.cursor, 0);
   assert.ok(firstChunk.page.next_cursor > 0);
