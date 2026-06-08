@@ -180,6 +180,7 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       : resultBodyJson;
     const content = [
       `Tool: ${toolKey}`,
+      `Archive binding: ${session.archive_binding || "unknown"}`,
       `Status: HTTP ${result?.status ?? "n/a"} ok=${result?.body?.ok !== false}`,
       "",
       "Args:",
