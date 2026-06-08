@@ -84,6 +84,16 @@ export async function runSessionArchiveSmoke({
   const longPrefix = "smoke-context ".repeat(80);
   const userContent = `${longPrefix}user turn ${marker}`;
   const assistantContent = `${longPrefix}assistant turn ${marker}`;
+  const toolContent = [
+    "Tool: release_session_archive_smoke",
+    "Status: HTTP 200 ok=true",
+    "",
+    "Args:",
+    JSON.stringify({ include_drive_readback: true, smoke_subfolder: smokeSubfolder }, null, 2),
+    "",
+    "Result:",
+    JSON.stringify({ marker, log: `${longPrefix}${longPrefix}tool result ${marker}` }, null, 2),
+  ].join("\n");
   const archiveDeps = { subfolderHint: smokeSubfolder, ...injectedArchiveDeps };
 
   await pool.query(
@@ -120,6 +130,17 @@ export async function runSessionArchiveSmoke({
     content: assistantContent,
     action_key: actionKey,
     turnIndex: 1,
+    injectedDeps: archiveDeps,
+  });
+  const [sessionAfterSecondTurnRows] = await pool.query("SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1", [sessionId]);
+  const sessionAfterSecondTurn = sessionAfterSecondTurnRows[0] || sessionAfterFirstTurn;
+  const thirdTurn = await recordGptSessionTurn({
+    pool,
+    session: sessionAfterSecondTurn,
+    role: "tool",
+    content: toolContent,
+    action_key: actionKey,
+    turnIndex: 2,
     injectedDeps: archiveDeps,
   });
 
@@ -171,7 +192,14 @@ export async function runSessionArchiveSmoke({
   let activationError = null;
   try {
     activationContext = await activationContextReader({
-      query: { tenant_id: tenantId, user_id: userId, limit: 10, include_smoke_sessions: true },
+      query: {
+        tenant_id: tenantId,
+        user_id: userId,
+        limit: 10,
+        include_smoke_sessions: true,
+        read_only: true,
+        no_open_session: true,
+      },
       auth: { is_admin: true },
     });
   } catch (err) {
@@ -181,15 +209,15 @@ export async function runSessionArchiveSmoke({
 
   const checks = [
     check("session_created", Boolean(sessionId), { session_id: sessionId }),
-    check("turn_writes_ready", firstTurn.archive_status === "ready" && secondTurn.archive_status === "ready"),
+    check("turn_writes_ready", firstTurn.archive_status === "ready" && secondTurn.archive_status === "ready" && thirdTurn.archive_status === "ready"),
     check("archive_closed", closeResult.archive_status === "closed" && archivedSession.archive_status === "closed"),
     check("drive_doc_pointer", Boolean(archivedSession.drive_doc_id)),
     check("drive_jsonl_pointer", Boolean(archivedSession.drive_jsonl_id)),
     check("drive_export_url", Boolean(archivedSession.drive_export_url)),
-    check("sql_turn_count", turnRows.length === 2, { count: turnRows.length }),
+    check("sql_turn_count", turnRows.length === 3, { count: turnRows.length }),
     check(
       "sql_stores_pointers_only",
-      turnRows.every((row) => row.storage_mode === "drive" && row.drive_doc_id && row.drive_anchor && !String(row.content_preview || "").includes(marker))
+      turnRows.every((row) => row.storage_mode === "drive" && row.drive_doc_id && row.drive_anchor)
     ),
     check("sql_hashes_present", turnRows.every((row) => String(row.content_sha256 || "").length === 64)),
     check(
@@ -198,8 +226,28 @@ export async function runSessionArchiveSmoke({
       driveReadError ? { error: driveReadError.message } : null
     ),
     check(
+      "drive_doc_bookmarks",
+      !includeDriveReadback || [0, 1, 2].every((idx) => docText.includes(`Bookmark: turn-${idx}`)),
+      driveReadError ? { error: driveReadError.message } : null
+    ),
+    check(
+      "drive_doc_tool_summary",
+      !includeDriveReadback || (
+        docText.includes("### Tool Call Summary") &&
+        docText.includes("Full content: JSONL sidecar") &&
+        docText.includes('"doc_content_mode": "summary_only"') &&
+        !docText.includes(toolContent)
+      ),
+      driveReadError ? { error: driveReadError.message } : null
+    ),
+    check(
       "drive_jsonl_readback",
-      !includeDriveReadback || (jsonlRows.length >= 2 && jsonlRows.some((row) => String(row.content || "").includes(marker))),
+      !includeDriveReadback || (jsonlRows.length >= 3 && jsonlRows.some((row) => String(row.content || "").includes(marker))),
+      driveReadError ? { error: driveReadError.message } : null
+    ),
+    check(
+      "drive_jsonl_tool_full_fidelity",
+      !includeDriveReadback || jsonlRows.some((row) => row.role === "tool" && row.content === toolContent),
       driveReadError ? { error: driveReadError.message } : null
     ),
     check(
