@@ -6,6 +6,27 @@ Last updated: 2026-06-07 (shared reconciliation continuation engine and scoped r
 
 ## Current Patch Set
 
+### 2026-06-08 — Admin Branch Reconcile Continuation Adapter
+
+- Status: PR pending; CI required before merge.
+- Branch: `gpt/admin-branch-reconcile-adapter-20260608`
+- Scope:
+  - Added virtual admin tool `admin_branch_reconcile` for non-protected repository work branches.
+  - Added branch classification: `clean`, `behind_only`, `ahead_only`, `diverged`, and `unknown`.
+  - Added no-secret shared reconciliation checkpoint evidence for stale/diverged branch states.
+  - Added safe apply path only for `behind_only` branches using GitHub ref update with `force:false` and explicit `FAST_FORWARD_<BRANCH_SLUG>` confirmation.
+  - Added migration `234_sprint68_admin_branch_reconcile_continuation_policy.sql` and tracked it in governed migration runner and release readiness.
+- Runtime behavior:
+  - `diagnose` and `dry_run` fetch base ref, branch ref, and compare state, then return continuation evidence.
+  - `apply` is blocked for `diverged`, `ahead_only`, `unknown`, protected/default branches, or missing confirmation.
+  - The adapter never force-pushes and must verify compare state after a fast-forward apply before reporting reconciliation.
+- SQL safety class:
+  - Policy seed only; `INSERT INTO execution_policies ... ON DUPLICATE KEY UPDATE`.
+  - No destructive SQL, no secret values, and `secrets_included=false`.
+- Evidence:
+  - `test-admin-branch-reconcile-adapter.mjs` asserts classification, confirmation, continuation evidence, no force-push, migration policy, runner allowlist, and release-readiness tracking.
+  - PR CI/manual CI evidence to be recorded before merge.
+
 ### 2026-06-08 — Local Connector Tunnel Provisioning Continuation
 
 - Status: PR pending; CI required before merge.
