@@ -1,5 +1,7 @@
 import fs from "node:fs";
 import {
+  buildLocalConnectorDeviceAliasCandidates,
+  buildLocalConnectorDeviceIdentityResolution,
   buildLocalConnectorTunnelProvisioningContinuationEvidence,
   handleEnvControl,
   handleWindowsAppControl,
