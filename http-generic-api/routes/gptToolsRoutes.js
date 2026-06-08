@@ -332,6 +332,232 @@ async function requireRepoPatchCapabilityEnvelope({ args = {}, ctx = {}, owner =
   };
 }
 
+function protectedBranchNames(defaultBranch = "main") {
+  return new Set(["main", "master", "production", "prod", "staging", "release", String(defaultBranch || "main").trim()].filter(Boolean));
+}
+
+function sanitizeBranchForConfirmation(branch = "") {
+  return String(branch || "")
+    .replace(/[^A-Za-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toUpperCase() || "BRANCH";
+}
+
+export function adminBranchFastForwardConfirmation(branch = "") {
+  return `FAST_FORWARD_${sanitizeBranchForConfirmation(branch)}`;
+}
+
+export function classifyAdminBranchReconcileState(compare = {}) {
+  const status = String(compare?.status || "").trim().toLowerCase();
+  const aheadBy = Number(compare?.ahead_by || 0);
+  const behindBy = Number(compare?.behind_by || 0);
+  if (aheadBy === 0 && behindBy === 0) return "clean";
+  if (aheadBy === 0 && behindBy > 0) return "behind_only";
+  if (aheadBy > 0 && behindBy === 0) return "ahead_only";
+  if (status === "diverged" || (aheadBy > 0 && behindBy > 0)) return "diverged";
+  if (status === "behind") return "behind_only";
+  if (status === "ahead") return "ahead_only";
+  return "unknown";
+}
+
+function branchReconcileResourceState({ owner, repo, branch, baseBranch, branchRef, baseRef, compare }) {
+  const files = Array.isArray(compare?.files) ? compare.files.slice(0, 50).map((file) => ({
+    filename: file.filename,
+    status: file.status,
+    changes: file.changes,
+  })) : [];
+  return {
+    owner,
+    repo,
+    branch,
+    base_branch: baseBranch,
+    branch_sha: branchRef?.object?.sha || null,
+    base_sha: baseRef?.object?.sha || null,
+    compare_status: compare?.status || null,
+    ahead_by: Number(compare?.ahead_by || 0),
+    behind_by: Number(compare?.behind_by || 0),
+    file_count: Array.isArray(compare?.files) ? compare.files.length : 0,
+    files,
+  };
+}
+
+export function buildAdminBranchReconcileContinuation({ owner, repo, branch, baseBranch, resourceState, classification }) {
+  const checkpoint = createContinuationCheckpoint({
+    operation_key: `admin_branch_reconcile:${owner}/${repo}:${branch}`,
+    resource_type: "git_branch_reconciliation",
+    actor_context: { actor_type: "admin" },
+    resource_scope: { scope_type: "repository", provider: "github", owner, repo, branch, base_branch: baseBranch },
+    resource_state: resourceState,
+    interruption_signal: classification === "clean" ? "tool_time_exhausted" : "branch_diverged",
+    stage: classification === "behind_only" ? "dry_run_repair" : classification === "clean" ? "resume_original_operation" : "classify_risk",
+    metadata: {
+      adapter: "admin_branch_reconcile",
+      classification,
+      required_next_action: classification === "behind_only" ? "confirm_fast_forward_or_skip" : classification === "diverged" ? "manual_rebase_or_recreate_branch" : "resume_original_operation",
+      secrets_included: false,
+    },
+  });
+  const basePlan = planContinuationResume({
+    checkpoint,
+    actor_context: { actor_type: "admin" },
+    resource_scope: checkpoint.resource_scope,
+    current_resource_state: resourceState,
+    dry_run_result: { ok: ["clean", "behind_only", "ahead_only"].includes(classification), classification },
+    verify_result: { ok: classification !== "diverged", classification },
+    apply_requested: false,
+  });
+  return {
+    checkpoint,
+    resume_plan: {
+      ...basePlan,
+      next_required_step: classification === "clean"
+        ? "resume_original_operation"
+        : classification === "behind_only"
+          ? "confirm_fast_forward_or_skip"
+          : classification === "ahead_only"
+            ? "open_pr_or_resume_original_operation"
+            : "manual_rebase_or_recreate_branch",
+      apply_allowed: false,
+    },
+    secrets_included: false,
+  };
+}
+
+async function getGithubRef({ owner, repo, refName, token }) {
+  return githubJsonRequest({
+    method: "GET",
+    owner,
+    repo,
+    apiPath: `/git/ref/heads/${encodeGitRefBranch(refName)}`,
+    token,
+  }).then((result) => result.payload);
+}
+
+async function compareGithubBranches({ owner, repo, baseBranch, branch, token }) {
+  return githubJsonRequest({
+    method: "GET",
+    owner,
+    repo,
+    apiPath: `/compare/${encodeURIComponent(baseBranch)}...${encodeURIComponent(branch)}`,
+    token,
+  }).then((result) => result.payload);
+}
+
+async function updateGithubBranchRef({ owner, repo, branch, sha, token }) {
+  return githubJsonRequest({
+    method: "PATCH",
+    owner,
+    repo,
+    apiPath: `/git/refs/heads/${encodeGitRefBranch(branch)}`,
+    token,
+    body: { sha, force: false },
+  }).then((result) => result.payload);
+}
+
+export async function reconcileAdminBranch(args = {}, ctx = {}) {
+  const action = String(args.action || "diagnose").trim().toLowerCase();
+  if (!["diagnose", "dry_run", "apply"].includes(action)) {
+    const err = new Error("action must be diagnose, dry_run, or apply.");
+    err.status = 400;
+    err.code = "admin_branch_reconcile_bad_action";
+    throw err;
+  }
+  const { owner, repo, defaultBranch } = await resolveRepoTarget();
+  const branch = String(args.branch || "").trim();
+  const baseBranch = String(args.base_branch || defaultBranch || "main").trim() || "main";
+  if (!branch) {
+    const err = new Error("branch is required for admin_branch_reconcile.");
+    err.status = 400;
+    err.code = "admin_branch_reconcile_missing_branch";
+    throw err;
+  }
+  if (protectedBranchNames(defaultBranch).has(branch) || branch === baseBranch) {
+    const err = new Error("admin_branch_reconcile refuses protected/default branches.");
+    err.status = 403;
+    err.code = "admin_branch_reconcile_protected_branch";
+    err.details = { branch, base_branch: baseBranch, default_branch: defaultBranch };
+    throw err;
+  }
+
+  const token = await getGitHubAppInstallationToken({});
+  const [branchRef, baseRef, compare] = await Promise.all([
+    getGithubRef({ owner, repo, refName: branch, token }),
+    getGithubRef({ owner, repo, refName: baseBranch, token }),
+    compareGithubBranches({ owner, repo, baseBranch, branch, token }),
+  ]);
+  const classification = classifyAdminBranchReconcileState(compare);
+  const resourceState = branchReconcileResourceState({ owner, repo, branch, baseBranch, branchRef, baseRef, compare });
+  const continuation = buildAdminBranchReconcileContinuation({ owner, repo, branch, baseBranch, resourceState, classification });
+  const confirmation_required = classification === "behind_only" ? adminBranchFastForwardConfirmation(branch) : null;
+  const plan = {
+    action,
+    owner,
+    repo,
+    branch,
+    base_branch: baseBranch,
+    classification,
+    can_apply: classification === "behind_only",
+    safe_apply_mode: classification === "behind_only" ? "fast_forward_branch_to_base_sha" : null,
+    confirmation_required,
+    protected_branch_blocked: false,
+    force_push_allowed: false,
+    secrets_included: false,
+  };
+
+  if (action !== "apply") {
+    return { ...plan, compare: resourceState, continuation, applied: false };
+  }
+  if (classification !== "behind_only") {
+    const err = new Error("admin_branch_reconcile apply only supports behind-only fast-forward branches. Diverged/ahead branches require manual rebase or PR workflow.");
+    err.status = 409;
+    err.code = "admin_branch_reconcile_apply_blocked";
+    err.details = { ...plan, continuation };
+    throw err;
+  }
+  if (String(args.confirm || "") !== confirmation_required) {
+    const err = new Error(`admin_branch_reconcile apply requires confirm=${confirmation_required}.`);
+    err.status = 400;
+    err.code = "admin_branch_reconcile_confirmation_required";
+    err.details = { ...plan, continuation };
+    throw err;
+  }
+  const update = await updateGithubBranchRef({ owner, repo, branch, sha: baseRef?.object?.sha, token });
+  const verifyCompare = await compareGithubBranches({ owner, repo, baseBranch, branch, token });
+  writeAuditLogAsync({
+    action: "admin_branch_reconcile.fast_forward",
+    resource_type: "github_branch",
+    resource_id: `${owner}/${repo}:${branch}`,
+    payload: {
+      before: resourceState,
+      after: {
+        branch_sha: update?.object?.sha || null,
+        compare_status: verifyCompare?.status || null,
+        ahead_by: Number(verifyCompare?.ahead_by || 0),
+        behind_by: Number(verifyCompare?.behind_by || 0),
+      },
+      confirmation: confirmation_required,
+      continuation,
+      actor: ctx?.auth?.user_id || ctx?.auth?.mode || "admin",
+      secrets_included: false,
+    },
+  });
+  return {
+    ...plan,
+    applied: true,
+    apply_mode: "fast_forward_branch_to_base_sha",
+    before: resourceState,
+    after: {
+      branch_ref: update?.ref || null,
+      branch_sha: update?.object?.sha || null,
+      compare_status: verifyCompare?.status || null,
+      ahead_by: Number(verifyCompare?.ahead_by || 0),
+      behind_by: Number(verifyCompare?.behind_by || 0),
+    },
+    continuation,
+    secrets_included: false,
+  };
+}
+
 function resolveCallerType(req) {
   if (req.auth?.mode === "backend_api_key" || req.auth?.is_admin === true) return "admin";
   return "tenant";
