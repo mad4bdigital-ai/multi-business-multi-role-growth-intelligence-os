@@ -492,6 +492,128 @@ export async function getSupportTicketWithEvents({ tenant_id, ticket_id, custome
   return { ticket: compactTicket(ticket), events: eventRows.map((row) => ({ ...row, payload_json: parseJsonObject(row.payload_json, null), secrets_included: false })), secrets_included: false };
 }
 
+function ticketTextForClassification(row = {}) {
+  const metadata = typeof row.metadata_json === "string" ? row.metadata_json : JSON.stringify(row.metadata_json || {});
+  return `${row.title || ""}\n${row.category || ""}\n${row.priority || ""}\n${metadata || ""}`.toLowerCase();
+}
+
+export function classifyExistingSupportTicket(row = {}) {
+  const text = ticketTextForClassification(row);
+  const rules = [
+    {
+      key: "brand_authority_missing",
+      match: /brand[-_\s]?access|brand[-_\s]?mapping|workspace_brands_list|brand list|brand-authority|براند/i,
+      patch: { ticket_type: "brand_authority_missing", source_event: "brand_authority_missing", category: "review_request", severity: "sev3", queue_key: "access_authority", lifecycle_state: "permission_review_required", customer_status: "under_review" },
+    },
+    {
+      key: "hostinger_wordpress_provisioning",
+      match: /hostinger|wordpress|deployment connector|provisioning|wovacation|hpanel/i,
+      patch: { ticket_type: "managed_service_request", source_event: "hostinger_wordpress_provisioning", category: "managed_task", severity: "sev3", queue_key: "managed_services", lifecycle_state: "automation_planned", customer_status: "in_progress" },
+    },
+    {
+      key: "device_install_runtime_bug",
+      match: /localapps|device_install_failed|device installer backend|local_apps|device-install route/i,
+      patch: { ticket_type: "platform_tool_surface_bug", source_event: "device_install_runtime_bug", category: "escalation", severity: "sev2", queue_key: "platform_engineering", lifecycle_state: "internal_review_required", customer_status: "under_review" },
+    },
+    {
+      key: "tenant_onboarding_issue",
+      match: /tenant onboarding|workspace_ready_not_activated|connect_escalate|activate|workspace_required/i,
+      patch: { ticket_type: "tenant_onboarding_issue", source_event: "tenant_onboarding_issue", category: "escalation", severity: "sev3", queue_key: "tenant_support", lifecycle_state: "triage_pending", customer_status: "under_review" },
+    },
+    {
+      key: "platform_facade_bug",
+      match: /admin shell|alias passthrough|google docs|getdocument|facade|runtime_endpoint_call|schema validation/i,
+      patch: { ticket_type: "platform_tool_surface_bug", source_event: "platform_facade_bug", category: "managed_task", severity: "sev2", queue_key: "platform_engineering", lifecycle_state: "internal_review_required", customer_status: "under_review" },
+    },
+  ];
+  const matched = rules.find((rule) => rule.match.test(text));
+  const patch = matched?.patch || { ticket_type: "general_support", source_event: "general_support", category: row.category || "support", severity: "sev4", queue_key: "tenant_support", lifecycle_state: "triage_pending", customer_status: "under_review" };
+  const needs = {
+    ticket_type: !row.ticket_type,
+    source_event: !row.source_event,
+    queue_key: !row.queue_key,
+    assignment_status: !row.assignment_status || row.assignment_status === "unassigned",
+    lifecycle_state: !row.lifecycle_state || row.lifecycle_state === "intake_received",
+    customer_status: !row.customer_status || row.customer_status === "received",
+    category: !row.category || row.category === "general" || (row.category === "escalation" && patch.category !== "escalation"),
+    severity: !row.severity || row.severity === "sev3",
+  };
+  const should_update = Object.values(needs).some(Boolean);
+  return { matched_rule: matched?.key || "fallback_general_support", patch, needs, should_update, secrets_included: false };
+}
+
+export async function reconcileOpenSupportTickets({ tenant_id = null, limit = 100, apply = false, actor_id = "ticket_reconciler", actor_type = "system" } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  const max = Math.min(Math.max(Number(limit) || 100, 1), 250);
+  const params = [];
+  const filters = ["status IN ('open','in_review','awaiting_approval')"];
+  if (tenant_id) { filters.push("tenant_id = ?"); params.push(tenant_id); }
+  params.push(max);
+  try {
+    if (ownsConnection && apply) await connection.beginTransaction();
+    const rows = await queryRows(
+      connection,
+      `SELECT * FROM tickets WHERE ${filters.join(" AND ")} ORDER BY created_at DESC LIMIT ?`,
+      params
+    );
+    const findings = [];
+    for (const row of rows) {
+      const classification = classifyExistingSupportTicket(row);
+      const patch = classification.patch;
+      const update = {
+        ticket_type: classification.needs.ticket_type ? patch.ticket_type : row.ticket_type,
+        source_event: classification.needs.source_event ? patch.source_event : row.source_event,
+        category: classification.needs.category ? patch.category : row.category,
+        severity: classification.needs.severity ? patch.severity : row.severity,
+        queue_key: classification.needs.queue_key ? patch.queue_key : row.queue_key,
+        lifecycle_state: classification.needs.lifecycle_state ? patch.lifecycle_state : row.lifecycle_state,
+        customer_status: classification.needs.customer_status ? patch.customer_status : row.customer_status,
+        assignment_status: classification.needs.assignment_status && patch.queue_key ? "queue_assigned" : row.assignment_status,
+      };
+      findings.push({ ticket_id: row.ticket_id, tenant_id: row.tenant_id, title: row.title, matched_rule: classification.matched_rule, should_update: classification.should_update, update, secrets_included: false });
+      if (apply && classification.should_update) {
+        await connection.query(
+          `UPDATE tickets
+              SET ticket_type = ?,
+                  source_layer = COALESCE(NULLIF(source_layer, ''), 'legacy_reconciliation'),
+                  source_tool = COALESCE(NULLIF(source_tool, ''), 'support_ticket_reconcile'),
+                  source_event = ?,
+                  category = ?,
+                  severity = ?,
+                  queue_key = ?,
+                  lifecycle_state = ?,
+                  customer_status = ?,
+                  assignment_status = ?,
+                  updated_at = NOW()
+            WHERE ticket_id = ?`,
+          [update.ticket_type, update.source_event, update.category, update.severity, update.queue_key, update.lifecycle_state, update.customer_status, update.assignment_status, row.ticket_id]
+        );
+        await insertLifecycleEvent(connection, {
+          ticket_id: row.ticket_id,
+          tenant_id: row.tenant_id,
+          event_type: "legacy_reconciled",
+          from_state: row.lifecycle_state || null,
+          to_state: update.lifecycle_state || null,
+          actor_id,
+          actor_type,
+          visibility: "internal_support",
+          summary: `Legacy ticket classified by ${classification.matched_rule}.`,
+          payload_json: { matched_rule: classification.matched_rule, update, previous: { ticket_type: row.ticket_type, queue_key: row.queue_key, lifecycle_state: row.lifecycle_state, customer_status: row.customer_status }, secrets_included: false },
+        });
+      }
+    }
+    if (ownsConnection && apply) await connection.commit();
+    return { ok: true, mode: apply ? "apply" : "dry_run", count: findings.length, update_count: findings.filter((finding) => finding.should_update).length, findings, secrets_included: false };
+  } catch (error) {
+    if (ownsConnection && apply) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
 export function _testingTicketClassification() {
   return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES] };
 }

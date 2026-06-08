@@ -7,6 +7,7 @@ import {
   createOrAppendSupportTicket,
   getSupportTicketWithEvents,
   listSupportTicketsForTenant,
+  reconcileOpenSupportTickets,
   transitionSupportTicket,
 } from "../supportTicketService.js";
 
@@ -159,6 +160,21 @@ export function buildSupportTicketRoutes(deps = {}) {
       return res.status(201).json(result);
     } catch (err) {
       return sendError(res, err, "support_ticket_event_append_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/reconcile", ...adminGuards, async (req, res) => {
+    try {
+      const result = await reconcileOpenSupportTickets({
+        tenant_id: req.body?.tenant_id || req.query?.tenant_id || null,
+        limit: req.body?.limit || req.query?.limit || 100,
+        apply: Boolean(req.body?.apply),
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_reconcile_failed");
     }
   });
 
