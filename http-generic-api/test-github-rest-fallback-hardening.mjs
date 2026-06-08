@@ -10,6 +10,8 @@ assert(adminCliRoutes.includes('github_rest_conflict'), 'GitHub REST fallback mu
 assert(adminCliRoutes.includes('github_rest_validation_failed'), 'GitHub REST fallback must classify 422 validation errors');
 assert(adminCliRoutes.includes('/^\\/pulls\\/\\d+\\/update-branch$/'), 'GitHub REST fallback must allow PR update-branch mutations');
 assert(adminCliRoutes.includes('/^\\/pulls\\/\\d+\\/merge$/'), 'GitHub REST fallback must allow PR merge mutations');
+assert(adminCliRoutes.includes('allowedContentsRead'), 'GitHub REST fallback must allow guarded read-only contents path reads');
+assert(adminCliRoutes.includes('/^\\/contents\\/.+/.test(apiTarget)'), 'GitHub REST contents read fallback must be limited to /contents paths');
 assert(adminCliRoutes.includes('githubContentsMutationAllowed'), 'GitHub REST fallback must explicitly gate contents writes');
 assert(adminCliRoutes.includes('assertGithubContentsWritePathAllowed'), 'GitHub REST fallback contents writes must use repo path policy');
 assert(adminCliRoutes.includes('allowedContentsMutation'), 'GitHub REST fallback must include guarded contents mutation support');
