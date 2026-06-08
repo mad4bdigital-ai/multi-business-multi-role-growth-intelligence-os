@@ -111,6 +111,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "243_sprint67_preflight_execution_gate_helper.sql",
   "244_sprint67_preflight_execution_gate_policy_readback_fix.sql",
   "245_sprint67_google_ads_execution_adapter_skeleton.sql",
+  "246_sprint67_google_ads_credential_readiness_gate.sql",
   "219_sprint67_gpt_session_turn_batch_write_tool.sql",
   "236_sprint68_admin_branch_reconciliation_policy.sql",
   "216_sprint67_platform_secret_promotion_monitoring.sql",
