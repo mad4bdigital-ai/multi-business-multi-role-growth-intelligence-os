@@ -915,6 +915,7 @@ async function readOnlyGptSessionContext(pool, subject) {
       active_sessions_before_open: activeCount,
       active_sessions_after_open: activeCount,
       status_written: null,
+      note: "Session Context read-only mode can inspect context without minting a fresh session id; use it before ChatGPT conversation ref capture diagnostics.",
     },
   };
 }
