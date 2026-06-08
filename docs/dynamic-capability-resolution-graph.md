@@ -390,6 +390,16 @@ GitHub contents mutation
 
 The existing repository protections still apply: protected branch blocking, stale/diverged branch guard, path denylist, single-file patch scope, and governed preflight.
 
+## Generic preflight ledger validator
+
+`preflight_ledger_validator_policy_v1` adds the generic validator:
+
+```text
+preflight_ledger_validate --family-key google_ads_budget --preflight-id <id>
+```
+
+The validator checks active registry authority, table allowlist, ready state, optional envelope match, no-provider/no-spend markers, no-secret markers, and `preflight_sha256` against the stored JSON payload. Future execution adapters should call this validator instead of reading family ledgers directly.
+
 ## Dry-run tool
 
 The governed tool is:

@@ -1,5 +1,7 @@
 # Updating Registry Patch Index
 
+> 2026-06-08 preflight ledger validator note: PR adds `preflight_ledger_validator_policy_v1`, table `preflight_ledger_validator_registry`, tool `preflight_ledger_validate`, and migration `242_sprint67_preflight_ledger_validator.sql`. Future execution adapters should validate `preflight_id` through this tool rather than reading family ledgers directly. The validator checks ready state, optional envelope match, no-provider/no-spend/no-secret markers, and payload hash. No execution.
+
 > 2026-06-08 Google Ads preflight ledger note: PR adds `google_ads_budget_preflight_ledger_policy_v1`, table `google_ads_budget_preflight_ledger`, and migration `241_sprint67_google_ads_budget_preflight_ledger.sql`. `google_ads_budget_change_preflight` now records every result with `preflight_id` and `preflight_sha256`; future Google Ads execution adapters must require a ready ledger row before mutation. No provider call, no credential read, no spend change, `secrets_included=false`.
 
 > 2026-06-08 Google Ads budget preflight note: PR adds `google_ads_budget_change_preflight_policy_v1`, tool `google_ads_budget_change_preflight`, and migration `238_sprint67_google_ads_budget_change_preflight.sql`. It requires a ready Google Ads capability envelope and `budget_quota_authority_dry_run=ready_for_dispatch` before any future budget mutation adapter. It is preflight only: no Google Ads provider call, no credential read, no spend change, `secrets_included=false`.
