@@ -1136,7 +1136,13 @@ async function executeGitHubRestFallbackCore(args = []) {
     if (!apiTarget.startsWith("/")) apiTarget = `/${apiTarget}`;
     const method = parseGithubApiMethod(args);
     const fieldValues = parseGithubFieldValues(args);
-    const allowedRead = method === "GET" && (apiTarget.startsWith("/compare/") || apiTarget.startsWith("/pulls") || apiTarget.startsWith("/commits/"));
+    const allowedContentsRead = method === "GET" && /^\/contents\/.+/.test(apiTarget);
+      const allowedRead = method === "GET" && (
+        apiTarget.startsWith("/compare/") ||
+        apiTarget.startsWith("/pulls") ||
+        apiTarget.startsWith("/commits/") ||
+        allowedContentsRead
+      );
     const allowedContentsMutation = githubContentsMutationAllowed(apiTarget, method);
     const allowedBranchRefUpdate = githubBranchRefUpdateAllowed(apiTarget, method);
     if (allowedContentsMutation) assertGithubContentsWritePathAllowed(apiTarget);
@@ -1615,6 +1621,9 @@ function builtInShellAllowlist() {
     capability_resolution_dry_run: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-dry-run.mjs"], display_name: "Dynamic capability resolution dry-run", allow_extra_args: true, max_extra_args: 28, timeout_ms: 120000, built_in: true },
     capability_resolution_simulation_suite: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-simulation-suite.mjs"], display_name: "Dynamic capability resolution simulation suite", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
     capability_resolution_envelope_create: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-create.mjs"], display_name: "Create capability resolution envelope ledger record", allow_extra_args: true, max_extra_args: 32, timeout_ms: 120000, built_in: true },
+    capability_resolution_envelope_approve: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-approve.mjs"], display_name: "Approve capability resolution envelope", allow_extra_args: true, max_extra_args: 12, timeout_ms: 120000, built_in: true },
+    budget_quota_authority_dry_run: { command: process.execPath, args: ["http-generic-api/scripts/budget-quota-authority-dry-run.mjs"], display_name: "Budget and quota authority dry-run", allow_extra_args: true, max_extra_args: 24, timeout_ms: 120000, built_in: true },
+    google_ads_budget_change_preflight: { command: process.execPath, args: ["http-generic-api/scripts/google-ads-budget-change-preflight.mjs"], display_name: "Google Ads budget change preflight", allow_extra_args: true, max_extra_args: 32, timeout_ms: 120000, built_in: true },
     migration_ledger_record_dry_run: {
       command: process.execPath,
       args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--record-ledger", "--dry-run"],

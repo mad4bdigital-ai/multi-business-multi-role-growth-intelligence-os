@@ -492,6 +492,769 @@ export async function getSupportTicketWithEvents({ tenant_id, ticket_id, custome
   return { ticket: compactTicket(ticket), events: eventRows.map((row) => ({ ...row, payload_json: parseJsonObject(row.payload_json, null), secrets_included: false })), secrets_included: false };
 }
 
+function ticketTextForClassification(row = {}) {
+  const metadata = typeof row.metadata_json === "string" ? row.metadata_json : JSON.stringify(row.metadata_json || {});
+  return `${row.title || ""}\n${row.category || ""}\n${row.priority || ""}\n${metadata || ""}`.toLowerCase();
+}
+
+export function classifyExistingSupportTicket(row = {}) {
+  const text = ticketTextForClassification(row);
+  const rules = [
+    {
+      key: "brand_authority_missing",
+      match: /brand[-_\s]?access|brand[-_\s]?mapping|workspace_brands_list|brand list|brand-authority|براند/i,
+      patch: { ticket_type: "brand_authority_missing", source_event: "brand_authority_missing", category: "review_request", severity: "sev3", queue_key: "access_authority", lifecycle_state: "permission_review_required", customer_status: "under_review" },
+    },
+    {
+      key: "hostinger_wordpress_provisioning",
+      match: /hostinger|wordpress|deployment connector|provisioning|wovacation|hpanel/i,
+      patch: { ticket_type: "managed_service_request", source_event: "hostinger_wordpress_provisioning", category: "managed_task", severity: "sev3", queue_key: "managed_services", lifecycle_state: "automation_planned", customer_status: "in_progress" },
+    },
+    {
+      key: "device_install_runtime_bug",
+      match: /localapps|device_install_failed|device installer backend|local_apps|device-install route/i,
+      patch: { ticket_type: "platform_tool_surface_bug", source_event: "device_install_runtime_bug", category: "escalation", severity: "sev2", queue_key: "platform_engineering", lifecycle_state: "internal_review_required", customer_status: "under_review" },
+    },
+    {
+      key: "tenant_onboarding_issue",
+      match: /tenant onboarding|workspace_ready_not_activated|connect_escalate|activate|workspace_required/i,
+      patch: { ticket_type: "tenant_onboarding_issue", source_event: "tenant_onboarding_issue", category: "escalation", severity: "sev3", queue_key: "tenant_support", lifecycle_state: "triage_pending", customer_status: "under_review" },
+    },
+    {
+      key: "platform_facade_bug",
+      match: /admin shell|alias passthrough|google docs|getdocument|facade|runtime_endpoint_call|schema validation/i,
+      patch: { ticket_type: "platform_tool_surface_bug", source_event: "platform_facade_bug", category: "managed_task", severity: "sev2", queue_key: "platform_engineering", lifecycle_state: "internal_review_required", customer_status: "under_review" },
+    },
+  ];
+  const matched = rules.find((rule) => rule.match.test(text));
+  const patch = matched?.patch || { ticket_type: "general_support", source_event: "general_support", category: row.category || "support", severity: "sev4", queue_key: "tenant_support", lifecycle_state: "triage_pending", customer_status: "under_review" };
+  const needs = {
+    ticket_type: !row.ticket_type,
+    source_event: !row.source_event,
+    queue_key: !row.queue_key,
+    assignment_status: !row.assignment_status || row.assignment_status === "unassigned",
+    lifecycle_state: !row.lifecycle_state || row.lifecycle_state === "intake_received",
+    customer_status: !row.customer_status || row.customer_status === "received",
+    category: !row.category || row.category === "general" || (row.category === "escalation" && patch.category !== "escalation"),
+    severity: !row.severity || row.severity === "sev3",
+  };
+  const should_update = Object.values(needs).some(Boolean);
+  return { matched_rule: matched?.key || "fallback_general_support", patch, needs, should_update, secrets_included: false };
+}
+
+export async function reconcileOpenSupportTickets({ tenant_id = null, limit = 100, apply = false, actor_id = "ticket_reconciler", actor_type = "system" } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  const max = Math.min(Math.max(Number(limit) || 100, 1), 250);
+  const params = [];
+  const filters = ["status IN ('open','in_review','awaiting_approval')"];
+  if (tenant_id) { filters.push("tenant_id = ?"); params.push(tenant_id); }
+  params.push(max);
+  try {
+    if (ownsConnection && apply) await connection.beginTransaction();
+    const rows = await queryRows(
+      connection,
+      `SELECT * FROM tickets WHERE ${filters.join(" AND ")} ORDER BY created_at DESC LIMIT ?`,
+      params
+    );
+    const findings = [];
+    for (const row of rows) {
+      const classification = classifyExistingSupportTicket(row);
+      const patch = classification.patch;
+      const update = {
+        ticket_type: classification.needs.ticket_type ? patch.ticket_type : row.ticket_type,
+        source_event: classification.needs.source_event ? patch.source_event : row.source_event,
+        category: classification.needs.category ? patch.category : row.category,
+        severity: classification.needs.severity ? patch.severity : row.severity,
+        queue_key: classification.needs.queue_key ? patch.queue_key : row.queue_key,
+        lifecycle_state: classification.needs.lifecycle_state ? patch.lifecycle_state : row.lifecycle_state,
+        customer_status: classification.needs.customer_status ? patch.customer_status : row.customer_status,
+        assignment_status: classification.needs.assignment_status && patch.queue_key ? "queue_assigned" : row.assignment_status,
+      };
+      findings.push({ ticket_id: row.ticket_id, tenant_id: row.tenant_id, title: row.title, matched_rule: classification.matched_rule, should_update: classification.should_update, update, secrets_included: false });
+      if (apply && classification.should_update) {
+        await connection.query(
+          `UPDATE tickets
+              SET ticket_type = ?,
+                  source_layer = COALESCE(NULLIF(source_layer, ''), 'legacy_reconciliation'),
+                  source_tool = COALESCE(NULLIF(source_tool, ''), 'support_ticket_reconcile'),
+                  source_event = ?,
+                  category = ?,
+                  severity = ?,
+                  queue_key = ?,
+                  lifecycle_state = ?,
+                  customer_status = ?,
+                  assignment_status = ?,
+                  updated_at = NOW()
+            WHERE ticket_id = ?`,
+          [update.ticket_type, update.source_event, update.category, update.severity, update.queue_key, update.lifecycle_state, update.customer_status, update.assignment_status, row.ticket_id]
+        );
+        await insertLifecycleEvent(connection, {
+          ticket_id: row.ticket_id,
+          tenant_id: row.tenant_id,
+          event_type: "legacy_reconciled",
+          from_state: row.lifecycle_state || null,
+          to_state: update.lifecycle_state || null,
+          actor_id,
+          actor_type,
+          visibility: "internal_support",
+          summary: `Legacy ticket classified by ${classification.matched_rule}.`,
+          payload_json: { matched_rule: classification.matched_rule, update, previous: { ticket_type: row.ticket_type, queue_key: row.queue_key, lifecycle_state: row.lifecycle_state, customer_status: row.customer_status }, secrets_included: false },
+        });
+      }
+    }
+    if (ownsConnection && apply) await connection.commit();
+    return { ok: true, mode: apply ? "apply" : "dry_run", count: findings.length, update_count: findings.filter((finding) => finding.should_update).length, findings, secrets_included: false };
+  } catch (error) {
+    if (ownsConnection && apply) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
+export async function linkSupportTicketWorkflow({ tenant_id, ticket_id, plan_id = null, run_id = null, approval_hold_id = null, relationship = "diagnostic", status = "linked", evidence_json = {}, actor_id = null, actor_type = "system" } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  if (!plan_id && !run_id && !approval_hold_id) {
+    const err = new Error("At least one workflow link target is required.");
+    err.status = 400;
+    err.code = "workflow_link_target_required";
+    throw err;
+  }
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const linkId = randomUUID();
+    await connection.query(
+      `INSERT INTO ticket_workflow_links
+         (link_id, ticket_id, tenant_id, plan_id, run_id, approval_hold_id, relationship, status, evidence_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [linkId, ticket_id, tenant_id, plan_id || null, run_id || null, approval_hold_id || null, relationship || "diagnostic", status || "linked", jsonOrNull({ ...evidence_json, secrets_included: false })]
+    );
+    await insertLifecycleEvent(connection, {
+      ticket_id, tenant_id, event_type: approval_hold_id ? "approval_hold_linked" : "workflow_linked",
+      from_state: ticket.lifecycle_state || null, to_state: ticket.lifecycle_state || null,
+      actor_id, actor_type, visibility: "internal_support",
+      summary: `Linked ticket to ${approval_hold_id ? "approval hold" : "workflow artifact"}.`,
+      payload_json: { link_id: linkId, plan_id, run_id, approval_hold_id, relationship, status, evidence_json, secrets_included: false },
+    });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_workflow_linked", after_json: { link_id: linkId, plan_id, run_id, approval_hold_id, relationship, status, secrets_included: false } });
+    if (ownsConnection) await connection.commit();
+    return { ok: true, link_id: linkId, ticket_id, tenant_id, plan_id: plan_id || null, run_id: run_id || null, approval_hold_id: approval_hold_id || null, relationship, status, secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
+export async function createSupportTicketApprovalHold({ tenant_id, ticket_id, hold_type = "review", required_role = "workspace_owner_admin", assigned_to = null, reason = "Approval required for support ticket action.", expires_at = null, actor_id = null, actor_type = "system", evidence_json = {} } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const holdId = randomUUID();
+    const runId = randomUUID();
+    const allowedHoldType = ["review", "supervisor_approval", "managed_handoff", "legal_hold"].includes(hold_type) ? hold_type : "review";
+    await connection.query(
+      `INSERT INTO approval_holds
+         (hold_id, run_id, tenant_id, hold_type, requested_by, user_id, actor_id, actor_type, request_id, correlation_id, execution_context_json, assigned_to, required_role, status, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)`,
+      [holdId, runId, tenant_id, allowedHoldType, actor_id || null, ticket.user_id || null, actor_id || null, actor_type || null, ticket_id, `ticket:${ticket_id}`, jsonOrNull({ ticket_id, reason, evidence_json, customer_status: ticket.customer_status, lifecycle_state: ticket.lifecycle_state, secrets_included: false }), assigned_to || null, required_role || null, expires_at || null]
+    );
+    await connection.query(
+      `UPDATE tickets
+          SET status = 'awaiting_approval', lifecycle_state = 'awaiting_internal_approval', customer_status = 'waiting_for_approval', updated_at = NOW()
+        WHERE tenant_id = ? AND ticket_id = ?`,
+      [tenant_id, ticket_id]
+    );
+    await connection.query(
+      `INSERT INTO ticket_workflow_links
+         (link_id, ticket_id, tenant_id, approval_hold_id, relationship, status, evidence_json)
+       VALUES (?, ?, ?, ?, 'approval_gate', 'linked', ?)`,
+      [randomUUID(), ticket_id, tenant_id, holdId, jsonOrNull({ hold_type: allowedHoldType, required_role, reason, evidence_json, secrets_included: false })]
+    );
+    await insertLifecycleEvent(connection, {
+      ticket_id, tenant_id, event_type: "approval_hold_created", from_state: ticket.lifecycle_state || null, to_state: "awaiting_internal_approval",
+      actor_id, actor_type, visibility: "internal_support", summary: reason,
+      payload_json: { hold_id: holdId, run_id: runId, hold_type: allowedHoldType, required_role, assigned_to, evidence_json, secrets_included: false },
+    });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_approval_hold_created", after_json: { hold_id: holdId, hold_type: allowedHoldType, required_role, assigned_to, secrets_included: false } });
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, hold_id: holdId, run_id: runId, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
+function computeTicketSlaStatus(row = {}, now = new Date()) {
+  if (![...OPEN_TICKET_STATUSES].includes(row.status)) return { status: row.sla_status || "on_track", reason: "ticket_not_open" };
+  const dueFields = ["first_response_due_at", "triage_due_at", "resolution_due_at"];
+  const dueDates = dueFields.map((field) => ({ field, value: row[field] ? new Date(row[field]) : null })).filter((entry) => entry.value && !Number.isNaN(entry.value.getTime()));
+  if (!dueDates.length) return { status: row.sla_status || "on_track", reason: "no_due_dates" };
+  const breached = dueDates.find((entry) => entry.value.getTime() < now.getTime());
+  if (breached) return { status: "breached", reason: `${breached.field}_past_due` };
+  const soon = dueDates.find((entry) => entry.value.getTime() - now.getTime() <= 60 * 60 * 1000);
+  if (soon) return { status: "warning", reason: `${soon.field}_within_60m` };
+  return { status: "on_track", reason: "due_dates_on_track" };
+}
+
+export async function reconcileSupportTicketSla({ tenant_id = null, limit = 100, apply = false, actor_id = "ticket_sla_reconciler", actor_type = "system" } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  const max = Math.min(Math.max(Number(limit) || 100, 1), 250);
+  const params = [];
+  const filters = ["status IN ('open','in_review','awaiting_approval')"];
+  if (tenant_id) { filters.push("tenant_id = ?"); params.push(tenant_id); }
+  params.push(max);
+  try {
+    if (ownsConnection && apply) await connection.beginTransaction();
+    const rows = await queryRows(connection, `SELECT * FROM tickets WHERE ${filters.join(" AND ")} ORDER BY updated_at DESC LIMIT ?`, params);
+    const now = new Date();
+    const findings = [];
+    for (const row of rows) {
+      const computed = computeTicketSlaStatus(row, now);
+      const should_update = computed.status !== (row.sla_status || "on_track");
+      findings.push({ ticket_id: row.ticket_id, tenant_id: row.tenant_id, title: row.title, current_sla_status: row.sla_status || "on_track", computed_sla_status: computed.status, reason: computed.reason, should_update, secrets_included: false });
+      if (apply && should_update) {
+        await connection.query("UPDATE tickets SET sla_status = ?, updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?", [computed.status, row.tenant_id, row.ticket_id]);
+        await insertLifecycleEvent(connection, {
+          ticket_id: row.ticket_id, tenant_id: row.tenant_id, event_type: computed.status === "breached" ? "sla_breached" : "sla_status_changed",
+          from_state: row.sla_status || "on_track", to_state: computed.status,
+          actor_id, actor_type, visibility: "internal_support",
+          summary: `SLA status changed to ${computed.status}: ${computed.reason}.`,
+          payload_json: { reason: computed.reason, previous_sla_status: row.sla_status || "on_track", computed_sla_status: computed.status, secrets_included: false },
+        });
+      }
+    }
+    if (ownsConnection && apply) await connection.commit();
+    return { ok: true, mode: apply ? "apply" : "dry_run", count: findings.length, update_count: findings.filter((finding) => finding.should_update).length, findings, secrets_included: false };
+  } catch (error) {
+    if (ownsConnection && apply) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
+function executionPlanTemplateForTicket(ticket = {}) {
+  const type = ticket.ticket_type || ticket.source_event || "general_support";
+  const templates = {
+    brand_authority_missing: {
+      intent_key: "ticket.brand_authority_diagnostic",
+      workflow_key: "workspace_brand_authority_diagnostic",
+      target_key: "access_authority",
+      route_key: "support_ticket_access_authority_diagnostic",
+      access_decision: "REQUIRE_REVIEW",
+      steps: [
+        { key: "read_workspace_membership", action: "verify requester workspace membership and role" },
+        { key: "read_brand_grants", action: "inspect v_workspace_resource_grant_effective for brand grants" },
+        { key: "read_workspace_assets", action: "inspect workspace_assets.brand_ref for orphaned references" },
+        { key: "recommend_mapping_fix", action: "produce customer-safe mapping recommendation" },
+      ],
+    },
+    hostinger_wordpress_provisioning: {
+      intent_key: "ticket.hostinger_wordpress_provisioning_plan",
+      workflow_key: "managed_hostinger_wordpress_provisioning",
+      target_key: "managed_services",
+      route_key: "support_ticket_managed_hostinger_provisioning",
+      access_decision: "ROUTE_TO_MANAGED_SERVICE",
+      steps: [
+        { key: "verify_site_scope", action: "verify tenant/site authority" },
+        { key: "verify_credentials", action: "verify credential references without exposing secrets" },
+        { key: "prepare_deployment", action: "prepare WordPress installation plan" },
+        { key: "request_approval", action: "create approval hold before destructive/provisioning action" },
+      ],
+    },
+    platform_tool_surface_bug: {
+      intent_key: "ticket.platform_tool_surface_remediation",
+      workflow_key: "platform_tool_surface_bug_remediation",
+      target_key: "platform_engineering",
+      route_key: "support_ticket_platform_engineering_remediation",
+      access_decision: "REQUIRE_REVIEW",
+      steps: [
+        { key: "capture_repro", action: "capture route/tool/schema evidence" },
+        { key: "add_regression", action: "add regression test for tool surface" },
+        { key: "patch_surface", action: "patch governed route or registry surface" },
+        { key: "verify_release", action: "run release readiness and live smoke" },
+      ],
+    },
+    tenant_onboarding_issue: {
+      intent_key: "ticket.tenant_onboarding_diagnostic",
+      workflow_key: "tenant_onboarding_recovery_diagnostic",
+      target_key: "tenant_support",
+      route_key: "support_ticket_tenant_onboarding_diagnostic",
+      access_decision: "REQUIRE_REVIEW",
+      steps: [
+        { key: "read_onboarding_state", action: "inspect onboarding state and workspace readiness" },
+        { key: "verify_membership", action: "verify user membership and workspace access" },
+        { key: "recommend_next_action", action: "recommend activation/device/escalation next action" },
+      ],
+    },
+    general_support: {
+      intent_key: "ticket.general_support_review",
+      workflow_key: "support_ticket_general_review",
+      target_key: "tenant_support",
+      route_key: "support_ticket_general_review",
+      access_decision: "REQUIRE_REVIEW",
+      steps: [
+        { key: "review_ticket", action: "review ticket evidence" },
+        { key: "recommend_next_action", action: "recommend customer-safe next action" },
+      ],
+    },
+  };
+  return templates[type] || templates[ticket.source_event] || templates.general_support;
+}
+
+export async function createSupportTicketExecutionPlan({ tenant_id, ticket_id, workflow_key = null, intent_key = null, target_key = null, route_key = null, service_mode = "managed", access_decision = null, steps_json = null, preview_json = null, actor_id = null, actor_type = "system", reason = "Execution plan created from support ticket.", evidence_json = {} } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const template = executionPlanTemplateForTicket(ticket);
+    const planId = randomUUID();
+    const finalWorkflowKey = workflow_key || template.workflow_key;
+    const finalIntentKey = intent_key || template.intent_key;
+    const finalTargetKey = target_key || template.target_key;
+    const finalRouteKey = route_key || template.route_key;
+    const finalAccessDecision = access_decision || template.access_decision || "REQUIRE_REVIEW";
+    const finalSteps = steps_json || template.steps || [];
+    const finalPreview = preview_json || {
+      ticket_id,
+      ticket_type: ticket.ticket_type || null,
+      source_event: ticket.source_event || null,
+      queue_key: ticket.queue_key || null,
+      reason,
+      evidence_json,
+      secrets_included: false,
+    };
+    await connection.query(
+      `INSERT INTO execution_plans
+         (plan_id, tenant_id, user_id, actor_id, actor_type, intent_key, request_id, correlation_id, execution_context_json, target_key, workflow_key, route_key, service_mode, access_decision, plan_status, steps_json, preview_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)`,
+      [planId, tenant_id, ticket.user_id || null, actor_id || null, actor_type || null, finalIntentKey, ticket_id, `ticket:${ticket_id}`, jsonOrNull({ ticket_id, source: "support_ticket", ticket_type: ticket.ticket_type, lifecycle_state: ticket.lifecycle_state, customer_status: ticket.customer_status, evidence_json, secrets_included: false }), finalTargetKey, finalWorkflowKey, finalRouteKey, service_mode || ticket.service_mode || "managed", finalAccessDecision, jsonOrNull(finalSteps), jsonOrNull(finalPreview)]
+    );
+    await connection.query(
+      `INSERT INTO ticket_workflow_links
+         (link_id, ticket_id, tenant_id, plan_id, relationship, status, evidence_json)
+       VALUES (?, ?, ?, ?, 'execution_plan', 'linked', ?)`,
+      [randomUUID(), ticket_id, tenant_id, planId, jsonOrNull({ workflow_key: finalWorkflowKey, intent_key: finalIntentKey, route_key: finalRouteKey, target_key: finalTargetKey, reason, evidence_json, secrets_included: false })]
+    );
+    await connection.query(
+      `UPDATE tickets
+          SET lifecycle_state = CASE WHEN lifecycle_state IN ('triage_pending','automation_planned','permission_review_required','internal_review_required') THEN 'automation_planned' ELSE lifecycle_state END,
+              customer_status = CASE WHEN customer_status IN ('received','under_review') THEN 'in_progress' ELSE customer_status END,
+              updated_at = NOW()
+        WHERE tenant_id = ? AND ticket_id = ?`,
+      [tenant_id, ticket_id]
+    );
+    await insertLifecycleEvent(connection, {
+      ticket_id,
+      tenant_id,
+      event_type: "execution_plan_created",
+      from_state: ticket.lifecycle_state || null,
+      to_state: ticket.lifecycle_state === "awaiting_internal_approval" ? ticket.lifecycle_state : "automation_planned",
+      actor_id,
+      actor_type,
+      visibility: "internal_support",
+      summary: reason,
+      payload_json: { plan_id: planId, workflow_key: finalWorkflowKey, intent_key: finalIntentKey, target_key: finalTargetKey, route_key: finalRouteKey, access_decision: finalAccessDecision, secrets_included: false },
+    });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_execution_plan_created", after_json: { plan_id: planId, workflow_key: finalWorkflowKey, intent_key: finalIntentKey, target_key: finalTargetKey, access_decision: finalAccessDecision, secrets_included: false } });
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, plan_id: planId, workflow_key: finalWorkflowKey, intent_key: finalIntentKey, target_key: finalTargetKey, route_key: finalRouteKey, access_decision: finalAccessDecision, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
+async function resolveTicketExecutionPlan(connection, { tenant_id, ticket_id, plan_id = null }) {
+  if (plan_id) {
+    const plan = await queryOne(connection, "SELECT * FROM execution_plans WHERE tenant_id = ? AND plan_id = ? LIMIT 1", [tenant_id, plan_id]);
+    if (plan) return plan;
+  }
+  const linked = await queryOne(
+    connection,
+    `SELECT ep.*
+       FROM ticket_workflow_links twl
+       JOIN execution_plans ep ON ep.plan_id = twl.plan_id AND ep.tenant_id = twl.tenant_id
+      WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.plan_id IS NOT NULL
+      ORDER BY twl.created_at DESC
+      LIMIT 1`,
+    [tenant_id, ticket_id]
+  );
+  if (linked) return linked;
+  return await queryOne(
+    connection,
+    "SELECT * FROM execution_plans WHERE tenant_id = ? AND request_id = ? ORDER BY created_at DESC LIMIT 1",
+    [tenant_id, ticket_id]
+  );
+}
+
+function ticketStateFromRuntime({ run = null, plan = null, hold = null } = {}) {
+  if (hold?.status === "open") return { status: "awaiting_approval", lifecycle_state: "awaiting_internal_approval", customer_status: "waiting_for_approval", reason: "approval_hold_open" };
+  if (hold?.status === "rejected") return { status: "in_review", lifecycle_state: "blocked", customer_status: "under_review", reason: "approval_hold_rejected" };
+  if (run?.status === "completed" || plan?.plan_status === "completed") return { status: "resolved", lifecycle_state: "verified", customer_status: "resolved", reason: "workflow_completed" };
+  if (run?.status === "failed" || plan?.plan_status === "failed") return { status: "in_review", lifecycle_state: "verification_failed", customer_status: "under_review", reason: "workflow_failed" };
+  if (run?.status === "cancelled" || plan?.plan_status === "cancelled") return { status: "closed", lifecycle_state: "cancelled", customer_status: "closed", reason: "workflow_cancelled" };
+  if (["running", "pending"].includes(run?.status) || plan?.plan_status === "executing") return { status: "in_review", lifecycle_state: "automation_running", customer_status: "in_progress", reason: "workflow_running" };
+  if (plan?.plan_status === "approved") return { status: "in_review", lifecycle_state: "automation_planned", customer_status: "in_progress", reason: "plan_approved" };
+  return { status: null, lifecycle_state: null, customer_status: null, reason: "no_runtime_status_change" };
+}
+
+export async function createSupportTicketWorkflowRun({ tenant_id, ticket_id, plan_id = null, status = "pending", current_step = null, input_json = null, actor_id = null, actor_type = "system", reason = "Workflow run created from support ticket execution plan.", evidence_json = {} } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  const validStatus = ["pending", "running", "awaiting_approval", "awaiting_review", "paused"].includes(status) ? status : "pending";
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const plan = await resolveTicketExecutionPlan(connection, { tenant_id, ticket_id, plan_id });
+    if (!plan) {
+      const err = new Error("Execution plan not found for ticket.");
+      err.status = 404;
+      err.code = "support_ticket_execution_plan_not_found";
+      throw err;
+    }
+    const runId = randomUUID();
+    const finalInput = input_json || {
+      ticket_id,
+      plan_id: plan.plan_id,
+      workflow_key: plan.workflow_key,
+      intent_key: plan.intent_key,
+      source: "support_ticket_workflow_run",
+      evidence_json,
+      secrets_included: false,
+    };
+    await connection.query(
+      `INSERT INTO workflow_runs
+         (run_id, tenant_id, user_id, actor_id, actor_type, request_id, correlation_id, execution_context_json, workflow_key, agent_id, plan_id, service_mode, status, current_step, input_json, started_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'running' THEN NOW() ELSE NULL END)`,
+      [runId, tenant_id, ticket.user_id || plan.user_id || null, actor_id || null, actor_type || null, ticket_id, `ticket:${ticket_id}`, jsonOrNull({ ticket_id, plan_id: plan.plan_id, source: "support_ticket", reason, evidence_json, secrets_included: false }), plan.workflow_key, plan.agent_id || null, plan.plan_id, plan.service_mode || ticket.service_mode || "managed", validStatus, current_step || null, jsonOrNull(finalInput), validStatus]
+    );
+    await connection.query("UPDATE execution_plans SET plan_status = 'executing', updated_at = NOW() WHERE tenant_id = ? AND plan_id = ?", [tenant_id, plan.plan_id]);
+    await connection.query(
+      `INSERT INTO ticket_workflow_links
+         (link_id, ticket_id, tenant_id, plan_id, run_id, relationship, status, evidence_json)
+       VALUES (?, ?, ?, ?, ?, 'workflow_run', 'linked', ?)`,
+      [randomUUID(), ticket_id, tenant_id, plan.plan_id, runId, jsonOrNull({ workflow_key: plan.workflow_key, status: validStatus, reason, evidence_json, secrets_included: false })]
+    );
+    const runtimeState = ticketStateFromRuntime({ run: { status: validStatus }, plan: { plan_status: "executing" } });
+    await connection.query(
+      `UPDATE tickets
+          SET status = COALESCE(?, status), lifecycle_state = COALESCE(?, lifecycle_state), customer_status = COALESCE(?, customer_status), updated_at = NOW()
+        WHERE tenant_id = ? AND ticket_id = ?`,
+      [runtimeState.status, runtimeState.lifecycle_state, runtimeState.customer_status, tenant_id, ticket_id]
+    );
+    await insertLifecycleEvent(connection, {
+      ticket_id,
+      tenant_id,
+      event_type: "workflow_run_created",
+      from_state: ticket.lifecycle_state || null,
+      to_state: runtimeState.lifecycle_state || ticket.lifecycle_state || null,
+      actor_id,
+      actor_type,
+      visibility: "internal_support",
+      summary: reason,
+      payload_json: { run_id: runId, plan_id: plan.plan_id, workflow_key: plan.workflow_key, status: validStatus, runtime_state: runtimeState, secrets_included: false },
+    });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_workflow_run_created", after_json: { run_id: runId, plan_id: plan.plan_id, workflow_key: plan.workflow_key, status: validStatus, secrets_included: false } });
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, run_id: runId, plan_id: plan.plan_id, workflow_key: plan.workflow_key, status: validStatus, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
+export async function syncSupportTicketRuntimeStatus({ tenant_id, ticket_id, run_id = null, plan_id = null, approval_hold_id = null, actor_id = null, actor_type = "system", reason = "Runtime status synchronized to support ticket." } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const run = run_id
+      ? await queryOne(connection, "SELECT * FROM workflow_runs WHERE tenant_id = ? AND run_id = ? LIMIT 1", [tenant_id, run_id])
+      : await queryOne(connection, `SELECT wr.* FROM ticket_workflow_links twl JOIN workflow_runs wr ON wr.run_id = twl.run_id AND wr.tenant_id = twl.tenant_id WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.run_id IS NOT NULL ORDER BY twl.created_at DESC LIMIT 1`, [tenant_id, ticket_id]);
+    const plan = plan_id
+      ? await queryOne(connection, "SELECT * FROM execution_plans WHERE tenant_id = ? AND plan_id = ? LIMIT 1", [tenant_id, plan_id])
+      : run?.plan_id ? await queryOne(connection, "SELECT * FROM execution_plans WHERE tenant_id = ? AND plan_id = ? LIMIT 1", [tenant_id, run.plan_id]) : await resolveTicketExecutionPlan(connection, { tenant_id, ticket_id });
+    const hold = approval_hold_id
+      ? await queryOne(connection, "SELECT * FROM approval_holds WHERE tenant_id = ? AND hold_id = ? LIMIT 1", [tenant_id, approval_hold_id])
+      : await queryOne(connection, `SELECT ah.* FROM ticket_workflow_links twl JOIN approval_holds ah ON ah.hold_id = twl.approval_hold_id AND ah.tenant_id = twl.tenant_id WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.approval_hold_id IS NOT NULL ORDER BY twl.created_at DESC LIMIT 1`, [tenant_id, ticket_id]);
+    const next = ticketStateFromRuntime({ run, plan, hold });
+    const changed = Boolean(next.status || next.lifecycle_state || next.customer_status) && (next.status !== ticket.status || next.lifecycle_state !== ticket.lifecycle_state || next.customer_status !== ticket.customer_status);
+    if (changed) {
+      await connection.query(
+        `UPDATE tickets SET status = COALESCE(?, status), lifecycle_state = COALESCE(?, lifecycle_state), customer_status = COALESCE(?, customer_status), updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?`,
+        [next.status, next.lifecycle_state, next.customer_status, tenant_id, ticket_id]
+      );
+      await insertLifecycleEvent(connection, {
+        ticket_id,
+        tenant_id,
+        event_type: "runtime_status_synced",
+        from_state: ticket.lifecycle_state || null,
+        to_state: next.lifecycle_state || null,
+        actor_id,
+        actor_type,
+        visibility: "internal_support",
+        summary: `${reason} (${next.reason})`,
+        payload_json: { reason: next.reason, run_id: run?.run_id || null, run_status: run?.status || null, plan_id: plan?.plan_id || null, plan_status: plan?.plan_status || null, approval_hold_id: hold?.hold_id || null, approval_status: hold?.status || null, secrets_included: false },
+      });
+      await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_runtime_status_synced", after_json: { next, run_id: run?.run_id || null, plan_id: plan?.plan_id || null, approval_hold_id: hold?.hold_id || null, secrets_included: false } });
+    }
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, changed, reason: next.reason, run: run ? { run_id: run.run_id, status: run.status } : null, plan: plan ? { plan_id: plan.plan_id, plan_status: plan.plan_status } : null, approval_hold: hold ? { hold_id: hold.hold_id, status: hold.status } : null, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
+function normalizePlanSteps(stepsJson) {
+  const parsed = parseJsonObject(stepsJson, []);
+  if (!Array.isArray(parsed)) return [];
+  return parsed.map((step, index) => ({
+    key: normalizeString(step?.key || step?.step_key || `step_${index + 1}`).slice(0, 128),
+    action: normalizeString(step?.action || step?.description || step?.label || "Execute step"),
+    type: ["action", "review", "approval", "managed_op", "branch", "wait", "end"].includes(step?.type) ? step.type : "action",
+    index,
+    raw: sanitizeTicketMetadata(step),
+  })).filter((step) => step.key);
+}
+
+function workflowStateFromSteps({ run = null, stepRows = [] } = {}) {
+  const total = stepRows.length;
+  const failed = stepRows.find((row) => row.status === "failed");
+  if (failed) return { run_status: "failed", plan_status: "failed", ticket_status: "in_review", lifecycle_state: "verification_failed", customer_status: "under_review", current_step: failed.step_key, reason: "step_failed" };
+  const running = stepRows.find((row) => row.status === "running");
+  if (running) return { run_status: "running", plan_status: "executing", ticket_status: "in_review", lifecycle_state: "automation_running", customer_status: "in_progress", current_step: running.step_key, reason: "step_running" };
+  const awaiting = stepRows.find((row) => row.status === "awaiting");
+  if (awaiting) return { run_status: "awaiting_review", plan_status: "executing", ticket_status: "in_review", lifecycle_state: "awaiting_internal_approval", customer_status: "waiting_for_approval", current_step: awaiting.step_key, reason: "step_awaiting" };
+  const pending = stepRows.find((row) => row.status === "pending");
+  if (pending) return { run_status: run?.status === "running" ? "running" : "pending", plan_status: "executing", ticket_status: "in_review", lifecycle_state: "automation_running", customer_status: "in_progress", current_step: pending.step_key, reason: "step_pending" };
+  if (total > 0 && stepRows.every((row) => ["completed", "skipped"].includes(row.status))) return { run_status: "completed", plan_status: "completed", ticket_status: "resolved", lifecycle_state: "verified", customer_status: "resolved", current_step: null, reason: "all_steps_completed" };
+  return { run_status: run?.status || "pending", plan_status: null, ticket_status: null, lifecycle_state: null, customer_status: null, current_step: run?.current_step || null, reason: "no_steps" };
+}
+
+export async function createSupportTicketStepRuns({ tenant_id, ticket_id, run_id = null, plan_id = null, actor_id = null, actor_type = "system", reason = "Step runs created from support ticket workflow run.", evidence_json = {} } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const run = run_id
+      ? await queryOne(connection, "SELECT * FROM workflow_runs WHERE tenant_id = ? AND run_id = ? LIMIT 1", [tenant_id, run_id])
+      : await queryOne(connection, `SELECT wr.* FROM ticket_workflow_links twl JOIN workflow_runs wr ON wr.run_id = twl.run_id AND wr.tenant_id = twl.tenant_id WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.run_id IS NOT NULL ORDER BY twl.created_at DESC LIMIT 1`, [tenant_id, ticket_id]);
+    if (!run) {
+      const err = new Error("Workflow run not found for ticket.");
+      err.status = 404;
+      err.code = "support_ticket_workflow_run_not_found";
+      throw err;
+    }
+    const plan = plan_id
+      ? await queryOne(connection, "SELECT * FROM execution_plans WHERE tenant_id = ? AND plan_id = ? LIMIT 1", [tenant_id, plan_id])
+      : run.plan_id ? await queryOne(connection, "SELECT * FROM execution_plans WHERE tenant_id = ? AND plan_id = ? LIMIT 1", [tenant_id, run.plan_id]) : await resolveTicketExecutionPlan(connection, { tenant_id, ticket_id });
+    if (!plan) {
+      const err = new Error("Execution plan not found for workflow run.");
+      err.status = 404;
+      err.code = "support_ticket_execution_plan_not_found";
+      throw err;
+    }
+    const steps = normalizePlanSteps(plan.steps_json);
+    if (!steps.length) {
+      const err = new Error("Execution plan has no steps to create.");
+      err.status = 400;
+      err.code = "support_ticket_plan_steps_missing";
+      throw err;
+    }
+    const existing = await queryRows(connection, "SELECT step_key FROM step_runs WHERE tenant_id = ? AND run_id = ?", [tenant_id, run.run_id]);
+    const existingKeys = new Set(existing.map((row) => row.step_key));
+    const created = [];
+    for (const step of steps) {
+      if (existingKeys.has(step.key)) continue;
+      const stepRunId = randomUUID();
+      await connection.query(
+        `INSERT INTO step_runs
+           (step_run_id, run_id, user_id, actor_id, actor_type, request_id, correlation_id, execution_context_json, tenant_id, step_key, step_type, status, input_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+        [stepRunId, run.run_id, ticket.user_id || run.user_id || null, actor_id || null, actor_type || null, ticket_id, `ticket:${ticket_id}`, jsonOrNull({ ticket_id, plan_id: plan.plan_id, run_id: run.run_id, step, source: "support_ticket_step_runs", evidence_json, secrets_included: false }), tenant_id, step.key, step.type, jsonOrNull({ action: step.action, step_index: step.index, step: step.raw, secrets_included: false })]
+      );
+      created.push({ step_run_id: stepRunId, step_key: step.key, step_type: step.type, status: "pending" });
+    }
+    const firstStep = created[0]?.step_key || steps[0]?.key || null;
+    await connection.query("UPDATE workflow_runs SET status = 'running', current_step = COALESCE(current_step, ?), started_at = COALESCE(started_at, NOW()), updated_at = NOW() WHERE tenant_id = ? AND run_id = ?", [firstStep, tenant_id, run.run_id]);
+    await connection.query("UPDATE execution_plans SET plan_status = 'executing', updated_at = NOW() WHERE tenant_id = ? AND plan_id = ?", [tenant_id, plan.plan_id]);
+    await connection.query("UPDATE tickets SET status = 'in_review', lifecycle_state = 'automation_running', customer_status = 'in_progress', updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?", [tenant_id, ticket_id]);
+    await insertLifecycleEvent(connection, {
+      ticket_id,
+      tenant_id,
+      event_type: "step_runs_created",
+      from_state: ticket.lifecycle_state || null,
+      to_state: "automation_running",
+      actor_id,
+      actor_type,
+      visibility: "internal_support",
+      summary: reason,
+      payload_json: { run_id: run.run_id, plan_id: plan.plan_id, created_count: created.length, step_keys: created.map((step) => step.step_key), evidence_json, secrets_included: false },
+    });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_step_runs_created", after_json: { run_id: run.run_id, plan_id: plan.plan_id, created_count: created.length, secrets_included: false } });
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, run_id: run.run_id, plan_id: plan.plan_id, created_count: created.length, steps: created, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
+export async function updateSupportTicketStepRun({ tenant_id, ticket_id, step_run_id = null, run_id = null, step_key = null, status, output_json = null, error_message = null, actor_id = null, actor_type = "system", reason = "Step run status updated." } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  const validStatus = ["pending", "running", "completed", "failed", "skipped", "awaiting"].includes(status) ? status : null;
+  if (!validStatus) {
+    const err = new Error("Valid step status is required.");
+    err.status = 400;
+    err.code = "support_ticket_step_status_invalid";
+    throw err;
+  }
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const params = [tenant_id];
+    const filters = ["tenant_id = ?"];
+    if (step_run_id) { filters.push("step_run_id = ?"); params.push(step_run_id); }
+    else {
+      if (run_id) { filters.push("run_id = ?"); params.push(run_id); }
+      if (step_key) { filters.push("step_key = ?"); params.push(step_key); }
+    }
+    const stepRun = await queryOne(connection, `SELECT * FROM step_runs WHERE ${filters.join(" AND ")} ORDER BY created_at DESC LIMIT 1`, params);
+    if (!stepRun) {
+      const err = new Error("Step run not found.");
+      err.status = 404;
+      err.code = "support_ticket_step_run_not_found";
+      throw err;
+    }
+    await connection.query(
+      `UPDATE step_runs
+          SET status = ?, output_json = COALESCE(?, output_json), error_message = ?,
+              started_at = CASE WHEN ? = 'running' THEN COALESCE(started_at, NOW()) ELSE started_at END,
+              completed_at = CASE WHEN ? IN ('completed','failed','skipped') THEN NOW() ELSE completed_at END
+        WHERE tenant_id = ? AND step_run_id = ?`,
+      [validStatus, jsonOrNull(output_json), error_message || null, validStatus, validStatus, tenant_id, stepRun.step_run_id]
+    );
+    const run = await queryOne(connection, "SELECT * FROM workflow_runs WHERE tenant_id = ? AND run_id = ? LIMIT 1", [tenant_id, stepRun.run_id]);
+    const stepRows = await queryRows(connection, "SELECT * FROM step_runs WHERE tenant_id = ? AND run_id = ? ORDER BY created_at ASC", [tenant_id, stepRun.run_id]);
+    const mergedRows = stepRows.map((row) => row.step_run_id === stepRun.step_run_id ? { ...row, status: validStatus } : row);
+    const next = workflowStateFromSteps({ run, stepRows: mergedRows });
+    await connection.query(
+      `UPDATE workflow_runs
+          SET status = ?, current_step = ?, completed_at = CASE WHEN ? IN ('completed','failed','cancelled') THEN NOW() ELSE completed_at END, updated_at = NOW()
+        WHERE tenant_id = ? AND run_id = ?`,
+      [next.run_status, next.current_step || null, next.run_status, tenant_id, stepRun.run_id]
+    );
+    if (run?.plan_id && next.plan_status) {
+      await connection.query("UPDATE execution_plans SET plan_status = ?, updated_at = NOW() WHERE tenant_id = ? AND plan_id = ?", [next.plan_status, tenant_id, run.plan_id]);
+    }
+    await connection.query(
+      `UPDATE tickets SET status = COALESCE(?, status), lifecycle_state = COALESCE(?, lifecycle_state), customer_status = COALESCE(?, customer_status), updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?`,
+      [next.ticket_status, next.lifecycle_state, next.customer_status, tenant_id, ticket_id]
+    );
+    await insertLifecycleEvent(connection, {
+      ticket_id,
+      tenant_id,
+      event_type: "step_run_updated",
+      from_state: ticket.lifecycle_state || null,
+      to_state: next.lifecycle_state || ticket.lifecycle_state || null,
+      actor_id,
+      actor_type,
+      visibility: "internal_support",
+      summary: reason,
+      payload_json: { step_run_id: stepRun.step_run_id, step_key: stepRun.step_key, step_status: validStatus, run_id: stepRun.run_id, runtime_state: next, output_json, error_message, secrets_included: false },
+    });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_step_run_updated", after_json: { step_run_id: stepRun.step_run_id, step_key: stepRun.step_key, status: validStatus, run_id: stepRun.run_id, runtime_state: next, secrets_included: false } });
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, step_run_id: stepRun.step_run_id, step_key: stepRun.step_key, status: validStatus, run_id: stepRun.run_id, runtime_state: next, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
 export function _testingTicketClassification() {
-  return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES] };
+  return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus, executionPlanTemplateForTicket, ticketStateFromRuntime, normalizePlanSteps, workflowStateFromSteps };
 }

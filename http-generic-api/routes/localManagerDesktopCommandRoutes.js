@@ -3,7 +3,7 @@ import { Router } from "express";
 import { getPool } from "../db.js";
 import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkService.js";
 
-const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_manager", "codex_exec_readonly"]);
+const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_manager", "codex_exec_readonly", "capture_chatgpt_current_url"]);
 const ALLOWED_MODES = new Set(["desktop", "background"]);
 const ALL_ZERO_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 
@@ -79,6 +79,20 @@ function normalizePayload(action, payload = {}) {
   if (action === "notify") {
     clean.title = cleanText(clean.title || "Mad4B", 120) || "Mad4B";
     clean.message = cleanText(clean.message || "", 1000);
+  }
+  if (action === "capture_chatgpt_current_url") {
+    clean.session_id = cleanText(clean.session_id || clean.gpt_session_id || clean.current_session_id, 128);
+    clean.capture_endpoint = cleanText(clean.capture_endpoint || (clean.session_id ? `/gpt/sessions/${clean.session_id}/conversation-ref/capture-current` : ""), 256);
+    clean.expected_host = cleanText(clean.expected_host || "chatgpt.com", 128);
+    clean.expected_path_markers = uniqueStrings(clean.expected_path_markers || ["/g/", "/c/", "/share/"], 10);
+    clean.source = cleanText(clean.source || "local_connector", 64);
+    clean.instructions = cleanText(clean.instructions || "Capture the active ChatGPT conversation URL and return it as current_url; do not return page content, cookies, tokens, or secrets.", 1000);
+    if (!clean.session_id) {
+      const err = new Error("capture_chatgpt_current_url requires session_id from activation_session_context.current_session_id.");
+      err.status = 400;
+      err.code = "chatgpt_capture_session_required";
+      throw err;
+    }
   }
   if (action === "codex_exec_readonly") {
     clean.runtime_key = cleanText(clean.runtime_key || "codex_essam_chatgpt_v1", 128);
