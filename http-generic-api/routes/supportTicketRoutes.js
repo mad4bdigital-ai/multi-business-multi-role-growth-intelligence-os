@@ -417,12 +417,13 @@ export function buildSupportTicketRoutes(deps = {}) {
     try {
       const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
       if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const trustedBrandRef = await requireTrustedBrandRefForRemediation({ tenant_id: tenantId, ticket_id: req.params.ticket_id, body: req.body || {} });
       const result = await applySupportTicketBrandMappingRemediation({
         tenant_id: tenantId,
         ticket_id: req.params.ticket_id,
         approval_hold_id: req.body?.approval_hold_id || null,
-        brand_ref: req.body?.brand_ref || null,
-        brand_refs: req.body?.brand_refs || null,
+        brand_ref: trustedBrandRef.brand_ref,
+        brand_refs: trustedBrandRef.brand_refs,
         permission: req.body?.permission || "manage",
         dry_run: Boolean(req.body?.dry_run),
         actor_id: req.auth?.user_id || "admin_system",
