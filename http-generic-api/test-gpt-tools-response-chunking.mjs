@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT,
   inspectRepoReadOnly,
