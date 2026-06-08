@@ -680,6 +680,77 @@ function auditGithubFallbackCapabilityRepair({ args = [], result = null, error =
   });
 }
 
+export function buildLocalConnectorTunnelProvisioningContinuationEvidence({
+  userId = "",
+  deviceId = "",
+  tunnelStatus = null,
+  cfTunnelId = null,
+  tunnelUrl = null,
+  configSource = "missing",
+} = {}) {
+  const normalizedUserId = String(userId || "").trim();
+  const normalizedDeviceId = String(deviceId || "").trim() || "unknown-device";
+  const resourceState = {
+    user_id: normalizedUserId || null,
+    device_id: normalizedDeviceId,
+    cf_tunnel_id: cfTunnelId || null,
+    tunnel_url: tunnelUrl || "https://connector.mad4b.com",
+    tunnel_status: tunnelStatus || null,
+    config_source: configSource || "missing",
+    db_cf_token_present: false,
+    env_tunnel_token_present: false,
+    provisioning_required: true,
+    required_next_action: "provision_tunnel_token",
+    retry_after: "store_cf_token_or_set_CLOUDFLARE_TUNNEL_TOKEN_then_retry_self_repair",
+  };
+  const checkpoint = createContinuationCheckpoint({
+    operation_key: `local_connector_self_repair:${normalizedDeviceId}`,
+    resource_type: "local_connector_tunnel_provisioning",
+    actor_context: { actor_type: "admin" },
+    resource_scope: {
+      scope_type: "device",
+      provider: "cloudflare",
+      user_id: normalizedUserId || null,
+      device_id: normalizedDeviceId,
+    },
+    resource_state: resourceState,
+    interruption_signal: "connector_tunnel_provisioning_required",
+    stage: "dry_run_repair",
+    metadata: {
+      adapter: "local_connector_self_repair",
+      required_next_action: "provision_tunnel_token",
+      retry_route: "POST /admin/cli/local-connector/self-repair",
+      install_bundle_route: "GET /admin/cli/local-connector/install-bundle",
+      secrets_included: false,
+    },
+  });
+  const resumePlan = planContinuationResume({
+    checkpoint,
+    actor_context: { actor_type: "admin" },
+    resource_scope: checkpoint.resource_scope,
+    current_resource_state: { ...resourceState, resume_probe: "token_still_missing" },
+    dry_run_result: { ok: false, reason_code: "tunnel_token_not_provisioned" },
+    verify_result: { ok: false, reason_code: "connector_tunnel_token_missing" },
+    apply_requested: false,
+  });
+  return {
+    checkpoint,
+    resume_plan: {
+      ...resumePlan,
+      resume_allowed: false,
+      next_required_step: "provision_tunnel_token",
+      apply_allowed: false,
+    },
+    provisioning: {
+      required: true,
+      required_next_action: "provision_tunnel_token",
+      accepted_sources: ["local_connector_user_configs.cf_token", "CLOUDFLARE_TUNNEL_TOKEN"],
+      retry_after: "store_cf_token_or_set_CLOUDFLARE_TUNNEL_TOKEN_then_retry_self_repair",
+    },
+    secrets_included: false,
+  };
+}
+
 function buildGithubFallbackUnsupportedError(args = []) {
   const err = new Error("gh CLI is missing and GitHub REST fallback does not yet support these arguments after governed capability repair checks.");
   err.status = 501;
@@ -2336,15 +2407,48 @@ export function buildAdminCliRoutes(deps) {
         }
       }
 
-      // 3. Generate install bundle
+      // 3. Generate install bundle, or return a resumable provisioning handoff.
       if (!tunnelToken) {
-        return res.status(404).json({
+        const continuation = buildLocalConnectorTunnelProvisioningContinuationEvidence({
+          userId,
+          deviceId,
+          tunnelStatus,
+          cfTunnelId,
+          tunnelUrl,
+          configSource,
+        });
+        writeAuditLogAsync({
+          action: "admin_cli.local_connector_self_repair.provisioning_required",
+          resource_type: "local_connector_tunnel_provisioning",
+          resource_id: deviceId,
+          payload: {
+            user_id: userId,
+            device_id: deviceId,
+            tunnel_status: tunnelStatus,
+            cf_tunnel_id: cfTunnelId,
+            config_source: configSource,
+            interruption_signal: "connector_tunnel_provisioning_required",
+            required_next_action: "provision_tunnel_token",
+            continuation,
+            secrets_included: false,
+          },
+        });
+        return res.status(409).json({
           ok: false,
-          diagnosis: { error: "no_tunnel_token", tunnel_status: tunnelStatus },
+          diagnosis: {
+            error: "no_tunnel_token",
+            tunnel_status: tunnelStatus,
+            cf_tunnel_id: cfTunnelId,
+            config_source: configSource,
+            interruption_signal: "connector_tunnel_provisioning_required",
+            required_next_action: "provision_tunnel_token",
+          },
+          continuation,
           error: {
-            code: "config_not_found",
-            message: `No cf_token in DB for user=${userId} device=${deviceId} and CLOUDFLARE_TUNNEL_TOKEN env not set. Run POST /local-connector/install to provision the device first.`,
-          }
+            code: "connector_tunnel_provisioning_required",
+            message: `No cf_token in DB for user=${userId} device=${deviceId} and CLOUDFLARE_TUNNEL_TOKEN env not set. Provision the tunnel token, then retry POST /admin/cli/local-connector/self-repair.`,
+          },
+          secrets_included: false,
         });
       }
 

@@ -92,6 +92,16 @@ For the GitHub admin-control fallback, `gh` absence must not produce an opaque f
 
 Mapped REST fallbacks may proceed after the evidence is attached. Unsupported REST fallback gaps must return the continuation evidence and remain blocked from direct resume until a mapped capability or manual governed route is added.
 
+### Local connector tunnel token missing
+
+Use the local connector provisioning adapter when `connector.mad4b.com` returns HTTP 530/1033 and `POST /admin/cli/local-connector/self-repair` cannot find either `local_connector_user_configs.cf_token` or `CLOUDFLARE_TUNNEL_TOKEN`.
+
+1. Return a 409 `connector_tunnel_provisioning_required` response, not a dead-end 404.
+2. Include a shared reconciliation `continuation.checkpoint` scoped to the device.
+3. Include `provisioning.required_next_action: provision_tunnel_token` and accepted provisioning sources.
+4. Do not include `cf_token`, `connector_secret`, `CLOUDFLARE_TUNNEL_TOKEN`, `BACKEND_API_KEY`, or any raw credential in the response or audit payload.
+5. After token provisioning, retry self-repair, verify connector health in the same cycle, audit, then resume the original operation.
+
 ### Credential intake or approval pause
 
 Use the existing credential/approval continuation pattern. When the user completes the intake or approval, refetch the stored status, reconcile scope, verify no secrets are returned, then resume.

@@ -1,5 +1,11 @@
 import fs from "node:fs";
-import { handleEnvControl, handleWindowsAppControl, parseArgs, requireAdminPrincipal } from "./routes/adminCliRoutes.js";
+import {
+  buildLocalConnectorTunnelProvisioningContinuationEvidence,
+  handleEnvControl,
+  handleWindowsAppControl,
+  parseArgs,
+  requireAdminPrincipal,
+} from "./routes/adminCliRoutes.js";
 import { inspectRepoReadOnly } from "./routes/gptToolsRoutes.js";
 
 let passed = 0;
@@ -31,6 +37,25 @@ try {
   assert("local connector JSON responses expose sanitized Drive handoff status",
     adminCliSource.includes("drive_upload_status") && adminCliSource.includes("sanitizeDriveUploadError"),
     "responses should distinguish uploaded, failed, and unconfigured Drive handoffs without exposing installer content");
+  assert("local connector missing tunnel token returns continuation handoff",
+    adminCliSource.includes("buildLocalConnectorTunnelProvisioningContinuationEvidence") &&
+    adminCliSource.includes("connector_tunnel_provisioning_required") &&
+    adminCliSource.includes("required_next_action: \"provision_tunnel_token\"") &&
+    adminCliSource.includes("continuation") &&
+    adminCliSource.includes("secrets_included: false"),
+    "missing cf_token/CLOUDFLARE_TUNNEL_TOKEN should be resumable and must not be a dead-end 404");
+  const localConnectorMigrationName = "233_sprint68_local_connector_tunnel_provisioning_continuation_policy.sql";
+  const localConnectorMigration = fs.readFileSync(new URL(`./migrations/${localConnectorMigrationName}`, import.meta.url), "utf8");
+  const migrationRunnerSource = fs.readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
+  const releaseReadinessSource = fs.readFileSync(new URL("./releaseReadiness.js", import.meta.url), "utf8");
+  assert("local connector provisioning migration registers blocking policy",
+    localConnectorMigration.includes("Local Connector Tunnel Provisioning Continuation Contract") &&
+    localConnectorMigration.includes("connector_tunnel_provisioning_required") &&
+    localConnectorMigration.includes("return_dead_end_404_for_no_tunnel_token") &&
+    localConnectorMigration.includes("secrets_included',false") &&
+    migrationRunnerSource.includes(localConnectorMigrationName) &&
+    releaseReadinessSource.includes(localConnectorMigrationName),
+    "migration 233 must be allowlisted and tracked in release readiness");
   assert("github admin control falls back to REST when gh is missing",
     adminCliSource.includes("executeGitHubRestFallback") &&
     adminCliSource.includes("gh CLI is not installed on host; used GitHub REST fallback") &&
@@ -126,6 +151,26 @@ try {
   } catch (error) {
     assert("repo inspect blocks secret paths", ["repo_path_blocked", "repo_file_blocked"].includes(error.code), error.message);
   }
+
+  const connectorContinuation = buildLocalConnectorTunnelProvisioningContinuationEvidence({
+    userId: "00000000-0000-4000-a000-000000000002",
+    deviceId: "Essam",
+    tunnelStatus: null,
+    cfTunnelId: null,
+    tunnelUrl: null,
+    configSource: "env",
+  });
+  assert("local connector continuation uses shared reconciliation engine",
+    connectorContinuation.checkpoint.engine === "shared-reconciliation-continuation-v1" &&
+    connectorContinuation.checkpoint.interruption_signal === "connector_tunnel_provisioning_required" &&
+    connectorContinuation.checkpoint.resource_scope.scope_type === "device" &&
+    connectorContinuation.resume_plan.next_required_step === "provision_tunnel_token" &&
+    connectorContinuation.provisioning.required_next_action === "provision_tunnel_token",
+    JSON.stringify(connectorContinuation));
+  assert("local connector continuation excludes secrets",
+    connectorContinuation.secrets_included === false &&
+    connectorContinuation.checkpoint.secrets_included === false,
+    JSON.stringify(connectorContinuation));
 
   assert("parseArgs preserves array entries", JSON.stringify(parseArgs(["a", "b c"])) === JSON.stringify(["a", "b c"]));
   assert("parseArgs splits simple strings", JSON.stringify(parseArgs("repo list")) === JSON.stringify(["repo", "list"]));

@@ -35,6 +35,7 @@ For each change, update at least one of the following, depending on scope:
 | Deployment or CI behavior | `deployment_parity_checklist.md` |
 | Shared reconciliation / continuation behavior | `http-generic-api/docs/shared-reconciliation-continuation-runbook.md`, `Updating Registry Patch Index.md`, `deployment_parity_checklist.md` |
 | Chunked tool response continuation behavior | `http-generic-api/openapi.yaml`, `AI_Agent_Knowledge_Guide.md`, `Updating Registry Patch Index.md`, and `deployment_parity_checklist.md` when `response_chunk_read` behavior or policy changes |
+| Local connector recovery / tunnel provisioning behavior | `http-generic-api/openapi.yaml`, `AI_Agent_Knowledge_Guide.md`, `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, and relevant admin-control tests when HTTP 530/1033/self-repair behavior changes |
 | GitHub fallback / capability repair behavior | `http-generic-api/openapi.yaml`, relevant admin-control tests, and the shared reconciliation runbook when fallback now emits continuation checkpoints or repair-attempt evidence |
 | Agent operating rule | `AI_Agent_Knowledge_Guide.md` when safe, or a dedicated `docs/*` runbook linked from checklist docs |
 
