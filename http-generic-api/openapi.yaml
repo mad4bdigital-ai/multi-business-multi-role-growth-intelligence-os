@@ -6551,7 +6551,7 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listAdminTools
       summary: List admin platform tools from the governed registry
-      description: "Returns paginated admin platform tools from the registry plus virtual admin tools. Use limit/cursor/q/tag for bounded discovery. If response_chunked=true or page.has_more=true on any governed tool response, call response_chunk_read with chunk_id and next_cursor until exhausted before using search/slice/local/external fallback surfaces. Virtual admin tools include admin_branch_reconcile for no-secret branch drift diagnosis and plan-only reconciliation checkpoints."
+      description: "Returns paginated admin platform tools from the registry plus virtual admin tools. Use limit/cursor/q/tag for bounded discovery. If response_chunked=true or page.has_more=true on any governed tool response, call response_chunk_read with chunk_id and next_cursor until exhausted before using search/slice/local/external fallback surfaces. Virtual admin tools include admin_branch_reconcile for no-secret branch drift diagnosis and plan-only reconciliation checkpoints, plus github_branch_fast_forward_to_base for capability-envelope-gated behind_only no-force ref updates."
       x-runtime-governance:
         admin_branch_reconcile_continuation:
           policy: admin_branch_reconcile_continuation_contract
@@ -6562,6 +6562,20 @@ paths:
           github_ref_update_force: false
           requires_confirmation_for_future_apply: RECONCILE_BRANCH_<BRANCH_SLUG>
           shared_reconciliation_checkpoint: true
+          secrets_included: false
+        github_branch_fast_forward_to_base:
+          policy: capability_envelope_gated_ref_update
+          virtual_tool: github_branch_fast_forward_to_base
+          adapter: runGithubBranchFastForwardToBase
+          recipe_key: github.branch.fast_forward_to_base
+          requires_prior_dry_run_tool: admin_branch_reconcile
+          requires_expected_base_sha: true
+          requires_expected_branch_sha: true
+          applies_only_when_classification: behind_only
+          requires_capability_envelope: true
+          requires_confirmation: RECONCILE_BRANCH_<BRANCH_SLUG>
+          github_ref_update_force: false
+          requires_same_cycle_readback: true
           secrets_included: false
         chunked_tool_response_continuation:
           policy: chunk_read_before_alternative_surface
