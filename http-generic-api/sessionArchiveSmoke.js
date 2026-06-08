@@ -124,6 +124,12 @@ export async function runSessionArchiveSmoke({
     turnIndex: 0,
     injectedDeps: archiveDeps,
   });
+  if (forceDocRollover && effectiveDocRolloverChars) {
+    await pool.query(
+      "UPDATE `customer_sessions` SET drive_doc_rollover_threshold_chars = ? WHERE session_id = ?",
+      [effectiveDocRolloverChars, sessionId]
+    ).catch(() => {});
+  }
   const [sessionAfterFirstTurnRows] = await pool.query("SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1", [sessionId]);
   const sessionAfterFirstTurn = sessionAfterFirstTurnRows[0] || session;
   const secondTurn = await recordGptSessionTurn({
