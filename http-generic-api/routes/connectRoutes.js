@@ -21,6 +21,7 @@ import {
   upsertTenantIntegrationPolicies,
 } from "../hybridIntegrationPolicy.js";
 import { resolveActivationGraphContext } from "../activationGraphContext.js";
+import { createOrAppendSupportTicket } from "../supportTicketService.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECT_STATIC = join(__dirname, "../public/connect");
