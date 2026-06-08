@@ -750,9 +750,18 @@ export async function closeGptSessionArchive({ pool, session, summary = null, in
     }
     const archiveResult = await ensureSessionArchive(pool, session, deps);
     if (archiveResult.configured && summary) {
+      const summarySection = ["", "## Session Summary", "", String(summary), ""].join("\n");
+      archiveResult.archive = await maybeRolloverTranscriptDoc({
+        pool,
+        session,
+        archive: archiveResult.archive,
+        deps,
+        sectionText: summarySection,
+        timestamp: deps.now().toISOString(),
+      });
       await deps.appendTextToGoogleDoc(
         archiveResult.archive.drive_doc_id,
-        ["", "## Session Summary", "", String(summary), ""].join("\n")
+        summarySection
       );
     }
     if (archiveResult.configured) {
