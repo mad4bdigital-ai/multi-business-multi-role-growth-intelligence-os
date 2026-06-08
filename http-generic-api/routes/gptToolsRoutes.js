@@ -265,6 +265,33 @@ const VIRTUAL_ADMIN_TOOLS = [
 
 const REPO_PATCH_MAX_BYTES = 1_000_000; // 1 MiB upper bound for new content
 
+async function requireRepoPatchCapabilityEnvelope({ args = {}, ctx = {}, owner = "", repo = "", branch = "", defaultBranch = "", filePath = "", action = "" } = {}) {
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: getPool(),
+    source: args,
+    acceptedAppKeys: ["github"],
+    acceptedIntents: ["repo_patch_apply", "repo_mutation", "github_repo_patch", "write", "create", "delete", action].filter(Boolean),
+    expectedTenantId: ctx?.auth?.tenant_id || PLATFORM_TENANT_ID,
+    expectedUserId: ctx?.auth?.user_id || "",
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "Repository patch apply requires a valid capability resolution envelope before GitHub mutation.");
+  }
+  await markCapabilityEnvelopeReferenced({ pool: getPool(), envelopeId: resolved.envelope_id, executionRef: `repo_patch_apply:${action || "mutation"}` });
+  return {
+    ...resolved,
+    repo_patch_context: {
+      owner,
+      repo,
+      branch,
+      default_branch: defaultBranch,
+      path: filePath,
+      action,
+      secrets_included: false,
+    },
+  };
+}
+
 function resolveCallerType(req) {
   if (req.auth?.mode === "backend_api_key" || req.auth?.is_admin === true) return "admin";
   return "tenant";
