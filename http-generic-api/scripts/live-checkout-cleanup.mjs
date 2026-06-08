@@ -142,8 +142,8 @@ function applyCleanup(report, args) {
       git(["update-index", "--refresh", "--", report.path], { encoding: "utf8" });
     } catch (error) {
       if (!report.normalized_lf_equal) throw error;
-      git(["checkout", "--", report.path], { encoding: "utf8" });
-      return { ...report, applied: true, fallback_strategy: "git_checkout_after_refresh_warning", after_status: statusFor(report.path), secrets_included: false };
+      git(["checkout", "HEAD", "--", report.path], { encoding: "utf8" });
+      return { ...report, applied: true, fallback_strategy: "git_checkout_head_after_refresh_warning", after_status: statusFor(report.path), secrets_included: false };
     }
   } else if (report.clean_strategy === "git_checkout_restore_eol_only") {
     git(["checkout", "--", report.path], { encoding: "utf8" });
