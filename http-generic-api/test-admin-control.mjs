@@ -1,5 +1,11 @@
 import fs from "node:fs";
-import { handleEnvControl, handleWindowsAppControl, parseArgs, requireAdminPrincipal } from "./routes/adminCliRoutes.js";
+import {
+  buildLocalConnectorTunnelProvisioningContinuationEvidence,
+  handleEnvControl,
+  handleWindowsAppControl,
+  parseArgs,
+  requireAdminPrincipal,
+} from "./routes/adminCliRoutes.js";
 import { inspectRepoReadOnly } from "./routes/gptToolsRoutes.js";
 
 let passed = 0;
