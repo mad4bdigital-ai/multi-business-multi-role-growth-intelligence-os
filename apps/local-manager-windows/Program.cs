@@ -1346,6 +1346,78 @@ internal static class Program
             }
         }
 
+        private async Task CaptureChatGptCurrentUrlCommandAsync(HttpClient client, string token, string commandId, JsonElement payload)
+        {
+            var action = "capture_chatgpt_current_url";
+            var sessionId = JsonValue(payload, "session_id");
+            var captureEndpoint = JsonValue(payload, "capture_endpoint");
+            var source = JsonValue(payload, "source", "local_connector");
+            var clipboardText = "";
+            try { if (Clipboard.ContainsText()) clipboardText = Clipboard.GetText(); } catch { }
+            var initialUrl = LooksLikeChatGptConversationUrl(clipboardText) ? clipboardText : "";
+            var currentUrl = PromptForChatGptUrl(initialUrl);
+            if (string.IsNullOrWhiteSpace(currentUrl)) throw new InvalidOperationException("No ChatGPT conversation URL was captured.");
+            if (!LooksLikeChatGptConversationUrl(currentUrl)) throw new InvalidOperationException("Captured URL must be a chatgpt.com conversation or share URL.");
+            await CompleteDesktopCommandAsync(client, token, commandId, true, new
+            {
+                action,
+                current_url = currentUrl,
+                session_id = sessionId,
+                capture_endpoint = captureEndpoint,
+                source,
+                next_tool = "gpt_session_conversation_ref_capture_current",
+                handled_by = "local_manager_windows",
+                visible_desktop = true,
+                page_content_included = false,
+                cookies_included = false,
+                secrets_included = false
+            });
+        }
+
+        private static bool LooksLikeChatGptConversationUrl(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return false;
+            if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)) return false;
+            if (!string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase) && !string.Equals(uri.Scheme, "http", StringComparison.OrdinalIgnoreCase)) return false;
+            if (!uri.Host.EndsWith("chatgpt.com", StringComparison.OrdinalIgnoreCase)) return false;
+            var path = uri.AbsolutePath;
+            return path.StartsWith("/share/", StringComparison.OrdinalIgnoreCase)
+                || path.Contains("/c/", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/c/", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string PromptForChatGptUrl(string initialValue = "")
+        {
+            using var form = new Form
+            {
+                Text = "Capture ChatGPT conversation URL",
+                StartPosition = FormStartPosition.CenterScreen,
+                Size = new Size(720, 220),
+                TopMost = true,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MinimizeBox = false,
+                MaximizeBox = false
+            };
+            var label = new Label
+            {
+                Text = "Paste the current ChatGPT conversation or share URL. No page content, cookies, or tokens are captured.",
+                Location = new Point(18, 18),
+                Size = new Size(660, 42)
+            };
+            var input = new TextBox
+            {
+                Text = initialValue,
+                Location = new Point(18, 70),
+                Size = new Size(660, 30)
+            };
+            var ok = new Button { Text = "Capture", DialogResult = DialogResult.OK, Location = new Point(478, 120), Size = new Size(95, 34) };
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(585, 120), Size = new Size(95, 34) };
+            form.Controls.AddRange(new Control[] { label, input, ok, cancel });
+            form.AcceptButton = ok;
+            form.CancelButton = cancel;
+            return form.ShowDialog() == DialogResult.OK ? input.Text.Trim() : "";
+        }
+
         private async Task ExecuteCodexReadOnlyCommandAsync(HttpClient client, string token, string commandId, JsonElement payload)
         {
             var action = "codex_exec_readonly";
