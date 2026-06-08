@@ -2543,7 +2543,7 @@ export function buildAdminCliRoutes(deps) {
       }
 
       const batContent = generateConnectorInstallerBat(tunnelToken, backendKey);
-      const filename   = `repair-connector-${deviceId}-${new Date().toISOString().slice(0,10)}.bat`;
+      const filename   = `repair-connector-${resolvedDeviceId}-${new Date().toISOString().slice(0,10)}.bat`;
       let driveResult  = null;
       let driveUploadStatus = typeof deps.getGoogleClients === "function" ? "attempted" : "not_configured";
       let driveError = null;
