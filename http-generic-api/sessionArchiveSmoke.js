@@ -209,7 +209,7 @@ export async function runSessionArchiveSmoke({
 
   const checks = [
     check("session_created", Boolean(sessionId), { session_id: sessionId }),
-    check("turn_writes_ready", firstTurn.archive_status === "ready" && secondTurn.archive_status === "ready"),
+    check("turn_writes_ready", firstTurn.archive_status === "ready" && secondTurn.archive_status === "ready" && thirdTurn.archive_status === "ready"),
     check("archive_closed", closeResult.archive_status === "closed" && archivedSession.archive_status === "closed"),
     check("drive_doc_pointer", Boolean(archivedSession.drive_doc_id)),
     check("drive_jsonl_pointer", Boolean(archivedSession.drive_jsonl_id)),
