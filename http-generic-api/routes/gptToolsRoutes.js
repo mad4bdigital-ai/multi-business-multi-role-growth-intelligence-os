@@ -292,6 +292,18 @@ function buildToolResponseChunk({ serialized, chunkId, cursor, maxChars, source 
     response_chunked: true,
     chunk_id: chunkId,
     source,
+    continuation_required: end < serialized.length,
+    continuation: {
+      policy: CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT.policy,
+      required_tool: CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT.required_tool,
+      required_before_fallback: end < serialized.length,
+      next_call: end < serialized.length ? {
+        name: "response_chunk_read",
+        tool_args: { chunk_id: chunkId, cursor: end, max_chars: maxChars },
+      } : null,
+      fallback_allowed_only_after: CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT.fallback_allowed_only_after,
+      secrets_included: false,
+    },
     page: {
       cursor: safeCursor,
       next_cursor: end < serialized.length ? end : null,
