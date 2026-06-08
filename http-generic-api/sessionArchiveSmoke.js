@@ -97,7 +97,7 @@ export async function runSessionArchiveSmoke({
     JSON.stringify({ marker, log: `${longPrefix}${longPrefix}tool result ${marker}` }, null, 2),
   ].join("\n");
   const effectiveDocRolloverChars = Number(docRolloverChars) > 0 ? Math.floor(Number(docRolloverChars)) : null;
-  const archiveDeps = { subfolderHint: smokeSubfolder, ...(effectiveDocRolloverChars ? { docRolloverChars: effectiveDocRolloverChars } : {}), ...injectedArchiveDeps };
+  const archiveDeps = { subfolderHint: smokeSubfolder, ...(!forceDocRollover && effectiveDocRolloverChars ? { docRolloverChars: effectiveDocRolloverChars } : {}), ...injectedArchiveDeps };
 
   await pool.query(
     `INSERT INTO \`customer_sessions\`
