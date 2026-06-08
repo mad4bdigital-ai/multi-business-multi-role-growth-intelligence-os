@@ -1,5 +1,7 @@
 # Updating Registry Patch Index
 
+> 2026-06-08 Google Ads budget preflight note: PR adds `google_ads_budget_change_preflight_policy_v1`, tool `google_ads_budget_change_preflight`, and migration `238_sprint67_google_ads_budget_change_preflight.sql`. It requires a ready Google Ads capability envelope and `budget_quota_authority_dry_run=ready_for_dispatch` before any future budget mutation adapter. It is preflight only: no Google Ads provider call, no credential read, no spend change, `secrets_included=false`.
+
 > 2026-06-08 budget/quota authority note: PR adds `budget_quota_authority_registry_policy_v1`, table `budget_quota_authority_registry`, tool `budget_quota_authority_dry_run`, and migration `236_sprint67_budget_quota_authority_registry.sql`. It is dry-run only, blocks missing/exceeded spend authority, routes approval-required spend through envelope approval, and includes no provider spend or connector forwarding. `secrets_included=false`.
 
 > 2026-06-08 repo patch capability envelope note: PR adds `repo_patch_apply_capability_envelope_requirement_v1` and migration `234_sprint67_repo_patch_capability_envelope_requirement.sql`. `repo_patch_apply` requires `capability_envelope_id` before GitHub App token resolution; `repo_inspect` remains read-only and ungated. Runtime order: input/path validation, protected branch guard, capability envelope guard, GitHub App token resolution, stale/diverged branch preflight, then contents mutation. SQL safety: policy/runtime-config seed only, no destructive SQL, `secrets_included=false`.
