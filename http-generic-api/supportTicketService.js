@@ -1541,6 +1541,128 @@ export async function runSupportTicketDiagnosticChain({ tenant_id, ticket_id, ru
   }
 }
 
+function normalizeBrandGrantTargets({ brand_ref = null, brand_refs = null } = {}) {
+  const raw = Array.isArray(brand_refs) ? brand_refs : brand_ref ? [brand_ref] : [];
+  return [...new Set(raw.map((ref) => normalizeString(ref).trim()).filter(Boolean))].slice(0, 25);
+}
+
+export async function applySupportTicketBrandMappingRemediation({ tenant_id, ticket_id, approval_hold_id = null, brand_ref = null, brand_refs = null, permission = "manage", dry_run = false, actor_id = null, actor_type = "system", reason = "Approved brand mapping remediation applied." } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  const validPermission = ["owner", "admin", "manage", "operate", "edit", "comment", "view"].includes(permission) ? permission : "manage";
+  try {
+    if (ownsConnection && !dry_run) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const hold = approval_hold_id
+      ? await queryOne(connection, "SELECT * FROM approval_holds WHERE tenant_id = ? AND hold_id = ? LIMIT 1", [tenant_id, approval_hold_id])
+      : await queryOne(connection, `SELECT ah.* FROM ticket_workflow_links twl JOIN approval_holds ah ON ah.hold_id = twl.approval_hold_id AND ah.tenant_id = twl.tenant_id WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.approval_hold_id IS NOT NULL ORDER BY ah.created_at DESC LIMIT 1`, [tenant_id, ticket_id]);
+    if (!hold) {
+      const err = new Error("Approval hold not found for ticket remediation.");
+      err.status = 404;
+      err.code = "support_ticket_approval_hold_not_found";
+      throw err;
+    }
+    if (!dry_run && hold.status !== "approved") {
+      const err = new Error("Approval hold must be approved before applying brand mapping remediation.");
+      err.status = 409;
+      err.code = "support_ticket_remediation_requires_approved_hold";
+      throw err;
+    }
+    const targets = normalizeBrandGrantTargets({ brand_ref, brand_refs });
+    if (!targets.length) {
+      const assetRefs = await queryRows(connection, "SELECT DISTINCT brand_ref FROM workspace_assets WHERE tenant_id = ? AND brand_ref IS NOT NULL AND brand_ref <> '' ORDER BY brand_ref LIMIT 25", [tenant_id]);
+      for (const row of assetRefs) targets.push(row.brand_ref);
+    }
+    if (!targets.length) {
+      const err = new Error("At least one brand_ref is required because no workspace asset brand_ref could be inferred.");
+      err.status = 400;
+      err.code = "support_ticket_brand_ref_required";
+      throw err;
+    }
+    const granteeUserId = ticket.user_id || hold.user_id || null;
+    if (!granteeUserId) {
+      const err = new Error("Ticket user_id is required to apply brand mapping remediation.");
+      err.status = 400;
+      err.code = "support_ticket_grantee_user_required";
+      throw err;
+    }
+    const membership = await queryOne(connection, "SELECT user_id, tenant_id, role, status FROM memberships WHERE tenant_id = ? AND user_id = ? AND status = 'active' LIMIT 1", [tenant_id, granteeUserId]);
+    if (!membership) {
+      const err = new Error("Active membership is required before applying brand grant remediation.");
+      err.status = 409;
+      err.code = "support_ticket_active_membership_required";
+      throw err;
+    }
+    const grantResults = [];
+    for (const target of targets) {
+      const existing = await queryOne(
+        connection,
+        "SELECT grant_id, status, permission FROM workspace_resource_grants WHERE tenant_id = ? AND grantee_user_id = ? AND resource_type = 'brand' AND resource_ref = ? AND permission = ? AND status = 'active' LIMIT 1",
+        [tenant_id, granteeUserId, target, validPermission]
+      );
+      if (existing) {
+        grantResults.push({ brand_ref: target, grant_id: existing.grant_id, action: "existing", permission: existing.permission, secrets_included: false });
+        continue;
+      }
+      const grantId = randomUUID();
+      grantResults.push({ brand_ref: target, grant_id: grantId, action: dry_run ? "would_create" : "created", permission: validPermission, secrets_included: false });
+      if (!dry_run) {
+        await connection.query(
+          `INSERT INTO workspace_resource_grants
+             (grant_id, tenant_id, grantee_user_id, resource_type, resource_ref, permission, status, source, granted_by, metadata_json)
+           VALUES (?, ?, ?, 'brand', ?, ?, 'active', 'admin_repair', ?, ?)`,
+          [grantId, tenant_id, granteeUserId, target, validPermission, actor_id || hold.decision_by || null, jsonOrNull({ ticket_id, approval_hold_id: hold.hold_id, reason, source: "support_ticket_brand_mapping_remediation", secrets_included: false })]
+        );
+      }
+    }
+    const verification = await queryRows(
+      connection,
+      `SELECT grant_id, tenant_id, grantee_user_id, resource_type, resource_ref, permission, grant_status, source, granted_by, granted_at
+         FROM v_workspace_resource_grant_effective
+        WHERE tenant_id = ? AND grantee_user_id = ? AND resource_type = 'brand'
+        ORDER BY granted_at DESC
+        LIMIT 50`,
+      [tenant_id, granteeUserId]
+    );
+    if (!dry_run) {
+      await connection.query(
+        `UPDATE tickets
+            SET status = 'in_review', lifecycle_state = 'verification_pending', customer_status = 'under_review', updated_at = NOW()
+          WHERE tenant_id = ? AND ticket_id = ?`,
+        [tenant_id, ticket_id]
+      );
+      await insertLifecycleEvent(connection, {
+        ticket_id,
+        tenant_id,
+        event_type: "brand_mapping_remediation_applied",
+        from_state: ticket.lifecycle_state || null,
+        to_state: "verification_pending",
+        actor_id,
+        actor_type,
+        visibility: "internal_support",
+        summary: reason,
+        payload_json: { approval_hold_id: hold.hold_id, grantee_user_id: granteeUserId, grants: grantResults, verification_count: verification.length, secrets_included: false },
+      });
+      await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_brand_mapping_remediation_applied", after_json: { approval_hold_id: hold.hold_id, grantee_user_id: granteeUserId, grants: grantResults, verification_count: verification.length, secrets_included: false } });
+    }
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection && !dry_run) await connection.commit();
+    return { ok: true, mode: dry_run ? "dry_run" : "apply", ticket_id, tenant_id, approval_hold_id: hold.hold_id, grantee_user_id: granteeUserId, grant_count: grantResults.length, grants: grantResults, verification_count: verification.length, verification, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) {
+    if (ownsConnection && !dry_run) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
+  }
+}
+
 export function _testingTicketClassification() {
-  return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus, executionPlanTemplateForTicket, ticketStateFromRuntime, normalizePlanSteps, workflowStateFromSteps, buildDiagnosticStepOutput };
+  return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus, executionPlanTemplateForTicket, ticketStateFromRuntime, normalizePlanSteps, workflowStateFromSteps, buildDiagnosticStepOutput, normalizeBrandGrantTargets };
 }
