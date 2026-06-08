@@ -374,6 +374,25 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.post("/admin/support/tickets/:ticket_id/brand-ref-resolution", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await resolveSupportTicketBrandRefs({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        user_id: req.body?.user_id || null,
+        brand_ref: req.body?.brand_ref || null,
+        brand_refs: req.body?.brand_refs || null,
+        min_confidence: req.body?.min_confidence || 70,
+        limit: req.body?.limit || 25,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_brand_ref_resolution_failed");
+    }
+  });
+
   router.post("/admin/support/tickets/:ticket_id/brand-mapping-remediation", ...adminGuards, async (req, res) => {
     try {
       const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
