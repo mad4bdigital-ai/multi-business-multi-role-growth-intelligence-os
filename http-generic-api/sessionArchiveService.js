@@ -163,6 +163,67 @@ async function appendJsonlLine(archive, line, deps) {
   await deps.updateDriveFileContent(archive.drive_jsonl_id, next, "application/x-ndjson");
 }
 
+function previewDocSection(value = "", limit = TOOL_DOC_SECTION_PREVIEW_CHARS) {
+  const text = String(value || "").trim();
+  if (text.length <= limit) return text;
+  return `${text.slice(0, limit)}...[truncated; full content in JSONL sidecar]`;
+}
+
+function extractArchiveSection(text = "", sectionName = "") {
+  const marker = `${sectionName}:\n`;
+  const start = String(text || "").indexOf(marker);
+  if (start === -1) return "";
+  const bodyStart = start + marker.length;
+  const tail = String(text || "").slice(bodyStart);
+  const next = tail.search(/\n\n(?:Args|Result):\n/);
+  return (next === -1 ? tail : tail.slice(0, next)).trim();
+}
+
+function firstPrefixedLine(text = "", prefix = "") {
+  return String(text || "")
+    .split(/\r?\n/)
+    .find((line) => line.startsWith(prefix))
+    ?.slice(prefix.length)
+    .trim() || "";
+}
+
+function buildToolCallDocSummary({ content, actionKey, contentHash }) {
+  const text = String(content || "");
+  const toolName = firstPrefixedLine(text, "Tool:") || actionKey || "unknown";
+  const status = firstPrefixedLine(text, "Status:") || "unknown";
+  const argsPreview = previewDocSection(extractArchiveSection(text, "Args"));
+  const resultPreview = previewDocSection(extractArchiveSection(text, "Result"));
+  return [
+    "### Tool Call Summary",
+    "",
+    `Tool: ${toolName}`,
+    `Action key: ${actionKey || toolName}`,
+    `Status: ${status}`,
+    "Full content: JSONL sidecar",
+    `Content SHA256: ${contentHash}`,
+    "",
+    argsPreview ? "Args preview:" : null,
+    argsPreview ? "```json" : null,
+    argsPreview || null,
+    argsPreview ? "```" : null,
+    argsPreview ? "" : null,
+    resultPreview ? "Result preview:" : null,
+    resultPreview ? "```json" : null,
+    resultPreview || null,
+    resultPreview ? "```" : null,
+    "",
+  ].filter((line) => line !== null).join("\n");
+}
+
+function buildDocContentForTurn({ role, content, actionKey, contentHash }) {
+  if (role === "tool") return buildToolCallDocSummary({ content, actionKey, contentHash });
+  return String(content || "");
+}
+
+function docContentModeForRole(role) {
+  return role === "tool" ? "summary_only" : "full_turn_text";
+}
+
 function buildRuntimeEvent({
   eventId,
   sessionId,
