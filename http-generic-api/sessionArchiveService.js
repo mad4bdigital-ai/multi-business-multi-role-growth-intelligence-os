@@ -257,9 +257,12 @@ function buildRuntimeEvent({
 }
 
 function buildTranscriptSection({ role, content, turnIndex, timestamp, runtimeEvent }) {
+  const bookmark = runtimeEvent?.bookmark || `turn-${turnIndex}`;
   return [
     "",
     `## Turn ${turnIndex} - ${String(role).toUpperCase()} - ${timestamp}`,
+    "",
+    `Bookmark: ${bookmark}`,
     "",
     String(content || ""),
     "",
