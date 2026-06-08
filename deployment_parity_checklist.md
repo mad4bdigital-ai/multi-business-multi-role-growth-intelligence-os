@@ -1,6 +1,8 @@
 # Deployment Parity Checklist
 **Authority document - run before and after every deployment**
 
+> Google Ads preflight ledger parity note: verify `google_ads_budget_preflight_ledger_policy_v1`, table `google_ads_budget_preflight_ledger`, and `google_ads_budget_change_preflight` ledger writes after migration `241_sprint67_google_ads_budget_preflight_ledger.sql`. Smoke should return `preflight_recorded=true`, `preflight_id`, `preflight_sha256`, `no_provider_call=true`, `no_spend_change=true`, and `secrets_included=false`.
+
 > Google Ads budget preflight parity note: verify `google_ads_budget_change_preflight_policy_v1` and tool `google_ads_budget_change_preflight` read back active after migration `238_sprint67_google_ads_budget_change_preflight.sql`. The preflight must require a ready Google Ads capability envelope plus budget/quota authority and must not read credentials, call Google Ads, or mutate spend.
 
 > Budget/quota authority parity note: verify `budget_quota_authority_registry_policy_v1`, table `budget_quota_authority_registry`, and tool `budget_quota_authority_dry_run` read back active after migration `236_sprint67_budget_quota_authority_registry.sql`. The dry-run must not call providers or connectors, and `secrets_included=false`.
