@@ -317,6 +317,28 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "github_branch_fast_forward_to_base",
+    displayName: "GitHub Branch Fast Forward To Base",
+    description: "Guarded mutation recipe for behind_only work branches. Requires a prior admin_branch_reconcile dry-run, matching expected base/branch SHAs, capability envelope approval, typed RECONCILE_BRANCH_<BRANCH_SLUG> confirmation, no-force GitHub ref update, and same-cycle readback.",
+    method: "VIRTUAL",
+    path: "internal://github-branch-fast-forward-to-base",
+    tags: ["repo", "reconciliation", "mutation", "capability_envelope", "no_force"],
+    inputSchema: {
+      type: "object",
+      required: ["branch", "expected_base_sha", "expected_branch_sha", "confirm", "capability_envelope_id"],
+      properties: {
+        branch: { type: "string", description: "Governed non-production work branch previously classified as behind_only." },
+        default_branch: { type: "string", default: "main" },
+        owner: { type: "string", description: "Optional GitHub owner override; defaults to activation bootstrap." },
+        repo: { type: "string", description: "Optional GitHub repo override; defaults to activation bootstrap." },
+        expected_base_sha: { type: "string", description: "Base SHA from the same-cycle admin_branch_reconcile dry-run evidence." },
+        expected_branch_sha: { type: "string", description: "Branch SHA from the same-cycle admin_branch_reconcile dry-run evidence." },
+        confirm: { type: "string", description: "Typed confirmation, e.g. RECONCILE_BRANCH_GPT_EXAMPLE." },
+        capability_envelope_id: { type: "string", description: "Ready capability envelope approved for github_branch_fast_forward_to_base or repo mutation." },
+      },
+    },
+  },
+  {
     name: "repo_patch_apply",
     displayName: "Repository Patch Apply",
     description: "Apply a patch to the repository via the GitHub App, sidestepping the local connector. Actions: write_file, replace_block, apply_unified_diff, delete_file. Path is repo-confined; secrets/build folders are blocked. Runtime defaults to a generated non-protected work branch. Protected branches are blocked unless explicit break-glass policy is enabled and justified.",
