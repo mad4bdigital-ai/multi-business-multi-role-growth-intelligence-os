@@ -5,6 +5,7 @@ import {
   appendSupportTicketEvent,
   applySupportTicketBrandMappingRemediation,
   assignSupportTicket,
+  completeSupportTicketBrandMappingRemediation,
   createOrAppendSupportTicket,
   createSupportTicketApprovalHold,
   createSupportTicketExecutionPlan,
