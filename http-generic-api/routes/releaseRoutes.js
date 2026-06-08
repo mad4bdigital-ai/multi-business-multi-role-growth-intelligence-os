@@ -110,6 +110,8 @@ export function buildReleaseRoutes(deps) {
         includeDriveReadback: req.body?.include_drive_readback !== false,
         cleanup: req.body?.cleanup !== false,
         smokeSubfolder: req.body?.smoke_subfolder,
+        forceDocRollover: req.body?.force_doc_rollover === true,
+        docRolloverChars: req.body?.doc_rollover_chars,
       });
       return res.status(result.ok ? 200 : 500).json(result);
     } catch (err) {
