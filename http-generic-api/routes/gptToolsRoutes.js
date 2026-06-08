@@ -396,6 +396,22 @@ async function requireRepoPatchCapabilityEnvelope({ args = {}, ctx = {}, owner =
   };
 }
 
+async function requireGithubBranchFastForwardEnvelope({ args = {}, ctx = {} } = {}) {
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: getPool(),
+    source: args,
+    acceptedAppKeys: ["github"],
+    acceptedIntents: ["github_branch_fast_forward_to_base", "admin_branch_fast_forward_to_base", "github_ref_update", "repo_mutation", "branch_fast_forward"],
+    expectedTenantId: ctx?.auth?.tenant_id || PLATFORM_TENANT_ID,
+    expectedUserId: ctx?.auth?.user_id || "",
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "GitHub branch fast-forward requires a valid capability resolution envelope before ref mutation.");
+  }
+  await markCapabilityEnvelopeReferenced({ pool: getPool(), envelopeId: resolved.envelope_id, executionRef: `github_branch_fast_forward_to_base:${args?.branch || "unknown"}` });
+  return { ...resolved, secrets_included: false };
+}
+
 function resolveCallerType(req) {
   if (req.auth?.mode === "backend_api_key" || req.auth?.is_admin === true) return "admin";
   return "tenant";
