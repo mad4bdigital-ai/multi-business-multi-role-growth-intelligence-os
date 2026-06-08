@@ -125,6 +125,7 @@ function analyzeTrackedPath(repoPath) {
     normalized_lf_equal: normalizedLfEqual,
     work_sha256: workHash,
     head_sha256: headHash,
+    metadata_diagnostics: metadataDiagnostics(repoPath),
     secrets_included: false,
   };
 }
