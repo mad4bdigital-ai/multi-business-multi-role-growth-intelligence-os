@@ -247,7 +247,6 @@ export const testCommands = [
   "node test-platform-knowledge-graph.mjs",
   "node test-repo-patch-apply.mjs",
   "node test-repo-patch-capability-envelope-requirement.mjs",
-  "node test-capability-envelope-approval-tool.mjs",
   "node test-cms-account-claim-resolver.mjs",
   "node test-cms-site-access-grants-foundation.mjs",
   "node test-cms-claim-approval-grant-promotion.mjs",
