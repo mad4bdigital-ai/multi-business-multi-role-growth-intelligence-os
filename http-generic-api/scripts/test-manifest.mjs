@@ -59,6 +59,7 @@ export const testCommands = [
   "node test-shared-reconciliation-engine.mjs",
   "node test-shared-reconciliation-continuation-policy.mjs",
   "node test-admin-branch-reconcile-adapter.mjs",
+  "node test-live-checkout-cleanup-tool.mjs",
   "node test-github-workflow-dispatch-fallback.mjs",
   "node test-github-branch-maintenance-fallbacks.mjs",
   "node test-remote-ssh-runtime-foundation.mjs",
