@@ -428,9 +428,11 @@ function runSshCommand({ host, port, user, auth_mode: authMode = "private_key", 
           remoteScript,
         ];
       }
-      const wrapped = withCoreutilsTimeout(command, args, timeoutMs);
-      command = wrapped.command;
-      args = wrapped.args;
+      if (!usePassword) {
+        const wrapped = withCoreutilsTimeout(command, args, timeoutMs);
+        command = wrapped.command;
+        args = wrapped.args;
+      }
       child = spawn(command, args, { stdio, shell: false, detached: true });
       if (usePassword && child.stdio?.[3]) {
         child.stdio[3].end(`${password}\n`);

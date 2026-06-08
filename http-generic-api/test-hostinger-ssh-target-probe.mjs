@@ -46,6 +46,8 @@ assert(executor.includes("intakeScope: result?.owner_type === \"platform\""), "c
 assert(executor.includes("ssh_password"), "Hostinger SSH password credential role must be supported");
 assert(executor.includes("sshpass"), "password auth must use sshpass helper rather than interactive shell prompts");
 assert(executor.includes("\"-d\", \"3\""), "sshpass must read password from a file descriptor, not argv or environment");
+assert(executor.includes("if (!usePassword)"), "password auth must bypass coreutils timeout wrapper so fd 3 is delivered directly to sshpass");
+assert(executor.includes("killProcessTree"), "password auth must still rely on Node process-group timeout kill fallback");
 assert(!executor.includes("SSHPASS"), "SSH password must not be exposed through environment variables");
 assert(!probeBlock.includes("git fetch"), "probe must not fetch remote git data");
 assert(!probeBlock.includes("git checkout"), "probe must not checkout or mutate repo state");

@@ -72,6 +72,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "225_sprint67_gpt_session_conversation_ref_primary.sql",
   "229_sprint67_gpt_session_archive_monitoring.sql",
   "245_sprint68_gpt_tool_archive_pinning_monitoring.sql",
+  "246_sprint68_gpt_session_archive_backfill_tool.sql",
   "230_sprint67_gpt_session_conversation_ref_capture_current.sql",
   "231_sprint68_shared_reconciliation_continuation_policy.sql",
   "232_sprint68_chunked_tool_response_continuation_policy.sql",
