@@ -3,7 +3,7 @@ import { Router } from "express";
 import { getPool } from "../db.js";
 import { requireLocalManagerDevice } from "../services/localManagerDeviceLinkService.js";
 
-const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_manager", "codex_exec_readonly"]);
+const ALLOWED_ACTIONS = new Set(["open_url", "open_n8n", "notify", "focus_local_manager", "codex_exec_readonly", "capture_chatgpt_current_url"]);
 const ALLOWED_MODES = new Set(["desktop", "background"]);
 const ALL_ZERO_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 
