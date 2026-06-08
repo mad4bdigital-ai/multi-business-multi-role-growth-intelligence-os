@@ -21,6 +21,7 @@ import {
   markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
 } from "../capabilityResolutionEnvelopeGuard.js";
+import { runAdminBranchReconcile } from "../adminBranchReconciliationAdapter.js";
 
 const execFileAsync = promisify(execFile);
 
