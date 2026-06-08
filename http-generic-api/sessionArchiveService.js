@@ -729,6 +729,7 @@ export async function recordGptSessionTurn({
     turn_id: turnId,
     turn_index: turnIndex,
     drive_doc_id: archive.drive_doc_id || null,
+    drive_doc_part: archive.drive_doc_id ? positiveInt(archive.drive_doc_part_index, 1) : null,
     drive_anchor: archive.drive_doc_id ? driveAnchor : null,
     archive_status: archiveStatus,
     archive_error: archiveError ? archiveError.message : null,
