@@ -2581,10 +2581,14 @@ export function buildAdminCliRoutes(deps) {
         payload: {
           user_id: userId,
           device_id: deviceId,
+          resolved_user_id: resolvedUserId,
+          resolved_device_id: resolvedDeviceId,
+          device_identity_resolution: deviceIdentityResolution,
           tunnel_status: tunnelStatus,
           config_source: configSource,
           drive_uploaded: !!driveResult,
-          drive_upload_status: driveUploadStatus
+          drive_upload_status: driveUploadStatus,
+          secrets_included: false
         },
       });
 
