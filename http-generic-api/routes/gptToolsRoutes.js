@@ -21,7 +21,7 @@ import {
   markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
 } from "../capabilityResolutionEnvelopeGuard.js";
-import { runAdminBranchReconcile } from "../adminBranchReconciliationAdapter.js";
+import { runAdminBranchReconcile, runGithubBranchFastForwardToBase } from "../adminBranchReconciliationAdapter.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -317,6 +317,28 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "github_branch_fast_forward_to_base",
+    displayName: "GitHub Branch Fast Forward To Base",
+    description: "Guarded mutation recipe for behind_only work branches. Requires a prior admin_branch_reconcile dry-run, matching expected base/branch SHAs, capability envelope approval, typed RECONCILE_BRANCH_<BRANCH_SLUG> confirmation, no-force GitHub ref update, and same-cycle readback.",
+    method: "VIRTUAL",
+    path: "internal://github-branch-fast-forward-to-base",
+    tags: ["repo", "reconciliation", "mutation", "capability_envelope", "no_force"],
+    inputSchema: {
+      type: "object",
+      required: ["branch", "expected_base_sha", "expected_branch_sha", "confirm", "capability_envelope_id"],
+      properties: {
+        branch: { type: "string", description: "Governed non-production work branch previously classified as behind_only." },
+        default_branch: { type: "string", default: "main" },
+        owner: { type: "string", description: "Optional GitHub owner override; defaults to activation bootstrap." },
+        repo: { type: "string", description: "Optional GitHub repo override; defaults to activation bootstrap." },
+        expected_base_sha: { type: "string", description: "Base SHA from the same-cycle admin_branch_reconcile dry-run evidence." },
+        expected_branch_sha: { type: "string", description: "Branch SHA from the same-cycle admin_branch_reconcile dry-run evidence." },
+        confirm: { type: "string", description: "Typed confirmation, e.g. RECONCILE_BRANCH_GPT_EXAMPLE." },
+        capability_envelope_id: { type: "string", description: "Ready capability envelope approved for github_branch_fast_forward_to_base or repo mutation." },
+      },
+    },
+  },
+  {
     name: "repo_patch_apply",
     displayName: "Repository Patch Apply",
     description: "Apply a patch to the repository via the GitHub App, sidestepping the local connector. Actions: write_file, replace_block, apply_unified_diff, delete_file. Path is repo-confined; secrets/build folders are blocked. Runtime defaults to a generated non-protected work branch. Protected branches are blocked unless explicit break-glass policy is enabled and justified.",
@@ -372,6 +394,22 @@ async function requireRepoPatchCapabilityEnvelope({ args = {}, ctx = {}, owner =
       secrets_included: false,
     },
   };
+}
+
+async function requireGithubBranchFastForwardEnvelope({ args = {}, ctx = {} } = {}) {
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: getPool(),
+    source: args,
+    acceptedAppKeys: ["github"],
+    acceptedIntents: ["github_branch_fast_forward_to_base", "admin_branch_fast_forward_to_base", "github_ref_update", "repo_mutation", "branch_fast_forward"],
+    expectedTenantId: ctx?.auth?.tenant_id || PLATFORM_TENANT_ID,
+    expectedUserId: ctx?.auth?.user_id || "",
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "GitHub branch fast-forward requires a valid capability resolution envelope before ref mutation.");
+  }
+  await markCapabilityEnvelopeReferenced({ pool: getPool(), envelopeId: resolved.envelope_id, executionRef: `github_branch_fast_forward_to_base:${args?.branch || "unknown"}` });
+  return { ...resolved, secrets_included: false };
 }
 
 function resolveCallerType(req) {
@@ -630,6 +668,19 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       return {
         status: err?.status || 500,
         body: { ok: false, error: { code: err?.code || "admin_branch_reconcile_failed", message: err?.message || "Branch reconciliation failed.", details: err?.details } },
+      };
+    }
+  }
+
+  if (callerType === "admin" && toolKey === "github_branch_fast_forward_to_base") {
+    try {
+      await requireGithubBranchFastForwardEnvelope({ args, ctx: { auth: req?.auth } });
+      const result = await runGithubBranchFastForwardToBase(args, { auth: req?.auth });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "github_branch_fast_forward_failed", message: err?.message || "GitHub branch fast-forward failed.", details: err?.details } },
       };
     }
   }
