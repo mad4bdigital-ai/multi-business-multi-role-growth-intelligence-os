@@ -481,6 +481,16 @@ export async function recordGptSessionTurn({
   }
   turnIndex = effectiveTurnIndex;
 
+  try {
+    const [[freshSession]] = await pool.query(
+      "SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1",
+      [session.session_id]
+    );
+    if (freshSession?.session_id) session = { ...session, ...freshSession };
+  } catch {
+    // Keep caller-provided session if fresh readback is unavailable.
+  }
+
   const timestamp = deps.now().toISOString();
   const turnId = randomUUID();
   const eventId = randomUUID();
