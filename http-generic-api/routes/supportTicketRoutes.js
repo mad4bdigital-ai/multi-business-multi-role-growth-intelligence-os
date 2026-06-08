@@ -4,6 +4,7 @@ import { getPool } from "../db.js";
 import {
   appendSupportTicketEvent,
   applySupportTicketBrandMappingRemediation,
+  approveSupportTicketBrandRefSelection,
   assignSupportTicket,
   completeSupportTicketBrandMappingRemediation,
   createOrAppendSupportTicket,
