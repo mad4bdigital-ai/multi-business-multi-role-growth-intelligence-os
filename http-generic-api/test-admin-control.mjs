@@ -64,8 +64,24 @@ try {
     adminCliSource.includes("buildGithubFallbackUnsupportedError") &&
     adminCliSource.includes("repair_missing_capability_before_fallback") &&
     adminCliSource.includes("max_repair_attempts_before_fallback: 3") &&
+    adminCliSource.includes("repair_attempts: buildGithubFallbackRepairAttempts") &&
+    adminCliSource.includes("continuation: buildGithubFallbackContinuationEvidence") &&
     adminCliSource.includes("fallback_reason"),
     "unsupported fallback must carry repair-before-fallback policy evidence");
+  assert("github fallback continuation uses shared reconciliation engine",
+    adminCliSource.includes("createContinuationCheckpoint") &&
+    adminCliSource.includes("planContinuationResume") &&
+    adminCliSource.includes("github_rest_fallback_operation") &&
+    adminCliSource.includes("fallback_unsupported_command") &&
+    adminCliSource.includes("scope_type: \"repository\""),
+    "fallback continuation must use the shared checkpoint/risk contract");
+  assert("github fallback records exactly three repair attempt stages",
+    adminCliSource.includes("GITHUB_FALLBACK_REPAIR_ATTEMPT_SEQUENCE") &&
+    adminCliSource.includes("classify_missing_capability") &&
+    adminCliSource.includes("attempt_native_capability_expansion_or_mapping") &&
+    adminCliSource.includes("run_targeted_regression_test") &&
+    adminCliSource.includes("repair_attempt_count: 3"),
+    "fallback repair evidence must expose three governed attempts before fallback");
   assert("github REST fallback writes capability repair audit ledger",
     adminCliSource.includes("buildGithubCapabilityRepairAuditPayload") &&
     adminCliSource.includes("auditGithubFallbackCapabilityRepair") &&

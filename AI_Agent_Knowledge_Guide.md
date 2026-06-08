@@ -135,6 +135,8 @@ Current required runtime policy seeds cover:
 - connector dispatch preflight visibility
 - agent-loop preflight visibility
 - Brand Core requirement for writing/content/SEO/publish/strategy flows
+- shared reconciliation continuation for resumable governed operations
+- GitHub fallback repair-before-fallback evidence: when `gh` is unavailable, mapped REST fallbacks and unsupported fallback errors must include no-secret continuation checkpoint evidence plus exactly three governed repair-attempt records before fallback/manual routing
 
 `platform_engine_policy_registry` and `platform_engine_policy_rules` contain additive target representations. They must not be treated as full runtime replacement until `runtimePolicyResolver` emits source evidence and compatibility fallback is validated.
 

@@ -82,6 +82,16 @@ Use the capability repair adapter:
 4. Retry the original operation.
 5. Use fallback/manual route only after repair evidence is exhausted or unsafe.
 
+For the GitHub admin-control fallback, `gh` absence must not produce an opaque failure. Supported REST fallback responses and unsupported fallback errors must include:
+
+- `policy: repair_missing_capability_before_fallback`
+- `repair_attempt_count: 3`
+- three `repair_attempts` entries for classify, mapping/expansion, and targeted regression evidence
+- a shared reconciliation `continuation.checkpoint`
+- `secrets_included: false`
+
+Mapped REST fallbacks may proceed after the evidence is attached. Unsupported REST fallback gaps must return the continuation evidence and remain blocked from direct resume until a mapped capability or manual governed route is added.
+
 ### Credential intake or approval pause
 
 Use the existing credential/approval continuation pattern. When the user completes the intake or approval, refetch the stored status, reconcile scope, verify no secrets are returned, then resume.
