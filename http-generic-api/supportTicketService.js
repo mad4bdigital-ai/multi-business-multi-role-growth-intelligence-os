@@ -312,14 +312,17 @@ export async function createOrAppendSupportTicket(envelope = {}, options = {}) {
 
     await connection.query(
       `INSERT INTO tickets
-        (ticket_id, tenant_id, title, category, priority, status, service_mode, metadata_json,
+        (ticket_id, tenant_id, user_id, actor_id, actor_type, title, category, priority, status, service_mode, metadata_json,
          ticket_type, source_layer, source_tool, source_event, severity, lifecycle_state, customer_status,
          queue_key, assignment_status, dedupe_key, first_response_due_at, triage_due_at, resolution_due_at,
          sla_status, last_seen_at, occurrence_count, customer_message, internal_summary)
-       VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'on_track', NOW(), 1, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'on_track', NOW(), 1, ?, ?)`,
       [
         ticket.ticket_id,
         ticket.tenant_id,
+        ticket.user_id || null,
+        ticket.actor_id || null,
+        ticket.actor_type || null,
         ticket.title,
         ticket.category,
         ticket.priority,
