@@ -6542,7 +6542,14 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listAdminTools
       summary: List admin platform tools from the governed registry
-      description: "Returns paginated admin platform tools from the registry plus virtual admin tools. Use limit/cursor/q/tag for bounded discovery. If response_chunked=true, call response_chunk_read with chunk_id and next_cursor."
+      description: "Returns paginated admin platform tools from the registry plus virtual admin tools. Use limit/cursor/q/tag for bounded discovery. If response_chunked=true or page.has_more=true on any governed tool response, call response_chunk_read with chunk_id and next_cursor until exhausted before using search/slice/local/external fallback surfaces."
+      x-runtime-governance:
+        chunked_tool_response_continuation:
+          policy: chunk_read_before_alternative_surface
+          required_tool: response_chunk_read
+          required_before_fallback: true
+          applies_to: any_governed_tool_response
+          secrets_included: false
       parameters:
         - name: limit
           in: query
