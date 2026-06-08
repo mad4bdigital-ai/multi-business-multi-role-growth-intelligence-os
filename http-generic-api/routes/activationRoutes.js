@@ -924,9 +924,12 @@ export async function buildActivationSessionContext(req) {
   const subject = resolveSessionContextSubject(req);
 
   // Parallel conversations are the default; explicit close_previous_sessions preserves the old single-session behavior when needed.
-  const sessionOpen = await autoOpenGptSession(pool, subject, {
-    close_previous_sessions: asBoolean(req.query.close_previous_sessions) || asBoolean(req.query.close_previous),
-  });
+  // Read-only callers can inspect context without minting a fresh session id, which prevents accidental ChatGPT URL ref relinking during diagnostics.
+  const sessionOpen = shouldOpenActivationSession(req.query)
+    ? await autoOpenGptSession(pool, subject, {
+        close_previous_sessions: asBoolean(req.query.close_previous_sessions) || asBoolean(req.query.close_previous),
+      })
+    : await readOnlyGptSessionContext(pool, subject);
   const { session_id: newSessionId, closed_sessions } = sessionOpen;
 
   const limit = capLimit(req.query.limit, SESSION_CONTEXT_DEFAULT_LIMIT, SESSION_CONTEXT_MAX_LIMIT);
