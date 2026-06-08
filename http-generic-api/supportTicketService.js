@@ -2062,6 +2062,13 @@ export async function completeSupportTicketBrandRefSelectionRemediation({ tenant
       err.plan = plan;
       throw err;
     }
+    if (newBrandRefApprovalBlocked) {
+      const err = new Error("allow_new_ref=true requires an approved new_brand_ref_approval hold for the selected brand_ref.");
+      err.status = 409;
+      err.code = "support_ticket_new_brand_ref_approval_required";
+      err.plan = plan;
+      throw err;
+    }
     if (runMode !== "apply") {
       return { ok: true, mode: "dry_run", ticket_id, tenant_id, plan, resolution, ticket: compactTicket(ticket), secrets_included: false };
     }
