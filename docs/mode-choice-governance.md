@@ -1,0 +1,89 @@
+# Mode Choice Governance
+
+This guide defines how GPT/admin/tenant agents must handle any executable option represented as a mode or scope selector. It generalizes the Hostinger `runner_mode` lesson to all mode-bearing surfaces.
+
+## Rule
+
+When a governed execution can proceed through more than one valid mode, the agent must present the available modes to the user before execution and receive an explicit selection, unless the user has already selected a mode in the current request or a higher-priority policy mandates exactly one safe mode.
+
+The rule applies to any executable selector, including but not limited to:
+
+- `mode`
+- `*_mode`
+- `*_modes`
+- `runner_mode`
+- `execution_mode`
+- `activation_mode`
+- `integration_modes`
+- `credential_scope`
+- `auth_mode`
+- `transport_mode`
+- `dispatch_mode`
+- `sync_mode`
+- `deploy_mode`
+- `reconciliation_mode`
+- `approval_mode`
+- any future scope/mode field declared by registry, OpenAPI schema, runtime policy, or tool input contract
+
+## Required user prompt
+
+The choice prompt must be compact and include:
+
+1. the executable surface and target scope;
+2. every currently valid mode;
+3. the recommended/default mode, if one exists;
+4. the risk and side-effect class for each mode;
+5. the evidence expected after execution;
+6. a clear request for the user to choose one mode.
+
+Example:
+
+```text
+العملية دي لها أكتر من mode صالح:
+
+A) managed — platform-managed, أقل مخاطرة
+B) dedicated — tenant-owned credentials/runtime, يحتاج readiness
+C) hybrid integration_modes — per-app mix, يحتاج تحديد apps
+
+اختار mode قبل التنفيذ.
+```
+
+## Proceed without asking only when
+
+Proceeding without a new choice is allowed only when one of these is true:
+
+- the user explicitly selected the mode in the current instruction;
+- registry/runtime policy exposes exactly one valid mode;
+- a safety policy mandates one mode and blocks all alternatives;
+- the operation is read-only diagnostics with no executable mode selector and no mode-dependent side effects.
+
+Even then, the agent should echo the selected or mandated mode in the execution summary.
+
+## Forbidden behavior
+
+Agents must not:
+
+- silently default to the first mode in a schema enum;
+- silently switch modes after a failed attempt;
+- treat `auto` as consent to execute a higher-risk mode;
+- collapse per-app `integration_modes` into a single activation mode;
+- infer a credential or runtime scope from convenience when user/tenant/platform scopes are all possible;
+- execute a mode-bearing mutation when the user has not selected the mode or the policy has not mandated it.
+
+## Retry and fallback
+
+If a selected mode fails and another mode remains possible, the next attempt requires a new user-visible choice. The agent may recommend a fallback, but must not auto-run it.
+
+## Audit evidence
+
+Execution logs and pending-task updates should preserve:
+
+- `mode_choice_required`;
+- `mode_choices_presented`;
+- `selected_mode`;
+- `selection_source` (`user_explicit`, `policy_mandated`, or `single_valid_mode`);
+- `mode_default_used`;
+- `mode_fallback_requires_user_choice`;
+- `secrets_included=false`.
+
+This policy applies to admin GPTs, tenant GPTs, platform tools, and future connector/plugin modes unless a stricter surface-specific policy overrides it.
