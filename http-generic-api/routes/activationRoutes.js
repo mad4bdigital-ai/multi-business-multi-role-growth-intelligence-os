@@ -861,11 +861,60 @@ async function autoOpenGptSession(pool, subject, options = {}) {
     closed_sessions: closeResult.affectedRows || 0,
     archive_status: archiveStatus,
     session_management: {
+      mode: "open_new_session",
       parallel_sessions_allowed: true,
       close_previous_sessions_requested: closePreviousSessions,
       active_sessions_before_open: activeBefore,
       active_sessions_after_open: closePreviousSessions ? 1 : activeBefore + 1,
       status_written: "active",
+    },
+  };
+}
+
+export function shouldOpenActivationSession(query = {}) {
+  return !(
+    asBoolean(query.no_open_session) ||
+    asBoolean(query.read_only) ||
+    asBoolean(query.context_only)
+  );
+}
+
+async function readOnlyGptSessionContext(pool, subject) {
+  const userId = subject.user_id || null;
+  const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const [[activeRow]] = await pool.query(
+    `SELECT COUNT(*) AS active_count
+       FROM \`customer_sessions\`
+      WHERE originator = 'gpt_action'
+        AND tenant_id = ?
+        AND (? IS NULL OR user_id = ?)
+        AND session_status IN ('pending', 'active')`,
+    [tenantId, userId, userId]
+  );
+  const [latestRows] = await pool.query(
+    `SELECT session_id, archive_status
+       FROM \`customer_sessions\`
+      WHERE originator = 'gpt_action'
+        AND tenant_id = ?
+        AND (? IS NULL OR user_id = ?)
+        AND session_status IN ('pending', 'active')
+      ORDER BY started_at DESC
+      LIMIT 1`,
+    [tenantId, userId, userId]
+  );
+  const latest = latestRows[0] || null;
+  const activeCount = asCount(activeRow?.active_count);
+  return {
+    session_id: latest?.session_id || null,
+    closed_sessions: 0,
+    archive_status: latest?.archive_status || "not_opened",
+    session_management: {
+      mode: "read_only_existing_session",
+      parallel_sessions_allowed: true,
+      close_previous_sessions_requested: false,
+      active_sessions_before_open: activeCount,
+      active_sessions_after_open: activeCount,
+      status_written: null,
     },
   };
 }
