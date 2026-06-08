@@ -1,0 +1,174 @@
+#!/usr/bin/env node
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, rmSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const API_DIR = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(API_DIR, "..");
+const CONFIRM_TOKEN = "APPLY_LIVE_CHECKOUT_CLEANUP";
+
+const ALLOWED_CLEANUP_PATHS = new Set([
+  "http-generic-api/test-tenant-gpt-customer-safe-resource-escalation.mjs",
+]);
+const ALLOWED_ROOT_LOGS = new Set(["console.log", "stderr.log"]);
+
+function parseArgs(argv = process.argv.slice(2)) {
+  const args = { mode: "dry_run", paths: [], deleteLogs: false, confirm: "" };
+  for (let i = 0; i < argv.length; i += 1) {
+    const item = String(argv[i] || "");
+    const value = item.includes("=") ? item.split(/=(.*)/s)[1] : argv[i + 1];
+    const consume = !item.includes("=");
+    if (item === "--dry-run") args.mode = "dry_run";
+    else if (item === "--apply") args.mode = "apply";
+    else if (item.startsWith("--path")) { args.paths.push(String(value || "")); if (consume) i += 1; }
+    else if (item === "--delete-logs") args.deleteLogs = true;
+    else if (item.startsWith("--confirm")) { args.confirm = String(value || ""); if (consume) i += 1; }
+    else throw new Error(`Unsupported argument: ${item}`);
+  }
+  if (!args.paths.length) {
+    args.paths = [
+      "http-generic-api/test-tenant-gpt-customer-safe-resource-escalation.mjs",
+      "console.log",
+      "stderr.log",
+    ];
+  }
+  return args;
+}
+
+function cleanRepoPath(input = "") {
+  const value = String(input || "").replace(/\\/g, "/").trim();
+  if (!value || value.startsWith("/") || value.includes("..") || /[\0\n\r;&|`$<>!{}]/.test(value)) {
+    const err = new Error("Path is not allowed for live checkout cleanup.");
+    err.code = "live_checkout_cleanup_path_not_allowed";
+    throw err;
+  }
+  if (!ALLOWED_CLEANUP_PATHS.has(value) && !ALLOWED_ROOT_LOGS.has(value)) {
+    const err = new Error("Path is outside the live checkout cleanup allowlist.");
+    err.code = "live_checkout_cleanup_path_not_allowlisted";
+    throw err;
+  }
+  return value;
+}
+
+function sha256(buffer) {
+  return createHash("sha256").update(buffer).digest("hex");
+}
+
+function normalizeLf(buffer) {
+  return Buffer.from(buffer.toString("utf8").replace(/\r\n/g, "\n"), "utf8");
+}
+
+function git(args, options = {}) {
+  return execFileSync("git", args, { cwd: REPO_ROOT, encoding: options.encoding || "buffer", stdio: ["ignore", "pipe", "pipe"] });
+}
+
+function statusFor(repoPath) {
+  try {
+    return String(git(["status", "--porcelain=v1", "--", repoPath], { encoding: "utf8" })).trim();
+  } catch (error) {
+    return `status_error:${error.message}`;
+  }
+}
+
+function headBuffer(repoPath) {
+  return git(["show", `HEAD:${repoPath}`]);
+}
+
+function analyzeTrackedPath(repoPath) {
+  const absolutePath = path.join(REPO_ROOT, repoPath);
+  const exists = existsSync(absolutePath);
+  const status = statusFor(repoPath);
+  if (!exists) {
+    return { path: repoPath, kind: "tracked", exists, status, cleanable: false, reason: "working_tree_file_missing", secrets_included: false };
+  }
+  const work = readFileSync(absolutePath);
+  const head = headBuffer(repoPath);
+  const workHash = sha256(work);
+  const headHash = sha256(head);
+  const normalizedWorkHash = sha256(normalizeLf(work));
+  const normalizedHeadHash = sha256(normalizeLf(head));
+  const exactEqual = workHash === headHash;
+  const normalizedLfEqual = normalizedWorkHash === normalizedHeadHash;
+  const cleanable = Boolean(status) && (exactEqual || normalizedLfEqual);
+  return {
+    path: repoPath,
+    kind: "tracked",
+    exists,
+    status,
+    cleanable,
+    clean_strategy: exactEqual ? "git_update_index_refresh" : normalizedLfEqual ? "git_checkout_restore_eol_only" : "blocked_content_diff",
+    exact_equal: exactEqual,
+    normalized_lf_equal: normalizedLfEqual,
+    work_sha256: workHash,
+    head_sha256: headHash,
+    secrets_included: false,
+  };
+}
+
+function analyzeLogPath(repoPath) {
+  const absolutePath = path.join(REPO_ROOT, repoPath);
+  const exists = existsSync(absolutePath);
+  const status = statusFor(repoPath);
+  return {
+    path: repoPath,
+    kind: "root_log",
+    exists,
+    status,
+    cleanable: exists,
+    clean_strategy: "allowlisted_root_log_delete",
+    secrets_included: false,
+  };
+}
+
+function analyzePath(repoPath) {
+  const cleanPath = cleanRepoPath(repoPath);
+  if (ALLOWED_ROOT_LOGS.has(cleanPath)) return analyzeLogPath(cleanPath);
+  return analyzeTrackedPath(cleanPath);
+}
+
+function applyCleanup(report, args) {
+  if (!report.cleanable) return { ...report, applied: false, apply_reason: "not_cleanable" };
+  if (args.confirm !== CONFIRM_TOKEN) return { ...report, applied: false, apply_reason: "missing_confirmation" };
+  if (report.kind === "root_log") {
+    if (!args.deleteLogs) return { ...report, applied: false, apply_reason: "delete_logs_flag_required" };
+    rmSync(path.join(REPO_ROOT, report.path), { force: true });
+    return { ...report, applied: true, after_status: statusFor(report.path), secrets_included: false };
+  }
+  if (report.clean_strategy === "git_update_index_refresh") {
+    git(["update-index", "--refresh", "--", report.path], { encoding: "utf8" });
+  } else if (report.clean_strategy === "git_checkout_restore_eol_only") {
+    git(["checkout", "--", report.path], { encoding: "utf8" });
+  } else {
+    return { ...report, applied: false, apply_reason: "blocked_content_diff" };
+  }
+  return { ...report, applied: true, after_status: statusFor(report.path), secrets_included: false };
+}
+
+export function runLiveCheckoutCleanup(rawArgs = parseArgs()) {
+  const args = Array.isArray(rawArgs) ? parseArgs(rawArgs) : rawArgs;
+  const reports = args.paths.map(analyzePath);
+  const applied = args.mode === "apply" ? reports.map((report) => applyCleanup(report, args)) : [];
+  return {
+    ok: true,
+    mode: args.mode,
+    repo_root: REPO_ROOT,
+    confirm_required: args.mode === "apply" ? CONFIRM_TOKEN : undefined,
+    paths_checked: reports.length,
+    reports,
+    applied,
+    ready_for_apply: reports.every((report) => report.cleanable) && args.mode === "dry_run",
+    secrets_included: false,
+  };
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  try {
+    process.stdout.write(`${JSON.stringify(runLiveCheckoutCleanup(parseArgs()), null, 2)}\n`);
+  } catch (error) {
+    process.stdout.write(`${JSON.stringify({ ok: false, error: { code: error.code || "live_checkout_cleanup_failed", message: error.message }, secrets_included: false }, null, 2)}\n`);
+    process.exitCode = 1;
+  }
+}
