@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT,
   inspectRepoReadOnly,
   maybeChunkToolResponseBody,
   paginateItems,
