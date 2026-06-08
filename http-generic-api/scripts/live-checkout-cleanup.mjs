@@ -77,6 +77,27 @@ function headBuffer(repoPath) {
   return git(["show", `HEAD:${repoPath}`]);
 }
 
+function gitText(args) {
+  try {
+    return String(git(args, { encoding: "utf8" })).trim();
+  } catch (error) {
+    const stderr = error.stderr ? String(error.stderr).trim() : "";
+    return `git_error:${error.status || error.code || "unknown"}${stderr ? `:${stderr.split(/\n/)[0]}` : ""}`;
+  }
+}
+
+function metadataDiagnostics(repoPath) {
+  return {
+    ls_files_stage: gitText(["ls-files", "--stage", "--", repoPath]),
+    ls_files_eol: gitText(["ls-files", "--eol", "--", repoPath]),
+    diff_summary: gitText(["diff", "--summary", "--", repoPath]),
+    diff_numstat: gitText(["diff", "--numstat", "--", repoPath]),
+    diff_cached_summary: gitText(["diff", "--cached", "--summary", "--", repoPath]),
+    diff_cached_numstat: gitText(["diff", "--cached", "--numstat", "--", repoPath]),
+    secrets_included: false,
+  };
+}
+
 function analyzeTrackedPath(repoPath) {
   const absolutePath = path.join(REPO_ROOT, repoPath);
   const exists = existsSync(absolutePath);
