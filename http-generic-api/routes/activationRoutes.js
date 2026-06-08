@@ -2,7 +2,6 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
-import { ensureSessionArchive } from "../sessionArchiveService.js";
 import { loadSessionSummaryGraphMemory } from "../sessionSummaryService.js";
 import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
 import { buildHardActivationEvidenceMatrix } from "../activationHardEvidence.js";
