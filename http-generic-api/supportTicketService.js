@@ -1880,6 +1880,58 @@ export async function completeSupportTicketBrandMappingRemediation({ tenant_id, 
   }
 }
 
+export async function requestSupportTicketBrandRefSelection({ tenant_id, ticket_id, min_confidence = 70, limit = 25, required_role = "workspace_owner_admin", assigned_to = null, actor_id = null, actor_type = "system", reason = "Manual brand_ref selection required before remediation." } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) { const err = new Error("Ticket not found."); err.status = 404; err.code = "support_ticket_not_found"; throw err; }
+    const resolution = await resolveSupportTicketBrandRefs({ tenant_id, ticket_id, min_confidence, limit }, { connection });
+    if (resolution.selected_brand_ref) { const err = new Error("A trusted brand_ref is already selected; manual selection hold is not required."); err.status = 409; err.code = "support_ticket_brand_ref_selection_not_required"; err.resolution = resolution; throw err; }
+    const existing = await queryOne(connection, `SELECT ah.* FROM ticket_workflow_links twl JOIN approval_holds ah ON ah.hold_id = twl.approval_hold_id AND ah.tenant_id = twl.tenant_id WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.relationship = 'brand_ref_selection' AND ah.status = 'open' ORDER BY ah.created_at DESC LIMIT 1`, [tenant_id, ticket_id]);
+    if (existing) { if (ownsConnection) await connection.commit(); return { ok: true, created: false, hold_id: existing.hold_id, resolution, ticket: compactTicket(ticket), secrets_included: false }; }
+    const holdId = randomUUID();
+    const runId = randomUUID();
+    await connection.query(`INSERT INTO approval_holds (hold_id, run_id, tenant_id, hold_type, requested_by, user_id, actor_id, actor_type, request_id, correlation_id, execution_context_json, assigned_to, required_role, status) VALUES (?, ?, ?, 'review', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open')`, [holdId, runId, tenant_id, actor_id || null, ticket.user_id || resolution.grantee_user_id || null, actor_id || null, actor_type || null, ticket_id, `ticket:${ticket_id}:brand_ref_selection`, jsonOrNull({ ticket_id, reason, selection_required: true, resolution, customer_safe: false, secrets_included: false }), assigned_to || null, required_role]);
+    await connection.query(`INSERT INTO ticket_workflow_links (link_id, ticket_id, tenant_id, approval_hold_id, relationship, status, evidence_json) VALUES (?, ?, ?, ?, 'brand_ref_selection', 'linked', ?)`, [randomUUID(), ticket_id, tenant_id, holdId, jsonOrNull({ resolution, reason, secrets_included: false })]);
+    await connection.query("UPDATE tickets SET status = 'awaiting_approval', lifecycle_state = 'awaiting_brand_ref_selection', customer_status = 'waiting_for_approval', updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?", [tenant_id, ticket_id]);
+    await insertLifecycleEvent(connection, { ticket_id, tenant_id, event_type: "brand_ref_selection_requested", from_state: ticket.lifecycle_state || null, to_state: "awaiting_brand_ref_selection", actor_id, actor_type, visibility: "internal_support", summary: reason, payload_json: { hold_id: holdId, run_id: runId, resolution, secrets_included: false } });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_brand_ref_selection_requested", after_json: { hold_id: holdId, trusted_count: resolution.trusted_count, candidate_count: resolution.count, secrets_included: false } });
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, created: true, hold_id: holdId, run_id: runId, resolution, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) { if (ownsConnection) await connection.rollback(); throw error; } finally { if (ownsConnection) connection.release(); }
+}
+
+export async function approveSupportTicketBrandRefSelection({ tenant_id, ticket_id, approval_hold_id = null, selected_brand_ref, allow_new_ref = false, actor_id = null, actor_type = "system", decision_note = null, reason = "Manual brand_ref selection approved." } = {}, options = {}) {
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  const selected = normalizeString(selected_brand_ref).trim();
+  if (!selected) { const err = new Error("selected_brand_ref is required."); err.status = 400; err.code = "support_ticket_selected_brand_ref_required"; throw err; }
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) { const err = new Error("Ticket not found."); err.status = 404; err.code = "support_ticket_not_found"; throw err; }
+    const hold = approval_hold_id ? await queryOne(connection, "SELECT * FROM approval_holds WHERE tenant_id = ? AND hold_id = ? LIMIT 1", [tenant_id, approval_hold_id]) : await queryOne(connection, `SELECT ah.* FROM ticket_workflow_links twl JOIN approval_holds ah ON ah.hold_id = twl.approval_hold_id AND ah.tenant_id = twl.tenant_id WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.relationship = 'brand_ref_selection' ORDER BY ah.created_at DESC LIMIT 1`, [tenant_id, ticket_id]);
+    if (!hold) { const err = new Error("Brand ref selection approval hold not found."); err.status = 404; err.code = "support_ticket_brand_ref_selection_hold_not_found"; throw err; }
+    if (hold.status !== "open" && hold.status !== "approved") { const err = new Error("Only open or already-approved brand_ref selection holds can be approved."); err.status = 409; err.code = "support_ticket_brand_ref_selection_hold_not_open"; throw err; }
+    const resolution = await resolveSupportTicketBrandRefs({ tenant_id, ticket_id, brand_ref: selected, min_confidence: 0, limit: 50 }, { connection });
+    const candidate = resolution.candidates.find((item) => item.brand_ref === selected);
+    if (!candidate && !allow_new_ref) { const err = new Error("selected_brand_ref must appear in resolver candidates unless allow_new_ref is true."); err.status = 400; err.code = "support_ticket_selected_brand_ref_not_in_candidates"; err.resolution = resolution; throw err; }
+    const selectionEvidence = { selected_brand_ref: selected, candidate: candidate || null, allow_new_ref: Boolean(allow_new_ref), resolution, source: "manual_brand_ref_selection", secrets_included: false };
+    await connection.query(`UPDATE approval_holds SET status = 'approved', decision_by = ?, decision_note = ?, decided_at = NOW(), execution_context_json = JSON_SET(COALESCE(execution_context_json, JSON_OBJECT()), '$.selected_brand_ref', ?, '$.brand_ref_selection', CAST(? AS JSON)) WHERE tenant_id = ? AND hold_id = ?`, [actor_id || null, decision_note || reason, selected, JSON.stringify(selectionEvidence), tenant_id, hold.hold_id]);
+    await connection.query("UPDATE tickets SET status = 'in_review', lifecycle_state = 'approved_for_remediation', customer_status = 'in_progress', updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?", [tenant_id, ticket_id]);
+    await insertLifecycleEvent(connection, { ticket_id, tenant_id, event_type: "brand_ref_selection_approved", from_state: ticket.lifecycle_state || null, to_state: "approved_for_remediation", actor_id, actor_type, visibility: "internal_support", summary: reason, payload_json: selectionEvidence });
+    await insertAuditLog(connection, { ticket_id, tenant_id, actor_id, actor_type, action: "support_ticket_brand_ref_selection_approved", after_json: { approval_hold_id: hold.hold_id, selected_brand_ref: selected, allow_new_ref: Boolean(allow_new_ref), secrets_included: false } });
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, approval_hold_id: hold.hold_id, selected_brand_ref: selected, candidate: candidate || null, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) { if (ownsConnection) await connection.rollback(); throw error; } finally { if (ownsConnection) connection.release(); }
+}
+
 export function _testingTicketClassification() {
   return { ISSUE_CLASSIFICATION, SLA_MINUTES_BY_SEVERITY, OPEN_TICKET_STATUSES: [...OPEN_TICKET_STATUSES], computeTicketSlaStatus, executionPlanTemplateForTicket, ticketStateFromRuntime, normalizePlanSteps, workflowStateFromSteps, buildDiagnosticStepOutput, normalizeBrandGrantTargets, mergeBrandRefCandidate };
 }
