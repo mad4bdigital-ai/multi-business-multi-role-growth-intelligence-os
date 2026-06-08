@@ -81,6 +81,9 @@ When resolving a runtime sync gap, record:
 - CI/OpenAPI status.
 - `release_readiness` result.
 - Hostinger filesystem checkout SHA when available.
+- deploy executor `parsed_deploy` output, including `before_sha`, `after_sha`, `worktree_status`, `restart_signal`, and `deploy_result`.
+- deploy executor `reload_verification`, including `restart_signal_ok`, `reload_signal_emitted`, and `runtime_health_readback_required`.
+- deploy executor `continuation.checkpoint` when runtime health readback remains pending; this checkpoint must use `deploy_reload_pending` and `secrets_included=false`.
 - `/health` result before and after sync, including `version` and expected runtime profile.
 - live `repo_inspect` readback showing expected symbols.
 - credential-intake session ID only after sync.
