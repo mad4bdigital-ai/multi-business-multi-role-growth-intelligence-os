@@ -215,6 +215,8 @@ export async function runSessionArchiveSmoke({
     activationError = err;
   }
   const activationSession = (activationContext?.gpt_sessions || []).find((row) => row.session_id === sessionId);
+  const distinctTurnDocIds = [...new Set(turnRows.map((row) => row.drive_doc_id).filter(Boolean))];
+  const maxTurnDocPart = Math.max(0, ...turnRows.map((row) => Number(row.drive_doc_part || 0)));
 
   const checks = [
     check("session_created", Boolean(sessionId), { session_id: sessionId }),
