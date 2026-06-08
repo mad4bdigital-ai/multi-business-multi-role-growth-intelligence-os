@@ -16,6 +16,8 @@ for (const expected of [
   "support_ticket_selected_brand_ref_not_in_candidates",
   "selected_brand_ref",
   "manual_brand_ref_selection",
+  "resolveSupportTicketBrandRefs({ tenant_id, ticket_id, min_confidence: 0, limit: 50 }",
+  "JSON_OBJECT('selected_brand_ref'",
 ]) {
   assert(service.includes(expected), `supportTicketService must include ${expected}`);
 }
