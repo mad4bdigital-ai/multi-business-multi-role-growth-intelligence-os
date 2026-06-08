@@ -97,6 +97,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "240_sprint68_ticket_lifecycle_diagnostic_chain.sql",
   "241_sprint68_ticket_lifecycle_brand_mapping_remediation.sql",
   "242_sprint68_ticket_lifecycle_approval_remediation.sql",
+  "243_sprint68_ticket_lifecycle_brand_ref_resolution.sql",
   "240_sprint68_live_checkout_cleanup_tool.sql",
   "234_sprint67_repo_patch_capability_envelope_requirement.sql",
   "235_sprint67_capability_envelope_approval_tool.sql",
