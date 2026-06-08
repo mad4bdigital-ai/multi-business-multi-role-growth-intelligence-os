@@ -326,6 +326,26 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.post("/admin/support/tickets/:ticket_id/step-run/execute", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await executeSupportTicketDiagnosticStep({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        step_run_id: req.body?.step_run_id || null,
+        run_id: req.body?.run_id || null,
+        step_key: req.body?.step_key || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        reason: req.body?.reason || "Diagnostic step executed for support ticket.",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_diagnostic_step_execute_failed");
+    }
+  });
+
   router.post("/admin/support/tickets/:ticket_id/step-run", ...adminGuards, async (req, res) => {
     try {
       const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
