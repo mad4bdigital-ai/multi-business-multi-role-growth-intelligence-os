@@ -79,7 +79,7 @@ export async function submitSiteMigrationJob(reqBody, requestedBy, idempotencyKe
     idempotencyKey
   });
 
-  jobRepository.set(job);
+  await jobRepository.set(job);
   if (idempotencyLookupKey) {
     await idempotencyRepository.set(idempotencyLookupKey, job.job_id);
   }
@@ -440,7 +440,7 @@ export async function submitGenericExecutionJob(reqBody, requestedBy, idempotenc
     }
   }
 
-  jobRepository.set(job);
+  await jobRepository.set(job);
   if (idempotencyLookupKey) {
     await idempotencyRepository.set(idempotencyLookupKey, job.job_id);
   }

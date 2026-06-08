@@ -43,6 +43,10 @@ assert(asyncSource.includes("HOSTINGER_SSH_PROBE_RUNNER_MODES.DETACHED_PROCESS")
 assert(asyncSource.includes("HOSTINGER_SSH_PROBE_RUNNER_MODES.CRON_WORKER"), "async submission must support cron_worker mode");
 assert(asyncSource.includes("HOSTINGER_SSH_PROBE_RUNNER_MODES.EXTERNAL_RUNNER"), "async submission must support external_runner mode");
 assert(asyncSource.includes("queued_in_bullmq: false"), "non-queue runner modes must not enqueue to BullMQ by default");
+const firstPersist = asyncSource.indexOf("await jobRepository.set(job)");
+const detachedStart = asyncSource.indexOf("const detached = startDetachedHostingerSshProbeRunner");
+assert(firstPersist >= 0, "async submission must await durable job persistence before runner dispatch");
+assert(detachedStart > firstPersist, "detached runner must start only after the job is persisted for Redis-backed claiming");
 
 const runnerSource = readFileSync(new URL("./scripts/hostingerSshProbeDetachedRunner.mjs", import.meta.url), "utf8");
 assert(runnerSource.includes("runHostingerSshTargetProbeJob"), "detached runner must execute the governed Hostinger probe job entrypoint");
