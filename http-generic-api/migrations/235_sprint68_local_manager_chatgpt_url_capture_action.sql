@@ -4,7 +4,7 @@
 
 UPDATE `admin_platform_endpoint_tools`
 SET `input_schema` = JSON_SET(
-  CAST(`input_schema` AS JSON),
+  `input_schema`,
   '$.properties.action.enum',
   JSON_ARRAY('open_url', 'open_n8n', 'notify', 'focus_local_manager', 'codex_exec_readonly', 'capture_chatgpt_current_url'),
   '$.properties.payload.properties.session_id',
