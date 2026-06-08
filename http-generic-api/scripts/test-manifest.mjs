@@ -13,6 +13,7 @@ export const testCommands = [
   "node test-capability-resolution-envelope-ledger.mjs",
   "node test-capability-envelope-approval-tool.mjs",
   "node test-budget-quota-authority-registry.mjs",
+  "node test-google-ads-budget-change-preflight.mjs",
   "node test-capability-resolution-envelope-shared-guard.mjs",
   "node test-dynamic-platform-secret-promotion.mjs",
   "node test-db-collation-guard.mjs",
