@@ -36,6 +36,7 @@ function defaultDeps() {
       process.env.OVERSIZED_ARTIFACTS_DRIVE_FOLDER_ID ||
       "",
     subfolderHint: "",
+    docRolloverChars: positiveInt(process.env.SESSION_ARCHIVE_DOC_ROLLOVER_CHARS, DEFAULT_DOC_ROLLOVER_CHARS),
     now: () => new Date(),
   };
 }
