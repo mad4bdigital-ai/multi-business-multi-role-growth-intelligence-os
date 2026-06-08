@@ -1136,7 +1136,13 @@ async function executeGitHubRestFallbackCore(args = []) {
     if (!apiTarget.startsWith("/")) apiTarget = `/${apiTarget}`;
     const method = parseGithubApiMethod(args);
     const fieldValues = parseGithubFieldValues(args);
-    const allowedRead = method === "GET" && (apiTarget.startsWith("/compare/") || apiTarget.startsWith("/pulls") || apiTarget.startsWith("/commits/"));
+    const allowedContentsRead = method === "GET" && /^\/contents\/.+/.test(apiTarget);
+      const allowedRead = method === "GET" && (
+        apiTarget.startsWith("/compare/") ||
+        apiTarget.startsWith("/pulls") ||
+        apiTarget.startsWith("/commits/") ||
+        allowedContentsRead
+      );
     const allowedContentsMutation = githubContentsMutationAllowed(apiTarget, method);
     const allowedBranchRefUpdate = githubBranchRefUpdateAllowed(apiTarget, method);
     if (allowedContentsMutation) assertGithubContentsWritePathAllowed(apiTarget);
