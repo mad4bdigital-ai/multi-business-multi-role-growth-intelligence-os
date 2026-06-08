@@ -955,16 +955,23 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
 
   return {
     ...baseResponse,
-    ok: sshResult.ok,
+    ok: deployOk,
     dry_run: false,
     execution: {
       will_execute: true,
-      executed: sshResult.ok,
+      executed: deployOk,
       ssh_used: true,
       shell_freeform: false,
       allowlisted_deploy_only: true,
       exit_code: sshResult.exit_code,
       timed_out: sshResult.timed_out,
+    },
+    deploy: {
+      ok: deployOk,
+      parsed: parsedDeploy,
+      reload_verification: reloadVerification,
+      continuation,
+      live_ready: deployOk && reloadVerification.runtime_health_readback_required !== true,
     },
     output: {
       stdout: sshResult.stdout,
