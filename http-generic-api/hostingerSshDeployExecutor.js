@@ -548,19 +548,20 @@ function buildHostingerDeployContinuationEvidence({
       secrets_included: false,
     },
   });
+  const currentResourceState = {
+    target_id: targetId || null,
+    app_path: appPath || null,
+    branch: branch || "main",
+    expected_commit_sha: expectedCommitSha || null,
+    parsed_deploy: parsed,
+    reload_verification: reloadVerification,
+    ...(reloadVerification?.runtime_health_readback_required === true ? { live_health_readback_pending: true } : {}),
+  };
   const resume_plan = planContinuationResume({
     checkpoint,
     actor_context: { actor_type: "admin" },
     resource_scope: checkpoint.resource_scope,
-    current_resource_state: {
-      target_id: targetId || null,
-      app_path: appPath || null,
-      branch: branch || "main",
-      expected_commit_sha: expectedCommitSha || null,
-      parsed_deploy: parsed,
-      reload_verification: reloadVerification,
-      live_health_readback_pending: reloadVerification?.runtime_health_readback_required === true,
-    },
+    current_resource_state: currentResourceState,
     dry_run_result: { ok: reloadVerification?.files_updated === true, reload_verification: reloadVerification },
     verify_result: { ok: reloadVerification?.runtime_health_readback_required !== true, reload_verification: reloadVerification },
     apply_requested: false,
