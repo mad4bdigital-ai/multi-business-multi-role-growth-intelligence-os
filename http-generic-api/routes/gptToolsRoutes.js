@@ -83,29 +83,89 @@ function redactArgsForArchive(value) {
   return redacted;
 }
 
-async function findActiveSessionForCaller(pool, req) {
+export function resolveGptSessionPin(req, args = {}) {
+  const body = args && typeof args === "object" ? args : {};
+  const candidates = [
+    body.gpt_session_id,
+    body.gpt_sessionId,
+    body.session_id,
+    body.sessionId,
+    body._gpt_session_id,
+    body._session_id,
+    req?.headers?.["x-gpt-session-id"],
+    req?.headers?.["x-session-id"],
+  ];
+  const value = candidates.find((candidate) => String(candidate || "").trim());
+  return value ? String(value).trim() : null;
+}
+
+async function countConversationTurns(pool, sessionId) {
+  const [[row]] = await pool.query(
+    `SELECT
+        SUM(CASE WHEN role IN ('user', 'assistant') THEN 1 ELSE 0 END) AS conversation_turns,
+        SUM(CASE WHEN role = 'tool' THEN 1 ELSE 0 END) AS tool_turns,
+        COUNT(*) AS total_turns
+       FROM \`gpt_session_turns\`
+      WHERE session_id = ?`,
+    [sessionId]
+  );
+  return {
+    conversation_turns: Number(row?.conversation_turns || 0),
+    tool_turns: Number(row?.tool_turns || 0),
+    total_turns: Number(row?.total_turns || 0),
+  };
+}
+
+async function findActiveSessionForCaller(pool, req, args = {}) {
   const tenantId = String(req?.auth?.tenant_id || PLATFORM_TENANT_ID);
   const userId = req?.auth?.user_id || null;
+  const pinnedSessionId = resolveGptSessionPin(req, args);
+  const baseSelect = `SELECT session_id, tenant_id, user_id, originator, session_status, started_at,
+            drive_folder_id, drive_doc_id, drive_doc_url, drive_doc_part_index, drive_doc_part_count,
+            drive_jsonl_id, drive_jsonl_url
+       FROM \`customer_sessions\``;
+
+  if (pinnedSessionId) {
+    const [rows] = await pool.query(
+      `${baseSelect}
+      WHERE session_id = ?
+        AND originator = 'gpt_action'
+        AND tenant_id = ?
+        AND (user_id <=> ?)
+        AND session_status NOT IN ('completed', 'closed')
+      LIMIT 1`,
+      [pinnedSessionId, tenantId, userId]
+    );
+    return rows[0] ? { ...rows[0], archive_binding: "explicit_session_pin" } : null;
+  }
+
   const [rows] = await pool.query(
-    `SELECT session_id, tenant_id, user_id, originator, session_status, started_at,
-            drive_folder_id, drive_doc_id, drive_doc_url, drive_jsonl_id, drive_jsonl_url
-       FROM \`customer_sessions\`
+    `${baseSelect}
       WHERE originator = 'gpt_action'
         AND tenant_id = ?
         AND (user_id <=> ?)
         AND session_status NOT IN ('completed', 'closed')
       ORDER BY started_at DESC
-      LIMIT 1`,
+      LIMIT 5`,
     [tenantId, userId]
   );
-  return rows[0] || null;
+  for (const row of rows || []) {
+    const counts = await countConversationTurns(pool, row.session_id);
+    if (counts.conversation_turns > 0) {
+      return { ...row, archive_binding: "latest_active_with_conversation_turn", turn_counts: counts };
+    }
+  }
+  return null;
 }
 
 async function recordToolDispatchTurn(req, toolKey, args, result) {
   try {
     const pool = getPool();
-    const session = await findActiveSessionForCaller(pool, req);
-    if (!session) return null;
+    const session = await findActiveSessionForCaller(pool, req, args);
+    if (!session) {
+      console.warn(`[gpt-tools] skipped auto-record turn for ${toolKey}: no explicit GPT session pin and no active session with user/assistant turns`);
+      return null;
+    }
 
     const [[{ max_idx }]] = await pool.query(
       "SELECT COALESCE(MAX(turn_index), -1) AS max_idx FROM `gpt_session_turns` WHERE session_id = ?",
@@ -119,6 +179,7 @@ async function recordToolDispatchTurn(req, toolKey, args, result) {
       : resultBodyJson;
     const content = [
       `Tool: ${toolKey}`,
+      `Archive binding: ${session.archive_binding || "unknown"}`,
       `Status: HTTP ${result?.status ?? "n/a"} ok=${result?.body?.ok !== false}`,
       "",
       "Args:",
