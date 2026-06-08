@@ -336,6 +336,10 @@ section("Admin system layer connector facade");
   ok("system tools exposes connector registry get", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "connector_registry_get"));
   ok("system tools exposes provider bootstrap chain", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "activation_provider_bootstrap_validate"));
   ok("system tools exposes Drive probe", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "activation_drive_probe"));
+  ok("system tools exposes Drive endpoint catalog", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "google_drive_endpoint_catalog"));
+  ok("system tools exposes Drive folder inspect", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "google_drive_folder_inspect"));
+  const driveFolderTool = r.body.tools.find((tool) => tool.name === "google_drive_folder_inspect");
+  ok("Drive folder inspect supports Shared Drive fields", Boolean(driveFolderTool?.inputSchema?.properties?.folder_url) && Boolean(driveFolderTool?.inputSchema?.properties?.credential_scope));
   ok("system tools exposes DB-native bootstrap read", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "activation_bootstrap_config_read"));
   ok("system tools exposes deprecated Sheets bootstrap alias", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "activation_sheets_bootstrap_read"));
   ok("system tools exposes GitHub validation", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "activation_github_validate"));
@@ -373,6 +377,7 @@ section("Admin system layer connector facade");
   ok("shared system tools exposes tenant GPT OAuth client upsert to admin", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "tenant_gpt_oauth_client_upsert"));
   ok("shared system tools exposes credential client config upsert to admin", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "credential_client_config_upsert"));
   ok("shared system tools exposes Google Auth Platform config to admin", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "google_auth_platform_config_get"));
+  ok("shared system tools exposes Drive folder inspect to admin", Array.isArray(r.body.tools) && r.body.tools.some((tool) => tool.name === "google_drive_folder_inspect"));
 }
 {
   const r = await post("/system/tools/call", {});
