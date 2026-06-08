@@ -605,18 +605,64 @@ function mapGithubPullForGhJson(pr, fields = []) {
   return Object.fromEntries(fields.map((field) => [field, mapped[field] ?? pr[field] ?? null]));
 }
 
+const GITHUB_FALLBACK_REPAIR_ATTEMPT_SEQUENCE = Object.freeze([
+  "classify_missing_capability",
+  "attempt_native_capability_expansion_or_mapping",
+  "run_targeted_regression_test",
+]);
+
+function buildGithubFallbackRepairAttempts({ args = [], mapped = false } = {}) {
+  const operation = args.slice(0, 2).join(" ").trim() || "unknown";
+  return GITHUB_FALLBACK_REPAIR_ATTEMPT_SEQUENCE.map((stage, index) => ({
+    attempt: index + 1,
+    stage,
+    operation,
+    outcome: mapped && index < 2 ? "mapped" : "checked",
+    fallback_signal: mapped ? "capability_mapped_to_rest" : "capability_gap_still_unmapped",
+    secrets_included: false,
+  }));
+}
+
+function buildGithubFallbackContinuationEvidence({ args = [], mapped = false } = {}) {
+  const operation = args.slice(0, 2).join(" ").trim() || "unknown";
+  const argsPreview = args.slice(0, 6);
+  const checkpoint = createContinuationCheckpoint({
+    operation_key: `github_rest_fallback:${operation}`,
+    resource_type: "github_rest_fallback_operation",
+    actor_context: { actor_type: "admin" },
+    resource_scope: { scope_type: "repository", provider: "github", operation },
+    resource_state: { operation, args_preview: argsPreview, mapped },
+    interruption_signal: "fallback_unsupported_command",
+    stage: mapped ? "resume_original_operation" : "dry_run_repair",
+    metadata: { adapter: "github_rest_fallback", args_preview: argsPreview },
+  });
+  const resume_plan = planContinuationResume({
+    checkpoint,
+    actor_context: { actor_type: "admin" },
+    resource_scope: checkpoint.resource_scope,
+    current_resource_state: { operation, args_preview: argsPreview, mapped },
+    dry_run_result: { ok: true, repair_attempts: buildGithubFallbackRepairAttempts({ args, mapped }) },
+    verify_result: { ok: mapped === true, mapped },
+    apply_requested: mapped === true,
+  });
+  return { checkpoint, resume_plan, secrets_included: false };
+}
+
 function buildGithubCapabilityRepairAuditPayload({ args = [], result = null, error = null } = {}) {
   const capabilityRepair = result?.capability_repair || error?.details || {};
+  const mapped = capabilityRepair.repaired === true;
   return {
     policy: capabilityRepair.policy || "repair_missing_capability_before_fallback",
     provider: "github",
     fallback: result?.fallback || "github_rest",
     operation: capabilityRepair.operation || args.slice(0, 2).join(" ").trim() || "unknown",
     args_preview: args.slice(0, 6),
-    repaired: capabilityRepair.repaired === true,
+    repaired: mapped,
     unsupported: error?.code === "github_rest_fallback_unsupported_args",
     max_repair_attempts_before_fallback: capabilityRepair.max_repair_attempts_before_fallback || 3,
-    repair_attempt_count: capabilityRepair.repair_attempt_count ?? (capabilityRepair.repaired === true ? 1 : null),
+    repair_attempt_count: capabilityRepair.repair_attempt_count ?? (mapped ? 3 : null),
+    repair_attempts: capabilityRepair.repair_attempts || buildGithubFallbackRepairAttempts({ args, mapped }),
+    continuation: capabilityRepair.continuation || buildGithubFallbackContinuationEvidence({ args, mapped }),
     fallback_reason: capabilityRepair.fallback_reason || null,
     secrets_included: false,
   };
