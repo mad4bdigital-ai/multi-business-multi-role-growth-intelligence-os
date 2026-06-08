@@ -861,6 +861,7 @@ async function autoOpenGptSession(pool, subject, options = {}) {
     closed_sessions: closeResult.affectedRows || 0,
     archive_status: archiveStatus,
     session_management: {
+      mode: "open_new_session",
       parallel_sessions_allowed: true,
       close_previous_sessions_requested: closePreviousSessions,
       active_sessions_before_open: activeBefore,
@@ -870,14 +871,66 @@ async function autoOpenGptSession(pool, subject, options = {}) {
   };
 }
 
+export function shouldOpenActivationSession(query = {}) {
+  return !(
+    asBoolean(query.no_open_session) ||
+    asBoolean(query.read_only) ||
+    asBoolean(query.context_only)
+  );
+}
+
+async function readOnlyGptSessionContext(pool, subject) {
+  const userId = subject.user_id || null;
+  const tenantId = subject.tenant_id || PLATFORM_TENANT_ID;
+  const [[activeRow]] = await pool.query(
+    `SELECT COUNT(*) AS active_count
+       FROM \`customer_sessions\`
+      WHERE originator = 'gpt_action'
+        AND tenant_id = ?
+        AND (? IS NULL OR user_id = ?)
+        AND session_status IN ('pending', 'active')`,
+    [tenantId, userId, userId]
+  );
+  const [latestRows] = await pool.query(
+    `SELECT session_id, archive_status
+       FROM \`customer_sessions\`
+      WHERE originator = 'gpt_action'
+        AND tenant_id = ?
+        AND (? IS NULL OR user_id = ?)
+        AND session_status IN ('pending', 'active')
+      ORDER BY started_at DESC
+      LIMIT 1`,
+    [tenantId, userId, userId]
+  );
+  const latest = latestRows[0] || null;
+  const activeCount = asCount(activeRow?.active_count);
+  return {
+    session_id: latest?.session_id || null,
+    closed_sessions: 0,
+    archive_status: latest?.archive_status || "not_opened",
+    session_management: {
+      mode: "read_only_existing_session",
+      parallel_sessions_allowed: true,
+      close_previous_sessions_requested: false,
+      active_sessions_before_open: activeCount,
+      active_sessions_after_open: activeCount,
+      status_written: null,
+      note: "Session Context read-only mode can inspect context without minting a fresh session id; use it before ChatGPT conversation ref capture diagnostics.",
+    },
+  };
+}
+
 export async function buildActivationSessionContext(req) {
   const pool = getPool();
   const subject = resolveSessionContextSubject(req);
 
   // Parallel conversations are the default; explicit close_previous_sessions preserves the old single-session behavior when needed.
-  const sessionOpen = await autoOpenGptSession(pool, subject, {
-    close_previous_sessions: asBoolean(req.query.close_previous_sessions) || asBoolean(req.query.close_previous),
-  });
+  // Read-only callers can inspect context without minting a fresh session id, which prevents accidental ChatGPT URL ref relinking during diagnostics.
+  const sessionOpen = shouldOpenActivationSession(req.query)
+    ? await autoOpenGptSession(pool, subject, {
+        close_previous_sessions: asBoolean(req.query.close_previous_sessions) || asBoolean(req.query.close_previous),
+      })
+    : await readOnlyGptSessionContext(pool, subject);
   const { session_id: newSessionId, closed_sessions } = sessionOpen;
 
   const limit = capLimit(req.query.limit, SESSION_CONTEXT_DEFAULT_LIMIT, SESSION_CONTEXT_MAX_LIMIT);
@@ -1353,6 +1406,32 @@ export function buildActivationRoutes(deps) {
       },
       secrets_included: false,
     });
+  });
+
+  router.get("/activation/session-context/read-only", requireBackendApiKey, async (req, res) => {
+    try {
+      const context = await buildActivationSessionContext({
+        ...req,
+        query: {
+          ...req.query,
+          read_only: "true",
+        },
+      });
+      return res.status(200).json({
+        ok: true,
+        activation_layer: "session_context",
+        read_only: true,
+        ...context
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: {
+          code: err.code || "activation_session_context_read_only_failed",
+          message: err.message
+        }
+      });
+    }
   });
 
   router.get("/activation/session-context", requireBackendApiKey, async (req, res) => {

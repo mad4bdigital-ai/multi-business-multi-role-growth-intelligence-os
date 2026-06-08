@@ -8,7 +8,8 @@ import {
   resolveSessionContextSubject,
   SESSION_CONTEXT_DEFAULT_LIMIT,
   SESSION_CONTEXT_MAX_LIMIT,
-  resolveRequestedEvolutionScope
+  resolveRequestedEvolutionScope,
+  shouldOpenActivationSession
 } from "./routes/activationRoutes.js";
 
 {
@@ -48,6 +49,10 @@ assert.equal(capLimit(500, SESSION_CONTEXT_DEFAULT_LIMIT, SESSION_CONTEXT_MAX_LI
 assert.equal(normalizeOffset(undefined), 0);
 assert.equal(normalizeOffset(-1), 0);
 assert.equal(normalizeOffset(40), 40);
+assert.equal(shouldOpenActivationSession({}), true);
+assert.equal(shouldOpenActivationSession({ read_only: "true" }), false);
+assert.equal(shouldOpenActivationSession({ no_open_session: "true" }), false);
+assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
 
 {
   const scope = resolveRequestedEvolutionScope({}, { is_admin: true });
@@ -99,6 +104,13 @@ assert.equal(normalizeOffset(40), 40);
   const source = readFileSync("routes/activationRoutes.js", "utf8");
   assert.equal(source.includes("close_previous_sessions_requested"), true);
   assert.equal(source.includes("parallel_sessions_allowed: true"), true);
+  assert.equal(source.includes("mode: \"open_new_session\""), true);
+  assert.equal(source.includes("mode: \"read_only_existing_session\""), true);
+  assert.equal(source.includes("shouldOpenActivationSession"), true);
+  assert.equal(source.includes("readOnlyGptSessionContext"), true);
+  assert.equal(source.includes('router.get("/activation/session-context/read-only"'), true);
+  assert.equal(source.includes("activation_session_context_read_only_failed"), true);
+  assert.equal(source.includes("Session Context read-only mode can inspect context without minting a fresh session id"), true);
   assert.equal(source.includes("session_status = 'completed'"), true);
   assert.equal(source.includes("VALUES (?, ?, ?, 'gpt_action', 'active', ?)"), true);
   assert.equal(source.includes("close_previous_sessions: asBoolean(req.query.close_previous_sessions)"), true);
