@@ -335,6 +335,29 @@ ready_for_dispatch
 
 This is the prerequisite layer for Google Ads budget changes, OpenRouter/Codex platform fallback quota, Make/custom API writes, and browser side-effect sessions.
 
+## Fifth enforced family foundation: Google Ads budget change preflight
+
+`google_ads_budget_change_preflight_policy_v1` introduces the first spend-changing family gate. It is preflight only and does not call Google Ads, read Google Ads credentials, or mutate campaign budgets.
+
+The preflight requires:
+
+```text
+capability_envelope_id with app_key = google_ads
+budget_quota_authority_dry_run decision = ready_for_dispatch
+requested_amount_minor > 0
+```
+
+Blocked outputs include:
+
+```text
+blocked_invalid_requested_amount
+capability_resolution_envelope_required / not ready
+blocked_missing_budget_quota_authority
+blocked_budget_quota_limit
+```
+
+A future Google Ads execution adapter must call this preflight before any Google Ads API mutation.
+
 ## Fourth enforced family: GitHub repository patch apply
 
 `repo_patch_apply_capability_envelope_requirement_v1` makes `repo_patch_apply` require `capability_envelope_id` before GitHub App token resolution or repository content mutation.
