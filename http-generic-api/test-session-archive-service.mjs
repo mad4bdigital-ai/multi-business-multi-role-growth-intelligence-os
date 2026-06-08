@@ -33,6 +33,13 @@ function flattenParams(value) {
 }
 
 {
+  const migration = readFileSync("migrations/243_sprint68_gpt_session_archive_doc_rollover.sql", "utf8");
+  assert(migration.includes("drive_doc_part_index"), "migration must add current doc part index");
+  assert(migration.includes("drive_doc_part_count"), "migration must add doc part count");
+  assert(migration.includes("drive_doc_part` SMALLINT"), "migration must add per-turn doc part metadata");
+}
+
+{
   const service = readFileSync("sessionArchiveService.js", "utf8");
   const uploadPipeline = readFileSync("uploadPipeline.js", "utf8");
   assert(service.includes("SELECT COALESCE(MAX(turn_index), -1) AS max_idx FROM `gpt_session_turns`"), "archive service should refresh turn index before writing");
