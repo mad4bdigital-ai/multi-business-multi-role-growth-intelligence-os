@@ -358,6 +358,15 @@ blocked_budget_quota_limit
 
 A future Google Ads execution adapter must call this preflight before any Google Ads API mutation.
 
+`google_ads_budget_preflight_binding_policy_v1` keeps that separation explicit:
+
+```text
+google_ads_budget_change_preflight credential_source = none
+googleads_api credential_source = user_connection
+```
+
+That means preflight envelopes can be created without Google Ads credentials, while real Google Ads execution remains blocked until a genuine user connection and execution adapter exist.
+
 ## Fourth enforced family: GitHub repository patch apply
 
 `repo_patch_apply_capability_envelope_requirement_v1` makes `repo_patch_apply` require `capability_envelope_id` before GitHub App token resolution or repository content mutation.
