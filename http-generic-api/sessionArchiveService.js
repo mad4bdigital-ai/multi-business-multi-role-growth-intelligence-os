@@ -422,6 +422,9 @@ export async function recordGptSessionTurn({
     content,
     timestamp,
     includeContent: false,
+    bookmark: driveAnchor,
+    docContentMode,
+    fullContentStorage: "jsonl_sidecar",
   });
   const jsonlRuntimeEvent = buildRuntimeEvent({
     eventId,
