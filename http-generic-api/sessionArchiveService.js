@@ -159,6 +159,7 @@ export async function ensureSessionArchive(pool, session, injectedDeps = {}) {
   await pool.query(
     `UPDATE \`customer_sessions\`
      SET drive_folder_id = ?, drive_doc_id = ?, drive_doc_url = ?,
+         drive_doc_part_index = ?, drive_doc_part_count = ?,
          drive_jsonl_id = ?, drive_jsonl_url = ?, drive_exports_folder_id = ?,
          archive_status = 'ready', archive_last_error = NULL, archive_last_written_at = NOW()
      WHERE session_id = ?`,
@@ -166,6 +167,8 @@ export async function ensureSessionArchive(pool, session, injectedDeps = {}) {
       archive.drive_folder_id,
       archive.drive_doc_id,
       archive.drive_doc_url,
+      archive.drive_doc_part_index,
+      archive.drive_doc_part_count,
       archive.drive_jsonl_id,
       archive.drive_jsonl_url,
       archive.drive_exports_folder_id,
