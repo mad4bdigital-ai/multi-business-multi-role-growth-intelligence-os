@@ -130,6 +130,96 @@ export function buildReleaseRoutes(deps) {
   router.post("/release/session-archive-smoke", requireBackendApiKey, handleSessionArchiveSmoke);
   router.post("/admin/release/session-archive-smoke", requireBackendApiKey, handleSessionArchiveSmoke);
 
+  async function handleSessionArchiveBackfill(req, res) {
+    try {
+      const pool = getPool();
+      const dryRun = req.body?.dry_run !== false;
+      const limit = Math.max(1, Math.min(Number(req.body?.limit || 5), 25));
+      const requestedSessionIds = Array.isArray(req.body?.session_ids)
+        ? req.body.session_ids.map((id) => String(id || "").trim()).filter(Boolean)
+        : String(req.body?.session_id || "").trim()
+          ? [String(req.body.session_id).trim()]
+          : [];
+
+      let candidates = [];
+      if (requestedSessionIds.length) {
+        const [rows] = await pool.query(
+          `SELECT session_id, archive_status, started_at, turn_rows, user_turns, assistant_turns, tool_turns, drive_doc_id, drive_jsonl_id
+             FROM \`v_gpt_session_archive_monitoring\`
+            WHERE session_id IN (?)
+            ORDER BY started_at ASC`,
+          [requestedSessionIds]
+        );
+        candidates = rows;
+      } else {
+        const [rows] = await pool.query(
+          `SELECT m.session_id, m.archive_status, m.started_at, m.turn_rows, m.user_turns, m.assistant_turns, m.tool_turns, m.drive_doc_id, m.drive_jsonl_id
+             FROM \`v_gpt_session_archive_monitoring\` m
+            WHERE m.tool_turns >= 10
+              AND (m.user_turns = 0 OR m.assistant_turns = 0)
+              AND COALESCE(m.drive_jsonl_id, '') <> ''
+              AND NOT EXISTS (
+                SELECT 1 FROM \`session_events\` e
+                 WHERE e.session_id COLLATE utf8mb4_uca1400_ai_ci = m.session_id
+                   AND e.action_key = 'gpt_session_archive_backfill'
+              )
+            ORDER BY m.tool_turns DESC
+            LIMIT ${limit}`
+        );
+        candidates = rows;
+      }
+
+      if (dryRun) {
+        return res.status(200).json({
+          ok: true,
+          dry_run: true,
+          candidate_count: candidates.length,
+          candidates,
+          action_required: "rerun with dry_run=false to rebuild transcript docs from JSONL",
+          secrets_included: false,
+        });
+      }
+
+      const results = [];
+      for (const candidate of candidates.slice(0, limit)) {
+        try {
+          results.push(await backfillGptSessionArchiveFromJsonl({
+            pool,
+            sessionId: candidate.session_id,
+            reason: req.body?.reason || "legacy_tool_only_backfill",
+          }));
+        } catch (err) {
+          results.push({
+            ok: false,
+            session_id: candidate.session_id,
+            error: { code: err.code || "gpt_session_archive_backfill_failed", message: err.message },
+            secrets_included: false,
+          });
+        }
+      }
+
+      const failed = results.filter((row) => row.ok === false);
+      return res.status(failed.length ? 207 : 200).json({
+        ok: failed.length === 0,
+        dry_run: false,
+        candidate_count: candidates.length,
+        processed_count: results.length,
+        failed_count: failed.length,
+        results,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(500).json({
+        ok: false,
+        error: { code: "gpt_session_archive_backfill_route_failed", message: err.message },
+        secrets_included: false,
+      });
+    }
+  }
+
+  router.post("/release/session-archive-backfill", requireBackendApiKey, handleSessionArchiveBackfill);
+  router.post("/admin/release/session-archive-backfill", requireBackendApiKey, handleSessionArchiveBackfill);
+
   // ── GET /release/readiness-history ────────────────────────────────────────
   // Returns the last N readiness runs from release_readiness_log.
   router.get("/release/readiness-history", requireBackendApiKey, async (req, res) => {
