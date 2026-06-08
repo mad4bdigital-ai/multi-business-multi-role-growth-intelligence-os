@@ -21,6 +21,7 @@ assert.deepEqual(
   "shared reconciliation must preserve the full safe resume sequence"
 );
 assert(GENERALIZED_INTERRUPTION_SIGNALS.includes("tool_time_exhausted"), "tool timeout must be a generalized interruption signal");
+assert(GENERALIZED_INTERRUPTION_SIGNALS.includes("connector_tunnel_provisioning_required"), "missing tunnel token must be a resumable connector provisioning signal");
 assert(GENERALIZED_INTERRUPTION_SIGNALS.includes("branch_diverged"), "branch drift must be a generalized interruption signal");
 assert(GENERALIZED_INTERRUPTION_SIGNALS.includes("deploy_reload_pending"), "deploy reload gaps must be a generalized interruption signal");
 assert(GENERALIZED_INTERRUPTION_SIGNALS.includes("fallback_unsupported_command"), "unsupported fallback gaps must be a generalized interruption signal");
