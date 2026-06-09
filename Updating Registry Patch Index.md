@@ -1,5 +1,7 @@
 # Updating Registry Patch Index
 
+> 2026-06-09 execution enablement approval flow note: PR adds `execution_enablement_approval_flow_policy_v1`, table `execution_enablement_requests`, tools `execution_enablement_request`, `execution_enablement_approve`, `execution_enablement_revoke`, and migration `249_sprint67_execution_enablement_approval_flow.sql`. Enablement rows now have a governed lifecycle: request -> approval hold -> scoped expiring enablement row -> revoke. No provider call, no credential read, no spend change.
+
 > 2026-06-09 execution enablement registry note: PR adds `execution_enablement_registry_policy_v1`, table `execution_enablement_registry`, tool `execution_enablement_gate`, and migration `248_sprint67_execution_enablement_registry.sql`. Provider execution remains blocked unless an explicit active enablement row exists. Google Ads skeleton now calls the gate and blocks with `blocked_execution_enablement_missing_or_disabled` when no row exists. No provider call, no spend change, `secrets_included=false`.
 
 > 2026-06-08 Google Ads credential readiness note: PR adds `google_ads_credential_readiness_gate_policy_v1`, tool `google_ads_credential_readiness_gate`, and migration `246_sprint67_google_ads_credential_readiness_gate.sql`. It checks active Google Ads connection and credential binding metadata only. It does not read encrypted credentials, decrypt tokens, call Google Ads, or mutate spend. Future execution requires this gate in addition to preflight validation and explicit enablement.
