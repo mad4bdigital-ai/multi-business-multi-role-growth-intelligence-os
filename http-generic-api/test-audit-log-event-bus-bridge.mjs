@@ -21,6 +21,9 @@ assert.doesNotMatch(script, /before_json\s*[:=]\s*row\.before_json|after_json\s*
 assert.doesNotMatch(script, /DELETE\s+FROM|UPDATE\s+audit_log|DROP\s+TABLE|TRUNCATE/i);
 
 assert.match(adminCli, /audit_log_event_bus_bridge/);
+assert.match(adminCli, /audit_log_event_bus_bridge_tick/);
+assert.match(adminCli, /APPLY_AUDIT_LOG_EVENT_BUS_BRIDGE/);
+assert.match(adminCli, /allow_extra_args: false/);
 assert.match(adminCli, /audit-log-event-bus-bridge\.mjs/);
 
 console.log("Audit log event bus bridge guard passed");
