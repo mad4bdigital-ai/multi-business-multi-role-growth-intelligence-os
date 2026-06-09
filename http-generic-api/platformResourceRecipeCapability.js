@@ -493,20 +493,23 @@ function selectedInstalledToolKey(recipe = {}, steps = []) {
   return executableInstalledToolSteps(steps)[0]?.tool_key || null;
 }
 
-function buildInstalledToolArgs(plan = {}, args = {}) {
+function buildInstalledToolArgs(plan = {}, args = {}, explicitToolKey = null) {
   const recipe = plan.recipe || {};
   const policy = recipe.policy || {};
   const resolved = plan.resolved_resource || {};
   const ref = resolved.resource_ref || {};
   const options = args.options && typeof args.options === "object" ? args.options : {};
-  const maxDepth = boundedNumber(options.max_depth ?? args.max_depth ?? ref.max_depth, 1, 0, Math.min(Number(policy.max_depth || 3), 3));
+  const toolKey = explicitToolKey || recipe.installed_tool_key;
+  const isArtifactReconcile = recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY;
+  const defaultMaxDepth = isArtifactReconcile ? 1 : 1;
+  const maxDepth = boundedNumber(options.max_depth ?? args.max_depth ?? ref.max_depth, defaultMaxDepth, 0, Math.min(Number(policy.max_depth || 3), 3));
   const pageSize = boundedNumber(options.page_size ?? args.page_size, 100, 1, 200);
 
-  if (recipe.installed_tool_key === "google_drive_folder_inspect") {
+  if (toolKey === "google_drive_folder_inspect") {
     return {
       folder_id: ref.folder_id || args.folder_id || undefined,
       folder_url: ref.folder_url || args.folder_url || args.input || undefined,
-      recursive: boolOption(options.recursive ?? args.recursive, maxDepth > 1),
+      recursive: boolOption(options.recursive ?? args.recursive, isArtifactReconcile ? maxDepth >= 1 : maxDepth > 1),
       max_depth: maxDepth,
       page_size: pageSize,
       credential_scope: args.credential_scope || options.credential_scope || "platform",
