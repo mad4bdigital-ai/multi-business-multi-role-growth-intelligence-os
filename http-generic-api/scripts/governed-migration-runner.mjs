@@ -127,6 +127,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "260_sprint68_ticket_external_credential_activation_binding.sql",
   "261_sprint68_ticket_external_credential_orchestration.sql",
   "262_sprint68_ticket_external_send_provider_gate.sql",
+  "262_sprint68_orchestration_readback_surface.sql",
   "256_sprint68_dynamic_audit_pipeline_readiness.sql",
   "233_sprint68_general_mode_choice_governance.sql",
   "244_sprint68_cms_grant_dedupe_and_null_guard.sql",
