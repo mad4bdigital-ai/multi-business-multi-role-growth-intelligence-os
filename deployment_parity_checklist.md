@@ -3,6 +3,8 @@
 
 > Execution enablement approval flow parity note: verify `execution_enablement_approval_flow_policy_v1`, table `execution_enablement_requests`, and tools `execution_enablement_request`, `execution_enablement_approve`, and `execution_enablement_revoke` after migration `249_sprint67_execution_enablement_approval_flow.sql`. Smoke should create a pending request and approval hold without provider calls, credentials, spend change, or secrets.
 
+> Execution enablement approval flow parity note: verify `execution_enablement_approval_flow_policy_v1`, table `execution_enablement_requests`, and tools `execution_enablement_request`, `execution_enablement_approve`, and `execution_enablement_revoke` after migration `249_sprint67_execution_enablement_approval_flow.sql`. Smoke should create a pending request and approval hold without provider calls, credentials, spend change, or secrets.
+
 > Execution enablement registry parity note: verify `execution_enablement_registry_policy_v1`, table `execution_enablement_registry`, tool `execution_enablement_gate`, and Google Ads skeleton binding after migration `248_sprint67_execution_enablement_registry.sql`. Smoke should return `blocked_execution_enablement_missing_or_disabled`, `no_provider_call=true`, `no_spend_change=true`, and `secrets_included=false`.
 
 > Google Ads credential readiness parity note: verify `google_ads_credential_readiness_gate_policy_v1` and enabled tool `google_ads_credential_readiness_gate` after migration `246_sprint67_google_ads_credential_readiness_gate.sql`. Smoke without a Google Ads connection should block with `blocked_google_ads_connection_missing` and keep `no_credential_payload_read=true`, `no_provider_call=true`, `no_spend_change=true`, and `secrets_included=false`.
