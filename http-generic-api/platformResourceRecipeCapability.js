@@ -1019,7 +1019,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
     };
   }
 
-  if (!["read_only", "diagnostic", "continue_read_only"].includes(mode)) {
+  if (!["read_only", "diagnostic", "continue_read_only", "manifest_dry_run"].includes(mode)) {
     return {
       ok: false,
       tool: "governed_resource_run",
