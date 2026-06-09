@@ -277,7 +277,7 @@ export async function runSessionArchiveSmoke({
     ),
     check(
       "drive_doc_bookmarks",
-      !includeDriveReadback || [0, 1, 2].every((idx) => docText.includes(`Bookmark: turn-${idx}`)),
+      !includeDriveReadback || [0, 1, 2, 3].every((idx) => docText.includes(`Bookmark: turn-${idx}`)),
       driveReadError ? { error: driveReadError.message } : null
     ),
     check(
