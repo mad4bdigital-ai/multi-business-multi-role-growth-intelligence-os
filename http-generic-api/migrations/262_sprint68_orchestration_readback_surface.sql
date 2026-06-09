@@ -74,7 +74,7 @@ SELECT
   (SELECT COUNT(*) FROM `ads_provider_capability_profile_registry` WHERE provider_key = 'google_ads') AS google_ads_profile_rows,
   (SELECT COUNT(*) FROM `ads_provider_preflight_contract_registry` WHERE provider_key = 'google_ads') AS google_ads_contract_rows,
   (SELECT COUNT(*) FROM `ads_provider_preflight_surface_blueprint_registry` WHERE provider_key = 'google_ads') AS google_ads_blueprint_rows,
-  (SELECT COUNT(*) FROM `execution_enablement_registry` WHERE provider_key = 'google_ads' AND execution_enabled = 1) AS google_ads_enabled_execution_rows,
+  (SELECT COUNT(*) FROM `execution_enablement_registry` WHERE (family_key = 'google_ads_budget' OR adapter_key = 'google_ads_budget_change_execution_adapter') AND execution_enabled = 1) AS google_ads_enabled_execution_rows,
   CASE
     WHEN COALESCE(g.stage_count, 0) >= 7 AND COALESCE(g.edge_count, 0) >= 6
     THEN 'ready_readonly_ads_governance_graph'
