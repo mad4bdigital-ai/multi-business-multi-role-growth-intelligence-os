@@ -961,8 +961,35 @@ export async function runGovernedResource(args = {}, deps = {}) {
 
   const toolKey = plan.execution_plan?.selected_installed_tool_key || selectedInstalledToolKey(recipe, plan.execution_plan?.steps || []);
   const toolArgs = buildInstalledToolArgs(plan, args, toolKey);
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  const requestedDepth = boundedNumber(options.max_depth ?? args.max_depth, 0, 0, 3);
   const startedAt = new Date().toISOString();
-  const installedToolResult = await deps.executeInstalledTool(toolKey, toolArgs, { plan, mode });
+  const rootInspectResult = await deps.executeInstalledTool(toolKey, toolArgs, { plan, mode, traversal_stage: "root" });
+  let installedToolResult = rootInspectResult;
+
+  if (recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY && requestedDepth >= 1) {
+    const childFolders = targetableChildFolders(rootInspectResult?.tree || {}, requiredArtifactExportChildNames(plan));
+    const childInspectResults = [];
+    for (const folder of childFolders) {
+      const childArgs = {
+        ...toolArgs,
+        folder_id: folder.id,
+        folder_url: folder.webViewLink || undefined,
+        recursive: false,
+        max_depth: 0,
+        page_size: boundedNumber(options.child_page_size ?? options.page_size ?? args.page_size, 50, 1, 100),
+      };
+      const childResult = await deps.executeInstalledTool(toolKey, childArgs, {
+        plan,
+        mode,
+        traversal_stage: "targeted_child",
+        child_name: folder.name,
+      });
+      childInspectResults.push({ folder, args: childArgs, result: childResult });
+    }
+    installedToolResult = mergeTargetedChildInspections(rootInspectResult, childInspectResults);
+  }
+
   const completedAt = new Date().toISOString();
   const result = recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY
     ? buildArtifactExportReconciliation(installedToolResult, plan, args)
