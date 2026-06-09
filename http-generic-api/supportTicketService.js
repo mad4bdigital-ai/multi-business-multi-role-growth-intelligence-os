@@ -2082,7 +2082,7 @@ export async function completeSupportTicketBrandRefSelectionRemediation({ tenant
   finally { if (ownsConnection) connection.release(); }
 }
 
-export async function applySupportTicketBrandMappingVerified({ tenant_id, ticket_id, approval_hold_id = null, brand_ref = null, brand_refs = null, permission = "manage", mode = "dry_run", rollback_on_failed_verification = true, actor_id = null, actor_type = "system", reason = "Verified brand mapping remediation apply." } = {}, options = {}) {
+export async function applySupportTicketBrandMappingVerified({ tenant_id, ticket_id, approval_hold_id = null, brand_ref = null, brand_refs = null, permission = "manage", mode = "dry_run", rollback_on_failed_verification = true, close_if_verified = true, actor_id = null, actor_type = "system", reason = "Verified brand mapping remediation apply." } = {}, options = {}) {
   const runMode = mode === "apply" ? "apply" : "dry_run";
   const targets = normalizeBrandGrantTargets({ brand_ref, brand_refs });
   if (!targets.length) { const err = new Error("At least one brand_ref is required for verified apply."); err.status = 400; err.code = "support_ticket_verified_apply_brand_ref_required"; throw err; }
@@ -2113,10 +2113,64 @@ export async function applySupportTicketBrandMappingVerified({ tenant_id, ticket
       throw err;
     }
     await insertLifecycleEvent(connection, { ticket_id, tenant_id, event_type: verified ? "brand_mapping_verified_apply_completed" : "brand_mapping_verified_apply_unverified", from_state: ticket.lifecycle_state || null, to_state: verified ? "verified" : "verification_failed", actor_id, actor_type, visibility: "internal_support", summary: reason, payload_json: { plan, apply: { grant_count: applyResult.grant_count, verification_count: applyResult.verification_count }, readback: { after_grant_count: after_grants.length, after_effective_count: after_effective.length, missing_refs }, verified, secrets_included: false } });
-    if (verified) await connection.query("UPDATE tickets SET status = 'resolved', lifecycle_state = 'verified', customer_status = 'resolved', updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?", [tenant_id, ticket_id]);
+    if (verified && close_if_verified) await connection.query("UPDATE tickets SET status = 'resolved', lifecycle_state = 'verified', customer_status = 'resolved', updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?", [tenant_id, ticket_id]);
     const updated = await fetchTicketById(connection, tenant_id, ticket_id);
     if (ownsConnection) await connection.commit();
     return { ok: true, mode: "apply", verified, plan, apply: applyResult, readback: { after_grants, after_effective, missing_refs }, ticket: compactTicket(updated), secrets_included: false };
+  } catch (error) { if (ownsConnection && runMode === "apply") await connection.rollback(); throw error; }
+  finally { if (ownsConnection) connection.release(); }
+}
+
+export async function finalizeSupportTicketBrandMappingRemediation({ tenant_id, ticket_id, selected_brand_ref, brand_ref_selection_hold_id = null, new_brand_ref_approval_hold_id = null, remediation_approval_hold_id = null, workflow_run_id = null, plan_id = null, permission = "manage", mode = "dry_run", close_if_verified = true, max_steps = 10, actor_id = null, actor_type = "system", reason = "Finalize brand mapping remediation." } = {}, options = {}) {
+  const selected = normalizeString(selected_brand_ref).trim();
+  const runMode = mode === "apply" ? "apply" : "dry_run";
+  if (!selected) { const err = new Error("selected_brand_ref is required."); err.status = 400; err.code = "support_ticket_selected_brand_ref_required"; throw err; }
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    if (ownsConnection && runMode === "apply") await connection.beginTransaction();
+    const ticket = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (!ticket) { const err = new Error("Ticket not found."); err.status = 404; err.code = "support_ticket_not_found"; throw err; }
+    const selectionHold = brand_ref_selection_hold_id
+      ? await queryOne(connection, "SELECT * FROM approval_holds WHERE tenant_id = ? AND hold_id = ? LIMIT 1", [tenant_id, brand_ref_selection_hold_id])
+      : await queryOne(connection, `SELECT ah.* FROM ticket_workflow_links twl JOIN approval_holds ah ON ah.hold_id = twl.approval_hold_id AND ah.tenant_id = twl.tenant_id WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.relationship = 'brand_ref_selection' AND JSON_UNQUOTE(JSON_EXTRACT(ah.execution_context_json, '$.selected_brand_ref')) = ? ORDER BY ah.decided_at DESC, ah.created_at DESC LIMIT 1`, [tenant_id, ticket_id, selected]);
+    const remediationHold = remediation_approval_hold_id
+      ? await queryOne(connection, "SELECT * FROM approval_holds WHERE tenant_id = ? AND hold_id = ? LIMIT 1", [tenant_id, remediation_approval_hold_id])
+      : await queryOne(connection, `SELECT ah.* FROM ticket_workflow_links twl JOIN approval_holds ah ON ah.hold_id = twl.approval_hold_id AND ah.tenant_id = twl.tenant_id WHERE twl.tenant_id = ? AND twl.ticket_id = ? AND twl.relationship = 'approval_gate' ORDER BY ah.decided_at DESC, ah.created_at DESC LIMIT 1`, [tenant_id, ticket_id]);
+    const resolution = await resolveSupportTicketBrandRefs({ tenant_id, ticket_id, min_confidence: 0, limit: 50 }, { connection });
+    const candidate = resolution.candidates.find((item) => item.brand_ref === selected) || null;
+    const candidateSources = Array.isArray(candidate?.sources) ? candidate.sources : [];
+    const legacyOnlyCandidate = Boolean(candidate) && candidateSources.length > 0 && candidateSources.every((source) => source === "legacy_brand_registry");
+    const lowConfidenceCandidate = Number(candidate?.confidence || 0) < 70;
+    const newBrandRefApprovalRequired = !candidate || (legacyOnlyCandidate && lowConfidenceCandidate);
+    const newBrandRefApproval = new_brand_ref_approval_hold_id
+      ? await queryOne(connection, "SELECT * FROM approval_holds WHERE tenant_id = ? AND hold_id = ? LIMIT 1", [tenant_id, new_brand_ref_approval_hold_id])
+      : newBrandRefApprovalRequired ? await findApprovedNewBrandRefApproval(connection, { tenant_id, ticket_id, selected_brand_ref: selected }) : null;
+    const latestLink = (!workflow_run_id || !plan_id) ? await queryOne(connection, `SELECT plan_id, run_id FROM ticket_workflow_links WHERE tenant_id = ? AND ticket_id = ? AND (plan_id IS NOT NULL OR run_id IS NOT NULL) ORDER BY created_at DESC LIMIT 1`, [tenant_id, ticket_id]) : null;
+    const finalPlanId = plan_id || latestLink?.plan_id || null;
+    const finalRunId = workflow_run_id || latestLink?.run_id || null;
+    const approvalChecks = {
+      brand_ref_selection: { hold_id: selectionHold?.hold_id || null, status: selectionHold?.status || null, approved: selectionHold?.status === "approved" },
+      remediation: { hold_id: remediationHold?.hold_id || null, status: remediationHold?.status || null, approved: remediationHold?.status === "approved" },
+      new_brand_ref: { required: newBrandRefApprovalRequired, hold_id: newBrandRefApproval?.hold_id || null, status: newBrandRefApproval?.status || null, approved: !newBrandRefApprovalRequired || newBrandRefApproval?.status === "approved" },
+    };
+    const dryRun = await applySupportTicketBrandMappingVerified({ tenant_id, ticket_id, approval_hold_id: remediationHold?.hold_id || remediation_approval_hold_id || null, brand_ref: selected, permission, mode: "dry_run", rollback_on_failed_verification: true, close_if_verified: false, actor_id, actor_type, reason: `${reason} dry-run` }, { connection });
+    const readyForApply = approvalChecks.brand_ref_selection.approved && approvalChecks.remediation.approved && approvalChecks.new_brand_ref.approved && dryRun.ok === true;
+    const plan = { ticket_id, tenant_id, selected_brand_ref: selected, candidate, legacy_only_candidate: legacyOnlyCandidate, low_confidence_candidate: lowConfidenceCandidate, approval_checks: approvalChecks, workflow_run_id: finalRunId, plan_id: finalPlanId, ready_for_apply: readyForApply, close_if_verified: Boolean(close_if_verified), secrets_included: false };
+    if (runMode !== "apply") return { ok: true, mode: "dry_run", plan, verified_apply_dry_run: dryRun, resolution, secrets_included: false };
+    if (!readyForApply) { const err = new Error("Finalize brand mapping remediation requires approved selection, remediation, and new brand_ref approvals plus clean dry-run."); err.status = 409; err.code = "support_ticket_finalize_remediation_not_ready"; err.plan = plan; throw err; }
+    const verifiedApply = await applySupportTicketBrandMappingVerified({ tenant_id, ticket_id, approval_hold_id: remediationHold.hold_id, brand_ref: selected, permission, mode: "apply", rollback_on_failed_verification: true, close_if_verified: false, actor_id, actor_type, reason }, { connection });
+    let diagnostic = null;
+    if (finalRunId && finalPlanId) diagnostic = await runSupportTicketDiagnosticChain({ tenant_id, ticket_id, run_id: finalRunId, plan_id: finalPlanId, max_steps, create_remediation_hold: false, actor_id, actor_type, reason: `${reason} diagnostic verification` }, { connection });
+    const diagnosticText = JSON.stringify(diagnostic || {});
+    const diagnosticBlocked = Boolean(diagnostic) && /mapping_review_required|needs_mapping_review|no_brand_references_found/.test(diagnosticText);
+    const closeAllowed = Boolean(verifiedApply.verified) && Boolean(diagnostic) && !diagnosticBlocked && close_if_verified;
+    if (closeAllowed) await connection.query("UPDATE tickets SET status = 'resolved', lifecycle_state = 'verified', customer_status = 'resolved', updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?", [tenant_id, ticket_id]);
+    await insertLifecycleEvent(connection, { ticket_id, tenant_id, event_type: closeAllowed ? "brand_mapping_remediation_finalized" : "brand_mapping_remediation_finalization_incomplete", from_state: ticket.lifecycle_state || null, to_state: closeAllowed ? "verified" : "verification_pending", actor_id, actor_type, visibility: "internal_support", summary: reason, payload_json: { plan, verified_apply: { verified: verifiedApply.verified, missing_refs: verifiedApply.readback?.missing_refs || [] }, diagnostic_present: Boolean(diagnostic), diagnostic_blocked: diagnosticBlocked, close_allowed: closeAllowed, secrets_included: false } });
+    const updated = await fetchTicketById(connection, tenant_id, ticket_id);
+    if (ownsConnection) await connection.commit();
+    return { ok: true, mode: "apply", verified: Boolean(verifiedApply.verified), diagnostic_blocked: diagnosticBlocked, closed: closeAllowed, plan, verified_apply: verifiedApply, diagnostic, ticket: compactTicket(updated), secrets_included: false };
   } catch (error) { if (ownsConnection && runMode === "apply") await connection.rollback(); throw error; }
   finally { if (ownsConnection) connection.release(); }
 }
