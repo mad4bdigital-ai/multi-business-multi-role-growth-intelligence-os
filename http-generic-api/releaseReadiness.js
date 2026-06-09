@@ -84,6 +84,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "236_sprint68_admin_branch_reconciliation_policy.sql",
   "248_sprint68_github_branch_fast_forward_policy.sql",
   "251_sprint68_github_branch_fast_forward_smoke_policy.sql",
+  "255_sprint68_live_checkout_cleanup_capability_gate.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
