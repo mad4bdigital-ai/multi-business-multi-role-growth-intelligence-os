@@ -6,6 +6,7 @@ const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/264_sprint68_ads_governance_snapshot_record_gate.sql", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
 const releaseReadiness = readFileSync("releaseReadiness.js", "utf8");
+const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 
 const module = await import("./adsProviderGovernanceSnapshotRecord.js");
 assert.equal(typeof module.recordAdsProviderGovernanceSnapshot, "function", "snapshot record service must export function");
