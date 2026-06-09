@@ -485,6 +485,7 @@ export async function extractSessionSummaryInsightCandidates({ pool = getPool(),
       ]
     );
     await writeInsightCandidateScopeLinks({ pool, seed });
+    await writeSessionInsightPromotionProposal({ pool, seed });
   }
   return { ok: true, candidate_count: seeds.length, secrets_included: false };
 }
