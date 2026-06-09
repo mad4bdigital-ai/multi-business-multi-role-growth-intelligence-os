@@ -233,15 +233,18 @@ function normalizeObjectResourceRef(resourceRef = {}, resourceType = "") {
 }
 
 export function resolveResourceRefInput(args = {}) {
-  const explicit = normalizeObjectResourceRef(args.resource_ref, args.resource_type);
-  if (explicit) return explicit;
-
   const input = asString(args.input || args.resource_uri || args.url);
-  return (
-    parseGoogleDriveFolderRef(input) ||
-    parseGithubBranchRef(input) ||
-    null
-  );
+  const parsedInput = parseGoogleDriveFolderRef(input) || parseGithubBranchRef(input) || null;
+  const hasExplicitRef =
+    args.resource_ref &&
+    typeof args.resource_ref === "object" &&
+    Object.keys(args.resource_ref).length > 0;
+
+  if (hasExplicitRef) {
+    return normalizeObjectResourceRef(args.resource_ref, args.resource_type) || parsedInput;
+  }
+
+  return parsedInput || normalizeObjectResourceRef(args.resource_ref, args.resource_type);
 }
 
 function normalizeRecipeRow(row = {}) {
