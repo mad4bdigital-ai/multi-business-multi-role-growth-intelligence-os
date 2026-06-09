@@ -1186,10 +1186,27 @@ export async function writeSessionSummary({ pool = getPool(), session, insight, 
     ]
   );
 
+  let graphAttachment = null;
   try {
-    await attachSessionSummaryToGraph({ pool, session, summaryId, insight });
+    graphAttachment = await attachSessionSummaryToGraph({ pool, session, summaryId, insight });
   } catch (err) {
     console.warn("[sessionSummary] graph attachment failed", {
+      session_id: session.session_id,
+      summary_id: summaryId,
+      message: err?.message || String(err),
+    });
+  }
+
+  try {
+    await extractSessionSummaryInsightCandidates({
+      pool,
+      session,
+      summaryId,
+      insight,
+      assetId: graphAttachment?.asset_id || summaryAssetId(summaryId),
+    });
+  } catch (err) {
+    console.warn("[sessionSummary] insight candidate extraction failed", {
       session_id: session.session_id,
       summary_id: summaryId,
       message: err?.message || String(err),
