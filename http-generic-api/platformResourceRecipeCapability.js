@@ -566,6 +566,70 @@ function duplicateNameGroups(files = []) {
   return [...groups.values()].filter((group) => group.length > 1);
 }
 
+function buildArtifactExportManifestPlan({ tree = {}, summary = {}, findings = [], classifications = [] } = {}) {
+  const rootFolder = driveFileLite(tree.folder || {});
+  const recommendedManifestName = `${rootFolder.name || "session_archive"}.artifact_export_manifest.json`;
+  const findingEntries = findings.map((finding, index) => ({
+    entry_type: "finding",
+    ordinal: index + 1,
+    code: finding.code || "unknown_finding",
+    severity: finding.severity || "info",
+    action: "review_before_any_write",
+  }));
+
+  return {
+    ok: true,
+    plan_version: "manifest_plan_v1",
+    manifest_schema: "artifact_export_manifest.v1",
+    classification: classifications[0] || "unknown",
+    destination: {
+      status: "not_created",
+      recommended_name: recommendedManifestName,
+      recommended_location: "reviewer_selected_after_approval",
+    },
+    proposed_manifest: {
+      schema_version: "artifact_export_manifest.v1",
+      generated_from: "governed_resource_read_only_reconciliation",
+      root_folder: rootFolder,
+      counts: {
+        root_child_count: summary.root_child_count || 0,
+        artifact_file_count: summary.artifact_file_count || 0,
+        export_file_count: summary.export_file_count || 0,
+        duplicate_group_count: summary.duplicate_group_count || 0,
+        empty_file_count: summary.empty_file_count || 0,
+        orphan_export_count: summary.orphan_export_count || 0,
+        missing_export_count: summary.missing_export_count || 0,
+      },
+      required_child_folders: summary.required_child_folders || {},
+      classifications,
+      findings: findingEntries,
+    },
+    review_checklist: [
+      "confirm_required_child_folders",
+      "review_empty_resources",
+      "review_duplicate_resources",
+      "approve_manifest_write_in_future_runtime",
+    ],
+    next_operation_candidates: [
+      {
+        operation_key: "manifest.create_after_review",
+        status: "future_guarded_apply_required",
+        requires_dry_run: true,
+        requires_capability_envelope: true,
+        requires_typed_confirmation: true,
+        same_cycle_readback_required: true,
+      },
+    ],
+    apply_supported: false,
+    write_operations_planned: false,
+    drive_write_planned: false,
+    graph_write_planned: false,
+    provider_calls_planned: 0,
+    file_content_required: false,
+    secrets_included: false,
+  };
+}
+
 function buildArtifactExportReconciliation(installedToolResult = {}, plan = {}) {
   const tree = installedToolResult?.tree || {};
   const policy = plan.recipe?.policy || {};
