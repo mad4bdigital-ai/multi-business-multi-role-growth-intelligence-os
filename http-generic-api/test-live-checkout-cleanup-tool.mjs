@@ -47,6 +47,8 @@ assert.match(script, /repo_patch_apply/);
 assert.match(script, /CAPABILITY_EXECUTION_REF/);
 assert.match(script, /live_checkout_cleanup\.apply/);
 assert.match(script, /export async function runLiveCheckoutCleanup/);
+assert.match(script, /function isCliEntrypoint\(\)/);
+assert.match(script, /path\.resolve\(process\.argv\[1\]\) === fileURLToPath\(import\.meta\.url\)/);
 assert.match(script, /await runLiveCheckoutCleanup\(parseArgs\(\)\)/);
 
 assert.match(adminCli, /live_checkout_cleanup/);
