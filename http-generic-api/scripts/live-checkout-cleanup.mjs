@@ -231,6 +231,7 @@ export async function runLiveCheckoutCleanup(rawArgs = parseArgs()) {
     secrets_included: false,
   };
   if (args.mode === "apply") {
+    const { writeAuditLogAsync } = await import("../auditLogger.js");
     writeAuditLogAsync({
       actor_type: "service",
       action: "live_checkout_cleanup.apply",
