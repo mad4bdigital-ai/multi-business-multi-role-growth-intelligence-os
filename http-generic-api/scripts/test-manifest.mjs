@@ -146,6 +146,7 @@ export const testCommands = [
   "node test-ticket-lifecycle-new-brand-ref-approval.mjs",
   "node test-ticket-lifecycle-verified-apply-rollback.mjs",
   "node test-ticket-lifecycle-finalize-brand-mapping-remediation.mjs",
+  "node test-ticket-lifecycle-diagnostic-requester-resolution.mjs",
   "node test-workspace-resource-grant-assignment.mjs",
   "node test-workspace-resource-grants-collation-alignment.mjs",
   "node test-workspace-ownership-member-controls.mjs",
