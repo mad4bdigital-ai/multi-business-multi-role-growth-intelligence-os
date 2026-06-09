@@ -148,6 +148,7 @@ SELECT 'Orchestration Intelligence Governance', 'orchestration_intelligence_foun
          'no_external_write',true,
          'secrets_included',false
        ),
+       'TRUE',
        'orchestration_intelligence|state_snapshot|recommendation_generation|plugin_graph',
        'platform_orchestration_plugins|platform_orchestration_state_snapshots|platform_engine_registry|releaseReadiness',
        'TRUE',
