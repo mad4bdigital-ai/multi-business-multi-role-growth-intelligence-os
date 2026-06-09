@@ -1293,7 +1293,7 @@ async function buildDiagnosticStepOutput(connection, { tenant_id, ticket, run, p
         WHERE tenant_id = ? AND grantee_user_id = ? AND resource_type = 'brand'
         ORDER BY granted_at DESC
         LIMIT 50`,
-      [tenant_id, ticket.user_id || run.user_id || ""]
+      [tenant_id, requesterUserId]
     );
     return {
       diagnostic_key: stepKey,
