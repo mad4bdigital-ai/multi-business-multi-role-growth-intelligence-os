@@ -876,7 +876,7 @@ async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }
           linkage_type, resource_scope_hash, visibility_scope, authority_status, lifecycle_status,
           confidence, approval_required, metadata_json, secrets_included, created_by)
        VALUES (?, 'json_asset', ?, 'json_assets', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-               'session_summary_scope_attachment', ?, 'authoritative', 'active',
+               'session_summary_scope_attachment', ?, ?, 'authoritative', 'active',
                1.0000, 0, ?, 0, ?)
        ON DUPLICATE KEY UPDATE
          asset_id = VALUES(asset_id),
