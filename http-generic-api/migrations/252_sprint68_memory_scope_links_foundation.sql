@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS `memory_scope_links` (
   `logic_key` VARCHAR(255) NULL,
   `engine_key` VARCHAR(255) NULL,
   `linkage_type` VARCHAR(96) NOT NULL,
+  `resource_scope_hash` CHAR(64) GENERATED ALWAYS AS (SHA2(CONCAT_WS('|', `resource_type`, `resource_ref`, `scope_type`, `scope_ref`, `linkage_type`), 256)) STORED,
   `visibility_scope` VARCHAR(64) NOT NULL DEFAULT 'platform_admin',
   `authority_status` ENUM('candidate','review_required','approved','authoritative') NOT NULL DEFAULT 'candidate',
   `lifecycle_status` ENUM('active','inactive','archived','superseded') NOT NULL DEFAULT 'active',
@@ -40,12 +41,12 @@ CREATE TABLE IF NOT EXISTS `memory_scope_links` (
   `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_memory_scope_link_id` (`link_id`),
-  UNIQUE KEY `uq_memory_scope_resource_scope` (`resource_type`, `resource_ref`, `scope_type`, `scope_ref`, `linkage_type`),
+  UNIQUE KEY `uq_memory_scope_resource_scope` (`resource_scope_hash`),
   KEY `idx_memory_scope_resource` (`resource_type`, `resource_ref`),
   KEY `idx_memory_scope_lookup` (`scope_type`, `scope_ref`, `lifecycle_status`),
   KEY `idx_memory_scope_tenant_workspace` (`tenant_id`, `workspace_key`, `lifecycle_status`),
   KEY `idx_memory_scope_brand_activity_role` (`brand_key`, `activity_type_key`, `role_key`, `lifecycle_status`),
-  KEY `idx_memory_scope_runtime` (`workflow_key`, `action_key`, `logic_key`, `engine_key`, `lifecycle_status`),
+  KEY `idx_memory_scope_runtime` (`workflow_key`(96), `action_key`(96), `logic_key`(96), `engine_key`(96), `lifecycle_status`),
   KEY `idx_memory_scope_asset` (`asset_id`, `asset_key`),
   CONSTRAINT `fk_memory_scope_links_scope_type`
     FOREIGN KEY (`scope_type`) REFERENCES `memory_scope_type_registry` (`scope_type`)
