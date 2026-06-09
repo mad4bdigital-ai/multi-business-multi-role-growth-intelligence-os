@@ -164,7 +164,7 @@ export async function decideSupportTicketExternalDeliveryApproval({ tenant_id, t
   const ownsConnection = !options.connection;
   try {
     if (ownsConnection) await connection.beginTransaction();
-    const [holds] = await connection.query("SELECT * FROM approval_holds WHERE tenant_id = ? AND hold_id = ? AND hold_type = 'external_notification_delivery' LIMIT 1", [tenant_id, approval_hold_id]);
+    const [holds] = await connection.query("SELECT * FROM approval_holds WHERE tenant_id = ? AND hold_id = ? AND JSON_UNQUOTE(JSON_EXTRACT(execution_context_json, '$.approval_type')) = 'external_notification_delivery' LIMIT 1", [tenant_id, approval_hold_id]);
     const hold = holds[0];
     if (!hold) {
       const err = new Error("External delivery approval hold not found.");
