@@ -45,6 +45,7 @@ assert(openapi.includes("x-openai-isConsequential: true"), "OpenAPI must mark ga
 assert(openapi.includes("default: false"), "OpenAPI must document apply default false");
 assert(releaseReadiness.includes("264_sprint68_ads_governance_snapshot_record_gate.sql"), "release readiness must track migration 264");
 assert(releaseReadiness.includes('policy_key: "ads_provider_governance_snapshot_record_gate_policy_v1"'), "release readiness must require record gate policy");
+assert(runner.includes("264_sprint68_ads_governance_snapshot_record_gate.sql"), "governed migration runner must allowlist migration 264");
 
 const forbiddenSql = /\b(DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b/i;
 assert(!forbiddenSql.test(migration), "record gate migration must not contain destructive SQL");
