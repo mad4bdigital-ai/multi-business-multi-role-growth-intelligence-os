@@ -63,6 +63,9 @@ import {
   recordSupportTicketExternalSendProviderGateAttempt,
 } from "../supportTicketExternalSendProviderGateService.js";
 import {
+  listSupportTicketExternalProviderContracts,
+} from "../supportTicketExternalProviderContractService.js";
+import {
   decideSupportTicketExternalCredentialBinding,
   listSupportTicketExternalCredentialCandidates,
   requestSupportTicketExternalCredentialBinding,
@@ -516,6 +519,20 @@ export function buildSupportTicketRoutes(deps = {}) {
       return res.status(200).json(result);
     } catch (err) {
       return sendError(res, err, "support_ticket_external_credential_binding_decision_failed");
+    }
+  });
+
+  router.get("/admin/support/tickets/external-send/provider-contracts", ...adminGuards, async (req, res) => {
+    try {
+      const result = await listSupportTicketExternalProviderContracts({
+        family_key: req.query?.family_key || null,
+        channel: req.query?.channel || null,
+        include_disabled: req.query?.include_disabled !== "false",
+        limit: req.query?.limit || 100,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_provider_contracts_failed");
     }
   });
 
