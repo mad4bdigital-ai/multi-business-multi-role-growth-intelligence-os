@@ -101,13 +101,23 @@ includesAll(systemLayerRoutes, [
   "runGovernedResource",
 ], "system layer runtime wiring");
 
+includesAll(systemLayerRoutes, [
+  "executeInstalledTool",
+  "inspectGoogleDriveFolder(toolArgs, auth, deps)",
+  "resource_recipe_installed_tool_not_allowlisted",
+], "system layer read-only installed tool executor wiring");
+
 includesAll(runtimeModule, [
-  "provider_calls_made: 0",
-  "execution_allowed: false",
-  "apply_allowed: false",
-  "dispatch_allowed: false",
-  "resource_recipe_runtime_execution_not_enabled_v1",
-], "runtime v1 execution blocks");
+  "READ_ONLY_INSTALLED_TOOL_ALLOWLIST",
+  "google_drive_folder_inspect",
+  "resource_recipe_read_only_installed_tool_v1",
+  "read_only_executed",
+  "resource_recipe_apply_blocked_v1",
+  "file_content_blocked_v1",
+  "provider_calls_allowed_directly_by_resource_engine: false",
+  "graph_write_made: false",
+  "file_content_returned: false",
+], "runtime v1 read-only installed tool guard");
 
 const driveResolved = resolveResourceRefInput({ input: "https://drive.google.com/drive/folders/1E2mS1cOPL3ZAAiVWzEg9iv6klHCOVqES" });
 assert.equal(driveResolved.resource_type, "drive_folder");

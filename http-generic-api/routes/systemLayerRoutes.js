@@ -1461,7 +1461,17 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
     case "governed_resource_plan":
       return await planGovernedResource(args);
     case "governed_resource_run":
-      return await runGovernedResource(args);
+      return await runGovernedResource(args, {
+        executeInstalledTool: async (toolKey, toolArgs) => {
+          if (toolKey === "google_drive_folder_inspect") {
+            return await inspectGoogleDriveFolder(toolArgs, auth, deps);
+          }
+          const err = new Error(`Installed tool ${toolKey} is not allowlisted for resource recipe execution.`);
+          err.status = 403;
+          err.code = "resource_recipe_installed_tool_not_allowlisted";
+          throw err;
+        },
+      });
     case "connector_registry_list":
       return { connectors: await listConnectorRegistry(args, auth) };
     case "connector_registry_get":
