@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS `memory_scope_links` (
   `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_memory_scope_link_id` (`link_id`),
-  UNIQUE KEY `uq_memory_scope_resource_scope` (`resource_scope_hash`),
+  UNIQUE KEY `uq_memory_scope_resource_scope` (`resource_type`, `resource_ref`(128), `scope_type`, `scope_ref`(128), `linkage_type`),
   KEY `idx_memory_scope_resource` (`resource_type`, `resource_ref`),
   KEY `idx_memory_scope_lookup` (`scope_type`, `scope_ref`, `lifecycle_status`),
   KEY `idx_memory_scope_tenant_workspace` (`tenant_id`, `workspace_key`, `lifecycle_status`),
