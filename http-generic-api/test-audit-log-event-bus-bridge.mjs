@@ -11,6 +11,8 @@ assert.match(script, /INSERT IGNORE INTO platform_audit_event_bus/);
 assert.match(script, /NOT EXISTS/);
 assert.match(script, /dry_run_only/);
 assert.match(script, /missing_audit_bridge_confirmation/);
+assert.match(script, /process\.exit\(0\)/);
+assert.match(script, /process\.exit\(1\)/);
 assert.match(script, /raw_payload_stored: false/);
 assert.match(script, /raw_before_after_stored: false/);
 assert.match(script, /secrets_included: false/);
