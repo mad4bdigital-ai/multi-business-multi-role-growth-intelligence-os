@@ -574,6 +574,7 @@ function buildSourceInspectionSummary(installedToolResult = {}) {
     adapter: installedToolResult?.adapter || null,
     requested_folder_id: installedToolResult?.requested_folder_id || tree.folder?.id || null,
     traversal_strategy: installedToolResult?.traversal_strategy || "single_inspect",
+    child_traversal_status: installedToolResult?.child_traversal_status || null,
     installed_tool_call_count: Number(installedToolResult?.installed_tool_call_count || 1),
     targeted_child_names: childInspections.map((entry) => entry.name).filter(Boolean),
     recursive: Boolean(installedToolResult?.recursive),
