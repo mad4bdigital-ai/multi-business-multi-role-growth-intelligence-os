@@ -152,6 +152,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "251_sprint68_github_branch_fast_forward_smoke_policy.sql",
   "255_sprint68_live_checkout_cleanup_capability_gate.sql",
   "256_sprint68_dynamic_audit_pipeline_readiness.sql",
+  "257_sprint68_agent_runtime_ledger_readiness.sql",
   "216_sprint67_platform_secret_promotion_monitoring.sql",
   "222_sprint67_async_job_timeout_recovery.sql",
   "223_sprint67_gpt_session_conversation_refs.sql",
