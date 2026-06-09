@@ -12,7 +12,8 @@ for (const expected of [
   "platform_orchestration_readback",
   "ads_provider_governance_snapshot_propose",
   "ads_provider_governance_snapshot_record",
-  "credential_source', 'none'",
+  "credential_source",
+  "'none'",
   "provider_calls_allowed",
   "secrets_included",
 ]) {
