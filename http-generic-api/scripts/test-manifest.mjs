@@ -153,6 +153,7 @@ export const testCommands = [
   "node test-ticket-lifecycle-diagnostic-requester-resolution.mjs",
   "node test-ticket-activation-inbox-feedback.mjs",
   "node test-ticket-auto-resolve-policy-engine.mjs",
+  "node test-ticket-notification-delivery-cycle.mjs",
   "node test-workspace-resource-grant-assignment.mjs",
   "node test-workspace-resource-grants-collation-alignment.mjs",
   "node test-workspace-ownership-member-controls.mjs",
