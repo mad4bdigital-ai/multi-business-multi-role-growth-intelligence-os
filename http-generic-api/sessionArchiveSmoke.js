@@ -99,6 +99,7 @@ export async function runSessionArchiveSmoke({
   const longPrefix = "smoke-context ".repeat(80);
   const userContent = `${longPrefix}user turn ${marker}`;
   const assistantContent = `${longPrefix}assistant turn ${marker}`;
+  const assistantFollowupContent = `${longPrefix}assistant follow-up after tool ${marker}`;
   const toolContent = [
     "Tool: release_session_archive_smoke",
     "Status: HTTP 200 ok=true",
@@ -165,9 +166,20 @@ export async function runSessionArchiveSmoke({
     turnIndex: 2,
     injectedDeps: archiveDeps,
   });
+  const [sessionAfterThirdTurnRows] = await pool.query("SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1", [sessionId]);
+  const sessionAfterThirdTurn = sessionAfterThirdTurnRows[0] || sessionAfterSecondTurn;
+  const fourthTurn = await recordGptSessionTurn({
+    pool,
+    session: sessionAfterThirdTurn,
+    role: "assistant",
+    content: assistantFollowupContent,
+    action_key: actionKey,
+    turnIndex: 3,
+    injectedDeps: archiveDeps,
+  });
 
   const [freshRows] = await pool.query("SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1", [sessionId]);
-  const freshSession = freshRows[0] || session;
+  const freshSession = freshRows[0] || sessionAfterThirdTurn;
 
   await pool.query(
     "UPDATE `customer_sessions` SET session_status = 'completed', ended_at = NOW() WHERE session_id = ?",
@@ -241,12 +253,13 @@ export async function runSessionArchiveSmoke({
 
   const checks = [
     check("session_created", Boolean(sessionId), { session_id: sessionId }),
-    check("turn_writes_ready", firstTurn.archive_status === "ready" && secondTurn.archive_status === "ready" && thirdTurn.archive_status === "ready"),
+    check("turn_writes_ready", firstTurn.archive_status === "ready" && secondTurn.archive_status === "ready" && thirdTurn.archive_status === "ready" && fourthTurn.archive_status === "ready"),
+    check("conversation_exchange_complete", turnRows.map((row) => row.role).join("|") === "user|assistant|tool|assistant"),
     check("archive_closed", closeResult.archive_status === "closed" && archivedSession.archive_status === "closed"),
     check("drive_doc_pointer", Boolean(archivedSession.drive_doc_id)),
     check("drive_jsonl_pointer", Boolean(archivedSession.drive_jsonl_id)),
     check("drive_export_url", Boolean(archivedSession.drive_export_url)),
-    check("sql_turn_count", turnRows.length === 3, { count: turnRows.length }),
+    check("sql_turn_count", turnRows.length === 4, { count: turnRows.length }),
     check(
       "drive_doc_rollover",
       !forceDocRollover || (distinctTurnDocIds.length >= 2 && maxTurnDocPart >= 2 && Number(archivedSession.drive_doc_part_count || 0) >= 2),
@@ -264,7 +277,7 @@ export async function runSessionArchiveSmoke({
     ),
     check(
       "drive_doc_bookmarks",
-      !includeDriveReadback || [0, 1, 2].every((idx) => docText.includes(`Bookmark: turn-${idx}`)),
+      !includeDriveReadback || [0, 1, 2, 3].every((idx) => docText.includes(`Bookmark: turn-${idx}`)),
       driveReadError ? { error: driveReadError.message } : null
     ),
     check(
@@ -279,7 +292,7 @@ export async function runSessionArchiveSmoke({
     ),
     check(
       "drive_jsonl_readback",
-      !includeDriveReadback || (jsonlRows.length >= 3 && jsonlRows.some((row) => String(row.content || "").includes(marker))),
+      !includeDriveReadback || (jsonlRows.length >= 4 && jsonlRows.some((row) => String(row.content || "").includes(marker))),
       driveReadError ? { error: driveReadError.message } : null
     ),
     check(
