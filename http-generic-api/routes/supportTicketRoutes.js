@@ -293,6 +293,81 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.post("/admin/support/tickets/:ticket_id/external-secret/intake-plan", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await planSupportTicketExternalSecretIntake({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        channel: req.body?.channel || "email",
+        store_type: req.body?.store_type || "vault",
+        owner_type: req.body?.owner_type || "tenant",
+        owner_id: req.body?.owner_id || tenantId,
+        provider_family: req.body?.provider_family || null,
+        credential_type: req.body?.credential_type || null,
+        env_var_name: req.body?.env_var_name || null,
+        vault_path: req.body?.vault_path || null,
+        external_ref: req.body?.external_ref || null,
+        description: req.body?.description || null,
+        scope_json: req.body?.scope_json || {},
+        evidence_json: req.body?.evidence_json || {},
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_secret_intake_plan_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/external-secret/reference/register", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await registerSupportTicketExternalSecretReference({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        channel: req.body?.channel || "email",
+        store_type: req.body?.store_type || "vault",
+        owner_type: req.body?.owner_type || "tenant",
+        owner_id: req.body?.owner_id || tenantId,
+        provider_family: req.body?.provider_family || null,
+        credential_type: req.body?.credential_type || null,
+        env_var_name: req.body?.env_var_name || null,
+        vault_path: req.body?.vault_path || null,
+        external_ref: req.body?.external_ref || null,
+        description: req.body?.description || null,
+        scope_json: req.body?.scope_json || {},
+        evidence_json: req.body?.evidence_json || {},
+        mode: req.body?.mode || "dry_run",
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_secret_reference_register_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/external-secret/reference/activate", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await activateSupportTicketExternalSecretReference({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        ref_id: req.body?.ref_id,
+        approval_hold_id: req.body?.approval_hold_id,
+        validation_evidence: req.body?.validation_evidence || {},
+        decision_note: req.body?.decision_note || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_secret_reference_activate_failed");
+    }
+  });
+
   router.get("/admin/support/tickets/external-delivery/credential-candidates", ...adminGuards, async (req, res) => {
     try {
       const result = await listSupportTicketExternalCredentialCandidates({
