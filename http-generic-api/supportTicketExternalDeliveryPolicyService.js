@@ -33,6 +33,8 @@ function compactTicket(row = {}) {
 
 const EXTERNAL_CHANNELS = new Set(["email", "webhook"]);
 const ALLOWED_AUDIENCES = new Set(["admin", "customer", "both"]);
+const VALID_EXTERNAL_SECRET_VALIDATION_STATUSES = new Set(["valid", "validated", "ready", "passed"]);
+const VALID_EXTERNAL_SECRET_CONSENT_STATUSES = new Set(["not_required", "granted"]);
 
 function normalizeExternalChannel(channel = "email") {
   const key = String(channel || "email").trim().toLowerCase();
@@ -59,6 +61,8 @@ async function lookupCredentialByRef(connection, { tenant_id, credential_ref }) 
       WHERE tenant_id IN (?, '00000000-0000-0000-0000-000000000000')
         AND ref_id = ?
         AND status = 'active'
+        AND validation_status IN ('valid','validated','ready','passed')
+        AND consent_status IN ('not_required','granted')
       ORDER BY tenant_id = ? DESC, created_at DESC
       LIMIT 1`,
     [tenant_id, credential_ref, tenant_id]
@@ -116,6 +120,8 @@ async function findCredentialBinding(connection, { tenant_id, ticket_id, channel
        FROM secret_references
       WHERE tenant_id IN (?, '00000000-0000-0000-0000-000000000000')
         AND status = 'active'
+        AND validation_status IN ('valid','validated','ready','passed')
+        AND consent_status IN ('not_required','granted')
         AND (provider_family LIKE ? OR credential_type LIKE ? OR description LIKE ?)
       ORDER BY tenant_id = ? DESC, created_at DESC
       LIMIT 1`,
