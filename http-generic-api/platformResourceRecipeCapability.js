@@ -683,25 +683,30 @@ function buildArtifactExportReconciliation(installedToolResult = {}, plan = {}) 
   if (orphanExports.length) findings.push({ code: "orphan_resource", severity: "medium", exports: orphanExports });
   if (missingExports.length && artifactFiles.length) findings.push({ code: "missing_export", severity: "medium", artifacts: missingExports });
 
+  const summary = {
+    root_folder: driveFileLite(tree.folder || {}),
+    root_child_count: rootChildren.length,
+    required_child_folders: required,
+    artifact_file_count: artifactFiles.length,
+    export_file_count: exportFiles.length,
+    duplicate_group_count: duplicateGroups.length,
+    empty_file_count: emptyFiles.length,
+    orphan_export_count: orphanExports.length,
+    missing_export_count: missingExports.length,
+  };
+  const manifestPlan = buildArtifactExportManifestPlan({ tree, summary, findings, classifications });
+
   return {
     ok: true,
     recipe_key: ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY,
     classification: classifications[0],
     classifications,
-    summary: {
-      root_folder: driveFileLite(tree.folder || {}),
-      root_child_count: rootChildren.length,
-      required_child_folders: required,
-      artifact_file_count: artifactFiles.length,
-      export_file_count: exportFiles.length,
-      duplicate_group_count: duplicateGroups.length,
-      empty_file_count: emptyFiles.length,
-      orphan_export_count: orphanExports.length,
-      missing_export_count: missingExports.length,
-    },
+    summary,
     findings,
+    manifest_plan: manifestPlan,
     recommended_next_operations: [
       "review_findings",
+      "review_manifest_plan",
       ...(findings.length ? ["plan_manifest_create_after_review"] : ["no_action_required"]),
     ],
     apply_supported: false,
