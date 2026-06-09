@@ -16,7 +16,7 @@ for (const expected of [
   "status: \"disabled\"",
   "secret_value_included: false",
   "external_send_performed: false",
-  "approved credential intake or binding hold",
+  "Approved credential intake or binding hold",
 ]) {
   assert(service.includes(expected), `external secret intake service must include ${expected}`);
 }
