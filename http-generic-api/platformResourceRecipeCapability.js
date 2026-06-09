@@ -779,7 +779,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
     };
   }
 
-  if (!readOnlyInstalledToolExecutionReady(recipe, plan.execution_plan?.steps || [], [])) {
+  if (!readOnlyRecipeExecutionReady(recipe, plan.execution_plan?.steps || [], [])) {
     return {
       ok: false,
       tool: "governed_resource_run",
