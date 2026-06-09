@@ -120,6 +120,8 @@ async function findCredentialBinding(connection, { tenant_id, ticket_id, channel
        FROM secret_references
       WHERE tenant_id IN (?, '00000000-0000-0000-0000-000000000000')
         AND status = 'active'
+        AND validation_status IN ('valid','validated','ready','passed')
+        AND consent_status IN ('not_required','granted')
         AND (provider_family LIKE ? OR credential_type LIKE ? OR description LIKE ?)
       ORDER BY tenant_id = ? DESC, created_at DESC
       LIMIT 1`,
