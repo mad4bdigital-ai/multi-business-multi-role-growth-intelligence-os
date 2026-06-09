@@ -269,6 +269,63 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.get("/admin/support/tickets/notifications/queue", ...adminGuards, async (req, res) => {
+    try {
+      const result = await listSupportTicketNotificationQueue({
+        tenant_id: req.query?.tenant_id || null,
+        limit: req.query?.limit || 50,
+        include_resolved_days: req.query?.include_resolved_days || 7,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_notification_queue_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/notification-cycle", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await createSupportTicketNotificationCycle({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        notification_type: req.body?.notification_type || null,
+        audience: req.body?.audience || "admin",
+        channel: req.body?.channel || "activation_inbox",
+        delivery_status: req.body?.delivery_status || "queued",
+        summary: req.body?.summary || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        payload_json: req.body?.payload_json || {},
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_notification_cycle_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/notification-ack", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await recordSupportTicketNotificationAck({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        ack_action: req.body?.ack_action,
+        notification_type: req.body?.notification_type || null,
+        audience: req.body?.audience || "admin",
+        channel: req.body?.channel || "activation_inbox",
+        summary: req.body?.summary || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        payload_json: req.body?.payload_json || {},
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_notification_ack_failed");
+    }
+  });
+
   router.get("/admin/support/tickets/auto-resolve/candidates", ...adminGuards, async (req, res) => {
     try {
       const result = await listSupportTicketAutoResolveCandidates({
