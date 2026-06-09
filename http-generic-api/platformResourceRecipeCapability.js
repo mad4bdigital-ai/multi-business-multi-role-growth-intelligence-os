@@ -603,6 +603,46 @@ function targetableChildFolders(tree = {}, names = []) {
     .map(driveFileLite);
 }
 
+function childNameMatches(folder = {}, targetName = "") {
+  return lowerName(folder) === String(targetName || "").trim().toLowerCase();
+}
+
+function selectContinuationChildFolders(childFolders = [], args = {}) {
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  const targetChildName = asString(options.target_child_name || options.child_name || args.target_child_name || args.child_name);
+  const targetChildFolderId = asString(options.target_child_folder_id || options.child_folder_id || args.target_child_folder_id || args.child_folder_id);
+
+  if (targetChildFolderId) {
+    const matched = childFolders.find((folder) => folder.id === targetChildFolderId);
+    return matched ? [matched] : [{ id: targetChildFolderId, name: targetChildName || "target_child", is_folder: true }];
+  }
+
+  if (targetChildName) {
+    return childFolders.filter((folder) => childNameMatches(folder, targetChildName));
+  }
+
+  return [];
+}
+
+function buildChildContinuationBlockedResult({ reasonCode, message, plan, childFolders = [] } = {}) {
+  return {
+    ok: false,
+    tool: "governed_resource_run",
+    classification: "blocked_child_continuation_v1",
+    mode: "continue_read_only",
+    apply_requested: false,
+    apply_allowed: false,
+    dispatch_allowed: false,
+    reason_code: reasonCode,
+    message,
+    child_candidates: childFolders.map((folder) => driveFileLite(folder)),
+    plan,
+    provider_calls_made: 0,
+    execution_allowed: false,
+    secrets_included: false,
+  };
+}
+
 function buildTargetedChildTraversalPlan(rootInspectResult = {}, childFolders = []) {
   return {
     ...rootInspectResult,
