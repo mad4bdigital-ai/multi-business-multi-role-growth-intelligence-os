@@ -228,11 +228,30 @@ function normalizeObjectResourceRef(resourceRef = {}, resourceType = "") {
     }
   }
 
+  if ((type === "github_pull_request" || ref.pr_number || ref.prNumber) && ref.owner && ref.repo && (ref.pr_number || ref.prNumber)) {
+    const prNumber = Number(ref.pr_number || ref.prNumber);
+    return {
+      resource_type: "github_pull_request",
+      resource_uri: `github://${ref.owner}/${ref.repo}/pr/${prNumber}`,
+      resource_ref: { owner: ref.owner, repo: ref.repo, pr_number: prNumber },
+      confidence: "high",
+    };
+  }
+
   if ((type === "github_branch" || ref.owner || ref.repo || ref.branch) && ref.owner && ref.repo && ref.branch) {
     return {
       resource_type: "github_branch",
       resource_uri: `github://${ref.owner}/${ref.repo}/branch/${ref.branch}`,
       resource_ref: { owner: ref.owner, repo: ref.repo, branch: ref.branch },
+      confidence: "high",
+    };
+  }
+
+  if ((type === "github_repo" || ref.owner || ref.repo) && ref.owner && ref.repo) {
+    return {
+      resource_type: "github_repo",
+      resource_uri: `github://${ref.owner}/${ref.repo}`,
+      resource_ref: { owner: ref.owner, repo: ref.repo },
       confidence: "high",
     };
   }
