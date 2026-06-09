@@ -1454,6 +1454,14 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       return await listGoogleDriveEndpointCatalog(args);
     case "google_drive_folder_inspect":
       return await inspectGoogleDriveFolder(args, auth, deps);
+    case "governed_resource_resolve":
+      return await resolveGovernedResource(args);
+    case "governed_resource_catalog":
+      return await catalogGovernedResources(args);
+    case "governed_resource_plan":
+      return await planGovernedResource(args);
+    case "governed_resource_run":
+      return await runGovernedResource(args);
     case "connector_registry_list":
       return { connectors: await listConnectorRegistry(args, auth) };
     case "connector_registry_get":
