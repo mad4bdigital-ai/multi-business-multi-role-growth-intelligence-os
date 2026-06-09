@@ -39,6 +39,7 @@ assert(openapi.includes("operationId: adsProviderGovernanceSnapshotPropose"), "O
 assert(openapi.includes("writes_database: { type: boolean, enum: [false] }"), "OpenAPI must declare no DB write");
 assert(releaseReadiness.includes("263_sprint68_ads_governance_snapshot_proposal.sql"), "release readiness must track migration 263");
 assert(releaseReadiness.includes('policy_key: "ads_provider_governance_snapshot_proposal_policy_v1"'), "release readiness must require proposal policy");
+assert(runner.includes("263_sprint68_ads_governance_snapshot_proposal.sql"), "governed migration runner must allowlist migration 263");
 
 const forbiddenSql = /\b(DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b/i;
 assert(!forbiddenSql.test(migration), "proposal migration must not contain destructive SQL");
