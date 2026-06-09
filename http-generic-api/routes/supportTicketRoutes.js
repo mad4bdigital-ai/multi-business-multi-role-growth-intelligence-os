@@ -66,6 +66,10 @@ import {
   listSupportTicketExternalProviderContracts,
 } from "../supportTicketExternalProviderContractService.js";
 import {
+  listSupportTicketExternalProviderEnablementCandidates,
+  proposeSupportTicketExternalProviderAdapterEnablement,
+} from "../supportTicketExternalProviderEnablementProposalService.js";
+import {
   decideSupportTicketExternalCredentialBinding,
   listSupportTicketExternalCredentialCandidates,
   requestSupportTicketExternalCredentialBinding,
@@ -519,6 +523,37 @@ export function buildSupportTicketRoutes(deps = {}) {
       return res.status(200).json(result);
     } catch (err) {
       return sendError(res, err, "support_ticket_external_credential_binding_decision_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/external-send/provider-adapter-enablement/candidates", ...adminGuards, async (req, res) => {
+    try {
+      const result = await listSupportTicketExternalProviderEnablementCandidates({
+        family_key: req.body?.family_key || null,
+        channel: req.body?.channel || null,
+        adapter_key: req.body?.adapter_key || null,
+        include_internal: Boolean(req.body?.include_internal),
+        limit: req.body?.limit || 50,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_provider_enablement_candidates_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/external-send/provider-adapter-enablement/propose", ...adminGuards, async (req, res) => {
+    try {
+      const result = await proposeSupportTicketExternalProviderAdapterEnablement({
+        adapter_key: req.body?.adapter_key,
+        requested_mode: req.body?.requested_mode || "provider_send_blocked",
+        requested_by: req.auth?.user_id || "admin_system",
+        reason: req.body?.reason || null,
+        evidence_json: req.body?.evidence_json || {},
+        proposed_target_json: req.body?.proposed_target_json || {},
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_provider_enablement_propose_failed");
     }
   });
 
