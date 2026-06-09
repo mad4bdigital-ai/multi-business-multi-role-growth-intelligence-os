@@ -4,6 +4,13 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  capabilityEnvelopeError,
+  markCapabilityEnvelopeReferenced,
+  resolveCapabilityExecutionEnvelope,
+} from "../capabilityResolutionEnvelopeGuard.js";
+import { getPool } from "../db.js";
+import { writeAuditLogAsync } from "../auditLogger.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_DIR = path.resolve(__dirname, "..");
@@ -15,15 +22,10 @@ const ALLOWED_CLEANUP_PATHS = new Set([
   "http-generic-api/test-tenant-gpt-customer-safe-resource-escalation.mjs",
 ]);
 const ALLOWED_ROOT_LOGS = new Set(["console.log", "stderr.log"]);
-const ACCEPTED_CAPABILITY_INTENTS = new Set([
+const ACCEPTED_CAPABILITY_INTENTS = Object.freeze([
   "live_checkout_cleanup",
   "live_checkout_cleanup_apply",
   "repo_mutation",
-  "repo_patch_apply",
-]);
-const ACCEPTED_RUNTIME_SURFACES = new Set([
-  "live_checkout_cleanup",
-  "admin_control",
   "repo_patch_apply",
 ]);
 
@@ -38,7 +40,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (item.startsWith("--path")) { args.paths.push(String(value || "")); if (consume) i += 1; }
     else if (item === "--delete-logs") args.deleteLogs = true;
     else if (item.startsWith("--confirm")) { args.confirm = String(value || ""); if (consume) i += 1; }
-    else if (item.startsWith("--capability-envelope-id")) { args.capabilityEnvelopeId = String(value || "").trim(); if (consume) i += 1; }
+    else if (item.startsWith("--capability-envelope-id") || item.startsWith("--capability_envelope_id")) { args.capabilityEnvelopeId = String(value || "").trim(); if (consume) i += 1; }
     else throw new Error(`Unsupported argument: ${item}`);
   }
   if (!args.paths.length) {
@@ -164,80 +166,26 @@ function analyzePath(repoPath) {
   return analyzeTrackedPath(cleanPath);
 }
 
-async function loadPool() {
-  const { getPool } = await import("../db.js");
-  return getPool();
-}
-
-async function writeCleanupAudit(params) {
-  const { writeAuditLogAsync } = await import("../auditLogger.js");
-  writeAuditLogAsync(params);
-}
-
 async function requireApplyCapabilityEnvelope(args = {}) {
   if (args.mode !== "apply") {
     return { required: false, ok: true, secrets_included: false };
   }
-  const envelopeId = String(args.capabilityEnvelopeId || "").trim();
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(envelopeId)) {
-    const err = new Error("--capability-envelope-id is required for live checkout cleanup apply.");
-    err.code = "live_checkout_cleanup_capability_envelope_required";
-    throw err;
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: getPool(),
+    source: { capability_envelope_id: args.capabilityEnvelopeId },
+    acceptedAppKeys: ["github"],
+    acceptedIntents: ACCEPTED_CAPABILITY_INTENTS,
+  });
+  if (!resolved.ok) {
+    throw capabilityEnvelopeError(resolved, "Live checkout cleanup apply requires a valid capability resolution envelope.");
   }
-
-  const pool = await loadPool();
-  const [[row]] = await pool.query(
-    `SELECT envelope_id, app_key, operation_intent, selected_runtime_surface,
-            envelope_status, dispatch_allowed, expires_at, secrets_included
-       FROM capability_resolution_envelope_ledger
-      WHERE envelope_id = ?
-      LIMIT 1`,
-    [envelopeId]
-  );
-  if (!row) {
-    const err = new Error("Capability envelope was not found for live checkout cleanup apply.");
-    err.code = "live_checkout_cleanup_capability_envelope_not_found";
-    throw err;
-  }
-  const operationIntent = String(row.operation_intent || "");
-  const runtimeSurface = String(row.selected_runtime_surface || "");
-  const acceptedIntent = ACCEPTED_CAPABILITY_INTENTS.has(operationIntent) || ACCEPTED_RUNTIME_SURFACES.has(runtimeSurface);
-  const expiresAt = row.expires_at ? new Date(row.expires_at).getTime() : 0;
-  const valid = row.envelope_status === "ready_for_dispatch"
-    && Number(row.dispatch_allowed) === 1
-    && expiresAt > Date.now()
-    && Number(row.secrets_included || 0) === 0
-    && String(row.app_key || "") === "github"
-    && acceptedIntent;
-
-  if (!valid) {
-    const err = new Error("Capability envelope is not valid for live checkout cleanup apply.");
-    err.code = "live_checkout_cleanup_capability_envelope_invalid";
-    err.details = {
-      envelope_status: row.envelope_status,
-      dispatch_allowed: Number(row.dispatch_allowed || 0) === 1,
-      app_key: row.app_key || null,
-      operation_intent: operationIntent || null,
-      selected_runtime_surface: runtimeSurface || null,
-      expired: !(expiresAt > Date.now()),
-      accepted_intent: acceptedIntent,
-      secrets_included: false,
-    };
-    throw err;
-  }
-
-  await pool.query(
-    `UPDATE capability_resolution_envelope_ledger
-        SET execution_status = 'referenced', execution_ref = ?, updated_at = NOW()
-      WHERE envelope_id = ?`,
-    [CAPABILITY_EXECUTION_REF, envelopeId]
-  );
+  await markCapabilityEnvelopeReferenced({ pool: getPool(), envelopeId: resolved.envelope_id, executionRef: CAPABILITY_EXECUTION_REF });
   return {
     required: true,
     ok: true,
-    envelope_id: envelopeId,
-    operation_intent: operationIntent || null,
-    selected_runtime_surface: runtimeSurface || null,
+    envelope_id: resolved.envelope_id,
+    operation_intent: resolved.operation_intent || null,
+    selected_runtime_surface: resolved.selected_runtime_surface || null,
     secrets_included: false,
   };
 }
@@ -284,7 +232,7 @@ export async function runLiveCheckoutCleanup(rawArgs = parseArgs()) {
     secrets_included: false,
   };
   if (args.mode === "apply") {
-    await writeCleanupAudit({
+    writeAuditLogAsync({
       actor_type: "service",
       action: "live_checkout_cleanup.apply",
       resource_type: "repository_checkout",
