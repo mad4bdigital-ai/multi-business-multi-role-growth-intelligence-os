@@ -522,6 +522,20 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.get("/admin/support/tickets/external-send/provider-contracts", ...adminGuards, async (req, res) => {
+    try {
+      const result = await listSupportTicketExternalProviderContracts({
+        family_key: req.query?.family_key || null,
+        channel: req.query?.channel || null,
+        include_disabled: req.query?.include_disabled !== "false",
+        limit: req.query?.limit || 100,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_provider_contracts_failed");
+    }
+  });
+
   router.post("/admin/support/tickets/:ticket_id/external-send/provider-gate-plan", ...adminGuards, async (req, res) => {
     try {
       const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
