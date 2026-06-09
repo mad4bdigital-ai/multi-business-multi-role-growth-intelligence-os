@@ -266,6 +266,17 @@ function makePool() {
   assert(!JSON.stringify(seeds).includes("supersecret"));
   assert(JSON.stringify(seeds).includes("[REDACTED]"));
   assert(seeds.some((seed) => seed.insight_type === "integration_need"));
+  const completedTaskProposal = buildSessionInsightPromotionProposal(seeds.find((seed) => seed.insight_type === "completed_task"));
+  assert.equal(completedTaskProposal, null, "completed tasks should not create promotion proposals by default");
+  const summarySignalProposal = buildSessionInsightPromotionProposal(seeds.find((seed) => seed.insight_type === "session_summary_signal"));
+  assert.equal(summarySignalProposal, null, "summary signals should not create promotion proposals by default");
+  const developmentProposal = buildSessionInsightPromotionProposal(seeds.find((seed) => seed.insight_type === "development_idea"));
+  assert.equal(developmentProposal.promotion_type, "development_backlog_item");
+  assert.equal(developmentProposal.target_surface, "development_backlog");
+  assert.equal(developmentProposal.promotion_hash.length, 64);
+  assert(developmentProposal.evidence_json.includes("promotion_allowed"));
+  assert(developmentProposal.metadata_json.includes("requires_human_approval"));
+  assert(!JSON.stringify(developmentProposal).includes("supersecret"));
 }
 
 {
