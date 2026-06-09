@@ -54,6 +54,10 @@ import {
   decideSupportTicketExternalDeliveryApproval,
   requestSupportTicketExternalDeliveryApproval,
 } from "../supportTicketExternalDeliveryPolicyService.js";
+import {
+  planSupportTicketExternalSendExecution,
+  recordSupportTicketExternalSendExecution,
+} from "../supportTicketExternalSendExecutionService.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
