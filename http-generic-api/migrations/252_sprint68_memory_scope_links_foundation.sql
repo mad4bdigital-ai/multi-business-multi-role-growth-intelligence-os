@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS `memory_scope_links` (
   `asset_id` VARCHAR(255) NULL,
   `asset_key` VARCHAR(255) NULL,
   `scope_type` VARCHAR(64) NOT NULL,
-  `scope_ref` VARCHAR(255) NOT NULL,
+  `scope_ref` VARCHAR(191) NOT NULL,
   `scope_key` VARCHAR(255) NULL,
   `tenant_id` VARCHAR(64) NULL,
   `user_id` VARCHAR(255) NULL,
