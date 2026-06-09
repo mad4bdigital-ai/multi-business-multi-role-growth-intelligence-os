@@ -1,0 +1,174 @@
+import { getPool } from "./db.js";
+import { planSupportTicketExternalSendExecution } from "./supportTicketExternalSendExecutionService.js";
+
+function parseJsonObject(value, fallback = {}) {
+  if (!value) return fallback;
+  if (typeof value === "object") return value;
+  try { return JSON.parse(value); } catch { return fallback; }
+}
+
+const EXTERNAL_CHANNELS = new Set(["email", "webhook"]);
+const ALLOWED_AUDIENCES = new Set(["admin", "customer", "both"]);
+const SENSITIVE_KEY_PATTERN = /(password|access_token|refresh_token|client_secret|private_key|raw_secret|secret_value|api_key|bearer_token|smtp_password)/i;
+const SAFE_SECRET_MARKER_KEYS = new Set(["secrets_included", "secret_value_included"]);
+const PROVIDER_DISPATCH_ENABLED = process.env.SUPPORT_TICKET_EXTERNAL_SEND_PROVIDER_DISPATCH_ENABLED === "true";
+
+function assertNoRawSecretPayload(value, path = "payload") {
+  if (value == null || typeof value !== "object") return;
+  for (const [key, nested] of Object.entries(value)) {
+    if (SAFE_SECRET_MARKER_KEYS.has(String(key))) continue;
+    if (SENSITIVE_KEY_PATTERN.test(String(key))) {
+      const err = new Error("Raw secret values or secret-bearing fields are not accepted by provider send gate.");
+      err.status = 400;
+      err.code = "support_ticket_external_send_provider_gate_raw_value_rejected";
+      err.path = `${path}.${key}`;
+      throw err;
+    }
+    if (nested && typeof nested === "object") assertNoRawSecretPayload(nested, `${path}.${key}`);
+  }
+}
+
+function normalizeChannel(channel = "email") {
+  const key = String(channel || "email").trim().toLowerCase();
+  if (!EXTERNAL_CHANNELS.has(key)) {
+    const err = new Error("External provider send gate supports email or webhook only.");
+    err.status = 400;
+    err.code = "support_ticket_external_send_provider_gate_channel_invalid";
+    throw err;
+  }
+  return key;
+}
+
+function normalizeAudience(audience = "admin") {
+  const value = String(audience || "admin").trim().toLowerCase();
+  if (!ALLOWED_AUDIENCES.has(value)) {
+    const err = new Error("Unsupported external provider send gate audience.");
+    err.status = 400;
+    err.code = "support_ticket_external_send_provider_gate_audience_invalid";
+    throw err;
+  }
+  return value;
+}
+
+function providerAdapterFor(channel, provider_key = null) {
+  const key = provider_key || (channel === "email" ? "email_provider_adapter" : "webhook_provider_adapter");
+  return {
+    provider_key: key,
+    channel,
+    provider_dispatch_enabled: PROVIDER_DISPATCH_ENABLED,
+    provider_adapter_implemented: false,
+    external_send_supported: false,
+    explicit_send_mode_required: true,
+    final_provider_approval_required: true,
+    summary: "Provider dispatch is gated. This slice records blocked provider attempts only; it does not send email/webhook externally.",
+    external_send_performed: false,
+    secrets_included: false,
+  };
+}
+
+function buildProviderPlan({ execution_plan, provider_adapter, send_mode = "dry_run", payload_json = {} }) {
+  assertNoRawSecretPayload(payload_json, "payload_json");
+  const blockers = [];
+  if (!execution_plan?.plan?.ready_for_record) blockers.push("external_send_execution_plan_not_ready");
+  if (!provider_adapter.provider_dispatch_enabled) blockers.push("external_send_provider_dispatch_not_enabled");
+  if (!provider_adapter.provider_adapter_implemented) blockers.push("external_send_provider_adapter_not_implemented");
+  if (send_mode !== "dry_run" && send_mode !== "provider_send") blockers.push("external_send_provider_mode_invalid");
+  return {
+    ready_for_provider_dispatch: blockers.length === 0,
+    send_mode,
+    channel: provider_adapter.channel,
+    audience: execution_plan?.plan?.audience || null,
+    approval_hold_id: execution_plan?.plan?.approval_hold_id || null,
+    credential_ref: execution_plan?.plan?.credential_ref || null,
+    execution_ready_for_record: Boolean(execution_plan?.plan?.ready_for_record),
+    rate_limit: execution_plan?.plan?.rate_limit || null,
+    retry_policy: execution_plan?.plan?.retry_policy || null,
+    provider_adapter,
+    blockers,
+    payload_json: { ...(payload_json || {}), external_send_performed: false, secrets_included: false },
+    external_send_performed: false,
+    secret_value_included: false,
+    secrets_included: false,
+  };
+}
+
+async function fetchTicket(connection, tenant_id, ticket_id) {
+  const [rows] = await connection.query("SELECT ticket_id, tenant_id, status, lifecycle_state, customer_status, title FROM tickets WHERE tenant_id = ? AND ticket_id = ? LIMIT 1", [tenant_id, ticket_id]);
+  return rows[0] || null;
+}
+
+export async function planSupportTicketExternalSendProviderGate({ tenant_id, ticket_id, channel = "email", audience = "admin", approval_hold_id = null, credential_ref = null, provider_key = null, send_mode = "dry_run", subject = null, body = null, payload_json = {} } = {}, options = {}) {
+  const externalChannel = normalizeChannel(channel);
+  const normalizedAudience = normalizeAudience(audience);
+  assertNoRawSecretPayload(payload_json, "payload_json");
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    const ticket = await fetchTicket(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const executionPlan = await planSupportTicketExternalSendExecution({ tenant_id, ticket_id, channel: externalChannel, audience: normalizedAudience, approval_hold_id, credential_ref, subject, body, payload_json }, { connection });
+    const providerAdapter = providerAdapterFor(externalChannel, provider_key);
+    const provider_plan = buildProviderPlan({ execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json });
+    return { ok: true, mode: "dry_run", provider_plan, execution_plan: executionPlan, ticket, external_send_performed: false, secret_value_included: false, secrets_included: false };
+  } finally { if (ownsConnection) connection.release(); }
+}
+
+export async function recordSupportTicketExternalSendProviderGateAttempt({ tenant_id, ticket_id, channel = "email", audience = "admin", approval_hold_id = null, credential_ref = null, provider_key = null, send_mode = "dry_run", mode = "dry_run", subject = null, body = null, payload_json = {}, actor_id = null, actor_type = "admin" } = {}, options = {}) {
+  const externalChannel = normalizeChannel(channel);
+  const normalizedAudience = normalizeAudience(audience);
+  assertNoRawSecretPayload(payload_json, "payload_json");
+  const runMode = mode === "record_blocked_attempt" ? "record_blocked_attempt" : "dry_run";
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    if (ownsConnection && runMode === "record_blocked_attempt") await connection.beginTransaction();
+    const ticket = await fetchTicket(connection, tenant_id, ticket_id);
+    if (!ticket) {
+      const err = new Error("Ticket not found.");
+      err.status = 404;
+      err.code = "support_ticket_not_found";
+      throw err;
+    }
+    const executionPlan = await planSupportTicketExternalSendExecution({ tenant_id, ticket_id, channel: externalChannel, audience: normalizedAudience, approval_hold_id, credential_ref, subject, body, payload_json }, { connection });
+    const providerAdapter = providerAdapterFor(externalChannel, provider_key);
+    const provider_plan = buildProviderPlan({ execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json });
+    if (send_mode === "provider_send" && provider_plan.ready_for_provider_dispatch) {
+      const err = new Error("Provider dispatch should not be reachable in this slice.");
+      err.status = 409;
+      err.code = "support_ticket_external_send_provider_dispatch_not_implemented";
+      err.provider_plan = provider_plan;
+      throw err;
+    }
+    if (runMode !== "record_blocked_attempt") {
+      return { ok: true, mode: "dry_run", provider_plan, execution_plan: executionPlan, ticket, external_send_performed: false, secret_value_included: false, secrets_included: false };
+    }
+    const eventPayload = {
+      provider_plan,
+      execution_ready_for_record: Boolean(executionPlan?.plan?.ready_for_record),
+      delivery_status: "provider_dispatch_blocked_not_sent",
+      external_send_performed: false,
+      secret_value_included: false,
+      secrets_included: false,
+    };
+    await connection.query(
+      `INSERT INTO ticket_lifecycle_events (event_id, ticket_id, tenant_id, event_type, from_state, to_state, actor_id, actor_type, visibility, summary, payload_json)
+       VALUES (UUID(), ?, ?, 'external_send_provider_gate_recorded', ?, ?, ?, ?, 'internal_support', ?, ?)`,
+      [ticket_id, tenant_id, ticket.lifecycle_state || null, ticket.lifecycle_state || null, actor_id, actor_type, subject || "External provider send gate blocked; no external send performed.", JSON.stringify(eventPayload)]
+    );
+    await connection.query(
+      `INSERT INTO audit_log (audit_id, tenant_id, actor_id, actor_type, action, resource_type, resource_id, after_json, service_mode)
+       VALUES (UUID(), ?, ?, ?, 'support_ticket_external_send_provider_gate_recorded', 'ticket', ?, ?, 'managed')`,
+      [tenant_id, actor_id, actor_type, ticket_id, JSON.stringify(eventPayload)]
+    );
+    if (ownsConnection) await connection.commit();
+    return { ok: true, mode: "record_blocked_attempt", delivery_status: "provider_dispatch_blocked_not_sent", provider_plan, ticket, external_send_performed: false, secret_value_included: false, secrets_included: false };
+  } catch (error) { if (ownsConnection && runMode === "record_blocked_attempt") await connection.rollback(); throw error; }
+  finally { if (ownsConnection) connection.release(); }
+}
