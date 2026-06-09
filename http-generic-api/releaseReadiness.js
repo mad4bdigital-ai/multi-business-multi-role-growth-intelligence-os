@@ -80,6 +80,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "233_sprint68_local_connector_tunnel_provisioning_continuation_policy.sql",
   "236_sprint68_admin_branch_reconciliation_policy.sql",
   "248_sprint68_github_branch_fast_forward_policy.sql",
+  "250_sprint68_github_branch_fast_forward_smoke_policy.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [
