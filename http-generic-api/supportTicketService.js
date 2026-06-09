@@ -2113,7 +2113,7 @@ export async function applySupportTicketBrandMappingVerified({ tenant_id, ticket
       throw err;
     }
     await insertLifecycleEvent(connection, { ticket_id, tenant_id, event_type: verified ? "brand_mapping_verified_apply_completed" : "brand_mapping_verified_apply_unverified", from_state: ticket.lifecycle_state || null, to_state: verified ? "verified" : "verification_failed", actor_id, actor_type, visibility: "internal_support", summary: reason, payload_json: { plan, apply: { grant_count: applyResult.grant_count, verification_count: applyResult.verification_count }, readback: { after_grant_count: after_grants.length, after_effective_count: after_effective.length, missing_refs }, verified, secrets_included: false } });
-    if (verified) await connection.query("UPDATE tickets SET status = 'resolved', lifecycle_state = 'verified', customer_status = 'resolved', updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?", [tenant_id, ticket_id]);
+    if (verified && close_if_verified) await connection.query("UPDATE tickets SET status = 'resolved', lifecycle_state = 'verified', customer_status = 'resolved', updated_at = NOW() WHERE tenant_id = ? AND ticket_id = ?", [tenant_id, ticket_id]);
     const updated = await fetchTicketById(connection, tenant_id, ticket_id);
     if (ownsConnection) await connection.commit();
     return { ok: true, mode: "apply", verified, plan, apply: applyResult, readback: { after_grants, after_effective, missing_refs }, ticket: compactTicket(updated), secrets_included: false };
