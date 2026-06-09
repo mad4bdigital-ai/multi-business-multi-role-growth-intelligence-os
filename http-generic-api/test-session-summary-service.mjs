@@ -323,6 +323,27 @@ function makePool() {
     memoryScopeLinkWrites.some((call) => call.params.includes("workspace") && call.params.includes(session.workspace_key)),
     "summary memory scope links should include workspace scope"
   );
+  const insightCandidateWrites = pool.state.calls.filter((call) => String(call.sql).includes("INSERT INTO `session_insight_candidates`"));
+  assert(
+    insightCandidateWrites.length >= 3,
+    "summary write should extract typed session insight candidates from summary text, tasks, and feature requests"
+  );
+  assert(
+    insightCandidateWrites.some((call) => call.params.includes("session_summary_signal")),
+    "summary insight candidates should include a session summary signal"
+  );
+  assert(
+    insightCandidateWrites.some((call) => call.params.includes("completed_task")),
+    "summary insight candidates should include completed tasks"
+  );
+  assert(
+    insightCandidateWrites.some((call) => call.params.includes("development_idea")),
+    "summary insight candidates should include development ideas from feature requests"
+  );
+  assert(
+    insightCandidateWrites.every((call) => call.params.some((param) => typeof param === "string" && param.includes("secrets_included"))),
+    "summary insight candidates should carry no-secret metadata/evidence"
+  );
   assert(
     pool.state.calls.some((call) => String(call.sql).includes("INSERT INTO `platform_graph_nodes`")),
     "summary write should upsert graph nodes"
