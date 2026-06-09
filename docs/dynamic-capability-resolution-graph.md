@@ -418,6 +418,18 @@ Execution adapters must use this helper before any mutation. The helper wraps `p
 
 `ads_provider_capability_profile_registry_policy_v1` starts the provider-agnostic ads governance layer. `ads_provider_capability_profile_registry` maps a provider such as `google_ads`, `meta_ads`, or `tiktok_ads` to its spend capability key, budget meter, credential source, preflight tool, ledgers, validators, readiness gate, execution adapter, and enablement family. `google_ads` is the first active profile; every future ads provider must have a profile and remains `execution_enabled_default=false`.
 
+`ads_provider_profile_onboarding_flow_policy_v1` governs future provider onboarding:
+
+```text
+ads_provider_profile_request
+→ approval_holds pending approval
+→ ads_provider_profile_approve
+→ draft ads_provider_capability_profile_registry row
+→ ads_provider_profile_disable
+```
+
+Approval creates a `draft` profile only. It does not create preflight tools, credential readiness tools, execution adapters, provider credentials, or spend surfaces.
+
 `execution_enablement_registry_policy_v1` adds the final explicit enablement gate. Provider execution remains disabled unless `execution_enablement_registry` contains an active row for the exact family/adapter scope. The Google Ads skeleton now calls `execution_enablement_gate` after preflight validation and blocks with `blocked_execution_enablement_missing_or_disabled` when no row exists. This registry is intentionally empty by default.
 
 `execution_enablement_approval_flow_policy_v1` adds the governed lifecycle for those rows:
