@@ -25,6 +25,7 @@ SELECT 'Orchestration Intelligence Governance', 'ads_provider_governance_snapsho
          'no_external_write',true,
          'secrets_included',false
        ),
+       'TRUE',
        'orchestration_intelligence|ads_provider_governance|snapshot_proposal|recommendation_proposal',
        'adsProviderGovernanceSnapshotProposal|platformPluginRoutes|admin_platform_endpoint_tools|platform_orchestration_*',
        'TRUE',
