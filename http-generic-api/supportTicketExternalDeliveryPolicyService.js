@@ -136,7 +136,7 @@ export async function requestSupportTicketExternalDeliveryApproval({ tenant_id, 
       [holdId, holdId, tenant_id, actor_id, actor_type, holdId, `external_delivery:${ticket_id}:${externalChannel}`, JSON.stringify(payload)]
     );
     await connection.query(
-      `INSERT INTO ticket_workflow_links (link_id, tenant_id, ticket_id, approval_hold_id, relationship, metadata_json)
+      `INSERT INTO ticket_workflow_links (link_id, tenant_id, ticket_id, approval_hold_id, relationship, evidence_json)
        VALUES (UUID(), ?, ?, ?, 'external_notification_delivery_approval', ?)`,
       [tenant_id, ticket_id, holdId, JSON.stringify(payload)]
     );
