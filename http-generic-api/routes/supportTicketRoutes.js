@@ -58,6 +58,11 @@ import {
   planSupportTicketExternalSendExecution,
   recordSupportTicketExternalSendExecution,
 } from "../supportTicketExternalSendExecutionService.js";
+import {
+  decideSupportTicketExternalCredentialBinding,
+  listSupportTicketExternalCredentialCandidates,
+  requestSupportTicketExternalCredentialBinding,
+} from "../supportTicketExternalCredentialBindingService.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
@@ -280,6 +285,59 @@ export function buildSupportTicketRoutes(deps = {}) {
       return res.status(200).json(result);
     } catch (err) {
       return sendError(res, err, "support_ticket_sla_reconcile_failed");
+    }
+  });
+
+  router.get("/admin/support/tickets/external-delivery/credential-candidates", ...adminGuards, async (req, res) => {
+    try {
+      const result = await listSupportTicketExternalCredentialCandidates({
+        tenant_id: req.query?.tenant_id || null,
+        channel: req.query?.channel || "email",
+        limit: req.query?.limit || 25,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_credential_candidates_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/external-delivery/credential-binding/request", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await requestSupportTicketExternalCredentialBinding({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        channel: req.body?.channel || "email",
+        audience: req.body?.audience || "admin",
+        credential_ref: req.body?.credential_ref || null,
+        reason: req.body?.reason || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        evidence_json: req.body?.evidence_json || {},
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_credential_binding_request_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/external-delivery/credential-binding/decision", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await decideSupportTicketExternalCredentialBinding({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        approval_hold_id: req.body?.approval_hold_id,
+        decision: req.body?.decision,
+        decision_note: req.body?.decision_note || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_credential_binding_decision_failed");
     }
   });
 
