@@ -6577,6 +6577,21 @@ paths:
           github_ref_update_force: false
           requires_same_cycle_readback: true
           secrets_included: false
+        github_branch_fast_forward_smoke:
+          policy: disposable_branch_smoke_with_cleanup
+          virtual_tool: github_branch_fast_forward_smoke
+          adapter: runGithubBranchFastForwardSmoke
+          recipe_key: github.branch.fast_forward_smoke
+          creates_branch_prefix: gpt/fast-forward-smoke-
+          creates_branch_at: default_branch_parent_commit
+          requires_capability_envelope: true
+          requires_dry_run_classification: behind_only
+          delegates_apply_to: github_branch_fast_forward_to_base
+          github_ref_update_force: false
+          requires_same_cycle_readback: true
+          cleanup_required: true
+          cleanup_in_finally: true
+          secrets_included: false
         chunked_tool_response_continuation:
           policy: chunk_read_before_alternative_surface
           required_tool: response_chunk_read
