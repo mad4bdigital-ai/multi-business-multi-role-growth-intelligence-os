@@ -29,15 +29,22 @@ function extractContent(response = {}) {
   return "";
 }
 
-async function runToolCalls(toolCalls = [], context, deps) {
+async function runToolCalls(toolCalls = [], context, deps, modelRunId = null) {
   const results = [];
   for (const tc of toolCalls) {
     const name = tc.function?.name || tc.name;
     const args = tc.function?.arguments
       ? (typeof tc.function.arguments === "string" ? JSON.parse(tc.function.arguments) : tc.function.arguments)
       : (tc.arguments || {});
-    const result = await deps.dispatchTool(name, args, context);
-    results.push({ tool_call_id: tc.id, tool_name: name, args, result });
+    const ledgerToolCallId = await recordAgentToolCallStarted({ context, modelRunId, toolKey: name, args });
+    try {
+      const result = await deps.dispatchTool(name, args, context);
+      await recordAgentToolCallCompleted({ toolCallId: ledgerToolCallId, result, status: result?.ok === false ? "failed" : "authorized" });
+      results.push({ tool_call_id: tc.id, ledger_tool_call_id: ledgerToolCallId, tool_name: name, args, result });
+    } catch (error) {
+      await recordAgentToolCallFailed({ toolCallId: ledgerToolCallId, error });
+      throw error;
+    }
   }
   return results;
 }
