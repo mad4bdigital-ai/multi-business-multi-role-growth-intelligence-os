@@ -35,6 +35,10 @@ import {
   getActivationTicketInbox,
   recordSupportTicketAdminFeedback,
 } from "../supportTicketActivationInboxService.js";
+import {
+  listSupportTicketAutoResolveCandidates,
+  proposeSupportTicketAutoResolution,
+} from "../supportTicketAutoResolveService.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
