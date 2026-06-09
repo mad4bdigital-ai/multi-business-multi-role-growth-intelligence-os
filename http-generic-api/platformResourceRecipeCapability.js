@@ -912,7 +912,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
   const installedToolResult = await deps.executeInstalledTool(toolKey, toolArgs, { plan, mode });
   const completedAt = new Date().toISOString();
   const result = recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY
-    ? buildArtifactExportReconciliation(installedToolResult, plan)
+    ? buildArtifactExportReconciliation(installedToolResult, plan, args)
     : installedToolResult;
 
   return {
