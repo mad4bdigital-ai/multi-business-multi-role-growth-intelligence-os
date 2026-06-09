@@ -162,6 +162,13 @@ async function requireApplyCapabilityEnvelope(args = {}) {
   if (args.mode !== "apply") {
     return { required: false, ok: true, secrets_included: false };
   }
+  const envelopeId = String(args.capabilityEnvelopeId || "").trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(envelopeId)) {
+    const err = new Error("--capability-envelope-id is required for live checkout cleanup apply.");
+    err.code = "live_checkout_cleanup_capability_envelope_required";
+    err.details = { envelope_required: true, secrets_included: false };
+    throw err;
+  }
   const {
     capabilityEnvelopeError,
     markCapabilityEnvelopeReferenced,
