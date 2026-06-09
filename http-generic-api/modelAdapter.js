@@ -84,7 +84,22 @@ export async function runLogicWithModel(input = {}, deps = {}) {
 
   while (iteration_count < max_iterations) {
     iteration_count++;
-    const response = await deps.callModel(messages, tools);
+    const modelRunId = await recordAgentModelRunStarted({
+      context: { ...context, logic_key, iteration: iteration_count, execution_trace_id },
+      messages,
+      tools,
+      providerKey: deps.provider_key || deps.providerKey || "unknown",
+      modelKey: deps.model_key || deps.modelKey || "unknown",
+      traceId: execution_trace_id,
+    });
+    let response;
+    try {
+      response = await deps.callModel(messages, tools);
+      await recordAgentModelRunCompleted({ modelRunId, response, status: "completed" });
+    } catch (error) {
+      await recordAgentModelRunFailed({ modelRunId, error });
+      throw error;
+    }
     tokens_used += response.tokens_used || 0;
 
     const hasCalls = Array.isArray(response.tool_calls) && response.tool_calls.length > 0;
