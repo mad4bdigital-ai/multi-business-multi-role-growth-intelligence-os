@@ -4,6 +4,11 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  capabilityEnvelopeError,
+  markCapabilityEnvelopeReferenced,
+  resolveCapabilityExecutionEnvelope,
+} from "../capabilityResolutionEnvelopeGuard.js";
 import { getPool } from "../db.js";
 import { writeAuditLogAsync } from "../auditLogger.js";
 
