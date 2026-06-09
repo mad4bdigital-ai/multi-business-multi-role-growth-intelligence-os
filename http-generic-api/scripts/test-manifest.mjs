@@ -20,6 +20,7 @@ export const testCommands = [
   "node test-audit-log-event-bus-bridge.mjs",
   "node test-audit-event-rollup-builder.mjs",
   "node test-dynamic-audit-pipeline-readiness.mjs",
+  "node test-dynamic-audit-readiness-migration-allowlist.mjs",
   "node test-preflight-execution-gate-helper.mjs",
   "node test-preflight-execution-gate-policy-readback-fix.mjs",
   "node test-google-ads-execution-adapter-skeleton.mjs",
