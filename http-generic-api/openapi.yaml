@@ -6551,7 +6551,7 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listAdminTools
       summary: List admin platform tools from the governed registry
-      description: "Returns paginated admin platform tools from the registry plus virtual admin tools. Use limit/cursor/q/tag for bounded discovery. If response_chunked=true or page.has_more=true on any governed tool response, call response_chunk_read with chunk_id and next_cursor until exhausted before using search/slice/local/external fallback surfaces. Virtual admin tools include admin_branch_reconcile for no-secret branch drift diagnosis and plan-only reconciliation checkpoints, plus github_branch_fast_forward_to_base for capability-envelope-gated behind_only no-force ref updates."
+      description: "Returns paginated admin platform tools from the registry plus virtual admin tools. Use limit/cursor/q/tag for bounded discovery. If response_chunked=true or page.has_more=true on any governed tool response, call response_chunk_read with chunk_id and next_cursor until exhausted before using search/slice/local/external fallback surfaces. Virtual admin tools include admin_branch_reconcile for no-secret branch drift diagnosis and plan-only reconciliation checkpoints, github_branch_fast_forward_to_base for capability-envelope-gated behind_only no-force ref updates, and github_branch_fast_forward_smoke for disposable-branch end-to-end validation with cleanup."
       x-runtime-governance:
         admin_branch_reconcile_continuation:
           policy: admin_branch_reconcile_continuation_contract
@@ -6576,6 +6576,21 @@ paths:
           requires_confirmation: RECONCILE_BRANCH_<BRANCH_SLUG>
           github_ref_update_force: false
           requires_same_cycle_readback: true
+          secrets_included: false
+        github_branch_fast_forward_smoke:
+          policy: disposable_branch_smoke_with_cleanup
+          virtual_tool: github_branch_fast_forward_smoke
+          adapter: runGithubBranchFastForwardSmoke
+          recipe_key: github.branch.fast_forward_smoke
+          creates_branch_prefix: gpt/fast-forward-smoke-
+          creates_branch_at: default_branch_parent_commit
+          requires_capability_envelope: true
+          requires_dry_run_classification: behind_only
+          delegates_apply_to: github_branch_fast_forward_to_base
+          github_ref_update_force: false
+          requires_same_cycle_readback: true
+          cleanup_required: true
+          cleanup_in_finally: true
           secrets_included: false
         chunked_tool_response_continuation:
           policy: chunk_read_before_alternative_surface

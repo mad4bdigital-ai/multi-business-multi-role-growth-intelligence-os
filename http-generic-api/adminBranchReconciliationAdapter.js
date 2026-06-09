@@ -337,3 +337,112 @@ export async function runGithubBranchFastForwardToBase(args = {}, deps = {}) {
   }
   return result;
 }
+
+function smokeBranchName(seed = "") {
+  const safeSeed = String(seed || Date.now())
+    .replace(/[^A-Za-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || String(Date.now());
+  return `gpt/fast-forward-smoke-${safeSeed}`;
+}
+
+async function deleteGithubBranchRef({ owner, repo, branch, token, fetchImpl }) {
+  try {
+    await githubJson({ owner, repo, apiPath: `/git/refs/heads/${encodeRef(branch)}`, method: "DELETE", token, fetchImpl });
+    return { ok: true, deleted: true, branch, secrets_included: false };
+  } catch (err) {
+    if (err?.status === 404) return { ok: true, deleted: false, already_missing: true, branch, secrets_included: false };
+    return { ok: false, deleted: false, branch, error: { code: err?.code || "github_branch_smoke_cleanup_failed", message: err?.message || "Smoke branch cleanup failed.", details: err?.details }, secrets_included: false };
+  }
+}
+
+export async function runGithubBranchFastForwardSmoke(args = {}, deps = {}) {
+  const cfg = await resolveActivationBootstrapConfig({});
+  const owner = String(args.owner || cfg?.config?.github_owner || "").trim();
+  const repo = String(args.repo || cfg?.config?.github_repo || "").trim();
+  const defaultBranch = String(args.default_branch || args.base_branch || cfg?.config?.github_branch || "main").trim() || "main";
+  if (!owner || !repo) {
+    const err = new Error("github owner/repo are required for github_branch_fast_forward_smoke.");
+    err.status = 400;
+    err.code = "github_branch_smoke_repo_required";
+    throw err;
+  }
+  const branch = smokeBranchName(args.smoke_id || args.seed || "");
+  const token = deps.token || await getGitHubAppInstallationToken({});
+  const fetchImpl = deps.fetchImpl || fetch;
+  let cleanup = { ok: true, deleted: false, branch, secrets_included: false };
+  let createdRef = null;
+  let result = null;
+  try {
+    const baseRef = await githubJson({ owner, repo, apiPath: `/git/ref/heads/${encodeRef(defaultBranch)}`, token, fetchImpl });
+    const baseSha = String(baseRef?.object?.sha || "").trim();
+    const baseCommit = await githubJson({ owner, repo, apiPath: `/commits/${encodeURIComponent(baseSha)}`, token, fetchImpl });
+    const parentSha = String(baseCommit?.parents?.[0]?.sha || "").trim();
+    if (!/^[0-9a-f]{40}$/i.test(parentSha)) {
+      const err = new Error("Default branch parent commit was not available for smoke setup.");
+      err.status = 409;
+      err.code = "github_branch_smoke_parent_unavailable";
+      err.details = { default_branch: defaultBranch, base_sha: baseSha || null, secrets_included: false };
+      throw err;
+    }
+    createdRef = await githubJson({
+      owner,
+      repo,
+      apiPath: "/git/refs",
+      method: "POST",
+      token,
+      fetchImpl,
+      body: { ref: `refs/heads/${branch}`, sha: parentSha },
+    });
+    const dryRun = await runAdminBranchReconcile({ owner, repo, branch, default_branch: defaultBranch, mode: "dry_run" }, { ...deps, token, fetchImpl });
+    if (dryRun?.classification?.classification !== "behind_only") {
+      const err = new Error("Smoke branch did not classify as behind_only after setup.");
+      err.status = 409;
+      err.code = "github_branch_smoke_unexpected_classification";
+      err.details = { classification: dryRun?.classification || null, evidence: dryRun?.evidence || null, secrets_included: false };
+      throw err;
+    }
+    const apply = await runGithubBranchFastForwardToBase({
+      owner,
+      repo,
+      branch,
+      default_branch: defaultBranch,
+      expected_base_sha: dryRun?.evidence?.base_ref_sha,
+      expected_branch_sha: dryRun?.evidence?.branch_ref_sha,
+      confirm: dryRun?.dry_run?.required_confirm_for_future_apply || branchReconcileConfirmation(branch),
+      capability_envelope_id: args.capability_envelope_id || null,
+    }, { ...deps, token, fetchImpl });
+    result = {
+      ok: apply?.verification?.ok === true,
+      adapter: ADMIN_BRANCH_RECONCILIATION_ADAPTER_VERSION,
+      recipe_key: "github.branch.fast_forward_smoke",
+      action: "github_branch_fast_forward_smoke",
+      target: { owner, repo, default_branch: defaultBranch, branch },
+      setup: { created_ref: createdRef?.ref || null, base_sha: baseSha, parent_sha: parentSha, secrets_included: false },
+      dry_run: { classification: dryRun?.classification, evidence: dryRun?.evidence, secrets_included: false },
+      apply,
+      cleanup: { pending: true, branch, secrets_included: false },
+      capability_envelope_id: args.capability_envelope_id || null,
+      secrets_included: false,
+    };
+    return result;
+  } finally {
+    cleanup = await deleteGithubBranchRef({ owner, repo, branch, token, fetchImpl });
+    if (result) result.cleanup = cleanup;
+    writeAuditLogAsync({
+      action: "github_branch_fast_forward_smoke",
+      resource_type: "github_branch",
+      resource_id: `${owner}/${repo}:${branch}`,
+      payload: {
+        branch,
+        default_branch: defaultBranch,
+        created_ref: createdRef?.ref || null,
+        result_ok: result?.ok || false,
+        cleanup,
+        capability_envelope_id: args.capability_envelope_id || null,
+        principal: deps?.auth?.user_id || deps?.auth?.mode || "admin",
+        secrets_included: false,
+      },
+    });
+  }
+}
