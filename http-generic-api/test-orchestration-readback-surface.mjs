@@ -32,6 +32,9 @@ assert(openapi.includes("operationId: platformOrchestrationReadback"), "OpenAPI 
 assert(openapi.includes("x-openai-isConsequential: false"), "OpenAPI route must be non-consequential");
 assert(releaseReadiness.includes("262_sprint68_orchestration_readback_surface.sql"), "release readiness must track migration 262");
 assert(releaseReadiness.includes('policy_key: "orchestration_intelligence_readback_policy_v1"'), "release readiness must require readback policy");
+assert(migration.includes("family_key = 'google_ads_budget'"), "readiness view must use execution_enablement_registry.family_key");
+assert(migration.includes("adapter_key = 'google_ads_budget_change_execution_adapter'"), "readiness view must use execution_enablement_registry.adapter_key");
+assert(!migration.includes("execution_enablement_registry` WHERE provider_key"), "execution_enablement_registry has no provider_key column");
 
 const forbiddenSql = /\b(DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b/i;
 assert(!forbiddenSql.test(migration), "readback migration must not contain destructive SQL");
