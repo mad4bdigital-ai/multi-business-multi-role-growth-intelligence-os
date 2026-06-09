@@ -78,6 +78,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "251_sprint68_dynamic_memory_scope_types.sql",
   "252_sprint68_memory_scope_links_foundation.sql",
   "253_sprint68_session_insight_candidates_foundation.sql",
+  "254_sprint68_session_insight_scope_link_monitoring.sql",
   "230_sprint67_gpt_session_conversation_ref_capture_current.sql",
   "231_sprint68_shared_reconciliation_continuation_policy.sql",
   "232_sprint68_chunked_tool_response_continuation_policy.sql",
