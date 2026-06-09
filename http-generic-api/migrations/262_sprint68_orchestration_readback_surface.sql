@@ -73,7 +73,7 @@ SELECT
   6 AS expected_edge_count,
   (SELECT COUNT(*) FROM `ads_provider_capability_profile_registry` WHERE provider_key = 'google_ads') AS google_ads_profile_rows,
   (SELECT COUNT(*) FROM `ads_provider_preflight_contract_registry` WHERE applies_to_provider_family = 'ads_provider' AND status = 'active') AS google_ads_contract_rows,
-  (SELECT COUNT(*) FROM `ads_provider_preflight_surface_blueprint_registry` WHERE provider_key = 'google_ads') AS google_ads_blueprint_rows,
+  (SELECT COUNT(*) FROM `ads_provider_preflight_surface_blueprint_registry` WHERE required_contract_key = 'ads_provider_preflight_contract_v1' AND status = 'active') AS google_ads_blueprint_rows,
   (SELECT COUNT(*) FROM `execution_enablement_registry` WHERE provider_key = 'google_ads' AND execution_enabled = 1) AS google_ads_enabled_execution_rows,
   CASE
     WHEN COALESCE(g.stage_count, 0) >= 7 AND COALESCE(g.edge_count, 0) >= 6
