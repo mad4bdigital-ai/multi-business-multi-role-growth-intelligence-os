@@ -17,6 +17,7 @@ import {
   createSupportTicketWorkflowRun,
   decideSupportTicketApprovalHold,
   executeSupportTicketDiagnosticStep,
+  finalizeSupportTicketBrandMappingRemediation,
   getSupportTicketWithEvents,
   linkSupportTicketWorkflow,
   listSupportTicketsForTenant,
