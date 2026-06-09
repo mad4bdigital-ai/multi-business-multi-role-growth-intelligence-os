@@ -62,6 +62,7 @@ function normalizeStoreType(store_type = "vault") {
 function assertNoRawSecretPayload(value, path = "payload") {
   if (value == null || typeof value !== "object") return;
   for (const [key, nested] of Object.entries(value)) {
+    if (SAFE_SECRET_MARKER_KEYS.has(String(key))) continue;
     if (SENSITIVE_KEY_PATTERN.test(String(key))) {
       const err = new Error("Raw secret values or secret-bearing fields are not accepted by this surface.");
       err.status = 400;
