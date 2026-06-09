@@ -28,7 +28,9 @@ function fail(code, message, details = {}) { return { ok: false, error: { code, 
 export async function requestExecutionEnablement(args = parseArgs()) {
   const familyKey = clean(args.familyKey, 128);
   const adapterKey = clean(args.adapterKey, 191);
+  const tenantId = clean(args.tenantId, 64);
   if (!familyKey || !adapterKey) return fail("execution_enablement_request_missing_required_fields", "--family-key and --adapter-key are required.");
+  if (!tenantId) return fail("execution_enablement_request_tenant_id_required", "--tenant-id is required because approval_holds are tenant-scoped.");
   const ttl = Math.max(1, Math.min(Number(args.ttlHours || 24), 168));
   const requestId = randomUUID();
   const holdId = randomUUID();
