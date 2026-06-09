@@ -18,6 +18,8 @@ for (const source of [request, approve, revoke]) {
 assert.match(request, /execution_enablement_requests/);
 assert.match(request, /approval_holds/);
 assert.match(request, /pending_approval/);
+assert.match(request, /execution_enablement_request_tenant_id_required/);
+assert.match(request, /approval_holds are tenant-scoped/);
 assert.match(approve, /execution_enablement_registry/);
 assert.match(approve, /execution_enabled/);
 assert.match(approve, /pending_approval/);
