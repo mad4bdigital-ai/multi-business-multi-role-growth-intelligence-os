@@ -45,6 +45,7 @@ export const testCommands = [
   "node test-agent-runtime-ledger-smoke-alias.mjs",
   "node test-agent-runtime-ledger-readiness.mjs",
   "node test-agent-runtime-ledger-readiness-allowlist.mjs",
+  "node test-platform-constitution-policy-update-guard.mjs",
   "node test-memory-scope-links-migration.mjs",
   "node test-n8n-workflow-runtime.mjs",
   "node test-connector-health-alias-validation.mjs",
