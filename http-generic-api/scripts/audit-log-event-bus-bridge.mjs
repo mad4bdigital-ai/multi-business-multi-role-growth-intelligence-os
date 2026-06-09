@@ -94,4 +94,9 @@ async function main() {
   console.log(JSON.stringify({ ...base, inserted_count: inserted, reason: "audit_log_events_mirrored" }, null, 2));
 }
 
-main().catch(e => { console.error(JSON.stringify({ ok: false, error: { code: e.code || "audit_log_event_bus_bridge_failed", message: e.message }, raw_payload_stored: false, secrets_included: false }, null, 2)); process.exitCode = 1; });
+main()
+  .then(() => { process.exit(0); })
+  .catch(e => {
+    console.error(JSON.stringify({ ok: false, error: { code: e.code || "audit_log_event_bus_bridge_failed", message: e.message }, raw_payload_stored: false, secrets_included: false }, null, 2));
+    process.exit(1);
+  });
