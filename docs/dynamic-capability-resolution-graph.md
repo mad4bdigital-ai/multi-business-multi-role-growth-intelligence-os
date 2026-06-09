@@ -416,6 +416,18 @@ Execution adapters must use this helper before any mutation. The helper wraps `p
 
 `execution_enablement_registry_policy_v1` adds the final explicit enablement gate. Provider execution remains disabled unless `execution_enablement_registry` contains an active row for the exact family/adapter scope. The Google Ads skeleton now calls `execution_enablement_gate` after preflight validation and blocks with `blocked_execution_enablement_missing_or_disabled` when no row exists. This registry is intentionally empty by default.
 
+`execution_enablement_approval_flow_policy_v1` adds the governed lifecycle for those rows:
+
+```text
+execution_enablement_request
+→ approval_holds pending approval
+→ execution_enablement_approve
+→ scoped expiring execution_enablement_registry row
+→ execution_enablement_revoke
+```
+
+The flow is governance-only. It creates/approves/revokes enablement rows, but does not call providers, read credentials, or mutate spend.
+
 ## Dry-run tool
 
 The governed tool is:
