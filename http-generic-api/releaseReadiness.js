@@ -74,12 +74,14 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "245_sprint68_gpt_tool_archive_pinning_monitoring.sql",
   "246_sprint68_gpt_session_archive_backfill_tool.sql",
   "249_sprint68_gpt_archive_backfill_conversation_ref_monitoring.sql",
+  "250_sprint68_gpt_conversation_capture_contract_monitoring.sql",
   "230_sprint67_gpt_session_conversation_ref_capture_current.sql",
   "231_sprint68_shared_reconciliation_continuation_policy.sql",
   "232_sprint68_chunked_tool_response_continuation_policy.sql",
   "233_sprint68_local_connector_tunnel_provisioning_continuation_policy.sql",
   "236_sprint68_admin_branch_reconciliation_policy.sql",
   "248_sprint68_github_branch_fast_forward_policy.sql",
+  "251_sprint68_github_branch_fast_forward_smoke_policy.sql",
 ];
 
 const EXPECTED_ADMIN_TOOL_REGISTRY_SMOKE = [

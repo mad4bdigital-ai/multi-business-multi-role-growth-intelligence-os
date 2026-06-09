@@ -211,16 +211,20 @@ function makeDriveDeps() {
   assert.equal(result.drive.doc_id, "doc-1");
   assert.equal(result.drive.jsonl_id, "jsonl-1");
   assert(result.checks.every((item) => item.pass), "all smoke checks should pass");
+  assert(result.checks.some((item) => item.name === "conversation_exchange_complete" && item.pass), "smoke should verify user/assistant/tool/assistant turn capture");
   assert(drive.drive.docText.includes("### Runtime Event"), "doc readback should include runtime JSON");
   assert(drive.drive.docText.includes("Bookmark: turn-0"), "doc readback should include user turn bookmark");
   assert(drive.drive.docText.includes("Bookmark: turn-1"), "doc readback should include assistant turn bookmark");
   assert(drive.drive.docText.includes("Bookmark: turn-2"), "doc readback should include tool turn bookmark");
+  assert(drive.drive.docText.includes("Bookmark: turn-3"), "doc readback should include assistant follow-up bookmark");
+  assert(drive.drive.docText.includes("assistant follow-up after tool"), "doc readback should include assistant follow-up content");
   assert(drive.drive.docText.includes("### Tool Call Summary"), "doc readback should summarize tool turns");
   assert(drive.drive.docText.includes("Full content: JSONL sidecar"), "doc readback should point to JSONL for full tool content");
   assert(drive.drive.docText.includes('"doc_content_mode": "summary_only"'), "doc runtime metadata should disclose summary-only tool content");
   const jsonlRecords = drive.drive.jsonl.trim().split(/\r?\n/).map((line) => JSON.parse(line));
   assert(jsonlRecords[0].content.includes("SESSION_ARCHIVE_SMOKE"));
   assert(jsonlRecords.some((row) => row.role === "tool" && row.content.includes("Tool: release_session_archive_smoke")), "JSONL should retain full tool content");
+  assert(jsonlRecords.some((row) => row.role === "assistant" && row.content.includes("assistant follow-up after tool")), "JSONL should retain assistant follow-up content");
   assert(pool.state.turns.every((turn) => turn.content === null), "SQL turn content must stay null; Drive carries the full transcript");
   assert(pool.state.turns.every((turn) => turn.storage_mode === "drive"), "Drive smoke turns should be storage_mode=drive");
 
@@ -229,7 +233,7 @@ function makeDriveDeps() {
 
   // Cleanup ran by default — SQL rows and Drive files were removed.
   assert.equal(result.cleanup.sql_session_deleted, true, "smoke must delete the SQL customer_sessions row");
-  assert.equal(result.cleanup.sql_turns_deleted, 3, "smoke must delete the gpt_session_turns rows it created");
+  assert.equal(result.cleanup.sql_turns_deleted, 4, "smoke must delete the gpt_session_turns rows it created");
   assert.equal(result.cleanup.drive_files_deleted, 2, "smoke must delete the Drive doc and jsonl it created");
   assert.equal(result.cleanup.errors.length, 0, JSON.stringify(result.cleanup.errors));
   assert.equal(drive.drive.deletedFiles.length, 2);
@@ -256,6 +260,8 @@ function makeDriveDeps() {
 
   assert.equal(result.ok, true);
   assert.equal(result.cleanup, null, "cleanup result must be null when cleanup is disabled");
+  assert.equal(pool.state.turns.length, 4, "smoke must create a complete four-turn exchange before optional cleanup");
+  assert.deepEqual(pool.state.turns.map((turn) => turn.role), ["user", "assistant", "tool", "assistant"], "smoke turn roles must preserve user/assistant/tool/assistant order");
   assert.equal(drive.drive.deletedFiles.length, 0, "no Drive files should be deleted when cleanup is disabled");
   assert(pool.state.session, "SQL session row must remain when cleanup is disabled");
 }

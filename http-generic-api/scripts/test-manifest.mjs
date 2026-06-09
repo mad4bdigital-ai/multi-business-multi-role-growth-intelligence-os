@@ -23,6 +23,7 @@ export const testCommands = [
   "node test-google-ads-credential-readiness-gate.mjs",
   "node test-google-ads-credential-readiness-policy-fix.mjs",
   "node test-google-ads-credential-readiness-ledger.mjs",
+  "node test-ads-provider-capability-profile-registry.mjs",
   "node test-execution-enablement-registry.mjs",
   "node test-execution-enablement-approval-flow.mjs",
   "node test-capability-resolution-envelope-shared-guard.mjs",

@@ -21,7 +21,7 @@ import {
   markCapabilityEnvelopeReferenced,
   resolveCapabilityExecutionEnvelope,
 } from "../capabilityResolutionEnvelopeGuard.js";
-import { runAdminBranchReconcile, runGithubBranchFastForwardToBase } from "../adminBranchReconciliationAdapter.js";
+import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase } from "../adminBranchReconciliationAdapter.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -317,6 +317,25 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "github_branch_fast_forward_smoke",
+    displayName: "GitHub Branch Fast Forward Smoke",
+    description: "End-to-end positive smoke for the guarded branch fast-forward recipe. Creates a disposable gpt/fast-forward-smoke-* branch at the parent of the default branch, verifies behind_only dry-run, runs github_branch_fast_forward_to_base, requires readback to up_to_date, and deletes the smoke branch in cleanup.",
+    method: "VIRTUAL",
+    path: "internal://github-branch-fast-forward-smoke",
+    tags: ["repo", "reconciliation", "smoke", "mutation", "capability_envelope", "cleanup_required", "no_force"],
+    inputSchema: {
+      type: "object",
+      required: ["capability_envelope_id"],
+      properties: {
+        capability_envelope_id: { type: "string", description: "Ready capability envelope approved for github_branch_fast_forward_smoke or branch fast-forward mutation." },
+        smoke_id: { type: "string", description: "Optional suffix for gpt/fast-forward-smoke-<suffix>. Defaults to current timestamp." },
+        default_branch: { type: "string", default: "main" },
+        owner: { type: "string", description: "Optional GitHub owner override; defaults to activation bootstrap." },
+        repo: { type: "string", description: "Optional GitHub repo override; defaults to activation bootstrap." },
+      },
+    },
+  },
+  {
     name: "github_branch_fast_forward_to_base",
     displayName: "GitHub Branch Fast Forward To Base",
     description: "Guarded mutation recipe for behind_only work branches. Requires a prior admin_branch_reconcile dry-run, matching expected base/branch SHAs, capability envelope approval, typed RECONCILE_BRANCH_<BRANCH_SLUG> confirmation, no-force GitHub ref update, and same-cycle readback.",
@@ -401,7 +420,7 @@ async function requireGithubBranchFastForwardEnvelope({ args = {}, ctx = {} } = 
     pool: getPool(),
     source: args,
     acceptedAppKeys: ["github"],
-    acceptedIntents: ["github_branch_fast_forward_to_base", "admin_branch_fast_forward_to_base", "github_ref_update", "repo_mutation", "branch_fast_forward"],
+    acceptedIntents: ["github_branch_fast_forward_smoke", "github_branch_fast_forward_to_base", "admin_branch_fast_forward_to_base", "github_ref_update", "repo_mutation", "branch_fast_forward"],
     expectedTenantId: ctx?.auth?.tenant_id || PLATFORM_TENANT_ID,
     expectedUserId: ctx?.auth?.user_id || "",
   });
@@ -668,6 +687,19 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       return {
         status: err?.status || 500,
         body: { ok: false, error: { code: err?.code || "admin_branch_reconcile_failed", message: err?.message || "Branch reconciliation failed.", details: err?.details } },
+      };
+    }
+  }
+
+  if (callerType === "admin" && toolKey === "github_branch_fast_forward_smoke") {
+    try {
+      await requireGithubBranchFastForwardEnvelope({ args, ctx: { auth: req?.auth } });
+      const result = await runGithubBranchFastForwardSmoke(args, { auth: req?.auth });
+      return { status: 200, body: { ok: true, name: toolKey, result } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "github_branch_fast_forward_smoke_failed", message: err?.message || "GitHub branch fast-forward smoke failed.", details: err?.details } },
       };
     }
   }
