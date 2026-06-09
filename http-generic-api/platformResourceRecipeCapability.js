@@ -767,6 +767,71 @@ function buildArtifactExportManifestPlan({ tree = {}, summary = {}, findings = [
   };
 }
 
+function stableJson(value = {}) {
+  return JSON.stringify(value, null, 2);
+}
+
+function sha256Hex(value = "") {
+  return createHash("sha256").update(String(value)).digest("hex");
+}
+
+function buildArtifactExportManifestDryRun(reconciliation = {}, plan = {}, args = {}) {
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  const manifestPlan = reconciliation.manifest_plan || {};
+  const proposedManifest = manifestPlan.proposed_manifest || {};
+  const rootFolder = proposedManifest.root_folder || reconciliation.summary?.root_folder || {};
+  const filename = asString(options.manifest_filename) || manifestPlan.destination?.recommended_name || `${rootFolder.name || "session_archive"}.artifact_export_manifest.json`;
+  const content = {
+    ...proposedManifest,
+    materialization: {
+      mode: "manifest_dry_run",
+      generated_at: new Date().toISOString(),
+      source_recipe_key: ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY,
+      source_resource_uri: plan.resolved_resource?.resource_uri || null,
+      source_classification: reconciliation.classification || null,
+      source_child_traversal_status: reconciliation.source_inspection_summary?.child_traversal_status || null,
+      source_targeted_child_names: reconciliation.source_inspection_summary?.targeted_child_names || [],
+      secrets_included: false,
+    },
+  };
+  const contentJson = stableJson(content);
+
+  return {
+    ok: true,
+    mode: "manifest_dry_run",
+    classification: "manifest_dry_run_ready",
+    filename,
+    mime_type: "application/json",
+    destination: {
+      status: "not_created",
+      recommended_location: manifestPlan.destination?.recommended_location || "reviewer_selected_after_approval",
+      drive_write_executed: false,
+    },
+    content_preview: content,
+    content_sha256: sha256Hex(contentJson),
+    content_size_bytes: Buffer.byteLength(contentJson, "utf8"),
+    apply_contract: {
+      future_operation_key: "manifest.create_after_review",
+      apply_supported_now: false,
+      requires_dry_run: true,
+      requires_capability_envelope: true,
+      requires_typed_confirmation: true,
+      typed_confirmation: `CREATE_MANIFEST:${filename}`,
+      same_cycle_readback_required: true,
+      overwrite_allowed: false,
+    },
+    write_operations_planned: false,
+    drive_write_planned: false,
+    drive_write_executed: false,
+    graph_write_planned: false,
+    graph_write_executed: false,
+    provider_calls_planned: 0,
+    file_content_required: false,
+    file_content_returned: false,
+    secrets_included: false,
+  };
+}
+
 function buildArtifactExportReconciliation(installedToolResult = {}, plan = {}, args = {}) {
   const tree = installedToolResult?.tree || {};
   const options = args.options && typeof args.options === "object" ? args.options : {};
