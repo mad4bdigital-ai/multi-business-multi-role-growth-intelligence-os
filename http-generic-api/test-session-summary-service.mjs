@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   buildSessionInsightCandidateSeeds,
+  buildSessionInsightPromotionProposal,
   findSessionsNeedingSummary,
   loadSessionSummaryGraphMemory,
   loadSessionTranscript,
