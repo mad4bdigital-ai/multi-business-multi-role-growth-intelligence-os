@@ -33,6 +33,8 @@ function compactTicket(row = {}) {
 
 const EXTERNAL_CHANNELS = new Set(["email", "webhook"]);
 const ALLOWED_AUDIENCES = new Set(["admin", "customer", "both"]);
+const VALID_EXTERNAL_SECRET_VALIDATION_STATUSES = new Set(["valid", "validated", "ready", "passed"]);
+const VALID_EXTERNAL_SECRET_CONSENT_STATUSES = new Set(["not_required", "granted"]);
 
 function normalizeExternalChannel(channel = "email") {
   const key = String(channel || "email").trim().toLowerCase();
