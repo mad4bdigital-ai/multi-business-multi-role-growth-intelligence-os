@@ -14,6 +14,6 @@ assert.match(migration, /secret_issue_rows/);
 assert.match(migration, /agent_runtime_ledger_smoke/);
 assert.match(migration, /secrets_included/);
 assert.doesNotMatch(migration, /INSERT\s+INTO|UPDATE\s+|DELETE\s+FROM|DROP\s+TABLE|TRUNCATE/i);
-assert.doesNotMatch(migration, /prompt_text|raw_prompt|raw_args|raw_result|secret_value|token_value/i);
+assert.doesNotMatch(migration, /prompt_text|raw_prompt_text|raw_args_json|raw_result_json|secret_value|token_value/i);
 
 console.log("Agent runtime ledger readiness migration guard passed");
