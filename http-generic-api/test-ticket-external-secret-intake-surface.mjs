@@ -12,6 +12,7 @@ for (const expected of [
   "registerSupportTicketExternalSecretReference",
   "activateSupportTicketExternalSecretReference",
   "support_ticket_external_secret_raw_value_rejected",
+  "SAFE_SECRET_MARKER_KEYS",
   "pending_validation",
   "status: \"disabled\"",
   "secret_value_included: false",
