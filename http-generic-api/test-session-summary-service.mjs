@@ -246,6 +246,28 @@ function makePool() {
 }
 
 {
+  const seeds = buildSessionInsightCandidateSeeds({
+    session: { session_id: "sess-seeds", tenant_id: "tenant-1", user_id: "user-1", workspace_key: "workspace-1" },
+    summaryId: "summary-seeds",
+    insight: {
+      summary_text: "Implemented safe feed token=supersecret",
+      tasks_completed: ["Created candidates"],
+      blockers: ["Needs review"],
+      feature_requests: ["Add promotion later"],
+      integration_needs: ["Connect scopes"],
+      complexity: "medium",
+    },
+    assetId: "asset-seeds",
+  });
+  assert.equal(seeds.length, 5);
+  assert(seeds.every((seed) => seed.candidate_hash?.length === 64));
+  assert(seeds.every((seed) => seed.suggested_scopes_json.includes("workspace")));
+  assert(!JSON.stringify(seeds).includes("supersecret"));
+  assert(JSON.stringify(seeds).includes("[REDACTED]"));
+  assert(seeds.some((seed) => seed.insight_type === "integration_need"));
+}
+
+{
   const pool = makePool();
   const session = {
     session_id: "sess-drive",
