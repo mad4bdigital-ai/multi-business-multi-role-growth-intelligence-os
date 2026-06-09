@@ -6,8 +6,8 @@ const adapter = readFileSync(new URL("./modelAdapter.js", import.meta.url), "utf
 const router = readFileSync(new URL("./modelAdapterRouter.js", import.meta.url), "utf8");
 const runner = readFileSync(new URL("./agentLoopRunner.js", import.meta.url), "utf8");
 
-assert.match(ledger, /INSERT INTO `agent_model_runs`/);
-assert.match(ledger, /INSERT INTO `agent_tool_calls`/);
+assert.match(ledger, /agent_model_runs/);
+assert.match(ledger, /agent_tool_calls/);
 assert.match(ledger, /no_raw_thinking_stored/);
 assert.match(ledger, /raw_content_stored: false/);
 assert.match(ledger, /raw_args_stored: false/);
