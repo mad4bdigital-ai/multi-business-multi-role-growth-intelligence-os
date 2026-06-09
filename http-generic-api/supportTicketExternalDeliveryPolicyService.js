@@ -50,24 +50,90 @@ async function fetchTicket(connection, tenant_id, ticket_id) {
   return rows[0] || null;
 }
 
-async function findCredentialBinding(connection, { tenant_id, channel, credential_ref = null }) {
-  const candidates = [];
-  if (credential_ref) {
-    candidates.push(["secret_references", "SELECT secret_ref AS credential_ref, tenant_id, provider, label, status, created_at FROM secret_references WHERE tenant_id IN (?, '00000000-0000-0000-0000-000000000000') AND secret_ref = ? LIMIT 1", [tenant_id, credential_ref]]);
-    candidates.push(["api_credentials", "SELECT credential_id AS credential_ref, tenant_id, provider, label, status, created_at FROM api_credentials WHERE tenant_id IN (?, '00000000-0000-0000-0000-000000000000') AND credential_id = ? LIMIT 1", [tenant_id, credential_ref]]);
-  } else {
-    const providerLike = channel === "email" ? "%mail%" : "%webhook%";
-    candidates.push(["secret_references", "SELECT secret_ref AS credential_ref, tenant_id, provider, label, status, created_at FROM secret_references WHERE tenant_id IN (?, '00000000-0000-0000-0000-000000000000') AND (provider LIKE ? OR label LIKE ?) AND status IN ('active','ready','configured') ORDER BY tenant_id = ? DESC, created_at DESC LIMIT 1", [tenant_id, providerLike, providerLike, tenant_id]]);
-    candidates.push(["api_credentials", "SELECT credential_id AS credential_ref, tenant_id, provider, label, status, created_at FROM api_credentials WHERE tenant_id IN (?, '00000000-0000-0000-0000-000000000000') AND (provider LIKE ? OR label LIKE ?) AND status IN ('active','ready','configured') ORDER BY tenant_id = ? DESC, created_at DESC LIMIT 1", [tenant_id, providerLike, providerLike, tenant_id]]);
+async function lookupCredentialByRef(connection, { tenant_id, credential_ref }) {
+  if (!credential_ref) return null;
+  const [secretRows] = await connection.query(
+    `SELECT ref_id AS credential_ref, tenant_id, provider_family AS provider, credential_type AS label,
+            status, created_at, consent_status, validation_status, owner_type, store_type
+       FROM secret_references
+      WHERE tenant_id IN (?, '00000000-0000-0000-0000-000000000000')
+        AND ref_id = ?
+        AND status = 'active'
+      ORDER BY tenant_id = ? DESC, created_at DESC
+      LIMIT 1`,
+    [tenant_id, credential_ref, tenant_id]
+  );
+  if (secretRows[0]) return { source_table: "secret_references", ...secretRows[0], secret_value_included: false };
+  const [apiRows] = await connection.query(
+    `SELECT credential_id AS credential_ref, tenant_id, 'api_credentials' AS provider, label,
+            status, created_at, NULL AS consent_status, NULL AS validation_status, 'api_credential' AS owner_type, NULL AS store_type
+       FROM api_credentials
+      WHERE tenant_id IN (?, '00000000-0000-0000-0000-000000000000')
+        AND credential_id = ?
+        AND status = 'active'
+      ORDER BY tenant_id = ? DESC, created_at DESC
+      LIMIT 1`,
+    [tenant_id, credential_ref, tenant_id]
+  );
+  if (apiRows[0]) return { source_table: "api_credentials", ...apiRows[0], secret_value_included: false };
+  return null;
+}
+
+async function findApprovedCredentialBinding(connection, { tenant_id, ticket_id, channel, audience }) {
+  const [rows] = await connection.query(
+    `SELECT ah.hold_id,
+            JSON_UNQUOTE(JSON_EXTRACT(ah.execution_context_json, '$.credential_ref')) AS credential_ref,
+            JSON_UNQUOTE(JSON_EXTRACT(ah.execution_context_json, '$.channel')) AS channel,
+            JSON_UNQUOTE(JSON_EXTRACT(ah.execution_context_json, '$.audience')) AS audience,
+            ah.decided_at
+       FROM approval_holds ah
+       JOIN ticket_workflow_links twl ON twl.approval_hold_id = ah.hold_id AND twl.tenant_id = ah.tenant_id
+      WHERE ah.tenant_id = ?
+        AND twl.ticket_id = ?
+        AND twl.relationship = 'external_delivery_credential_binding'
+        AND ah.status = 'approved'
+        AND JSON_UNQUOTE(JSON_EXTRACT(ah.execution_context_json, '$.approval_type')) = 'external_delivery_credential_binding'
+        AND JSON_UNQUOTE(JSON_EXTRACT(ah.execution_context_json, '$.channel')) = ?
+        AND JSON_UNQUOTE(JSON_EXTRACT(ah.execution_context_json, '$.audience')) = ?
+      ORDER BY ah.decided_at DESC, ah.created_at DESC
+      LIMIT 1`,
+    [tenant_id, ticket_id, channel, audience]
+  );
+  return rows[0] || null;
+}
+
+async function findCredentialBinding(connection, { tenant_id, ticket_id, channel, audience = "admin", credential_ref = null }) {
+  if (credential_ref) return lookupCredentialByRef(connection, { tenant_id, credential_ref });
+  const approvedBinding = await findApprovedCredentialBinding(connection, { tenant_id, ticket_id, channel, audience });
+  if (approvedBinding?.credential_ref) {
+    const resolved = await lookupCredentialByRef(connection, { tenant_id, credential_ref: approvedBinding.credential_ref });
+    if (resolved) return { ...resolved, binding_hold_id: approvedBinding.hold_id, binding_source: "approved_ticket_binding" };
   }
-  for (const [source_table, sql, params] of candidates) {
-    try {
-      const [rows] = await connection.query(sql, params);
-      if (rows[0]) return { source_table, ...rows[0], secret_value_included: false };
-    } catch {
-      continue;
-    }
-  }
+  const providerLike = channel === "email" ? "%mail%" : "%webhook%";
+  const [secretRows] = await connection.query(
+    `SELECT ref_id AS credential_ref, tenant_id, provider_family AS provider, credential_type AS label,
+            status, created_at, consent_status, validation_status, owner_type, store_type
+       FROM secret_references
+      WHERE tenant_id IN (?, '00000000-0000-0000-0000-000000000000')
+        AND status = 'active'
+        AND (provider_family LIKE ? OR credential_type LIKE ? OR description LIKE ?)
+      ORDER BY tenant_id = ? DESC, created_at DESC
+      LIMIT 1`,
+    [tenant_id, providerLike, providerLike, providerLike, tenant_id]
+  );
+  if (secretRows[0]) return { source_table: "secret_references", ...secretRows[0], secret_value_included: false };
+  const [apiRows] = await connection.query(
+    `SELECT credential_id AS credential_ref, tenant_id, 'api_credentials' AS provider, label,
+            status, created_at, NULL AS consent_status, NULL AS validation_status, 'api_credential' AS owner_type, NULL AS store_type
+       FROM api_credentials
+      WHERE tenant_id IN (?, '00000000-0000-0000-0000-000000000000')
+        AND status = 'active'
+        AND (label LIKE ? OR scopes LIKE ?)
+      ORDER BY tenant_id = ? DESC, created_at DESC
+      LIMIT 1`,
+    [tenant_id, providerLike, providerLike, tenant_id]
+  );
+  if (apiRows[0]) return { source_table: "api_credentials", ...apiRows[0], secret_value_included: false };
   return null;
 }
 
