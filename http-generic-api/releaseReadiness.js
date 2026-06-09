@@ -90,6 +90,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "255_sprint68_live_checkout_cleanup_capability_gate.sql",
   "260_sprint68_platform_development_constitution_policies.sql",
   "261_sprint68_orchestration_intelligence_foundation.sql",
+  "262_sprint68_orchestration_readback_surface.sql",
   "233_sprint68_general_mode_choice_governance.sql",
 ];
 
