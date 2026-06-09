@@ -215,6 +215,8 @@ function makeDriveDeps() {
   assert(drive.drive.docText.includes("Bookmark: turn-0"), "doc readback should include user turn bookmark");
   assert(drive.drive.docText.includes("Bookmark: turn-1"), "doc readback should include assistant turn bookmark");
   assert(drive.drive.docText.includes("Bookmark: turn-2"), "doc readback should include tool turn bookmark");
+  assert(drive.drive.docText.includes("Bookmark: turn-3"), "doc readback should include assistant follow-up bookmark");
+  assert(drive.drive.docText.includes("assistant follow-up after tool"), "doc readback should include assistant follow-up content");
   assert(drive.drive.docText.includes("### Tool Call Summary"), "doc readback should summarize tool turns");
   assert(drive.drive.docText.includes("Full content: JSONL sidecar"), "doc readback should point to JSONL for full tool content");
   assert(drive.drive.docText.includes('"doc_content_mode": "summary_only"'), "doc runtime metadata should disclose summary-only tool content");
