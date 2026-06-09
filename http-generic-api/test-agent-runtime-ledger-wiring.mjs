@@ -23,6 +23,7 @@ assert.match(adapter, /recordAgentToolCallStarted/);
 assert.match(adapter, /recordAgentToolCallCompleted/);
 assert.match(adapter, /recordAgentToolCallFailed/);
 assert.match(adapter, /ledger_tool_call_id/);
+assert.match(adapter, /runToolCalls\(response\.tool_calls, \{ \.\.\.context, execution_trace_id \}, deps, modelRunId\)/);
 assert.match(adapter, /deps\.callModel\?\.provider_key/);
 assert.match(adapter, /deps\.callModel\?\.model_key/);
 
