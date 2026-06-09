@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   buildSessionInsightCandidateSeeds,
+  buildSessionInsightPromotionProposal,
   findSessionsNeedingSummary,
   loadSessionSummaryGraphMemory,
   loadSessionTranscript,
@@ -265,6 +266,17 @@ function makePool() {
   assert(!JSON.stringify(seeds).includes("supersecret"));
   assert(JSON.stringify(seeds).includes("[REDACTED]"));
   assert(seeds.some((seed) => seed.insight_type === "integration_need"));
+  const completedTaskProposal = buildSessionInsightPromotionProposal(seeds.find((seed) => seed.insight_type === "completed_task"));
+  assert.equal(completedTaskProposal, null, "completed tasks should not create promotion proposals by default");
+  const summarySignalProposal = buildSessionInsightPromotionProposal(seeds.find((seed) => seed.insight_type === "session_summary_signal"));
+  assert.equal(summarySignalProposal, null, "summary signals should not create promotion proposals by default");
+  const developmentProposal = buildSessionInsightPromotionProposal(seeds.find((seed) => seed.insight_type === "development_idea"));
+  assert.equal(developmentProposal.promotion_type, "development_backlog_item");
+  assert.equal(developmentProposal.target_surface, "development_backlog");
+  assert.equal(developmentProposal.promotion_hash.length, 64);
+  assert(developmentProposal.evidence_json.includes("promotion_allowed"));
+  assert(developmentProposal.metadata_json.includes("requires_human_approval"));
+  assert(!JSON.stringify(developmentProposal).includes("supersecret"));
 }
 
 {
@@ -380,6 +392,28 @@ function makePool() {
   assert(
     insightScopeLinkWrites.every((call) => call.params.some((param) => typeof param === "string" && param.includes("secrets_included"))),
     "insight candidate scope links should carry no-secret metadata"
+  );
+  const promotionProposalWrites = pool.state.calls.filter((call) => String(call.sql).includes("INSERT INTO `session_insight_promotions`"));
+  assert.equal(
+    promotionProposalWrites.length,
+    1,
+    "summary write should create review-gated promotion proposals only for promotable insight types"
+  );
+  assert(
+    promotionProposalWrites[0].params.includes("development_backlog_item"),
+    "development ideas should create development backlog promotion proposals"
+  );
+  assert(
+    promotionProposalWrites[0].params.includes("development_backlog"),
+    "promotion proposal should target the development backlog surface"
+  );
+  assert(
+    String(promotionProposalWrites[0].sql).includes("1, 0, NULL"),
+    "promotion proposal must require human approval and keep promotion_allowed disabled"
+  );
+  assert(
+    promotionProposalWrites.every((call) => call.params.some((param) => typeof param === "string" && param.includes("secrets_included"))),
+    "promotion proposals should carry no-secret metadata/evidence"
   );
   assert(
     pool.state.calls.some((call) => String(call.sql).includes("INSERT INTO `platform_graph_nodes`")),
