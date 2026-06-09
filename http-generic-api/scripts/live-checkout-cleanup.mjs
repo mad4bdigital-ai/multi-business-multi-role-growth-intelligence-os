@@ -195,7 +195,7 @@ async function requireApplyCapabilityEnvelope(args = {}) {
   const pool = getPool();
   const resolved = await resolveCapabilityExecutionEnvelope({
     pool,
-    source: { capability_envelope_id: args.capabilityEnvelopeId },
+    source: { capability_envelope_id: envelopeId },
     acceptedAppKeys: ["github"],
     acceptedIntents: ACCEPTED_CAPABILITY_INTENTS,
   });
