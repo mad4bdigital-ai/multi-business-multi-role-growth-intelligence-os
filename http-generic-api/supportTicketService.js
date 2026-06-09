@@ -2082,7 +2082,7 @@ export async function completeSupportTicketBrandRefSelectionRemediation({ tenant
   finally { if (ownsConnection) connection.release(); }
 }
 
-export async function applySupportTicketBrandMappingVerified({ tenant_id, ticket_id, approval_hold_id = null, brand_ref = null, brand_refs = null, permission = "manage", mode = "dry_run", rollback_on_failed_verification = true, actor_id = null, actor_type = "system", reason = "Verified brand mapping remediation apply." } = {}, options = {}) {
+export async function applySupportTicketBrandMappingVerified({ tenant_id, ticket_id, approval_hold_id = null, brand_ref = null, brand_refs = null, permission = "manage", mode = "dry_run", rollback_on_failed_verification = true, close_if_verified = true, actor_id = null, actor_type = "system", reason = "Verified brand mapping remediation apply." } = {}, options = {}) {
   const runMode = mode === "apply" ? "apply" : "dry_run";
   const targets = normalizeBrandGrantTargets({ brand_ref, brand_refs });
   if (!targets.length) { const err = new Error("At least one brand_ref is required for verified apply."); err.status = 400; err.code = "support_ticket_verified_apply_brand_ref_required"; throw err; }
