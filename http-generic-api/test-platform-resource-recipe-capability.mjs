@@ -109,15 +109,23 @@ includesAll(systemLayerRoutes, [
 
 includesAll(runtimeModule, [
   "READ_ONLY_INSTALLED_TOOL_ALLOWLIST",
+  "READ_ONLY_COMPOSITE_RECIPE_ALLOWLIST",
   "google_drive_folder_inspect",
+  "google_drive.session_folder.reconcile_artifacts_exports",
   "resource_recipe_read_only_installed_tool_v1",
+  "resource_recipe_read_only_composite_v1",
+  "buildArtifactExportReconciliation",
+  "missing_required_child",
+  "artifacts_and_exports_empty",
+  "duplicate_resource",
+  "missing_export",
   "read_only_executed",
   "resource_recipe_apply_blocked_v1",
   "file_content_blocked_v1",
   "provider_calls_allowed_directly_by_resource_engine: false",
   "graph_write_made: false",
   "file_content_returned: false",
-], "runtime v1 read-only installed tool guard");
+], "runtime v1 read-only installed and composite tool guard");
 
 const driveResolved = resolveResourceRefInput({ input: "https://drive.google.com/drive/folders/1E2mS1cOPL3ZAAiVWzEg9iv6klHCOVqES" });
 assert.equal(driveResolved.resource_type, "drive_folder");
