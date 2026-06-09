@@ -1,6 +1,8 @@
 # Deployment Parity Checklist
 **Authority document - run before and after every deployment**
 
+> Ads provider profile registry parity note: verify `ads_provider_capability_profile_registry_policy_v1`, table `ads_provider_capability_profile_registry`, and lookup tool `ads_provider_profile_lookup` after migration `251_sprint67_ads_provider_capability_profile_registry.sql`. Smoke should return active `google_ads` profile with `execution_enabled_default=false`, preflight/readiness ledger pointers, `no_provider_call=true`, `no_spend_change=true`, and `secrets_included=false`.
+
 > Google Ads credential readiness ledger parity note: verify `google_ads_credential_readiness_ledger_policy_v1`, table `google_ads_credential_readiness_ledger`, and `google_ads_credential_readiness_gate` ledger writes after migration `250_sprint67_google_ads_credential_readiness_ledger.sql`. Smoke without a Google Ads connection should return `credential_readiness_recorded=true`, `credential_readiness_id`, `readiness_sha256`, `blocked_google_ads_connection_missing`, `no_credential_payload_read=true`, `no_provider_call=true`, `no_spend_change=true`, and `secrets_included=false`.
 
 > Execution enablement approval flow parity note: verify `execution_enablement_approval_flow_policy_v1`, table `execution_enablement_requests`, and tools `execution_enablement_request`, `execution_enablement_approve`, and `execution_enablement_revoke` after migration `249_sprint67_execution_enablement_approval_flow.sql`. Smoke should create a pending request and approval hold without provider calls, credentials, spend change, or secrets.

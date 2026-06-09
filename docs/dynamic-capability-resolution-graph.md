@@ -416,6 +416,8 @@ Execution adapters must use this helper before any mutation. The helper wraps `p
 
 `google_ads_credential_readiness_ledger_policy_v1` records every readiness result in `google_ads_credential_readiness_ledger`. Each row includes `credential_readiness_id`, decision, connection metadata, binding counts, validation freshness, `readiness_sha256`, and no-payload/no-provider/no-spend markers. Future execution must require a ready `credential_readiness_id` with hash/readback instead of using a transient readiness response.
 
+`ads_provider_capability_profile_registry_policy_v1` starts the provider-agnostic ads governance layer. `ads_provider_capability_profile_registry` maps a provider such as `google_ads`, `meta_ads`, or `tiktok_ads` to its spend capability key, budget meter, credential source, preflight tool, ledgers, validators, readiness gate, execution adapter, and enablement family. `google_ads` is the first active profile; every future ads provider must have a profile and remains `execution_enabled_default=false`.
+
 `execution_enablement_registry_policy_v1` adds the final explicit enablement gate. Provider execution remains disabled unless `execution_enablement_registry` contains an active row for the exact family/adapter scope. The Google Ads skeleton now calls `execution_enablement_gate` after preflight validation and blocks with `blocked_execution_enablement_missing_or_disabled` when no row exists. This registry is intentionally empty by default.
 
 `execution_enablement_approval_flow_policy_v1` adds the governed lifecycle for those rows:
