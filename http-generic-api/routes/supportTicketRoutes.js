@@ -63,6 +63,11 @@ import {
   listSupportTicketExternalCredentialCandidates,
   requestSupportTicketExternalCredentialBinding,
 } from "../supportTicketExternalCredentialBindingService.js";
+import {
+  activateSupportTicketExternalSecretReference,
+  planSupportTicketExternalSecretIntake,
+  registerSupportTicketExternalSecretReference,
+} from "../supportTicketExternalSecretIntakeService.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
