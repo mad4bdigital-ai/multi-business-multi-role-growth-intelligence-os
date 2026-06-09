@@ -509,8 +509,8 @@ function buildInstalledToolArgs(plan = {}, args = {}, explicitToolKey = null) {
     return {
       folder_id: ref.folder_id || args.folder_id || undefined,
       folder_url: ref.folder_url || args.folder_url || args.input || undefined,
-      recursive: boolOption(options.recursive ?? args.recursive, isArtifactReconcile ? maxDepth >= 1 : maxDepth > 1),
-      max_depth: maxDepth,
+      recursive: boolOption(options.recursive ?? args.recursive, isArtifactReconcile ? false : maxDepth > 1),
+      max_depth: isArtifactReconcile ? 0 : maxDepth,
       page_size: pageSize,
       credential_scope: args.credential_scope || options.credential_scope || "platform",
       connection_id: args.connection_id || options.connection_id || undefined,
@@ -568,10 +568,14 @@ function duplicateNameGroups(files = []) {
 
 function buildSourceInspectionSummary(installedToolResult = {}) {
   const tree = installedToolResult?.tree || {};
+  const childInspections = Array.isArray(installedToolResult?.child_inspections) ? installedToolResult.child_inspections : [];
   return {
     ok: Boolean(installedToolResult?.ok),
     adapter: installedToolResult?.adapter || null,
     requested_folder_id: installedToolResult?.requested_folder_id || tree.folder?.id || null,
+    traversal_strategy: installedToolResult?.traversal_strategy || "single_inspect",
+    installed_tool_call_count: Number(installedToolResult?.installed_tool_call_count || 1),
+    targeted_child_names: childInspections.map((entry) => entry.name).filter(Boolean),
     recursive: Boolean(installedToolResult?.recursive),
     max_depth: installedToolResult?.max_depth ?? tree.depth ?? null,
     page_size: installedToolResult?.page_size ?? null,
@@ -582,6 +586,55 @@ function buildSourceInspectionSummary(installedToolResult = {}) {
     nested_count: Array.isArray(tree.nested) ? tree.nested.length : 0,
     has_next_page_token: Boolean(tree.next_page_token),
     source_tree_included: false,
+    secrets_included: false,
+  };
+}
+
+function requiredArtifactExportChildNames(plan = {}) {
+  const policy = plan.recipe?.policy || {};
+  return Array.isArray(policy.required_child_folders) ? policy.required_child_folders : ["Artifacts", "Exports"];
+}
+
+function targetableChildFolders(tree = {}, names = []) {
+  const allowed = new Set(names.map((name) => String(name).toLowerCase()));
+  return (Array.isArray(tree.children) ? tree.children : [])
+    .filter((child) => child.is_folder && allowed.has(lowerName(child)) && child.id)
+    .map(driveFileLite);
+}
+
+function mergeTargetedChildInspections(rootInspectResult = {}, childInspectResults = []) {
+  const rootTree = rootInspectResult?.tree || {};
+  const nested = childInspectResults.map((entry) => ({
+    folder: entry.folder,
+    children: Array.isArray(entry.result?.tree?.children) ? entry.result.tree.children : [],
+    nested: Array.isArray(entry.result?.tree?.nested) ? entry.result.tree.nested : [],
+    child_count: Number(entry.result?.tree?.child_count || 0),
+    folder_count: Number(entry.result?.tree?.folder_count || 0),
+    file_count: Number(entry.result?.tree?.file_count || 0),
+  }));
+  const rootFolderCount = Number(rootTree.folder_count || 0);
+  const rootFileCount = Number(rootTree.file_count || 0);
+  const nestedFolderCount = nested.reduce((sum, entry) => sum + Number(entry.folder_count || 0), 0);
+  const nestedFileCount = nested.reduce((sum, entry) => sum + Number(entry.file_count || 0), 0);
+  return {
+    ...rootInspectResult,
+    traversal_strategy: "targeted_child_traversal_v1",
+    installed_tool_call_count: 1 + childInspectResults.length,
+    child_inspections: childInspectResults.map((entry) => ({
+      name: entry.folder?.name || null,
+      folder_id: entry.folder?.id || null,
+      ok: Boolean(entry.result?.ok),
+      child_count: Number(entry.result?.tree?.child_count || 0),
+      folder_count: Number(entry.result?.tree?.folder_count || 0),
+      file_count: Number(entry.result?.tree?.file_count || 0),
+      secrets_included: false,
+    })),
+    tree: {
+      ...rootTree,
+      nested,
+      folder_count: rootFolderCount + nestedFolderCount,
+      file_count: rootFileCount + nestedFileCount,
+    },
     secrets_included: false,
   };
 }
@@ -908,8 +961,35 @@ export async function runGovernedResource(args = {}, deps = {}) {
 
   const toolKey = plan.execution_plan?.selected_installed_tool_key || selectedInstalledToolKey(recipe, plan.execution_plan?.steps || []);
   const toolArgs = buildInstalledToolArgs(plan, args, toolKey);
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  const requestedDepth = boundedNumber(options.max_depth ?? args.max_depth, 0, 0, 3);
   const startedAt = new Date().toISOString();
-  const installedToolResult = await deps.executeInstalledTool(toolKey, toolArgs, { plan, mode });
+  const rootInspectResult = await deps.executeInstalledTool(toolKey, toolArgs, { plan, mode, traversal_stage: "root" });
+  let installedToolResult = rootInspectResult;
+
+  if (recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY && requestedDepth >= 1) {
+    const childFolders = targetableChildFolders(rootInspectResult?.tree || {}, requiredArtifactExportChildNames(plan));
+    const childInspectResults = [];
+    for (const folder of childFolders) {
+      const childArgs = {
+        ...toolArgs,
+        folder_id: folder.id,
+        folder_url: folder.webViewLink || undefined,
+        recursive: false,
+        max_depth: 0,
+        page_size: boundedNumber(options.child_page_size ?? options.page_size ?? args.page_size, 50, 1, 100),
+      };
+      const childResult = await deps.executeInstalledTool(toolKey, childArgs, {
+        plan,
+        mode,
+        traversal_stage: "targeted_child",
+        child_name: folder.name,
+      });
+      childInspectResults.push({ folder, args: childArgs, result: childResult });
+    }
+    installedToolResult = mergeTargetedChildInspections(rootInspectResult, childInspectResults);
+  }
+
   const completedAt = new Date().toISOString();
   const result = recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY
     ? buildArtifactExportReconciliation(installedToolResult, plan, args)
