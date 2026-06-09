@@ -523,6 +523,131 @@ function buildInstalledToolArgs(plan = {}, args = {}, explicitToolKey = null) {
   return { ...ref, ...options };
 }
 
+function driveFileLite(file = {}) {
+  return {
+    id: file.id || null,
+    name: file.name || null,
+    mimeType: file.mimeType || null,
+    size: file.size || null,
+    is_folder: Boolean(file.is_folder),
+    webViewLink: file.webViewLink || null,
+  };
+}
+
+function lowerName(file = {}) {
+  return String(file.name || "").trim().toLowerCase();
+}
+
+function baseName(file = {}) {
+  return lowerName(file).replace(/\.[^.]+$/, "");
+}
+
+function nestedFolderByName(tree = {}, name = "") {
+  const target = String(name).toLowerCase();
+  const nested = Array.isArray(tree.nested) ? tree.nested : [];
+  const fromNested = nested.find((entry) => lowerName(entry.folder) === target);
+  if (fromNested) return fromNested;
+  const child = (Array.isArray(tree.children) ? tree.children : []).find((entry) => entry.is_folder && lowerName(entry) === target);
+  return child ? { folder: child, children: [], nested: [] } : null;
+}
+
+function nonFolderChildren(node = null) {
+  return (Array.isArray(node?.children) ? node.children : []).filter((child) => !child.is_folder);
+}
+
+function duplicateNameGroups(files = []) {
+  const groups = new Map();
+  for (const file of files) {
+    const key = lowerName(file);
+    if (!key) continue;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(driveFileLite(file));
+  }
+  return [...groups.values()].filter((group) => group.length > 1);
+}
+
+function buildArtifactExportReconciliation(installedToolResult = {}, plan = {}) {
+  const tree = installedToolResult?.tree || {};
+  const policy = plan.recipe?.policy || {};
+  const requiredChildFolders = Array.isArray(policy.required_child_folders)
+    ? policy.required_child_folders
+    : ["Artifacts", "Exports"];
+  const rootChildren = Array.isArray(tree.children) ? tree.children : [];
+  const artifactsNode = nestedFolderByName(tree, "Artifacts");
+  const exportsNode = nestedFolderByName(tree, "Exports");
+  const required = {
+    Artifacts: Boolean(artifactsNode),
+    Exports: Boolean(exportsNode),
+  };
+  const missingRequiredChildFolders = requiredChildFolders.filter((name) => !required[name]);
+  const rootFiles = rootChildren.filter((child) => !child.is_folder);
+  const artifactFiles = nonFolderChildren(artifactsNode);
+  const exportFiles = nonFolderChildren(exportsNode);
+  const allVisibleFiles = [...rootFiles, ...artifactFiles, ...exportFiles];
+  const emptyFiles = allVisibleFiles.filter((file) => !file.is_folder && Number(file.size || 0) === 0).map(driveFileLite);
+  const duplicateGroups = duplicateNameGroups(allVisibleFiles);
+  const artifactBaseNames = new Set(artifactFiles.map(baseName).filter(Boolean));
+  const exportBaseNames = new Set(exportFiles.map(baseName).filter(Boolean));
+  const orphanExports = artifactBaseNames.size
+    ? exportFiles.filter((file) => !artifactBaseNames.has(baseName(file))).map(driveFileLite)
+    : [];
+  const missingExports = exportFiles.length === 0
+    ? artifactFiles.map(driveFileLite)
+    : artifactFiles.filter((file) => !exportBaseNames.has(baseName(file))).map(driveFileLite);
+
+  const classifications = [];
+  if (missingRequiredChildFolders.length) classifications.push("missing_required_child");
+  if (artifactFiles.length === 0 && exportFiles.length === 0) classifications.push("artifacts_and_exports_empty");
+  else if (exportFiles.length === 0) classifications.push("exports_empty");
+  if (emptyFiles.length) classifications.push("empty_resource");
+  if (duplicateGroups.length) classifications.push("duplicate_resource");
+  if (orphanExports.length) classifications.push("orphan_resource");
+  if (missingExports.length && artifactFiles.length) classifications.push("missing_export");
+  if (!classifications.length) classifications.push("healthy");
+
+  const findings = [];
+  if (missingRequiredChildFolders.length) {
+    findings.push({ code: "missing_required_child", severity: "high", child_folders: missingRequiredChildFolders });
+  }
+  if (artifactFiles.length === 0 && exportFiles.length === 0) {
+    findings.push({ code: "artifacts_and_exports_empty", severity: "medium" });
+  } else if (exportFiles.length === 0) {
+    findings.push({ code: "exports_empty", severity: "medium", artifact_count: artifactFiles.length });
+  }
+  if (emptyFiles.length) findings.push({ code: "empty_resource", severity: "low", files: emptyFiles });
+  if (duplicateGroups.length) findings.push({ code: "duplicate_resource", severity: "medium", duplicate_groups: duplicateGroups });
+  if (orphanExports.length) findings.push({ code: "orphan_resource", severity: "medium", exports: orphanExports });
+  if (missingExports.length && artifactFiles.length) findings.push({ code: "missing_export", severity: "medium", artifacts: missingExports });
+
+  return {
+    ok: true,
+    recipe_key: ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY,
+    classification: classifications[0],
+    classifications,
+    summary: {
+      root_folder: driveFileLite(tree.folder || {}),
+      root_child_count: rootChildren.length,
+      required_child_folders: required,
+      artifact_file_count: artifactFiles.length,
+      export_file_count: exportFiles.length,
+      duplicate_group_count: duplicateGroups.length,
+      empty_file_count: emptyFiles.length,
+      orphan_export_count: orphanExports.length,
+      missing_export_count: missingExports.length,
+    },
+    findings,
+    recommended_next_operations: [
+      "review_findings",
+      ...(findings.length ? ["plan_manifest_create_after_review"] : ["no_action_required"]),
+    ],
+    apply_supported: false,
+    db_reads_executed: false,
+    provider_calls_made_directly_by_resource_engine: 0,
+    source_inspection: installedToolResult,
+    secrets_included: false,
+  };
+}
+
 export async function planGovernedResource(args = {}) {
   const recipe = await getRecipeByKey(args.recipe_key);
   const resolved = resolveResourceRefInput({ ...args, resource_type: recipe.resource_type });
