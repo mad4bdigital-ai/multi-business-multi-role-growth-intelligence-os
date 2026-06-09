@@ -372,6 +372,7 @@ export async function runGithubBranchFastForwardSmoke(args = {}, deps = {}) {
   const fetchImpl = deps.fetchImpl || fetch;
   let cleanup = { ok: true, deleted: false, branch, secrets_included: false };
   let createdRef = null;
+  let result = null;
   try {
     const baseRef = await githubJson({ owner, repo, apiPath: `/git/ref/heads/${encodeRef(defaultBranch)}`, token, fetchImpl });
     const baseSha = String(baseRef?.object?.sha || "").trim();
@@ -411,7 +412,7 @@ export async function runGithubBranchFastForwardSmoke(args = {}, deps = {}) {
       confirm: dryRun?.dry_run?.required_confirm_for_future_apply || branchReconcileConfirmation(branch),
       capability_envelope_id: args.capability_envelope_id || null,
     }, { ...deps, token, fetchImpl });
-    const result = {
+    result = {
       ok: apply?.verification?.ok === true,
       adapter: ADMIN_BRANCH_RECONCILIATION_ADAPTER_VERSION,
       recipe_key: "github.branch.fast_forward_smoke",
@@ -427,6 +428,7 @@ export async function runGithubBranchFastForwardSmoke(args = {}, deps = {}) {
     return result;
   } finally {
     cleanup = await deleteGithubBranchRef({ owner, repo, branch, token, fetchImpl });
+    if (result) result.cleanup = cleanup;
     writeAuditLogAsync({
       action: "github_branch_fast_forward_smoke",
       resource_type: "github_branch",
@@ -435,6 +437,7 @@ export async function runGithubBranchFastForwardSmoke(args = {}, deps = {}) {
         branch,
         default_branch: defaultBranch,
         created_ref: createdRef?.ref || null,
+        result_ok: result?.ok || false,
         cleanup,
         capability_envelope_id: args.capability_envelope_id || null,
         principal: deps?.auth?.user_id || deps?.auth?.mode || "admin",
