@@ -873,7 +873,7 @@ async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }
          (link_id, resource_type, resource_ref, resource_table, resource_pk,
           asset_id, asset_key, scope_type, scope_ref, scope_key,
           tenant_id, user_id, workspace_key, brand_key, role_key,
-          linkage_type, visibility_scope, authority_status, lifecycle_status,
+          linkage_type, resource_scope_hash, visibility_scope, authority_status, lifecycle_status,
           confidence, approval_required, metadata_json, secrets_included, created_by)
        VALUES (?, 'json_asset', ?, 'json_assets', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                'session_summary_scope_attachment', ?, 'authoritative', 'active',
