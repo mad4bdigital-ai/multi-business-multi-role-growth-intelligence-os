@@ -18,6 +18,7 @@ import { dispatchPrivatePlatformPluginRestAction } from "../platformPluginPrivat
 import { dispatchPlatformPluginRestAction } from "../platformPluginRestDispatch.js";
 import { resolveActionManifestDiagnostic } from "../actionManifestDiagnostic.js";
 import { resolveExecutionReadinessDryRun } from "../executionReadinessDryRun.js";
+import { readPlatformOrchestrationReadback } from "../platformOrchestrationReadback.js";
 import {
   certifyPlatformPluginSmoke,
   getPlatformPluginSmokeCertification,
@@ -138,6 +139,14 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
       const result = await resolveExecutionReadinessDryRun(input);
       return res.status(200).json(result);
     } catch (err) { return errorResponse(res, err, "execution_readiness_dry_run_failed"); }
+  });
+
+  router.post("/platform/orchestration/readback", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await readPlatformOrchestrationReadback(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_orchestration_readback_failed"); }
   });
 
   router.post("/platform/plugins/smoke-certifications/certify", ...requireAdmin, async (req, res) => {
