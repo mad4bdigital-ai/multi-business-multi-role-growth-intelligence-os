@@ -39,6 +39,11 @@ import {
   listSupportTicketAutoResolveCandidates,
   proposeSupportTicketAutoResolution,
 } from "../supportTicketAutoResolveService.js";
+import {
+  createSupportTicketNotificationCycle,
+  listSupportTicketNotificationQueue,
+  recordSupportTicketNotificationAck,
+} from "../supportTicketNotificationService.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
