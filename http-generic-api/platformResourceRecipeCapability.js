@@ -992,24 +992,28 @@ export async function runGovernedResource(args = {}, deps = {}) {
 
   if (recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY && requestedDepth >= 1) {
     const childFolders = targetableChildFolders(rootInspectResult?.tree || {}, requiredArtifactExportChildNames(plan));
-    const childInspectResults = await Promise.all(childFolders.map(async (folder) => {
-      const childArgs = {
-        ...toolArgs,
-        folder_id: folder.id,
-        folder_url: folder.webViewLink || undefined,
-        recursive: false,
-        max_depth: 0,
-        page_size: boundedNumber(options.child_page_size ?? options.page_size ?? args.page_size, 50, 1, 100),
-      };
-      const childResult = await deps.executeInstalledTool(toolKey, childArgs, {
-        plan,
-        mode,
-        traversal_stage: "targeted_child",
-        child_name: folder.name,
-      });
-      return { folder, args: childArgs, result: childResult };
-    }));
-    installedToolResult = mergeTargetedChildInspections(rootInspectResult, childInspectResults);
+    if (executeChildInspections) {
+      const childInspectResults = await Promise.all(childFolders.map(async (folder) => {
+        const childArgs = {
+          ...toolArgs,
+          folder_id: folder.id,
+          folder_url: folder.webViewLink || undefined,
+          recursive: false,
+          max_depth: 0,
+          page_size: boundedNumber(options.child_page_size ?? options.page_size ?? args.page_size, 50, 1, 100),
+        };
+        const childResult = await deps.executeInstalledTool(toolKey, childArgs, {
+          plan,
+          mode,
+          traversal_stage: "targeted_child",
+          child_name: folder.name,
+        });
+        return { folder, args: childArgs, result: childResult };
+      }));
+      installedToolResult = mergeTargetedChildInspections(rootInspectResult, childInspectResults);
+    } else {
+      installedToolResult = buildTargetedChildTraversalPlan(rootInspectResult, childFolders);
+    }
   }
 
   const completedAt = new Date().toISOString();
