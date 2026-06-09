@@ -232,7 +232,7 @@ function makeDriveDeps() {
 
   // Cleanup ran by default — SQL rows and Drive files were removed.
   assert.equal(result.cleanup.sql_session_deleted, true, "smoke must delete the SQL customer_sessions row");
-  assert.equal(result.cleanup.sql_turns_deleted, 3, "smoke must delete the gpt_session_turns rows it created");
+  assert.equal(result.cleanup.sql_turns_deleted, 4, "smoke must delete the gpt_session_turns rows it created");
   assert.equal(result.cleanup.drive_files_deleted, 2, "smoke must delete the Drive doc and jsonl it created");
   assert.equal(result.cleanup.errors.length, 0, JSON.stringify(result.cleanup.errors));
   assert.equal(drive.drive.deletedFiles.length, 2);
