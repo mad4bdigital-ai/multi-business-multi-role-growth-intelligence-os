@@ -550,6 +550,30 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.post("/admin/support/tickets/:ticket_id/brand-mapping-remediation/verified-apply", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const trustedBrandRef = await requireTrustedBrandRefForRemediation({ tenant_id: tenantId, ticket_id: req.params.ticket_id, body: req.body || {} });
+      const result = await applySupportTicketBrandMappingVerified({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        approval_hold_id: req.body?.approval_hold_id || req.body?.remediation_approval_hold_id || null,
+        brand_ref: trustedBrandRef.brand_ref,
+        brand_refs: trustedBrandRef.brand_refs,
+        permission: req.body?.permission || "manage",
+        mode: req.body?.mode || "dry_run",
+        rollback_on_failed_verification: req.body?.rollback_on_failed_verification !== false,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        reason: req.body?.reason || "Verified brand mapping remediation apply.",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_verified_brand_mapping_apply_failed");
+    }
+  });
+
   router.post("/admin/support/tickets/:ticket_id/brand-mapping-remediation", ...adminGuards, async (req, res) => {
     try {
       const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
