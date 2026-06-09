@@ -121,8 +121,8 @@ export async function runLogicWithModel(input = {}, deps = {}) {
       context: { ...context, logic_key, iteration: "final", execution_trace_id },
       messages,
       tools: [],
-      providerKey: deps.provider_key || deps.providerKey || "unknown",
-      modelKey: deps.model_key || deps.modelKey || "unknown",
+      providerKey: deps.provider_key || deps.providerKey || deps.callModel?.provider_key || deps.callModel?.providerKey || "unknown",
+      modelKey: deps.model_key || deps.modelKey || deps.callModel?.model_key || deps.callModel?.modelKey || "unknown",
       traceId: execution_trace_id,
     });
     try {
