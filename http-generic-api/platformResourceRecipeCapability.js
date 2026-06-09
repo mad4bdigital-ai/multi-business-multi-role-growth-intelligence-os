@@ -1024,8 +1024,8 @@ export async function runGovernedResource(args = {}, deps = {}) {
   const toolKey = plan.execution_plan?.selected_installed_tool_key || selectedInstalledToolKey(recipe, plan.execution_plan?.steps || []);
   const toolArgs = buildInstalledToolArgs(plan, args, toolKey);
   const options = args.options && typeof args.options === "object" ? args.options : {};
-  const requestedDepth = boundedNumber(options.max_depth ?? args.max_depth, 0, 0, 3);
-  const executeChildInspections = boolOption(options.execute_child_inspections ?? args.execute_child_inspections, false);
+  const requestedDepth = boundedNumber(options.max_depth ?? args.max_depth, mode === "continue_read_only" ? 1 : 0, 0, 3);
+  const executeChildInspections = boolOption(options.execute_child_inspections ?? args.execute_child_inspections, mode === "continue_read_only");
   const startedAt = new Date().toISOString();
   const rootInspectResult = await deps.executeInstalledTool(toolKey, toolArgs, { plan, mode, traversal_stage: "root" });
   let installedToolResult = rootInspectResult;
