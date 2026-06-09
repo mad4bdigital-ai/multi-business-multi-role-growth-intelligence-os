@@ -53,7 +53,10 @@ async function load(pool, opts) {
             execution_context_json,action,resource_type,resource_id,before_json,after_json,occurred_at
        FROM audit_log a
       WHERE a.id > ?
-        AND NOT EXISTS (SELECT 1 FROM platform_audit_event_bus b WHERE b.event_key = CONCAT('audit_log:', a.audit_id))
+        AND NOT EXISTS (
+          SELECT 1 FROM platform_audit_event_bus b
+           WHERE b.event_key COLLATE utf8mb4_unicode_ci = CONCAT('audit_log:', a.audit_id) COLLATE utf8mb4_unicode_ci
+        )
       ORDER BY a.id ASC LIMIT ?`, [opts.sinceId, opts.limit]
   );
   return rows;

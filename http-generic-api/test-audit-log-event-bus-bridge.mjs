@@ -9,6 +9,7 @@ assert.match(script, /platform_audit_event_bus/);
 assert.match(script, /audit_log:/);
 assert.match(script, /INSERT IGNORE INTO platform_audit_event_bus/);
 assert.match(script, /NOT EXISTS/);
+assert.match(script, /COLLATE utf8mb4_unicode_ci/);
 assert.match(script, /dry_run_only/);
 assert.match(script, /missing_audit_bridge_confirmation/);
 assert.match(script, /process\.exit\(0\)/);
