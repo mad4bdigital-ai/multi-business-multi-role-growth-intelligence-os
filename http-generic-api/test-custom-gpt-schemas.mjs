@@ -362,7 +362,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
   assert("tenant OpenAI schema tells GPT to pass activation mode and integration_modes through callTool",
     JSON.stringify(tenantDoc.info || {}).includes("connect_activate") &&
     JSON.stringify(tenantDoc.paths?.["/system/tools/call"] || {}).includes("integration_modes"));
-  for (const toolName of ["connect_status", "connect_activate", "connect_device_install", "local_gateway_tools_list", "local_gateway_tools_call"]) {
+  for (const toolName of ["connect_status", "connect_activate", "connect_device_install", "local_gateway_tools_list", "local_gateway_tools_call", "runtime_endpoint_call"]) {
     assert(`tenant callTool name enum exposes ${toolName}`, tenantCallToolNames.has(toolName));
   }
   assert("tenant callTool explicitly exposes wrapper-safe tool_args.mode",
