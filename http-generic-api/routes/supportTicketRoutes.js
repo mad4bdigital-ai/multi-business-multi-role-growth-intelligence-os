@@ -63,6 +63,9 @@ import {
   recordSupportTicketExternalSendProviderGateAttempt,
 } from "../supportTicketExternalSendProviderGateService.js";
 import {
+  listSupportTicketExternalProviderContracts,
+} from "../supportTicketExternalProviderContractService.js";
+import {
   decideSupportTicketExternalCredentialBinding,
   listSupportTicketExternalCredentialCandidates,
   requestSupportTicketExternalCredentialBinding,
