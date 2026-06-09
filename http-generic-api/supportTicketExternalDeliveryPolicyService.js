@@ -156,7 +156,7 @@ export async function checkSupportTicketExternalDeliveryReadiness({ tenant_id, t
       err.code = "support_ticket_not_found";
       throw err;
     }
-    const credential = await findCredentialBinding(connection, { tenant_id, channel: externalChannel, credential_ref });
+    const credential = await findCredentialBinding(connection, { tenant_id, ticket_id, channel: externalChannel, audience, credential_ref });
     const ready = Boolean(credential);
     return {
       ok: true,
