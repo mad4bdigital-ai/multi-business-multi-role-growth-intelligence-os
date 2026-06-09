@@ -519,6 +519,55 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.post("/admin/support/tickets/:ticket_id/external-send/provider-gate-plan", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await planSupportTicketExternalSendProviderGate({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        channel: req.body?.channel || "email",
+        audience: req.body?.audience || "admin",
+        approval_hold_id: req.body?.approval_hold_id || null,
+        credential_ref: req.body?.credential_ref || null,
+        provider_key: req.body?.provider_key || null,
+        send_mode: req.body?.send_mode || "dry_run",
+        subject: req.body?.subject || null,
+        body: req.body?.body || null,
+        payload_json: req.body?.payload_json || {},
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_send_provider_gate_plan_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/external-send/provider-gate-attempt", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await recordSupportTicketExternalSendProviderGateAttempt({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        channel: req.body?.channel || "email",
+        audience: req.body?.audience || "admin",
+        approval_hold_id: req.body?.approval_hold_id || null,
+        credential_ref: req.body?.credential_ref || null,
+        provider_key: req.body?.provider_key || null,
+        send_mode: req.body?.send_mode || "dry_run",
+        mode: req.body?.mode || "dry_run",
+        subject: req.body?.subject || null,
+        body: req.body?.body || null,
+        payload_json: req.body?.payload_json || {},
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_send_provider_gate_attempt_failed");
+    }
+  });
+
   router.post("/admin/support/tickets/:ticket_id/external-send/execution-plan", ...adminGuards, async (req, res) => {
     try {
       const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
