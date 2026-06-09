@@ -114,6 +114,8 @@ includesAll(runtimeModule, [
   "google_drive.session_folder.reconcile_artifacts_exports",
   "resource_recipe_read_only_installed_tool_v1",
   "resource_recipe_read_only_composite_v1",
+  "const executionClass",
+  "execution_class: executionClass",
   "buildArtifactExportReconciliation",
   "buildArtifactExportManifestPlan",
   "manifest_plan_v1",
