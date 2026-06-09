@@ -252,7 +252,12 @@ export async function runLiveCheckoutCleanup(rawArgs = parseArgs()) {
   return result;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+function isDirectCliInvocation() {
+  if (!process.argv[1]) return false;
+  return path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+}
+
+if (isDirectCliInvocation()) {
   try {
     process.stdout.write(`${JSON.stringify(await runLiveCheckoutCleanup(parseArgs()), null, 2)}\n`);
   } catch (error) {
