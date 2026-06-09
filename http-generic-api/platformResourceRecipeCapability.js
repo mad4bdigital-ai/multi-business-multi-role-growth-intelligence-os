@@ -509,8 +509,8 @@ function buildInstalledToolArgs(plan = {}, args = {}, explicitToolKey = null) {
     return {
       folder_id: ref.folder_id || args.folder_id || undefined,
       folder_url: ref.folder_url || args.folder_url || args.input || undefined,
-      recursive: boolOption(options.recursive ?? args.recursive, isArtifactReconcile ? maxDepth >= 1 : maxDepth > 1),
-      max_depth: maxDepth,
+      recursive: boolOption(options.recursive ?? args.recursive, isArtifactReconcile ? false : maxDepth > 1),
+      max_depth: isArtifactReconcile ? 0 : maxDepth,
       page_size: pageSize,
       credential_scope: args.credential_scope || options.credential_scope || "platform",
       connection_id: args.connection_id || options.connection_id || undefined,
