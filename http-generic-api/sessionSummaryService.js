@@ -89,6 +89,10 @@ function summaryLinkId(summaryId) {
   return `link_${normalizeGraphIdPart(summaryId).replace(/-/g, "")}`.slice(0, 64);
 }
 
+function memoryScopeLinkId(summaryId, scopeType, scopeRef) {
+  return `msl_${normalizeGraphIdPart(summaryId).replace(/-/g, "")}_${normalizeGraphIdPart(scopeType)}_${normalizeGraphIdPart(scopeRef)}`.slice(0, 96);
+}
+
 function buildSummaryJsonPayload({ session, summaryId, insight }) {
   return JSON.stringify({
     summary_id: summaryId,
