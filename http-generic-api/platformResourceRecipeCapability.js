@@ -665,7 +665,8 @@ export async function planGovernedResource(args = {}) {
   }
   if (!resolved) blockedReasons.push("resource_ref_unresolved");
 
-  const installedToolReady = readOnlyInstalledToolExecutionReady(recipe, steps, blockedReasons);
+  const readOnlyExecutionReady = readOnlyRecipeExecutionReady(recipe, steps, blockedReasons);
+  const selectedToolKey = selectedInstalledToolKey(recipe, steps);
 
   return {
     ok: true,
@@ -674,19 +675,21 @@ export async function planGovernedResource(args = {}) {
     resolved_resource: resolved,
     dry_run: dryRun,
     execution_plan: {
-      execution_class: installedToolReady ? "resource_recipe_read_only_installed_tool_v1" : "resource_recipe_plan_only_v1",
+      execution_class: readOnlyExecutionReady ? "resource_recipe_read_only_installed_tool_v1" : "resource_recipe_plan_only_v1",
       provider_calls_planned: 0,
       provider_calls_allowed: false,
       db_reads_planned: steps.filter((step) => step.step_kind === "db_read").length,
       installed_tool_calls_planned: steps.filter((step) => step.step_kind === "installed_tool_call").length,
-      installed_tool_calls_allowed_v1: installedToolReady,
+      installed_tool_calls_allowed_v1: readOnlyExecutionReady,
+      selected_installed_tool_key: selectedToolKey,
       allowed_installed_tools: [...READ_ONLY_INSTALLED_TOOL_ALLOWLIST],
+      allowed_composite_recipes: [...READ_ONLY_COMPOSITE_RECIPE_ALLOWLIST],
       graph_projection_planned: recipe.graph_write_policy !== "none",
       graph_projection_allowed_v1: false,
       steps,
     },
     policy_decision: {
-      decision: blockedReasons.length ? "blocked_by_v1_policy" : installedToolReady ? "read_only_execution_ready" : "plan_ready_no_execution",
+      decision: blockedReasons.length ? "blocked_by_v1_policy" : readOnlyExecutionReady ? "read_only_execution_ready" : "plan_ready_no_execution",
       blocked_reasons: blockedReasons,
       requires_capability_envelope: Boolean(recipe.requires_capability_envelope),
       requires_dry_run: Boolean(recipe.requires_dry_run),
