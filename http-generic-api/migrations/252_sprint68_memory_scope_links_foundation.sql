@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS `memory_scope_links` (
   `logic_key` VARCHAR(255) NULL,
   `engine_key` VARCHAR(255) NULL,
   `linkage_type` VARCHAR(96) NOT NULL,
+  `resource_scope_hash` CHAR(64) GENERATED ALWAYS AS (SHA2(CONCAT_WS('|', `resource_type`, `resource_ref`, `scope_type`, `scope_ref`, `linkage_type`), 256)) STORED,
   `visibility_scope` VARCHAR(64) NOT NULL DEFAULT 'platform_admin',
   `authority_status` ENUM('candidate','review_required','approved','authoritative') NOT NULL DEFAULT 'candidate',
   `lifecycle_status` ENUM('active','inactive','archived','superseded') NOT NULL DEFAULT 'active',
