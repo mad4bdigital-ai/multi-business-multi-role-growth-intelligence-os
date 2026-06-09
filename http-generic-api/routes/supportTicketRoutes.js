@@ -44,6 +44,11 @@ import {
   listSupportTicketNotificationQueue,
   recordSupportTicketNotificationAck,
 } from "../supportTicketNotificationService.js";
+import {
+  dispatchSupportTicketNotificationDelivery,
+  listSupportTicketNotificationAdapters,
+  previewSupportTicketNotificationDelivery,
+} from "../supportTicketNotificationAdapterService.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
