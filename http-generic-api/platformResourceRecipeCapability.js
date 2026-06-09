@@ -1136,6 +1136,14 @@ export async function runGovernedResource(args = {}, deps = {}) {
   const result = recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY
     ? buildArtifactExportReconciliation(installedToolResult, plan, args)
     : installedToolResult;
+  if (recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY && mode === "manifest_dry_run") {
+    result.manifest_materialization_dry_run = buildArtifactExportManifestDryRun(result, plan, args);
+    result.recommended_next_operations = [
+      "review_findings",
+      "review_manifest_materialization_dry_run",
+      "request_capability_envelope_before_future_apply",
+    ];
+  }
 
   return {
     ok: true,
