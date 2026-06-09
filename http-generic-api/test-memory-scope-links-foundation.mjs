@@ -8,7 +8,8 @@ const readiness = readFileSync(new URL("./releaseReadiness.js", import.meta.url)
 
 assert.ok(migration.includes("CREATE TABLE IF NOT EXISTS `memory_scope_links`"), "migration must create generic memory scope links table");
 assert.ok(migration.includes("FOREIGN KEY (`scope_type`) REFERENCES `memory_scope_type_registry`"), "memory scope links must be governed by dynamic scope registry");
-assert.ok(migration.includes("UNIQUE KEY `uq_memory_scope_resource_scope`"), "resource/scope/linkage writes must be idempotent");
+assert.ok(migration.includes("resource_scope_hash"), "resource/scope/linkage identity must use a bounded hash for utf8mb4-safe indexing");
+assert.ok(migration.includes("UNIQUE KEY `uq_memory_scope_resource_scope` (`resource_scope_hash`)"), "resource/scope/linkage writes must be idempotent without an oversized composite key");
 assert.ok(migration.includes("brand_key`"), "scope links must support brand dimensions");
 assert.ok(migration.includes("activity_type_key`"), "scope links must support activity dimensions");
 assert.ok(migration.includes("role_key`"), "scope links must support role dimensions");
