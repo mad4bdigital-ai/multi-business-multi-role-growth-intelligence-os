@@ -287,6 +287,152 @@ async function writeInsightCandidateScopeLinks({ pool, seed }) {
   return { ok: true, scope_link_count: normalizedScopes.length, secrets_included: false };
 }
 
+function promotionTargetForInsightType(insightType) {
+  const targets = {
+    runtime_gap: {
+      promotion_type: "runtime_repair_backlog_item",
+      target_surface: "runtime_repair_backlog",
+      risk_level: "medium",
+    },
+    development_idea: {
+      promotion_type: "development_backlog_item",
+      target_surface: "development_backlog",
+      risk_level: "medium",
+    },
+    integration_need: {
+      promotion_type: "integration_backlog_item",
+      target_surface: "integration_backlog",
+      risk_level: "medium",
+    },
+  };
+  return targets[insightType] || null;
+}
+
+function promotionProposalId(insightId, promotionType, targetSurface) {
+  return `promo_${createHash("sha256").update([insightId, promotionType, targetSurface].join("|")).digest("hex").slice(0, 48)}`;
+}
+
+function promotionProposalHash({ insightId, targetSurface, targetRef, promotionType }) {
+  return createHash("sha256")
+    .update([insightId, targetSurface, targetRef || "", promotionType].map((part) => String(part || "")).join("|"))
+    .digest("hex");
+}
+
+function preferredPromotionScope(seed) {
+  const scopes = safeJsonParse(seed.suggested_scopes_json, []);
+  const normalized = Array.isArray(scopes) ? scopes : [];
+  return normalized.find((scope) => scope?.scope_type === "workspace")
+    || normalized.find((scope) => scope?.scope_type === "tenant")
+    || normalized.find((scope) => scope?.scope_type === "conversation")
+    || normalized[0]
+    || null;
+}
+
+export function buildSessionInsightPromotionProposal(seed = {}) {
+  const target = promotionTargetForInsightType(seed.insight_type);
+  if (!target || !seed.insight_id || !seed.statement_text) return null;
+  const scope = preferredPromotionScope(seed);
+  const proposalTitle = boundedText(`Review ${seed.insight_type.replace(/_/g, " ")}: ${seed.title || seed.statement_text}`, 220);
+  const proposalText = boundedText(redactSensitiveText(seed.statement_text), 1600);
+  const promotionType = target.promotion_type;
+  const targetSurface = target.target_surface;
+  return {
+    promotion_id: promotionProposalId(seed.insight_id, promotionType, targetSurface),
+    promotion_hash: promotionProposalHash({ insightId: seed.insight_id, targetSurface, targetRef: null, promotionType }),
+    insight_id: seed.insight_id,
+    source_session_id: seed.source_session_id || null,
+    source_summary_id: seed.source_summary_id || null,
+    tenant_id: seed.tenant_id || null,
+    user_id: seed.user_id || null,
+    workspace_key: seed.workspace_key || null,
+    promotion_type: promotionType,
+    target_surface: targetSurface,
+    target_ref: null,
+    target_scope_type: scope?.scope_type || null,
+    target_scope_ref: scope?.scope_ref || null,
+    proposal_title: proposalTitle,
+    proposal_text: proposalText,
+    risk_level: target.risk_level || seed.risk_level || "medium",
+    confidence: seed.confidence || 0.5,
+    evidence_json: JSON.stringify({
+      insight_id: seed.insight_id,
+      insight_type: seed.insight_type,
+      source_summary_id: seed.source_summary_id,
+      source_session_id: seed.source_session_id,
+      target_surface: targetSurface,
+      promotion_allowed: false,
+      raw_transcript_included: false,
+      secrets_included: false,
+    }),
+    scope_links_json: seed.suggested_scopes_json || JSON.stringify([]),
+    metadata_json: JSON.stringify({
+      generator: "session_summary_promotion_proposal_v1",
+      promotion_allowed: false,
+      requires_human_approval: true,
+      secrets_included: false,
+    }),
+    created_by: "sessionSummaryService",
+  };
+}
+
+async function writeSessionInsightPromotionProposal({ pool, seed }) {
+  const proposal = buildSessionInsightPromotionProposal(seed);
+  if (!proposal) return { ok: true, skipped: true, reason: "non_promotable_insight_type", secrets_included: false };
+  await pool.query(
+    `INSERT INTO \`session_insight_promotions\`
+       (promotion_id, promotion_hash, insight_id, source_session_id, source_summary_id,
+        tenant_id, user_id, workspace_key, promotion_type, target_surface, target_ref,
+        target_scope_type, target_scope_ref, proposal_title, proposal_text,
+        decision_status, approval_status, promotion_status, risk_level, confidence,
+        requires_human_approval, promotion_allowed, promotion_executor_key,
+        evidence_json, scope_links_json, metadata_json, secrets_included, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+             'review_required', 'review_required', 'queued', ?, ?,
+             1, 0, NULL, ?, ?, ?, 0, ?)
+     ON DUPLICATE KEY UPDATE
+       source_session_id = VALUES(source_session_id),
+       source_summary_id = VALUES(source_summary_id),
+       tenant_id = VALUES(tenant_id),
+       user_id = VALUES(user_id),
+       workspace_key = VALUES(workspace_key),
+       target_scope_type = VALUES(target_scope_type),
+       target_scope_ref = VALUES(target_scope_ref),
+       proposal_title = VALUES(proposal_title),
+       proposal_text = VALUES(proposal_text),
+       risk_level = VALUES(risk_level),
+       confidence = VALUES(confidence),
+       evidence_json = VALUES(evidence_json),
+       scope_links_json = VALUES(scope_links_json),
+       metadata_json = VALUES(metadata_json),
+       secrets_included = VALUES(secrets_included),
+       updated_at = CURRENT_TIMESTAMP`,
+    [
+      proposal.promotion_id,
+      proposal.promotion_hash,
+      proposal.insight_id,
+      proposal.source_session_id,
+      proposal.source_summary_id,
+      proposal.tenant_id,
+      proposal.user_id,
+      proposal.workspace_key,
+      proposal.promotion_type,
+      proposal.target_surface,
+      proposal.target_ref,
+      proposal.target_scope_type,
+      proposal.target_scope_ref,
+      proposal.proposal_title,
+      proposal.proposal_text,
+      proposal.risk_level,
+      proposal.confidence,
+      proposal.evidence_json,
+      proposal.scope_links_json,
+      proposal.metadata_json,
+      proposal.created_by,
+    ]
+  );
+  return { ok: true, skipped: false, promotion_id: proposal.promotion_id, secrets_included: false };
+}
+
 export async function extractSessionSummaryInsightCandidates({ pool = getPool(), session, summaryId, insight, assetId = null } = {}) {
   const seeds = buildSessionInsightCandidateSeeds({ session, summaryId, insight, assetId });
   for (const seed of seeds) {
@@ -339,6 +485,7 @@ export async function extractSessionSummaryInsightCandidates({ pool = getPool(),
       ]
     );
     await writeInsightCandidateScopeLinks({ pool, seed });
+    await writeSessionInsightPromotionProposal({ pool, seed });
   }
   return { ok: true, candidate_count: seeds.length, secrets_included: false };
 }
