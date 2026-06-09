@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { fetchDriveContent } from "./uploadPipeline.js";
 import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
