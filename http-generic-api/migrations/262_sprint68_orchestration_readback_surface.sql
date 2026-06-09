@@ -81,7 +81,7 @@ SELECT
     ELSE 'degraded_ads_governance_graph_incomplete'
   END AS readiness_status,
   CASE
-    WHEN (SELECT COUNT(*) FROM `execution_enablement_registry` WHERE provider_key = 'google_ads' AND execution_enabled = 1) = 0
+    WHEN (SELECT COUNT(*) FROM `execution_enablement_registry` WHERE (family_key = 'google_ads_budget' OR adapter_key = 'google_ads_budget_change_execution_adapter') AND execution_enabled = 1) = 0
     THEN 'policy_disabled_by_design'
     ELSE 'execution_enablement_present_requires_separate_gate'
   END AS execution_enablement_classification,
