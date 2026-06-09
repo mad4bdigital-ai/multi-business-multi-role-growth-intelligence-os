@@ -393,6 +393,28 @@ function makePool() {
     insightScopeLinkWrites.every((call) => call.params.some((param) => typeof param === "string" && param.includes("secrets_included"))),
     "insight candidate scope links should carry no-secret metadata"
   );
+  const promotionProposalWrites = pool.state.calls.filter((call) => String(call.sql).includes("INSERT INTO `session_insight_promotions`"));
+  assert.equal(
+    promotionProposalWrites.length,
+    1,
+    "summary write should create review-gated promotion proposals only for promotable insight types"
+  );
+  assert(
+    promotionProposalWrites[0].params.includes("development_backlog_item"),
+    "development ideas should create development backlog promotion proposals"
+  );
+  assert(
+    promotionProposalWrites[0].params.includes("development_backlog"),
+    "promotion proposal should target the development backlog surface"
+  );
+  assert(
+    String(promotionProposalWrites[0].sql).includes("1, 0, NULL"),
+    "promotion proposal must require human approval and keep promotion_allowed disabled"
+  );
+  assert(
+    promotionProposalWrites.every((call) => call.params.some((param) => typeof param === "string" && param.includes("secrets_included"))),
+    "promotion proposals should carry no-secret metadata/evidence"
+  );
   assert(
     pool.state.calls.some((call) => String(call.sql).includes("INSERT INTO `platform_graph_nodes`")),
     "summary write should upsert graph nodes"
