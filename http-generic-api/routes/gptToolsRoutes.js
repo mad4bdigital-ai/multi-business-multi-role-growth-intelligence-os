@@ -317,6 +317,25 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
+    name: "github_branch_fast_forward_smoke",
+    displayName: "GitHub Branch Fast Forward Smoke",
+    description: "End-to-end positive smoke for the guarded branch fast-forward recipe. Creates a disposable gpt/fast-forward-smoke-* branch at the parent of the default branch, verifies behind_only dry-run, runs github_branch_fast_forward_to_base, requires readback to up_to_date, and deletes the smoke branch in cleanup.",
+    method: "VIRTUAL",
+    path: "internal://github-branch-fast-forward-smoke",
+    tags: ["repo", "reconciliation", "smoke", "mutation", "capability_envelope", "cleanup_required", "no_force"],
+    inputSchema: {
+      type: "object",
+      required: ["capability_envelope_id"],
+      properties: {
+        capability_envelope_id: { type: "string", description: "Ready capability envelope approved for github_branch_fast_forward_smoke or branch fast-forward mutation." },
+        smoke_id: { type: "string", description: "Optional suffix for gpt/fast-forward-smoke-<suffix>. Defaults to current timestamp." },
+        default_branch: { type: "string", default: "main" },
+        owner: { type: "string", description: "Optional GitHub owner override; defaults to activation bootstrap." },
+        repo: { type: "string", description: "Optional GitHub repo override; defaults to activation bootstrap." },
+      },
+    },
+  },
+  {
     name: "github_branch_fast_forward_to_base",
     displayName: "GitHub Branch Fast Forward To Base",
     description: "Guarded mutation recipe for behind_only work branches. Requires a prior admin_branch_reconcile dry-run, matching expected base/branch SHAs, capability envelope approval, typed RECONCILE_BRANCH_<BRANCH_SLUG> confirmation, no-force GitHub ref update, and same-cycle readback.",
