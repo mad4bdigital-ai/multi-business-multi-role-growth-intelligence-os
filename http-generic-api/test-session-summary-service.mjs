@@ -301,6 +301,27 @@ function makePool() {
     pool.state.calls.some((call) => String(call.sql).includes("INSERT INTO `json_asset_subject_links`")),
     "summary write should attach the asset to the conversation subject"
   );
+  const memoryScopeLinkWrites = pool.state.calls.filter((call) => String(call.sql).includes("INSERT INTO `memory_scope_links`"));
+  assert(
+    memoryScopeLinkWrites.length >= 4,
+    "summary write should attach generic dynamic memory scope links for conversation, tenant, user, and workspace"
+  );
+  assert(
+    memoryScopeLinkWrites.some((call) => call.params.includes("conversation") && call.params.includes(session.session_id)),
+    "summary memory scope links should include conversation scope"
+  );
+  assert(
+    memoryScopeLinkWrites.some((call) => call.params.includes("tenant") && call.params.includes(session.tenant_id)),
+    "summary memory scope links should include tenant scope"
+  );
+  assert(
+    memoryScopeLinkWrites.some((call) => call.params.includes("user") && call.params.includes(session.user_id)),
+    "summary memory scope links should include user scope"
+  );
+  assert(
+    memoryScopeLinkWrites.some((call) => call.params.includes("workspace") && call.params.includes(session.workspace_key)),
+    "summary memory scope links should include workspace scope"
+  );
   assert(
     pool.state.calls.some((call) => String(call.sql).includes("INSERT INTO `platform_graph_nodes`")),
     "summary write should upsert graph nodes"
