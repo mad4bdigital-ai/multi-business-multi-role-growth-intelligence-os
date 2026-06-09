@@ -61,12 +61,19 @@ assert.match(source, /admin_branch_reconcile/);
 assert.doesNotMatch(source, /guarded_mutation/);
 assert.doesNotMatch(source, /force: true/);
 
+assert.equal((source.match(/name: "github_branch_fast_forward_smoke"/g) || []).length, 1, "github_branch_fast_forward_smoke should be registered exactly once");
 assert.equal((source.match(/name: "github_branch_fast_forward_to_base"/g) || []).length, 1, "github_branch_fast_forward_to_base should be registered exactly once");
 assert.match(source, /requireGithubBranchFastForwardEnvelope/);
+assert.match(source, /runGithubBranchFastForwardSmoke/);
 assert.match(source, /runGithubBranchFastForwardToBase/);
 assert.match(source, /capability_envelope_id/);
-assert.match(source, /acceptedIntents: \["github_branch_fast_forward_to_base"/);
+assert.match(source, /acceptedIntents: \["github_branch_fast_forward_smoke", "github_branch_fast_forward_to_base"/);
+assert.match(adapter, /export async function runGithubBranchFastForwardSmoke/);
 assert.match(adapter, /export async function runGithubBranchFastForwardToBase/);
+assert.match(adapter, /gpt\/fast-forward-smoke-/);
+assert.match(adapter, /apiPath: "\/git\/refs"/);
+assert.match(adapter, /method: "DELETE"/);
+assert.match(adapter, /cleanup_in_finally|if \(result\) result\.cleanup = cleanup/);
 assert.match(adapter, /expected_base_sha/);
 assert.match(adapter, /expected_branch_sha/);
 assert.match(adapter, /github_branch_fast_forward_stale_dry_run_evidence/);
@@ -78,14 +85,19 @@ const repoPatchTokenIndex = source.indexOf("const token = await getGitHubAppInst
 const envelopeGateIndex = source.lastIndexOf("await requireRepoPatchCapabilityEnvelope", repoPatchTokenIndex);
 assert.ok(envelopeGateIndex > -1, "repo_patch_apply capability envelope gate must remain before direct GitHub token resolution");
 
+const smokeIndex = source.indexOf("const result = await runGithubBranchFastForwardSmoke");
+const smokeEnvelopeIndex = source.lastIndexOf("await requireGithubBranchFastForwardEnvelope", smokeIndex);
+assert.ok(smokeEnvelopeIndex > -1, "github_branch_fast_forward_smoke must require a capability envelope before disposable ref mutation");
 const fastForwardIndex = source.indexOf("const result = await runGithubBranchFastForwardToBase");
 const fastForwardEnvelopeIndex = source.lastIndexOf("await requireGithubBranchFastForwardEnvelope", fastForwardIndex);
 assert.ok(fastForwardEnvelopeIndex > -1, "github_branch_fast_forward_to_base must require a capability envelope before ref mutation");
 
 const migrationName = "236_sprint68_admin_branch_reconciliation_policy.sql";
 const fastForwardMigrationName = "248_sprint68_github_branch_fast_forward_policy.sql";
+const smokeMigrationName = "251_sprint68_github_branch_fast_forward_smoke_policy.sql";
 const migration = readFileSync(new URL(`./migrations/${migrationName}`, import.meta.url), "utf8");
 const fastForwardMigration = readFileSync(new URL(`./migrations/${fastForwardMigrationName}`, import.meta.url), "utf8");
+const smokeMigration = readFileSync(new URL(`./migrations/${smokeMigrationName}`, import.meta.url), "utf8");
 const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
 const readiness = readFileSync(new URL("./releaseReadiness.js", import.meta.url), "utf8");
 assert.match(migration, /Admin Branch Reconciliation Adapter Contract/);
@@ -98,12 +110,19 @@ assert.match(fastForwardMigration, /github_branch_fast_forward_requires_dry_run_
 assert.match(fastForwardMigration, /github_branch_fast_forward_to_base/);
 assert.match(fastForwardMigration, /same_cycle_readback_required',true/);
 assert.match(fastForwardMigration, /'force',false/);
+assert.match(smokeMigration, /GitHub Branch Fast Forward Smoke Contract/);
+assert.match(smokeMigration, /github_branch_fast_forward_smoke_requires_disposable_branch_cleanup_and_capability_envelope/);
+assert.match(smokeMigration, /github_branch_fast_forward_smoke/);
+assert.match(smokeMigration, /cleanup_in_finally',true/);
+assert.match(smokeMigration, /'force',false/);
 assert.ok(runner.includes("234_sprint68_ticket_lifecycle_reconciliation_tool.sql"), "governed migration runner must retain main migration 234");
 assert.ok(runner.includes("235_sprint67_capability_envelope_approval_tool.sql"), "governed migration runner must retain main migration 235");
 assert.ok(runner.includes(migrationName), "governed migration runner must allow migration 236");
 assert.ok(runner.includes(fastForwardMigrationName), "governed migration runner must allow branch fast-forward policy migration");
+assert.ok(runner.includes(smokeMigrationName), "governed migration runner must allow branch fast-forward smoke policy migration");
 assert.ok(readiness.includes(migrationName), "release readiness must track migration 236");
 assert.ok(readiness.includes(fastForwardMigrationName), "release readiness must track branch fast-forward policy migration");
+assert.ok(readiness.includes(smokeMigrationName), "release readiness must track branch fast-forward smoke policy migration");
 assert.ok(!runner.includes("234_sprint68_admin_branch_reconcile_continuation_policy.sql"), "old migration 234 name must not stay allowlisted");
 assert.ok(!runner.includes("235_sprint68_admin_branch_reconciliation_policy.sql"), "old migration 235 name must not stay allowlisted");
 
