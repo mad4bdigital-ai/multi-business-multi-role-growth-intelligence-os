@@ -35,6 +35,10 @@ import {
   getActivationTicketInbox,
   recordSupportTicketAdminFeedback,
 } from "../supportTicketActivationInboxService.js";
+import {
+  listSupportTicketAutoResolveCandidates,
+  proposeSupportTicketAutoResolution,
+} from "../supportTicketAutoResolveService.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
@@ -257,6 +261,38 @@ export function buildSupportTicketRoutes(deps = {}) {
       return res.status(200).json(result);
     } catch (err) {
       return sendError(res, err, "support_ticket_sla_reconcile_failed");
+    }
+  });
+
+  router.get("/admin/support/tickets/auto-resolve/candidates", ...adminGuards, async (req, res) => {
+    try {
+      const result = await listSupportTicketAutoResolveCandidates({
+        tenant_id: req.query?.tenant_id || null,
+        limit: req.query?.limit || 50,
+        include_ineligible: req.query?.include_ineligible === "true" || req.query?.include_ineligible === true,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_auto_resolve_candidates_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/auto-resolve/propose", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await proposeSupportTicketAutoResolution({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        force: Boolean(req.body?.force),
+        actor_id: req.auth?.user_id || "backend_ai_agent",
+        actor_type: req.auth?.mode || "backend_ai_agent",
+        summary: req.body?.summary || null,
+        evidence_json: req.body?.evidence_json || {},
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_auto_resolve_propose_failed");
     }
   });
 
