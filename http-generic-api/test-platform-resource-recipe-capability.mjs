@@ -114,6 +114,14 @@ assert.equal(driveResolved.resource_type, "drive_folder");
 assert.equal(driveResolved.resource_ref.folder_id, "1E2mS1cOPL3ZAAiVWzEg9iv6klHCOVqES");
 assert.equal(driveResolved.resource_uri, "gdrive://folder/1E2mS1cOPL3ZAAiVWzEg9iv6klHCOVqES");
 
+const driveResolvedWithRecipeTypeHint = resolveResourceRefInput({
+  input: "https://drive.google.com/drive/folders/1E2mS1cOPL3ZAAiVWzEg9iv6klHCOVqES",
+  resource_type: "drive_folder",
+});
+assert.equal(driveResolvedWithRecipeTypeHint.resource_type, "drive_folder");
+assert.equal(driveResolvedWithRecipeTypeHint.resource_ref.folder_id, "1E2mS1cOPL3ZAAiVWzEg9iv6klHCOVqES");
+assert.equal(driveResolvedWithRecipeTypeHint.resource_uri, "gdrive://folder/1E2mS1cOPL3ZAAiVWzEg9iv6klHCOVqES");
+
 const githubResolved = resolveResourceRefInput({ input: "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/tree/gpt/example" });
 assert.equal(githubResolved.resource_type, "github_branch");
 assert.equal(githubResolved.resource_ref.owner, "mad4bdigital-ai");
