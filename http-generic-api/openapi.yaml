@@ -11081,6 +11081,69 @@ paths:
                 type: object
                 additionalProperties: true
 
+  /platform/orchestration/readback:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformOrchestrationReadback
+      summary: Read orchestration graph, snapshot, and recommendation readiness
+      description: >
+        Admin-only readback for platform orchestration plugins. Defaults to the
+        ads provider governance orchestrator and returns graph/stage/edge
+        readiness plus optional latest snapshots and recommendations. This route
+        is read-only and never performs provider calls, credential payload reads,
+        spend changes, external writes, deploys, publishing, or secret return.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                plugin_key:
+                  type: string
+                  default: ads_provider_governance_orchestrator
+                include_snapshots:
+                  type: boolean
+                  default: true
+                include_recommendations:
+                  type: boolean
+                  default: true
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 10
+      responses:
+        '200':
+          description: Orchestration readback response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, plugin_key, readback_mode, execution, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  plugin_key: { type: string }
+                  readback_mode: { type: string, enum: [orchestration_graph_readonly] }
+                  readiness_status: { type: string }
+                  execution:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      will_execute_provider_call: { type: boolean, enum: [false] }
+                      will_read_credential_payload: { type: boolean, enum: [false] }
+                      will_change_spend: { type: boolean, enum: [false] }
+                      will_external_write: { type: boolean, enum: [false] }
+                      will_deploy: { type: boolean, enum: [false] }
+                      will_publish: { type: boolean, enum: [false] }
+                      recommendation_only: { type: boolean, enum: [true] }
+                  secrets_included: { type: boolean, enum: [false] }
   /platform/plugins/catalog:
     get:
       tags: [platform-plugins]
