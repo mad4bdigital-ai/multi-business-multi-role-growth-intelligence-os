@@ -566,6 +566,26 @@ function duplicateNameGroups(files = []) {
   return [...groups.values()].filter((group) => group.length > 1);
 }
 
+function buildSourceInspectionSummary(installedToolResult = {}) {
+  const tree = installedToolResult?.tree || {};
+  return {
+    ok: Boolean(installedToolResult?.ok),
+    adapter: installedToolResult?.adapter || null,
+    requested_folder_id: installedToolResult?.requested_folder_id || tree.folder?.id || null,
+    recursive: Boolean(installedToolResult?.recursive),
+    max_depth: installedToolResult?.max_depth ?? tree.depth ?? null,
+    page_size: installedToolResult?.page_size ?? null,
+    root_folder: driveFileLite(tree.folder || {}),
+    root_child_count: Number(tree.child_count ?? (Array.isArray(tree.children) ? tree.children.length : 0)),
+    folder_count: Number(tree.folder_count || 0),
+    file_count: Number(tree.file_count || 0),
+    nested_count: Array.isArray(tree.nested) ? tree.nested.length : 0,
+    has_next_page_token: Boolean(tree.next_page_token),
+    source_tree_included: false,
+    secrets_included: false,
+  };
+}
+
 function buildArtifactExportManifestPlan({ tree = {}, summary = {}, findings = [], classifications = [] } = {}) {
   const rootFolder = driveFileLite(tree.folder || {});
   const recommendedManifestName = `${rootFolder.name || "session_archive"}.artifact_export_manifest.json`;
