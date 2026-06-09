@@ -31,6 +31,10 @@ import {
   transitionSupportTicket,
   updateSupportTicketStepRun,
 } from "../supportTicketService.js";
+import {
+  getActivationTicketInbox,
+  recordSupportTicketAdminFeedback,
+} from "../supportTicketActivationInboxService.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
@@ -253,6 +257,41 @@ export function buildSupportTicketRoutes(deps = {}) {
       return res.status(200).json(result);
     } catch (err) {
       return sendError(res, err, "support_ticket_sla_reconcile_failed");
+    }
+  });
+
+  router.get("/admin/activation/ticket-inbox", ...adminGuards, async (req, res) => {
+    try {
+      const result = await getActivationTicketInbox({
+        tenant_id: req.query?.tenant_id || null,
+        limit: req.query?.limit || 50,
+        include_resolved_days: req.query?.include_resolved_days || 7,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_activation_inbox_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/admin-feedback", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await recordSupportTicketAdminFeedback({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        feedback_action: req.body?.feedback_action,
+        decision: req.body?.decision || null,
+        summary: req.body?.summary || null,
+        queue_key: req.body?.queue_key || null,
+        assigned_to: req.body?.assigned_to || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        evidence_json: req.body?.evidence_json || {},
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_admin_feedback_failed");
     }
   });
 
