@@ -99,6 +99,7 @@ export async function runSessionArchiveSmoke({
   const longPrefix = "smoke-context ".repeat(80);
   const userContent = `${longPrefix}user turn ${marker}`;
   const assistantContent = `${longPrefix}assistant turn ${marker}`;
+  const assistantFollowupContent = `${longPrefix}assistant follow-up after tool ${marker}`;
   const toolContent = [
     "Tool: release_session_archive_smoke",
     "Status: HTTP 200 ok=true",
