@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import crypto, { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
 
 function parseArgs(argv = process.argv.slice(2)) {
@@ -31,6 +32,10 @@ function hoursSince(dateValue) {
   const t = new Date(dateValue).getTime();
   if (!Number.isFinite(t)) return null;
   return Math.max(0, (Date.now() - t) / 36e5);
+}
+
+function sha256Json(value) {
+  return crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
 async function loadConnection(pool, args) {
@@ -129,12 +134,69 @@ function evaluate({ connection, bindings, args }) {
   };
 }
 
+function blockingGapCount(result = {}) {
+  return Array.isArray(result.blocking_gaps) ? result.blocking_gaps.length : 0;
+}
+
+async function recordGoogleAdsCredentialReadiness({ pool, result }) {
+  const credentialReadinessId = randomUUID();
+  const payload = {
+    ...result,
+    credential_readiness_id: credentialReadinessId,
+    no_credential_payload_read: true,
+    no_provider_call: true,
+    no_spend_change: true,
+    secrets_included: false,
+  };
+  const hash = sha256Json(payload);
+  const connection = result.connection || {};
+  try {
+    await pool.query(
+      `INSERT INTO google_ads_credential_readiness_ledger
+        (credential_readiness_id, tenant_id, user_id, connection_id, decision,
+         ready_for_execution_credentials, validation_status, validation_age_hours,
+         active_binding_count, matching_binding_present, blocking_gap_count,
+         max_validation_age_hours, readiness_json, readiness_sha256,
+         no_credential_payload_read, no_provider_call, no_spend_change, secrets_included)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 1, 0)`,
+      [
+        credentialReadinessId,
+        result?.request_context?.tenant_id || connection.tenant_id || null,
+        result?.request_context?.user_id || connection.user_id || null,
+        connection.connection_id || result?.request_context?.connection_id || null,
+        clean(result.decision || "unknown", 128),
+        result.ready_for_execution_credentials ? 1 : 0,
+        connection.validation_status || null,
+        connection.validation_age_hours === undefined ? null : connection.validation_age_hours,
+        Number(result.active_binding_count || 0),
+        result.matching_binding_present ? 1 : 0,
+        blockingGapCount(result),
+        Number(result?.request_context?.max_validation_age_hours || 720),
+        JSON.stringify(payload),
+        hash,
+      ]
+    );
+    return { ...payload, readiness_sha256: hash, credential_readiness_recorded: true };
+  } catch (err) {
+    if (["ER_NO_SUCH_TABLE", "ER_BAD_FIELD_ERROR"].includes(err?.code)) {
+      return {
+        ...payload,
+        readiness_sha256: hash,
+        credential_readiness_recorded: false,
+        credential_readiness_record_error: err.code,
+        secrets_included: false,
+      };
+    }
+    throw err;
+  }
+}
+
 export async function runGoogleAdsCredentialReadinessGate(args = parseArgs()) {
   const pool = getPool();
   const rows = await loadConnection(pool, args);
   const connection = rows[0] || null;
   const bindings = await loadBindings(pool, connection?.connection_id);
-  return {
+  const result = {
     ...evaluate({ connection, bindings, args }),
     request_context: {
       tenant_id: clean(args.tenantId, 64) || null,
@@ -150,6 +212,7 @@ export async function runGoogleAdsCredentialReadinessGate(args = parseArgs()) {
     no_spend_change: true,
     secrets_included: false,
   };
+  return recordGoogleAdsCredentialReadiness({ pool, result });
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
