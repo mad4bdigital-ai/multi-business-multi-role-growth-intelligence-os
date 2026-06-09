@@ -952,7 +952,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
     };
   }
 
-  if (!["read_only", "diagnostic"].includes(mode)) {
+  if (!["read_only", "diagnostic", "continue_read_only"].includes(mode)) {
     return {
       ok: false,
       tool: "governed_resource_run",
