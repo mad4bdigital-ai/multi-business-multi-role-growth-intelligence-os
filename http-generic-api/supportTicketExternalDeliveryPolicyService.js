@@ -132,7 +132,7 @@ export async function requestSupportTicketExternalDeliveryApproval({ tenant_id, 
     };
     await connection.query(
       `INSERT INTO approval_holds (hold_id, run_id, tenant_id, hold_type, actor_id, actor_type, request_id, correlation_id, execution_context_json, required_role, status, expires_at)
-       VALUES (?, ?, ?, 'external_notification_delivery', ?, ?, ?, ?, ?, 'platform_admin', 'open', DATE_ADD(NOW(), INTERVAL 7 DAY))`,
+       VALUES (?, ?, ?, 'supervisor_approval', ?, ?, ?, ?, ?, 'platform_admin', 'open', DATE_ADD(NOW(), INTERVAL 7 DAY))`,
       [holdId, holdId, tenant_id, actor_id, actor_type, holdId, `external_delivery:${ticket_id}:${externalChannel}`, JSON.stringify(payload)]
     );
     await connection.query(
@@ -164,7 +164,7 @@ export async function decideSupportTicketExternalDeliveryApproval({ tenant_id, t
   const ownsConnection = !options.connection;
   try {
     if (ownsConnection) await connection.beginTransaction();
-    const [holds] = await connection.query("SELECT * FROM approval_holds WHERE tenant_id = ? AND hold_id = ? AND hold_type = 'external_notification_delivery' LIMIT 1", [tenant_id, approval_hold_id]);
+    const [holds] = await connection.query("SELECT * FROM approval_holds WHERE tenant_id = ? AND hold_id = ? AND JSON_UNQUOTE(JSON_EXTRACT(execution_context_json, '$.approval_type')) = 'external_notification_delivery' LIMIT 1", [tenant_id, approval_hold_id]);
     const hold = holds[0];
     if (!hold) {
       const err = new Error("External delivery approval hold not found.");
