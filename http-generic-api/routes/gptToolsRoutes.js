@@ -420,7 +420,7 @@ async function requireGithubBranchFastForwardEnvelope({ args = {}, ctx = {} } = 
     pool: getPool(),
     source: args,
     acceptedAppKeys: ["github"],
-    acceptedIntents: ["github_branch_fast_forward_to_base", "admin_branch_fast_forward_to_base", "github_ref_update", "repo_mutation", "branch_fast_forward"],
+    acceptedIntents: ["github_branch_fast_forward_smoke", "github_branch_fast_forward_to_base", "admin_branch_fast_forward_to_base", "github_ref_update", "repo_mutation", "branch_fast_forward"],
     expectedTenantId: ctx?.auth?.tenant_id || PLATFORM_TENANT_ID,
     expectedUserId: ctx?.auth?.user_id || "",
   });
