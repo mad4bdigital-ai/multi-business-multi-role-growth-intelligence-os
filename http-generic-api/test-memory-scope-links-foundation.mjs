@@ -22,7 +22,10 @@ assert.ok(migration.includes("unregistered_scope_type"), "diagnostics must detec
 assert.ok(migration.includes("secret_flag_set_on_memory_link"), "diagnostics must detect secret-flagged links");
 
 assert.ok(service.includes("memoryScopeLinkId"), "session summary service must produce stable dynamic memory scope link IDs");
+assert.ok(service.includes("memoryScopeIdentityHash"), "session summary service must compute explicit resource/scope hashes for dynamic memory scope links");
 assert.ok(service.includes("memory_scope_links"), "session summary service must write generic memory scope links");
+assert.ok(service.includes("resource_scope_hash"), "session summary service must write the explicit memory scope identity hash column");
+assert.ok(service.includes("memoryScopeIdentityHash(\"json_asset\", assetId, link.scope_type, link.scope_ref, \"session_summary_scope_attachment\")"), "session summary memory scope writes must pass the resource/scope/linkage hash parameter");
 assert.ok(service.includes("session_summary_scope_attachment"), "session summary scope links must use a stable linkage type");
 assert.ok(service.includes("scope_type: \"conversation\""), "session summaries must link to conversation scope");
 assert.ok(service.includes("scope_type: \"tenant\""), "session summaries must link to tenant scope");
