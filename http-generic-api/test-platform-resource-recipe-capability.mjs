@@ -139,7 +139,7 @@ includesAll(runtimeModule, [
   "buildTargetedChildTraversalPlan",
   "Promise.all(childFolders.map",
   "installed_tool_call_count",
-  "traversal_stage: \"targeted_child\"",
+  "traversal_stage: \"targeted_child_continuation\"",
   "write_operations_planned: false",
   "drive_write_planned: false",
   "graph_write_planned: false",
