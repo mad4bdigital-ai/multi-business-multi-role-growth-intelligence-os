@@ -274,6 +274,59 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.get("/admin/support/tickets/notifications/adapters", ...adminGuards, async (req, res) => {
+    try {
+      const result = await listSupportTicketNotificationAdapters();
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_notification_adapters_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/notification-delivery/preview", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await previewSupportTicketNotificationDelivery({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        channel: req.body?.channel || "activation_inbox",
+        notification_type: req.body?.notification_type || null,
+        audience: req.body?.audience || "admin",
+        subject: req.body?.subject || null,
+        body: req.body?.body || null,
+        payload_json: req.body?.payload_json || {},
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_notification_delivery_preview_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/notification-delivery/dispatch", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await dispatchSupportTicketNotificationDelivery({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        channel: req.body?.channel || "activation_inbox",
+        notification_type: req.body?.notification_type || null,
+        audience: req.body?.audience || "admin",
+        subject: req.body?.subject || null,
+        body: req.body?.body || null,
+        mode: req.body?.mode || "dry_run",
+        delivery_approval_hold_id: req.body?.delivery_approval_hold_id || null,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        payload_json: req.body?.payload_json || {},
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_notification_delivery_dispatch_failed");
+    }
+  });
+
   router.get("/admin/support/tickets/notifications/queue", ...adminGuards, async (req, res) => {
     try {
       const result = await listSupportTicketNotificationQueue({
