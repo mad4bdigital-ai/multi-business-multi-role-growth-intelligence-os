@@ -813,16 +813,19 @@ export async function runGovernedResource(args = {}, deps = {}) {
     };
   }
 
-  const toolKey = recipe.installed_tool_key;
-  const toolArgs = buildInstalledToolArgs(plan, args);
+  const toolKey = plan.execution_plan?.selected_installed_tool_key || selectedInstalledToolKey(recipe, plan.execution_plan?.steps || []);
+  const toolArgs = buildInstalledToolArgs(plan, args, toolKey);
   const startedAt = new Date().toISOString();
   const installedToolResult = await deps.executeInstalledTool(toolKey, toolArgs, { plan, mode });
   const completedAt = new Date().toISOString();
+  const result = recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY
+    ? buildArtifactExportReconciliation(installedToolResult, plan)
+    : installedToolResult;
 
   return {
     ok: true,
     tool: "governed_resource_run",
-    classification: "read_only_executed",
+    classification: result.classification || "read_only_executed",
     mode,
     recipe_key: recipe.recipe_key,
     resource_type: recipe.resource_type,
@@ -830,7 +833,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
     installed_tool_key: toolKey,
     installed_tool_args: toolArgs,
     execution_evidence: {
-      execution_class: "resource_recipe_read_only_installed_tool_v1",
+      execution_class: recipe.adapter_kind === "composite" ? "resource_recipe_read_only_composite_v1" : "resource_recipe_read_only_installed_tool_v1",
       started_at: startedAt,
       completed_at: completedAt,
       provider_calls_allowed_directly_by_resource_engine: false,
@@ -839,7 +842,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
       file_content_returned: false,
       secrets_included: false,
     },
-    result: installedToolResult,
+    result,
     plan,
     apply_requested: false,
     apply_allowed: false,
