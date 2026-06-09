@@ -551,6 +551,33 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.post("/admin/support/tickets/:ticket_id/brand-mapping-remediation/finalize", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await finalizeSupportTicketBrandMappingRemediation({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        selected_brand_ref: req.body?.selected_brand_ref || req.body?.brand_ref,
+        brand_ref_selection_hold_id: req.body?.brand_ref_selection_hold_id || req.body?.selection_hold_id || null,
+        new_brand_ref_approval_hold_id: req.body?.new_brand_ref_approval_hold_id || null,
+        remediation_approval_hold_id: req.body?.remediation_approval_hold_id || req.body?.approval_hold_id || null,
+        workflow_run_id: req.body?.workflow_run_id || req.body?.run_id || null,
+        plan_id: req.body?.plan_id || null,
+        permission: req.body?.permission || "manage",
+        mode: req.body?.mode || "dry_run",
+        close_if_verified: req.body?.close_if_verified !== false,
+        max_steps: req.body?.max_steps || 10,
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+        reason: req.body?.reason || "Finalize brand mapping remediation.",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_finalize_brand_mapping_remediation_failed");
+    }
+  });
+
   router.post("/admin/support/tickets/:ticket_id/brand-mapping-remediation/verified-apply", ...adminGuards, async (req, res) => {
     try {
       const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
