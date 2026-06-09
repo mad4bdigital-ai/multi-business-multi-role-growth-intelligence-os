@@ -134,6 +134,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "251_sprint67_ads_provider_capability_profile_registry.sql",
   "252_sprint67_ads_provider_profile_onboarding_flow.sql",
   "253_sprint67_ads_provider_preflight_contract.sql",
+  "254_sprint67_ads_provider_preflight_surface_blueprint.sql",
   "219_sprint67_gpt_session_turn_batch_write_tool.sql",
   "236_sprint68_admin_branch_reconciliation_policy.sql",
   "248_sprint68_github_branch_fast_forward_policy.sql",
