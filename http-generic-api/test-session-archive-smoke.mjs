@@ -211,6 +211,7 @@ function makeDriveDeps() {
   assert.equal(result.drive.doc_id, "doc-1");
   assert.equal(result.drive.jsonl_id, "jsonl-1");
   assert(result.checks.every((item) => item.pass), "all smoke checks should pass");
+  assert(result.checks.some((item) => item.name === "conversation_exchange_complete" && item.pass), "smoke should verify user/assistant/tool/assistant turn capture");
   assert(drive.drive.docText.includes("### Runtime Event"), "doc readback should include runtime JSON");
   assert(drive.drive.docText.includes("Bookmark: turn-0"), "doc readback should include user turn bookmark");
   assert(drive.drive.docText.includes("Bookmark: turn-1"), "doc readback should include assistant turn bookmark");
