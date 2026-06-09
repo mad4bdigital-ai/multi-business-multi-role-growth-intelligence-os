@@ -650,8 +650,10 @@ function buildArtifactExportManifestPlan({ tree = {}, summary = {}, findings = [
   };
 }
 
-function buildArtifactExportReconciliation(installedToolResult = {}, plan = {}) {
+function buildArtifactExportReconciliation(installedToolResult = {}, plan = {}, args = {}) {
   const tree = installedToolResult?.tree || {};
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  const includeSourceInspection = boolOption(options.include_source_inspection ?? args.include_source_inspection, false);
   const policy = plan.recipe?.policy || {};
   const requiredChildFolders = Array.isArray(policy.required_child_folders)
     ? policy.required_child_folders
