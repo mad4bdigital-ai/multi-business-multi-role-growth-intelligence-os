@@ -259,7 +259,7 @@ export async function runSessionArchiveSmoke({
     check("drive_doc_pointer", Boolean(archivedSession.drive_doc_id)),
     check("drive_jsonl_pointer", Boolean(archivedSession.drive_jsonl_id)),
     check("drive_export_url", Boolean(archivedSession.drive_export_url)),
-    check("sql_turn_count", turnRows.length === 3, { count: turnRows.length }),
+    check("sql_turn_count", turnRows.length === 4, { count: turnRows.length }),
     check(
       "drive_doc_rollover",
       !forceDocRollover || (distinctTurnDocIds.length >= 2 && maxTurnDocPart >= 2 && Number(archivedSession.drive_doc_part_count || 0) >= 2),
