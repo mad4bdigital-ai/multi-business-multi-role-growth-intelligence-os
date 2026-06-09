@@ -74,14 +74,14 @@ SELECT
   (SELECT COUNT(*) FROM `ads_provider_capability_profile_registry` WHERE provider_key = 'google_ads') AS google_ads_profile_rows,
   (SELECT COUNT(*) FROM `ads_provider_preflight_contract_registry` WHERE applies_to_provider_family = 'ads_provider' AND status = 'active') AS google_ads_contract_rows,
   (SELECT COUNT(*) FROM `ads_provider_preflight_surface_blueprint_registry` WHERE required_contract_key = 'ads_provider_preflight_contract_v1' AND status = 'active') AS google_ads_blueprint_rows,
-  (SELECT COUNT(*) FROM `execution_enablement_registry` WHERE provider_key = 'google_ads' AND execution_enabled = 1) AS google_ads_enabled_execution_rows,
+  (SELECT COUNT(*) FROM `execution_enablement_registry` WHERE family_key = 'google_ads_budget' AND adapter_key = 'google_ads_budget_change_execution_adapter' AND execution_enabled = 1) AS google_ads_enabled_execution_rows,
   CASE
     WHEN COALESCE(g.stage_count, 0) >= 7 AND COALESCE(g.edge_count, 0) >= 6
     THEN 'ready_readonly_ads_governance_graph'
     ELSE 'degraded_ads_governance_graph_incomplete'
   END AS readiness_status,
   CASE
-    WHEN (SELECT COUNT(*) FROM `execution_enablement_registry` WHERE provider_key = 'google_ads' AND execution_enabled = 1) = 0
+    WHEN (SELECT COUNT(*) FROM `execution_enablement_registry` WHERE family_key = 'google_ads_budget' AND adapter_key = 'google_ads_budget_change_execution_adapter' AND execution_enabled = 1) = 0
     THEN 'policy_disabled_by_design'
     ELSE 'execution_enablement_present_requires_separate_gate'
   END AS execution_enablement_classification,
@@ -119,6 +119,7 @@ SELECT 'Orchestration Intelligence Governance', 'orchestration_intelligence_read
          'no_external_write',true,
          'secrets_included',false
        ),
+       'TRUE',
        'orchestration_intelligence|orchestration_readback|graph_readiness|recommendation_readback',
        'platformOrchestrationReadback|platformPluginRoutes|admin_platform_endpoint_tools|platform_orchestration_*',
        'TRUE',
