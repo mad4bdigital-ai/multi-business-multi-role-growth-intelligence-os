@@ -734,7 +734,9 @@ function buildArtifactExportReconciliation(installedToolResult = {}, plan = {}, 
     apply_supported: false,
     db_reads_executed: false,
     provider_calls_made_directly_by_resource_engine: 0,
-    source_inspection: installedToolResult,
+    source_inspection_summary: buildSourceInspectionSummary(installedToolResult),
+    source_inspection_included: includeSourceInspection,
+    ...(includeSourceInspection ? { source_inspection: installedToolResult } : {}),
     secrets_included: false,
   };
 }
