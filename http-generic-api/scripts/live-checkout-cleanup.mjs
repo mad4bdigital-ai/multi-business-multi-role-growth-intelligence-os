@@ -162,8 +162,15 @@ async function requireApplyCapabilityEnvelope(args = {}) {
   if (args.mode !== "apply") {
     return { required: false, ok: true, secrets_included: false };
   }
+  const {
+    capabilityEnvelopeError,
+    markCapabilityEnvelopeReferenced,
+    resolveCapabilityExecutionEnvelope,
+  } = await import("../capabilityResolutionEnvelopeGuard.js");
+  const { getPool } = await import("../db.js");
+  const pool = getPool();
   const resolved = await resolveCapabilityExecutionEnvelope({
-    pool: getPool(),
+    pool,
     source: { capability_envelope_id: args.capabilityEnvelopeId },
     acceptedAppKeys: ["github"],
     acceptedIntents: ACCEPTED_CAPABILITY_INTENTS,
@@ -171,7 +178,7 @@ async function requireApplyCapabilityEnvelope(args = {}) {
   if (!resolved.ok) {
     throw capabilityEnvelopeError(resolved, "Live checkout cleanup apply requires a valid capability resolution envelope.");
   }
-  await markCapabilityEnvelopeReferenced({ pool: getPool(), envelopeId: resolved.envelope_id, executionRef: CAPABILITY_EXECUTION_REF });
+  await markCapabilityEnvelopeReferenced({ pool, envelopeId: resolved.envelope_id, executionRef: CAPABILITY_EXECUTION_REF });
   return {
     required: true,
     ok: true,
