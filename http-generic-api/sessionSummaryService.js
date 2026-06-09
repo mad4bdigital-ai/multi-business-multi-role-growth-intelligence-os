@@ -196,6 +196,97 @@ export function buildSessionInsightCandidateSeeds({ session, summaryId, insight,
   return seeds.slice(0, 25);
 }
 
+function insightCandidateScopeLinkId(insightId, scopeType, scopeRef) {
+  return `msl_${normalizeGraphIdPart(insightId)}_${normalizeGraphIdPart(scopeType)}_${normalizeGraphIdPart(scopeRef)}`.slice(0, 96);
+}
+
+function visibilityScopeForInsightScope(scopeType) {
+  if (scopeType === "conversation" || scopeType === "user") return "user_private";
+  if (scopeType === "tenant") return "tenant_admin";
+  if (scopeType === "workspace" || scopeType === "brand") return "workspace_team";
+  return "platform_admin";
+}
+
+function scopeDimensionsForInsightCandidate(seed, scope) {
+  const scopeType = String(scope?.scope_type || "").trim();
+  const scopeRef = String(scope?.scope_ref || "").trim();
+  return {
+    tenant_id: scopeType === "tenant" ? scopeRef : seed.tenant_id || null,
+    user_id: scopeType === "user" ? scopeRef : seed.user_id || null,
+    workspace_key: scopeType === "workspace" ? scopeRef : seed.workspace_key || null,
+    brand_key: scopeType === "brand" ? scopeRef : null,
+    role_key: scopeType === "role" || scopeType === "assistance_role" ? scopeRef : null,
+  };
+}
+
+async function writeInsightCandidateScopeLinks({ pool, seed }) {
+  const scopes = safeJsonParse(seed.suggested_scopes_json, []);
+  const normalizedScopes = Array.isArray(scopes) ? scopes : [];
+  for (const scope of normalizedScopes) {
+    const scopeType = String(scope?.scope_type || "").trim();
+    const scopeRef = String(scope?.scope_ref || "").trim();
+    if (!scopeType || !scopeRef) continue;
+    const dimensions = scopeDimensionsForInsightCandidate(seed, scope);
+    const linkageType = "insight_candidate_scope_attachment";
+    await pool.query(
+      `INSERT INTO \`memory_scope_links\`
+         (link_id, resource_type, resource_ref, resource_table, resource_pk,
+          asset_id, asset_key, scope_type, scope_ref, scope_key,
+          tenant_id, user_id, workspace_key, brand_key, role_key,
+          linkage_type, resource_scope_hash, visibility_scope, authority_status, lifecycle_status,
+          confidence, approval_required, metadata_json, secrets_included, created_by)
+       VALUES (?, 'session_insight_candidate', ?, 'session_insight_candidates', ?, ?, NULL,
+               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'candidate', 'active', ?, ?, ?, 0, ?)
+       ON DUPLICATE KEY UPDATE
+         asset_id = VALUES(asset_id),
+         scope_key = VALUES(scope_key),
+         tenant_id = VALUES(tenant_id),
+         user_id = VALUES(user_id),
+         workspace_key = VALUES(workspace_key),
+         brand_key = VALUES(brand_key),
+         role_key = VALUES(role_key),
+         visibility_scope = VALUES(visibility_scope),
+         authority_status = VALUES(authority_status),
+         lifecycle_status = VALUES(lifecycle_status),
+         confidence = VALUES(confidence),
+         approval_required = VALUES(approval_required),
+         metadata_json = VALUES(metadata_json),
+         secrets_included = VALUES(secrets_included),
+         updated_at = CURRENT_TIMESTAMP`,
+      [
+        insightCandidateScopeLinkId(seed.insight_id, scopeType, scopeRef),
+        seed.insight_id,
+        seed.insight_id,
+        seed.source_asset_id,
+        scopeType,
+        scopeRef,
+        `${scopeType}.${scopeRef}`,
+        dimensions.tenant_id,
+        dimensions.user_id,
+        dimensions.workspace_key,
+        dimensions.brand_key,
+        dimensions.role_key,
+        linkageType,
+        memoryScopeIdentityHash("session_insight_candidate", seed.insight_id, scopeType, scopeRef, linkageType),
+        visibilityScopeForInsightScope(scopeType),
+        Number(scope.confidence || seed.confidence || 0.5),
+        seed.approval_status === "review_required" ? 1 : 0,
+        JSON.stringify({
+          insight_id: seed.insight_id,
+          source_summary_id: seed.source_summary_id,
+          source_session_id: seed.source_session_id,
+          insight_type: seed.insight_type,
+          linkage_type: linkageType,
+          promotion_status: "candidate",
+          secrets_included: false,
+        }),
+        seed.created_by || "sessionSummaryService",
+      ]
+    );
+  }
+  return { ok: true, scope_link_count: normalizedScopes.length, secrets_included: false };
+}
+
 export async function extractSessionSummaryInsightCandidates({ pool = getPool(), session, summaryId, insight, assetId = null } = {}) {
   const seeds = buildSessionInsightCandidateSeeds({ session, summaryId, insight, assetId });
   for (const seed of seeds) {
@@ -247,6 +338,7 @@ export async function extractSessionSummaryInsightCandidates({ pool = getPool(),
         seed.created_by,
       ]
     );
+    await writeInsightCandidateScopeLinks({ pool, seed });
   }
   return { ok: true, candidate_count: seeds.length, secrets_included: false };
 }

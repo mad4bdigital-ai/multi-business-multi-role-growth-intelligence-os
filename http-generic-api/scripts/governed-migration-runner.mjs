@@ -91,6 +91,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "251_sprint68_dynamic_memory_scope_types.sql",
   "252_sprint68_memory_scope_links_foundation.sql",
   "253_sprint68_session_insight_candidates_foundation.sql",
+  "254_sprint68_session_insight_scope_link_monitoring.sql",
   "229_sprint67_workspace_brands_list_tool.sql",
   "230_sprint67_gpt_session_conversation_ref_capture_current.sql",
   "231_sprint67_hostinger_runner_durable_submit.sql",
