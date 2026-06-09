@@ -116,6 +116,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "256_sprint68_ticket_external_delivery_approval_policy.sql",
   "257_sprint68_ticket_external_send_execution_adapter.sql",
   "258_sprint68_ticket_external_delivery_credential_binding.sql",
+  "233_sprint68_general_mode_choice_governance.sql",
   "244_sprint68_cms_grant_dedupe_and_null_guard.sql",
   "240_sprint68_live_checkout_cleanup_tool.sql",
   "234_sprint67_repo_patch_capability_envelope_requirement.sql",
