@@ -128,6 +128,7 @@ includesAll(runtimeModule, [
   "targeted_child_traversal_plan_v1",
   "planned_not_executed",
   "execute_child_inspections",
+  "recursive: isArtifactReconcile ? false",
   "targetableChildFolders",
   "mergeTargetedChildInspections",
   "buildTargetedChildTraversalPlan",
