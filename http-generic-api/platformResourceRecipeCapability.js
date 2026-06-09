@@ -640,6 +640,7 @@ function mergeTargetedChildInspections(rootInspectResult = {}, childInspectResul
   return {
     ...rootInspectResult,
     traversal_strategy: "targeted_child_traversal_v1",
+    child_traversal_status: "executed",
     installed_tool_call_count: 1 + childInspectResults.length,
     child_inspections: childInspectResults.map((entry) => ({
       name: entry.folder?.name || null,
