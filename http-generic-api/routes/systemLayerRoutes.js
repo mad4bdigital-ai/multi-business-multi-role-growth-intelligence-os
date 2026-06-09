@@ -27,6 +27,13 @@ import { requireAdminPrincipal } from "./adminCliRoutes.js";
 import { decodeGitHubAppPrivateKey, resolveGitHubAppConfig } from "../githubAppAuth.js";
 import { derivePrincipalExecutionContext } from "../executionControlResolvers.js";
 import { fetchToolsForCaller, dispatchToolForCaller } from "./gptToolsRoutes.js";
+import {
+  PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
+  catalogGovernedResources,
+  planGovernedResource,
+  resolveGovernedResource,
+  runGovernedResource,
+} from "../platformResourceRecipeCapability.js";
 
 const SYSTEM_LAYER_TOOLS = [
   {
@@ -88,6 +95,7 @@ const SYSTEM_LAYER_TOOLS = [
       required: [],
     },
   },
+  ...PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
   {
     name: "connector_registry_list",
     description: "List connector systems from the connected_systems registry.",
@@ -1446,6 +1454,14 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       return await listGoogleDriveEndpointCatalog(args);
     case "google_drive_folder_inspect":
       return await inspectGoogleDriveFolder(args, auth, deps);
+    case "governed_resource_resolve":
+      return await resolveGovernedResource(args);
+    case "governed_resource_catalog":
+      return await catalogGovernedResources(args);
+    case "governed_resource_plan":
+      return await planGovernedResource(args);
+    case "governed_resource_run":
+      return await runGovernedResource(args);
     case "connector_registry_list":
       return { connectors: await listConnectorRegistry(args, auth) };
     case "connector_registry_get":
