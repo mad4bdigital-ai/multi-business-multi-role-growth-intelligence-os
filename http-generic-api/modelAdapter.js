@@ -1,4 +1,12 @@
 import { randomUUID } from "node:crypto";
+import {
+  recordAgentModelRunCompleted,
+  recordAgentModelRunFailed,
+  recordAgentModelRunStarted,
+  recordAgentToolCallCompleted,
+  recordAgentToolCallFailed,
+  recordAgentToolCallStarted,
+} from "./agentRuntimeLedger.js";
 
 function buildSystemPrompt(logicBody = {}, userInput = "") {
   const parts = [];
