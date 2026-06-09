@@ -158,12 +158,37 @@ function analyzePath(repoPath) {
   return analyzeTrackedPath(cleanPath);
 }
 
+async function loadCapabilityEnvelopeDeps() {
+  const [guardModule, dbModule] = await Promise.all([
+    import("../capabilityResolutionEnvelopeGuard.js"),
+    import("../db.js"),
+  ]);
+  return {
+    capabilityEnvelopeError: guardModule.capabilityEnvelopeError,
+    markCapabilityEnvelopeReferenced: guardModule.markCapabilityEnvelopeReferenced,
+    resolveCapabilityExecutionEnvelope: guardModule.resolveCapabilityExecutionEnvelope,
+    getPool: dbModule.getPool,
+  };
+}
+
+async function loadAuditDeps() {
+  const { writeAuditLogAsync } = await import("../auditLogger.js");
+  return { writeAuditLogAsync };
+}
+
 async function requireApplyCapabilityEnvelope(args = {}) {
   if (args.mode !== "apply") {
     return { required: false, ok: true, secrets_included: false };
   }
+  const {
+    capabilityEnvelopeError,
+    markCapabilityEnvelopeReferenced,
+    resolveCapabilityExecutionEnvelope,
+    getPool,
+  } = await loadCapabilityEnvelopeDeps();
+  const pool = getPool();
   const resolved = await resolveCapabilityExecutionEnvelope({
-    pool: getPool(),
+    pool,
     source: { capability_envelope_id: args.capabilityEnvelopeId },
     acceptedAppKeys: ["github"],
     acceptedIntents: ACCEPTED_CAPABILITY_INTENTS,
@@ -171,7 +196,7 @@ async function requireApplyCapabilityEnvelope(args = {}) {
   if (!resolved.ok) {
     throw capabilityEnvelopeError(resolved, "Live checkout cleanup apply requires a valid capability resolution envelope.");
   }
-  await markCapabilityEnvelopeReferenced({ pool: getPool(), envelopeId: resolved.envelope_id, executionRef: CAPABILITY_EXECUTION_REF });
+  await markCapabilityEnvelopeReferenced({ pool, envelopeId: resolved.envelope_id, executionRef: CAPABILITY_EXECUTION_REF });
   return {
     required: true,
     ok: true,
