@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const migration = readFileSync("migrations/265_sprint68_platform_orchestration_capability_binding.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
+const capabilityResolver = readFileSync("scripts/capability-resolution-dry-run.mjs", "utf8");
 
 for (const expected of [
   "platform_orchestration",
@@ -22,6 +23,7 @@ for (const expected of [
 
 assert(migration.includes("ON DUPLICATE KEY UPDATE"), "migration must be idempotent");
 assert(runner.includes("265_sprint68_platform_orchestration_capability_binding.sql"), "governed migration runner must allowlist migration 265");
+assert(capabilityResolver.includes('credentialSources.includes("none")'), "capability resolver must treat no-credential app bindings as a valid source tier");
 const forbiddenSql = /\b(DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM)\b/i;
 assert(!forbiddenSql.test(migration), "capability binding migration must not contain destructive SQL");
 
