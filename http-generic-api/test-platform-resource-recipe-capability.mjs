@@ -127,6 +127,7 @@ includesAll(runtimeModule, [
   "targeted_child_traversal_v1",
   "targetableChildFolders",
   "mergeTargetedChildInspections",
+  "Promise.all(childFolders.map",
   "installed_tool_call_count",
   "traversal_stage: \"targeted_child\"",
   "write_operations_planned: false",
