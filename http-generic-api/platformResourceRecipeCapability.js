@@ -1033,7 +1033,16 @@ export async function runGovernedResource(args = {}, deps = {}) {
   if (recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY && requestedDepth >= 1) {
     const childFolders = targetableChildFolders(rootInspectResult?.tree || {}, requiredArtifactExportChildNames(plan));
     if (executeChildInspections) {
-      const childInspectResults = await Promise.all(childFolders.map(async (folder) => {
+      const selectedChildFolders = mode === "continue_read_only" ? selectContinuationChildFolders(childFolders, args) : childFolders;
+      if (mode === "continue_read_only" && selectedChildFolders.length !== 1) {
+        return buildChildContinuationBlockedResult({
+          reasonCode: selectedChildFolders.length > 1 ? "resource_child_continuation_ambiguous_target" : "resource_child_continuation_target_required_or_not_found",
+          message: "continue_read_only requires exactly one target child folder via options.target_child_name or options.target_child_folder_id.",
+          plan,
+          childFolders,
+        });
+      }
+      const childInspectResults = await Promise.all(selectedChildFolders.map(async (folder) => {
         const childArgs = {
           ...toolArgs,
           folder_id: folder.id,
@@ -1045,7 +1054,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
         const childResult = await deps.executeInstalledTool(toolKey, childArgs, {
           plan,
           mode,
-          traversal_stage: "targeted_child",
+          traversal_stage: "targeted_child_continuation",
           child_name: folder.name,
         });
         return { folder, args: childArgs, result: childResult };
