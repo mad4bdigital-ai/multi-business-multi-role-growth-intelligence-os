@@ -338,6 +338,7 @@ export async function extractSessionSummaryInsightCandidates({ pool = getPool(),
         seed.created_by,
       ]
     );
+    await writeInsightCandidateScopeLinks({ pool, seed });
   }
   return { ok: true, candidate_count: seeds.length, secrets_included: false };
 }
