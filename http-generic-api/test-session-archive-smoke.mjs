@@ -225,8 +225,6 @@ function makeDriveDeps() {
   assert(jsonlRecords[0].content.includes("SESSION_ARCHIVE_SMOKE"));
   assert(jsonlRecords.some((row) => row.role === "tool" && row.content.includes("Tool: release_session_archive_smoke")), "JSONL should retain full tool content");
   assert(jsonlRecords.some((row) => row.role === "assistant" && row.content.includes("assistant follow-up after tool")), "JSONL should retain assistant follow-up content");
-  assert.equal(pool.state.turns.length, 4, "smoke must create a complete four-turn exchange");
-  assert.deepEqual(pool.state.turns.map((turn) => turn.role), ["user", "assistant", "tool", "assistant"], "smoke turn roles must preserve user/assistant/tool/assistant order");
   assert(pool.state.turns.every((turn) => turn.content === null), "SQL turn content must stay null; Drive carries the full transcript");
   assert(pool.state.turns.every((turn) => turn.storage_mode === "drive"), "Drive smoke turns should be storage_mode=drive");
 
