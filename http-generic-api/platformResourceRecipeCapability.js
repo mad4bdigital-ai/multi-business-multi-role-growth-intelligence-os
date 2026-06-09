@@ -67,7 +67,7 @@ export const PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS = [
         recipe_key: { type: "string" },
         resource_ref: { type: "object", additionalProperties: true },
         input: { type: "string" },
-        mode: { type: "string", enum: ["plan", "read_only", "diagnostic", "apply"], default: "plan" },
+        mode: { type: "string", enum: ["plan", "read_only", "diagnostic", "continue_read_only", "apply"], default: "plan" },
         options: { type: "object", additionalProperties: true },
         capability_envelope_id: { type: "string" },
         typed_confirmation: { type: "string" },
@@ -603,6 +603,46 @@ function targetableChildFolders(tree = {}, names = []) {
     .map(driveFileLite);
 }
 
+function childNameMatches(folder = {}, targetName = "") {
+  return lowerName(folder) === String(targetName || "").trim().toLowerCase();
+}
+
+function selectContinuationChildFolders(childFolders = [], args = {}) {
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  const targetChildName = asString(options.target_child_name || options.child_name || args.target_child_name || args.child_name);
+  const targetChildFolderId = asString(options.target_child_folder_id || options.child_folder_id || args.target_child_folder_id || args.child_folder_id);
+
+  if (targetChildFolderId) {
+    const matched = childFolders.find((folder) => folder.id === targetChildFolderId);
+    return matched ? [matched] : [{ id: targetChildFolderId, name: targetChildName || "target_child", is_folder: true }];
+  }
+
+  if (targetChildName) {
+    return childFolders.filter((folder) => childNameMatches(folder, targetChildName));
+  }
+
+  return [];
+}
+
+function buildChildContinuationBlockedResult({ reasonCode, message, plan, childFolders = [] } = {}) {
+  return {
+    ok: false,
+    tool: "governed_resource_run",
+    classification: "blocked_child_continuation_v1",
+    mode: "continue_read_only",
+    apply_requested: false,
+    apply_allowed: false,
+    dispatch_allowed: false,
+    reason_code: reasonCode,
+    message,
+    child_candidates: childFolders.map((folder) => driveFileLite(folder)),
+    plan,
+    provider_calls_made: 0,
+    execution_allowed: false,
+    secrets_included: false,
+  };
+}
+
 function buildTargetedChildTraversalPlan(rootInspectResult = {}, childFolders = []) {
   return {
     ...rootInspectResult,
@@ -912,7 +952,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
     };
   }
 
-  if (!["read_only", "diagnostic"].includes(mode)) {
+  if (!["read_only", "diagnostic", "continue_read_only"].includes(mode)) {
     return {
       ok: false,
       tool: "governed_resource_run",
@@ -984,8 +1024,8 @@ export async function runGovernedResource(args = {}, deps = {}) {
   const toolKey = plan.execution_plan?.selected_installed_tool_key || selectedInstalledToolKey(recipe, plan.execution_plan?.steps || []);
   const toolArgs = buildInstalledToolArgs(plan, args, toolKey);
   const options = args.options && typeof args.options === "object" ? args.options : {};
-  const requestedDepth = boundedNumber(options.max_depth ?? args.max_depth, 0, 0, 3);
-  const executeChildInspections = boolOption(options.execute_child_inspections ?? args.execute_child_inspections, false);
+  const requestedDepth = boundedNumber(options.max_depth ?? args.max_depth, mode === "continue_read_only" ? 1 : 0, 0, 3);
+  const executeChildInspections = boolOption(options.execute_child_inspections ?? args.execute_child_inspections, mode === "continue_read_only");
   const startedAt = new Date().toISOString();
   const rootInspectResult = await deps.executeInstalledTool(toolKey, toolArgs, { plan, mode, traversal_stage: "root" });
   let installedToolResult = rootInspectResult;
@@ -993,7 +1033,16 @@ export async function runGovernedResource(args = {}, deps = {}) {
   if (recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY && requestedDepth >= 1) {
     const childFolders = targetableChildFolders(rootInspectResult?.tree || {}, requiredArtifactExportChildNames(plan));
     if (executeChildInspections) {
-      const childInspectResults = await Promise.all(childFolders.map(async (folder) => {
+      const selectedChildFolders = mode === "continue_read_only" ? selectContinuationChildFolders(childFolders, args) : childFolders;
+      if (mode === "continue_read_only" && selectedChildFolders.length !== 1) {
+        return buildChildContinuationBlockedResult({
+          reasonCode: selectedChildFolders.length > 1 ? "resource_child_continuation_ambiguous_target" : "resource_child_continuation_target_required_or_not_found",
+          message: "continue_read_only requires exactly one target child folder via options.target_child_name or options.target_child_folder_id.",
+          plan,
+          childFolders,
+        });
+      }
+      const childInspectResults = await Promise.all(selectedChildFolders.map(async (folder) => {
         const childArgs = {
           ...toolArgs,
           folder_id: folder.id,
@@ -1005,7 +1054,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
         const childResult = await deps.executeInstalledTool(toolKey, childArgs, {
           plan,
           mode,
-          traversal_stage: "targeted_child",
+          traversal_stage: "targeted_child_continuation",
           child_name: folder.name,
         });
         return { folder, args: childArgs, result: childResult };
