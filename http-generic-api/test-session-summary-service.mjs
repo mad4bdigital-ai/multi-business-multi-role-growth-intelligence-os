@@ -366,6 +366,21 @@ function makePool() {
     insightCandidateWrites.every((call) => call.params.some((param) => typeof param === "string" && param.includes("secrets_included"))),
     "summary insight candidates should carry no-secret metadata/evidence"
   );
+  const insightScopeLinkWrites = pool.state.calls.filter(
+    (call) => String(call.sql).includes("INSERT INTO `memory_scope_links`") && String(call.sql).includes("session_insight_candidate")
+  );
+  assert(
+    insightScopeLinkWrites.length >= insightCandidateWrites.length * 2,
+    "each extracted insight candidate should attach to conversation and tenant memory scopes"
+  );
+  assert(
+    insightScopeLinkWrites.some((call) => call.params.includes("insight_candidate_scope_attachment")),
+    "insight candidate scope links should use the stable insight_candidate_scope_attachment linkage type"
+  );
+  assert(
+    insightScopeLinkWrites.every((call) => call.params.some((param) => typeof param === "string" && param.includes("secrets_included"))),
+    "insight candidate scope links should carry no-secret metadata"
+  );
   assert(
     pool.state.calls.some((call) => String(call.sql).includes("INSERT INTO `platform_graph_nodes`")),
     "summary write should upsert graph nodes"

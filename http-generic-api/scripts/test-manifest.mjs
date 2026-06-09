@@ -266,6 +266,7 @@ export const testCommands = [
   "node test-dynamic-memory-scope-types.mjs",
   "node test-memory-scope-links-foundation.mjs",
   "node test-session-insight-candidates-foundation.mjs",
+  "node test-session-insight-scope-links-foundation.mjs",
   "node test-session-archive-smoke.mjs",
   "node test-session-summary-autosweep.mjs",
   "node test-gpt-tools-route-syntax-regression.mjs",
