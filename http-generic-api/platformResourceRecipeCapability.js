@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { getPool } from "./db.js";
 
 export const PLATFORM_RESOURCE_RECIPE_TOOL_NAMES = [
