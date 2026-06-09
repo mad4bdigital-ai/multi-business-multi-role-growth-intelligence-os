@@ -89,6 +89,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "249_sprint68_gpt_archive_backfill_conversation_ref_monitoring.sql",
   "250_sprint68_gpt_conversation_capture_contract_monitoring.sql",
   "251_sprint68_dynamic_memory_scope_types.sql",
+  "252_sprint68_memory_scope_links_foundation.sql",
   "229_sprint67_workspace_brands_list_tool.sql",
   "230_sprint67_gpt_session_conversation_ref_capture_current.sql",
   "231_sprint67_hostinger_runner_durable_submit.sql",
