@@ -234,6 +234,7 @@ function deriveSourceTiers({ appMap = [], connections = [], credentialBindings =
   if (connectionBinding || credentialSources.includes("tenant_connection")) sourceTiers.push("tenant_managed");
   if (credentialSources.includes("mixed")) sourceTiers.push("workspace_owner_managed", "tenant_managed");
   if (credentialSources.includes("target_resolved")) sourceTiers.push("remote_dedicated_runtime");
+  if (credentialSources.includes("none")) sourceTiers.push("platform_managed_fallback");
   if (platformBinding || credentialSources.includes("platform_managed")) sourceTiers.push("platform_managed_fallback");
   if (!sourceTiers.length && hasBinding) sourceTiers.push("tenant_managed");
 
