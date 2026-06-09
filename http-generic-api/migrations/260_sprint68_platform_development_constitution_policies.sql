@@ -77,4 +77,6 @@ JOIN (
  AND ep.`policy_key` = required.policy_key
 SET ep.`active` = 'TRUE',
     ep.`blocking` = 'TRUE',
-    ep.`updated_at` = CURRENT_TIMESTAMP;
+    ep.`updated_at` = CURRENT_TIMESTAMP
+WHERE ep.`policy_group` = required.policy_group
+  AND ep.`policy_key` = required.policy_key;
