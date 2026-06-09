@@ -6,6 +6,7 @@ const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/263_sprint68_ads_governance_snapshot_proposal.sql", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
 const releaseReadiness = readFileSync("releaseReadiness.js", "utf8");
+const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 
 const module = await import("./adsProviderGovernanceSnapshotProposal.js");
 assert.equal(typeof module.proposeAdsProviderGovernanceSnapshot, "function", "snapshot proposal service must export function");
