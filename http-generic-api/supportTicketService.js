@@ -1255,8 +1255,14 @@ export async function updateSupportTicketStepRun({ tenant_id, ticket_id, step_ru
   }
 }
 
+function requesterUserIdForDiagnostic(ticket = {}, run = {}) {
+  const metadata = parseJsonObject(ticket.metadata_json, {});
+  return ticket.user_id || run.user_id || metadata?.metadata?.user_id || metadata?.user_id || metadata?.requester_user_id || "";
+}
+
 async function buildDiagnosticStepOutput(connection, { tenant_id, ticket, run, plan, stepRun }) {
   const stepKey = stepRun.step_key;
+  const requesterUserId = requesterUserIdForDiagnostic(ticket, run);
   if (stepKey === "read_workspace_membership") {
     const rows = await queryRows(
       connection,
@@ -1266,7 +1272,7 @@ async function buildDiagnosticStepOutput(connection, { tenant_id, ticket, run, p
         WHERE m.tenant_id = ? AND m.user_id = ?
         ORDER BY m.updated_at DESC
         LIMIT 10`,
-      [tenant_id, ticket.user_id || run.user_id || ""]
+      [tenant_id, requesterUserId]
     );
     return {
       diagnostic_key: stepKey,
@@ -1287,7 +1293,7 @@ async function buildDiagnosticStepOutput(connection, { tenant_id, ticket, run, p
         WHERE tenant_id = ? AND grantee_user_id = ? AND resource_type = 'brand'
         ORDER BY granted_at DESC
         LIMIT 50`,
-      [tenant_id, ticket.user_id || run.user_id || ""]
+      [tenant_id, requesterUserId]
     );
     return {
       diagnostic_key: stepKey,
