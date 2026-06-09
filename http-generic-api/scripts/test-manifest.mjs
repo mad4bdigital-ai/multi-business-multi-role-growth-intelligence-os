@@ -17,6 +17,7 @@ export const testCommands = [
   "node test-google-ads-budget-preflight-binding.mjs",
   "node test-google-ads-budget-preflight-ledger.mjs",
   "node test-preflight-ledger-validator.mjs",
+  "node test-audit-log-event-bus-bridge.mjs",
   "node test-preflight-execution-gate-helper.mjs",
   "node test-preflight-execution-gate-policy-readback-fix.mjs",
   "node test-google-ads-execution-adapter-skeleton.mjs",
