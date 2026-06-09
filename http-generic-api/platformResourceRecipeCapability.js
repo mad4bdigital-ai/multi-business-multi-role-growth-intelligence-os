@@ -969,8 +969,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
 
   if (recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY && requestedDepth >= 1) {
     const childFolders = targetableChildFolders(rootInspectResult?.tree || {}, requiredArtifactExportChildNames(plan));
-    const childInspectResults = [];
-    for (const folder of childFolders) {
+    const childInspectResults = await Promise.all(childFolders.map(async (folder) => {
       const childArgs = {
         ...toolArgs,
         folder_id: folder.id,
@@ -985,8 +984,8 @@ export async function runGovernedResource(args = {}, deps = {}) {
         traversal_stage: "targeted_child",
         child_name: folder.name,
       });
-      childInspectResults.push({ folder, args: childArgs, result: childResult });
-    }
+      return { folder, args: childArgs, result: childResult };
+    }));
     installedToolResult = mergeTargetedChildInspections(rootInspectResult, childInspectResults);
   }
 
