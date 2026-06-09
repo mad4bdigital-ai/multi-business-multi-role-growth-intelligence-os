@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { fetchDriveContent } from "./uploadPipeline.js";
 import { writeExecutionEvidence } from "./executionEvidenceLogger.js";
@@ -91,6 +91,12 @@ function summaryLinkId(summaryId) {
 
 function memoryScopeLinkId(summaryId, scopeType, scopeRef) {
   return `msl_${normalizeGraphIdPart(summaryId).replace(/-/g, "")}_${normalizeGraphIdPart(scopeType)}_${normalizeGraphIdPart(scopeRef)}`.slice(0, 96);
+}
+
+function memoryScopeIdentityHash(resourceType, resourceRef, scopeType, scopeRef, linkageType) {
+  return createHash("sha256")
+    .update([resourceType, resourceRef, scopeType, scopeRef, linkageType].map((part) => String(part || "")).join("|"))
+    .digest("hex");
 }
 
 function buildSummaryJsonPayload({ session, summaryId, insight }) {
