@@ -72,6 +72,10 @@ import {
   activateAndBindSupportTicketExternalCredential,
   planSupportTicketExternalCredentialActivation,
 } from "../supportTicketExternalCredentialActivationService.js";
+import {
+  approveActivateBindAndVerifySupportTicketExternalCredential,
+  planSupportTicketExternalCredentialOrchestration,
+} from "../supportTicketExternalCredentialOrchestrationService.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
