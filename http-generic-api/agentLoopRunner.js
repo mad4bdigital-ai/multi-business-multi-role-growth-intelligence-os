@@ -244,6 +244,8 @@ export async function runAgentLoop(plan, deps = {}) {
   const context = deps.buildGovernedContext
     ? await deps.buildGovernedContext(plan)
     : { plan_id: plan.plan_id, brand_key: plan.brand_key, workflow_key: plan.workflow_key };
+  context.run_id = run_id;
+  context.decision_run_id = plan.decision_run_id || plan.plan_id || run_id;
 
   const pathRows = deps.loadPathResolverRows
     ? await deps.loadPathResolverRows(plan).catch(() => null)

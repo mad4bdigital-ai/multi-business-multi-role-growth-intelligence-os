@@ -1,4 +1,12 @@
 import { randomUUID } from "node:crypto";
+import {
+  recordAgentModelRunCompleted,
+  recordAgentModelRunFailed,
+  recordAgentModelRunStarted,
+  recordAgentToolCallCompleted,
+  recordAgentToolCallFailed,
+  recordAgentToolCallStarted,
+} from "./agentRuntimeLedger.js";
 
 function buildSystemPrompt(logicBody = {}, userInput = "") {
   const parts = [];
@@ -21,15 +29,22 @@ function extractContent(response = {}) {
   return "";
 }
 
-async function runToolCalls(toolCalls = [], context, deps) {
+async function runToolCalls(toolCalls = [], context, deps, modelRunId = null) {
   const results = [];
   for (const tc of toolCalls) {
     const name = tc.function?.name || tc.name;
     const args = tc.function?.arguments
       ? (typeof tc.function.arguments === "string" ? JSON.parse(tc.function.arguments) : tc.function.arguments)
       : (tc.arguments || {});
-    const result = await deps.dispatchTool(name, args, context);
-    results.push({ tool_call_id: tc.id, tool_name: name, args, result });
+    const ledgerToolCallId = await recordAgentToolCallStarted({ context, modelRunId, toolKey: name, args });
+    try {
+      const result = await deps.dispatchTool(name, args, context);
+      await recordAgentToolCallCompleted({ toolCallId: ledgerToolCallId, result, status: result?.ok === false ? "failed" : "authorized" });
+      results.push({ tool_call_id: tc.id, ledger_tool_call_id: ledgerToolCallId, tool_name: name, args, result });
+    } catch (error) {
+      await recordAgentToolCallFailed({ toolCallId: ledgerToolCallId, error });
+      throw error;
+    }
   }
   return results;
 }
@@ -69,7 +84,22 @@ export async function runLogicWithModel(input = {}, deps = {}) {
 
   while (iteration_count < max_iterations) {
     iteration_count++;
-    const response = await deps.callModel(messages, tools);
+    const modelRunId = await recordAgentModelRunStarted({
+      context: { ...context, logic_key, iteration: iteration_count, execution_trace_id },
+      messages,
+      tools,
+      providerKey: deps.provider_key || deps.providerKey || deps.callModel?.provider_key || deps.callModel?.providerKey || "unknown",
+      modelKey: deps.model_key || deps.modelKey || deps.callModel?.model_key || deps.callModel?.modelKey || "unknown",
+      traceId: execution_trace_id,
+    });
+    let response;
+    try {
+      response = await deps.callModel(messages, tools);
+      await recordAgentModelRunCompleted({ modelRunId, response, status: "completed" });
+    } catch (error) {
+      await recordAgentModelRunFailed({ modelRunId, error });
+      throw error;
+    }
     tokens_used += response.tokens_used || 0;
 
     const hasCalls = Array.isArray(response.tool_calls) && response.tool_calls.length > 0;
@@ -81,13 +111,28 @@ export async function runLogicWithModel(input = {}, deps = {}) {
 
     messages.push({ role: "assistant", content: response.content || null, tool_calls: response.tool_calls });
 
-    const results = await runToolCalls(response.tool_calls, context, deps);
-    tool_calls_made.push(...results.map(r => ({ tool_name: r.tool_name, args: r.args, result: r.result })));
+    const results = await runToolCalls(response.tool_calls, context, deps, modelRunId);
+    tool_calls_made.push(...results.map(r => ({ tool_name: r.tool_name, args: r.args, result: r.result, ledger_tool_call_id: r.ledger_tool_call_id })));
     messages.push(...toolResultMessages(results));
   }
 
   if (!output) {
-    output = extractContent(await deps.callModel(messages, []));
+    const finalModelRunId = await recordAgentModelRunStarted({
+      context: { ...context, logic_key, iteration: "final", execution_trace_id },
+      messages,
+      tools: [],
+      providerKey: deps.provider_key || deps.providerKey || deps.callModel?.provider_key || deps.callModel?.providerKey || "unknown",
+      modelKey: deps.model_key || deps.modelKey || deps.callModel?.model_key || deps.callModel?.modelKey || "unknown",
+      traceId: execution_trace_id,
+    });
+    try {
+      const finalResponse = await deps.callModel(messages, []);
+      await recordAgentModelRunCompleted({ modelRunId: finalModelRunId, response: finalResponse, status: "completed" });
+      output = extractContent(finalResponse);
+    } catch (error) {
+      await recordAgentModelRunFailed({ modelRunId: finalModelRunId, error });
+      throw error;
+    }
   }
 
   return {
