@@ -1682,6 +1682,7 @@ function builtInShellAllowlist() {
     hostinger_ssh_dependency_diagnostic: { command: process.execPath, args: ["http-generic-api/scripts/hostinger-ssh-dependency-diagnostic.mjs"], display_name: "Hostinger SSH dependency diagnostic", allow_extra_args: true, max_extra_args: 4, timeout_ms: 30000, built_in: true },
     hostinger_sshpass_dependency_install: { command: process.execPath, args: ["http-generic-api/scripts/hostinger-sshpass-dependency-install.mjs"], display_name: "Hostinger sshpass dependency install", allow_extra_args: true, max_extra_args: 6, timeout_ms: 600000, built_in: true },
     audit_log_event_bus_bridge: { command: process.execPath, args: ["http-generic-api/scripts/audit-log-event-bus-bridge.mjs"], display_name: "Audit log to event bus bridge", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
+    audit_log_event_bus_bridge_tick: { command: process.execPath, args: ["http-generic-api/scripts/audit-log-event-bus-bridge.mjs", "--apply", "--confirm", "APPLY_AUDIT_LOG_EVENT_BUS_BRIDGE", "--limit", "1000"], display_name: "Audit log to event bus bridge scheduled tick", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
     migration_ledger_record_dry_run: {
       command: process.execPath,
       args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--record-ledger", "--dry-run"],
