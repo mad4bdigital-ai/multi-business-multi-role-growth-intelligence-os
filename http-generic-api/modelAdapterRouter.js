@@ -219,8 +219,13 @@ export function buildCallModel(config = {}) {
   const caller = PROVIDERS[provider];
   if (!caller) throw new Error(`Unknown model provider: ${provider}. Use anthropic | openai | openrouter | gemini`);
   const modelKey = config.model || process.env.AGENT_MODEL || process.env.OPENROUTER_MODEL || process.env.GEMINI_MODEL || process.env.OPENAI_MODEL || process.env.ANTHROPIC_MODEL || "unknown";
-  return async (messages, tools = []) => {
+  const callModel = async (messages, tools = []) => {
     const response = await caller(messages, tools, config);
     return { ...response, provider_key: provider, model_key: modelKey };
   };
+  callModel.provider_key = provider;
+  callModel.providerKey = provider;
+  callModel.model_key = modelKey;
+  callModel.modelKey = modelKey;
+  return callModel;
 }
