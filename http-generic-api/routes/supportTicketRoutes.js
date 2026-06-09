@@ -66,6 +66,10 @@ import {
   listSupportTicketExternalProviderContracts,
 } from "../supportTicketExternalProviderContractService.js";
 import {
+  listSupportTicketExternalProviderEnablementCandidates,
+  proposeSupportTicketExternalProviderAdapterEnablement,
+} from "../supportTicketExternalProviderEnablementProposalService.js";
+import {
   decideSupportTicketExternalCredentialBinding,
   listSupportTicketExternalCredentialCandidates,
   requestSupportTicketExternalCredentialBinding,
