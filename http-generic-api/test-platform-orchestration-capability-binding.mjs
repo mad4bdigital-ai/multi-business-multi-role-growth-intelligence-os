@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const migration = readFileSync("migrations/265_sprint68_platform_orchestration_capability_binding.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
+const capabilityResolver = readFileSync("scripts/capability-resolution-dry-run.mjs", "utf8");
 
 for (const expected of [
   "platform_orchestration",
