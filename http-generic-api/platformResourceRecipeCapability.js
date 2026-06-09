@@ -458,19 +458,39 @@ function boundedNumber(value, fallback, min, max) {
   return Math.min(Math.max(Math.floor(parsed), min), max);
 }
 
-function readOnlyInstalledToolExecutionReady(recipe = {}, steps = [], blockedReasons = []) {
-  return (
-    recipe.status === "active" &&
-    recipe.read_only === true &&
-    recipe.adapter_kind === "installed_tool" &&
-    READ_ONLY_INSTALLED_TOOL_ALLOWLIST.has(recipe.installed_tool_key) &&
-    blockedReasons.length === 0 &&
-    steps.some((step) =>
-      step.status === "active" &&
-      step.step_kind === "installed_tool_call" &&
-      step.tool_key === recipe.installed_tool_key
-    )
+function executableInstalledToolSteps(steps = []) {
+  return steps.filter((step) =>
+    step.status === "active" &&
+    step.step_kind === "installed_tool_call" &&
+    READ_ONLY_INSTALLED_TOOL_ALLOWLIST.has(step.tool_key)
   );
+}
+
+function readOnlyRecipeExecutionReady(recipe = {}, steps = [], blockedReasons = []) {
+  if (blockedReasons.length > 0 || recipe.status !== "active" || recipe.read_only !== true) return false;
+
+  if (recipe.adapter_kind === "installed_tool") {
+    return (
+      READ_ONLY_INSTALLED_TOOL_ALLOWLIST.has(recipe.installed_tool_key) &&
+      executableInstalledToolSteps(steps).some((step) => step.tool_key === recipe.installed_tool_key)
+    );
+  }
+
+  if (recipe.adapter_kind === "composite") {
+    return (
+      READ_ONLY_COMPOSITE_RECIPE_ALLOWLIST.has(recipe.recipe_key) &&
+      executableInstalledToolSteps(steps).length > 0
+    );
+  }
+
+  return false;
+}
+
+function selectedInstalledToolKey(recipe = {}, steps = []) {
+  if (recipe.adapter_kind === "installed_tool" && READ_ONLY_INSTALLED_TOOL_ALLOWLIST.has(recipe.installed_tool_key)) {
+    return recipe.installed_tool_key;
+  }
+  return executableInstalledToolSteps(steps)[0]?.tool_key || null;
 }
 
 function buildInstalledToolArgs(plan = {}, args = {}) {
