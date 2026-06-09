@@ -88,6 +88,8 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "248_sprint68_github_branch_fast_forward_policy.sql",
   "251_sprint68_github_branch_fast_forward_smoke_policy.sql",
   "255_sprint68_live_checkout_cleanup_capability_gate.sql",
+  "260_sprint68_platform_development_constitution_policies.sql",
+  "261_sprint68_orchestration_intelligence_foundation.sql",
   "233_sprint68_general_mode_choice_governance.sql",
 ];
 
@@ -124,6 +126,7 @@ const REQUIRED_RUNTIME_POLICY_SEEDS = [
   { check_key: "brand_core_writing_guard", policy_group: "Agent Loop Governance", policy_key: "Brand Writing Requires Brand Core", required_blocking: true, required_scope_tokens: ["write", "publish", "seo"], required_affects_layer_tokens: ["agentLoopRunner", "brand_core"] },
   { check_key: "platform_development_constitution", policy_group: "Platform Development Constitution", policy_key: "platform_development_constitution_policy_v1", required_blocking: true, required_scope_tokens: ["platform_development", "routes", "tools"], required_affects_layer_tokens: ["releaseReadiness", "repo_patch_apply", "platform_engine_registry"] },
   { check_key: "orchestration_first_development", policy_group: "Orchestration Intelligence Governance", policy_key: "orchestration_first_development_policy_v1", required_blocking: true, required_scope_tokens: ["platform_development", "capability_addition", "workflow"], required_affects_layer_tokens: ["platform_orchestration_plugins", "platform_orchestration_stages", "execution_policies"] },
+  { check_key: "orchestration_intelligence_foundation", policy_group: "Orchestration Intelligence Governance", policy_key: "orchestration_intelligence_foundation_policy_v1", required_blocking: true, required_scope_tokens: ["orchestration_intelligence", "state_snapshot", "recommendation_generation"], required_affects_layer_tokens: ["platform_orchestration_plugins", "platform_orchestration_state_snapshots", "platform_engine_registry"] },
   { check_key: "orchestration_state_snapshot_required", policy_group: "Orchestration Intelligence Governance", policy_key: "orchestration_state_snapshot_required_policy_v1", required_blocking: true, required_scope_tokens: ["orchestration_intelligence", "recommendation_generation"], required_affects_layer_tokens: ["platform_orchestration_state_snapshots", "decision_runs"] },
   { check_key: "recommendation_before_execution", policy_group: "Orchestration Intelligence Governance", policy_key: "recommendation_before_execution_policy_v1", required_blocking: true, required_scope_tokens: ["tool_execution", "repo_mutation", "provider_adapter"], required_affects_layer_tokens: ["platform_orchestration_recommendations", "capability_resolution_envelope_ledger"] },
   { check_key: "intentional_safety_block_classification", policy_group: "Orchestration Intelligence Governance", policy_key: "intentional_safety_block_classification_policy_v1", required_blocking: true, required_scope_tokens: ["blocker_classification", "execution_enablement"], required_affects_layer_tokens: ["execution_enablement_registry", "platform_pending_tasks"] },
