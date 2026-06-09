@@ -166,9 +166,20 @@ export async function runSessionArchiveSmoke({
     turnIndex: 2,
     injectedDeps: archiveDeps,
   });
+  const [sessionAfterThirdTurnRows] = await pool.query("SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1", [sessionId]);
+  const sessionAfterThirdTurn = sessionAfterThirdTurnRows[0] || sessionAfterSecondTurn;
+  const fourthTurn = await recordGptSessionTurn({
+    pool,
+    session: sessionAfterThirdTurn,
+    role: "assistant",
+    content: assistantFollowupContent,
+    action_key: actionKey,
+    turnIndex: 3,
+    injectedDeps: archiveDeps,
+  });
 
   const [freshRows] = await pool.query("SELECT * FROM `customer_sessions` WHERE session_id = ? LIMIT 1", [sessionId]);
-  const freshSession = freshRows[0] || session;
+  const freshSession = freshRows[0] || sessionAfterThirdTurn;
 
   await pool.query(
     "UPDATE `customer_sessions` SET session_status = 'completed', ended_at = NOW() WHERE session_id = ?",
