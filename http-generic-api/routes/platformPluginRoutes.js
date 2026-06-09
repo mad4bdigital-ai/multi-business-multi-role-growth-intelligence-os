@@ -20,6 +20,7 @@ import { resolveActionManifestDiagnostic } from "../actionManifestDiagnostic.js"
 import { resolveExecutionReadinessDryRun } from "../executionReadinessDryRun.js";
 import { readPlatformOrchestrationReadback } from "../platformOrchestrationReadback.js";
 import { proposeAdsProviderGovernanceSnapshot } from "../adsProviderGovernanceSnapshotProposal.js";
+import { recordAdsProviderGovernanceSnapshot } from "../adsProviderGovernanceSnapshotRecord.js";
 import {
   certifyPlatformPluginSmoke,
   getPlatformPluginSmokeCertification,
@@ -156,6 +157,14 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
       const result = await proposeAdsProviderGovernanceSnapshot(input);
       return res.status(200).json(result);
     } catch (err) { return errorResponse(res, err, "ads_provider_governance_snapshot_proposal_failed"); }
+  });
+
+  router.post("/platform/orchestration/ads-provider/snapshot-record", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await recordAdsProviderGovernanceSnapshot(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "ads_provider_governance_snapshot_record_failed"); }
   });
 
   router.post("/platform/plugins/smoke-certifications/certify", ...requireAdmin, async (req, res) => {

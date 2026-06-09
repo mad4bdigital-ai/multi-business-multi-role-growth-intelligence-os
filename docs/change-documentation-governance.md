@@ -29,6 +29,7 @@ For each change, update at least one of the following, depending on scope:
 | Orchestration graph/state/recommendation foundation | `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, targeted orchestration tests, migration safety comments, and release-readiness migration/runtime-policy tracking |
 | Orchestration readback/admin diagnostic surface | `openapi.yaml`, `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, targeted readback tests, tool registry migration, and no-execution/no-secret safety evidence |
 | Snapshot/recommendation proposal surface | `openapi.yaml`, `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, targeted proposal tests, no-write/no-execution evidence, and release-readiness policy tracking |
+| Snapshot/recommendation persistence gate | `openapi.yaml`, `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, targeted gated-write tests, idempotency/envelope/hash verification evidence, and release-readiness policy tracking |
 | Registry/taxonomy change | `docs/registry-taxonomy.md`, `Updating Registry Patch Index.md` |
 | Auth/credential behavior | `docs/external-endpoint-auth-strategy.md`, `connector_contracts.md` |
 | Restore/relink/incident recovery | incident runbook under `docs/`, `Updating Registry Patch Index.md`, `deployment_parity_checklist.md` |
