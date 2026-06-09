@@ -18,6 +18,8 @@ assert.match(script, /capabilityEnvelopeError/);
 assert.match(script, /resolveCapabilityExecutionEnvelope/);
 assert.match(script, /markCapabilityEnvelopeReferenced/);
 assert.match(script, /--capability-envelope-id/);
+assert.match(script, /isDirectCliInvocation/);
+assert.match(script, /path\.resolve\(process\.argv\[1\]\) === fileURLToPath\(import\.meta\.url\)/);
 assert.match(script, /live_checkout_cleanup:apply/);
 assert.match(script, /acceptedAppKeys: \["github"\]/);
 assert.match(script, /"live_checkout_cleanup_apply"/);
