@@ -72,6 +72,10 @@ import {
   activateAndBindSupportTicketExternalCredential,
   planSupportTicketExternalCredentialActivation,
 } from "../supportTicketExternalCredentialActivationService.js";
+import {
+  approveActivateBindAndVerifySupportTicketExternalCredential,
+  planSupportTicketExternalCredentialOrchestration,
+} from "../supportTicketExternalCredentialOrchestrationService.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
@@ -294,6 +298,50 @@ export function buildSupportTicketRoutes(deps = {}) {
       return res.status(200).json(result);
     } catch (err) {
       return sendError(res, err, "support_ticket_sla_reconcile_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/external-credential/orchestration-plan", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await planSupportTicketExternalCredentialOrchestration({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        ref_id: req.body?.ref_id,
+        approval_hold_id: req.body?.approval_hold_id,
+        channel: req.body?.channel || "email",
+        audience: req.body?.audience || "admin",
+        approve_first: req.body?.approve_first !== false,
+        validation_evidence: req.body?.validation_evidence || {},
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_credential_orchestration_plan_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/:ticket_id/external-credential/approve-activate-bind-verify", ...adminGuards, async (req, res) => {
+    try {
+      const tenantId = await resolveTicketTenant(req.params.ticket_id, req.body?.tenant_id || req.query?.tenant_id || null);
+      if (!tenantId) return res.status(404).json({ ok: false, error: { code: "support_ticket_not_found", message: "Ticket not found." }, secrets_included: false });
+      const result = await approveActivateBindAndVerifySupportTicketExternalCredential({
+        tenant_id: tenantId,
+        ticket_id: req.params.ticket_id,
+        ref_id: req.body?.ref_id,
+        approval_hold_id: req.body?.approval_hold_id,
+        channel: req.body?.channel || "email",
+        audience: req.body?.audience || "admin",
+        approve_first: req.body?.approve_first !== false,
+        validation_evidence: req.body?.validation_evidence || {},
+        decision_note: req.body?.decision_note || null,
+        mode: req.body?.mode || "dry_run",
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_credential_approve_activate_bind_verify_failed");
     }
   });
 
