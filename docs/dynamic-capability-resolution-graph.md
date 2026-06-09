@@ -430,6 +430,8 @@ ads_provider_profile_request
 
 Approval creates a `draft` profile only. It does not create preflight tools, credential readiness tools, execution adapters, provider credentials, or spend surfaces.
 
+`ads_provider_preflight_contract_policy_v1` defines the generic contract that must pass before any provider-specific preflight surface can be designed. The validator reads the provider profile, confirms core capability/meter/credential/governance fields, enforces `execution_enabled_default=false`, and returns either `ready_for_preflight_surface_design` for draft profiles or `ready_existing_preflight_surface_contract` for providers that already have preflight surfaces. It does not create provider tools or call providers.
+
 `execution_enablement_registry_policy_v1` adds the final explicit enablement gate. Provider execution remains disabled unless `execution_enablement_registry` contains an active row for the exact family/adapter scope. The Google Ads skeleton now calls `execution_enablement_gate` after preflight validation and blocks with `blocked_execution_enablement_missing_or_disabled` when no row exists. This registry is intentionally empty by default.
 
 `execution_enablement_approval_flow_policy_v1` adds the governed lifecycle for those rows:

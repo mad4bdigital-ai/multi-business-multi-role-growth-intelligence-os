@@ -1,6 +1,8 @@
 # Deployment Parity Checklist
 **Authority document - run before and after every deployment**
 
+> Ads provider preflight contract parity note: verify `ads_provider_preflight_contract_policy_v1`, table `ads_provider_preflight_contract_registry`, and validator `ads_provider_preflight_contract_validate` after migration `253_sprint67_ads_provider_preflight_contract.sql`. Smoke should return `ready_existing_preflight_surface_contract` for `google_ads` and `ready_for_preflight_surface_design` for a draft test provider, with `no_provider_call=true`, `no_spend_change=true`, and `secrets_included=false`.
+
 > Ads provider profile onboarding parity note: verify `ads_provider_profile_onboarding_flow_policy_v1`, table `ads_provider_profile_onboarding_requests`, and tools `ads_provider_profile_request`, `ads_provider_profile_approve`, `ads_provider_profile_disable` after migration `252_sprint67_ads_provider_profile_onboarding_flow.sql`. Smoke should request a test provider, approve it into `draft`, then disable it, with `execution_enabled_default=false`, `no_provider_call=true`, `no_spend_change=true`, and `secrets_included=false`.
 
 > Ads provider profile registry parity note: verify `ads_provider_capability_profile_registry_policy_v1`, table `ads_provider_capability_profile_registry`, and lookup tool `ads_provider_profile_lookup` after migration `251_sprint67_ads_provider_capability_profile_registry.sql`. Smoke should return active `google_ads` profile with `execution_enabled_default=false`, preflight/readiness ledger pointers, `no_provider_call=true`, `no_spend_change=true`, and `secrets_included=false`.
