@@ -95,6 +95,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "256_sprint68_session_insight_promotion_foundation.sql",
   "260_sprint68_platform_development_constitution_policies.sql",
   "261_sprint68_orchestration_intelligence_foundation.sql",
+  "263_sprint68_ads_governance_snapshot_proposal.sql",
   "260_sprint68_platform_development_constitution_policies.sql",
   "261_sprint68_orchestration_intelligence_foundation.sql",
   "229_sprint67_workspace_brands_list_tool.sql",
