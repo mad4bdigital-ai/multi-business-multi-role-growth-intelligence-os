@@ -4,7 +4,9 @@ import { readFileSync } from "node:fs";
 const script = readFileSync(new URL("./scripts/live-checkout-cleanup.mjs", import.meta.url), "utf8");
 const adminCli = readFileSync(new URL("./routes/adminCliRoutes.js", import.meta.url), "utf8");
 const migration = readFileSync(new URL("./migrations/240_sprint68_live_checkout_cleanup_tool.sql", import.meta.url), "utf8");
+const capabilityMigration = readFileSync(new URL("./migrations/255_sprint68_live_checkout_cleanup_capability_gate.sql", import.meta.url), "utf8");
 const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
+const readiness = readFileSync(new URL("./releaseReadiness.js", import.meta.url), "utf8");
 
 assert.match(script, /ALLOWED_CLEANUP_PATHS/);
 assert.match(script, /http-generic-api\/test-tenant-gpt-customer-safe-resource-escalation\.mjs/);
@@ -29,6 +31,22 @@ assert.match(script, /secrets_included: false/);
 assert.doesNotMatch(script, /process\.env\[[^\]]*(TOKEN|SECRET|KEY|PASSWORD)/i);
 assert.doesNotMatch(script, /fetch\(|axios|decryptCredentials|private_key|client_secret|refresh_token/i);
 
+assert.match(script, /import \{ getPool \} from "\.\.\/db\.js"/);
+assert.match(script, /import \{ writeAuditLogAsync \} from "\.\.\/auditLogger\.js"/);
+assert.match(script, /--capability-envelope-id/);
+assert.match(script, /live_checkout_cleanup_capability_envelope_required/);
+assert.match(script, /capability_resolution_envelope_ledger/);
+assert.match(script, /ready_for_dispatch/);
+assert.match(script, /dispatch_allowed/);
+assert.match(script, /ACCEPTED_CAPABILITY_INTENTS/);
+assert.match(script, /live_checkout_cleanup_apply/);
+assert.match(script, /repo_patch_apply/);
+assert.match(script, /execution_status = 'referenced'/);
+assert.match(script, /CAPABILITY_EXECUTION_REF/);
+assert.match(script, /live_checkout_cleanup\.apply/);
+assert.match(script, /export async function runLiveCheckoutCleanup/);
+assert.match(script, /await runLiveCheckoutCleanup\(parseArgs\(\)\)/);
+
 assert.match(adminCli, /live_checkout_cleanup/);
 assert.match(adminCli, /scripts\/live-checkout-cleanup\.mjs/);
 assert.match(migration, /live_checkout_cleanup/);
@@ -36,6 +54,14 @@ assert.match(migration, /APPLY_LIVE_CHECKOUT_CLEANUP/);
 assert.match(migration, /no_secrets/);
 assert.match(migration, /allowlisted_paths/);
 assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
+assert.match(capabilityMigration, /Live Checkout Cleanup Capability Gate/);
+assert.match(capabilityMigration, /live_checkout_cleanup_apply_requires_capability_envelope/);
+assert.match(capabilityMigration, /capability_envelope/);
+assert.match(capabilityMigration, /--capability-envelope-id=<uuid>/);
+assert.match(capabilityMigration, /apply_audit_required',true/);
+assert.doesNotMatch(capabilityMigration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
 assert.match(runner, /240_sprint68_live_checkout_cleanup_tool\.sql/);
+assert.match(runner, /255_sprint68_live_checkout_cleanup_capability_gate\.sql/);
+assert.match(readiness, /255_sprint68_live_checkout_cleanup_capability_gate\.sql/);
 
 console.log("live checkout cleanup guard passed");
