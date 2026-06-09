@@ -117,7 +117,22 @@ export async function runLogicWithModel(input = {}, deps = {}) {
   }
 
   if (!output) {
-    output = extractContent(await deps.callModel(messages, []));
+    const finalModelRunId = await recordAgentModelRunStarted({
+      context: { ...context, logic_key, iteration: "final", execution_trace_id },
+      messages,
+      tools: [],
+      providerKey: deps.provider_key || deps.providerKey || "unknown",
+      modelKey: deps.model_key || deps.modelKey || "unknown",
+      traceId: execution_trace_id,
+    });
+    try {
+      const finalResponse = await deps.callModel(messages, []);
+      await recordAgentModelRunCompleted({ modelRunId: finalModelRunId, response: finalResponse, status: "completed" });
+      output = extractContent(finalResponse);
+    } catch (error) {
+      await recordAgentModelRunFailed({ modelRunId: finalModelRunId, error });
+      throw error;
+    }
   }
 
   return {
