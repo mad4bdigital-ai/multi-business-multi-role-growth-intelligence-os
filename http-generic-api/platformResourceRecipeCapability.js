@@ -432,8 +432,14 @@ export async function catalogGovernedResources(args = {}) {
   };
 }
 
+const ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY = "google_drive.session_folder.reconcile_artifacts_exports";
+
 const READ_ONLY_INSTALLED_TOOL_ALLOWLIST = new Set([
   "google_drive_folder_inspect",
+]);
+
+const READ_ONLY_COMPOSITE_RECIPE_ALLOWLIST = new Set([
+  ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY,
 ]);
 
 function isMutatingRiskClass(riskClass = "") {
@@ -452,35 +458,58 @@ function boundedNumber(value, fallback, min, max) {
   return Math.min(Math.max(Math.floor(parsed), min), max);
 }
 
-function readOnlyInstalledToolExecutionReady(recipe = {}, steps = [], blockedReasons = []) {
-  return (
-    recipe.status === "active" &&
-    recipe.read_only === true &&
-    recipe.adapter_kind === "installed_tool" &&
-    READ_ONLY_INSTALLED_TOOL_ALLOWLIST.has(recipe.installed_tool_key) &&
-    blockedReasons.length === 0 &&
-    steps.some((step) =>
-      step.status === "active" &&
-      step.step_kind === "installed_tool_call" &&
-      step.tool_key === recipe.installed_tool_key
-    )
+function executableInstalledToolSteps(steps = []) {
+  return steps.filter((step) =>
+    step.status === "active" &&
+    step.step_kind === "installed_tool_call" &&
+    READ_ONLY_INSTALLED_TOOL_ALLOWLIST.has(step.tool_key)
   );
 }
 
-function buildInstalledToolArgs(plan = {}, args = {}) {
+function readOnlyRecipeExecutionReady(recipe = {}, steps = [], blockedReasons = []) {
+  if (blockedReasons.length > 0 || recipe.status !== "active" || recipe.read_only !== true) return false;
+
+  if (recipe.adapter_kind === "installed_tool") {
+    return (
+      READ_ONLY_INSTALLED_TOOL_ALLOWLIST.has(recipe.installed_tool_key) &&
+      executableInstalledToolSteps(steps).some((step) => step.tool_key === recipe.installed_tool_key)
+    );
+  }
+
+  if (recipe.adapter_kind === "composite") {
+    return (
+      READ_ONLY_COMPOSITE_RECIPE_ALLOWLIST.has(recipe.recipe_key) &&
+      executableInstalledToolSteps(steps).length > 0
+    );
+  }
+
+  return false;
+}
+
+function selectedInstalledToolKey(recipe = {}, steps = []) {
+  if (recipe.adapter_kind === "installed_tool" && READ_ONLY_INSTALLED_TOOL_ALLOWLIST.has(recipe.installed_tool_key)) {
+    return recipe.installed_tool_key;
+  }
+  return executableInstalledToolSteps(steps)[0]?.tool_key || null;
+}
+
+function buildInstalledToolArgs(plan = {}, args = {}, explicitToolKey = null) {
   const recipe = plan.recipe || {};
   const policy = recipe.policy || {};
   const resolved = plan.resolved_resource || {};
   const ref = resolved.resource_ref || {};
   const options = args.options && typeof args.options === "object" ? args.options : {};
-  const maxDepth = boundedNumber(options.max_depth ?? args.max_depth ?? ref.max_depth, 1, 0, Math.min(Number(policy.max_depth || 3), 3));
+  const toolKey = explicitToolKey || recipe.installed_tool_key;
+  const isArtifactReconcile = recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY;
+  const defaultMaxDepth = isArtifactReconcile ? 1 : 1;
+  const maxDepth = boundedNumber(options.max_depth ?? args.max_depth ?? ref.max_depth, defaultMaxDepth, 0, Math.min(Number(policy.max_depth || 3), 3));
   const pageSize = boundedNumber(options.page_size ?? args.page_size, 100, 1, 200);
 
-  if (recipe.installed_tool_key === "google_drive_folder_inspect") {
+  if (toolKey === "google_drive_folder_inspect") {
     return {
       folder_id: ref.folder_id || args.folder_id || undefined,
       folder_url: ref.folder_url || args.folder_url || args.input || undefined,
-      recursive: boolOption(options.recursive ?? args.recursive, maxDepth > 1),
+      recursive: boolOption(options.recursive ?? args.recursive, isArtifactReconcile ? maxDepth >= 1 : maxDepth > 1),
       max_depth: maxDepth,
       page_size: pageSize,
       credential_scope: args.credential_scope || options.credential_scope || "platform",
@@ -492,6 +521,131 @@ function buildInstalledToolArgs(plan = {}, args = {}) {
   }
 
   return { ...ref, ...options };
+}
+
+function driveFileLite(file = {}) {
+  return {
+    id: file.id || null,
+    name: file.name || null,
+    mimeType: file.mimeType || null,
+    size: file.size || null,
+    is_folder: Boolean(file.is_folder),
+    webViewLink: file.webViewLink || null,
+  };
+}
+
+function lowerName(file = {}) {
+  return String(file.name || "").trim().toLowerCase();
+}
+
+function baseName(file = {}) {
+  return lowerName(file).replace(/\.[^.]+$/, "");
+}
+
+function nestedFolderByName(tree = {}, name = "") {
+  const target = String(name).toLowerCase();
+  const nested = Array.isArray(tree.nested) ? tree.nested : [];
+  const fromNested = nested.find((entry) => lowerName(entry.folder) === target);
+  if (fromNested) return fromNested;
+  const child = (Array.isArray(tree.children) ? tree.children : []).find((entry) => entry.is_folder && lowerName(entry) === target);
+  return child ? { folder: child, children: [], nested: [] } : null;
+}
+
+function nonFolderChildren(node = null) {
+  return (Array.isArray(node?.children) ? node.children : []).filter((child) => !child.is_folder);
+}
+
+function duplicateNameGroups(files = []) {
+  const groups = new Map();
+  for (const file of files) {
+    const key = lowerName(file);
+    if (!key) continue;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(driveFileLite(file));
+  }
+  return [...groups.values()].filter((group) => group.length > 1);
+}
+
+function buildArtifactExportReconciliation(installedToolResult = {}, plan = {}) {
+  const tree = installedToolResult?.tree || {};
+  const policy = plan.recipe?.policy || {};
+  const requiredChildFolders = Array.isArray(policy.required_child_folders)
+    ? policy.required_child_folders
+    : ["Artifacts", "Exports"];
+  const rootChildren = Array.isArray(tree.children) ? tree.children : [];
+  const artifactsNode = nestedFolderByName(tree, "Artifacts");
+  const exportsNode = nestedFolderByName(tree, "Exports");
+  const required = {
+    Artifacts: Boolean(artifactsNode),
+    Exports: Boolean(exportsNode),
+  };
+  const missingRequiredChildFolders = requiredChildFolders.filter((name) => !required[name]);
+  const rootFiles = rootChildren.filter((child) => !child.is_folder);
+  const artifactFiles = nonFolderChildren(artifactsNode);
+  const exportFiles = nonFolderChildren(exportsNode);
+  const allVisibleFiles = [...rootFiles, ...artifactFiles, ...exportFiles];
+  const emptyFiles = allVisibleFiles.filter((file) => !file.is_folder && Number(file.size || 0) === 0).map(driveFileLite);
+  const duplicateGroups = duplicateNameGroups(allVisibleFiles);
+  const artifactBaseNames = new Set(artifactFiles.map(baseName).filter(Boolean));
+  const exportBaseNames = new Set(exportFiles.map(baseName).filter(Boolean));
+  const orphanExports = artifactBaseNames.size
+    ? exportFiles.filter((file) => !artifactBaseNames.has(baseName(file))).map(driveFileLite)
+    : [];
+  const missingExports = exportFiles.length === 0
+    ? artifactFiles.map(driveFileLite)
+    : artifactFiles.filter((file) => !exportBaseNames.has(baseName(file))).map(driveFileLite);
+
+  const classifications = [];
+  if (missingRequiredChildFolders.length) classifications.push("missing_required_child");
+  if (artifactFiles.length === 0 && exportFiles.length === 0) classifications.push("artifacts_and_exports_empty");
+  else if (exportFiles.length === 0) classifications.push("exports_empty");
+  if (emptyFiles.length) classifications.push("empty_resource");
+  if (duplicateGroups.length) classifications.push("duplicate_resource");
+  if (orphanExports.length) classifications.push("orphan_resource");
+  if (missingExports.length && artifactFiles.length) classifications.push("missing_export");
+  if (!classifications.length) classifications.push("healthy");
+
+  const findings = [];
+  if (missingRequiredChildFolders.length) {
+    findings.push({ code: "missing_required_child", severity: "high", child_folders: missingRequiredChildFolders });
+  }
+  if (artifactFiles.length === 0 && exportFiles.length === 0) {
+    findings.push({ code: "artifacts_and_exports_empty", severity: "medium" });
+  } else if (exportFiles.length === 0) {
+    findings.push({ code: "exports_empty", severity: "medium", artifact_count: artifactFiles.length });
+  }
+  if (emptyFiles.length) findings.push({ code: "empty_resource", severity: "low", files: emptyFiles });
+  if (duplicateGroups.length) findings.push({ code: "duplicate_resource", severity: "medium", duplicate_groups: duplicateGroups });
+  if (orphanExports.length) findings.push({ code: "orphan_resource", severity: "medium", exports: orphanExports });
+  if (missingExports.length && artifactFiles.length) findings.push({ code: "missing_export", severity: "medium", artifacts: missingExports });
+
+  return {
+    ok: true,
+    recipe_key: ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY,
+    classification: classifications[0],
+    classifications,
+    summary: {
+      root_folder: driveFileLite(tree.folder || {}),
+      root_child_count: rootChildren.length,
+      required_child_folders: required,
+      artifact_file_count: artifactFiles.length,
+      export_file_count: exportFiles.length,
+      duplicate_group_count: duplicateGroups.length,
+      empty_file_count: emptyFiles.length,
+      orphan_export_count: orphanExports.length,
+      missing_export_count: missingExports.length,
+    },
+    findings,
+    recommended_next_operations: [
+      "review_findings",
+      ...(findings.length ? ["plan_manifest_create_after_review"] : ["no_action_required"]),
+    ],
+    apply_supported: false,
+    db_reads_executed: false,
+    provider_calls_made_directly_by_resource_engine: 0,
+    source_inspection: installedToolResult,
+    secrets_included: false,
+  };
 }
 
 export async function planGovernedResource(args = {}) {
@@ -511,7 +665,8 @@ export async function planGovernedResource(args = {}) {
   }
   if (!resolved) blockedReasons.push("resource_ref_unresolved");
 
-  const installedToolReady = readOnlyInstalledToolExecutionReady(recipe, steps, blockedReasons);
+  const readOnlyExecutionReady = readOnlyRecipeExecutionReady(recipe, steps, blockedReasons);
+  const selectedToolKey = selectedInstalledToolKey(recipe, steps);
 
   return {
     ok: true,
@@ -520,19 +675,21 @@ export async function planGovernedResource(args = {}) {
     resolved_resource: resolved,
     dry_run: dryRun,
     execution_plan: {
-      execution_class: installedToolReady ? "resource_recipe_read_only_installed_tool_v1" : "resource_recipe_plan_only_v1",
+      execution_class: readOnlyExecutionReady ? "resource_recipe_read_only_installed_tool_v1" : "resource_recipe_plan_only_v1",
       provider_calls_planned: 0,
       provider_calls_allowed: false,
       db_reads_planned: steps.filter((step) => step.step_kind === "db_read").length,
       installed_tool_calls_planned: steps.filter((step) => step.step_kind === "installed_tool_call").length,
-      installed_tool_calls_allowed_v1: installedToolReady,
+      installed_tool_calls_allowed_v1: readOnlyExecutionReady,
+      selected_installed_tool_key: selectedToolKey,
       allowed_installed_tools: [...READ_ONLY_INSTALLED_TOOL_ALLOWLIST],
+      allowed_composite_recipes: [...READ_ONLY_COMPOSITE_RECIPE_ALLOWLIST],
       graph_projection_planned: recipe.graph_write_policy !== "none",
       graph_projection_allowed_v1: false,
       steps,
     },
     policy_decision: {
-      decision: blockedReasons.length ? "blocked_by_v1_policy" : installedToolReady ? "read_only_execution_ready" : "plan_ready_no_execution",
+      decision: blockedReasons.length ? "blocked_by_v1_policy" : readOnlyExecutionReady ? "read_only_execution_ready" : "plan_ready_no_execution",
       blocked_reasons: blockedReasons,
       requires_capability_envelope: Boolean(recipe.requires_capability_envelope),
       requires_dry_run: Boolean(recipe.requires_dry_run),
@@ -622,7 +779,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
     };
   }
 
-  if (!readOnlyInstalledToolExecutionReady(recipe, plan.execution_plan?.steps || [], [])) {
+  if (!readOnlyRecipeExecutionReady(recipe, plan.execution_plan?.steps || [], [])) {
     return {
       ok: false,
       tool: "governed_resource_run",
@@ -656,16 +813,19 @@ export async function runGovernedResource(args = {}, deps = {}) {
     };
   }
 
-  const toolKey = recipe.installed_tool_key;
-  const toolArgs = buildInstalledToolArgs(plan, args);
+  const toolKey = plan.execution_plan?.selected_installed_tool_key || selectedInstalledToolKey(recipe, plan.execution_plan?.steps || []);
+  const toolArgs = buildInstalledToolArgs(plan, args, toolKey);
   const startedAt = new Date().toISOString();
   const installedToolResult = await deps.executeInstalledTool(toolKey, toolArgs, { plan, mode });
   const completedAt = new Date().toISOString();
+  const result = recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY
+    ? buildArtifactExportReconciliation(installedToolResult, plan)
+    : installedToolResult;
 
   return {
     ok: true,
     tool: "governed_resource_run",
-    classification: "read_only_executed",
+    classification: result.classification || "read_only_executed",
     mode,
     recipe_key: recipe.recipe_key,
     resource_type: recipe.resource_type,
@@ -673,7 +833,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
     installed_tool_key: toolKey,
     installed_tool_args: toolArgs,
     execution_evidence: {
-      execution_class: "resource_recipe_read_only_installed_tool_v1",
+      execution_class: recipe.adapter_kind === "composite" ? "resource_recipe_read_only_composite_v1" : "resource_recipe_read_only_installed_tool_v1",
       started_at: startedAt,
       completed_at: completedAt,
       provider_calls_allowed_directly_by_resource_engine: false,
@@ -682,7 +842,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
       file_content_returned: false,
       secrets_included: false,
     },
-    result: installedToolResult,
+    result,
     plan,
     apply_requested: false,
     apply_allowed: false,
