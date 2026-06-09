@@ -459,7 +459,11 @@ function readOnlyInstalledToolExecutionReady(recipe = {}, steps = [], blockedRea
     recipe.adapter_kind === "installed_tool" &&
     READ_ONLY_INSTALLED_TOOL_ALLOWLIST.has(recipe.installed_tool_key) &&
     blockedReasons.length === 0 &&
-    steps.some((step) => step.status === "active" && step.step_kind === "installed_tool_call")
+    steps.some((step) =>
+      step.status === "active" &&
+      step.step_kind === "installed_tool_call" &&
+      step.tool_key === recipe.installed_tool_key
+    )
   );
 }
 
