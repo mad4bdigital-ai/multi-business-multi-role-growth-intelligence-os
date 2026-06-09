@@ -125,6 +125,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "219_sprint67_gpt_session_turn_batch_write_tool.sql",
   "236_sprint68_admin_branch_reconciliation_policy.sql",
   "248_sprint68_github_branch_fast_forward_policy.sql",
+  "250_sprint68_github_branch_fast_forward_smoke_policy.sql",
   "216_sprint67_platform_secret_promotion_monitoring.sql",
   "222_sprint67_async_job_timeout_recovery.sql",
   "223_sprint67_gpt_session_conversation_refs.sql",
