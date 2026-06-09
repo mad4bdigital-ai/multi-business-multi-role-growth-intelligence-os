@@ -35,6 +35,7 @@ const EXTERNAL_CHANNELS = new Set(["email", "webhook"]);
 const ALLOWED_STORE_TYPES = new Set(["env", "vault", "external"]);
 const ALLOWED_OWNER_TYPES = new Set(["platform", "tenant", "user", "member", "installation", "device", "service_account"]);
 const SENSITIVE_KEY_PATTERN = /(password|access_token|refresh_token|client_secret|private_key|raw_secret|secret_value|api_key|bearer_token|smtp_password)/i;
+const SAFE_SECRET_MARKER_KEYS = new Set(["secrets_included", "secret_value_included"]);
 
 function normalizeChannel(channel = "email") {
   const key = String(channel || "email").trim().toLowerCase();
