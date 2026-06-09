@@ -907,6 +907,7 @@ async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }
         link.workspace_key,
         link.brand_key,
         link.role_key,
+        memoryScopeIdentityHash("json_asset", assetId, link.scope_type, link.scope_ref, "session_summary_scope_attachment"),
         link.visibility_scope,
         JSON.stringify({
           summary_id: summaryId,
