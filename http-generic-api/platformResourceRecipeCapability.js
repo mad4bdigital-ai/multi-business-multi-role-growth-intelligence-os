@@ -603,6 +603,26 @@ function targetableChildFolders(tree = {}, names = []) {
     .map(driveFileLite);
 }
 
+function buildTargetedChildTraversalPlan(rootInspectResult = {}, childFolders = []) {
+  return {
+    ...rootInspectResult,
+    traversal_strategy: "targeted_child_traversal_plan_v1",
+    child_traversal_status: "planned_not_executed",
+    installed_tool_call_count: 1,
+    child_inspections: childFolders.map((folder) => ({
+      name: folder?.name || null,
+      folder_id: folder?.id || null,
+      status: "planned_not_executed",
+      ok: null,
+      child_count: null,
+      folder_count: null,
+      file_count: null,
+      secrets_included: false,
+    })),
+    secrets_included: false,
+  };
+}
+
 function mergeTargetedChildInspections(rootInspectResult = {}, childInspectResults = []) {
   const rootTree = rootInspectResult?.tree || {};
   const nested = childInspectResults.map((entry) => ({
