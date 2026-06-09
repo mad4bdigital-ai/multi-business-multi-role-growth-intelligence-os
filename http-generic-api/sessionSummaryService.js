@@ -89,6 +89,10 @@ function summaryLinkId(summaryId) {
   return `link_${normalizeGraphIdPart(summaryId).replace(/-/g, "")}`.slice(0, 64);
 }
 
+function memoryScopeLinkId(summaryId, scopeType, scopeRef) {
+  return `msl_${normalizeGraphIdPart(summaryId).replace(/-/g, "")}_${normalizeGraphIdPart(scopeType)}_${normalizeGraphIdPart(scopeRef)}`.slice(0, 96);
+}
+
 function buildSummaryJsonPayload({ session, summaryId, insight }) {
   return JSON.stringify({
     summary_id: summaryId,
@@ -798,6 +802,117 @@ async function attachSessionSummaryToGraph({ pool, session, summaryId, insight }
       JSON.stringify({ summary_id: summaryId, source_table: "session_summaries", secrets_included: false }),
     ]
   );
+
+  const memoryScopeLinks = [
+    {
+      scope_type: "conversation",
+      scope_ref: session.session_id,
+      scope_key: `session.${session.session_id}`,
+      visibility_scope: "user_private",
+      tenant_id: tenantId,
+      user_id: userId,
+      workspace_key: session.workspace_key || null,
+      brand_key: session.brand_key || null,
+      role_key: null,
+    },
+    tenantId ? {
+      scope_type: "tenant",
+      scope_ref: tenantId,
+      scope_key: `tenant.${tenantId}`,
+      visibility_scope: "tenant_admin",
+      tenant_id: tenantId,
+      user_id: null,
+      workspace_key: null,
+      brand_key: null,
+      role_key: null,
+    } : null,
+    userId ? {
+      scope_type: "user",
+      scope_ref: userId,
+      scope_key: `user.${userId}`,
+      visibility_scope: "user_private",
+      tenant_id: tenantId,
+      user_id: userId,
+      workspace_key: null,
+      brand_key: null,
+      role_key: null,
+    } : null,
+    session.workspace_key ? {
+      scope_type: "workspace",
+      scope_ref: session.workspace_key,
+      scope_key: `workspace.${session.workspace_key}`,
+      visibility_scope: "workspace_team",
+      tenant_id: tenantId,
+      user_id: null,
+      workspace_key: session.workspace_key,
+      brand_key: session.brand_key || null,
+      role_key: null,
+    } : null,
+    session.brand_key ? {
+      scope_type: "brand",
+      scope_ref: session.brand_key,
+      scope_key: `brand.${session.brand_key}`,
+      visibility_scope: "workspace_team",
+      tenant_id: tenantId,
+      user_id: null,
+      workspace_key: session.workspace_key || null,
+      brand_key: session.brand_key,
+      role_key: null,
+    } : null,
+  ].filter(Boolean);
+
+  for (const link of memoryScopeLinks) {
+    await pool.query(
+      `INSERT INTO \`memory_scope_links\`
+         (link_id, resource_type, resource_ref, resource_table, resource_pk,
+          asset_id, asset_key, scope_type, scope_ref, scope_key,
+          tenant_id, user_id, workspace_key, brand_key, role_key,
+          linkage_type, visibility_scope, authority_status, lifecycle_status,
+          confidence, approval_required, metadata_json, secrets_included, created_by)
+       VALUES (?, 'json_asset', ?, 'json_assets', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+               'session_summary_scope_attachment', ?, 'authoritative', 'active',
+               1.0000, 0, ?, 0, ?)
+       ON DUPLICATE KEY UPDATE
+         asset_id = VALUES(asset_id),
+         asset_key = VALUES(asset_key),
+         scope_key = VALUES(scope_key),
+         tenant_id = VALUES(tenant_id),
+         user_id = VALUES(user_id),
+         workspace_key = VALUES(workspace_key),
+         brand_key = VALUES(brand_key),
+         role_key = VALUES(role_key),
+         visibility_scope = VALUES(visibility_scope),
+         authority_status = VALUES(authority_status),
+         lifecycle_status = VALUES(lifecycle_status),
+         metadata_json = VALUES(metadata_json),
+         secrets_included = VALUES(secrets_included),
+         updated_at = CURRENT_TIMESTAMP`,
+      [
+        memoryScopeLinkId(summaryId, link.scope_type, link.scope_ref),
+        assetId,
+        assetId,
+        assetId,
+        assetKey,
+        link.scope_type,
+        link.scope_ref,
+        link.scope_key,
+        link.tenant_id,
+        link.user_id,
+        link.workspace_key,
+        link.brand_key,
+        link.role_key,
+        link.visibility_scope,
+        JSON.stringify({
+          summary_id: summaryId,
+          source_table: "session_summaries",
+          legacy_subject_link_id: linkId,
+          linkage_type: "session_summary_scope_attachment",
+          secrets_included: false,
+        }),
+        userId || "sessionSummaryService",
+      ]
+    );
+  }
 
   await pool.query(
     `INSERT INTO \`platform_graph_nodes\`
