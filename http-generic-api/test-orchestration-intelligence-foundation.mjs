@@ -17,11 +17,13 @@ for (const table of requiredTables) {
     migration.includes(`CREATE TABLE IF NOT EXISTS \`${table}\``),
     `migration must create ${table}`
   );
-  assert(
-    migration.includes(`chk_${table}`) || migration.includes(`${table}_no_secrets`),
-    `${table} must have a no-secret check`
-  );
 }
+
+const noSecretCheckCount = (migration.match(/CHECK \(`secrets_included` = 0\)/g) || []).length;
+assert(
+  noSecretCheckCount >= requiredTables.length,
+  "each orchestration foundation table must have a no-secret check"
+);
 
 const requiredSeeds = [
   "orchestration_intelligence_foundation_policy_v1",
