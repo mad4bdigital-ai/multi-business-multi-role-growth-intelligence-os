@@ -49,6 +49,11 @@ import {
   listSupportTicketNotificationAdapters,
   previewSupportTicketNotificationDelivery,
 } from "../supportTicketNotificationAdapterService.js";
+import {
+  checkSupportTicketExternalDeliveryReadiness,
+  decideSupportTicketExternalDeliveryApproval,
+  requestSupportTicketExternalDeliveryApproval,
+} from "../supportTicketExternalDeliveryPolicyService.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
