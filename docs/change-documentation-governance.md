@@ -25,6 +25,7 @@ For each change, update at least one of the following, depending on scope:
 | Change type | Required docs |
 |---|---|
 | Runtime/code behavior | `README.md`, `runtime_boundary_map.md`, relevant contract docs |
+| Platform development constitution or orchestration-governance policy | `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, targeted tests, and `releaseReadiness.js` runtime policy seed enforcement |
 | Registry/taxonomy change | `docs/registry-taxonomy.md`, `Updating Registry Patch Index.md` |
 | Auth/credential behavior | `docs/external-endpoint-auth-strategy.md`, `connector_contracts.md` |
 | Restore/relink/incident recovery | incident runbook under `docs/`, `Updating Registry Patch Index.md`, `deployment_parity_checklist.md` |
