@@ -179,6 +179,7 @@ export const testCommands = [
   "node test-ticket-external-credential-orchestration.mjs",
   "node test-ticket-external-send-provider-gate.mjs",
   "node test-ticket-external-provider-adapter-contracts.mjs",
+  "node test-ticket-external-provider-enablement-proposal.mjs",
   "node test-workspace-resource-grant-assignment.mjs",
   "node test-workspace-resource-grants-collation-alignment.mjs",
   "node test-workspace-ownership-member-controls.mjs",
