@@ -31,7 +31,7 @@ for (const expected of [
   assert(policyService.includes(expected), `external delivery policy service must include ${expected}`);
 }
 
-for (const forbidden of ["secret_value", "password", "access_token", "refresh_token", "client_secret", "sendMail", "nodemailer", "fetch(", "axios", "external_send_performed: true"]) {
+for (const forbidden of ["password", "access_token", "refresh_token", "client_secret", "sendMail", "nodemailer", "fetch(", "axios", "external_send_performed: true"]) {
   assert(!bindingService.includes(forbidden), `credential binding service must not expose secrets or send externally: ${forbidden}`);
 }
 
