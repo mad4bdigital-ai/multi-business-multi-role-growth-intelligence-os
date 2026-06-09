@@ -1255,8 +1255,14 @@ export async function updateSupportTicketStepRun({ tenant_id, ticket_id, step_ru
   }
 }
 
+function requesterUserIdForDiagnostic(ticket = {}, run = {}) {
+  const metadata = parseJsonObject(ticket.metadata_json, {});
+  return ticket.user_id || run.user_id || metadata?.metadata?.user_id || metadata?.user_id || metadata?.requester_user_id || "";
+}
+
 async function buildDiagnosticStepOutput(connection, { tenant_id, ticket, run, plan, stepRun }) {
   const stepKey = stepRun.step_key;
+  const requesterUserId = requesterUserIdForDiagnostic(ticket, run);
   if (stepKey === "read_workspace_membership") {
     const rows = await queryRows(
       connection,
