@@ -99,6 +99,158 @@ function memoryScopeIdentityHash(resourceType, resourceRef, scopeType, scopeRef,
     .digest("hex");
 }
 
+function insightCandidateId(summaryId, insightType, index) {
+  return `ins_${normalizeGraphIdPart(summaryId).replace(/-/g, "")}_${normalizeGraphIdPart(insightType)}_${index}`.slice(0, 96);
+}
+
+function insightCandidateHash({ sessionId, summaryId, insightType, title, statement }) {
+  return createHash("sha256")
+    .update([summaryId, sessionId, insightType, title, statement].map((part) => String(part || "")).join("|"))
+    .digest("hex");
+}
+
+function titleFromStatement(insightType, statement) {
+  const prefix = insightType.replace(/_/g, " ");
+  const clean = String(statement || "").replace(/\s+/g, " ").trim();
+  return boundedText(`${prefix}: ${clean}`, 180);
+}
+
+function suggestedScopesForSession(session = {}) {
+  const tenantId = session.tenant_id || PLATFORM_TENANT_ID;
+  return [
+    { scope_type: "conversation", scope_ref: session.session_id, confidence: 1 },
+    tenantId ? { scope_type: "tenant", scope_ref: tenantId, confidence: 0.95 } : null,
+    session.user_id ? { scope_type: "user", scope_ref: session.user_id, confidence: 0.9 } : null,
+    session.workspace_key ? { scope_type: "workspace", scope_ref: session.workspace_key, confidence: 0.9 } : null,
+    session.brand_key ? { scope_type: "brand", scope_ref: session.brand_key, confidence: 0.85 } : null,
+  ].filter(Boolean);
+}
+
+function buildCandidateSeed({ session, summaryId, assetId, insightType, statement, sourceField, sourceIndex, confidence, riskLevel, approvalStatus, targetSurface = null }) {
+  const cleanStatement = boundedText(redactSensitiveText(statement), 1200);
+  if (!cleanStatement.trim()) return null;
+  const title = titleFromStatement(insightType, cleanStatement);
+  return {
+    insight_id: insightCandidateId(summaryId, insightType, sourceIndex),
+    candidate_hash: insightCandidateHash({ sessionId: session.session_id, summaryId, insightType, title, statement: cleanStatement }),
+    source_session_id: session.session_id,
+    source_summary_id: summaryId,
+    source_asset_id: assetId || null,
+    tenant_id: session.tenant_id || PLATFORM_TENANT_ID,
+    user_id: session.user_id || null,
+    workspace_key: session.workspace_key || null,
+    insight_type: insightType,
+    title,
+    statement_text: cleanStatement,
+    evidence_json: JSON.stringify({
+      source_field: sourceField,
+      source_index: sourceIndex,
+      source_table: "session_summaries",
+      source_summary_id: summaryId,
+      source_session_id: session.session_id,
+      raw_transcript_included: false,
+      secrets_included: false,
+    }),
+    suggested_scopes_json: JSON.stringify(suggestedScopesForSession(session)),
+    target_surface: targetSurface,
+    target_ref: null,
+    confidence,
+    risk_level: riskLevel,
+    approval_status: approvalStatus,
+    metadata_json: JSON.stringify({
+      extractor: "session_summary_deterministic_v1",
+      promotion_allowed: false,
+      secrets_included: false,
+    }),
+    created_by: "sessionSummaryService",
+  };
+}
+
+export function buildSessionInsightCandidateSeeds({ session, summaryId, insight, assetId = null } = {}) {
+  if (!session?.session_id || !summaryId || !insight) return [];
+  const seeds = [];
+  let index = 0;
+  const add = (insightType, statement, sourceField, confidence, riskLevel, approvalStatus, targetSurface = null) => {
+    const seed = buildCandidateSeed({
+      session,
+      summaryId,
+      assetId,
+      insightType,
+      statement,
+      sourceField,
+      sourceIndex: index,
+      confidence,
+      riskLevel,
+      approvalStatus,
+      targetSurface,
+    });
+    index += 1;
+    if (seed) seeds.push(seed);
+  };
+
+  add("session_summary_signal", insight.summary_text, "summary_text", 0.7, "low", "not_required", "session_summary_memory");
+  for (const item of normalizeArray(insight.tasks_completed)) add("completed_task", item, "tasks_completed", 0.8, "low", "not_required", "execution_trace");
+  for (const item of normalizeArray(insight.blockers)) add("runtime_gap", item, "blockers", 0.85, "medium", "review_required", "runtime_repair_backlog");
+  for (const item of normalizeArray(insight.feature_requests)) add("development_idea", item, "feature_requests", 0.8, "medium", "review_required", "development_backlog");
+  for (const item of normalizeArray(insight.integration_needs)) add("integration_need", item, "integration_needs", 0.85, "medium", "review_required", "integration_backlog");
+  return seeds.slice(0, 25);
+}
+
+export async function extractSessionSummaryInsightCandidates({ pool = getPool(), session, summaryId, insight, assetId = null } = {}) {
+  const seeds = buildSessionInsightCandidateSeeds({ session, summaryId, insight, assetId });
+  for (const seed of seeds) {
+    await pool.query(
+      `INSERT INTO \`session_insight_candidates\`
+         (insight_id, candidate_hash, source_session_id, source_summary_id, source_turn_range, source_asset_id,
+          tenant_id, user_id, workspace_key, insight_type, title, statement_text,
+          evidence_json, suggested_scopes_json, target_surface, target_ref,
+          confidence, risk_level, approval_status, promotion_status, lifecycle_status,
+          metadata_json, secrets_included, created_by)
+       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'candidate', 'active', ?, 0, ?)
+       ON DUPLICATE KEY UPDATE
+         source_asset_id = VALUES(source_asset_id),
+         tenant_id = VALUES(tenant_id),
+         user_id = VALUES(user_id),
+         workspace_key = VALUES(workspace_key),
+         title = VALUES(title),
+         statement_text = VALUES(statement_text),
+         evidence_json = VALUES(evidence_json),
+         suggested_scopes_json = VALUES(suggested_scopes_json),
+         target_surface = VALUES(target_surface),
+         target_ref = VALUES(target_ref),
+         confidence = VALUES(confidence),
+         risk_level = VALUES(risk_level),
+         approval_status = VALUES(approval_status),
+         metadata_json = VALUES(metadata_json),
+         secrets_included = VALUES(secrets_included),
+         updated_at = CURRENT_TIMESTAMP`,
+      [
+        seed.insight_id,
+        seed.candidate_hash,
+        seed.source_session_id,
+        seed.source_summary_id,
+        seed.source_asset_id,
+        seed.tenant_id,
+        seed.user_id,
+        seed.workspace_key,
+        seed.insight_type,
+        seed.title,
+        seed.statement_text,
+        seed.evidence_json,
+        seed.suggested_scopes_json,
+        seed.target_surface,
+        seed.target_ref,
+        seed.confidence,
+        seed.risk_level,
+        seed.approval_status,
+        seed.metadata_json,
+        seed.created_by,
+      ]
+    );
+  }
+  return { ok: true, candidate_count: seeds.length, secrets_included: false };
+}
+
 function buildSummaryJsonPayload({ session, summaryId, insight }) {
   return JSON.stringify({
     summary_id: summaryId,
@@ -1034,10 +1186,27 @@ export async function writeSessionSummary({ pool = getPool(), session, insight, 
     ]
   );
 
+  let graphAttachment = null;
   try {
-    await attachSessionSummaryToGraph({ pool, session, summaryId, insight });
+    graphAttachment = await attachSessionSummaryToGraph({ pool, session, summaryId, insight });
   } catch (err) {
     console.warn("[sessionSummary] graph attachment failed", {
+      session_id: session.session_id,
+      summary_id: summaryId,
+      message: err?.message || String(err),
+    });
+  }
+
+  try {
+    await extractSessionSummaryInsightCandidates({
+      pool,
+      session,
+      summaryId,
+      insight,
+      assetId: graphAttachment?.asset_id || summaryAssetId(summaryId),
+    });
+  } catch (err) {
+    console.warn("[sessionSummary] insight candidate extraction failed", {
       session_id: session.session_id,
       summary_id: summaryId,
       message: err?.message || String(err),

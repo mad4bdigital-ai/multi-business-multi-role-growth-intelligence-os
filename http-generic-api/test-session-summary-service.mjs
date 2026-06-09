@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  buildSessionInsightCandidateSeeds,
   findSessionsNeedingSummary,
   loadSessionSummaryGraphMemory,
   loadSessionTranscript,
@@ -245,6 +246,28 @@ function makePool() {
 }
 
 {
+  const seeds = buildSessionInsightCandidateSeeds({
+    session: { session_id: "sess-seeds", tenant_id: "tenant-1", user_id: "user-1", workspace_key: "workspace-1" },
+    summaryId: "summary-seeds",
+    insight: {
+      summary_text: "Implemented safe feed token=supersecret",
+      tasks_completed: ["Created candidates"],
+      blockers: ["Needs review"],
+      feature_requests: ["Add promotion later"],
+      integration_needs: ["Connect scopes"],
+      complexity: "medium",
+    },
+    assetId: "asset-seeds",
+  });
+  assert.equal(seeds.length, 5);
+  assert(seeds.every((seed) => seed.candidate_hash?.length === 64));
+  assert(seeds.every((seed) => seed.suggested_scopes_json.includes("workspace")));
+  assert(!JSON.stringify(seeds).includes("supersecret"));
+  assert(JSON.stringify(seeds).includes("[REDACTED]"));
+  assert(seeds.some((seed) => seed.insight_type === "integration_need"));
+}
+
+{
   const pool = makePool();
   const session = {
     session_id: "sess-drive",
@@ -321,6 +344,27 @@ function makePool() {
   assert(
     memoryScopeLinkWrites.some((call) => call.params.includes("workspace") && call.params.includes(session.workspace_key)),
     "summary memory scope links should include workspace scope"
+  );
+  const insightCandidateWrites = pool.state.calls.filter((call) => String(call.sql).includes("INSERT INTO `session_insight_candidates`"));
+  assert(
+    insightCandidateWrites.length >= 3,
+    "summary write should extract typed session insight candidates from summary text, tasks, and feature requests"
+  );
+  assert(
+    insightCandidateWrites.some((call) => call.params.includes("session_summary_signal")),
+    "summary insight candidates should include a session summary signal"
+  );
+  assert(
+    insightCandidateWrites.some((call) => call.params.includes("completed_task")),
+    "summary insight candidates should include completed tasks"
+  );
+  assert(
+    insightCandidateWrites.some((call) => call.params.includes("development_idea")),
+    "summary insight candidates should include development ideas from feature requests"
+  );
+  assert(
+    insightCandidateWrites.every((call) => call.params.some((param) => typeof param === "string" && param.includes("secrets_included"))),
+    "summary insight candidates should carry no-secret metadata/evidence"
   );
   assert(
     pool.state.calls.some((call) => String(call.sql).includes("INSERT INTO `platform_graph_nodes`")),
