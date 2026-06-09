@@ -111,7 +111,7 @@ export async function runLogicWithModel(input = {}, deps = {}) {
 
     messages.push({ role: "assistant", content: response.content || null, tool_calls: response.tool_calls });
 
-    const results = await runToolCalls(response.tool_calls, context, deps, modelRunId);
+    const results = await runToolCalls(response.tool_calls, { ...context, execution_trace_id }, deps, modelRunId);
     tool_calls_made.push(...results.map(r => ({ tool_name: r.tool_name, args: r.args, result: r.result, ledger_tool_call_id: r.ledger_tool_call_id })));
     messages.push(...toolResultMessages(results));
   }
