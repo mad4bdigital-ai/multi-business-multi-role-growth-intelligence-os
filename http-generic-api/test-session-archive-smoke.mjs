@@ -260,6 +260,8 @@ function makeDriveDeps() {
 
   assert.equal(result.ok, true);
   assert.equal(result.cleanup, null, "cleanup result must be null when cleanup is disabled");
+  assert.equal(pool.state.turns.length, 4, "smoke must create a complete four-turn exchange before optional cleanup");
+  assert.deepEqual(pool.state.turns.map((turn) => turn.role), ["user", "assistant", "tool", "assistant"], "smoke turn roles must preserve user/assistant/tool/assistant order");
   assert.equal(drive.drive.deletedFiles.length, 0, "no Drive files should be deleted when cleanup is disabled");
   assert(pool.state.session, "SQL session row must remain when cleanup is disabled");
 }
