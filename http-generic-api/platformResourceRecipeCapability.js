@@ -432,6 +432,64 @@ export async function catalogGovernedResources(args = {}) {
   };
 }
 
+const READ_ONLY_INSTALLED_TOOL_ALLOWLIST = new Set([
+  "google_drive_folder_inspect",
+]);
+
+function isMutatingRiskClass(riskClass = "") {
+  return ["write", "mutation", "destructive"].includes(asString(riskClass));
+}
+
+function boolOption(value, fallback = false) {
+  if (typeof value === "boolean") return value;
+  if (value == null || value === "") return fallback;
+  return ["1", "true", "yes", "on"].includes(String(value).trim().toLowerCase());
+}
+
+function boundedNumber(value, fallback, min, max) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(Math.floor(parsed), min), max);
+}
+
+function readOnlyInstalledToolExecutionReady(recipe = {}, steps = [], blockedReasons = []) {
+  return (
+    recipe.status === "active" &&
+    recipe.read_only === true &&
+    recipe.adapter_kind === "installed_tool" &&
+    READ_ONLY_INSTALLED_TOOL_ALLOWLIST.has(recipe.installed_tool_key) &&
+    blockedReasons.length === 0 &&
+    steps.some((step) => step.status === "active" && step.step_kind === "installed_tool_call")
+  );
+}
+
+function buildInstalledToolArgs(plan = {}, args = {}) {
+  const recipe = plan.recipe || {};
+  const policy = recipe.policy || {};
+  const resolved = plan.resolved_resource || {};
+  const ref = resolved.resource_ref || {};
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  const maxDepth = boundedNumber(options.max_depth ?? args.max_depth ?? ref.max_depth, 1, 0, Math.min(Number(policy.max_depth || 3), 3));
+  const pageSize = boundedNumber(options.page_size ?? args.page_size, 100, 1, 200);
+
+  if (recipe.installed_tool_key === "google_drive_folder_inspect") {
+    return {
+      folder_id: ref.folder_id || args.folder_id || undefined,
+      folder_url: ref.folder_url || args.folder_url || args.input || undefined,
+      recursive: boolOption(options.recursive ?? args.recursive, maxDepth > 1),
+      max_depth: maxDepth,
+      page_size: pageSize,
+      credential_scope: args.credential_scope || options.credential_scope || "platform",
+      connection_id: args.connection_id || options.connection_id || undefined,
+      tenant_id: args.tenant_id || options.tenant_id || undefined,
+      user_id: args.user_id || options.user_id || undefined,
+      allow_platform_fallback: boolOption(args.allow_platform_fallback ?? options.allow_platform_fallback, true),
+    };
+  }
+
+  return { ...ref, ...options };
+}
+
 export async function planGovernedResource(args = {}) {
   const recipe = await getRecipeByKey(args.recipe_key);
   const resolved = resolveResourceRefInput({ ...args, resource_type: recipe.resource_type });
@@ -441,12 +499,15 @@ export async function planGovernedResource(args = {}) {
 
   const blockedReasons = [];
   if (!recipe.read_only) blockedReasons.push("recipe_not_read_only");
-  if (recipe.risk_class === "write" || recipe.risk_class === "mutation" || recipe.risk_class === "destructive") {
+  if (isMutatingRiskClass(recipe.risk_class)) {
     blockedReasons.push("mutating_recipe_requires_future_guarded_apply_runtime");
   }
   if (requestedOptions.file_content === true || requestedOptions.include_file_content === true) {
     blockedReasons.push("file_content_blocked_v1");
   }
+  if (!resolved) blockedReasons.push("resource_ref_unresolved");
+
+  const installedToolReady = readOnlyInstalledToolExecutionReady(recipe, steps, blockedReasons);
 
   return {
     ok: true,
@@ -455,18 +516,19 @@ export async function planGovernedResource(args = {}) {
     resolved_resource: resolved,
     dry_run: dryRun,
     execution_plan: {
-      execution_class: "resource_recipe_plan_only_v1",
+      execution_class: installedToolReady ? "resource_recipe_read_only_installed_tool_v1" : "resource_recipe_plan_only_v1",
       provider_calls_planned: 0,
       provider_calls_allowed: false,
       db_reads_planned: steps.filter((step) => step.step_kind === "db_read").length,
       installed_tool_calls_planned: steps.filter((step) => step.step_kind === "installed_tool_call").length,
-      installed_tool_calls_allowed_v1: false,
+      installed_tool_calls_allowed_v1: installedToolReady,
+      allowed_installed_tools: [...READ_ONLY_INSTALLED_TOOL_ALLOWLIST],
       graph_projection_planned: recipe.graph_write_policy !== "none",
       graph_projection_allowed_v1: false,
       steps,
     },
     policy_decision: {
-      decision: blockedReasons.length ? "blocked_by_v1_policy" : "plan_ready_no_execution",
+      decision: blockedReasons.length ? "blocked_by_v1_policy" : installedToolReady ? "read_only_execution_ready" : "plan_ready_no_execution",
       blocked_reasons: blockedReasons,
       requires_capability_envelope: Boolean(recipe.requires_capability_envelope),
       requires_dry_run: Boolean(recipe.requires_dry_run),
@@ -480,24 +542,149 @@ export async function planGovernedResource(args = {}) {
   };
 }
 
-export async function runGovernedResource(args = {}) {
+export async function runGovernedResource(args = {}, deps = {}) {
   const plan = await planGovernedResource({ ...args, dry_run: true });
   const mode = asString(args.mode || "plan") || "plan";
   const applyRequested = mode === "apply" || args.apply === true;
+  const recipe = plan.recipe || {};
+  const blockedReasons = plan.policy_decision?.blocked_reasons || [];
+
+  if (mode === "plan") {
+    return {
+      ok: true,
+      tool: "governed_resource_run",
+      classification: "plan_ready_no_execution",
+      mode,
+      apply_requested: false,
+      apply_allowed: false,
+      dispatch_allowed: false,
+      plan,
+      provider_calls_made: 0,
+      execution_allowed: false,
+      secrets_included: false,
+    };
+  }
+
+  if (applyRequested) {
+    return {
+      ok: false,
+      tool: "governed_resource_run",
+      classification: "blocked_apply_not_supported_v1",
+      mode,
+      apply_requested: true,
+      apply_allowed: false,
+      dispatch_allowed: false,
+      reason_code: "resource_recipe_apply_blocked_v1",
+      message: "Resource recipe V1 does not apply writes, deletes, moves, content reads, or graph mutations.",
+      plan,
+      provider_calls_made: 0,
+      execution_allowed: false,
+      secrets_included: false,
+    };
+  }
+
+  if (!["read_only", "diagnostic"].includes(mode)) {
+    return {
+      ok: false,
+      tool: "governed_resource_run",
+      classification: "blocked_invalid_mode_v1",
+      mode,
+      apply_requested: false,
+      apply_allowed: false,
+      dispatch_allowed: false,
+      reason_code: "resource_recipe_mode_not_supported_v1",
+      plan,
+      provider_calls_made: 0,
+      execution_allowed: false,
+      secrets_included: false,
+    };
+  }
+
+  if (blockedReasons.length) {
+    return {
+      ok: false,
+      tool: "governed_resource_run",
+      classification: "blocked_by_v1_policy",
+      mode,
+      apply_requested: false,
+      apply_allowed: false,
+      dispatch_allowed: false,
+      reason_code: "resource_recipe_policy_blocked_v1",
+      blocked_reasons: blockedReasons,
+      plan,
+      provider_calls_made: 0,
+      execution_allowed: false,
+      secrets_included: false,
+    };
+  }
+
+  if (!readOnlyInstalledToolExecutionReady(recipe, plan.execution_plan?.steps || [], [])) {
+    return {
+      ok: false,
+      tool: "governed_resource_run",
+      classification: "blocked_unsupported_recipe_runtime_v1",
+      mode,
+      apply_requested: false,
+      apply_allowed: false,
+      dispatch_allowed: false,
+      reason_code: "resource_recipe_runtime_not_allowlisted_v1",
+      plan,
+      provider_calls_made: 0,
+      execution_allowed: false,
+      secrets_included: false,
+    };
+  }
+
+  if (typeof deps.executeInstalledTool !== "function") {
+    return {
+      ok: false,
+      tool: "governed_resource_run",
+      classification: "blocked_executor_missing",
+      mode,
+      apply_requested: false,
+      apply_allowed: false,
+      dispatch_allowed: false,
+      reason_code: "resource_recipe_installed_tool_executor_missing",
+      plan,
+      provider_calls_made: 0,
+      execution_allowed: false,
+      secrets_included: false,
+    };
+  }
+
+  const toolKey = recipe.installed_tool_key;
+  const toolArgs = buildInstalledToolArgs(plan, args);
+  const startedAt = new Date().toISOString();
+  const installedToolResult = await deps.executeInstalledTool(toolKey, toolArgs, { plan, mode });
+  const completedAt = new Date().toISOString();
 
   return {
-    ok: false,
+    ok: true,
     tool: "governed_resource_run",
-    classification: "blocked_plan_only_v1",
+    classification: "read_only_executed",
     mode,
-    apply_requested: applyRequested,
-    apply_allowed: false,
-    dispatch_allowed: false,
-    reason_code: "resource_recipe_runtime_execution_not_enabled_v1",
-    message: "V1 exposes catalog, resolve, and plan only. Provider execution and writes remain disabled until a guarded runtime PR adds policy-gated execution.",
+    recipe_key: recipe.recipe_key,
+    resource_type: recipe.resource_type,
+    resource_uri: plan.resolved_resource?.resource_uri || null,
+    installed_tool_key: toolKey,
+    installed_tool_args: toolArgs,
+    execution_evidence: {
+      execution_class: "resource_recipe_read_only_installed_tool_v1",
+      started_at: startedAt,
+      completed_at: completedAt,
+      provider_calls_allowed_directly_by_resource_engine: false,
+      installed_tool_call_made: true,
+      graph_write_made: false,
+      file_content_returned: false,
+      secrets_included: false,
+    },
+    result: installedToolResult,
     plan,
+    apply_requested: false,
+    apply_allowed: false,
+    dispatch_allowed: true,
     provider_calls_made: 0,
-    execution_allowed: false,
+    execution_allowed: true,
     secrets_included: false,
   };
 }
