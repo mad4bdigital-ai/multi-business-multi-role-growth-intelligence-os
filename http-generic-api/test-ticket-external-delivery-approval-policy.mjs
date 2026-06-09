@@ -11,6 +11,8 @@ for (const expected of [
   "requestSupportTicketExternalDeliveryApproval",
   "decideSupportTicketExternalDeliveryApproval",
   "external_notification_delivery",
+  "supervisor_approval",
+  "JSON_EXTRACT(execution_context_json, '$.approval_type')",
   "external_delivery_approval_requested",
   "external_delivery_approval_decided",
   "external_delivery_credential_binding_missing",
