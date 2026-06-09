@@ -61,6 +61,8 @@ async function lookupCredentialByRef(connection, { tenant_id, credential_ref }) 
       WHERE tenant_id IN (?, '00000000-0000-0000-0000-000000000000')
         AND ref_id = ?
         AND status = 'active'
+        AND validation_status IN ('valid','validated','ready','passed')
+        AND consent_status IN ('not_required','granted')
       ORDER BY tenant_id = ? DESC, created_at DESC
       LIMIT 1`,
     [tenant_id, credential_ref, tenant_id]
