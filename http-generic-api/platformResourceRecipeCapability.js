@@ -432,8 +432,14 @@ export async function catalogGovernedResources(args = {}) {
   };
 }
 
+const ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY = "google_drive.session_folder.reconcile_artifacts_exports";
+
 const READ_ONLY_INSTALLED_TOOL_ALLOWLIST = new Set([
   "google_drive_folder_inspect",
+]);
+
+const READ_ONLY_COMPOSITE_RECIPE_ALLOWLIST = new Set([
+  ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY,
 ]);
 
 function isMutatingRiskClass(riskClass = "") {
