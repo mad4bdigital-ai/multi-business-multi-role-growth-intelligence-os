@@ -574,6 +574,7 @@ function buildSourceInspectionSummary(installedToolResult = {}) {
     adapter: installedToolResult?.adapter || null,
     requested_folder_id: installedToolResult?.requested_folder_id || tree.folder?.id || null,
     traversal_strategy: installedToolResult?.traversal_strategy || "single_inspect",
+    child_traversal_status: installedToolResult?.child_traversal_status || null,
     installed_tool_call_count: Number(installedToolResult?.installed_tool_call_count || 1),
     targeted_child_names: childInspections.map((entry) => entry.name).filter(Boolean),
     recursive: Boolean(installedToolResult?.recursive),
@@ -602,6 +603,26 @@ function targetableChildFolders(tree = {}, names = []) {
     .map(driveFileLite);
 }
 
+function buildTargetedChildTraversalPlan(rootInspectResult = {}, childFolders = []) {
+  return {
+    ...rootInspectResult,
+    traversal_strategy: "targeted_child_traversal_plan_v1",
+    child_traversal_status: "planned_not_executed",
+    installed_tool_call_count: 1,
+    child_inspections: childFolders.map((folder) => ({
+      name: folder?.name || null,
+      folder_id: folder?.id || null,
+      status: "planned_not_executed",
+      ok: null,
+      child_count: null,
+      folder_count: null,
+      file_count: null,
+      secrets_included: false,
+    })),
+    secrets_included: false,
+  };
+}
+
 function mergeTargetedChildInspections(rootInspectResult = {}, childInspectResults = []) {
   const rootTree = rootInspectResult?.tree || {};
   const nested = childInspectResults.map((entry) => ({
@@ -619,6 +640,7 @@ function mergeTargetedChildInspections(rootInspectResult = {}, childInspectResul
   return {
     ...rootInspectResult,
     traversal_strategy: "targeted_child_traversal_v1",
+    child_traversal_status: "executed",
     installed_tool_call_count: 1 + childInspectResults.length,
     child_inspections: childInspectResults.map((entry) => ({
       name: entry.folder?.name || null,
@@ -963,30 +985,35 @@ export async function runGovernedResource(args = {}, deps = {}) {
   const toolArgs = buildInstalledToolArgs(plan, args, toolKey);
   const options = args.options && typeof args.options === "object" ? args.options : {};
   const requestedDepth = boundedNumber(options.max_depth ?? args.max_depth, 0, 0, 3);
+  const executeChildInspections = boolOption(options.execute_child_inspections ?? args.execute_child_inspections, false);
   const startedAt = new Date().toISOString();
   const rootInspectResult = await deps.executeInstalledTool(toolKey, toolArgs, { plan, mode, traversal_stage: "root" });
   let installedToolResult = rootInspectResult;
 
   if (recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY && requestedDepth >= 1) {
     const childFolders = targetableChildFolders(rootInspectResult?.tree || {}, requiredArtifactExportChildNames(plan));
-    const childInspectResults = await Promise.all(childFolders.map(async (folder) => {
-      const childArgs = {
-        ...toolArgs,
-        folder_id: folder.id,
-        folder_url: folder.webViewLink || undefined,
-        recursive: false,
-        max_depth: 0,
-        page_size: boundedNumber(options.child_page_size ?? options.page_size ?? args.page_size, 50, 1, 100),
-      };
-      const childResult = await deps.executeInstalledTool(toolKey, childArgs, {
-        plan,
-        mode,
-        traversal_stage: "targeted_child",
-        child_name: folder.name,
-      });
-      return { folder, args: childArgs, result: childResult };
-    }));
-    installedToolResult = mergeTargetedChildInspections(rootInspectResult, childInspectResults);
+    if (executeChildInspections) {
+      const childInspectResults = await Promise.all(childFolders.map(async (folder) => {
+        const childArgs = {
+          ...toolArgs,
+          folder_id: folder.id,
+          folder_url: folder.webViewLink || undefined,
+          recursive: false,
+          max_depth: 0,
+          page_size: boundedNumber(options.child_page_size ?? options.page_size ?? args.page_size, 50, 1, 100),
+        };
+        const childResult = await deps.executeInstalledTool(toolKey, childArgs, {
+          plan,
+          mode,
+          traversal_stage: "targeted_child",
+          child_name: folder.name,
+        });
+        return { folder, args: childArgs, result: childResult };
+      }));
+      installedToolResult = mergeTargetedChildInspections(rootInspectResult, childInspectResults);
+    } else {
+      installedToolResult = buildTargetedChildTraversalPlan(rootInspectResult, childFolders);
+    }
   }
 
   const completedAt = new Date().toISOString();
