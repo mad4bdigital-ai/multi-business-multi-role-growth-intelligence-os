@@ -192,4 +192,60 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
   assert.deepEqual(access.degraded_surfaces, []);
 }
 
+{
+  const queries = [];
+  const query = async (sql) => {
+    queries.push(sql);
+    if (sql.includes("FROM `memberships`")) return { ok: true, rows: [{ tenant_id: "tenant-a", role: "owner", status: "active" }] };
+    if (sql.includes("FROM `role_assignments`")) return { ok: true, rows: [{ tenant_id: "tenant-a", role: "growth_operator", status: "active" }] };
+    if (sql.includes("FROM `workspace_registry`")) return { ok: true, rows: [{ workspace_id: "workspace-1", tenant_id: "tenant-a", workspace_key: "brand_a", display_name: "Brand A", workspace_type: "brand", bootstrap_status: "ready", linked_brand_key: "brand_a", linked_system_ids: "system-1,system-2" }] };
+    if (sql.includes("FROM `connected_systems`")) return { ok: true, rows: [{ system_id: "system-1", tenant_id: "tenant-a", system_key: "wp", display_name: "WordPress", provider_family: "wordpress", connector_family: "wordpress_rest", auth_type: "oauth", service_mode: "managed", status: "active" }] };
+    if (sql.includes("FROM `installations`")) return { ok: true, rows: [{ installation_id: "install-1", system_id: "system-1", tenant_id: "tenant-a", scope: "posts.read,posts.write", status: "active", expires_at: null }] };
+    if (sql.includes("FROM `permission_grants`")) return { ok: true, rows: [{ permission_key: "posts.write", tenant_id: "tenant-a", installation_id: "install-1", granted: 1 }] };
+    if (sql.includes("FROM `actions`")) return { ok: true, rows: [{ action_key: "wp_publish", action_title: "Publish", action_class: "content", connector_family: "wordpress_rest", runtime_capability_class: "cms_write", runtime_callable: "true", admin_only: "false", allowed_actor_roles: "owner,growth_operator", allowed_governance_levels: "tenant" }] };
+    return { ok: false, rows: [], error: { code: "unexpected_query", message: sql } };
+  };
+
+  const access = await buildActivationAuthorizedAccess(
+    { auth: { mode: "user_jwt", is_admin: false, user_id: "user-a", tenant_id: "tenant-a" }, query: {} },
+    { is_admin: false, user_id: "user-a", tenant_id: "tenant-a" },
+    { query }
+  );
+
+  assert.equal(access.source, "activation_dynamic_authorization_envelope");
+  assert.equal(access.scope_resolution, "tenant_user_authorized_only");
+  assert.equal(access.counts.workspaces, 1);
+  assert.equal(access.counts.connected_systems, 1);
+  assert.equal(access.counts.permission_grants, 1);
+  assert.equal(access.counts.runtime_actions, 1);
+  assert.equal(access.counts.admin_tools, 0);
+  assert.deepEqual(access.authorized.permission_keys, ["posts.write"]);
+  assert.deepEqual(access.authorized.connector_families, ["wordpress_rest"]);
+  assert.equal(access.activation_policy.use_authorized_access_for_context_selection, true);
+  assert.equal(access.activation_policy.do_not_infer_access_from_global_counts, true);
+  assert.equal(access.secrets_included, false);
+  assert.equal(JSON.stringify(access).includes("credential_ref"), false);
+  assert.equal(queries.some((sql) => sql.includes("tenant_id = ?")), true);
+}
+
+{
+  const query = async (sql) => {
+    if (sql.includes("FROM `workspace_registry`")) return { ok: true, rows: [] };
+    if (sql.includes("FROM `connected_systems`")) return { ok: true, rows: [] };
+    if (sql.includes("FROM `installations`")) return { ok: true, rows: [] };
+    if (sql.includes("FROM `permission_grants`")) return { ok: true, rows: [] };
+    if (sql.includes("FROM `actions`")) return { ok: true, rows: [] };
+    if (sql.includes("FROM `admin_platform_endpoint_tools`")) return { ok: true, rows: [{ tool_key: "release_readiness", display_name: "Release Readiness", http_method: "POST", http_path: "/gpt/tools/call", tags: "admin,readiness" }] };
+    return { ok: true, rows: [] };
+  };
+  const access = await buildActivationAuthorizedAccess(
+    { auth: { mode: "backend_api_key", is_admin: true }, query: { authorized_access_limit: "5" } },
+    { is_admin: true, user_id: null, tenant_id: null },
+    { query }
+  );
+  assert.equal(access.scope_resolution, "platform_admin_all_with_optional_subject_filter");
+  assert.equal(access.counts.admin_tools, 1);
+  assert.equal(access.authorized.admin_tools[0].tool_key, "release_readiness");
+}
+
 console.log("activation session context tests passed");
