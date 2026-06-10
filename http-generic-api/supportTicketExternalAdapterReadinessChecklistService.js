@@ -9,6 +9,7 @@ function parseJsonObject(value, fallback = {}) {
 
 const SENSITIVE_KEY_PATTERN = /(password|access_token|refresh_token|client_secret|private_key|raw_secret|secret_value|api_key|bearer_token|smtp_password)/i;
 const SAFE_SECRET_MARKER_KEYS = new Set(["secrets_included", "secret_value_included"]);
+const ALLOWED_CHECKLIST_DECISIONS = new Set(["approve_for_future_pr", "reject", "needs_changes"]);
 
 function assertNoRawSecretPayload(value, path = "payload") {
   if (value == null || typeof value !== "object") return;
@@ -82,6 +83,31 @@ async function fetchProposalAndAdapter(connection, proposal_id) {
     [proposal_id]
   );
   return rows[0] || null;
+}
+
+async function fetchChecklist(connection, checklist_id) {
+  const [rows] = await connection.query(
+    `SELECT c.*, p.proposal_status, p.requested_mode, a.implementation_status,
+            a.dispatch_enabled, a.provider_dispatch_enabled, a.status AS adapter_status
+       FROM external_delivery_provider_adapter_readiness_checklists c
+       JOIN external_delivery_provider_adapter_enablement_proposals p ON p.proposal_id = c.proposal_id
+       JOIN external_delivery_provider_adapter_contract_registry a ON a.adapter_key = c.adapter_key
+      WHERE c.checklist_id = ?
+      LIMIT 1`,
+    [checklist_id]
+  );
+  return rows[0] || null;
+}
+
+function normalizeChecklistDecision(decision) {
+  const key = String(decision || "").trim().toLowerCase();
+  if (!ALLOWED_CHECKLIST_DECISIONS.has(key)) {
+    const err = new Error("Unsupported adapter readiness checklist decision.");
+    err.status = 400;
+    err.code = "support_ticket_external_adapter_readiness_decision_invalid";
+    throw err;
+  }
+  return key;
 }
 
 export async function planSupportTicketExternalAdapterReadinessChecklist({ proposal_id, evidence_json = {} } = {}, options = {}) {
@@ -159,7 +185,70 @@ export async function recordSupportTicketExternalAdapterReadinessChecklist({ pro
       [actor_id || "admin_system", actor_type, proposal_id, JSON.stringify({ checklist_id: checklistId, readiness_status: planned.checklist.summary.readiness_status, registry_mutation_performed: false, external_send_performed: false, secrets_included: false })]
     );
     if (ownsConnection) await connection.commit();
-    return { ok: true, mode: "record_checklist", checklist_id: checklistId, ...planned, external_send_performed: false, secret_value_included: false, secrets_included: false };
+    return { ...planned, ok: true, mode: "record_checklist", checklist_id: checklistId, external_send_performed: false, secret_value_included: false, secrets_included: false };
+  } catch (error) { if (ownsConnection) await connection.rollback(); throw error; }
+  finally { if (ownsConnection) connection.release(); }
+}
+
+export async function decideSupportTicketExternalAdapterReadinessChecklist({ checklist_id, decision, decision_note = null, evidence_json = {}, actor_id = null, actor_type = "admin" } = {}, options = {}) {
+  if (!checklist_id) {
+    const err = new Error("checklist_id is required.");
+    err.status = 400;
+    err.code = "support_ticket_external_adapter_readiness_checklist_required";
+    throw err;
+  }
+  const normalizedDecision = normalizeChecklistDecision(decision);
+  assertNoRawSecretPayload(evidence_json, "evidence_json");
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const checklist = await fetchChecklist(connection, checklist_id);
+    if (!checklist) {
+      const err = new Error("External adapter readiness checklist not found.");
+      err.status = 404;
+      err.code = "support_ticket_external_adapter_readiness_checklist_not_found";
+      throw err;
+    }
+    const decisionId = crypto.randomUUID();
+    const summary = parseJsonObject(checklist.summary_json, {});
+    const safeDecision = {
+      decision_id: decisionId,
+      checklist_id,
+      proposal_id: checklist.proposal_id,
+      adapter_key: checklist.adapter_key,
+      decision: normalizedDecision,
+      decision_note,
+      readiness_status: checklist.readiness_status,
+      summary,
+      registry_mutation_performed: false,
+      adapter_implementation_performed: false,
+      dispatch_enabled_changed: false,
+      provider_dispatch_enabled_changed: false,
+      external_send_performed: false,
+      secret_value_included: false,
+      secrets_included: false,
+      evidence_json: { ...(evidence_json || {}), external_send_performed: false, secrets_included: false },
+    };
+    await connection.query(
+      `INSERT INTO external_delivery_provider_adapter_readiness_decisions
+       (decision_id, checklist_id, proposal_id, adapter_key, decision, decision_note,
+        readiness_status, summary_json, evidence_json, decided_by, actor_type,
+        registry_mutation_performed, adapter_implementation_performed,
+        dispatch_enabled_changed, provider_dispatch_enabled_changed, external_send_performed)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0)`,
+      [decisionId, checklist_id, checklist.proposal_id, checklist.adapter_key, normalizedDecision,
+       decision_note, checklist.readiness_status, JSON.stringify(summary), JSON.stringify(safeDecision.evidence_json),
+       actor_id || "admin_system", actor_type]
+    );
+    await connection.query(
+      `INSERT INTO audit_log (audit_id, tenant_id, actor_id, actor_type, action, resource_type, resource_id, after_json, service_mode)
+       VALUES (UUID(), '00000000-0000-0000-0000-000000000000', ?, ?, 'support_ticket_external_adapter_readiness_decision_recorded', 'external_delivery_provider_adapter_readiness_checklist', ?, ?, 'managed')`,
+      [actor_id || "admin_system", actor_type, checklist_id, JSON.stringify(safeDecision)]
+    );
+    if (ownsConnection) await connection.commit();
+    return { ok: true, mode: "record_decision", decision: safeDecision, external_send_performed: false, secret_value_included: false, secrets_included: false };
   } catch (error) { if (ownsConnection) await connection.rollback(); throw error; }
   finally { if (ownsConnection) connection.release(); }
 }
