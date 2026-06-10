@@ -526,6 +526,116 @@ function normalizePlatformEndpointCallArgs(row, args = {}, auth = null) {
   };
 }
 
+function encodeGithubPathPart(value = "") {
+  return encodeURIComponent(String(value || "").trim());
+}
+
+async function githubReadOnlyGet(pathname = "", token = "") {
+  const response = await fetch(`https://api.github.com${pathname}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "growth-intelligence-platform-resource-recipes",
+    },
+  });
+  const text = await response.text();
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { parse_error: true, text: text.slice(0, 200) };
+  }
+  if (!response.ok) {
+    const err = new Error(body?.message || `GitHub read-only request failed with ${response.status}`);
+    err.status = response.status;
+    err.code = "github_read_only_request_failed";
+    err.details = { pathname, status: response.status, body };
+    throw err;
+  }
+  return body;
+}
+
+function liteGithubPullRequest(pr = {}) {
+  return {
+    number: pr.number,
+    title: pr.title || null,
+    state: pr.state || null,
+    url: pr.html_url || pr.url || null,
+    draft: Boolean(pr.draft),
+    mergeable: pr.mergeable ?? null,
+    merge_state_status: pr.mergeable_state || null,
+    author: pr.user?.login || null,
+    base: { ref: pr.base?.ref || null, sha: pr.base?.sha || null },
+    head: { ref: pr.head?.ref || null, sha: pr.head?.sha || null },
+    secrets_included: false,
+  };
+}
+
+async function executeGithubReadOnlyRecipe(operationKey = "", args = {}) {
+  if (operationKey !== "repo_pr_reconciliation_sweep") {
+    const err = new Error(`Unsupported GitHub read-only resource recipe operation: ${operationKey}`);
+    err.status = 400;
+    err.code = "unsupported_github_read_only_operation";
+    throw err;
+  }
+  const owner = String(args.owner || "").trim();
+  const repo = String(args.repo || "").trim();
+  if (!owner || !repo) {
+    const err = new Error("GitHub read-only PR reconciliation requires owner and repo.");
+    err.status = 400;
+    err.code = "missing_github_owner_repo";
+    throw err;
+  }
+
+  const token = await getGitHubAppInstallationToken({});
+  const safeOwner = encodeGithubPathPart(owner);
+  const safeRepo = encodeGithubPathPart(repo);
+  const state = encodeURIComponent(String(args.state || "open"));
+  const limit = Math.min(Math.max(Number(args.limit || 50), 1), 100);
+  let providerCallsMade = 0;
+
+  const pulls = await githubReadOnlyGet(`/repos/${safeOwner}/${safeRepo}/pulls?state=${state}&per_page=${limit}`, token);
+  providerCallsMade += 1;
+  const pullRequests = [];
+  for (const pr of Array.isArray(pulls) ? pulls.slice(0, limit) : []) {
+    const lite = liteGithubPullRequest(pr);
+    if (args.include_changed_files !== false) {
+      const files = await githubReadOnlyGet(`/repos/${safeOwner}/${safeRepo}/pulls/${pr.number}/files?per_page=100`, token);
+      providerCallsMade += 1;
+      lite.changed_files = Array.isArray(files) ? files.map((file) => ({
+        filename: file.filename || null,
+        status: file.status || null,
+        additions: Number(file.additions || 0),
+        deletions: Number(file.deletions || 0),
+      })) : [];
+    }
+    if (args.include_check_runs !== false && pr.head?.sha) {
+      const checks = await githubReadOnlyGet(`/repos/${safeOwner}/${safeRepo}/commits/${encodeGithubPathPart(pr.head.sha)}/check-runs?per_page=100`, token);
+      providerCallsMade += 1;
+      lite.check_runs = Array.isArray(checks?.check_runs) ? checks.check_runs.map((check) => ({
+        name: check.name || null,
+        status: check.status || null,
+        conclusion: check.conclusion || null,
+        url: check.html_url || check.details_url || null,
+      })) : [];
+    }
+    pullRequests.push(lite);
+  }
+
+  return {
+    ok: true,
+    operation_key: operationKey,
+    owner,
+    repo,
+    pull_requests: pullRequests,
+    provider_calls_made: providerCallsMade,
+    mutations_executed: false,
+    secrets_included: false,
+  };
+}
+
 async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null, deps = {}) {
   const scopeClasses = platformEndpointToolScopeClassesForPrincipal(auth);
   const tenantClause = platformEndpointToolTenantClauseForPrincipal(auth, "x");
