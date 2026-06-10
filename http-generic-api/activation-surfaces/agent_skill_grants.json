@@ -3,6 +3,7 @@
   "display_name": "Authorized Agent Skill Grants",
   "description": "Tenant-scoped agent skill grants visible during activation.",
   "source_table": "v_activation_agent_skill_grants",
+  "covered_source_tables": ["agent_skill_grants", "agents", "agent_skills"],
   "result_key_column": "grant_id",
   "result_label_column": "skill_key",
   "tenant_column": "tenant_id",
