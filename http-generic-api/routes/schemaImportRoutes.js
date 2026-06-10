@@ -49,6 +49,7 @@ export function buildSchemaImportRoutes(deps) {
         ref: ref || null,
         actionKeyOverride: action_key || null,
         importedBy: imported_by || null,
+        preserveParentSchemaReference: preserve_parent_schema_reference !== false,
       });
       return res.status(200).json(result);
     } catch (err) {
