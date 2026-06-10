@@ -85,6 +85,7 @@ import { buildSessionInsightPromotionTargetAdapterRegistryRoutes } from "./sessi
 import { buildSessionInsightPromotionAdapterContractRoutes } from "./sessionInsightPromotionAdapterContractRoutes.js";
 import { buildSessionInsightPromotionPayloadPreviewRoutes } from "./sessionInsightPromotionPayloadPreviewRoutes.js";
 import { buildSessionInsightPayloadPreviewReviewRoutes } from "./sessionInsightPayloadPreviewReviewRoutes.js";
+import { buildSessionInsightAdapterApplyReadinessGateRoutes } from "./sessionInsightAdapterApplyReadinessGateRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -163,6 +164,7 @@ export function registerRoutes(app, deps) {
   app.use(buildSessionInsightPromotionAdapterContractRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSessionInsightPromotionPayloadPreviewRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSessionInsightPayloadPreviewReviewRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildSessionInsightAdapterApplyReadinessGateRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformPluginRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildBrowserRuntimeRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildGithubRoutes(deps));
