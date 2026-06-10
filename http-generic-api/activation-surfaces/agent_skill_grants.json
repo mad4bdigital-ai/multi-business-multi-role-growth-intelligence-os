@@ -31,5 +31,5 @@
   "max_rows": 50,
   "sort_order": 50,
   "status": "active",
-  "notes": "Repo-managed activation view. Excludes prompts and capability_json."
+  "notes": "Repo-managed activation view. Excludes sensitive prompt and capability payload fields."
 }
