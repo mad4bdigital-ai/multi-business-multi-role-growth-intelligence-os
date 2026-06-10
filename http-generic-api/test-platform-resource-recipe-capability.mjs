@@ -207,6 +207,18 @@ includesAll(runtimeModule, [
   "file_content_returned: false",
 ], "runtime v1 read-only installed and composite tool guard");
 
+const multipartOperation = {
+  requestBody: {
+    content: {
+      "application/json": { schema: { type: "object", additionalProperties: true } },
+      "multipart/related": { schema: { type: "string" } },
+    },
+  },
+};
+assert.deepEqual(validateRequestBody(multipartOperation, { metadata: {}, media: {} }), []);
+assert.deepEqual(validateRequestBody(multipartOperation, "--boundary\r\nContent-Type: application/json\r\n\r\n{}"), []);
+assert.deepEqual(validateRequestBody(multipartOperation, 123), ["body: expected object got integer"]);
+
 const driveResolved = resolveResourceRefInput({ input: "https://drive.google.com/drive/folders/1E2mS1cOPL3ZAAiVWzEg9iv6klHCOVqES" });
 assert.equal(driveResolved.resource_type, "drive_folder");
 assert.equal(driveResolved.resource_ref.folder_id, "1E2mS1cOPL3ZAAiVWzEg9iv6klHCOVqES");
