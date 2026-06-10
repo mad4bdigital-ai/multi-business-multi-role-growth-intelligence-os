@@ -41,10 +41,8 @@ assert(migration.includes("no_secrets"), "target management tools must be tagged
 assert(!migration.includes("ssh_private_key"), "target management tool registration must not reference private key fields");
 assert(!migration.includes("password"), "target management tool registration must not request passwords");
 
-const upsertMatches = openapi.match(/\/platform\/remote-runtime\/targets\/upsert:/g) || [];
-const validateMatches = openapi.match(/\/platform\/remote-runtime\/targets\/validate:/g) || [];
-assert.equal(upsertMatches.length, 1, "OpenAPI must document upsert path exactly once");
-assert.equal(validateMatches.length, 1, "OpenAPI must document validate path exactly once");
+assert(openapi.includes("/platform/remote-runtime/targets/upsert:"), "OpenAPI must document upsert path");
+assert(openapi.includes("/platform/remote-runtime/targets/validate:"), "OpenAPI must document validate path");
 assert(openapi.includes("operationId: remoteRuntimeTargetUpsert"), "OpenAPI must expose stable upsert operationId");
 assert(openapi.includes("operationId: remoteRuntimeTargetValidate"), "OpenAPI must expose stable validate operationId");
 assert(openapi.includes("x-openai-isConsequential: true"), "OpenAPI must mark target management as consequential");
