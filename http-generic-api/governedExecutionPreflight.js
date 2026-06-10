@@ -120,7 +120,10 @@ export async function evaluateRepoPatchApplyPreflight({ args = {}, repo = {}, br
 }
 
 function containsSecretMarker(value = "") {
-  return /(password|passwd|secret|token|api_key|apikey|credential|private_key|client_secret|refresh_token|access_token|authorization|bearer)/i.test(String(value || ""));
+  const text = String(value || "");
+  return /(password|passwd|api_key|apikey|credential|private_key|client_secret|refresh_token|access_token|authorization|bearer)\s*[:=]/i.test(text)
+    || /-----BEGIN (?:RSA |EC |OPENSSH |)?PRIVATE KEY-----/i.test(text)
+    || /\b(?:ghp_|github_pat_|ya29\.)[A-Za-z0-9_\-.]+\b/.test(text);
 }
 
 async function loadRepositoryPublishPolicies(operation, affectsLayer, deps = {}) {
