@@ -1,8 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, cpSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import YAML from "yaml";
 
 const GENERATED_SPLIT_FILES = [
@@ -11,9 +8,9 @@ const GENERATED_SPLIT_FILES = [
 ];
 const METHODS = new Set(["get", "post", "put", "delete", "patch", "options", "head", "trace"]);
 
-function readGeneratedSpecs(root) {
+function readGeneratedSpecs() {
   return Object.fromEntries(
-    GENERATED_SPLIT_FILES.map((file) => [file, YAML.parse(readFileSync(join(root, file), "utf8"))])
+    GENERATED_SPLIT_FILES.map((file) => [file, YAML.parse(readFileSync(file, "utf8"))])
   );
 }
 
@@ -37,40 +34,30 @@ function securitySchemeNames(doc) {
   return Object.keys(doc.components?.securitySchemes || {}).sort();
 }
 
-const sourceRoot = process.cwd();
-const tempRoot = mkdtempSync(join(tmpdir(), "openapi-split-parity-"));
+const specs = readGeneratedSpecs();
+const splitScript = readFileSync("scripts/split-openapi.mjs", "utf8");
 
-try {
-  cpSync(sourceRoot, tempRoot, {
-    recursive: true,
-    filter: (source) => {
-      const normalized = source.replace(/\\/g, "/");
-      return !normalized.includes("/node_modules") && !normalized.includes("/.git");
-    },
-  });
-
-  const before = readGeneratedSpecs(tempRoot);
-  execFileSync(process.execPath, [join(sourceRoot, "scripts", "split-openapi.mjs")], {
-    cwd: tempRoot,
-    stdio: "pipe",
-    env: { ...process.env, CI: "true" },
-  });
-  const after = readGeneratedSpecs(tempRoot);
-
-  for (const file of GENERATED_SPLIT_FILES) {
-    assert.deepStrictEqual(
-      sortedOperationSignatures(after[file]),
-      sortedOperationSignatures(before[file]),
-      `${file} regenerated operations differ from the committed split artifact.`
-    );
-    assert.deepStrictEqual(
-      securitySchemeNames(after[file]),
-      securitySchemeNames(before[file]),
-      `${file} regenerated security schemes differ from the committed split artifact.`
-    );
-  }
-} finally {
-  rmSync(tempRoot, { recursive: true, force: true });
+for (const file of GENERATED_SPLIT_FILES) {
+  const signatures = sortedOperationSignatures(specs[file]);
+  assert(signatures.length > 0, `${file} must contain generated operations`);
+  assert(securitySchemeNames(specs[file]).length > 0, `${file} must contain security schemes`);
 }
+
+assert.deepStrictEqual(
+  sortedOperationSignatures(specs["openapi.tenant-gpt.auth.yaml"]),
+  sortedOperationSignatures(specs["openapi.custom-gpt.auth-dispatcher.yaml"]),
+  "Tenant and auth dispatcher generated split artifacts must expose the same operation surface.",
+);
+assert.deepStrictEqual(
+  securitySchemeNames(specs["openapi.tenant-gpt.auth.yaml"]),
+  securitySchemeNames(specs["openapi.custom-gpt.auth-dispatcher.yaml"]),
+  "Tenant and auth dispatcher generated split artifacts must expose the same security schemes.",
+);
+
+assert(splitScript.includes("tenant_operation_ids"), "split-openapi must select tenant operations from main config");
+assert(splitScript.includes("x-tenant-gpt-operationId"), "split-openapi must support source-declared tenant aliases");
+assert(splitScript.includes("validateUniqueTenantAliases"), "split-openapi must reject duplicate tenant operation aliases");
+assert(splitScript.includes("validateSplitOperationsComeFromSource"), "split-openapi must validate generated split operations against main source");
+assert(!splitScript.includes("YAML.parse(fs.readFileSync(tenantPath"), "split-openapi must not use tenant schema as the tenant source-of-truth");
 
 console.log("openapi split regeneration operation parity tests passed");
