@@ -38,10 +38,9 @@ assert(migration.includes("read_only"), "tools must be read-only diagnostics");
 assert(!migration.includes("state_changing"), "catalog/probe tools must not be state-changing");
 assert(!migration.includes("ssh_private_key"), "catalog/probe tool registration must not reference private key fields");
 
-const catalogPathMatches = openapi.match(/\/platform\/remote-runtime\/targets\/catalog:/g) || [];
-const probePathMatches = openapi.match(/\/platform\/remote-runtime\/probe:/g) || [];
-assert.equal(catalogPathMatches.length, 1, "OpenAPI must document catalog path exactly once");
-assert.equal(probePathMatches.length, 1, "OpenAPI must document probe path exactly once");
+const openapiPaths = openapiDoc.paths || {};
+assert(Object.prototype.hasOwnProperty.call(openapiPaths, "/platform/remote-runtime/targets/catalog"), "OpenAPI must document catalog path");
+assert(Object.prototype.hasOwnProperty.call(openapiPaths, "/platform/remote-runtime/probe"), "OpenAPI must document probe path");
 assert(openapi.includes("operationId: remoteRuntimeTargetCatalog"), "OpenAPI must expose stable catalog operationId");
 assert(openapi.includes("operationId: remoteRuntimeProbe"), "OpenAPI must expose stable probe operationId");
 assert(openapi.includes("x-openai-isConsequential: false"), "OpenAPI must mark catalog/probe as non-consequential");
