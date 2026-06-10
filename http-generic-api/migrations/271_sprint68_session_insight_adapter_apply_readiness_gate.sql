@@ -27,7 +27,7 @@ SELECT
   ar.request_status,
   ar.capability_envelope_required,
   ar.capability_envelope_id,
-  ar.adapter_key AS target_adapter_key,
+  ar.target_adapter_key,
   a.implementation_status AS adapter_implementation_status,
   a.execution_mode AS adapter_execution_mode,
   a.apply_supported AS adapter_apply_supported,
