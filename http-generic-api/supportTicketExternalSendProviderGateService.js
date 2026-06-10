@@ -141,8 +141,10 @@ export async function planSupportTicketExternalSendProviderGate({ tenant_id, tic
     }
     const executionPlan = await planSupportTicketExternalSendExecution({ tenant_id, ticket_id, channel: externalChannel, audience: normalizedAudience, approval_hold_id, credential_ref, subject, body, payload_json }, { connection });
     const providerAdapter = await resolveProviderAdapter(connection, { channel: externalChannel, provider_key, send_mode });
+    const providerPolicyPreflight = await evaluateSupportTicketExternalProviderGatePreflight({ channel: externalChannel, send_mode, provider_adapter: providerAdapter }, { connection });
+    assertPreflightAllowed(providerPolicyPreflight);
     const provider_plan = buildProviderPlan({ execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json });
-    return { ok: true, mode: "dry_run", provider_plan, execution_plan: executionPlan, ticket, external_send_performed: false, secret_value_included: false, secrets_included: false };
+    return { ok: true, mode: "dry_run", provider_plan: { ...provider_plan, policy_preflight: providerPolicyPreflight }, execution_plan: executionPlan, ticket, external_send_performed: false, secret_value_included: false, secrets_included: false };
   } finally { if (ownsConnection) connection.release(); }
 }
 
