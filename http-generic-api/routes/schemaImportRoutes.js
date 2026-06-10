@@ -33,9 +33,9 @@ export function buildSchemaImportRoutes(deps) {
   });
 
   // POST /admin/schema-import/repo
-  // Body: { repo_url: string, path_in_repo?: string, ref?: string, action_key?: string }
+  // Body: { repo_url: string, path_in_repo?: string, ref?: string, action_key?: string, preserve_parent_schema_reference?: boolean }
   router.post("/admin/schema-import/repo", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
-    const { repo_url, path_in_repo, ref, action_key, imported_by } = req.body || {};
+    const { repo_url, path_in_repo, ref, action_key, imported_by, preserve_parent_schema_reference } = req.body || {};
     if (!repo_url || typeof repo_url !== "string") {
       return res.status(400).json({
         ok: false,
