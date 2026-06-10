@@ -1577,25 +1577,12 @@ export async function runGovernedResource(args = {}, deps = {}) {
   }
 
   if (recipe.adapter_kind === "endpoint_recipe" && recipe.recipe_key === REPOSITORY_PR_RECONCILE_RECIPE_KEY) {
-    if (typeof deps.executeGithubReadOnly !== "function") {
-      return {
-        ok: false,
-        tool: "governed_resource_run",
-        classification: "blocked_executor_missing",
-        mode,
-        apply_requested: false,
-        apply_allowed: false,
-        dispatch_allowed: false,
-        reason_code: "resource_recipe_github_read_only_executor_missing",
-        plan,
-        provider_calls_made: 0,
-        execution_allowed: false,
-        secrets_included: false,
-      };
-    }
+    const githubReadOnlyExecutor = typeof deps.executeGithubReadOnly === "function"
+      ? deps.executeGithubReadOnly
+      : executeRepositoryPrReconciliationReadOnly;
 
     const githubArgs = buildRepositoryPrReconciliationArgs(plan, args);
-    const githubReadOnlyResult = await deps.executeGithubReadOnly("repo_pr_reconciliation_sweep", githubArgs);
+    const githubReadOnlyResult = await githubReadOnlyExecutor("repo_pr_reconciliation_sweep", githubArgs);
     const reconciliation = buildRepositoryPrReconciliation(githubReadOnlyResult, plan, args);
     return {
       ok: reconciliation.ok,
