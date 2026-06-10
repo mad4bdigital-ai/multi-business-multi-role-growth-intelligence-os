@@ -220,6 +220,7 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
   assert.equal(access.counts.permission_grants, 1);
   assert.equal(access.counts.runtime_actions, 1);
   assert.equal(access.counts.admin_tools, 0);
+  assert.equal(access.counts.registered_surfaces, 1);
   assert.deepEqual(access.authorized.permission_keys, ["posts.write"]);
   assert.deepEqual(access.authorized.connector_families, ["wordpress_rest"]);
   assert.equal(access.activation_policy.use_authorized_access_for_context_selection, true);
