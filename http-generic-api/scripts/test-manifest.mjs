@@ -291,6 +291,7 @@ export const testCommands = [
   "node test-session-insight-promotion-review-service.mjs",
   "node test-session-insight-promotion-dry-run-executor-service.mjs",
   "node test-session-insight-promotion-apply-request-service.mjs",
+  "node test-session-insight-target-adapter-registry-service.mjs",
   "node test-session-archive-smoke.mjs",
   "node test-session-summary-autosweep.mjs",
   "node test-gpt-tools-route-syntax-regression.mjs",
