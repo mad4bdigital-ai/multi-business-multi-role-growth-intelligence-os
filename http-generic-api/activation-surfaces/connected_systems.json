@@ -1,0 +1,29 @@
+{
+  "surface_key": "connected_systems",
+  "display_name": "Authorized Connected Systems",
+  "description": "Tenant-scoped connected systems visible during activation.",
+  "source_table": "connected_systems",
+  "result_key_column": "system_key",
+  "result_label_column": "display_name",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "status",
+  "active_status_values": ["active", "pending", "error"],
+  "result_columns": [
+    "system_id",
+    "tenant_id",
+    "system_key",
+    "display_name",
+    "provider_family",
+    "connector_family",
+    "auth_type",
+    "service_mode",
+    "status"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 25,
+  "sort_order": 20,
+  "status": "active",
+  "notes": "Repo-managed activation surface. Excludes config_json and secret refs."
+}
