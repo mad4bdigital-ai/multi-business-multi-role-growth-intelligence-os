@@ -34,6 +34,7 @@ import {
   resolveGovernedResource,
   runGovernedResource,
 } from "../platformResourceRecipeCapability.js";
+import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
   {
