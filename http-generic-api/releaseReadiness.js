@@ -93,6 +93,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "262_sprint68_orchestration_readback_surface.sql",
   "263_sprint68_ads_governance_snapshot_proposal.sql",
   "264_sprint68_ads_governance_snapshot_record_gate.sql",
+  "900_sprint68_governed_repository_intelligence_engine.sql",
   "233_sprint68_general_mode_choice_governance.sql",
 ];
 
