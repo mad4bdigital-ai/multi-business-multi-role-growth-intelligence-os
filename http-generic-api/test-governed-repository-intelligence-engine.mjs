@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolveResourceRefInput } from "./platformResourceRecipeCapability.js";
 
 const migration = readFileSync("migrations/900_sprint68_governed_repository_intelligence_engine.sql", "utf8");
+const authorityMigration = readFileSync("migrations/950_sprint68_platform_resource_authority_bindings.sql", "utf8");
 const runtimeModule = readFileSync("platformResourceRecipeCapability.js", "utf8");
 const releaseReadiness = readFileSync("releaseReadiness.js", "utf8");
 const migrationRunner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
@@ -36,6 +37,12 @@ includesAll(migration, [
   "migration_apply",
   "secrets_included',false",
 ], "repository intelligence governance policy");
+
+includesAll(authorityMigration, [
+  "CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_scope",
+  "CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_resource",
+  "CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_recipe",
+], "platform resource authority migration indexes must be idempotent");
 
 for (const forbidden of [
   "CREATE TABLE IF NOT EXISTS `repository_operation_runs`",

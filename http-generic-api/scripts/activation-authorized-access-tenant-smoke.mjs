@@ -96,6 +96,35 @@ async function main() {
   const text = JSON.stringify(access);
   const blockedFieldLeakDetected = /\"(credential_ref|value_ciphertext|secret_value|token_value|password|private_key|config_json)\"\s*:/i.test(text);
   const crossTenantSurfaceLeaks = registeredSurfaces.filter((surface) => surface.cross_tenant_row_count > 0);
+  const positiveRequiredSurfaceKeys = [
+    "workspace_registry",
+    "connected_systems",
+    "installations",
+    "permission_grants",
+    "agent_skill_grants",
+    "connected_app_connections",
+    "workflow_runtime_bindings",
+    "plugin_contributions",
+    "pending_tasks",
+    "tenant_tools",
+    "app_action_grants",
+    "tenant_integration_policies",
+    "agent_catalog",
+    "agent_skill_catalog",
+    "agent_tool_catalog",
+    "agent_bindings_catalog",
+    "workflow_catalog",
+    "task_route_catalog",
+    "app_integration_catalog",
+    "app_binding_catalog",
+    "platform_plugin_catalog",
+    "skill_manifest_catalog",
+    "skill_package_catalog",
+    "logic_pack_catalog",
+    "local_gateway_tool_catalog",
+  ];
+  const surfaceByKey = new Map(registeredSurfaces.map((surface) => [surface.surface_key, surface]));
+  const missingPositiveSurfaces = positiveRequiredSurfaceKeys.filter((key) => Number(surfaceByKey.get(key)?.row_count || 0) <= 0);
   const ok = access.readiness === "active"
     && access.scope_resolution === "tenant_user_authorized_only"
     && Number(access.counts?.admin_tools || 0) === 0
@@ -104,6 +133,7 @@ async function main() {
     && (access.authorized?.admin_tools || []).length === 0
     && (access.authorized?.runtime_actions || []).some((action) => action.action_key === "wordpress_api")
     && registeredSurfaces.length > 0
+    && missingPositiveSurfaces.length === 0
     && crossTenantSurfaceLeaks.length === 0
     && blockedFieldLeakDetected === false
     && access.secrets_included === false;
@@ -117,6 +147,8 @@ async function main() {
     scope_resolution: access.scope_resolution,
     counts: access.counts,
     registered_surfaces: registeredSurfaces,
+    positive_required_surface_keys: positiveRequiredSurfaceKeys,
+    missing_positive_surfaces: missingPositiveSurfaces,
     auth_gaps: access.auth_gaps || [],
     degraded_surface_count: access.degraded_surfaces?.length || 0,
     admin_tools_visible: (access.authorized?.admin_tools || []).length,
