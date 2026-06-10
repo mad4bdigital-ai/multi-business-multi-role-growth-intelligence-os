@@ -37,7 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_recipe
   ON platform_resource_authority_bindings (recipe_key, permission_level, status);
 
 INSERT INTO execution_policies
-  (policy_key, policy_group, policy_value_json, active, blocking, notes)
+  (policy_key, policy_group, policy_value, active, execution_scope, affects_layer, blocking, notes)
 VALUES
   ('platform_resource_authority_binding_policy_v1',
    'Repository Intelligence Governance',
@@ -52,12 +52,16 @@ VALUES
        'secrets_allowed', false
      )
    ),
-   TRUE,
-   TRUE,
+   'TRUE',
+   'platform_resource_authority_bindings|governed_resource_run|repo.pr.reconciliation_sweep',
+   'platformResourceRecipeCapability|platform_resource_authority_bindings|releaseReadiness',
+   'TRUE',
    'Generic platform resource authority binding policy. V1 gates tenant/workspace/user scoped resource execution and does not enable mutations.')
 ON DUPLICATE KEY UPDATE
-  policy_value_json = VALUES(policy_value_json),
+  policy_value = VALUES(policy_value),
   active = VALUES(active),
+  execution_scope = VALUES(execution_scope),
+  affects_layer = VALUES(affects_layer),
   blocking = VALUES(blocking),
   notes = VALUES(notes),
   updated_at = CURRENT_TIMESTAMP;
