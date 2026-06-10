@@ -1739,6 +1739,24 @@ export async function runGovernedResource(args = {}, deps = {}) {
   const recipe = plan.recipe || {};
   const manifestApplyRequested = applyRequested && recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY;
   const blockedReasons = plan.policy_decision?.blocked_reasons || [];
+  const authorityBinding = await resolvePlatformResourceAuthorityBinding(plan, args, mode);
+  if (mode !== "plan" && authorityBinding.required && !authorityBinding.granted) {
+    return {
+      ok: false,
+      tool: "governed_resource_run",
+      classification: "blocked_platform_resource_authority_binding",
+      mode,
+      apply_requested: applyRequested,
+      apply_allowed: false,
+      dispatch_allowed: false,
+      reason_code: authorityBinding.decision,
+      authority_binding: authorityBinding,
+      plan,
+      provider_calls_made: 0,
+      execution_allowed: false,
+      secrets_included: false,
+    };
+  }
 
   if (mode === "plan") {
     return {
