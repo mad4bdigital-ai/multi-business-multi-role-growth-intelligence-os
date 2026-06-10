@@ -1,0 +1,19 @@
+{
+  "surface_key": "local_gateway_tool_catalog",
+  "display_name": "Authorized Local Gateway Tool Catalog",
+  "description": "Tenant-scoped catalog of active local gateway tools visible during activation.",
+  "source_table": "v_activation_local_gateway_tool_catalog",
+  "result_key_column": "tool_key",
+  "result_label_column": "display_name",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "tool_status",
+  "active_status_values": ["active"],
+  "result_columns": ["tenant_id", "tool_key", "dispatch_tool_key", "display_name", "dispatch_surface", "capability_class", "risk_class", "default_service_mode", "requires_device_id", "requires_tenant_context", "requires_admin", "requires_approval", "is_consequential", "consent_required", "approval_hold_type", "approval_required_role", "approval_ttl_minutes", "tags", "tool_status", "sort_order", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 80,
+  "sort_order": 250,
+  "status": "active",
+  "notes": "Repo-managed activation catalog view. Request schema and fixed argument payload fields are excluded."
+}

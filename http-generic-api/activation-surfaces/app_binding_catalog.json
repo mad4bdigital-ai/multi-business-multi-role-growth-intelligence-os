@@ -1,0 +1,19 @@
+{
+  "surface_key": "app_binding_catalog",
+  "display_name": "Authorized App Binding Catalog",
+  "description": "Tenant-scoped catalog of active app action/tool bindings visible during activation.",
+  "source_table": "v_activation_app_binding_catalog",
+  "result_key_column": "binding_id",
+  "result_label_column": "target_key",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "binding_status",
+  "active_status_values": ["active"],
+  "result_columns": ["tenant_id", "binding_id", "app_key", "app_display_name", "binding_surface", "target_key", "binding_role", "exposure_scope", "binding_status", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 80,
+  "sort_order": 200,
+  "status": "active",
+  "notes": "Repo-managed activation catalog view. Authentication source metadata is excluded."
+}
