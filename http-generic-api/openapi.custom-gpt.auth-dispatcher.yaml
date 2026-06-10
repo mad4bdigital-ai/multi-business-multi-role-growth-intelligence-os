@@ -667,7 +667,7 @@ paths:
               properties:
                 name:
                   type: string
-                  pattern: ^[a-z][a-z0-9_:-]{1,128}$
+                  pattern: "^[a-z][a-z0-9_:-]{1,128}$"
                   description: Runtime tool key returned by listTools. The server validates registration, scope, policy, capability envelope, and input schema at execution time.
                 arguments:
                   type: object
