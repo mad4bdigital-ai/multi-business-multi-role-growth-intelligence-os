@@ -5,9 +5,11 @@ import {
   PLATFORM_RESOURCE_RECIPE_TOOL_NAMES,
   resolveResourceRefInput,
 } from "./platformResourceRecipeCapability.js";
+import { validateRequestBody } from "./schemaValidation.js";
 
 const migrationPath = "migrations/246_sprint68_platform_resource_recipe_capability.sql";
 const migration = readFileSync(migrationPath, "utf8");
+const driveMultipartMigration = readFileSync("migrations/903_sprint68_google_drive_multipart_upload_schema_contract.sql", "utf8");
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
 const runtimeModule = readFileSync("platformResourceRecipeCapability.js", "utf8");
