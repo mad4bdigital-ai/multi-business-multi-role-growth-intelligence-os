@@ -9,6 +9,7 @@ function parseJsonObject(value, fallback = {}) {
 
 const SENSITIVE_KEY_PATTERN = /(password|access_token|refresh_token|client_secret|private_key|raw_secret|secret_value|api_key|bearer_token|smtp_password)/i;
 const SAFE_SECRET_MARKER_KEYS = new Set(["secrets_included", "secret_value_included"]);
+const ALLOWED_CHECKLIST_DECISIONS = new Set(["approve_for_future_pr", "reject", "needs_changes"]);
 
 function assertNoRawSecretPayload(value, path = "payload") {
   if (value == null || typeof value !== "object") return;
