@@ -82,6 +82,7 @@ import { buildSessionInsightPromotionReviewRoutes } from "./sessionInsightPromot
 import { buildSessionInsightPromotionDryRunExecutorRoutes } from "./sessionInsightPromotionDryRunExecutorRoutes.js";
 import { buildSessionInsightPromotionApplyRequestRoutes } from "./sessionInsightPromotionApplyRequestRoutes.js";
 import { buildSessionInsightPromotionTargetAdapterRegistryRoutes } from "./sessionInsightPromotionTargetAdapterRegistryRoutes.js";
+import { buildSessionInsightPromotionAdapterContractRoutes } from "./sessionInsightPromotionAdapterContractRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
