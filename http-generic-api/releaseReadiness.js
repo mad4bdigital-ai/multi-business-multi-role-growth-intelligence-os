@@ -93,6 +93,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "262_sprint68_orchestration_readback_surface.sql",
   "263_sprint68_ads_governance_snapshot_proposal.sql",
   "264_sprint68_ads_governance_snapshot_record_gate.sql",
+  "900_sprint68_governed_repository_intelligence_engine.sql",
   "233_sprint68_general_mode_choice_governance.sql",
 ];
 
@@ -122,6 +123,7 @@ const DEPRECATED_DB_BOOTSTRAP_REPLACED_ADMIN_TOOLS = new Set([
 
 const REQUIRED_RUNTIME_POLICY_SEEDS = [
   { check_key: "repo_mutation_guard", policy_group: "Repository Mutation Governance", policy_key: "Stale Duplicate Branch Merge Guard", required_blocking: true, required_scope_tokens: ["repo_patch_apply", "gpt_tools_call"], required_affects_layer_tokens: ["gptToolsRoutes", "repo_patch_apply"] },
+  { check_key: "governed_repository_intelligence_engine", policy_group: "Repository Intelligence Governance", policy_key: "governed_repository_intelligence_engine_policy_v1", required_blocking: true, required_scope_tokens: ["governed_repository_intelligence", "repo.pr.reconciliation_sweep", "platform_resource_recipes"], required_affects_layer_tokens: ["platformResourceRecipeCapability", "releaseReadiness", "capability_resolution_envelope_ledger"] },
   { check_key: "app_action_visibility", policy_group: "External App Action Governance", policy_key: "External App Action Preflight Visibility", required_blocking: false, required_scope_tokens: ["app_action", "external_app_action"], required_affects_layer_tokens: ["appAdapters", "appAdapters/index.js"] },
   { check_key: "n8n_workflow_execution_guard", policy_group: "External App Action Governance", policy_key: "n8n Workflow Execution Guard", required_blocking: true, required_scope_tokens: ["n8n", "execute_workflow"], required_affects_layer_tokens: ["appAdapters", "n8n"] },
   { check_key: "connector_dispatch_visibility", policy_group: "Connector Dispatch Governance", policy_key: "Connector Dispatch Preflight Visibility", required_blocking: false, required_scope_tokens: ["connector_dispatch", "workflow_dispatch"], required_affects_layer_tokens: ["connectorExecutor", "connectorExecutor.js"] },

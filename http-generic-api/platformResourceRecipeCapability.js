@@ -160,6 +160,58 @@ function parseGithubBranchRef(input = "") {
   return null;
 }
 
+function parseGithubPullRequestRef(input = "") {
+  const value = asString(input);
+  if (!value) return null;
+  const githubUrl = value.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)\/?$/i);
+  if (githubUrl) {
+    const repo = githubUrl[2].replace(/\.git$/i, "");
+    const prNumber = Number(githubUrl[3]);
+    return {
+      resource_type: "github_pull_request",
+      resource_uri: `github://${githubUrl[1]}/${repo}/pr/${prNumber}`,
+      resource_ref: { owner: githubUrl[1], repo, pr_number: prNumber },
+      confidence: "high",
+    };
+  }
+  const githubScheme = value.match(/^github:\/\/([^/]+)\/([^/]+)\/pr\/(\d+)$/i);
+  if (githubScheme) {
+    const prNumber = Number(githubScheme[3]);
+    return {
+      resource_type: "github_pull_request",
+      resource_uri: `github://${githubScheme[1]}/${githubScheme[2]}/pr/${prNumber}`,
+      resource_ref: { owner: githubScheme[1], repo: githubScheme[2], pr_number: prNumber },
+      confidence: "high",
+    };
+  }
+  return null;
+}
+
+function parseGithubRepoRef(input = "") {
+  const value = asString(input);
+  if (!value) return null;
+  const githubUrl = value.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/i);
+  if (githubUrl) {
+    const repo = githubUrl[2].replace(/\.git$/i, "");
+    return {
+      resource_type: "github_repo",
+      resource_uri: `github://${githubUrl[1]}/${repo}`,
+      resource_ref: { owner: githubUrl[1], repo },
+      confidence: "high",
+    };
+  }
+  const githubScheme = value.match(/^github:\/\/([^/]+)\/([^/]+)$/i);
+  if (githubScheme) {
+    return {
+      resource_type: "github_repo",
+      resource_uri: `github://${githubScheme[1]}/${githubScheme[2]}`,
+      resource_ref: { owner: githubScheme[1], repo: githubScheme[2] },
+      confidence: "high",
+    };
+  }
+  return null;
+}
+
 function normalizeObjectResourceRef(resourceRef = {}, resourceType = "") {
   const ref = resourceRef && typeof resourceRef === "object" ? { ...resourceRef } : {};
   const type = asString(resourceType || ref.resource_type);
@@ -176,11 +228,30 @@ function normalizeObjectResourceRef(resourceRef = {}, resourceType = "") {
     }
   }
 
+  if ((type === "github_pull_request" || ref.pr_number || ref.prNumber) && ref.owner && ref.repo && (ref.pr_number || ref.prNumber)) {
+    const prNumber = Number(ref.pr_number || ref.prNumber);
+    return {
+      resource_type: "github_pull_request",
+      resource_uri: `github://${ref.owner}/${ref.repo}/pr/${prNumber}`,
+      resource_ref: { owner: ref.owner, repo: ref.repo, pr_number: prNumber },
+      confidence: "high",
+    };
+  }
+
   if ((type === "github_branch" || ref.owner || ref.repo || ref.branch) && ref.owner && ref.repo && ref.branch) {
     return {
       resource_type: "github_branch",
       resource_uri: `github://${ref.owner}/${ref.repo}/branch/${ref.branch}`,
       resource_ref: { owner: ref.owner, repo: ref.repo, branch: ref.branch },
+      confidence: "high",
+    };
+  }
+
+  if ((type === "github_repo" || ref.owner || ref.repo) && ref.owner && ref.repo) {
+    return {
+      resource_type: "github_repo",
+      resource_uri: `github://${ref.owner}/${ref.repo}`,
+      resource_ref: { owner: ref.owner, repo: ref.repo },
       confidence: "high",
     };
   }
@@ -236,7 +307,12 @@ function normalizeObjectResourceRef(resourceRef = {}, resourceType = "") {
 
 export function resolveResourceRefInput(args = {}) {
   const input = asString(args.input || args.resource_uri || args.url);
-  const parsedInput = parseGoogleDriveFolderRef(input) || parseGithubBranchRef(input) || null;
+  const parsedInput =
+    parseGoogleDriveFolderRef(input) ||
+    parseGithubPullRequestRef(input) ||
+    parseGithubBranchRef(input) ||
+    parseGithubRepoRef(input) ||
+    null;
   const hasExplicitRef =
     args.resource_ref &&
     typeof args.resource_ref === "object" &&
