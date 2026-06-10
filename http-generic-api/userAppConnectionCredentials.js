@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { getPool } from "./db.js";
+import { decryptCredentials as decryptTokenEncryptedCredentials } from "./tokenEncryption.js";
 
 export function parseOauthConfigRef(raw = "") {
   const out = { mode: "", value: "", params: {} };
@@ -59,6 +60,20 @@ function decryptAesGcm(payload) {
 export function decryptUserAppCredentials(value) {
   const parsed = parseJsonMaybe(value);
   if (!parsed) return null;
+
+  // user_app_connections.encrypted_credentials may be written by either the
+  // newer tokenEncryption.js helper ({ iv, tag, data } hex envelope) or the
+  // older USER_CREDENTIALS_ENCRYPTION_KEY helper ({ algorithm, iv, tag,
+  // ciphertext } base64 envelope). Prefer the tokenEncryption path when the
+  // canonical {iv,tag,data} shape is present so runtime_endpoint_call can
+  // resolve the same connection credentials as the WordPress orchestrator.
+  if (parsed.iv && parsed.tag && parsed.data) {
+    try {
+      const decrypted = decryptTokenEncryptedCredentials(value);
+      if (decrypted && typeof decrypted === "object") return decrypted;
+    } catch {}
+  }
+
   if (parsed.ciphertext || parsed.encrypted || String(parsed.algorithm || parsed.alg || "").includes("gcm")) {
     return decryptAesGcm(parsed) || null;
   }
