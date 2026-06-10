@@ -133,6 +133,7 @@ async function main() {
     && (access.authorized?.admin_tools || []).length === 0
     && (access.authorized?.runtime_actions || []).some((action) => action.action_key === "wordpress_api")
     && registeredSurfaces.length > 0
+    && missingPositiveSurfaces.length === 0
     && crossTenantSurfaceLeaks.length === 0
     && blockedFieldLeakDetected === false
     && access.secrets_included === false;
