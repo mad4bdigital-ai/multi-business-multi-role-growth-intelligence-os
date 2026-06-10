@@ -28,5 +28,5 @@
   "max_rows": 50,
   "sort_order": 70,
   "status": "active",
-  "notes": "Repo-managed activation view. Excludes webhook URLs and credential env vars."
+  "notes": "Repo-managed activation view. Excludes runtime endpoint and authentication payload fields."
 }
