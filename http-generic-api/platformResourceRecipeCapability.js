@@ -62,7 +62,7 @@ export const PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS = [
   },
   {
     name: "governed_resource_run",
-    description: "Admin-only guarded runtime for governed resource recipes. V1 allows approved read-only installed-tool recipes only and blocks writes, deletes, moves, file content, raw endpoint execution, and secrets.",
+    description: "Admin-only guarded runtime for governed resource recipes. V1 allows approved read-only installed-tool recipes and one manifest-create gate that requires dry-run recomputation, capability envelope, typed confirmation, same-cycle readback, and no secrets.",
     requires_admin: true,
     inputSchema: {
       type: "object",
