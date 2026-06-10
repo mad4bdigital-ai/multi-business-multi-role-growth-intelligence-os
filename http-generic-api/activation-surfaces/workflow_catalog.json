@@ -1,0 +1,19 @@
+{
+  "surface_key": "workflow_catalog",
+  "display_name": "Authorized Workflow Catalog",
+  "description": "Tenant-scoped catalog of active workflows visible during activation.",
+  "source_table": "v_activation_workflow_catalog",
+  "result_key_column": "workflow_key",
+  "result_label_column": "workflow_name",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "workflow_status",
+  "active_status_values": ["active", "enabled"],
+  "result_columns": ["tenant_id", "workflow_id", "workflow_key", "workflow_name", "workflow_type", "route_key", "execution_mode", "execution_class", "target_module", "priority", "user_facing", "workflow_active", "workflow_status", "lifecycle_mode", "memory_required", "logging_required", "review_required", "client_allowed", "team_allowed", "admin_only", "brand_scope_enforced", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 80,
+  "sort_order": 170,
+  "status": "active",
+  "notes": "Repo-managed activation catalog view. Workflow templates and long-form payload fields are excluded."
+}
