@@ -202,7 +202,7 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
     if (sql.includes("FROM `workspace_registry`")) return { ok: true, rows: [{ workspace_id: "workspace-1", tenant_id: "tenant-a", workspace_key: "brand_a", display_name: "Brand A", workspace_type: "brand", bootstrap_status: "ready", linked_brand_key: "brand_a", linked_system_ids: "system-1,system-2" }] };
     if (sql.includes("FROM `connected_systems`")) return { ok: true, rows: [{ system_id: "system-1", tenant_id: "tenant-a", system_key: "wp", display_name: "WordPress", provider_family: "wordpress", connector_family: "wordpress_rest", auth_type: "oauth", service_mode: "managed", status: "active" }] };
     if (sql.includes("FROM `installations`")) return { ok: true, rows: [{ installation_id: "install-1", system_id: "system-1", tenant_id: "tenant-a", scope: "posts.read,posts.write", status: "active", expires_at: null }] };
-    if (sql.includes("FROM `permission_grants`")) return { ok: true, rows: [{ permission_key: "posts.write", tenant_id: "tenant-a", installation_id: "install-1", granted: 1 }] };
+    if (sql.includes("FROM `permission_grants`")) return { ok: true, rows: [{ permission_key: "wp_publish", tenant_id: "tenant-a", installation_id: "install-1", granted: 1 }] };
     if (sql.includes("FROM `actions`")) return { ok: true, rows: [{ action_key: "wp_publish", action_title: "Publish", action_class: "content", connector_family: "wordpress_rest", runtime_capability_class: "cms_write", runtime_callable: "true", admin_only: "false", allowed_actor_roles: "owner,growth_operator", allowed_governance_levels: "tenant" }] };
     return { ok: false, rows: [], error: { code: "unexpected_query", message: sql } };
   };
