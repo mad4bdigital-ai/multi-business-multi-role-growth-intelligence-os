@@ -8,7 +8,7 @@ const exclusionsReadme = readFileSync(new URL("./activation-surfaces/exclusions/
 assert.match(script, /activation-surfaces/);
 assert.match(script, /exclusions/);
 assert.match(script, /changedMigrationFiles/);
-assert.match(script, /CREATE\s\+TABLE/);
+assert.match(script, /function extractCreateTables/);
 assert.match(script, /missing_manifest_or_exclusion/);
 assert.match(script, /Tenant-visible activation surface/);
 assert.match(script, /SENSITIVE_PATTERN/);
