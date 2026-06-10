@@ -583,7 +583,10 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
   const permissionKeys = [...new Set(rowsOrEmpty(grants).map((row) => row.permission_key).filter(Boolean))].sort();
   const roleKeys = [...new Set([...rowsOrEmpty(memberships), ...rowsOrEmpty(roles)].map((row) => row.role).filter(Boolean))].sort();
   const connectorFamilies = [...new Set(rowsOrEmpty(systems).map((row) => row.connector_family || row.provider_family).filter(Boolean))].sort();
-  const actionRows = rowsOrEmpty(runtimeActions).map((row) => ({
+  const filteredRuntimeActions = rowsOrEmpty(runtimeActions)
+    .filter((row) => isRuntimeActionAuthorizedForSubject(row, { isAdmin, permissionKeys, connectorFamilies }))
+    .slice(0, limit);
+  const actionRows = filteredRuntimeActions.map((row) => ({
     action_key: row.action_key,
     action_title: row.action_title || null,
     action_class: row.action_class || null,
