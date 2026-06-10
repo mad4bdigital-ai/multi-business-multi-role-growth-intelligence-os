@@ -98,6 +98,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "273_sprint68_support_ticket_lifecycle_snapshot_record_gate.sql",
   "904_sprint68_support_ticket_lifecycle_snapshot_apply_binding.sql",
   "900_sprint68_governed_repository_intelligence_engine.sql",
+  "950_sprint68_platform_resource_authority_bindings.sql",
   "233_sprint68_general_mode_choice_governance.sql",
 ];
 
