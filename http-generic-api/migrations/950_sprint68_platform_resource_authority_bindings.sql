@@ -27,13 +27,13 @@ CREATE TABLE IF NOT EXISTS platform_resource_authority_bindings (
   CONSTRAINT chk_platform_resource_authority_bindings_resource_ref_json CHECK (resource_ref_json IS NULL OR JSON_VALID(resource_ref_json))
 );
 
-CREATE INDEX idx_platform_resource_authority_bindings_scope
+CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_scope
   ON platform_resource_authority_bindings (tenant_id, workspace_id, user_id, status);
 
-CREATE INDEX idx_platform_resource_authority_bindings_resource
+CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_resource
   ON platform_resource_authority_bindings (resource_type, resource_uri(191), status);
 
-CREATE INDEX idx_platform_resource_authority_bindings_recipe
+CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_recipe
   ON platform_resource_authority_bindings (recipe_key, permission_level, status);
 
 INSERT INTO execution_policies
