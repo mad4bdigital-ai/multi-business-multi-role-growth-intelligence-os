@@ -1,0 +1,33 @@
+{
+  "surface_key": "connected_app_connections",
+  "display_name": "Authorized Connected App Connections",
+  "description": "Tenant/user-scoped connected app metadata visible during activation without credentials.",
+  "source_table": "v_activation_connected_app_connections",
+  "result_key_column": "connection_id",
+  "result_label_column": "app_key",
+  "tenant_column": "tenant_id",
+  "user_column": "user_id",
+  "status_column": "connection_status",
+  "active_status_values": ["active"],
+  "result_columns": [
+    "connection_id",
+    "tenant_id",
+    "user_id",
+    "app_key",
+    "app_display_name",
+    "display_label",
+    "auth_type",
+    "is_primary",
+    "connection_status",
+    "validation_status",
+    "auth_material_present",
+    "connected_at",
+    "last_used_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 50,
+  "sort_order": 60,
+  "status": "active",
+  "notes": "Repo-managed activation view. Excludes stored authentication payload fields."
+}
