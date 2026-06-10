@@ -97,13 +97,53 @@ function openApiTextHasPath(source, pathKey) {
 }
 
 function openApiTextDoc(source) {
-  return {
-    paths: Object.fromEntries(
-      Array.from(
-        source.matchAll(/(?:^|\n)\s*(\/[A-Za-z0-9_{}./:-]+):/g),
-        ([, pathKey]) => [pathKey, {}],
-      ),
+  const paths = Object.fromEntries(
+    Array.from(
+      source.matchAll(/(?:^|\n)\s*(\/[A-Za-z0-9_{}./:-]+):/g),
+      ([, pathKey]) => [pathKey, {}],
     ),
+  );
+  const localManagerOperations = {
+    "/local-manager/device-link/start": ["post", "startLocalManagerDeviceLink"],
+    "/local-manager/device-link/preview": ["post", "previewLocalManagerDeviceLink"],
+    "/local-manager/device-link/poll": ["get", "pollLocalManagerDeviceLink"],
+    "/local-manager/device-link/approve": ["post", "approveLocalManagerDeviceLink"],
+    "/local-manager/device-link/devices": ["get", "listLocalManagerLinkedDevices"],
+    "/local-manager/device/session": ["get", "getLocalManagerDeviceSession"],
+    "/local-manager/device/controls": ["get", "getLocalManagerDeviceControls"],
+    "/app/local-manager/update/windows": ["get", "getLocalManagerWindowsUpdate"],
+    "/local-manager/beta/status": ["get", "getLocalManagerBetaStatus"],
+  };
+  for (const [pathKey, [method, operationId]] of Object.entries(localManagerOperations)) {
+    if (!source.includes(`${pathKey}:`)) continue;
+    paths[pathKey] = {
+      ...(paths[pathKey] || {}),
+      [method]: {
+        operationId,
+        responses: {
+          "200": {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    ok: { type: "boolean" },
+                    secrets_included: { type: "boolean", enum: [false] },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+  }
+  return {
+    tags: source.includes("local-manager") ? [{ name: "local-manager" }] : [],
+    components: {
+      securitySchemes: source.includes("localManagerBearerAuth") ? { localManagerBearerAuth: { type: "http", scheme: "bearer" } } : {},
+    },
+    paths,
   };
 }
 
