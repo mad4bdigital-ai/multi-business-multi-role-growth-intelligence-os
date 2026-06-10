@@ -33,6 +33,8 @@ assert(routes.includes("recordAdsProviderGovernanceSnapshot"), "route must impor
 assert(routes.includes('router.post("/platform/orchestration/ads-provider/snapshot-record"'), "route must mount record endpoint");
 assert(service.includes("candidate_sha256_mismatch"), "service must reject mismatched proposal hashes");
 assert(service.includes("requireReadyCapabilityEnvelope"), "service must require ready capability envelope");
+assert(service.includes("capability_envelope_apply_not_allowed"), "service must reject apply=true when envelope apply_allowed is false");
+assert(service.includes("Number(envelope.apply_allowed) !== 1"), "service must explicitly require apply_allowed before DB writes");
 assert(service.includes("mode: \"record_dry_run\""), "service must support dry-run default");
 assert(service.includes("will_record_snapshot: false"), "dry-run must not record snapshot");
 assert(service.includes("will_record_recommendation: false"), "dry-run must not record recommendation");

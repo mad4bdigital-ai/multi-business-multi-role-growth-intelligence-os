@@ -159,6 +159,21 @@ export async function recordAdsProviderGovernanceSnapshot(input = {}) {
     };
   }
 
+  if (Number(envelope.apply_allowed) !== 1) {
+    const err = new Error("capability envelope is ready for dispatch but not apply-allowed for snapshot recording.");
+    err.status = 403;
+    err.code = "capability_envelope_apply_not_allowed";
+    err.details = {
+      envelope_id: envelope.envelope_id,
+      envelope_status: envelope.envelope_status,
+      decision: envelope.decision,
+      dispatch_allowed: Boolean(envelope.dispatch_allowed),
+      apply_allowed: Boolean(envelope.apply_allowed),
+      secrets_included: false,
+    };
+    throw err;
+  }
+
   const snapshotId = randomUUID();
   const recommendationId = randomUUID();
   const pool = getPool();
