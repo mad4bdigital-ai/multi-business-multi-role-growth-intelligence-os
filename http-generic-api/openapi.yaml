@@ -3194,9 +3194,9 @@ paths:
                   row_count: { type: integer }
                   branch: { type: string, nullable: true }
                   commit_sha: { type: string, nullable: true }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Unauthorized" }
-        default:
+      "401": { $ref: "#/components/responses/Unauthorized" }
+      "403": { $ref: "#/components/responses/Unauthorized" }
+      default:
           description: Error response
           content:
             application/json:
