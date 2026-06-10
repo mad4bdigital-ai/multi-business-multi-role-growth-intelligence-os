@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { getPool } from "./db.js";
+import { markCapabilityEnvelopeReferenced, resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
 
 export const PLATFORM_RESOURCE_RECIPE_TOOL_NAMES = [
   "governed_resource_resolve",
@@ -61,7 +62,7 @@ export const PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS = [
   },
   {
     name: "governed_resource_run",
-    description: "Admin-only guarded runtime for governed resource recipes. V1 allows approved read-only installed-tool recipes only and blocks writes, deletes, moves, file content, raw endpoint execution, and secrets.",
+    description: "Admin-only guarded runtime for governed resource recipes. V1 allows approved read-only installed-tool recipes and one manifest-create gate that requires dry-run recomputation, capability envelope, typed confirmation, same-cycle readback, and no secrets.",
     requires_admin: true,
     inputSchema: {
       type: "object",
@@ -908,6 +909,146 @@ function buildArtifactExportManifestDryRun(reconciliation = {}, plan = {}, args 
   };
 }
 
+const MANIFEST_CREATE_ACCEPTED_APP_KEYS = ["google", "google_drive", "google_drive_api"];
+const MANIFEST_CREATE_ACCEPTED_INTENTS = ["manifest.create_after_review", "resource_manifest_create", "drive_manifest_create"];
+
+function buildManifestCreateBlockedResult({ reasonCode, message, plan, manifestDryRun = null, envelope = null } = {}) {
+  return {
+    ok: false,
+    tool: "governed_resource_run",
+    classification: "blocked_manifest_create_gate_v1",
+    mode: "apply",
+    apply_requested: true,
+    apply_allowed: false,
+    dispatch_allowed: false,
+    reason_code: reasonCode,
+    message,
+    manifest_materialization_dry_run: manifestDryRun,
+    capability_envelope: envelope,
+    plan,
+    provider_calls_made: 0,
+    execution_allowed: false,
+    secrets_included: false,
+  };
+}
+
+function manifestParentFolderId(plan = {}, args = {}) {
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  return asString(
+    options.destination_folder_id ||
+    args.destination_folder_id ||
+    plan.resolved_resource?.resource_ref?.folder_id ||
+    ""
+  );
+}
+
+function buildManifestUploadPayload(manifestDryRun = {}, plan = {}, args = {}) {
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  const parentFolderId = manifestParentFolderId(plan, args);
+  const contentJson = stableJson(manifestDryRun.content_preview || {});
+  return {
+    parent_action_key: "google_drive_api",
+    endpoint_key: "uploadNewFile",
+    credential_scope: args.credential_scope || options.credential_scope || "platform",
+    connection_id: args.connection_id || options.connection_id || undefined,
+    tenant_id: args.tenant_id || options.tenant_id || undefined,
+    user_id: args.user_id || options.user_id || undefined,
+    allow_platform_fallback: boolOption(args.allow_platform_fallback ?? options.allow_platform_fallback, true),
+    timeout_seconds: 25,
+    body: {
+      metadata: {
+        name: manifestDryRun.filename,
+        mimeType: manifestDryRun.mime_type || "application/json",
+        parents: parentFolderId ? [parentFolderId] : [],
+      },
+      media: {
+        mimeType: manifestDryRun.mime_type || "application/json",
+        body: contentJson,
+      },
+    },
+    readback: { required: true, mode: "same_cycle_metadata_readback" },
+    secrets_included: false,
+  };
+}
+
+function fileIdFromEndpointResult(result = {}) {
+  return asString(
+    result?.id ||
+    result?.file_id ||
+    result?.body?.id ||
+    result?.body?.file_id ||
+    result?.result?.id ||
+    result?.result?.body?.id ||
+    result?.data?.id ||
+    ""
+  );
+}
+
+function buildManifestReadbackPayload(fileId = "", args = {}) {
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  return {
+    parent_action_key: "google_drive_api",
+    endpoint_key: "getFileMetadata",
+    path_params: { fileId },
+    query: {
+      fields: "id,name,mimeType,parents,size,createdTime,modifiedTime,webViewLink",
+      supportsAllDrives: true,
+    },
+    credential_scope: args.credential_scope || options.credential_scope || "platform",
+    connection_id: args.connection_id || options.connection_id || undefined,
+    tenant_id: args.tenant_id || options.tenant_id || undefined,
+    user_id: args.user_id || options.user_id || undefined,
+    allow_platform_fallback: boolOption(args.allow_platform_fallback ?? options.allow_platform_fallback, true),
+    timeout_seconds: 25,
+    readback: { required: false, mode: "none" },
+    secrets_included: false,
+  };
+}
+
+async function validateManifestCreateGate(manifestDryRun = {}, plan = {}, args = {}) {
+  const expectedTypedConfirmation = manifestDryRun.apply_contract?.typed_confirmation || `CREATE_MANIFEST:${manifestDryRun.filename}`;
+  if (asString(args.typed_confirmation) !== expectedTypedConfirmation) {
+    return {
+      ok: false,
+      reason_code: "manifest_create_typed_confirmation_required",
+      message: `Manifest create requires typed_confirmation exactly: ${expectedTypedConfirmation}`,
+      expected_typed_confirmation: expectedTypedConfirmation,
+      secrets_included: false,
+    };
+  }
+  if (!manifestParentFolderId(plan, args)) {
+    return {
+      ok: false,
+      reason_code: "manifest_create_destination_folder_required",
+      message: "Manifest create requires a resolved destination Drive folder.",
+      secrets_included: false,
+    };
+  }
+
+  const envelope = await resolveCapabilityExecutionEnvelope({
+    source: args,
+    fallbackSources: [args.options || {}],
+    acceptedAppKeys: MANIFEST_CREATE_ACCEPTED_APP_KEYS,
+    acceptedIntents: MANIFEST_CREATE_ACCEPTED_INTENTS,
+    requireReadyForDispatch: true,
+    requireDispatchAllowed: true,
+    requireNoApprovalRequired: true,
+    requireNoBlockingGaps: true,
+    requireNoSecrets: true,
+  });
+  if (!envelope.ok) return envelope;
+  if (envelope.apply_allowed !== true) {
+    return {
+      ok: false,
+      status: "capability_resolution_envelope_apply_not_allowed",
+      envelope_id: envelope.envelope_id,
+      message: "Manifest create requires a capability envelope with apply_allowed=true.",
+      secrets_included: false,
+    };
+  }
+  return { ok: true, envelope, secrets_included: false };
+}
+
 function buildArtifactExportReconciliation(installedToolResult = {}, plan = {}, args = {}) {
   const tree = installedToolResult?.tree || {};
   const options = args.options && typeof args.options === "object" ? args.options : {};
@@ -1064,6 +1205,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
   const mode = asString(args.mode || "plan") || "plan";
   const applyRequested = mode === "apply" || args.apply === true;
   const recipe = plan.recipe || {};
+  const manifestApplyRequested = applyRequested && recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY;
   const blockedReasons = plan.policy_decision?.blocked_reasons || [];
 
   if (mode === "plan") {
@@ -1082,7 +1224,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
     };
   }
 
-  if (applyRequested) {
+  if (applyRequested && !manifestApplyRequested) {
     return {
       ok: false,
       tool: "governed_resource_run",
@@ -1092,7 +1234,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
       apply_allowed: false,
       dispatch_allowed: false,
       reason_code: "resource_recipe_apply_blocked_v1",
-      message: "Resource recipe V1 does not apply writes, deletes, moves, content reads, or graph mutations.",
+      message: "Resource recipe V1 only supports guarded manifest create for the artifact/export reconciliation recipe; all other writes, deletes, moves, content reads, and graph mutations remain blocked.",
       plan,
       provider_calls_made: 0,
       execution_allowed: false,
@@ -1100,7 +1242,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
     };
   }
 
-  if (!["read_only", "diagnostic", "continue_read_only", "manifest_dry_run"].includes(mode)) {
+  if (!["read_only", "diagnostic", "continue_read_only", "manifest_dry_run", "apply"].includes(mode)) {
     return {
       ok: false,
       tool: "governed_resource_run",
@@ -1224,6 +1366,86 @@ export async function runGovernedResource(args = {}, deps = {}) {
       "review_manifest_materialization_dry_run",
       "request_capability_envelope_before_future_apply",
     ];
+  }
+
+  if (manifestApplyRequested) {
+    const manifestDryRun = buildArtifactExportManifestDryRun(result, plan, args);
+    result.manifest_materialization_dry_run = manifestDryRun;
+    const gate = await validateManifestCreateGate(manifestDryRun, plan, args);
+    if (!gate.ok) {
+      return buildManifestCreateBlockedResult({
+        reasonCode: gate.status || gate.reason_code || "manifest_create_gate_blocked",
+        message: gate.message || "Manifest create gate blocked execution.",
+        plan,
+        manifestDryRun,
+        envelope: gate,
+      });
+    }
+    if (typeof deps.executeRuntimeEndpoint !== "function") {
+      return buildManifestCreateBlockedResult({
+        reasonCode: "manifest_create_runtime_endpoint_executor_missing",
+        message: "Manifest create requires a governed runtime endpoint executor.",
+        plan,
+        manifestDryRun,
+        envelope: gate.envelope,
+      });
+    }
+
+    const uploadPayload = buildManifestUploadPayload(manifestDryRun, plan, args);
+    const writeStartedAt = new Date().toISOString();
+    const writeResult = await deps.executeRuntimeEndpoint(uploadPayload, { plan, manifestDryRun, mode });
+    const createdFileId = fileIdFromEndpointResult(writeResult);
+    let readbackResult = null;
+    let readbackOk = false;
+    if (createdFileId) {
+      readbackResult = await deps.executeRuntimeEndpoint(buildManifestReadbackPayload(createdFileId, args), { plan, manifestDryRun, mode, readback: true });
+      const readbackId = fileIdFromEndpointResult(readbackResult);
+      readbackOk = readbackId === createdFileId;
+    }
+    await markCapabilityEnvelopeReferenced({
+      envelopeId: gate.envelope.envelope_id,
+      executionRef: `resource_manifest_create:${manifestDryRun.filename}:${manifestDryRun.content_sha256}`,
+    });
+
+    return {
+      ok: readbackOk,
+      tool: "governed_resource_run",
+      classification: readbackOk ? "manifest_created_with_readback" : "manifest_create_readback_degraded",
+      mode,
+      recipe_key: recipe.recipe_key,
+      resource_type: recipe.resource_type,
+      resource_uri: plan.resolved_resource?.resource_uri || null,
+      manifest_materialization_dry_run: manifestDryRun,
+      capability_envelope: gate.envelope,
+      drive_write: {
+        endpoint_key: "uploadNewFile",
+        started_at: writeStartedAt,
+        completed_at: new Date().toISOString(),
+        file_id: createdFileId || null,
+        filename: manifestDryRun.filename,
+        content_sha256: manifestDryRun.content_sha256,
+        content_size_bytes: manifestDryRun.content_size_bytes,
+        overwrite_allowed: false,
+        secrets_included: false,
+      },
+      readback: {
+        required: true,
+        ok: readbackOk,
+        endpoint_key: "getFileMetadata",
+        result: readbackResult,
+        secrets_included: false,
+      },
+      result,
+      plan,
+      apply_requested: true,
+      apply_allowed: true,
+      dispatch_allowed: true,
+      provider_calls_made: readbackResult ? 2 : 1,
+      execution_allowed: true,
+      graph_write_made: false,
+      file_content_returned: false,
+      secrets_included: false,
+    };
   }
 
   return {

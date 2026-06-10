@@ -1471,6 +1471,9 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
           err.code = "resource_recipe_installed_tool_not_allowlisted";
           throw err;
         },
+        executeRuntimeEndpoint: async (payload) => {
+          return await callRuntimeEndpointViaFacade(payload, deps);
+        },
       });
     case "connector_registry_list":
       return { connectors: await listConnectorRegistry(args, auth) };
