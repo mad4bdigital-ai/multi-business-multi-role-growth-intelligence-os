@@ -21,5 +21,9 @@ assert(migration.includes('tenant_platform_endpoint_tools'), 'migration must upd
 assert(migration.includes("`http_path` LIKE '/connector/%'"), 'migration must disable tenant connector workaround paths');
 assert(migration.includes("`http_path` LIKE '/admin/%'"), 'migration must disable tenant admin paths');
 assert(migration.includes('tenant surface must not dispatch User JWT callers'), 'migration must document tenant auth contract');
+assert(toolBusMigration.includes("http_path IN ('/system/tools/call', '/gpt/tools/call')"), 'tool bus migration must disable tenant self-recursive dispatcher wrappers');
+assert(toolBusMigration.includes('runtime_endpoint_call_kernel_v1'), 'tool bus migration must register runtime_endpoint_call kernel dispatch certification');
+assert(toolBusMigration.includes('v_platform_exports_current_v2'), 'tool bus migration must expose v2 export coverage view');
+assert(toolBusMigration.includes('platform_endpoint_tool_exports'), 'v2 export view must include platform endpoint exports');
 
 console.log('tenant tool surface guard tests passed');
