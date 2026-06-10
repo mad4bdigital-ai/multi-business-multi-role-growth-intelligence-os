@@ -5,7 +5,6 @@ const service = readFileSync("remoteRuntime.js", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/151_sprint65_remote_runtime_catalog_probe_tools.sql", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
-const openapiDoc = YAML.parse(openapi);
 
 assert(service.includes("listRemoteRuntimeTargets"), "service must export target catalog function");
 assert(service.includes("probeRemoteRuntimeTarget"), "service must export readiness probe function");
