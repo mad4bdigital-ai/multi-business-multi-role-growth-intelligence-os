@@ -1,0 +1,19 @@
+{
+  "surface_key": "logic_pack_catalog",
+  "display_name": "Authorized Logic Pack Catalog",
+  "description": "Tenant-scoped catalog of active logic packs visible during activation.",
+  "source_table": "v_activation_logic_pack_catalog",
+  "result_key_column": "pack_id",
+  "result_label_column": "pack_key",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "pack_status",
+  "active_status_values": ["active"],
+  "result_columns": ["tenant_id", "pack_id", "pack_key", "pack_display_name", "pack_type", "service_mode", "parent_pack_id", "pack_status", "created_at"],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 80,
+  "sort_order": 240,
+  "status": "active",
+  "notes": "Repo-managed activation catalog view. Logic pack content payload fields are excluded."
+}
