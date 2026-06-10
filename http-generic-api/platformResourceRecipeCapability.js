@@ -1184,8 +1184,8 @@ export async function planGovernedResource(args = {}) {
     dry_run: dryRun,
     execution_plan: {
       execution_class: executionClass,
-      provider_calls_planned: 0,
-      provider_calls_allowed: false,
+      provider_calls_planned: readOnlyExecutionReady && recipe.adapter_kind === "endpoint_recipe" ? 1 : 0,
+      provider_calls_allowed: readOnlyExecutionReady && recipe.adapter_kind === "endpoint_recipe",
       db_reads_planned: steps.filter((step) => step.step_kind === "db_read").length,
       installed_tool_calls_planned: steps.filter((step) => step.step_kind === "installed_tool_call").length,
       installed_tool_calls_allowed_v1: readOnlyExecutionReady,
