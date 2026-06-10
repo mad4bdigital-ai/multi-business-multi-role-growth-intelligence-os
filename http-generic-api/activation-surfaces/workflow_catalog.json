@@ -3,6 +3,7 @@
   "display_name": "Authorized Workflow Catalog",
   "description": "Tenant-scoped catalog of active workflows visible during activation.",
   "source_table": "v_activation_workflow_catalog",
+  "covered_source_tables": ["workflows", "tenants"],
   "result_key_column": "workflow_key",
   "result_label_column": "workflow_name",
   "tenant_column": "tenant_id",
