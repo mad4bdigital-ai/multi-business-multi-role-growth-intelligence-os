@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const routes = readFileSync('routes/gptToolsRoutes.js', 'utf8');
 const migration = readFileSync('migrations/165_sprint65_hard_activation_and_tenant_surface.sql', 'utf8');
+const toolBusMigration = readFileSync('migrations/270_sprint68_dynamic_capability_tool_bus_kernel.sql', 'utf8');
 
 assert(routes.includes('TENANT_BLOCKED_TOOL_PATH_PREFIXES'), 'tenant blocked path prefixes must be declared');
 assert(routes.includes('"/admin/"'), 'tenant guard must block admin routes');
