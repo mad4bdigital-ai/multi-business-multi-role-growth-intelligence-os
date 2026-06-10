@@ -99,7 +99,10 @@ async function main() {
   const ok = access.readiness === "active"
     && access.scope_resolution === "tenant_user_authorized_only"
     && Number(access.counts?.admin_tools || 0) === 0
+    && Number(access.counts?.permission_grants || 0) > 0
+    && Number(access.counts?.runtime_actions || 0) > 0
     && (access.authorized?.admin_tools || []).length === 0
+    && (access.authorized?.runtime_actions || []).some((action) => action.action_key === "wordpress_api")
     && registeredSurfaces.length > 0
     && crossTenantSurfaceLeaks.length === 0
     && blockedFieldLeakDetected === false

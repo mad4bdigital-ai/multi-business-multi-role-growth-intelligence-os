@@ -7,6 +7,9 @@ const adminCli = readFileSync(new URL("./routes/adminCliRoutes.js", import.meta.
 assert.match(script, /buildActivationAuthorizedAccess/);
 assert.match(script, /tenant_user_authorized_only/);
 assert.match(script, /admin_tools_visible/);
+assert.match(script, /permission_grants/);
+assert.match(script, /runtime_actions/);
+assert.match(script, /wordpress_api/);
 assert.match(script, /cross_tenant_surface_leaks/);
 assert.match(script, /blocked_field_leak_detected/);
 assert.match(script, /external_provider_called: false/);
