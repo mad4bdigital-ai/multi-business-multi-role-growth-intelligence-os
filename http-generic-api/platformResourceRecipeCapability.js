@@ -1368,6 +1368,86 @@ export async function runGovernedResource(args = {}, deps = {}) {
     ];
   }
 
+  if (manifestApplyRequested) {
+    const manifestDryRun = buildArtifactExportManifestDryRun(result, plan, args);
+    result.manifest_materialization_dry_run = manifestDryRun;
+    const gate = await validateManifestCreateGate(manifestDryRun, plan, args);
+    if (!gate.ok) {
+      return buildManifestCreateBlockedResult({
+        reasonCode: gate.status || gate.reason_code || "manifest_create_gate_blocked",
+        message: gate.message || "Manifest create gate blocked execution.",
+        plan,
+        manifestDryRun,
+        envelope: gate,
+      });
+    }
+    if (typeof deps.executeRuntimeEndpoint !== "function") {
+      return buildManifestCreateBlockedResult({
+        reasonCode: "manifest_create_runtime_endpoint_executor_missing",
+        message: "Manifest create requires a governed runtime endpoint executor.",
+        plan,
+        manifestDryRun,
+        envelope: gate.envelope,
+      });
+    }
+
+    const uploadPayload = buildManifestUploadPayload(manifestDryRun, plan, args);
+    const writeStartedAt = new Date().toISOString();
+    const writeResult = await deps.executeRuntimeEndpoint(uploadPayload, { plan, manifestDryRun, mode });
+    const createdFileId = fileIdFromEndpointResult(writeResult);
+    let readbackResult = null;
+    let readbackOk = false;
+    if (createdFileId) {
+      readbackResult = await deps.executeRuntimeEndpoint(buildManifestReadbackPayload(createdFileId, args), { plan, manifestDryRun, mode, readback: true });
+      const readbackId = fileIdFromEndpointResult(readbackResult);
+      readbackOk = readbackId === createdFileId;
+    }
+    await markCapabilityEnvelopeReferenced({
+      envelopeId: gate.envelope.envelope_id,
+      executionRef: `resource_manifest_create:${manifestDryRun.filename}:${manifestDryRun.content_sha256}`,
+    });
+
+    return {
+      ok: readbackOk,
+      tool: "governed_resource_run",
+      classification: readbackOk ? "manifest_created_with_readback" : "manifest_create_readback_degraded",
+      mode,
+      recipe_key: recipe.recipe_key,
+      resource_type: recipe.resource_type,
+      resource_uri: plan.resolved_resource?.resource_uri || null,
+      manifest_materialization_dry_run: manifestDryRun,
+      capability_envelope: gate.envelope,
+      drive_write: {
+        endpoint_key: "uploadNewFile",
+        started_at: writeStartedAt,
+        completed_at: new Date().toISOString(),
+        file_id: createdFileId || null,
+        filename: manifestDryRun.filename,
+        content_sha256: manifestDryRun.content_sha256,
+        content_size_bytes: manifestDryRun.content_size_bytes,
+        overwrite_allowed: false,
+        secrets_included: false,
+      },
+      readback: {
+        required: true,
+        ok: readbackOk,
+        endpoint_key: "getFileMetadata",
+        result: readbackResult,
+        secrets_included: false,
+      },
+      result,
+      plan,
+      apply_requested: true,
+      apply_allowed: true,
+      dispatch_allowed: true,
+      provider_calls_made: readbackResult ? 2 : 1,
+      execution_allowed: true,
+      graph_write_made: false,
+      file_content_returned: false,
+      secrets_included: false,
+    };
+  }
+
   return {
     ok: true,
     tool: "governed_resource_run",
