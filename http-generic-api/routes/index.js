@@ -164,6 +164,7 @@ export function registerRoutes(app, deps) {
   app.use(buildSessionInsightPromotionAdapterContractRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSessionInsightPromotionPayloadPreviewRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSessionInsightPayloadPreviewReviewRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildSessionInsightAdapterApplyReadinessGateRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformPluginRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildBrowserRuntimeRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildGithubRoutes(deps));
