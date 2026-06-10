@@ -1148,7 +1148,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
     };
   }
 
-  if (applyRequested) {
+  if (applyRequested && !manifestApplyRequested) {
     return {
       ok: false,
       tool: "governed_resource_run",
@@ -1158,7 +1158,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
       apply_allowed: false,
       dispatch_allowed: false,
       reason_code: "resource_recipe_apply_blocked_v1",
-      message: "Resource recipe V1 does not apply writes, deletes, moves, content reads, or graph mutations.",
+      message: "Resource recipe V1 only supports guarded manifest create for the artifact/export reconciliation recipe; all other writes, deletes, moves, content reads, and graph mutations remain blocked.",
       plan,
       provider_calls_made: 0,
       execution_allowed: false,
@@ -1166,7 +1166,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
     };
   }
 
-  if (!["read_only", "diagnostic", "continue_read_only", "manifest_dry_run"].includes(mode)) {
+  if (!["read_only", "diagnostic", "continue_read_only", "manifest_dry_run", "apply"].includes(mode)) {
     return {
       ok: false,
       tool: "governed_resource_run",
