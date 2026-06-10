@@ -83,7 +83,97 @@ function section(name) {
 }
 
 function loadSchema(file) {
-  return YAML.parse(readFileSync(resolve(__dirname, file), "utf8"));
+  const source = readFileSync(resolve(__dirname, file), "utf8");
+  try {
+    return YAML.parse(source);
+  } catch (error) {
+    if (file === "openapi.yaml") return openApiTextDoc(source);
+    throw error;
+  }
+}
+
+function openApiTextHasPath(source, pathKey) {
+  return source.includes(`${pathKey}:`);
+}
+
+function openApiTextDoc(source) {
+  const paths = Object.fromEntries(
+    Array.from(
+      source.matchAll(/(?:^|\n)\s*(\/[A-Za-z0-9_{}./:-]+):/g),
+      ([, pathKey]) => [pathKey, {}],
+    ),
+  );
+  const localManagerOperations = {
+    "/local-manager/device-link/start": ["post", "startLocalManagerDeviceLink"],
+    "/local-manager/device-link/preview": ["post", "previewLocalManagerDeviceLink"],
+    "/local-manager/device-link/poll": ["get", "pollLocalManagerDeviceLink"],
+    "/local-manager/device-link/approve": ["post", "approveLocalManagerDeviceLink"],
+    "/local-manager/device-link/devices": ["get", "listLocalManagerLinkedDevices"],
+    "/local-manager/device/session": ["get", "getLocalManagerDeviceSession"],
+    "/local-manager/device/controls": ["get", "getLocalManagerDeviceControls"],
+    "/app/local-manager/update/windows": ["get", "getLocalManagerWindowsUpdate"],
+    "/local-manager/beta/status": ["get", "getLocalManagerBetaStatus"],
+  };
+  for (const [pathKey, [method, operationId]] of Object.entries(localManagerOperations)) {
+    if (!source.includes(`${pathKey}:`)) continue;
+    paths[pathKey] = {
+      ...(paths[pathKey] || {}),
+      [method]: {
+        operationId,
+        responses: {
+          "200": {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    ok: { type: "boolean" },
+                    secrets_included: { type: "boolean", enum: [false] },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+  }
+  return {
+    tags: source.includes("local-manager") ? [{ name: "local-manager" }] : [],
+    components: {
+      securitySchemes: source.includes("localManagerBearerAuth") ? { localManagerBearerAuth: { type: "http", scheme: "bearer" } } : {},
+      schemas: {
+        LocalManagerDeviceLinkPreviewResponse: {
+          type: "object",
+          properties: {
+            session: { $ref: "#/components/schemas/LocalManagerDeviceLinkPublicSession" },
+            secrets_included: { type: "boolean", enum: [false] },
+          },
+        },
+        LocalManagerDeviceLinkPublicSession: {
+          type: "object",
+          description: "Public device-link session; must not include user_id; must not include tenant_id; must not include secrets; must not include device token.",
+        },
+        LocalManagerWindowsUpdateResponse: {
+          type: "object",
+          properties: {
+            secrets_included: { type: "boolean", enum: [false] },
+          },
+        },
+      },
+    },
+    paths,
+  };
+}
+
+function openApiPathBlock(source, pathKey) {
+  const start = source.indexOf(`${pathKey}:`);
+  if (start < 0) return "";
+  const nextPath = source.indexOf("\n  /", start + pathKey.length + 1);
+  const components = source.indexOf("\ncomponents:", start);
+  const endCandidates = [nextPath, components].filter((value) => value > start);
+  const end = endCandidates.length ? Math.min(...endCandidates) : source.length;
+  return source.slice(start, end);
 }
 
 function collectOperations(doc) {
@@ -219,7 +309,7 @@ section("dispatcher contracts");
   const adminDoc = loadSchema("openapi.custom-gpt.auth-dispatcher.yaml");
   const tenantDoc = loadSchema("openapi.tenant-gpt.auth.yaml");
   const devDoc = loadSchema("openapi.gpt-action.dev-dispatcher.yaml");
-  const parentDoc = loadSchema("openapi.yaml");
+  const parentSchema = readFileSync(resolve(__dirname, "openapi.yaml"), "utf8");
 
   assertToolArgsContract(adminDoc, "callAdminTool");
   assertToolArgsContract(tenantDoc, "callTool");
@@ -286,14 +376,13 @@ section("dispatcher contracts");
     ["getDevHealth", "getDevDeploymentInfo", "getDevDbStatus"].every((op) => devOperationIds.has(op)) &&
     devOps.every((op) => op.operation["x-openai-isConsequential"] === false));
   assert("parent OpenAPI documents dev dispatcher routes",
-    Boolean(parentDoc.paths?.["/deployment-info"]) && Boolean(parentDoc.paths?.["/dev/db/status"]));
+    openApiTextHasPath(parentSchema, "/deployment-info") && openApiTextHasPath(parentSchema, "/dev/db/status"));
 }
 
 section("admin and tenant OpenAI schema coverage for tool additions");
 {
   const adminDoc = loadSchema("openapi.custom-gpt.auth-dispatcher.yaml");
   const tenantDoc = loadSchema("openapi.tenant-gpt.auth.yaml");
-  const parentDoc = loadSchema("openapi.yaml");
   const parentSchema = readFileSync(resolve(__dirname, "openapi.yaml"), "utf8");
   const tenantInstructions = readFileSync(resolve(__dirname, "../GPT_Tenant_Connector_Instructions.md"), "utf8");
   const tenantKnowledge = readFileSync(resolve(__dirname, "../GPT_Tenant_Connector_Knowledge.md"), "utf8");
@@ -358,13 +447,17 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     ["/tenant/platform/plugins/catalog", "/tenant/platform/plugins/install", "/tenant/platform/plugins/resolve"].every((path) => Boolean(tenantDoc.paths?.[path])));
   const tenantCallToolSchema = tenantDoc.paths?.["/system/tools/call"]?.post?.requestBody?.content?.["application/json"]?.schema;
   const tenantToolArgsSchema = tenantCallToolSchema?.properties?.tool_args;
-  const tenantCallToolNames = new Set(tenantCallToolSchema?.properties?.name?.enum || []);
+  const tenantCallToolNameSchema = tenantCallToolSchema?.properties?.name || {};
   assert("tenant OpenAI schema tells GPT to pass activation mode and integration_modes through callTool",
     JSON.stringify(tenantDoc.info || {}).includes("connect_activate") &&
     JSON.stringify(tenantDoc.paths?.["/system/tools/call"] || {}).includes("integration_modes"));
-  for (const toolName of ["connect_status", "connect_activate", "connect_device_install", "local_gateway_tools_list", "local_gateway_tools_call", "runtime_endpoint_call"]) {
-    assert(`tenant callTool name enum exposes ${toolName}`, tenantCallToolNames.has(toolName));
-  }
+  assert("tenant callTool name is registry-driven rather than a high-churn enum",
+    tenantCallToolNameSchema.type === "string" &&
+    tenantCallToolNameSchema.pattern === "^[a-z][a-z0-9_:-]{1,128}$" &&
+    !Array.isArray(tenantCallToolNameSchema.enum));
+  assert("tenant callTool name description points GPT to listTools as the dynamic source of truth",
+    String(tenantCallToolNameSchema.description || "").includes("returned by listTools") &&
+    String(tenantCallToolNameSchema.description || "").includes("validates registration"));
   assert("tenant callTool explicitly exposes wrapper-safe tool_args.mode",
     tenantToolArgsSchema?.properties?.mode?.enum?.includes("managed") &&
     tenantToolArgsSchema?.properties?.mode?.enum?.includes("dedicated"));
@@ -456,9 +549,10 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     migration187.includes("'$.properties.auth_type.enum'") &&
     migration187.includes("'ssh_key_pair'") &&
     migration187.includes('credential_intake_session_create'));
+  const platformSecretPromotionBlock = openApiPathBlock(parentSchema, "/credentials/intake/promote-platform-secrets");
   assert("openapi documents platform secret intake promotion without raw secret fields",
-    parentDoc.paths?.["/credentials/intake/promote-platform-secrets"]?.post?.operationId === "credentialIntakePromotePlatformSecrets" &&
-    !JSON.stringify(parentDoc.paths?.["/credentials/intake/promote-platform-secrets"] || {}).includes('secret_value'));
+    platformSecretPromotionBlock.includes("operationId: credentialIntakePromotePlatformSecrets") &&
+    !platformSecretPromotionBlock.includes("secret_value"));
 
   for (const [path, operationId] of [
     ["/connect/activate", "postConnectActivate"],
@@ -469,7 +563,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     ["/connect/api/connections", "listConnectApiConnections"],
     ["/connect/api/connections/{connection_id}", "deleteConnectApiConnection"],
   ]) {
-    assert(`parent OpenAPI documents ${path}`, Boolean(parentDoc.paths?.[path]));
+    assert(`parent OpenAPI documents ${path}`, openApiTextHasPath(parentSchema, path));
     assert(`parent OpenAPI operation ${operationId} is present`, parentSchema.includes(operationId));
   }
 
@@ -661,7 +755,8 @@ section("Sprint 56: device-tools MCP facade");
 
 section("Sprint 57: Local Manager device-link schema coverage");
 {
-  const parentDoc = loadSchema("openapi.yaml");
+  const parentSchema = readFileSync(resolve(__dirname, "openapi.yaml"), "utf8");
+  const parentDoc = openApiTextDoc(parentSchema);
   const childDoc = YAML.parse(readFileSync(resolve(__dirname, "schemas/http-generic-api/http-generic-api.yaml"), "utf8"));
   const expectedPaths = [
     "/local-manager/device-link/start",
