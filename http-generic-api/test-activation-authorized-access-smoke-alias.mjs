@@ -7,6 +7,8 @@ const adminCli = readFileSync(new URL("./routes/adminCliRoutes.js", import.meta.
 assert.match(script, /buildActivationAuthorizedAccess/);
 assert.match(script, /registered_surface_keys/);
 assert.match(script, /blocked_field_leak_detected/);
+assert.match(script, /credential_ref\|value_ciphertext\|secret_value\|token_value\|password\|private_key\|config_json/);
+assert.doesNotMatch(script, /credential_ref\|value_ciphertext\|secret_value\|token_value\|password\|private_key\|config_json\)\/i\.test\(text\)/);
 assert.match(script, /external_provider_called: false/);
 assert.match(script, /session_opened: false/);
 assert.match(script, /secrets_included/);

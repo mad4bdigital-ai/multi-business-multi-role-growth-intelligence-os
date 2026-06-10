@@ -5,6 +5,7 @@ import { resolveResourceRefInput } from "./platformResourceRecipeCapability.js";
 const migration = readFileSync("migrations/900_sprint68_governed_repository_intelligence_engine.sql", "utf8");
 const runtimeModule = readFileSync("platformResourceRecipeCapability.js", "utf8");
 const releaseReadiness = readFileSync("releaseReadiness.js", "utf8");
+const migrationRunner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 
 function includesAll(source, values, label) {
   for (const value of values) {
@@ -66,5 +67,9 @@ includesAll(releaseReadiness, [
   "900_sprint68_governed_repository_intelligence_engine.sql",
   "governed_repository_intelligence_engine_policy_v1",
 ], "release readiness must enforce repository intelligence policy and migration");
+
+includesAll(migrationRunner, [
+  "900_sprint68_governed_repository_intelligence_engine.sql",
+], "governed migration runner must allow repository intelligence migration");
 
 console.log("governed repository intelligence engine foundation contract ok");
