@@ -1,0 +1,19 @@
+{
+  "surface_key": "agent_tool_catalog",
+  "display_name": "Authorized Agent Tool Catalog",
+  "description": "Tenant-scoped catalog of indexed agent tools visible during activation.",
+  "source_table": "v_activation_agent_tool_catalog",
+  "result_key_column": "tool_key",
+  "result_label_column": "display_name",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "tool_status",
+  "active_status_values": ["active", "indexed", "ready"],
+  "result_columns": ["tenant_id", "tool_key", "source_truth_resource_type", "source_truth_resource_key", "display_name", "risk_class", "policy_key", "tool_status", "last_indexed_at", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 80,
+  "sort_order": 150,
+  "status": "active",
+  "notes": "Repo-managed activation catalog view. Tool payload fields are excluded."
+}

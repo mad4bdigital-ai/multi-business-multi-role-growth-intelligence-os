@@ -221,6 +221,8 @@ const TENANT_BLOCKED_TOOL_PATH_PREFIXES = [
   "/admin/",
   "/admin/system/",
   "/connector/",
+  "/system/tools/call",
+  "/gpt/tools/call",
 ];
 
 function isTenantBlockedToolPath(httpPath = "") {
