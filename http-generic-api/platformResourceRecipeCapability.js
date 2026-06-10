@@ -567,6 +567,10 @@ function readOnlyRecipeExecutionReady(recipe = {}, steps = [], blockedReasons = 
     );
   }
 
+  if (recipe.adapter_kind === "endpoint_recipe") {
+    return READ_ONLY_ENDPOINT_RECIPE_ALLOWLIST.has(recipe.recipe_key);
+  }
+
   return false;
 }
 
