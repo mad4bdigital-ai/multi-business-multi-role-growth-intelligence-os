@@ -86,6 +86,20 @@ function loadSchema(file) {
   return YAML.parse(readFileSync(resolve(__dirname, file), "utf8"));
 }
 
+function openApiTextHasPath(source, pathKey) {
+  return source.includes(`${pathKey}:`);
+}
+
+function openApiPathBlock(source, pathKey) {
+  const start = source.indexOf(`${pathKey}:`);
+  if (start < 0) return "";
+  const nextPath = source.indexOf("\n  /", start + pathKey.length + 1);
+  const components = source.indexOf("\ncomponents:", start);
+  const endCandidates = [nextPath, components].filter((value) => value > start);
+  const end = endCandidates.length ? Math.min(...endCandidates) : source.length;
+  return source.slice(start, end);
+}
+
 function collectOperations(doc) {
   const operations = [];
   for (const [pathKey, pathItem] of Object.entries(doc.paths || {})) {
