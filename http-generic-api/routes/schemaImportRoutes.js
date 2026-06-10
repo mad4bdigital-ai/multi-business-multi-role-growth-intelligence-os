@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
-import { runImport, runRepoImport, runRollback } from "../schemaImportPipeline.js";
+import { runImport, runRepoImport, runRollback, runActionReferenceImport } from "../schemaImportPipeline.js";
 import { requireAdminPrincipal } from "./adminCliRoutes.js";
 
 export function buildSchemaImportRoutes(deps) {
