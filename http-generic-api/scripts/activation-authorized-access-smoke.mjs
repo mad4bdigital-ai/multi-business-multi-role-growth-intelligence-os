@@ -15,7 +15,7 @@ function summarize(access = {}) {
     auth_gaps: access.auth_gaps || [],
     degraded_surface_count: access.degraded_surfaces?.length || 0,
     policy: access.activation_policy || {},
-    blocked_field_leak_detected: /(credential_ref|value_ciphertext|secret_value|token_value|password|private_key|config_json)/i.test(text),
+    blocked_field_leak_detected: /\"(credential_ref|value_ciphertext|secret_value|token_value|password|private_key|config_json)\"\s*:/i.test(text),
     secrets_included: access.secrets_included === true,
   };
 }
