@@ -1,4 +1,5 @@
 import { getPool } from "./db.js";
+import { assertPreflightAllowed, evaluateSupportTicketExternalProviderGatePreflight } from "./governedExecutionPreflight.js";
 import { resolveSupportTicketExternalProviderAdapterContract } from "./supportTicketExternalProviderContractService.js";
 import { planSupportTicketExternalSendExecution } from "./supportTicketExternalSendExecutionService.js";
 
