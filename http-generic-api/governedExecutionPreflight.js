@@ -119,6 +119,100 @@ export async function evaluateRepoPatchApplyPreflight({ args = {}, repo = {}, br
   return makePreflightResult({ classification: warnings.length ? "allow_with_policy_warnings" : "allow", policies, warnings, errors, evidence, runtimePolicyResolution });
 }
 
+function containsSecretMarker(value = "") {
+  return /(password|passwd|secret|token|api_key|apikey|credential|private_key|client_secret|refresh_token|access_token|authorization|bearer)/i.test(String(value || ""));
+}
+
+async function loadRepositoryPublishPolicies(operation, affectsLayer, deps = {}) {
+  return resolvePolicies({
+    execution_scope: ["repo_publish", "pull_request_create", "github_pr_create", "admin_control.github", "github_rest_fallback", operation].filter(Boolean),
+    affects_layer: ["adminCliRoutes", "admin_control.github", "github_rest_fallback", affectsLayer].filter(Boolean),
+  }, deps);
+}
+
+export async function evaluateRepositoryPublishPreflight({ operation = "github_pr_create", args = [], repo = {}, head = "", base = "main", title = "", body = "", compare = null, existingPulls = [] } = {}, deps = {}) {
+  const { runtimePolicyResolution, policies } = await loadRepositoryPublishPolicies(operation, "adminCliRoutes", deps);
+  if (!policies.length) return makePreflightResult({ evidence: { operation, reason: "no_matching_active_repository_publish_policy" }, runtimePolicyResolution });
+  const blockingPolicies = [];
+  const warnings = [];
+  const errors = [];
+  const evidence = {
+    operation,
+    args_preview: Array.isArray(args) ? args.slice(0, 4).map(String) : [],
+    repo: repo.owner && repo.repo ? `${repo.owner}/${repo.repo}` : null,
+    head_ref: head || null,
+    base_ref: base || null,
+    compare_status: compare?.status || null,
+    compare_ahead_by: compare?.ahead_by ?? null,
+    compare_behind_by: compare?.behind_by ?? null,
+    existing_open_pull_count: Array.isArray(existingPulls) ? existingPulls.length : 0,
+  };
+  for (const policy of policies) {
+    if (!policyAllowsBlocking(policy)) continue;
+    const group = String(policy.policy_group || "").trim();
+    const key = String(policy.policy_key || "").trim();
+    if (group !== "Repository Publish Governance") { warnings.push(`matching_blocking_policy_requires_publish_evaluator:${key}`); continue; }
+    if (key === "github_pr_create_rest_fallback_v1") {
+      if (!head || !title) { errors.push("github_pr_create_requires_head_and_title"); blockingPolicies.push(policy); continue; }
+      if (containsSecretMarker(title) || containsSecretMarker(body)) { errors.push("github_pr_create_body_must_not_contain_secret_markers"); blockingPolicies.push(policy); continue; }
+      continue;
+    }
+    if (key === "repo_branch_freshness_before_pr_v1") {
+      if (!compare) { errors.push("pull_request_create_compare_required"); blockingPolicies.push(policy); continue; }
+      const stale = Number(compare.behind_by || 0) > 0 || String(compare.status || "").toLowerCase() === "diverged";
+      if (stale) { errors.push("pull_request_head_not_fresh"); blockingPolicies.push(policy); continue; }
+      if (Array.isArray(existingPulls) && existingPulls.length) { errors.push("pull_request_already_exists_for_branch"); blockingPolicies.push(policy); continue; }
+      continue;
+    }
+    warnings.push(`repository_publish_policy_loaded:${key}`);
+  }
+  if (blockingPolicies.length) return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
+  return makePreflightResult({ classification: warnings.length ? "allow_with_policy_warnings" : "allow", policies, warnings, errors, evidence, runtimePolicyResolution });
+}
+
+async function loadSupportTicketExternalProviderGatePolicies(context = {}, deps = {}) {
+  return resolvePolicies({
+    execution_scope: ["support_ticket_external_delivery", "provider_gate", "adapter_contract_resolver", context.channel, context.send_mode].filter(Boolean),
+    affects_layer: ["supportTicketExternalSendProviderGateService", "supportTicketExternalProviderContractService", "external_delivery_provider_*"],
+    policy_group: "Support Ticket External Delivery Governance",
+    policy_key: "external_provider_gate_registry_resolver_policy_v1",
+  }, deps);
+}
+
+export async function evaluateSupportTicketExternalProviderGatePreflight({ channel = "email", send_mode = "dry_run", provider_adapter = {}, external_send_performed = false, secrets_included = false } = {}, deps = {}) {
+  const { runtimePolicyResolution, policies } = await loadSupportTicketExternalProviderGatePolicies({ channel, send_mode }, deps);
+  if (!policies.length) return makePreflightResult({ evidence: { operation: "support_ticket_external_provider_gate", reason: "provider_gate_policy_not_configured", channel, send_mode }, runtimePolicyResolution });
+  const blockingPolicies = [];
+  const warnings = [];
+  const errors = [];
+  const evidence = {
+    operation: "support_ticket_external_provider_gate",
+    channel,
+    send_mode,
+    adapter_key: provider_adapter.adapter_key || provider_adapter.provider_key || null,
+    adapter_source: provider_adapter.source || null,
+    dispatch_enabled: Boolean(provider_adapter.dispatch_enabled),
+    provider_dispatch_enabled: Boolean(provider_adapter.provider_dispatch_enabled),
+    external_send_supported: Boolean(provider_adapter.external_send_supported),
+    send_mode_allowed: Boolean(provider_adapter.send_mode_allowed),
+    external_send_performed: Boolean(external_send_performed || provider_adapter.external_send_performed),
+    secrets_included: Boolean(secrets_included || provider_adapter.secrets_included || provider_adapter.secret_value_included),
+  };
+  for (const policy of policies) {
+    if (!policyAllowsBlocking(policy)) continue;
+    const cfg = policyJson(policy);
+    const allowedModes = Array.isArray(cfg.allowed_modes) ? cfg.allowed_modes.map((mode) => String(mode).toLowerCase()) : [];
+    if (provider_adapter.source !== "external_delivery_provider_adapter_contract_registry") { errors.push("provider_gate_adapter_contract_registry_required"); blockingPolicies.push(policy); continue; }
+    if (allowedModes.length && !allowedModes.includes(String(send_mode || "").toLowerCase())) { errors.push("provider_gate_send_mode_not_allowed_by_policy"); blockingPolicies.push(policy); continue; }
+    if (!provider_adapter.send_mode_allowed) { errors.push("provider_gate_send_mode_policy_not_active"); blockingPolicies.push(policy); continue; }
+    if (cfg.no_external_send !== false && (evidence.external_send_supported || evidence.external_send_performed)) { errors.push("provider_gate_external_send_blocked_by_policy"); blockingPolicies.push(policy); continue; }
+    if (cfg.provider_dispatch_enabled === false && evidence.provider_dispatch_enabled) { errors.push("provider_gate_provider_dispatch_blocked_by_policy"); blockingPolicies.push(policy); continue; }
+    if (evidence.secrets_included) { errors.push("provider_gate_secrets_blocked_by_policy"); blockingPolicies.push(policy); continue; }
+  }
+  if (blockingPolicies.length) return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
+  return makePreflightResult({ classification: warnings.length ? "allow_with_policy_warnings" : "allow", policies, warnings, errors, evidence, runtimePolicyResolution });
+}
+
 export async function evaluateGptToolDispatchPreflight({ callerType = "tenant", toolKey = "", args = {} } = {}, deps = {}) {
   const { runtimePolicyResolution, policies } = await resolvePolicies({ execution_scope: ["gpt_tools_call", "tool_dispatch", toolKey].filter(Boolean), affects_layer: ["gptToolsRoutes", callerType].filter(Boolean) }, deps);
   if (!policies.length) return makePreflightResult({ evidence: { operation: "gpt_tools_call", tool_key: toolKey, reason: "no_matching_active_execution_policy" }, runtimePolicyResolution });
