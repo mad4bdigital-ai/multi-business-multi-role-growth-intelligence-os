@@ -83,7 +83,13 @@ function section(name) {
 }
 
 function loadSchema(file) {
-  return YAML.parse(readFileSync(resolve(__dirname, file), "utf8"));
+  const source = readFileSync(resolve(__dirname, file), "utf8");
+  try {
+    return YAML.parse(source);
+  } catch (error) {
+    if (file === "openapi.yaml") return openApiTextDoc(source);
+    throw error;
+  }
 }
 
 function openApiTextHasPath(source, pathKey) {
