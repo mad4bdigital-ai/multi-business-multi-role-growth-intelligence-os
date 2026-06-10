@@ -187,6 +187,7 @@ export async function readPlatformOrchestrationReadback(input = {}) {
       active_edge_count: edges.filter((edge) => edge.status === "active").length,
       graph_readiness: graphReadiness,
       ads_governance_readiness: adsGovernanceReadiness,
+      support_ticket_lifecycle_readiness: supportTicketLifecycleReadiness,
     },
     plugin,
     stages,
