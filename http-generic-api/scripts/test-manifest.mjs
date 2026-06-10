@@ -267,6 +267,8 @@ export const testCommands = [
   "node test-activation-session-context.mjs",
   "node test-activation-authorized-surface-registry.mjs",
   "node test-activation-authorized-surface-registry-sync.mjs",
+  "node test-activation-surface-coverage-gate.mjs",
+  "node scripts/activation-surface-coverage-check.mjs --changed",
   "node test-activation-authorized-access-smoke-alias.mjs",
   "node test-activation-hard-evidence.mjs",
   "node test-session-archive-service.mjs",
