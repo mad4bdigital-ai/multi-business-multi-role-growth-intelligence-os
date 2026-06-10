@@ -473,9 +473,10 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     migration187.includes("'$.properties.auth_type.enum'") &&
     migration187.includes("'ssh_key_pair'") &&
     migration187.includes('credential_intake_session_create'));
+  const platformSecretPromotionBlock = openApiPathBlock(parentSchema, "/credentials/intake/promote-platform-secrets");
   assert("openapi documents platform secret intake promotion without raw secret fields",
-    parentDoc.paths?.["/credentials/intake/promote-platform-secrets"]?.post?.operationId === "credentialIntakePromotePlatformSecrets" &&
-    !JSON.stringify(parentDoc.paths?.["/credentials/intake/promote-platform-secrets"] || {}).includes('secret_value'));
+    platformSecretPromotionBlock.includes("operationId: credentialIntakePromotePlatformSecrets") &&
+    !platformSecretPromotionBlock.includes("secret_value"));
 
   for (const [path, operationId] of [
     ["/connect/activate", "postConnectActivate"],
