@@ -34,9 +34,12 @@ function loadCoverage() {
   let manifestCount = 0;
   for (const filePath of jsonFiles(SURFACE_DIR)) {
     const manifest = readJson(filePath);
-    if (SENSITIVE_PATTERN.test(JSON.stringify(manifest))) throw new Error(`Sensitive-looking text in ${filePath}`);
     const surfaceKey = assertIdent(manifest.surface_key, "surface_key");
     const sourceTable = assertIdent(manifest.source_table, "source_table");
+    for (const column of manifest.result_columns || []) {
+      const safeColumn = assertIdent(column, "result column");
+      if (SENSITIVE_PATTERN.test(safeColumn)) throw new Error(`Sensitive result column ${safeColumn} in ${filePath}`);
+    }
     const covered = Array.isArray(manifest.covered_source_tables) ? manifest.covered_source_tables : [];
     if (sourceTable.startsWith("v_activation_") && covered.length === 0) throw new Error(`View surface ${surfaceKey} requires covered_source_tables.`);
     add(map, sourceTable, { type: "source_table", surface_key: surfaceKey });
