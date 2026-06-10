@@ -1168,11 +1168,13 @@ export async function planGovernedResource(args = {}) {
 
   const readOnlyExecutionReady = readOnlyRecipeExecutionReady(recipe, steps, blockedReasons);
   const selectedToolKey = selectedInstalledToolKey(recipe, steps);
-  const executionClass = readOnlyExecutionReady && recipe.adapter_kind === "composite"
-    ? "resource_recipe_read_only_composite_v1"
-    : readOnlyExecutionReady
-      ? "resource_recipe_read_only_installed_tool_v1"
-      : "resource_recipe_plan_only_v1";
+  const executionClass = readOnlyExecutionReady && recipe.adapter_kind === "endpoint_recipe"
+    ? "resource_recipe_read_only_endpoint_recipe_v1"
+    : readOnlyExecutionReady && recipe.adapter_kind === "composite"
+      ? "resource_recipe_read_only_composite_v1"
+      : readOnlyExecutionReady
+        ? "resource_recipe_read_only_installed_tool_v1"
+        : "resource_recipe_plan_only_v1";
 
   return {
     ok: true,
