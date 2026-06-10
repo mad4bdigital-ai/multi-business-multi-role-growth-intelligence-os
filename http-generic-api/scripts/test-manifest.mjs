@@ -270,6 +270,7 @@ export const testCommands = [
   "node test-activation-surface-coverage-gate.mjs",
   "node scripts/activation-surface-coverage-check.mjs --changed",
   "node test-activation-authorized-access-smoke-alias.mjs",
+  "node test-activation-authorized-access-tenant-smoke-alias.mjs",
   "node test-activation-hard-evidence.mjs",
   "node test-session-archive-service.mjs",
   "node test-gpt-session-archive-monitoring.mjs",
