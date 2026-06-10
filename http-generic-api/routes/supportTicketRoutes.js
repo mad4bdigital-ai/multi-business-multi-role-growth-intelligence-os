@@ -70,6 +70,10 @@ import {
   proposeSupportTicketExternalProviderAdapterEnablement,
 } from "../supportTicketExternalProviderEnablementProposalService.js";
 import {
+  planSupportTicketExternalAdapterReadinessChecklist,
+  recordSupportTicketExternalAdapterReadinessChecklist,
+} from "../supportTicketExternalAdapterReadinessChecklistService.js";
+import {
   decideSupportTicketExternalCredentialBinding,
   listSupportTicketExternalCredentialCandidates,
   requestSupportTicketExternalCredentialBinding,
