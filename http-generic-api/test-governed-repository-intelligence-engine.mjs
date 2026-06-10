@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolveResourceRefInput } from "./platformResourceRecipeCapability.js";
 
 const migration = readFileSync("migrations/900_sprint68_governed_repository_intelligence_engine.sql", "utf8");
+const authorityMigration = readFileSync("migrations/950_sprint68_platform_resource_authority_bindings.sql", "utf8");
 const runtimeModule = readFileSync("platformResourceRecipeCapability.js", "utf8");
 const releaseReadiness = readFileSync("releaseReadiness.js", "utf8");
 const migrationRunner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
