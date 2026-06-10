@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { getPool } from "./db.js";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
