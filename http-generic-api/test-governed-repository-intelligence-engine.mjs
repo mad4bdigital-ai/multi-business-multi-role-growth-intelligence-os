@@ -38,6 +38,12 @@ includesAll(migration, [
   "secrets_included',false",
 ], "repository intelligence governance policy");
 
+includesAll(authorityMigration, [
+  "CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_scope",
+  "CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_resource",
+  "CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_recipe",
+], "platform resource authority migration indexes must be idempotent");
+
 for (const forbidden of [
   "CREATE TABLE IF NOT EXISTS `repository_operation_runs`",
   "CREATE TABLE IF NOT EXISTS `repository_operation_evidence`",
