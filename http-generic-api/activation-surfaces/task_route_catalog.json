@@ -3,6 +3,7 @@
   "display_name": "Authorized Task Route Catalog",
   "description": "Tenant-scoped catalog of active task routes visible during activation.",
   "source_table": "v_activation_task_route_catalog",
+  "covered_source_tables": ["task_routes", "tenants"],
   "result_key_column": "route_id",
   "result_label_column": "task_key",
   "tenant_column": "tenant_id",
