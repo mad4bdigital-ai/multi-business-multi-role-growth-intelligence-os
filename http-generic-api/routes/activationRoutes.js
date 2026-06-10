@@ -602,6 +602,7 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
       permission_grants: permissionKeys.length,
       runtime_actions: actionRows.length,
       admin_tools: rowsOrEmpty(adminTools).length,
+      registered_surfaces: registeredSurfaces.surfaces?.length || 0,
     },
     authorized: {
       roles: roleKeys,
