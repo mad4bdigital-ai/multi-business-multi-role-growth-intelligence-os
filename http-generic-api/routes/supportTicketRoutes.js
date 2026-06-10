@@ -75,6 +75,10 @@ import {
   recordSupportTicketExternalAdapterReadinessChecklist,
 } from "../supportTicketExternalAdapterReadinessChecklistService.js";
 import {
+  planSupportTicketExternalAdapterFuturePrScope,
+  recordSupportTicketExternalAdapterFuturePrScope,
+} from "../supportTicketExternalAdapterFuturePrScopeService.js";
+import {
   decideSupportTicketExternalCredentialBinding,
   listSupportTicketExternalCredentialCandidates,
   requestSupportTicketExternalCredentialBinding,
