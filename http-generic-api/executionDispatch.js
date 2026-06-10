@@ -56,14 +56,19 @@ export async function dispatchPreparedExecution(input = {}, deps = {}) {
     typeof transportBody === "string" &&
     contentType.startsWith("multipart/related;");
 
+  let upstreamBody;
+  if (transportBody === undefined) {
+    upstreamBody = undefined;
+  } else if (rawMultipartBodyAllowed) {
+    upstreamBody = transportBody;
+  } else {
+    upstreamBody = JSON.stringify(transportBody);
+  }
+
   const upstreamRequest = {
     method: resolvedMethodPath.method,
     headers: finalHeaders,
-    body: transportBody === undefined
-      ? undefined
-      : rawMultipartBodyAllowed
-      ? transportBody
-      : JSON.stringify(transportBody),
+    body: upstreamBody,
     redirect: "follow"
   };
 
