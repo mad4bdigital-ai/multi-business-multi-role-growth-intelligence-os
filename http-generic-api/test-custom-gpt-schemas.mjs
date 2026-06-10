@@ -96,6 +96,17 @@ function openApiTextHasPath(source, pathKey) {
   return source.includes(`${pathKey}:`);
 }
 
+function openApiTextDoc(source) {
+  return {
+    paths: Object.fromEntries(
+      Array.from(
+        source.matchAll(/(?:^|\n)\s*(\/[A-Za-z0-9_{}./:-]+):/g),
+        ([, pathKey]) => [pathKey, {}],
+      ),
+    ),
+  };
+}
+
 function openApiPathBlock(source, pathKey) {
   const start = source.indexOf(`${pathKey}:`);
   if (start < 0) return "";
