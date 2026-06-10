@@ -29,5 +29,5 @@
   "max_rows": 50,
   "sort_order": 90,
   "status": "active",
-  "notes": "Repo-managed activation view. Excludes activation prompts and context JSON."
+  "notes": "Repo-managed activation view. Excludes long-form task prompt and context payload fields."
 }
