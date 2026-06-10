@@ -263,6 +263,7 @@ export const testCommands = [
   "node test-activation-bootstrap-cache.mjs",
   "node test-activation-bootstrap-config.mjs",
   "node test-activation-session-context.mjs",
+  "node test-activation-authorized-surface-registry.mjs",
   "node test-activation-hard-evidence.mjs",
   "node test-session-archive-service.mjs",
   "node test-gpt-session-archive-monitoring.mjs",
