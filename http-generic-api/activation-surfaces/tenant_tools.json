@@ -1,0 +1,28 @@
+{
+  "surface_key": "tenant_tools",
+  "display_name": "Authorized Tenant Tools",
+  "description": "Enabled tenant platform endpoint tools visible during activation.",
+  "source_table": "v_activation_tenant_tools",
+  "result_key_column": "tool_key",
+  "result_label_column": "display_name",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "tool_enabled_status",
+  "active_status_values": ["active"],
+  "result_columns": [
+    "tenant_id",
+    "tool_key",
+    "display_name",
+    "http_method",
+    "http_path",
+    "tags",
+    "tool_enabled_status",
+    "sort_order"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 80,
+  "sort_order": 100,
+  "status": "active",
+  "notes": "Repo-managed activation view. Excludes request schema and fixed request payload fields."
+}
