@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import YAML from "yaml";
 
 const service = readFileSync("remoteRuntime.js", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
