@@ -142,6 +142,25 @@ function openApiTextDoc(source) {
     tags: source.includes("local-manager") ? [{ name: "local-manager" }] : [],
     components: {
       securitySchemes: source.includes("localManagerBearerAuth") ? { localManagerBearerAuth: { type: "http", scheme: "bearer" } } : {},
+      schemas: {
+        LocalManagerDeviceLinkPreviewResponse: {
+          type: "object",
+          properties: {
+            session: { $ref: "#/components/schemas/LocalManagerDeviceLinkPublicSession" },
+            secrets_included: { type: "boolean", enum: [false] },
+          },
+        },
+        LocalManagerDeviceLinkPublicSession: {
+          type: "object",
+          description: "Public device-link session; must not include user_id; must not include tenant_id; must not include secrets.",
+        },
+        LocalManagerWindowsUpdateResponse: {
+          type: "object",
+          properties: {
+            secrets_included: { type: "boolean", enum: [false] },
+          },
+        },
+      },
     },
     paths,
   };
