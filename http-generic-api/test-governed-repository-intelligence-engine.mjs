@@ -68,4 +68,8 @@ includesAll(releaseReadiness, [
   "governed_repository_intelligence_engine_policy_v1",
 ], "release readiness must enforce repository intelligence policy and migration");
 
+includesAll(migrationRunner, [
+  "900_sprint68_governed_repository_intelligence_engine.sql",
+], "governed migration runner must allow repository intelligence migration");
+
 console.log("governed repository intelligence engine foundation contract ok");
