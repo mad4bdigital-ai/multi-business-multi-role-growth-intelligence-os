@@ -5,7 +5,7 @@ import { getPool } from "../db.js";
 import { decryptCredentials } from "../tokenEncryption.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
-import { evaluateRepositoryMutationPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
+import { evaluateRepositoryMutationPreflight, evaluateRepositoryPublishPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import { createContinuationCheckpoint, planContinuationResume } from "../sharedReconciliationEngine.js";
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
@@ -1073,12 +1073,37 @@ async function loadGithubCompareForRefs({ owner, repo, token, baseRef, headRef }
 async function preflightGithubMutationArgs(args = []) {
   const [resource, command] = args;
   if (resource !== "pr" && resource !== "api") return null;
-  if (!(resource === "pr" && command === "merge") && !(resource === "api" && hasCliFlag(args, ["-X", "--method"]) && parseCliFlag(args, ["-X", "--method"]).toUpperCase() === "DELETE")) return null;
+  const isPrCreate = resource === "pr" && command === "create";
+  const isPrMerge = resource === "pr" && command === "merge";
+  const isBranchDelete = resource === "api" && hasCliFlag(args, ["-X", "--method"]) && parseCliFlag(args, ["-X", "--method"]).toUpperCase() === "DELETE";
+  if (!isPrCreate && !isPrMerge && !isBranchDelete) return null;
 
   const { owner, repo } = await resolveGithubRepoFromArgs(args);
   const token = await getGitHubAppInstallationToken({});
 
-  if (resource === "pr" && command === "merge") {
+  if (isPrCreate) {
+    const head = parseCliFlag(args, "--head");
+    const base = parseCliFlag(args, "--base") || "main";
+    const title = parseCliFlag(args, ["--title", "-t"]);
+    const body = parseCliFlag(args, ["--body", "-b"]);
+    const query = new URLSearchParams({ per_page: "10", state: "open", base, head: head?.includes(":") ? head : `${owner}:${head}` });
+    const existingPulls = head ? await githubRestJson({ owner, repo, apiPath: `/pulls?${query}`, token }) : [];
+    const compare = head ? await loadGithubCompareForRefs({ owner, repo, token, baseRef: base, headRef: head }) : null;
+    const preflight = await evaluateRepositoryPublishPreflight({
+      operation: "github_pr_create",
+      args,
+      repo: { owner, repo },
+      head,
+      base,
+      title,
+      body,
+      compare,
+      existingPulls: Array.isArray(existingPulls) ? existingPulls : [],
+    });
+    return assertPreflightAllowed(preflight);
+  }
+
+  if (isPrMerge) {
     const prNumber = parseGithubPrNumber(firstGithubPositional(args, 2));
     const pr = await githubRestJson({ owner, repo, apiPath: `/pulls/${encodeURIComponent(prNumber)}`, token });
     const headRef = pr?.head?.repo?.full_name === `${owner}/${repo}`
