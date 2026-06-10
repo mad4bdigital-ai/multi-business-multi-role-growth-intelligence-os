@@ -1005,8 +1005,11 @@ function fileIdFromEndpointResult(result = {}) {
     result?.file_id ||
     result?.body?.id ||
     result?.body?.file_id ||
+    result?.body?.data?.id ||
+    result?.body?.data?.file_id ||
     result?.result?.id ||
     result?.result?.body?.id ||
+    result?.result?.body?.data?.id ||
     result?.data?.id ||
     ""
   );
