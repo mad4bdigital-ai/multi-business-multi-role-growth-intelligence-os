@@ -557,6 +557,22 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.post("/admin/support/tickets/external-send/provider-adapter-readiness/decision", ...adminGuards, async (req, res) => {
+    try {
+      const result = await decideSupportTicketExternalAdapterReadinessChecklist({
+        checklist_id: req.body?.checklist_id,
+        decision: req.body?.decision,
+        decision_note: req.body?.decision_note || null,
+        evidence_json: req.body?.evidence_json || {},
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_adapter_readiness_decision_failed");
+    }
+  });
+
   router.post("/admin/support/tickets/external-send/provider-adapter-enablement/candidates", ...adminGuards, async (req, res) => {
     try {
       const result = await listSupportTicketExternalProviderEnablementCandidates({
