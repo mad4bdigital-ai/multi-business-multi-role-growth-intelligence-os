@@ -653,9 +653,9 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
       do_not_return_secret_values: true,
       secrets_included: false,
     },
-    readiness: degraded.length ? "degraded" : "active",
+    readiness: degraded.length || registeredSurfaces.degraded_surfaces?.length ? "degraded" : "active",
     auth_gaps: authGaps,
-    degraded_surfaces: degraded,
+    degraded_surfaces: [...degraded, ...(registeredSurfaces.degraded_surfaces || [])],
     secrets_included: false,
   };
 }
