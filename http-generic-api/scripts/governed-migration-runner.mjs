@@ -136,6 +136,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "266_sprint68_ticket_external_provider_enablement_proposal.sql",
   "267_sprint68_ticket_external_adapter_readiness_checklist.sql",
   "268_sprint68_ticket_external_adapter_readiness_decision.sql",
+  "269_sprint68_ticket_external_adapter_future_pr_scope.sql",
   "262_sprint68_orchestration_readback_surface.sql",
   "263_sprint68_ads_governance_snapshot_proposal.sql",
   "264_sprint68_ads_governance_snapshot_record_gate.sql",
