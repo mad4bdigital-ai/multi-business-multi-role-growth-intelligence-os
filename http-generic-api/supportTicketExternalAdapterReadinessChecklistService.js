@@ -189,3 +189,66 @@ export async function recordSupportTicketExternalAdapterReadinessChecklist({ pro
   } catch (error) { if (ownsConnection) await connection.rollback(); throw error; }
   finally { if (ownsConnection) connection.release(); }
 }
+
+export async function decideSupportTicketExternalAdapterReadinessChecklist({ checklist_id, decision, decision_note = null, evidence_json = {}, actor_id = null, actor_type = "admin" } = {}, options = {}) {
+  if (!checklist_id) {
+    const err = new Error("checklist_id is required.");
+    err.status = 400;
+    err.code = "support_ticket_external_adapter_readiness_checklist_required";
+    throw err;
+  }
+  const normalizedDecision = normalizeChecklistDecision(decision);
+  assertNoRawSecretPayload(evidence_json, "evidence_json");
+  const pool = options.pool || getPool();
+  const connection = options.connection || await pool.getConnection();
+  const ownsConnection = !options.connection;
+  try {
+    if (ownsConnection) await connection.beginTransaction();
+    const checklist = await fetchChecklist(connection, checklist_id);
+    if (!checklist) {
+      const err = new Error("External adapter readiness checklist not found.");
+      err.status = 404;
+      err.code = "support_ticket_external_adapter_readiness_checklist_not_found";
+      throw err;
+    }
+    const decisionId = crypto.randomUUID();
+    const summary = parseJsonObject(checklist.summary_json, {});
+    const safeDecision = {
+      decision_id: decisionId,
+      checklist_id,
+      proposal_id: checklist.proposal_id,
+      adapter_key: checklist.adapter_key,
+      decision: normalizedDecision,
+      decision_note,
+      readiness_status: checklist.readiness_status,
+      summary,
+      registry_mutation_performed: false,
+      adapter_implementation_performed: false,
+      dispatch_enabled_changed: false,
+      provider_dispatch_enabled_changed: false,
+      external_send_performed: false,
+      secret_value_included: false,
+      secrets_included: false,
+      evidence_json: { ...(evidence_json || {}), external_send_performed: false, secrets_included: false },
+    };
+    await connection.query(
+      `INSERT INTO external_delivery_provider_adapter_readiness_decisions
+       (decision_id, checklist_id, proposal_id, adapter_key, decision, decision_note,
+        readiness_status, summary_json, evidence_json, decided_by, actor_type,
+        registry_mutation_performed, adapter_implementation_performed,
+        dispatch_enabled_changed, provider_dispatch_enabled_changed, external_send_performed)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0)`,
+      [decisionId, checklist_id, checklist.proposal_id, checklist.adapter_key, normalizedDecision,
+       decision_note, checklist.readiness_status, JSON.stringify(summary), JSON.stringify(safeDecision.evidence_json),
+       actor_id || "admin_system", actor_type]
+    );
+    await connection.query(
+      `INSERT INTO audit_log (audit_id, tenant_id, actor_id, actor_type, action, resource_type, resource_id, after_json, service_mode)
+       VALUES (UUID(), '00000000-0000-0000-0000-000000000000', ?, ?, 'support_ticket_external_adapter_readiness_decision_recorded', 'external_delivery_provider_adapter_readiness_checklist', ?, ?, 'managed')`,
+      [actor_id || "admin_system", actor_type, checklist_id, JSON.stringify(safeDecision)]
+    );
+    if (ownsConnection) await connection.commit();
+    return { ok: true, mode: "record_decision", decision: safeDecision, external_send_performed: false, secret_value_included: false, secrets_included: false };
+  } catch (error) { if (ownsConnection) await connection.rollback(); throw error; }
+  finally { if (ownsConnection) connection.release(); }
+}
