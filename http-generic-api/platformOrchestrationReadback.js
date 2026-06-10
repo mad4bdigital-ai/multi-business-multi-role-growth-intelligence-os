@@ -113,6 +113,18 @@ export async function readPlatformOrchestrationReadback(input = {}) {
     }
   }
 
+  let supportTicketLifecycleReadiness = null;
+  if (pluginKey === "support_ticket_lifecycle_orchestrator") {
+    try {
+      supportTicketLifecycleReadiness = await readSupportTicketLifecycleOrchestrationReadiness({
+        tenant_id: input.tenant_id || input.tenantId || null,
+        limit,
+      });
+    } catch {
+      supportTicketLifecycleReadiness = null;
+    }
+  }
+
   let snapshots = [];
   if (includeSnapshots) {
     const [snapshotRows] = await pool.query(
