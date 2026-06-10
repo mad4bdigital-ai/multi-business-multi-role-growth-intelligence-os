@@ -15,9 +15,6 @@ function includesAll(source, values, label) {
 }
 
 includesAll(migration, [
-  "CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_scope",
-  "CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_resource",
-  "CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_recipe",
   "github_repo",
   "github_pull_request",
   "github_file",
