@@ -512,6 +512,7 @@ export async function catalogGovernedResources(args = {}) {
 }
 
 const ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY = "google_drive.session_folder.reconcile_artifacts_exports";
+const REPOSITORY_PR_RECONCILE_RECIPE_KEY = "repo.pr.reconciliation_sweep";
 
 const READ_ONLY_INSTALLED_TOOL_ALLOWLIST = new Set([
   "google_drive_folder_inspect",
@@ -519,6 +520,10 @@ const READ_ONLY_INSTALLED_TOOL_ALLOWLIST = new Set([
 
 const READ_ONLY_COMPOSITE_RECIPE_ALLOWLIST = new Set([
   ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY,
+]);
+
+const READ_ONLY_ENDPOINT_RECIPE_ALLOWLIST = new Set([
+  REPOSITORY_PR_RECONCILE_RECIPE_KEY,
 ]);
 
 function isMutatingRiskClass(riskClass = "") {
