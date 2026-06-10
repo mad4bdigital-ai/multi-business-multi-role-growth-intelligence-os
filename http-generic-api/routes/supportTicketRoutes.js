@@ -535,6 +535,32 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.post("/admin/support/tickets/external-send/provider-adapter-future-pr-scope/plan", ...adminGuards, async (req, res) => {
+    try {
+      const result = await planSupportTicketExternalAdapterFuturePrScope({
+        decision_id: req.body?.decision_id,
+        evidence_json: req.body?.evidence_json || {},
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_adapter_future_pr_scope_plan_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/external-send/provider-adapter-future-pr-scope/record", ...adminGuards, async (req, res) => {
+    try {
+      const result = await recordSupportTicketExternalAdapterFuturePrScope({
+        decision_id: req.body?.decision_id,
+        evidence_json: req.body?.evidence_json || {},
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_adapter_future_pr_scope_record_failed");
+    }
+  });
+
   router.post("/admin/support/tickets/external-send/provider-adapter-readiness/plan", ...adminGuards, async (req, res) => {
     try {
       const result = await planSupportTicketExternalAdapterReadinessChecklist({
