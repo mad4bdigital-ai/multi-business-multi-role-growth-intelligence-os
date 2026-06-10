@@ -548,7 +548,8 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
             LIMIT ${limit}`,
           []
         )
-      : { ok: true, rows: [], skipped: true, reason: "admin_tools_require_admin_principal" }
+      : { ok: true, rows: [], skipped: true, reason: "admin_tools_require_admin_principal" },
+    loadActivationRegisteredSurfaces(req, subject, { query: queryFn })
   ]);
 
   const permissionKeys = [...new Set(rowsOrEmpty(grants).map((row) => row.permission_key).filter(Boolean))].sort();
