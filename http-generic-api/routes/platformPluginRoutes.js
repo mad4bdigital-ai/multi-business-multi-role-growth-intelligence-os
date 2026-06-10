@@ -187,6 +187,22 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
     } catch (err) { return errorResponse(res, err, "support_ticket_lifecycle_snapshot_record_failed"); }
   });
 
+  router.post("/platform/orchestration/support-ticket/next-action-readback", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await readSupportTicketLifecycleNextAction(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "support_ticket_lifecycle_next_action_readback_failed"); }
+  });
+
+  router.post("/platform/orchestration/support-ticket/external-delivery/readback", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await readSupportTicketExternalDeliveryOrchestrationReadiness(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "support_ticket_external_delivery_readback_failed"); }
+  });
+
   router.post("/platform/plugins/smoke-certifications/certify", ...requireAdmin, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
