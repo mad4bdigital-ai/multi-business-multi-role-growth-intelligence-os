@@ -113,7 +113,7 @@ includesAll(systemLayerRoutes, [
 includesAll(executionDispatch, [
   "raw_body_mode",
   "multipart_related",
-  "parent_action_key || \"\") === \"google_drive_api\"",
+  "String(parent_action_key || \"\").trim() === \"google_drive_api\"",
   "[\"uploadNewFile\", \"upload_new_file_media\"].includes(endpointKey)",
   "contentType.startsWith(\"multipart/related;\")",
   "? transportBody",
