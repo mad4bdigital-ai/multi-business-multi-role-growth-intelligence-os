@@ -308,6 +308,152 @@ function surfaceError(surface, result) {
   return result?.ok ? null : { surface, error: result?.error || { code: "unknown", message: "Unknown authorization surface error" } };
 }
 
+const ACTIVATION_SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
+const ACTIVATION_BLOCKED_COLUMN_PATTERN = /(secret|credential_ref|credential|token|password|private_key|cipher|api_key|value_ciphertext|value_sha|config_json)/i;
+
+function quoteActivationIdentifier(value) {
+  const text = String(value || "").trim();
+  if (!ACTIVATION_SAFE_IDENTIFIER.test(text)) {
+    const err = new Error(`Unsafe activation surface identifier: ${text}`);
+    err.code = "unsafe_activation_surface_identifier";
+    throw err;
+  }
+  return `\`${text}\``;
+}
+
+function safeActivationColumns(value) {
+  const columns = Array.isArray(value) ? value : parseJsonSafe(value) || [];
+  return columns
+    .map((column) => String(column || "").trim())
+    .filter((column) => ACTIVATION_SAFE_IDENTIFIER.test(column))
+    .filter((column) => !ACTIVATION_BLOCKED_COLUMN_PATTERN.test(column))
+    .slice(0, 40);
+}
+
+function stripSensitiveActivationFields(row = {}) {
+  return Object.fromEntries(
+    Object.entries(row).filter(([key]) => !ACTIVATION_BLOCKED_COLUMN_PATTERN.test(key))
+  );
+}
+
+async function loadActivationRegisteredSurfaces(req, subject, deps = {}) {
+  const queryFn = deps.query || safeQuery;
+  const isAdmin = subject.is_admin === true;
+  const tenantId = subject.tenant_id || req.auth?.tenant_id || null;
+  const userId = subject.user_id || req.auth?.user_id || null;
+  const baseLimit = capLimit(req.query?.authorized_surface_limit, 10, 50);
+
+  const registry = await queryFn(
+    `SELECT surface_key, display_name, description, source_table, result_key_column, result_label_column,
+            tenant_column, user_column, status_column, active_status_values_json, result_columns_json,
+            include_for_admin, include_for_tenant, max_rows, sort_order, status
+       FROM \`activation_authorized_surface_registry\`
+      WHERE status = 'active'
+        AND (? = 1 OR include_for_tenant = 1)
+        AND (? = 0 OR include_for_admin = 1)
+      ORDER BY sort_order ASC, surface_key ASC
+      LIMIT 50`,
+    [isAdmin ? 1 : 0, isAdmin ? 1 : 0]
+  );
+
+  if (!registry.ok) {
+    const missing = /doesn't exist|ER_NO_SUCH_TABLE/i.test(String(registry.error?.message || ""));
+    return {
+      ok: missing,
+      source: "activation_authorized_surface_registry",
+      registered_surface_count: 0,
+      surfaces: [],
+      skipped: missing,
+      reason: missing ? "activation_authorized_surface_registry_not_installed" : null,
+      degraded_surfaces: missing ? [] : [{ surface: "activation_authorized_surface_registry", error: registry.error }],
+      secrets_included: false,
+    };
+  }
+
+  const surfaces = [];
+  const degraded = [];
+
+  for (const row of registry.rows || []) {
+    try {
+      const sourceTable = quoteActivationIdentifier(row.source_table);
+      const tenantColumn = row.tenant_column ? quoteActivationIdentifier(row.tenant_column) : null;
+      const userColumn = row.user_column ? quoteActivationIdentifier(row.user_column) : null;
+      const statusColumn = row.status_column ? quoteActivationIdentifier(row.status_column) : null;
+      const columns = safeActivationColumns(row.result_columns_json);
+      if (!columns.length) {
+        degraded.push({ surface: row.surface_key, error: { code: "no_safe_result_columns", message: "No safe result columns registered." } });
+        continue;
+      }
+      if (!isAdmin && !tenantColumn && !userColumn) {
+        degraded.push({ surface: row.surface_key, error: { code: "tenant_surface_requires_scope_column", message: "Tenant activation surface requires tenant_column or user_column." } });
+        continue;
+      }
+
+      const selectSql = columns.map(quoteActivationIdentifier).join(", ");
+      const where = [];
+      const params = [];
+      if (isAdmin) {
+        if (tenantColumn && tenantId) {
+          where.push(`${tenantColumn} = ?`);
+          params.push(tenantId);
+        }
+        if (userColumn && userId) {
+          where.push(`${userColumn} = ?`);
+          params.push(userId);
+        }
+      } else {
+        if (tenantColumn && tenantId) {
+          where.push(`${tenantColumn} = ?`);
+          params.push(tenantId);
+        } else if (userColumn && userId) {
+          where.push(`${userColumn} = ?`);
+          params.push(userId);
+        } else {
+          where.push("1 = 0");
+        }
+      }
+
+      const activeStatuses = parseJsonSafe(row.active_status_values_json) || [];
+      if (statusColumn && Array.isArray(activeStatuses) && activeStatuses.length) {
+        where.push(`${statusColumn} IN (?)`);
+        params.push(activeStatuses.map((item) => String(item)));
+      }
+
+      const maxRows = Math.min(Math.max(Number(row.max_rows || baseLimit) || baseLimit, 1), baseLimit);
+      const result = await queryFn(
+        `SELECT ${selectSql}
+           FROM ${sourceTable}
+          WHERE ${where.length ? where.join(" AND ") : "1 = 1"}
+          LIMIT ${maxRows}`,
+        params
+      );
+      if (!result.ok) {
+        degraded.push({ surface: row.surface_key, error: result.error });
+        continue;
+      }
+      surfaces.push({
+        surface_key: row.surface_key,
+        display_name: row.display_name,
+        source_table: row.source_table,
+        row_count: result.rows.length,
+        rows: result.rows.map(stripSensitiveActivationFields),
+        secrets_included: false,
+      });
+    } catch (err) {
+      degraded.push({ surface: row.surface_key, error: { code: err.code || "activation_registered_surface_failed", message: err.message } });
+    }
+  }
+
+  return {
+    ok: degraded.length === 0,
+    source: "activation_authorized_surface_registry",
+    registered_surface_count: registry.rows.length,
+    surfaces,
+    degraded_surfaces: degraded,
+    secrets_included: false,
+  };
+}
+
 export async function buildActivationAuthorizedAccess(req, subject = resolveSessionContextSubject(req), deps = {}) {
   const queryFn = deps.query || safeQuery;
   const isAdmin = subject.is_admin === true;
