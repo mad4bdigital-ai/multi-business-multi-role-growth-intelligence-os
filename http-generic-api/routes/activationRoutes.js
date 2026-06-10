@@ -336,6 +336,34 @@ function stripSensitiveActivationFields(row = {}) {
   );
 }
 
+function normalizedActivationSet(values = []) {
+  return new Set(values.map((value) => String(value || "").trim().toLowerCase()).filter(Boolean));
+}
+
+function actionPermissionCandidates(row = {}) {
+  const actionKey = String(row.action_key || "").trim();
+  const connectorFamily = String(row.connector_family || "").trim();
+  const capabilityClass = String(row.runtime_capability_class || "").trim();
+  const values = [];
+  for (const value of [actionKey, connectorFamily, capabilityClass]) {
+    if (!value) continue;
+    values.push(value, `${value}:execute`, `${value}:read`, `${value}:write`, `${value}:*`);
+  }
+  if (actionKey) values.push(`action:${actionKey}`, `action:${actionKey}:execute`);
+  if (connectorFamily && actionKey) values.push(`${connectorFamily}:${actionKey}`, `${connectorFamily}:${actionKey}:execute`);
+  return values;
+}
+
+function isRuntimeActionAuthorizedForSubject(row = {}, context = {}) {
+  if (context.isAdmin === true) return true;
+  const permissionSet = normalizedActivationSet(context.permissionKeys || []);
+  const connectorSet = normalizedActivationSet(context.connectorFamilies || []);
+  const connectorFamily = String(row.connector_family || "").trim().toLowerCase();
+  const connectorEvidenceOk = !connectorFamily || connectorSet.has(connectorFamily);
+  const permissionEvidenceOk = actionPermissionCandidates(row).some((candidate) => permissionSet.has(String(candidate || "").toLowerCase()));
+  return connectorEvidenceOk && permissionEvidenceOk;
+}
+
 async function loadActivationRegisteredSurfaces(req, subject, deps = {}) {
   const queryFn = deps.query || safeQuery;
   const isAdmin = subject.is_admin === true;
