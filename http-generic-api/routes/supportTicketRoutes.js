@@ -70,6 +70,10 @@ import {
   proposeSupportTicketExternalProviderAdapterEnablement,
 } from "../supportTicketExternalProviderEnablementProposalService.js";
 import {
+  planSupportTicketExternalAdapterReadinessChecklist,
+  recordSupportTicketExternalAdapterReadinessChecklist,
+} from "../supportTicketExternalAdapterReadinessChecklistService.js";
+import {
   decideSupportTicketExternalCredentialBinding,
   listSupportTicketExternalCredentialCandidates,
   requestSupportTicketExternalCredentialBinding,
@@ -523,6 +527,32 @@ export function buildSupportTicketRoutes(deps = {}) {
       return res.status(200).json(result);
     } catch (err) {
       return sendError(res, err, "support_ticket_external_credential_binding_decision_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/external-send/provider-adapter-readiness/plan", ...adminGuards, async (req, res) => {
+    try {
+      const result = await planSupportTicketExternalAdapterReadinessChecklist({
+        proposal_id: req.body?.proposal_id,
+        evidence_json: req.body?.evidence_json || {},
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_adapter_readiness_plan_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/external-send/provider-adapter-readiness/record", ...adminGuards, async (req, res) => {
+    try {
+      const result = await recordSupportTicketExternalAdapterReadinessChecklist({
+        proposal_id: req.body?.proposal_id,
+        evidence_json: req.body?.evidence_json || {},
+        actor_id: req.auth?.user_id || "admin_system",
+        actor_type: req.auth?.mode || "admin",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "support_ticket_external_adapter_readiness_record_failed");
     }
   });
 
