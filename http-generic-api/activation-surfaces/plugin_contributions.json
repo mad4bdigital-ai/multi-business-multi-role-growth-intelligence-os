@@ -30,5 +30,5 @@
   "max_rows": 50,
   "sort_order": 80,
   "status": "active",
-  "notes": "Repo-managed activation view. Excludes manifest/protocol/action/credential policy JSON."
+  "notes": "Repo-managed activation view. Excludes plugin definition and authentication policy payload fields."
 }
