@@ -54,6 +54,21 @@ includesAll(runtimeModule, [
   "github_repo",
 ], "resource resolver must recognize repository and pull request resources");
 
+includesAll(runtimeModule, [
+  "REPOSITORY_PR_RECONCILE_RECIPE_KEY",
+  "READ_ONLY_ENDPOINT_RECIPE_ALLOWLIST",
+  "repo.pr.reconciliation_sweep",
+  "resource_recipe_read_only_endpoint_recipe_v1",
+  "buildRepositoryPrReconciliation",
+  "executeRepositoryPrReconciliationReadOnly",
+  "getGitHubAppInstallationToken",
+  "repo_pr_reconciliation_sweep",
+  "repository_pr_reconciliation_read_only",
+  "mutations_executed: false",
+  "graph_write_executed: false",
+  "secrets_included: false",
+], "repository PR reconciliation must be read-only and governed");
+
 const repoResolved = resolveResourceRefInput({ input: "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os" });
 assert.equal(repoResolved.resource_type, "github_repo");
 assert.equal(repoResolved.resource_uri, "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os");
