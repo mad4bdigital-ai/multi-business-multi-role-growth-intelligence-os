@@ -60,6 +60,9 @@ function loadSurfaceIndex() {
     }
     bySurfaceKey.set(manifest.surface_key, { filePath, manifest });
     bySourceTable.set(manifest.source_table, { filePath, manifest });
+    for (const table of coveredSourceTables) {
+      bySourceTable.set(table, { filePath, manifest, covered_by_view: manifest.source_table });
+    }
   }
   return { bySurfaceKey, bySourceTable };
 }
