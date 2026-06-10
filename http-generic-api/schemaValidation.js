@@ -107,8 +107,13 @@ export function validateRequestBody(operation, body) {
   if (body === undefined || body === null) return [];
 
   const content = reqBody.content || {};
-  const jsonContent = content["application/json"] || Object.values(content)[0];
-  const schema = jsonContent?.schema;
+  const multipartRelatedContent = content["multipart/related"];
+  const jsonContent = content["application/json"];
+  const selectedContent =
+    typeof body === "string" && multipartRelatedContent
+      ? multipartRelatedContent
+      : jsonContent || Object.values(content)[0];
+  const schema = selectedContent?.schema;
   if (!schema) return [];
   return validateByJsonSchema(schema, body, "body");
 }
