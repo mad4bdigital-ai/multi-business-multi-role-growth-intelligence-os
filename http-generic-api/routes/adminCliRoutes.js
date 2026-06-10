@@ -1690,6 +1690,7 @@ function builtInShellAllowlist() {
     activation_authorized_access_smoke: { command: process.execPath, args: ["http-generic-api/scripts/activation-authorized-access-smoke.mjs"], display_name: "Activation authorized access smoke", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
     activation_authorized_access_tenant_smoke: { command: process.execPath, args: ["http-generic-api/scripts/activation-authorized-access-tenant-smoke.mjs"], display_name: "Activation authorized access tenant smoke", allow_extra_args: true, max_extra_args: 4, timeout_ms: 120000, built_in: true },
     activation_authorized_surface_registry_sync: { command: process.execPath, args: ["http-generic-api/scripts/activation-authorized-surface-registry-sync.mjs"], display_name: "Activation authorized surface registry sync", allow_extra_args: true, max_extra_args: 4, timeout_ms: 120000, built_in: true },
+    activation_source_table_coverage_audit: { command: process.execPath, args: ["http-generic-api/scripts/activation-surface-db-coverage-audit.mjs"], display_name: "Activation source table coverage audit", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
     migration_ledger_record_dry_run: {
       command: process.execPath,
       args: ["http-generic-api/scripts/governed-migration-runner.mjs", "--record-ledger", "--dry-run"],
