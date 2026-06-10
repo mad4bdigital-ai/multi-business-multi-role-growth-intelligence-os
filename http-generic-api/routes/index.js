@@ -86,6 +86,7 @@ import { buildSessionInsightPromotionAdapterContractRoutes } from "./sessionInsi
 import { buildSessionInsightPromotionPayloadPreviewRoutes } from "./sessionInsightPromotionPayloadPreviewRoutes.js";
 import { buildSessionInsightPayloadPreviewReviewRoutes } from "./sessionInsightPayloadPreviewReviewRoutes.js";
 import { buildSessionInsightAdapterApplyReadinessGateRoutes } from "./sessionInsightAdapterApplyReadinessGateRoutes.js";
+import { buildSessionInsightCapabilityEnvelopePlanRoutes } from "./sessionInsightCapabilityEnvelopePlanRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
