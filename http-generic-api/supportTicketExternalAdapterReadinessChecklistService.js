@@ -159,7 +159,7 @@ export async function recordSupportTicketExternalAdapterReadinessChecklist({ pro
       [actor_id || "admin_system", actor_type, proposal_id, JSON.stringify({ checklist_id: checklistId, readiness_status: planned.checklist.summary.readiness_status, registry_mutation_performed: false, external_send_performed: false, secrets_included: false })]
     );
     if (ownsConnection) await connection.commit();
-    return { ok: true, mode: "record_checklist", checklist_id: checklistId, ...planned, external_send_performed: false, secret_value_included: false, secrets_included: false };
+    return { ...planned, ok: true, mode: "record_checklist", checklist_id: checklistId, external_send_performed: false, secret_value_included: false, secrets_included: false };
   } catch (error) { if (ownsConnection) await connection.rollback(); throw error; }
   finally { if (ownsConnection) connection.release(); }
 }
