@@ -300,7 +300,7 @@ section("dispatcher contracts");
     ["getDevHealth", "getDevDeploymentInfo", "getDevDbStatus"].every((op) => devOperationIds.has(op)) &&
     devOps.every((op) => op.operation["x-openai-isConsequential"] === false));
   assert("parent OpenAPI documents dev dispatcher routes",
-    Boolean(parentDoc.paths?.["/deployment-info"]) && Boolean(parentDoc.paths?.["/dev/db/status"]));
+    openApiTextHasPath(parentSchema, "/deployment-info") && openApiTextHasPath(parentSchema, "/dev/db/status"));
 }
 
 section("admin and tenant OpenAI schema coverage for tool additions");
