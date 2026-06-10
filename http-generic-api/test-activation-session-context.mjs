@@ -196,6 +196,7 @@ assert.equal(shouldOpenActivationSession({ context_only: "true" }), false);
   const queries = [];
   const query = async (sql) => {
     queries.push(sql);
+    if (sql.includes("FROM `activation_authorized_surface_registry`")) return { ok: true, rows: [{ surface_key: "workspace_registry", display_name: "Authorized Workspaces", source_table: "workspace_registry", result_key_column: "workspace_key", result_label_column: "display_name", tenant_column: "tenant_id", user_column: null, status_column: "bootstrap_status", active_status_values_json: JSON.stringify(["ready"]), result_columns_json: JSON.stringify(["workspace_id", "tenant_id", "workspace_key", "display_name", "credential_ref", "config_json"]), include_for_admin: 1, include_for_tenant: 1, max_rows: 5, sort_order: 10, status: "active" }] };
     if (sql.includes("FROM `memberships`")) return { ok: true, rows: [{ tenant_id: "tenant-a", role: "owner", status: "active" }] };
     if (sql.includes("FROM `role_assignments`")) return { ok: true, rows: [{ tenant_id: "tenant-a", role: "growth_operator", status: "active" }] };
     if (sql.includes("FROM `workspace_registry`")) return { ok: true, rows: [{ workspace_id: "workspace-1", tenant_id: "tenant-a", workspace_key: "brand_a", display_name: "Brand A", workspace_type: "brand", bootstrap_status: "ready", linked_brand_key: "brand_a", linked_system_ids: "system-1,system-2" }] };
