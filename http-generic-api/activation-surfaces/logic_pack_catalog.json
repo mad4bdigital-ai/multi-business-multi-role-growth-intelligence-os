@@ -3,6 +3,7 @@
   "display_name": "Authorized Logic Pack Catalog",
   "description": "Tenant-scoped catalog of active logic packs visible during activation.",
   "source_table": "v_activation_logic_pack_catalog",
+  "covered_source_tables": ["logic_packs", "tenants"],
   "result_key_column": "pack_id",
   "result_label_column": "pack_key",
   "tenant_column": "tenant_id",

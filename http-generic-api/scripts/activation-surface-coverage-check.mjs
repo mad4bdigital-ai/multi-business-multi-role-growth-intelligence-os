@@ -43,6 +43,14 @@ function loadSurfaceIndex() {
     const manifest = readJson(filePath);
     if (!SAFE_IDENTIFIER.test(String(manifest.surface_key || ""))) throw new Error(`Unsafe surface_key in ${filePath}`);
     if (!SAFE_IDENTIFIER.test(String(manifest.source_table || ""))) throw new Error(`Unsafe source_table in ${filePath}`);
+    const coveredSourceTables = Array.isArray(manifest.covered_source_tables) ? manifest.covered_source_tables : [];
+    for (const table of coveredSourceTables) {
+      if (!SAFE_IDENTIFIER.test(String(table || ""))) throw new Error(`Unsafe covered_source_tables entry ${table} in ${filePath}`);
+      if (SENSITIVE_PATTERN.test(String(table || ""))) throw new Error(`Sensitive covered source table name ${table} in ${filePath}`);
+    }
+    if (String(manifest.source_table || "").startsWith("v_activation_") && coveredSourceTables.length === 0) {
+      throw new Error(`Activation view manifest ${manifest.surface_key} must declare covered_source_tables.`);
+    }
     for (const column of manifest.result_columns || []) {
       if (!SAFE_IDENTIFIER.test(String(column || ""))) throw new Error(`Unsafe result column ${column} in ${filePath}`);
       if (SENSITIVE_PATTERN.test(String(column || ""))) throw new Error(`Sensitive result column ${column} in ${filePath}`);
@@ -52,6 +60,9 @@ function loadSurfaceIndex() {
     }
     bySurfaceKey.set(manifest.surface_key, { filePath, manifest });
     bySourceTable.set(manifest.source_table, { filePath, manifest });
+    for (const table of coveredSourceTables) {
+      bySourceTable.set(table, { filePath, manifest, covered_by_view: manifest.source_table });
+    }
   }
   return { bySurfaceKey, bySourceTable };
 }

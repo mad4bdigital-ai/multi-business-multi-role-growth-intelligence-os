@@ -3,6 +3,7 @@
   "display_name": "Authorized Platform Plugin Catalog",
   "description": "Tenant-scoped catalog of active platform orchestration plugins visible during activation.",
   "source_table": "v_activation_platform_plugin_catalog",
+  "covered_source_tables": ["platform_orchestration_plugins", "tenants"],
   "result_key_column": "plugin_key",
   "result_label_column": "display_name",
   "tenant_column": "tenant_id",

@@ -3,6 +3,7 @@
   "display_name": "Authorized Tenant Tools",
   "description": "Enabled tenant platform endpoint tools visible during activation.",
   "source_table": "v_activation_tenant_tools",
+  "covered_source_tables": ["tenant_platform_endpoint_tools", "tenants"],
   "result_key_column": "tool_key",
   "result_label_column": "display_name",
   "tenant_column": "tenant_id",

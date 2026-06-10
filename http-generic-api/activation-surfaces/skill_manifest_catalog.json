@@ -3,6 +3,7 @@
   "display_name": "Authorized Skill Manifest Catalog",
   "description": "Tenant-scoped catalog of active skill manifests visible during activation.",
   "source_table": "v_activation_skill_manifest_catalog",
+  "covered_source_tables": ["skill_manifests", "tenants"],
   "result_key_column": "skill_key",
   "result_label_column": "skill_display_name",
   "tenant_column": "tenant_id",

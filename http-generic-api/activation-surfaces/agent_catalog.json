@@ -3,6 +3,7 @@
   "display_name": "Authorized Agent Catalog",
   "description": "Tenant-scoped catalog of active agents visible during activation.",
   "source_table": "v_activation_agent_catalog",
+  "covered_source_tables": ["agents", "tenants"],
   "result_key_column": "agent_id",
   "result_label_column": "agent_name",
   "tenant_column": "tenant_id",

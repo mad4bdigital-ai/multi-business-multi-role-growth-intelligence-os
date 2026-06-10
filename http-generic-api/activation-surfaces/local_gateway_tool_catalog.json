@@ -3,6 +3,7 @@
   "display_name": "Authorized Local Gateway Tool Catalog",
   "description": "Tenant-scoped catalog of active local gateway tools visible during activation.",
   "source_table": "v_activation_local_gateway_tool_catalog",
+  "covered_source_tables": ["local_gateway_tools", "tenants"],
   "result_key_column": "tool_key",
   "result_label_column": "display_name",
   "tenant_column": "tenant_id",
