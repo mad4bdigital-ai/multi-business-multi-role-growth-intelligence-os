@@ -66,8 +66,14 @@ includesAll(runtimeModule, [
   "repository_pr_reconciliation_read_only",
   "mutations_executed: false",
   "graph_write_executed: false",
+  "recordRepositoryPrReconciliationEvidence",
+  "repositoryPrEvidenceRequested",
+  "audit_payload_evidence",
+  "repository_pr_reconciliation_summary",
+  "audit_write_executed",
+  "record_evidence_not_requested",
   "secrets_included: false",
-], "repository PR reconciliation must be read-only and governed");
+], "repository PR reconciliation must be read-only, evidence-capable, and governed");
 
 const repoResolved = resolveResourceRefInput({ input: "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os" });
 assert.equal(repoResolved.resource_type, "github_repo");
