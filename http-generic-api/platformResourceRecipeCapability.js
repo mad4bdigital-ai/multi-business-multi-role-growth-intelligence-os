@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { getPool } from "./db.js";
+import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { markCapabilityEnvelopeReferenced, resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
 
 export const PLATFORM_RESOURCE_RECIPE_TOOL_NAMES = [
@@ -512,6 +513,7 @@ export async function catalogGovernedResources(args = {}) {
 }
 
 const ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY = "google_drive.session_folder.reconcile_artifacts_exports";
+const REPOSITORY_PR_RECONCILE_RECIPE_KEY = "repo.pr.reconciliation_sweep";
 
 const READ_ONLY_INSTALLED_TOOL_ALLOWLIST = new Set([
   "google_drive_folder_inspect",
@@ -519,6 +521,10 @@ const READ_ONLY_INSTALLED_TOOL_ALLOWLIST = new Set([
 
 const READ_ONLY_COMPOSITE_RECIPE_ALLOWLIST = new Set([
   ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY,
+]);
+
+const READ_ONLY_ENDPOINT_RECIPE_ALLOWLIST = new Set([
+  REPOSITORY_PR_RECONCILE_RECIPE_KEY,
 ]);
 
 function isMutatingRiskClass(riskClass = "") {
@@ -560,6 +566,10 @@ function readOnlyRecipeExecutionReady(recipe = {}, steps = [], blockedReasons = 
       READ_ONLY_COMPOSITE_RECIPE_ALLOWLIST.has(recipe.recipe_key) &&
       executableInstalledToolSteps(steps).length > 0
     );
+  }
+
+  if (recipe.adapter_kind === "endpoint_recipe") {
+    return READ_ONLY_ENDPOINT_RECIPE_ALLOWLIST.has(recipe.recipe_key);
   }
 
   return false;
@@ -1140,6 +1150,276 @@ function buildArtifactExportReconciliation(installedToolResult = {}, plan = {}, 
   };
 }
 
+function normalizedCheckConclusion(value = "") {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizeGithubCheckRuns(value = []) {
+  const items = Array.isArray(value) ? value : Array.isArray(value?.nodes) ? value.nodes : [];
+  return items.map((check) => ({
+    name: check.name || check.workflowName || check.context || null,
+    status: check.status || null,
+    conclusion: check.conclusion || null,
+    url: check.url || check.detailsUrl || null,
+  })).filter((check) => check.name || check.status || check.conclusion);
+}
+
+function normalizeGithubChangedFiles(value = []) {
+  const items = Array.isArray(value) ? value : Array.isArray(value?.nodes) ? value.nodes : [];
+  return items.map((file) => ({
+    path: file.path || file.filename || null,
+    additions: Number(file.additions || 0),
+    deletions: Number(file.deletions || 0),
+    change_type: file.changeType || file.status || null,
+  })).filter((file) => file.path);
+}
+
+function normalizeGithubPullRequest(value = {}) {
+  const number = Number(value.number || value.pr_number || value.pull_number || 0);
+  const checkRuns = normalizeGithubCheckRuns(value.check_runs || value.checkRuns || value.status_checks || value.stateCheckRollup || []);
+  const changedFiles = normalizeGithubChangedFiles(value.changed_files || value.changedFiles || value.files || []);
+  return {
+    number,
+    title: value.title || null,
+    state: String(value.state || "").toLowerCase() || null,
+    url: value.url || value.html_url || null,
+    author: value.author?.login || value.user?.login || value.author || null,
+    is_draft: Boolean(value.isDraft ?? value.draft),
+    mergeable: value.mergeable ?? null,
+    merge_state_status: value.mergeStateStatus || value.merge_state_status || value.merge_state || null,
+    base_ref_name: value.baseRefName || value.base_ref_name || value.base?.ref || null,
+    head_ref_name: value.headRefName || value.head_ref_name || value.head?.ref || null,
+    base_ref_oid: value.baseRefOid || value.base_ref_oid || value.base?.sha || null,
+    head_ref_oid: value.headRefOid || value.head_ref_oid || value.head?.sha || null,
+    changed_files: changedFiles,
+    check_runs: checkRuns,
+    secrets_included: false,
+  };
+}
+
+function classifyRepositoryPullRequest(pr = {}) {
+  const mergeState = String(pr.merge_state_status || "").toLowerCase();
+  const hasChecks = Array.isArray(pr.check_runs) && pr.check_runs.length > 0;
+  const failingChecks = (pr.check_runs || []).filter((check) => ["failure", "failed", "timed_out", "cancelled", "action_required"].includes(normalizedCheckConclusion(check.conclusion)));
+  const pendingChecks = (pr.check_runs || []).filter((check) => {
+    const conclusion = normalizedCheckConclusion(check.conclusion);
+    const status = normalizedCheckConclusion(check.status);
+    return !["success", "skipped", "neutral"].includes(conclusion) && (status === "in_progress" || status === "queued" || !conclusion);
+  });
+
+  if (pr.is_draft) {
+    return { classification: "manual_review_required", confidence: 0.88, reason_code: "pull_request_is_draft", recommended_action: "wait_or_review_manually" };
+  }
+  if (pr.mergeable === false || ["dirty", "blocked", "unknown"].includes(mergeState)) {
+    return { classification: "unsafe_to_merge", confidence: 0.91, reason_code: "mergeability_blocked_or_unknown", recommended_action: "manual_review_required" };
+  }
+  if (["behind", "behind_only"].includes(mergeState)) {
+    return { classification: "behind_only", confidence: 0.9, reason_code: "branch_is_behind_base", recommended_action: "update_branch_then_recheck" };
+  }
+  if (failingChecks.length) {
+    return { classification: "unsafe_to_merge", confidence: 0.94, reason_code: "failing_checks_present", recommended_action: "fix_checks_before_merge" };
+  }
+  if (!hasChecks) {
+    return { classification: "clean_but_ci_missing", confidence: 0.82, reason_code: "no_status_checks_visible", recommended_action: "run_or_wait_for_ci" };
+  }
+  if (pendingChecks.length) {
+    return { classification: "clean_but_ci_missing", confidence: 0.84, reason_code: "checks_pending_or_incomplete", recommended_action: "wait_for_ci" };
+  }
+  return { classification: "merge_ready", confidence: 0.9, reason_code: "checks_success_and_mergeable", recommended_action: "review_then_merge" };
+}
+
+function encodeGithubPathPart(value = "") {
+  return encodeURIComponent(String(value || "").trim());
+}
+
+async function githubReadOnlyGet(pathname = "", token = "") {
+  const response = await fetch(`https://api.github.com${pathname}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "growth-intelligence-platform-resource-recipes",
+    },
+  });
+  const text = await response.text();
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { parse_error: true, text: text.slice(0, 200) };
+  }
+  if (!response.ok) {
+    const err = new Error(body?.message || `GitHub read-only request failed with ${response.status}`);
+    err.status = response.status;
+    err.code = "github_read_only_request_failed";
+    err.details = { pathname, status: response.status, body };
+    throw err;
+  }
+  return body;
+}
+
+function liteGithubPullRequest(pr = {}) {
+  return {
+    number: pr.number,
+    title: pr.title || null,
+    state: pr.state || null,
+    url: pr.html_url || pr.url || null,
+    draft: Boolean(pr.draft),
+    mergeable: pr.mergeable ?? null,
+    merge_state_status: pr.mergeable_state || null,
+    author: pr.user?.login || null,
+    base: { ref: pr.base?.ref || null, sha: pr.base?.sha || null },
+    head: { ref: pr.head?.ref || null, sha: pr.head?.sha || null },
+    secrets_included: false,
+  };
+}
+
+async function executeRepositoryPrReconciliationReadOnly(operationKey = "", args = {}) {
+  if (operationKey !== "repo_pr_reconciliation_sweep") {
+    const err = new Error(`Unsupported GitHub read-only resource recipe operation: ${operationKey}`);
+    err.status = 400;
+    err.code = "unsupported_github_read_only_operation";
+    throw err;
+  }
+  const owner = String(args.owner || "").trim();
+  const repo = String(args.repo || "").trim();
+  if (!owner || !repo) {
+    const err = new Error("GitHub read-only PR reconciliation requires owner and repo.");
+    err.status = 400;
+    err.code = "missing_github_owner_repo";
+    throw err;
+  }
+
+  const token = await getGitHubAppInstallationToken({});
+  const safeOwner = encodeGithubPathPart(owner);
+  const safeRepo = encodeGithubPathPart(repo);
+  const state = encodeURIComponent(String(args.state || "open"));
+  const limit = Math.min(Math.max(Number(args.limit || 20), 1), 50);
+  let providerCallsMade = 0;
+
+  const pulls = await githubReadOnlyGet(`/repos/${safeOwner}/${safeRepo}/pulls?state=${state}&per_page=${limit}`, token);
+  providerCallsMade += 1;
+  const pullRequests = [];
+  for (const pr of Array.isArray(pulls) ? pulls.slice(0, limit) : []) {
+    const lite = liteGithubPullRequest(pr);
+    if (args.include_changed_files !== false) {
+      const files = await githubReadOnlyGet(`/repos/${safeOwner}/${safeRepo}/pulls/${pr.number}/files?per_page=100`, token);
+      providerCallsMade += 1;
+      lite.changed_files = Array.isArray(files) ? files.map((file) => ({
+        filename: file.filename || null,
+        status: file.status || null,
+        additions: Number(file.additions || 0),
+        deletions: Number(file.deletions || 0),
+      })) : [];
+    }
+    if (args.include_check_runs !== false && pr.head?.sha) {
+      const checks = await githubReadOnlyGet(`/repos/${safeOwner}/${safeRepo}/commits/${encodeGithubPathPart(pr.head.sha)}/check-runs?per_page=100`, token);
+      providerCallsMade += 1;
+      lite.check_runs = Array.isArray(checks?.check_runs) ? checks.check_runs.map((check) => ({
+        name: check.name || null,
+        status: check.status || null,
+        conclusion: check.conclusion || null,
+        url: check.html_url || check.details_url || null,
+      })) : [];
+    }
+    pullRequests.push(lite);
+  }
+
+  return {
+    ok: true,
+    operation_key: operationKey,
+    owner,
+    repo,
+    pull_requests: pullRequests,
+    provider_calls_made: providerCallsMade,
+    mutations_executed: false,
+    secrets_included: false,
+  };
+}
+
+function buildRepositoryPrReconciliationArgs(plan = {}, args = {}) {
+  const ref = plan.resolved_resource?.resource_ref || {};
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  return {
+    owner: ref.owner || options.owner || args.owner,
+    repo: ref.repo || options.repo || args.repo,
+    state: options.state || args.state || "open",
+    limit: boundedNumber(options.limit ?? args.limit, 50, 1, 100),
+    include_changed_files: boolOption(options.include_changed_files ?? args.include_changed_files, true),
+    include_check_runs: boolOption(options.include_check_runs ?? args.include_check_runs, true),
+    secrets_included: false,
+  };
+}
+
+function buildRepositoryPrReconciliation(githubReadOnlyResult = {}, plan = {}, args = {}) {
+  const pullRequests = (Array.isArray(githubReadOnlyResult.pull_requests)
+    ? githubReadOnlyResult.pull_requests
+    : Array.isArray(githubReadOnlyResult.pullRequests)
+      ? githubReadOnlyResult.pullRequests
+      : Array.isArray(githubReadOnlyResult.items)
+        ? githubReadOnlyResult.items
+        : []).map(normalizeGithubPullRequest);
+  const classified = pullRequests.map((pr) => ({ ...pr, ...classifyRepositoryPullRequest(pr) }));
+  const classificationCounts = classified.reduce((acc, pr) => {
+    acc[pr.classification] = Number(acc[pr.classification] || 0) + 1;
+    return acc;
+  }, {});
+  const risky = classified.filter((pr) => ["unsafe_to_merge", "manual_review_required"].includes(pr.classification));
+  const ready = classified.filter((pr) => pr.classification === "merge_ready");
+
+  return {
+    ok: Boolean(githubReadOnlyResult.ok !== false),
+    recipe_key: REPOSITORY_PR_RECONCILE_RECIPE_KEY,
+    classification: risky.length ? "repository_attention_required" : ready.length ? "repository_merge_ready_candidates" : "repository_pr_reconciliation_clean",
+    summary: {
+      owner: plan.resolved_resource?.resource_ref?.owner || null,
+      repo: plan.resolved_resource?.resource_ref?.repo || null,
+      pull_request_count: classified.length,
+      classification_counts: classificationCounts,
+      ready_count: ready.length,
+      risky_count: risky.length,
+    },
+    pull_requests: classified.map((pr) => ({
+      number: pr.number,
+      title: pr.title,
+      state: pr.state,
+      url: pr.url,
+      author: pr.author,
+      is_draft: pr.is_draft,
+      mergeable: pr.mergeable,
+      merge_state_status: pr.merge_state_status,
+      base_ref_name: pr.base_ref_name,
+      head_ref_name: pr.head_ref_name,
+      changed_file_count: pr.changed_files.length,
+      check_run_count: pr.check_runs.length,
+      classification: pr.classification,
+      confidence: pr.confidence,
+      reason_code: pr.reason_code,
+      recommended_action: pr.recommended_action,
+      evidence: {
+        changed_files: pr.changed_files.slice(0, 50),
+        check_runs: pr.check_runs.slice(0, 50),
+        secrets_included: false,
+      },
+      secrets_included: false,
+    })),
+    recommendations: classified.map((pr) => ({
+      pr_number: pr.number,
+      classification: pr.classification,
+      confidence: pr.confidence,
+      recommended_action: pr.recommended_action,
+      reason_code: pr.reason_code,
+    })),
+    provider_calls_made_directly_by_resource_engine: 0,
+    provider_calls_made_by_read_only_executor: Number(githubReadOnlyResult.provider_calls_made || 0),
+    apply_supported: false,
+    mutations_executed: false,
+    graph_write_executed: false,
+    secrets_included: false,
+  };
+}
+
 export async function planGovernedResource(args = {}) {
   const recipe = await getRecipeByKey(args.recipe_key);
   const resolved = resolveResourceRefInput({ ...args, resource_type: recipe.resource_type });
@@ -1159,11 +1439,13 @@ export async function planGovernedResource(args = {}) {
 
   const readOnlyExecutionReady = readOnlyRecipeExecutionReady(recipe, steps, blockedReasons);
   const selectedToolKey = selectedInstalledToolKey(recipe, steps);
-  const executionClass = readOnlyExecutionReady && recipe.adapter_kind === "composite"
-    ? "resource_recipe_read_only_composite_v1"
-    : readOnlyExecutionReady
-      ? "resource_recipe_read_only_installed_tool_v1"
-      : "resource_recipe_plan_only_v1";
+  const executionClass = readOnlyExecutionReady && recipe.adapter_kind === "endpoint_recipe"
+    ? "resource_recipe_read_only_endpoint_recipe_v1"
+    : readOnlyExecutionReady && recipe.adapter_kind === "composite"
+      ? "resource_recipe_read_only_composite_v1"
+      : readOnlyExecutionReady
+        ? "resource_recipe_read_only_installed_tool_v1"
+        : "resource_recipe_plan_only_v1";
 
   return {
     ok: true,
@@ -1173,8 +1455,8 @@ export async function planGovernedResource(args = {}) {
     dry_run: dryRun,
     execution_plan: {
       execution_class: executionClass,
-      provider_calls_planned: 0,
-      provider_calls_allowed: false,
+      provider_calls_planned: readOnlyExecutionReady && recipe.adapter_kind === "endpoint_recipe" ? 1 : 0,
+      provider_calls_allowed: readOnlyExecutionReady && recipe.adapter_kind === "endpoint_recipe",
       db_reads_planned: steps.filter((step) => step.step_kind === "db_read").length,
       installed_tool_calls_planned: steps.filter((step) => step.step_kind === "installed_tool_call").length,
       installed_tool_calls_allowed_v1: readOnlyExecutionReady,
@@ -1290,6 +1572,30 @@ export async function runGovernedResource(args = {}, deps = {}) {
       plan,
       provider_calls_made: 0,
       execution_allowed: false,
+      secrets_included: false,
+    };
+  }
+
+  if (recipe.adapter_kind === "endpoint_recipe" && recipe.recipe_key === REPOSITORY_PR_RECONCILE_RECIPE_KEY) {
+    const githubReadOnlyExecutor = typeof deps.executeGithubReadOnly === "function"
+      ? deps.executeGithubReadOnly
+      : executeRepositoryPrReconciliationReadOnly;
+
+    const githubArgs = buildRepositoryPrReconciliationArgs(plan, args);
+    const githubReadOnlyResult = await githubReadOnlyExecutor("repo_pr_reconciliation_sweep", githubArgs);
+    const reconciliation = buildRepositoryPrReconciliation(githubReadOnlyResult, plan, args);
+    return {
+      ok: reconciliation.ok,
+      tool: "governed_resource_run",
+      classification: "repository_pr_reconciliation_read_only",
+      mode,
+      apply_requested: false,
+      apply_allowed: false,
+      dispatch_allowed: true,
+      plan,
+      result: reconciliation,
+      provider_calls_made: reconciliation.provider_calls_made_by_read_only_executor,
+      execution_allowed: true,
       secrets_included: false,
     };
   }
