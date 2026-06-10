@@ -105,6 +105,8 @@ includesAll(systemLayerRoutes, [
   "executeInstalledTool",
   "inspectGoogleDriveFolder(toolArgs, auth, deps)",
   "resource_recipe_installed_tool_not_allowlisted",
+  "executeRuntimeEndpoint",
+  "callRuntimeEndpointViaFacade(payload, deps)",
 ], "system layer read-only installed tool executor wiring");
 
 includesAll(runtimeModule, [
