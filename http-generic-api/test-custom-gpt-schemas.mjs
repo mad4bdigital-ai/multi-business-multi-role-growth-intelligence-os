@@ -697,6 +697,7 @@ section("Sprint 56: device-tools MCP facade");
 section("Sprint 57: Local Manager device-link schema coverage");
 {
   const parentSchema = readFileSync(resolve(__dirname, "openapi.yaml"), "utf8");
+  const parentDoc = openApiTextDoc(parentSchema);
   const childDoc = YAML.parse(readFileSync(resolve(__dirname, "schemas/http-generic-api/http-generic-api.yaml"), "utf8"));
   const expectedPaths = [
     "/local-manager/device-link/start",
