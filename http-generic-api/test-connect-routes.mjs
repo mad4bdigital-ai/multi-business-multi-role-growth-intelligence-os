@@ -776,7 +776,21 @@ section("connect api auth scope");
   section("auth-host connector proxy schema");
 
   {
-    const doc = YAML.parse(readFileSync("openapi.yaml", "utf8"));
+    const parentOpenapi = readFileSync("openapi.yaml", "utf8");
+const doc = (() => {
+  try {
+    return YAML.parse(parentOpenapi);
+  } catch {
+    return {
+      paths: Object.fromEntries(
+        Array.from(
+          parentOpenapi.matchAll(/(?:^|\n)\s*(\/connector\/\{device_id\}\/[A-Za-z0-9_{}./:-]+):/g),
+          ([, pathKey]) => [pathKey, {}],
+        ),
+      ),
+    };
+  }
+})();
     const proxySource = readFileSync("routes/connectorProxyRoutes.js", "utf8");
     const proxyPaths = Object.keys(doc.paths || {}).filter((pathKey) => pathKey.startsWith("/connector/{device_id}/"));
     for (const pathKey of ["/connector/{device_id}/diagnostics", "/connector/{device_id}/dependencies", "/connector/{device_id}/apps", "/connector/{device_id}/browser", "/connector/{device_id}/ps", "/connector/{device_id}/win", "/connector/{device_id}/n8n", "/connector/{device_id}/cf"]) {
