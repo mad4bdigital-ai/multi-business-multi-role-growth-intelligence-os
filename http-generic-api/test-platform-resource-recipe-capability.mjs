@@ -110,6 +110,15 @@ includesAll(systemLayerRoutes, [
   "callRuntimeEndpointViaFacade(payload, deps)",
 ], "system layer read-only installed tool executor wiring");
 
+includesAll(executionDispatch, [
+  "raw_body_mode",
+  "multipart_related",
+  "parent_action_key || \"\") === \"google_drive_api\"",
+  "[\"uploadNewFile\", \"upload_new_file_media\"].includes(endpointKey)",
+  "contentType.startsWith(\"multipart/related;\")",
+  "? transportBody",
+], "execution dispatch gated raw multipart body support");
+
 includesAll(runtimeModule, [
   "READ_ONLY_INSTALLED_TOOL_ALLOWLIST",
   "READ_ONLY_COMPOSITE_RECIPE_ALLOWLIST",
