@@ -2,10 +2,6 @@
 import crypto, { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
 
-const APPLY_AUTHORIZABLE_CAPABILITIES = new Set([
-  "ads_provider_governance_snapshot_record",
-]);
-
 function parseArgs(argv = process.argv.slice(2)) {
   const args = { envelopeId: "", authorizedBy: "gpt_admin", decisionNote: "", ttlMinutes: 60 };
   for (let i = 0; i < argv.length; i += 1) {
@@ -35,6 +31,15 @@ function safeJson(value, fallback = {}) {
   } catch {
     return fallback;
   }
+}
+
+function safeJsonArray(value) {
+  const parsed = safeJson(value, []);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+function enabled(value) {
+  return Number(value || 0) === 1;
 }
 
 function sha256Json(value) {
@@ -71,100 +76,165 @@ async function loadEnvelope(pool, envelopeId) {
   return row || null;
 }
 
-function validateEnvelopeForApplyAuthorization(row) {
-  if (!row) {
-    const err = new Error("Capability resolution envelope was not found.");
-    err.code = "capability_envelope_not_found";
+async function loadApplyAuthorizationPolicy(pool, row) {
+  if (!row) return null;
+  const [rows] = await pool.query(
+    `SELECT policy_key, app_key, capability_key, operation_intent, runtime_surface, status,
+            allow_external_write, allow_credential_binding, allow_no_credential_binding,
+            requires_ready_for_dispatch, requires_dispatch_allowed, requires_zero_blocking_gaps,
+            requires_audit_evidence, requires_readback, requires_typed_confirmation,
+            requires_same_cycle_dry_run, allowed_source_tiers_json, policy_json, notes
+       FROM capability_apply_authorization_policy_registry
+      WHERE app_key = ?
+        AND capability_key = ?
+        AND runtime_surface = ?
+        AND status = 'active'
+        AND (operation_intent IS NULL OR operation_intent = '' OR operation_intent = ?)
+      ORDER BY CASE WHEN operation_intent = ? THEN 0 ELSE 1 END, updated_at DESC
+      LIMIT 1`,
+    [row.app_key, row.capability_key, row.selected_runtime_surface, row.operation_intent || "", row.operation_intent || ""]
+  ).catch((err) => {
+    err.code = err.code || "capability_apply_authorization_policy_lookup_failed";
     throw err;
+  });
+  return rows[0] || null;
+}
+
+function validationError(code, message, details = undefined) {
+  const err = new Error(message);
+  err.code = code;
+  if (details) err.details = details;
+  return err;
+}
+
+function validateEnvelopeForApplyAuthorization(row, policy) {
+  if (!row) {
+    throw validationError("capability_envelope_not_found", "Capability resolution envelope was not found.");
+  }
+  if (!policy) {
+    throw validationError(
+      "capability_envelope_apply_capability_not_allowlisted",
+      "Envelope capability/app/runtime has no active dynamic apply authorization policy.",
+      { app_key: row.app_key, capability_key: row.capability_key, selected_runtime_surface: row.selected_runtime_surface }
+    );
   }
   if (Number(row.secrets_included || 0) !== 0) {
-    const err = new Error("Capability resolution envelope contains secrets marker and cannot be apply-authorized.");
-    err.code = "capability_envelope_secret_boundary_failed";
-    throw err;
+    throw validationError("capability_envelope_secret_boundary_failed", "Capability resolution envelope contains secrets marker and cannot be apply-authorized.");
   }
   if (row.expires_at && new Date(row.expires_at).getTime() <= Date.now()) {
-    const err = new Error("Capability resolution envelope is expired and cannot be apply-authorized.");
-    err.code = "capability_envelope_expired";
-    throw err;
+    throw validationError("capability_envelope_expired", "Capability resolution envelope is expired and cannot be apply-authorized.");
   }
-  if (row.envelope_status !== "ready_for_dispatch" || row.decision !== "ready_for_dispatch") {
-    const err = new Error("Only ready_for_dispatch envelopes can be apply-authorized.");
-    err.code = "capability_envelope_not_ready_for_apply_authorization";
-    err.details = { envelope_status: row.envelope_status, decision: row.decision };
-    throw err;
+  if (enabled(policy.requires_ready_for_dispatch) && (row.envelope_status !== "ready_for_dispatch" || row.decision !== "ready_for_dispatch")) {
+    throw validationError(
+      "capability_envelope_not_ready_for_apply_authorization",
+      "Only ready_for_dispatch envelopes can be apply-authorized by this policy.",
+      { envelope_status: row.envelope_status, decision: row.decision, policy_key: policy.policy_key }
+    );
   }
-  if (Number(row.dispatch_allowed || 0) !== 1 || Number(row.blocking_gap_count || 0) !== 0) {
-    const err = new Error("Envelope must have dispatch_allowed=true and zero blocking gaps before apply authorization.");
-    err.code = "capability_envelope_not_dispatchable";
-    err.details = { dispatch_allowed: Boolean(row.dispatch_allowed), blocking_gap_count: Number(row.blocking_gap_count || 0) };
-    throw err;
+  if (enabled(policy.requires_dispatch_allowed) && Number(row.dispatch_allowed || 0) !== 1) {
+    throw validationError(
+      "capability_envelope_not_dispatchable",
+      "Envelope must have dispatch_allowed=true before apply authorization.",
+      { dispatch_allowed: Boolean(row.dispatch_allowed), policy_key: policy.policy_key }
+    );
+  }
+  if (enabled(policy.requires_zero_blocking_gaps) && Number(row.blocking_gap_count || 0) !== 0) {
+    throw validationError(
+      "capability_envelope_not_dispatchable",
+      "Envelope must have zero blocking gaps before apply authorization.",
+      { blocking_gap_count: Number(row.blocking_gap_count || 0), policy_key: policy.policy_key }
+    );
   }
   if (!["not_executed", "referenced"].includes(String(row.execution_status || "not_executed"))) {
-    const err = new Error("Envelope has already been executed, failed, cancelled, or consumed.");
-    err.code = "capability_envelope_execution_status_not_apply_authorizable";
-    err.details = { execution_status: row.execution_status };
-    throw err;
+    throw validationError(
+      "capability_envelope_execution_status_not_apply_authorizable",
+      "Envelope has already been executed, failed, cancelled, or consumed.",
+      { execution_status: row.execution_status }
+    );
   }
-  if (!APPLY_AUTHORIZABLE_CAPABILITIES.has(String(row.capability_key || ""))) {
-    const err = new Error("Envelope capability is not allowlisted for apply authorization.");
-    err.code = "capability_envelope_apply_capability_not_allowlisted";
-    err.details = { capability_key: row.capability_key };
-    throw err;
+  if (String(row.app_key || "") !== String(policy.app_key || "")) {
+    throw validationError("capability_envelope_apply_app_not_allowed", "Apply authorization app does not match dynamic policy.", { app_key: row.app_key, policy_app_key: policy.app_key });
   }
-  if (String(row.app_key || "") !== "platform_orchestration") {
-    const err = new Error("Apply authorization is limited to the internal platform_orchestration app.");
-    err.code = "capability_envelope_apply_app_not_allowed";
-    err.details = { app_key: row.app_key };
-    throw err;
+  if (String(row.capability_key || "") !== String(policy.capability_key || "")) {
+    throw validationError("capability_envelope_apply_capability_not_allowlisted", "Apply authorization capability does not match dynamic policy.", { capability_key: row.capability_key, policy_capability_key: policy.capability_key });
+  }
+  if (String(row.selected_runtime_surface || "") !== String(policy.runtime_surface || "")) {
+    throw validationError("capability_envelope_apply_runtime_surface_mismatch", "Apply authorization runtime surface mismatch.", { selected_runtime_surface: row.selected_runtime_surface, policy_runtime_surface: policy.runtime_surface });
+  }
+  if (policy.operation_intent && String(row.operation_intent || "") !== String(policy.operation_intent || "")) {
+    throw validationError("capability_envelope_apply_operation_intent_mismatch", "Apply authorization operation intent mismatch.", { operation_intent: row.operation_intent, policy_operation_intent: policy.operation_intent });
+  }
+  if (enabled(policy.requires_audit_evidence) && Number(row.audit_required || 0) !== 1) {
+    throw validationError("capability_envelope_apply_audit_required", "Dynamic apply authorization policy requires audit evidence.", { audit_required: Boolean(row.audit_required), policy_key: policy.policy_key });
+  }
+  if (enabled(policy.requires_readback) && Number(row.readback_required || 0) !== 1) {
+    throw validationError("capability_envelope_apply_readback_required", "Dynamic apply authorization policy requires readback.", { readback_required: Boolean(row.readback_required), policy_key: policy.policy_key });
+  }
+  const allowedSourceTiers = safeJsonArray(policy.allowed_source_tiers_json).map((tier) => String(tier || ""));
+  if (allowedSourceTiers.length && !allowedSourceTiers.includes(String(row.selected_source_tier || ""))) {
+    throw validationError(
+      "capability_envelope_apply_source_tier_not_allowed",
+      "Envelope selected source tier is not allowed by the dynamic apply authorization policy.",
+      { selected_source_tier: row.selected_source_tier, allowed_source_tiers: allowedSourceTiers, policy_key: policy.policy_key }
+    );
   }
 }
 
-function validateNoCredentialEnvelope(row, envelopeJson) {
+function validateCredentialEnvelope(envelopeJson, policy) {
   const selected = envelopeJson.selected_source || {};
   const candidates = Array.isArray(selected.credential_source_candidates) ? selected.credential_source_candidates : [];
-  if (!candidates.includes("none")) {
-    const err = new Error("Apply authorization requires a no-credential app binding.");
-    err.code = "capability_envelope_apply_requires_no_credential_binding";
-    err.details = { credential_source_candidates: candidates };
-    throw err;
+  const activeBindingCount = Number(selected.active_credential_binding_count || 0);
+  if (activeBindingCount > 0 && !enabled(policy.allow_credential_binding)) {
+    throw validationError(
+      "capability_envelope_apply_credential_binding_not_allowed",
+      "Dynamic apply authorization policy forbids credential-backed envelopes for this capability.",
+      { active_credential_binding_count: activeBindingCount, policy_key: policy.policy_key }
+    );
   }
-  if (Number(selected.active_credential_binding_count || 0) !== 0) {
-    const err = new Error("Apply authorization for this surface must not rely on credential bindings.");
-    err.code = "capability_envelope_apply_credential_binding_not_allowed";
-    err.details = { active_credential_binding_count: selected.active_credential_binding_count };
-    throw err;
+  if (activeBindingCount === 0 && !enabled(policy.allow_no_credential_binding)) {
+    throw validationError(
+      "capability_envelope_apply_requires_credential_binding",
+      "Dynamic apply authorization policy requires an active credential binding for this capability.",
+      { active_credential_binding_count: activeBindingCount, policy_key: policy.policy_key }
+    );
   }
-  if (String(row.selected_runtime_surface || selected.selected_runtime_surface || "") !== "ads_provider_governance_snapshot_record") {
-    const err = new Error("Apply authorization runtime surface mismatch.");
-    err.code = "capability_envelope_apply_runtime_surface_mismatch";
-    err.details = { selected_runtime_surface: row.selected_runtime_surface || selected.selected_runtime_surface || null };
-    throw err;
+  if (!enabled(policy.allow_credential_binding) && !candidates.includes("none")) {
+    throw validationError(
+      "capability_envelope_apply_requires_no_credential_binding",
+      "Apply authorization requires a no-credential app binding for this capability.",
+      { credential_source_candidates: candidates, policy_key: policy.policy_key }
+    );
   }
 }
 
 export async function authorizeCapabilityResolutionEnvelopeApply(args = parseArgs()) {
   const envelopeId = compact(args.envelopeId, 64);
   if (!envelopeId) {
-    const err = new Error("--envelope-id is required.");
-    err.code = "capability_envelope_id_required";
-    throw err;
+    throw validationError("capability_envelope_id_required", "--envelope-id is required.");
   }
   const pool = getPool();
   const row = await loadEnvelope(pool, envelopeId);
-  validateEnvelopeForApplyAuthorization(row);
+  const policy = await loadApplyAuthorizationPolicy(pool, row);
+  validateEnvelopeForApplyAuthorization(row, policy);
   const envelopeJson = safeJson(row.envelope_json, {});
-  validateNoCredentialEnvelope(row, envelopeJson);
+  validateCredentialEnvelope(envelopeJson, policy);
+  const policyJson = safeJson(policy.policy_json, {});
+  const allowExternalWrite = enabled(policy.allow_external_write);
+
   if (Number(row.apply_allowed || 0) === 1) {
     return {
       ok: true,
       envelope_id: row.envelope_id,
       already_apply_authorized: true,
       apply_allowed: true,
+      policy_key: policy.policy_key,
+      external_write_allowed: allowExternalWrite,
       secrets_included: false,
     };
   }
+
   const authorizedBy = compact(args.authorizedBy, 64) || "gpt_admin";
-  const decisionNote = compact(args.decisionNote, 512) || "Apply-authorized through governed capability envelope apply authorization tool.";
+  const decisionNote = compact(args.decisionNote, 512) || "Apply-authorized through governed dynamic capability apply authorization policy.";
   const ttl = Math.max(5, Math.min(Number(args.ttlMinutes || 60), 240));
   const holdId = randomUUID();
   const applyAuthorization = {
@@ -174,12 +244,20 @@ export async function authorizeCapabilityResolutionEnvelopeApply(args = parseArg
     authorized_by: authorizedBy,
     decision_note: decisionNote,
     authorized_at: new Date().toISOString(),
+    policy_key: policy.policy_key,
+    app_key: row.app_key,
     capability_key: row.capability_key,
+    operation_intent: row.operation_intent,
     runtime_surface: row.selected_runtime_surface,
+    allow_external_write: allowExternalWrite,
+    no_external_write: !allowExternalWrite,
     no_provider_call: true,
     no_credential_payload_read: true,
     no_spend_change: true,
-    no_external_write: true,
+    requires_typed_confirmation: Boolean(enabled(policy.requires_typed_confirmation)),
+    requires_same_cycle_dry_run: Boolean(enabled(policy.requires_same_cycle_dry_run)),
+    requires_readback: Boolean(enabled(policy.requires_readback)),
+    policy: policyJson,
     secrets_included: false,
   };
   const updatedEnvelope = {
@@ -189,6 +267,7 @@ export async function authorizeCapabilityResolutionEnvelopeApply(args = parseArg
       dispatch_allowed: true,
       apply_allowed: true,
       audit_required: true,
+      readback_required: Boolean(enabled(policy.requires_readback)) || Boolean(envelopeJson.gates?.readback_required),
       secrets_included: false,
     },
     apply_authorization: applyAuthorization,
@@ -218,7 +297,10 @@ export async function authorizeCapabilityResolutionEnvelopeApply(args = parseArg
         app_key: row.app_key,
         capability_key: row.capability_key,
         operation_intent: row.operation_intent,
-        apply_authorization_source: "capability_resolution_envelope_apply_authorize",
+        policy_key: policy.policy_key,
+        apply_authorization_source: "dynamic_capability_apply_authorization_policy",
+        allow_external_write: allowExternalWrite,
+        no_external_write: !allowExternalWrite,
         no_provider_call: true,
         no_credential_payload_read: true,
         no_spend_change: true,
@@ -250,6 +332,8 @@ export async function authorizeCapabilityResolutionEnvelopeApply(args = parseArg
     envelope_status: "ready_for_dispatch",
     decision: "ready_for_dispatch",
     apply_allowed: true,
+    policy_key: policy.policy_key,
+    external_write_allowed: allowExternalWrite,
     apply_authorization_hold_id: holdId,
     authorized_by: authorizedBy,
     expires_in_minutes: ttl,

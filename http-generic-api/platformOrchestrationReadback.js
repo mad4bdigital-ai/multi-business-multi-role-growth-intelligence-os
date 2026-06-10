@@ -1,4 +1,5 @@
 import { getPool } from "./db.js";
+import { readSupportTicketLifecycleOrchestrationReadiness } from "./supportTicketLifecycleOrchestrationReadback.js";
 
 function parseJson(value, fallback = null) {
   if (value == null || value === "") return fallback;
@@ -112,6 +113,18 @@ export async function readPlatformOrchestrationReadback(input = {}) {
     }
   }
 
+  let supportTicketLifecycleReadiness = null;
+  if (pluginKey === "support_ticket_lifecycle_orchestrator") {
+    try {
+      supportTicketLifecycleReadiness = await readSupportTicketLifecycleOrchestrationReadiness({
+        tenant_id: input.tenant_id || input.tenantId || null,
+        limit,
+      });
+    } catch {
+      supportTicketLifecycleReadiness = null;
+    }
+  }
+
   let snapshots = [];
   if (includeSnapshots) {
     const [snapshotRows] = await pool.query(
@@ -150,8 +163,12 @@ export async function readPlatformOrchestrationReadback(input = {}) {
     ]));
   }
 
-  const expectedStages = pluginKey === "ads_provider_governance_orchestrator" ? 7 : Math.max(1, stages.length);
-  const expectedEdges = pluginKey === "ads_provider_governance_orchestrator" ? 6 : Math.max(0, edges.length);
+  const knownSevenStageGraphs = new Set([
+    "ads_provider_governance_orchestrator",
+    "support_ticket_lifecycle_orchestrator",
+  ]);
+  const expectedStages = knownSevenStageGraphs.has(pluginKey) ? 7 : Math.max(1, stages.length);
+  const expectedEdges = knownSevenStageGraphs.has(pluginKey) ? 6 : Math.max(0, edges.length);
   const stageCount = stages.length;
   const edgeCount = edges.length;
   const ready = plugin.status === "active" && stageCount >= expectedStages && edgeCount >= expectedEdges;
@@ -170,6 +187,7 @@ export async function readPlatformOrchestrationReadback(input = {}) {
       active_edge_count: edges.filter((edge) => edge.status === "active").length,
       graph_readiness: graphReadiness,
       ads_governance_readiness: adsGovernanceReadiness,
+      support_ticket_lifecycle_readiness: supportTicketLifecycleReadiness,
     },
     plugin,
     stages,
