@@ -3,6 +3,7 @@
   "display_name": "Authorized Tenant Integration Policies",
   "description": "Tenant integration source-mode policies visible during activation.",
   "source_table": "v_activation_tenant_integration_policies",
+  "covered_source_tables": ["tenant_integration_policies", "app_integrations"],
   "result_key_column": "app_key",
   "result_label_column": "app_display_name",
   "tenant_column": "tenant_id",
