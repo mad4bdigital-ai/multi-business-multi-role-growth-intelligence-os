@@ -76,6 +76,15 @@ includesAll(migration, [
   "'secrets_included', false",
 ], "resource recipe governance policy");
 
+includesAll(driveMultipartMigration, [
+  "903_sprint68_google_drive_multipart_upload_schema_contract.sql",
+  "parent_action_key = 'google_drive_api'",
+  "endpoint_key IN ('uploadNewFile', 'upload_new_file_media')",
+  "$.requestBody.content.\"multipart/related\"",
+  "'type', 'string'",
+  "raw_body_mode=multipart_related",
+], "Drive multipart upload endpoint schema contract migration");
+
 assert(
   manifest.includes("node test-platform-resource-recipe-capability.mjs"),
   "test manifest must include platform resource recipe capability test"
