@@ -1,0 +1,32 @@
+{
+  "surface_key": "app_action_grants",
+  "display_name": "Authorized App Action Grants",
+  "description": "Tenant/user app action grants visible during activation.",
+  "source_table": "v_activation_app_action_grants",
+  "result_key_column": "grant_id",
+  "result_label_column": "action_key",
+  "tenant_column": "tenant_id",
+  "user_column": "user_id",
+  "status_column": "grant_status",
+  "active_status_values": ["active"],
+  "result_columns": [
+    "grant_id",
+    "tenant_id",
+    "user_id",
+    "workspace_id",
+    "agent_id",
+    "app_key",
+    "app_display_name",
+    "action_key",
+    "grant_mode",
+    "grant_status",
+    "expires_at",
+    "created_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 50,
+  "sort_order": 110,
+  "status": "active",
+  "notes": "Repo-managed activation view. Excludes connection credentials."
+}
