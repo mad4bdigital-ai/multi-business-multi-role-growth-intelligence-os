@@ -163,8 +163,12 @@ export async function readPlatformOrchestrationReadback(input = {}) {
     ]));
   }
 
-  const expectedStages = pluginKey === "ads_provider_governance_orchestrator" ? 7 : Math.max(1, stages.length);
-  const expectedEdges = pluginKey === "ads_provider_governance_orchestrator" ? 6 : Math.max(0, edges.length);
+  const knownSevenStageGraphs = new Set([
+    "ads_provider_governance_orchestrator",
+    "support_ticket_lifecycle_orchestrator",
+  ]);
+  const expectedStages = knownSevenStageGraphs.has(pluginKey) ? 7 : Math.max(1, stages.length);
+  const expectedEdges = knownSevenStageGraphs.has(pluginKey) ? 6 : Math.max(0, edges.length);
   const stageCount = stages.length;
   const edgeCount = edges.length;
   const ready = plugin.status === "active" && stageCount >= expectedStages && edgeCount >= expectedEdges;
