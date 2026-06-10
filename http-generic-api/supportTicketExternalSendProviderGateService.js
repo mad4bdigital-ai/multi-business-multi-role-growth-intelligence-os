@@ -1,17 +1,11 @@
 import { getPool } from "./db.js";
+import { resolveSupportTicketExternalProviderAdapterContract } from "./supportTicketExternalProviderContractService.js";
 import { planSupportTicketExternalSendExecution } from "./supportTicketExternalSendExecutionService.js";
-
-function parseJsonObject(value, fallback = {}) {
-  if (!value) return fallback;
-  if (typeof value === "object") return value;
-  try { return JSON.parse(value); } catch { return fallback; }
-}
 
 const EXTERNAL_CHANNELS = new Set(["email", "webhook"]);
 const ALLOWED_AUDIENCES = new Set(["admin", "customer", "both"]);
 const SENSITIVE_KEY_PATTERN = /(password|access_token|refresh_token|client_secret|private_key|raw_secret|secret_value|api_key|bearer_token|smtp_password)/i;
 const SAFE_SECRET_MARKER_KEYS = new Set(["secrets_included", "secret_value_included"]);
-const PROVIDER_DISPATCH_ENABLED = process.env.SUPPORT_TICKET_EXTERNAL_SEND_PROVIDER_DISPATCH_ENABLED === "true";
 
 function assertNoRawSecretPayload(value, path = "payload") {
   if (value == null || typeof value !== "object") return;
@@ -50,32 +44,59 @@ function normalizeAudience(audience = "admin") {
   return value;
 }
 
-function providerAdapterFor(channel, provider_key = null) {
-  const key = provider_key || (channel === "email" ? "email_provider_adapter" : "webhook_provider_adapter");
+function adapterImplementationReady(implementationStatus = "") {
+  const status = String(implementationStatus || "").trim().toLowerCase();
+  return status === "implemented" || status.startsWith("implemented_") || status === "sandbox_dispatch_enabled" || status === "production_dispatch_enabled";
+}
+
+function providerAdapterFromRegistryResolution(resolution) {
+  const adapter = resolution.adapter_contract;
+  const modePolicy = resolution.send_mode_policy;
+  const safety = adapter.safety || {};
+  const providerAdapterImplemented = adapterImplementationReady(adapter.implementation_status);
   return {
-    provider_key: key,
-    channel,
-    provider_dispatch_enabled: PROVIDER_DISPATCH_ENABLED,
-    provider_adapter_implemented: false,
-    external_send_supported: false,
+    provider_key: adapter.adapter_key,
+    adapter_key: adapter.adapter_key,
+    family_key: adapter.family_key,
+    channel: adapter.channel,
+    implementation_status: adapter.implementation_status,
+    status: adapter.status,
+    dispatch_enabled: Boolean(adapter.dispatch_enabled),
+    provider_dispatch_enabled: Boolean(adapter.provider_dispatch_enabled),
+    provider_adapter_implemented: providerAdapterImplemented,
+    external_send_supported: Boolean(safety.external_send_supported && adapter.dispatch_enabled && adapter.provider_dispatch_enabled),
     explicit_send_mode_required: true,
-    final_provider_approval_required: true,
-    summary: "Provider dispatch is gated. This slice records blocked provider attempts only; it does not send email/webhook externally.",
+    final_provider_approval_required: Boolean(modePolicy?.final_approval_required ?? true),
+    required_credential_type: adapter.required_credential_type || null,
+    supported_audiences: adapter.supported_audiences || [],
+    send_modes: adapter.send_modes || [],
+    mode_policies: adapter.mode_policies || [],
+    send_mode_policy: modePolicy,
+    send_mode_allowed: Boolean(resolution.send_mode_allowed),
+    mode_policy_status: modePolicy?.mode_status || null,
+    mode_policy_provider_dispatch_required: Boolean(modePolicy?.provider_dispatch_required),
+    source: resolution.source,
+    summary: "Provider dispatch is resolved from DB registry contracts and remains blocked unless adapter contract and send-mode policy explicitly enable it.",
     external_send_performed: false,
+    secret_value_included: false,
     secrets_included: false,
   };
 }
 
 function buildProviderPlan({ execution_plan, provider_adapter, send_mode = "dry_run", payload_json = {} }) {
   assertNoRawSecretPayload(payload_json, "payload_json");
+  const normalizedSendMode = String(send_mode || "dry_run").trim().toLowerCase();
   const blockers = [];
   if (!execution_plan?.plan?.ready_for_record) blockers.push("external_send_execution_plan_not_ready");
+  if (!provider_adapter.send_mode_allowed) blockers.push("external_send_provider_mode_invalid");
+  if (!provider_adapter.dispatch_enabled) blockers.push("external_send_provider_adapter_dispatch_not_enabled");
   if (!provider_adapter.provider_dispatch_enabled) blockers.push("external_send_provider_dispatch_not_enabled");
   if (!provider_adapter.provider_adapter_implemented) blockers.push("external_send_provider_adapter_not_implemented");
-  if (send_mode !== "dry_run" && send_mode !== "provider_send") blockers.push("external_send_provider_mode_invalid");
+  if (provider_adapter.send_mode_policy && provider_adapter.send_mode_policy.status !== "active") blockers.push("external_send_provider_mode_policy_not_active");
+  if (provider_adapter.mode_policy_provider_dispatch_required && !provider_adapter.provider_dispatch_enabled) blockers.push("external_send_provider_mode_requires_disabled_dispatch");
   return {
     ready_for_provider_dispatch: blockers.length === 0,
-    send_mode,
+    send_mode: normalizedSendMode,
     channel: provider_adapter.channel,
     audience: execution_plan?.plan?.audience || null,
     approval_hold_id: execution_plan?.plan?.approval_hold_id || null,
@@ -97,6 +118,11 @@ async function fetchTicket(connection, tenant_id, ticket_id) {
   return rows[0] || null;
 }
 
+async function resolveProviderAdapter(connection, { channel, provider_key, send_mode }) {
+  const resolution = await resolveSupportTicketExternalProviderAdapterContract({ provider_key, channel, send_mode }, { connection });
+  return providerAdapterFromRegistryResolution(resolution);
+}
+
 export async function planSupportTicketExternalSendProviderGate({ tenant_id, ticket_id, channel = "email", audience = "admin", approval_hold_id = null, credential_ref = null, provider_key = null, send_mode = "dry_run", subject = null, body = null, payload_json = {} } = {}, options = {}) {
   const externalChannel = normalizeChannel(channel);
   const normalizedAudience = normalizeAudience(audience);
@@ -113,7 +139,7 @@ export async function planSupportTicketExternalSendProviderGate({ tenant_id, tic
       throw err;
     }
     const executionPlan = await planSupportTicketExternalSendExecution({ tenant_id, ticket_id, channel: externalChannel, audience: normalizedAudience, approval_hold_id, credential_ref, subject, body, payload_json }, { connection });
-    const providerAdapter = providerAdapterFor(externalChannel, provider_key);
+    const providerAdapter = await resolveProviderAdapter(connection, { channel: externalChannel, provider_key, send_mode });
     const provider_plan = buildProviderPlan({ execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json });
     return { ok: true, mode: "dry_run", provider_plan, execution_plan: executionPlan, ticket, external_send_performed: false, secret_value_included: false, secrets_included: false };
   } finally { if (ownsConnection) connection.release(); }
@@ -137,10 +163,10 @@ export async function recordSupportTicketExternalSendProviderGateAttempt({ tenan
       throw err;
     }
     const executionPlan = await planSupportTicketExternalSendExecution({ tenant_id, ticket_id, channel: externalChannel, audience: normalizedAudience, approval_hold_id, credential_ref, subject, body, payload_json }, { connection });
-    const providerAdapter = providerAdapterFor(externalChannel, provider_key);
+    const providerAdapter = await resolveProviderAdapter(connection, { channel: externalChannel, provider_key, send_mode });
     const provider_plan = buildProviderPlan({ execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json });
-    if (send_mode === "provider_send" && provider_plan.ready_for_provider_dispatch) {
-      const err = new Error("Provider dispatch should not be reachable in this slice.");
+    if (provider_plan.ready_for_provider_dispatch) {
+      const err = new Error("Provider dispatch should not be reachable in the provider gate registry resolver slice.");
       err.status = 409;
       err.code = "support_ticket_external_send_provider_dispatch_not_implemented";
       err.provider_plan = provider_plan;
