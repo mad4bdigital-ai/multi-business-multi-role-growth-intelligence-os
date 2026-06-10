@@ -299,6 +299,7 @@ export const testCommands = [
   "node test-session-insight-target-adapter-registry-service.mjs",
   "node test-session-insight-adapter-contract-service.mjs",
   "node test-session-insight-payload-preview-service.mjs",
+  "node test-session-insight-payload-preview-review-service.mjs",
   "node test-session-archive-smoke.mjs",
   "node test-session-summary-autosweep.mjs",
   "node test-gpt-tools-route-syntax-regression.mjs",
