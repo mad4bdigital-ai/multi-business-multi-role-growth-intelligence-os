@@ -42,7 +42,12 @@ includesAll(authorityMigration, [
   "CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_scope",
   "CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_resource",
   "CREATE INDEX IF NOT EXISTS idx_platform_resource_authority_bindings_recipe",
-], "platform resource authority migration indexes must be idempotent");
+  "policy_value",
+  "execution_scope",
+  "affects_layer",
+], "platform resource authority migration must match execution_policies schema and use idempotent indexes");
+
+assert(!authorityMigration.includes("policy_value_json"), "authority migration must not reference legacy policy_value_json column");
 
 for (const forbidden of [
   "CREATE TABLE IF NOT EXISTS `repository_operation_runs`",
