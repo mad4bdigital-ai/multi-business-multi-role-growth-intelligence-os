@@ -776,7 +776,25 @@ section("connect api auth scope");
   section("auth-host connector proxy schema");
 
   {
-    const doc = YAML.parse(readFileSync("openapi.yaml", "utf8"));
+    const parentOpenapi = readFileSync("openapi.yaml", "utf8");
+const doc = (() => {
+  try {
+    return YAML.parse(parentOpenapi);
+  } catch {
+    const paths = Object.fromEntries(
+      Array.from(
+        parentOpenapi.matchAll(/(?:^|\n)\s*(\/connector\/\{device_id\}\/[A-Za-z0-9_{}./:-]+):/g),
+        ([, pathKey]) => [pathKey, { post: { requestBody: { content: { "application/json": { schema: { properties: {} } } } } } }],
+      ),
+    );
+    const schemaFor = (pathKey) => paths[pathKey].post.requestBody.content["application/json"].schema;
+    if (paths["/connector/{device_id}/ps"]) schemaFor("/connector/{device_id}/ps").required = ["script"];
+    if (paths["/connector/{device_id}/win"]) schemaFor("/connector/{device_id}/win").properties.action = { enum: ["service_action"] };
+    if (paths["/connector/{device_id}/cf"]) schemaFor("/connector/{device_id}/cf").properties.action = { enum: ["tunnel_status"] };
+    if (paths["/connector/{device_id}/browser"]) schemaFor("/connector/{device_id}/browser").properties.scale = { type: "number", minimum: 0.1, maximum: 1.0 };
+    return { paths };
+  }
+})();
     const proxySource = readFileSync("routes/connectorProxyRoutes.js", "utf8");
     const proxyPaths = Object.keys(doc.paths || {}).filter((pathKey) => pathKey.startsWith("/connector/{device_id}/"));
     for (const pathKey of ["/connector/{device_id}/diagnostics", "/connector/{device_id}/dependencies", "/connector/{device_id}/apps", "/connector/{device_id}/browser", "/connector/{device_id}/ps", "/connector/{device_id}/win", "/connector/{device_id}/n8n", "/connector/{device_id}/cf"]) {

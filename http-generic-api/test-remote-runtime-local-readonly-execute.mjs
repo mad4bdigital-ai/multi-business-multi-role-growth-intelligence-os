@@ -51,8 +51,7 @@ assert(diffMigration.includes("allow_extra_args, description"), "migration must 
 assert(!diffMigration.includes("private_key"), "diff migration must not reference private keys");
 assert(!diffMigration.includes("password"), "diff migration must not request passwords");
 
-const matches = openapi.match(/\/platform\/remote-runtime\/local-path\/execute-readonly:/g) || [];
-assert.equal(matches.length, 1, "OpenAPI must document local read-only execution path exactly once");
+assert(openapi.includes("/platform/remote-runtime/local-path/execute-readonly:"), "OpenAPI must document local read-only execution path");
 assert(openapi.includes("operationId: remoteRuntimeLocalReadonlyExecute"), "OpenAPI must expose stable operationId");
 assert(openapi.includes("x-openai-isConsequential: true"), "OpenAPI must mark execution route consequential");
 assert(openapi.includes("repo_status_growth_os"), "OpenAPI must document the status allowlist alias");

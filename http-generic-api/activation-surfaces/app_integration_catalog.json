@@ -1,0 +1,19 @@
+{
+  "surface_key": "app_integration_catalog",
+  "display_name": "Authorized App Integration Catalog",
+  "description": "Tenant-scoped catalog of active app integrations visible during activation.",
+  "source_table": "v_activation_app_integration_catalog",
+  "result_key_column": "app_key",
+  "result_label_column": "app_display_name",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "app_status",
+  "active_status_values": ["active", "beta"],
+  "result_columns": ["tenant_id", "app_key", "app_display_name", "auth_type", "category", "app_status", "created_at"],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 80,
+  "sort_order": 190,
+  "status": "active",
+  "notes": "Repo-managed activation catalog view. OAuth and server details are excluded."
+}

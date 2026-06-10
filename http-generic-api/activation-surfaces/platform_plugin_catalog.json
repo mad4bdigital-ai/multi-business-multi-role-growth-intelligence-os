@@ -1,0 +1,19 @@
+{
+  "surface_key": "platform_plugin_catalog",
+  "display_name": "Authorized Platform Plugin Catalog",
+  "description": "Tenant-scoped catalog of active platform orchestration plugins visible during activation.",
+  "source_table": "v_activation_platform_plugin_catalog",
+  "result_key_column": "plugin_key",
+  "result_label_column": "display_name",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "plugin_status",
+  "active_status_values": ["active"],
+  "result_columns": ["tenant_id", "plugin_key", "display_name", "domain_key", "plugin_type", "owner_scope", "version", "lifecycle_stage", "engine_key", "policy_key", "readback_tool_key", "plugin_status", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 80,
+  "sort_order": 210,
+  "status": "active",
+  "notes": "Repo-managed activation catalog view. Plugin definition payload fields are excluded."
+}

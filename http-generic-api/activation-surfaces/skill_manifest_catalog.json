@@ -1,0 +1,19 @@
+{
+  "surface_key": "skill_manifest_catalog",
+  "display_name": "Authorized Skill Manifest Catalog",
+  "description": "Tenant-scoped catalog of active skill manifests visible during activation.",
+  "source_table": "v_activation_skill_manifest_catalog",
+  "result_key_column": "skill_key",
+  "result_label_column": "skill_display_name",
+  "tenant_column": "tenant_id",
+  "user_column": null,
+  "status_column": "manifest_status",
+  "active_status_values": ["active"],
+  "result_columns": ["tenant_id", "skill_key", "engine_key", "skill_display_name", "skill_version", "policy_key", "eval_suite_key", "manifest_status", "updated_at"],
+  "include_for_admin": true,
+  "include_for_tenant": true,
+  "max_rows": 80,
+  "sort_order": 220,
+  "status": "active",
+  "notes": "Repo-managed activation catalog view. Skill template and validator payload fields are excluded."
+}
