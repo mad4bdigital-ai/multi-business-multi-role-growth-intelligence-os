@@ -23,6 +23,8 @@ import { proposeAdsProviderGovernanceSnapshot } from "../adsProviderGovernanceSn
 import { recordAdsProviderGovernanceSnapshot } from "../adsProviderGovernanceSnapshotRecord.js";
 import { proposeSupportTicketLifecycleSnapshot } from "../supportTicketLifecycleSnapshotProposal.js";
 import { recordSupportTicketLifecycleSnapshot } from "../supportTicketLifecycleSnapshotRecord.js";
+import { readSupportTicketLifecycleNextAction } from "../supportTicketLifecycleNextActionReadback.js";
+import { readSupportTicketExternalDeliveryOrchestrationReadiness } from "../supportTicketExternalDeliveryOrchestrationReadback.js";
 import {
   certifyPlatformPluginSmoke,
   getPlatformPluginSmokeCertification,
