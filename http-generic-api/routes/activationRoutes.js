@@ -564,7 +564,7 @@ export async function buildActivationAuthorizedAccess(req, subject = resolveSess
         WHERE LOWER(TRIM(COALESCE(runtime_callable, ''))) IN ('1','true','yes','y','active','enabled','callable')
           AND (? = 1 OR LOWER(TRIM(COALESCE(admin_only, ''))) NOT IN ('1','true','yes','y'))
         ORDER BY action_key ASC
-        LIMIT ${limit}`,
+        LIMIT ${isAdmin ? limit : Math.min(limit * 20, 500)}`,
       [isAdmin ? 1 : 0]
     ),
     isAdmin
