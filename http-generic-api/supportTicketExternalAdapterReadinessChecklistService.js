@@ -85,6 +85,31 @@ async function fetchProposalAndAdapter(connection, proposal_id) {
   return rows[0] || null;
 }
 
+async function fetchChecklist(connection, checklist_id) {
+  const [rows] = await connection.query(
+    `SELECT c.*, p.proposal_status, p.requested_mode, a.implementation_status,
+            a.dispatch_enabled, a.provider_dispatch_enabled, a.status AS adapter_status
+       FROM external_delivery_provider_adapter_readiness_checklists c
+       JOIN external_delivery_provider_adapter_enablement_proposals p ON p.proposal_id = c.proposal_id
+       JOIN external_delivery_provider_adapter_contract_registry a ON a.adapter_key = c.adapter_key
+      WHERE c.checklist_id = ?
+      LIMIT 1`,
+    [checklist_id]
+  );
+  return rows[0] || null;
+}
+
+function normalizeChecklistDecision(decision) {
+  const key = String(decision || "").trim().toLowerCase();
+  if (!ALLOWED_CHECKLIST_DECISIONS.has(key)) {
+    const err = new Error("Unsupported adapter readiness checklist decision.");
+    err.status = 400;
+    err.code = "support_ticket_external_adapter_readiness_decision_invalid";
+    throw err;
+  }
+  return key;
+}
+
 export async function planSupportTicketExternalAdapterReadinessChecklist({ proposal_id, evidence_json = {} } = {}, options = {}) {
   if (!proposal_id) {
     const err = new Error("proposal_id is required.");
