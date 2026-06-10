@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { getPool } from "./db.js";
+import { markCapabilityEnvelopeReferenced, resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
 
 export const PLATFORM_RESOURCE_RECIPE_TOOL_NAMES = [
   "governed_resource_resolve",
