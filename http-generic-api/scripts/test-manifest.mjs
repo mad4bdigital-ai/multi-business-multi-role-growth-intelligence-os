@@ -273,6 +273,7 @@ export const testCommands = [
   "node test-activation-authorized-access-smoke-alias.mjs",
   "node test-activation-authorized-access-tenant-smoke-alias.mjs",
   "node test-activation-tenant-smoke-fixture.mjs",
+  "node test-activation-expanded-authorized-surfaces.mjs",
   "node test-activation-hard-evidence.mjs",
   "node test-session-archive-service.mjs",
   "node test-gpt-session-archive-monitoring.mjs",
