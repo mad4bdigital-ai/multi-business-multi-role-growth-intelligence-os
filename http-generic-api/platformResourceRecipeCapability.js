@@ -1129,6 +1129,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
   const mode = asString(args.mode || "plan") || "plan";
   const applyRequested = mode === "apply" || args.apply === true;
   const recipe = plan.recipe || {};
+  const manifestApplyRequested = applyRequested && recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY;
   const blockedReasons = plan.policy_decision?.blocked_reasons || [];
 
   if (mode === "plan") {
