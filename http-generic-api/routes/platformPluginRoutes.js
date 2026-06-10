@@ -21,6 +21,7 @@ import { resolveExecutionReadinessDryRun } from "../executionReadinessDryRun.js"
 import { readPlatformOrchestrationReadback } from "../platformOrchestrationReadback.js";
 import { proposeAdsProviderGovernanceSnapshot } from "../adsProviderGovernanceSnapshotProposal.js";
 import { recordAdsProviderGovernanceSnapshot } from "../adsProviderGovernanceSnapshotRecord.js";
+import { proposeSupportTicketLifecycleSnapshot } from "../supportTicketLifecycleSnapshotProposal.js";
 import {
   certifyPlatformPluginSmoke,
   getPlatformPluginSmokeCertification,
