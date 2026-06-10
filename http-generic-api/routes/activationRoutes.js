@@ -1277,6 +1277,7 @@ export async function buildActivationSessionContext(req) {
   );
 
   const platformAccess = await buildActivationPlatformAccess(req);
+  const authorizedAccess = await buildActivationAuthorizedAccess(req, subject);
   const pendingTasks = await loadActivationPendingTasks(subject, 25);
   const pendingTaskRows = pendingTasks.rows || [];
   const pendingTaskSummary = {
