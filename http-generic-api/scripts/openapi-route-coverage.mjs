@@ -38,15 +38,40 @@ function routeFilePaths() {
     .sort();
 }
 
-function collectOpenApiOperations() {
-  const doc = YAML.parse(fs.readFileSync(OPENAPI_PATH, "utf8"));
+function collectOpenApiOperationsFromText(source) {
   const ops = new Set();
-  for (const [pathKey, pathItem] of Object.entries(doc.paths || {})) {
-    for (const method of Object.keys(pathItem || {})) {
-      if (HTTP_METHODS.has(method)) ops.add(`${method.toUpperCase()} ${pathKey}`);
+  const pathMethodSameLineRe = /(?:^|\n)\s*(\/[A-Za-z0-9_{}./:-]+):\s*(get|post|put|patch|delete):/g;
+  const pathBlockRe = /(?:^|\n)\s*(\/[A-Za-z0-9_{}./:-]+):\s*\n([\s\S]*?)(?=\n\s*\/[A-Za-z0-9_{}./:-]+:\s*(?:\n|$)|\ncomponents:|\n\S|$)/g;
+  let match;
+  while ((match = pathMethodSameLineRe.exec(source)) !== null) {
+    ops.add(`${match[2].toUpperCase()} ${match[1]}`);
+  }
+  while ((match = pathBlockRe.exec(source)) !== null) {
+    const pathKey = match[1];
+    const block = match[2] || "";
+    for (const method of HTTP_METHODS) {
+      if (new RegExp(`(?:^|\\n)\\s+${method}:`).test(block)) ops.add(`${method.toUpperCase()} ${pathKey}`);
     }
   }
   return ops;
+}
+
+function collectOpenApiOperations() {
+  const source = fs.readFileSync(OPENAPI_PATH, "utf8");
+  try {
+    const doc = YAML.parse(source);
+    const ops = new Set();
+    for (const [pathKey, pathItem] of Object.entries(doc.paths || {})) {
+      for (const method of Object.keys(pathItem || {})) {
+        if (HTTP_METHODS.has(method)) ops.add(`${method.toUpperCase()} ${pathKey}`);
+      }
+    }
+    return ops;
+  } catch (error) {
+    const ops = collectOpenApiOperationsFromText(source);
+    if (ops.size > 0) return ops;
+    throw error;
+  }
 }
 
 function collectMountPrefixes(indexSource) {
