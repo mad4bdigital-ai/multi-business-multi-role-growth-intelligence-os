@@ -3,6 +3,7 @@
   "display_name": "Authorized Agent Bindings Catalog",
   "description": "Tenant-scoped catalog of agent tool, workflow, and logic-pack bindings visible during activation.",
   "source_table": "v_activation_agent_bindings_catalog",
+  "covered_source_tables": ["agent_tool_bindings", "agent_workflow_bindings", "agent_logic_pack_bindings", "agents", "tenants"],
   "result_key_column": "binding_key",
   "result_label_column": "binding_type",
   "tenant_column": "tenant_id",
