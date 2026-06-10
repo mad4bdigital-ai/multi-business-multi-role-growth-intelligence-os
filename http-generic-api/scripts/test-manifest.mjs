@@ -26,6 +26,7 @@ export const testCommands = [
   "node test-orchestration-intelligence-foundation.mjs",
   "node test-orchestration-readback-surface.mjs",
   "node test-support-ticket-lifecycle-orchestration-readback.mjs",
+  "node test-support-ticket-lifecycle-snapshot-proposal.mjs",
   "node test-ads-governance-snapshot-proposal.mjs",
   "node test-ads-governance-snapshot-record-gate.mjs",
   "node test-ads-governance-snapshot-record-gate-allowlist.mjs",
