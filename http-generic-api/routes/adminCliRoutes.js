@@ -5,7 +5,7 @@ import { getPool } from "../db.js";
 import { decryptCredentials } from "../tokenEncryption.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
-import { evaluateRepositoryMutationPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
+import { evaluateRepositoryMutationPreflight, evaluateRepositoryPublishPreflight, assertPreflightAllowed } from "../governedExecutionPreflight.js";
 import { createContinuationCheckpoint, planContinuationResume } from "../sharedReconciliationEngine.js";
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
