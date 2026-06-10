@@ -1473,6 +1473,14 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
 
   assertAdminToolAccess(name, auth);
   switch (name) {
+    case "runtime_endpoint_call": {
+      const guarded = derivePrincipalExecutionContext({ ...(args || {}) }, auth);
+      return await callRuntimeEndpointViaFacade({
+        ...guarded.payload,
+        _principal: guarded.principal,
+        _principal_context_guard: guarded.guard,
+      }, deps);
+    }
     case "runtime_endpoint_preview": {
       const guarded = derivePrincipalExecutionContext({ ...(args || {}), dry_run: true }, auth);
       return await callRuntimeEndpointViaFacade({
