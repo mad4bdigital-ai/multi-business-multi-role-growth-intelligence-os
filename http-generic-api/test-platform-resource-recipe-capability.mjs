@@ -115,8 +115,8 @@ includesAll(executionDispatch, [
   "multipart_related",
   "String(parent_action_key || \"\").trim() === \"google_drive_api\"",
   "[\"uploadNewFile\", \"upload_new_file_media\"].includes(endpointKey)",
-  "contentType.startsWith(\"multipart/related;\")",
-  "? transportBody",
+  "requestContentType.startsWith(\"multipart/related;\")",
+  "upstreamBody = transportBody",
 ], "execution dispatch gated raw multipart body support");
 
 includesAll(runtimeModule, [
