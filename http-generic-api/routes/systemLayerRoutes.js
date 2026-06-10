@@ -34,6 +34,7 @@ import {
   resolveGovernedResource,
   runGovernedResource,
 } from "../platformResourceRecipeCapability.js";
+import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
   {
@@ -1610,8 +1611,8 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       return await catalogGovernedResources(args);
     case "governed_resource_plan":
       return await planGovernedResource(args);
-    case "governed_resource_run":
-      return await runGovernedResource(args, {
+    case "governed_resource_run": {
+      const result = await runGovernedResource(args, {
         executeInstalledTool: async (toolKey, toolArgs) => {
           if (toolKey === "google_drive_folder_inspect") {
             return await inspectGoogleDriveFolder(toolArgs, auth, deps);
@@ -1625,6 +1626,19 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
           return await callRuntimeEndpointViaFacade(payload, deps);
         },
       });
+      if (String(args?.mode || result?.mode || "").trim() === "apply") {
+        try {
+          result.audit_evidence = await writeResourceRecipeApplyEvidence({ args, result, auth });
+        } catch (err) {
+          result.audit_evidence = {
+            ok: false,
+            error: { code: err?.code || "resource_recipe_apply_evidence_failed", message: err?.message || "Resource recipe apply evidence write failed." },
+            secrets_included: false,
+          };
+        }
+      }
+      return result;
+    }
     case "connector_registry_list":
       return { connectors: await listConnectorRegistry(args, auth) };
     case "connector_registry_get":
