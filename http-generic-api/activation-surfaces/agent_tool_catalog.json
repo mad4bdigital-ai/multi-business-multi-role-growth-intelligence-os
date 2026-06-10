@@ -3,6 +3,7 @@
   "display_name": "Authorized Agent Tool Catalog",
   "description": "Tenant-scoped catalog of indexed agent tools visible during activation.",
   "source_table": "v_activation_agent_tool_catalog",
+  "covered_source_tables": ["agent_tool_index", "tenants"],
   "result_key_column": "tool_key",
   "result_label_column": "display_name",
   "tenant_column": "tenant_id",
