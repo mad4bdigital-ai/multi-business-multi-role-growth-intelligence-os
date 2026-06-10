@@ -73,7 +73,7 @@ SELECT
     'adapter_skeleton', a.implementation_status = 'skeleton',
     'capability_envelope_required', true,
     'capability_envelope_id', ar.capability_envelope_id,
-    'target_adapter_key', ar.adapter_key,
+    'target_adapter_key', ar.target_adapter_key,
     'promotion_allowed', false,
     'execution_allowed', false,
     'target_write_allowed', false,
