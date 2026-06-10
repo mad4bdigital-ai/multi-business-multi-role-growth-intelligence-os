@@ -10,6 +10,7 @@ import { validateRequestBody } from "./schemaValidation.js";
 const migrationPath = "migrations/246_sprint68_platform_resource_recipe_capability.sql";
 const migration = readFileSync(migrationPath, "utf8");
 const driveMultipartMigration = readFileSync("migrations/903_sprint68_google_drive_multipart_upload_schema_contract.sql", "utf8");
+const manifestCertificationMigration = readFileSync("migrations/904_sprint68_resource_manifest_positive_smoke_certification.sql", "utf8");
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
 const runtimeModule = readFileSync("platformResourceRecipeCapability.js", "utf8");
@@ -84,6 +85,23 @@ includesAll(driveMultipartMigration, [
   "'type', 'string'",
   "raw_body_mode=multipart_related",
 ], "Drive multipart upload endpoint schema contract migration");
+
+includesAll(manifestCertificationMigration, [
+  "904_sprint68_resource_manifest_positive_smoke_certification.sql",
+  "manifest_create_positive_apply_smoke_passed",
+  "apply_allowed = 1",
+  "resource_manifest_create_positive_smoke:2026-06-10:file:1uYzW6CUmKPs7dl_usgYr6XckBut-XrGb",
+  "classification=manifest_created_with_readback",
+  "readback_required=true",
+  "readback_ok=true",
+  "graph_write_made=false",
+  "file_content_returned=false",
+  "secrets_included=false",
+  "certification_key = 'resource_manifest_create'",
+  "requires_dry_run = 1",
+  "requires_audit_evidence = 1",
+  "requires_readback = 1",
+], "resource manifest positive smoke certification migration");
 
 assert(
   manifest.includes("node test-platform-resource-recipe-capability.mjs"),
