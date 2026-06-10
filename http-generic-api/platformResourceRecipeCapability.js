@@ -1682,6 +1682,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
     const githubArgs = buildRepositoryPrReconciliationArgs(plan, args);
     const githubReadOnlyResult = await githubReadOnlyExecutor("repo_pr_reconciliation_sweep", githubArgs);
     const reconciliation = buildRepositoryPrReconciliation(githubReadOnlyResult, plan, args);
+    const auditEvidence = await recordRepositoryPrReconciliationEvidence(reconciliation, plan, args);
     return {
       ok: reconciliation.ok,
       tool: "governed_resource_run",
@@ -1691,9 +1692,13 @@ export async function runGovernedResource(args = {}, deps = {}) {
       apply_allowed: false,
       dispatch_allowed: true,
       plan,
-      result: reconciliation,
+      result: {
+        ...reconciliation,
+        audit_evidence: auditEvidence,
+      },
       provider_calls_made: reconciliation.provider_calls_made_by_read_only_executor,
       execution_allowed: true,
+      audit_write_executed: Boolean(auditEvidence?.recorded),
       secrets_included: false,
     };
   }
