@@ -3,6 +3,7 @@
   "display_name": "Authorized Skill Package Catalog",
   "description": "Tenant-scoped catalog of installed skill packages visible during activation.",
   "source_table": "v_activation_skill_package_catalog",
+  "covered_source_tables": ["skill_packages", "tenants"],
   "result_key_column": "package_id",
   "result_label_column": "package_key",
   "tenant_column": "tenant_id",
