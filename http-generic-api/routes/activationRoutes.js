@@ -292,6 +292,225 @@ export async function buildActivationPlatformAccess(req, deps = {}) {
   };
 }
 
+function hasTruthyRuntimeFlag(value) {
+  return ["1", "true", "yes", "y", "active", "enabled", "callable"].includes(String(value || "").trim().toLowerCase());
+}
+
+function compactDelimitedList(value, max = 20) {
+  return splitRegistryList(value).slice(0, max);
+}
+
+function rowsOrEmpty(result) {
+  return result?.ok ? result.rows : [];
+}
+
+function surfaceError(surface, result) {
+  return result?.ok ? null : { surface, error: result?.error || { code: "unknown", message: "Unknown authorization surface error" } };
+}
+
+export async function buildActivationAuthorizedAccess(req, subject = resolveSessionContextSubject(req), deps = {}) {
+  const queryFn = deps.query || safeQuery;
+  const isAdmin = subject.is_admin === true;
+  const tenantId = subject.tenant_id || req.auth?.tenant_id || null;
+  const userId = subject.user_id || req.auth?.user_id || null;
+  const limit = capLimit(req.query?.authorized_access_limit, 25, 100);
+  const tenantFilter = isAdmin ? "(? IS NULL OR tenant_id = ?)" : "tenant_id = ?";
+  const tenantParams = isAdmin ? [tenantId, tenantId] : [tenantId];
+
+  const [memberships, roles, workspaces, systems, installations, grants, runtimeActions, adminTools] = await Promise.all([
+    userId
+      ? queryFn(
+          `SELECT tenant_id, role, status, granted_at, updated_at
+             FROM \`memberships\`
+            WHERE user_id = ?
+              AND (? IS NULL OR tenant_id = ?)
+              AND status = 'active'
+            ORDER BY updated_at DESC
+            LIMIT ${limit}`,
+          [userId, tenantId, tenantId]
+        )
+      : { ok: true, rows: [], skipped: true, reason: "no_user_subject" },
+    userId
+      ? queryFn(
+          `SELECT tenant_id, role, status, granted_at, expires_at
+             FROM \`role_assignments\`
+            WHERE user_id = ?
+              AND (? IS NULL OR tenant_id = ?)
+              AND status = 'active'
+              AND (expires_at IS NULL OR expires_at > UTC_TIMESTAMP())
+            ORDER BY granted_at DESC
+            LIMIT ${limit}`,
+          [userId, tenantId, tenantId]
+        )
+      : { ok: true, rows: [], skipped: true, reason: "no_user_subject" },
+    queryFn(
+      `SELECT workspace_id, tenant_id, workspace_key, display_name, workspace_type,
+              bootstrap_status, linked_brand_key, linked_system_ids, created_by, updated_at
+         FROM \`workspace_registry\`
+        WHERE ${tenantFilter}
+          AND bootstrap_status IN ('ready','in_progress','degraded')
+        ORDER BY FIELD(bootstrap_status, 'ready', 'in_progress', 'degraded'), updated_at DESC
+        LIMIT ${limit}`,
+      tenantParams
+    ),
+    queryFn(
+      `SELECT system_id, tenant_id, system_key, display_name, provider_family,
+              connector_family, auth_type, service_mode, status, updated_at
+         FROM \`connected_systems\`
+        WHERE ${tenantFilter}
+          AND status <> 'archived'
+        ORDER BY FIELD(status, 'active', 'pending', 'error'), updated_at DESC
+        LIMIT ${limit}`,
+      tenantParams
+    ),
+    queryFn(
+      `SELECT installation_id, system_id, tenant_id, scope, status, installed_at, expires_at
+         FROM \`installations\`
+        WHERE ${tenantFilter}
+          AND status = 'active'
+          AND (expires_at IS NULL OR expires_at > UTC_TIMESTAMP())
+        ORDER BY installed_at DESC
+        LIMIT ${limit}`,
+      tenantParams
+    ),
+    queryFn(
+      `SELECT permission_key, tenant_id, installation_id, granted, granted_at
+         FROM \`permission_grants\`
+        WHERE ${tenantFilter}
+          AND granted = 1
+        ORDER BY granted_at DESC
+        LIMIT ${limit * 2}`,
+      tenantParams
+    ),
+    queryFn(
+      `SELECT action_key, action_title, action_class, connector_family,
+              runtime_capability_class, runtime_callable, admin_only,
+              client_allowed, team_allowed, allowed_actor_roles, allowed_governance_levels
+         FROM \`actions\`
+        WHERE LOWER(TRIM(COALESCE(runtime_callable, ''))) IN ('1','true','yes','y','active','enabled','callable')
+          AND (? = 1 OR LOWER(TRIM(COALESCE(admin_only, ''))) NOT IN ('1','true','yes','y'))
+        ORDER BY action_key ASC
+        LIMIT ${limit}`,
+      [isAdmin ? 1 : 0]
+    ),
+    isAdmin
+      ? queryFn(
+          `SELECT tool_key, display_name, http_method, http_path, tags, is_enabled, sort_order
+             FROM \`admin_platform_endpoint_tools\`
+            WHERE is_enabled = 1
+            ORDER BY sort_order ASC, tool_key ASC
+            LIMIT ${limit}`,
+          []
+        )
+      : { ok: true, rows: [], skipped: true, reason: "admin_tools_require_admin_principal" }
+  ]);
+
+  const permissionKeys = [...new Set(rowsOrEmpty(grants).map((row) => row.permission_key).filter(Boolean))].sort();
+  const roleKeys = [...new Set([...rowsOrEmpty(memberships), ...rowsOrEmpty(roles)].map((row) => row.role).filter(Boolean))].sort();
+  const connectorFamilies = [...new Set(rowsOrEmpty(systems).map((row) => row.connector_family || row.provider_family).filter(Boolean))].sort();
+  const actionRows = rowsOrEmpty(runtimeActions).map((row) => ({
+    action_key: row.action_key,
+    action_title: row.action_title || null,
+    action_class: row.action_class || null,
+    connector_family: row.connector_family || null,
+    runtime_capability_class: row.runtime_capability_class || null,
+    admin_only: hasTruthyRuntimeFlag(row.admin_only),
+    actor_roles: compactDelimitedList(row.allowed_actor_roles),
+    governance_levels: compactDelimitedList(row.allowed_governance_levels),
+  }));
+
+  const degraded = [
+    surfaceError("memberships", memberships),
+    surfaceError("role_assignments", roles),
+    surfaceError("workspace_registry", workspaces),
+    surfaceError("connected_systems", systems),
+    surfaceError("installations", installations),
+    surfaceError("permission_grants", grants),
+    surfaceError("actions", runtimeActions),
+    surfaceError("admin_platform_endpoint_tools", adminTools),
+  ].filter(Boolean);
+
+  const authGaps = [];
+  if (!isAdmin && !tenantId) authGaps.push("missing_tenant_id");
+  if (!isAdmin && !userId) authGaps.push("missing_user_id");
+  if (!isAdmin && rowsOrEmpty(memberships).length === 0) authGaps.push("no_active_membership_for_subject");
+  if (rowsOrEmpty(systems).length === 0) authGaps.push("no_visible_connected_systems");
+  if (rowsOrEmpty(grants).length === 0) authGaps.push("no_active_permission_grants");
+
+  return {
+    source: "activation_dynamic_authorization_envelope",
+    principal: {
+      is_admin: isAdmin,
+      user_id: userId,
+      tenant_id: tenantId,
+      auth_mode: req.auth?.mode || null,
+    },
+    scope_resolution: isAdmin ? "platform_admin_all_with_optional_subject_filter" : "tenant_user_authorized_only",
+    counts: {
+      memberships: rowsOrEmpty(memberships).length,
+      roles: rowsOrEmpty(roles).length,
+      workspaces: rowsOrEmpty(workspaces).length,
+      connected_systems: rowsOrEmpty(systems).length,
+      active_installations: rowsOrEmpty(installations).length,
+      permission_grants: permissionKeys.length,
+      runtime_actions: actionRows.length,
+      admin_tools: rowsOrEmpty(adminTools).length,
+    },
+    authorized: {
+      roles: roleKeys,
+      permission_keys: permissionKeys.slice(0, 100),
+      connector_families: connectorFamilies,
+      workspaces: rowsOrEmpty(workspaces).map((row) => ({
+        workspace_id: row.workspace_id,
+        tenant_id: row.tenant_id,
+        workspace_key: row.workspace_key,
+        display_name: row.display_name,
+        workspace_type: row.workspace_type,
+        bootstrap_status: row.bootstrap_status,
+        linked_brand_key: row.linked_brand_key || null,
+        linked_system_ids: compactDelimitedList(row.linked_system_ids),
+      })),
+      connected_systems: rowsOrEmpty(systems).map((row) => ({
+        system_id: row.system_id,
+        tenant_id: row.tenant_id,
+        system_key: row.system_key,
+        display_name: row.display_name,
+        provider_family: row.provider_family,
+        connector_family: row.connector_family || null,
+        auth_type: row.auth_type || null,
+        service_mode: row.service_mode,
+        status: row.status,
+      })),
+      installations: rowsOrEmpty(installations).map((row) => ({
+        installation_id: row.installation_id,
+        system_id: row.system_id,
+        tenant_id: row.tenant_id,
+        status: row.status,
+        scopes: compactDelimitedList(row.scope, 50),
+        expires_at: row.expires_at || null,
+      })),
+      runtime_actions: actionRows,
+      admin_tools: rowsOrEmpty(adminTools).map((row) => ({
+        tool_key: row.tool_key,
+        display_name: row.display_name,
+        http_method: row.http_method,
+        http_path: row.http_path,
+        tags: compactDelimitedList(row.tags),
+      })),
+    },
+    activation_policy: {
+      use_authorized_access_for_context_selection: true,
+      do_not_infer_access_from_global_counts: true,
+      do_not_return_secret_values: true,
+      secrets_included: false,
+    },
+    readiness: degraded.length ? "degraded" : "active",
+    auth_gaps: authGaps,
+    degraded_surfaces: degraded,
+    secrets_included: false,
+  };
+}
+
 export function resolveSessionContextSubject(req) {
   const requestedUserId = queryStringValue(req.query.user_id);
   const requestedTenantId = queryStringValue(req.query.tenant_id);
@@ -1058,6 +1277,7 @@ export async function buildActivationSessionContext(req) {
   );
 
   const platformAccess = await buildActivationPlatformAccess(req);
+  const authorizedAccess = await buildActivationAuthorizedAccess(req, subject);
   const pendingTasks = await loadActivationPendingTasks(subject, 25);
   const pendingTaskRows = pendingTasks.rows || [];
   const pendingTaskSummary = {
@@ -1162,6 +1382,7 @@ export async function buildActivationSessionContext(req) {
     },
     conversation_memory: conversationMemory,
     platform_access: platformAccess,
+    authorized_access: authorizedAccess,
     platform_evolution: platformEvolution,
     pending_tasks: {
       summary: pendingTaskSummary,
