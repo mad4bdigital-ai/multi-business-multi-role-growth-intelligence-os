@@ -8,6 +8,8 @@ assert(routes.includes('TENANT_BLOCKED_TOOL_PATH_PREFIXES'), 'tenant blocked pat
 assert(routes.includes('"/admin/"'), 'tenant guard must block admin routes');
 assert(routes.includes('"/admin/system/"'), 'tenant guard must block admin system routes');
 assert(routes.includes('"/connector/"'), 'tenant guard must block connector workaround routes');
+assert(routes.includes('"/system/tools/call"'), 'tenant guard must block recursive system tool dispatcher routes');
+assert(routes.includes('"/gpt/tools/call"'), 'tenant guard must block recursive GPT tool dispatcher routes');
 assert(routes.includes('isTenantBlockedToolPath'), 'tenant blocked path helper must exist');
 assert(routes.includes('rows.filter((r) => !isTenantBlockedToolPath(r.http_path))'), 'tenant discovery must filter blocked paths');
 assert(routes.includes('callerType === "tenant" && isTenantBlockedToolPath(pathTemplate)'), 'tenant dispatch must enforce blocked path guard');
