@@ -22,6 +22,7 @@ import { readPlatformOrchestrationReadback } from "../platformOrchestrationReadb
 import { proposeAdsProviderGovernanceSnapshot } from "../adsProviderGovernanceSnapshotProposal.js";
 import { recordAdsProviderGovernanceSnapshot } from "../adsProviderGovernanceSnapshotRecord.js";
 import { proposeSupportTicketLifecycleSnapshot } from "../supportTicketLifecycleSnapshotProposal.js";
+import { recordSupportTicketLifecycleSnapshot } from "../supportTicketLifecycleSnapshotRecord.js";
 import {
   certifyPlatformPluginSmoke,
   getPlatformPluginSmokeCertification,
