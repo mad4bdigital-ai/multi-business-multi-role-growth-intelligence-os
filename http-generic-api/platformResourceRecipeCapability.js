@@ -307,7 +307,12 @@ function normalizeObjectResourceRef(resourceRef = {}, resourceType = "") {
 
 export function resolveResourceRefInput(args = {}) {
   const input = asString(args.input || args.resource_uri || args.url);
-  const parsedInput = parseGoogleDriveFolderRef(input) || parseGithubBranchRef(input) || null;
+  const parsedInput =
+    parseGoogleDriveFolderRef(input) ||
+    parseGithubPullRequestRef(input) ||
+    parseGithubBranchRef(input) ||
+    parseGithubRepoRef(input) ||
+    null;
   const hasExplicitRef =
     args.resource_ref &&
     typeof args.resource_ref === "object" &&
