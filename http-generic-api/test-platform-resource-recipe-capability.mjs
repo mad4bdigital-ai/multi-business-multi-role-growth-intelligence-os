@@ -11,6 +11,7 @@ const migration = readFileSync(migrationPath, "utf8");
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
 const runtimeModule = readFileSync("platformResourceRecipeCapability.js", "utf8");
+const executionDispatch = readFileSync("executionDispatch.js", "utf8");
 
 function includesAll(source, values, label) {
   for (const value of values) {
