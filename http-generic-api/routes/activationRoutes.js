@@ -1382,6 +1382,7 @@ export async function buildActivationSessionContext(req) {
     },
     conversation_memory: conversationMemory,
     platform_access: platformAccess,
+    authorized_access: authorizedAccess,
     platform_evolution: platformEvolution,
     pending_tasks: {
       summary: pendingTaskSummary,
