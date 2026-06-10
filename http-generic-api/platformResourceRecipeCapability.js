@@ -1539,6 +1539,137 @@ function buildRepositoryPrReconciliation(githubReadOnlyResult = {}, plan = {}, a
   };
 }
 
+function scopedAuthorityRequested(args = {}) {
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  return Boolean(args.tenant_id || options.tenant_id || args.workspace_id || options.workspace_id || args.user_id || options.user_id);
+}
+
+function authorityScopeArgs(args = {}) {
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  return {
+    tenant_id: args.tenant_id || options.tenant_id || null,
+    workspace_id: args.workspace_id || options.workspace_id || null,
+    user_id: args.user_id || options.user_id || null,
+  };
+}
+
+function modeAllowedByBinding(binding = {}, mode = "read_only") {
+  const allowedModes = parseJson(binding.allowed_modes_json, []);
+  const allowed = Array.isArray(allowedModes) ? allowedModes : [];
+  const permissionLevel = asString(binding.permission_level || "read_only");
+  if (mode === "plan") return true;
+  if (allowed.includes(mode) || allowed.includes("*")) return true;
+  if (["read_only", "diagnostic", "continue_read_only"].includes(mode) && ["read_only", "diagnostic", "admin"].includes(permissionLevel)) return true;
+  if (permissionLevel === "admin") return true;
+  return false;
+}
+
+async function resolvePlatformResourceAuthorityBinding(plan = {}, args = {}, mode = "read_only") {
+  if (!scopedAuthorityRequested(args)) {
+    return {
+      required: false,
+      granted: true,
+      decision: "platform_admin_unscoped_read_only_allowed",
+      binding_id: null,
+      secrets_included: false,
+    };
+  }
+
+  const scope = authorityScopeArgs(args);
+  const resourceType = plan.resolved_resource?.resource_type || plan.recipe?.resource_type || null;
+  const resourceUri = plan.resolved_resource?.resource_uri || null;
+  const recipeKey = plan.recipe?.recipe_key || args.recipe_key || null;
+  if (!resourceType || !resourceUri) {
+    return {
+      required: true,
+      granted: false,
+      decision: "blocked_authority_binding_unresolved_resource",
+      scope,
+      secrets_included: false,
+    };
+  }
+
+  const scopeClauses = [];
+  const params = [resourceType, resourceUri, recipeKey];
+  for (const key of ["tenant_id", "workspace_id", "user_id"]) {
+    if (scope[key]) {
+      scopeClauses.push(`${key} = ?`);
+      params.push(scope[key]);
+    }
+  }
+  if (!scopeClauses.length) {
+    return {
+      required: false,
+      granted: true,
+      decision: "platform_admin_unscoped_read_only_allowed",
+      binding_id: null,
+      secrets_included: false,
+    };
+  }
+
+  let rows = [];
+  try {
+    [rows] = await getPool().query(
+      `SELECT *
+         FROM platform_resource_authority_bindings
+        WHERE status = 'active'
+          AND resource_type = ?
+          AND resource_uri = ?
+          AND (recipe_key = ? OR recipe_key IS NULL)
+          AND (expires_at IS NULL OR expires_at > NOW())
+          AND (${scopeClauses.join(" OR ")})
+        ORDER BY recipe_key IS NOT NULL DESC, workspace_id IS NOT NULL DESC, user_id IS NOT NULL DESC, tenant_id IS NOT NULL DESC, created_at DESC
+        LIMIT 1`,
+      params
+    );
+  } catch (error) {
+    if (/ER_NO_SUCH_TABLE|doesn't exist/i.test(String(error?.message || ""))) {
+      return {
+        required: true,
+        granted: false,
+        decision: "blocked_authority_binding_table_missing",
+        scope,
+        resource_type: resourceType,
+        resource_uri: resourceUri,
+        recipe_key: recipeKey,
+        secrets_included: false,
+      };
+    }
+    throw error;
+  }
+
+  const binding = rows?.[0] || null;
+  if (!binding) {
+    return {
+      required: true,
+      granted: false,
+      decision: "blocked_missing_platform_resource_authority_binding",
+      scope,
+      resource_type: resourceType,
+      resource_uri: resourceUri,
+      recipe_key: recipeKey,
+      mode,
+      secrets_included: false,
+    };
+  }
+
+  const granted = modeAllowedByBinding(binding, mode);
+  return {
+    required: true,
+    granted,
+    decision: granted ? "platform_resource_authority_binding_granted" : "blocked_platform_resource_authority_binding_mode",
+    binding_id: binding.binding_id,
+    permission_level: binding.permission_level,
+    allowed_modes: parseJson(binding.allowed_modes_json, []),
+    scope,
+    resource_type: resourceType,
+    resource_uri: resourceUri,
+    recipe_key: recipeKey,
+    mode,
+    secrets_included: false,
+  };
+}
+
 export async function planGovernedResource(args = {}) {
   const recipe = await getRecipeByKey(args.recipe_key);
   const resolved = resolveResourceRefInput({ ...args, resource_type: recipe.resource_type });
@@ -1608,6 +1739,24 @@ export async function runGovernedResource(args = {}, deps = {}) {
   const recipe = plan.recipe || {};
   const manifestApplyRequested = applyRequested && recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY;
   const blockedReasons = plan.policy_decision?.blocked_reasons || [];
+  const authorityBinding = await resolvePlatformResourceAuthorityBinding(plan, args, mode);
+  if (mode !== "plan" && authorityBinding.required && !authorityBinding.granted) {
+    return {
+      ok: false,
+      tool: "governed_resource_run",
+      classification: "blocked_platform_resource_authority_binding",
+      mode,
+      apply_requested: applyRequested,
+      apply_allowed: false,
+      dispatch_allowed: false,
+      reason_code: authorityBinding.decision,
+      authority_binding: authorityBinding,
+      plan,
+      provider_calls_made: 0,
+      execution_allowed: false,
+      secrets_included: false,
+    };
+  }
 
   if (mode === "plan") {
     return {
