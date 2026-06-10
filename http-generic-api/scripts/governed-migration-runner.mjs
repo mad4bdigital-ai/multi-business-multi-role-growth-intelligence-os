@@ -153,6 +153,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "900_sprint68_governed_repository_intelligence_engine.sql",
   "901_sprint68_resource_manifest_create_gate_authority.sql",
   "902_sprint68_dynamic_capability_apply_authorization_policy.sql",
+  "903_sprint68_google_drive_multipart_upload_schema_contract.sql",
   "262_sprint68_orchestration_readback_surface.sql",
   "263_sprint68_ads_governance_snapshot_proposal.sql",
   "264_sprint68_ads_governance_snapshot_record_gate.sql",

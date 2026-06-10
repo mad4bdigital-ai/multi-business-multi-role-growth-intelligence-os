@@ -5,9 +5,11 @@ import {
   PLATFORM_RESOURCE_RECIPE_TOOL_NAMES,
   resolveResourceRefInput,
 } from "./platformResourceRecipeCapability.js";
+import { validateRequestBody } from "./schemaValidation.js";
 
 const migrationPath = "migrations/246_sprint68_platform_resource_recipe_capability.sql";
 const migration = readFileSync(migrationPath, "utf8");
+const driveMultipartMigration = readFileSync("migrations/903_sprint68_google_drive_multipart_upload_schema_contract.sql", "utf8");
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
 const runtimeModule = readFileSync("platformResourceRecipeCapability.js", "utf8");
@@ -73,6 +75,15 @@ includesAll(migration, [
   "'writes_require_capability_envelope', true",
   "'secrets_included', false",
 ], "resource recipe governance policy");
+
+includesAll(driveMultipartMigration, [
+  "903_sprint68_google_drive_multipart_upload_schema_contract.sql",
+  "parent_action_key = 'google_drive_api'",
+  "endpoint_key IN ('uploadNewFile', 'upload_new_file_media')",
+  "$.requestBody.content.\"multipart/related\"",
+  "'type', 'string'",
+  "raw_body_mode=multipart_related",
+], "Drive multipart upload endpoint schema contract migration");
 
 assert(
   manifest.includes("node test-platform-resource-recipe-capability.mjs"),
@@ -195,6 +206,18 @@ includesAll(runtimeModule, [
   "graph_write_made: false",
   "file_content_returned: false",
 ], "runtime v1 read-only installed and composite tool guard");
+
+const multipartOperation = {
+  requestBody: {
+    content: {
+      "application/json": { schema: { type: "object", additionalProperties: true } },
+      "multipart/related": { schema: { type: "string" } },
+    },
+  },
+};
+assert.deepEqual(validateRequestBody(multipartOperation, { metadata: {}, media: {} }), []);
+assert.deepEqual(validateRequestBody(multipartOperation, "--boundary\r\nContent-Type: application/json\r\n\r\n{}"), []);
+assert.deepEqual(validateRequestBody(multipartOperation, 123), ["body: expected object got integer"]);
 
 const driveResolved = resolveResourceRefInput({ input: "https://drive.google.com/drive/folders/1E2mS1cOPL3ZAAiVWzEg9iv6klHCOVqES" });
 assert.equal(driveResolved.resource_type, "drive_folder");
