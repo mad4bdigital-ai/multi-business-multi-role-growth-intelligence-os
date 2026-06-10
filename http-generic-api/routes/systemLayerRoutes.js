@@ -58,6 +58,38 @@ const SYSTEM_LAYER_TOOLS = [
     },
   },
   {
+    name: "runtime_endpoint_call",
+    description: "Kernel dispatcher for governed runtime endpoint execution. Resolves parent_action_key/endpoint_key through registry authority, preserves brand target fields, applies principal context, and delegates provider execution to the runtime facade.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        parent_action_key: { type: "string" },
+        endpoint_key: { type: "string" },
+        target_key: { type: "string" },
+        brand_key: { type: "string" },
+        brand_domain: { type: "string" },
+        path_params: { type: "object", additionalProperties: true },
+        query: { type: "object", additionalProperties: true },
+        body: { type: "object", additionalProperties: true },
+        headers: { type: "object", additionalProperties: true },
+        credential_scope: { type: "string", enum: ["platform", "tenant", "user", "connection", "auto"] },
+        connection_id: { type: "string" },
+        app_key: { type: "string" },
+        auth_type: { type: "string" },
+        auth_context: { type: "object", additionalProperties: true },
+        mutation_approval: { type: "object", additionalProperties: true },
+        dry_run: { type: "boolean" },
+        preflight_only: { type: "boolean" },
+        dry_run_preflight_completed: { type: "boolean" },
+        approved_preflight_dry_run_validated: { type: "boolean" },
+        live_execution_approved: { type: "boolean" },
+        readback: { type: "object", additionalProperties: true },
+        timeout_seconds: { type: "integer", minimum: 1, maximum: 120 },
+      },
+      required: ["parent_action_key", "endpoint_key"],
+    },
+  },
+  {
     name: "google_drive_endpoint_catalog",
     description: "Admin-only read-only catalog for Google Drive endpoint registry rows. Supports filtering by operation, method, readiness, and search text so large Drive operation surfaces are discoverable without raw SQL.",
     requires_admin: true,
@@ -1551,6 +1583,14 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
 
   assertAdminToolAccess(name, auth);
   switch (name) {
+    case "runtime_endpoint_call": {
+      const guarded = derivePrincipalExecutionContext({ ...(args || {}) }, auth);
+      return await callRuntimeEndpointViaFacade({
+        ...guarded.payload,
+        _principal: guarded.principal,
+        _principal_context_guard: guarded.guard,
+      }, deps);
+    }
     case "runtime_endpoint_preview": {
       const guarded = derivePrincipalExecutionContext({ ...(args || {}), dry_run: true }, auth);
       return await callRuntimeEndpointViaFacade({

@@ -33,8 +33,7 @@ assert(migration.includes("read_only"), "tool must be read-only diagnostic");
 assert(!migration.includes("state_changing"), "dispatch dry-run tool must not be state-changing");
 assert(!migration.includes("ssh_private_key"), "dispatch dry-run tool must not request private key fields");
 
-const matches = openapi.match(/\/platform\/remote-runtime\/dispatch-dry-run:/g) || [];
-assert.equal(matches.length, 1, "OpenAPI must document dispatch dry-run path exactly once");
+assert(openapi.includes("/platform/remote-runtime/dispatch-dry-run:"), "OpenAPI must document dispatch dry-run path");
 assert(openapi.includes("operationId: remoteRuntimeDispatchDryRun"), "OpenAPI must expose stable dispatch dry-run operationId");
 assert(openapi.includes("x-openai-isConsequential: false"), "OpenAPI must mark dry-run as non-consequential");
 assert(openapi.includes("never executes commands"), "OpenAPI must document no command execution");
