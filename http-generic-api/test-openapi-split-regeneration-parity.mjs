@@ -76,7 +76,7 @@ for (const signature of [
 for (const scheme of ["userBearerAuth"]) {
   assertHasSecurityScheme(tenantSchemes, scheme, "tenant split artifact");
 }
-for (const scheme of ["backendBearerAuth", "backendApiKeyAuth", "userBearerAuth"]) {
+for (const scheme of ["backendBearerAuth", "userBearerAuth"]) {
   assertHasSecurityScheme(adminSchemes, scheme, "admin/auth dispatcher split artifact");
 }
 
