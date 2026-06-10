@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { getPool } from "./db.js";
+import { decryptCredentials as decryptTokenEncryptedCredentials } from "./tokenEncryption.js";
 
 export function parseOauthConfigRef(raw = "") {
   const out = { mode: "", value: "", params: {} };
