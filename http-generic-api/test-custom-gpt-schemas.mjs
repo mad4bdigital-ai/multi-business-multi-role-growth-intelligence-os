@@ -487,7 +487,7 @@ section("admin and tenant OpenAI schema coverage for tool additions");
     ["/connect/api/connections", "listConnectApiConnections"],
     ["/connect/api/connections/{connection_id}", "deleteConnectApiConnection"],
   ]) {
-    assert(`parent OpenAPI documents ${path}`, Boolean(parentDoc.paths?.[path]));
+    assert(`parent OpenAPI documents ${path}`, openApiTextHasPath(parentSchema, path));
     assert(`parent OpenAPI operation ${operationId} is present`, parentSchema.includes(operationId));
   }
 
