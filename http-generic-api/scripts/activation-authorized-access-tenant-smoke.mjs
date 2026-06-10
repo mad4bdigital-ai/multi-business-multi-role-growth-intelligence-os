@@ -147,6 +147,8 @@ async function main() {
     scope_resolution: access.scope_resolution,
     counts: access.counts,
     registered_surfaces: registeredSurfaces,
+    positive_required_surface_keys: positiveRequiredSurfaceKeys,
+    missing_positive_surfaces: missingPositiveSurfaces,
     auth_gaps: access.auth_gaps || [],
     degraded_surface_count: access.degraded_surfaces?.length || 0,
     admin_tools_visible: (access.authorized?.admin_tools || []).length,
