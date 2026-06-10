@@ -11,6 +11,7 @@ const migration = readFileSync(migrationPath, "utf8");
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
 const runtimeModule = readFileSync("platformResourceRecipeCapability.js", "utf8");
+const executionDispatch = readFileSync("executionDispatch.js", "utf8");
 
 function includesAll(source, values, label) {
   for (const value of values) {
@@ -109,6 +110,15 @@ includesAll(systemLayerRoutes, [
   "callRuntimeEndpointViaFacade(payload, deps)",
 ], "system layer read-only installed tool executor wiring");
 
+includesAll(executionDispatch, [
+  "raw_body_mode",
+  "multipart_related",
+  "String(parent_action_key || \"\").trim() === \"google_drive_api\"",
+  "[\"uploadNewFile\", \"upload_new_file_media\"].includes(endpointKey)",
+  "requestContentType.startsWith(\"multipart/related;\")",
+  "upstreamBody = transportBody",
+], "execution dispatch gated raw multipart body support");
+
 includesAll(runtimeModule, [
   "READ_ONLY_INSTALLED_TOOL_ALLOWLIST",
   "READ_ONLY_COMPOSITE_RECIPE_ALLOWLIST",
@@ -141,6 +151,10 @@ includesAll(runtimeModule, [
   "manifest_create_runtime_endpoint_executor_missing",
   "buildManifestUploadPayload",
   "uploadNewFile",
+  "uploadType: \"multipart\"",
+  "raw_body_mode: \"multipart_related\"",
+  "multipart/related; boundary=",
+  "result?.body?.data?.id",
   "buildManifestReadbackPayload",
   "getFileMetadata",
   "manifest_created_with_readback",
