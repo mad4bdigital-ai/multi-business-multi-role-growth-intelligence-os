@@ -53,6 +53,16 @@ function normalizeManifest(raw, filename) {
   const includeForTenant = normalizeBoolean(raw.include_for_tenant);
   const resultColumns = Array.isArray(raw.result_columns) ? raw.result_columns : [];
   if (!resultColumns.length) throw new Error(`Activation surface ${surfaceKey} requires result_columns.`);
+  const coveredSourceTables = Array.isArray(raw.covered_source_tables) ? raw.covered_source_tables : [];
+  for (const table of coveredSourceTables) {
+    assertSafeIdentifier(table, "covered_source_tables", surfaceKey);
+    if (BLOCKED_COLUMN_PATTERN.test(String(table || ""))) {
+      throw new Error(`Blocked covered source table in ${surfaceKey}: ${table}`);
+    }
+  }
+  if (String(raw.source_table || "").startsWith("v_activation_") && coveredSourceTables.length === 0) {
+    throw new Error(`Activation view surface ${surfaceKey} requires covered_source_tables.`);
+  }
 
   const normalized = {
     surface_key: assertSafeIdentifier(surfaceKey, "surface_key", surfaceKey),

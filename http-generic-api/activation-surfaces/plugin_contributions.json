@@ -3,6 +3,7 @@
   "display_name": "Authorized Plugin Contributions",
   "description": "Tenant/user-owned plugin contributions visible during activation without manifests or credential policies.",
   "source_table": "v_activation_plugin_contributions",
+  "covered_source_tables": ["platform_plugin_contributions"],
   "result_key_column": "contribution_id",
   "result_label_column": "plugin_key",
   "tenant_column": "tenant_id",

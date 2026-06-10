@@ -3,6 +3,7 @@
   "display_name": "Authorized Workflow Runtime Bindings",
   "description": "Tenant-scoped workflow runtime bindings visible during activation without runtime credentials.",
   "source_table": "v_activation_workflow_runtime_bindings",
+  "covered_source_tables": ["workflow_runtime_bindings", "workflows"],
   "result_key_column": "binding_key",
   "result_label_column": "workflow_key",
   "tenant_column": "tenant_id",

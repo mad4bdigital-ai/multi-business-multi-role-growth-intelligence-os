@@ -3,6 +3,7 @@
   "display_name": "Authorized App Action Grants",
   "description": "Tenant/user app action grants visible during activation.",
   "source_table": "v_activation_app_action_grants",
+  "covered_source_tables": ["app_action_grants", "user_app_connections", "app_integrations"],
   "result_key_column": "grant_id",
   "result_label_column": "action_key",
   "tenant_column": "tenant_id",

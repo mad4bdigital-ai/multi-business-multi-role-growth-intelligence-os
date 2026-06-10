@@ -3,6 +3,7 @@
   "display_name": "Authorized Pending Tasks",
   "description": "Tenant/user-scoped activation-visible pending tasks.",
   "source_table": "v_activation_pending_tasks",
+  "covered_source_tables": ["platform_pending_tasks"],
   "result_key_column": "task_id",
   "result_label_column": "task_key",
   "tenant_column": "tenant_id",

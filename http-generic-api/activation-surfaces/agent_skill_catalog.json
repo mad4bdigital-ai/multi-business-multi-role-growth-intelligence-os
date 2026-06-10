@@ -3,6 +3,7 @@
   "display_name": "Authorized Agent Skill Catalog",
   "description": "Tenant-scoped catalog of active agent skills visible during activation.",
   "source_table": "v_activation_agent_skill_catalog",
+  "covered_source_tables": ["agent_skills", "tenants"],
   "result_key_column": "skill_id",
   "result_label_column": "skill_key",
   "tenant_column": "tenant_id",

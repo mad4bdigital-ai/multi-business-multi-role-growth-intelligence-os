@@ -3,6 +3,7 @@
   "display_name": "Authorized App Binding Catalog",
   "description": "Tenant-scoped catalog of active app action/tool bindings visible during activation.",
   "source_table": "v_activation_app_binding_catalog",
+  "covered_source_tables": ["app_integration_action_bindings", "app_integration_tool_bindings", "app_integrations", "tenants"],
   "result_key_column": "binding_id",
   "result_label_column": "target_key",
   "tenant_column": "tenant_id",
