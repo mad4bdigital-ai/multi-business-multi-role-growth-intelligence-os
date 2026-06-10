@@ -144,7 +144,6 @@ includesAll(runtimeModule, [
   "manifest_created_with_readback",
   "manifest_create_readback_degraded",
   "executeRuntimeEndpoint",
-  "callRuntimeEndpointViaFacade(payload, deps)",
   "buildSourceInspectionSummary",
   "source_inspection_summary",
   "source_inspection_included",
