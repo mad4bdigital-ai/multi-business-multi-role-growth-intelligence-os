@@ -6223,7 +6223,7 @@ paths:
               properties:
                 name:
                   type: string
-                  pattern: '^[a-z][a-z0-9_:-]{1,128}
+                  pattern: "^[a-z][a-z0-9_:-]{1,128}$"
                 arguments:
                   type: object
                   additionalProperties: true
