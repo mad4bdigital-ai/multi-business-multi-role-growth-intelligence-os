@@ -1338,6 +1338,104 @@ async function executeRepositoryPrReconciliationReadOnly(operationKey = "", args
   };
 }
 
+function jsonPreview(value = {}, maxChars = 24000) {
+  const text = stableJson(value);
+  return text.length > maxChars ? `${text.slice(0, maxChars)}\n...truncated` : text;
+}
+
+function repositoryPrEvidenceRequested(args = {}) {
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  return boolOption(options.record_evidence ?? args.record_evidence, false);
+}
+
+function buildRepositoryPrEvidenceMetadata(reconciliation = {}, plan = {}, args = {}) {
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  return {
+    schema_version: "repository_pr_reconciliation_evidence.v1",
+    recipe_key: REPOSITORY_PR_RECONCILE_RECIPE_KEY,
+    resource_uri: plan.resolved_resource?.resource_uri || null,
+    owner: reconciliation.summary?.owner || plan.resolved_resource?.resource_ref?.owner || null,
+    repo: reconciliation.summary?.repo || plan.resolved_resource?.resource_ref?.repo || null,
+    pull_request_count: Number(reconciliation.summary?.pull_request_count || 0),
+    classification_counts: reconciliation.summary?.classification_counts || {},
+    ready_count: Number(reconciliation.summary?.ready_count || 0),
+    risky_count: Number(reconciliation.summary?.risky_count || 0),
+    provider_calls_made: Number(reconciliation.provider_calls_made_by_read_only_executor || 0),
+    requested_limit: options.limit ?? args.limit ?? null,
+    requested_state: options.state ?? args.state ?? "open",
+    mutations_executed: false,
+    graph_write_executed: false,
+    secrets_included: false,
+  };
+}
+
+async function recordRepositoryPrReconciliationEvidence(reconciliation = {}, plan = {}, args = {}) {
+  if (!repositoryPrEvidenceRequested(args)) {
+    return {
+      recorded: false,
+      reason_code: "record_evidence_not_requested",
+      secrets_included: false,
+    };
+  }
+
+  const evidenceId = randomUUID();
+  const requestPayload = {
+    recipe_key: REPOSITORY_PR_RECONCILE_RECIPE_KEY,
+    resource_ref: plan.resolved_resource?.resource_ref || null,
+    options: args.options || {},
+    mode: args.mode || null,
+    secrets_included: false,
+  };
+  const responsePayload = {
+    classification: reconciliation.classification || null,
+    summary: reconciliation.summary || {},
+    recommendations: reconciliation.recommendations || [],
+    provider_calls_made_by_read_only_executor: Number(reconciliation.provider_calls_made_by_read_only_executor || 0),
+    apply_supported: false,
+    mutations_executed: false,
+    graph_write_executed: false,
+    secrets_included: false,
+  };
+  const requestJson = stableJson(requestPayload);
+  const responseJson = stableJson(responsePayload);
+  const metadata = buildRepositoryPrEvidenceMetadata(reconciliation, plan, args);
+
+  await getPool().query(
+    `INSERT INTO audit_payload_evidence
+      (evidence_id, tenant_id, actor_id, actor_type, action, resource_type, resource_id,
+       source_table, source_pk, evidence_type, request_preview, request_sha256,
+       response_preview, response_sha256, metadata_json, redaction_status, secrets_included)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'not_required', 0)`,
+    [
+      evidenceId,
+      args.tenant_id || args.options?.tenant_id || null,
+      args.actor_id || args.user_id || "platform_admin",
+      args.actor_type || "admin",
+      REPOSITORY_PR_RECONCILE_RECIPE_KEY,
+      "github_repo",
+      plan.resolved_resource?.resource_uri || null,
+      "platform_resource_recipes",
+      REPOSITORY_PR_RECONCILE_RECIPE_KEY,
+      "repository_pr_reconciliation_summary",
+      jsonPreview(requestPayload),
+      sha256Hex(requestJson),
+      jsonPreview(responsePayload),
+      sha256Hex(responseJson),
+      stableJson(metadata),
+    ]
+  );
+
+  return {
+    recorded: true,
+    evidence_id: evidenceId,
+    table: "audit_payload_evidence",
+    evidence_type: "repository_pr_reconciliation_summary",
+    request_sha256: sha256Hex(requestJson),
+    response_sha256: sha256Hex(responseJson),
+    secrets_included: false,
+  };
+}
+
 function buildRepositoryPrReconciliationArgs(plan = {}, args = {}) {
   const ref = plan.resolved_resource?.resource_ref || {};
   const options = args.options && typeof args.options === "object" ? args.options : {};
