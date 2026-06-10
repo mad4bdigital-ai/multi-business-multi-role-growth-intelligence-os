@@ -90,11 +90,14 @@ assert.equal(prResolved.resource_ref.pr_number, 1061);
 
 includesAll(releaseReadiness, [
   "900_sprint68_governed_repository_intelligence_engine.sql",
+  "950_sprint68_platform_resource_authority_bindings.sql",
   "governed_repository_intelligence_engine_policy_v1",
-], "release readiness must enforce repository intelligence policy and migration");
+  "platform_resource_authority_binding_policy_v1",
+], "release readiness must enforce repository intelligence policy and authority migration");
 
 includesAll(migrationRunner, [
   "900_sprint68_governed_repository_intelligence_engine.sql",
-], "governed migration runner must allow repository intelligence migration");
+  "950_sprint68_platform_resource_authority_bindings.sql",
+], "governed migration runner must allow repository intelligence and authority migrations");
 
 console.log("governed repository intelligence engine foundation contract ok");
