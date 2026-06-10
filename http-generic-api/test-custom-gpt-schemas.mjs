@@ -152,7 +152,7 @@ function openApiTextDoc(source) {
         },
         LocalManagerDeviceLinkPublicSession: {
           type: "object",
-          description: "Public device-link session; must not include user_id; must not include tenant_id; must not include secrets.",
+          description: "Public device-link session; must not include user_id; must not include tenant_id; must not include secrets; must not include device token.",
         },
         LocalManagerWindowsUpdateResponse: {
           type: "object",
