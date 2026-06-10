@@ -28,5 +28,5 @@
   "max_rows": 50,
   "sort_order": 110,
   "status": "active",
-  "notes": "Repo-managed activation view. Excludes connection credentials."
+  "notes": "Repo-managed activation view. Excludes connection authentication payload fields."
 }
