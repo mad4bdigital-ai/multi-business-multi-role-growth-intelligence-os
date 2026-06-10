@@ -108,6 +108,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "264_sprint68_ads_governance_snapshot_record_gate.sql",
   "270_sprint68_support_ticket_lifecycle_orchestration_readback.sql",
   "272_sprint68_support_ticket_lifecycle_snapshot_proposal.sql",
+  "273_sprint68_support_ticket_lifecycle_snapshot_record_gate.sql",
   "260_sprint68_platform_development_constitution_policies.sql",
   "261_sprint68_orchestration_intelligence_foundation.sql",
   "229_sprint67_workspace_brands_list_tool.sql",

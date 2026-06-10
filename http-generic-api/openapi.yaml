@@ -11154,6 +11154,74 @@ paths:
                       will_deploy: { type: boolean, enum: [false] }
                       will_publish: { type: boolean, enum: [false] }
                   secrets_included: { type: boolean, enum: [false] }
+  /platform/orchestration/support-ticket/snapshot-record:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: supportTicketLifecycleSnapshotRecord
+      summary: Record Support Ticket lifecycle snapshot and recommendation candidates
+      description: >
+        Admin-only gated persistence surface for Support Ticket lifecycle snapshot and
+        recommendation candidates. The route recomputes the proposal, verifies candidate_sha256,
+        requires idempotency_key and capability_envelope_id, defaults apply to false, and writes
+        only when apply=true and the capability envelope is apply-allowed. It does not mutate
+        tickets, dispatch workflows, decide approvals, send external notifications, call providers,
+        read credential payloads, change spend, deploy, publish, or return secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ticket_id, candidate_sha256, idempotency_key, capability_envelope_id]
+              properties:
+                ticket_id: { type: string, minLength: 1, maxLength: 128 }
+                candidate_sha256: { type: string, minLength: 64, maxLength: 64 }
+                idempotency_key: { type: string, minLength: 3, maxLength: 80 }
+                capability_envelope_id: { type: string, minLength: 36, maxLength: 36 }
+                apply: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Dry-run or recorded Support Ticket lifecycle snapshot/recommendation result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, mode, ticket_id, plugin_key, candidate_sha256, idempotency_key, capability_envelope_id, execution, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  mode: { type: string, enum: [record_dry_run, recorded] }
+                  ticket_id: { type: string }
+                  plugin_key: { type: string, enum: [support_ticket_lifecycle_orchestrator] }
+                  candidate_sha256: { type: string }
+                  idempotency_key: { type: string }
+                  capability_envelope_id: { type: string }
+                  snapshot_key: { type: string }
+                  recommendation_key: { type: string }
+                  recorded: { $ref: '#/components/schemas/JsonValue' }
+                  execution:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      will_record_snapshot: { type: boolean }
+                      will_record_recommendation: { type: boolean }
+                      will_mutate_ticket: { type: boolean, enum: [false] }
+                      will_dispatch_workflow: { type: boolean, enum: [false] }
+                      will_decide_approval: { type: boolean, enum: [false] }
+                      will_execute_provider_call: { type: boolean, enum: [false] }
+                      will_read_credential_payload: { type: boolean, enum: [false] }
+                      will_change_spend: { type: boolean, enum: [false] }
+                      will_external_send: { type: boolean, enum: [false] }
+                      will_external_write: { type: boolean, enum: [false] }
+                      will_deploy: { type: boolean, enum: [false] }
+                      will_publish: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+
   /platform/orchestration/support-ticket/snapshot-propose:
     post:
       x-openai-isConsequential: false
