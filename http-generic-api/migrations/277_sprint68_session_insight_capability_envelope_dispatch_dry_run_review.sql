@@ -187,7 +187,7 @@ WHERE d.dispatch_review_status = 'dispatch_dry_run_approved'
   AND (g.request_review_status <> 'request_approved'
     OR g.request_policy_status <> 'request_approved_but_not_dispatched');
 
-CREATE OR REPLACE VIEW `v_session_insight_capability_envelope_actual_request_readiness` AS
+CREATE OR REPLACE VIEW `v_session_insight_ce_actual_request_readiness` AS
 SELECT
   d.dispatch_dry_run_id,
   d.request_gate_id,
