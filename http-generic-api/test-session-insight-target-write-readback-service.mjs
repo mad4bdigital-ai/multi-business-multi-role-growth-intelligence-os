@@ -60,8 +60,8 @@ function makePool() {
       if (compact.startsWith("INSERT INTO session_insight_target_write_readbacks")) {
         assert(compact.includes("'read_only_validation'"), "readback must be read-only validation mode");
         assert(compact.includes("0, 0, 0, 0, 0"), "readback must not claim runtime effects");
-        const validation = JSON.parse(params[18]);
-        const safety = JSON.parse(params[19]);
+        const validation = JSON.parse(params[17]);
+        const safety = JSON.parse(params[18]);
         assert.equal(validation.valid_target_write_readback, true);
         assert.equal(validation.checks.target_item_exists, true);
         assert.equal(validation.checks.target_link_matches, true);
