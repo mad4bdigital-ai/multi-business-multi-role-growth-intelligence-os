@@ -17,7 +17,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 378
+- Migrations with detected surfaces: 379
 - Migrations reported here: 80
 - OpenAPI operations detected: 416
 - Documentation targets checked:
@@ -33,6 +33,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|---:|---:|---:|---:|---:|
 | `998_sprint68_openrouter_provider_smoke_app_map_binding.sql` | needs docs | 0 | 3 | 1 | 1 | 0 |
 | `997_sprint68_openrouter_provider_smoke_capability_binding.sql` | needs docs | 0 | 0 | 0 | 1 | 0 |
+| `954_sprint68_compact_operational_views_and_github_resource_coverage.sql` | needs docs | 0 | 2 | 4 | 0 | 0 |
 | `952_sprint68_resource_graph_projection_apply_gate.sql` | needs docs | 0 | 6 | 0 | 0 | 0 |
 | `950_sprint68_platform_resource_authority_bindings.sql` | needs docs | 0 | 1 | 0 | 1 | 0 |
 | `910_sprint68_session_insight_capability_binding_hardening.sql` | complete | 0 | 9 | 0 | 1 | 0 |
@@ -110,7 +111,6 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | `253_sprint68_ticket_auto_resolve_policy_engine.sql` | needs docs | 0 | 2 | 0 | 0 | 2 |
 | `253_sprint68_session_insight_candidates_foundation.sql` | needs docs | 0 | 0 | 1 | 0 | 0 |
 | `253_sprint67_ads_provider_preflight_contract.sql` | needs docs | 0 | 15 | 0 | 1 | 1 |
-| `252_sprint68_ticket_activation_inbox_feedback.sql` | needs docs | 0 | 1 | 0 | 0 | 2 |
 
 ## Details
 
@@ -135,6 +135,17 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 - Policies: `openrouter_provider_smoke_capability_binding_policy_v1`
 - Routes: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
+
+### `954_sprint68_compact_operational_views_and_github_resource_coverage.sql`
+
+- Documentation complete: no
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Plugins: none
+- Tools: `compact_operational_readiness_v1`, `installed_tool`
+- Views: `v_migration_status_compact`, `v_release_readiness_compact`, `v_resource_recipe_certification_compact`, `v_resource_recipe_registry_compact`
+- Policies: none
+- Routes: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
 ### `952_sprint68_resource_graph_projection_apply_gate.sql`
 
@@ -982,17 +993,6 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 - Policies: `ads_provider_preflight_contract_policy_v1`
 - Routes: `/admin/control`
 - Safety markers: no_provider_call=yes, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
-
-### `252_sprint68_ticket_activation_inbox_feedback.sql`
-
-- Documentation complete: no
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Plugins: none
-- Tools: `admin_platform_endpoint_tools`
-- Views: none
-- Policies: none
-- Routes: `/admin/activation/ticket-inbox`, `/admin/support/tickets/{ticket_id}/admin-feedback`
-- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
 
 ## Automation Contract
