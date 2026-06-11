@@ -173,7 +173,7 @@ export async function recordSupportTicketExternalSendProviderGateAttempt({ tenan
     const providerAdapter = await resolveProviderAdapter(connection, { channel: externalChannel, provider_key, send_mode });
     const providerPolicyPreflight = await evaluateSupportTicketExternalProviderGatePreflight({ channel: externalChannel, send_mode, provider_adapter: providerAdapter }, { connection });
     assertPreflightAllowed(providerPolicyPreflight);
-    const provider_plan = { ...buildProviderPlan({ execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json }), policy_preflight: providerPolicyPreflight };
+    const provider_plan = { ...buildProviderPlan({ tenant_id, ticket_id, execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json }), policy_preflight: providerPolicyPreflight };
     if (runMode === "live_send") {
       const idempotencyKey = provider_plan.payload_json?.idempotency_key || payload_json?.idempotency_key || null;
       if (idempotencyKey) {
