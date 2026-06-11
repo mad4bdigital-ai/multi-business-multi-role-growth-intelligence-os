@@ -465,7 +465,7 @@ export async function resolveActionParentSchema(actionKey) {
   const pool = getPool();
   const [rows] = await pool.query(
     `SELECT action_key, action_title, schema_json, openai_schema_file_id, openai_schema_ref,
-            openai_schema_file_name, openai_schema_storage_surface
+            openai_schema_file_name, openai_schema_storage_surface, notes
        FROM \`actions\`
       WHERE action_key = ?
       LIMIT 1`,
