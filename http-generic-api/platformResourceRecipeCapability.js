@@ -1236,6 +1236,13 @@ function buildArtifactExportGraphProjectionDryRun(reconciliation = {}, plan = {}
     }
   }
 
+  const projection = {
+    nodes: Array.from(nodesByKey.values()),
+    edges,
+    counts: { nodes: nodesByKey.size, edges: edges.length },
+  };
+  const projectionSha256 = sha256Hex(stableJson(projection));
+
   return {
     ok: true,
     mode: "graph_projection_dry_run",
@@ -1243,17 +1250,15 @@ function buildArtifactExportGraphProjectionDryRun(reconciliation = {}, plan = {}
     graph_schema: "platform_resource_graph_projection.v1",
     source_recipe_key: ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY,
     source_resource_uri: plan.resolved_resource?.resource_uri || null,
-    projection: {
-      nodes: Array.from(nodesByKey.values()),
-      edges,
-      counts: { nodes: nodesByKey.size, edges: edges.length },
-    },
+    projection,
+    projection_sha256: projectionSha256,
     apply_contract: {
       future_operation_key: "resource_graph_projection.apply_after_review",
       apply_supported_now: false,
       requires_dry_run: true,
       requires_capability_envelope: true,
       requires_typed_confirmation: true,
+      typed_confirmation: `APPLY_GRAPH_PROJECTION:${projectionSha256}`,
       same_cycle_readback_required: true,
       graph_write_allowed_now: false,
     },
