@@ -259,13 +259,13 @@ export async function writeExecutionEvidence({
   if (!contextDimensions.actor_type && contextDimensions.actor_id) contextDimensions.actor_type = contextDimensions.user_id ? "user" : "system";
 
   const evidenceObjects = {
-    agent: pickEvidenceObject(contextObjects, agentEvidence, ["agent_evidence", "agentEvidence", "agent"]),
-    skill: pickEvidenceObject(contextObjects, skillEvidence, ["skill_evidence", "skillEvidence", "skill"]),
-    app: pickEvidenceObject(contextObjects, appEvidence, ["app_evidence", "appEvidence", "app"]),
-    workflow: pickEvidenceObject(contextObjects, workflowEvidence, ["workflow_evidence", "workflowEvidence", "workflow"]),
-    role: pickEvidenceObject(contextObjects, roleEvidence, ["role_evidence", "roleEvidence", "role"]),
-    policy: pickEvidenceObject(contextObjects, policyEvidence, ["policy_evidence", "policyEvidence", "policy"]),
-    authorization: pickEvidenceObject(contextObjects, authorizationEvidence, ["authorization_evidence", "authorizationEvidence", "authorized_access", "authorizedAccess"]),
+    agent: stripSensitiveEvidence(pickEvidenceObject(contextObjects, agentEvidence, ["agent_evidence", "agentEvidence", "agent"])),
+    skill: stripSensitiveEvidence(pickEvidenceObject(contextObjects, skillEvidence, ["skill_evidence", "skillEvidence", "skill"])),
+    app: stripSensitiveEvidence(pickEvidenceObject(contextObjects, appEvidence, ["app_evidence", "appEvidence", "app"])),
+    workflow: stripSensitiveEvidence(pickEvidenceObject(contextObjects, workflowEvidence, ["workflow_evidence", "workflowEvidence", "workflow"])),
+    role: stripSensitiveEvidence(pickEvidenceObject(contextObjects, roleEvidence, ["role_evidence", "roleEvidence", "role"])),
+    policy: stripSensitiveEvidence(pickEvidenceObject(contextObjects, policyEvidence, ["policy_evidence", "policyEvidence", "policy"])),
+    authorization: stripSensitiveEvidence(pickEvidenceObject(contextObjects, authorizationEvidence, ["authorization_evidence", "authorizationEvidence", "authorized_access", "authorizedAccess"])),
   };
   const runtimeEvidenceEnvelope = {
     ...pickEvidenceObject(contextObjects, runtimeEvidence, ["runtime_evidence", "runtimeEvidence"]),
