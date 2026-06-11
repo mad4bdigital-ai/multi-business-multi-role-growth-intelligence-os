@@ -341,6 +341,11 @@ export async function writeExecutionEvidence({
       actor_type: contextDimensions.actor_type,
       role_keys: contextDimensions.role_keys,
       policy_keys: contextDimensions.policy_keys,
+      brand_id: contextDimensions.brand_id,
+      brand_key: contextDimensions.brand_key,
+      business_activity_type_key: contextDimensions.business_activity_type_key,
+      business_type_key: contextDimensions.business_type_key,
+      knowledge_profile_key: contextDimensions.knowledge_profile_key,
     },
     surfaces: {
       agent_id: contextDimensions.agent_id,
