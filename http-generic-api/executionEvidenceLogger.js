@@ -50,7 +50,7 @@ function contextJson(context = {}) {
   return safeJson(clean);
 }
 
-const BLOCKED_EVIDENCE_KEY_PATTERN = /(secret|credential_ref|credential|token|password|private_key|cipher|api_key|value_ciphertext|value_sha|config_json|capability_json|encrypted_credentials|webhook_url|n8n_webhook_url|system_prompt|prompt_template|manifest_json|tool_manifest_json|input_schema_json|output_schema_json)/i;
+const BLOCKED_EVIDENCE_KEY_PATTERN = /(secret|credential_ref|credential|token|password|private_key|cipher|api_key|value_ciphertext|value_sha|config_json|capability_json|encrypted_credentials|webhook_url|n8n_webhook_url|system_prompt|prompt_template|prompt_cache_json|body_json|manifest_json|tool_manifest_json|input_schema_json|output_schema_json)/i;
 
 function stripSensitiveEvidence(value, depth = 0) {
   if (depth > 6) return null;
