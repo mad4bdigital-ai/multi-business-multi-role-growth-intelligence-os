@@ -50,7 +50,7 @@ function main() {
   const allowlist = loadJson(ALLOWLIST_PATH, { exact: [], prefixes: [], files: [], required_files: [] });
   const splitSchemas = listFiles(API_ROOT, (name) => /^openapi\..*\.ya?ml$/.test(name) && name !== "openapi.yaml");
   const workflows = listFiles(WORKFLOWS_DIR, (name) => name.endsWith(".yml") || name.endsWith(".yaml"));
-  const keyScripts = listFiles(path.join(API_ROOT, "scripts"), (name) => /openapi|repo-maintenance|schema-docs|split/.test(name));
+  const keyScripts = listFiles(path.join(API_ROOT, "scripts"), (name) => /openapi|repo-maintenance|schema-docs|surface-contract|split/.test(name));
   const keyTests = listFiles(API_ROOT, (name) => /^test-.*(openapi|platform-plugin|schema).*\.mjs$/.test(name));
 
   const content = `# Repository Maintenance Status

@@ -6,10 +6,13 @@ on:
       - main
     paths:
       - "http-generic-api/routes/**"
+      - "http-generic-api/migrations/**"
+      - "http-generic-api/test-*.mjs"
       - "http-generic-api/openapi.yaml"
       - "http-generic-api/openapi.*.yaml"
       - "http-generic-api/openapi-route-coverage.allowlist.json"
       - "http-generic-api/scripts/openapi-*.mjs"
+      - "http-generic-api/scripts/surface-contract-discovery.mjs"
       - "http-generic-api/scripts/split-openapi.mjs"
       - "http-generic-api/scripts/repo-maintenance-sync.mjs"
       - "http-generic-api/scripts/update-repo-planning-docs.mjs"
