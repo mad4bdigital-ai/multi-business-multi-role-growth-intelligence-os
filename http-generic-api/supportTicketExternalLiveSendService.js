@@ -362,7 +362,7 @@ export async function checkSupportTicketLiveSendReadiness(providerPlan = {}, opt
   return { ok: blockers.length === 0, channel: "email", adapter_key: adapter.adapter_key || null, to_present: Boolean(payload.to), ...readiness, blockers, external_send_performed: false, secret_value_included: false, secrets_included: false };
 }
 
-export async function executeSupportTicketLiveSend(providerPlan = {}) {
+export async function executeSupportTicketLiveSend(providerPlan = {}, options = {}) {
   const adapter = providerPlan.provider_adapter || {};
   if (String(adapter.channel || "") !== "email") {
     const err = new Error("Live external dispatch currently supports email providers only.");
