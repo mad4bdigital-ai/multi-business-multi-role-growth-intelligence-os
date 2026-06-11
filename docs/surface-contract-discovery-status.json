@@ -1,7 +1,7 @@
 {
   "ok": true,
   "schema_version": "surface-contract-discovery-v2",
-  "migration_surface_count": 380,
+  "migration_surface_count": 381,
   "reported_count": 80,
   "openapi_operation_count": 416,
   "openapi_path_count": 363,
@@ -431,33 +431,33 @@
     "docs/change-documentation-governance.md"
   ],
   "coverage_summary": {
-    "migrations_with_surfaces": 380,
+    "migrations_with_surfaces": 381,
     "docs_complete_count": 2,
-    "docs_gap_count": 378,
-    "docs_completion_percent": 0.53,
+    "docs_gap_count": 379,
+    "docs_completion_percent": 0.52,
     "surface_totals": {
       "plugins": 11,
-      "tools": 1756,
-      "views": 315,
-      "policies": 138,
-      "routes": 503
+      "tools": 1761,
+      "views": 318,
+      "policies": 139,
+      "routes": 508
     },
     "migrations_by_surface_type": {
       "plugins": 8,
-      "tools": 326,
-      "views": 126,
-      "policies": 86,
-      "routes": 216
+      "tools": 327,
+      "views": 127,
+      "policies": 87,
+      "routes": 217
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 347,
-      "deployment_parity_checklist.md": 356,
-      "docs/ai-docs-agent-governance.md": 378,
-      "docs/auto-docs-agent/README.md": 378,
-      "docs/change-documentation-governance.md": 378
+      "Updating Registry Patch Index.md": 348,
+      "deployment_parity_checklist.md": 357,
+      "docs/ai-docs-agent-governance.md": 379,
+      "docs/auto-docs-agent/README.md": 379,
+      "docs/change-documentation-governance.md": 379
     },
     "gap_severity_counts": {
-      "high": 221,
+      "high": 222,
       "medium": 133,
       "low": 24,
       "none": 2
@@ -683,7 +683,8 @@
       "283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql",
       "284_sprint68_session_insight_backlog_target_write_executor.sql",
       "286_sprint68_platform_schema_contract_completion_registry.sql",
-      "906_sprint68_ticket_external_delivery_completion_certification.sql"
+      "906_sprint68_ticket_external_delivery_completion_certification.sql",
+      "955_sprint68_external_delivery_admin_control_surface.sql"
     ],
     "medium_risk_missing_docs": [
       "003_sprint06_access.sql",
@@ -823,17 +824,17 @@
     "safety_marker_counts": {
       "no_provider_call": 33,
       "no_credential_payload_read": 14,
-      "no_raw_secrets": 13,
-      "no_external_send": 12,
+      "no_raw_secrets": 14,
+      "no_external_send": 13,
       "no_external_write": 21,
-      "secrets_included_false": 110
+      "secrets_included_false": 111
     },
     "safety_marker_gap_migrations": 270,
     "route_coverage": {
-      "sql_route_count": 503,
+      "sql_route_count": 508,
       "openapi_documented_sql_route_count": 311,
-      "openapi_missing_sql_route_count": 192,
-      "openapi_sql_route_coverage_percent": 61.83,
+      "openapi_missing_sql_route_count": 197,
+      "openapi_sql_route_coverage_percent": 61.22,
       "route_openapi_gaps": [
         {
           "migration_file": "068_sprint58_cloudflare_readonly_runtime.sql",
@@ -1546,6 +1547,16 @@
           "missing_routes": [
             "/platform/wordpress/blog-publish-recovery"
           ]
+        },
+        {
+          "migration_file": "955_sprint68_external_delivery_admin_control_surface.sql",
+          "missing_routes": [
+            "/admin/support/tickets/external-delivery/control/adapter/dispatch",
+            "/admin/support/tickets/external-delivery/control/allowlist/disable",
+            "/admin/support/tickets/external-delivery/control/allowlist/upsert",
+            "/admin/support/tickets/external-delivery/control/gmail/revoke",
+            "/admin/support/tickets/external-delivery/control/overview"
+          ]
         }
       ]
     }
@@ -1651,6 +1662,76 @@
         },
         "surface_count": 1,
         "safety_marker_count": 2
+      }
+    },
+    {
+      "migration_file": "955_sprint68_external_delivery_admin_control_surface.sql",
+      "surfaces": {
+        "routes": [
+          "/admin/support/tickets/external-delivery/control/adapter/dispatch",
+          "/admin/support/tickets/external-delivery/control/allowlist/disable",
+          "/admin/support/tickets/external-delivery/control/allowlist/upsert",
+          "/admin/support/tickets/external-delivery/control/gmail/revoke",
+          "/admin/support/tickets/external-delivery/control/overview"
+        ],
+        "views": [
+          "v_external_delivery_admin_overview",
+          "v_external_delivery_gmail_connections",
+          "v_external_delivery_recent_send_events"
+        ],
+        "policies": [
+          "support_ticket_external_delivery_admin_control_surface_policy_v1"
+        ],
+        "plugins": [],
+        "tools": [
+          "adapter_dispatch_set",
+          "external_delivery_adapter_dispatch_set",
+          "external_send_provider_dispatch_succeeded",
+          "live_send_requires_provider_gate_attempt",
+          "provider_dispatch_enabled"
+        ],
+        "safety": {
+          "no_provider_call": false,
+          "no_credential_payload_read": false,
+          "no_raw_secrets": true,
+          "no_external_send": true,
+          "no_external_write": false,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": false,
+        "deployment_parity_checklist.md": false,
+        "docs/ai-docs-agent-governance.md": false,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "high",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 5,
+          "documented_count": 0,
+          "missing_count": 5,
+          "documented_routes": [],
+          "missing_routes": [
+            "/admin/support/tickets/external-delivery/control/adapter/dispatch",
+            "/admin/support/tickets/external-delivery/control/allowlist/disable",
+            "/admin/support/tickets/external-delivery/control/allowlist/upsert",
+            "/admin/support/tickets/external-delivery/control/gmail/revoke",
+            "/admin/support/tickets/external-delivery/control/overview"
+          ]
+        },
+        "surface_count": 14,
+        "safety_marker_count": 3
       }
     },
     {
@@ -6707,54 +6788,6 @@
         },
         "surface_count": 4,
         "safety_marker_count": 0
-      }
-    },
-    {
-      "migration_file": "253_sprint68_session_insight_candidates_foundation.sql",
-      "surfaces": {
-        "routes": [],
-        "views": [
-          "v_session_insight_candidate_issues"
-        ],
-        "policies": [],
-        "plugins": [],
-        "tools": [],
-        "safety": {
-          "no_provider_call": false,
-          "no_credential_payload_read": false,
-          "no_raw_secrets": false,
-          "no_external_send": false,
-          "no_external_write": false,
-          "secrets_included_false": true
-        }
-      },
-      "docs": {
-        "Updating Registry Patch Index.md": false,
-        "deployment_parity_checklist.md": false,
-        "docs/ai-docs-agent-governance.md": false,
-        "docs/auto-docs-agent/README.md": false,
-        "docs/change-documentation-governance.md": false
-      },
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "documentation_complete": false,
-      "coverage": {
-        "gap_severity": "low",
-        "requires_docs_review": true,
-        "route_coverage": {
-          "route_count": 0,
-          "documented_count": 0,
-          "missing_count": 0,
-          "documented_routes": [],
-          "missing_routes": []
-        },
-        "surface_count": 1,
-        "safety_marker_count": 1
       }
     }
   ],
@@ -28276,6 +28309,76 @@
         },
         "surface_count": 6,
         "safety_marker_count": 1
+      }
+    },
+    {
+      "migration_file": "955_sprint68_external_delivery_admin_control_surface.sql",
+      "surfaces": {
+        "routes": [
+          "/admin/support/tickets/external-delivery/control/adapter/dispatch",
+          "/admin/support/tickets/external-delivery/control/allowlist/disable",
+          "/admin/support/tickets/external-delivery/control/allowlist/upsert",
+          "/admin/support/tickets/external-delivery/control/gmail/revoke",
+          "/admin/support/tickets/external-delivery/control/overview"
+        ],
+        "views": [
+          "v_external_delivery_admin_overview",
+          "v_external_delivery_gmail_connections",
+          "v_external_delivery_recent_send_events"
+        ],
+        "policies": [
+          "support_ticket_external_delivery_admin_control_surface_policy_v1"
+        ],
+        "plugins": [],
+        "tools": [
+          "adapter_dispatch_set",
+          "external_delivery_adapter_dispatch_set",
+          "external_send_provider_dispatch_succeeded",
+          "live_send_requires_provider_gate_attempt",
+          "provider_dispatch_enabled"
+        ],
+        "safety": {
+          "no_provider_call": false,
+          "no_credential_payload_read": false,
+          "no_raw_secrets": true,
+          "no_external_send": true,
+          "no_external_write": false,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": false,
+        "deployment_parity_checklist.md": false,
+        "docs/ai-docs-agent-governance.md": false,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "high",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 5,
+          "documented_count": 0,
+          "missing_count": 5,
+          "documented_routes": [],
+          "missing_routes": [
+            "/admin/support/tickets/external-delivery/control/adapter/dispatch",
+            "/admin/support/tickets/external-delivery/control/allowlist/disable",
+            "/admin/support/tickets/external-delivery/control/allowlist/upsert",
+            "/admin/support/tickets/external-delivery/control/gmail/revoke",
+            "/admin/support/tickets/external-delivery/control/overview"
+          ]
+        },
+        "surface_count": 14,
+        "safety_marker_count": 3
       }
     },
     {
