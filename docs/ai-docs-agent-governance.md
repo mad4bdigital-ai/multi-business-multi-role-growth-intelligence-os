@@ -48,6 +48,8 @@ For the Session Insight capability-envelope chain, generated impact notes for mi
 
 For Session Insight capability binding hardening, generated impact notes for migration `910_sprint68_session_insight_capability_binding_hardening.sql` are satisfied by the patch index, deployment parity checklist, this governance file, `docs/auto-docs-agent/README.md`, and `docs/change-documentation-governance.md`. The required evidence is the internal `session_insight` app/action/tool graph with `credential_source='none'`, removal of `--explain` from actual capability envelope passthrough, regression test coverage, governed migration ledger evidence, and release-readiness pass. This documentation does not authorize provider credentials, credential payload reads, external writes, raw transcript access, or secrets.
 
+For Support Ticket External Delivery no-send orchestration graph changes, generated impact notes for migration `287_sprint68_external_delivery_orchestration_graph_plugin.sql` are satisfied by the patch index, deployment parity checklist, this governance file, `docs/auto-docs-agent/README.md`, and `docs/change-documentation-governance.md`. Required evidence includes the `support_ticket_external_delivery_orchestrator` plugin, 7/7 stages, 6/6 edges, `v_platform_orchestration_external_delivery_readiness`, blocking policy `support_ticket_external_delivery_orchestration_readback_policy_v1`, governed migration ledger run, and readback status `ready_no_send_external_delivery_graph`. This documentation does not authorize provider calls, credential payload reads, raw secrets, external sends, external writes, spend changes, or secrets.
+
 ## Classifier behavior
 
 The classifier is deterministic and dependency-free. It maps changed files into impact families such as:
