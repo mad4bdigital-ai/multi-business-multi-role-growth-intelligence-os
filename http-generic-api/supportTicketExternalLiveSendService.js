@@ -112,13 +112,14 @@ function providerRuntimeKind(adapter = {}) {
 }
 
 function providerReadinessBase(kind) {
-  const allowlist = allowedRecipientPatterns();
   return {
     runtime: kind,
     smtp_url_present: Boolean(process.env.SMTP_URL || process.env.HOSTINGER_SMTP_URL),
     smtp_configured: smtpConfigured(),
-    recipient_allowlist_present: allowlist.length > 0,
-    allowlist_count: allowlist.length,
+    recipient_allowlist_source: "external_delivery_recipient_allowlist_registry",
+    recipient_allowlist_present: false,
+    allowlist_count: 0,
+    matched_allowlist_id: null,
     external_network_allowed: kind !== "unsupported_email_provider",
     secret_value_included: false,
     secrets_included: false,
