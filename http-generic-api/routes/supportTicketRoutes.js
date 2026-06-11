@@ -96,6 +96,13 @@ import {
   planSupportTicketExternalCredentialActivation,
 } from "../supportTicketExternalCredentialActivationService.js";
 import {
+  disableExternalDeliveryRecipientAllowlist,
+  getExternalDeliveryAdminOverview,
+  revokeGmailUserConnection,
+  setExternalDeliveryAdapterDispatch,
+  upsertExternalDeliveryRecipientAllowlist,
+} from "../supportTicketExternalDeliveryAdminControlService.js";
+import {
   approveActivateBindAndVerifySupportTicketExternalCredential,
   planSupportTicketExternalCredentialOrchestration,
 } from "../supportTicketExternalCredentialOrchestrationService.js";
