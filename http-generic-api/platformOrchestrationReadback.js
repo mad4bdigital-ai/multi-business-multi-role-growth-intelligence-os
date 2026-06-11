@@ -125,6 +125,18 @@ export async function readPlatformOrchestrationReadback(input = {}) {
     }
   }
 
+  let externalDeliveryReadiness = null;
+  if (pluginKey === "support_ticket_external_delivery_orchestrator") {
+    try {
+      const [externalRows] = await pool.query(
+        `SELECT * FROM v_platform_orchestration_external_delivery_readiness LIMIT 1`
+      );
+      externalDeliveryReadiness = externalRows[0] || null;
+    } catch {
+      externalDeliveryReadiness = null;
+    }
+  }
+
   let snapshots = [];
   if (includeSnapshots) {
     const [snapshotRows] = await pool.query(
