@@ -66,9 +66,16 @@ export function buildSchemaImportRoutes(deps) {
   });
 
   // POST /admin/schema-import/action-ref
-  // Body: { action_key: string, imported_by?: string, preserve_parent_schema_reference?: boolean }
+  // Body: { action_key: string, imported_by?: string, preserve_parent_schema_reference?: boolean,
+  //         mirror_drive_if_needed?: boolean, source_drive_file_id?: string }
   router.post("/admin/schema-import/action-ref", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
-    const { action_key, imported_by, preserve_parent_schema_reference } = req.body || {};
+    const {
+      action_key,
+      imported_by,
+      preserve_parent_schema_reference,
+      mirror_drive_if_needed,
+      source_drive_file_id,
+    } = req.body || {};
     if (!action_key || typeof action_key !== "string") {
       return res.status(400).json({
         ok: false,
@@ -76,12 +83,22 @@ export function buildSchemaImportRoutes(deps) {
       });
     }
     try {
+      let mirroredParentSchema = null;
+      if (mirror_drive_if_needed === true) {
+        mirroredParentSchema = await mirrorActionParentSchemaFromDrive({
+          actionKey: action_key,
+          driveFileId: source_drive_file_id || null,
+          fetchDriveContent,
+          importedBy: imported_by || null,
+        });
+      }
+
       const result = await runActionReferenceImport({
         actionKey: action_key,
         importedBy: imported_by || null,
         preserveParentSchemaReference: preserve_parent_schema_reference !== false,
       });
-      return res.status(200).json(result);
+      return res.status(200).json({ ...result, mirrored_parent_schema: mirroredParentSchema });
     } catch (err) {
       return res.status(422).json({ ok: false, error: { code: err.code || "action_ref_import_failed", message: err.message, details: err.details || null } });
     }
