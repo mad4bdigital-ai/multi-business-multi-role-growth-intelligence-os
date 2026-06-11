@@ -156,16 +156,20 @@ export async function buildRepoCanonicalRuntimeEvidence(options = {}) {
 }
 
 export function buildDynamicToolCatalogEvidence({ platformAccess = null, authorizedAccess = null } = {}) {
-  const platformOk = platformAccess?.ok === true || (
-    platformAccess && !Array.isArray(platformAccess.degraded_surfaces) || platformAccess?.degraded_surfaces?.length === 0
-  );
-  const authorizedOk = authorizedAccess?.readiness === "active" && (authorizedAccess?.degraded_surfaces || []).length === 0;
+  const platformDegradedSurfaceCount = Array.isArray(platformAccess?.degraded_surfaces)
+    ? platformAccess.degraded_surfaces.length
+    : 0;
+  const authorizedDegradedSurfaceCount = Array.isArray(authorizedAccess?.degraded_surfaces)
+    ? authorizedAccess.degraded_surfaces.length
+    : 0;
+  const platformOk = platformAccess?.ok === true || (Boolean(platformAccess) && platformDegradedSurfaceCount === 0);
+  const authorizedOk = authorizedAccess?.readiness === "active" && authorizedDegradedSurfaceCount === 0;
   const registeredSurfaceCount = safeNumber(authorizedAccess?.counts?.registered_surfaces);
   const runtimeCallableActions = safeNumber(
     authorizedAccess?.counts?.runtime_actions || platformAccess?.counts?.actions?.runtime_callable
   );
   const adminToolCount = safeNumber(authorizedAccess?.counts?.admin_tools);
-  const degradedSurfaceCount = safeNumber((authorizedAccess?.degraded_surfaces || []).length + (platformAccess?.degraded_surfaces || []).length);
+  const degradedSurfaceCount = safeNumber(authorizedDegradedSurfaceCount + platformDegradedSurfaceCount);
   const authGapCount = safeNumber((authorizedAccess?.auth_gaps || []).length);
 
   return {
