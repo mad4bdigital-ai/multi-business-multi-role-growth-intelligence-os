@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
-import { runImport, runRepoImport, runRollback } from "../schemaImportPipeline.js";
+import { runImport, runRepoImport, runRollback, runActionReferenceImport } from "../schemaImportPipeline.js";
 import { requireAdminPrincipal } from "./adminCliRoutes.js";
 
 export function buildSchemaImportRoutes(deps) {
@@ -8,9 +8,9 @@ export function buildSchemaImportRoutes(deps) {
   const { requireBackendApiKey } = deps;
 
   // POST /admin/schema-import/upload
-  // Body: { schema_yaml: string, action_key?: string, filename?: string }
+  // Body: { schema_yaml: string, action_key?: string, filename?: string, preserve_parent_schema_reference?: boolean }
   router.post("/admin/schema-import/upload", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
-    const { schema_yaml, schema_json: schemaJsonStr, action_key, filename } = req.body || {};
+    const { schema_yaml, schema_json: schemaJsonStr, action_key, filename, preserve_parent_schema_reference } = req.body || {};
     const raw = schema_yaml || schemaJsonStr;
     if (!raw || typeof raw !== "string" || !raw.trim()) {
       return res.status(400).json({
@@ -25,17 +25,18 @@ export function buildSchemaImportRoutes(deps) {
         sourceFilename: filename || null,
         actionKeyOverride: action_key || null,
         importedBy: req.body.imported_by || null,
+        preserveParentSchemaReference: preserve_parent_schema_reference === true,
       });
       return res.status(200).json(result);
     } catch (err) {
-      return res.status(422).json({ ok: false, error: { code: "import_failed", message: err.message } });
+      return res.status(422).json({ ok: false, error: { code: "import_failed", message: err.message, details: err.details || null } });
     }
   });
 
   // POST /admin/schema-import/repo
-  // Body: { repo_url: string, path_in_repo?: string, ref?: string, action_key?: string }
+  // Body: { repo_url: string, path_in_repo?: string, ref?: string, action_key?: string, preserve_parent_schema_reference?: boolean }
   router.post("/admin/schema-import/repo", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
-    const { repo_url, path_in_repo, ref, action_key, imported_by } = req.body || {};
+    const { repo_url, path_in_repo, ref, action_key, imported_by, preserve_parent_schema_reference } = req.body || {};
     if (!repo_url || typeof repo_url !== "string") {
       return res.status(400).json({
         ok: false,
@@ -49,10 +50,33 @@ export function buildSchemaImportRoutes(deps) {
         ref: ref || null,
         actionKeyOverride: action_key || null,
         importedBy: imported_by || null,
+        preserveParentSchemaReference: preserve_parent_schema_reference !== false,
       });
       return res.status(200).json(result);
     } catch (err) {
-      return res.status(422).json({ ok: false, error: { code: "import_failed", message: err.message } });
+      return res.status(422).json({ ok: false, error: { code: "import_failed", message: err.message, details: err.details || null } });
+    }
+  });
+
+  // POST /admin/schema-import/action-ref
+  // Body: { action_key: string, imported_by?: string, preserve_parent_schema_reference?: boolean }
+  router.post("/admin/schema-import/action-ref", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
+    const { action_key, imported_by, preserve_parent_schema_reference } = req.body || {};
+    if (!action_key || typeof action_key !== "string") {
+      return res.status(400).json({
+        ok: false,
+        error: { code: "missing_action_key", message: "action_key is required" },
+      });
+    }
+    try {
+      const result = await runActionReferenceImport({
+        actionKey: action_key,
+        importedBy: imported_by || null,
+        preserveParentSchemaReference: preserve_parent_schema_reference !== false,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(422).json({ ok: false, error: { code: err.code || "action_ref_import_failed", message: err.message, details: err.details || null } });
     }
   });
 
@@ -85,6 +109,7 @@ export function buildSchemaImportRoutes(deps) {
         : [Number(limit), Number(offset)];
       const [rows] = await pool.query(
         `SELECT job_id, action_key, source_type, source_url, source_ref, source_filename,
+                source_sha256, source_bytes, parent_schema_ref, preserve_parent_schema_reference,
                 endpoints_upserted, endpoints_deprecated, warnings, status, error_message,
                 imported_by, imported_at
          FROM \`schema_import_jobs\` ${where}
@@ -103,7 +128,8 @@ export function buildSchemaImportRoutes(deps) {
     try {
       const [rows] = await pool.query(
         `SELECT job_id, action_key, source_type, source_url, source_ref, source_filename,
-                endpoints_upserted, endpoints_deprecated, warnings, endpoint_snapshots,
+                source_sha256, source_bytes, parent_schema_ref, preserve_parent_schema_reference,
+                endpoints_upserted, endpoints_deprecated, warnings, endpoint_snapshots, metadata_json,
                 status, error_message, imported_by, imported_at
          FROM \`schema_import_jobs\` WHERE job_id = ? LIMIT 1`,
         [req.params.job_id]
