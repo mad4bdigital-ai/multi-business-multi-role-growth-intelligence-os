@@ -129,6 +129,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "907_sprint68_ticket_external_live_smtp_registry_alignment.sql",
   "908_sprint68_ticket_external_hostinger_gmail_provider_options.sql",
   "909_sprint68_ticket_external_dynamic_recipient_allowlist.sql",
+  "910_sprint68_session_insight_capability_binding_hardening.sql",
   "260_sprint68_platform_development_constitution_policies.sql",
   "261_sprint68_orchestration_intelligence_foundation.sql",
   "229_sprint67_workspace_brands_list_tool.sql",
