@@ -1143,6 +1143,129 @@ function buildArtifactExportReconciliation(installedToolResult = {}, plan = {}, 
   };
 }
 
+function graphNodeKey(type = "resource", id = "") {
+  return `${type}:${sha256Hex(`${type}:${id || "unknown"}`).slice(0, 24)}`;
+}
+
+function graphFileNode(file = {}, role = "drive_file") {
+  const lite = driveFileLite(file);
+  if (!lite.id && !lite.name) return null;
+  return {
+    node_key: graphNodeKey(role, lite.id || lite.name),
+    node_type: role,
+    resource_uri: lite.id ? `gdrive://file/${lite.id}` : null,
+    label: lite.name || lite.id || role,
+    properties: {
+      id: lite.id,
+      name: lite.name,
+      mimeType: lite.mimeType,
+      size: lite.size,
+      is_folder: lite.is_folder,
+      webViewLink: lite.webViewLink,
+      secrets_included: false,
+    },
+    confidence: lite.id ? 0.98 : 0.72,
+    source: "artifact_export_reconciliation",
+    secrets_included: false,
+  };
+}
+
+function buildArtifactExportGraphProjectionDryRun(reconciliation = {}, plan = {}, args = {}) {
+  const summary = reconciliation.summary || {};
+  const rootFolder = summary.root_folder || {};
+  const rootNode = {
+    node_key: graphNodeKey("drive_folder", rootFolder.id || reconciliation.resource_uri || "root"),
+    node_type: "drive_folder",
+    resource_uri: rootFolder.id ? `gdrive://folder/${rootFolder.id}` : (plan.resolved_resource?.resource_uri || null),
+    label: rootFolder.name || "drive_folder",
+    properties: { ...rootFolder, secrets_included: false },
+    confidence: rootFolder.id ? 0.98 : 0.7,
+    source: "artifact_export_reconciliation",
+    secrets_included: false,
+  };
+  const nodesByKey = new Map([[rootNode.node_key, rootNode]]);
+  const edges = [];
+  const addNode = (node) => {
+    if (!node?.node_key) return null;
+    if (!nodesByKey.has(node.node_key)) nodesByKey.set(node.node_key, node);
+    return nodesByKey.get(node.node_key);
+  };
+  const addEdge = (fromNode, toNode, edgeType, properties = {}) => {
+    if (!fromNode?.node_key || !toNode?.node_key) return;
+    edges.push({
+      edge_key: graphNodeKey("edge", `${fromNode.node_key}:${edgeType}:${toNode.node_key}`),
+      from_node_key: fromNode.node_key,
+      to_node_key: toNode.node_key,
+      edge_type: edgeType,
+      properties: { ...properties, secrets_included: false },
+      confidence: Math.min(fromNode.confidence || 0.7, toNode.confidence || 0.7),
+      source: "artifact_export_reconciliation",
+      secrets_included: false,
+    });
+  };
+
+  for (const finding of Array.isArray(reconciliation.findings) ? reconciliation.findings : []) {
+    for (const file of Array.isArray(finding.files) ? finding.files : []) {
+      const node = addNode(graphFileNode(file, "drive_file"));
+      addEdge(rootNode, node, "contains", { finding_code: finding.code || null });
+    }
+    for (const file of Array.isArray(finding.artifacts) ? finding.artifacts : []) {
+      const node = addNode(graphFileNode(file, "artifact_file"));
+      addEdge(rootNode, node, "has_artifact", { finding_code: finding.code || null });
+    }
+    for (const file of Array.isArray(finding.exports) ? finding.exports : []) {
+      const node = addNode(graphFileNode(file, "export_file"));
+      addEdge(rootNode, node, "has_export", { finding_code: finding.code || null });
+    }
+    for (const group of Array.isArray(finding.duplicate_groups) ? finding.duplicate_groups : []) {
+      const groupNode = addNode({
+        node_key: graphNodeKey("duplicate_group", JSON.stringify(group.map((file) => file.id || file.name || "unknown"))),
+        node_type: "duplicate_group",
+        resource_uri: null,
+        label: "duplicate_resource_group",
+        properties: { count: group.length, names: group.map((file) => file.name).filter(Boolean), secrets_included: false },
+        confidence: 0.86,
+        source: "artifact_export_reconciliation",
+        secrets_included: false,
+      });
+      addEdge(rootNode, groupNode, "has_duplicate_group", { finding_code: finding.code || null });
+      for (const file of group) {
+        const node = addNode(graphFileNode(file, "drive_file"));
+        addEdge(groupNode, node, "duplicate_member", { finding_code: finding.code || null });
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    mode: "graph_projection_dry_run",
+    classification: "graph_projection_dry_run_ready",
+    graph_schema: "platform_resource_graph_projection.v1",
+    source_recipe_key: ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY,
+    source_resource_uri: plan.resolved_resource?.resource_uri || null,
+    projection: {
+      nodes: Array.from(nodesByKey.values()),
+      edges,
+      counts: { nodes: nodesByKey.size, edges: edges.length },
+    },
+    apply_contract: {
+      future_operation_key: "resource_graph_projection.apply_after_review",
+      apply_supported_now: false,
+      requires_dry_run: true,
+      requires_capability_envelope: true,
+      requires_typed_confirmation: true,
+      same_cycle_readback_required: true,
+      graph_write_allowed_now: false,
+    },
+    graph_write_planned: false,
+    graph_write_executed: false,
+    provider_calls_planned: 0,
+    file_content_required: false,
+    file_content_returned: false,
+    secrets_included: false,
+  };
+}
+
 function normalizedCheckConclusion(value = "") {
   return String(value || "").trim().toLowerCase();
 }
