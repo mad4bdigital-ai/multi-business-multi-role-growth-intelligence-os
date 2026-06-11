@@ -2,6 +2,7 @@ import { getPool } from "./db.js";
 import { assertPreflightAllowed, evaluateSupportTicketExternalProviderGatePreflight } from "./governedExecutionPreflight.js";
 import { resolveSupportTicketExternalProviderAdapterContract } from "./supportTicketExternalProviderContractService.js";
 import { planSupportTicketExternalSendExecution } from "./supportTicketExternalSendExecutionService.js";
+import { createSupportTicketExternalProviderDispatcher } from "./supportTicketExternalProviderDispatchService.js";
 
 const EXTERNAL_CHANNELS = new Set(["email", "webhook"]);
 const ALLOWED_AUDIENCES = new Set(["admin", "customer", "both"]);
