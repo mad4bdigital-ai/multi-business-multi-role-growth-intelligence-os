@@ -47,5 +47,7 @@ for (const expected of [
 
 assert(runner.includes("955_sprint68_external_delivery_admin_control_surface.sql"), "governed migration runner must allowlist migration 955");
 assert(!/DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i.test(migration), "migration 955 must be additive/non-destructive");
-assert(!migration.toLowerCase().includes("secret_value"), "migration 955 must not include raw secret-value fields");
+assert(migration.includes("secret_value_included"), "migration 955 must expose no-secret readback flags");
+assert(!migration.toLowerCase().includes("secret_value ="), "migration 955 must not assign raw secret values");
+assert(!migration.toLowerCase().includes("encrypted_credentials"), "migration 955 must not touch encrypted credential material");
 console.log("external delivery admin control surface tests passed");
