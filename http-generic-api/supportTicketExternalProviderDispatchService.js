@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { checkSupportTicketLiveSendReadiness, executeSupportTicketLiveSend } from "./supportTicketExternalLiveSendService.js";
 
 const ALLOWED_DISPATCH_MODES = new Set(["dry_run", "record_only", "provider_send_blocked", "sandbox", "live_send"]);
 const SENSITIVE_KEY_PATTERN = /(password|access_token|refresh_token|client_secret|private_key|raw_secret|secret_value|api_key|bearer_token|smtp_password|authorization)/i;
@@ -47,7 +48,8 @@ function adapterKind(adapter = {}) {
 
 function buildAdapterCapabilities(adapter = {}) {
   const kind = adapterKind(adapter);
-  return { adapter_key: adapter.adapter_key || adapter.provider_key || null, channel: adapter.channel || kind, kind, supports_validate: true, supports_plan: true, supports_dry_run: true, supports_sandbox: kind === "email" || kind === "webhook", supports_live_send: false, external_network_allowed: false, reads_raw_secret_values: false, implementation_status: adapter.implementation_status || "not_implemented", dispatch_enabled: Boolean(adapter.dispatch_enabled), provider_dispatch_enabled: Boolean(adapter.provider_dispatch_enabled), external_send_performed: false, secrets_included: false };
+  const liveSendRuntimeReady = kind === "email" && Boolean(process.env.SMTP_URL);
+  return { adapter_key: adapter.adapter_key || adapter.provider_key || null, channel: adapter.channel || kind, kind, supports_validate: true, supports_plan: true, supports_dry_run: true, supports_sandbox: kind === "email" || kind === "webhook", supports_live_send: kind === "email", live_send_runtime_ready: liveSendRuntimeReady, external_network_allowed: liveSendRuntimeReady, reads_raw_secret_values: false, implementation_status: adapter.implementation_status || "not_implemented", dispatch_enabled: Boolean(adapter.dispatch_enabled), provider_dispatch_enabled: Boolean(adapter.provider_dispatch_enabled), external_send_performed: false, secrets_included: false };
 }
 
 function buildBlockers(providerPlan = {}, mode = "dry_run") {
@@ -92,15 +94,20 @@ export function createSupportTicketExternalProviderDispatcher({ adapter = {} } =
     },
     dryRun(providerPlan = {}) { return this.plan(providerPlan, { mode: "dry_run" }); },
     sandbox(providerPlan = {}) { return this.plan(providerPlan, { mode: "sandbox" }); },
-    send(providerPlan = {}) {
+    async send(providerPlan = {}) {
       const validation = this.validate(providerPlan, { mode: "live_send" });
-      const err = new Error("Live external provider dispatch is not enabled by this safe completion layer.");
-      err.status = 409;
-      err.code = "support_ticket_external_provider_live_dispatch_not_enabled";
-      err.validation = validation;
-      err.external_send_performed = false;
-      err.secrets_included = false;
-      throw err;
+      const readiness = checkSupportTicketLiveSendReadiness(providerPlan);
+      if (!validation.ok || !readiness.ok) {
+        const err = new Error("Live external provider dispatch is blocked by validation or readiness gates.");
+        err.status = 409;
+        err.code = "support_ticket_external_provider_live_dispatch_blocked";
+        err.validation = validation;
+        err.readiness = readiness;
+        err.external_send_performed = false;
+        err.secrets_included = false;
+        throw err;
+      }
+      return executeSupportTicketLiveSend(providerPlan);
     },
   };
 }

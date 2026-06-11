@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const dispatchService = readFileSync("supportTicketExternalProviderDispatchService.js", "utf8");
+const liveSendService = readFileSync("supportTicketExternalLiveSendService.js", "utf8");
 const completionService = readFileSync("supportTicketExternalDeliveryCompletionService.js", "utf8");
 const gateService = readFileSync("supportTicketExternalSendProviderGateService.js", "utf8");
 const routes = readFileSync("routes/supportTicketRoutes.js", "utf8");
@@ -9,16 +10,44 @@ const migration = readFileSync("migrations/906_sprint68_ticket_external_delivery
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 
-for (const expected of ["createSupportTicketExternalProviderDispatcher", "planSupportTicketExternalProviderDispatch", "supports_sandbox", "supports_live_send: false", "external_network_allowed: false", "support_ticket_external_provider_live_dispatch_not_enabled", "network_request_performed: false"]) {
+for (const expected of [
+  "createSupportTicketExternalProviderDispatcher",
+  "planSupportTicketExternalProviderDispatch",
+  "supports_sandbox",
+  "supports_live_send: kind === \"email\"",
+  "checkSupportTicketLiveSendReadiness",
+  "executeSupportTicketLiveSend",
+  "support_ticket_external_provider_live_dispatch_blocked",
+  "network_request_performed: false",
+]) {
   assert(dispatchService.includes(expected), `dispatch service must include ${expected}`);
 }
-for (const forbidden of ["nodemailer", "sendMail", "axios", "fetch(", "smtp.connect", "webhook.send"]) {
-  assert(!dispatchService.includes(forbidden), `dispatch service must not include external network primitive ${forbidden}`);
+for (const expected of [
+  "SMTP_URL",
+  "SUPPORT_TICKET_LIVE_SEND_ALLOWLIST",
+  "EXTERNAL_DELIVERY_LIVE_SEND_ALLOWLIST",
+  "recipient_not_allowlisted",
+  "approval_hold_required",
+  "credential_ref_required",
+  "idempotency_key_required",
+  "external_send_performed: true",
+  "secret_value_included: false",
+  "smtps://",
+]) {
+  assert(liveSendService.includes(expected), `live send service must include ${expected}`);
+}
+for (const forbidden of ["nodemailer", "sendMail", "axios", "fetch(", "webhook.send"]) {
+  assert(!liveSendService.includes(forbidden), `live send service must not include unsupported primitive ${forbidden}`);
 }
 for (const expected of ["certifySupportTicketExternalDeliveryCompletion", "AM-1", "AM-16", "complete_with_gated_live_dispatch", "live_external_send_enabled: false", "external_send_performed: false"]) {
   assert(completionService.includes(expected), `completion service must include ${expected}`);
 }
 assert(gateService.includes("evaluateSupportTicketExternalProviderGatePreflight"), "provider gate must keep execution policy preflight");
+assert(gateService.includes("runMode === \"live_send\""), "provider gate attempt must support explicit live_send mode");
+assert(gateService.includes("createSupportTicketExternalProviderDispatcher"), "provider gate attempt must call the live provider dispatcher only after gates pass");
+assert(gateService.includes("external_send_provider_dispatch_succeeded"), "provider gate attempt must record successful live dispatch events");
+assert(gateService.includes("idempotent_replay_not_resent"), "provider gate attempt must avoid duplicate sends for the same idempotency key");
+assert(gateService.includes("support_ticket_external_send_provider_dispatch_requires_live_send_mode"), "ready provider dispatch must require explicit live_send mode");
 assert(routes.includes("certifySupportTicketExternalDeliveryCompletion"), "support ticket routes must import completion certification");
 assert(routes.includes("/external-delivery/completion-certification"), "support ticket routes must expose completion certification endpoint");
 for (const expected of ["support_ticket_external_delivery_completion_certification_policy_v1", "support_ticket_external_delivery_completion_certification_target_rule_v1", "support_ticket_external_delivery_completion_certify", "sandbox", "live_send", "no_external_send"]) {
