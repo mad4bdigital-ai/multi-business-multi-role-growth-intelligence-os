@@ -235,7 +235,7 @@ export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { 
     owner: "mad4bdigital-ai",
     repo: "multi-business-multi-role-growth-intelligence-os",
   });
-  const negativeTenantId = `${tenantId}_missing`;
+  const negativeTenantId = smokeSafeTenantId(`${tenantId}_missing`);
   const negative = await tenantRepositoryPrReconciliationSweep({
     tenant_id: negativeTenantId,
     owner: repoRef.owner,
