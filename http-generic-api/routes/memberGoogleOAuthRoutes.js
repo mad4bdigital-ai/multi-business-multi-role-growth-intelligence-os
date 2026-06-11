@@ -27,6 +27,145 @@ function sanitizeEmail(email = "") {
   return String(email || "").trim().toLowerCase();
 }
 
+const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
+const GOOGLE_OAUTH_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth";
+const GOOGLE_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
+
+function publicBaseUrl() {
+  return String(process.env.PUBLIC_BASE_URL || process.env.AUTH_BASE_URL || "https://auth.mad4b.com").replace(/\/+$/, "");
+}
+
+function gmailRedirectUri() {
+  return String(process.env.GOOGLE_GMAIL_SEND_REDIRECT_URI || `${publicBaseUrl()}/oauth/google/gmail-send/callback`).trim();
+}
+
+function googleClientId() {
+  return String(process.env.GOOGLE_CLIENT_ID || "").trim();
+}
+
+function googleClientSecret() {
+  return String(process.env.GOOGLE_CLIENT_SECRET || "").trim();
+}
+
+function oauthStateSecret() {
+  return String(process.env.OAUTH_STATE_SECRET || process.env.JWT_SECRET || process.env.BACKEND_API_KEY || process.env.GOOGLE_CLIENT_SECRET || "").trim();
+}
+
+function base64UrlJson(value = {}) {
+  return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
+}
+
+function parseBase64UrlJson(value = "") {
+  return JSON.parse(Buffer.from(String(value || ""), "base64url").toString("utf8"));
+}
+
+function signStatePayload(payload = {}) {
+  const secret = oauthStateSecret();
+  if (!secret) {
+    const err = new Error("OAuth state signing secret is not configured.");
+    err.status = 503;
+    err.code = "oauth_state_secret_missing";
+    throw err;
+  }
+  const body = base64UrlJson(payload);
+  const sig = crypto.createHmac("sha256", secret).update(body).digest("base64url");
+  return `${body}.${sig}`;
+}
+
+function verifyStateToken(state = "") {
+  const secret = oauthStateSecret();
+  const [body, sig] = String(state || "").split(".");
+  if (!secret || !body || !sig) {
+    const err = new Error("Invalid OAuth state.");
+    err.status = 400;
+    err.code = "oauth_state_invalid";
+    throw err;
+  }
+  const expected = crypto.createHmac("sha256", secret).update(body).digest("base64url");
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
+    const err = new Error("OAuth state signature mismatch.");
+    err.status = 400;
+    err.code = "oauth_state_signature_invalid";
+    throw err;
+  }
+  const payload = parseBase64UrlJson(body);
+  if (!payload.exp || Number(payload.exp) < Date.now()) {
+    const err = new Error("OAuth state expired.");
+    err.status = 400;
+    err.code = "oauth_state_expired";
+    throw err;
+  }
+  return payload;
+}
+
+function requestedGmailScopes(extraScopes = "") {
+  return normalizeScopes(`${GMAIL_SEND_SCOPE} https://www.googleapis.com/auth/userinfo.email ${extraScopes || ""}`);
+}
+
+function buildGmailAuthorizationUrl({ user_id = "", email = "", tenant_id = "", account_label = "", app_key = "gmail_user_oauth", scopes = "" } = {}) {
+  const clientId = googleClientId();
+  if (!clientId) {
+    const err = new Error("GOOGLE_CLIENT_ID is not configured.");
+    err.status = 503;
+    err.code = "google_oauth_client_id_missing";
+    throw err;
+  }
+  const scope = requestedGmailScopes(scopes);
+  const state = signStatePayload({
+    purpose: "support_ticket_gmail_send_oauth",
+    user_id: String(user_id || ""),
+    email: sanitizeEmail(email),
+    tenant_id: String(tenant_id || ""),
+    account_label: sanitizeEmail(account_label || email),
+    app_key: String(app_key || "gmail_user_oauth").trim(),
+    scopes: scope,
+    nonce: crypto.randomUUID(),
+    iat: Date.now(),
+    exp: Date.now() + 15 * 60 * 1000,
+  });
+  const url = new URL(GOOGLE_OAUTH_AUTHORIZE_URL);
+  url.searchParams.set("client_id", clientId);
+  url.searchParams.set("redirect_uri", gmailRedirectUri());
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", scope);
+  url.searchParams.set("access_type", "offline");
+  url.searchParams.set("prompt", "consent");
+  url.searchParams.set("include_granted_scopes", "true");
+  url.searchParams.set("state", state);
+  return { authorization_url: url.toString(), redirect_uri: gmailRedirectUri(), scopes: scope, state_expires_in_seconds: 900 };
+}
+
+async function exchangeGmailAuthorizationCode(code = "") {
+  const clientId = googleClientId();
+  const clientSecret = googleClientSecret();
+  if (!clientId || !clientSecret) {
+    const err = new Error("Google OAuth client id/secret are not configured.");
+    err.status = 503;
+    err.code = "google_oauth_client_credentials_missing";
+    throw err;
+  }
+  const response = await fetch(GOOGLE_OAUTH_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code: String(code || ""),
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: gmailRedirectUri(),
+      grant_type: "authorization_code",
+    }),
+  });
+  const token = await response.json().catch(() => ({}));
+  if (!response.ok || !token.refresh_token) {
+    const err = new Error(token.error_description || token.error || "Google OAuth token exchange failed or returned no refresh token.");
+    err.status = response.status || 400;
+    err.code = "google_gmail_oauth_token_exchange_failed";
+    err.details = { has_refresh_token: Boolean(token.refresh_token), secrets_included: false };
+    throw err;
+  }
+  return token;
+}
+
 async function resolveUser({ user_id = "", email = "" } = {}) {
   const pool = getPool();
   if (user_id) {
