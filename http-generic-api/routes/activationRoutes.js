@@ -6,6 +6,7 @@ import { loadSessionSummaryGraphMemory } from "../sessionSummaryService.js";
 import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
 import { buildHardActivationEvidenceMatrix } from "../activationHardEvidence.js";
 import {
+  buildActivationOperationalDashboardEvidence,
   buildDynamicToolCatalogEvidence,
   buildRepoCanonicalRuntimeEvidence,
 } from "../activationDynamicEvidence.js";
