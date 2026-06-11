@@ -112,6 +112,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "281_sprint68_session_insight_capability_envelope_dispatch_readback.sql",
   "282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql",
   "283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql",
+  "284_sprint68_session_insight_backlog_target_write_executor.sql",
   "276_sprint68_activation_positive_surface_fixtures.sql",
   "277_sprint68_execution_log_runtime_evidence.sql",
   "284_sprint68_execution_log_full_context_evidence.sql",

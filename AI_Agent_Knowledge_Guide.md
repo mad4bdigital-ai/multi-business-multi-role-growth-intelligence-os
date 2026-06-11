@@ -127,7 +127,7 @@ OpenRouter is the priority model-provider candidate for future Docs Agent drafti
 
 Migrations `277` through `283` implement the Session Insight capability-envelope chain as gated no-execution layers: dispatch dry-run review, actual request preflight, actual envelope request ledger, approval gate, dispatch readback, adapter execution gate, and remaining scope completion. The authoritative release-readiness runbook is `docs/session-insight-capability-envelope-release-readiness.md`.
 
-Agents must not treat this chain as production target-write authorization. Adapter apply, runtime execution, `promotion_allowed`, `execution_allowed`, `target_write_allowed`, and `target_write_executed` remain false until a separate future production execution PR adds rollback, readback, release-readiness evidence, OpenAPI coverage, and explicit operator approval.
+Agents must not treat migrations `277` through `283` as production target-write authorization. Migration `284_sprint68_session_insight_backlog_target_write_executor.sql` is the first write-enablement layer and is limited to internal SQL backlog target writes after the capability-envelope approval/readback/remaining-scope chain is complete. It may set `target_write_allowed`, `target_write_executed`, and `promotion_allowed` only inside `session_insight_backlog_target_writes`; provider calls, credential payload reads, external writes, raw transcripts, and secrets remain forbidden.
 
 ### Runtime policy preflight governance
 

@@ -75,17 +75,17 @@ Use fixture or non-production data only:
 7. Create remaining scope completion for fixture data.
 8. Verify issue views return zero failures and all safety flags are false.
 
+## Internal SQL target-write executor
+
+Migration `284_sprint68_session_insight_backlog_target_write_executor.sql` adds the first actual target-write surface for this chain. It writes only to internal SQL backlog tables:
+
+- `session_insight_backlog_target_items`
+- `session_insight_backlog_target_writes`
+
+The execute route is `/platform/session-insight-promotions/backlog-target-writes/execute` and requires typed confirm `EXECUTE_SESSION_INSIGHT_BACKLOG_TARGET_WRITE`. The rollback route is `/platform/session-insight-promotions/backlog-target-writes/rollback` and requires typed confirm `ROLLBACK_SESSION_INSIGHT_BACKLOG_TARGET_WRITE`.
+
+This is a production write-enablement layer for internal SQL backlog targets only. It may set `target_write_allowed=true`, `target_write_executed=true`, and `promotion_allowed=true` inside `session_insight_backlog_target_writes` after the capability-envelope approval/readback/remaining-scope chain is complete. It must keep `provider_call_executed=false`, `credential_payload_read=false`, `external_write_executed=false`, `raw_transcript_included=false`, and `secrets_included=false`.
+
 ## Production boundary
 
-The current release is complete as a gated no-execution implementation. It is not a production write-enablement release.
-
-A future production adapter apply or target write release must add a separate PR with:
-
-- adapter-specific dispatch implementation,
-- rollback plan and rollback readback,
-- target-write request/approval/readback tables,
-- scoped execution enablement,
-- production deployment evidence,
-- OpenAPI updates,
-- release-readiness checks,
-- and explicit operator approval.
+The current write-enabled surface is limited to internal SQL backlog targets. External provider writes, credential reads, canonical policy rewrites, deployment changes, and non-SQL targets still require a separate PR with provider-specific rollback/readback, OpenAPI coverage, release-readiness evidence, and explicit operator approval.
