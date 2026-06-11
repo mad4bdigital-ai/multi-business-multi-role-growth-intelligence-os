@@ -145,3 +145,14 @@ Do not start any backup or restore operation merely because documentation or rep
 - owner approval
 
 Stop before backup planning if that policy is not yet approved.
+
+## Support Ticket External Delivery certification docs rule
+
+When a change adds or modifies Support Ticket external delivery routes, provider adapter contracts, send-mode policies, or completion certification behavior, the same PR must update:
+
+- `http-generic-api/openapi.yaml` for route contracts, auth, request/response examples, status codes, and error envelopes.
+- `AI_Agent_Knowledge_Guide.md` for runtime safety boundaries and readback requirements.
+- `Updating Registry Patch Index.md` for migration/tool/policy evidence.
+- `deployment_parity_checklist.md` for post-merge runtime and registry parity checks.
+
+A completion certification route is not release-complete unless OpenAPI includes the path and the DB readback confirms no-send/no-secret policy, disabled live dispatch, and active target rules.
