@@ -164,7 +164,7 @@ export function classifyRepositoryPullRequestV2(pr = {}) {
   const failedChecks = checks.filter((check) => ["failure", "cancelled", "timed_out", "action_required"].includes(String(check.conclusion || "")));
   const pendingChecks = checks.filter((check) => !check.conclusion || ["queued", "in_progress", "waiting", "pending"].includes(String(check.status || "")));
   const successfulChecks = checks.length > 0 && failedChecks.length === 0 && pendingChecks.length === 0 && checks.every((check) => ["success", "neutral", "skipped"].includes(String(check.conclusion || "")));
-  const headRef = asString(pr.head?.ref || "");
+  const headRef = asString(pr.head?.ref || pr.head_ref_name || "");
   const mergeStateStatus = asString(pr.merge_state_status || "");
   const classifications = [];
   const reasons = [];
