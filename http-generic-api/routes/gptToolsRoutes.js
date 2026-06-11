@@ -1606,6 +1606,25 @@ async function githubContentsRequest({ method, owner, repo, filePath, branch, bo
   return { status: response.status, ok: response.ok, payload };
 }
 
+async function loadRepoPatchCurrentContent({ existing, owner, repo, token }) {
+  if (existing.status !== 200) return "";
+  if (existing.payload?.content) {
+    return Buffer.from(existing.payload.content, existing.payload.encoding || "base64").toString("utf8");
+  }
+  const blobSha = existing.payload?.sha;
+  if (!blobSha) return "";
+  const blob = await githubJsonRequest({ method: "GET", owner, repo, apiPath: `/git/blobs/${encodeURIComponent(blobSha)}`, token });
+  if (!blob.ok) {
+    const err = new Error("GitHub blob GET failed for large repository file.");
+    err.status = 502;
+    err.code = "repo_patch_github_blob_get_failed";
+    err.details = { upstream_status: blob.status, message: blob.payload?.message, secrets_included: false };
+    throw err;
+  }
+  if (!blob.payload?.content) return "";
+  return Buffer.from(String(blob.payload.content || "").replace(/\n/g, ""), blob.payload.encoding || "base64").toString("utf8");
+}
+
 async function loadRepoPatchBranchCompare({ owner, repo, defaultBranch, branch, token }) {
   try {
     const ref = await githubJsonRequest({ method: "GET", owner, repo, apiPath: `/git/ref/heads/${encodeGitRefBranch(branch)}`, token });
