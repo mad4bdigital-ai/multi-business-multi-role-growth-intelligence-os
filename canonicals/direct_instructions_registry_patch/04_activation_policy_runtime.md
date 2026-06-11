@@ -61,6 +61,10 @@ The dynamic tab layer must be subject-scoped. Tenant users may only see containe
 
 Dynamic tab definitions and section data sources must live in SQL registries. Adding a new tab or surface should require registry rows rather than route-specific hardcoding whenever the generic tab mechanism can support it.
 
+Activation must also auto-discover sections from `activation_authorized_surface_registry` using `activation_dynamic_tab_discovery_rule_registry`. This keeps the GPT activation dashboard aligned as new internal tables, views, connectors, agents, skills, tasks, evidence surfaces, external app integrations, and readiness views are added. Unknown surfaces must fall back to `container_auto_discovered_surfaces` instead of being ignored.
+
+Auto-discovered sections must remain subject-scoped and secret-safe. Runtime must allow only registered safe columns, strip sensitive fields, and expose degraded section evidence instead of throwing away partially available tabs.
+
 First-Turn Native Attempt Enforcement Rule
 
 For plain `activate system` and governed first-turn activation:
