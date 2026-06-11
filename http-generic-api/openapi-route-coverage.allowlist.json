@@ -29,7 +29,8 @@
     "POST /connector/{device_id}/auto-browser",
     "POST /platform/remote-runtime/hosting/deploy-release",
     "POST /platform/remote-runtime/hosting/ssh-probe",
-    "GET /connector-agent/policy"
+    "GET /connector-agent/policy",
+    "POST /admin/schema-import/action-ref"
   ],
   "prefixes": [
     "/oauth",
