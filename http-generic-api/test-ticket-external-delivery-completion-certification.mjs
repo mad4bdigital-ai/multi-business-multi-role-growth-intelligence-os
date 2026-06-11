@@ -23,6 +23,11 @@ for (const expected of ["certifySupportTicketExternalDeliveryCompletion", "AM-1"
   assert(completionService.includes(expected), `completion service must include ${expected}`);
 }
 assert(gateService.includes("evaluateSupportTicketExternalProviderGatePreflight"), "provider gate must keep execution policy preflight");
+assert(gateService.includes("runMode === \"live_send\""), "provider gate attempt must support explicit live_send mode");
+assert(gateService.includes("createSupportTicketExternalProviderDispatcher"), "provider gate attempt must call the live provider dispatcher only after gates pass");
+assert(gateService.includes("external_send_provider_dispatch_succeeded"), "provider gate attempt must record successful live dispatch events");
+assert(gateService.includes("idempotent_replay_not_resent"), "provider gate attempt must avoid duplicate sends for the same idempotency key");
+assert(gateService.includes("support_ticket_external_send_provider_dispatch_requires_live_send_mode"), "ready provider dispatch must require explicit live_send mode");
 assert(routes.includes("certifySupportTicketExternalDeliveryCompletion"), "support ticket routes must import completion certification");
 assert(routes.includes("/external-delivery/completion-certification"), "support ticket routes must expose completion certification endpoint");
 for (const expected of ["support_ticket_external_delivery_completion_certification_policy_v1", "support_ticket_external_delivery_completion_certification_target_rule_v1", "support_ticket_external_delivery_completion_certify", "sandbox", "live_send", "no_external_send"]) {
