@@ -105,6 +105,25 @@ includesAll(manifestCertificationMigration, [
   "requires_readback = 1",
 ], "resource manifest positive smoke certification migration");
 
+includesAll(graphProjectionApplyMigration, [
+  "952_sprint68_resource_graph_projection_apply_gate.sql",
+  "resource_graph_projection_apply",
+  "resource_graph_projection.apply_after_review",
+  "governed_resource_run",
+  "capability_apply_authorization_policy_registry",
+  "runtime_dispatch_certification_registry",
+  "platform_graph_nodes",
+  "platform_graph_edges",
+  "platform_graph_edge_evidence",
+  "candidate",
+  "advisory",
+  "runtime_enforced",
+  "provider_call_allowed', false",
+  "credential_payload_read_allowed', false",
+  "file_content_read_allowed', false",
+  "secrets_included', false",
+], "resource graph projection apply gate migration");
+
 assert(
   manifest.includes("node test-platform-resource-recipe-capability.mjs"),
   "test manifest must include platform resource recipe capability test"
