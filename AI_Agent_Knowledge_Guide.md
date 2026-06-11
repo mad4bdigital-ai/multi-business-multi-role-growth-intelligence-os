@@ -129,6 +129,8 @@ Migrations `277` through `283` implement the Session Insight capability-envelope
 
 Agents must not treat migrations `277` through `283` as production target-write authorization. Migration `284_sprint68_session_insight_backlog_target_write_executor.sql` is the first write-enablement layer and is limited to internal SQL backlog target writes after the capability-envelope approval/readback/remaining-scope chain is complete. It may set `target_write_allowed`, `target_write_executed`, and `promotion_allowed` only inside `session_insight_backlog_target_writes`; provider calls, credential payload reads, external writes, raw transcripts, and secrets remain forbidden.
 
+Migration `285_sprint68_session_insight_target_write_readback.sql` is the post-write readback validator for those internal SQL target writes. It reads `session_insight_backlog_target_writes` and `session_insight_backlog_target_items`, records readback evidence, and verifies links, source payload hashes, duplicate counts, and no provider/external/credential/raw-transcript/secret flags. Agents must treat it as readback-only: it must not create target writes, modify target items, execute rollback, call providers, read credential payloads, perform external writes, return raw transcripts, or include secrets.
+
 ### Runtime policy preflight governance
 
 `execution_policies` is the active transitional runtime preflight authority. Agents must treat it as required runtime policy evidence until a target-rule resolver bridge proves parity with `platform_engine_policy_rules`.
