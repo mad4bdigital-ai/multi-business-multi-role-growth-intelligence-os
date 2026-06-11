@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = process.cwd();
+const root = path.dirname(fileURLToPath(import.meta.url));
+
 async function read(relativePath) {
   return fs.readFile(path.join(root, relativePath), "utf8");
 }
