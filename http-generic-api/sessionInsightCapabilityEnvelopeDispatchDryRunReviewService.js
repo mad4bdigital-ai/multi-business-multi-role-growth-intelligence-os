@@ -80,7 +80,7 @@ async function readDispatchDryRun(pool, dispatchDryRunId) {
 async function writeReviewEvent(pool, { dispatch, decision, reviewedBy, reviewNotes, beforeStatus, afterStatus }) {
   const reviewEventId = `capability_dispatch_dry_run_review_${randomUUID()}`;
   await pool.query(
-    `INSERT INTO session_insight_capability_envelope_dispatch_dry_run_review_events
+    `INSERT INTO session_insight_capability_dispatch_review_events
        (review_event_id, dispatch_dry_run_id, request_gate_id, capability_plan_id, payload_preview_id,
         apply_request_id, promotion_id, insight_id, event_type,
         dispatch_review_status_before, dispatch_policy_status_before, dispatch_status_before,
