@@ -34,6 +34,13 @@ import {
   resolveGovernedResource,
   runGovernedResource,
 } from "../platformResourceRecipeCapability.js";
+import {
+  TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
+  createRepositoryAuthorityBinding,
+  listRepositoryAuthorityBindings,
+  revokeRepositoryAuthorityBinding,
+  tenantRepositoryPrReconciliationSweep,
+} from "../repositoryTenantIntelligenceV2.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
@@ -129,6 +136,7 @@ const SYSTEM_LAYER_TOOLS = [
     },
   },
   ...PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
+  ...TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
   {
     name: "connector_registry_list",
     description: "List connector systems from the connected_systems registry.",
@@ -1605,6 +1613,14 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       return await listGoogleDriveEndpointCatalog(args);
     case "google_drive_folder_inspect":
       return await inspectGoogleDriveFolder(args, auth, deps);
+    case "platform_resource_authority_binding_create":
+      return await createRepositoryAuthorityBinding(args, { auth });
+    case "platform_resource_authority_binding_list":
+      return await listRepositoryAuthorityBindings(args, { auth });
+    case "platform_resource_authority_binding_revoke":
+      return await revokeRepositoryAuthorityBinding(args, { auth });
+    case "tenant_repo_pr_reconciliation_sweep":
+      return await tenantRepositoryPrReconciliationSweep(args, { auth, runGovernedResource });
     case "governed_resource_resolve":
       return await resolveGovernedResource(args);
     case "governed_resource_catalog":
