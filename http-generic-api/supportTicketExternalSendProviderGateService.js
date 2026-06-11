@@ -97,6 +97,8 @@ function buildProviderPlan({ tenant_id = null, ticket_id = null, execution_plan,
   if (provider_adapter.send_mode_policy && provider_adapter.send_mode_policy.status !== "active") blockers.push("external_send_provider_mode_policy_not_active");
   if (provider_adapter.mode_policy_provider_dispatch_required && !provider_adapter.provider_dispatch_enabled) blockers.push("external_send_provider_mode_requires_disabled_dispatch");
   return {
+    tenant_id,
+    ticket_id,
     ready_for_provider_dispatch: blockers.length === 0,
     send_mode: normalizedSendMode,
     channel: provider_adapter.channel,
