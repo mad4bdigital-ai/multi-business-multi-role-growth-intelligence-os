@@ -5,9 +5,6 @@
 --   Idempotent; no DELETE/TRUNCATE/DROP.
 
 ALTER TABLE schema_import_jobs
-  MODIFY COLUMN source_type ENUM('upload','repo_link','rollback','action_ref') NOT NULL;
-
-ALTER TABLE schema_import_jobs
   ADD COLUMN IF NOT EXISTS source_sha256 VARCHAR(64) NULL AFTER source_filename,
   ADD COLUMN IF NOT EXISTS source_bytes INT UNSIGNED NOT NULL DEFAULT 0 AFTER source_sha256,
   ADD COLUMN IF NOT EXISTS parent_schema_ref TEXT NULL AFTER source_bytes,
