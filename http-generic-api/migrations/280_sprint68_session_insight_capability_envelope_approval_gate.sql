@@ -101,7 +101,7 @@ WHERE e.envelope_id IS NULL
    OR e.dispatch_allowed <> 1
    OR e.blocking_gap_count <> 0;
 
-CREATE OR REPLACE VIEW `v_session_insight_capability_envelope_dispatch_readback_readiness` AS
+CREATE OR REPLACE VIEW `v_session_insight_dispatch_readback_readiness` AS
 SELECT
   d.approval_decision_id,
   d.actual_request_id,
