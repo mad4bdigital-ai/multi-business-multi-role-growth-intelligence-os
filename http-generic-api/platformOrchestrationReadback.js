@@ -201,6 +201,7 @@ export async function readPlatformOrchestrationReadback(input = {}) {
       graph_readiness: graphReadiness,
       ads_governance_readiness: adsGovernanceReadiness,
       support_ticket_lifecycle_readiness: supportTicketLifecycleReadiness,
+      external_delivery_readiness: externalDeliveryReadiness,
     },
     plugin,
     stages,
