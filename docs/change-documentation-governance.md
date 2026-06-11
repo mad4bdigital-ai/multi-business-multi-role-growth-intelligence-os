@@ -161,3 +161,7 @@ A completion certification route is not release-complete unless OpenAPI includes
 ## Session Insight capability-envelope chain documentation rule
 
 For migrations `277` through `283`, update `docs/session-insight-capability-envelope-release-readiness.md`, `AI_Agent_Knowledge_Guide.md`, `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, Docs Agent governance files, and OpenAPI route coverage before promotion. The documentation must explicitly state that the chain is gated no-execution evidence only and does not authorize adapter apply, production runtime execution, `promotion_allowed`, or target writes.
+
+## Session Insight capability binding hardening documentation rule
+
+For migration `910_sprint68_session_insight_capability_binding_hardening.sql` and related actual capability envelope request code, update `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, Docs Agent governance files, and the targeted Session Insight actual-request test. Required evidence must include: app/action/tool graph rows for `session_insight`, `credential_source='none'`, the internal SQL target-write executor binding, removal of `--explain` passthrough from actual capability envelope creation, governed migration ledger id, readback queries for app/action/tool/policy rows, and release-readiness pass. The documentation must explicitly state that the change does not authorize provider credentials, credential payload reads, external writes, raw transcript access, or secrets.
