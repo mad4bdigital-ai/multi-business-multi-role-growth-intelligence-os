@@ -54,6 +54,8 @@ For automatic surface contract discovery, generated impact notes are satisfied b
 
 For deep surface coverage changes, require evidence for `surface-contract-discovery-v2`, all-migration metrics, documentation completion scoring, high/medium/low gap classification, SQL route/OpenAPI coverage scoring, per-target documentation gap counts, safety marker counts, and regression tests for representative documented and undocumented migrations.
 
+For actionable gap queue changes, require evidence for `surface-contract-discovery-v3`, generated `docs/surface-contract-gap-queue.md`, generated `docs/surface-contract-gap-queue.json`, queue schema `surface-contract-gap-queue-v1`, score/class counts, remediation action keys, owner hints, and regression tests that prove a recent undocumented migration appears in the queue with actionable remediation. The queue is review guidance only and must not authorize provider calls, credential reads, runtime mutation, database writes, external sends, deployments, or secrets.
+
 ## Classifier behavior
 
 The classifier is deterministic and dependency-free. It maps changed files into impact families such as:
