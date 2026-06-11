@@ -508,6 +508,14 @@ export async function buildActivationDynamicTabsEvidence({ sessionContext = null
       degraded_surface_count: degradedSurfaces.length,
     },
     containers,
+    discovery: {
+      enabled: true,
+      source_registry: "activation_authorized_surface_registry",
+      rule_registry: "activation_dynamic_tab_discovery_rule_registry",
+      rules_loaded: sections.discovery?.rules?.rows?.length || 0,
+      discovered_sections: sections.auto_discovered_count || 0,
+      fallback_tab_key: "container_auto_discovered_surfaces",
+    },
     degraded_surfaces: degradedSurfaces,
     policy: {
       each_workspace_or_brand_is_a_container: true,
