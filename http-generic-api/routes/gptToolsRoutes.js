@@ -362,7 +362,7 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repo_patch_apply",
     displayName: "Repository Patch Apply",
-    description: "Apply a patch to the repository via the GitHub App, sidestepping the local connector. Actions: write_file, replace_block, apply_unified_diff, delete_file. Path is repo-confined; secrets/build folders are blocked. Runtime defaults to a generated non-protected work branch. Protected branches are blocked unless explicit break-glass policy is enabled and justified.",
+    description: "Apply a patch to the repository via the GitHub App, sidestepping the local connector. Actions: write_file, replace_block, apply_unified_diff, delete_file, dedupe_openapi_paths. Path is repo-confined; secrets/build folders are blocked. Runtime defaults to a generated non-protected work branch. Protected branches are blocked unless explicit break-glass policy is enabled and justified.",
     method: "VIRTUAL",
     path: "internal://repo-patch-apply",
     tags: ["repo", "mutation", "self_repair"],
@@ -370,7 +370,7 @@ const VIRTUAL_ADMIN_TOOLS = [
       type: "object",
       required: ["action", "path", "commit_message", "capability_envelope_id"],
       properties: {
-        action: { type: "string", enum: ["write_file", "replace_block", "apply_unified_diff", "delete_file"] },
+        action: { type: "string", enum: ["write_file", "replace_block", "apply_unified_diff", "delete_file", "dedupe_openapi_paths"] },
         capability_envelope_id: { type: "string", description: "Required. Must reference a ready no-secret capability_resolution_envelope_ledger envelope for repo_patch_apply." },
         path: { type: "string", description: "Repository-relative path of the single file to modify, e.g. http-generic-api/pathResolverDbLoader.js." },
         commit_message: { type: "string", minLength: 5, maxLength: 200 },
@@ -400,6 +400,177 @@ export function repoPatchMaxBytesForPath(filePath = "") {
   return LARGE_TEXT_REPO_PATCH_PATHS.has(normalized)
     ? LARGE_TEXT_REPO_PATCH_MAX_BYTES
     : DEFAULT_REPO_PATCH_MAX_BYTES;
+}
+
+const OPENAPI_ORPHAN_SYSTEM_TOOL_SCHEMA_BLOCK = `
+                  description: Runtime tool key returned by listTools. The server validates registration, scope, policy, capability envelope, and input schema at execution time.
+                arguments:
+                  type: object
+                  additionalProperties: true
+                  deprecated: true
+                  description: Legacy tool arguments. Tenant GPT callers should use tool_args.
+                tool_args:
+                  type: object
+                  additionalProperties: true
+                  description: Tool arguments. For connector_registry_get, include system_id. For activation bootstrap upsert, include GitHub binding fields. Admin provider tools require admin/service auth.
+                  properties:
+                    mode:
+                      type: string
+                      enum: [managed, dedicated, hybrid]
+                    integration_modes:
+                      type: array
+                      items: { type: string }
+                    device_id:
+                      type: string
+                      pattern: "^[a-z0-9-]{2,32}$"
+      responses:
+        "200":
+          description: System tool result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  name: { type: string }
+                  result: { type: object, additionalProperties: true }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Tenant scope violation, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+`;
+
+const OPENAPI_COMPLETION_CERTIFICATION_BLOCK = `  /admin/support/tickets/{ticket_id}/external-delivery/completion-certification:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: supportTicketExternalDeliveryCompletionCertify
+      summary: Certify Support Ticket external delivery completion gates
+      description: >
+        Admin-only completion certification surface for Support Ticket external delivery.
+        It runs AM-1 through AM-16 readback/certification for one ticket and returns
+        a no-send/no-secret certification envelope. The route does not perform SMTP,
+        webhook, provider network dispatch, live external send, or raw credential readback.
+        Sandbox mode returns mock provider evidence only; live_send remains gated.
+      parameters:
+        - name: ticket_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                tenant_id: { type: string }
+                channel: { type: string, enum: [email, webhook], default: email }
+                audience: { type: string, enum: [admin, customer, both], default: admin }
+                provider_key: { type: string }
+                send_mode: { type: string, enum: [dry_run, record_only, provider_send_blocked, sandbox, live_send], default: dry_run }
+                approval_hold_id: { type: string }
+                credential_ref: { type: string }
+                idempotency_key: { type: string }
+                subject: { type: string }
+                body: { type: string }
+                payload_json: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Completion certification envelope. Live dispatch remains gated and external sends are not performed.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  mode: { type: string, enum: [completion_certification] }
+                  tenant_id: { type: string }
+                  ticket_id: { type: string }
+                  channel: { type: string, enum: [email, webhook] }
+                  audience: { type: string, enum: [admin, customer, both] }
+                  provider_key: { type: string, nullable: true }
+                  send_mode: { type: string, enum: [dry_run, record_only, provider_send_blocked, sandbox, live_send] }
+                  summary: { $ref: '#/components/schemas/JsonValue' }
+                  phases: { type: array, items: { type: object, additionalProperties: true } }
+                  live_external_send_enabled: { type: boolean, enum: [false] }
+                  external_send_performed: { type: boolean, enum: [false] }
+                  secret_value_included: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        '400': { description: Invalid certification request, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: Not authorized for the admin certification route, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+        '404': { description: Support Ticket not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+        '500': { description: Completion certification failed unexpectedly, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+`;
+
+export function dedupeOpenApiPathsText(content = "") {
+  const originalContent = String(content || "").replace(/\r\n/g, "\n");
+  let text = originalContent;
+  const originalBytes = Buffer.byteLength(text, "utf8");
+  let orphan_removed = false;
+  if (text.includes(OPENAPI_ORPHAN_SYSTEM_TOOL_SCHEMA_BLOCK)) {
+    text = text.replace(OPENAPI_ORPHAN_SYSTEM_TOOL_SCHEMA_BLOCK, "\n");
+    orphan_removed = true;
+  }
+
+  let completion_route_repaired = false;
+  const completionStart = text.indexOf("  /admin/support/tickets/{ticket_id}/external-delivery/completion-certification:\n");
+  const lifecycleNeedle = "    post:\n      x-openai-isConsequential: true\n      tags: [platform-plugins]\n      security:\n        - backendBearerAuth: []\n        - backendApiKeyAuth: []\n      operationId: supportTicketLifecycleSnapshotRecord\n";
+  if (completionStart !== -1) {
+    const lifecyclePost = text.indexOf(lifecycleNeedle, completionStart);
+    if (lifecyclePost !== -1) {
+      text = `${text.slice(0, completionStart)}${OPENAPI_COMPLETION_CERTIFICATION_BLOCK}\n  /platform/orchestration/support-ticket/snapshot-record:\n${text.slice(lifecyclePost)}`;
+      completion_route_repaired = true;
+    }
+  }
+
+  const lines = text.split(/(?<=\n)/);
+  const pathsIndex = lines.findIndex((line) => line.trim() === "paths:" && !line.startsWith(" "));
+  if (pathsIndex < 0) {
+    const err = new Error("OpenAPI paths root was not found.");
+    err.status = 422;
+    err.code = "repo_patch_openapi_paths_root_missing";
+    throw err;
+  }
+  const pre = lines.slice(0, pathsIndex + 1);
+  const pathLines = lines.slice(pathsIndex + 1);
+  const blocks = [];
+  const synthetic = [];
+  let current = null;
+  for (const line of pathLines) {
+    if (/^  \/.*:\s*$/.test(line)) {
+      if (current) blocks.push(current);
+      current = [line];
+    } else if (current) {
+      current.push(line);
+    } else {
+      synthetic.push(line);
+    }
+  }
+  if (current) blocks.push(current);
+  const latest = new Map();
+  blocks.forEach((block, index) => {
+    latest.set(block[0].trim().slice(0, -1), { index, block });
+  });
+  const keptBlocks = [...latest.values()].sort((a, b) => a.index - b.index).map((entry) => entry.block);
+  const newContent = [...pre, ...synthetic, ...keptBlocks.flat()].join("").trimEnd() + "\n";
+  const summary = {
+    original_bytes: originalBytes,
+    new_bytes: Buffer.byteLength(newContent, "utf8"),
+    original_path_blocks: blocks.length,
+    unique_paths: latest.size,
+    duplicate_paths_removed: blocks.length - latest.size,
+    orphan_removed,
+    completion_route_repaired,
+    secrets_included: false,
+  };
+  return { content: newContent, summary };
 }
 
 async function requireRepoPatchCapabilityEnvelope({ args = {}, ctx = {}, owner = "", repo = "", branch = "", defaultBranch = "", filePath = "", action = "" } = {}) {
@@ -1449,8 +1620,8 @@ async function loadRepoPatchBranchCompare({ owner, repo, defaultBranch, branch, 
 
 export async function applyRepoPatch(args = {}, ctx = {}) {
   const action = String(args.action || "").trim().toLowerCase();
-  if (!["write_file", "replace_block", "apply_unified_diff", "delete_file"].includes(action)) {
-    const err = new Error("action must be one of: write_file, replace_block, apply_unified_diff, delete_file.");
+  if (!["write_file", "replace_block", "apply_unified_diff", "delete_file", "dedupe_openapi_paths"].includes(action)) {
+    const err = new Error("action must be one of: write_file, replace_block, apply_unified_diff, delete_file, dedupe_openapi_paths.");
     err.status = 400;
     err.code = "repo_patch_bad_action";
     throw err;
@@ -1554,6 +1725,7 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
   }
 
   let newContent;
+  let transformSummary = null;
   if (action === "write_file") {
     if (typeof args.content !== "string") {
       const err = new Error("content is required for write_file.");
@@ -1584,6 +1756,18 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
       throw err;
     }
     newContent = currentContent.replace(args.old_string, args.new_string);
+  } else if (action === "dedupe_openapi_paths") {
+    const normalizedPatchPath = String(filePath || "").replaceAll("\\", "/").replace(/^\.\//, "");
+    if (!LARGE_TEXT_REPO_PATCH_PATHS.has(normalizedPatchPath)) {
+      const err = new Error("dedupe_openapi_paths is only allowed for the OpenAPI contract file.");
+      err.status = 400;
+      err.code = "repo_patch_openapi_dedupe_path_not_allowed";
+      err.details = { path: filePath, secrets_included: false };
+      throw err;
+    }
+    const transformed = dedupeOpenApiPathsText(currentContent);
+    newContent = transformed.content;
+    transformSummary = transformed.summary;
   } else {
     if (typeof args.diff !== "string" || !args.diff.trim()) {
       const err = new Error("diff is required for apply_unified_diff.");
@@ -1674,6 +1858,7 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
     commit_url: commitUrl,
     previous_sha: currentSha || null,
     new_size_bytes: newBytes,
+    transform_summary: transformSummary || undefined,
   };
 }
 
