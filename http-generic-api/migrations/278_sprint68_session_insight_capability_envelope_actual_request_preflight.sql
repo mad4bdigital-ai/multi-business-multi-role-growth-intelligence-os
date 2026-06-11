@@ -114,7 +114,7 @@ SELECT
 FROM `session_insight_capability_envelope_actual_request_preflights` p
 WHERE p.duplicate_live_envelope_count <> 0;
 
-CREATE OR REPLACE VIEW `v_session_insight_capability_envelope_actual_request_preflight_readiness` AS
+CREATE OR REPLACE VIEW `v_session_insight_actual_preflight_readiness` AS
 SELECT
   d.dispatch_dry_run_id,
   d.request_gate_id,
