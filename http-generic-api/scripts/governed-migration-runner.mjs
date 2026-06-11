@@ -301,6 +301,39 @@ async function findLedgerEntry(migration, checksum, mode = "record_only") {
   }
 }
 
+async function getMigrationAuthorization(migration, { mode = "dry_run" } = {}) {
+  try {
+    const [rows] = await getPool().query(
+      `SELECT migration_file, authorization_status, authorization_source, policy_key,
+              risk_tier, requires_preflight, requires_confirmation, allow_record_only, allow_apply
+         FROM governed_migration_authorization_registry
+        WHERE migration_file = ?
+        LIMIT 1`,
+      [migration]
+    );
+    const row = rows?.[0] || null;
+    if (!row) {
+      return { authorized: false, source: "db_registry", reason: "migration_not_authorized_in_db_registry" };
+    }
+    if (row.authorization_status !== "authorized") {
+      return { authorized: false, source: "db_registry", reason: `authorization_status_${row.authorization_status}`, row };
+    }
+    if (mode === "apply" && Number(row.allow_apply) !== 1) {
+      return { authorized: false, source: "db_registry", reason: "apply_not_allowed", row };
+    }
+    return { authorized: true, source: "db_registry", row };
+  } catch (error) {
+    if (!/doesn't exist|ER_NO_SUCH_TABLE/i.test(String(error?.message || ""))) throw error;
+    const legacyAuthorized = LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS.has(migration);
+    return {
+      authorized: legacyAuthorized,
+      source: "legacy_bootstrap_fallback",
+      reason: legacyAuthorized ? "authorization_registry_missing_bootstrap_allowed" : "authorization_registry_missing_and_not_bootstrap_allowed",
+      bootstrap_required: true,
+    };
+  }
+}
+
 async function recordMigrationLedger({
   migration,
   checksum,
