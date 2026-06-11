@@ -156,3 +156,7 @@ When a change adds or modifies Support Ticket external delivery routes, provider
 - `deployment_parity_checklist.md` for post-merge runtime and registry parity checks.
 
 A completion certification route is not release-complete unless OpenAPI includes the path and the DB readback confirms no-send/no-secret policy, disabled live dispatch, and active target rules.
+
+## Session Insight capability-envelope chain documentation rule
+
+For migrations `277` through `283`, update `docs/session-insight-capability-envelope-release-readiness.md`, `AI_Agent_Knowledge_Guide.md`, `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, Docs Agent governance files, and OpenAPI route coverage before promotion. The documentation must explicitly state that the chain is gated no-execution evidence only and does not authorize adapter apply, production runtime execution, `promotion_allowed`, or target writes.
