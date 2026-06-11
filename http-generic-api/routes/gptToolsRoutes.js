@@ -388,7 +388,19 @@ const VIRTUAL_ADMIN_TOOLS = [
   },
 ];
 
-const REPO_PATCH_MAX_BYTES = 1_000_000; // 1 MiB upper bound for new content
+const DEFAULT_REPO_PATCH_MAX_BYTES = 1_000_000; // Default 1 MB upper bound for new content.
+const LARGE_TEXT_REPO_PATCH_MAX_BYTES = 2_000_000; // Allow large generated text contracts such as OpenAPI.
+const LARGE_TEXT_REPO_PATCH_PATHS = new Set([
+  "http-generic-api/openapi.yaml",
+  "http-generic-api/openapi.yml",
+]);
+
+export function repoPatchMaxBytesForPath(filePath = "") {
+  const normalized = String(filePath || "").replaceAll("\\", "/").replace(/^\.\//, "");
+  return LARGE_TEXT_REPO_PATCH_PATHS.has(normalized)
+    ? LARGE_TEXT_REPO_PATCH_MAX_BYTES
+    : DEFAULT_REPO_PATCH_MAX_BYTES;
+}
 
 async function requireRepoPatchCapabilityEnvelope({ args = {}, ctx = {}, owner = "", repo = "", branch = "", defaultBranch = "", filePath = "", action = "" } = {}) {
   const resolved = await resolveCapabilityExecutionEnvelope({
