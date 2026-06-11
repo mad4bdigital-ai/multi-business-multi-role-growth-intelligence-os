@@ -12,6 +12,7 @@ assert(syncScript.includes("split-openapi.mjs"), "maintenance sync must know how
 assert(syncScript.includes("writeSplitSchemas"), "split schema writes must be guarded behind an explicit flag");
 assert(syncScript.includes("--write-split-schemas"), "maintenance sync must expose explicit split schema write mode");
 assert(syncScript.includes("update-repo-planning-docs.mjs"), "maintenance sync must update planning docs");
+assert(syncScript.includes("surface-contract-discovery.mjs"), "maintenance sync must run SQL-backed surface contract discovery");
 assert(syncScript.includes("--report-file"), "maintenance sync must write report files only when explicitly requested");
 assert(!syncScript.includes('path.join(REPO_ROOT, "repo-maintenance-sync-result.json")'), "maintenance sync must not create a root report file by default");
 assert(syncScript.includes("--write|--check"), "maintenance sync must expose explicit write/check modes");

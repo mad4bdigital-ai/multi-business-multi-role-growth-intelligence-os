@@ -61,6 +61,11 @@ function main() {
   run("node", ["scripts/update-repo-planning-docs.mjs"]);
   steps.push("update-repo-planning-docs");
 
+  if (fileExists("http-generic-api/scripts/surface-contract-discovery.mjs")) {
+    run("node", ["scripts/surface-contract-discovery.mjs", write ? "--write" : "--check"].filter(Boolean));
+    steps.push("surface-contract-discovery");
+  }
+
   const after = gitDiffNameOnly();
   const report = {
     ok: true,
