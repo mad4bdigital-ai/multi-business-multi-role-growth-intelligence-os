@@ -34,6 +34,13 @@ import {
   resolveGovernedResource,
   runGovernedResource,
 } from "../platformResourceRecipeCapability.js";
+import {
+  TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
+  createRepositoryAuthorityBinding,
+  listRepositoryAuthorityBindings,
+  revokeRepositoryAuthorityBinding,
+  tenantRepositoryPrReconciliationSweep,
+} from "../repositoryTenantIntelligenceV2.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
