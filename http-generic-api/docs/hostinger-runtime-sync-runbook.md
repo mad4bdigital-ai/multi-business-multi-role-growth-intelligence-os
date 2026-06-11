@@ -77,6 +77,10 @@ A remote database intake link may be issued only after the live runtime confirms
 
 For migration `285_sprint68_session_insight_target_write_readback.sql`, runtime sync validation should prove the deployed process can serve `/platform/session-insight-promotions/target-write-readbacks/create` and `/platform/session-insight-promotions/target-write-readbacks/list`. Live smoke evidence must show readback-only validation over an already executed internal SQL backlog target write, with target item mutation, rollback execution, provider calls, credential payload reads, external writes, raw transcripts, and secrets all false.
 
+## Session Insight target write readback runtime evidence
+
+For migration `285_sprint68_session_insight_target_write_readback.sql`, runtime sync validation should prove the deployed process can serve `/platform/session-insight-promotions/target-write-readbacks/create` and `/platform/session-insight-promotions/target-write-readbacks/list`. Live smoke evidence must show readback-only validation over an already executed internal SQL backlog target write, with target item mutation, rollback execution, provider calls, credential payload reads, external writes, raw transcripts, and secrets all false.
+
 ## Evidence to record
 
 When resolving a runtime sync gap, record:
