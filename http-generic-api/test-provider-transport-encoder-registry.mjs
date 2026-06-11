@@ -7,18 +7,29 @@ import {
   resolveProviderTransportEncoder,
 } from "./providerTransportEncoderRegistry.js";
 
-const registrySource = readFileSync("providerTransportEncoderRegistry.js", "utf8");
-const resourceRecipeSource = readFileSync("platformResourceRecipeCapability.js", "utf8");
+const manifestSource = readFileSync("scripts/test-manifest.mjs", "utf8");
+assert(
+  manifestSource.includes("node test-provider-transport-encoder-registry.mjs"),
+  "provider transport encoder registry test must be included in the test manifest"
+);
 
 const encoders = listProviderTransportEncoders({ parent_action_key: "google_drive_api", endpoint_key: "uploadNewFile" });
 assert.equal(encoders.length, 1, "google Drive upload encoder should be discoverable");
 assert.equal(encoders[0].encoder_key, "google_drive_api.uploadNewFile.multipart_related_json_v1");
+assert.equal(encoders[0].provider_key, "google_drive_api");
 assert.equal(encoders[0].transport_mode, "multipart_related");
+assert.equal(encoders[0].requires_same_cycle_readback, true);
 assert.equal(encoders[0].secrets_included, false);
 
 const resolved = resolveProviderTransportEncoder({ parent_action_key: "google_drive_api", endpoint_key: "uploadNewFile" });
 assert.equal(resolved.ok, true);
-assert.equal(resolved.encoder.requires_same_cycle_readback, true);
+assert.equal(resolved.encoder.encoder_key, "google_drive_api.uploadNewFile.multipart_related_json_v1");
+assert.equal(resolved.secrets_included, false);
+
+const missing = resolveProviderTransportEncoder({ parent_action_key: "google_drive_api", endpoint_key: "missingEndpoint" });
+assert.equal(missing.ok, false);
+assert.equal(missing.reason_code, "provider_transport_encoder_not_found");
+assert.equal(missing.secrets_included, false);
 
 const encoded = encodeMultipartRelatedJson({
   metadata: { name: "manifest.json", mimeType: "application/json", parents: ["folder_123"] },
@@ -30,6 +41,7 @@ assert.match(encoded.content_type, /^multipart\/related; boundary=manifest_bound
 assert.match(encoded.body, /Content-Type: application\/json; charset=UTF-8/);
 assert.match(encoded.body, /artifact_export_manifest\.v1/);
 assert.equal(encoded.secrets_included, false);
+assert.ok(encoded.content_size_bytes > 0);
 
 const payload = buildGoogleDriveMultipartRelatedJsonPayload({
   filename: "manifest.json",
@@ -41,31 +53,20 @@ assert.equal(payload.parent_action_key, "google_drive_api");
 assert.equal(payload.endpoint_key, "uploadNewFile");
 assert.equal(payload.transport_encoder_key, "google_drive_api.uploadNewFile.multipart_related_json_v1");
 assert.equal(payload.raw_body_mode, "multipart_related");
+assert.equal(payload.query.uploadType, "multipart");
+assert.equal(payload.query.supportsAllDrives, true);
 assert.equal(payload.readback.required, true);
 assert.equal(payload.secrets_included, false);
 assert.equal(payload.transport_encoder.secrets_included, false);
+assert.match(payload.headers["Content-Type"], /^multipart\/related; boundary=manifest_boundary_/);
 
-assert.throws(() => encodeMultipartRelatedJson({ metadata: { access_token: "nope" }, media_body: {} }), /sensitive field/);
-
-for (const expected of [
-  "PROVIDER_TRANSPORT_ENCODER_REGISTRY",
-  "google_drive_api.uploadNewFile.multipart_related_json_v1",
-  "resolveProviderTransportEncoder",
-  "provider_transport_encoder_secret_key_rejected",
-  "secrets_included: false",
+for (const badPayload of [
+  { metadata: { access_token: "nope" }, media_body: {} },
+  { metadata: { client_secret: "nope" }, media_body: {} },
+  { metadata: {}, media_body: { refresh_token: "nope" } },
+  { metadata: { private_key: "nope" }, media_body: {} },
 ]) {
-  assert(registrySource.includes(expected), `registry source must include ${expected}`);
+  assert.throws(() => encodeMultipartRelatedJson(badPayload), /sensitive field/);
 }
-
-for (const expected of [
-  "buildGoogleDriveMultipartRelatedJsonPayload",
-  "buildManifestUploadPayload",
-]) {
-  assert(resourceRecipeSource.includes(expected), `resource recipe capability must use encoder registry: ${expected}`);
-}
-
-assert.throws(() => encodeMultipartRelatedJson({ metadata: { client_secret: "nope" }, media_body: {} }), /sensitive field/);
-assert.throws(() => encodeMultipartRelatedJson({ metadata: {}, media_body: { refresh_token: "nope" } }), /sensitive field/);
-assert.throws(() => encodeMultipartRelatedJson({ metadata: { private_key: "nope" }, media_body: {} }), /sensitive field/);
 
 console.log("provider transport encoder registry contract passed");
