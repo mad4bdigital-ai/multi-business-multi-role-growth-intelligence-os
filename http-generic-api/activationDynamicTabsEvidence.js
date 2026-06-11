@@ -39,44 +39,19 @@ function sanitizeKey(value) {
   return text || "surface";
 }
 
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function likeToRegExp(pattern) {
-  const escaped = String(pattern || "")
-    .replace(/[.+^${}()|[\]\\]/g, "\\function splitRefs(value = "") {
-  return String(value || "")
-    .split(/[|,;\n]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-async function safeRows(sql, params = []) {")
-    .replace(/%/g, ".*")
-    .replace(/_/g, ".");
-  return new RegExp(`^${escaped}import { getPool } from "./db.js";
-
-const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
-const BLOCKED_COLUMN_PATTERN = /(secret|credential_ref|credential|token|password|private_key|cipher|api_key|value_ciphertext|value_sha|config_json|system_prompt)/i;
-const PLATFORM_BRAND_KEY = "growth_intelligence_platform";
-
-function compactError(err) {
-  return { code: err.code || "activation_dynamic_tabs_failed", message: err.message };
-}
-
-function safeNumber(value) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function parseJsonValue(value, fallback = null) {
-  if (value === null || value === undefined || value === "") return fallback;
-  if (typeof value === "object") return value;
-  try {
-    return JSON.parse(String(value));
-  } catch {
-    return fallback;
+  const text = String(pattern || "");
+  let body = "";
+  for (const char of text) {
+    if (char === "%") body += ".*";
+    else if (char === "_") body += ".";
+    else body += escapeRegExp(char);
   }
-}
-
-, "i");
+  return new RegExp(`^${body}$`, "i");
 }
 
 function matchesLike(value, pattern) {
@@ -150,9 +125,6 @@ async function loadWorkspaceContainers(subject) {
     subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"]
   );
 
-  const brandWhere = subject.is_admin
-    ? "status IS NOT NULL"
-    : "target_key IN (?)";
   const linkedBrandKeys = [...new Set(workspaces.rows.map((row) => row.linked_brand_key).filter(Boolean))];
   const brands = linkedBrandKeys.length || subject.is_admin
     ? await safeRows(
@@ -160,7 +132,7 @@ async function loadWorkspaceContainers(subject) {
                 evolution_status, governance_readiness_status, runtime_scope_class,
                 control_state_last_validated_at, updated_at
            FROM brands
-          WHERE ${brandWhere}
+          WHERE ${subject.is_admin ? "status IS NOT NULL" : "target_key IN (?)"}
           LIMIT 200`,
         subject.is_admin ? [] : [linkedBrandKeys.length ? linkedBrandKeys : ["__missing_brand__"]]
       )
@@ -310,7 +282,7 @@ async function loadTabRegistry() {
       ORDER BY priority_order ASC, tab_key ASC`,
     []
   );
-  const sections = await safeRows(
+  const staticSections = await safeRows(
     `SELECT section_key, tab_key, display_name, description, source_table,
             result_columns_json, tenant_column, user_column, workspace_column, brand_key_column,
             system_id_column, status_column, active_status_values_json, row_limit,
@@ -320,15 +292,21 @@ async function loadTabRegistry() {
       ORDER BY priority_order ASC, section_key ASC`,
     []
   );
-  const discovery = sections.ok ? await loadAutoDiscoveredSections(sections.rows) : { ok: false, rows: [], error: sections.error };
+  const discovery = staticSections.ok
+    ? await loadAutoDiscoveredSections(staticSections.rows)
+    : { ok: false, rows: [], error: staticSections.error };
+
   return {
     tabs,
     sections: {
-      ok: sections.ok && discovery.ok,
-      rows: [...sections.rows, ...discovery.rows].sort((a, b) => safeNumber(a.priority_order) - safeNumber(b.priority_order) || String(a.section_key).localeCompare(String(b.section_key))),
-      static_count: sections.rows.length,
+      ok: staticSections.ok && discovery.ok,
+      rows: [...staticSections.rows, ...discovery.rows].sort(
+        (a, b) => safeNumber(a.priority_order) - safeNumber(b.priority_order) ||
+          String(a.section_key).localeCompare(String(b.section_key))
+      ),
+      static_count: staticSections.rows.length,
       auto_discovered_count: discovery.rows.length,
-      error: sections.error || discovery.error || null,
+      error: staticSections.error || discovery.error || null,
       discovery,
     },
   };
