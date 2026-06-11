@@ -121,7 +121,7 @@ JOIN `session_insight_capability_envelope_request_gates` g
 WHERE d.secrets_included = 0
   AND g.secrets_included = 0;
 
-CREATE OR REPLACE VIEW `v_session_insight_capability_envelope_dispatch_dry_run_review_issues` AS
+CREATE OR REPLACE VIEW `v_session_insight_ce_dispatch_review_issues` AS
 SELECT
   d.dispatch_dry_run_id,
   d.request_gate_id,
