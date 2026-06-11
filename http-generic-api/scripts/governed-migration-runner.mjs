@@ -172,6 +172,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "903_sprint68_google_drive_multipart_upload_schema_contract.sql",
   "904_sprint68_resource_manifest_positive_smoke_certification.sql",
   "950_sprint68_platform_resource_authority_bindings.sql",
+  "952_sprint68_resource_graph_projection_apply_gate.sql",
   "262_sprint68_orchestration_readback_surface.sql",
   "263_sprint68_ads_governance_snapshot_proposal.sql",
   "264_sprint68_ads_governance_snapshot_record_gate.sql",
