@@ -2135,7 +2135,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
   return {
     ok: true,
     tool: "governed_resource_run",
-    classification: mode === "manifest_dry_run" ? "manifest_dry_run_ready" : result.classification || "read_only_executed",
+    classification: mode === "manifest_dry_run" ? "manifest_dry_run_ready" : mode === "graph_projection_dry_run" ? "graph_projection_dry_run_ready" : result.classification || "read_only_executed",
     mode,
     recipe_key: recipe.recipe_key,
     resource_type: recipe.resource_type,
