@@ -81,7 +81,7 @@ function assertNoSecretKeys(value, path = "root") {
   }
   if (!value || typeof value !== "object") return;
   for (const [key, nested] of Object.entries(value)) {
-    if (/secret|token|api[_-]?key|private[_-]?key|ciphertext|password|refresh[_-]?token|access[_-]?token/i.test(key)) {
+    if (key !== "secrets_included" && /secret|token|api[_-]?key|private[_-]?key|ciphertext|password|refresh[_-]?token|access[_-]?token/i.test(key)) {
       const err = new Error(`Provider transport encoder refused sensitive field at ${path}.${key}`);
       err.code = "provider_transport_encoder_secret_key_rejected";
       throw err;
