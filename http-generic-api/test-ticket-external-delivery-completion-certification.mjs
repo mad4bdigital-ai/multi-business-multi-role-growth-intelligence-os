@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const dispatchService = readFileSync("supportTicketExternalProviderDispatchService.js", "utf8");
+const liveSendService = readFileSync("supportTicketExternalLiveSendService.js", "utf8");
 const completionService = readFileSync("supportTicketExternalDeliveryCompletionService.js", "utf8");
 const gateService = readFileSync("supportTicketExternalSendProviderGateService.js", "utf8");
 const routes = readFileSync("routes/supportTicketRoutes.js", "utf8");
