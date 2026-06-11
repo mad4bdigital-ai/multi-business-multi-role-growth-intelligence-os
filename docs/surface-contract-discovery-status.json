@@ -1,7 +1,7 @@
 {
   "ok": true,
   "schema_version": "surface-contract-discovery-v3",
-  "migration_surface_count": 384,
+  "migration_surface_count": 385,
   "reported_count": 80,
   "openapi_operation_count": 416,
   "openapi_path_count": 363,
@@ -431,34 +431,34 @@
     "docs/change-documentation-governance.md"
   ],
   "coverage_summary": {
-    "migrations_with_surfaces": 384,
+    "migrations_with_surfaces": 385,
     "docs_complete_count": 2,
-    "docs_gap_count": 382,
+    "docs_gap_count": 383,
     "docs_completion_percent": 0.52,
     "surface_totals": {
       "plugins": 11,
-      "tools": 1768,
-      "views": 322,
+      "tools": 1769,
+      "views": 323,
       "policies": 139,
       "routes": 508
     },
     "migrations_by_surface_type": {
       "plugins": 8,
-      "tools": 330,
-      "views": 128,
+      "tools": 331,
+      "views": 129,
       "policies": 87,
       "routes": 217
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 351,
-      "deployment_parity_checklist.md": 360,
-      "docs/ai-docs-agent-governance.md": 382,
-      "docs/auto-docs-agent/README.md": 382,
-      "docs/change-documentation-governance.md": 382
+      "Updating Registry Patch Index.md": 352,
+      "deployment_parity_checklist.md": 361,
+      "docs/ai-docs-agent-governance.md": 383,
+      "docs/auto-docs-agent/README.md": 383,
+      "docs/change-documentation-governance.md": 383
     },
     "gap_severity_counts": {
       "high": 222,
-      "medium": 136,
+      "medium": 137,
       "low": 24,
       "none": 2
     },
@@ -821,6 +821,7 @@
       "950_sprint68_platform_resource_authority_bindings.sql",
       "952_sprint68_resource_graph_projection_apply_gate.sql",
       "954_sprint68_compact_operational_views_and_github_resource_coverage.sql",
+      "956_sprint68_external_delivery_allowlist_readiness_view_updated_at.sql",
       "997_sprint68_openrouter_provider_smoke_capability_binding.sql",
       "998_sprint68_openrouter_provider_smoke_app_map_binding.sql"
     ],
@@ -832,7 +833,7 @@
       "no_external_write": 21,
       "secrets_included_false": 111
     },
-    "safety_marker_gap_migrations": 273,
+    "safety_marker_gap_migrations": 274,
     "route_coverage": {
       "sql_route_count": 508,
       "openapi_documented_sql_route_count": 311,
@@ -1567,10 +1568,10 @@
   "gap_queue": {
     "ok": true,
     "schema_version": "surface-contract-gap-queue-v1",
-    "total_items": 383,
+    "total_items": 384,
     "class_counts": {
       "critical_review": 244,
-      "high_review": 115,
+      "high_review": 116,
       "medium_review": 24,
       "low_review": 0
     },
@@ -2921,7 +2922,7 @@
       },
       {
         "migration_file": "278_sprint68_session_insight_capability_envelope_actual_request_preflight.sql",
-        "score": 1893,
+        "score": 1892,
         "queue_class": "critical_review",
         "gap_severity": "high",
         "documentation_complete": false,
@@ -3627,7 +3628,7 @@
       },
       {
         "migration_file": "260_sprint68_platform_development_constitution_policies.sql",
-        "score": 1737,
+        "score": 1736,
         "queue_class": "critical_review",
         "gap_severity": "medium",
         "documentation_complete": false,
@@ -3753,7 +3754,7 @@
       },
       {
         "migration_file": "275_sprint68_session_insight_capability_envelope_dispatch_dry_run.sql",
-        "score": 1730,
+        "score": 1729,
         "queue_class": "critical_review",
         "gap_severity": "high",
         "documentation_complete": false,
@@ -4205,7 +4206,7 @@
       },
       {
         "migration_file": "284_sprint68_session_insight_backlog_target_write_executor.sql",
-        "score": 1531,
+        "score": 1530,
         "queue_class": "critical_review",
         "gap_severity": "high",
         "documentation_complete": false,
@@ -4311,7 +4312,7 @@
       },
       {
         "migration_file": "195_sprint66_tenant_infrastructure_specific_paths.sql",
-        "score": 1479,
+        "score": 1478,
         "queue_class": "critical_review",
         "gap_severity": "high",
         "documentation_complete": false,
@@ -4493,7 +4494,7 @@
       },
       {
         "migration_file": "270_sprint68_support_ticket_lifecycle_orchestration_readback.sql",
-        "score": 1445,
+        "score": 1444,
         "queue_class": "critical_review",
         "gap_severity": "high",
         "documentation_complete": false,
@@ -5618,8 +5619,117 @@
         }
       },
       {
-        "migration_file": "266_sprint68_session_insight_promotion_apply_request_skeleton.sql",
+        "migration_file": "266_sprint68_ticket_external_provider_enablement_proposal.sql",
         "score": 1336,
+        "queue_class": "critical_review",
+        "gap_severity": "high",
+        "documentation_complete": false,
+        "missing_docs": [
+          "Updating Registry Patch Index.md",
+          "deployment_parity_checklist.md",
+          "docs/ai-docs-agent-governance.md",
+          "docs/auto-docs-agent/README.md",
+          "docs/change-documentation-governance.md"
+        ],
+        "missing_openapi_routes": [
+          "/admin/support/tickets/external-send/provider-adapter-enablement/candidates",
+          "/admin/support/tickets/external-send/provider-adapter-enablement/propose"
+        ],
+        "safety_marker_gaps": [
+          "no_provider_call",
+          "no_credential_payload_read",
+          "no_raw_secrets",
+          "no_external_send",
+          "no_external_write"
+        ],
+        "surface_counts": {
+          "plugins": 0,
+          "tools": 10,
+          "views": 1,
+          "policies": 1,
+          "routes": 2
+        },
+        "remediation": [
+          {
+            "action_key": "document_surface_contract",
+            "owner_hint": "docs-agent/human-review",
+            "targets": [
+              "Updating Registry Patch Index.md",
+              "deployment_parity_checklist.md",
+              "docs/ai-docs-agent-governance.md",
+              "docs/auto-docs-agent/README.md",
+              "docs/change-documentation-governance.md"
+            ],
+            "reason": "Migration surfaces are not mentioned in all required documentation targets."
+          },
+          {
+            "action_key": "review_openapi_contract",
+            "owner_hint": "api-contract-review",
+            "targets": [
+              "/admin/support/tickets/external-send/provider-adapter-enablement/candidates",
+              "/admin/support/tickets/external-send/provider-adapter-enablement/propose"
+            ],
+            "reason": "SQL-declared route-like surfaces are not covered by an OpenAPI path."
+          },
+          {
+            "action_key": "verify_tool_registry_binding",
+            "owner_hint": "runtime-registry-review",
+            "targets": [
+              "admin_platform_endpoint_tools",
+              "implemented_record_only",
+              "proposal_review_internal_record_only",
+              "proposal_review_requires_dispatch_policy",
+              "provider_dispatch_enabled",
+              "provider_dispatch_enablement_allowed",
+              "required_gates_json",
+              "requires_separate_dispatch_policy",
+              "support_ticket_external_provider_enablement_propose",
+              "v_external_delivery_provider_enablement_proposal_readiness"
+            ],
+            "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+          },
+          {
+            "action_key": "verify_policy_seed_readiness",
+            "owner_hint": "runtime-policy-review",
+            "targets": [
+              "external_provider_adapter_enablement_proposal_policy_v1"
+            ],
+            "reason": "Policy surfaces need active/blocking/valid-JSON readiness evidence."
+          },
+          {
+            "action_key": "verify_readback_view",
+            "owner_hint": "db-readback-review",
+            "targets": [
+              "v_external_delivery_provider_enablement_proposal_readiness"
+            ],
+            "reason": "Readback views should have parity/readiness documentation and smoke evidence."
+          },
+          {
+            "action_key": "add_explicit_safety_markers",
+            "owner_hint": "safety-contract-review",
+            "targets": [
+              "no_provider_call",
+              "no_credential_payload_read",
+              "no_raw_secrets",
+              "no_external_send",
+              "no_external_write"
+            ],
+            "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+          }
+        ],
+        "safety": {
+          "executes_provider_calls": false,
+          "reads_credentials": false,
+          "mutates_runtime": false,
+          "writes_database": false,
+          "external_sends": false,
+          "deploys": false,
+          "secrets_included": false
+        }
+      },
+      {
+        "migration_file": "266_sprint68_session_insight_promotion_apply_request_skeleton.sql",
+        "score": 1335,
         "queue_class": "critical_review",
         "gap_severity": "high",
         "documentation_complete": false,
@@ -5708,115 +5818,6 @@
             "owner_hint": "db-readback-review",
             "targets": [
               "v_session_insight_promotion_apply_request_issues"
-            ],
-            "reason": "Readback views should have parity/readiness documentation and smoke evidence."
-          },
-          {
-            "action_key": "add_explicit_safety_markers",
-            "owner_hint": "safety-contract-review",
-            "targets": [
-              "no_provider_call",
-              "no_credential_payload_read",
-              "no_raw_secrets",
-              "no_external_send",
-              "no_external_write"
-            ],
-            "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
-          }
-        ],
-        "safety": {
-          "executes_provider_calls": false,
-          "reads_credentials": false,
-          "mutates_runtime": false,
-          "writes_database": false,
-          "external_sends": false,
-          "deploys": false,
-          "secrets_included": false
-        }
-      },
-      {
-        "migration_file": "266_sprint68_ticket_external_provider_enablement_proposal.sql",
-        "score": 1336,
-        "queue_class": "critical_review",
-        "gap_severity": "high",
-        "documentation_complete": false,
-        "missing_docs": [
-          "Updating Registry Patch Index.md",
-          "deployment_parity_checklist.md",
-          "docs/ai-docs-agent-governance.md",
-          "docs/auto-docs-agent/README.md",
-          "docs/change-documentation-governance.md"
-        ],
-        "missing_openapi_routes": [
-          "/admin/support/tickets/external-send/provider-adapter-enablement/candidates",
-          "/admin/support/tickets/external-send/provider-adapter-enablement/propose"
-        ],
-        "safety_marker_gaps": [
-          "no_provider_call",
-          "no_credential_payload_read",
-          "no_raw_secrets",
-          "no_external_send",
-          "no_external_write"
-        ],
-        "surface_counts": {
-          "plugins": 0,
-          "tools": 10,
-          "views": 1,
-          "policies": 1,
-          "routes": 2
-        },
-        "remediation": [
-          {
-            "action_key": "document_surface_contract",
-            "owner_hint": "docs-agent/human-review",
-            "targets": [
-              "Updating Registry Patch Index.md",
-              "deployment_parity_checklist.md",
-              "docs/ai-docs-agent-governance.md",
-              "docs/auto-docs-agent/README.md",
-              "docs/change-documentation-governance.md"
-            ],
-            "reason": "Migration surfaces are not mentioned in all required documentation targets."
-          },
-          {
-            "action_key": "review_openapi_contract",
-            "owner_hint": "api-contract-review",
-            "targets": [
-              "/admin/support/tickets/external-send/provider-adapter-enablement/candidates",
-              "/admin/support/tickets/external-send/provider-adapter-enablement/propose"
-            ],
-            "reason": "SQL-declared route-like surfaces are not covered by an OpenAPI path."
-          },
-          {
-            "action_key": "verify_tool_registry_binding",
-            "owner_hint": "runtime-registry-review",
-            "targets": [
-              "admin_platform_endpoint_tools",
-              "implemented_record_only",
-              "proposal_review_internal_record_only",
-              "proposal_review_requires_dispatch_policy",
-              "provider_dispatch_enabled",
-              "provider_dispatch_enablement_allowed",
-              "required_gates_json",
-              "requires_separate_dispatch_policy",
-              "support_ticket_external_provider_enablement_propose",
-              "v_external_delivery_provider_enablement_proposal_readiness"
-            ],
-            "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
-          },
-          {
-            "action_key": "verify_policy_seed_readiness",
-            "owner_hint": "runtime-policy-review",
-            "targets": [
-              "external_provider_adapter_enablement_proposal_policy_v1"
-            ],
-            "reason": "Policy surfaces need active/blocking/valid-JSON readiness evidence."
-          },
-          {
-            "action_key": "verify_readback_view",
-            "owner_hint": "db-readback-review",
-            "targets": [
-              "v_external_delivery_provider_enablement_proposal_readiness"
             ],
             "reason": "Readback views should have parity/readiness documentation and smoke evidence."
           },
@@ -7336,7 +7337,7 @@
       },
       {
         "migration_file": "268_sprint68_session_insight_adapter_dry_run_contracts.sql",
-        "score": 1201,
+        "score": 1200,
         "queue_class": "critical_review",
         "gap_severity": "high",
         "documentation_complete": false,
@@ -7445,7 +7446,7 @@
       },
       {
         "migration_file": "269_sprint68_session_insight_contract_payload_preview.sql",
-        "score": 1184,
+        "score": 1183,
         "queue_class": "critical_review",
         "gap_severity": "high",
         "documentation_complete": false,
@@ -8173,7 +8174,7 @@
       },
       {
         "migration_file": "262_sprint68_orchestration_readback_surface.sql",
-        "score": 1146,
+        "score": 1145,
         "queue_class": "critical_review",
         "gap_severity": "high",
         "documentation_complete": false,
@@ -9752,7 +9753,7 @@
       },
       {
         "migration_file": "253_sprint67_ads_provider_preflight_contract.sql",
-        "score": 1097,
+        "score": 1096,
         "queue_class": "critical_review",
         "gap_severity": "high",
         "documentation_complete": false,
@@ -11120,8 +11121,8 @@
         }
       },
       {
-        "migration_file": "184_sprint66_database_lifecycle_scheduler_binding_readiness.sql",
-        "score": 986,
+        "migration_file": "183_sprint66_database_lifecycle_snapshot_schedule_readiness.sql",
+        "score": 985,
         "queue_class": "critical_review",
         "gap_severity": "high",
         "documentation_complete": false,
@@ -11165,7 +11166,7 @@
             "action_key": "verify_tool_registry_binding",
             "owner_hint": "runtime-registry-review",
             "targets": [
-              "database_lifecycle_scheduler_binding_readiness"
+              "database_lifecycle_report_snapshot_schedule_readiness"
             ],
             "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
           },
@@ -11181,7 +11182,7 @@
             "action_key": "verify_readback_view",
             "owner_hint": "db-readback-review",
             "targets": [
-              "v_database_lifecycle_scheduler_binding_readiness"
+              "v_database_lifecycle_report_snapshot_schedule_readiness"
             ],
             "reason": "Readback views should have parity/readiness documentation and smoke evidence."
           },
@@ -11321,6 +11322,56 @@
         },
         "surface_count": 1,
         "safety_marker_count": 2
+      }
+    },
+    {
+      "migration_file": "956_sprint68_external_delivery_allowlist_readiness_view_updated_at.sql",
+      "surfaces": {
+        "routes": [],
+        "views": [
+          "v_external_delivery_recipient_allowlist_readiness"
+        ],
+        "policies": [],
+        "plugins": [],
+        "tools": [
+          "v_external_delivery_recipient_allowlist_readiness"
+        ],
+        "safety": {
+          "no_provider_call": false,
+          "no_credential_payload_read": false,
+          "no_raw_secrets": false,
+          "no_external_send": false,
+          "no_external_write": false,
+          "secrets_included_false": false
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": false,
+        "deployment_parity_checklist.md": false,
+        "docs/ai-docs-agent-governance.md": false,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "medium",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 0,
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": []
+        },
+        "surface_count": 2,
+        "safety_marker_count": 0
       }
     },
     {
@@ -16392,61 +16443,6 @@
         },
         "surface_count": 25,
         "safety_marker_count": 2
-      }
-    },
-    {
-      "migration_file": "253_sprint68_ticket_auto_resolve_policy_engine.sql",
-      "surfaces": {
-        "routes": [
-          "/admin/support/tickets/auto-resolve/candidates",
-          "/admin/support/tickets/{ticket_id}/auto-resolve/propose"
-        ],
-        "views": [],
-        "policies": [],
-        "plugins": [],
-        "tools": [
-          "admin_platform_endpoint_tools",
-          "support_ticket_auto_resolve_propose"
-        ],
-        "safety": {
-          "no_provider_call": false,
-          "no_credential_payload_read": false,
-          "no_raw_secrets": false,
-          "no_external_send": false,
-          "no_external_write": false,
-          "secrets_included_false": false
-        }
-      },
-      "docs": {
-        "Updating Registry Patch Index.md": false,
-        "deployment_parity_checklist.md": false,
-        "docs/ai-docs-agent-governance.md": false,
-        "docs/auto-docs-agent/README.md": false,
-        "docs/change-documentation-governance.md": false
-      },
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "documentation_complete": false,
-      "coverage": {
-        "gap_severity": "high",
-        "requires_docs_review": true,
-        "route_coverage": {
-          "route_count": 2,
-          "documented_count": 0,
-          "missing_count": 2,
-          "documented_routes": [],
-          "missing_routes": [
-            "/admin/support/tickets/auto-resolve/candidates",
-            "/admin/support/tickets/{ticket_id}/auto-resolve/propose"
-          ]
-        },
-        "surface_count": 4,
-        "safety_marker_count": 0
       }
     }
   ],
@@ -38191,6 +38187,56 @@
         },
         "surface_count": 14,
         "safety_marker_count": 3
+      }
+    },
+    {
+      "migration_file": "956_sprint68_external_delivery_allowlist_readiness_view_updated_at.sql",
+      "surfaces": {
+        "routes": [],
+        "views": [
+          "v_external_delivery_recipient_allowlist_readiness"
+        ],
+        "policies": [],
+        "plugins": [],
+        "tools": [
+          "v_external_delivery_recipient_allowlist_readiness"
+        ],
+        "safety": {
+          "no_provider_call": false,
+          "no_credential_payload_read": false,
+          "no_raw_secrets": false,
+          "no_external_send": false,
+          "no_external_write": false,
+          "secrets_included_false": false
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": false,
+        "deployment_parity_checklist.md": false,
+        "docs/ai-docs-agent-governance.md": false,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "medium",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 0,
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": []
+        },
+        "surface_count": 2,
+        "safety_marker_count": 0
       }
     },
     {
