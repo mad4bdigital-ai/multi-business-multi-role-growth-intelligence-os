@@ -126,6 +126,18 @@ export async function readPlatformOrchestrationReadback(input = {}) {
     }
   }
 
+  let supportTicketExternalDeliveryReadiness = null;
+  if (pluginKey === "support_ticket_external_delivery_orchestrator") {
+    try {
+      supportTicketExternalDeliveryReadiness = await readSupportTicketExternalDeliveryOrchestrationReadiness({
+        tenant_id: input.tenant_id || input.tenantId || null,
+        limit,
+      });
+    } catch {
+      supportTicketExternalDeliveryReadiness = null;
+    }
+  }
+
   let snapshots = [];
   if (includeSnapshots) {
     const [snapshotRows] = await pool.query(
