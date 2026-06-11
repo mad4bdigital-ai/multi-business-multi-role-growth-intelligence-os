@@ -178,6 +178,7 @@ export async function readPlatformOrchestrationReadback(input = {}) {
   const knownSevenStageGraphs = new Set([
     "ads_provider_governance_orchestrator",
     "support_ticket_lifecycle_orchestrator",
+    "support_ticket_external_delivery_orchestrator",
   ]);
   const expectedStages = knownSevenStageGraphs.has(pluginKey) ? 7 : Math.max(1, stages.length);
   const expectedEdges = knownSevenStageGraphs.has(pluginKey) ? 6 : Math.max(0, edges.length);
