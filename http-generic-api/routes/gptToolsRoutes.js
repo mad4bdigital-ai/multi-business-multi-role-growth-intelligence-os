@@ -1688,9 +1688,7 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
   }
 
   const currentSha = existing.status === 200 ? existing.payload?.sha : undefined;
-  const currentContent = existing.status === 200 && existing.payload?.content
-    ? Buffer.from(existing.payload.content, existing.payload.encoding || "base64").toString("utf8")
-    : "";
+  const currentContent = await loadRepoPatchCurrentContent({ existing, owner, repo, token });
 
   if (action === "delete_file") {
     if (!currentSha) {
