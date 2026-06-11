@@ -520,6 +520,7 @@ export async function buildActivationDynamicTabsEvidence({ sessionContext = null
     policy: {
       each_workspace_or_brand_is_a_container: true,
       tabs_are_registry_driven: true,
+      authorized_surfaces_auto_discover_into_tabs: true,
       visible_rows_are_subject_scoped: true,
       do_not_return_secret_values: true,
       secrets_included: false,
