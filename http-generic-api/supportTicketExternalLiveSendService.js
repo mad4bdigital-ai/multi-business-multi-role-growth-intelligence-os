@@ -331,11 +331,17 @@ async function sendGmailMail(providerPlan = {}, payload = {}) {
   return { provider_message_id: result.id || messageId, provider_status: "sent", external_send_performed: true };
 }
 
-export function checkSupportTicketLiveSendReadiness(providerPlan = {}) {
+export async function checkSupportTicketLiveSendReadiness(providerPlan = {}, options = {}) {
   const adapter = providerPlan.provider_adapter || {};
   const payload = extractEmailPayload(providerPlan);
   const runtime = providerRuntimeKind(adapter);
-  const readiness = providerReadinessBase(runtime);
+  const allowlist = await checkDynamicRecipientAllowlist(payload.to, {
+    tenantId: providerPlan.tenant_id || providerPlan.payload_json?.tenant_id,
+    adapterKey: normalizeAdapterKey(adapter),
+    channel: "email",
+    connection: options.connection || null,
+  });
+  const readiness = { ...providerReadinessBase(runtime), recipient_allowlist_present: allowlist.allowlist_count > 0, allowlist_count: allowlist.allowlist_count, matched_allowlist_id: allowlist.matched_allowlist_id, recipient_allowlist_allowed: allowlist.allowed, recipient_allowlist_reason: allowlist.reason };
   const blockers = [];
   if (providerPlan.send_mode !== "live_send") blockers.push("live_send_mode_required");
   if (!providerPlan.ready_for_provider_dispatch) blockers.push("provider_plan_not_ready");
@@ -344,7 +350,7 @@ export function checkSupportTicketLiveSendReadiness(providerPlan = {}) {
   if (!providerPlan.credential_ref) blockers.push("credential_ref_required");
   if (!providerPlan.idempotency_key && !providerPlan.payload_json?.idempotency_key) blockers.push("idempotency_key_required");
   if (!readiness.recipient_allowlist_present) blockers.push("recipient_allowlist_missing");
-  if (!isLiveSendRecipientAllowed(payload.to)) blockers.push("recipient_not_allowlisted");
+  if (!allowlist.allowed) blockers.push("recipient_not_allowlisted");
   if (!payload.text && !payload.html) blockers.push("message_body_required");
   if (runtime === "smtp" || runtime === "hostinger_smtp") {
     if (!readiness.smtp_configured) blockers.push("smtp_url_not_configured");
