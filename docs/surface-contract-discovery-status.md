@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 380
+- Migrations with detected surfaces: 381
 - Migrations reported here: 80
 - OpenAPI operations detected: 416
 - OpenAPI paths detected: 363
@@ -32,11 +32,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 2/380 (0.53%)
-- Documentation gap migrations: 378
-- Gap severity: high=221, medium=133, low=24
-- SQL route coverage in OpenAPI: 311/503 (61.83%)
-- SQL routes missing OpenAPI path coverage: 192
+- Documentation complete migrations: 2/381 (0.52%)
+- Documentation gap migrations: 379
+- Gap severity: high=222, medium=133, low=24
+- SQL route coverage in OpenAPI: 311/508 (61.22%)
+- SQL routes missing OpenAPI path coverage: 197
 - Migrations without explicit `secrets_included=false` marker: 270
 
 ### Surface Totals
@@ -44,20 +44,20 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 11 | 8 |
-| tools | 1756 | 326 |
-| views | 315 | 126 |
-| policies | 138 | 86 |
-| routes | 503 | 216 |
+| tools | 1761 | 327 |
+| views | 318 | 127 |
+| policies | 139 | 87 |
+| routes | 508 | 217 |
 
 ### Documentation Target Gaps
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 347 |
-| `deployment_parity_checklist.md` | 356 |
-| `docs/ai-docs-agent-governance.md` | 378 |
-| `docs/auto-docs-agent/README.md` | 378 |
-| `docs/change-documentation-governance.md` | 378 |
+| `Updating Registry Patch Index.md` | 348 |
+| `deployment_parity_checklist.md` | 357 |
+| `docs/ai-docs-agent-governance.md` | 379 |
+| `docs/auto-docs-agent/README.md` | 379 |
+| `docs/change-documentation-governance.md` | 379 |
 
 ### Safety Marker Coverage
 
@@ -65,10 +65,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|
 | no_provider_call | 33 |
 | no_credential_payload_read | 14 |
-| no_raw_secrets | 13 |
-| no_external_send | 12 |
+| no_raw_secrets | 14 |
+| no_external_send | 13 |
 | no_external_write | 21 |
-| secrets_included_false | 110 |
+| secrets_included_false | 111 |
 
 
 ## Latest Surface Coverage
@@ -77,6 +77,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | `998_sprint68_openrouter_provider_smoke_app_map_binding.sql` | needs docs | medium | 0 | 3 | 1 | 1 | 0 | 0 |
 | `997_sprint68_openrouter_provider_smoke_capability_binding.sql` | needs docs | medium | 0 | 0 | 0 | 1 | 0 | 0 |
+| `955_sprint68_external_delivery_admin_control_surface.sql` | needs docs | high | 0 | 5 | 3 | 1 | 5 | 5 |
 | `954_sprint68_compact_operational_views_and_github_resource_coverage.sql` | needs docs | medium | 0 | 2 | 4 | 0 | 0 | 0 |
 | `952_sprint68_resource_graph_projection_apply_gate.sql` | needs docs | medium | 0 | 6 | 0 | 0 | 0 | 0 |
 | `950_sprint68_platform_resource_authority_bindings.sql` | needs docs | medium | 0 | 1 | 0 | 1 | 0 | 0 |
@@ -154,7 +155,6 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | `254_sprint68_session_insight_scope_link_monitoring.sql` | needs docs | low | 0 | 0 | 1 | 0 | 0 | 0 |
 | `254_sprint67_ads_provider_preflight_surface_blueprint.sql` | needs docs | high | 0 | 23 | 0 | 1 | 1 | 0 |
 | `253_sprint68_ticket_auto_resolve_policy_engine.sql` | needs docs | high | 0 | 2 | 0 | 0 | 2 | 2 |
-| `253_sprint68_session_insight_candidates_foundation.sql` | needs docs | low | 0 | 0 | 1 | 0 | 0 | 0 |
 
 ## High-Risk Documentation Gaps
 
@@ -198,7 +198,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 - `125_sprint64_platform_plugin_contributions.sql`
 - `125_sprint64_summary_comparison_quality_scoring.sql`
 - `126_sprint64_platform_plugin_private_runtime.sql`
-- ...and 181 more
+- ...and 182 more
 
 ## SQL Route OpenAPI Gaps
 
@@ -242,7 +242,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 - `201_sprint68_workspace_access_request_control_tools.sql`: `/me/access-requests`, `/me/workspaces/{tenant_id}/access-requests/{request_id}/cancel`
 - `202_sprint68_admin_workspace_authority_tools.sql`: `/admin/workspace-authority/reconciliation`, `/admin/workspace-authority/repair`
 - `205_sprint67_openclaude_provider_bridge_routes.sql`: `/dev-agent/openclaude/bridge/v1/chat/completions`, `/dev-agent/openclaude/bridge/v1/health`
-- ...and 64 more
+- ...and 65 more
 
 ## Details
 
@@ -273,6 +273,20 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 - Routes: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
+
+### `955_sprint68_external_delivery_admin_control_surface.sql`
+
+- Documentation complete: no
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Surface count: 14
+- Plugins: none
+- Tools: `adapter_dispatch_set`, `external_delivery_adapter_dispatch_set`, `external_send_provider_dispatch_succeeded`, `live_send_requires_provider_gate_attempt`, `provider_dispatch_enabled`
+- Views: `v_external_delivery_admin_overview`, `v_external_delivery_gmail_connections`, `v_external_delivery_recent_send_events`
+- Policies: `support_ticket_external_delivery_admin_control_surface_policy_v1`
+- Routes: `/admin/support/tickets/external-delivery/control/adapter/dispatch`, `/admin/support/tickets/external-delivery/control/allowlist/disable`, `/admin/support/tickets/external-delivery/control/allowlist/upsert`, `/admin/support/tickets/external-delivery/control/gmail/revoke`, `/admin/support/tickets/external-delivery/control/overview`
+- OpenAPI route gaps: `/admin/support/tickets/external-delivery/control/adapter/dispatch`, `/admin/support/tickets/external-delivery/control/allowlist/disable`, `/admin/support/tickets/external-delivery/control/allowlist/upsert`, `/admin/support/tickets/external-delivery/control/gmail/revoke`, `/admin/support/tickets/external-delivery/control/overview`
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=yes, no_external_send=yes, no_external_write=no, secrets_included_false=yes
 
 ### `954_sprint68_compact_operational_views_and_github_resource_coverage.sql`
 
@@ -1351,20 +1365,6 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 - Routes: `/admin/support/tickets/auto-resolve/candidates`, `/admin/support/tickets/{ticket_id}/auto-resolve/propose`
 - OpenAPI route gaps: `/admin/support/tickets/auto-resolve/candidates`, `/admin/support/tickets/{ticket_id}/auto-resolve/propose`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
-
-### `253_sprint68_session_insight_candidates_foundation.sql`
-
-- Documentation complete: no
-- Gap severity: low
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Surface count: 1
-- Plugins: none
-- Tools: none
-- Views: `v_session_insight_candidate_issues`
-- Policies: none
-- Routes: none
-- OpenAPI route gaps: none
-- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
 
 ## Automation Contract
