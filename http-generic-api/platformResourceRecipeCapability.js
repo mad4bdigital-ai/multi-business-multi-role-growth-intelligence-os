@@ -2043,6 +2043,15 @@ export async function runGovernedResource(args = {}, deps = {}) {
     ];
   }
 
+  if (graphProjectionDryRunRequested) {
+    result.graph_projection_dry_run = buildArtifactExportGraphProjectionDryRun(result, plan, args);
+    result.recommended_next_operations = [
+      "review_findings",
+      "review_graph_projection_dry_run",
+      "request_capability_envelope_before_future_graph_apply",
+    ];
+  }
+
   if (manifestApplyRequested) {
     const manifestDryRun = buildArtifactExportManifestDryRun(result, plan, args);
     result.manifest_materialization_dry_run = manifestDryRun;
