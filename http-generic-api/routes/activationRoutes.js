@@ -10,6 +10,7 @@ import {
   buildDynamicToolCatalogEvidence,
   buildRepoCanonicalRuntimeEvidence,
 } from "../activationDynamicEvidence.js";
+import { buildActivationDynamicTabsEvidence } from "../activationDynamicTabsEvidence.js";
 import {
   REGISTRY_SPREADSHEET_ID,
   ACTIVITY_SPREADSHEET_ID,
