@@ -50,6 +50,41 @@ function contextJson(context = {}) {
   return safeJson(clean);
 }
 
+const BLOCKED_EVIDENCE_KEY_PATTERN = /(secret|credential_ref|credential|token|password|private_key|cipher|api_key|value_ciphertext|value_sha|config_json|encrypted_credentials|webhook_url|n8n_webhook_url|system_prompt|prompt_template|manifest_json|input_schema_json|output_schema_json)/i;
+
+function stripSensitiveEvidence(value, depth = 0) {
+  if (depth > 6) return null;
+  if (Array.isArray(value)) return value.map((item) => stripSensitiveEvidence(item, depth + 1)).filter((item) => item !== undefined);
+  if (!value || typeof value !== "object") return value;
+  const clean = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (BLOCKED_EVIDENCE_KEY_PATTERN.test(key)) continue;
+    const next = stripSensitiveEvidence(item, depth + 1);
+    if (next !== undefined) clean[key] = next;
+  }
+  return clean;
+}
+
+function evidenceJson(value = {}) {
+  return safeJson({ ...stripSensitiveEvidence(asObject(value)), secrets_included: false });
+}
+
+function pickEvidenceObject(contextObjects = [], explicit, keys = []) {
+  if (explicit && typeof explicit === "object" && !Array.isArray(explicit)) return explicit;
+  for (const source of contextObjects) {
+    for (const key of keys) {
+      const value = source[key];
+      if (value && typeof value === "object" && !Array.isArray(value)) return value;
+    }
+  }
+  return {};
+}
+
+function compactList(value, max = 1000) {
+  if (Array.isArray(value)) return compact(value.filter(Boolean).join(","), max);
+  return value === null || value === undefined ? null : compact(value, max);
+}
+
 async function safeQuery(pool, sql, params = []) {
   try {
     const [rows] = await pool.query(sql, params);
