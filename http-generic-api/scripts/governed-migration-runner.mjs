@@ -15,7 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_DIR = path.resolve(__dirname, "..");
 const MIGRATIONS_DIR = path.join(API_DIR, "migrations");
 
-const ALLOWED_MIGRATIONS = new Set([
+const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "051_sprint48_cloudflare_and_self_repair_tools.sql",
   "052_sprint49_local_connector_install_bundle.sql",
   "054_sprint50_admin_device_seed_and_self_repair_tool.sql",
@@ -168,6 +168,8 @@ const ALLOWED_MIGRATIONS = new Set([
   "274_sprint68_execution_policy_enforcement_closure.sql",
   "274_sprint68_schema_split_importer_v2_reference_preservation.sql",
   "284_sprint68_wordpress_schema_import_completion_registry.sql",
+  "285_sprint68_governed_migration_authorization_registry.sql",
+  "286_sprint68_platform_schema_contract_completion_registry.sql",
   "900_sprint68_governed_repository_intelligence_engine.sql",
   "901_sprint68_resource_manifest_create_gate_authority.sql",
   "902_sprint68_dynamic_capability_apply_authorization_policy.sql",
@@ -299,6 +301,39 @@ async function findLedgerEntry(migration, checksum, mode = "record_only") {
   }
 }
 
+async function getMigrationAuthorization(migration, { mode = "dry_run" } = {}) {
+  try {
+    const [rows] = await getPool().query(
+      `SELECT migration_file, authorization_status, authorization_source, policy_key,
+              risk_tier, requires_preflight, requires_confirmation, allow_record_only, allow_apply
+         FROM governed_migration_authorization_registry
+        WHERE migration_file = ?
+        LIMIT 1`,
+      [migration]
+    );
+    const row = rows?.[0] || null;
+    if (!row) {
+      return { authorized: false, source: "db_registry", reason: "migration_not_authorized_in_db_registry" };
+    }
+    if (row.authorization_status !== "authorized") {
+      return { authorized: false, source: "db_registry", reason: `authorization_status_${row.authorization_status}`, row };
+    }
+    if (mode === "apply" && Number(row.allow_apply) !== 1) {
+      return { authorized: false, source: "db_registry", reason: "apply_not_allowed", row };
+    }
+    return { authorized: true, source: "db_registry", row };
+  } catch (error) {
+    if (!/doesn't exist|ER_NO_SUCH_TABLE/i.test(String(error?.message || ""))) throw error;
+    const legacyAuthorized = LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS.has(migration);
+    return {
+      authorized: legacyAuthorized,
+      source: "legacy_bootstrap_fallback",
+      reason: legacyAuthorized ? "authorization_registry_missing_bootstrap_allowed" : "authorization_registry_missing_and_not_bootstrap_allowed",
+      bootstrap_required: true,
+    };
+  }
+}
+
 async function recordMigrationLedger({
   migration,
   checksum,
@@ -349,8 +384,9 @@ async function main() {
   const args = parseArgs();
   const migration = path.basename(args.migration || "");
   if (!migration) throw new Error("--migration is required.");
-  if (!ALLOWED_MIGRATIONS.has(migration)) {
-    throw new Error(`Migration is not allowlisted for governed runner: ${migration}`);
+  const authorization = await getMigrationAuthorization(migration, { mode: args.mode });
+  if (!authorization.authorized) {
+    throw new Error(`Migration is not authorized for governed runner: ${migration} (${authorization.reason})`);
   }
 
   const migrationPath = path.join(MIGRATIONS_DIR, migration);
@@ -410,6 +446,7 @@ async function main() {
       applies_sql: false,
       records_ledger_only: Boolean(args.recordOnly),
       existing_record_only_ledger: existingRecordOnlyLedger,
+      authorization,
       preflight,
       statement_count: statements.length,
       requirements: artifactNames(requirements),
