@@ -52,9 +52,9 @@ ON DUPLICATE KEY UPDATE
   `requires_dry_run` = VALUES(`requires_dry_run`),
   `requires_audit_evidence` = VALUES(`requires_audit_evidence`),
   `requires_readback` = VALUES(`requires_readback`),
-  `last_evidence_ref` = VALUES(`last_evidence_ref`),
-  `last_certified_at` = VALUES(`last_certified_at`),
-  `notes` = VALUES(`notes`),
+  `last_evidence_ref` = IF(`certification_status` = 'resource_graph_projection_apply_smoke_passed', `last_evidence_ref`, VALUES(`last_evidence_ref`)),
+  `last_certified_at` = IF(`certification_status` = 'resource_graph_projection_apply_smoke_passed', `last_certified_at`, VALUES(`last_certified_at`)),
+  `notes` = IF(`certification_status` = 'resource_graph_projection_apply_smoke_passed', `notes`, VALUES(`notes`)),
   `updated_at` = CURRENT_TIMESTAMP;
 
 INSERT INTO `capability_apply_authorization_policy_registry` (
