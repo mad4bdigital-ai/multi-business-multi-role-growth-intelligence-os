@@ -39,6 +39,7 @@ import {
   createRepositoryAuthorityBinding,
   listRepositoryAuthorityBindings,
   revokeRepositoryAuthorityBinding,
+  tenantRepositoryIntelligenceV2ReadinessSmoke,
   tenantRepositoryPrReconciliationSweep,
 } from "../repositoryTenantIntelligenceV2.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
@@ -1621,6 +1622,8 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       return await revokeRepositoryAuthorityBinding(args, { auth });
     case "tenant_repo_pr_reconciliation_sweep":
       return await tenantRepositoryPrReconciliationSweep(args, { auth, runGovernedResource });
+    case "tenant_repository_intelligence_v2_readiness_smoke":
+      return await tenantRepositoryIntelligenceV2ReadinessSmoke(args, { auth, runGovernedResource });
     case "governed_resource_resolve":
       return await resolveGovernedResource(args);
     case "governed_resource_catalog":
