@@ -319,6 +319,17 @@ export async function writeExecutionEvidence({
     role: stripSensitiveEvidence(pickEvidenceObject(contextObjects, roleEvidence, ["role_evidence", "roleEvidence", "role"])),
     policy: stripSensitiveEvidence(pickEvidenceObject(contextObjects, policyEvidence, ["policy_evidence", "policyEvidence", "policy"])),
     authorization: stripSensitiveEvidence(pickEvidenceObject(contextObjects, authorizationEvidence, ["authorization_evidence", "authorizationEvidence", "authorized_access", "authorizedAccess"])),
+    brand: stripSensitiveEvidence(pickEvidenceObject(contextObjects, brandEvidence, ["brand_evidence", "brandEvidence", "brand"])),
+    business_activity: stripSensitiveEvidence(pickEvidenceObject(contextObjects, businessActivityEvidence, ["business_activity_evidence", "businessActivityEvidence", "business_activity", "businessActivity"])),
+    business_type: stripSensitiveEvidence(pickEvidenceObject(contextObjects, businessTypeEvidence, ["business_type_evidence", "businessTypeEvidence", "business_type", "businessType"])),
+    connected_system: stripSensitiveEvidence(pickEvidenceObject(contextObjects, connectedSystemEvidence, ["connected_system_evidence", "connectedSystemEvidence", "connected_system", "connectedSystem"])),
+    permission: stripSensitiveEvidence(pickEvidenceObject(contextObjects, permissionEvidence, ["permission_evidence", "permissionEvidence", "permission"])),
+    resource_authority: stripSensitiveEvidence(pickEvidenceObject(contextObjects, resourceAuthorityEvidence, ["resource_authority_evidence", "resourceAuthorityEvidence", "resource_authority", "resourceAuthority"])),
+    budget_authority: stripSensitiveEvidence(pickEvidenceObject(contextObjects, budgetAuthorityEvidence, ["budget_authority_evidence", "budgetAuthorityEvidence", "budget_authority", "budgetAuthority"])),
+    engine: stripSensitiveEvidence(pickEvidenceObject(contextObjects, engineEvidence, ["engine_evidence", "engineEvidence", "engine"])),
+    model: stripSensitiveEvidence(pickEvidenceObject(contextObjects, modelEvidence, ["model_evidence", "modelEvidence", "model"])),
+    logic: stripSensitiveEvidence(pickEvidenceObject(contextObjects, logicEvidence, ["logic_evidence", "logicEvidence", "logic"])),
+    knowledge: stripSensitiveEvidence(pickEvidenceObject(contextObjects, knowledgeEvidence, ["knowledge_evidence", "knowledgeEvidence", "knowledge"])),
   };
   const runtimeEvidenceEnvelope = {
     ...pickEvidenceObject(contextObjects, runtimeEvidence, ["runtime_evidence", "runtimeEvidence"]),
