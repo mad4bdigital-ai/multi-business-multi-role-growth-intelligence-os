@@ -1833,6 +1833,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
   const applyRequested = mode === "apply" || args.apply === true;
   const recipe = plan.recipe || {};
   const manifestApplyRequested = applyRequested && recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY;
+  const graphProjectionDryRunRequested = mode === "graph_projection_dry_run" && recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY;
   const blockedReasons = plan.policy_decision?.blocked_reasons || [];
   const authorityBinding = await resolvePlatformResourceAuthorityBinding(plan, args, mode);
   if (mode !== "plan" && authorityBinding.required && !authorityBinding.granted) {
