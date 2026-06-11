@@ -9,7 +9,9 @@ The local connector `/github` endpoint is an admin break-glass surface for runni
 - The local connector does not read platform GitHub credentials from the database.
 - The local connector does not receive or store GitHub App private keys, installation tokens, PATs, or OAuth tokens for repo work.
 - The `/github` endpoint depends on `gh` being installed and authenticated on the device.
-- If local `gh` is not authenticated, the connector classifies the result as `GH_AUTH_REQUIRED` and returns `recommended_route: auth_host_admin_control_github`.
+- Local recovery should check the PATH first and then the standard Windows install path `C:\\Program Files\\GitHub CLI\\gh.exe`; when the binary exists outside PATH, add a no-secret shim such as `C:\\ProgramData\\chocolatey\\bin\\gh.cmd` instead of reinstalling or injecting credentials.
+- If local `gh` is present but not authenticated, the connector classifies the result as `GH_AUTH_REQUIRED` and returns `recommended_route: auth_host_admin_control_github`.
+- Do not inject GitHub App installation tokens, PATs, or OAuth tokens into the local device to satisfy `gh auth status`; use auth-host GitHub App / REST fallback for governed repo work.
 
 ## Governed DB-backed route
 
