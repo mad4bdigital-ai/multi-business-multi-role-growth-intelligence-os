@@ -98,9 +98,9 @@ function makePool() {
           external_write_executed: 0,
           raw_transcript_included: 0,
           target_modified_by_readback: 0,
-          readback_result_json: params[18],
-          safety_contract_json: params[19],
-          created_by: params[20],
+          readback_result_json: params[17],
+          safety_contract_json: params[18],
+          created_by: params[19],
           secrets_included: 0,
         };
         return [{ affectedRows: 1 }];
