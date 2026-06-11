@@ -157,7 +157,7 @@ SELECT
   'dispatch_dry_run_review_event_secret_flagged' AS issue_code,
   'fail' AS severity,
   JSON_OBJECT('review_event_id', e.review_event_id, 'dispatch_dry_run_id', e.dispatch_dry_run_id, 'secrets_included', e.secrets_included) AS evidence_json
-FROM `session_insight_capability_envelope_dispatch_dry_run_review_events` e
+FROM `session_insight_dispatch_dry_run_review_events` e
 WHERE e.secrets_included <> 0
 UNION ALL
 SELECT
