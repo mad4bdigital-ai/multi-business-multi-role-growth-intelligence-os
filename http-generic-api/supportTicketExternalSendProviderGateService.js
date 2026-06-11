@@ -172,10 +172,51 @@ export async function recordSupportTicketExternalSendProviderGateAttempt({ tenan
     const providerPolicyPreflight = await evaluateSupportTicketExternalProviderGatePreflight({ channel: externalChannel, send_mode, provider_adapter: providerAdapter }, { connection });
     assertPreflightAllowed(providerPolicyPreflight);
     const provider_plan = { ...buildProviderPlan({ execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json }), policy_preflight: providerPolicyPreflight };
+    if (runMode === "live_send") {
+      const idempotencyKey = provider_plan.payload_json?.idempotency_key || payload_json?.idempotency_key || null;
+      if (idempotencyKey) {
+        const [existingEvents] = await connection.query(
+          `SELECT event_id, created_at
+             FROM ticket_lifecycle_events
+            WHERE tenant_id = ?
+              AND ticket_id = ?
+              AND event_type = 'external_send_provider_dispatch_succeeded'
+              AND JSON_UNQUOTE(JSON_EXTRACT(payload_json, '$.idempotency_key')) = ?
+            ORDER BY created_at DESC
+            LIMIT 1`,
+          [tenant_id, ticket_id, idempotencyKey]
+        );
+        if (existingEvents[0]) {
+          return { ok: true, mode: "live_send", delivery_status: "idempotent_replay_not_resent", existing_event_id: existingEvents[0].event_id, provider_plan, ticket, external_send_performed: false, secret_value_included: false, secrets_included: false };
+        }
+      }
+      const dispatcher = createSupportTicketExternalProviderDispatcher({ adapter: provider_plan.provider_adapter || {} });
+      const dispatchResult = await dispatcher.send(provider_plan);
+      const eventPayload = {
+        provider_plan: { ...provider_plan, payload_json: { ...(provider_plan.payload_json || {}), body: undefined, body_text: undefined, body_html: undefined } },
+        provider_result: dispatchResult,
+        delivery_status: "provider_dispatch_succeeded",
+        idempotency_key: idempotencyKey,
+        external_send_performed: true,
+        secret_value_included: false,
+        secrets_included: false,
+      };
+      await connection.query(
+        `INSERT INTO ticket_lifecycle_events (event_id, ticket_id, tenant_id, event_type, from_state, to_state, actor_id, actor_type, visibility, summary, payload_json)
+         VALUES (UUID(), ?, ?, 'external_send_provider_dispatch_succeeded', ?, ?, ?, ?, 'internal_support', ?, ?)`,
+        [ticket_id, tenant_id, ticket.lifecycle_state || null, ticket.lifecycle_state || null, actor_id, actor_type, subject || "External provider dispatch succeeded.", JSON.stringify(eventPayload)]
+      );
+      await connection.query(
+        `INSERT INTO audit_log (audit_id, tenant_id, actor_id, actor_type, action, resource_type, resource_id, after_json, service_mode)
+         VALUES (UUID(), ?, ?, ?, 'support_ticket_external_send_provider_dispatch_succeeded', 'ticket', ?, ?, 'managed')`,
+        [tenant_id, actor_id, actor_type, ticket_id, JSON.stringify(eventPayload)]
+      );
+      return { ok: true, mode: "live_send", delivery_status: "provider_dispatch_succeeded", provider_result: dispatchResult, provider_plan, ticket, external_send_performed: true, secret_value_included: false, secrets_included: false };
+    }
     if (provider_plan.ready_for_provider_dispatch) {
-      const err = new Error("Provider dispatch should not be reachable in the provider gate registry resolver slice.");
+      const err = new Error("Provider dispatch is ready but live_send mode was not requested.");
       err.status = 409;
-      err.code = "support_ticket_external_send_provider_dispatch_not_implemented";
+      err.code = "support_ticket_external_send_provider_dispatch_requires_live_send_mode";
       err.provider_plan = provider_plan;
       throw err;
     }
