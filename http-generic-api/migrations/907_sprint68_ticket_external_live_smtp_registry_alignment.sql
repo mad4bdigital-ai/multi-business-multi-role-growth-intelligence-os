@@ -49,7 +49,7 @@ UPDATE `external_delivery_provider_send_mode_policy_registry`
    AND `mode_key` = 'live_send';
 
 INSERT INTO `execution_policies`
-  (`policy_group`, `policy_key`, `policy_value`, `active`, `blocking`, `applies_to`, `created_at`, `updated_at`)
+  (`policy_group`, `policy_key`, `policy_value`, `active`, `execution_scope`, `affects_layer`, `blocking`, `notes`, `created_at`, `updated_at`)
 VALUES
   ('Support Ticket External Delivery Governance',
    'support_ticket_external_delivery_live_smtp_runtime_policy_v1',
@@ -68,10 +68,18 @@ VALUES
      'secret_value_included', false,
      'secrets_included', false
    ),
-   'TRUE', 'TRUE', 'support_ticket_external_delivery_live_smtp_runtime', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+   'TRUE',
+   'support_ticket_external_delivery_live_smtp_runtime',
+   'supportTicketExternalLiveSendService|supportTicketExternalSendProviderGateService',
+   'TRUE',
+   'Live SMTP runtime exists but dispatch remains disabled until explicit adapter flags, approval, credential, idempotency, SMTP_URL, and recipient allowlist gates pass.',
+   CURRENT_TIMESTAMP,
+   CURRENT_TIMESTAMP)
 ON DUPLICATE KEY UPDATE
   `policy_value` = VALUES(`policy_value`),
   `active` = VALUES(`active`),
+  `execution_scope` = VALUES(`execution_scope`),
+  `affects_layer` = VALUES(`affects_layer`),
   `blocking` = VALUES(`blocking`),
-  `applies_to` = VALUES(`applies_to`),
+  `notes` = VALUES(`notes`),
   `updated_at` = CURRENT_TIMESTAMP;
