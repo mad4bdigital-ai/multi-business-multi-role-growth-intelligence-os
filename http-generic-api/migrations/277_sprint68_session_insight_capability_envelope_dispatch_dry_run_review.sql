@@ -12,7 +12,7 @@ ALTER TABLE `session_insight_capability_envelope_dispatch_dry_runs`
   ADD COLUMN IF NOT EXISTS `reviewed_at` TIMESTAMP NULL AFTER `reviewed_by`,
   ADD COLUMN IF NOT EXISTS `review_notes` TEXT NULL AFTER `reviewed_at`;
 
-CREATE TABLE IF NOT EXISTS `session_insight_capability_envelope_dispatch_dry_run_review_events` (
+CREATE TABLE IF NOT EXISTS `session_insight_capability_dispatch_review_events` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `review_event_id` VARCHAR(128) NOT NULL,
   `dispatch_dry_run_id` VARCHAR(128) NOT NULL,
