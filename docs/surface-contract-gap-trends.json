@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "schema_version": "surface-contract-gap-trends-v1",
+  "baseline_item_count": 100,
+  "current_queue_items": 384,
+  "current_triaged_items": 100,
+  "current_gate_candidates": 7,
+  "blocking_new_item_count": 0,
+  "docs_completion_percent": 0.52,
+  "openapi_sql_route_coverage_percent": 61.22,
+  "safety_marker_gap_migrations": 274,
+  "safety": {
+    "executes_provider_calls": false,
+    "reads_credentials": false,
+    "mutates_runtime": false,
+    "writes_database": false,
+    "external_sends": false,
+    "deploys": false,
+    "secrets_included": false
+  }
+}
