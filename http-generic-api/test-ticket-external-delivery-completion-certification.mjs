@@ -8,6 +8,7 @@ const gateService = readFileSync("supportTicketExternalSendProviderGateService.j
 const routes = readFileSync("routes/supportTicketRoutes.js", "utf8");
 const migration = readFileSync("migrations/906_sprint68_ticket_external_delivery_completion_certification.sql", "utf8");
 const dualProviderMigration = readFileSync("migrations/908_sprint68_ticket_external_hostinger_gmail_provider_options.sql", "utf8");
+const dynamicAllowlistMigration = readFileSync("migrations/909_sprint68_ticket_external_dynamic_recipient_allowlist.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 
