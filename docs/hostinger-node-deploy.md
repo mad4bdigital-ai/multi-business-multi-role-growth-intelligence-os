@@ -78,6 +78,10 @@ local-connector/server.mjs
 http-generic-api/routes/connectorAgentRoutes.js
 ```
 
+## Session Insight target write readback deployment note
+
+When deploying migration `285_sprint68_session_insight_target_write_readback.sql`, verify the running Hostinger runtime exposes the new read-only routes `/platform/session-insight-promotions/target-write-readbacks/create` and `/platform/session-insight-promotions/target-write-readbacks/list` before live smoke. The expected evidence is a readback for an already executed internal SQL backlog target write with no target item modification, rollback execution, provider call, credential payload read, external write, raw transcript, or secrets.
+
 ## Verification after auto deploy
 
 After Hostinger completes a dev deployment, verify:
