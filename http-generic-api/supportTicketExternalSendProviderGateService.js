@@ -85,7 +85,7 @@ function providerAdapterFromRegistryResolution(resolution) {
   };
 }
 
-function buildProviderPlan({ execution_plan, provider_adapter, send_mode = "dry_run", payload_json = {} }) {
+function buildProviderPlan({ tenant_id = null, ticket_id = null, execution_plan, provider_adapter, send_mode = "dry_run", payload_json = {} }) {
   assertNoRawSecretPayload(payload_json, "payload_json");
   const normalizedSendMode = String(send_mode || "dry_run").trim().toLowerCase();
   const blockers = [];
