@@ -34,10 +34,16 @@ for (const expected of [
   "external_send_performed: true",
   "secret_value_included: false",
   "smtps://",
+  "HOSTINGER_SMTP_URL",
+  "gmail_user_oauth_adapter",
+  "https://www.googleapis.com/auth/gmail.send",
+  "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+  "gmail_user_oauth_connection_ref_required",
+  "support_ticket_live_gmail_send_failed",
 ]) {
   assert(liveSendService.includes(expected), `live send service must include ${expected}`);
 }
-for (const forbidden of ["nodemailer", "sendMail", "axios", "fetch(", "webhook.send"]) {
+for (const forbidden of ["nodemailer", "sendMail", "axios", "webhook.send"]) {
   assert(!liveSendService.includes(forbidden), `live send service must not include unsupported primitive ${forbidden}`);
 }
 for (const expected of ["certifySupportTicketExternalDeliveryCompletion", "AM-1", "AM-16", "complete_with_gated_live_dispatch", "live_external_send_enabled: false", "external_send_performed: false"]) {
