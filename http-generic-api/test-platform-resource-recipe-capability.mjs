@@ -12,6 +12,7 @@ const migration = readFileSync(migrationPath, "utf8");
 const driveMultipartMigration = readFileSync("migrations/903_sprint68_google_drive_multipart_upload_schema_contract.sql", "utf8");
 const manifestCertificationMigration = readFileSync("migrations/904_sprint68_resource_manifest_positive_smoke_certification.sql", "utf8");
 const graphProjectionApplyMigration = readFileSync("migrations/952_sprint68_resource_graph_projection_apply_gate.sql", "utf8");
+const graphProjectionPositiveCertificationMigration = readFileSync("migrations/953_sprint68_resource_graph_projection_positive_smoke_certification.sql", "utf8");
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
 const runtimeModule = readFileSync("platformResourceRecipeCapability.js", "utf8");
@@ -111,6 +112,7 @@ includesAll(graphProjectionApplyMigration, [
   "resource_graph_projection.apply_after_review",
   "governed_resource_run",
   "capability_apply_authorization_policy_registry",
+  "IF(`certification_status` = 'resource_graph_projection_apply_smoke_passed'",
   "runtime_dispatch_certification_registry",
   "platform_graph_nodes",
   "platform_graph_edges",
@@ -123,6 +125,17 @@ includesAll(graphProjectionApplyMigration, [
   "file_content_read_allowed', false",
   "secrets_included', false",
 ], "resource graph projection apply gate migration");
+
+includesAll(graphProjectionPositiveCertificationMigration, [
+  "953_sprint68_resource_graph_projection_positive_smoke_certification.sql",
+  "resource_graph_projection_apply_smoke_passed",
+  "apply_allowed = 1",
+  "resource_graph_projection_apply:0188f06bcc39da3108b694e87fa1482f9e28c361168b85744bec987b901f9865:nodes=10:edges=10:evidence=10",
+  "runtime_enforced=0",
+  "provider_calls_made=0",
+  "file_content_returned=false",
+  "secrets_included=false",
+], "resource graph projection positive smoke certification migration");
 
 assert(
   manifest.includes("node test-platform-resource-recipe-capability.mjs"),
