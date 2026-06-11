@@ -2340,6 +2340,52 @@ export async function runGovernedResource(args = {}, deps = {}) {
     ];
   }
 
+  if (graphProjectionApplyRequested) {
+    const graphProjectionDryRun = buildArtifactExportGraphProjectionDryRun(result, plan, args);
+    result.graph_projection_dry_run = graphProjectionDryRun;
+    const gate = await validateGraphProjectionApplyGate(graphProjectionDryRun, plan, args);
+    if (!gate.ok) {
+      return buildGraphProjectionApplyBlockedResult({
+        reasonCode: gate.status || gate.reason_code || "graph_projection_apply_gate_blocked",
+        message: gate.message || "Graph projection apply gate blocked execution.",
+        plan,
+        graphProjectionDryRun,
+        envelope: gate,
+      });
+    }
+
+    const graphWrite = await writeGraphProjectionCandidate(graphProjectionDryRun, plan, args);
+    await markCapabilityEnvelopeReferenced({
+      envelopeId: gate.envelope.envelope_id,
+      executionRef: `resource_graph_projection_apply:${graphProjectionDryRun.projection_sha256}`,
+    });
+
+    return {
+      ok: graphWrite.readback?.ok === true,
+      tool: "governed_resource_run",
+      classification: graphWrite.readback?.ok === true ? "resource_graph_projection_applied_with_readback" : "resource_graph_projection_apply_readback_degraded",
+      mode,
+      operation_intent: operationIntent,
+      recipe_key: recipe.recipe_key,
+      resource_type: recipe.resource_type,
+      resource_uri: plan.resolved_resource?.resource_uri || null,
+      graph_projection_dry_run: graphProjectionDryRun,
+      capability_envelope: gate.envelope,
+      graph_write: graphWrite,
+      readback: graphWrite.readback,
+      result,
+      plan,
+      apply_requested: true,
+      apply_allowed: true,
+      dispatch_allowed: true,
+      provider_calls_made: 0,
+      execution_allowed: true,
+      graph_write_made: true,
+      file_content_returned: false,
+      secrets_included: false,
+    };
+  }
+
   if (manifestApplyRequested) {
     const manifestDryRun = buildArtifactExportManifestDryRun(result, plan, args);
     result.manifest_materialization_dry_run = manifestDryRun;
