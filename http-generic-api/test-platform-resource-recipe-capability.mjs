@@ -14,6 +14,7 @@ const manifestCertificationMigration = readFileSync("migrations/904_sprint68_res
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
 const runtimeModule = readFileSync("platformResourceRecipeCapability.js", "utf8");
+const providerTransportEncoderRegistry = readFileSync("providerTransportEncoderRegistry.js", "utf8");
 const executionDispatch = readFileSync("executionDispatch.js", "utf8");
 
 function includesAll(source, values, label) {
