@@ -53,10 +53,10 @@ SELECT
   rt.status AS resource_status,
   rt.supports_mutation,
   COUNT(DISTINCT pr.recipe_key) AS recipe_count,
-  SUM(CASE WHEN pr.status = 'active' THEN 1 ELSE 0 END) AS active_recipe_count,
-  SUM(CASE WHEN pr.read_only = 0 THEN 1 ELSE 0 END) AS write_recipe_count,
+  COUNT(DISTINCT CASE WHEN pr.status = 'active' THEN pr.recipe_key ELSE NULL END) AS active_recipe_count,
+  COUNT(DISTINCT CASE WHEN pr.read_only = 0 THEN pr.recipe_key ELSE NULL END) AS write_recipe_count,
   COUNT(DISTINCT pa.adapter_key) AS adapter_count,
-  SUM(CASE WHEN pa.status = 'active' THEN 1 ELSE 0 END) AS active_adapter_count
+  COUNT(DISTINCT CASE WHEN pa.status = 'active' THEN pa.adapter_key ELSE NULL END) AS active_adapter_count
 FROM platform_resource_types rt
 LEFT JOIN platform_resource_recipes pr ON pr.resource_type = rt.resource_type
 LEFT JOIN platform_resource_adapters pa ON pa.resource_type = rt.resource_type
