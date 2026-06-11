@@ -1858,6 +1858,7 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
     commit_url: commitUrl,
     previous_sha: currentSha || null,
     new_size_bytes: newBytes,
+    transform_summary: transformSummary || undefined,
   };
 }
 
