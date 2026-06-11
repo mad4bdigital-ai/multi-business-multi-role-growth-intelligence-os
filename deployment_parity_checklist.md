@@ -176,3 +176,14 @@ Layer 2 (registry): PASS / FAIL / SKIP
 Layer 3 (runtime):  PASS / FAIL
 Layer 4 (live):     PASS / FAIL / SKIP
 ```
+
+## Support Ticket External Delivery Completion Certification Parity
+
+Use this checklist for PR #1270 and migration `906_sprint68_ticket_external_delivery_completion_certification.sql`.
+
+- File merged: `supportTicketExternalProviderDispatchService.js`, `supportTicketExternalDeliveryCompletionService.js`, route wiring, test manifest, and OpenAPI entry are present on `main`.
+- Registry aligned: `support_ticket_external_delivery_completion_certify` exists in `admin_platform_endpoint_tools` and is enabled.
+- Policies aligned: completion certification execution policy and target rule are active/blocking.
+- Runtime deployed: `POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification` is documented and routes through admin guards.
+- Live behavior confirmed: certification responses remain no-send/no-secret; adapters keep dispatch disabled; sandbox is no-network; live_send remains blocked by policy.
+- Drift detection: if route exists without OpenAPI or tool registry entry, treat release as documentation/contract drift and block promotion until aligned.
