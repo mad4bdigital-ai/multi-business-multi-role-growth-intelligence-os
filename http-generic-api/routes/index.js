@@ -227,7 +227,6 @@ export function registerRoutes(app, deps) {
   app.use(buildTenantCommercialRoutes(deps));
   app.use(buildDispatchRoutes(deps));
   app.use(buildLocalConnectorRoutes(deps));
-  app.use(buildMemberGoogleOAuthRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildConnectorProxyRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAdminScopeGrantsRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildDeviceToolsRoutes(deps));
