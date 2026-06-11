@@ -6,6 +6,13 @@ import { loadSessionSummaryGraphMemory } from "../sessionSummaryService.js";
 import { resolvePlatformGraphMemory } from "../services/platformGraphMemoryResolver.js";
 import { buildHardActivationEvidenceMatrix } from "../activationHardEvidence.js";
 import {
+  buildActivationOperationalDashboardEvidence,
+  buildDynamicToolCatalogEvidence,
+  buildRepoCanonicalRuntimeEvidence,
+} from "../activationDynamicEvidence.js";
+import { buildActivationDynamicTabsEvidence } from "../activationDynamicTabsEvidence.js";
+import { buildActivationOperationalIntelligenceEvidence } from "../activationOperationalIntelligenceEvidence.js";
+import {
   REGISTRY_SPREADSHEET_ID,
   ACTIVITY_SPREADSHEET_ID,
   ACTIVATION_GOOGLE_WORKSPACE_PROBE_SPREADSHEET_ID,
@@ -1770,8 +1777,8 @@ export function buildActivationRoutes(deps) {
     const hard = buildHardActivationEvidenceMatrix({
       sessionContext,
       providerBootstrap,
-      repoCanonicals: { attempted: false, ok: null, optional: true, evidence_source: "caller_must_read_repo_canonicals" },
-      toolCatalog: { attempted: false, ok: null, optional: true, evidence_source: "not_required_for_hard_activation" },
+      repoCanonicals: await buildRepoCanonicalRuntimeEvidence(),
+      toolCatalog: buildDynamicToolCatalogEvidence({ platformAccess: sessionContext?.platform_access || null, authorizedAccess: sessionContext?.authorized_access || null }),
     });
 
     return res.status(hard.activation_complete ? 200 : 424).json({
@@ -1784,7 +1791,7 @@ export function buildActivationRoutes(deps) {
         reason_code: hard.reason_code,
       },
       evidence_matrix: hard.evidence_matrix,
-      session_context_evidence: hard.evidence_matrix.session_context,
+      dynamic_tabs: await buildActivationDynamicTabsEvidence({ sessionContext }), operational_intelligence: await buildActivationOperationalIntelligenceEvidence({ sessionContext }), operational_dashboard: await buildActivationOperationalDashboardEvidence({ sessionContext }), session_context_evidence: hard.evidence_matrix.session_context,
       provider_bootstrap_evidence: hard.evidence_matrix.provider_bootstrap,
       provider_bootstrap: providerBootstrap,
       degraded_surfaces: hard.degraded_surfaces,
