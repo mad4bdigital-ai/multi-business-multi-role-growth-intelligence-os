@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 381
+- Migrations with detected surfaces: 384
 - Migrations reported here: 80
 - OpenAPI operations detected: 416
 - OpenAPI paths detected: 363
@@ -32,20 +32,20 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 2/381 (0.52%)
-- Documentation gap migrations: 379
-- Gap severity: high=222, medium=133, low=24
+- Documentation complete migrations: 2/384 (0.52%)
+- Documentation gap migrations: 382
+- Gap severity: high=222, medium=136, low=24
 - SQL route coverage in OpenAPI: 311/508 (61.22%)
 - SQL routes missing OpenAPI path coverage: 197
-- Migrations without explicit `secrets_included=false` marker: 270
+- Migrations without explicit `secrets_included=false` marker: 273
 
 ### Surface Totals
 
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 11 | 8 |
-| tools | 1761 | 327 |
-| views | 318 | 127 |
+| tools | 1768 | 330 |
+| views | 322 | 128 |
 | policies | 139 | 87 |
 | routes | 508 | 217 |
 
@@ -53,11 +53,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 348 |
-| `deployment_parity_checklist.md` | 357 |
-| `docs/ai-docs-agent-governance.md` | 379 |
-| `docs/auto-docs-agent/README.md` | 379 |
-| `docs/change-documentation-governance.md` | 379 |
+| `Updating Registry Patch Index.md` | 351 |
+| `deployment_parity_checklist.md` | 360 |
+| `docs/ai-docs-agent-governance.md` | 382 |
+| `docs/auto-docs-agent/README.md` | 382 |
+| `docs/change-documentation-governance.md` | 382 |
 
 ### Safety Marker Coverage
 
