@@ -60,7 +60,11 @@ assert(routes.includes("/external-delivery/completion-certification"), "support 
 for (const expected of ["support_ticket_external_delivery_completion_certification_policy_v1", "support_ticket_external_delivery_completion_certification_target_rule_v1", "support_ticket_external_delivery_completion_certify", "sandbox", "live_send", "no_external_send"]) {
   assert(migration.includes(expected), `migration 906 must include ${expected}`);
 }
+for (const expected of ["hostinger_smtp_adapter", "gmail_user_oauth_adapter", "google_user_oauth_connection", "https://www.googleapis.com/auth/gmail.send", "support_ticket_external_delivery_dual_provider_policy_v1"]) {
+  assert(dualProviderMigration.includes(expected), `migration 908 must include ${expected}`);
+}
 assert(runner.includes("906_sprint68_ticket_external_delivery_completion_certification.sql"), "governed migration runner must allowlist migration 906");
+assert(runner.includes("908_sprint68_ticket_external_hostinger_gmail_provider_options.sql"), "governed migration runner must allowlist migration 908");
 assert(manifest.includes("node test-ticket-external-delivery-completion-certification.mjs"), "test manifest must include completion certification test");
 assert(!/DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i.test(migration), "migration 906 must be additive/non-destructive");
 assert(!migration.toLowerCase().includes("secret_value"), "migration 906 must not include raw secret-value fields");
