@@ -112,6 +112,7 @@ includesAll(graphProjectionApplyMigration, [
   "resource_graph_projection.apply_after_review",
   "governed_resource_run",
   "capability_apply_authorization_policy_registry",
+  "IF(`certification_status` = 'resource_graph_projection_apply_smoke_passed'",
   "runtime_dispatch_certification_registry",
   "platform_graph_nodes",
   "platform_graph_edges",
