@@ -469,6 +469,7 @@ export async function buildActivationDynamicTabsEvidence({ sessionContext = null
         visibility: tab.default_visibility,
         status: tabStatus(renderedSections),
         section_count: renderedSections.length,
+        auto_discovered_section_count: renderedSections.filter((section) => section.auto_discovered === true).length,
         row_count: renderedSections.reduce((sum, section) => sum + safeNumber(section.row_count), 0),
         sections: renderedSections,
       });
