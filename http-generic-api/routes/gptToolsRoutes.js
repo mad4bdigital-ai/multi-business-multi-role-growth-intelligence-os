@@ -530,7 +530,7 @@ export function dedupeOpenApiPathsText(content = "") {
     }
   }
 
-  const lines = text.split(/(?<=\n)/);
+  const lines = text.split("\n").map((line, index, array) => index < array.length - 1 ? `${line}\n` : line);
   const pathsIndex = lines.findIndex((line) => line.trim() === "paths:" && !line.startsWith(" "));
   if (pathsIndex < 0) {
     const err = new Error("OpenAPI paths root was not found.");
