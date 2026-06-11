@@ -94,15 +94,20 @@ export function createSupportTicketExternalProviderDispatcher({ adapter = {} } =
     },
     dryRun(providerPlan = {}) { return this.plan(providerPlan, { mode: "dry_run" }); },
     sandbox(providerPlan = {}) { return this.plan(providerPlan, { mode: "sandbox" }); },
-    send(providerPlan = {}) {
+    async send(providerPlan = {}) {
       const validation = this.validate(providerPlan, { mode: "live_send" });
-      const err = new Error("Live external provider dispatch is not enabled by this safe completion layer.");
-      err.status = 409;
-      err.code = "support_ticket_external_provider_live_dispatch_not_enabled";
-      err.validation = validation;
-      err.external_send_performed = false;
-      err.secrets_included = false;
-      throw err;
+      const readiness = checkSupportTicketLiveSendReadiness(providerPlan);
+      if (!validation.ok || !readiness.ok) {
+        const err = new Error("Live external provider dispatch is blocked by validation or readiness gates.");
+        err.status = 409;
+        err.code = "support_ticket_external_provider_live_dispatch_blocked";
+        err.validation = validation;
+        err.readiness = readiness;
+        err.external_send_performed = false;
+        err.secrets_included = false;
+        throw err;
+      }
+      return executeSupportTicketLiveSend(providerPlan);
     },
   };
 }
