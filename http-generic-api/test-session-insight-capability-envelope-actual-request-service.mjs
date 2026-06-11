@@ -187,6 +187,7 @@ const mockEnvelopeCreator = async ({ requestedBy, ttlMinutes, passthrough }) => 
   assert.equal(ttlMinutes, 60);
   assert(passthrough.includes("--tenant-id"));
   assert(passthrough.includes("tenant-1"));
+  assert.equal(passthrough.includes("--explain"), false, "actual request passthrough must not include explain policy payloads");
   return {
     ok: true,
     envelope_id: "actual_envelope_1",
