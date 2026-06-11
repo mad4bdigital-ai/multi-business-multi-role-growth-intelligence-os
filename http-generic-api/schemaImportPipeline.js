@@ -387,7 +387,10 @@ export async function runActionReferenceImport({ actionKey, importedBy = null, p
   const resolved = await resolveActionParentSchema(actionKey);
   return runImport({
     raw: resolved.raw,
-    sourceType: "action_ref",
+    // schema_import_jobs.source_type is a legacy enum. Keep the DB enum stable
+    // and record the more specific action-ref provenance in parent_schema_ref
+    // plus metadata_json.source_type_detail instead of widening the enum.
+    sourceType: "upload",
     sourceUrl: resolved.sourceUrl || null,
     sourceRef: resolved.parentSchemaRef,
     sourceFilename: resolved.sourceFilename || resolved.action?.openai_schema_file_name || null,
