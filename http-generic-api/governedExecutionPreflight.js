@@ -182,7 +182,26 @@ async function loadSupportTicketExternalProviderGatePolicies(context = {}, deps 
   }, deps);
 }
 
-export async function evaluateSupportTicketExternalProviderGatePreflight({ channel = "email", send_mode = "dry_run", provider_adapter = {}, external_send_performed = false, secrets_included = false } = {}, deps = {}) {
+function providerGateLiveSendEvidenceComplete({ send_mode = "", provider_adapter = {}, external_send_performed = false, evidence = {} } = {}) {
+  const normalizedMode = String(send_mode || "").trim().toLowerCase();
+  if (normalizedMode !== "live_send") return false;
+  if (external_send_performed) return false;
+  if (evidence.secrets_included) return false;
+  return Boolean(
+    provider_adapter.source === "external_delivery_provider_adapter_contract_registry"
+    && provider_adapter.send_mode_allowed
+    && provider_adapter.dispatch_enabled
+    && provider_adapter.provider_dispatch_enabled
+    && provider_adapter.provider_adapter_implemented
+    && provider_adapter.external_send_supported
+    && evidence.approval_hold_id
+    && evidence.credential_ref
+    && evidence.idempotency_key
+    && evidence.recipient_allowlist_allowed
+  );
+}
+
+export async function evaluateSupportTicketExternalProviderGatePreflight({ channel = "email", send_mode = "dry_run", provider_adapter = {}, external_send_performed = false, secrets_included = false, approval_hold_id = null, credential_ref = null, idempotency_key = null, recipient_allowlist_allowed = false } = {}, deps = {}) {
   const { runtimePolicyResolution, policies } = await loadSupportTicketExternalProviderGatePolicies({ channel, send_mode }, deps);
   if (!policies.length) return makePreflightResult({ evidence: { operation: "support_ticket_external_provider_gate", reason: "provider_gate_policy_not_configured", channel, send_mode }, runtimePolicyResolution });
   const blockingPolicies = [];
@@ -200,6 +219,10 @@ export async function evaluateSupportTicketExternalProviderGatePreflight({ chann
     send_mode_allowed: Boolean(provider_adapter.send_mode_allowed),
     external_send_performed: Boolean(external_send_performed || provider_adapter.external_send_performed),
     secrets_included: Boolean(secrets_included || provider_adapter.secrets_included || provider_adapter.secret_value_included),
+    approval_hold_id: approval_hold_id || null,
+    credential_ref: credential_ref || null,
+    idempotency_key: idempotency_key || null,
+    recipient_allowlist_allowed: Boolean(recipient_allowlist_allowed),
   };
   for (const policy of policies) {
     if (!policyAllowsBlocking(policy)) continue;
@@ -208,8 +231,9 @@ export async function evaluateSupportTicketExternalProviderGatePreflight({ chann
     if (provider_adapter.source !== "external_delivery_provider_adapter_contract_registry") { errors.push("provider_gate_adapter_contract_registry_required"); blockingPolicies.push(policy); continue; }
     if (allowedModes.length && !allowedModes.includes(String(send_mode || "").toLowerCase())) { errors.push("provider_gate_send_mode_not_allowed_by_policy"); blockingPolicies.push(policy); continue; }
     if (!provider_adapter.send_mode_allowed) { errors.push("provider_gate_send_mode_policy_not_active"); blockingPolicies.push(policy); continue; }
-    if (cfg.no_external_send !== false && (evidence.external_send_supported || evidence.external_send_performed)) { errors.push("provider_gate_external_send_blocked_by_policy"); blockingPolicies.push(policy); continue; }
-    if (cfg.provider_dispatch_enabled === false && evidence.provider_dispatch_enabled) { errors.push("provider_gate_provider_dispatch_blocked_by_policy"); blockingPolicies.push(policy); continue; }
+    const completeLiveSendEvidence = providerGateLiveSendEvidenceComplete({ send_mode, provider_adapter, external_send_performed, evidence });
+    if (cfg.no_external_send !== false && (evidence.external_send_supported || evidence.external_send_performed) && !completeLiveSendEvidence) { errors.push("provider_gate_external_send_blocked_by_policy"); blockingPolicies.push(policy); continue; }
+    if (cfg.provider_dispatch_enabled === false && evidence.provider_dispatch_enabled && !completeLiveSendEvidence) { errors.push("provider_gate_provider_dispatch_blocked_by_policy"); blockingPolicies.push(policy); continue; }
     if (evidence.secrets_included) { errors.push("provider_gate_secrets_blocked_by_policy"); blockingPolicies.push(policy); continue; }
   }
   if (blockingPolicies.length) return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
