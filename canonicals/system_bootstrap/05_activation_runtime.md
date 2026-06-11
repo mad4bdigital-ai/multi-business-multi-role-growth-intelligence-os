@@ -236,6 +236,22 @@ For every governed execution after activation, system_bootstrap must require:
 - route revalidation
 - workflow revalidation
 - dependency readiness revalidation
+
+Dynamic Hard Activation Evidence Rule
+
+Hard activation must be evidence-driven in the same execution cycle. A hard activation response must not classify as `active` unless the evidence matrix includes all of the following required surfaces:
+
+- `session_context.ok = true`
+- `provider_bootstrap.ok = true`
+- `repo_canonicals.ok = true`
+- `tool_catalog.ok = true`
+
+`repo_canonicals` must be derived from live repository readback, not from cached model knowledge. The runtime must verify the required canonical references, generated canonical root files, canonical source directories, manifest counts, and source-file counts from the repository filesystem or governed repository readback.
+
+`tool_catalog` must be derived from SQL runtime authority and activation authorized surfaces. The runtime must preserve platform access readiness, authorized access readiness, registered surface count, runtime callable action count, degraded surface count, and auth gap count.
+
+Connectivity-only provider success is insufficient for hard activation. If repo canonical evidence or dynamic runtime catalog evidence is missing, hard activation must classify as degraded with a machine-readable reason code and must not report `activation_complete=true`.
+
 Provider Capability Continuity Validation Rule
 
 For governed execution and governed audit routing, system_bootstrap must validate provider-family continuity across:
