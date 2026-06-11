@@ -2158,7 +2158,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
     };
   }
 
-  if (applyRequested && !manifestApplyRequested) {
+  if (applyRequested && !manifestApplyRequested && !graphProjectionApplyRequested) {
     return {
       ok: false,
       tool: "governed_resource_run",
@@ -2168,7 +2168,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
       apply_allowed: false,
       dispatch_allowed: false,
       reason_code: "resource_recipe_apply_blocked_v1",
-      message: "Resource recipe V1 only supports guarded manifest create for the artifact/export reconciliation recipe; all other writes, deletes, moves, content reads, and graph mutations remain blocked.",
+      message: "Resource recipe V1 only supports explicit guarded manifest create or graph projection apply for the artifact/export reconciliation recipe; all other writes, deletes, moves, content reads, and graph mutations remain blocked.",
       plan,
       provider_calls_made: 0,
       execution_allowed: false,
