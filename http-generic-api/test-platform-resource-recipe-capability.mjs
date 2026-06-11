@@ -138,6 +138,23 @@ includesAll(graphProjectionPositiveCertificationMigration, [
   "secrets_included=false",
 ], "resource graph projection positive smoke certification migration");
 
+includesAll(compactViewsGithubCoverageMigration, [
+  "954_sprint68_compact_operational_views_and_github_resource_coverage.sql",
+  "CREATE OR REPLACE VIEW v_release_readiness_compact",
+  "CREATE OR REPLACE VIEW v_migration_status_compact",
+  "CREATE OR REPLACE VIEW v_resource_recipe_certification_compact",
+  "CREATE OR REPLACE VIEW v_resource_recipe_registry_compact",
+  "compact_operational_readiness_v1",
+  "github.repo.inspect_summary",
+  "github.branch.inspect_summary",
+  "github.repo.inspect.adapter",
+  "github.branch.inspect.adapter",
+  "provider_call_allowed',false",
+  "credential_payload_read_allowed',false",
+  "file_content_read_allowed',false",
+  "secrets_included',false",
+], "compact operational views and GitHub resource coverage migration");
+
 assert(
   manifest.includes("node test-platform-resource-recipe-capability.mjs"),
   "test manifest must include platform resource recipe capability test"
