@@ -99,7 +99,7 @@ const failedRepoCanonicals = buildHardActivationEvidenceMatrix({
   toolCatalog: activeToolCatalog,
 });
 assert.equal(failedRepoCanonicals.activation_complete, false);
-assert.equal(failedRepoCanonicals.reason_code, 'degraded_repo_canonical_evidence_failed');
+assert.equal(failedRepoCanonicals.reason_code, 'repo_canonical_evidence_stale_or_missing');
 
 const missingToolCatalog = buildHardActivationEvidenceMatrix({
   sessionContext: validSessionContext,
