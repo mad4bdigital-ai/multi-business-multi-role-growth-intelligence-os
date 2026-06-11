@@ -168,6 +168,8 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "274_sprint68_execution_policy_enforcement_closure.sql",
   "274_sprint68_schema_split_importer_v2_reference_preservation.sql",
   "284_sprint68_wordpress_schema_import_completion_registry.sql",
+  "285_sprint68_governed_migration_authorization_registry.sql",
+  "286_sprint68_platform_schema_contract_completion_registry.sql",
   "900_sprint68_governed_repository_intelligence_engine.sql",
   "901_sprint68_resource_manifest_create_gate_authority.sql",
   "902_sprint68_dynamic_capability_apply_authorization_policy.sql",
