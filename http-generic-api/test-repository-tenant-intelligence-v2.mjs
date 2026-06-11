@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   classifyRepositoryPullRequestV2,
   normalizeGithubRepoRef,
+  smokeSafeTenantId,
 } from "./repositoryTenantIntelligenceV2.js";
 
 const repoRef = normalizeGithubRepoRef({ resource_uri: "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os" });
