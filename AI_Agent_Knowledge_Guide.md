@@ -911,3 +911,13 @@ If you are an AI agent working in this repo:
 ---
 
 **Documentation Integrity:** This Knowledge Guide must remain aligned with the [Canonical Sources](canonicals/) and the [Architectural Maps](runtime_boundary_map.md). Any structural changes must be propagated across all three layers as defined in the [README Documentation Architecture](README.md#documentation-integrity-architecture).
+
+### Support Ticket External Delivery completion certification
+
+- Runtime surface: `POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification`.
+- Registry/tool key: `support_ticket_external_delivery_completion_certify`.
+- Migration evidence: `906_sprint68_ticket_external_delivery_completion_certification.sql`, ledgered with guarded apply and zero destructive/preflight risk.
+- Scope: certifies AM-1 through AM-16 for Support Ticket external delivery without live dispatch.
+- Safety contract: no SMTP, no nodemailer, no webhook/fetch/axios network call, no external send, no raw credential values, and no secrets in responses.
+- `sandbox` is a no-network/mock-provider-response mode. `live_send` is present only as a gated mode and remains disabled until future tenant enablement, approval hold, credential readiness, idempotency, and release readiness checks pass.
+- Required readbacks before claiming completion: OpenAPI route exists, admin tool exists, execution policy is active/blocking, adapter contracts remain `skeleton_dispatch_interface_no_network`, send-mode policies keep `external_send_performed_default = 0`, and CI/release readiness pass.
