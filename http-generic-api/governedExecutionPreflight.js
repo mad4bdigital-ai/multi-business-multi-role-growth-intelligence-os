@@ -182,7 +182,26 @@ async function loadSupportTicketExternalProviderGatePolicies(context = {}, deps 
   }, deps);
 }
 
-export async function evaluateSupportTicketExternalProviderGatePreflight({ channel = "email", send_mode = "dry_run", provider_adapter = {}, external_send_performed = false, secrets_included = false } = {}, deps = {}) {
+function providerGateLiveSendEvidenceComplete({ send_mode = "", provider_adapter = {}, external_send_performed = false, evidence = {} } = {}) {
+  const normalizedMode = String(send_mode || "").trim().toLowerCase();
+  if (normalizedMode !== "live_send") return false;
+  if (external_send_performed) return false;
+  if (evidence.secrets_included) return false;
+  return Boolean(
+    provider_adapter.source === "external_delivery_provider_adapter_contract_registry"
+    && provider_adapter.send_mode_allowed
+    && provider_adapter.dispatch_enabled
+    && provider_adapter.provider_dispatch_enabled
+    && provider_adapter.provider_adapter_implemented
+    && provider_adapter.external_send_supported
+    && evidence.approval_hold_id
+    && evidence.credential_ref
+    && evidence.idempotency_key
+    && evidence.recipient_allowlist_allowed
+  );
+}
+
+export async function evaluateSupportTicketExternalProviderGatePreflight({ channel = "email", send_mode = "dry_run", provider_adapter = {}, external_send_performed = false, secrets_included = false, approval_hold_id = null, credential_ref = null, idempotency_key = null, recipient_allowlist_allowed = false } = {}, deps = {}) {
   const { runtimePolicyResolution, policies } = await loadSupportTicketExternalProviderGatePolicies({ channel, send_mode }, deps);
   if (!policies.length) return makePreflightResult({ evidence: { operation: "support_ticket_external_provider_gate", reason: "provider_gate_policy_not_configured", channel, send_mode }, runtimePolicyResolution });
   const blockingPolicies = [];
