@@ -1,7 +1,7 @@
 {
   "ok": true,
   "schema_version": "surface-contract-discovery-v2",
-  "migration_surface_count": 381,
+  "migration_surface_count": 384,
   "reported_count": 80,
   "openapi_operation_count": 416,
   "openapi_path_count": 363,
@@ -431,34 +431,34 @@
     "docs/change-documentation-governance.md"
   ],
   "coverage_summary": {
-    "migrations_with_surfaces": 381,
+    "migrations_with_surfaces": 384,
     "docs_complete_count": 2,
-    "docs_gap_count": 379,
+    "docs_gap_count": 382,
     "docs_completion_percent": 0.52,
     "surface_totals": {
       "plugins": 11,
-      "tools": 1761,
-      "views": 318,
+      "tools": 1768,
+      "views": 322,
       "policies": 139,
       "routes": 508
     },
     "migrations_by_surface_type": {
       "plugins": 8,
-      "tools": 327,
-      "views": 127,
+      "tools": 330,
+      "views": 128,
       "policies": 87,
       "routes": 217
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 348,
-      "deployment_parity_checklist.md": 357,
-      "docs/ai-docs-agent-governance.md": 379,
-      "docs/auto-docs-agent/README.md": 379,
-      "docs/change-documentation-governance.md": 379
+      "Updating Registry Patch Index.md": 351,
+      "deployment_parity_checklist.md": 360,
+      "docs/ai-docs-agent-governance.md": 382,
+      "docs/auto-docs-agent/README.md": 382,
+      "docs/change-documentation-governance.md": 382
     },
     "gap_severity_counts": {
       "high": 222,
-      "medium": 133,
+      "medium": 136,
       "low": 24,
       "none": 2
     },
@@ -764,6 +764,9 @@
       "196_sprint67_safe_additive_repair_policy.sql",
       "199_sprint67_skillpack_draft_catalog_and_advisory_routes.sql",
       "200_sprint67_runtime_policy_target_rule_backfill.sql",
+      "20260611_activation_dynamic_tabs.sql",
+      "20260611_activation_dynamic_tabs_autodiscovery.sql",
+      "20260611_activation_operational_dashboard.sql",
       "203_sprint66_tenant_ssh_execute_runtime_config.sql",
       "204_sprint67_core_runtime_context_dimensions.sql",
       "207_sprint67_platform_relationship_integrity_views.sql",
@@ -829,7 +832,7 @@
       "no_external_write": 21,
       "secrets_included_false": 111
     },
-    "safety_marker_gap_migrations": 270,
+    "safety_marker_gap_migrations": 273,
     "route_coverage": {
       "sql_route_count": 508,
       "openapi_documented_sql_route_count": 311,
@@ -18365,6 +18368,159 @@
           ]
         },
         "surface_count": 4,
+        "safety_marker_count": 0
+      }
+    },
+    {
+      "migration_file": "20260611_activation_dynamic_tabs.sql",
+      "surfaces": {
+        "routes": [],
+        "views": [
+          "v_activation_agent_catalog",
+          "v_activation_agent_skill_catalog",
+          "v_activation_agent_skill_grants",
+          "v_activation_pending_tasks"
+        ],
+        "policies": [],
+        "plugins": [],
+        "tools": [
+          "control_state_last_validated_at",
+          "governance_readiness_status"
+        ],
+        "safety": {
+          "no_provider_call": false,
+          "no_credential_payload_read": false,
+          "no_raw_secrets": false,
+          "no_external_send": false,
+          "no_external_write": false,
+          "secrets_included_false": false
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": false,
+        "deployment_parity_checklist.md": false,
+        "docs/ai-docs-agent-governance.md": false,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "medium",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 0,
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": []
+        },
+        "surface_count": 6,
+        "safety_marker_count": 0
+      }
+    },
+    {
+      "migration_file": "20260611_activation_dynamic_tabs_autodiscovery.sql",
+      "surfaces": {
+        "routes": [],
+        "views": [],
+        "policies": [],
+        "plugins": [],
+        "tools": [
+          "container_readiness_quality",
+          "discover_readiness_by_source"
+        ],
+        "safety": {
+          "no_provider_call": false,
+          "no_credential_payload_read": false,
+          "no_raw_secrets": false,
+          "no_external_send": false,
+          "no_external_write": false,
+          "secrets_included_false": false
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": false,
+        "deployment_parity_checklist.md": false,
+        "docs/ai-docs-agent-governance.md": false,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "medium",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 0,
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": []
+        },
+        "surface_count": 2,
+        "safety_marker_count": 0
+      }
+    },
+    {
+      "migration_file": "20260611_activation_operational_dashboard.sql",
+      "surfaces": {
+        "routes": [],
+        "views": [],
+        "policies": [],
+        "plugins": [],
+        "tools": [
+          "email_meeting_requests_manual_snapshot",
+          "meeting_request_detection",
+          "meeting_requests"
+        ],
+        "safety": {
+          "no_provider_call": false,
+          "no_credential_payload_read": false,
+          "no_raw_secrets": false,
+          "no_external_send": false,
+          "no_external_write": false,
+          "secrets_included_false": false
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": false,
+        "deployment_parity_checklist.md": false,
+        "docs/ai-docs-agent-governance.md": false,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "medium",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 0,
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": []
+        },
+        "surface_count": 3,
         "safety_marker_count": 0
       }
     },
