@@ -65,6 +65,14 @@ Activation must also auto-discover sections from `activation_authorized_surface_
 
 Auto-discovered sections must remain subject-scoped and secret-safe. Runtime must allow only registered safe columns, strip sensitive fields, and expose degraded section evidence instead of throwing away partially available tabs.
 
+Operational Intelligence Policy
+
+Activation must include `operational_intelligence` when its registries are available. This layer must summarize what requires attention now, what actions are allowed, which evidence is stale, what signals have arrived, how containers relate, which connector packs are available, and what fallback path is recommended for each external platform.
+
+The output must distinguish advisory actions from write-capable actions. Writeback and background operations require platform-native credentials or governed connector authority, plus capability validation and explicit user confirmation when required. ChatGPT app fallback is conversation-time only unless runtime tooling provides stronger evidence.
+
+The layer must be designed for automatic growth: new connector packs, signals, relationship types, freshness policies, attention rules, section actions, and dashboard preferences should be introduced through SQL registries before route-specific code changes.
+
 First-Turn Native Attempt Enforcement Rule
 
 For plain `activate system` and governed first-turn activation:
