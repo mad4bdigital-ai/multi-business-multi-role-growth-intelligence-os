@@ -10,11 +10,14 @@ const migration = readFileSync("migrations/906_sprint68_ticket_external_delivery
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 
-for (const expected of ["createSupportTicketExternalProviderDispatcher", "planSupportTicketExternalProviderDispatch", "supports_sandbox", "supports_live_send: false", "external_network_allowed: false", "support_ticket_external_provider_live_dispatch_not_enabled", "network_request_performed: false"]) {
+for (const expected of ["createSupportTicketExternalProviderDispatcher", "planSupportTicketExternalProviderDispatch", "supports_sandbox", "supports_live_send: kind === \\\"email\\\"", "checkSupportTicketLiveSendReadiness", "executeSupportTicketLiveSend", "support_ticket_external_provider_live_dispatch_blocked", "network_request_performed: false"]) {
   assert(dispatchService.includes(expected), `dispatch service must include ${expected}`);
 }
-for (const forbidden of ["nodemailer", "sendMail", "axios", "fetch(", "smtp.connect", "webhook.send"]) {
-  assert(!dispatchService.includes(forbidden), `dispatch service must not include external network primitive ${forbidden}`);
+for (const expected of ["SMTP_URL", "SUPPORT_TICKET_LIVE_SEND_ALLOWLIST", "EXTERNAL_DELIVERY_LIVE_SEND_ALLOWLIST", "recipient_not_allowlisted", "approval_hold_required", "credential_ref_required", "idempotency_key_required", "external_send_performed: true", "secret_value_included: false", "smtps://"]) {
+  assert(liveSendService.includes(expected), `live send service must include ${expected}`);
+}
+for (const forbidden of ["nodemailer", "sendMail", "axios", "fetch(", "webhook.send"]) {
+  assert(!liveSendService.includes(forbidden), `live send service must not include unsupported primitive ${forbidden}`);
 }
 for (const expected of ["certifySupportTicketExternalDeliveryCompletion", "AM-1", "AM-16", "complete_with_gated_live_dispatch", "live_external_send_enabled: false", "external_send_performed: false"]) {
   assert(completionService.includes(expected), `completion service must include ${expected}`);
