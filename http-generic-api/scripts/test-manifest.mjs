@@ -323,6 +323,7 @@ export const testCommands = [
   "node test-session-insight-capability-envelope-actual-request-preflight-service.mjs",
   "node test-session-insight-capability-envelope-actual-request-service.mjs",
   "node test-session-insight-capability-envelope-approval-service.mjs",
+  "node test-session-insight-capability-envelope-dispatch-readback-service.mjs",
   "node test-session-archive-smoke.mjs",
   "node test-session-summary-autosweep.mjs",
   "node test-gpt-tools-route-syntax-regression.mjs",
