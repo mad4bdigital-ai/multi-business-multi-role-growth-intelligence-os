@@ -13,6 +13,24 @@ for (const migrationFile of [
   }
 }
 
+const bindingHardeningMigration = readFileSync("migrations/910_sprint68_session_insight_capability_binding_hardening.sql", "utf8");
+const governedMigrationRunner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
+for (const expected of [
+  "session_insight",
+  "session_insight_development_backlog_apply",
+  "session_insight_integration_backlog_apply",
+  "session_insight_runtime_repair_backlog_apply",
+  "session_insight_backlog_target_write_execute",
+  "credential_source", "'none'",
+  "provider_calls_allowed", "false",
+  "credential_payload_reads_allowed", "false",
+  "external_writes_allowed", "false",
+  "secrets_included", "false",
+]) {
+  assert(bindingHardeningMigration.includes(expected), `binding hardening migration must include ${expected}`);
+}
+assert(governedMigrationRunner.includes("910_sprint68_session_insight_capability_binding_hardening.sql"), "governed migration runner must allowlist migration 910");
+
 import {
   createSessionInsightCapabilityEnvelopeActualRequest,
   listSessionInsightCapabilityEnvelopeActualRequests,
