@@ -72,6 +72,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/scripts/schema-docs-change-guard.mjs`
 - `http-generic-api/scripts/split-openapi.mjs`
 - `http-generic-api/scripts/surface-contract-discovery.mjs`
+- `http-generic-api/scripts/surface-contract-gap-triage.mjs`
 
 ## Schema / Plugin / OpenAPI Tests
 
