@@ -370,7 +370,7 @@ export async function executeSupportTicketLiveSend(providerPlan = {}) {
     err.code = "support_ticket_live_send_adapter_not_supported";
     throw err;
   }
-  const readiness = checkSupportTicketLiveSendReadiness(providerPlan);
+  const readiness = await checkSupportTicketLiveSendReadiness(providerPlan, options);
   if (!readiness.ok) {
     const err = new Error("Live external dispatch is blocked by readiness gates.");
     err.status = 409;
