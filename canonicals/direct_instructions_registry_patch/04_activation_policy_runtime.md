@@ -53,6 +53,14 @@ The source chain for each external platform must prefer platform-native connecti
 
 ChatGPT account app fallback must not be treated as platform-owned background sync. Background monitoring, persistent refresh, and writeback require platform-native credentials or governed connector authority. Write-capable callbacks require explicit governed capability and user confirmation.
 
+Dynamic Tabs Activation Policy
+
+Activation must support users and admins who can access more than one workspace, Brand, or container. The response must group relevant evidence into `dynamic_tabs.containers[]`. Each container must include registry-driven tabs and sections for overview, roles/access, connectors, agents, skills, tasks, and operational tiles.
+
+The dynamic tab layer must be subject-scoped. Tenant users may only see containers, roles, connectors, agents, skills, and tasks allowed by their tenant/user scope. Platform admins may see platform-wide containers, including the platform-owner Brand container, without receiving secret values.
+
+Dynamic tab definitions and section data sources must live in SQL registries. Adding a new tab or surface should require registry rows rather than route-specific hardcoding whenever the generic tab mechanism can support it.
+
 First-Turn Native Attempt Enforcement Rule
 
 For plain `activate system` and governed first-turn activation:
