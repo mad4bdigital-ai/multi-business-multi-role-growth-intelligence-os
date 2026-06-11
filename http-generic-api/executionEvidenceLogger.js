@@ -244,8 +244,61 @@ export async function writeExecutionEvidence({
     environment: pickContext(contextObjects, environment, ["environment", "env"]),
     correlation_id: pickContext(contextObjects, correlationId, ["correlation_id", "correlationId", "trace_id", "traceId"]) || traceId,
     idempotency_key: pickContext(contextObjects, idempotencyKey, ["idempotency_key", "idempotencyKey"]),
+    agent_id: pickContext(contextObjects, agentId, ["agent_id", "agentId"]),
+    agent_key: pickContext(contextObjects, agentKey, ["agent_key", "agentKey", "agent_name", "agentName"]),
+    skill_id: pickContext(contextObjects, skillId, ["skill_id", "skillId"]),
+    skill_key: pickContext(contextObjects, skillKey, ["skill_key", "skillKey"]),
+    workflow_id: pickContext(contextObjects, workflowId, ["workflow_id", "workflowId"]),
+    workflow_key: pickContext(contextObjects, workflowKey, ["workflow_key", "workflowKey", "selected_workflow", "selectedWorkflow"]),
+    workflow_binding_key: pickContext(contextObjects, workflowBindingKey, ["workflow_binding_key", "workflowBindingKey", "binding_key", "bindingKey"]),
+    app_connection_id: pickContext(contextObjects, appConnectionId, ["app_connection_id", "appConnectionId", "connection_id", "connectionId"]),
+    plugin_key: pickContext(contextObjects, pluginKey, ["plugin_key", "pluginKey"]),
+    role_keys: compactList(firstNonEmpty(roleKeys, ...contextObjects.map((source) => source.role_keys || source.roleKeys || source.role || source.user_role || source.userRole)), 1000),
+    policy_keys: compactList(firstNonEmpty(policyKeys, ...contextObjects.map((source) => source.policy_keys || source.policyKeys || source.policy_key || source.policyKey)), 1000),
   };
   if (!contextDimensions.actor_type && contextDimensions.actor_id) contextDimensions.actor_type = contextDimensions.user_id ? "user" : "system";
+
+  const evidenceObjects = {
+    agent: pickEvidenceObject(contextObjects, agentEvidence, ["agent_evidence", "agentEvidence", "agent"]),
+    skill: pickEvidenceObject(contextObjects, skillEvidence, ["skill_evidence", "skillEvidence", "skill"]),
+    app: pickEvidenceObject(contextObjects, appEvidence, ["app_evidence", "appEvidence", "app"]),
+    workflow: pickEvidenceObject(contextObjects, workflowEvidence, ["workflow_evidence", "workflowEvidence", "workflow"]),
+    role: pickEvidenceObject(contextObjects, roleEvidence, ["role_evidence", "roleEvidence", "role"]),
+    policy: pickEvidenceObject(contextObjects, policyEvidence, ["policy_evidence", "policyEvidence", "policy"]),
+    authorization: pickEvidenceObject(contextObjects, authorizationEvidence, ["authorization_evidence", "authorizationEvidence", "authorized_access", "authorizedAccess"]),
+  };
+  const runtimeEvidenceEnvelope = {
+    ...pickEvidenceObject(contextObjects, runtimeEvidence, ["runtime_evidence", "runtimeEvidence"]),
+    dimensions: {
+      tenant_id: contextDimensions.tenant_id,
+      workspace_id: contextDimensions.workspace_id,
+      user_id: contextDimensions.user_id,
+      actor_id: contextDimensions.actor_id,
+      actor_type: contextDimensions.actor_type,
+      role_keys: contextDimensions.role_keys,
+      policy_keys: contextDimensions.policy_keys,
+    },
+    surfaces: {
+      agent_id: contextDimensions.agent_id,
+      agent_key: contextDimensions.agent_key,
+      skill_id: contextDimensions.skill_id,
+      skill_key: contextDimensions.skill_key,
+      app_key: contextDimensions.app_key,
+      app_connection_id: contextDimensions.app_connection_id,
+      plugin_key: contextDimensions.plugin_key,
+      workflow_id: contextDimensions.workflow_id,
+      workflow_key: contextDimensions.workflow_key,
+      workflow_binding_key: contextDimensions.workflow_binding_key,
+      action_key: contextDimensions.action_key,
+      tool_key: contextDimensions.tool_key,
+    },
+    evidence: evidenceObjects,
+    secrets_included: false,
+  };
+  const derivedExecutionEvidenceStatus = firstNonEmpty(
+    executionEvidenceStatus,
+    contextDimensions.tenant_id && contextDimensions.user_id && contextDimensions.policy_keys ? "complete" : "partial"
+  );
 
   const executionContextJson = contextJson({
     ...asObject(executionContext),
