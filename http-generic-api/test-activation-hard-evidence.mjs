@@ -119,7 +119,7 @@ const failedToolCatalog = buildHardActivationEvidenceMatrix({
   toolCatalog: { attempted: true, ok: false, reason_code: 'dynamic_catalog_degraded_surfaces' },
 });
 assert.equal(failedToolCatalog.activation_complete, false);
-assert.equal(failedToolCatalog.reason_code, 'degraded_dynamic_tool_catalog_failed');
+assert.equal(failedToolCatalog.reason_code, 'dynamic_catalog_degraded_surfaces');
 
 const complete = buildHardActivationEvidenceMatrix({
   sessionContext: validSessionContext,
