@@ -433,6 +433,8 @@ export async function buildActivationDynamicTabsEvidence({ sessionContext = null
   const degradedSurfaces = [
     ["activation_dynamic_tab_registry", tabs],
     ["activation_dynamic_tab_section_registry", sections],
+    ["activation_dynamic_tab_discovery_rule_registry", sections.discovery?.rules],
+    ["activation_authorized_surface_registry", sections.discovery?.surfaces],
     ["workspace_registry", containerResult.workspaces],
     ["brands", containerResult.brands],
   ]
