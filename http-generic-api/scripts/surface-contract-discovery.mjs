@@ -9,6 +9,8 @@ const MIGRATIONS_DIR = path.join(API_ROOT, "migrations");
 const OPENAPI_PATH = path.join(API_ROOT, "openapi.yaml");
 const OUTPUT_PATH = path.join(REPO_ROOT, "docs", "surface-contract-discovery-status.md");
 const JSON_OUTPUT_PATH = path.join(REPO_ROOT, "docs", "surface-contract-discovery-status.json");
+const GAP_QUEUE_PATH = path.join(REPO_ROOT, "docs", "surface-contract-gap-queue.md");
+const GAP_QUEUE_JSON_PATH = path.join(REPO_ROOT, "docs", "surface-contract-gap-queue.json");
 const DOC_TARGETS = [
   "Updating Registry Patch Index.md",
   "deployment_parity_checklist.md",
@@ -195,6 +197,97 @@ function enrichEntry(entry, openapiPathSet) {
   };
 }
 
+function safetyGapsFor(entry) {
+  return SAFETY_MARKERS.filter((marker) => !entry.surfaces.safety[marker]);
+}
+
+function remediationFor(entry) {
+  const routeCoverage = entry.coverage.route_coverage;
+  const safetyGaps = safetyGapsFor(entry);
+  const actions = [];
+  if (entry.missing_docs.length) {
+    actions.push({ action_key: "document_surface_contract", owner_hint: "docs-agent/human-review", targets: entry.missing_docs, reason: "Migration surfaces are not mentioned in all required documentation targets." });
+  }
+  if (routeCoverage.missing_count) {
+    actions.push({ action_key: "review_openapi_contract", owner_hint: "api-contract-review", targets: routeCoverage.missing_routes, reason: "SQL-declared route-like surfaces are not covered by an OpenAPI path." });
+  }
+  if (entry.surfaces.tools.length) {
+    actions.push({ action_key: "verify_tool_registry_binding", owner_hint: "runtime-registry-review", targets: entry.surfaces.tools.slice(0, 25), reason: "Tool-like surfaces need registry binding/readback evidence before promotion." });
+  }
+  if (entry.surfaces.policies.length) {
+    actions.push({ action_key: "verify_policy_seed_readiness", owner_hint: "runtime-policy-review", targets: entry.surfaces.policies, reason: "Policy surfaces need active/blocking/valid-JSON readiness evidence." });
+  }
+  if (entry.surfaces.views.length) {
+    actions.push({ action_key: "verify_readback_view", owner_hint: "db-readback-review", targets: entry.surfaces.views.slice(0, 25), reason: "Readback views should have parity/readiness documentation and smoke evidence." });
+  }
+  if (safetyGaps.length) {
+    actions.push({ action_key: "add_explicit_safety_markers", owner_hint: "safety-contract-review", targets: safetyGaps, reason: "Migration text is missing one or more explicit no-execution/no-secret safety markers." });
+  }
+  return actions;
+}
+
+function scoreGap(entry, index, total) {
+  if (!entry.coverage.requires_docs_review && !entry.coverage.route_coverage.missing_count && safetyGapsFor(entry).length === 0) return 0;
+  const severity = entry.coverage.gap_severity;
+  const recencyRank = total ? index / total : 0;
+  let score = 0;
+  if (severity === "high") score += 500;
+  if (severity === "medium") score += 300;
+  if (severity === "low") score += 150;
+  score += entry.missing_docs.length * 20;
+  score += entry.coverage.route_coverage.missing_count * 80;
+  score += entry.surfaces.plugins.length * 120;
+  score += entry.surfaces.routes.length * 100;
+  score += entry.surfaces.tools.length * 18;
+  score += entry.surfaces.policies.length * 40;
+  score += entry.surfaces.views.length * 10;
+  score += safetyGapsFor(entry).length * 12;
+  score += Math.round(recencyRank * 100);
+  return score;
+}
+
+function queueClassFor(score) {
+  if (score >= 700) return "critical_review";
+  if (score >= 420) return "high_review";
+  if (score >= 220) return "medium_review";
+  if (score > 0) return "low_review";
+  return "covered";
+}
+
+function buildGapQueue(allMigrations) {
+  const total = allMigrations.length || 1;
+  const items = allMigrations.map((entry, index) => {
+    const score = scoreGap(entry, index, total);
+    return {
+      migration_file: entry.migration_file,
+      score,
+      queue_class: queueClassFor(score),
+      gap_severity: entry.coverage.gap_severity,
+      documentation_complete: entry.documentation_complete,
+      missing_docs: entry.missing_docs,
+      missing_openapi_routes: entry.coverage.route_coverage.missing_routes,
+      safety_marker_gaps: safetyGapsFor(entry),
+      surface_counts: Object.fromEntries(SURFACE_TYPES.map((type) => [type, entry.surfaces[type].length])),
+      remediation: remediationFor(entry),
+      safety: { executes_provider_calls: false, reads_credentials: false, mutates_runtime: false, writes_database: false, external_sends: false, deploys: false, secrets_included: false },
+    };
+  }).filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.migration_file.localeCompare(b.migration_file));
+
+  const classCounts = items.reduce((acc, item) => {
+    acc[item.queue_class] = (acc[item.queue_class] || 0) + 1;
+    return acc;
+  }, {});
+  return {
+    ok: true,
+    schema_version: "surface-contract-gap-queue-v1",
+    total_items: items.length,
+    class_counts: { critical_review: classCounts.critical_review || 0, high_review: classCounts.high_review || 0, medium_review: classCounts.medium_review || 0, low_review: classCounts.low_review || 0 },
+    top_items: items.slice(0, 100),
+    safety: { executes_provider_calls: false, reads_credentials: false, mutates_runtime: false, writes_database: false, external_sends: false, deploys: false, secrets_included: false },
+  };
+}
+
 export function discoverSurfaces({ limit = 80 } = {}) {
   const docsByPath = Object.fromEntries(DOC_TARGETS.map((rel) => [rel, readFileIfExists(path.join(REPO_ROOT, rel))]));
   const openapi = collectOpenapiPaths();
@@ -205,20 +298,14 @@ export function discoverSurfaces({ limit = 80 } = {}) {
       const surfaces = extractSurfaces(source);
       const docs = docsCoverageFor(name, docsByPath);
       const missingDocs = Object.entries(docs).filter(([, covered]) => !covered).map(([target]) => target);
-      return enrichEntry({
-        migration_file: name,
-        surfaces,
-        docs,
-        missing_docs: missingDocs,
-        documentation_complete: missingDocs.length === 0,
-      }, openapiPathSet);
+      return enrichEntry({ migration_file: name, surfaces, docs, missing_docs: missingDocs, documentation_complete: missingDocs.length === 0 }, openapiPathSet);
     })
     .filter((entry) => hasAnySurface(entry.surfaces));
 
   const latest = allMigrations.slice(-limit).reverse();
   return {
     ok: true,
-    schema_version: "surface-contract-discovery-v2",
+    schema_version: "surface-contract-discovery-v3",
     migration_surface_count: allMigrations.length,
     reported_count: latest.length,
     openapi_operation_count: openapi.operations.length,
@@ -226,17 +313,10 @@ export function discoverSurfaces({ limit = 80 } = {}) {
     openapi_operations: openapi.operations,
     documentation_targets: DOC_TARGETS,
     coverage_summary: buildCoverageSummary({ allMigrations, openapiPaths: openapi.paths }),
+    gap_queue: buildGapQueue(allMigrations),
     migrations: latest,
     all_migrations: allMigrations,
-    safety: {
-      executes_provider_calls: false,
-      reads_credentials: false,
-      mutates_runtime: false,
-      writes_database: false,
-      external_sends: false,
-      deploys: false,
-      secrets_included: false,
-    },
+    safety: { executes_provider_calls: false, reads_credentials: false, mutates_runtime: false, writes_database: false, external_sends: false, deploys: false, secrets_included: false },
   };
 }
 
@@ -244,18 +324,19 @@ function listOrNone(items = [], formatter = (x) => x) {
   if (!items.length) return "- none";
   return items.map((item) => `- ${formatter(item)}`).join("\n");
 }
-
 function boolIcon(value) { return value ? "yes" : "no"; }
-
 function percent(value) { return `${Number(value || 0).toFixed(2)}%`; }
 
 function renderCoverageSummary(summary) {
   const surfaceTotals = SURFACE_TYPES.map((type) => `| ${type} | ${summary.surface_totals[type]} | ${summary.migrations_by_surface_type[type]} |`).join("\n");
-  const docsTargets = Object.entries(summary.missing_doc_target_counts)
-    .map(([target, count]) => `| \`${target}\` | ${count} |`).join("\n");
-  const safetyRows = Object.entries(summary.safety_marker_counts)
-    .map(([marker, count]) => `| ${marker} | ${count} |`).join("\n");
+  const docsTargets = Object.entries(summary.missing_doc_target_counts).map(([target, count]) => `| \`${target}\` | ${count} |`).join("\n");
+  const safetyRows = Object.entries(summary.safety_marker_counts).map(([marker, count]) => `| ${marker} | ${count} |`).join("\n");
   return `## Coverage Summary\n\n- Documentation complete migrations: ${summary.docs_complete_count}/${summary.migrations_with_surfaces} (${percent(summary.docs_completion_percent)})\n- Documentation gap migrations: ${summary.docs_gap_count}\n- Gap severity: high=${summary.gap_severity_counts.high}, medium=${summary.gap_severity_counts.medium}, low=${summary.gap_severity_counts.low}\n- SQL route coverage in OpenAPI: ${summary.route_coverage.openapi_documented_sql_route_count}/${summary.route_coverage.sql_route_count} (${percent(summary.route_coverage.openapi_sql_route_coverage_percent)})\n- SQL routes missing OpenAPI path coverage: ${summary.route_coverage.openapi_missing_sql_route_count}\n- Migrations without explicit \`secrets_included=false\` marker: ${summary.safety_marker_gap_migrations}\n\n### Surface Totals\n\n| Surface type | Discovered items | Migrations with type |\n|---|---:|---:|\n${surfaceTotals}\n\n### Documentation Target Gaps\n\n| Documentation target | Missing migration mentions |\n|---|---:|\n${docsTargets}\n\n### Safety Marker Coverage\n\n| Safety marker | Migrations with marker |\n|---|---:|\n${safetyRows}\n`;
+}
+
+function renderGapQueueSummary(queue) {
+  const rows = queue.top_items.slice(0, 20).map((item) => `| \`${item.migration_file}\` | ${item.queue_class} | ${item.score} | ${item.gap_severity} | ${item.missing_docs.length} | ${item.missing_openapi_routes.length} | ${item.safety_marker_gaps.length} | ${item.remediation.map((r) => r.action_key).join(", ")} |`);
+  return `## Actionable Gap Queue\n\nMachine-readable queue: \`docs/surface-contract-gap-queue.json\`. Human-readable queue: \`docs/surface-contract-gap-queue.md\`.\n\n- Total queue items: ${queue.total_items}\n- Critical review: ${queue.class_counts.critical_review}\n- High review: ${queue.class_counts.high_review}\n- Medium review: ${queue.class_counts.medium_review}\n- Low review: ${queue.class_counts.low_review}\n\n| Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |\n|---|---:|---:|---:|---:|---:|---:|---|\n${rows.join("\n") || "| none | covered | 0 | none | 0 | 0 | 0 | none |"}\n`;
 }
 
 export function renderSurfaceContractMarkdown(report) {
@@ -267,22 +348,36 @@ export function renderSurfaceContractMarkdown(report) {
     const s = entry.surfaces;
     return `### \`${entry.migration_file}\`\n\n- Documentation complete: ${boolIcon(entry.documentation_complete)}\n- Gap severity: ${entry.coverage.gap_severity}\n- Missing docs: ${entry.missing_docs.length ? entry.missing_docs.map((d) => `\`${d}\``).join(", ") : "none"}\n- Surface count: ${entry.coverage.surface_count}\n- Plugins: ${s.plugins.length ? s.plugins.map((x) => `\`${x}\``).join(", ") : "none"}\n- Tools: ${s.tools.length ? s.tools.slice(0, 20).map((x) => `\`${x}\``).join(", ") : "none"}${s.tools.length > 20 ? `, ...and ${s.tools.length - 20} more` : ""}\n- Views: ${s.views.length ? s.views.map((x) => `\`${x}\``).join(", ") : "none"}\n- Policies: ${s.policies.length ? s.policies.map((x) => `\`${x}\``).join(", ") : "none"}\n- Routes: ${s.routes.length ? s.routes.map((x) => `\`${x}\``).join(", ") : "none"}\n- OpenAPI route gaps: ${entry.coverage.route_coverage.missing_count ? entry.coverage.route_coverage.missing_routes.map((x) => `\`${x}\``).join(", ") : "none"}\n- Safety markers: no_provider_call=${boolIcon(s.safety.no_provider_call)}, no_credential_payload_read=${boolIcon(s.safety.no_credential_payload_read)}, no_raw_secrets=${boolIcon(s.safety.no_raw_secrets)}, no_external_send=${boolIcon(s.safety.no_external_send)}, no_external_write=${boolIcon(s.safety.no_external_write)}, secrets_included_false=${boolIcon(s.safety.secrets_included_false)}\n`;
   });
-  return `# Surface Contract Discovery Status\n\n> Generated by \`http-generic-api/scripts/surface-contract-discovery.mjs\`. Do not hand-edit generated facts in this file; update migrations, OpenAPI, docs, or the discovery script instead. Machine-readable output is committed at \`docs/surface-contract-discovery-status.json\`.\n\n## Purpose\n\nThis report automatically discovers new SQL-backed platform surfaces from migration files and checks whether the standard documentation targets mention the migration. It complements OpenAPI route autofill, which covers Express routes only.\n\n## Safety Contract\n\n- Executes provider calls: false\n- Reads credential payloads: false\n- Mutates runtime: false\n- Writes database: false\n- External sends: false\n- Deploys: false\n- Includes secrets: false\n- Output is documentation evidence only. It does not authorize tools, external sends, credential access, spend changes, provider calls, database writes, runtime mutation, or deployment.\n\n## Scope\n\n- Migrations with detected surfaces: ${report.migration_surface_count}\n- Migrations reported here: ${report.reported_count}\n- OpenAPI operations detected: ${report.openapi_operation_count}\n- OpenAPI paths detected: ${report.openapi_path_count}\n- Documentation targets checked:\n${listOrNone(report.documentation_targets, (target) => `\`${target}\``)}\n\n${renderCoverageSummary(report.coverage_summary)}\n\n## Latest Surface Coverage\n\n| Migration | Docs | Severity | Plugins | Tools | Views | Policies | Routes | OpenAPI route gaps |\n|---|---:|---:|---:|---:|---:|---:|---:|---:|\n${rows.join("\n") || "| none | complete | none | 0 | 0 | 0 | 0 | 0 | 0 |"}\n\n## High-Risk Documentation Gaps\n\n${listOrNone(report.coverage_summary.high_risk_missing_docs.slice(0, 40), (name) => `\`${name}\``)}${report.coverage_summary.high_risk_missing_docs.length > 40 ? `\n- ...and ${report.coverage_summary.high_risk_missing_docs.length - 40} more` : ""}\n\n## SQL Route OpenAPI Gaps\n\n${listOrNone(report.coverage_summary.route_coverage.route_openapi_gaps.slice(0, 40), (entry) => `\`${entry.migration_file}\`: ${entry.missing_routes.map((route) => `\`${route}\``).join(", ")}`)}${report.coverage_summary.route_coverage.route_openapi_gaps.length > 40 ? `\n- ...and ${report.coverage_summary.route_coverage.route_openapi_gaps.length - 40} more` : ""}\n\n## Details\n\n${details.join("\n") || "No SQL-backed surfaces detected."}\n\n## Automation Contract\n\n- \`repo-maintenance-sync.mjs --write\` regenerates this report and \`docs/surface-contract-discovery-status.json\`.\n- \`openapi-auto-sync.yml\` opens a reviewable PR after route, migration, OpenAPI, docs, or surface-discovery script changes.\n- Autogenerated OpenAPI TODO stubs block auto-merge until a human contract review replaces them.\n- Docs-only report updates may auto-merge after CI if repository branch protection allows it.\n`;
+  return `# Surface Contract Discovery Status\n\n> Generated by \`http-generic-api/scripts/surface-contract-discovery.mjs\`. Do not hand-edit generated facts in this file; update migrations, OpenAPI, docs, or the discovery script instead. Machine-readable output is committed at \`docs/surface-contract-discovery-status.json\`; actionable queue output is committed at \`docs/surface-contract-gap-queue.json\`.\n\n## Purpose\n\nThis report automatically discovers new SQL-backed platform surfaces from migration files and checks whether the standard documentation targets mention the migration. It complements OpenAPI route autofill, which covers Express routes only.\n\n## Safety Contract\n\n- Executes provider calls: false\n- Reads credential payloads: false\n- Mutates runtime: false\n- Writes database: false\n- External sends: false\n- Deploys: false\n- Includes secrets: false\n- Output is documentation evidence only. It does not authorize tools, external sends, credential access, spend changes, provider calls, database writes, runtime mutation, or deployment.\n\n## Scope\n\n- Migrations with detected surfaces: ${report.migration_surface_count}\n- Migrations reported here: ${report.reported_count}\n- OpenAPI operations detected: ${report.openapi_operation_count}\n- OpenAPI paths detected: ${report.openapi_path_count}\n- Documentation targets checked:\n${listOrNone(report.documentation_targets, (target) => `\`${target}\``)}\n\n${renderCoverageSummary(report.coverage_summary)}\n\n${renderGapQueueSummary(report.gap_queue)}\n\n## Latest Surface Coverage\n\n| Migration | Docs | Severity | Plugins | Tools | Views | Policies | Routes | OpenAPI route gaps |\n|---|---:|---:|---:|---:|---:|---:|---:|---:|\n${rows.join("\n") || "| none | complete | none | 0 | 0 | 0 | 0 | 0 | 0 |"}\n\n## High-Risk Documentation Gaps\n\n${listOrNone(report.coverage_summary.high_risk_missing_docs.slice(0, 40), (name) => `\`${name}\``)}${report.coverage_summary.high_risk_missing_docs.length > 40 ? `\n- ...and ${report.coverage_summary.high_risk_missing_docs.length - 40} more` : ""}\n\n## SQL Route OpenAPI Gaps\n\n${listOrNone(report.coverage_summary.route_coverage.route_openapi_gaps.slice(0, 40), (entry) => `\`${entry.migration_file}\`: ${entry.missing_routes.map((route) => `\`${route}\``).join(", ")}`)}${report.coverage_summary.route_coverage.route_openapi_gaps.length > 40 ? `\n- ...and ${report.coverage_summary.route_coverage.route_openapi_gaps.length - 40} more` : ""}\n\n## Details\n\n${details.join("\n") || "No SQL-backed surfaces detected."}\n\n## Automation Contract\n\n- \`repo-maintenance-sync.mjs --write\` regenerates this report, \`docs/surface-contract-discovery-status.json\`, \`docs/surface-contract-gap-queue.md\`, and \`docs/surface-contract-gap-queue.json\`.\n- \`openapi-auto-sync.yml\` opens a reviewable PR after route, migration, OpenAPI, docs, or surface-discovery script changes.\n- Autogenerated OpenAPI TODO stubs block auto-merge until a human contract review replaces them.\n- Docs-only report updates may auto-merge after CI if repository branch protection allows it.\n`;
+}
+
+export function renderGapQueueMarkdown(queue) {
+  const details = queue.top_items.map((item, index) => `### ${index + 1}. \`${item.migration_file}\`\n\n- Queue class: ${item.queue_class}\n- Score: ${item.score}\n- Gap severity: ${item.gap_severity}\n- Missing docs: ${item.missing_docs.length ? item.missing_docs.map((d) => `\`${d}\``).join(", ") : "none"}\n- Missing OpenAPI routes: ${item.missing_openapi_routes.length ? item.missing_openapi_routes.map((d) => `\`${d}\``).join(", ") : "none"}\n- Safety marker gaps: ${item.safety_marker_gaps.length ? item.safety_marker_gaps.map((d) => `\`${d}\``).join(", ") : "none"}\n- Surface counts: plugins=${item.surface_counts.plugins}, tools=${item.surface_counts.tools}, views=${item.surface_counts.views}, policies=${item.surface_counts.policies}, routes=${item.surface_counts.routes}\n- Remediation actions:\n${listOrNone(item.remediation, (r) => `\`${r.action_key}\` → ${r.owner_hint}; targets: ${r.targets.slice(0, 12).map((t) => `\`${t}\``).join(", ")}${r.targets.length > 12 ? `, ...and ${r.targets.length - 12} more` : ""}`)}\n`);
+  return `# Surface Contract Gap Queue\n\n> Generated by \`http-generic-api/scripts/surface-contract-discovery.mjs\`. This is an evidence-only remediation queue. It does not authorize provider calls, credential reads, runtime mutation, database writes, external sends, deployments, or secrets.\n\n## Summary\n\n- Total queue items: ${queue.total_items}\n- Critical review: ${queue.class_counts.critical_review}\n- High review: ${queue.class_counts.high_review}\n- Medium review: ${queue.class_counts.medium_review}\n- Low review: ${queue.class_counts.low_review}\n- Machine-readable queue: \`docs/surface-contract-gap-queue.json\`\n\n## Top Queue Items\n\n${details.join("\n") || "No actionable surface contract gaps detected."}\n`;
 }
 
 function writeGeneratedOutputs(report, markdown) {
+  const gapQueueMarkdown = renderGapQueueMarkdown(report.gap_queue);
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
   fs.writeFileSync(OUTPUT_PATH, markdown);
   fs.writeFileSync(JSON_OUTPUT_PATH, `${JSON.stringify(report, null, 2)}\n`);
+  fs.writeFileSync(GAP_QUEUE_PATH, gapQueueMarkdown);
+  fs.writeFileSync(GAP_QUEUE_JSON_PATH, `${JSON.stringify(report.gap_queue, null, 2)}\n`);
 }
 
 function checkGeneratedOutputs(report, markdown) {
   const expectedJson = `${JSON.stringify(report, null, 2)}\n`;
+  const expectedGapQueueJson = `${JSON.stringify(report.gap_queue, null, 2)}\n`;
+  const expectedGapQueueMarkdown = renderGapQueueMarkdown(report.gap_queue);
   const currentMarkdown = readFileIfExists(OUTPUT_PATH);
   const currentJson = readFileIfExists(JSON_OUTPUT_PATH);
+  const currentGapQueueMarkdown = readFileIfExists(GAP_QUEUE_PATH);
+  const currentGapQueueJson = readFileIfExists(GAP_QUEUE_JSON_PATH);
   const mismatches = [];
   if (currentMarkdown !== markdown) mismatches.push(path.relative(REPO_ROOT, OUTPUT_PATH));
   if (currentJson !== expectedJson) mismatches.push(path.relative(REPO_ROOT, JSON_OUTPUT_PATH));
+  if (currentGapQueueMarkdown !== expectedGapQueueMarkdown) mismatches.push(path.relative(REPO_ROOT, GAP_QUEUE_PATH));
+  if (currentGapQueueJson !== expectedGapQueueJson) mismatches.push(path.relative(REPO_ROOT, GAP_QUEUE_JSON_PATH));
   if (mismatches.length) {
     console.error(`surface-contract-discovery: generated outputs are not committed: ${mismatches.join(", ")}`);
     process.exit(1);
@@ -299,15 +394,20 @@ function main() {
   console.log(JSON.stringify({
     ok: true,
     schema_version: report.schema_version,
+    gap_queue_schema_version: report.gap_queue.schema_version,
     write,
     check,
     output: path.relative(REPO_ROOT, OUTPUT_PATH),
     json_output: path.relative(REPO_ROOT, JSON_OUTPUT_PATH),
+    gap_queue_output: path.relative(REPO_ROOT, GAP_QUEUE_PATH),
+    gap_queue_json_output: path.relative(REPO_ROOT, GAP_QUEUE_JSON_PATH),
     migration_surface_count: report.migration_surface_count,
     reported_count: report.reported_count,
     docs_completion_percent: report.coverage_summary.docs_completion_percent,
     high_risk_missing_docs: report.coverage_summary.gap_severity_counts.high,
     openapi_missing_sql_route_count: report.coverage_summary.route_coverage.openapi_missing_sql_route_count,
+    gap_queue_items: report.gap_queue.total_items,
+    critical_review_items: report.gap_queue.class_counts.critical_review,
     secrets_included: false,
   }, null, 2));
 }
