@@ -48,8 +48,11 @@ function adapterKind(adapter = {}) {
 
 function buildAdapterCapabilities(adapter = {}) {
   const kind = adapterKind(adapter);
-  const liveSendRuntimeReady = kind === "email" && Boolean(process.env.SMTP_URL);
-  return { adapter_key: adapter.adapter_key || adapter.provider_key || null, channel: adapter.channel || kind, kind, supports_validate: true, supports_plan: true, supports_dry_run: true, supports_sandbox: kind === "email" || kind === "webhook", supports_live_send: kind === "email", live_send_runtime_ready: liveSendRuntimeReady, external_network_allowed: liveSendRuntimeReady, reads_raw_secret_values: false, implementation_status: adapter.implementation_status || "not_implemented", dispatch_enabled: Boolean(adapter.dispatch_enabled), provider_dispatch_enabled: Boolean(adapter.provider_dispatch_enabled), external_send_performed: false, secrets_included: false };
+  const adapterKey = String(adapter.adapter_key || adapter.provider_key || "").trim();
+  const isGmailUserOAuth = adapterKey === "gmail_user_oauth_adapter";
+  const isHostingerSmtp = adapterKey === "hostinger_smtp_adapter";
+  const liveSendRuntimeReady = kind === "email" && (Boolean(process.env.SMTP_URL || process.env.HOSTINGER_SMTP_URL) || isGmailUserOAuth);
+  return { adapter_key: adapter.adapter_key || adapter.provider_key || null, channel: adapter.channel || kind, kind, provider_runtime: isGmailUserOAuth ? "gmail_user_oauth" : (isHostingerSmtp ? "hostinger_smtp" : kind), supports_validate: true, supports_plan: true, supports_dry_run: true, supports_sandbox: kind === "email" || kind === "webhook", supports_live_send: kind === "email", live_send_runtime_ready: liveSendRuntimeReady, external_network_allowed: liveSendRuntimeReady, reads_raw_secret_values: false, implementation_status: adapter.implementation_status || "not_implemented", dispatch_enabled: Boolean(adapter.dispatch_enabled), provider_dispatch_enabled: Boolean(adapter.provider_dispatch_enabled), external_send_performed: false, secrets_included: false };
 }
 
 function buildBlockers(providerPlan = {}, mode = "dry_run") {

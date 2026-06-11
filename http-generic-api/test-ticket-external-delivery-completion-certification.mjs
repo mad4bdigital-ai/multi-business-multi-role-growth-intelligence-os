@@ -7,6 +7,7 @@ const completionService = readFileSync("supportTicketExternalDeliveryCompletionS
 const gateService = readFileSync("supportTicketExternalSendProviderGateService.js", "utf8");
 const routes = readFileSync("routes/supportTicketRoutes.js", "utf8");
 const migration = readFileSync("migrations/906_sprint68_ticket_external_delivery_completion_certification.sql", "utf8");
+const dualProviderMigration = readFileSync("migrations/908_sprint68_ticket_external_hostinger_gmail_provider_options.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 
@@ -33,10 +34,16 @@ for (const expected of [
   "external_send_performed: true",
   "secret_value_included: false",
   "smtps://",
+  "HOSTINGER_SMTP_URL",
+  "gmail_user_oauth_adapter",
+  "https://www.googleapis.com/auth/gmail.send",
+  "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+  "gmail_user_oauth_connection_ref_required",
+  "support_ticket_live_gmail_send_failed",
 ]) {
   assert(liveSendService.includes(expected), `live send service must include ${expected}`);
 }
-for (const forbidden of ["nodemailer", "sendMail", "axios", "fetch(", "webhook.send"]) {
+for (const forbidden of ["nodemailer", "sendMail", "axios", "webhook.send"]) {
   assert(!liveSendService.includes(forbidden), `live send service must not include unsupported primitive ${forbidden}`);
 }
 for (const expected of ["certifySupportTicketExternalDeliveryCompletion", "AM-1", "AM-16", "complete_with_gated_live_dispatch", "live_external_send_enabled: false", "external_send_performed: false"]) {
@@ -53,7 +60,11 @@ assert(routes.includes("/external-delivery/completion-certification"), "support 
 for (const expected of ["support_ticket_external_delivery_completion_certification_policy_v1", "support_ticket_external_delivery_completion_certification_target_rule_v1", "support_ticket_external_delivery_completion_certify", "sandbox", "live_send", "no_external_send"]) {
   assert(migration.includes(expected), `migration 906 must include ${expected}`);
 }
+for (const expected of ["hostinger_smtp_adapter", "gmail_user_oauth_adapter", "google_user_oauth_connection", "https://www.googleapis.com/auth/gmail.send", "support_ticket_external_delivery_dual_provider_policy_v1"]) {
+  assert(dualProviderMigration.includes(expected), `migration 908 must include ${expected}`);
+}
 assert(runner.includes("906_sprint68_ticket_external_delivery_completion_certification.sql"), "governed migration runner must allowlist migration 906");
+assert(runner.includes("908_sprint68_ticket_external_hostinger_gmail_provider_options.sql"), "governed migration runner must allowlist migration 908");
 assert(manifest.includes("node test-ticket-external-delivery-completion-certification.mjs"), "test manifest must include completion certification test");
 assert(!/DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i.test(migration), "migration 906 must be additive/non-destructive");
 assert(!migration.toLowerCase().includes("secret_value"), "migration 906 must not include raw secret-value fields");
