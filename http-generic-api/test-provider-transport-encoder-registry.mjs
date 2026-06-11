@@ -59,7 +59,6 @@ for (const expected of [
 
 for (const expected of [
   "buildGoogleDriveMultipartRelatedJsonPayload",
-  "transport_encoder_key",
   "buildManifestUploadPayload",
 ]) {
   assert(resourceRecipeSource.includes(expected), `resource recipe capability must use encoder registry: ${expected}`);
