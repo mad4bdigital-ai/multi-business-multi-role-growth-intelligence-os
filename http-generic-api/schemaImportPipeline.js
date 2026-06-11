@@ -326,11 +326,146 @@ async function loadJsonAssetSchema(pool, ref) {
   };
 }
 
+function schemaAssetKeyForAction(action = {}) {
+  const refAssetKey = String(action.openai_schema_ref || "").replace(/^ref:schema:/, "").trim();
+  return refAssetKey || `${String(action.action_key || "action").trim()}_parent_schema_v1`;
+}
+
+function schemaStorageFormat(raw = "") {
+  const trimmed = String(raw || "").trim();
+  return trimmed.startsWith("{") || trimmed.startsWith("[") ? "openapi_json" : "openapi_yaml";
+}
+
+function resolveDriveFileIdForMirror(action = {}, overrideFileId = null) {
+  const explicit = String(overrideFileId || "").trim();
+  if (explicit) return explicit;
+
+  const fileId = String(action.openai_schema_file_id || "").trim();
+  if (fileId && !fileId.startsWith("action_schema:")) return fileId;
+
+  const notes = String(action.notes || "");
+  const match = notes.match(/\bDrive file\s+([A-Za-z0-9_-]{20,})\b/i);
+  return match?.[1] || "";
+}
+
+export async function mirrorActionParentSchemaFromDrive({
+  actionKey,
+  driveFileId = null,
+  fetchDriveContent,
+  importedBy = null,
+} = {}) {
+  if (!actionKey) {
+    const err = new Error("action_key is required");
+    err.code = "missing_action_key";
+    throw err;
+  }
+  if (typeof fetchDriveContent !== "function") {
+    const err = new Error("fetchDriveContent function is required for Drive schema mirroring");
+    err.code = "drive_fetcher_unavailable";
+    throw err;
+  }
+
+  const pool = getPool();
+  const [rows] = await pool.query(
+    `SELECT action_key, action_title, openai_schema_ref, openai_schema_file_id,
+            openai_schema_file_name, notes
+       FROM \`actions\`
+      WHERE action_key = ?
+      LIMIT 1`,
+    [actionKey]
+  );
+  const action = rows?.[0] || null;
+  if (!action) {
+    const err = new Error(`Action not found: ${actionKey}`);
+    err.code = "action_not_found";
+    throw err;
+  }
+
+  const effectiveDriveFileId = resolveDriveFileIdForMirror(action, driveFileId);
+  if (!effectiveDriveFileId) {
+    const err = new Error(`No Drive file id available to mirror parent schema for action ${actionKey}.`);
+    err.code = "drive_file_id_missing";
+    err.details = {
+      action_key: actionKey,
+      openai_schema_ref: action.openai_schema_ref || "",
+      openai_schema_file_id: action.openai_schema_file_id || "",
+      secrets_included: false,
+    };
+    throw err;
+  }
+
+  const raw = await fetchDriveContent(effectiveDriveFileId);
+  splitSchema(raw);
+
+  const assetKey = schemaAssetKeyForAction(action);
+  const assetId = `schema:${assetKey}`.slice(0, 255);
+  const sourceFilename = action.openai_schema_file_name || `${assetKey}.yaml`;
+  const driveLink = `https://drive.google.com/file/d/${effectiveDriveFileId}/view`;
+  const notes = JSON.stringify({
+    source: "schema_import_action_ref_drive_mirror",
+    action_key: actionKey,
+    source_drive_file_id: effectiveDriveFileId,
+    source_sha256: sha256(raw),
+    source_bytes: byteLength(raw),
+    imported_by: importedBy || null,
+    secrets_included: false,
+  });
+
+  const [existing] = await pool.query(
+    "SELECT id FROM `json_assets` WHERE asset_key = ? ORDER BY updated_at DESC LIMIT 1",
+    [assetKey]
+  );
+  const existingId = existing?.[0]?.id || null;
+  if (existingId) {
+    await pool.query(
+      `UPDATE \`json_assets\`
+          SET asset_id = COALESCE(asset_id, ?),
+              asset_type = 'openapi_schema',
+              mapping_status = 'mapped',
+              storage_format = ?,
+              google_drive_link = ?,
+              source_mode = 'drive_mirror',
+              source_asset_ref = ?,
+              json_payload = ?,
+              transport_status = 'mirrored',
+              validation_status = 'validated',
+              last_validated_at = ?,
+              notes = ?,
+              active_status = 'active',
+              updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?`,
+      [assetId, schemaStorageFormat(raw), driveLink, sourceFilename, raw, new Date().toISOString(), notes, existingId]
+    );
+  } else {
+    await pool.query(
+      `INSERT INTO \`json_assets\`
+         (asset_id, asset_key, asset_type, mapping_status, storage_format,
+          google_drive_link, source_mode, source_asset_ref, json_payload,
+          transport_status, validation_status, last_validated_at, notes, active_status)
+       VALUES (?, ?, 'openapi_schema', 'mapped', ?, ?, 'drive_mirror', ?, ?,
+               'mirrored', 'validated', ?, ?, 'active')`,
+      [assetId, assetKey, schemaStorageFormat(raw), driveLink, sourceFilename, raw, new Date().toISOString(), notes]
+    );
+  }
+
+  return {
+    ok: true,
+    action_key: actionKey,
+    asset_key: assetKey,
+    parent_schema_ref: `ref:schema:${assetKey}`,
+    source_drive_file_id: effectiveDriveFileId,
+    source_sha256: sha256(raw),
+    source_bytes: byteLength(raw),
+    storage_format: schemaStorageFormat(raw),
+    secrets_included: false,
+  };
+}
+
 export async function resolveActionParentSchema(actionKey) {
   const pool = getPool();
   const [rows] = await pool.query(
     `SELECT action_key, action_title, schema_json, openai_schema_file_id, openai_schema_ref,
-            openai_schema_file_name, openai_schema_storage_surface
+            openai_schema_file_name, openai_schema_storage_surface, notes
        FROM \`actions\`
       WHERE action_key = ?
       LIMIT 1`,
