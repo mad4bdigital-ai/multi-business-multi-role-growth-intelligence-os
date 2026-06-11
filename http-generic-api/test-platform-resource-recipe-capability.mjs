@@ -12,6 +12,7 @@ const migration = readFileSync(migrationPath, "utf8");
 const driveMultipartMigration = readFileSync("migrations/903_sprint68_google_drive_multipart_upload_schema_contract.sql", "utf8");
 const manifestCertificationMigration = readFileSync("migrations/904_sprint68_resource_manifest_positive_smoke_certification.sql", "utf8");
 const graphProjectionApplyMigration = readFileSync("migrations/952_sprint68_resource_graph_projection_apply_gate.sql", "utf8");
+const graphProjectionPositiveCertificationMigration = readFileSync("migrations/953_sprint68_resource_graph_projection_positive_smoke_certification.sql", "utf8");
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
 const runtimeModule = readFileSync("platformResourceRecipeCapability.js", "utf8");
