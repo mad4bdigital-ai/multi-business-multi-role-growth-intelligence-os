@@ -22,6 +22,9 @@ jobs:
       - name: Guard schema/docs coverage for runtime changes
         run: node http-generic-api/scripts/schema-docs-change-guard.mjs
 
+      - name: Guard platform completion cleanup/readback invariants
+        run: node http-generic-api/scripts/platform-completion-cleanup-readback-audit.mjs
+
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
