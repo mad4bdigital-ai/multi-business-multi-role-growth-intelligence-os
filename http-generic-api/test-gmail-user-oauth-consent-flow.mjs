@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const route = readFileSync("routes/memberGoogleOAuthRoutes.js", "utf8");
+const routeIndex = readFileSync("routes/index.js", "utf8");
 const liveSend = readFileSync("supportTicketExternalLiveSendService.js", "utf8");
 
 for (const expected of [
