@@ -491,7 +491,7 @@ export async function buildActivationDynamicTabsEvidence({ sessionContext = null
     ok: degradedSurfaces.length === 0,
     activation_layer: "activation_dynamic_tabs",
     awareness_mode: "workspace_brand_container_tabs",
-    source_authority: "sql_runtime_dynamic_tab_registry_and_subject_scoped_containers",
+    source_authority: "sql_runtime_dynamic_tab_registry_authorized_surface_discovery_and_subject_scoped_containers",
     subject: {
       is_admin: subject.is_admin,
       tenant_id: subject.tenant_id,
