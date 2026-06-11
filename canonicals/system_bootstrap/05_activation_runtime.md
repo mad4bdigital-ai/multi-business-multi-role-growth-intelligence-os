@@ -271,6 +271,25 @@ The runtime must not assume ChatGPT account Apps & integrations are connected un
 
 Background refresh and persistent platform monitoring require platform-native OAuth, service-account, or connector credentials. ChatGPT account app fallback and prompt-guided fallback may support conversation-time awareness, but they must not be treated as platform-owned background sync.
 
+Dynamic Workspace/Brand Tabs Rule
+
+When the current subject can access multiple workspaces, Brands, or workspace-like containers, activation must group operational evidence by container. Each container must expose registry-driven dynamic tabs rather than a single flat response.
+
+A dynamic tab container may represent a workspace, Brand workspace, platform-owner Brand, tenant space, user-private workspace, connector, or agent context. The first implemented tabs include overview, roles/access, connectors, agents, skills, tasks, and operational tiles.
+
+Dynamic tabs must be built from SQL tab/section registries and subject-scoped rows. They must support:
+
+- multiple workspaces per user
+- linked Brand control state per workspace
+- user roles and permissions per visible tenant/container
+- connected systems and installations per visible scope
+- agents and skills available to the container
+- pending/blocking tasks relevant to the current subject
+- operational tiles and callbacks associated with connected platforms
+- degraded tab/section evidence without exposing secrets
+
+Adding a new tab, section, connector family, agent surface, or task surface should prefer inserting registry rows over changing activation route code. Activation route code may evolve only to support new generic tab mechanics.
+
 Provider Capability Continuity Validation Rule
 
 For governed execution and governed audit routing, system_bootstrap must validate provider-family continuity across:
