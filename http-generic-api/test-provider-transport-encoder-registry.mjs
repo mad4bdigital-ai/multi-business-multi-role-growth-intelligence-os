@@ -64,8 +64,8 @@ for (const expected of [
   assert(resourceRecipeSource.includes(expected), `resource recipe capability must use encoder registry: ${expected}`);
 }
 
-assert(!registrySource.includes("client_secret"), "encoder registry must not reference client secrets");
-assert(!registrySource.includes("refresh_token"), "encoder registry must not reference refresh tokens");
-assert(!registrySource.includes("private_key"), "encoder registry must not reference private keys");
+assert.throws(() => encodeMultipartRelatedJson({ metadata: { client_secret: "nope" }, media_body: {} }), /sensitive field/);
+assert.throws(() => encodeMultipartRelatedJson({ metadata: {}, media_body: { refresh_token: "nope" } }), /sensitive field/);
+assert.throws(() => encodeMultipartRelatedJson({ metadata: { private_key: "nope" }, media_body: {} }), /sensitive field/);
 
 console.log("provider transport encoder registry contract passed");
