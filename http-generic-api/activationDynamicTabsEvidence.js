@@ -1,0 +1,379 @@
+import { getPool } from "./db.js";
+
+const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
+const BLOCKED_COLUMN_PATTERN = /(secret|credential_ref|credential|token|password|private_key|cipher|api_key|value_ciphertext|value_sha|config_json|system_prompt)/i;
+const PLATFORM_BRAND_KEY = "growth_intelligence_platform";
+
+function compactError(err) {
+  return { code: err.code || "activation_dynamic_tabs_failed", message: err.message };
+}
+
+function safeNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseJsonValue(value, fallback = null) {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(String(value));
+  } catch {
+    return fallback;
+  }
+}
+
+function splitRefs(value = "") {
+  return String(value || "")
+    .split(/[|,;\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+async function safeRows(sql, params = []) {
+  try {
+    const [rows] = await getPool().query(sql, params);
+    return { ok: true, rows: Array.isArray(rows) ? rows : [] };
+  } catch (err) {
+    return { ok: false, rows: [], error: compactError(err) };
+  }
+}
+
+function quoteIdentifier(value) {
+  const text = String(value || "").trim();
+  if (!SAFE_IDENTIFIER.test(text)) {
+    const err = new Error(`Unsafe activation dynamic tabs identifier: ${text}`);
+    err.code = "unsafe_activation_dynamic_tabs_identifier";
+    throw err;
+  }
+  return `\`${text}\``;
+}
+
+function safeColumns(value) {
+  const columns = Array.isArray(value) ? value : parseJsonValue(value, []);
+  return (Array.isArray(columns) ? columns : [])
+    .map((column) => String(column || "").trim())
+    .filter((column) => SAFE_IDENTIFIER.test(column))
+    .filter((column) => !BLOCKED_COLUMN_PATTERN.test(column))
+    .slice(0, 40);
+}
+
+function stripSensitiveFields(row = {}) {
+  return Object.fromEntries(
+    Object.entries(row).filter(([key]) => !BLOCKED_COLUMN_PATTERN.test(key))
+  );
+}
+
+function isAdminSubject(sessionContext = {}) {
+  return Boolean(
+    sessionContext?.subject?.is_admin === true ||
+    sessionContext?.platform_access?.principal?.is_admin === true ||
+    sessionContext?.platform_access?.access_scope === "platform_admin_all"
+  );
+}
+
+function resolveSubject(sessionContext = {}) {
+  const subject = sessionContext?.subject || {};
+  return {
+    is_admin: isAdminSubject(sessionContext),
+    tenant_id: subject.tenant_id || sessionContext?.platform_access?.principal?.tenant_id || null,
+    user_id: subject.user_id || sessionContext?.platform_access?.principal?.user_id || null,
+    auth_mode: sessionContext?.platform_access?.principal?.type || sessionContext?.platform_access?.principal?.auth_mode || null,
+  };
+}
+
+async function loadWorkspaceContainers(subject) {
+  const workspaceWhere = subject.is_admin
+    ? "bootstrap_status <> 'error'"
+    : "tenant_id = ? AND bootstrap_status <> 'error'";
+  const workspaces = await safeRows(
+    `SELECT workspace_id, tenant_id, workspace_key, display_name, workspace_type,
+            bootstrap_status, linked_brand_key, linked_system_ids, updated_at
+       FROM workspace_registry
+      WHERE ${workspaceWhere}
+      ORDER BY FIELD(bootstrap_status, 'ready', 'in_progress', 'degraded', 'not_started'), updated_at DESC
+      LIMIT 100`,
+    subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"]
+  );
+
+  const brandWhere = subject.is_admin
+    ? "status IS NOT NULL"
+    : "target_key IN (?)";
+  const linkedBrandKeys = [...new Set(workspaces.rows.map((row) => row.linked_brand_key).filter(Boolean))];
+  const brands = linkedBrandKeys.length || subject.is_admin
+    ? await safeRows(
+        `SELECT brand_name, target_key, brand_domain, status, brand_core_ready, maturity,
+                evolution_status, governance_readiness_status, runtime_scope_class,
+                control_state_last_validated_at, updated_at
+           FROM brands
+          WHERE ${brandWhere}
+          LIMIT 200`,
+        subject.is_admin ? [] : [linkedBrandKeys.length ? linkedBrandKeys : ["__missing_brand__"]]
+      )
+    : { ok: true, rows: [] };
+
+  const brandByKey = new Map(brands.rows.map((brand) => [brand.target_key, brand]));
+  const containers = workspaces.rows.map((workspace) => {
+    const linkedSystemIds = splitRefs(workspace.linked_system_ids);
+    const brand = workspace.linked_brand_key ? brandByKey.get(workspace.linked_brand_key) || null : null;
+    return {
+      container_key: `workspace:${workspace.workspace_id}`,
+      container_type: workspace.workspace_type === "brand" ? "brand_workspace" : "workspace",
+      workspace_id: workspace.workspace_id,
+      workspace_key: workspace.workspace_key,
+      tenant_id: workspace.tenant_id,
+      display_name: workspace.display_name,
+      bootstrap_status: workspace.bootstrap_status,
+      linked_brand_key: workspace.linked_brand_key || null,
+      linked_system_ids: linkedSystemIds,
+      brand: brand ? {
+        brand_name: brand.brand_name,
+        target_key: brand.target_key,
+        brand_domain: brand.brand_domain,
+        status: brand.status,
+        brand_core_ready: brand.brand_core_ready,
+        maturity: brand.maturity,
+        evolution_status: brand.evolution_status,
+        governance_readiness_status: brand.governance_readiness_status,
+        runtime_scope_class: brand.runtime_scope_class,
+        control_state_last_validated_at: brand.control_state_last_validated_at,
+        updated_at: brand.updated_at,
+      } : null,
+      updated_at: workspace.updated_at,
+    };
+  });
+
+  if (subject.is_admin && !containers.some((container) => container.linked_brand_key === PLATFORM_BRAND_KEY)) {
+    const platformBrand = brandByKey.get(PLATFORM_BRAND_KEY);
+    if (platformBrand) {
+      containers.unshift({
+        container_key: `brand:${PLATFORM_BRAND_KEY}`,
+        container_type: "platform_owner_brand",
+        workspace_id: null,
+        workspace_key: null,
+        tenant_id: null,
+        display_name: platformBrand.brand_name || "Growth Intelligence Platform",
+        bootstrap_status: "ready",
+        linked_brand_key: PLATFORM_BRAND_KEY,
+        linked_system_ids: [],
+        brand: {
+          brand_name: platformBrand.brand_name,
+          target_key: platformBrand.target_key,
+          brand_domain: platformBrand.brand_domain,
+          status: platformBrand.status,
+          brand_core_ready: platformBrand.brand_core_ready,
+          maturity: platformBrand.maturity,
+          evolution_status: platformBrand.evolution_status,
+          governance_readiness_status: platformBrand.governance_readiness_status,
+          runtime_scope_class: platformBrand.runtime_scope_class,
+          control_state_last_validated_at: platformBrand.control_state_last_validated_at,
+          updated_at: platformBrand.updated_at,
+        },
+        updated_at: platformBrand.updated_at,
+      });
+    }
+  }
+
+  return { workspaces, brands, containers };
+}
+
+async function loadTabRegistry() {
+  const tabs = await safeRows(
+    `SELECT tab_key, display_name, description, tab_group, container_scope,
+            default_visibility, priority_order, status
+       FROM activation_dynamic_tab_registry
+      WHERE status = 'active'
+      ORDER BY priority_order ASC, tab_key ASC`,
+    []
+  );
+  const sections = await safeRows(
+    `SELECT section_key, tab_key, display_name, description, source_table,
+            result_columns_json, tenant_column, user_column, workspace_column, brand_key_column,
+            system_id_column, status_column, active_status_values_json, row_limit,
+            aggregation_mode, priority_order, status
+       FROM activation_dynamic_tab_section_registry
+      WHERE status = 'active'
+      ORDER BY priority_order ASC, section_key ASC`,
+    []
+  );
+  return { tabs, sections };
+}
+
+function addScopedFilter({ where, params, column, value, adminOptional = false }) {
+  if (!column) return;
+  if (value) {
+    where.push(`${quoteIdentifier(column)} = ?`);
+    params.push(value);
+  } else if (!adminOptional) {
+    where.push("1 = 0");
+  }
+}
+
+function addInFilter({ where, params, column, values }) {
+  if (!column || !Array.isArray(values) || values.length === 0) return;
+  where.push(`${quoteIdentifier(column)} IN (?)`);
+  params.push(values);
+}
+
+async function loadSectionRows(section, container, subject) {
+  const columns = safeColumns(section.result_columns_json);
+  if (!columns.length) {
+    return {
+      ok: false,
+      section_key: section.section_key,
+      rows: [],
+      row_count: 0,
+      error: { code: "no_safe_dynamic_tab_columns", message: "No safe result columns registered for dynamic tab section." },
+    };
+  }
+
+  const where = [];
+  const params = [];
+  const sourceTable = quoteIdentifier(section.source_table);
+  const selectSql = columns.map(quoteIdentifier).join(", ");
+
+  if (section.tenant_column) {
+    addScopedFilter({ where, params, column: section.tenant_column, value: container.tenant_id || subject.tenant_id, adminOptional: subject.is_admin });
+  }
+  if (section.user_column && !subject.is_admin) {
+    addScopedFilter({ where, params, column: section.user_column, value: subject.user_id, adminOptional: false });
+  } else if (section.user_column && subject.user_id) {
+    addScopedFilter({ where, params, column: section.user_column, value: subject.user_id, adminOptional: true });
+  }
+  if (section.workspace_column && container.workspace_id) {
+    addScopedFilter({ where, params, column: section.workspace_column, value: container.workspace_id, adminOptional: true });
+  }
+  if (section.brand_key_column && container.linked_brand_key) {
+    addScopedFilter({ where, params, column: section.brand_key_column, value: container.linked_brand_key, adminOptional: true });
+  } else if (section.brand_key_column && !subject.is_admin) {
+    where.push("1 = 0");
+  }
+  if (section.system_id_column && container.linked_system_ids.length > 0) {
+    addInFilter({ where, params, column: section.system_id_column, values: container.linked_system_ids });
+  }
+  if (section.status_column) {
+    const activeValues = parseJsonValue(section.active_status_values_json, []);
+    if (Array.isArray(activeValues) && activeValues.length) {
+      addInFilter({ where, params, column: section.status_column, values: activeValues.map(String) });
+    }
+  }
+
+  const rowLimit = Math.min(Math.max(safeNumber(section.row_limit) || 25, 1), 100);
+  const result = await safeRows(
+    `SELECT ${selectSql}
+       FROM ${sourceTable}
+      WHERE ${where.length ? where.join(" AND ") : "1 = 1"}
+      LIMIT ${rowLimit}`,
+    params
+  );
+
+  return {
+    ok: result.ok,
+    section_key: section.section_key,
+    display_name: section.display_name,
+    source_table: section.source_table,
+    aggregation_mode: section.aggregation_mode,
+    row_count: result.rows.length,
+    rows: result.rows.map(stripSensitiveFields),
+    error: result.error || null,
+    secrets_included: false,
+  };
+}
+
+function tabStatus(sections = []) {
+  if (sections.some((section) => section.ok === false)) return "degraded";
+  if (sections.some((section) => section.row_count > 0)) return "active";
+  return "empty";
+}
+
+export async function buildActivationDynamicTabsEvidence({ sessionContext = null } = {}) {
+  const subject = resolveSubject(sessionContext || {});
+  const [{ tabs, sections }, containerResult] = await Promise.all([
+    loadTabRegistry(),
+    loadWorkspaceContainers(subject),
+  ]);
+
+  const degradedSurfaces = [
+    ["activation_dynamic_tab_registry", tabs],
+    ["activation_dynamic_tab_section_registry", sections],
+    ["workspace_registry", containerResult.workspaces],
+    ["brands", containerResult.brands],
+  ]
+    .filter(([, result]) => result?.ok === false)
+    .map(([surface, result]) => ({ surface, error: result.error }));
+
+  const sectionsByTab = new Map();
+  for (const section of sections.rows) {
+    const list = sectionsByTab.get(section.tab_key) || [];
+    list.push(section);
+    sectionsByTab.set(section.tab_key, list);
+  }
+
+  const containers = [];
+  for (const container of containerResult.containers) {
+    const renderedTabs = [];
+    for (const tab of tabs.rows) {
+      const registeredSections = sectionsByTab.get(tab.tab_key) || [];
+      const renderedSections = [];
+      for (const section of registeredSections) {
+        const sectionEvidence = await loadSectionRows(section, container, subject);
+        renderedSections.push(sectionEvidence);
+        if (sectionEvidence.ok === false) {
+          degradedSurfaces.push({
+            surface: `dynamic_tab:${tab.tab_key}:${section.section_key}`,
+            error: sectionEvidence.error,
+          });
+        }
+      }
+      renderedTabs.push({
+        tab_key: tab.tab_key,
+        display_name: tab.display_name,
+        tab_group: tab.tab_group,
+        visibility: tab.default_visibility,
+        status: tabStatus(renderedSections),
+        section_count: renderedSections.length,
+        row_count: renderedSections.reduce((sum, section) => sum + safeNumber(section.row_count), 0),
+        sections: renderedSections,
+      });
+    }
+    containers.push({
+      ...container,
+      tab_count: renderedTabs.length,
+      active_tab_count: renderedTabs.filter((tab) => tab.status === "active").length,
+      degraded_tab_count: renderedTabs.filter((tab) => tab.status === "degraded").length,
+      empty_tab_count: renderedTabs.filter((tab) => tab.status === "empty").length,
+      tabs: renderedTabs,
+    });
+  }
+
+  return {
+    attempted: true,
+    ok: degradedSurfaces.length === 0,
+    activation_layer: "activation_dynamic_tabs",
+    awareness_mode: "workspace_brand_container_tabs",
+    source_authority: "sql_runtime_dynamic_tab_registry_and_subject_scoped_containers",
+    subject: {
+      is_admin: subject.is_admin,
+      tenant_id: subject.tenant_id,
+      user_id: subject.user_id,
+      auth_mode: subject.auth_mode,
+    },
+    summary: {
+      container_count: containers.length,
+      registered_tabs: tabs.rows.length,
+      registered_sections: sections.rows.length,
+      active_containers: containers.filter((container) => container.active_tab_count > 0).length,
+      degraded_surface_count: degradedSurfaces.length,
+    },
+    containers,
+    degraded_surfaces: degradedSurfaces,
+    policy: {
+      each_workspace_or_brand_is_a_container: true,
+      tabs_are_registry_driven: true,
+      visible_rows_are_subject_scoped: true,
+      do_not_return_secret_values: true,
+      secrets_included: false,
+    },
+    secrets_included: false,
+  };
+}
