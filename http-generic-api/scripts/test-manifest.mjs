@@ -9,6 +9,7 @@ export const testCommands = [
   "node test-codex-dual-mode-policy.mjs",
   "node test-dynamic-capability-resolution-graph.mjs",
   "node test-dynamic-capability-simulation-suite.mjs",
+  "node test-tool-bus-descriptor-dry-run.mjs",
   "node test-capability-simulation-findings-refinement.mjs",
   "node test-capability-resolution-envelope-ledger.mjs",
   "node test-capability-envelope-approval-tool.mjs",
