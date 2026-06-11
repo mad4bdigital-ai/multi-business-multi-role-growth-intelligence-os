@@ -76,10 +76,28 @@ pass("missing commit_message is rejected with repo_patch_missing_message");
   assert.ok(source.includes("LARGE_TEXT_REPO_PATCH_MAX_BYTES = 2_000_000"), "repo_patch_apply must allow bounded large generated text contracts");
   assert.ok(source.includes("http-generic-api/openapi.yaml"), "OpenAPI must be explicitly allowlisted for large text patches");
   assert.ok(source.includes("large_text_allowlisted"), "repo_patch_too_large errors must explain whether the path was allowlisted");
+  assert.ok(source.includes("dedupe_openapi_paths"), "repo_patch_apply must expose server-side OpenAPI dedupe action");
+  assert.ok(source.includes("dedupeOpenApiPathsText"), "repo_patch_apply must expose a testable OpenAPI dedupe helper");
   assert.ok(!source.includes("Defaults to main"));
   assert.equal(repoPatchMaxBytesForPath("http-generic-api/openapi.yaml"), 2_000_000);
   assert.equal(repoPatchMaxBytesForPath("http-generic-api/server.js"), 1_000_000);
-  pass("repo_patch_apply blocks protected branches and supports bounded large OpenAPI patches");
+  const dedupeFixture = [
+    "openapi: 3.1.0",
+    "info: { title: test, version: 1.0.0 }",
+    "paths:",
+    "  /alpha:",
+    "    get: { summary: old }",
+    "  /beta:",
+    "    get: { summary: beta }",
+    "  /alpha:",
+    "    get: { summary: new }",
+    "",
+  ].join("\n");
+  const deduped = dedupeOpenApiPathsText(dedupeFixture);
+  assert.equal(deduped.summary.duplicate_paths_removed, 1);
+  assert.ok(!deduped.content.includes("summary: old"));
+  assert.ok(deduped.content.includes("summary: new"));
+  pass("repo_patch_apply blocks protected branches and supports bounded large OpenAPI patches and dedupe");
 }
 
 // ── Unified-diff parser (call applyUnifiedDiffToText indirectly) ──────────────
