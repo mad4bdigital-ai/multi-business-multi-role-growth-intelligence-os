@@ -519,6 +519,59 @@ export async function writeExecutionEvidence({
     ]
   );
 
+  await safeQuery(
+    pool,
+    `UPDATE execution_log
+        SET brand_name = ?, brand_core_status = ?, brand_core_asset_keys = ?, brand_evidence_json = ?,
+            business_activity_type_key = ?, activity_key = ?, business_type_key = ?, knowledge_profile_key = ?,
+            business_activity_evidence_json = ?, business_type_evidence_json = ?,
+            installation_id = ?, permission_grant_id = ?, permission_key = ?, connector_family = ?, provider_family = ?,
+            connected_system_evidence_json = ?, permission_evidence_json = ?,
+            resource_authority_binding_id = ?, resource_authority_evidence_json = ?,
+            budget_authority_id = ?, budget_authority_evidence_json = ?,
+            engine_key = ?, engine_policy_key = ?, engine_evidence_json = ?,
+            model_key = ?, model_provider_key = ?, model_run_id = ?, model_evidence_json = ?,
+            logic_key = ?, logic_pack_key = ?, logic_evidence_json = ?, knowledge_evidence_json = ?
+      WHERE execution_trace_id_writeback = ?
+      ORDER BY id DESC
+      LIMIT 1`,
+    [
+      contextDimensions.brand_name === null ? null : compact(contextDimensions.brand_name, 191),
+      contextDimensions.brand_core_status === null ? null : compact(contextDimensions.brand_core_status, 64),
+      contextDimensions.brand_core_asset_keys === null ? null : compact(contextDimensions.brand_core_asset_keys, 1000),
+      evidenceJson(evidenceObjects.brand),
+      contextDimensions.business_activity_type_key === null ? null : compact(contextDimensions.business_activity_type_key, 191),
+      contextDimensions.activity_key === null ? null : compact(contextDimensions.activity_key, 191),
+      contextDimensions.business_type_key === null ? null : compact(contextDimensions.business_type_key, 191),
+      contextDimensions.knowledge_profile_key === null ? null : compact(contextDimensions.knowledge_profile_key, 191),
+      evidenceJson(evidenceObjects.business_activity),
+      evidenceJson(evidenceObjects.business_type),
+      contextDimensions.installation_id === null ? null : compact(contextDimensions.installation_id, 64),
+      contextDimensions.permission_grant_id === null ? null : compact(contextDimensions.permission_grant_id, 64),
+      contextDimensions.permission_key === null ? null : compact(contextDimensions.permission_key, 191),
+      contextDimensions.connector_family === null ? null : compact(contextDimensions.connector_family, 191),
+      contextDimensions.provider_family === null ? null : compact(contextDimensions.provider_family, 191),
+      evidenceJson(evidenceObjects.connected_system),
+      evidenceJson(evidenceObjects.permission),
+      contextDimensions.resource_authority_binding_id === null ? null : compact(contextDimensions.resource_authority_binding_id, 64),
+      evidenceJson(evidenceObjects.resource_authority),
+      contextDimensions.budget_authority_id === null ? null : compact(contextDimensions.budget_authority_id, 64),
+      evidenceJson(evidenceObjects.budget_authority),
+      contextDimensions.engine_key === null ? null : compact(contextDimensions.engine_key, 191),
+      contextDimensions.engine_policy_key === null ? null : compact(contextDimensions.engine_policy_key, 191),
+      evidenceJson(evidenceObjects.engine),
+      contextDimensions.model_key === null ? null : compact(contextDimensions.model_key, 191),
+      contextDimensions.model_provider_key === null ? null : compact(contextDimensions.model_provider_key, 191),
+      contextDimensions.model_run_id === null ? null : compact(contextDimensions.model_run_id, 191),
+      evidenceJson(evidenceObjects.model),
+      contextDimensions.logic_key === null ? null : compact(contextDimensions.logic_key, 191),
+      contextDimensions.logic_pack_key === null ? null : compact(contextDimensions.logic_pack_key, 191),
+      evidenceJson(evidenceObjects.logic),
+      evidenceJson(evidenceObjects.knowledge),
+      traceId,
+    ]
+  );
+
   const rows = await safeQuery(
     pool,
     `SELECT id, execution_status, execution_trace_id_writeback
