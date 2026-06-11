@@ -14,11 +14,16 @@ assert(pipeline.includes("child_openai_schema_file_id"), "endpoint split rows mu
 assert(pipeline.includes("source_sha256"), "schema import jobs must record source hash");
 assert(pipeline.includes("source_bytes"), "schema import jobs must record source size");
 assert(pipeline.includes("runActionReferenceImport"), "pipeline must expose action reference import entry point");
+assert(pipeline.includes("mirrorActionParentSchemaFromDrive"), "pipeline must expose explicit Drive mirror helper for admin action-ref imports");
 assert(pipeline.includes("ref:schema:"), "action reference import must support ref:schema:* assets");
+assert(pipeline.includes("drive_mirror"), "Drive-backed parent schemas must be mirrored into json_assets rather than fetched at runtime");
 assert(pipeline.includes("Drive/file references should be imported through upload/repo or mirrored into json_assets first"), "unresolved Drive references must fail transparently without hidden provider dependency");
 
 assert(routes.includes('router.post("/admin/schema-import/action-ref"'), "routes must expose action-ref schema import endpoint");
 assert(routes.includes("runActionReferenceImport"), "route must call action reference import pipeline");
+assert(routes.includes("mirror_drive_if_needed"), "route must support explicit opt-in Drive mirroring");
+assert(routes.includes("source_drive_file_id"), "route must accept an explicit Drive file id for mirroring");
+assert(routes.includes("fetchDriveContent"), "route must use the governed Drive content helper for mirror mode");
 assert(routes.includes("preserve_parent_schema_reference !== false"), "action-ref route must preserve parent schema references by default");
 
 assert(!migration.includes("MODIFY COLUMN source_type"), "migration must not widen legacy source_type enum with non-idempotent ALTER");
