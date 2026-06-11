@@ -15,7 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_DIR = path.resolve(__dirname, "..");
 const MIGRATIONS_DIR = path.join(API_DIR, "migrations");
 
-const ALLOWED_MIGRATIONS = new Set([
+const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "051_sprint48_cloudflare_and_self_repair_tools.sql",
   "052_sprint49_local_connector_install_bundle.sql",
   "054_sprint50_admin_device_seed_and_self_repair_tool.sql",
