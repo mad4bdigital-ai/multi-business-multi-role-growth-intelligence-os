@@ -64,14 +64,14 @@ GROUP BY rt.resource_type, rt.resource_family, rt.provider_key, rt.status, rt.su
 
 UPDATE platform_resource_types
 SET default_inspect_recipe_key = 'github.repo.inspect_summary',
-    metadata_json = JSON_SET(COALESCE(CAST(metadata_json AS JSON), JSON_OBJECT()), '$.sprint_e1_coverage', 'github_repo_inspect_summary'),
+    metadata_json = JSON_SET(CASE WHEN JSON_VALID(metadata_json) THEN metadata_json ELSE JSON_OBJECT() END, '$.sprint_e1_coverage', 'github_repo_inspect_summary'),
     updated_at = CURRENT_TIMESTAMP
 WHERE resource_type = 'github_repo'
   AND (default_inspect_recipe_key IS NULL OR default_inspect_recipe_key = '');
 
 UPDATE platform_resource_types
 SET default_inspect_recipe_key = 'github.branch.inspect_summary',
-    metadata_json = JSON_SET(COALESCE(CAST(metadata_json AS JSON), JSON_OBJECT()), '$.sprint_e1_coverage', 'github_branch_inspect_summary'),
+    metadata_json = JSON_SET(CASE WHEN JSON_VALID(metadata_json) THEN metadata_json ELSE JSON_OBJECT() END, '$.sprint_e1_coverage', 'github_branch_inspect_summary'),
     updated_at = CURRENT_TIMESTAMP
 WHERE resource_type = 'github_branch'
   AND (default_inspect_recipe_key IS NULL OR default_inspect_recipe_key = '');
