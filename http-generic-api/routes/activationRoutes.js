@@ -11,6 +11,7 @@ import {
   buildRepoCanonicalRuntimeEvidence,
 } from "../activationDynamicEvidence.js";
 import { buildActivationDynamicTabsEvidence } from "../activationDynamicTabsEvidence.js";
+import { buildActivationOperationalIntelligenceEvidence } from "../activationOperationalIntelligenceEvidence.js";
 import {
   REGISTRY_SPREADSHEET_ID,
   ACTIVITY_SPREADSHEET_ID,
