@@ -72,7 +72,7 @@ export const PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS = [
         recipe_key: { type: "string" },
         resource_ref: { type: "object", additionalProperties: true },
         input: { type: "string" },
-        mode: { type: "string", enum: ["plan", "read_only", "diagnostic", "continue_read_only", "manifest_dry_run", "apply"], default: "plan" },
+        mode: { type: "string", enum: ["plan", "read_only", "diagnostic", "continue_read_only", "manifest_dry_run", "graph_projection_dry_run", "apply"], default: "plan" },
         options: { type: "object", additionalProperties: true },
         capability_envelope_id: { type: "string" },
         typed_confirmation: { type: "string" },
