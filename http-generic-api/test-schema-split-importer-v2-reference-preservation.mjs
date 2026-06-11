@@ -21,7 +21,9 @@ assert(routes.includes('router.post("/admin/schema-import/action-ref"'), "routes
 assert(routes.includes("runActionReferenceImport"), "route must call action reference import pipeline");
 assert(routes.includes("preserve_parent_schema_reference !== false"), "action-ref route must preserve parent schema references by default");
 
-assert(migration.includes("source_type ENUM('upload','repo_link','rollback','action_ref')"), "migration must add action_ref source type");
+assert(!migration.includes("MODIFY COLUMN source_type"), "migration must not widen legacy source_type enum with non-idempotent ALTER");
+assert(pipeline.includes('sourceType: "upload"'), "action-ref imports must use legacy enum-safe source_type and preserve provenance in metadata");
+assert(pipeline.includes('source_type_detail: "action_ref"'), "action-ref provenance must be preserved in metadata_json");
 assert(migration.includes("source_sha256"), "migration must add source_sha256");
 assert(migration.includes("parent_schema_ref"), "migration must add parent_schema_ref");
 assert(migration.includes("preserve_parent_schema_reference"), "migration must add preservation flag");
