@@ -1,4 +1,18 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+for (const migrationFile of [
+  "281_sprint68_session_insight_capability_envelope_dispatch_readback.sql",
+  "282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql",
+  "283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql",
+]) {
+  const migrationSql = readFileSync(`migrations/${migrationFile}`, "utf8");
+  const objectNames = Array.from(migrationSql.matchAll(/CREATE (?:TABLE IF NOT EXISTS|OR REPLACE VIEW) `([^`]+)`/g), (match) => match[1]);
+  for (const objectName of objectNames) {
+    assert(objectName.length <= 64, `${migrationFile}: ${objectName} must fit MySQL/MariaDB 64-character identifier limit`);
+  }
+}
+
 import {
   createSessionInsightCapabilityEnvelopeDispatchReadback,
   listSessionInsightCapabilityEnvelopeDispatchReadbacks,
