@@ -398,7 +398,7 @@ export async function runActionReferenceImport({ actionKey, importedBy = null, p
     importedBy,
     preserveParentSchemaReference,
     parentSchemaRef: resolved.parentSchemaRef,
-    metadata: resolved.metadata || {},
+    metadata: { ...(resolved.metadata || {}), source_type_detail: "action_ref" },
   });
 }
 
