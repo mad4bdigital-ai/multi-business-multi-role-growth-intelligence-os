@@ -397,6 +397,44 @@ export async function writeExecutionEvidence({
     ]
   );
 
+  await safeQuery(
+    pool,
+    `UPDATE execution_log
+        SET agent_id = ?, agent_key = ?, skill_id = ?, skill_key = ?,
+            workflow_id = ?, workflow_key = ?, workflow_binding_key = ?,
+            app_connection_id = ?, plugin_key = ?, role_keys = ?, policy_keys = ?,
+            agent_evidence_json = ?, skill_evidence_json = ?, app_evidence_json = ?,
+            workflow_evidence_json = ?, role_evidence_json = ?, policy_evidence_json = ?,
+            authorization_evidence_json = ?, runtime_evidence_json = ?,
+            execution_evidence_status = ?
+      WHERE execution_trace_id_writeback = ?
+      ORDER BY id DESC
+      LIMIT 1`,
+    [
+      contextDimensions.agent_id === null ? null : compact(contextDimensions.agent_id, 64),
+      contextDimensions.agent_key === null ? null : compact(contextDimensions.agent_key, 191),
+      contextDimensions.skill_id === null ? null : compact(contextDimensions.skill_id, 64),
+      contextDimensions.skill_key === null ? null : compact(contextDimensions.skill_key, 191),
+      contextDimensions.workflow_id === null ? null : compact(contextDimensions.workflow_id, 191),
+      contextDimensions.workflow_key === null ? null : compact(contextDimensions.workflow_key, 191),
+      contextDimensions.workflow_binding_key === null ? null : compact(contextDimensions.workflow_binding_key, 191),
+      contextDimensions.app_connection_id === null ? null : compact(contextDimensions.app_connection_id, 64),
+      contextDimensions.plugin_key === null ? null : compact(contextDimensions.plugin_key, 191),
+      contextDimensions.role_keys === null ? null : compact(contextDimensions.role_keys, 1000),
+      contextDimensions.policy_keys === null ? null : compact(contextDimensions.policy_keys, 1000),
+      evidenceJson(evidenceObjects.agent),
+      evidenceJson(evidenceObjects.skill),
+      evidenceJson(evidenceObjects.app),
+      evidenceJson(evidenceObjects.workflow),
+      evidenceJson(evidenceObjects.role),
+      evidenceJson(evidenceObjects.policy),
+      evidenceJson(evidenceObjects.authorization),
+      evidenceJson(runtimeEvidenceEnvelope),
+      compact(derivedExecutionEvidenceStatus || "partial", 64),
+      traceId,
+    ]
+  );
+
   const rows = await safeQuery(
     pool,
     `SELECT id, execution_status, execution_trace_id_writeback
