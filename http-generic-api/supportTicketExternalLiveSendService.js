@@ -17,33 +17,63 @@ function cleanString(value, max = 1024) {
   return String(value || "").replace(/[\r\n\u0000]+/g, " ").trim().slice(0, max);
 }
 
-function parseListEnv(name) {
-  const raw = String(process.env[name] || "").trim();
-  if (!raw) return [];
-  if (raw.startsWith("[")) {
-    try { return JSON.parse(raw).map((item) => String(item).trim()).filter(Boolean); } catch {}
+function normalizeAdapterKey(adapter = {}) {
+  return cleanString(adapter.adapter_key || adapter.provider_key || "", 160);
+}
+
+function normalizeEmail(value = "") {
+  return cleanString(value, 320).toLowerCase();
+}
+
+function normalizeTenantId(value = "") {
+  return cleanString(value, 64) || "00000000-0000-0000-0000-000000000000";
+}
+
+function allowlistPatternMatches({ matchType = "exact_email", pattern = "", recipient = "" } = {}) {
+  const normalizedPattern = normalizeEmail(pattern);
+  const normalizedRecipient = normalizeEmail(recipient);
+  if (!EMAIL_PATTERN.test(normalizedRecipient) || !normalizedPattern) return false;
+  if (matchType === "exact_email") return normalizedRecipient === normalizedPattern;
+  if (matchType === "domain") return normalizedRecipient.endsWith(`@${normalizedPattern.replace(/^@/, "")}`);
+  if (matchType === "wildcard_domain") return normalizedRecipient.endsWith(`.${normalizedPattern.replace(/^\*\.?/, "")}`) || normalizedRecipient.endsWith(`@${normalizedPattern.replace(/^\*\.?/, "")}`);
+  return false;
+}
+
+async function loadDynamicRecipientAllowlist({ tenantId, adapterKey, channel = "email", connection = null } = {}) {
+  const pool = connection || getPool();
+  const normalizedTenant = normalizeTenantId(tenantId);
+  const normalizedAdapter = cleanString(adapterKey, 160);
+  const normalizedChannel = cleanString(channel || "email", 64);
+  const [rows] = await pool.query(
+    `SELECT allowlist_id, tenant_id, adapter_key, channel, match_type, recipient_pattern, status, expires_at
+       FROM external_delivery_recipient_allowlist_registry
+      WHERE status = 'active'
+        AND channel = ?
+        AND tenant_id IN (?, '00000000-0000-0000-0000-000000000000', '*')
+        AND adapter_key IN (?, '*')
+        AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+      ORDER BY CASE WHEN tenant_id = ? THEN 0 ELSE 1 END,
+               CASE WHEN adapter_key = ? THEN 0 ELSE 1 END,
+               created_at DESC
+      LIMIT 200`,
+    [normalizedChannel, normalizedTenant, normalizedAdapter, normalizedTenant, normalizedAdapter]
+  );
+  return rows || [];
+}
+
+async function checkDynamicRecipientAllowlist(email, { tenantId = "", adapterKey = "", channel = "email", connection = null } = {}) {
+  const normalizedRecipient = normalizeEmail(email);
+  if (!EMAIL_PATTERN.test(normalizedRecipient)) {
+    return { allowed: false, allowlist_count: 0, matched_allowlist_id: null, source: "external_delivery_recipient_allowlist_registry", reason: "recipient_email_invalid", secret_value_included: false, secrets_included: false };
   }
-  return raw.split(",").map((item) => item.trim()).filter(Boolean);
+  const rows = await loadDynamicRecipientAllowlist({ tenantId, adapterKey, channel, connection });
+  const match = rows.find((row) => allowlistPatternMatches({ matchType: row.match_type, pattern: row.recipient_pattern, recipient: normalizedRecipient }));
+  return { allowed: Boolean(match), allowlist_count: rows.length, matched_allowlist_id: match?.allowlist_id || null, source: "external_delivery_recipient_allowlist_registry", reason: match ? "matched_db_allowlist" : "recipient_not_in_db_allowlist", secret_value_included: false, secrets_included: false };
 }
 
-function allowedRecipientPatterns() {
-  return [
-    ...parseListEnv("SUPPORT_TICKET_LIVE_SEND_ALLOWLIST"),
-    ...parseListEnv("EXTERNAL_DELIVERY_LIVE_SEND_ALLOWLIST"),
-  ].map((item) => item.toLowerCase());
-}
-
-export function isLiveSendRecipientAllowed(email) {
-  const normalized = cleanString(email, 320).toLowerCase();
-  if (!EMAIL_PATTERN.test(normalized)) return false;
-  const patterns = allowedRecipientPatterns();
-  if (!patterns.length) return false;
-  return patterns.some((pattern) => {
-    if (pattern === normalized) return true;
-    if (pattern.startsWith("@")) return normalized.endsWith(pattern);
-    if (pattern.startsWith("*.")) return normalized.endsWith(pattern.slice(1));
-    return false;
-  });
+export async function isLiveSendRecipientAllowed(email, options = {}) {
+  const result = await checkDynamicRecipientAllowlist(email, options);
+  return result.allowed;
 }
 
 function parseSmtpUrl() {
