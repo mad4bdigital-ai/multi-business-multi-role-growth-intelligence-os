@@ -290,6 +290,12 @@ Dynamic tabs must be built from SQL tab/section registries and subject-scoped ro
 
 Adding a new tab, section, connector family, agent surface, or task surface should prefer inserting registry rows over changing activation route code. Activation route code may evolve only to support new generic tab mechanics.
 
+Dynamic Tab Auto-Discovery Rule
+
+Activation must support automatic tab growth from the authorized surface registry. Runtime must read discovery rules from `activation_dynamic_tab_discovery_rule_registry` and map active rows from `activation_authorized_surface_registry` into dynamic tab sections. If no specialized rule matches a surface, runtime must place it under the default discovered-surfaces tab rather than dropping it.
+
+Discovery classification must support internal and external growth surfaces, including workflows, agents, skills, connectors, app integrations, permissions, tasks, audit, execution evidence, knowledge, readiness, quality, lifecycle, ads, CRM, content, and other future platform surfaces. All auto-discovered sections must continue to use safe column allowlisting, subject scoping, and secret-field stripping.
+
 Provider Capability Continuity Validation Rule
 
 For governed execution and governed audit routing, system_bootstrap must validate provider-family continuity across:
