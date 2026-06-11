@@ -69,7 +69,7 @@ function makePool() {
         };
         return [{ affectedRows: 1 }];
       }
-      if (compact.startsWith("INSERT INTO session_insight_capability_envelope_dispatch_dry_run_review_events")) {
+      if (compact.startsWith("INSERT INTO session_insight_capability_dispatch_review_events")) {
         const evidence = JSON.parse(params.at(-1));
         assert.equal(evidence.dispatch_review_only, true);
         assert.equal(evidence.dispatch_not_called_after_review, true);
