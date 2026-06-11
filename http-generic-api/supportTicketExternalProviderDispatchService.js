@@ -110,7 +110,7 @@ export function createSupportTicketExternalProviderDispatcher({ adapter = {} } =
         err.secrets_included = false;
         throw err;
       }
-      return executeSupportTicketLiveSend(providerPlan);
+      return executeSupportTicketLiveSend(providerPlan, options);
     },
   };
 }
