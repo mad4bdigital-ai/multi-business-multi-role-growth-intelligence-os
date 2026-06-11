@@ -252,6 +252,25 @@ Hard activation must be evidence-driven in the same execution cycle. A hard acti
 
 Connectivity-only provider success is insufficient for hard activation. If repo canonical evidence or dynamic runtime catalog evidence is missing, hard activation must classify as degraded with a machine-readable reason code and must not report `activation_complete=true`.
 
+Adaptive Operational Dashboard Activation Rule
+
+Activation must also return an operational awareness envelope when the relevant registries are available. This envelope is diagnostic and adaptive: it must be built from SQL runtime registry rows, visible connected systems, provider callback registries, and auth-source fallback routing.
+
+The operational dashboard layer must include:
+
+- registered operational tiles by provider/connector family
+- callbacks available for each tile
+- source chain ordering for each provider (`platform_native_connection_or_oauth`, `chatgpt_user_account_app`, then `manual_prompt` when allowed)
+- visible native connected systems for the current subject
+- fallback availability when no platform-native connection exists
+- ownership context for platform-owner Brand activation when the admin owns the platform Brand
+- freshness SLA and safe-mode metadata for callbacks
+- degraded surfaces without leaking credentials or secret values
+
+The runtime must not assume ChatGPT account Apps & integrations are connected unless runtime evidence exists in the current interface/tooling context. When such evidence is unavailable, ChatGPT account apps must be represented as `fallback_possible_user_account_app_check_required`, not as confirmed access.
+
+Background refresh and persistent platform monitoring require platform-native OAuth, service-account, or connector credentials. ChatGPT account app fallback and prompt-guided fallback may support conversation-time awareness, but they must not be treated as platform-owned background sync.
+
 Provider Capability Continuity Validation Rule
 
 For governed execution and governed audit routing, system_bootstrap must validate provider-family continuity across:
