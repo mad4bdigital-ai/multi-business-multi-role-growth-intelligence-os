@@ -55,8 +55,8 @@ function makePool() {
         assert(compact.includes("'actual_envelope_approved'"), "approval decision must record approval");
         assert(compact.includes("'approved_but_not_executed'"), "approval decision must remain no-execution");
         assert(compact.includes("1, ?, ?, ?, 0, 0, 0"), "approval may create hold but must not execute or target-write");
-        const result = JSON.parse(params[17]);
-        const safety = JSON.parse(params[18]);
+        const result = JSON.parse(params[16]);
+        const safety = JSON.parse(params[17]);
         assert.equal(result.envelope_id, "actual_envelope_1");
         assert.equal(result.envelope_status, "ready_for_dispatch");
         assert.equal(result.approval_hold_id, "approval_hold_1");
