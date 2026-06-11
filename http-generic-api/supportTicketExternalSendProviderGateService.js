@@ -153,7 +153,8 @@ export async function recordSupportTicketExternalSendProviderGateAttempt({ tenan
   const externalChannel = normalizeChannel(channel);
   const normalizedAudience = normalizeAudience(audience);
   assertNoRawSecretPayload(payload_json, "payload_json");
-  const runMode = mode === "record_blocked_attempt" ? "record_blocked_attempt" : "dry_run";
+  const normalizedMode = String(mode || "dry_run").trim().toLowerCase();
+  const runMode = normalizedMode === "live_send" ? "live_send" : (normalizedMode === "record_blocked_attempt" ? "record_blocked_attempt" : "dry_run");
   const pool = options.pool || getPool();
   const connection = options.connection || await pool.getConnection();
   const ownsConnection = !options.connection;
