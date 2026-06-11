@@ -97,9 +97,9 @@ export function createSupportTicketExternalProviderDispatcher({ adapter = {} } =
     },
     dryRun(providerPlan = {}) { return this.plan(providerPlan, { mode: "dry_run" }); },
     sandbox(providerPlan = {}) { return this.plan(providerPlan, { mode: "sandbox" }); },
-    async send(providerPlan = {}) {
+    async send(providerPlan = {}, options = {}) {
       const validation = this.validate(providerPlan, { mode: "live_send" });
-      const readiness = checkSupportTicketLiveSendReadiness(providerPlan);
+      const readiness = await checkSupportTicketLiveSendReadiness(providerPlan, options);
       if (!validation.ok || !readiness.ok) {
         const err = new Error("Live external provider dispatch is blocked by validation or readiness gates.");
         err.status = 409;
