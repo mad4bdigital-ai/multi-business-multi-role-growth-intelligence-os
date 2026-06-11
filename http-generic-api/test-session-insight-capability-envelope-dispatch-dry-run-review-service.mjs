@@ -1,5 +1,15 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { decideSessionInsightCapabilityEnvelopeDispatchDryRunReview } from "./sessionInsightCapabilityEnvelopeDispatchDryRunReviewService.js";
+
+const migrationSql = readFileSync("migrations/277_sprint68_session_insight_capability_envelope_dispatch_dry_run_review.sql", "utf8");
+const migrationObjectNames = Array.from(migrationSql.matchAll(/CREATE (?:TABLE IF NOT EXISTS|OR REPLACE VIEW) `([^`]+)`/g), (match) => match[1]);
+for (const objectName of migrationObjectNames) {
+  assert(objectName.length <= 64, `${objectName} must fit MySQL/MariaDB 64-character identifier limit`);
+}
+assert(migrationSql.includes("v_session_insight_dispatch_dry_run_review_queue"));
+assert(migrationSql.includes("v_session_insight_dispatch_dry_run_review_issues"));
+assert(migrationSql.includes("v_session_insight_actual_request_readiness"));
 
 function makePool() {
   const state = {
