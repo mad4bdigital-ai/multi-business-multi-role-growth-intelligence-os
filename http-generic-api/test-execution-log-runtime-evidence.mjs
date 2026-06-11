@@ -41,7 +41,7 @@ assert.match(logger, /BLOCKED_EVIDENCE_KEY_PATTERN/);
 assert.match(logger, /runtimeEvidenceEnvelope/);
 assert.match(logger, /execution_evidence_status/);
 
-const captured = { insert: null, update: null };
+const captured = { insert: null, update: null, fullContextUpdate: null };
 const pool = {
   async query(sql, params = []) {
     const text = String(sql).trim();
@@ -49,8 +49,12 @@ const pool = {
       captured.insert = { sql, params };
       return [{ affectedRows: 1, insertId: 123 }];
     }
-    if (text.startsWith("UPDATE execution_log")) {
+    if (text.startsWith("UPDATE execution_log") && text.includes("agent_id = ?")) {
       captured.update = { sql, params };
+      return [{ affectedRows: 1, changedRows: 1 }];
+    }
+    if (text.startsWith("UPDATE execution_log") && text.includes("brand_name = ?")) {
+      captured.fullContextUpdate = { sql, params };
       return [{ affectedRows: 1, changedRows: 1 }];
     }
     if (text.includes("FROM execution_log")) {
