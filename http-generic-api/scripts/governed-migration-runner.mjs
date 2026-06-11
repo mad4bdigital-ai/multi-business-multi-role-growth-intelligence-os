@@ -109,6 +109,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "278_sprint68_session_insight_capability_envelope_actual_request_preflight.sql",
   "279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql",
   "280_sprint68_session_insight_capability_envelope_approval_gate.sql",
+  "281_sprint68_session_insight_capability_envelope_dispatch_readback.sql",
   "276_sprint68_activation_positive_surface_fixtures.sql",
   "277_sprint68_execution_log_runtime_evidence.sql",
   "260_sprint68_platform_development_constitution_policies.sql",
