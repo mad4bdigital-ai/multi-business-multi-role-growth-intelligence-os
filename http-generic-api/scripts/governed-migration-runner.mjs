@@ -161,6 +161,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "272_sprint68_ticket_external_provider_gate_registry_resolver.sql",
   "274_sprint68_execution_policy_enforcement_closure.sql",
   "274_sprint68_schema_split_importer_v2_reference_preservation.sql",
+  "279_sprint68_schema_import_action_ref_drive_mirror_tool_schema.sql",
   "900_sprint68_governed_repository_intelligence_engine.sql",
   "901_sprint68_resource_manifest_create_gate_authority.sql",
   "902_sprint68_dynamic_capability_apply_authorization_policy.sql",
