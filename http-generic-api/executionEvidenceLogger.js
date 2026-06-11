@@ -306,6 +306,7 @@ export async function writeExecutionEvidence({
     route_keys: routeKeys,
     selected_workflows: selectedWorkflows,
     trace_id: traceId,
+    runtime_evidence: runtimeEvidenceEnvelope,
   });
 
   await pool.query(
