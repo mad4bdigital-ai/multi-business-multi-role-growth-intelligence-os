@@ -14,6 +14,7 @@ const manifestCertificationMigration = readFileSync("migrations/904_sprint68_res
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
 const runtimeModule = readFileSync("platformResourceRecipeCapability.js", "utf8");
+const providerTransportEncoderRegistry = readFileSync("providerTransportEncoderRegistry.js", "utf8");
 const executionDispatch = readFileSync("executionDispatch.js", "utf8");
 
 function includesAll(source, values, label) {
@@ -148,6 +149,17 @@ includesAll(executionDispatch, [
   "upstreamBody = transportBody",
 ], "execution dispatch gated raw multipart body support");
 
+includesAll(providerTransportEncoderRegistry, [
+  "PROVIDER_TRANSPORT_ENCODER_REGISTRY",
+  "google_drive_api.uploadNewFile.multipart_related_json_v1",
+  "uploadNewFile",
+  "uploadType: \"multipart\"",
+  "raw_body_mode: \"multipart_related\"",
+  "multipart/related; boundary=",
+  "provider_transport_encoder_secret_key_rejected",
+  "secrets_included: false",
+], "provider transport encoder registry contract");
+
 includesAll(runtimeModule, [
   "READ_ONLY_INSTALLED_TOOL_ALLOWLIST",
   "READ_ONLY_COMPOSITE_RECIPE_ALLOWLIST",
@@ -179,10 +191,7 @@ includesAll(runtimeModule, [
   "capability_resolution_envelope_apply_not_allowed",
   "manifest_create_runtime_endpoint_executor_missing",
   "buildManifestUploadPayload",
-  "uploadNewFile",
-  "uploadType: \"multipart\"",
-  "raw_body_mode: \"multipart_related\"",
-  "multipart/related; boundary=",
+  "buildGoogleDriveMultipartRelatedJsonPayload",
   "result?.body?.data?.id",
   "buildManifestReadbackPayload",
   "getFileMetadata",

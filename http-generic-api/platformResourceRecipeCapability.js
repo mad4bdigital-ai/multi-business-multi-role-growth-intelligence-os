@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { markCapabilityEnvelopeReferenced, resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
+import { buildGoogleDriveMultipartRelatedJsonPayload } from "./providerTransportEncoderRegistry.js";
 
 export const PLATFORM_RESOURCE_RECIPE_TOOL_NAMES = [
   "governed_resource_resolve",
@@ -955,48 +956,19 @@ function manifestParentFolderId(plan = {}, args = {}) {
 function buildManifestUploadPayload(manifestDryRun = {}, plan = {}, args = {}) {
   const options = args.options && typeof args.options === "object" ? args.options : {};
   const parentFolderId = manifestParentFolderId(plan, args);
-  const contentJson = stableJson(manifestDryRun.content_preview || {});
-  const mimeType = manifestDryRun.mime_type || "application/json";
-  const boundary = `manifest_boundary_${sha256Hex(`${manifestDryRun.filename || "manifest"}:${manifestDryRun.content_sha256 || sha256Hex(contentJson)}`).slice(0, 16)}`;
-  const metadata = {
-    name: manifestDryRun.filename,
-    mimeType,
-    ...(parentFolderId ? { parents: [parentFolderId] } : {}),
-  };
-  const multipartBody = [
-    `--${boundary}`,
-    "Content-Type: application/json; charset=UTF-8",
-    "",
-    JSON.stringify(metadata),
-    `--${boundary}`,
-    `Content-Type: ${mimeType}; charset=UTF-8`,
-    "",
-    contentJson,
-    `--${boundary}--`,
-    "",
-  ].join("\r\n");
-  return {
-    parent_action_key: "google_drive_api",
-    endpoint_key: "uploadNewFile",
+  return buildGoogleDriveMultipartRelatedJsonPayload({
+    filename: manifestDryRun.filename,
+    mime_type: manifestDryRun.mime_type || "application/json",
+    parent_folder_id: parentFolderId,
+    media_body: manifestDryRun.content_preview || {},
+    content_sha256: manifestDryRun.content_sha256,
     credential_scope: args.credential_scope || options.credential_scope || "platform",
     connection_id: args.connection_id || options.connection_id || undefined,
     tenant_id: args.tenant_id || options.tenant_id || undefined,
     user_id: args.user_id || options.user_id || undefined,
-    allow_platform_fallback: boolOption(args.allow_platform_fallback ?? options.allow_platform_fallback, true),
+    allow_platform_fallback: args.allow_platform_fallback ?? options.allow_platform_fallback ?? true,
     timeout_seconds: 25,
-    query: {
-      uploadType: "multipart",
-      fields: "id,name,mimeType,parents,size,createdTime,modifiedTime,webViewLink",
-      supportsAllDrives: true,
-    },
-    headers: {
-      "Content-Type": `multipart/related; boundary=${boundary}`,
-    },
-    raw_body_mode: "multipart_related",
-    body: multipartBody,
-    readback: { required: true, mode: "same_cycle_metadata_readback" },
-    secrets_included: false,
-  };
+  });
 }
 
 function fileIdFromEndpointResult(result = {}) {
