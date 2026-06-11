@@ -50,6 +50,41 @@ function contextJson(context = {}) {
   return safeJson(clean);
 }
 
+const BLOCKED_EVIDENCE_KEY_PATTERN = /(secret|credential_ref|credential|token|password|private_key|cipher|api_key|value_ciphertext|value_sha|config_json|capability_json|encrypted_credentials|webhook_url|n8n_webhook_url|system_prompt|prompt_template|manifest_json|tool_manifest_json|input_schema_json|output_schema_json)/i;
+
+function stripSensitiveEvidence(value, depth = 0) {
+  if (depth > 6) return null;
+  if (Array.isArray(value)) return value.map((item) => stripSensitiveEvidence(item, depth + 1)).filter((item) => item !== undefined);
+  if (!value || typeof value !== "object") return value;
+  const clean = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (BLOCKED_EVIDENCE_KEY_PATTERN.test(key)) continue;
+    const next = stripSensitiveEvidence(item, depth + 1);
+    if (next !== undefined) clean[key] = next;
+  }
+  return clean;
+}
+
+function evidenceJson(value = {}) {
+  return safeJson({ ...stripSensitiveEvidence(asObject(value)), secrets_included: false });
+}
+
+function pickEvidenceObject(contextObjects = [], explicit, keys = []) {
+  if (explicit && typeof explicit === "object" && !Array.isArray(explicit)) return explicit;
+  for (const source of contextObjects) {
+    for (const key of keys) {
+      const value = source[key];
+      if (value && typeof value === "object" && !Array.isArray(value)) return value;
+    }
+  }
+  return {};
+}
+
+function compactList(value, max = 1000) {
+  if (Array.isArray(value)) return compact(value.filter(Boolean).join(","), max);
+  return value === null || value === undefined ? null : compact(value, max);
+}
+
 async function safeQuery(pool, sql, params = []) {
   try {
     const [rows] = await pool.query(sql, params);
@@ -114,6 +149,26 @@ export async function writeExecutionEvidence({
   toolKey = null,
   appKey = null,
   actionKey = null,
+  agentId = null,
+  agentKey = null,
+  skillId = null,
+  skillKey = null,
+  workflowId = null,
+  workflowKey = null,
+  workflowBindingKey = null,
+  appConnectionId = null,
+  pluginKey = null,
+  roleKeys = null,
+  policyKeys = null,
+  agentEvidence = null,
+  skillEvidence = null,
+  appEvidence = null,
+  workflowEvidence = null,
+  roleEvidence = null,
+  policyEvidence = null,
+  authorizationEvidence = null,
+  runtimeEvidence = null,
+  executionEvidenceStatus = null,
   connectedSystemId = null,
   credentialRefId = null,
   resourceType = null,
@@ -189,8 +244,61 @@ export async function writeExecutionEvidence({
     environment: pickContext(contextObjects, environment, ["environment", "env"]),
     correlation_id: pickContext(contextObjects, correlationId, ["correlation_id", "correlationId", "trace_id", "traceId"]) || traceId,
     idempotency_key: pickContext(contextObjects, idempotencyKey, ["idempotency_key", "idempotencyKey"]),
+    agent_id: pickContext(contextObjects, agentId, ["agent_id", "agentId"]),
+    agent_key: pickContext(contextObjects, agentKey, ["agent_key", "agentKey", "agent_name", "agentName"]),
+    skill_id: pickContext(contextObjects, skillId, ["skill_id", "skillId"]),
+    skill_key: pickContext(contextObjects, skillKey, ["skill_key", "skillKey"]),
+    workflow_id: pickContext(contextObjects, workflowId, ["workflow_id", "workflowId"]),
+    workflow_key: pickContext(contextObjects, workflowKey, ["workflow_key", "workflowKey", "selected_workflow", "selectedWorkflow"]),
+    workflow_binding_key: pickContext(contextObjects, workflowBindingKey, ["workflow_binding_key", "workflowBindingKey", "binding_key", "bindingKey"]),
+    app_connection_id: pickContext(contextObjects, appConnectionId, ["app_connection_id", "appConnectionId", "connection_id", "connectionId"]),
+    plugin_key: pickContext(contextObjects, pluginKey, ["plugin_key", "pluginKey"]),
+    role_keys: compactList(firstNonEmpty(roleKeys, ...contextObjects.map((source) => source.role_keys || source.roleKeys || source.role || source.user_role || source.userRole)), 1000),
+    policy_keys: compactList(firstNonEmpty(policyKeys, ...contextObjects.map((source) => source.policy_keys || source.policyKeys || source.policy_key || source.policyKey)), 1000),
   };
   if (!contextDimensions.actor_type && contextDimensions.actor_id) contextDimensions.actor_type = contextDimensions.user_id ? "user" : "system";
+
+  const evidenceObjects = {
+    agent: stripSensitiveEvidence(pickEvidenceObject(contextObjects, agentEvidence, ["agent_evidence", "agentEvidence", "agent"])),
+    skill: stripSensitiveEvidence(pickEvidenceObject(contextObjects, skillEvidence, ["skill_evidence", "skillEvidence", "skill"])),
+    app: stripSensitiveEvidence(pickEvidenceObject(contextObjects, appEvidence, ["app_evidence", "appEvidence", "app"])),
+    workflow: stripSensitiveEvidence(pickEvidenceObject(contextObjects, workflowEvidence, ["workflow_evidence", "workflowEvidence", "workflow"])),
+    role: stripSensitiveEvidence(pickEvidenceObject(contextObjects, roleEvidence, ["role_evidence", "roleEvidence", "role"])),
+    policy: stripSensitiveEvidence(pickEvidenceObject(contextObjects, policyEvidence, ["policy_evidence", "policyEvidence", "policy"])),
+    authorization: stripSensitiveEvidence(pickEvidenceObject(contextObjects, authorizationEvidence, ["authorization_evidence", "authorizationEvidence", "authorized_access", "authorizedAccess"])),
+  };
+  const runtimeEvidenceEnvelope = {
+    ...pickEvidenceObject(contextObjects, runtimeEvidence, ["runtime_evidence", "runtimeEvidence"]),
+    dimensions: {
+      tenant_id: contextDimensions.tenant_id,
+      workspace_id: contextDimensions.workspace_id,
+      user_id: contextDimensions.user_id,
+      actor_id: contextDimensions.actor_id,
+      actor_type: contextDimensions.actor_type,
+      role_keys: contextDimensions.role_keys,
+      policy_keys: contextDimensions.policy_keys,
+    },
+    surfaces: {
+      agent_id: contextDimensions.agent_id,
+      agent_key: contextDimensions.agent_key,
+      skill_id: contextDimensions.skill_id,
+      skill_key: contextDimensions.skill_key,
+      app_key: contextDimensions.app_key,
+      app_connection_id: contextDimensions.app_connection_id,
+      plugin_key: contextDimensions.plugin_key,
+      workflow_id: contextDimensions.workflow_id,
+      workflow_key: contextDimensions.workflow_key,
+      workflow_binding_key: contextDimensions.workflow_binding_key,
+      action_key: contextDimensions.action_key,
+      tool_key: contextDimensions.tool_key,
+    },
+    evidence: evidenceObjects,
+    secrets_included: false,
+  };
+  const derivedExecutionEvidenceStatus = firstNonEmpty(
+    executionEvidenceStatus,
+    contextDimensions.tenant_id && contextDimensions.user_id && contextDimensions.policy_keys ? "complete" : "partial"
+  );
 
   const executionContextJson = contextJson({
     ...asObject(executionContext),
@@ -198,6 +306,7 @@ export async function writeExecutionEvidence({
     route_keys: routeKeys,
     selected_workflows: selectedWorkflows,
     trace_id: traceId,
+    runtime_evidence: runtimeEvidenceEnvelope,
   });
 
   await pool.query(
@@ -285,6 +394,44 @@ export async function writeExecutionEvidence({
       compact(usedEngineRegistryRefs, 1000),
       engineResolutionStatus === null || engineResolutionStatus === undefined ? null : compact(engineResolutionStatus, 255),
       compact(engineAssociationStatus || "not_associated", 255),
+    ]
+  );
+
+  await safeQuery(
+    pool,
+    `UPDATE execution_log
+        SET agent_id = ?, agent_key = ?, skill_id = ?, skill_key = ?,
+            workflow_id = ?, workflow_key = ?, workflow_binding_key = ?,
+            app_connection_id = ?, plugin_key = ?, role_keys = ?, policy_keys = ?,
+            agent_evidence_json = ?, skill_evidence_json = ?, app_evidence_json = ?,
+            workflow_evidence_json = ?, role_evidence_json = ?, policy_evidence_json = ?,
+            authorization_evidence_json = ?, runtime_evidence_json = ?,
+            execution_evidence_status = ?
+      WHERE execution_trace_id_writeback = ?
+      ORDER BY id DESC
+      LIMIT 1`,
+    [
+      contextDimensions.agent_id === null ? null : compact(contextDimensions.agent_id, 64),
+      contextDimensions.agent_key === null ? null : compact(contextDimensions.agent_key, 191),
+      contextDimensions.skill_id === null ? null : compact(contextDimensions.skill_id, 64),
+      contextDimensions.skill_key === null ? null : compact(contextDimensions.skill_key, 191),
+      contextDimensions.workflow_id === null ? null : compact(contextDimensions.workflow_id, 191),
+      contextDimensions.workflow_key === null ? null : compact(contextDimensions.workflow_key, 191),
+      contextDimensions.workflow_binding_key === null ? null : compact(contextDimensions.workflow_binding_key, 191),
+      contextDimensions.app_connection_id === null ? null : compact(contextDimensions.app_connection_id, 64),
+      contextDimensions.plugin_key === null ? null : compact(contextDimensions.plugin_key, 191),
+      contextDimensions.role_keys === null ? null : compact(contextDimensions.role_keys, 1000),
+      contextDimensions.policy_keys === null ? null : compact(contextDimensions.policy_keys, 1000),
+      evidenceJson(evidenceObjects.agent),
+      evidenceJson(evidenceObjects.skill),
+      evidenceJson(evidenceObjects.app),
+      evidenceJson(evidenceObjects.workflow),
+      evidenceJson(evidenceObjects.role),
+      evidenceJson(evidenceObjects.policy),
+      evidenceJson(evidenceObjects.authorization),
+      evidenceJson(runtimeEvidenceEnvelope),
+      compact(derivedExecutionEvidenceStatus || "partial", 64),
+      traceId,
     ]
   );
 
