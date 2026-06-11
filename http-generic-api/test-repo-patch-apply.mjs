@@ -78,6 +78,8 @@ pass("missing commit_message is rejected with repo_patch_missing_message");
   assert.ok(source.includes("large_text_allowlisted"), "repo_patch_too_large errors must explain whether the path was allowlisted");
   assert.ok(source.includes("dedupe_openapi_paths"), "repo_patch_apply must expose server-side OpenAPI dedupe action");
   assert.ok(source.includes("dedupeOpenApiPathsText"), "repo_patch_apply must expose a testable OpenAPI dedupe helper");
+  assert.ok(source.includes("loadRepoPatchCurrentContent"), "repo_patch_apply must read large files through Git blob fallback when Contents API omits content");
+  assert.ok(source.includes("repo_patch_github_blob_get_failed"), "large-file blob fallback failures must be structured");
   assert.ok(!source.includes("Defaults to main"));
   assert.equal(repoPatchMaxBytesForPath("http-generic-api/openapi.yaml"), 2_000_000);
   assert.equal(repoPatchMaxBytesForPath("http-generic-api/server.js"), 1_000_000);
