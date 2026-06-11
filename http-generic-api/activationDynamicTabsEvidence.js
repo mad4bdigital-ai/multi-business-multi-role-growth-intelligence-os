@@ -408,6 +408,8 @@ async function loadSectionRows(section, container, subject) {
     display_name: section.display_name,
     source_table: section.source_table,
     aggregation_mode: section.aggregation_mode,
+    auto_discovered: section.auto_discovered === true,
+    discovery_rule_key: section.discovery_rule_key || null,
     row_count: result.rows.length,
     rows: result.rows.map(stripSensitiveFields),
     error: result.error || null,
