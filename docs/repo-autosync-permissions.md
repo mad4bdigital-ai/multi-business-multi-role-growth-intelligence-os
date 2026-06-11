@@ -50,8 +50,9 @@ Default automation may update:
 - `http-generic-api/openapi.yaml`
 - generated markdown planning docs such as `docs/repo-maintenance-status.md`
 - generated SQL-backed surface discovery evidence such as `docs/surface-contract-discovery-status.md`
+- generated machine-readable coverage evidence such as `docs/surface-contract-discovery-status.json`
 
-The surface discovery report scans migrations for routes, tools, views, policies, plugins, and safety markers. It is documentation evidence only: it does not execute providers, read credentials, mutate runtime, write database rows, send externally, or include secrets.
+The surface discovery report scans migrations for routes, tools, views, policies, plugins, and safety markers. The deep coverage contract also scores documentation completion, high/medium/low documentation gaps, SQL route/OpenAPI coverage, per-target documentation gaps, and safety marker coverage across all discovered migration surfaces. It is documentation evidence only: it does not execute providers, read credentials, mutate runtime, write database rows, send externally, deploy, or include secrets.
 
 Default automation does **not** commit split OpenAPI schemas. Split schema artifact writes require an explicit reviewed run:
 
