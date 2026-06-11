@@ -303,7 +303,7 @@ export async function listSessionInsightCapabilityEnvelopeActualRequestPreflight
   );
   const [issueRows] = await pool.query(
     `SELECT issue_code, severity, COUNT(*) AS count
-       FROM v_session_insight_capability_envelope_actual_request_preflight_issues
+       FROM v_session_insight_actual_preflight_issues
       GROUP BY issue_code, severity
       ORDER BY severity, issue_code`
   );
