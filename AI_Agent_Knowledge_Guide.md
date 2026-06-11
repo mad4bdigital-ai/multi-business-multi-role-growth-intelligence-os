@@ -123,6 +123,12 @@ Agents should treat the generated note as reviewable evidence, not as a replacem
 
 OpenRouter is the priority model-provider candidate for future Docs Agent drafting, but it must run only through the platform-managed OpenAI-compatible bridge and `docs_agent_openrouter_instruction_contract_v1`. Do not call OpenRouter directly from agent code, do not copy provider secrets to prompts/devices, and do not promote the provider from `planned` to `active` until credential binding plus bridge smoke validation pass. See `docs/openrouter-docs-agent-provider-contract.md`.
 
+### Session Insight capability-envelope release-readiness chain
+
+Migrations `277` through `283` implement the Session Insight capability-envelope chain as gated no-execution layers: dispatch dry-run review, actual request preflight, actual envelope request ledger, approval gate, dispatch readback, adapter execution gate, and remaining scope completion. The authoritative release-readiness runbook is `docs/session-insight-capability-envelope-release-readiness.md`.
+
+Agents must not treat this chain as production target-write authorization. Adapter apply, runtime execution, `promotion_allowed`, `execution_allowed`, `target_write_allowed`, and `target_write_executed` remain false until a separate future production execution PR adds rollback, readback, release-readiness evidence, OpenAPI coverage, and explicit operator approval.
+
 ### Runtime policy preflight governance
 
 `execution_policies` is the active transitional runtime preflight authority. Agents must treat it as required runtime policy evidence until a target-rule resolver bridge proves parity with `platform_engine_policy_rules`.

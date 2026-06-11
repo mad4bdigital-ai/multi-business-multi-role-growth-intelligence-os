@@ -10,3 +10,4 @@ Rules:
 - No generated canonical root edits without canonical source edits.
 - High-risk notes must name required docs and validation evidence.
 - Docs-only agent PRs may be auto-merged only after CI passes.
+- Session Insight capability-envelope impact notes for migrations `277` through `283` are resolved by `docs/session-insight-capability-envelope-release-readiness.md` plus the patch index, deployment parity checklist, agent guide, and OpenAPI route coverage. This remains no-execution/no-target-write evidence only.
