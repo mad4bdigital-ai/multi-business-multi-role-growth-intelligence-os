@@ -446,6 +446,7 @@ async function main() {
       applies_sql: false,
       records_ledger_only: Boolean(args.recordOnly),
       existing_record_only_ledger: existingRecordOnlyLedger,
+      authorization,
       preflight,
       statement_count: statements.length,
       requirements: artifactNames(requirements),
