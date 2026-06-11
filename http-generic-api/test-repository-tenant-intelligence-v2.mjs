@@ -13,9 +13,8 @@ assert.equal(repoRef.resource_uri, "github://mad4bdigital-ai/multi-business-mult
 const docsPr = classifyRepositoryPullRequestV2({
   number: 1,
   title: "Docs agent: impact note for abc123",
-  head: { ref: "docs-agent/abc123" },
-  changed_files: [{ filename: "docs/auto-docs-agent/pr-1.md" }],
-  check_runs: [],
+  head_ref_name: "docs-agent/abc123",
+  evidence: { changed_files: [{ filename: "docs/auto-docs-agent/pr-1.md" }], check_runs: [] },
 });
 assert.equal(docsPr.classification_v2, "stale_docs_agent_only");
 assert.equal(docsPr.deep_signals.docs_agent_branch, true);
