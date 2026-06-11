@@ -1620,8 +1620,8 @@ async function loadRepoPatchBranchCompare({ owner, repo, defaultBranch, branch, 
 
 export async function applyRepoPatch(args = {}, ctx = {}) {
   const action = String(args.action || "").trim().toLowerCase();
-  if (!["write_file", "replace_block", "apply_unified_diff", "delete_file"].includes(action)) {
-    const err = new Error("action must be one of: write_file, replace_block, apply_unified_diff, delete_file.");
+  if (!["write_file", "replace_block", "apply_unified_diff", "delete_file", "dedupe_openapi_paths"].includes(action)) {
+    const err = new Error("action must be one of: write_file, replace_block, apply_unified_diff, delete_file, dedupe_openapi_paths.");
     err.status = 400;
     err.code = "repo_patch_bad_action";
     throw err;
