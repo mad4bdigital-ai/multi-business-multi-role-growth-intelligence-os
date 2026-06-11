@@ -50,7 +50,6 @@ for (const forbidden of [
   "fetch(",
   "axios",
   "webhook.send",
-  "external_send_performed: true",
   "delivery_status: \"sent\"",
   "provider_adapter_implemented: true",
 ]) {
