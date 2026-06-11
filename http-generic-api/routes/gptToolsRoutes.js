@@ -1756,6 +1756,18 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
       throw err;
     }
     newContent = currentContent.replace(args.old_string, args.new_string);
+  } else if (action === "dedupe_openapi_paths") {
+    const normalizedPatchPath = String(filePath || "").replaceAll("\\", "/").replace(/^\.\//, "");
+    if (!LARGE_TEXT_REPO_PATCH_PATHS.has(normalizedPatchPath)) {
+      const err = new Error("dedupe_openapi_paths is only allowed for the OpenAPI contract file.");
+      err.status = 400;
+      err.code = "repo_patch_openapi_dedupe_path_not_allowed";
+      err.details = { path: filePath, secrets_included: false };
+      throw err;
+    }
+    const transformed = dedupeOpenApiPathsText(currentContent);
+    newContent = transformed.content;
+    transformSummary = transformed.summary;
   } else {
     if (typeof args.diff !== "string" || !args.diff.trim()) {
       const err = new Error("diff is required for apply_unified_diff.");
