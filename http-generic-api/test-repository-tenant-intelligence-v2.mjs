@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 
 import {
+  buildRepositoryActionPlannerV4,
+  buildRepositoryIntelligenceReportV3,
   classifyRepositoryPullRequestV2,
   normalizeGithubRepoRef,
   smokeSafeTenantId,
