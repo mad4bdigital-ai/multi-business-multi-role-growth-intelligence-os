@@ -1775,7 +1775,7 @@ export function buildActivationRoutes(deps) {
       sessionContext,
       providerBootstrap,
       repoCanonicals: await buildRepoCanonicalRuntimeEvidence(),
-      toolCatalog: { attempted: false, ok: null, optional: true, evidence_source: "not_required_for_hard_activation" },
+      toolCatalog: buildDynamicToolCatalogEvidence({ platformAccess: sessionContext?.platform_access || null, authorizedAccess: sessionContext?.authorized_access || null }),
     });
 
     return res.status(hard.activation_complete ? 200 : 424).json({
