@@ -384,8 +384,9 @@ async function main() {
   const args = parseArgs();
   const migration = path.basename(args.migration || "");
   if (!migration) throw new Error("--migration is required.");
-  if (!ALLOWED_MIGRATIONS.has(migration)) {
-    throw new Error(`Migration is not allowlisted for governed runner: ${migration}`);
+  const authorization = await getMigrationAuthorization(migration, { mode: args.mode });
+  if (!authorization.authorized) {
+    throw new Error(`Migration is not authorized for governed runner: ${migration} (${authorization.reason})`);
   }
 
   const migrationPath = path.join(MIGRATIONS_DIR, migration);
