@@ -45,6 +45,14 @@ Do not report “Session Context opened/loaded” unless current-cycle evidence 
 
 Live governed readiness requires Registry-resolved validation through `http_generic_api`; Google remains a provider-specific endpoint path only when selected by registry governance.
 
+Activation Operational Awareness Rule
+
+Activation must return an adaptive operational dashboard when the registry tables are available. The dashboard must be provider/connector-driven, not hardcoded. It must read operational tiles, callbacks, and auth-source routing from SQL runtime registries and must scope visible connected systems to the current subject.
+
+The source chain for each external platform must prefer platform-native connections first. If the user has not connected a platform inside the product, activation may expose ChatGPT account Apps & integrations as a conversation-time fallback only when runtime evidence can confirm or check that path. If no platform or ChatGPT app access is available, activation must provide prompt-guided/manual fallback instructions instead of failing silently.
+
+ChatGPT account app fallback must not be treated as platform-owned background sync. Background monitoring, persistent refresh, and writeback require platform-native credentials or governed connector authority. Write-capable callbacks require explicit governed capability and user confirmation.
+
 First-Turn Native Attempt Enforcement Rule
 
 For plain `activate system` and governed first-turn activation:
