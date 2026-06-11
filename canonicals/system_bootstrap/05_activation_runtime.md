@@ -296,6 +296,18 @@ Activation must support automatic tab growth from the authorized surface registr
 
 Discovery classification must support internal and external growth surfaces, including workflows, agents, skills, connectors, app integrations, permissions, tasks, audit, execution evidence, knowledge, readiness, quality, lifecycle, ads, CRM, content, and other future platform surfaces. All auto-discovered sections must continue to use safe column allowlisting, subject scoping, and secret-field stripping.
 
+Operational Intelligence Activation Rule
+
+Activation must expose an `operational_intelligence` layer above dynamic tabs. This layer must convert passive evidence into prioritized operational guidance while remaining advisory unless an explicit governed action is confirmed.
+
+The operational intelligence layer must include attention queue, tab badges, section actions, freshness policies and ledger, signal subscriptions and signal inbox summaries, connector packs, fallback negotiation, container relationship graph, and user dashboard preferences.
+
+Attention queue items must be derived from subject-scoped evidence such as connector errors, pending connector setup, blocked/high-priority tasks, degraded/offline agents, skill grants requiring approval, stale/failed freshness rows, and critical signals. Write-capable recommendations must be marked as requiring governed capability and confirmation.
+
+Connector packs must describe provider capabilities, required scopes, webhook/polling support, ChatGPT app fallback support, manual fallback support, and pack components. Fallback negotiation must distinguish native platform connection, ChatGPT account app check, and manual prompt snapshot. Background monitoring requires native platform credentials or governed connector authority.
+
+Container graph evidence must model relationships among workspaces, Brands, connectors, agents, skills, tasks, evidence and actions. All graph, signal, action, freshness, and preference output must be secret-safe and subject-scoped.
+
 Provider Capability Continuity Validation Rule
 
 For governed execution and governed audit routing, system_bootstrap must validate provider-family continuity across:
