@@ -126,6 +126,17 @@ includesAll(graphProjectionApplyMigration, [
   "secrets_included', false",
 ], "resource graph projection apply gate migration");
 
+includesAll(graphProjectionPositiveCertificationMigration, [
+  "953_sprint68_resource_graph_projection_positive_smoke_certification.sql",
+  "resource_graph_projection_apply_smoke_passed",
+  "apply_allowed = 1",
+  "resource_graph_projection_apply:0188f06bcc39da3108b694e87fa1482f9e28c361168b85744bec987b901f9865:nodes=10:edges=10:evidence=10",
+  "runtime_enforced=0",
+  "provider_calls_made=0",
+  "file_content_returned=false",
+  "secrets_included=false",
+], "resource graph projection positive smoke certification migration");
+
 assert(
   manifest.includes("node test-platform-resource-recipe-capability.mjs"),
   "test manifest must include platform resource recipe capability test"
