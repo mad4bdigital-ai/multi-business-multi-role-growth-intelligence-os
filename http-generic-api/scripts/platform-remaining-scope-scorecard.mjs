@@ -119,9 +119,12 @@ sections.push(summarize("dr_and_n8n_readiness", [
 ]));
 
 sections.push(summarize("external_delivery_graph", [
-  check("external_completion_migration", exists("http-generic-api/migrations/906_sprint68_ticket_external_delivery_completion_certification.sql"), "External Delivery no-send completion migration exists."),
-  check("external_graph_plugin_tracked", includes("docs/support-ticket-orchestration-completion.md", "support_ticket_external_delivery_orchestrator") || exists("docs/external-delivery-orchestration-graph-runbook.md"), "External Delivery graph plugin gap is tracked.", "warn"),
-  check("no_live_send_guard", includes("http-generic-api/migrations/906_sprint68_ticket_external_delivery_completion_certification.sql", "no_external_send"), "External Delivery remains no-send guarded."),
+  check("external_completion_migration", exists("http-generic-api/migrations/906_sprint68_ticket_external_delivery_completion_certification.sql"), "External Delivery no-send completion certification migration exists."),
+  check("external_graph_plugin_migration", exists("http-generic-api/migrations/287_sprint68_external_delivery_orchestration_graph_plugin.sql"), "External Delivery orchestration graph plugin migration exists."),
+  check("external_no_send_tag_completion", exists("http-generic-api/migrations/288_sprint68_external_delivery_no_send_tool_tag_completion.sql"), "External Delivery no-send required-tool tag completion migration exists."),
+  check("external_readback_service_first_class", includes("http-generic-api/platformOrchestrationReadback.js", "v_platform_orchestration_external_delivery_readiness") && includes("http-generic-api/platformOrchestrationReadback.js", "external_delivery_readiness"), "External Delivery readiness view is first-class in platform orchestration readback."),
+  check("external_graph_expected_shape", includes("http-generic-api/platformOrchestrationReadback.js", "support_ticket_external_delivery_orchestrator") && includes("http-generic-api/migrations/287_sprint68_external_delivery_orchestration_graph_plugin.sql", "expected_stage_count"), "External Delivery graph has explicit seven-stage/six-edge readiness expectations."),
+  check("no_live_send_guard", includes("http-generic-api/migrations/287_sprint68_external_delivery_orchestration_graph_plugin.sql", "no_external_send") && includes("http-generic-api/migrations/287_sprint68_external_delivery_orchestration_graph_plugin.sql", "live_external_send_enabled',false"), "External Delivery graph remains no-send/live-send-disabled guarded."),
 ]));
 
 const forbiddenChecks = scanForbidden("http-generic-api", [
