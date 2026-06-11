@@ -256,7 +256,7 @@ SELECT 'Session Memory Governance', 'session_insight_capability_envelope_dispatc
        ),
        'TRUE',
        'session_memory|capability_envelope_dispatch_dry_run_review|review_gate',
-       'session_insight_capability_envelope_dispatch_dry_runs|session_insight_capability_envelope_dispatch_dry_run_review_events|admin_platform_endpoint_tools',
+       'session_insight_capability_envelope_dispatch_dry_runs|session_insight_capability_dispatch_review_events|admin_platform_endpoint_tools',
        'TRUE',
        'Capability envelope dispatch dry-run review can approve/reject a dry-run but approval never dispatches capability resolution.'
 WHERE NOT EXISTS (
