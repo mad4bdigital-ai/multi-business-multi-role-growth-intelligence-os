@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 
 process.env.GOOGLE_AUTH_DISABLE_PREWARM = "true";
 
-const { applyRepoPatch, repoPatchMaxBytesForPath } = await import("./routes/gptToolsRoutes.js");
+const { applyRepoPatch, repoPatchMaxBytesForPath, dedupeOpenApiPathsText } = await import("./routes/gptToolsRoutes.js");
 
 let passed = 0;
 function pass(label) {
