@@ -66,6 +66,11 @@ function main() {
     steps.push("surface-contract-discovery");
   }
 
+  if (fileExists("http-generic-api/scripts/surface-contract-gap-triage.mjs")) {
+    run("node", ["scripts/surface-contract-gap-triage.mjs", write ? "--write" : "--check", "--enforce-new-gaps"].filter(Boolean));
+    steps.push("surface-contract-gap-triage");
+  }
+
   const after = gitDiffNameOnly();
   const report = {
     ok: true,
