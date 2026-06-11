@@ -2,7 +2,15 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const route = readFileSync("routes/memberGoogleOAuthRoutes.js", "utf8");
+const routeIndex = readFileSync("routes/index.js", "utf8");
 const liveSend = readFileSync("supportTicketExternalLiveSendService.js", "utf8");
+
+const memberMount = routeIndex.indexOf("buildMemberGoogleOAuthRoutes({ ...deps, requireAdminPrincipal })");
+const protectedMount = routeIndex.indexOf("buildGptToolsRoutes(deps)");
+assert(memberMount > -1, "member Google OAuth routes must be mounted");
+assert(protectedMount > -1, "protected GPT tools route mount must be present");
+assert(memberMount < protectedMount, "public Gmail OAuth callback must mount before protected root-level routers");
+assert.equal(routeIndex.match(/buildMemberGoogleOAuthRoutes\(\{ \.\.\.deps, requireAdminPrincipal \}\)/g)?.length, 1, "member Google OAuth routes must be mounted exactly once");
 
 for (const expected of [
   "GMAIL_SEND_SCOPE",
