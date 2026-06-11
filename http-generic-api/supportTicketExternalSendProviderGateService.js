@@ -193,7 +193,7 @@ export async function recordSupportTicketExternalSendProviderGateAttempt({ tenan
         }
       }
       const dispatcher = createSupportTicketExternalProviderDispatcher({ adapter: provider_plan.provider_adapter || {} });
-      const dispatchResult = await dispatcher.send(provider_plan);
+      const dispatchResult = await dispatcher.send(provider_plan, { connection });
       const eventPayload = {
         provider_plan: { ...provider_plan, payload_json: { ...(provider_plan.payload_json || {}), body: undefined, body_text: undefined, body_html: undefined } },
         provider_result: dispatchResult,
