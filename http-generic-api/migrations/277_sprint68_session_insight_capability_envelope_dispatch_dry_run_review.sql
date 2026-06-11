@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS `session_insight_dispatch_dry_run_review_events` (
   CONSTRAINT `chk_session_insight_capability_dispatch_review_no_secrets` CHECK (`secrets_included` = 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE OR REPLACE VIEW `v_session_insight_capability_envelope_dispatch_dry_run_review_queue` AS
+CREATE OR REPLACE VIEW `v_session_insight_ce_dispatch_review_queue` AS
 SELECT
   d.dispatch_dry_run_id,
   d.request_gate_id,
