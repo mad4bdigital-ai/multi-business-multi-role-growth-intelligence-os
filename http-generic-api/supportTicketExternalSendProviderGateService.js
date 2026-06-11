@@ -127,6 +127,34 @@ async function resolveProviderAdapter(connection, { channel, provider_key, send_
   return providerAdapterFromRegistryResolution(resolution);
 }
 
+function normalizeRecipientEmail(payload_json = {}) {
+  return String(payload_json.to || payload_json.recipient_email || payload_json.email_to || "").trim().toLowerCase();
+}
+
+async function recipientAllowlistAllowed(connection, { tenant_id, adapter_key, channel, payload_json = {} } = {}) {
+  const recipient = normalizeRecipientEmail(payload_json);
+  if (!recipient) return false;
+  const [rows] = await connection.query(
+    `SELECT allowlist_id, match_type, recipient_pattern
+       FROM external_delivery_recipient_allowlist_registry
+      WHERE status = 'active'
+        AND channel = ?
+        AND tenant_id IN (?, '00000000-0000-0000-0000-000000000000', '*')
+        AND adapter_key IN (?, '*')
+        AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+      LIMIT 200`,
+    [channel, tenant_id, adapter_key]
+  );
+  return (rows || []).some((row) => {
+    const pattern = String(row.recipient_pattern || "").trim().toLowerCase();
+    if (!pattern) return false;
+    if (row.match_type === "exact_email") return recipient === pattern;
+    if (row.match_type === "domain") return recipient.endsWith(`@${pattern.replace(/^@/, "")}`);
+    if (row.match_type === "wildcard_domain") return recipient.endsWith(`.${pattern.replace(/^\*\.?/, "")}`) || recipient.endsWith(`@${pattern.replace(/^\*\.?/, "")}`);
+    return false;
+  });
+}
+
 export async function planSupportTicketExternalSendProviderGate({ tenant_id, ticket_id, channel = "email", audience = "admin", approval_hold_id = null, credential_ref = null, provider_key = null, send_mode = "dry_run", subject = null, body = null, payload_json = {} } = {}, options = {}) {
   const externalChannel = normalizeChannel(channel);
   const normalizedAudience = normalizeAudience(audience);
@@ -144,7 +172,8 @@ export async function planSupportTicketExternalSendProviderGate({ tenant_id, tic
     }
     const executionPlan = await planSupportTicketExternalSendExecution({ tenant_id, ticket_id, channel: externalChannel, audience: normalizedAudience, approval_hold_id, credential_ref, subject, body, payload_json }, { connection });
     const providerAdapter = await resolveProviderAdapter(connection, { channel: externalChannel, provider_key, send_mode });
-    const providerPolicyPreflight = await evaluateSupportTicketExternalProviderGatePreflight({ channel: externalChannel, send_mode, provider_adapter: providerAdapter }, { connection });
+    const recipientAllowed = await recipientAllowlistAllowed(connection, { tenant_id, adapter_key: providerAdapter.adapter_key, channel: externalChannel, payload_json });
+    const providerPolicyPreflight = await evaluateSupportTicketExternalProviderGatePreflight({ channel: externalChannel, send_mode, provider_adapter: providerAdapter, approval_hold_id, credential_ref, idempotency_key: payload_json?.idempotency_key || payload_json?.idempotencyKey || null, recipient_allowlist_allowed: recipientAllowed }, { connection });
     assertPreflightAllowed(providerPolicyPreflight);
     const provider_plan = buildProviderPlan({ tenant_id, ticket_id, execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json });
     return { ok: true, mode: "dry_run", provider_plan: { ...provider_plan, policy_preflight: providerPolicyPreflight }, execution_plan: executionPlan, ticket, external_send_performed: false, secret_value_included: false, secrets_included: false };
@@ -171,7 +200,8 @@ export async function recordSupportTicketExternalSendProviderGateAttempt({ tenan
     }
     const executionPlan = await planSupportTicketExternalSendExecution({ tenant_id, ticket_id, channel: externalChannel, audience: normalizedAudience, approval_hold_id, credential_ref, subject, body, payload_json }, { connection });
     const providerAdapter = await resolveProviderAdapter(connection, { channel: externalChannel, provider_key, send_mode });
-    const providerPolicyPreflight = await evaluateSupportTicketExternalProviderGatePreflight({ channel: externalChannel, send_mode, provider_adapter: providerAdapter }, { connection });
+    const recipientAllowed = await recipientAllowlistAllowed(connection, { tenant_id, adapter_key: providerAdapter.adapter_key, channel: externalChannel, payload_json });
+    const providerPolicyPreflight = await evaluateSupportTicketExternalProviderGatePreflight({ channel: externalChannel, send_mode, provider_adapter: providerAdapter, approval_hold_id, credential_ref, idempotency_key: payload_json?.idempotency_key || payload_json?.idempotencyKey || null, recipient_allowlist_allowed: recipientAllowed }, { connection });
     assertPreflightAllowed(providerPolicyPreflight);
     const provider_plan = { ...buildProviderPlan({ tenant_id, ticket_id, execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json }), policy_preflight: providerPolicyPreflight };
     if (runMode === "live_send") {

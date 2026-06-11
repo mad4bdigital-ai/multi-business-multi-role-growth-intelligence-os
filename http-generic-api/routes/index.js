@@ -136,6 +136,9 @@ export function registerRoutes(app, deps) {
   // protected routers that call router.use(requireBackendApiKey).
   // The session creation route inside this router remains admin-protected.
   app.use(buildCredentialIntakeRoutes(deps));
+  // Gmail OAuth callback is public but signed-state protected. Mount before
+  // root-level protected routers that can return missing_backend_api_key.
+  app.use(buildMemberGoogleOAuthRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildLegalRoutes(deps));
   app.use(buildRootDiscoveryRoutes());
   app.use(buildConnectRoutes(deps));
@@ -224,7 +227,6 @@ export function registerRoutes(app, deps) {
   app.use(buildTenantCommercialRoutes(deps));
   app.use(buildDispatchRoutes(deps));
   app.use(buildLocalConnectorRoutes(deps));
-  app.use(buildMemberGoogleOAuthRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildConnectorProxyRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAdminScopeGrantsRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildDeviceToolsRoutes(deps));

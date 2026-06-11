@@ -59,6 +59,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/local-manager-windows.yml`
 - `.github/workflows/openapi-auto-sync.yml`
 - `.github/workflows/platform-completion-cleanup-readback.yml`
+- `.github/workflows/platform-remaining-scope-scorecard.yml`
 - `.github/workflows/pr-risk-labeler.yml`
 - `.github/workflows/verify-runtime.yml`
 
@@ -70,6 +71,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/scripts/repo-maintenance-sync.mjs`
 - `http-generic-api/scripts/schema-docs-change-guard.mjs`
 - `http-generic-api/scripts/split-openapi.mjs`
+- `http-generic-api/scripts/surface-contract-discovery.mjs`
 
 ## Schema / Plugin / OpenAPI Tests
 

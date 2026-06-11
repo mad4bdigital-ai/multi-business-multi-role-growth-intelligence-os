@@ -173,7 +173,6 @@ function buildEnvelopePassthrough(ctx = {}, payload = {}) {
     "--capability-key", cleanString(ctx.capability_key),
     "--operation-intent", cleanString(ctx.operation_intent),
     "--runtime-surface", cleanString(ctx.runtime_surface),
-    "--explain",
   ];
 }
 
