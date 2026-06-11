@@ -236,6 +236,78 @@ For every governed execution after activation, system_bootstrap must require:
 - route revalidation
 - workflow revalidation
 - dependency readiness revalidation
+
+Dynamic Hard Activation Evidence Rule
+
+Hard activation must be evidence-driven in the same execution cycle. A hard activation response must not classify as `active` unless the evidence matrix includes all of the following required surfaces:
+
+- `session_context.ok = true`
+- `provider_bootstrap.ok = true`
+- `repo_canonicals.ok = true`
+- `tool_catalog.ok = true`
+
+`repo_canonicals` must be derived from live repository readback, not from cached model knowledge. The runtime must verify the required canonical references, generated canonical root files, canonical source directories, manifest counts, and source-file counts from the repository filesystem or governed repository readback.
+
+`tool_catalog` must be derived from SQL runtime authority and activation authorized surfaces. The runtime must preserve platform access readiness, authorized access readiness, registered surface count, runtime callable action count, degraded surface count, and auth gap count.
+
+Connectivity-only provider success is insufficient for hard activation. If repo canonical evidence or dynamic runtime catalog evidence is missing, hard activation must classify as degraded with a machine-readable reason code and must not report `activation_complete=true`.
+
+Adaptive Operational Dashboard Activation Rule
+
+Activation must also return an operational awareness envelope when the relevant registries are available. This envelope is diagnostic and adaptive: it must be built from SQL runtime registry rows, visible connected systems, provider callback registries, and auth-source fallback routing.
+
+The operational dashboard layer must include:
+
+- registered operational tiles by provider/connector family
+- callbacks available for each tile
+- source chain ordering for each provider (`platform_native_connection_or_oauth`, `chatgpt_user_account_app`, then `manual_prompt` when allowed)
+- visible native connected systems for the current subject
+- fallback availability when no platform-native connection exists
+- ownership context for platform-owner Brand activation when the admin owns the platform Brand
+- freshness SLA and safe-mode metadata for callbacks
+- degraded surfaces without leaking credentials or secret values
+
+The runtime must not assume ChatGPT account Apps & integrations are connected unless runtime evidence exists in the current interface/tooling context. When such evidence is unavailable, ChatGPT account apps must be represented as `fallback_possible_user_account_app_check_required`, not as confirmed access.
+
+Background refresh and persistent platform monitoring require platform-native OAuth, service-account, or connector credentials. ChatGPT account app fallback and prompt-guided fallback may support conversation-time awareness, but they must not be treated as platform-owned background sync.
+
+Dynamic Workspace/Brand Tabs Rule
+
+When the current subject can access multiple workspaces, Brands, or workspace-like containers, activation must group operational evidence by container. Each container must expose registry-driven dynamic tabs rather than a single flat response.
+
+A dynamic tab container may represent a workspace, Brand workspace, platform-owner Brand, tenant space, user-private workspace, connector, or agent context. The first implemented tabs include overview, roles/access, connectors, agents, skills, tasks, and operational tiles.
+
+Dynamic tabs must be built from SQL tab/section registries and subject-scoped rows. They must support:
+
+- multiple workspaces per user
+- linked Brand control state per workspace
+- user roles and permissions per visible tenant/container
+- connected systems and installations per visible scope
+- agents and skills available to the container
+- pending/blocking tasks relevant to the current subject
+- operational tiles and callbacks associated with connected platforms
+- degraded tab/section evidence without exposing secrets
+
+Adding a new tab, section, connector family, agent surface, or task surface should prefer inserting registry rows over changing activation route code. Activation route code may evolve only to support new generic tab mechanics.
+
+Dynamic Tab Auto-Discovery Rule
+
+Activation must support automatic tab growth from the authorized surface registry. Runtime must read discovery rules from `activation_dynamic_tab_discovery_rule_registry` and map active rows from `activation_authorized_surface_registry` into dynamic tab sections. If no specialized rule matches a surface, runtime must place it under the default discovered-surfaces tab rather than dropping it.
+
+Discovery classification must support internal and external growth surfaces, including workflows, agents, skills, connectors, app integrations, permissions, tasks, audit, execution evidence, knowledge, readiness, quality, lifecycle, ads, CRM, content, and other future platform surfaces. All auto-discovered sections must continue to use safe column allowlisting, subject scoping, and secret-field stripping.
+
+Operational Intelligence Activation Rule
+
+Activation must expose an `operational_intelligence` layer above dynamic tabs. This layer must convert passive evidence into prioritized operational guidance while remaining advisory unless an explicit governed action is confirmed.
+
+The operational intelligence layer must include attention queue, tab badges, section actions, freshness policies and ledger, signal subscriptions and signal inbox summaries, connector packs, fallback negotiation, container relationship graph, and user dashboard preferences.
+
+Attention queue items must be derived from subject-scoped evidence such as connector errors, pending connector setup, blocked/high-priority tasks, degraded/offline agents, skill grants requiring approval, stale/failed freshness rows, and critical signals. Write-capable recommendations must be marked as requiring governed capability and confirmation.
+
+Connector packs must describe provider capabilities, required scopes, webhook/polling support, ChatGPT app fallback support, manual fallback support, and pack components. Fallback negotiation must distinguish native platform connection, ChatGPT account app check, and manual prompt snapshot. Background monitoring requires native platform credentials or governed connector authority.
+
+Container graph evidence must model relationships among workspaces, Brands, connectors, agents, skills, tasks, evidence and actions. All graph, signal, action, freshness, and preference output must be secret-safe and subject-scoped.
+
 Provider Capability Continuity Validation Rule
 
 For governed execution and governed audit routing, system_bootstrap must validate provider-family continuity across:
