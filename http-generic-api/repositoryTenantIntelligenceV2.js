@@ -223,13 +223,19 @@ export async function tenantRepositoryPrReconciliationSweep(args = {}, { auth, r
   return { ok: true, tool: "tenant_repo_pr_reconciliation_sweep", classification: "tenant_repository_pr_reconciliation_read_only", engine_version: "v2_read_only_tenant_scoped", recipe_key: REPOSITORY_PR_RECONCILE_RECIPE_KEY, resource_uri: repoRef.resource_uri, tenant_scope: scope, summary: { pr_count: enhancedPullRequests.length, classifications: summarizeClassifications(enhancedPullRequests), provider_calls_made: Number(runResult.provider_calls_made || runResult.result?.provider_calls_made_by_read_only_executor || 0) }, pull_requests: enhancedPullRequests, base_result: { classification: runResult.classification, result_classification: runResult.result?.classification || null, audit_evidence: runResult.result?.audit_evidence || null, provider_calls_made: runResult.provider_calls_made || null }, evidence, apply_requested: false, apply_allowed: false, dispatch_allowed: true, execution_allowed: true, mutations_executed: false, secrets_included: false };
 }
 
+export function smokeSafeTenantId(value = "") {
+  const raw = asString(value || `smoke_${randomUUID().slice(0, 12)}`);
+  if (raw.length <= 36) return raw;
+  return `smoke_${sha256Hex(raw).slice(0, 24)}`;
+}
+
 export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { auth, runGovernedResource } = {}) {
-  const tenantId = asString(args.tenant_id || "repository_intelligence_v2_readiness_smoke_tenant");
+  const tenantId = smokeSafeTenantId(args.tenant_id);
   const repoRef = normalizeGithubRepoRef(args) || normalizeGithubRepoRef({
     owner: "mad4bdigital-ai",
     repo: "multi-business-multi-role-growth-intelligence-os",
   });
-  const negativeTenantId = `${tenantId}_missing`;
+  const negativeTenantId = smokeSafeTenantId(`${tenantId}_missing`);
   const negative = await tenantRepositoryPrReconciliationSweep({
     tenant_id: negativeTenantId,
     owner: repoRef.owner,
