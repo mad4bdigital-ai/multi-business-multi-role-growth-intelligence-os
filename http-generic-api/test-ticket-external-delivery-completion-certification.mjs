@@ -25,8 +25,8 @@ for (const expected of [
 }
 for (const expected of [
   "SMTP_URL",
-  "SUPPORT_TICKET_LIVE_SEND_ALLOWLIST",
-  "EXTERNAL_DELIVERY_LIVE_SEND_ALLOWLIST",
+  "external_delivery_recipient_allowlist_registry",
+  "recipient_allowlist_source",
   "recipient_not_allowlisted",
   "approval_hold_required",
   "credential_ref_required",
