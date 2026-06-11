@@ -1725,6 +1725,7 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
   }
 
   let newContent;
+  let transformSummary = null;
   if (action === "write_file") {
     if (typeof args.content !== "string") {
       const err = new Error("content is required for write_file.");
