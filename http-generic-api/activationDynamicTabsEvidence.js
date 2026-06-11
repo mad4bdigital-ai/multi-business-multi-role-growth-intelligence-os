@@ -231,6 +231,76 @@ async function loadWorkspaceContainers(subject) {
   return { workspaces, brands, containers };
 }
 
+function pickDiscoveryRule(surface, rules = []) {
+  for (const rule of rules) {
+    const surfaceOk = !rule.surface_key_like || matchesLike(surface.surface_key, rule.surface_key_like);
+    const tableOk = !rule.source_table_like || matchesLike(surface.source_table, rule.source_table_like);
+    const providerOk = !rule.provider_family_like || matchesLike(surface.provider_family || surface.connector_family || "", rule.provider_family_like);
+    if (surfaceOk && tableOk && providerOk) return rule;
+  }
+  return null;
+}
+
+async function loadAutoDiscoveredSections(staticSections = []) {
+  const existingKeys = new Set(staticSections.map((section) => section.section_key));
+  const [surfaces, rules] = await Promise.all([
+    safeRows(
+      `SELECT surface_key, display_name, description, source_table, result_columns_json,
+              tenant_column, user_column, status_column, active_status_values_json,
+              max_rows, sort_order, status
+         FROM activation_authorized_surface_registry
+        WHERE status = 'active'
+        ORDER BY sort_order ASC, surface_key ASC
+        LIMIT 200`,
+      []
+    ),
+    safeRows(
+      `SELECT rule_key, target_tab_key, surface_key_like, source_table_like,
+              provider_family_like, display_name, priority_order, status
+         FROM activation_dynamic_tab_discovery_rule_registry
+        WHERE status = 'active'
+        ORDER BY priority_order ASC, rule_key ASC`,
+      []
+    ),
+  ]);
+
+  if (!surfaces.ok || !rules.ok) {
+    return { ok: surfaces.ok && rules.ok, rows: [], surfaces, rules, error: surfaces.error || rules.error || null };
+  }
+
+  const discovered = [];
+  for (const surface of surfaces.rows) {
+    const sectionKey = `auto_${sanitizeKey(surface.surface_key)}`;
+    if (existingKeys.has(sectionKey)) continue;
+    const columns = safeColumns(surface.result_columns_json);
+    if (!columns.length) continue;
+    const rule = pickDiscoveryRule(surface, rules.rows);
+    discovered.push({
+      section_key: sectionKey,
+      tab_key: rule?.target_tab_key || "container_auto_discovered_surfaces",
+      display_name: surface.display_name || surface.surface_key,
+      description: surface.description || "Auto-discovered activation surface.",
+      source_table: surface.source_table,
+      result_columns_json: surface.result_columns_json,
+      tenant_column: surface.tenant_column || null,
+      user_column: surface.user_column || null,
+      workspace_column: null,
+      brand_key_column: null,
+      system_id_column: null,
+      status_column: surface.status_column || null,
+      active_status_values_json: surface.active_status_values_json || null,
+      row_limit: Math.min(Math.max(safeNumber(surface.max_rows) || 10, 1), 50),
+      aggregation_mode: "rows",
+      priority_order: 500 + safeNumber(surface.sort_order),
+      status: "active",
+      auto_discovered: true,
+      discovery_rule_key: rule?.rule_key || null,
+    });
+  }
+
+  return { ok: true, rows: discovered, surfaces, rules };
+}
+
 async function loadTabRegistry() {
   const tabs = await safeRows(
     `SELECT tab_key, display_name, description, tab_group, container_scope,
@@ -250,7 +320,18 @@ async function loadTabRegistry() {
       ORDER BY priority_order ASC, section_key ASC`,
     []
   );
-  return { tabs, sections };
+  const discovery = sections.ok ? await loadAutoDiscoveredSections(sections.rows) : { ok: false, rows: [], error: sections.error };
+  return {
+    tabs,
+    sections: {
+      ok: sections.ok && discovery.ok,
+      rows: [...sections.rows, ...discovery.rows].sort((a, b) => safeNumber(a.priority_order) - safeNumber(b.priority_order) || String(a.section_key).localeCompare(String(b.section_key))),
+      static_count: sections.rows.length,
+      auto_discovered_count: discovery.rows.length,
+      error: sections.error || discovery.error || null,
+      discovery,
+    },
+  };
 }
 
 function addScopedFilter({ where, params, column, value, adminOptional = false }) {
