@@ -1791,7 +1791,7 @@ export function buildActivationRoutes(deps) {
         reason_code: hard.reason_code,
       },
       evidence_matrix: hard.evidence_matrix,
-      dynamic_tabs: await buildActivationDynamicTabsEvidence({ sessionContext }), operational_dashboard: await buildActivationOperationalDashboardEvidence({ sessionContext }), session_context_evidence: hard.evidence_matrix.session_context,
+      dynamic_tabs: await buildActivationDynamicTabsEvidence({ sessionContext }), operational_intelligence: await buildActivationOperationalIntelligenceEvidence({ sessionContext }), operational_dashboard: await buildActivationOperationalDashboardEvidence({ sessionContext }), session_context_evidence: hard.evidence_matrix.session_context,
       provider_bootstrap_evidence: hard.evidence_matrix.provider_bootstrap,
       provider_bootstrap: providerBootstrap,
       degraded_surfaces: hard.degraded_surfaces,
