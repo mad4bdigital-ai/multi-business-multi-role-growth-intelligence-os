@@ -19699,6 +19699,3849 @@ paths:
                       will_deploy: { type: boolean, enum: [false] }
                       will_publish: { type: boolean, enum: [false] }
                   secrets_included: { type: boolean, enum: [false] }
+  /admin/support/tickets/{ticket_id}/external-delivery/completion-certification:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: supportTicketExternalDeliveryCompletionCertify
+      summary: Certify Support Ticket external delivery completion gates
+      description: >
+        Admin-only completion certification surface for Support Ticket external delivery.
+        It runs the AM-1 through AM-16 readback/certification chain for one ticket and returns
+        a no-send/no-secret certification envelope. The route does not perform SMTP, webhook,
+        provider network dispatch, live external send, or raw credential readback. Sandbox mode
+        returns mock provider evidence only; live_send remains gated by tenant enablement,
+        approval, credential readiness, idempotency, and release readiness policy.
+      parameters:
+        - name: ticket_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+          description: Support Ticket identifier to certify.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                tenant_id: { type: string, description: Optional tenant override; if omitted the server resolves the ticket tenant. }
+                channel: { type: string, enum: [email, webhook], default: email }
+                audience: { type: string, enum: [admin, customer, both], default: admin }
+                provider_key: { type: string, description: Adapter key such as smtp_email_adapter or generic_webhook_adapter. }
+                send_mode: { type: string, enum: [dry_run, record_only, provider_send_blocked, sandbox, live_send], default: dry_run }
+                approval_hold_id: { type: string }
+                credential_ref: { type: string }
+                idempotency_key: { type: string }
+                subject: { type: string }
+                body: { type: string }
+                payload_json:
+                  type: object
+                  additionalProperties: true
+            examples:
+              dryRunCertification:
+                summary: Dry-run completion certification without external send
+                value:
+                  channel: email
+                  audience: admin
+                  send_mode: dry_run
+                  idempotency_key: cert-preview-001
+      responses:
+        '200':
+          description: Completion certification envelope. Live dispatch remains gated and external sends are not performed.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, mode, tenant_id, ticket_id, channel, audience, send_mode, summary, phases, live_external_send_enabled, external_send_performed, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  mode: { type: string, enum: [completion_certification] }
+                  tenant_id: { type: string }
+                  ticket_id: { type: string }
+                  channel: { type: string, enum: [email, webhook] }
+                  audience: { type: string, enum: [admin, customer, both] }
+                  provider_key: { type: string, nullable: true }
+                  send_mode: { type: string, enum: [dry_run, record_only, provider_send_blocked, sandbox, live_send] }
+                  summary: { $ref: '#/components/schemas/JsonValue' }
+                  phases:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                      required: [key, name, status, external_send_performed, secrets_included]
+                      properties:
+                        key: { type: string, pattern: '^AM-[0-9]+
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: supportTicketLifecycleSnapshotRecord
+      summary: Record Support Ticket lifecycle snapshot and recommendation candidates
+      description: >
+        Admin-only gated persistence surface for Support Ticket lifecycle snapshot and
+        recommendation candidates. The route recomputes the proposal, verifies candidate_sha256,
+        requires idempotency_key and capability_envelope_id, defaults apply to false, and writes
+        only when apply=true and the capability envelope is apply-allowed. It does not mutate
+        tickets, dispatch workflows, decide approvals, send external notifications, call providers,
+        read credential payloads, change spend, deploy, publish, or return secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ticket_id, candidate_sha256, idempotency_key, capability_envelope_id]
+              properties:
+                ticket_id: { type: string, minLength: 1, maxLength: 128 }
+                candidate_sha256: { type: string, minLength: 64, maxLength: 64 }
+                idempotency_key: { type: string, minLength: 3, maxLength: 80 }
+                capability_envelope_id: { type: string, minLength: 36, maxLength: 36 }
+                apply: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Dry-run or recorded Support Ticket lifecycle snapshot/recommendation result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, mode, ticket_id, plugin_key, candidate_sha256, idempotency_key, capability_envelope_id, execution, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  mode: { type: string, enum: [record_dry_run, recorded] }
+                  ticket_id: { type: string }
+                  plugin_key: { type: string, enum: [support_ticket_lifecycle_orchestrator] }
+                  candidate_sha256: { type: string }
+                  idempotency_key: { type: string }
+                  capability_envelope_id: { type: string }
+                  snapshot_key: { type: string }
+                  recommendation_key: { type: string }
+                  recorded: { $ref: '#/components/schemas/JsonValue' }
+                  execution:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      will_record_snapshot: { type: boolean }
+                      will_record_recommendation: { type: boolean }
+                      will_mutate_ticket: { type: boolean, enum: [false] }
+                      will_dispatch_workflow: { type: boolean, enum: [false] }
+                      will_decide_approval: { type: boolean, enum: [false] }
+                      will_execute_provider_call: { type: boolean, enum: [false] }
+                      will_read_credential_payload: { type: boolean, enum: [false] }
+                      will_change_spend: { type: boolean, enum: [false] }
+                      will_external_send: { type: boolean, enum: [false] }
+                      will_external_write: { type: boolean, enum: [false] }
+                      will_deploy: { type: boolean, enum: [false] }
+                      will_publish: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+
+  /platform/orchestration/support-ticket/snapshot-propose:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: supportTicketLifecycleSnapshotPropose
+      summary: Propose Support Ticket lifecycle snapshot and recommendation candidates
+      description: >
+        Admin-only proposal surface that derives a snapshot_candidate and recommendation_candidate
+        for one Support Ticket from ticket lifecycle, workflow/runtime, approval, pending-task,
+        and orchestration readback metadata. This route is proposal-only: it does not write
+        snapshots or recommendations, mutate tickets, dispatch workflows, decide approvals,
+        send external notifications, call providers, read credential payloads, change spend,
+        deploy, publish, or return secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ticket_id]
+              properties:
+                ticket_id: { type: string, minLength: 1, maxLength: 128 }
+      responses:
+        '200':
+          description: Proposal-only Support Ticket lifecycle snapshot candidate.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, ticket_id, plugin_key, mode, writes_database, snapshot_candidate, recommendation_candidate, candidate_sha256, execution, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  ticket_id: { type: string }
+                  plugin_key: { type: string, enum: [support_ticket_lifecycle_orchestrator] }
+                  mode: { type: string, enum: [proposal_only] }
+                  writes_database: { type: boolean, enum: [false] }
+                  snapshot_candidate: { $ref: '#/components/schemas/JsonValue' }
+                  recommendation_candidate: { $ref: '#/components/schemas/JsonValue' }
+                  candidate_sha256: { type: string }
+                  execution:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      will_record_snapshot: { type: boolean, enum: [false] }
+                      will_record_recommendation: { type: boolean, enum: [false] }
+                      will_mutate_ticket: { type: boolean, enum: [false] }
+                      will_dispatch_workflow: { type: boolean, enum: [false] }
+                      will_decide_approval: { type: boolean, enum: [false] }
+                      will_execute_provider_call: { type: boolean, enum: [false] }
+                      will_read_credential_payload: { type: boolean, enum: [false] }
+                      will_change_spend: { type: boolean, enum: [false] }
+                      will_external_send: { type: boolean, enum: [false] }
+                      will_external_write: { type: boolean, enum: [false] }
+                      will_deploy: { type: boolean, enum: [false] }
+                      will_publish: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+
+  /platform/orchestration/ads-provider/snapshot-propose:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: adsProviderGovernanceSnapshotPropose
+      summary: Propose Ads Provider Governance snapshot and recommendation candidates
+      description: >
+        Admin-only proposal surface that derives a snapshot_candidate and
+        recommendation_candidate for Ads Provider Governance from existing
+        registry and ledger metadata. This route is proposal-only and does not
+        write snapshots or recommendations, call providers, read credential
+        payloads, mutate spend, perform external writes, deploy, publish, or
+        return secrets.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                provider_key:
+                  type: string
+                  default: google_ads
+      responses:
+        '200':
+          description: Ads Provider Governance snapshot proposal
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, provider_key, plugin_key, mode, writes_database, snapshot_candidate, recommendation_candidate, execution, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  provider_key: { type: string }
+                  plugin_key: { type: string }
+                  mode: { type: string, enum: [proposal_only] }
+                  writes_database: { type: boolean, enum: [false] }
+                  snapshot_candidate: { type: object, additionalProperties: true }
+                  recommendation_candidate: { type: object, additionalProperties: true }
+                  execution:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      will_record_snapshot: { type: boolean, enum: [false] }
+                      will_record_recommendation: { type: boolean, enum: [false] }
+                      will_execute_provider_call: { type: boolean, enum: [false] }
+                      will_read_credential_payload: { type: boolean, enum: [false] }
+                      will_change_spend: { type: boolean, enum: [false] }
+                      will_external_write: { type: boolean, enum: [false] }
+                      will_deploy: { type: boolean, enum: [false] }
+                      will_publish: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+  /platform/orchestration/readback:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformOrchestrationReadback
+      summary: Read orchestration graph, snapshot, and recommendation readiness
+      description: >
+        Admin-only readback for platform orchestration plugins. Defaults to the
+        ads provider governance orchestrator and returns graph/stage/edge
+        readiness plus optional latest snapshots and recommendations. This route
+        is read-only and never performs provider calls, credential payload reads,
+        spend changes, external writes, deploys, publishing, or secret return.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                plugin_key:
+                  type: string
+                  default: ads_provider_governance_orchestrator
+                include_snapshots:
+                  type: boolean
+                  default: true
+                include_recommendations:
+                  type: boolean
+                  default: true
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 10
+      responses:
+        '200':
+          description: Orchestration readback response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, plugin_key, readback_mode, execution, secrets_included]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  plugin_key: { type: string }
+                  readback_mode: { type: string, enum: [orchestration_graph_readonly] }
+                  readiness_status: { type: string }
+                  execution:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      will_execute_provider_call: { type: boolean, enum: [false] }
+                      will_read_credential_payload: { type: boolean, enum: [false] }
+                      will_change_spend: { type: boolean, enum: [false] }
+                      will_external_write: { type: boolean, enum: [false] }
+                      will_deploy: { type: boolean, enum: [false] }
+                      will_publish: { type: boolean, enum: [false] }
+                      recommendation_only: { type: boolean, enum: [true] }
+                  secrets_included: { type: boolean, enum: [false] }
+  /platform/plugins/catalog:
+    get:
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginCatalog
+      summary: Read Platform Plugin catalog
+      parameters:
+        - { name: tenant_id, in: query, schema: { type: string } }
+        - { name: user_id, in: query, schema: { type: string } }
+        - { name: include_inactive, in: query, schema: { type: boolean, default: false } }
+        - { name: include_bindings, in: query, schema: { type: boolean, default: true } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
+      responses:
+        "200":
+          description: Platform Plugin catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /platform/mock-providers:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      operationId: platformMockProvidersList
+      summary: List platform-owned mock provider smoke resources
+      description: Public read-only registry of deterministic mock provider resources for guarded provider smoke tests. Returns non-sensitive metadata and never mutates state.
+      responses:
+        "200":
+          description: Mock provider smoke registry
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/mock-providers/{provider}/{resource}:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      operationId: platformMockProviderResource
+      summary: Resolve a platform-owned mock provider resource
+      description: Public read-only deterministic mock provider resource endpoint for guarded provider smoke tests. Returns non-sensitive test data and never mutates state.
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string }
+        - name: resource
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Mock provider resource smoke response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "404":
+          description: Mock provider resource not found
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/mock-crm/contacts:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      operationId: platformMockCrmContacts
+      summary: Platform-owned mock CRM contacts smoke endpoint
+      description: Public read-only mock CRM contacts endpoint for guarded provider smoke tests. Returns deterministic non-sensitive test data and never mutates state.
+      responses:
+        "200":
+          description: Mock CRM contacts smoke response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  ok: { type: boolean }
+                  provider: { type: string }
+                  resource: { type: string }
+                  mode: { type: string }
+                  contacts:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  count: { type: integer }
+                  will_mutate: { type: boolean }
+                  secrets_included: { type: boolean }
+                  timestamp: { type: string }
+  /platform/plugins/resolve:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginResolve
+      summary: Resolve Platform Plugin execution preview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [plugin_key], additionalProperties: true }
+      responses:
+        "200":
+          description: Platform Plugin resolver preview
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
+  /platform/action-manifest/resolve:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: actionManifestResolve
+      summary: Resolve Action Endpoint Tool authority manifest
+      description: Read-only dry-run diagnostic for Action → Endpoint → Tool authority. Returns manifest readiness and guard preview without executing providers or exposing secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                action_key: { type: string }
+                endpoint_key: { type: string }
+                plugin_key: { type: string }
+                tool_key: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                actor_role: { type: string }
+                governance_level: { type: string }
+                client_key: { type: string }
+                team_key: { type: string }
+                preview_enforce: { type: boolean, default: false }
+                require_plugin_connection: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Action manifest diagnostic preview
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/execution-readiness/dry-run:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: executionReadinessDryRun
+      summary: Resolve full execution readiness dry-run
+      description: Read-only full execution readiness dry-run combining action manifest guard preview with Brand, Business Activity, Workflow/Logic, Skills, and Platform Graph context. Never executes providers or exposes secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                action_key: { type: string }
+                endpoint_key: { type: string }
+                plugin_key: { type: string }
+                tool_key: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                brand_key: { type: string }
+                target_key: { type: string }
+                business_type_key: { type: string }
+                business_activity_type_key: { type: string }
+                workflow_key: { type: string }
+                logic_key: { type: string }
+                logic_pack_key: { type: string }
+                agent_id: { type: string }
+                skill_key: { type: string }
+                actor_role: { type: string }
+                governance_level: { type: string }
+                preview_enforce: { type: boolean, default: true }
+                require_plugin_connection: { type: boolean, default: true }
+                graph_depth: { type: integer, default: 2 }
+                graph_limit: { type: integer, default: 250 }
+      responses:
+        "200":
+          description: Full execution readiness dry-run response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/remote-runtime/local-path/execute-readonly:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: remoteRuntimeLocalReadonlyExecute
+      summary: Execute allowlisted local_path read-only commands
+      description: Execute narrow Remote Runtime local_path read-only commands. Supports status/git_status through connector_shell alias repo_status_growth_os and diff_name_status through repo_diff_name_status_growth_os. It rejects Hostinger/SSH targets, arbitrary shell, file access, extra args, deploy, restart, and secret-like inputs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_id]
+              additionalProperties: true
+              properties:
+                target_id: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                device_id: { type: string }
+                command_key: { type: string, enum: [status, git_status, diff_name_status], default: status }
+                inputs:
+                  type: object
+                  additionalProperties: true
+                timeout_ms: { type: integer, minimum: 1000, maximum: 120000, default: 120000 }
+      responses:
+        "200": { description: Remote Runtime local read-only execution result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "409": { description: Target or dry-run not ready for execution }
+
+  /platform/remote-runtime/dispatch-dry-run:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: remoteRuntimeDispatchDryRun
+      summary: Dry-run Remote Runtime allowlisted dispatch
+      description: Plan an allowlisted remote_ssh_runtime dispatch without opening SSH, local shell, or file access. Evaluates target readiness, global command allowlist, target command allowlist, and approval requirements. It never executes commands and never returns secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_id, command_key]
+              additionalProperties: true
+              properties:
+                target_id: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                command_key: { type: string }
+                inputs:
+                  type: object
+                  additionalProperties: true
+                approval_id: { type: string }
+                approval_reason: { type: string }
+      responses:
+        "200": { description: Remote Runtime dispatch dry-run plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/plugins/smoke-certifications/certify:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeCertify
+      summary: Certify Platform Plugin smoke execution
+      description: Create or update a Platform Plugin smoke certification from a successful guarded provider_smoke execution log. Requires GET, status 200, expected origin match, and secrets_included=false.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [execution_log_id]
+              properties:
+                execution_log_id: { type: integer }
+                certification_id: { type: string }
+                certified_by: { type: string }
+                admin_user_id: { type: string }
+                notes: { type: string }
+      responses:
+        "200":
+          description: Smoke certification created or updated
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "422":
+          description: Smoke execution log was not certifiable
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/plugins/smoke-certifications/status:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeCertificationStatus
+      summary: Read Platform Plugin smoke certification status
+      description: Read Platform Plugin smoke certification status by plugin/action/mock provider/resource. Returns safe metadata and execution log references only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                plugin_key: { type: string }
+                action_key: { type: string }
+                mock_provider: { type: string }
+                mock_resource: { type: string }
+                provider: { type: string }
+                resource: { type: string }
+                limit: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: Smoke certification status response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/plugins/smoke-certifications/policies/resolve:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationPolicyResolve
+      summary: Resolve Platform Plugin smoke recertification policy
+      description: Resolve the effective smoke recertification policy by tenant/plugin/action/mock provider/resource. Returns safe policy metadata only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                tenant_id: { type: string }
+                plugin_key: { type: string }
+                action_key: { type: string }
+                mock_provider: { type: string }
+                mock_resource: { type: string }
+                provider: { type: string }
+                resource: { type: string }
+      responses:
+        "200":
+          description: Effective smoke recertification policy
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/plugins/smoke-certifications/policies/list:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationPolicyList
+      summary: List Platform Plugin smoke recertification policies
+      description: List smoke recertification policy registry rows. Returns safe policy metadata only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                tenant_id: { type: string }
+                plugin_key: { type: string }
+                action_key: { type: string }
+                mock_provider: { type: string }
+                mock_resource: { type: string }
+                status: { type: string }
+                limit: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: Smoke recertification policy list
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/plugins/smoke-certifications/policies/upsert:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationPolicyUpsert
+      summary: Upsert Platform Plugin smoke recertification policy
+      description: Create or update a smoke recertification policy for a tenant/plugin/action/mock scope. Controls TTL, expiring-soon window, max batch size, auto enablement, and expected origin guard. Writes execution-log audit evidence with before/after summaries and changed fields.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                policy_id: { type: string }
+                tenant_id: { type: string }
+                plugin_key: { type: string, default: "*" }
+                action_key: { type: string }
+                mock_provider: { type: string }
+                mock_resource: { type: string }
+                certification_ttl_days: { type: integer, minimum: 1, maximum: 365, default: 90 }
+                expires_soon_days: { type: integer, minimum: 1, maximum: 90, default: 14 }
+                max_batch_size: { type: integer, minimum: 1, maximum: 10, default: 5 }
+                auto_recertification_enabled: { type: boolean, default: false }
+                provider_smoke_required: { type: boolean, default: true }
+                allowed_expected_origin: { type: string }
+                status: { type: string, default: active }
+                priority: { type: integer, default: 100 }
+                notes: { type: string }
+                metadata:
+                  type: object
+                  additionalProperties: true
+                actor: { type: string }
+                actor_id: { type: string }
+                admin_user_id: { type: string }
+                updated_by: { type: string }
+                reason: { type: string }
+                change_reason: { type: string }
+                trace_id: { type: string }
+      responses:
+        "200":
+          description: Effective smoke recertification policy after upsert
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/plugins/smoke-certifications/policies/history:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationPolicyHistory
+      summary: Read smoke recertification policy audit history
+      description: Read execution-log audit history for smoke recertification policy upserts. Supports policy id, actor, changed field, and reason filters. Returns safe before/after summaries only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                policy_id: { type: string }
+                actor: { type: string }
+                actor_id: { type: string }
+                changed_field: { type: string }
+                reason_contains: { type: string }
+                limit: { type: integer, minimum: 1, maximum: 200, default: 100 }
+      responses:
+        "200":
+          description: Policy audit history
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/plugins/smoke-certifications/policies/rollback-preview:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationPolicyRollbackPreview
+      summary: Preview smoke recertification policy rollback
+      description: Preview rollback from a policy upsert audit row. Returns target snapshot, current policy, changed fields, and rollback safety notes without mutating state.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                audit_log_id: { type: integer }
+                trace_id: { type: string }
+                rollback_to:
+                  type: string
+                  enum: [before, after]
+                  default: before
+      responses:
+        "200":
+          description: Policy rollback preview
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/plugins/smoke-certifications/policies/rollback-apply:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationPolicyRollbackApply
+      summary: Apply smoke recertification policy rollback
+      description: Apply rollback from a policy upsert audit row. Requires confirm_rollback=true and writes a new execution-log audit row through the audited policy upsert path.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                audit_log_id: { type: integer }
+                trace_id: { type: string }
+                rollback_to:
+                  type: string
+                  enum: [before, after]
+                  default: before
+                confirm_rollback: { type: boolean, default: false }
+                actor: { type: string }
+                actor_id: { type: string }
+                admin_user_id: { type: string }
+                reason: { type: string }
+                change_reason: { type: string }
+                rollback_trace_id: { type: string }
+                notes: { type: string }
+      responses:
+        "200":
+          description: Policy rollback apply response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/plugins/smoke-certifications/recertification-queue:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationQueue
+      summary: List Platform Plugin smoke recertification queue
+      description: List smoke certifications that are expired, expiring soon, or drifting from the current connection/endpoint URL or method. Returns safe metadata only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                plugin_key: { type: string }
+                action_key: { type: string }
+                tenant_id: { type: string }
+                mock_provider: { type: string }
+                mock_resource: { type: string }
+                provider: { type: string }
+                resource: { type: string }
+                expires_soon_days: { type: integer, minimum: 1, maximum: 90, default: 14 }
+                include_ok: { type: boolean, default: false }
+                limit: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200":
+          description: Smoke recertification queue response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/plugins/smoke-certifications/recertification-batch:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginSmokeRecertificationBatch
+      summary: Run bounded Platform Plugin smoke recertification batch
+      description: Run a bounded smoke recertification batch. Defaults to dry_run=true. Real execution uses provider_smoke only for rows with no drift and an explicit expected origin, then re-certifies successful 200 responses.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                plugin_key: { type: string }
+                action_key: { type: string }
+                tenant_id: { type: string }
+                mock_provider: { type: string }
+                mock_resource: { type: string }
+                expires_soon_days: { type: integer, minimum: 1, maximum: 90, default: 14 }
+                dry_run: { type: boolean, default: true }
+                limit: { type: integer, minimum: 1, maximum: 10, default: 5 }
+                certification_ttl_days: { type: integer, minimum: 1, maximum: 365, default: 90 }
+                certified_by: { type: string }
+                notes: { type: string }
+                agent_id: { type: string }
+                requested_credential_scope: { type: string, default: tenant_connection }
+                brand_key: { type: string }
+                business_type_key: { type: string }
+                business_activity_type_key: { type: string }
+                actor_role: { type: string }
+                governance_level: { type: string }
+                timeout_ms: { type: integer, minimum: 1000, maximum: 30000, default: 5000 }
+      responses:
+        "200":
+          description: Smoke recertification batch response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /platform/remote-runtime/targets/upsert:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: remoteRuntimeTargetUpsert
+      summary: Upsert Remote Runtime target
+      description: Create or update a remote_ssh_runtime hosting_account or local_path target reference. This stores metadata and allowlists only; it rejects secret-like fields and never opens SSH, local shell, or files.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, target_kind]
+              additionalProperties: true
+              properties:
+                target_id: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                target_kind: { type: string, enum: [hosting_account, local_path] }
+                provider_family: { type: string }
+                connector_family: { type: string }
+                system_id: { type: string }
+                connection_id: { type: string }
+                local_path_id: { type: string }
+                host_label: { type: string }
+                root_path: { type: string }
+                path_allowlist:
+                  type: array
+                  items: { type: string }
+                command_allowlist:
+                  type: array
+                  items: { type: string }
+                metadata:
+                  type: object
+                  additionalProperties: true
+                status: { type: string, enum: [planned, active, disabled, archived] }
+                validation_status: { type: string, enum: [unknown, pending_configuration, valid, invalid, inaccessible, partial] }
+                updated_by: { type: string }
+      responses:
+        "200": { description: Remote Runtime target upsert result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/remote-runtime/targets/validate:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: remoteRuntimeTargetValidate
+      summary: Validate Remote Runtime target metadata
+      description: Validate target references and local path metadata without opening SSH, local shell, or file access. Updates validation_status and returns a dry-run readiness probe.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_id]
+              additionalProperties: true
+              properties:
+                target_id: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                updated_by: { type: string }
+      responses:
+        "200": { description: Remote Runtime target validation result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/remote-runtime/targets/catalog:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: remoteRuntimeTargetCatalog
+      summary: List Remote Runtime targets
+      description: List remote_ssh_runtime hosting_account and local_path targets plus command allowlists. This endpoint never opens SSH, local shell, files, or returns secrets.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                tenant_id: { type: string }
+                user_id: { type: string }
+                target_kind: { type: string, enum: [hosting_account, local_path] }
+                provider_family: { type: string }
+                status: { type: string, enum: [planned, active, disabled, archived] }
+                include_commands: { type: boolean, default: true }
+                limit: { type: integer, minimum: 1, maximum: 250, default: 100 }
+      responses:
+        "200": { description: Remote Runtime target catalog, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/remote-runtime/probe:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: remoteRuntimeProbe
+      summary: Probe Remote Runtime target readiness
+      description: Dry-run readiness probe for one remote_ssh_runtime target. It does not open SSH, local shell, or file access; it only reports whether future allowlisted dispatch could be requested.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_id]
+              additionalProperties: true
+              properties:
+                target_id: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                command_key: { type: string, default: status }
+                dry_run: { type: boolean, default: true }
+      responses:
+        "200": { description: Remote Runtime readiness probe result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/plugins/install-policy:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginPolicyUpsert
+      summary: Upsert Platform Plugin tenant policy overlay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [tenant_id, plugin_key], additionalProperties: true }
+      responses:
+        "200":
+          description: Tenant policy overlay upserted
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
+  /platform/plugins/action-templates:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginActionTemplateUpsert
+      summary: Upsert Platform Plugin REST action template
+      description: Create or update a non-secret REST action template for a Platform Plugin contribution action. Stores method, path, headers, and optional body_template metadata in action_bindings_json so dispatch paths can execute only from governed templates.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action_key, method, path]
+              additionalProperties: true
+              properties:
+                contribution_id: { type: string }
+                plugin_key: { type: string }
+                action_key: { type: string }
+                method: { type: string, enum: [GET, POST, PUT, PATCH, DELETE] }
+                path: { type: string }
+                headers: { type: object, additionalProperties: true }
+                body_template: { type: object, additionalProperties: true }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                updated_by: { type: string }
+      responses:
+        "200": { description: Action template upserted, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/plugins/dispatch-rest:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginDispatchRest
+      summary: Dispatch Platform Plugin REST action
+      description: Execute a promoted or tenant-installed Platform Plugin REST action only after full execution readiness passes. Requires the Phase 33 dry-run/guard to return dispatch_ready, then requires plugin dispatch_ready resolution, an active connection with api_base_url, and an action template from plugin contribution metadata or the Endpoint Registry. Supports optional Brand, Business Activity, Workflow/Logic, Skill, and Platform Graph context fields for guarded readiness. Credentials remain server-side and secrets are never returned.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plugin_key, action_key, tenant_id, user_id]
+              additionalProperties: true
+              properties:
+                plugin_key: { type: string }
+                action_key: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                agent_id: { type: string }
+                requested_credential_scope: { type: string, default: tenant_connection }
+                input: { type: object, additionalProperties: true }
+                dry_run: { type: boolean, default: false }
+                timeout_ms: { type: integer, minimum: 1000, maximum: 30000, default: 10000 }
+                enforce_execution_readiness: { type: boolean, default: true }
+                brand_key: { type: string }
+                target_key: { type: string }
+                business_type_key: { type: string }
+                business_activity_type_key: { type: string }
+                workflow_key: { type: string }
+                logic_key: { type: string }
+                logic_pack_key: { type: string }
+                skill_key: { type: string }
+                actor_role: { type: string }
+                governance_level: { type: string }
+                graph_depth: { type: integer, minimum: 0, maximum: 3, default: 1 }
+                graph_limit: { type: integer, minimum: 1, maximum: 250, default: 120 }
+                detail_limit: { type: integer, minimum: 1, maximum: 50, default: 10 }
+                edge_detail_limit: { type: integer, minimum: 1, maximum: 80, default: 10 }
+                provider_smoke: { type: boolean, default: false }
+                provider_smoke_expected_origin: { type: string }
+      responses:
+        "200": { description: Platform Plugin REST dispatch result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/plugins/action-grants:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginActionGrantUpsert
+      summary: Upsert Platform Plugin action grant
+      description: Create or update an active action grant for a Platform Plugin connection. This clears resolver approval gates for matching action, connection, and optional agent/workspace scopes without accepting secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [connection_id, plugin_key, action_key]
+              additionalProperties: true
+              properties:
+                connection_id: { type: string }
+                plugin_key: { type: string }
+                action_key: { type: string }
+                agent_id: { type: string }
+                workspace_id: { type: string }
+                tenant_id: { type: string }
+                user_id: { type: string }
+                grant_mode: { type: string, enum: [explicit, default_permissive, auto_approved], default: explicit }
+                granted_by: { type: string }
+                expires_at: { type: string, format: date-time }
+      responses:
+        "200": { description: Action grant upserted, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/plugins/install:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginInstall
+      summary: Install Platform Plugin for tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [tenant_id, plugin_key], additionalProperties: true }
+      responses:
+        "200":
+          description: Plugin installed
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
+  /platform/plugins/contributions:
+    get:
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionList
+      summary: List Platform Plugin contributions
+      responses:
+        "200":
+          description: Contribution list
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionCreate
+      summary: Create Platform Plugin contribution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [plugin_key, display_name], additionalProperties: true }
+      responses:
+        "200":
+          description: Contribution created
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
+  /platform/plugins/contributions/{contribution_id}:
+    get:
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionGet
+      summary: Get Platform Plugin contribution
+      parameters:
+        - { name: contribution_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Contribution detail
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
+  /platform/plugins/contributions/certify:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionCertify
+      summary: Certify Platform Plugin contribution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [contribution_id], additionalProperties: true }
+      responses:
+        "200": { description: Contribution certified, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/plugins/contributions/promote:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionPromote
+      summary: Promote Platform Plugin contribution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [contribution_id], additionalProperties: true }
+      responses:
+        "200": { description: Contribution promoted, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/plugins/contributions/activate-private:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionPrivateActivate
+      summary: Activate private Platform Plugin contribution runtime
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [contribution_id], additionalProperties: true }
+      responses:
+        "200": { description: Private runtime activated, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/plugins/contributions/resolve-private:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionPrivateResolve
+      summary: Resolve private Platform Plugin contribution runtime
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Private runtime resolved, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/plugins/contributions/dispatch-rest:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: platformPluginContributionPrivateDispatchRest
+      summary: Dispatch private Platform Plugin REST action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [contribution_id, action_key, tenant_id, user_id], additionalProperties: true }
+      responses:
+        "200": { description: Private REST dispatch result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/evolution/switch-options:
+    get:
+      tags: [platform-evolution]
+      operationId: platformEvolutionSwitchOptions
+      summary: List Platform Evolution switch options
+      description: >
+        Admin/service scoped read of allowed Platform Evolution scope switch options. This supports view-as/scope selection
+        by user, email, tenant, or brand. It does not grant access and does not expose checkpoint writes.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: email
+          in: query
+          required: false
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200":
+          description: Allowed switch scopes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionSwitchOptionsResponse"
+
+  /platform/evolution/activation-card:
+    get:
+      tags: [platform-evolution]
+      operationId: platformEvolutionActivationCard
+      summary: Read Platform Evolution activation card
+      description: >
+        Admin/service scoped read of the latest Platform Evolution activation card for a brand/tenant scope.
+        Returns checkpoint summary, thread counts, linked tasks/signals, and blocker counts. No secrets are returned.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Platform Evolution activation card.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionActivationCardResponse"
+        "400":
+          description: Missing scope fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /platform/evolution/thread-map:
+    get:
+      tags: [platform-evolution]
+      operationId: platformEvolutionThreadMap
+      summary: Read Platform Evolution thread map
+      description: >
+        Admin/service scoped thread map with linked task, signal, and blocker counts for a Platform Evolution scope.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+        - name: priority
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200":
+          description: Platform Evolution thread map.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionThreadMapResponse"
+        "400":
+          description: Missing scope fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /platform/evolution/open-evidence:
+    get:
+      tags: [platform-evolution]
+      operationId: platformEvolutionOpenEvidence
+      summary: Read Platform Evolution open evidence
+      description: >
+        Admin/service scoped linked evidence for Platform Evolution threads, including pending tasks and summary development signals.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: thread_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: linked_surface
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200":
+          description: Platform Evolution open evidence.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionOpenEvidenceResponse"
+        "400":
+          description: Missing scope fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /platform/evolution/cms-claim-smoke:
+    post:
+      tags: [platform-evolution]
+      operationId: platformEvolutionCmsClaimSmoke
+      summary: Smoke CMS claim approval and credential promotion
+      description: >
+        Admin-only governed smoke harness for CMS/WordPress claim approval governance. It issues and verifies an
+        internal short-lived User JWT, creates or reuses a verified CMS claim, approves it in direct_scope mode,
+        creates or updates a tenant-owned WordPress credential binding pointer, and reads back effective credential
+        status without returning tokens, decrypted credentials, or secret values.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformEvolutionCmsClaimSmokeRequest"
+      responses:
+        "200":
+          description: CMS claim smoke passed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionCmsClaimSmokeResponse"
+        "400":
+          description: Missing required fields or unsupported transport.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "502":
+          description: CMS claim smoke failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionCmsClaimSmokeResponse"
+
+  /platform/evolution/tenant-smoke:
+    post:
+      tags: [platform-evolution]
+      operationId: platformEvolutionTenantSmoke
+      summary: Smoke tenant Evolution routes with User JWT
+      description: >
+        Admin-only governed smoke harness. It resolves an allowed Platform Evolution scope, issues an internal short-lived
+        User JWT, calls tenant evolution switch-options, activation-card, and thread-map routes, and returns only sanitized
+        result summaries. The JWT is never returned and tenant checkpoint write remains disabled.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformEvolutionTenantSmokeRequest"
+      responses:
+        "200":
+          description: Tenant smoke passed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionTenantSmokeResponse"
+        "400":
+          description: Missing user identifier.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Requested smoke scope is not allowed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "502":
+          description: Tenant route smoke failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionTenantSmokeResponse"
+
+  /platform/evolution/checkpoints:
+    post:
+      tags: [platform-evolution]
+      operationId: platformEvolutionCheckpointCreate
+      summary: Create Platform Evolution checkpoint
+      description: >
+        Admin/service scoped creation of an activation, operation, manual, rollup, or recovery checkpoint.
+        Updates last_checkpoint_id for threads in the same scope. No secrets are accepted or returned.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformEvolutionCheckpointCreateRequest"
+      responses:
+        "201":
+          description: Checkpoint created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionCheckpointCreateResponse"
+        "400":
+          description: Missing summary or scope fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /platform/capability-vault/packages:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultPackageList
+      summary: List private capability vault packages
+      description: >
+        Admin/service scoped read of private capability packages. This route returns registry rows only and never
+        imports source assets, installs packages, reads secrets, or executes package content.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200": { description: Package registry rows, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/capability-vault/repo-ingestion-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultRepoIngestionPlan
+      summary: Plan repo-to-capability ingestion
+      description: >
+        Builds a dry-run ingestion plan for a pinned repository snapshot. It classifies assets into catalog,
+        knowledge, skill, tool, runtime, restricted, or quarantine lanes and never installs or executes content.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required: [source_repo_full_name, source_commit_sha, files]
+              properties:
+                source_repo_full_name: { type: string }
+                source_commit_sha: { type: string }
+                parent_repo_full_name: { type: string }
+                license_spdx: { type: string }
+                description: { type: string }
+                files:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+      responses:
+        '200':
+          description: Dry-run ingestion plan.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /platform/capability-vault/install-request-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultInstallRequestPlan
+      summary: Plan tenant, brand, or user package install request
+      description: >
+        Plans installation from an already sanitized private capability package. It never writes installs,
+        resets grants, or enables runtime dispatch.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required: [package_key]
+              properties:
+                package_key: { type: string }
+                tenant_id: { type: string }
+                brand_key: { type: string }
+                user_id: { type: string }
+                scope_type: { type: string }
+                requested_install_mode: { type: string }
+                package_plan:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Dry-run install request plan.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /platform/capability-vault/variant-merge-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultVariantMergePlan
+      summary: Plan three-way merge of scoped variant patches
+      description: >
+        Plans how tenant, brand, user, or task-context variant patches rebase onto a newer package base.
+        It preserves user patches and reports conflicts without applying changes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required: [variant_id, old_base_version_id, new_base_version_id]
+              properties:
+                variant_id: { type: string }
+                old_base_version_id: { type: string }
+                new_base_version_id: { type: string }
+                variant_patches:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+                changed_base_assets:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+      responses:
+        '200':
+          description: Dry-run variant merge plan.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /platform/capability-vault/mirror-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultMirrorPlan
+      summary: Plan an immutable private repo mirror
+      description: >
+        Builds a dry-run raw mirror plan for external repository evidence. The mirror is immutable, read-only, and
+        never executed by runtime.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required: [source_repo_full_name, source_commit_sha]
+              properties:
+                source_repo_full_name: { type: string }
+                source_commit_sha: { type: string }
+                platform_repo_full_name: { type: string }
+                storage_ref: { type: string }
+                license_spdx: { type: string }
+      responses:
+        "200": { description: Raw mirror plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/capability-vault/package-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultPackagePlan
+      summary: Plan sanitized private capability package intake
+      description: >
+        Classifies source assets into safe runtime assets and blocked evidence-only assets. It never installs,
+        executes, clones, or reads live external content.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required: [package_key, files]
+              properties:
+                package_key: { type: string }
+                package_type: { type: string, enum: [skill_pack, knowledge_pack, tool_candidate, runtime_candidate], default: skill_pack }
+                source_mirror_id: { type: string }
+                source_commit_sha: { type: string }
+                version: { type: string }
+                license_spdx: { type: string }
+                license_allowed: { type: boolean, default: true }
+                secrets_required: { type: boolean, default: false }
+                files:
+                  type: array
+                  items: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Sanitized package plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/capability-vault/reinstall-diff-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultReinstallDiffPlan
+      summary: Plan idempotent reinstall or upgrade diff
+      description: >
+        Builds a dry-run reinstall/upgrade plan. It preserves tenant overrides, brand bindings, agent grants,
+        disabled skills, thresholds, and approval states; it never duplicates installs.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required: [package_key]
+              properties:
+                package_key: { type: string }
+                tenant_id: { type: string }
+                current_version: { type: string }
+                incoming_version: { type: string }
+                existing_assets:
+                  type: array
+                  items: { type: object, additionalProperties: true }
+                incoming_assets:
+                  type: array
+                  items: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Reinstall diff plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/capability-vault/variant-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultVariantPlan
+      summary: Plan scoped package variant patches
+      description: >
+        Plans tenant, brand, business type, user, or platform variant patches. Lower layers can specialize or narrow
+        policy, but cannot expand upper-layer permissions without approval and certification.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                package_id: { type: string }
+                base_package_version_id: { type: string }
+                scope_type: { type: string, enum: [platform, tenant, brand, business_type, user] }
+                scope_id: { type: string }
+                variant_key: { type: string }
+                patches:
+                  type: array
+                  items: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Variant patch plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/capability-vault/runtime-resolve:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultRuntimeResolve
+      summary: Resolve effective private capability runtime layer
+      description: >
+        Resolves the package base version, scoped variants, and task overlay into a dispatch readiness decision.
+        It does not dispatch, install, or execute tools.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              required: [package_key, base_version]
+              properties:
+                package_key: { type: string }
+                base_version: { type: string }
+                variants:
+                  type: array
+                  items: { type: object, additionalProperties: true }
+                task_overlay: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Runtime resolution, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/capability-vault/google-file-read/resolve:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformCapabilityVaultGoogleFileReadResolve
+      summary: Resolve Google Workspace file read strategy
+      description: >
+        Resolves a Google Docs, Sheets, Slides, Drive file URL, or fileId into a bounded governed read strategy.
+        It does not fetch browser URLs, perform live provider reads, or return file content. Drive metadata probes
+        must use supportsAllDrives=true.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                url: { type: string }
+                file_id: { type: string }
+                metadata: { type: object, additionalProperties: true }
+                mime_type: { type: string }
+                title: { type: string }
+                drive_jsonl_id: { type: string }
+                session_jsonl_candidate: { type: boolean }
+                max_chars_per_chunk: { type: integer, minimum: 1000, maximum: 50000, default: 12000 }
+      responses:
+        "200": { description: Google file read strategy decision, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineList
+      summary: List governed platform intelligence engines
+      description: >
+        Admin/service scoped read of registered policy-driven engines. This is registry inspection only and never
+        executes engine tasks, tools, strategies, or model calls.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+        - name: engine_type
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 100 }
+      responses:
+        "200":
+          description: Registered engines.
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/resolve-intent:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineResolveIntent
+      summary: Resolve objective to candidate engine and skill
+      description: >
+        Read-only objective classification for the AI Intelligence Runtime. It returns candidate engine, task class,
+        skill, resource classification, and rationale. It does not plan, apply, execute tools, or call models.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                objective: { type: string }
+                prompt: { type: string }
+                goal: { type: string }
+                engine_key: { type: string }
+                task_class: { type: string }
+                resource_key: { type: string }
+                resource_kind: { type: string }
+                resource: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Intent resolution, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/task-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineTaskPlan
+      summary: Build a governed engine task plan
+      description: >
+        Builds a dry-run governed plan from SQL policy, rules, strategy registry, skill manifest, validators, and
+        prior outcome evidence. It does not apply changes or execute dynamic code.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [engine_key, task_class]
+              properties:
+                engine_key: { type: string }
+                task_class: { type: string }
+                mode: { type: string, enum: [diagnose_only, dry_run, apply_allowed], default: dry_run }
+                resource_key: { type: string }
+                resource_kind: { type: string }
+                resource: { type: object, additionalProperties: true }
+                scope_id: { type: string }
+                scope_guard_passed: { type: boolean, default: false }
+                approval_granted: { type: boolean, default: false }
+                validator_results_required: { type: boolean, default: false }
+                validator_result_run_id: { type: string }
+                validator_result_run_key: { type: string }
+                validator_results:
+                  type: array
+                  items: { type: object, additionalProperties: true }
+                write_audit: { type: boolean, default: false }
+                actor_id: { type: string }
+                tenant_id: { type: string }
+                trace_id: { type: string }
+      responses:
+        "200": { description: Governed task plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/decision-brief:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineDecisionBrief
+      summary: Build an intelligence decision brief
+      description: >
+        Combines intent resolution, capability readiness, policy-driven planning, feedback-aware scoring, and
+        apply-readiness blockers. Models may assist candidate scoring only; hard gates remain deterministic.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                objective: { type: string }
+                engine_key: { type: string }
+                task_class: { type: string }
+                mode: { type: string, enum: [diagnose_only, dry_run, apply_allowed], default: dry_run }
+                resource_key: { type: string }
+                resource_kind: { type: string }
+                scope_guard_passed: { type: boolean, default: false }
+                approval_granted: { type: boolean, default: false }
+                validator_results_required: { type: boolean, default: false }
+                validator_result_run_id: { type: string }
+                validator_result_run_key: { type: string }
+                validator_results:
+                  type: array
+                  items: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Intelligence decision brief, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/execution-envelope:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineExecutionEnvelope
+      summary: Build apply readiness envelope
+      description: >
+        Reports the controls required before a separate governed apply route can execute: scope guard, approval,
+        validators, audit, and readback. This route never mutates repositories, databases, or external systems.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [engine_key, task_class]
+              properties:
+                engine_key: { type: string }
+                task_class: { type: string }
+                mode: { type: string, enum: [apply_allowed], default: apply_allowed }
+                resource_key: { type: string }
+                resource_kind: { type: string }
+                resource: { type: object, additionalProperties: true }
+                scope_id: { type: string }
+                scope_guard_passed: { type: boolean, default: false }
+                approval_granted: { type: boolean, default: false }
+                validator_results_required: { type: boolean, default: false }
+                validator_result_run_id: { type: string }
+                validator_result_run_key: { type: string }
+                validator_results:
+                  type: array
+                  items: { type: object, additionalProperties: true }
+                actor_id: { type: string }
+                tenant_id: { type: string }
+                trace_id: { type: string }
+      responses:
+        "200": { description: Apply readiness envelope, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/capability-check:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineCapabilityCheck
+      summary: Check engine planning capability
+      description: >
+        Readiness diagnostic for an engine and optional task class. Verifies active policy, rule, strategy, skill
+        contract, and validator coverage without planning or applying.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [engine_key]
+              properties:
+                engine_key: { type: string }
+                task_class: { type: string }
+      responses:
+        "200": { description: Capability check, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/runs:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineRunHistory
+      summary: List engine planning and audit runs
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: engine_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: task_class
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200": { description: Engine run history, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/feedback-summary:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: platformEngineFeedbackSummary
+      summary: Summarize recent engine outcomes
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: engine_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: task_class
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200": { description: Feedback summary, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/database-table-lifecycle/decision-brief:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseTableLifecycleDecisionBrief
+      summary: Build database table lifecycle decision brief
+      description: >
+        Read-only live table census and classification using information_schema, data_migration_inventory, and
+        lifecycle registry state. It never drops, archives, truncates, deletes, or mutates data.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                limit: { type: integer, minimum: 1, maximum: 1000, default: 250 }
+      responses:
+        "200": { description: Database table lifecycle brief, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/database-table-lifecycle/register-plan:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseTableLifecycleRegisterPlan
+      summary: Build database table lifecycle registry upsert plan
+      description: >
+        Builds a dry-run plan to register lifecycle metadata for live tables. It does not write registry rows and
+        does not perform archive, drop, truncate, or delete operations.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                limit: { type: integer, minimum: 1, maximum: 1000, default: 250 }
+      responses:
+        "200": { description: Dry-run lifecycle registry upsert plan, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/database-lifecycle/report-snapshots:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleReportSnapshots
+      summary: List database lifecycle report snapshots
+      description: >
+        Lists evidence-only database lifecycle report snapshots. This route is read-only and does not execute lifecycle cleanup.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: report_type
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200": { description: Database lifecycle report snapshots, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleReportSnapshotCreate
+      summary: Create database lifecycle report snapshot
+      description: >
+        Creates an evidence-only lifecycle report snapshot when confirmation-gated. It does not archive, delete, drop,
+        truncate, compact, read secrets, or execute lifecycle cleanup.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                report_type: { type: string, enum: [retention_plan], default: retention_plan }
+                limit: { type: integer, minimum: 1, maximum: 500, default: 50 }
+                apply: { type: boolean, default: false }
+                confirm: { type: string }
+                actor_id: { type: string }
+                tenant_id: { type: string }
+                trace_id: { type: string }
+                notes: { type: string }
+      responses:
+        "200": { description: Database lifecycle report snapshot result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/database-lifecycle/operational-status:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleOperationalStatus
+      summary: Read database lifecycle operational status
+      description: >
+        Returns a bounded, read-only operational status for database lifecycle snapshots, schedules, and scheduler bindings.
+        It does not enable scheduler jobs, write snapshots, archive, delete, drop, truncate, compact, or read secrets.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: report_type
+          in: query
+          required: false
+          schema: { type: string, enum: [retention_plan], default: retention_plan }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 25, default: 5 }
+        - name: max_snapshot_age_hours
+          in: query
+          required: false
+          schema: { type: number, minimum: 1, maximum: 8760 }
+      responses:
+        "200": { description: Database lifecycle operational status, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/database-lifecycle/incident-bridge:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleIncidentBridge
+      summary: Plan or write a database lifecycle readiness incident
+      description: >
+        Builds a bounded incident candidate from database lifecycle operational status. Dry-run is default. Apply mode
+        requires typed confirmation and creates at most one open operational incident for degraded lifecycle readiness.
+        It does not enable scheduler jobs, write snapshots, archive, delete, drop, truncate, compact, or read secrets.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                apply: { type: boolean, default: false }
+                confirm: { type: string }
+                limit: { type: integer, minimum: 1, maximum: 25, default: 5 }
+                max_snapshot_age_hours: { type: number, minimum: 1, maximum: 8760 }
+                assigned_to: { type: string }
+      responses:
+        "200": { description: Database lifecycle incident bridge result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Confirmation or validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/database-lifecycle/scheduler-snapshot-runner:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleSchedulerSnapshotRunner
+      summary: Run governed database lifecycle scheduler snapshot
+      description: >
+        Runs the scheduler snapshot readiness/readback gate and returns bounded output. Dry-run is default. Apply mode
+        requires typed confirmation and writes only a lifecycle report snapshot after schedule, binding, and approval
+        readback are all ready. It does not enable cron, archive, delete, drop, truncate, compact, or read secrets.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                apply: { type: boolean, default: false }
+                confirm: { type: string }
+                schedule_key: { type: string }
+                binding_key: { type: string }
+                limit: { type: integer, minimum: 1, maximum: 500, default: 80 }
+                actor_id: { type: string }
+                tenant_id: { type: string }
+                trace_id: { type: string }
+                notes: { type: string }
+                summary_only: { type: boolean, default: true }
+      responses:
+        "200": { description: Database lifecycle scheduler snapshot runner result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Confirmation or validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { description: Scheduler snapshot runner blocked by readiness/readback gates, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  /platform/engines/database-lifecycle/scheduler-snapshot-jobs:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleSchedulerSnapshotJobEnqueue
+      summary: Enqueue governed database lifecycle scheduler snapshot job
+      description: >
+        Enqueues a bounded internal job of type database_lifecycle_report_snapshot. The job uses the same scheduler
+        snapshot readiness/readback gate as the direct runner. Dry-run is default. Apply mode requires typed confirmation
+        in the queued request payload and writes only a lifecycle report snapshot when all guards pass.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                apply: { type: boolean, default: false }
+                confirm: { type: string }
+                schedule_key: { type: string }
+                binding_key: { type: string }
+                limit: { type: integer, minimum: 1, maximum: 500, default: 80 }
+                actor_id: { type: string }
+                requested_by: { type: string }
+                tenant_id: { type: string }
+                trace_id: { type: string }
+                notes: { type: string }
+                summary_only: { type: boolean, default: true }
+                idempotency_key: { type: string }
+                max_attempts: { type: integer, minimum: 1, maximum: 10, default: 1 }
+                webhook_url: { type: string }
+                callback_secret: { type: string }
+      responses:
+        "200": { description: Existing idempotent database lifecycle scheduler snapshot job, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "202": { description: Database lifecycle scheduler snapshot job queued, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { description: Queue unavailable, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /platform/engines/database-lifecycle/report-snapshot-schedules:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleReportSnapshotSchedules
+      summary: List database lifecycle report snapshot schedules
+      description: >
+        Lists planned database lifecycle report snapshot schedules. This route is read-only and does not run scheduler jobs
+        or lifecycle cleanup.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: report_type
+          in: query
+          required: false
+          schema: { type: string }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200": { description: Database lifecycle report snapshot schedules, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/database-lifecycle/report-snapshot-schedule-readiness:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleReportSnapshotScheduleReadiness
+      summary: Assess database lifecycle report snapshot schedule readiness
+      description: >
+        Assesses whether snapshot schedules have approval, notification, and executor-policy metadata. This route is
+        read-only and does not execute scheduled work.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                schedule_key: { type: string }
+                report_type: { type: string, enum: [retention_plan] }
+                limit: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200": { description: Database lifecycle report snapshot schedule readiness, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/database-lifecycle/scheduler-bindings:
+    get:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleSchedulerBindings
+      summary: List database lifecycle scheduler bindings
+      description: >
+        Lists planned lifecycle snapshot scheduler bindings. This route is read-only and does not enable or run scheduler work.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: schedule_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200": { description: Database lifecycle scheduler bindings, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/database-lifecycle/scheduler-binding-readiness:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleSchedulerBindingReadiness
+      summary: Assess database lifecycle scheduler binding readiness
+      description: >
+        Assesses planned lifecycle snapshot scheduler bindings. This route is read-only and does not enable scheduler work
+        or execute snapshots.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                binding_key: { type: string }
+                schedule_key: { type: string }
+                limit: { type: integer, minimum: 1, maximum: 250, default: 50 }
+      responses:
+        "200": { description: Database lifecycle scheduler binding readiness, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/engines/database-lifecycle/scheduler-approval-metadata:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleSchedulerApprovalMetadata
+      summary: Plan or apply database lifecycle scheduler approval metadata
+      description: >
+        Plans or applies confirmation-gated schedule/binding approval metadata. This route does not enable scheduler jobs,
+        write snapshots, or execute lifecycle cleanup.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [target_type, target_key, decision]
+              properties:
+                target_type: { type: string, enum: [schedule, binding] }
+                target_key: { type: string }
+                decision: { type: string, enum: [approve, reject, revoke] }
+                notification_target: { type: string }
+                executor_policy_key: { type: string }
+                actor_id: { type: string }
+                trace_id: { type: string }
+                reason: { type: string }
+                apply: { type: boolean, default: false }
+                confirm: { type: string }
+      responses:
+        "200": { description: Database lifecycle scheduler approval metadata plan/result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Target not found, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: Approval plan blocked, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /platform/engines/database-lifecycle/scheduler-approval-readback:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-intelligence]
+      operationId: databaseLifecycleSchedulerApprovalReadback
+      summary: Verify database lifecycle scheduler approval metadata readback
+      description: >
+        Verifies schedule/binding approval metadata and its audit event after confirmation-gated metadata apply.
+        This route is read-only and does not enable scheduler jobs, write snapshots, or execute lifecycle cleanup.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [target_type, target_key]
+              properties:
+                target_type: { type: string, enum: [schedule, binding] }
+                target_key: { type: string }
+                event_id: { type: string }
+                event_key: { type: string }
+      responses:
+        "200": { description: Database lifecycle scheduler approval metadata readback, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /tenant/evolution/switch-options:
+    get:
+      tags: [platform-evolution]
+      operationId: tenantEvolutionSwitchOptions
+      summary: List tenant Evolution switch options
+      description: >
+        Tenant/user scoped read of allowed Platform Evolution scope switch options for the signed-in user.
+        The returned scope_key values can be passed to tenant evolution read routes. No access is granted by this route.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Tenant allowed switch scopes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionSwitchOptionsResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active membership missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /tenant/evolution/checkpoints:
+    post:
+      tags: [platform-evolution]
+      operationId: tenantEvolutionCheckpointCreate
+      summary: Create tenant Evolution checkpoint
+      description: >
+        Tenant/user scoped checkpoint creation. Requires User JWT, active tenant membership, an allowed Platform Evolution
+        scope, and a write-capable role. Tenant checkpoints cannot set platform commit/deploy authority fields and do not
+        return tokens or secrets.
+      security:
+        - backendBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantEvolutionCheckpointCreateRequest"
+      responses:
+        "201":
+          description: Tenant checkpoint created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantEvolutionCheckpointCreateResponse"
+        "400":
+          description: Missing summary or invalid checkpoint type.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Scope grant or write-capable role missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /tenant/evolution/activation-card:
+    get:
+      tags: [platform-evolution]
+      operationId: tenantEvolutionActivationCard
+      summary: Read tenant Evolution activation card
+      description: >
+        Tenant/user scoped read of a Platform Evolution activation card. Requires a user JWT, active tenant membership,
+        and allowed scope in v_platform_evolution_scope_access. No secrets are returned.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Tenant-scoped Platform Evolution activation card.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionActivationCardResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active membership or scope grant missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /tenant/evolution/thread-map:
+    get:
+      tags: [platform-evolution]
+      operationId: tenantEvolutionThreadMap
+      summary: Read tenant Evolution thread map
+      description: >
+        Tenant/user scoped thread map. Users can read only allowed scopes resolved from active membership and scope access.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+        - name: priority
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Tenant-scoped Platform Evolution thread map.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionThreadMapResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active membership or scope grant missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /tenant/evolution/open-evidence:
+    get:
+      tags: [platform-evolution]
+      operationId: tenantEvolutionOpenEvidence
+      summary: Read tenant Evolution open evidence
+      description: >
+        Tenant/user scoped linked evidence for Platform Evolution threads. Users can read only allowed scopes.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: scope_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: brand_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: thread_key
+          in: query
+          required: false
+          schema: { type: string }
+        - name: linked_surface
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Tenant-scoped Platform Evolution open evidence.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEvolutionOpenEvidenceResponse"
+        "401":
+          description: User JWT required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active membership or scope grant missing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /wordpress/publish-authority/diagnose:
+    post:
+      tags: [wordpress]
+      operationId: diagnoseWordpressPublishAuthority
+      summary: Diagnose WordPress publish authority without publishing
+      description: Dry-run diagnostic that checks brand write flag and CMS site access grant for draft/publish without resolving secrets or sending any WordPress POST request.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WordpressPublishAuthorityDiagnosticRequest" }
+      responses:
+        "200":
+          description: Authority diagnostic allowed or legacy-allowed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WordpressPublishAuthorityDiagnosticResponse" }
+        "400":
+          description: Missing or invalid request fields.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "422":
+          description: Authority diagnostic blocked.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WordpressPublishAuthorityDiagnosticResponse" }
+        "500":
+          description: Diagnostic failed unexpectedly.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /connected-execution/sessions:
+    post:
+      tags: [connected-execution]
+      operationId: upsertConnectedExecutionSession
+      summary: Create or update a connected execution session
+      description: Creates or updates DB-backed connected execution session metadata. Does not execute pending actions and does not enable background work.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectedExecutionSessionUpsertRequest" }
+      responses:
+        "201":
+          description: Connected execution session created or updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectedExecutionSessionResponse" }
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Request failed unexpectedly.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /connected-execution/sessions/{connected_session_id}/checkpoint:
+    get:
+      tags: [connected-execution]
+      operationId: getConnectedExecutionLatestCheckpoint
+      summary: Read latest connected execution checkpoint
+      description: Returns the latest checkpoint view for a connected execution session. Read-only and secret-free by contract.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: connected_session_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: Latest checkpoint returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectedExecutionCheckpointResponse" }
+        "404":
+          description: Session or checkpoint not found.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Request failed unexpectedly.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /connected-execution/sessions/{connected_session_id}/evidence-reports:
+    post:
+      tags: [connected-execution]
+      operationId: createConnectedExecutionEvidenceReport
+      summary: Append connected execution evidence report
+      description: Appends a sanitized evidence report to a connected execution session and advances its checkpoint cursor. Does not execute actions.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: connected_session_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectedExecutionEvidenceReportCreateRequest" }
+      responses:
+        "201":
+          description: Evidence report appended.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectedExecutionEvidenceReportResponse" }
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Connected execution session not found.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Request failed unexpectedly.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /connected-execution/sessions/{connected_session_id}/resume-actions:
+    post:
+      tags: [connected-execution]
+      operationId: enqueueConnectedExecutionResumeAction
+      summary: Enqueue connected execution resume action metadata
+      description: Records a pending resume action for a connected execution session. This only stores metadata; it does not claim or execute the action.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: connected_session_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectedExecutionResumeActionCreateRequest" }
+      responses:
+        "201":
+          description: Resume action metadata recorded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectedExecutionResumeActionResponse" }
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Connected execution session not found.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Request failed unexpectedly.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /jobs/{job_id}/tick:
+    post:
+      tags: [jobs]
+      operationId: tickExecutionJobAdmin
+      summary: Manually process one queued job through the governed job runner
+      description: Admin-only recovery and smoke helper that processes exactly one existing queued job through the same executeSingleQueuedJob runner used by the worker. It does not create jobs, change queue configuration, grant new execution capability, or expose secrets.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: Queued job was processed through the runner.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobTickResponse" }
+        "400":
+          description: Invalid job identifier.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Admin authorization required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Job not found.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Job is not queued and cannot be ticked manually.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500":
+          description: Manual job tick failed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "503":
+          description: Job tick dependencies unavailable.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /connected-execution/sessions/{connected_session_id}/resume-actions/{resume_action_id}/enqueue:
+    post:
+      tags: [connected-execution]
+      operationId: enqueueConnectedExecutionResumeActionDryRun
+      summary: Enqueue connected execution resume action for metadata-only worker processing
+      description: Enqueues one pending analysis_step resume action or read-only tool_call preflight action for the connected execution worker bridge. The worker writes evidence/checkpoint metadata only. For tool_call actions it validates the read-only allowlist and records preflight evidence without executing tools, mutating repos, calling providers, calling local devices, or executing apply operations.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: connected_session_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: resume_action_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectedExecutionResumeActionEnqueueRequest" }
+      responses:
+        "202":
+          description: Resume action job enqueued for metadata-only processing.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectedExecutionResumeActionEnqueueResponse" }
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Session or resume action not found.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Resume action is not pending.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "422":
+          description: Resume action kind is not supported by this worker bridge phase.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "503":
+          description: Queue/worker submission unavailable.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /tenant/docs:
+    get:
+      tags: [tenant-docs]
+      operationId: tenantDocsCatalog
+      summary: List tenant-safe live repository documents
+      description: Returns the allowlisted tenant-facing documentation files available to the signed-in tenant user. Does not expose admin-only docs, migrations, or secrets.
+      security:
+        - backendBearerAuth: []
+      responses:
+        "200":
+          description: Tenant-safe docs catalog.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantDocsCatalogResponse" }
+        "401":
+          description: Missing or invalid user JWT.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active tenant membership required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /tenant/docs/read:
+    get:
+      tags: [tenant-docs]
+      operationId: tenantDocRead
+      summary: Read one tenant-safe live repository document
+      description: Reads a bounded allowlisted tenant-facing repository document by path. Blocks path traversal, absolute paths, non-allowlisted docs, admin-only guides, migrations, and schema dumps.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - GPT_Tenant_Connector_Instructions.md
+              - GPT_Tenant_Connector_Knowledge.md
+              - docs/tenant-platform-plugin-self-serve.md
+              - docs/local-manager-n8n-runtime-governance.md
+              - docs/platform-plugin-tenant-install.md
+              - docs/platform-plugin-private-runtime.md
+        - name: max_chars
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 500
+            maximum: 20000
+            default: 20000
+      responses:
+        "200":
+          description: Bounded tenant-safe document content.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantDocReadResponse" }
+        "401":
+          description: Missing or invalid user JWT.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Active tenant membership required or blocked path.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Document is not tenant-safe or is not allowlisted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /release/dashboard:
+    get:
+      tags: [release]
+      operationId: getReleaseDashboard
+      summary: Read compact release dashboard
+      description: Returns a compact read-only projection over release_readiness. The dashboard is not a second source of truth.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        "200":
+          description: Compact release dashboard.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleaseDashboardResponse" }
+        "500":
+          description: Dashboard generation failed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /admin/release/dashboard:
+    get:
+      tags: [release]
+      operationId: getAdminReleaseDashboard
+      summary: Read compact admin release dashboard
+      description: Admin alias for the compact read-only release dashboard backed by release_readiness.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        "200":
+          description: Compact release dashboard.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleaseDashboardResponse" }
+        "500":
+          description: Dashboard generation failed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /tenant/platform/plugins/catalog:
+    get:
+      tags: [platform-plugins]
+      operationId: tenantPlatformPluginCatalog
+      summary: List installable Platform Base plugins for this tenant
+      description: Tenant-facing catalog. Tenant/user IDs come from auth; no secrets are returned.
+      parameters:
+        - name: include_bindings
+          in: query
+          schema: { type: boolean, default: true }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 250, default: 100 }
+      responses:
+        "200":
+          description: Tenant-scoped Platform Plugin catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  tenant_facing: { type: boolean }
+                  plugins:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  secrets_included: { type: boolean, enum: [false] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+      security:
+        - backendBearerAuth: []
+
+  /tenant/platform/plugins/install:
+    post:
+      x-openai-isConsequential: true
+      tags: [platform-plugins]
+      operationId: tenantPlatformPluginInstall
+      summary: Install a Platform Base plugin for this tenant
+      description: Installs a Platform Base plugin for the signed-in tenant. Tenant/user IDs come from auth; no secrets are accepted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [plugin_key]
+              properties:
+                plugin_key: { type: string }
+                source_mode: { type: string, enum: [managed, dedicated], default: dedicated }
+                fallback_allowed: { type: boolean, default: false }
+                required_for_device_install: { type: boolean, default: false }
+                notes: { type: string, maxLength: 1000 }
+                connection:
+                  type: object
+                  additionalProperties: false
+                  description: Optional metadata-only connection. Do not include secrets.
+                  properties:
+                    connection_scope: { type: string, enum: [tenant_connection, user_connection], default: tenant_connection }
+                    api_base_url: { type: string, description: HTTPS base URL only. No credentials. }
+                    mcp_endpoint: { type: string, description: HTTPS endpoint only. No credentials. }
+                    webhook_url: { type: string, description: HTTPS webhook URL only. No credentials. }
+                    account_label: { type: string }
+                    display_label: { type: string }
+                    account_metadata:
+                      type: object
+                      additionalProperties: true
+      responses:
+        "200":
+          description: Plugin installed for tenant
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  tenant_facing: { type: boolean }
+                  platform_base_mutated: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        "400":
+          description: Invalid install payload
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+      security:
+        - backendBearerAuth: []
+
+  /tenant/platform/plugins/resolve:
+    post:
+      x-openai-isConsequential: false
+      tags: [platform-plugins]
+      operationId: tenantPlatformPluginResolve
+      summary: Resolve tenant readiness for a Platform Plugin action/tool
+      description: Checks tenant plugin readiness without executing actions or returning secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [plugin_key]
+              properties:
+                plugin_key: { type: string }
+                action_key: { type: string }
+                tool_key: { type: string }
+                agent_id: { type: string }
+                requested_credential_scope:
+                  type: string
+                  enum: [user_connection, tenant_connection, platform_managed, device_connector, none]
+      responses:
+        "200":
+          description: Tenant-scoped plugin readiness result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  allowed: { type: boolean }
+                  reason: { type: string }
+                  tenant_facing: { type: boolean }
+                  secrets_included: { type: boolean, enum: [false] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+      security:
+        - backendBearerAuth: []
+
+  /gpt/sessions/{id}/turn:
+    post:
+      tags: [session-archive]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: writeGptSessionTurn
+      x-tenant-gpt-operationId: writeSessionTurn
+      x-openai-isConsequential: false
+      summary: Append one turn to a customer_sessions archive
+      description: "Append one conversation turn to the active customer_sessions row. Writes the full content to the Drive transcript Doc and JSONL sidecar, and stores a bounded preview, sha256 hash, and Drive anchor in gpt_session_turns. Registered as the admin tool gpt_session_turn_write."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string }, description: session_id returned by getActivationSessionContext. }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [role, content]
+              properties:
+                role: { type: string, enum: [user, assistant, tool] }
+                content: { type: string }
+                action_key: { type: string }
+      responses:
+        "200":
+          description: Turn write result with Drive anchor and archive status
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, session_id, turn_index, turn_id, archive_status]
+                properties:
+                  ok: { type: boolean }
+                  session_id: { type: string }
+                  turn_index: { type: integer }
+                  turn_id: { type: string }
+                  drive_doc_id: { type: string }
+                  drive_anchor: { type: string }
+                  archive_status: { type: string }
+        "400": { description: Missing role/content or invalid role, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Session belongs to a different user, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "404": { description: Session not found, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: Cannot add turns to a closed session, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "500": { description: Turn write failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /gpt/sessions/{id}/end:
+    post:
+      tags: [session-archive]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: endGptSession
+      x-tenant-gpt-operationId: endSession
+      x-openai-isConsequential: false
+      summary: Close a customer_sessions archive
+      description: "Close the active customer_sessions row. Optionally writes a session_summaries row, finalizes the Drive transcript through closeGptSessionArchive, and triggers the exportSessionToDrive pipeline so drive_export_url is populated for activation readback. Registered as the admin tool gpt_session_end."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string }, description: session_id returned by getActivationSessionContext. }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                summary: { type: string }
+                user_email: { type: string }
+      responses:
+        "200":
+          description: Session close result with archive and Drive export pointers
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, session_id]
+                properties:
+                  ok: { type: boolean }
+                  session_id: { type: string }
+                  archive:
+                    type: object
+                    additionalProperties: true
+                  drive_export:
+                    oneOf:
+                      - type: object
+                        additionalProperties: true
+                        properties:
+                          drive_file_id: { type: string }
+                          drive_web_url: { type: string }
+                      - type: "null"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { description: Session belongs to a different user, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "404": { description: Session not found, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "409": { description: Session is already closed, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "500": { description: Session end failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /connect/api/app-integrations:
+    get:
+      tags: [connect-api]
+      security: [userBearerAuth: []]
+      operationId: listConnectApiAppIntegrations
+      summary: List active app integrations the user can connect
+      responses:
+        "200": { description: Active app integrations, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /connect/api/connections:
+    get:
+      tags: [connect-api]
+      security: [userBearerAuth: []]
+      operationId: listConnectApiConnections
+      summary: List the signed-in user's app connections
+      description: "Returns the caller's own user_app_connections rows. Does NOT include encrypted_credentials or any secret material."
+      responses:
+        "200": { description: User connections (no secrets), content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /connect/api/connections/{connection_id}:
+    delete:
+      tags: [connect-api]
+      security: [userBearerAuth: []]
+      operationId: deleteConnectApiConnection
+      summary: Revoke a user connection and zero its credentials
+      parameters:
+        - { name: connection_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Connection revoked }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { description: Revocation failure, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /connect/api/integration-policy:
+    post:
+      tags: [connect-api]
+      security: [userBearerAuth: []]
+      operationId: updateConnectIntegrationPolicy
+      summary: Update per-app managed/dedicated integration source policy
+      description: Keeps tenant activation mode canonical while allowing mixed per-app credential sources.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [integration_modes]
+              additionalProperties: false
+              properties:
+                integration_modes:
+                  type: object
+                  additionalProperties: true
+                  description: >
+                    Example: { cloudflare: dedicated, hostinger: dedicated, google_drive: managed }
+      responses:
+        "200":
+          description: Updated hybrid integration policy and readiness
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, hybrid_integration_readiness]
+                properties:
+                  ok: { type: boolean }
+                  hybrid_integration_readiness:
+                    type: object
+                    additionalProperties: true
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default:
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /connect/api/credential-intake/sessions:
+    post:
+      tags: [connect-api]
+      security: [userBearerAuth: []]
+      operationId: createConnectCredentialIntakeSession
+      summary: Create a user-scoped secure credential intake link
+      description: Creates a short-lived URL where the signed-in tenant user can enter integration secrets outside GPT chat.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [app_key, auth_type]
+              additionalProperties: true
+              properties:
+                app_key: { type: string }
+                auth_type:
+                  type: string
+                  enum: [api_key, bearer_token, basic_auth, mcp, webhook, custom_headers, client_credentials, ssh_key_pair, remote_database]
+                display_label: { type: string }
+                api_base_url: { type: string, format: uri }
+                mcp_endpoint: { type: string, format: uri }
+                webhook_url: { type: string, format: uri }
+                expires_in_minutes: { type: integer, minimum: 1, maximum: 1440 }
+                metadata:
+                  type: object
+                  additionalProperties: true
+                credential_schema:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "201":
+          description: Credential intake session created
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, session_id, intake_url, app_key, auth_type]
+                properties:
+                  ok: { type: boolean }
+                  session_id: { type: string }
+                  intake_url: { type: string, format: uri }
+                  expires_at: { type: string }
+                  app_key: { type: string }
+                  auth_type: { type: string }
+                  secret_exposed: { type: boolean, enum: [false] }
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default:
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /connect/api/credential-intake/sessions/{session_id}/wait:
+    get:
+      tags: [connect]
+      security:
+        - backendBearerAuth: []
+      operationId: waitConnectCredentialIntakeSession
+      summary: Wait for tenant credential intake completion
+      description: Long-polls a tenant-scoped credential-intake session and returns completion metadata plus connection_id without exposing submitted secrets. Intended for automated post-intake verification flows and webhook-safe completion handling.
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: timeout_ms
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1000
+            maximum: 60000
+            default: 15000
+        - name: interval_ms
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 250
+            maximum: 5000
+            default: 1000
+      responses:
+        "200":
+          description: Intake completed and connection_id is available.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  session_id: { type: string }
+                  status: { type: string }
+                  completed: { type: boolean }
+                  connection_id: { type: string, nullable: true }
+                  webhook_safe_event: { type: string }
+                  secrets_included: { type: boolean, enum: [false] }
+        "202":
+          description: Intake is still pending or timed out without completion.
+        "400": { description: Missing or invalid session_id. }
+        "401": { description: Missing or invalid tenant user JWT. }
+        "404": { description: Intake session not found for this caller. }
+        "500": { description: Unexpected intake wait failure. }
+
+  /connect/api/cms/claims:
+    get:
+      tags: [connect-api]
+      security: [userBearerAuth: []]
+      operationId: listConnectApiCmsClaims
+      summary: List the user's CMS account claims
+      responses:
+        "200": { description: User's CMS claims, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [connect-api]
+      security: [userBearerAuth: []]
+      operationId: createConnectApiCmsClaim
+      summary: Verify a user-supplied WordPress account and create a private claim
+      description: "Calls /wp/v2/users/me on the supplied site with Basic auth (username + application_password), creates an encrypted user_app_connections row, a private credential_bindings row, and a cms_account_claims row. user_id is taken from the authenticated session and rejected if present in the body. Secrets are never returned."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [site_url, username, application_password]
+              properties:
+                site_url: { type: string, description: "Site URL or domain. www and trailing slashes are normalized away." }
+                username: { type: string }
+                application_password: { type: string, description: "WordPress application password. Never logged or returned." }
+                requested_scope: { type: string, enum: [personal, workspace, tenant_brand], default: personal }
+      responses:
+        "201":
+          description: Claim verified and created
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, status, claim_id, connection_id]
+                properties:
+                  ok: { type: boolean }
+                  status: { type: string }
+                  claim_id: { type: string }
+                  connection_id: { type: string }
+                  app_key: { type: string }
+                  normalized_domain: { type: string }
+                  matched_brand_key:
+                    oneOf: [{ type: string }, { type: "null" }]
+                  match_confidence: { type: string, enum: [none, low, medium, high, verified] }
+                  approval_required: { type: boolean }
+                  next_action: { type: string }
+        "400": { description: Validation error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { description: WordPress rejected the credentials, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "502": { description: WordPress unreachable or non-auth error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+        "504": { description: WordPress verification timeout, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+
+  /connect/api/cms/claims/{claim_id}/approve:
+    post:
+      tags: [connect-api]
+      security: [userBearerAuth: []]
+      operationId: approveConnectApiCmsClaim
+      summary: Approve a CMS claim for workspace/tenant sharing
+      parameters:
+        - { name: claim_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Approval result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /connect/api/cms/claims/{claim_id}/reject:
+    post:
+      tags: [connect-api]
+      security: [userBearerAuth: []]
+      operationId: rejectConnectApiCmsClaim
+      summary: Reject a CMS claim
+      parameters:
+        - { name: claim_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Rejection result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+ }
+                        name: { type: string }
+                        status: { type: string }
+                        blockers:
+                          type: array
+                          items: { type: string }
+                        evidence: { $ref: '#/components/schemas/JsonValue' }
+                        external_send_performed: { type: boolean, enum: [false] }
+                        secrets_included: { type: boolean, enum: [false] }
+                  gate: { $ref: '#/components/schemas/JsonValue' }
+                  dispatch: { $ref: '#/components/schemas/JsonValue' }
+                  readiness: { $ref: '#/components/schemas/JsonValue' }
+                  execution_plan: { $ref: '#/components/schemas/JsonValue' }
+                  live_external_send_enabled: { type: boolean, enum: [false] }
+                  external_send_performed: { type: boolean, enum: [false] }
+                  secret_value_included: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        '400': { description: Invalid certification request, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: Authenticated caller is not allowed to access the admin certification route, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+        '404': { description: Support Ticket not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+        '500': { description: Completion certification failed unexpectedly, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+
   /platform/orchestration/support-ticket/snapshot-record:
     post:
       x-openai-isConsequential: true

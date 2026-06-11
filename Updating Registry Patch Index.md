@@ -1489,3 +1489,29 @@ PR #702 CI green and merged
 
 Hostinger/LiteSpeed may continue serving an older `SERVICE_VERSION` until process reload. The DB hotfix cleared the live validation blocker immediately; merged code fixes become active after the next production process restart/redeploy.
 
+## Patch 27 - Support Ticket External Delivery Completion Certification
+
+### Scope
+
+Documents and aligns PR #1270 / migration `906_sprint68_ticket_external_delivery_completion_certification.sql`. The patch closes the Support Ticket External Delivery AM-1..AM-16 certification surface while keeping live provider dispatch gated.
+
+### Runtime/API surface
+
+- Route: `POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification`.
+- Tool: `support_ticket_external_delivery_completion_certify`.
+- OpenAPI: `http-generic-api/openapi.yaml` documents request, responses, auth, no-send flags, and error envelopes.
+
+### Safety boundary
+
+- No SMTP or nodemailer implementation.
+- No webhook/fetch/axios external network call.
+- `sandbox` returns no-network mock provider evidence.
+- `live_send` remains disabled by default and blocked behind tenant enablement, approval, credential readiness, idempotency, and release readiness gates.
+- Responses must include `external_send_performed: false` and `secrets_included: false`.
+
+### Verification
+
+- CI passed on PR #1270 and on `main` after merge.
+- Guarded migration apply recorded `906_sprint68_ticket_external_delivery_completion_certification.sql` with 8 statements, preflight pass, zero risk, zero destructive statements, and no secrets.
+- This documentation alignment patch updates OpenAPI and the required documentation targets after Docs Agent identified missing contract docs.
+
