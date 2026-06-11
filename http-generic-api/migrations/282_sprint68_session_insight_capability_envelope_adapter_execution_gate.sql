@@ -103,7 +103,7 @@ JOIN `session_insight_capability_envelope_dispatch_readbacks` r
 WHERE r.dispatch_readback_status <> 'dispatch_readback_passed'
    OR r.dispatch_readback_policy_status <> 'ready_for_adapter_execution_gate';
 
-CREATE OR REPLACE VIEW `v_session_insight_capability_envelope_adapter_apply_dispatch_readiness` AS
+CREATE OR REPLACE VIEW `v_session_insight_adapter_apply_readiness` AS
 SELECT
   g.adapter_execution_gate_id,
   g.dispatch_readback_id,
