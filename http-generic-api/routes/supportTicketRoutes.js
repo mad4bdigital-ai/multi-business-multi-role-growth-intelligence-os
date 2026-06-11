@@ -241,6 +241,78 @@ export function buildSupportTicketRoutes(deps = {}) {
   const router = Router();
   const adminGuards = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
 
+  router.get("/admin/support/tickets/external-delivery/control/overview", ...adminGuards, async (req, res) => {
+    try {
+      const result = await getExternalDeliveryAdminOverview({ tenant_id: req.query?.tenant_id || null, limit: req.query?.limit || 25 });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "external_delivery_control_overview_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/external-delivery/control/allowlist/upsert", ...adminGuards, async (req, res) => {
+    try {
+      const result = await upsertExternalDeliveryRecipientAllowlist({
+        tenant_id: req.body?.tenant_id || null,
+        adapter_key: req.body?.adapter_key || "*",
+        channel: req.body?.channel || "email",
+        match_type: req.body?.match_type || "exact_email",
+        recipient_pattern: req.body?.recipient_pattern,
+        approval_hold_id: req.body?.approval_hold_id || null,
+        reason: req.body?.reason || null,
+        expires_at: req.body?.expires_at || null,
+        actor_id: req.auth?.user_id || "admin_system",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "external_delivery_control_allowlist_upsert_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/external-delivery/control/allowlist/disable", ...adminGuards, async (req, res) => {
+    try {
+      const result = await disableExternalDeliveryRecipientAllowlist({
+        allowlist_id: req.body?.allowlist_id || null,
+        tenant_id: req.body?.tenant_id || null,
+        adapter_key: req.body?.adapter_key || null,
+        recipient_pattern: req.body?.recipient_pattern || null,
+        reason: req.body?.reason || null,
+        actor_id: req.auth?.user_id || "admin_system",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "external_delivery_control_allowlist_disable_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/external-delivery/control/adapter/dispatch", ...adminGuards, async (req, res) => {
+    try {
+      const result = await setExternalDeliveryAdapterDispatch({
+        adapter_key: req.body?.adapter_key,
+        dispatch_enabled: Boolean(req.body?.dispatch_enabled),
+        provider_dispatch_enabled: Boolean(req.body?.provider_dispatch_enabled),
+        reason: req.body?.reason || null,
+        actor_id: req.auth?.user_id || "admin_system",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "external_delivery_control_adapter_dispatch_failed");
+    }
+  });
+
+  router.post("/admin/support/tickets/external-delivery/control/gmail/revoke", ...adminGuards, async (req, res) => {
+    try {
+      const result = await revokeGmailUserConnection({
+        connection_id: req.body?.connection_id,
+        reason: req.body?.reason || null,
+        actor_id: req.auth?.user_id || "admin_system",
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "external_delivery_control_gmail_revoke_failed");
+    }
+  });
+
   router.post("/me/support/tickets", requireUserJwt, async (req, res) => {
     try {
       const membership = await resolveTenantForUser(req, res);
