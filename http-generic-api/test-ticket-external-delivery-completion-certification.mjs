@@ -8,6 +8,7 @@ const gateService = readFileSync("supportTicketExternalSendProviderGateService.j
 const routes = readFileSync("routes/supportTicketRoutes.js", "utf8");
 const migration = readFileSync("migrations/906_sprint68_ticket_external_delivery_completion_certification.sql", "utf8");
 const dualProviderMigration = readFileSync("migrations/908_sprint68_ticket_external_hostinger_gmail_provider_options.sql", "utf8");
+const dynamicAllowlistMigration = readFileSync("migrations/909_sprint68_ticket_external_dynamic_recipient_allowlist.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 
@@ -25,8 +26,8 @@ for (const expected of [
 }
 for (const expected of [
   "SMTP_URL",
-  "SUPPORT_TICKET_LIVE_SEND_ALLOWLIST",
-  "EXTERNAL_DELIVERY_LIVE_SEND_ALLOWLIST",
+  "external_delivery_recipient_allowlist_registry",
+  "recipient_allowlist_source",
   "recipient_not_allowlisted",
   "approval_hold_required",
   "credential_ref_required",
@@ -65,6 +66,10 @@ for (const expected of ["hostinger_smtp_adapter", "gmail_user_oauth_adapter", "g
 }
 assert(runner.includes("906_sprint68_ticket_external_delivery_completion_certification.sql"), "governed migration runner must allowlist migration 906");
 assert(runner.includes("908_sprint68_ticket_external_hostinger_gmail_provider_options.sql"), "governed migration runner must allowlist migration 908");
+for (const expected of ["external_delivery_recipient_allowlist_registry", "v_external_delivery_recipient_allowlist_readiness", "support_ticket_external_delivery_dynamic_recipient_allowlist_policy_v1", "environment_allowlist_forbidden", "exact_email", "domain", "wildcard_domain"]) {
+  assert(dynamicAllowlistMigration.includes(expected), `migration 909 must include ${expected}`);
+}
+assert(runner.includes("909_sprint68_ticket_external_dynamic_recipient_allowlist.sql"), "governed migration runner must allowlist migration 909");
 assert(manifest.includes("node test-ticket-external-delivery-completion-certification.mjs"), "test manifest must include completion certification test");
 assert(!/DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i.test(migration), "migration 906 must be additive/non-destructive");
 assert(!migration.toLowerCase().includes("secret_value"), "migration 906 must not include raw secret-value fields");

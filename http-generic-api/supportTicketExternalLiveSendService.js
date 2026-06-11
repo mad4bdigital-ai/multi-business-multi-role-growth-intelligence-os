@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import net from "node:net";
 import tls from "node:tls";
 import { getGoogleAccessToken } from "./googleAuthTokenResolver.js";
+import { getPool } from "./db.js";
 
 const DEFAULT_SMTP_TIMEOUT_MS = 15000;
 const SMTP_MAX_BODY_CHARS = 20000;
@@ -16,33 +17,63 @@ function cleanString(value, max = 1024) {
   return String(value || "").replace(/[\r\n\u0000]+/g, " ").trim().slice(0, max);
 }
 
-function parseListEnv(name) {
-  const raw = String(process.env[name] || "").trim();
-  if (!raw) return [];
-  if (raw.startsWith("[")) {
-    try { return JSON.parse(raw).map((item) => String(item).trim()).filter(Boolean); } catch {}
+function normalizeAdapterKey(adapter = {}) {
+  return cleanString(adapter.adapter_key || adapter.provider_key || "", 160);
+}
+
+function normalizeEmail(value = "") {
+  return cleanString(value, 320).toLowerCase();
+}
+
+function normalizeTenantId(value = "") {
+  return cleanString(value, 64) || "00000000-0000-0000-0000-000000000000";
+}
+
+function allowlistPatternMatches({ matchType = "exact_email", pattern = "", recipient = "" } = {}) {
+  const normalizedPattern = normalizeEmail(pattern);
+  const normalizedRecipient = normalizeEmail(recipient);
+  if (!EMAIL_PATTERN.test(normalizedRecipient) || !normalizedPattern) return false;
+  if (matchType === "exact_email") return normalizedRecipient === normalizedPattern;
+  if (matchType === "domain") return normalizedRecipient.endsWith(`@${normalizedPattern.replace(/^@/, "")}`);
+  if (matchType === "wildcard_domain") return normalizedRecipient.endsWith(`.${normalizedPattern.replace(/^\*\.?/, "")}`) || normalizedRecipient.endsWith(`@${normalizedPattern.replace(/^\*\.?/, "")}`);
+  return false;
+}
+
+async function loadDynamicRecipientAllowlist({ tenantId, adapterKey, channel = "email", connection = null } = {}) {
+  const pool = connection || getPool();
+  const normalizedTenant = normalizeTenantId(tenantId);
+  const normalizedAdapter = cleanString(adapterKey, 160);
+  const normalizedChannel = cleanString(channel || "email", 64);
+  const [rows] = await pool.query(
+    `SELECT allowlist_id, tenant_id, adapter_key, channel, match_type, recipient_pattern, status, expires_at
+       FROM external_delivery_recipient_allowlist_registry
+      WHERE status = 'active'
+        AND channel = ?
+        AND tenant_id IN (?, '00000000-0000-0000-0000-000000000000', '*')
+        AND adapter_key IN (?, '*')
+        AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+      ORDER BY CASE WHEN tenant_id = ? THEN 0 ELSE 1 END,
+               CASE WHEN adapter_key = ? THEN 0 ELSE 1 END,
+               created_at DESC
+      LIMIT 200`,
+    [normalizedChannel, normalizedTenant, normalizedAdapter, normalizedTenant, normalizedAdapter]
+  );
+  return rows || [];
+}
+
+async function checkDynamicRecipientAllowlist(email, { tenantId = "", adapterKey = "", channel = "email", connection = null } = {}) {
+  const normalizedRecipient = normalizeEmail(email);
+  if (!EMAIL_PATTERN.test(normalizedRecipient)) {
+    return { allowed: false, allowlist_count: 0, matched_allowlist_id: null, source: "external_delivery_recipient_allowlist_registry", reason: "recipient_email_invalid", secret_value_included: false, secrets_included: false };
   }
-  return raw.split(",").map((item) => item.trim()).filter(Boolean);
+  const rows = await loadDynamicRecipientAllowlist({ tenantId, adapterKey, channel, connection });
+  const match = rows.find((row) => allowlistPatternMatches({ matchType: row.match_type, pattern: row.recipient_pattern, recipient: normalizedRecipient }));
+  return { allowed: Boolean(match), allowlist_count: rows.length, matched_allowlist_id: match?.allowlist_id || null, source: "external_delivery_recipient_allowlist_registry", reason: match ? "matched_db_allowlist" : "recipient_not_in_db_allowlist", secret_value_included: false, secrets_included: false };
 }
 
-function allowedRecipientPatterns() {
-  return [
-    ...parseListEnv("SUPPORT_TICKET_LIVE_SEND_ALLOWLIST"),
-    ...parseListEnv("EXTERNAL_DELIVERY_LIVE_SEND_ALLOWLIST"),
-  ].map((item) => item.toLowerCase());
-}
-
-export function isLiveSendRecipientAllowed(email) {
-  const normalized = cleanString(email, 320).toLowerCase();
-  if (!EMAIL_PATTERN.test(normalized)) return false;
-  const patterns = allowedRecipientPatterns();
-  if (!patterns.length) return false;
-  return patterns.some((pattern) => {
-    if (pattern === normalized) return true;
-    if (pattern.startsWith("@")) return normalized.endsWith(pattern);
-    if (pattern.startsWith("*.")) return normalized.endsWith(pattern.slice(1));
-    return false;
-  });
+export async function isLiveSendRecipientAllowed(email, options = {}) {
+  const result = await checkDynamicRecipientAllowlist(email, options);
+  return result.allowed;
 }
 
 function parseSmtpUrl() {
@@ -81,13 +112,14 @@ function providerRuntimeKind(adapter = {}) {
 }
 
 function providerReadinessBase(kind) {
-  const allowlist = allowedRecipientPatterns();
   return {
     runtime: kind,
     smtp_url_present: Boolean(process.env.SMTP_URL || process.env.HOSTINGER_SMTP_URL),
     smtp_configured: smtpConfigured(),
-    recipient_allowlist_present: allowlist.length > 0,
-    allowlist_count: allowlist.length,
+    recipient_allowlist_source: "external_delivery_recipient_allowlist_registry",
+    recipient_allowlist_present: false,
+    allowlist_count: 0,
+    matched_allowlist_id: null,
     external_network_allowed: kind !== "unsupported_email_provider",
     secret_value_included: false,
     secrets_included: false,
@@ -299,11 +331,17 @@ async function sendGmailMail(providerPlan = {}, payload = {}) {
   return { provider_message_id: result.id || messageId, provider_status: "sent", external_send_performed: true };
 }
 
-export function checkSupportTicketLiveSendReadiness(providerPlan = {}) {
+export async function checkSupportTicketLiveSendReadiness(providerPlan = {}, options = {}) {
   const adapter = providerPlan.provider_adapter || {};
   const payload = extractEmailPayload(providerPlan);
   const runtime = providerRuntimeKind(adapter);
-  const readiness = providerReadinessBase(runtime);
+  const allowlist = await checkDynamicRecipientAllowlist(payload.to, {
+    tenantId: providerPlan.tenant_id || providerPlan.payload_json?.tenant_id,
+    adapterKey: normalizeAdapterKey(adapter),
+    channel: "email",
+    connection: options.connection || null,
+  });
+  const readiness = { ...providerReadinessBase(runtime), recipient_allowlist_present: allowlist.allowlist_count > 0, allowlist_count: allowlist.allowlist_count, matched_allowlist_id: allowlist.matched_allowlist_id, recipient_allowlist_allowed: allowlist.allowed, recipient_allowlist_reason: allowlist.reason };
   const blockers = [];
   if (providerPlan.send_mode !== "live_send") blockers.push("live_send_mode_required");
   if (!providerPlan.ready_for_provider_dispatch) blockers.push("provider_plan_not_ready");
@@ -312,7 +350,7 @@ export function checkSupportTicketLiveSendReadiness(providerPlan = {}) {
   if (!providerPlan.credential_ref) blockers.push("credential_ref_required");
   if (!providerPlan.idempotency_key && !providerPlan.payload_json?.idempotency_key) blockers.push("idempotency_key_required");
   if (!readiness.recipient_allowlist_present) blockers.push("recipient_allowlist_missing");
-  if (!isLiveSendRecipientAllowed(payload.to)) blockers.push("recipient_not_allowlisted");
+  if (!allowlist.allowed) blockers.push("recipient_not_allowlisted");
   if (!payload.text && !payload.html) blockers.push("message_body_required");
   if (runtime === "smtp" || runtime === "hostinger_smtp") {
     if (!readiness.smtp_configured) blockers.push("smtp_url_not_configured");
@@ -324,7 +362,7 @@ export function checkSupportTicketLiveSendReadiness(providerPlan = {}) {
   return { ok: blockers.length === 0, channel: "email", adapter_key: adapter.adapter_key || null, to_present: Boolean(payload.to), ...readiness, blockers, external_send_performed: false, secret_value_included: false, secrets_included: false };
 }
 
-export async function executeSupportTicketLiveSend(providerPlan = {}) {
+export async function executeSupportTicketLiveSend(providerPlan = {}, options = {}) {
   const adapter = providerPlan.provider_adapter || {};
   if (String(adapter.channel || "") !== "email") {
     const err = new Error("Live external dispatch currently supports email providers only.");
@@ -332,7 +370,7 @@ export async function executeSupportTicketLiveSend(providerPlan = {}) {
     err.code = "support_ticket_live_send_adapter_not_supported";
     throw err;
   }
-  const readiness = checkSupportTicketLiveSendReadiness(providerPlan);
+  const readiness = await checkSupportTicketLiveSendReadiness(providerPlan, options);
   if (!readiness.ok) {
     const err = new Error("Live external dispatch is blocked by readiness gates.");
     err.status = 409;

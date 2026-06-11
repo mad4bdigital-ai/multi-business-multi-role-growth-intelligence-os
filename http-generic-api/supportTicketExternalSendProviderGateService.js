@@ -85,7 +85,7 @@ function providerAdapterFromRegistryResolution(resolution) {
   };
 }
 
-function buildProviderPlan({ execution_plan, provider_adapter, send_mode = "dry_run", payload_json = {} }) {
+function buildProviderPlan({ tenant_id = null, ticket_id = null, execution_plan, provider_adapter, send_mode = "dry_run", payload_json = {} }) {
   assertNoRawSecretPayload(payload_json, "payload_json");
   const normalizedSendMode = String(send_mode || "dry_run").trim().toLowerCase();
   const blockers = [];
@@ -97,6 +97,8 @@ function buildProviderPlan({ execution_plan, provider_adapter, send_mode = "dry_
   if (provider_adapter.send_mode_policy && provider_adapter.send_mode_policy.status !== "active") blockers.push("external_send_provider_mode_policy_not_active");
   if (provider_adapter.mode_policy_provider_dispatch_required && !provider_adapter.provider_dispatch_enabled) blockers.push("external_send_provider_mode_requires_disabled_dispatch");
   return {
+    tenant_id,
+    ticket_id,
     ready_for_provider_dispatch: blockers.length === 0,
     send_mode: normalizedSendMode,
     channel: provider_adapter.channel,
@@ -144,7 +146,7 @@ export async function planSupportTicketExternalSendProviderGate({ tenant_id, tic
     const providerAdapter = await resolveProviderAdapter(connection, { channel: externalChannel, provider_key, send_mode });
     const providerPolicyPreflight = await evaluateSupportTicketExternalProviderGatePreflight({ channel: externalChannel, send_mode, provider_adapter: providerAdapter }, { connection });
     assertPreflightAllowed(providerPolicyPreflight);
-    const provider_plan = buildProviderPlan({ execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json });
+    const provider_plan = buildProviderPlan({ tenant_id, ticket_id, execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json });
     return { ok: true, mode: "dry_run", provider_plan: { ...provider_plan, policy_preflight: providerPolicyPreflight }, execution_plan: executionPlan, ticket, external_send_performed: false, secret_value_included: false, secrets_included: false };
   } finally { if (ownsConnection) connection.release(); }
 }
@@ -171,7 +173,7 @@ export async function recordSupportTicketExternalSendProviderGateAttempt({ tenan
     const providerAdapter = await resolveProviderAdapter(connection, { channel: externalChannel, provider_key, send_mode });
     const providerPolicyPreflight = await evaluateSupportTicketExternalProviderGatePreflight({ channel: externalChannel, send_mode, provider_adapter: providerAdapter }, { connection });
     assertPreflightAllowed(providerPolicyPreflight);
-    const provider_plan = { ...buildProviderPlan({ execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json }), policy_preflight: providerPolicyPreflight };
+    const provider_plan = { ...buildProviderPlan({ tenant_id, ticket_id, execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json }), policy_preflight: providerPolicyPreflight };
     if (runMode === "live_send") {
       const idempotencyKey = provider_plan.payload_json?.idempotency_key || payload_json?.idempotency_key || null;
       if (idempotencyKey) {
@@ -191,7 +193,7 @@ export async function recordSupportTicketExternalSendProviderGateAttempt({ tenan
         }
       }
       const dispatcher = createSupportTicketExternalProviderDispatcher({ adapter: provider_plan.provider_adapter || {} });
-      const dispatchResult = await dispatcher.send(provider_plan);
+      const dispatchResult = await dispatcher.send(provider_plan, { connection });
       const eventPayload = {
         provider_plan: { ...provider_plan, payload_json: { ...(provider_plan.payload_json || {}), body: undefined, body_text: undefined, body_html: undefined } },
         provider_result: dispatchResult,
