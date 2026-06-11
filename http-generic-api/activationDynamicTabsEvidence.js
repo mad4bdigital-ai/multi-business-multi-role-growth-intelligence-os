@@ -501,7 +501,9 @@ export async function buildActivationDynamicTabsEvidence({ sessionContext = null
     summary: {
       container_count: containers.length,
       registered_tabs: tabs.rows.length,
-      registered_sections: sections.rows.length,
+      registered_sections: sections.static_count || 0,
+      auto_discovered_sections: sections.auto_discovered_count || 0,
+      total_sections: sections.rows.length,
       active_containers: containers.filter((container) => container.active_tab_count > 0).length,
       degraded_surface_count: degradedSurfaces.length,
     },
