@@ -101,7 +101,7 @@ sections.push(summarize("registry_hygiene", [
 ]));
 
 sections.push(summarize("cms_authority", [
-  check("cms_grant_tables_referenced", includes("http-generic-api", "cms_site_access_grants") || listRecursive("http-generic-api", (file) => /\.(js|mjs|sql)$/.test(file)).some((file) => read(file).includes("cms_site_access_grants")), "CMS site access grants are referenced."),
+  check("cms_grant_tables_referenced", listRecursive("http-generic-api", (file) => /\.(js|mjs|sql)$/.test(file)).some((file) => read(file).includes("cms_site_access_grants")), "CMS site access grants are referenced."),
   check("cms_runbook", exists("docs/cms-authority-hardening-runbook.md"), "CMS authority hardening runbook exists.", "warn"),
 ]));
 
