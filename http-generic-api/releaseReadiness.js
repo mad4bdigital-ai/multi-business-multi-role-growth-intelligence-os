@@ -1539,6 +1539,76 @@ async function checkLegacyTables() {
   return results;
 }
 
+async function checkRepositoryIntelligenceV2Readiness() {
+  const requiredToolNames = [
+    "platform_resource_authority_binding_create",
+    "platform_resource_authority_binding_list",
+    "platform_resource_authority_binding_revoke",
+    "tenant_repo_pr_reconciliation_sweep",
+    "tenant_repository_intelligence_v2_readiness_smoke",
+  ];
+  const requiredRuntimeTokens = [
+    "tenantRepositoryIntelligenceV2ReadinessSmoke",
+    "tenantRepositoryPrReconciliationSweep",
+    "tenant_repository_pr_reconciliation_summary_v2",
+    "blocked_missing_platform_resource_authority_binding",
+    "mutations_executed: false",
+  ];
+  try {
+    const [routesSource, moduleSource, openapiSource] = await Promise.all([
+      fs.readFile(SYSTEM_LAYER_ROUTES_PATH, "utf8"),
+      fs.readFile(REPOSITORY_TENANT_INTELLIGENCE_V2_PATH, "utf8"),
+      fs.readFile(OPENAPI_PATH, "utf8"),
+    ]);
+    const missingTools = requiredToolNames.filter((toolName) => !routesSource.includes(toolName) || !moduleSource.includes(toolName));
+    const missingRuntimeTokens = requiredRuntimeTokens.filter((token) => !moduleSource.includes(token));
+    const openapi_documented = requiredToolNames.every((toolName) => openapiSource.includes(toolName));
+    const [bindingRows] = await getPool().query(
+      `SELECT COUNT(*) AS active_real_bindings
+         FROM platform_resource_authority_bindings
+        WHERE status = 'active'
+          AND resource_type = 'github_repo'
+          AND recipe_key = 'repo.pr.reconciliation_sweep'
+          AND permission_level = 'read_only'
+          AND JSON_CONTAINS(allowed_modes_json, JSON_QUOTE('read_only'))`
+    );
+    const [evidenceRows] = await getPool().query(
+      `SELECT COUNT(*) AS v2_evidence_rows
+         FROM audit_payload_evidence
+        WHERE evidence_type = 'tenant_repository_pr_reconciliation_summary_v2'
+          AND secrets_included = 0`
+    );
+    const active_real_bindings = Number(bindingRows?.[0]?.active_real_bindings || 0);
+    const v2_evidence_rows = Number(evidenceRows?.[0]?.v2_evidence_rows || 0);
+    const issues = [];
+    if (missingTools.length) issues.push(`missing tool wiring: ${missingTools.join(", ")}`);
+    if (missingRuntimeTokens.length) issues.push(`missing runtime tokens: ${missingRuntimeTokens.join(", ")}`);
+    if (!openapi_documented) issues.push("OpenAPI description does not document all V2 system tools");
+    if (active_real_bindings < 1) issues.push("No active read_only GitHub repo authority binding found");
+    if (v2_evidence_rows < 1) issues.push("No tenant_repository_pr_reconciliation_summary_v2 evidence rows found");
+    return {
+      status: issues.length ? "warn" : "pass",
+      detail: issues.length ? `Repository Intelligence V2 readiness has ${issues.length} issue(s).` : "Repository Intelligence V2 tools, binding, evidence, and documentation are ready.",
+      required_tools: requiredToolNames,
+      missing_tools: missingTools,
+      missing_runtime_tokens: missingRuntimeTokens,
+      openapi_documented,
+      active_real_bindings,
+      v2_evidence_rows,
+      issues,
+      executes_tools: false,
+      secrets_included: false,
+    };
+  } catch (err) {
+    return {
+      status: "warn",
+      detail: `Repository Intelligence V2 readiness check could not complete: ${err?.message || err}`,
+      executes_tools: false,
+      secrets_included: false,
+    };
+  }
+}
+
 // ── Public: run all release readiness checks ─────────────────────────────────
 export async function runReleaseReadiness({ persist = false } = {}) {
   const run_id = randomUUID();
