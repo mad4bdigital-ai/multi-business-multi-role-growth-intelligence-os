@@ -287,7 +287,7 @@ export async function listSessionInsightCapabilityEnvelopeAdapterExecutionGates(
   );
   const [issueRows] = await pool.query(
     `SELECT issue_code, severity, COUNT(*) AS count
-       FROM v_session_insight_capability_envelope_adapter_execution_gate_issues
+       FROM v_session_insight_adapter_gate_issues
       GROUP BY issue_code, severity
       ORDER BY severity, issue_code`
   );

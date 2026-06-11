@@ -1236,6 +1236,13 @@ function buildArtifactExportGraphProjectionDryRun(reconciliation = {}, plan = {}
     }
   }
 
+  const projection = {
+    nodes: Array.from(nodesByKey.values()),
+    edges,
+    counts: { nodes: nodesByKey.size, edges: edges.length },
+  };
+  const projectionSha256 = sha256Hex(stableJson(projection));
+
   return {
     ok: true,
     mode: "graph_projection_dry_run",
@@ -1243,17 +1250,15 @@ function buildArtifactExportGraphProjectionDryRun(reconciliation = {}, plan = {}
     graph_schema: "platform_resource_graph_projection.v1",
     source_recipe_key: ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY,
     source_resource_uri: plan.resolved_resource?.resource_uri || null,
-    projection: {
-      nodes: Array.from(nodesByKey.values()),
-      edges,
-      counts: { nodes: nodesByKey.size, edges: edges.length },
-    },
+    projection,
+    projection_sha256: projectionSha256,
     apply_contract: {
       future_operation_key: "resource_graph_projection.apply_after_review",
       apply_supported_now: false,
       requires_dry_run: true,
       requires_capability_envelope: true,
       requires_typed_confirmation: true,
+      typed_confirmation: `APPLY_GRAPH_PROJECTION:${projectionSha256}`,
       same_cycle_readback_required: true,
       graph_write_allowed_now: false,
     },
@@ -1261,6 +1266,285 @@ function buildArtifactExportGraphProjectionDryRun(reconciliation = {}, plan = {}
     graph_write_executed: false,
     provider_calls_planned: 0,
     file_content_required: false,
+    file_content_returned: false,
+    secrets_included: false,
+  };
+}
+
+const GRAPH_PROJECTION_ACCEPTED_APP_KEYS = ["platform_orchestration"];
+const GRAPH_PROJECTION_ACCEPTED_INTENTS = ["resource_graph_projection.apply_after_review", "resource_graph_projection_apply", "graph_projection_apply"];
+
+function resourceGraphProjectionOperationIntent(args = {}) {
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  return asString(args.operation_intent || args.operation_key || options.operation_intent || options.operation_key);
+}
+
+function graphProjectionTypedConfirmation(graphProjectionDryRun = {}) {
+  return graphProjectionDryRun.apply_contract?.typed_confirmation || `APPLY_GRAPH_PROJECTION:${graphProjectionDryRun.projection_sha256 || ""}`;
+}
+
+function buildGraphProjectionApplyBlockedResult({ reasonCode, message, plan, graphProjectionDryRun = null, envelope = null } = {}) {
+  return {
+    ok: false,
+    tool: "governed_resource_run",
+    classification: "blocked_graph_projection_apply_gate_v1",
+    mode: "apply",
+    apply_requested: true,
+    apply_allowed: false,
+    dispatch_allowed: false,
+    reason_code: reasonCode,
+    message,
+    graph_projection_dry_run: graphProjectionDryRun,
+    capability_envelope: envelope,
+    plan,
+    provider_calls_made: 0,
+    graph_write_made: false,
+    file_content_returned: false,
+    execution_allowed: false,
+    secrets_included: false,
+  };
+}
+
+async function validateGraphProjectionApplyGate(graphProjectionDryRun = {}, plan = {}, args = {}) {
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  const expectedTypedConfirmation = graphProjectionTypedConfirmation(graphProjectionDryRun);
+  if (!graphProjectionDryRun.projection_sha256) {
+    return {
+      ok: false,
+      reason_code: "graph_projection_apply_hash_required",
+      message: "Graph projection apply requires a same-cycle graph_projection_dry_run projection_sha256.",
+      secrets_included: false,
+    };
+  }
+  if (asString(args.typed_confirmation) !== expectedTypedConfirmation) {
+    return {
+      ok: false,
+      reason_code: "graph_projection_apply_typed_confirmation_required",
+      message: `Graph projection apply requires typed_confirmation exactly: ${expectedTypedConfirmation}`,
+      expected_typed_confirmation: expectedTypedConfirmation,
+      secrets_included: false,
+    };
+  }
+  const suppliedHash = asString(args.graph_projection_sha256 || options.graph_projection_sha256 || args.projection_sha256 || options.projection_sha256);
+  if (suppliedHash && suppliedHash !== graphProjectionDryRun.projection_sha256) {
+    return {
+      ok: false,
+      reason_code: "graph_projection_apply_hash_mismatch",
+      message: "Supplied graph projection hash does not match the same-cycle dry-run hash.",
+      expected_projection_sha256: graphProjectionDryRun.projection_sha256,
+      supplied_projection_sha256: suppliedHash,
+      secrets_included: false,
+    };
+  }
+
+  const operationIntent = resourceGraphProjectionOperationIntent(args);
+  const envelope = await resolveCapabilityExecutionEnvelope({
+    source: { ...args, operation_intent: operationIntent || "resource_graph_projection.apply_after_review" },
+    fallbackSources: [args.options || {}],
+    acceptedAppKeys: GRAPH_PROJECTION_ACCEPTED_APP_KEYS,
+    acceptedIntents: GRAPH_PROJECTION_ACCEPTED_INTENTS,
+    requireReadyForDispatch: true,
+    requireDispatchAllowed: true,
+    requireNoApprovalRequired: true,
+    requireNoBlockingGaps: true,
+    requireNoSecrets: true,
+  });
+  if (!envelope.ok) return envelope;
+  if (envelope.apply_allowed !== true) {
+    return {
+      ok: false,
+      status: "capability_resolution_envelope_apply_not_allowed",
+      envelope_id: envelope.envelope_id,
+      message: "Graph projection apply requires a capability envelope with apply_allowed=true.",
+      secrets_included: false,
+    };
+  }
+  return { ok: true, envelope, secrets_included: false };
+}
+
+function graphProjectionNodeMetadata(node = {}, graphProjectionDryRun = {}) {
+  return {
+    graph_schema: graphProjectionDryRun.graph_schema,
+    source_recipe_key: graphProjectionDryRun.source_recipe_key,
+    source_resource_uri: graphProjectionDryRun.source_resource_uri,
+    projection_sha256: graphProjectionDryRun.projection_sha256,
+    properties: node.properties || {},
+    confidence: Number(node.confidence || 0),
+    source: node.source || "artifact_export_reconciliation",
+    graph_write_policy: "candidate_advisory_only",
+    runtime_enforced: false,
+    secrets_included: false,
+  };
+}
+
+function graphProjectionEdgeMetadata(edge = {}, graphProjectionDryRun = {}) {
+  return {
+    graph_schema: graphProjectionDryRun.graph_schema,
+    source_recipe_key: graphProjectionDryRun.source_recipe_key,
+    source_resource_uri: graphProjectionDryRun.source_resource_uri,
+    projection_sha256: graphProjectionDryRun.projection_sha256,
+    properties: edge.properties || {},
+    confidence: Number(edge.confidence || 0),
+    source: edge.source || "artifact_export_reconciliation",
+    graph_write_policy: "candidate_advisory_only",
+    runtime_enforced: false,
+    secrets_included: false,
+  };
+}
+
+async function writeGraphProjectionCandidate(graphProjectionDryRun = {}, plan = {}, args = {}) {
+  const projection = graphProjectionDryRun.projection || {};
+  const nodes = Array.isArray(projection.nodes) ? projection.nodes.filter((node) => node?.node_key) : [];
+  const edges = Array.isArray(projection.edges) ? projection.edges.filter((edge) => edge?.edge_key && edge?.from_node_key && edge?.to_node_key) : [];
+  const sourcePk = graphProjectionDryRun.projection_sha256 || sha256Hex(stableJson(projection));
+  const sourceTable = "platform_resource_recipe_projection";
+  const connection = await getPool().getConnection();
+  const startedAt = new Date().toISOString();
+  try {
+    await connection.beginTransaction();
+    for (const node of nodes) {
+      await connection.execute(
+        `INSERT INTO platform_graph_nodes
+          (node_id, node_type, node_label, scope_type, subject_ref, source_table, source_pk,
+           authority_status, lifecycle_status, visibility_scope, sensitivity, evidence_level,
+           runtime_role, source_system, metadata_json)
+         VALUES (?, ?, ?, 'platform', ?, ?, ?, 'candidate', 'active', 'platform_admin', 'internal', 'inferred', 'advisory', 'platform_resource_recipe', ?)
+         ON DUPLICATE KEY UPDATE
+           node_type = VALUES(node_type),
+           node_label = VALUES(node_label),
+           subject_ref = VALUES(subject_ref),
+           source_table = VALUES(source_table),
+           source_pk = VALUES(source_pk),
+           authority_status = 'candidate',
+           lifecycle_status = 'active',
+           visibility_scope = 'platform_admin',
+           sensitivity = 'internal',
+           evidence_level = 'inferred',
+           runtime_role = 'advisory',
+           source_system = 'platform_resource_recipe',
+           metadata_json = VALUES(metadata_json),
+           updated_at = CURRENT_TIMESTAMP`,
+        [
+          node.node_key,
+          asString(node.node_type) || "resource",
+          asString(node.label || node.node_key).slice(0, 500),
+          node.resource_uri || node.node_key,
+          sourceTable,
+          sourcePk,
+          JSON.stringify(graphProjectionNodeMetadata(node, graphProjectionDryRun)),
+        ]
+      );
+    }
+
+    for (const edge of edges) {
+      await connection.execute(
+        `INSERT INTO platform_graph_edges
+          (edge_id, source_node_id, edge_type, target_node_id, scope_type, authority_status,
+           lifecycle_status, visibility_scope, sensitivity, evidence_level, runtime_role,
+           runtime_enforced, source_table, source_pk, metadata_json)
+         VALUES (?, ?, ?, ?, 'platform', 'candidate', 'active', 'platform_admin', 'internal', 'inferred', 'advisory', 0, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           source_node_id = VALUES(source_node_id),
+           edge_type = VALUES(edge_type),
+           target_node_id = VALUES(target_node_id),
+           authority_status = 'candidate',
+           lifecycle_status = 'active',
+           visibility_scope = 'platform_admin',
+           sensitivity = 'internal',
+           evidence_level = 'inferred',
+           runtime_role = 'advisory',
+           runtime_enforced = 0,
+           source_table = VALUES(source_table),
+           source_pk = VALUES(source_pk),
+           metadata_json = VALUES(metadata_json),
+           updated_at = CURRENT_TIMESTAMP`,
+        [
+          edge.edge_key,
+          edge.from_node_key,
+          asString(edge.edge_type) || "related_to",
+          edge.to_node_key,
+          sourceTable,
+          sourcePk,
+          JSON.stringify(graphProjectionEdgeMetadata(edge, graphProjectionDryRun)),
+        ]
+      );
+
+      const evidenceId = sha256Hex(`${edge.edge_key}:${sourcePk}`).slice(0, 64);
+      await connection.execute(
+        `INSERT INTO platform_graph_edge_evidence
+          (evidence_id, edge_id, evidence_type, source_table, source_pk, source_ref, confidence, evidence_json)
+         VALUES (?, ?, 'projection_dry_run', ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           edge_id = VALUES(edge_id),
+           evidence_type = VALUES(evidence_type),
+           source_table = VALUES(source_table),
+           source_pk = VALUES(source_pk),
+           source_ref = VALUES(source_ref),
+           confidence = VALUES(confidence),
+           evidence_json = VALUES(evidence_json)`,
+        [
+          evidenceId,
+          edge.edge_key,
+          sourceTable,
+          sourcePk,
+          graphProjectionDryRun.source_resource_uri || null,
+          Math.max(0, Math.min(Number(edge.confidence || 0.7), 1)),
+          JSON.stringify({
+            graph_schema: graphProjectionDryRun.graph_schema,
+            projection_sha256: sourcePk,
+            edge_key: edge.edge_key,
+            edge_type: edge.edge_type,
+            source: edge.source || "artifact_export_reconciliation",
+            graph_write_policy: "candidate_advisory_only",
+            runtime_enforced: false,
+            secrets_included: false,
+          }),
+        ]
+      );
+    }
+    await connection.commit();
+  } catch (err) {
+    await connection.rollback().catch(() => {});
+    throw err;
+  } finally {
+    connection.release();
+  }
+
+  const nodeIds = nodes.map((node) => node.node_key);
+  const edgeIds = edges.map((edge) => edge.edge_key);
+  const [nodeReadbackRows] = nodeIds.length
+    ? await getPool().query("SELECT COUNT(*) AS count FROM platform_graph_nodes WHERE node_id IN (?)", [nodeIds])
+    : [[{ count: 0 }]];
+  const [edgeReadbackRows] = edgeIds.length
+    ? await getPool().query("SELECT COUNT(*) AS count FROM platform_graph_edges WHERE edge_id IN (?)", [edgeIds])
+    : [[{ count: 0 }]];
+  const [evidenceReadbackRows] = edgeIds.length
+    ? await getPool().query("SELECT COUNT(*) AS count FROM platform_graph_edge_evidence WHERE edge_id IN (?) AND source_pk = ?", [edgeIds, sourcePk])
+    : [[{ count: 0 }]];
+  const readback = {
+    required: true,
+    ok: Number(nodeReadbackRows[0]?.count || 0) === nodes.length &&
+      Number(edgeReadbackRows[0]?.count || 0) === edges.length &&
+      Number(evidenceReadbackRows[0]?.count || 0) === edges.length,
+    node_count: Number(nodeReadbackRows[0]?.count || 0),
+    edge_count: Number(edgeReadbackRows[0]?.count || 0),
+    evidence_count: Number(evidenceReadbackRows[0]?.count || 0),
+    secrets_included: false,
+  };
+
+  return {
+    ok: readback.ok,
+    projection_sha256: sourcePk,
+    started_at: startedAt,
+    completed_at: new Date().toISOString(),
+    nodes_written: nodes.length,
+    edges_written: edges.length,
+    edge_evidence_written: edges.length,
+    authority_status: "candidate",
+    runtime_role: "advisory",
+    runtime_enforced: false,
+    readback,
+    provider_calls_made: 0,
     file_content_returned: false,
     secrets_included: false,
   };
@@ -1832,7 +2116,11 @@ export async function runGovernedResource(args = {}, deps = {}) {
   const mode = asString(args.mode || "plan") || "plan";
   const applyRequested = mode === "apply" || args.apply === true;
   const recipe = plan.recipe || {};
-  const manifestApplyRequested = applyRequested && recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY;
+  const operationIntent = resourceGraphProjectionOperationIntent(args);
+  const graphProjectionApplyRequested = applyRequested &&
+    recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY &&
+    GRAPH_PROJECTION_ACCEPTED_INTENTS.includes(operationIntent);
+  const manifestApplyRequested = applyRequested && recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY && !graphProjectionApplyRequested;
   const graphProjectionDryRunRequested = mode === "graph_projection_dry_run" && recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY;
   const blockedReasons = plan.policy_decision?.blocked_reasons || [];
   const authorityBinding = await resolvePlatformResourceAuthorityBinding(plan, args, mode);
@@ -1870,7 +2158,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
     };
   }
 
-  if (applyRequested && !manifestApplyRequested) {
+  if (applyRequested && !manifestApplyRequested && !graphProjectionApplyRequested) {
     return {
       ok: false,
       tool: "governed_resource_run",
@@ -1880,7 +2168,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
       apply_allowed: false,
       dispatch_allowed: false,
       reason_code: "resource_recipe_apply_blocked_v1",
-      message: "Resource recipe V1 only supports guarded manifest create for the artifact/export reconciliation recipe; all other writes, deletes, moves, content reads, and graph mutations remain blocked.",
+      message: "Resource recipe V1 only supports explicit guarded manifest create or graph projection apply for the artifact/export reconciliation recipe; all other writes, deletes, moves, content reads, and graph mutations remain blocked.",
       plan,
       provider_calls_made: 0,
       execution_allowed: false,
@@ -2050,6 +2338,52 @@ export async function runGovernedResource(args = {}, deps = {}) {
       "review_graph_projection_dry_run",
       "request_capability_envelope_before_future_graph_apply",
     ];
+  }
+
+  if (graphProjectionApplyRequested) {
+    const graphProjectionDryRun = buildArtifactExportGraphProjectionDryRun(result, plan, args);
+    result.graph_projection_dry_run = graphProjectionDryRun;
+    const gate = await validateGraphProjectionApplyGate(graphProjectionDryRun, plan, args);
+    if (!gate.ok) {
+      return buildGraphProjectionApplyBlockedResult({
+        reasonCode: gate.status || gate.reason_code || "graph_projection_apply_gate_blocked",
+        message: gate.message || "Graph projection apply gate blocked execution.",
+        plan,
+        graphProjectionDryRun,
+        envelope: gate,
+      });
+    }
+
+    const graphWrite = await writeGraphProjectionCandidate(graphProjectionDryRun, plan, args);
+    await markCapabilityEnvelopeReferenced({
+      envelopeId: gate.envelope.envelope_id,
+      executionRef: `resource_graph_projection_apply:${graphProjectionDryRun.projection_sha256}`,
+    });
+
+    return {
+      ok: graphWrite.readback?.ok === true,
+      tool: "governed_resource_run",
+      classification: graphWrite.readback?.ok === true ? "resource_graph_projection_applied_with_readback" : "resource_graph_projection_apply_readback_degraded",
+      mode,
+      operation_intent: operationIntent,
+      recipe_key: recipe.recipe_key,
+      resource_type: recipe.resource_type,
+      resource_uri: plan.resolved_resource?.resource_uri || null,
+      graph_projection_dry_run: graphProjectionDryRun,
+      capability_envelope: gate.envelope,
+      graph_write: graphWrite,
+      readback: graphWrite.readback,
+      result,
+      plan,
+      apply_requested: true,
+      apply_allowed: true,
+      dispatch_allowed: true,
+      provider_calls_made: 0,
+      execution_allowed: true,
+      graph_write_made: true,
+      file_content_returned: false,
+      secrets_included: false,
+    };
   }
 
   if (manifestApplyRequested) {

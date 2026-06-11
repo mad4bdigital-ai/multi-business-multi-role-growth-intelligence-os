@@ -44,6 +44,8 @@ The Docs Agent must not:
 
 The generated files are evidence, not authority. For high-risk changes, maintainers must still update the targeted docs named by the impact note.
 
+For the Session Insight capability-envelope chain, generated impact notes for migrations `277` through `283` are satisfied by the targeted runbook `docs/session-insight-capability-envelope-release-readiness.md`, the patch index, deployment parity checklist, agent guide, and OpenAPI route coverage. The docs evidence confirms gated no-execution behavior only; it does not authorize adapter apply or production target writes.
+
 ## Classifier behavior
 
 The classifier is deterministic and dependency-free. It maps changed files into impact families such as:
