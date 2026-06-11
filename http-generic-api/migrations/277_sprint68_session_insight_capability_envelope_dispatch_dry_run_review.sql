@@ -12,7 +12,7 @@ ALTER TABLE `session_insight_capability_envelope_dispatch_dry_runs`
   ADD COLUMN IF NOT EXISTS `reviewed_at` TIMESTAMP NULL AFTER `reviewed_by`,
   ADD COLUMN IF NOT EXISTS `review_notes` TEXT NULL AFTER `reviewed_at`;
 
-CREATE TABLE IF NOT EXISTS `session_insight_capability_envelope_dispatch_dry_run_review_events` (
+CREATE TABLE IF NOT EXISTS `session_insight_dispatch_dry_run_review_events` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `review_event_id` VARCHAR(128) NOT NULL,
   `dispatch_dry_run_id` VARCHAR(128) NOT NULL,
@@ -157,7 +157,7 @@ SELECT
   'dispatch_dry_run_review_event_secret_flagged' AS issue_code,
   'fail' AS severity,
   JSON_OBJECT('review_event_id', e.review_event_id, 'dispatch_dry_run_id', e.dispatch_dry_run_id, 'secrets_included', e.secrets_included) AS evidence_json
-FROM `session_insight_capability_envelope_dispatch_dry_run_review_events` e
+FROM `session_insight_dispatch_dry_run_review_events` e
 WHERE e.secrets_included <> 0
 UNION ALL
 SELECT
@@ -256,7 +256,7 @@ SELECT 'Session Memory Governance', 'session_insight_capability_envelope_dispatc
        ),
        'TRUE',
        'session_memory|capability_envelope_dispatch_dry_run_review|review_gate',
-       'session_insight_capability_envelope_dispatch_dry_runs|session_insight_capability_envelope_dispatch_dry_run_review_events|admin_platform_endpoint_tools',
+       'session_insight_capability_envelope_dispatch_dry_runs|session_insight_dispatch_dry_run_review_events|admin_platform_endpoint_tools',
        'TRUE',
        'Capability envelope dispatch dry-run review can approve/reject a dry-run but approval never dispatches capability resolution.'
 WHERE NOT EXISTS (
