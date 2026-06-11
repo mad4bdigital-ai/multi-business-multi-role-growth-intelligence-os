@@ -219,6 +219,10 @@ export async function evaluateSupportTicketExternalProviderGatePreflight({ chann
     send_mode_allowed: Boolean(provider_adapter.send_mode_allowed),
     external_send_performed: Boolean(external_send_performed || provider_adapter.external_send_performed),
     secrets_included: Boolean(secrets_included || provider_adapter.secrets_included || provider_adapter.secret_value_included),
+    approval_hold_id: approval_hold_id || null,
+    credential_ref: credential_ref || null,
+    idempotency_key: idempotency_key || null,
+    recipient_allowlist_allowed: Boolean(recipient_allowlist_allowed),
   };
   for (const policy of policies) {
     if (!policyAllowsBlocking(policy)) continue;
