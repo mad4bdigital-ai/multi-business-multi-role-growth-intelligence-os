@@ -30,6 +30,60 @@ function splitRefs(value = "") {
     .filter(Boolean);
 }
 
+function sanitizeKey(value) {
+  const text = String(value || "surface")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return text || "surface";
+}
+
+function likeToRegExp(pattern) {
+  const escaped = String(pattern || "")
+    .replace(/[.+^${}()|[\]\\]/g, "\\function splitRefs(value = "") {
+  return String(value || "")
+    .split(/[|,;\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+async function safeRows(sql, params = []) {")
+    .replace(/%/g, ".*")
+    .replace(/_/g, ".");
+  return new RegExp(`^${escaped}import { getPool } from "./db.js";
+
+const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
+const BLOCKED_COLUMN_PATTERN = /(secret|credential_ref|credential|token|password|private_key|cipher|api_key|value_ciphertext|value_sha|config_json|system_prompt)/i;
+const PLATFORM_BRAND_KEY = "growth_intelligence_platform";
+
+function compactError(err) {
+  return { code: err.code || "activation_dynamic_tabs_failed", message: err.message };
+}
+
+function safeNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseJsonValue(value, fallback = null) {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(String(value));
+  } catch {
+    return fallback;
+  }
+}
+
+, "i");
+}
+
+function matchesLike(value, pattern) {
+  if (!pattern) return false;
+  return likeToRegExp(pattern).test(String(value || ""));
+}
+
 async function safeRows(sql, params = []) {
   try {
     const [rows] = await getPool().query(sql, params);
