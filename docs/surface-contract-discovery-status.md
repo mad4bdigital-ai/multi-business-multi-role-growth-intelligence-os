@@ -17,7 +17,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 379
+- Migrations with detected surfaces: 380
 - Migrations reported here: 80
 - OpenAPI operations detected: 416
 - Documentation targets checked:
@@ -46,6 +46,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | `902_sprint68_dynamic_capability_apply_authorization_policy.sql` | needs docs | 0 | 6 | 0 | 0 | 0 |
 | `901_sprint68_resource_manifest_create_gate_authority.sql` | needs docs | 0 | 4 | 0 | 0 | 0 |
 | `900_sprint68_governed_repository_intelligence_engine.sql` | needs docs | 0 | 7 | 0 | 1 | 0 |
+| `289_sprint68_external_delivery_policy_scope_alignment.sql` | needs docs | 0 | 1 | 1 | 1 | 0 |
 | `287_sprint68_external_delivery_orchestration_graph_plugin.sql` | complete | 3 | 42 | 2 | 1 | 0 |
 | `286_sprint68_platform_schema_contract_completion_registry.sql` | needs docs | 0 | 1 | 0 | 0 | 1 |
 | `284_sprint68_wordpress_schema_import_completion_registry.sql` | needs docs | 0 | 1 | 0 | 0 | 0 |
@@ -110,7 +111,6 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | `254_sprint67_ads_provider_preflight_surface_blueprint.sql` | needs docs | 0 | 23 | 0 | 1 | 1 |
 | `253_sprint68_ticket_auto_resolve_policy_engine.sql` | needs docs | 0 | 2 | 0 | 0 | 2 |
 | `253_sprint68_session_insight_candidates_foundation.sql` | needs docs | 0 | 0 | 1 | 0 | 0 |
-| `253_sprint67_ads_provider_preflight_contract.sql` | needs docs | 0 | 15 | 0 | 1 | 1 |
 
 ## Details
 
@@ -278,6 +278,17 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 - Policies: `governed_repository_intelligence_engine_policy_v1`
 - Routes: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `289_sprint68_external_delivery_policy_scope_alignment.sql`
+
+- Documentation complete: no
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Plugins: none
+- Tools: `support_ticket_external_delivery_orchestration_readback_policy_v1`
+- Views: `v_platform_orchestration_external_delivery_readiness`
+- Policies: `support_ticket_external_delivery_orchestration_readback_policy_v1`
+- Routes: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=yes, no_external_write=no, secrets_included_false=no
 
 ### `287_sprint68_external_delivery_orchestration_graph_plugin.sql`
 
@@ -982,17 +993,6 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 - Policies: none
 - Routes: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
-
-### `253_sprint67_ads_provider_preflight_contract.sql`
-
-- Documentation complete: no
-- Missing docs: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Plugins: none
-- Tools: `ads_provider_preflight_contract_policy_v1`, `ads_provider_preflight_contract_registry`, `ads_provider_preflight_contract_v1`, `ads_provider_preflight_contract_validate`, `does_not_execute_target_capability`, `draft_profiles_may_have_null_preflight_surfaces`, `existing_provider_can_pass_contract_for_readback`, `new_provider_preflight_surface_requires_contract_validation`, `provider_specific_preflight_surface_creation_separate_from_profile_onboarding`, `provider_specific_preflight_surface_requires_contract_validation`, `provider_specific_preflight_surface_requires_profile`, `requires_credential_readiness_ledger`, `requires_execution_enablement_gate`, `requires_preflight_ledger`, `validator_tool_key`
-- Views: none
-- Policies: `ads_provider_preflight_contract_policy_v1`
-- Routes: `/admin/control`
-- Safety markers: no_provider_call=yes, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
 
 ## Automation Contract
