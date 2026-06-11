@@ -1774,7 +1774,7 @@ export function buildActivationRoutes(deps) {
     const hard = buildHardActivationEvidenceMatrix({
       sessionContext,
       providerBootstrap,
-      repoCanonicals: { attempted: false, ok: null, optional: true, evidence_source: "caller_must_read_repo_canonicals" },
+      repoCanonicals: await buildRepoCanonicalRuntimeEvidence(),
       toolCatalog: { attempted: false, ok: null, optional: true, evidence_source: "not_required_for_hard_activation" },
     });
 
