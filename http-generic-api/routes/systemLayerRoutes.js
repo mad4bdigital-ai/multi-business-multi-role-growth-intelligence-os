@@ -136,6 +136,7 @@ const SYSTEM_LAYER_TOOLS = [
     },
   },
   ...PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
+  ...TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
   {
     name: "connector_registry_list",
     description: "List connector systems from the connected_systems registry.",
