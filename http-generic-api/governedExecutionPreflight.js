@@ -231,8 +231,9 @@ export async function evaluateSupportTicketExternalProviderGatePreflight({ chann
     if (provider_adapter.source !== "external_delivery_provider_adapter_contract_registry") { errors.push("provider_gate_adapter_contract_registry_required"); blockingPolicies.push(policy); continue; }
     if (allowedModes.length && !allowedModes.includes(String(send_mode || "").toLowerCase())) { errors.push("provider_gate_send_mode_not_allowed_by_policy"); blockingPolicies.push(policy); continue; }
     if (!provider_adapter.send_mode_allowed) { errors.push("provider_gate_send_mode_policy_not_active"); blockingPolicies.push(policy); continue; }
-    if (cfg.no_external_send !== false && (evidence.external_send_supported || evidence.external_send_performed)) { errors.push("provider_gate_external_send_blocked_by_policy"); blockingPolicies.push(policy); continue; }
-    if (cfg.provider_dispatch_enabled === false && evidence.provider_dispatch_enabled) { errors.push("provider_gate_provider_dispatch_blocked_by_policy"); blockingPolicies.push(policy); continue; }
+    const completeLiveSendEvidence = providerGateLiveSendEvidenceComplete({ send_mode, provider_adapter, external_send_performed, evidence });
+    if (cfg.no_external_send !== false && (evidence.external_send_supported || evidence.external_send_performed) && !completeLiveSendEvidence) { errors.push("provider_gate_external_send_blocked_by_policy"); blockingPolicies.push(policy); continue; }
+    if (cfg.provider_dispatch_enabled === false && evidence.provider_dispatch_enabled && !completeLiveSendEvidence) { errors.push("provider_gate_provider_dispatch_blocked_by_policy"); blockingPolicies.push(policy); continue; }
     if (evidence.secrets_included) { errors.push("provider_gate_secrets_blocked_by_policy"); blockingPolicies.push(policy); continue; }
   }
   if (blockingPolicies.length) return makePreflightResult({ classification: "blocked", policies, blockingPolicies, warnings, errors, evidence, runtimePolicyResolution });
