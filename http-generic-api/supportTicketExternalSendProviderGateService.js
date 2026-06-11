@@ -200,7 +200,8 @@ export async function recordSupportTicketExternalSendProviderGateAttempt({ tenan
     }
     const executionPlan = await planSupportTicketExternalSendExecution({ tenant_id, ticket_id, channel: externalChannel, audience: normalizedAudience, approval_hold_id, credential_ref, subject, body, payload_json }, { connection });
     const providerAdapter = await resolveProviderAdapter(connection, { channel: externalChannel, provider_key, send_mode });
-    const providerPolicyPreflight = await evaluateSupportTicketExternalProviderGatePreflight({ channel: externalChannel, send_mode, provider_adapter: providerAdapter }, { connection });
+    const recipientAllowed = await recipientAllowlistAllowed(connection, { tenant_id, adapter_key: providerAdapter.adapter_key, channel: externalChannel, payload_json });
+    const providerPolicyPreflight = await evaluateSupportTicketExternalProviderGatePreflight({ channel: externalChannel, send_mode, provider_adapter: providerAdapter, approval_hold_id, credential_ref, idempotency_key: payload_json?.idempotency_key || payload_json?.idempotencyKey || null, recipient_allowlist_allowed: recipientAllowed }, { connection });
     assertPreflightAllowed(providerPolicyPreflight);
     const provider_plan = { ...buildProviderPlan({ tenant_id, ticket_id, execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json }), policy_preflight: providerPolicyPreflight };
     if (runMode === "live_send") {
