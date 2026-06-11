@@ -54,6 +54,26 @@ async function fetchTicket(connection, tenant_id, ticket_id) {
 
 async function lookupCredentialByRef(connection, { tenant_id, credential_ref }) {
   if (!credential_ref) return null;
+  const normalizedRef = String(credential_ref || "").trim();
+  if (normalizedRef.startsWith("user_app_connection:")) {
+    const connectionId = normalizedRef.slice("user_app_connection:".length);
+    const [connectionRows] = await connection.query(
+      `SELECT connection_id AS credential_ref, tenant_id, 'user_app_connections' AS provider,
+              app_key AS label, status, connected_at AS created_at, 'granted' AS consent_status,
+              validation_status, 'user_oauth' AS owner_type, 'encrypted_user_app_connection' AS store_type,
+              scopes_granted
+         FROM user_app_connections
+        WHERE tenant_id IN (?, '00000000-0000-0000-0000-000000000000')
+          AND connection_id = ?
+          AND status = 'active'
+          AND auth_type = 'oauth2'
+          AND scopes_granted LIKE '%gmail.send%'
+        ORDER BY tenant_id = ? DESC, connected_at DESC
+        LIMIT 1`,
+      [tenant_id, connectionId, tenant_id]
+    );
+    if (connectionRows[0]) return { source_table: "user_app_connections", ...connectionRows[0], credential_ref: normalizedRef, secret_value_included: false };
+  }
   const [secretRows] = await connection.query(
     `SELECT ref_id AS credential_ref, tenant_id, provider_family AS provider, credential_type AS label,
             status, created_at, consent_status, validation_status, owner_type, store_type
