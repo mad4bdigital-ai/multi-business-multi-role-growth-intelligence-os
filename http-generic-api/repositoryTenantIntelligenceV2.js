@@ -142,8 +142,16 @@ export async function revokeRepositoryAuthorityBinding(args = {}, { auth } = {})
   return { ok: true, tool: "platform_resource_authority_binding_revoke", classification: "repository_authority_binding_revoked", before: bindingRowToObject(beforeRows[0]), binding: bindingRowToObject(afterRows[0]), provider_calls_made: 0, secrets_included: false };
 }
 
-function changedFiles(pr = {}) { return Array.isArray(pr.changed_files) ? pr.changed_files : []; }
-function checkRuns(pr = {}) { return Array.isArray(pr.check_runs) ? pr.check_runs : []; }
+function changedFiles(pr = {}) {
+  if (Array.isArray(pr.changed_files)) return pr.changed_files;
+  if (Array.isArray(pr.evidence?.changed_files)) return pr.evidence.changed_files;
+  return [];
+}
+function checkRuns(pr = {}) {
+  if (Array.isArray(pr.check_runs)) return pr.check_runs;
+  if (Array.isArray(pr.evidence?.check_runs)) return pr.evidence.check_runs;
+  return [];
+}
 function hasOnlyDocsAgentFiles(files = []) { return files.length > 0 && files.every((file) => String(file.filename || "").startsWith("docs/auto-docs-agent/")); }
 function migrationNumbers(files = []) { return files.map((file) => String(file.filename || "").match(/migrations\/(\d+)_.*\.sql$/)?.[1]).filter(Boolean); }
 function duplicateValues(values = []) { const seen = new Set(); const dupes = new Set(); for (const value of values) { if (seen.has(value)) dupes.add(value); seen.add(value); } return [...dupes]; }
