@@ -92,6 +92,7 @@ import { buildSessionInsightCapabilityEnvelopeRequestGateReviewRoutes } from "./
 import { buildSessionInsightCapabilityEnvelopeDispatchDryRunRoutes } from "./sessionInsightCapabilityEnvelopeDispatchDryRunRoutes.js";
 import { buildSessionInsightCapabilityEnvelopeDispatchDryRunReviewRoutes } from "./sessionInsightCapabilityEnvelopeDispatchDryRunReviewRoutes.js";
 import { buildSessionInsightCapabilityEnvelopeActualRequestPreflightRoutes } from "./sessionInsightCapabilityEnvelopeActualRequestPreflightRoutes.js";
+import { buildSessionInsightCapabilityEnvelopeActualRequestRoutes } from "./sessionInsightCapabilityEnvelopeActualRequestRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -177,6 +178,7 @@ export function registerRoutes(app, deps) {
   app.use(buildSessionInsightCapabilityEnvelopeDispatchDryRunRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSessionInsightCapabilityEnvelopeDispatchDryRunReviewRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSessionInsightCapabilityEnvelopeActualRequestPreflightRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildSessionInsightCapabilityEnvelopeActualRequestRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformPluginRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildBrowserRuntimeRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildGithubRoutes(deps));
