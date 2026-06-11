@@ -11,6 +11,11 @@ assert.equal(repoRef.owner, "mad4bdigital-ai");
 assert.equal(repoRef.repo, "multi-business-multi-role-growth-intelligence-os");
 assert.equal(repoRef.resource_uri, "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os");
 
+const longSmokeTenant = smokeSafeTenantId("repository_intelligence_v2_readiness_smoke_tenant_final_with_extra_length");
+assert.equal(longSmokeTenant.startsWith("smoke_"), true);
+assert.equal(longSmokeTenant.length <= 36, true);
+assert.equal(smokeSafeTenantId(`${longSmokeTenant}_missing`).length <= 36, true);
+
 const docsPr = classifyRepositoryPullRequestV2({
   number: 1,
   title: "Docs agent: impact note for abc123",
