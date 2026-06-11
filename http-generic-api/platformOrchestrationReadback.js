@@ -1,5 +1,6 @@
 import { getPool } from "./db.js";
 import { readSupportTicketLifecycleOrchestrationReadiness } from "./supportTicketLifecycleOrchestrationReadback.js";
+import { readSupportTicketExternalDeliveryOrchestrationReadiness } from "./supportTicketExternalDeliveryOrchestrationReadback.js";
 
 function parseJson(value, fallback = null) {
   if (value == null || value === "") return fallback;
