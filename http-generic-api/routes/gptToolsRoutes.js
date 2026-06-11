@@ -388,7 +388,19 @@ const VIRTUAL_ADMIN_TOOLS = [
   },
 ];
 
-const REPO_PATCH_MAX_BYTES = 1_000_000; // 1 MiB upper bound for new content
+const DEFAULT_REPO_PATCH_MAX_BYTES = 1_000_000; // Default 1 MB upper bound for new content.
+const LARGE_TEXT_REPO_PATCH_MAX_BYTES = 2_000_000; // Allow large generated text contracts such as OpenAPI.
+const LARGE_TEXT_REPO_PATCH_PATHS = new Set([
+  "http-generic-api/openapi.yaml",
+  "http-generic-api/openapi.yml",
+]);
+
+export function repoPatchMaxBytesForPath(filePath = "") {
+  const normalized = String(filePath || "").replaceAll("\\", "/").replace(/^\.\//, "");
+  return LARGE_TEXT_REPO_PATCH_PATHS.has(normalized)
+    ? LARGE_TEXT_REPO_PATCH_MAX_BYTES
+    : DEFAULT_REPO_PATCH_MAX_BYTES;
+}
 
 async function requireRepoPatchCapabilityEnvelope({ args = {}, ctx = {}, owner = "", repo = "", branch = "", defaultBranch = "", filePath = "", action = "" } = {}) {
   const resolved = await resolveCapabilityExecutionEnvelope({
@@ -1593,10 +1605,20 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
   }
 
   const newBytes = Buffer.byteLength(newContent, "utf8");
-  if (newBytes > REPO_PATCH_MAX_BYTES) {
-    const err = new Error(`new content size ${newBytes} bytes exceeds the ${REPO_PATCH_MAX_BYTES}-byte limit.`);
+  const maxBytes = repoPatchMaxBytesForPath(filePath);
+  if (newBytes > maxBytes) {
+    const err = new Error(`new content size ${newBytes} bytes exceeds the ${maxBytes}-byte limit for ${filePath}.`);
     err.status = 413;
     err.code = "repo_patch_too_large";
+    err.details = {
+      path: filePath,
+      new_bytes: newBytes,
+      max_bytes: maxBytes,
+      default_max_bytes: DEFAULT_REPO_PATCH_MAX_BYTES,
+      large_text_max_bytes: LARGE_TEXT_REPO_PATCH_MAX_BYTES,
+      large_text_allowlisted: maxBytes > DEFAULT_REPO_PATCH_MAX_BYTES,
+      secrets_included: false,
+    };
     throw err;
   }
 
