@@ -1211,6 +1211,8 @@ async function executeGitHubRestFallbackCore(args = []) {
       );
     const allowedContentsMutation = githubContentsMutationAllowed(apiTarget, method);
     const allowedBranchRefUpdate = githubBranchRefUpdateAllowed(apiTarget, method);
+    const allowedPullStatePatch = method === "PATCH" && /^\/pulls\/\d+$/.test(apiTarget) && ["open", "closed"].includes(String(fieldValues.state || "").trim().toLowerCase());
+    const allowedIssueStatePatch = method === "PATCH" && /^\/issues\/\d+$/.test(apiTarget) && ["open", "closed"].includes(String(fieldValues.state || "").trim().toLowerCase());
     if (allowedContentsMutation) assertGithubContentsWritePathAllowed(apiTarget);
     const branchRefUpdate = allowedBranchRefUpdate ? assertGithubBranchRefUpdateAllowed(apiTarget, fieldValues) : null;
     const allowedMutation = (["POST", "PUT", "PATCH"].includes(method) || allowedContentsMutation) && (
