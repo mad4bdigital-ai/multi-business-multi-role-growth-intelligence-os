@@ -242,6 +242,8 @@ export const testCommands = [
   "node ../local-connector/test-n8n-fallthrough.mjs",
   "node ../local-connector/test-n8n-workflow-templates.mjs",
   "node test-connect-routes.mjs",
+  "node test-integration-policy-transaction-guard.mjs",
+  "node test-local-connector-provisioning-safety.mjs",
   "node test-tenant-infrastructure-intake.mjs",
   "node test-tenant-infrastructure-readiness-tools.mjs",
   "node test-tenant-database-schema-read.mjs",
