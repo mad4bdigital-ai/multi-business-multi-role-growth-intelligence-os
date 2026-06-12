@@ -1163,23 +1163,39 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     );
   }
 
-  const installPowerShell = buildInstallPowerShell({ cfToken: tunnelToken, connectorSecret, connectorLocalApiKey, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
-  const connectorEnv = buildConnectorEnv({ connectorSecret, connectorLocalApiKey, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
-  const startConnectorBat = buildStartConnectorBat();
-  const installScript = buildInstallScript({ cfToken: tunnelToken, connectorSecret, connectorLocalApiKey, tunnelUrl: runtimeUrl, aliases: allAliases, port: CONNECTOR_PORT, capabilities: requestedCapabilities, permissionGrants: requestedPermissionGrants });
+  const ttlMinutes = 30;
+  const downloadToken = signInstallerDownloadToken({
+    user_id: resolvedUserId,
+    tenant_id: resolvedTenantId,
+    device_id,
+    format: "bat",
+    capabilities: requestedCapabilities,
+    permission_grants: requestedPermissionGrants,
+    exp: Math.floor(Date.now() / 1000) + ttlMinutes * 60,
+  });
 
   return {
     ok: true,
+    status: reprovision ? "device_reprovisioned" : "device_provisioned",
     config_id: finalConfigId,
     device_id,
     tunnel_url: tunnelUrl,
     public_gateway_url: LOCAL_GATEWAY_URL,
     device_runtime_url: runtimeUrl,
     admin_recovery_url: ADMIN_RECOVERY_URL,
-    connector_secret: connectorSecret,
     cf_tunnel_id: tunnelId,
     credential_source: provisioningCredentials.source,
+    install_intent: installIntent,
+    provider_calls_made: true,
+    provisioning_performed: true,
     app_routes: await loadLocalAppRoutes(pool, finalConfigId),
+    installer: {
+      format: "bat",
+      ttl_minutes: ttlMinutes,
+      download_url: `${publicBaseUrl(req)}/local-connector/install/download?token=${encodeURIComponent(downloadToken)}`,
+      raw_material_returned: false,
+      run_as_admin_required: true,
+    },
     installation: {
       aliases: allAliases.map((a) => a.alias),
       capabilities: requestedCapabilities,
@@ -1188,27 +1204,10 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
         app_aliases: Object.keys(requestedPermissionGrants.apps),
         shell_aliases: requestedPermissionGrants.shell_aliases.map((entry) => entry.alias),
       },
-      install_bat: installScript,
-      install_ps1: installPowerShell,
-      files: {
-        ".env": connectorEnv,
-        "start-connector.bat": startConnectorBat,
-        "install-local-connector.ps1": installPowerShell,
-        "install.bat": installScript,
-      },
-      local_runtime: {
-        port: CONNECTOR_PORT,
-        env_file: ".env",
-        start_command: "start-connector.bat",
-        tunnel_command: `cloudflared service install ${tunnelToken}`,
-      },
-      steps: [
-        "1. Put server.mjs and install-local-connector.ps1 in the local-connector folder.",
-        "2. Run install-local-connector.ps1 as Administrator — writes .env, installs cloudflared, starts server.mjs.",
-        "3. On later boots run start-connector.bat or configure it as a Windows startup task.",
-        `4. Test: GET /local-connector/health?user_id=${resolvedUserId}&tenant_id=${resolvedTenantId}&device_id=${device_id}`,
-      ],
+      raw_material_returned: false,
+      installer_delivery: "short_lived_signed_download_link",
     },
+    secrets_included: false,
   };
 }
 
