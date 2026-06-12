@@ -1,4 +1,8 @@
 import { getPool } from "./db.js";
+import {
+  buildGuidancePresentation,
+  resolveGuidanceLanguagePreference,
+} from "./activationGuidancePresentation.js";
 
 const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|authorization|cookie|set-cookie|installer|raw_token)/i;
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
