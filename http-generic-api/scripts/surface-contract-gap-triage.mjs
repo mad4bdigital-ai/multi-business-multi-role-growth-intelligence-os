@@ -228,6 +228,6 @@ function main() {
     console.error(`surface-contract-gap-triage: blocking new high/critical gaps: ${gate.blocking_new_item_count}`);
     process.exit(1);
   }
-  console.log(JSON.stringify({ ok: gate.ok, schema_version: triage.schema_version, baseline_schema: baseline.schema_version, gate_schema: gate.schema_version, dashboard_schema: dashboard.schema_version, trend_schema: trends.schema_version, triaged_items: triage.total_triaged_items, gate_candidates: triage.gate_candidate_count, blocking_new_items: gate.blocking_new_item_count, secrets_included: false }, null, 2));
+  console.log(JSON.stringify({ ok: gate.ok && trends.trend_quality_gate.ok, schema_version: triage.schema_version, baseline_schema: baseline.schema_version, gate_schema: gate.schema_version, dashboard_schema: dashboard.schema_version, compact_schema: compact.schema_version, trend_schema: trends.schema_version, trend_gate_schema: trends.trend_quality_gate.schema_version, triaged_items: triage.total_triaged_items, gate_candidates: triage.gate_candidate_count, blocking_new_items: gate.blocking_new_item_count, secrets_included: false }, null, 2));
 }
 main();
