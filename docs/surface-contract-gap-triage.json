@@ -406,7 +406,7 @@
     },
     {
       "migration_file": "261_sprint68_orchestration_intelligence_foundation.sql",
-      "score": 2031,
+      "score": 2030,
       "queue_class": "critical_review",
       "triage_class": "safety_marker_review",
       "gate_scope": "legacy_baseline_candidate",
@@ -761,7 +761,7 @@
     },
     {
       "migration_file": "283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql",
-      "score": 1822,
+      "score": 1821,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -1349,7 +1349,7 @@
     },
     {
       "migration_file": "091_sprint62b_local_gateway_credential_policy.sql",
-      "score": 1441,
+      "score": 1440,
       "queue_class": "critical_review",
       "triage_class": "safety_marker_review",
       "gate_scope": "legacy_baseline_candidate",
@@ -1443,7 +1443,7 @@
     },
     {
       "migration_file": "271_sprint68_session_insight_adapter_apply_readiness_gate.sql",
-      "score": 1421,
+      "score": 1420,
       "queue_class": "critical_review",
       "triage_class": "openapi_contract_review",
       "gate_scope": "legacy_baseline_candidate",
@@ -1752,7 +1752,7 @@
     },
     {
       "migration_file": "268_sprint68_ticket_external_adapter_readiness_decision.sql",
-      "score": 1337,
+      "score": 1336,
       "queue_class": "critical_review",
       "triage_class": "openapi_contract_review",
       "gate_scope": "legacy_baseline_candidate",
@@ -1803,7 +1803,7 @@
     },
     {
       "migration_file": "258_sprint68_ticket_external_delivery_credential_binding.sql",
-      "score": 1336,
+      "score": 1335,
       "queue_class": "critical_review",
       "triage_class": "openapi_contract_review",
       "gate_scope": "legacy_baseline_candidate",
@@ -1955,7 +1955,7 @@
     },
     {
       "migration_file": "254_sprint68_ticket_notification_delivery_cycle.sql",
-      "score": 1328,
+      "score": 1327,
       "queue_class": "critical_review",
       "triage_class": "openapi_contract_review",
       "gate_scope": "legacy_baseline_candidate",
@@ -2403,7 +2403,7 @@
     },
     {
       "migration_file": "906_sprint68_ticket_external_delivery_completion_certification.sql",
-      "score": 1267,
+      "score": 1266,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -2443,8 +2443,8 @@
       }
     },
     {
-      "migration_file": "200_sprint68_workspace_invitation_control_tools.sql",
-      "score": 1266,
+      "migration_file": "199_sprint68_workspace_ownership_member_control_tools.sql",
+      "score": 1265,
       "queue_class": "critical_review",
       "triage_class": "openapi_contract_review",
       "gate_scope": "legacy_baseline_candidate",
@@ -2457,9 +2457,9 @@
         "docs/change-documentation-governance.md"
       ],
       "missing_openapi_routes": [
-        "/me/workspaces/{tenant_id}/invitations/expire-stale",
-        "/me/workspaces/{tenant_id}/invitations/{invitation_id}/resend",
-        "/me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke"
+        "/me/workspaces/{tenant_id}/members/{user_id}",
+        "/me/workspaces/{tenant_id}/members/{user_id}/remove",
+        "/me/workspaces/{tenant_id}/ownership/transfer"
       ],
       "safety_marker_gaps": [
         "no_provider_call",
@@ -2491,7 +2491,7 @@
       }
     },
     {
-      "migration_file": "199_sprint68_workspace_ownership_member_control_tools.sql",
+      "migration_file": "200_sprint68_workspace_invitation_control_tools.sql",
       "score": 1265,
       "queue_class": "critical_review",
       "triage_class": "openapi_contract_review",
@@ -2505,9 +2505,9 @@
         "docs/change-documentation-governance.md"
       ],
       "missing_openapi_routes": [
-        "/me/workspaces/{tenant_id}/members/{user_id}",
-        "/me/workspaces/{tenant_id}/members/{user_id}/remove",
-        "/me/workspaces/{tenant_id}/ownership/transfer"
+        "/me/workspaces/{tenant_id}/invitations/expire-stale",
+        "/me/workspaces/{tenant_id}/invitations/{invitation_id}/resend",
+        "/me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke"
       ],
       "safety_marker_gaps": [
         "no_provider_call",
@@ -2779,7 +2779,7 @@
     },
     {
       "migration_file": "955_sprint68_external_delivery_admin_control_surface.sql",
-      "score": 1195,
+      "score": 1194,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -3022,7 +3022,7 @@
     },
     {
       "migration_file": "244_sprint68_ticket_lifecycle_brand_ref_selection.sql",
-      "score": 1159,
+      "score": 1158,
       "queue_class": "critical_review",
       "triage_class": "openapi_contract_review",
       "gate_scope": "legacy_baseline_candidate",
@@ -3436,7 +3436,7 @@
     },
     {
       "migration_file": "270_sprint68_dynamic_capability_tool_bus_kernel.sql",
-      "score": 1132,
+      "score": 1131,
       "queue_class": "critical_review",
       "triage_class": "safety_marker_review",
       "gate_scope": "legacy_baseline_candidate",
@@ -4338,7 +4338,7 @@
     },
     {
       "migration_file": "157_sprint65_smoke_recertification_policy_tools.sql",
-      "score": 1045,
+      "score": 1044,
       "queue_class": "critical_review",
       "triage_class": "safety_marker_review",
       "gate_scope": "legacy_baseline_candidate",
@@ -4563,7 +4563,7 @@
     },
     {
       "migration_file": "265_sprint68_session_insight_promotion_dry_run_executor.sql",
-      "score": 999,
+      "score": 998,
       "queue_class": "critical_review",
       "triage_class": "openapi_contract_review",
       "gate_scope": "legacy_baseline_candidate",

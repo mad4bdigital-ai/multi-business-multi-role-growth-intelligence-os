@@ -1,9 +1,9 @@
 {
   "ok": true,
   "schema_version": "surface-contract-gap-queue-v1",
-  "total_items": 385,
+  "total_items": 386,
   "class_counts": {
-    "critical_review": 244,
+    "critical_review": 245,
     "high_review": 115,
     "medium_review": 25,
     "low_review": 1
@@ -801,7 +801,7 @@
     },
     {
       "migration_file": "261_sprint68_orchestration_intelligence_foundation.sql",
-      "score": 2031,
+      "score": 2030,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -1606,7 +1606,7 @@
     },
     {
       "migration_file": "283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql",
-      "score": 1822,
+      "score": 1821,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -2920,7 +2920,7 @@
     },
     {
       "migration_file": "091_sprint62b_local_gateway_credential_policy.sql",
-      "score": 1441,
+      "score": 1440,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -3094,7 +3094,7 @@
     },
     {
       "migration_file": "271_sprint68_session_insight_adapter_apply_readiness_gate.sql",
-      "score": 1421,
+      "score": 1420,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -3740,7 +3740,7 @@
     },
     {
       "migration_file": "268_sprint68_ticket_external_adapter_readiness_decision.sql",
-      "score": 1337,
+      "score": 1336,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -3857,7 +3857,7 @@
     },
     {
       "migration_file": "258_sprint68_ticket_external_delivery_credential_binding.sql",
-      "score": 1336,
+      "score": 1335,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -4171,7 +4171,7 @@
     },
     {
       "migration_file": "254_sprint68_ticket_notification_delivery_cycle.sql",
-      "score": 1328,
+      "score": 1327,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -5018,7 +5018,7 @@
     },
     {
       "migration_file": "906_sprint68_ticket_external_delivery_completion_certification.sql",
-      "score": 1267,
+      "score": 1266,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -5103,86 +5103,6 @@
       }
     },
     {
-      "migration_file": "200_sprint68_workspace_invitation_control_tools.sql",
-      "score": 1266,
-      "queue_class": "critical_review",
-      "gap_severity": "high",
-      "documentation_complete": false,
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [
-        "/me/workspaces/{tenant_id}/invitations/expire-stale",
-        "/me/workspaces/{tenant_id}/invitations/{invitation_id}/resend",
-        "/me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke"
-      ],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
-      ],
-      "surface_counts": {
-        "plugins": 0,
-        "tools": 0,
-        "views": 0,
-        "policies": 0,
-        "routes": 3
-      },
-      "remediation": [
-        {
-          "action_key": "document_surface_contract",
-          "owner_hint": "docs-agent/human-review",
-          "targets": [
-            "Updating Registry Patch Index.md",
-            "deployment_parity_checklist.md",
-            "docs/ai-docs-agent-governance.md",
-            "docs/auto-docs-agent/README.md",
-            "docs/change-documentation-governance.md"
-          ],
-          "reason": "Migration surfaces are not mentioned in all required documentation targets."
-        },
-        {
-          "action_key": "review_openapi_contract",
-          "owner_hint": "api-contract-review",
-          "targets": [
-            "/me/workspaces/{tenant_id}/invitations/expire-stale",
-            "/me/workspaces/{tenant_id}/invitations/{invitation_id}/resend",
-            "/me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke"
-          ],
-          "reason": "SQL-declared route-like surfaces are not covered by an OpenAPI path."
-        },
-        {
-          "action_key": "add_explicit_safety_markers",
-          "owner_hint": "safety-contract-review",
-          "targets": [
-            "no_provider_call",
-            "no_credential_payload_read",
-            "no_raw_secrets",
-            "no_external_send",
-            "no_external_write",
-            "secrets_included_false"
-          ],
-          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
-        }
-      ],
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
       "migration_file": "199_sprint68_workspace_ownership_member_control_tools.sql",
       "score": 1265,
       "queue_class": "critical_review",
@@ -5235,6 +5155,86 @@
             "/me/workspaces/{tenant_id}/members/{user_id}",
             "/me/workspaces/{tenant_id}/members/{user_id}/remove",
             "/me/workspaces/{tenant_id}/ownership/transfer"
+          ],
+          "reason": "SQL-declared route-like surfaces are not covered by an OpenAPI path."
+        },
+        {
+          "action_key": "add_explicit_safety_markers",
+          "owner_hint": "safety-contract-review",
+          "targets": [
+            "no_provider_call",
+            "no_credential_payload_read",
+            "no_raw_secrets",
+            "no_external_send",
+            "no_external_write",
+            "secrets_included_false"
+          ],
+          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+        }
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "200_sprint68_workspace_invitation_control_tools.sql",
+      "score": 1265,
+      "queue_class": "critical_review",
+      "gap_severity": "high",
+      "documentation_complete": false,
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [
+        "/me/workspaces/{tenant_id}/invitations/expire-stale",
+        "/me/workspaces/{tenant_id}/invitations/{invitation_id}/resend",
+        "/me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke"
+      ],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write",
+        "secrets_included_false"
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 0,
+        "views": 0,
+        "policies": 0,
+        "routes": 3
+      },
+      "remediation": [
+        {
+          "action_key": "document_surface_contract",
+          "owner_hint": "docs-agent/human-review",
+          "targets": [
+            "Updating Registry Patch Index.md",
+            "deployment_parity_checklist.md",
+            "docs/ai-docs-agent-governance.md",
+            "docs/auto-docs-agent/README.md",
+            "docs/change-documentation-governance.md"
+          ],
+          "reason": "Migration surfaces are not mentioned in all required documentation targets."
+        },
+        {
+          "action_key": "review_openapi_contract",
+          "owner_hint": "api-contract-review",
+          "targets": [
+            "/me/workspaces/{tenant_id}/invitations/expire-stale",
+            "/me/workspaces/{tenant_id}/invitations/{invitation_id}/resend",
+            "/me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke"
           ],
           "reason": "SQL-declared route-like surfaces are not covered by an OpenAPI path."
         },
@@ -5771,7 +5771,7 @@
     },
     {
       "migration_file": "955_sprint68_external_delivery_admin_control_surface.sql",
-      "score": 1195,
+      "score": 1194,
       "queue_class": "critical_review",
       "gap_severity": "none",
       "documentation_complete": true,
@@ -6252,7 +6252,7 @@
     },
     {
       "migration_file": "244_sprint68_ticket_lifecycle_brand_ref_selection.sql",
-      "score": 1159,
+      "score": 1158,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -7006,7 +7006,7 @@
     },
     {
       "migration_file": "270_sprint68_dynamic_capability_tool_bus_kernel.sql",
-      "score": 1132,
+      "score": 1131,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -8682,7 +8682,7 @@
     },
     {
       "migration_file": "157_sprint65_smoke_recertification_policy_tools.sql",
-      "score": 1045,
+      "score": 1044,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -9090,7 +9090,7 @@
     },
     {
       "migration_file": "265_sprint68_session_insight_promotion_dry_run_executor.sql",
-      "score": 999,
+      "score": 998,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
