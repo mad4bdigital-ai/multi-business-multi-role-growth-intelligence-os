@@ -713,7 +713,7 @@ export function maybeChunkToolResponseBody(body, optionsSource = {}) {
   const options = normalizeResponseOptions(optionsSource?.response_options || optionsSource?._response || {});
   const serialized = JSON.stringify(body ?? {});
   if (serialized.length <= options.maxChars) return body;
-  const { chunkId } = storeToolResponseForChunks(body);
+  const { chunkId } = storeToolResponseForChunks(body, optionsSource);
   return buildToolResponseChunk({
     serialized,
     chunkId,
