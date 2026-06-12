@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { GITHUB_API_BASE_URL, GITHUB_TOKEN } from "./config.js";
+import { GITHUB_API_BASE_URL } from "./config.js";
 import { getPool } from "./db.js";
-import { githubCommentOnPR } from "./github.js";
+import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import {
   createRepositoryAuthorityBinding,
   normalizeGithubRepoRef,
