@@ -2685,6 +2685,105 @@ x-tenant-gpt-auth:
         - https://auth.mad4b.com/scopes/tenant.system-tools
 
 paths:
+  /runtime/verification-runs:
+    post:
+      tags: [runtime-verification]
+      operationId: createRuntimeVerificationRun
+      summary: Create runtime verification run
+      description: >
+        Creates a governed runtime verification run, writes verification steps,
+        evidence chunks, blocking gaps, and the production parity ledger. Output is
+        summary-first and secret-safe; detailed evidence is read through the paginated evidence endpoint.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RuntimeVerificationCreateRequest'
+      responses:
+        '201':
+          description: Runtime verification run created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeVerificationRunResponse'
+  /runtime/verification-runs/{runId}:
+    get:
+      tags: [runtime-verification]
+      operationId: getRuntimeVerificationRun
+      summary: Read runtime verification run
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Runtime verification run summary, steps, and gaps.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeVerificationRunResponse'
+        '404':
+          description: Runtime verification run not found.
+  /runtime/verification-runs/{runId}/evidence:
+    get:
+      tags: [runtime-verification]
+      operationId: listRuntimeVerificationEvidence
+      summary: List paginated runtime verification evidence
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: surface
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated evidence chunks.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeVerificationEvidenceResponse'
+  /runtime/parity/{environmentKey}:
+    get:
+      tags: [runtime-verification]
+      operationId: getRuntimeParity
+      summary: Read production parity state
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: environmentKey
+          in: path
+          required: false
+          schema: { type: string, default: production }
+      responses:
+        '200':
+          description: Runtime production parity status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeParityResponse'
 
   /me/infrastructure/ssh/connections/{connection_id}/cli/execute:
     post:
