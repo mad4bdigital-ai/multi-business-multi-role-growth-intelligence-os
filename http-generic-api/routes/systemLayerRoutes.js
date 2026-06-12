@@ -1984,11 +1984,8 @@ export function buildSystemLayerRoutes(deps) {
   });
 
   router.get("/admin/system/tools", ...adminOnly, async (req, res) => {
-    return res.status(200).json({
-      ok: true,
-      protocol: "openapi-mcp-facade",
-      tools: await toolsForPrincipalWithPlatformEndpoints(req.auth),
-    });
+    const body = await buildSystemToolsListResponse(req.auth, req.query || {});
+    return res.status(200).json(chunkSystemLayerResponse(body, req.query || {}));
   });
 
   router.post("/admin/system/tools/call", ...adminOnly, async (req, res) => {
