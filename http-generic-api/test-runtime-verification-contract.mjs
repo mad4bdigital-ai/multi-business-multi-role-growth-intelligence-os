@@ -19,6 +19,7 @@ assert.match(routesIndex, /buildRuntimeVerificationRoutes/, "runtime verificatio
 assert.match(runtimeRoutes, /POST \/runtime\/verification-runs|\/runtime\/verification-runs/, "runtime verification create route must exist");
 assert.match(runtimeRoutes, /\/runtime\/verification-runs\/:runId\/evidence/, "runtime evidence pagination route must exist");
 assert.match(runtimeRoutes, /\/runtime\/parity\/:environmentKey\?/, "runtime parity read route must exist");
+assert.match(runtimeRoutes, /\/activation\/hard-run\/summary/, "activation hard-run summary route must exist");
 assert.match(service, /runtime_verification_runs/, "service must write runtime verification runs");
 assert.match(service, /runtime_deployment_parity_status/, "service must write runtime parity ledger");
 assert.match(service, /runtime_verification_evidence_chunks/, "service must write paginated evidence chunks");
