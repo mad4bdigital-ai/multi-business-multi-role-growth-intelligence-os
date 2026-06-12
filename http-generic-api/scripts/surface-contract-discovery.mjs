@@ -28,6 +28,14 @@ const SAFETY_MARKERS = [
   "no_external_write",
   "secrets_included_false",
 ];
+const ROUTE_CLASSES = [
+  "http_route",
+  "admin_tool_registry_route",
+  "tenant_tool_registry_route",
+  "system_tool_dispatch_route",
+  "registry_only_surface",
+  "false_positive_route_like_string",
+];
 
 function unique(values = []) {
   return [...new Set(values.filter(Boolean))].sort();
