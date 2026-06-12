@@ -1,6 +1,8 @@
 # Deployment Parity Checklist
 **Authority document - run before and after every deployment**
 
+> Post-lock future surface parity note: verify `307_sprint69_hostinger_deploy_restart_option_support.sql` and `1001_sprint68_tenant_ticket_admin_gpt_link_support.sql` remain documented, safety-marked, and non-executing at registration time. Migration 307 may register deploy/restart authority, policy, certification, runbook, and readback metadata only; actual deploy/restart/SSH/provider dispatch remains blocked until explicit approval, capability envelope, feature flag, audit evidence, and post-action readback. Migration 1001 may register admin-only tenant-ticket simulation and Admin GPT repair-link config only; it must not replace `/me/support/tickets`, send externally, read credential payloads, return raw secrets, write providers, deploy, or include secrets.
+
 > Strict future-only surface gate parity note: `surface-contract-gap-triage.mjs` now uses `future_only_all_new_gaps`. Any unbaselined future queue item blocks promotion, including low or medium docs/safety/tool/policy/OpenAPI gaps. Legacy baseline items remain visible but non-blocking; future remediation must reduce queue items to zero before release readiness promotion.
 
 > DR/Tool Bus future surface parity note: verify `1000_sprint68_dr_certification_and_tool_bus_gated_read_only.sql` remains metadata/config/policy only. DR certification rows must not include backup material, recovery-key payloads, raw secrets, external sends, external writes, provider calls, cutover, or deploy behavior. Tool Bus gated read-only dispatch policy must remain allowlisted, descriptor/policy validated, read-only, no repository mutation, no credential payload return, and secrets_included=false.
