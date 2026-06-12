@@ -68,6 +68,8 @@ export function buildActivationGuidanceRoutes({ requireBackendApiKey, requireAdm
         profile: "tenant",
         userId: req.auth.user_id,
         tenantId: req.auth.tenant_id,
+        requestedLocale: req.query.locale || req.query.language || null,
+        acceptLanguage: req.headers["accept-language"] || null,
       });
       res.status(200).json({ ...guidance, auth_context: { tenant_id: req.auth.tenant_id, user_id: req.auth.user_id, tenant_role: req.auth.tenant_role, source: "user_jwt" }, tenant_facing: true, secrets_included: false });
     } catch (error) {
