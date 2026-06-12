@@ -69,6 +69,8 @@ tags:
     description: MCP-style governed system layer backed by connector registries, principal context, and runtime validation.
   - name: release
     description: Release readiness checks, history, and entity classification inventory.
+  - name: runtime-verification
+    description: Runtime verification control plane, production parity ledger, and paginated evidence surfaces.
   - name: local-manager
     description: Local Manager device-code linking, device controls, and Windows update metadata.
   - name: platform-graph
