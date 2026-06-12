@@ -1,7 +1,7 @@
 {
   "ok": true,
   "schema_version": "surface-contract-discovery-v3",
-  "migration_surface_count": 402,
+  "migration_surface_count": 403,
   "reported_count": 80,
   "openapi_operation_count": 428,
   "openapi_path_count": 375,
@@ -484,63 +484,64 @@
     "closed_migration_count": 395
   },
   "coverage_summary": {
-    "migrations_with_surfaces": 402,
+    "migrations_with_surfaces": 403,
     "docs_complete_count": 398,
-    "docs_gap_count": 4,
-    "docs_completion_percent": 99,
+    "docs_gap_count": 5,
+    "docs_completion_percent": 98.76,
     "surface_totals": {
       "plugins": 12,
-      "tools": 1867,
+      "tools": 1874,
       "views": 350,
-      "policies": 146,
-      "routes": 530
+      "policies": 148,
+      "routes": 531
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 344,
+      "tools": 345,
       "views": 141,
-      "policies": 92,
-      "routes": 225
+      "policies": 93,
+      "routes": 226
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 4,
-      "deployment_parity_checklist.md": 4,
-      "docs/ai-docs-agent-governance.md": 4,
-      "docs/auto-docs-agent/README.md": 4,
-      "docs/change-documentation-governance.md": 4
+      "Updating Registry Patch Index.md": 5,
+      "deployment_parity_checklist.md": 5,
+      "docs/ai-docs-agent-governance.md": 5,
+      "docs/auto-docs-agent/README.md": 5,
+      "docs/change-documentation-governance.md": 5
     },
     "gap_severity_counts": {
-      "high": 2,
+      "high": 3,
       "medium": 2,
       "low": 0,
       "none": 398
     },
     "high_risk_missing_docs": [
       "1001_sprint68_repository_advisory_comment_v5_tenant_tool_wiring.sql",
-      "1001_sprint68_tenant_ticket_admin_gpt_link_support.sql"
+      "1001_sprint68_tenant_ticket_admin_gpt_link_support.sql",
+      "293_sprint68_system_layer_descriptor_auto_wiring.sql"
     ],
     "medium_risk_missing_docs": [
       "307_sprint69_hostinger_deploy_restart_option_support.sql",
       "963_sprint68_hostinger_deploy_restart_tool_exports.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 399,
+      "no_provider_call": 400,
       "no_credential_payload_read": 398,
       "no_raw_secrets": 398,
       "no_external_send": 398,
-      "no_external_write": 398,
-      "secrets_included_false": 402
+      "no_external_write": 399,
+      "secrets_included_false": 403
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
       "sql_route_count": 0,
-      "total_sql_route_like_count": 530,
-      "openapi_exempt_sql_route_count": 530,
+      "total_sql_route_like_count": 531,
+      "openapi_exempt_sql_route_count": 531,
       "route_class_counts": {
         "http_route": 0,
         "admin_tool_registry_route": 91,
         "tenant_tool_registry_route": 35,
-        "system_tool_dispatch_route": 11,
+        "system_tool_dispatch_route": 12,
         "registry_only_surface": 1,
         "false_positive_route_like_string": 0,
         "legacy_closure_route_reviewed": 392
@@ -554,14 +555,97 @@
   "gap_queue": {
     "ok": true,
     "schema_version": "surface-contract-gap-queue-v1",
-    "total_items": 4,
+    "total_items": 5,
     "class_counts": {
-      "critical_review": 2,
+      "critical_review": 3,
       "high_review": 2,
       "medium_review": 0,
       "low_review": 0
     },
     "top_items": [
+      {
+        "migration_file": "293_sprint68_system_layer_descriptor_auto_wiring.sql",
+        "score": 935,
+        "queue_class": "critical_review",
+        "gap_severity": "high",
+        "documentation_complete": false,
+        "missing_docs": [
+          "Updating Registry Patch Index.md",
+          "deployment_parity_checklist.md",
+          "docs/ai-docs-agent-governance.md",
+          "docs/auto-docs-agent/README.md",
+          "docs/change-documentation-governance.md"
+        ],
+        "missing_openapi_routes": [],
+        "safety_marker_gaps": [
+          "no_credential_payload_read",
+          "no_raw_secrets",
+          "no_external_send"
+        ],
+        "surface_counts": {
+          "plugins": 0,
+          "tools": 7,
+          "views": 0,
+          "policies": 2,
+          "routes": 1
+        },
+        "remediation": [
+          {
+            "action_key": "document_surface_contract",
+            "owner_hint": "docs-agent/human-review",
+            "targets": [
+              "Updating Registry Patch Index.md",
+              "deployment_parity_checklist.md",
+              "docs/ai-docs-agent-governance.md",
+              "docs/auto-docs-agent/README.md",
+              "docs/change-documentation-governance.md"
+            ],
+            "reason": "Migration surfaces are not mentioned in all required documentation targets."
+          },
+          {
+            "action_key": "verify_tool_registry_binding",
+            "owner_hint": "runtime-registry-review",
+            "targets": [
+              "approval_gated_comment_only",
+              "requires_registry_migration_for_tenant_tool_rows",
+              "system_layer_tool_descriptor_source_registry",
+              "tenant_platform_endpoint_tools",
+              "tenant_repository_advisory_comment_readback",
+              "tenant_repository_advisory_comment_v5_readiness_smoke",
+              "tenant_repository_advisory_comment_v5_tool_wiring_policy_v1"
+            ],
+            "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+          },
+          {
+            "action_key": "verify_policy_seed_readiness",
+            "owner_hint": "runtime-policy-review",
+            "targets": [
+              "system_layer_descriptor_auto_wiring_policy_v1",
+              "tenant_repository_advisory_comment_v5_tool_wiring_policy_v1"
+            ],
+            "reason": "Policy surfaces need active/blocking/valid-JSON readiness evidence."
+          },
+          {
+            "action_key": "add_explicit_safety_markers",
+            "owner_hint": "safety-contract-review",
+            "targets": [
+              "no_credential_payload_read",
+              "no_raw_secrets",
+              "no_external_send"
+            ],
+            "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+          }
+        ],
+        "safety": {
+          "executes_provider_calls": false,
+          "reads_credentials": false,
+          "mutates_runtime": false,
+          "writes_database": false,
+          "external_sends": false,
+          "deploys": false,
+          "secrets_included": false
+        }
+      },
       {
         "migration_file": "307_sprint69_hostinger_deploy_restart_option_support.sql",
         "score": 914,
@@ -3048,6 +3132,102 @@
         },
         "surface_count": 12,
         "safety_marker_count": 1
+      }
+    },
+    {
+      "migration_file": "293_sprint68_system_layer_descriptor_auto_wiring.sql",
+      "legacy_backlog_closed": false,
+      "surfaces": {
+        "routes": [
+          "/system/tools/call"
+        ],
+        "route_classifications": [
+          {
+            "route": "/system/tools/call",
+            "route_class": "system_tool_dispatch_route",
+            "openapi_required": false,
+            "reason": "System-tool dispatch endpoints are documented by the fixed dispatcher contract and should not create per-tool OpenAPI gaps."
+          }
+        ],
+        "views": [],
+        "policies": [
+          "system_layer_descriptor_auto_wiring_policy_v1",
+          "tenant_repository_advisory_comment_v5_tool_wiring_policy_v1"
+        ],
+        "plugins": [],
+        "tools": [
+          "approval_gated_comment_only",
+          "requires_registry_migration_for_tenant_tool_rows",
+          "system_layer_tool_descriptor_source_registry",
+          "tenant_platform_endpoint_tools",
+          "tenant_repository_advisory_comment_readback",
+          "tenant_repository_advisory_comment_v5_readiness_smoke",
+          "tenant_repository_advisory_comment_v5_tool_wiring_policy_v1"
+        ],
+        "safety": {
+          "no_provider_call": true,
+          "no_credential_payload_read": false,
+          "no_raw_secrets": false,
+          "no_external_send": false,
+          "no_external_write": true,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": false,
+        "deployment_parity_checklist.md": false,
+        "docs/ai-docs-agent-governance.md": false,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "high",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 0,
+          "total_route_count": 1,
+          "openapi_required_route_count": 0,
+          "exempted_route_count": 1,
+          "route_class_counts": {
+            "http_route": 0,
+            "admin_tool_registry_route": 0,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 1,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 0
+          },
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": [],
+          "exempted_routes": [
+            {
+              "route": "/system/tools/call",
+              "route_class": "system_tool_dispatch_route",
+              "openapi_required": false,
+              "reason": "System-tool dispatch endpoints are documented by the fixed dispatcher contract and should not create per-tool OpenAPI gaps."
+            }
+          ],
+          "route_classifications": [
+            {
+              "route": "/system/tools/call",
+              "route_class": "system_tool_dispatch_route",
+              "openapi_required": false,
+              "reason": "System-tool dispatch endpoints are documented by the fixed dispatcher contract and should not create per-tool OpenAPI gaps."
+            }
+          ]
+        },
+        "surface_count": 10,
+        "safety_marker_count": 3
       }
     },
     {
@@ -8328,118 +8508,6 @@
         },
         "surface_count": 4,
         "safety_marker_count": 1
-      }
-    },
-    {
-      "migration_file": "261_sprint68_orchestration_intelligence_foundation.sql",
-      "legacy_backlog_closed": true,
-      "surfaces": {
-        "routes": [],
-        "route_classifications": [],
-        "views": [],
-        "policies": [
-          "ads_provider_capability_profile_registry_policy_v1",
-          "ads_provider_preflight_contract_policy_v1",
-          "ads_provider_preflight_surface_blueprint_policy_v1",
-          "budget_quota_authority_registry_policy_v1",
-          "execution_enablement_approval_flow_policy_v1",
-          "execution_enablement_registry_policy_v1",
-          "google_ads_budget_execution_adapter_skeleton_policy_v1",
-          "google_ads_budget_preflight_ledger_policy_v1",
-          "google_ads_credential_readiness_gate_policy_v1",
-          "google_ads_credential_readiness_ledger_policy_v1",
-          "no_hidden_execution_policy_v1",
-          "orchestration_intelligence_foundation_policy_v1",
-          "orchestration_intelligence_policy_v1",
-          "recommendation_before_execution_policy_v1"
-        ],
-        "plugins": [
-          "ads_provider_governance_orchestrator"
-        ],
-        "tools": [
-          "ads_provider_preflight_contract_policy_v1",
-          "ads_provider_preflight_contract_registry",
-          "ads_provider_preflight_contract_validate",
-          "ads_provider_preflight_surface_blueprint",
-          "ads_provider_preflight_surface_blueprint_policy_v1",
-          "ads_provider_preflight_surface_blueprint_registry",
-          "ads_provider_profile_lookup",
-          "blueprint_exists_or_ready_to_propose",
-          "budget_readiness",
-          "contract_readiness",
-          "credential_readiness",
-          "credential_readiness_state",
-          "credential_readiness_surface_named",
-          "execution_enablement_gate",
-          "execution_enablement_request",
-          "execution_enablement_requests",
-          "execution_gate",
-          "google_ads_budget_change_preflight",
-          "google_ads_budget_execution_gate_audit",
-          "google_ads_budget_preflight_ledger",
-          "google_ads_budget_preflight_ledger_policy_v1",
-          "google_ads_credential_readiness_gate",
-          "google_ads_credential_readiness_gate_policy_v1",
-          "google_ads_credential_readiness_ledger",
-          "google_ads_credential_readiness_ledger_policy_v1",
-          "orchestration_intelligence_readback_rule_v1",
-          "orchestration_readback",
-          "preflight_surface_blueprint",
-          "readback_tool_key",
-          "readiness_status_recorded",
-          "recommendation_readback",
-          "registry_readiness",
-          "required_tools_json",
-          "requires_snapshot_or_recommendation_readback",
-          "runtime_readiness",
-          "snapshot_readback",
-          "surface_blueprint",
-          "surface_blueprint_state"
-        ],
-        "safety": {
-          "no_provider_call": true,
-          "no_credential_payload_read": true,
-          "no_raw_secrets": false,
-          "no_external_send": false,
-          "no_external_write": true,
-          "secrets_included_false": true
-        }
-      },
-      "docs": {
-        "Updating Registry Patch Index.md": true,
-        "deployment_parity_checklist.md": true,
-        "docs/ai-docs-agent-governance.md": true,
-        "docs/auto-docs-agent/README.md": true,
-        "docs/change-documentation-governance.md": true
-      },
-      "missing_docs": [],
-      "documentation_complete": true,
-      "coverage": {
-        "gap_severity": "none",
-        "requires_docs_review": false,
-        "route_coverage": {
-          "route_count": 0,
-          "total_route_count": 0,
-          "openapi_required_route_count": 0,
-          "exempted_route_count": 0,
-          "route_class_counts": {
-            "http_route": 0,
-            "admin_tool_registry_route": 0,
-            "tenant_tool_registry_route": 0,
-            "system_tool_dispatch_route": 0,
-            "registry_only_surface": 0,
-            "false_positive_route_like_string": 0,
-            "legacy_closure_route_reviewed": 0
-          },
-          "documented_count": 0,
-          "missing_count": 0,
-          "documented_routes": [],
-          "missing_routes": [],
-          "exempted_routes": [],
-          "route_classifications": []
-        },
-        "surface_count": 53,
-        "safety_marker_count": 4
       }
     }
   ],
@@ -42766,6 +42834,102 @@
         },
         "surface_count": 24,
         "safety_marker_count": 6
+      }
+    },
+    {
+      "migration_file": "293_sprint68_system_layer_descriptor_auto_wiring.sql",
+      "legacy_backlog_closed": false,
+      "surfaces": {
+        "routes": [
+          "/system/tools/call"
+        ],
+        "route_classifications": [
+          {
+            "route": "/system/tools/call",
+            "route_class": "system_tool_dispatch_route",
+            "openapi_required": false,
+            "reason": "System-tool dispatch endpoints are documented by the fixed dispatcher contract and should not create per-tool OpenAPI gaps."
+          }
+        ],
+        "views": [],
+        "policies": [
+          "system_layer_descriptor_auto_wiring_policy_v1",
+          "tenant_repository_advisory_comment_v5_tool_wiring_policy_v1"
+        ],
+        "plugins": [],
+        "tools": [
+          "approval_gated_comment_only",
+          "requires_registry_migration_for_tenant_tool_rows",
+          "system_layer_tool_descriptor_source_registry",
+          "tenant_platform_endpoint_tools",
+          "tenant_repository_advisory_comment_readback",
+          "tenant_repository_advisory_comment_v5_readiness_smoke",
+          "tenant_repository_advisory_comment_v5_tool_wiring_policy_v1"
+        ],
+        "safety": {
+          "no_provider_call": true,
+          "no_credential_payload_read": false,
+          "no_raw_secrets": false,
+          "no_external_send": false,
+          "no_external_write": true,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": false,
+        "deployment_parity_checklist.md": false,
+        "docs/ai-docs-agent-governance.md": false,
+        "docs/auto-docs-agent/README.md": false,
+        "docs/change-documentation-governance.md": false
+      },
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "documentation_complete": false,
+      "coverage": {
+        "gap_severity": "high",
+        "requires_docs_review": true,
+        "route_coverage": {
+          "route_count": 0,
+          "total_route_count": 1,
+          "openapi_required_route_count": 0,
+          "exempted_route_count": 1,
+          "route_class_counts": {
+            "http_route": 0,
+            "admin_tool_registry_route": 0,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 1,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 0
+          },
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": [],
+          "exempted_routes": [
+            {
+              "route": "/system/tools/call",
+              "route_class": "system_tool_dispatch_route",
+              "openapi_required": false,
+              "reason": "System-tool dispatch endpoints are documented by the fixed dispatcher contract and should not create per-tool OpenAPI gaps."
+            }
+          ],
+          "route_classifications": [
+            {
+              "route": "/system/tools/call",
+              "route_class": "system_tool_dispatch_route",
+              "openapi_required": false,
+              "reason": "System-tool dispatch endpoints are documented by the fixed dispatcher contract and should not create per-tool OpenAPI gaps."
+            }
+          ]
+        },
+        "surface_count": 10,
+        "safety_marker_count": 3
       }
     },
     {
