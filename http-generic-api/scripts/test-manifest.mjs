@@ -106,6 +106,7 @@ export const testCommands = [
   "node test-github-pr-create-rest-fallback.mjs",
   "node test-f5-f6-positive-smoke-certification.mjs",
   "node test-smoke-branch-cleanup-gate.mjs",
+  "node test-hostinger-deploy-restart-tool-exports.mjs",
   "node test-governed-repository-intelligence-engine.mjs",
   "node test-repository-advisory-comments-v5.mjs",
   "node test-live-checkout-cleanup-tool.mjs",
