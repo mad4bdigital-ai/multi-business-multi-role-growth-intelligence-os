@@ -4,15 +4,15 @@
 
 ## Summary
 
-- Triaged items: 0
-- Gate candidates: 0
-- New-gap gate: pass
-- Blocking new items: 0
+- Triaged items: 1
+- Gate candidates: 1
+- New-gap gate: fail
+- Blocking new items: 1
 
 ## Class counts
 
-- none
+- new_surface_immediate_review: 1
 
 ## Immediate review candidates
 
-- none
+- `1001_sprint68_tenant_ticket_admin_gpt_link_support.sql` — high_review, score 676; next: add targeted patch-index, parity, and governance documentation
