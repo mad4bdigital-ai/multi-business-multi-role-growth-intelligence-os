@@ -80,6 +80,7 @@ const SYSTEM_LAYER_TOOLS = [
   },
   {
     name: "runtime_endpoint_call",
+    requires_admin: true,
     description: "Kernel dispatcher for governed runtime endpoint execution. Resolves parent_action_key/endpoint_key through registry authority, preserves brand target fields, applies principal context, and delegates provider execution to the runtime facade.",
     inputSchema: {
       type: "object",
