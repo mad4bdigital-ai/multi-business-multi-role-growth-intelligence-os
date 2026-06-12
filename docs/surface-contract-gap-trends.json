@@ -6,7 +6,7 @@
   "current_triaged_items": 100,
   "current_gate_candidates": 7,
   "blocking_new_item_count": 0,
-  "docs_completion_percent": 0.52,
+  "docs_completion_percent": 1.3,
   "openapi_sql_route_coverage_percent": 61.22,
   "safety_marker_gap_migrations": 274,
   "safety": {
