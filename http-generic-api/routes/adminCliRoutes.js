@@ -42,6 +42,7 @@ const DRY_RUN_ONLY_SHELL_ALIASES = new Set([
   "backup_executor_guard_dry_run",
   "database_lifecycle_scheduler_approval_proof_dry_run",
   "database_lifecycle_scheduler_snapshot_dry_run",
+  "migration_reconciliation_dry_run",
 ]);
 const APPLY_ONLY_SHELL_ALIASES = new Set([
   "session_archive_relink_repair_apply",
@@ -50,6 +51,8 @@ const APPLY_ONLY_SHELL_ALIASES = new Set([
   "backup_executor_guard_apply",
   "database_lifecycle_scheduler_approval_proof_apply",
   "database_lifecycle_scheduler_snapshot_apply",
+  "migration_reconciliation_apply",
+  "governed_platform_automation_tick",
 ]);
 function isSafeLocalProjectPathArg(arg = "") {
   const value = String(arg || "");
@@ -1664,6 +1667,24 @@ function builtInShellAllowlist() {
       timeout_ms: 600000,
       built_in: true
     },
+    migration_reconciliation_dry_run: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/governed-migration-reconciler.mjs", "--dry-run"],
+      display_name: "Dynamic governed migration reconciliation dry-run",
+      allow_extra_args: true,
+      max_extra_args: 4,
+      timeout_ms: 600000,
+      built_in: true
+    },
+    migration_reconciliation_apply: {
+      command: process.execPath,
+      args: ["http-generic-api/scripts/governed-migration-reconciler.mjs", "--apply"],
+      display_name: "Dynamic governed migration reconciliation apply",
+      allow_extra_args: true,
+      max_extra_args: 6,
+      timeout_ms: 900000,
+      built_in: true
+    },
     workflow_execution_identity_readback: {
       command: process.execPath,
       args: ["http-generic-api/scripts/workflow-execution-identity-readback.mjs"],
@@ -1717,6 +1738,7 @@ function builtInShellAllowlist() {
     audit_log_event_bus_bridge_tick: { command: process.execPath, args: ["http-generic-api/scripts/audit-log-event-bus-bridge.mjs", "--apply", "--confirm", "APPLY_AUDIT_LOG_EVENT_BUS_BRIDGE", "--limit", "1000"], display_name: "Audit log to event bus bridge scheduled tick", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
     audit_event_rollup_builder: { command: process.execPath, args: ["http-generic-api/scripts/audit-event-rollup-builder.mjs"], display_name: "Dynamic audit event rollup builder", allow_extra_args: true, max_extra_args: 8, timeout_ms: 120000, built_in: true },
     audit_event_rollup_builder_tick: { command: process.execPath, args: ["http-generic-api/scripts/audit-event-rollup-builder.mjs", "--apply", "--confirm", "APPLY_AUDIT_EVENT_ROLLUP_BUILDER", "--limit", "1000"], display_name: "Dynamic audit event rollup builder scheduled tick", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
+    governed_platform_automation_tick: { command: process.execPath, args: ["http-generic-api/scripts/governed-platform-automation-tick.mjs", "--apply", "--confirm", "APPLY_GOVERNED_PLATFORM_AUTOMATION_TICK"], display_name: "Governed migration reconciliation and dynamic audit scheduled tick", allow_extra_args: true, max_extra_args: 4, timeout_ms: 600000, built_in: true },
     agent_runtime_ledger_smoke: { command: process.execPath, args: ["http-generic-api/scripts/agent-runtime-ledger-smoke.mjs"], display_name: "Agent runtime ledger smoke", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },
     agent_runtime_live_trace_smoke: { command: process.execPath, args: ["http-generic-api/scripts/agent-runtime-live-trace-smoke.mjs"], display_name: "Agent runtime live trace smoke", allow_extra_args: true, max_extra_args: 4, timeout_ms: 180000, built_in: true },
     execution_log_runtime_evidence_smoke: { command: process.execPath, args: ["http-generic-api/scripts/execution-log-runtime-evidence-smoke.mjs"], display_name: "Execution log runtime evidence smoke", allow_extra_args: false, max_extra_args: 0, timeout_ms: 120000, built_in: true },

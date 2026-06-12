@@ -116,3 +116,12 @@ This foundation supports the next Dynamic Capability OS stages:
 
 Until those writers are added, these are compatibility views and evidence
 intake tables only.
+
+## Governed continuous-ready tick
+
+`scripts/governed-platform-automation-tick.mjs` composes three existing governed
+stages: migration reconciliation, `audit_log` event-bus mirroring, and audit
+rollup building. Apply requires a typed outer confirmation, while each child
+stage preserves its own policy and confirmation gates. The tick is suitable for
+an approved external scheduler or worker binding; it deliberately does not add
+MySQL triggers or scheduled events.
