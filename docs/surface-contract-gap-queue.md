@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 4
-- Critical review: 2
+- Total queue items: 5
+- Critical review: 3
 - High review: 2
 - Medium review: 0
 - Low review: 0
@@ -13,7 +13,22 @@
 
 ## Top Queue Items
 
-### 1. `307_sprint69_hostinger_deploy_restart_option_support.sql`
+### 1. `293_sprint68_system_layer_descriptor_auto_wiring.sql`
+
+- Queue class: critical_review
+- Score: 935
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
+- Surface counts: plugins=0, tools=7, views=0, policies=2, routes=1
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `approval_gated_comment_only`, `requires_registry_migration_for_tenant_tool_rows`, `system_layer_tool_descriptor_source_registry`, `tenant_platform_endpoint_tools`, `tenant_repository_advisory_comment_readback`, `tenant_repository_advisory_comment_v5_readiness_smoke`, `tenant_repository_advisory_comment_v5_tool_wiring_policy_v1`
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `system_layer_descriptor_auto_wiring_policy_v1`, `tenant_repository_advisory_comment_v5_tool_wiring_policy_v1`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
+
+### 2. `307_sprint69_hostinger_deploy_restart_option_support.sql`
 
 - Queue class: critical_review
 - Score: 914
@@ -29,7 +44,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_platform_exports_current`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 2. `1001_sprint68_repository_advisory_comment_v5_tenant_tool_wiring.sql`
+### 3. `1001_sprint68_repository_advisory_comment_v5_tenant_tool_wiring.sql`
 
 - Queue class: critical_review
 - Score: 775
@@ -44,7 +59,7 @@
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `tenant_repository_advisory_comment_v5_tool_wiring_policy_v1`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 3. `1001_sprint68_tenant_ticket_admin_gpt_link_support.sql`
+### 4. `1001_sprint68_tenant_ticket_admin_gpt_link_support.sql`
 
 - Queue class: high_review
 - Score: 676
@@ -57,7 +72,7 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 4. `963_sprint68_hostinger_deploy_restart_tool_exports.sql`
+### 5. `963_sprint68_hostinger_deploy_restart_tool_exports.sql`
 
 - Queue class: high_review
 - Score: 669
