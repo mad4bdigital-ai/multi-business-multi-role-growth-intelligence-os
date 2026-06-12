@@ -241,6 +241,17 @@ function normalizeObjectResourceRef(resourceRef = {}, resourceType = "") {
     };
   }
 
+  if ((type === "github_file" || ref.path || ref.file_path) && ref.owner && ref.repo && (ref.path || ref.file_path)) {
+    const branch = asString(ref.branch || ref.ref || "main");
+    const path = asString(ref.path || ref.file_path);
+    return {
+      resource_type: "github_file",
+      resource_uri: `github://${ref.owner}/${ref.repo}/file/${branch}/${path}`,
+      resource_ref: { owner: ref.owner, repo: ref.repo, branch, path },
+      confidence: "high",
+    };
+  }
+
   if ((type === "github_branch" || ref.owner || ref.repo || ref.branch) && ref.owner && ref.repo && ref.branch) {
     return {
       resource_type: "github_branch",
@@ -515,6 +526,7 @@ export async function catalogGovernedResources(args = {}) {
 
 const ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY = "google_drive.session_folder.reconcile_artifacts_exports";
 const REPOSITORY_PR_RECONCILE_RECIPE_KEY = "repo.pr.reconciliation_sweep";
+const GITHUB_FILE_PATCH_PLAN_RECIPE_KEY = "github.file.patch_plan";
 
 const READ_ONLY_INSTALLED_TOOL_ALLOWLIST = new Set([
   "google_drive_folder_inspect",
@@ -861,6 +873,135 @@ function stableJson(value = {}) {
 
 function sha256Hex(value = "") {
   return createHash("sha256").update(String(value)).digest("hex");
+}
+
+const GITHUB_FILE_BLOCKED_PATH_FRAGMENTS = [
+  ".env",
+  ".pem",
+  ".key",
+  "credentials/",
+  "secrets/",
+  ".github/secrets/",
+];
+
+function normalizeGithubFilePath(path = "") {
+  return asString(path).replace(/^\/+/, "").replace(/\\+/g, "/");
+}
+
+function isBlockedGithubFilePath(path = "") {
+  const normalized = normalizeGithubFilePath(path).toLowerCase();
+  if (!normalized || normalized.includes("..")) return true;
+  return GITHUB_FILE_BLOCKED_PATH_FRAGMENTS.some((fragment) => normalized.includes(fragment));
+}
+
+function safePatchPlanHunks(hunks = []) {
+  if (!Array.isArray(hunks)) return [];
+  return hunks.slice(0, 20).map((hunk, index) => ({
+    ordinal: index + 1,
+    start_line: Number.isFinite(Number(hunk?.start_line)) ? Number(hunk.start_line) : null,
+    old_line_count: Number.isFinite(Number(hunk?.old_line_count)) ? Number(hunk.old_line_count) : 0,
+    new_line_count: Number.isFinite(Number(hunk?.new_line_count)) ? Number(hunk.new_line_count) : 0,
+    summary: asString(hunk?.summary).slice(0, 240) || null,
+    content_included: false,
+    secrets_included: false,
+  }));
+}
+
+function buildGithubFilePatchPlan(plan = {}, args = {}) {
+  const resolved = plan.resolved_resource || {};
+  const ref = resolved.resource_ref || {};
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  const owner = asString(ref.owner || args.owner || options.owner);
+  const repo = asString(ref.repo || args.repo || options.repo);
+  const branch = asString(ref.branch || args.branch || options.branch || "main");
+  const path = normalizeGithubFilePath(ref.path || args.path || options.path);
+  const changeSummary = asString(options.change_summary || args.change_summary || options.patch_intent || args.patch_intent).slice(0, 500);
+  const currentSha256 = asString(options.current_content_sha256 || args.current_content_sha256);
+  const proposedSha256 = asString(options.proposed_content_sha256 || args.proposed_content_sha256);
+  const hunks = safePatchPlanHunks(options.diff_hunks || args.diff_hunks || []);
+  const blockedPath = isBlockedGithubFilePath(path);
+  const missingTarget = !owner || !repo || !branch || !path;
+  const planPayload = {
+    recipe_key: GITHUB_FILE_PATCH_PLAN_RECIPE_KEY,
+    target: { owner, repo, branch, path },
+    change_summary: changeSummary || null,
+    current_content_sha256: currentSha256 || null,
+    proposed_content_sha256: proposedSha256 || null,
+    hunk_count: hunks.length,
+    hunks,
+    invariants: {
+      diff_only: true,
+      provider_call_allowed: false,
+      write_allowed: false,
+      commit_allowed: false,
+      push_allowed: false,
+      branch_mutation_allowed: false,
+      file_content_returned: false,
+      secrets_included: false,
+    },
+  };
+  const patchPlanSha256 = sha256Hex(stableJson(planPayload));
+
+  if (missingTarget || blockedPath) {
+    return {
+      ok: false,
+      tool: "governed_resource_run",
+      recipe_key: GITHUB_FILE_PATCH_PLAN_RECIPE_KEY,
+      mode: "plan",
+      classification: "blocked_github_file_patch_plan_v1",
+      reason_code: missingTarget ? "github_file_patch_plan_target_required" : "github_file_patch_plan_path_blocked",
+      message: missingTarget
+        ? "GitHub file patch plan requires owner, repo, branch, and path."
+        : "GitHub file patch plan blocks sensitive or unsafe paths.",
+      patch_plan_sha256: patchPlanSha256,
+      patch_plan: planPayload,
+      provider_calls_made: 0,
+      execution_allowed: false,
+      dispatch_allowed: false,
+      apply_allowed: false,
+      write_performed: false,
+      file_content_returned: false,
+      secrets_included: false,
+    };
+  }
+
+  return {
+    ok: true,
+    tool: "governed_resource_run",
+    recipe_key: GITHUB_FILE_PATCH_PLAN_RECIPE_KEY,
+    mode: "plan",
+    classification: "github_file_patch_plan_ready_v1",
+    patch_plan_sha256: patchPlanSha256,
+    patch_plan: planPayload,
+    review_checklist: [
+      "review_target_branch_and_path",
+      "review_change_summary",
+      "confirm_no_raw_file_content_returned",
+      "confirm_no_commit_or_push_performed",
+      "request_separate_patch_apply_capability_envelope_before_any_write",
+    ],
+    next_operation_candidates: [
+      {
+        operation_key: "github.file.patch_apply_after_review",
+        status: "future_guarded_apply_required",
+        requires_dry_run: true,
+        requires_capability_envelope: true,
+        requires_typed_confirmation: true,
+        same_cycle_readback_required: true,
+      },
+    ],
+    provider_calls_made: 0,
+    execution_allowed: true,
+    dispatch_allowed: true,
+    apply_allowed: false,
+    write_operations_planned: false,
+    write_performed: false,
+    commit_performed: false,
+    push_performed: false,
+    branch_mutation_performed: false,
+    file_content_returned: false,
+    secrets_included: false,
+  };
 }
 
 function buildArtifactExportManifestDryRun(reconciliation = {}, plan = {}, args = {}) {
@@ -2116,6 +2257,47 @@ export async function runGovernedResource(args = {}, deps = {}) {
   const mode = asString(args.mode || "plan") || "plan";
   const applyRequested = mode === "apply" || args.apply === true;
   const recipe = plan.recipe || {};
+
+  if (recipe.recipe_key === GITHUB_FILE_PATCH_PLAN_RECIPE_KEY) {
+    if (applyRequested) {
+      return {
+        ok: false,
+        tool: "governed_resource_run",
+        recipe_key: GITHUB_FILE_PATCH_PLAN_RECIPE_KEY,
+        mode,
+        classification: "blocked_github_file_patch_plan_apply_v1",
+        reason_code: "github_file_patch_plan_is_diff_only",
+        message: "github.file.patch_plan is diff-only and never performs commits, pushes, or branch mutations.",
+        provider_calls_made: 0,
+        execution_allowed: false,
+        dispatch_allowed: false,
+        apply_allowed: false,
+        write_performed: false,
+        file_content_returned: false,
+        secrets_included: false,
+      };
+    }
+    if (!["plan", "diagnostic"].includes(mode)) {
+      return {
+        ok: false,
+        tool: "governed_resource_run",
+        recipe_key: GITHUB_FILE_PATCH_PLAN_RECIPE_KEY,
+        mode,
+        classification: "blocked_github_file_patch_plan_mode_v1",
+        reason_code: "github_file_patch_plan_mode_not_supported",
+        message: "github.file.patch_plan supports only plan or diagnostic mode.",
+        provider_calls_made: 0,
+        execution_allowed: false,
+        dispatch_allowed: false,
+        apply_allowed: false,
+        write_performed: false,
+        file_content_returned: false,
+        secrets_included: false,
+      };
+    }
+    return buildGithubFilePatchPlan(plan, args);
+  }
+
   const operationIntent = resourceGraphProjectionOperationIntent(args);
   const graphProjectionApplyRequested = applyRequested &&
     recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY &&

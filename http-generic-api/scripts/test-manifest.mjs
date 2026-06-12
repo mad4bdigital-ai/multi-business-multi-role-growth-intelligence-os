@@ -99,6 +99,7 @@ export const testCommands = [
   "node test-admin-branch-reconcile-adapter.mjs",
   "node test-platform-resource-recipe-capability.mjs",
   "node test-resource-recipe-apply-evidence.mjs",
+  "node test-github-file-patch-plan-runtime.mjs",
   "node test-governed-repository-intelligence-engine.mjs",
   "node test-live-checkout-cleanup-tool.mjs",
   "node test-github-workflow-dispatch-fallback.mjs",
