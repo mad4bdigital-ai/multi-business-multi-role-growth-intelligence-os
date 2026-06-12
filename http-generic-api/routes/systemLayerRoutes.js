@@ -604,6 +604,42 @@ async function toolsForPrincipalWithPlatformEndpoints(auth) {
   return [...baseTools, ...tenantTools, ...platformTools];
 }
 
+async function buildSystemToolsListResponse(auth, query = {}) {
+  const allTools = await toolsForPrincipalWithPlatformEndpoints(auth);
+  const { items, page } = paginateItems(allTools, query || {});
+  return {
+    ok: true,
+    protocol: "openapi-mcp-facade",
+    list_mode: "bounded_paginated_chunkable",
+    tools: items,
+    page,
+    total_available_tools: page.total_count,
+    continuation_contract: {
+      response_chunked_when_large: true,
+      required_tool: "response_chunk_read",
+      use_when: "response_chunked=true or page.has_more=true",
+      fallback_allowed_only_after: "all_chunks_read_or_chunk_cache_expired_or_authorized_tool_unavailable",
+      dynamic_cache_ttl: true,
+      configurable_ttl_options: ["response_options.chunk_ttl_ms", "response_options.chunk_ttl_minutes"],
+      extends_cache_on_read: true,
+      secrets_included: false,
+    },
+    secrets_included: false,
+  };
+}
+
+function chunkSystemLayerResponse(body, source = {}) {
+  const responseOptions = source?.response_options && typeof source.response_options === "object" ? source.response_options : {};
+  return maybeChunkToolResponseBody(body, {
+    response_options: {
+      max_chars: Number(responseOptions.max_chars || source?.max_chars || 30000),
+      cursor: Number(responseOptions.cursor || source?.cursor || 0),
+      chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || source?.chunk_ttl_ms || 0) || undefined,
+      chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || source?.chunk_ttl_minutes || 0) || undefined,
+    },
+  });
+}
+
 async function callRuntimeEndpointViaFacade(payload, deps = {}) {
   const facade = deps.executionFacade;
   if (!facade) {
