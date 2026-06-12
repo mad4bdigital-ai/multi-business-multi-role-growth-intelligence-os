@@ -21,6 +21,8 @@ assert.equal(typeof report.coverage_summary.docs_completion_percent, "number", "
 assert.equal(typeof report.coverage_summary.gap_severity_counts.high, "number", "coverage summary must count high-risk docs gaps");
 assert.equal(typeof report.coverage_summary.surface_totals.routes, "number", "coverage summary must count route surfaces");
 assert.equal(typeof report.coverage_summary.route_coverage.openapi_sql_route_coverage_percent, "number", "coverage summary must score SQL route/OpenAPI coverage");
+assert.equal(typeof report.coverage_summary.route_coverage.openapi_exempt_sql_route_count, "number", "coverage summary must count OpenAPI-exempt route-like surfaces");
+assert.equal(typeof report.coverage_summary.route_coverage.route_class_counts.admin_tool_registry_route, "number", "coverage summary must count admin tool registry route classifications");
 assert(Array.isArray(report.coverage_summary.route_coverage.route_openapi_gaps), "coverage summary must list route/OpenAPI gaps");
 assert(report.coverage_summary.missing_doc_target_counts["Updating Registry Patch Index.md"] >= 0, "coverage summary must count missing docs by target");
 assert(report.coverage_summary.safety_marker_counts.secrets_included_false >= 0, "coverage summary must count safety marker coverage");
@@ -58,11 +60,18 @@ if (migration954.coverage.gap_severity !== "none") {
   assert.equal(migration954.documentation_complete, true, "documented migration 954 may leave actionable gap queue only after docs are complete");
 }
 
+const migration955 = report.all_migrations.find((entry) => entry.migration_file === "955_sprint68_external_delivery_admin_control_surface.sql");
+assert(migration955, "migration 955 must be discoverable for route classification regression coverage");
+assert.equal(migration955.coverage.route_coverage.missing_count, 0, "admin tool registry routes in migration 955 must not be treated as OpenAPI gaps");
+assert.equal(migration955.coverage.route_coverage.exempted_route_count, 5, "migration 955 external delivery control routes must be OpenAPI-exempt registry routes");
+assert(migration955.coverage.route_coverage.route_classifications.every((entry) => entry.route_class === "admin_tool_registry_route"), "migration 955 route literals must be classified as admin_tool_registry_route");
+
 const markdown = renderSurfaceContractMarkdown(report);
 assert(markdown.includes("Surface Contract Discovery Status"), "markdown must render status title");
 assert(markdown.includes("Coverage Summary"), "markdown must render deep coverage summary");
 assert(markdown.includes("Actionable Gap Queue"), "markdown must render actionable gap queue summary");
 assert(markdown.includes("SQL Route OpenAPI Gaps"), "markdown must render route/OpenAPI gap section");
+assert(markdown.includes("Route Classification Coverage"), "markdown must render route classification coverage section");
 assert(markdown.includes("surface-contract-discovery-status.json"), "markdown must point to machine-readable JSON output");
 assert(markdown.includes("surface-contract-gap-queue.json"), "markdown must point to machine-readable gap queue output");
 assert(markdown.includes("support_ticket_external_delivery_orchestrator"), "markdown must include discovered plugin evidence");

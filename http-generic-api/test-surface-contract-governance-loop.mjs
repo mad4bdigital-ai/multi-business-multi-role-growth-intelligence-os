@@ -9,7 +9,9 @@ assert.equal(summary.schema_version, "surface-contract-gap-triage-v1", "triage c
 assert.equal(summary.baseline_schema, "surface-contract-gap-baseline-v1", "baseline contract must be versioned");
 assert.equal(summary.gate_schema, "surface-contract-new-gap-gate-v1", "new gap gate contract must be versioned");
 assert.equal(summary.dashboard_schema, "surface-contract-governance-dashboard-v1", "dashboard contract must be versioned");
+assert.equal(summary.compact_schema, "surface-contract-governance-compact-v1", "compact dashboard contract must be versioned");
 assert.equal(summary.trend_schema, "surface-contract-gap-trends-v1", "trend contract must be versioned");
+assert.equal(summary.trend_gate_schema, "surface-contract-trend-quality-gate-v1", "trend quality gate contract must be versioned");
 assert(summary.triaged_items > 0, "triage must classify queue items");
 assert.equal(summary.secrets_included, false, "triage summary must not include secrets");
 
@@ -18,7 +20,9 @@ assert(script.includes("surface-contract-gap-triage-v1"), "triage script must de
 assert(script.includes("surface-contract-gap-baseline-v1"), "triage script must define baseline schema");
 assert(script.includes("surface-contract-new-gap-gate-v1"), "triage script must define new gap gate schema");
 assert(script.includes("surface-contract-governance-dashboard-v1"), "triage script must define dashboard schema");
+assert(script.includes("surface-contract-governance-compact-v1"), "triage script must define compact dashboard schema");
 assert(script.includes("surface-contract-gap-trends-v1"), "triage script must define trend schema");
+assert(script.includes("surface-contract-trend-quality-gate-v1"), "triage script must define trend quality gate schema");
 assert(script.includes("new_gaps_only"), "gate must be scoped to new gaps only");
 assert(script.includes("external_sends: false"), "triage safety must forbid external sends");
 assert(script.includes("writes_database: false"), "triage safety must forbid DB writes");

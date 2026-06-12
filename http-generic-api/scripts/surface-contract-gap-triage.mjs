@@ -11,6 +11,8 @@ const TRIAGE_MD = path.join(REPO_ROOT, "docs", "surface-contract-gap-triage.md")
 const BASELINE_JSON = path.join(REPO_ROOT, "docs", "surface-contract-gap-baseline.json");
 const DASHBOARD_JSON = path.join(REPO_ROOT, "docs", "surface-contract-governance-dashboard.json");
 const DASHBOARD_MD = path.join(REPO_ROOT, "docs", "surface-contract-governance-dashboard.md");
+const COMPACT_DASHBOARD_JSON = path.join(REPO_ROOT, "docs", "surface-contract-governance-compact.json");
+const COMPACT_DASHBOARD_MD = path.join(REPO_ROOT, "docs", "surface-contract-governance-compact.md");
 const TREND_JSON = path.join(REPO_ROOT, "docs", "surface-contract-gap-trends.json");
 const TREND_MD = path.join(REPO_ROOT, "docs", "surface-contract-gap-trends.md");
 
@@ -130,8 +132,15 @@ function buildDashboard(queue, discovery, triage, gate) {
   };
 }
 function buildTrends(dashboard, baseline) {
+  const trendGate = {
+    ok: dashboard.gate.blocking_new_item_count === 0,
+    schema_version: "surface-contract-trend-quality-gate-v1",
+    rule: "blocking_new_item_count must not increase above zero; legacy baseline backlog remains visible but non-blocking",
+    blocking_new_item_count: dashboard.gate.blocking_new_item_count,
+    warning_new_item_count: dashboard.gate.new_item_count,
+  };
   return {
-    ok: true,
+    ok: trendGate.ok,
     schema_version: "surface-contract-gap-trends-v1",
     baseline_item_count: baseline.baseline_item_count,
     current_queue_items: dashboard.queue.total_items,
@@ -140,7 +149,29 @@ function buildTrends(dashboard, baseline) {
     blocking_new_item_count: dashboard.gate.blocking_new_item_count,
     docs_completion_percent: dashboard.coverage.docs_completion_percent,
     openapi_sql_route_coverage_percent: dashboard.coverage.route_coverage?.openapi_sql_route_coverage_percent,
+    openapi_exempt_sql_route_count: dashboard.coverage.route_coverage?.openapi_exempt_sql_route_count,
+    total_sql_route_like_count: dashboard.coverage.route_coverage?.total_sql_route_like_count,
     safety_marker_gap_migrations: dashboard.coverage.safety_marker_gap_migrations,
+    trend_quality_gate: trendGate,
+    safety: dashboard.safety,
+  };
+}
+function buildCompactDashboard(dashboard, trends) {
+  return {
+    ok: dashboard.ok && trends.ok,
+    schema_version: "surface-contract-governance-compact-v1",
+    docs_completion_percent: dashboard.coverage.docs_completion_percent,
+    docs_complete_count: dashboard.coverage.docs_complete_count,
+    docs_gap_count: dashboard.coverage.docs_gap_count,
+    queue_items: dashboard.queue.total_items,
+    blocking_new_item_count: dashboard.gate.blocking_new_item_count,
+    gate_ok: dashboard.gate.ok,
+    top_actionable: dashboard.top_immediate_items.slice(0, 10).map((item) => ({ migration_file: item.migration_file, queue_class: item.queue_class, score: item.score, next_step: item.recommended_next_step })),
+    openapi_missing_sql_route_count: dashboard.coverage.route_coverage?.openapi_missing_sql_route_count,
+    openapi_exempt_sql_route_count: dashboard.coverage.route_coverage?.openapi_exempt_sql_route_count,
+    total_sql_route_like_count: dashboard.coverage.route_coverage?.total_sql_route_like_count,
+    safety_marker_gap_migrations: dashboard.coverage.safety_marker_gap_migrations,
+    trend_quality_gate: trends.trend_quality_gate,
     safety: dashboard.safety,
   };
 }
@@ -152,7 +183,10 @@ function renderDashboard(dashboard) {
   return `# Surface Contract Governance Dashboard\n\n- Discovery schema: ${dashboard.discovery_schema}\n- Queue schema: ${dashboard.queue_schema}\n- Triage schema: ${dashboard.triage_schema}\n- Gate schema: ${dashboard.gate_schema}\n- Queue items: ${dashboard.queue.total_items}\n- Triaged items: ${dashboard.triage.total_items}\n- Gate candidates: ${dashboard.triage.gate_candidate_count}\n- New-gap gate: ${dashboard.gate.ok ? "pass" : "fail"}\n- Blocking new items: ${dashboard.gate.blocking_new_item_count}\n- Docs completion: ${dashboard.coverage.docs_completion_percent}%\n- SQL route OpenAPI coverage: ${dashboard.coverage.route_coverage?.openapi_sql_route_coverage_percent}%\n\n## Top immediate items\n\n${mdList(dashboard.top_immediate_items, (i) => `- \`${i.migration_file}\` — ${i.queue_class}, ${i.recommended_next_step}`)}\n`;
 }
 function renderTrends(trends) {
-  return `# Surface Contract Gap Trends\n\n- Baseline items: ${trends.baseline_item_count}\n- Current queue items: ${trends.current_queue_items}\n- Current triaged items: ${trends.current_triaged_items}\n- Gate candidates: ${trends.current_gate_candidates}\n- Blocking new items: ${trends.blocking_new_item_count}\n- Docs completion: ${trends.docs_completion_percent}%\n- SQL route OpenAPI coverage: ${trends.openapi_sql_route_coverage_percent}%\n- Safety marker gap migrations: ${trends.safety_marker_gap_migrations}\n`;
+  return `# Surface Contract Gap Trends\n\n- Baseline items: ${trends.baseline_item_count}\n- Current queue items: ${trends.current_queue_items}\n- Current triaged items: ${trends.current_triaged_items}\n- Gate candidates: ${trends.current_gate_candidates}\n- Blocking new items: ${trends.blocking_new_item_count}\n- Trend quality gate: ${trends.trend_quality_gate.ok ? "pass" : "fail"}\n- Docs completion: ${trends.docs_completion_percent}%\n- SQL route OpenAPI coverage: ${trends.openapi_sql_route_coverage_percent}%\n- OpenAPI-exempt SQL route-like literals: ${trends.openapi_exempt_sql_route_count}/${trends.total_sql_route_like_count}\n- Safety marker gap migrations: ${trends.safety_marker_gap_migrations}\n`;
+}
+function renderCompactDashboard(compact) {
+  return `# Surface Contract Governance Compact\n\n- Gate: ${compact.gate_ok ? "pass" : "fail"}\n- Blocking new items: ${compact.blocking_new_item_count}\n- Docs completion: ${compact.docs_complete_count}/${compact.docs_complete_count + compact.docs_gap_count} (${compact.docs_completion_percent}%)\n- Queue items: ${compact.queue_items}\n- OpenAPI missing SQL routes: ${compact.openapi_missing_sql_route_count}\n- OpenAPI-exempt SQL route-like literals: ${compact.openapi_exempt_sql_route_count}/${compact.total_sql_route_like_count}\n- Safety marker gap migrations: ${compact.safety_marker_gap_migrations}\n- Trend quality gate: ${compact.trend_quality_gate.ok ? "pass" : "fail"}\n\n## Top actionable\n\n${mdList(compact.top_actionable, (item) => `- \`${item.migration_file}\` — ${item.queue_class}, score ${item.score}; ${item.next_step}`)}\n`;
 }
 function buildAll() {
   const queue = readJson(QUEUE_JSON);
@@ -163,19 +197,22 @@ function buildAll() {
   const gate = buildGate(triage, baseline);
   const dashboard = buildDashboard(queue, discovery, triage, gate);
   const trends = buildTrends(dashboard, baseline);
-  return { triage, baseline, gate, dashboard, trends };
+  const compact = buildCompactDashboard(dashboard, trends);
+  return { triage, baseline, gate, dashboard, compact, trends };
 }
 function main() {
   const writeMode = process.argv.includes("--write");
   const checkMode = process.argv.includes("--check");
   const enforce = process.argv.includes("--enforce-new-gaps");
-  const { triage, baseline, gate, dashboard, trends } = buildAll();
+  const { triage, baseline, gate, dashboard, compact, trends } = buildAll();
   const outputs = new Map([
     [TRIAGE_JSON, `${JSON.stringify(triage, null, 2)}\n`],
     [TRIAGE_MD, renderTriage(triage, gate)],
     [BASELINE_JSON, `${JSON.stringify(baseline, null, 2)}\n`],
     [DASHBOARD_JSON, `${JSON.stringify(dashboard, null, 2)}\n`],
     [DASHBOARD_MD, renderDashboard(dashboard)],
+    [COMPACT_DASHBOARD_JSON, `${JSON.stringify(compact, null, 2)}\n`],
+    [COMPACT_DASHBOARD_MD, renderCompactDashboard(compact)],
     [TREND_JSON, `${JSON.stringify(trends, null, 2)}\n`],
     [TREND_MD, renderTrends(trends)],
   ]);
@@ -191,6 +228,6 @@ function main() {
     console.error(`surface-contract-gap-triage: blocking new high/critical gaps: ${gate.blocking_new_item_count}`);
     process.exit(1);
   }
-  console.log(JSON.stringify({ ok: gate.ok, schema_version: triage.schema_version, baseline_schema: baseline.schema_version, gate_schema: gate.schema_version, dashboard_schema: dashboard.schema_version, trend_schema: trends.schema_version, triaged_items: triage.total_triaged_items, gate_candidates: triage.gate_candidate_count, blocking_new_items: gate.blocking_new_item_count, secrets_included: false }, null, 2));
+  console.log(JSON.stringify({ ok: gate.ok && trends.trend_quality_gate.ok, schema_version: triage.schema_version, baseline_schema: baseline.schema_version, gate_schema: gate.schema_version, dashboard_schema: dashboard.schema_version, compact_schema: compact.schema_version, trend_schema: trends.schema_version, trend_gate_schema: trends.trend_quality_gate.schema_version, triaged_items: triage.total_triaged_items, gate_candidates: triage.gate_candidate_count, blocking_new_items: gate.blocking_new_item_count, secrets_included: false }, null, 2));
 }
 main();
