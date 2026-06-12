@@ -4,9 +4,9 @@
 
 ## Summary
 
-- Total queue items: 384
+- Total queue items: 385
 - Critical review: 244
-- High review: 114
+- High review: 115
 - Medium review: 25
 - Low review: 1
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
@@ -104,7 +104,7 @@
 ### 7. `167_sprint65_ai_intelligence_runtime_governance_tools.sql`
 
 - Queue class: critical_review
-- Score: 2121
+- Score: 2120
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -118,7 +118,7 @@
 ### 8. `279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql`
 
 - Queue class: critical_review
-- Score: 2109
+- Score: 2108
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: `/platform/session-insight-promotions/capability-envelope-actual-requests/create`, `/platform/session-insight-promotions/capability-envelope-actual-requests/list`
@@ -150,7 +150,7 @@
 ### 10. `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql`
 
 - Queue class: critical_review
-- Score: 2020
+- Score: 2019
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: `/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create`, `/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list`
@@ -504,7 +504,7 @@
 ### 32. `269_sprint68_ticket_external_adapter_future_pr_scope.sql`
 
 - Queue class: critical_review
-- Score: 1374
+- Score: 1373
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: `/admin/support/tickets/external-send/provider-adapter-future-pr-scope/plan`, `/admin/support/tickets/external-send/provider-adapter-future-pr-scope/record`
@@ -598,24 +598,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `support_ticket_external_credential_binding_decision`, `support_ticket_external_credential_binding_request`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 38. `266_sprint68_ticket_external_provider_enablement_proposal.sql`
-
-- Queue class: critical_review
-- Score: 1336
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Missing OpenAPI routes: `/admin/support/tickets/external-send/provider-adapter-enablement/candidates`, `/admin/support/tickets/external-send/provider-adapter-enablement/propose`
-- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-- Surface counts: plugins=0, tools=10, views=1, policies=1, routes=2
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- `review_openapi_contract` → api-contract-review; targets: `/admin/support/tickets/external-send/provider-adapter-enablement/candidates`, `/admin/support/tickets/external-send/provider-adapter-enablement/propose`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `implemented_record_only`, `proposal_review_internal_record_only`, `proposal_review_requires_dispatch_policy`, `provider_dispatch_enabled`, `provider_dispatch_enablement_allowed`, `required_gates_json`, `requires_separate_dispatch_policy`, `support_ticket_external_provider_enablement_propose`, `v_external_delivery_provider_enablement_proposal_readiness`
-- `verify_policy_seed_readiness` → runtime-policy-review; targets: `external_provider_adapter_enablement_proposal_policy_v1`
-- `verify_readback_view` → db-readback-review; targets: `v_external_delivery_provider_enablement_proposal_readiness`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-
-### 39. `266_sprint68_session_insight_promotion_apply_request_skeleton.sql`
+### 38. `266_sprint68_session_insight_promotion_apply_request_skeleton.sql`
 
 - Queue class: critical_review
 - Score: 1335
@@ -630,6 +613,23 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `apply_request_claims_runtime_effect`, `apply_request_id`, `apply_request_secret_flagged`, `apply_request_without_adapter_gate`, `apply_request_without_capability_gate`, `chk_session_insight_promotion_apply_request_no_execution`, `chk_session_insight_promotion_apply_request_no_secrets`, `execution_allowed_on_apply_request_skeleton`, `fk_session_insight_promotion_apply_request_preview`, `idx_session_insight_promotion_apply_request_preview`, `idx_session_insight_promotion_apply_request_promotion`, ...and 8 more
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `session_insight_promotion_apply_request_skeleton_policy_v1`
 - `verify_readback_view` → db-readback-review; targets: `v_session_insight_promotion_apply_request_issues`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 39. `266_sprint68_ticket_external_provider_enablement_proposal.sql`
+
+- Queue class: critical_review
+- Score: 1335
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: `/admin/support/tickets/external-send/provider-adapter-enablement/candidates`, `/admin/support/tickets/external-send/provider-adapter-enablement/propose`
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=10, views=1, policies=1, routes=2
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `review_openapi_contract` → api-contract-review; targets: `/admin/support/tickets/external-send/provider-adapter-enablement/candidates`, `/admin/support/tickets/external-send/provider-adapter-enablement/propose`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `implemented_record_only`, `proposal_review_internal_record_only`, `proposal_review_requires_dispatch_policy`, `provider_dispatch_enabled`, `provider_dispatch_enablement_allowed`, `required_gates_json`, `requires_separate_dispatch_policy`, `support_ticket_external_provider_enablement_propose`, `v_external_delivery_provider_enablement_proposal_readiness`
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `external_provider_adapter_enablement_proposal_policy_v1`
+- `verify_readback_view` → db-readback-review; targets: `v_external_delivery_provider_enablement_proposal_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
 ### 40. `254_sprint68_ticket_notification_delivery_cycle.sql`
@@ -727,7 +727,7 @@
 ### 46. `235_sprint68_ticket_lifecycle_runtime_links.sql`
 
 - Queue class: critical_review
-- Score: 1298
+- Score: 1297
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: `/admin/support/tickets/sla/reconcile`, `/admin/support/tickets/{ticket_id}/approval-hold`, `/admin/support/tickets/{ticket_id}/link-workflow`
@@ -948,7 +948,7 @@
 ### 60. `262_sprint68_ticket_external_send_provider_gate.sql`
 
 - Queue class: critical_review
-- Score: 1170
+- Score: 1169
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: `/admin/support/tickets/{ticket_id}/external-send/provider-gate-attempt`, `/admin/support/tickets/{ticket_id}/external-send/provider-gate-plan`
@@ -963,7 +963,7 @@
 ### 61. `246_sprint68_ticket_lifecycle_new_brand_ref_approval.sql`
 
 - Queue class: critical_review
-- Score: 1161
+- Score: 1160
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: `/admin/support/tickets/{ticket_id}/new-brand-ref-approval/approve`, `/admin/support/tickets/{ticket_id}/new-brand-ref-approval/request`
@@ -1007,7 +1007,7 @@
 ### 64. `257_sprint68_ticket_external_send_execution_adapter.sql`
 
 - Queue class: critical_review
-- Score: 1150
+- Score: 1149
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: `/admin/support/tickets/{ticket_id}/external-send/execution-plan`, `/admin/support/tickets/{ticket_id}/external-send/execution-record`
@@ -1053,7 +1053,7 @@
 ### 67. `274_sprint68_execution_policy_enforcement_closure.sql`
 
 - Queue class: critical_review
-- Score: 1145
+- Score: 1144
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -1202,7 +1202,7 @@
 ### 77. `260_sprint68_ticket_external_credential_activation_binding.sql`
 
 - Queue class: critical_review
-- Score: 1121
+- Score: 1120
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: `/admin/support/tickets/{ticket_id}/external-credential/activate-and-bind`, `/admin/support/tickets/{ticket_id}/external-credential/activation-plan`
@@ -1229,22 +1229,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `local_gateway_tools_call`, `local_gateway_tools_list`, `tenant_platform_endpoint_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 79. `237_sprint68_ticket_lifecycle_workflow_runs.sql`
-
-- Queue class: critical_review
-- Score: 1119
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Missing OpenAPI routes: `/admin/support/tickets/{ticket_id}/runtime-sync`, `/admin/support/tickets/{ticket_id}/workflow-run`
-- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
-- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=2
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- `review_openapi_contract` → api-contract-review; targets: `/admin/support/tickets/{ticket_id}/runtime-sync`, `/admin/support/tickets/{ticket_id}/workflow-run`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
-
-### 80. `238_sprint68_ticket_lifecycle_step_runs.sql`
+### 79. `238_sprint68_ticket_lifecycle_step_runs.sql`
 
 - Queue class: critical_review
 - Score: 1119
@@ -1259,10 +1244,25 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 81. `194_sprint66_tenant_infrastructure_readiness_tools.sql`
+### 80. `237_sprint68_ticket_lifecycle_workflow_runs.sql`
 
 - Queue class: critical_review
 - Score: 1118
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: `/admin/support/tickets/{ticket_id}/runtime-sync`, `/admin/support/tickets/{ticket_id}/workflow-run`
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=2
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `review_openapi_contract` → api-contract-review; targets: `/admin/support/tickets/{ticket_id}/runtime-sync`, `/admin/support/tickets/{ticket_id}/workflow-run`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+
+### 81. `194_sprint66_tenant_infrastructure_readiness_tools.sql`
+
+- Queue class: critical_review
+- Score: 1117
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: `/me/infrastructure/connections/{connection_id}/preflight`, `/me/infrastructure/connections/{connection_id}/status`
@@ -1337,7 +1337,7 @@
 ### 86. `202_sprint68_admin_workspace_authority_tools.sql`
 
 - Queue class: critical_review
-- Score: 1088
+- Score: 1087
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: `/admin/workspace-authority/reconciliation`, `/admin/workspace-authority/repair`
@@ -1351,7 +1351,7 @@
 ### 87. `218_sprint67_activate_openclaude_openrouter_provider.sql`
 
 - Queue class: critical_review
-- Score: 1087
+- Score: 1086
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: `/dev-agent/openclaude/bridge/v1/chat/completions`
