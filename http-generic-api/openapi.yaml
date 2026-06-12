@@ -2781,6 +2781,27 @@ x-tenant-gpt-auth:
         - https://auth.mad4b.com/scopes/tenant.system-tools
 
 paths:
+  /activation/hard-run/summary:
+    get:
+      tags: [activation, runtime-verification]
+      operationId: getActivationHardRunSummary
+      summary: Read compact hard activation summary
+      description: >
+        Returns a summary-first activation status and registry counts without loading the full hard activation evidence graph.
+        Use this endpoint when tool/client response budgets cannot safely receive full activation evidence.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        '200':
+          description: Compact hard activation summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '424':
+          description: Activation summary reports degraded surfaces.
   /runtime/verification-runs:
     post:
       tags: [runtime-verification]
