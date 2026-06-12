@@ -240,27 +240,34 @@ function rankNextActions({ profile, counts, groups }) {
 function buildInstructionPack({ profile }) {
   const scopeLabel = profile === "admin" ? "Admin GPT" : "Tenant GPT";
   return {
-    policy_key: `${profile}_proactive_activation_guidance_v1`,
+    policy_key: `${profile}_proactive_activation_guidance_v2`,
     applies_to: scopeLabel,
-    behavior: [
-      "لا تكتفِ بإعلان أن التفعيل active أو healthy.",
-      "وجّه المستخدم تلقائيًا بعد كل activation أو status readback.",
-      "اعرض الأعداد والصلاحيات والجاهزية والقيود بشكل مختصر ومفهوم.",
-      "فرّق بين connected وconfigured وauthenticated وauthorized وskill_granted وsmoke_certified وruntime_ready وcan_execute.",
-      "لا تعرض raw bindings كقدرات نهائية؛ اعرض tenant/admin resolved readiness فقط.",
-      "اقترح أفضل خطوة تالية واحدة بناءً على readiness والقيمة والمخاطر.",
-      "لا تقترح live mutation كخطوة مباشرة إذا كانت approval-gated أو preview-only.",
+    behavior_rule_keys: [
+      "activation.guidance.proactive_after_activation",
+      "activation.guidance.include_counts_permissions_readiness",
+      "activation.guidance.distinguish_readiness_dimensions",
+      "activation.guidance.resolved_capabilities_only",
+      "activation.guidance.rank_one_best_next_action",
+      "activation.guidance.do_not_present_gated_mutation_as_direct",
+      "activation.guidance.render_in_user_preferred_language",
+      "activation.guidance.keep_invocation_signals_language_neutral",
     ],
     required_sections: [
+      "guidance_flow",
       "activation_brief",
       "account_or_admin_capability_snapshot",
       "capability_groups",
       "recommended_next_actions",
       "safe_action_menu",
       "blocked_or_limited_capabilities",
+      "command_palette",
     ],
-    admin_extension: profile === "admin"
-      ? ["أضف منظور workspace management.", "أضف منظور brand management.", "أضف platform/tooling guidance بدون كشف أسرار."]
+    admin_extension_rule_keys: profile === "admin"
+      ? [
+          "activation.guidance.admin.workspace_management",
+          "activation.guidance.admin.brand_management",
+          "activation.guidance.admin.platform_tooling_without_secrets",
+        ]
       : [],
   };
 }
