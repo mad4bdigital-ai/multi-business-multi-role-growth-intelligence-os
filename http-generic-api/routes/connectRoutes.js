@@ -851,7 +851,15 @@ export function buildConnectRoutes(deps) {
   router.post("/connect/device-install", requireUserJwt, async (req, res) => {
     try {
       const { user_id, tenant_id } = req.auth;
-      const { hostname = null, cloudflare_connection_id = null, hostinger_connection_id = null, local_apps = [] } = req.body || {};
+      const {
+        hostname = null,
+        cloudflare_connection_id = null,
+        hostinger_connection_id = null,
+        local_apps = [],
+        install_intent = "",
+        typed_confirmation = "",
+        reprovision = false,
+      } = req.body || {};
       const device_id = String(req.body?.device_id || "").trim().toLowerCase();
 
       if (!device_id || !/^[a-z0-9-]{2,32}$/.test(device_id)) {
