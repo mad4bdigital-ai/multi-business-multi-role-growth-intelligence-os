@@ -1,5 +1,6 @@
 -- Sprint 68: DR certification evidence + Tool Bus gated read-only pilot.
 -- Scope: metadata/config/policy only. No backup material, no secrets, no provider calls, no external writes.
+-- Safety: No provider calls. No credential payload reads. No raw secrets. No external send. No external writes. secrets_included=false
 
 INSERT INTO `platform_runtime_config` (`config_key`, `config_json`, `status`, `note`) VALUES
 (
