@@ -554,6 +554,53 @@ function buildUserDeviceRoute({ userId, deviceId, requestedHostname }) {
   };
 }
 
+function expectedDeviceInstallConfirmation(deviceId = "") {
+  const suffix = String(deviceId || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return `INSTALL_DEVICE_${suffix || "DEVICE"}`;
+}
+
+function assertExplicitDeviceInstallIntent({ registeredDevices = [], deviceId = "", reprovision = false, installIntent = "", typedConfirmation = "" } = {}) {
+  const activeDevices = registeredDevices.filter((row) => Number(row?.is_enabled ?? 1) === 1);
+  const sameDevice = activeDevices.find((row) => String(row.device_id || "") === String(deviceId || ""));
+  const otherDevices = activeDevices.filter((row) => String(row.device_id || "") !== String(deviceId || ""));
+  const intent = String(installIntent || "").trim().toLowerCase();
+  const expectedConfirmation = expectedDeviceInstallConfirmation(deviceId);
+  const requiresExplicitConfirmation = otherDevices.length > 0 || reprovision === true;
+
+  if (otherDevices.length > 0 && !["add", "replace"].includes(intent)) {
+    throw httpError(409, "existing_device_registered", "A registered device already exists. Set install_intent to add or replace and provide typed_confirmation before provisioning another device.");
+  }
+  if (reprovision === true && intent !== "reinstall") {
+    throw httpError(409, "reinstall_intent_required", "Reprovisioning requires install_intent=reinstall and explicit typed confirmation.");
+  }
+  if (reprovision === true && !sameDevice) {
+    throw httpError(404, "reinstall_device_not_found", "The requested device is not registered and cannot be reinstalled.");
+  }
+  if (requiresExplicitConfirmation && String(typedConfirmation || "").trim() !== expectedConfirmation) {
+    const err = httpError(409, "device_install_confirmation_required", `Type ${expectedConfirmation} to confirm this device installation.`);
+    err.details = {
+      expected_confirmation: expectedConfirmation,
+      install_intent: intent || null,
+      registered_device_ids: activeDevices.map((row) => row.device_id),
+      secrets_included: false,
+    };
+    throw err;
+  }
+
+  return {
+    same_device_registered: Boolean(sameDevice),
+    other_registered_device_count: otherDevices.length,
+    install_intent: intent || (sameDevice ? "reuse" : "first_install"),
+    confirmation_required: requiresExplicitConfirmation,
+    expected_confirmation: requiresExplicitConfirmation ? expectedConfirmation : null,
+    secrets_included: false,
+  };
+}
+
 function buildDefaultLocalAppRoutes({ hostname, includeN8n = true, includeBrowser = true, localApps = [] }) {
   const routes = [
     {
