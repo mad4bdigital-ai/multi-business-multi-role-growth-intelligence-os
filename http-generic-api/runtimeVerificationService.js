@@ -3,7 +3,7 @@ import { getPool } from "./db.js";
 
 const DEFAULT_RESPONSE_BUDGET = Object.freeze({ max_response_bytes: 100000, max_items: 50, max_depth: 3, overflow_policy: "manifest_only" });
 const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|authorization|cookie|set-cookie)/i;
-const REQUIRED_TABLES = Object.freeze(["runtime_verification_workflow_registry", "runtime_verification_runs", "runtime_verification_steps", "runtime_verification_evidence_chunks", "runtime_verification_gaps", "runtime_deployment_parity_status", "runtime_ci_check_classification_registry"]);
+const REQUIRED_TABLES = Object.freeze(["runtime_verification_workflow_registry", "runtime_verification_runs", "runtime_verification_steps", "runtime_verification_evidence_chunks", "runtime_verification_gaps", "runtime_deployment_parity_status", "runtime_ci_check_classification_registry", "runtime_gap_remediation_registry"]);
 const ACTIVATION_REGISTRY_TABLES = Object.freeze(["activation_dynamic_tab_registry", "activation_dynamic_tab_section_registry", "activation_dynamic_tab_discovery_rule_registry", "activation_section_action_registry", "activation_attention_rule_registry", "activation_freshness_policy_registry", "activation_signal_subscription_registry", "activation_connector_pack_registry"]);
 
 function parseJson(value, fallback = null) {
@@ -34,8 +34,12 @@ async function countRows(tableName) {
   return { exists: true, count: Number(rows[0]?.count || 0) };
 }
 
-function resolveCommit(input = {}) {
-  return String(input.expected_commit_sha || input.deployed_commit_sha || process.env.GIT_COMMIT || process.env.GITHUB_SHA || process.env.COMMIT_SHA || process.env.RENDER_GIT_COMMIT || "unknown").trim();
+function resolveExpectedCommit(input = {}) {
+  return String(input.expected_commit_sha || process.env.GIT_COMMIT || process.env.GITHUB_SHA || process.env.COMMIT_SHA || process.env.RENDER_GIT_COMMIT || input.deployed_commit_sha || "unknown").trim();
+}
+
+function resolveDeployedCommit(input = {}, expectedCommit = "unknown") {
+  return String(input.deployed_commit_sha || input.runtime_commit_sha || process.env.GIT_COMMIT || process.env.GITHUB_SHA || process.env.COMMIT_SHA || process.env.RENDER_GIT_COMMIT || expectedCommit || "unknown").trim();
 }
 
 async function insertStep(runId, step) {
@@ -95,7 +99,9 @@ export async function buildActivationHardRunSummary() {
 export async function createRuntimeVerificationRun(input = {}, actor = {}) {
   const runId = randomUUID();
   const environmentKey = String(input.environment_key || input.environment || "production").trim() || "production";
-  const commitSha = resolveCommit(input);
+  const expectedCommitSha = resolveExpectedCommit(input);
+  const deployedCommitSha = resolveDeployedCommit(input, expectedCommitSha);
+  const commitSha = expectedCommitSha;
   const budget = { ...DEFAULT_RESPONSE_BUDGET, ...(input.response_budget || {}) };
   const createdBy = actor.user_id || actor.email || actor.mode || "runtime_verification_route";
 
@@ -104,7 +110,7 @@ export async function createRuntimeVerificationRun(input = {}, actor = {}) {
        (run_id, environment_key, expected_commit_sha, deployed_commit_sha, workflow_key, runtime_base_url,
         runtime_profile, run_status, production_parity, response_budget_json, started_at, created_by)
      VALUES (?, ?, ?, ?, ?, ?, ?, 'collecting', 'validating', ?, UTC_TIMESTAMP(), ?)`,
-    [runId, environmentKey, commitSha, commitSha, input.workflow_key || "runtime_verification_control_plane", input.runtime_base_url || "https://auth.mad4b.com", input.runtime_profile || "api_only", JSON.stringify(budget), createdBy]
+    [runId, environmentKey, expectedCommitSha, deployedCommitSha, input.workflow_key || "runtime_verification_control_plane", input.runtime_base_url || "https://auth.mad4b.com", input.runtime_profile || "api_only", JSON.stringify(budget), createdBy]
   );
 
   const missingRuntimeTables = [];
@@ -118,6 +124,10 @@ export async function createRuntimeVerificationRun(input = {}, actor = {}) {
   await insertStep(runId, { step_key: "activation_summary_probe", step_status: activationStepPass ? "pass" : "fail", classification: activationStepPass ? "activation_summary_ok" : "activation_summary_degraded_or_too_large", response_bytes: activationBytes, max_allowed_bytes: budget.max_response_bytes, detail_json: activationSummary });
   if (!activationStepPass) await insertGap(runId, { gap_key: activationBytes > budget.max_response_bytes ? "activation_summary_too_large" : "activation_summary_degraded", severity: "high", classification: activationBytes > budget.max_response_bytes ? "response_budget_exceeded" : "activation_registry_tables_missing", remediation: "Use summary/evidence pagination and ensure activation registry tables exist.", evidence_ref: "runtime_verification_steps:activation_summary_probe" });
 
+  const commitMatch = expectedCommitSha === "unknown" || deployedCommitSha === "unknown" || expectedCommitSha === deployedCommitSha;
+  await insertStep(runId, { step_key: "deployment_commit_parity", step_status: commitMatch ? "pass" : "fail", classification: commitMatch ? "deployed_commit_matches_expected" : "deployed_commit_mismatch", detail_json: { expected_commit_sha: expectedCommitSha, deployed_commit_sha: deployedCommitSha } });
+  if (!commitMatch) await insertGap(runId, { gap_key: "deployed_commit_mismatch", severity: "critical", classification: "deployment_parity_mismatch", remediation: "Redeploy production or reconcile expected commit with runtime deployed commit, then rerun verification.", evidence_ref: "runtime_verification_steps:deployment_commit_parity" });
+
   await insertStep(runId, { step_key: "runtime_code_routes_installed", step_status: "pass", classification: "runtime_verification_routes_installed", detail_json: { routes: ["POST /runtime/verification-runs", "GET /runtime/verification-runs/:runId", "GET /runtime/verification-runs/:runId/evidence", "GET /runtime/parity/:environmentKey"] } });
   await insertEvidenceChunk(runId, "activation_summary", activationSummary, { chunk_type: "summary" });
   const manifest = { run_id: runId, surfaces: [{ surface: "activation_summary", href: `/runtime/verification-runs/${runId}/evidence?surface=activation_summary` }, { surface: "runtime_steps", href: `/runtime/verification-runs/${runId}` }, { surface: "runtime_gaps", href: `/runtime/verification-runs/${runId}` }], secrets_included: false };
@@ -127,7 +137,7 @@ export async function createRuntimeVerificationRun(input = {}, actor = {}) {
   const blockingGapCount = Number(gapRows[0]?.count || 0);
   const productionParity = blockingGapCount === 0 ? "verified" : "degraded";
   const runStatus = blockingGapCount === 0 ? "verified" : "degraded";
-  const summary = { migration_tables: missingRuntimeTables.length ? "fail" : "pass", activation_summary: activationStepPass ? "pass" : "fail", runtime_code_routes: "pass", evidence_manifest: "pass", production_parity: productionParity, blocking_gap_count: blockingGapCount, expected_commit_sha: commitSha, deployed_commit_sha: commitSha, secrets_included: false };
+  const summary = { migration_tables: missingRuntimeTables.length ? "fail" : "pass", activation_summary: activationStepPass ? "pass" : "fail", deployment_commit_parity: commitMatch ? "pass" : "fail", runtime_code_routes: "pass", evidence_manifest: "pass", production_parity: productionParity, blocking_gap_count: blockingGapCount, expected_commit_sha: expectedCommitSha, deployed_commit_sha: deployedCommitSha, secrets_included: false };
 
   await execute("UPDATE runtime_verification_runs SET run_status = ?, production_parity = ?, summary_json = ?, completed_at = UTC_TIMESTAMP() WHERE run_id = ?", [runStatus, productionParity, JSON.stringify(summary), runId]);
   await execute(
@@ -137,7 +147,7 @@ export async function createRuntimeVerificationRun(input = {}, actor = {}) {
         migration_status, blocking_gap_count, verified_at, status_json)
      VALUES (?, ?, ?, ?, ?, 'unknown', 'unknown', 'pass', ?, ?, ?, IF(? = 'verified', UTC_TIMESTAMP(), NULL), ?)
      ON DUPLICATE KEY UPDATE expected_commit_sha = VALUES(expected_commit_sha), deployed_commit_sha = VALUES(deployed_commit_sha), production_parity = VALUES(production_parity), latest_run_id = VALUES(latest_run_id), runtime_health_status = VALUES(runtime_health_status), activation_summary_status = VALUES(activation_summary_status), migration_status = VALUES(migration_status), blocking_gap_count = VALUES(blocking_gap_count), verified_at = VALUES(verified_at), status_json = VALUES(status_json)`,
-    [environmentKey, commitSha, commitSha, productionParity, runId, activationStepPass ? "pass" : "fail", missingRuntimeTables.length ? "fail" : "pass", blockingGapCount, productionParity, JSON.stringify(summary)]
+    [environmentKey, expectedCommitSha, deployedCommitSha, productionParity, runId, activationStepPass ? "pass" : "fail", missingRuntimeTables.length ? "fail" : "pass", blockingGapCount, productionParity, JSON.stringify(summary)]
   );
   return getRuntimeVerificationRun(runId);
 }
@@ -148,7 +158,15 @@ export async function getRuntimeVerificationRun(runId) {
   const run = rows[0];
   const [steps, gaps] = await Promise.all([
     query("SELECT step_id, step_key, step_status, classification, duration_ms, http_status, response_bytes, max_allowed_bytes, started_at, completed_at FROM runtime_verification_steps WHERE run_id = ? ORDER BY created_at ASC", [runId]),
-    query("SELECT gap_id, gap_key, severity, classification, blocks_production_parity, remediation, evidence_ref, created_at FROM runtime_verification_gaps WHERE run_id = ? ORDER BY FIELD(severity,'critical','high','medium','low','info'), created_at ASC", [runId]),
+    query(`SELECT g.gap_id, g.gap_key, g.severity, g.classification, g.blocks_production_parity,
+                  g.remediation, g.evidence_ref, g.created_at,
+                  r.owner_key AS remediation_owner, r.remediation_type, r.auto_fix_allowed,
+                  r.approval_required, r.recommended_action, r.runbook_json
+             FROM runtime_verification_gaps g
+             LEFT JOIN runtime_gap_remediation_registry r
+               ON r.gap_key = g.gap_key AND r.status = 'active'
+            WHERE g.run_id = ?
+            ORDER BY FIELD(g.severity,'critical','high','medium','low','info'), g.created_at ASC`, [runId]),
   ]);
   return stripSensitive({ run_id: run.run_id, environment_key: run.environment_key, expected_commit_sha: run.expected_commit_sha, deployed_commit_sha: run.deployed_commit_sha, workflow_key: run.workflow_key, runtime_base_url: run.runtime_base_url, runtime_profile: run.runtime_profile, run_status: run.run_status, production_parity: run.production_parity, summary: parseJson(run.summary_json, {}), response_budget: parseJson(run.response_budget_json, DEFAULT_RESPONSE_BUDGET), steps, gaps, started_at: run.started_at, completed_at: run.completed_at, secrets_included: false });
 }
