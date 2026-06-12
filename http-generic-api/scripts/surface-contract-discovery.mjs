@@ -177,14 +177,24 @@ function classifyGap(entry) {
 
 function routeCoverageFor(entry, openapiPathSet) {
   const routes = entry.surfaces.routes;
-  const documented = routes.filter((route) => openapiPathSet.has(normalizePathForCoverage(route)) || openapiPathSet.has(route));
-  const missing = routes.filter((route) => !documented.includes(route));
+  const classifications = entry.surfaces.route_classifications || routes.map((route) => ({ route, route_class: "http_route", openapi_required: true, reason: "legacy classification fallback" }));
+  const required = classifications.filter((item) => item.openapi_required).map((item) => item.route);
+  const exempted = classifications.filter((item) => !item.openapi_required);
+  const documented = required.filter((route) => openapiPathSet.has(normalizePathForCoverage(route)) || openapiPathSet.has(route));
+  const missing = required.filter((route) => !documented.includes(route));
+  const routeClassCounts = Object.fromEntries(ROUTE_CLASSES.map((routeClass) => [routeClass, classifications.filter((item) => item.route_class === routeClass).length]));
   return {
-    route_count: routes.length,
+    route_count: required.length,
+    total_route_count: routes.length,
+    openapi_required_route_count: required.length,
+    exempted_route_count: exempted.length,
+    route_class_counts: routeClassCounts,
     documented_count: documented.length,
     missing_count: missing.length,
     documented_routes: documented,
     missing_routes: missing,
+    exempted_routes: exempted,
+    route_classifications: classifications,
   };
 }
 
