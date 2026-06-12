@@ -32,12 +32,12 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 14/388 (3.61%)
-- Documentation gap migrations: 374
-- Gap severity: high=213, medium=137, low=24
-- SQL route coverage in OpenAPI: 235/392 (59.95%)
-- SQL route-like literals exempted from OpenAPI scoring: 117/509
-- SQL routes missing OpenAPI path coverage: 157
+- Documentation complete migrations: 15/388 (3.87%)
+- Documentation gap migrations: 373
+- Gap severity: high=212, medium=137, low=24
+- SQL route coverage in OpenAPI: 235/391 (60.10%)
+- SQL route-like literals exempted from OpenAPI scoring: 118/509
+- SQL routes missing OpenAPI path coverage: 156
 - Migrations without explicit `secrets_included=false` marker: 274
 
 ### Surface Totals
@@ -54,11 +54,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 344 |
-| `deployment_parity_checklist.md` | 353 |
-| `docs/ai-docs-agent-governance.md` | 374 |
-| `docs/auto-docs-agent/README.md` | 374 |
-| `docs/change-documentation-governance.md` | 374 |
+| `Updating Registry Patch Index.md` | 343 |
+| `deployment_parity_checklist.md` | 352 |
+| `docs/ai-docs-agent-governance.md` | 373 |
+| `docs/auto-docs-agent/README.md` | 373 |
+| `docs/change-documentation-governance.md` | 373 |
 
 ### Safety Marker Coverage
 
@@ -75,11 +75,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Route class | SQL route-like literals |
 |---|---:|
-| http_route | 392 |
+| http_route | 391 |
 | admin_tool_registry_route | 73 |
 | tenant_tool_registry_route | 35 |
 | system_tool_dispatch_route | 9 |
-| registry_only_surface | 0 |
+| registry_only_surface | 1 |
 | false_positive_route_like_string | 0 |
 
 
@@ -88,10 +88,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
 - Total queue items: 387
-- Critical review: 245
+- Critical review: 244
 - High review: 115
 - Medium review: 26
-- Low review: 1
+- Low review: 2
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -143,7 +143,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `900_sprint68_governed_repository_intelligence_engine.sql` | needs docs | medium | 0 | 7 | 0 | 1 | 0 | 0 |
 | `289_sprint68_external_delivery_policy_scope_alignment.sql` | needs docs | medium | 0 | 1 | 1 | 1 | 0 | 0 |
 | `287_sprint68_external_delivery_orchestration_graph_plugin.sql` | complete | none | 3 | 42 | 2 | 1 | 0 | 0 |
-| `286_sprint68_platform_schema_contract_completion_registry.sql` | needs docs | high | 0 | 1 | 0 | 0 | 1 | 1 |
+| `286_sprint68_platform_schema_contract_completion_registry.sql` | complete | none | 0 | 1 | 0 | 0 | 1 | 0 |
 | `284_sprint68_wordpress_schema_import_completion_registry.sql` | needs docs | medium | 0 | 1 | 0 | 0 | 0 | 0 |
 | `284_sprint68_session_insight_backlog_target_write_executor.sql` | complete | none | 0 | 14 | 2 | 1 | 3 | 3 |
 | `284_sprint68_execution_log_full_context_evidence.sql` | needs docs | medium | 0 | 1 | 2 | 1 | 0 | 0 |
@@ -244,7 +244,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - `125_sprint64_platform_plugin_contributions.sql`
 - `125_sprint64_summary_comparison_quality_scoring.sql`
 - `126_sprint64_platform_plugin_private_runtime.sql`
-- ...and 173 more
+- ...and 172 more
 
 ## SQL Route OpenAPI Gaps
 
@@ -288,7 +288,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - `237_sprint68_ticket_lifecycle_workflow_runs.sql`: `/admin/support/tickets/{ticket_id}/runtime-sync`, `/admin/support/tickets/{ticket_id}/workflow-run`
 - `238_sprint68_ticket_lifecycle_step_runs.sql`: `/admin/support/tickets/{ticket_id}/step-run`, `/admin/support/tickets/{ticket_id}/step-runs`
 - `239_sprint68_ticket_lifecycle_diagnostic_steps.sql`: `/admin/support/tickets/{ticket_id}/step-run/execute`
-- ...and 47 more
+- ...and 46 more
 
 ## Details
 
@@ -624,17 +624,17 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 
 ### `286_sprint68_platform_schema_contract_completion_registry.sql`
 
-- Documentation complete: no
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
 - Surface count: 2
 - Plugins: none
 - Tools: `inactive_endpoint_execution_readiness_cleared`
 - Views: none
 - Policies: none
 - Routes: `/platform/wordpress/blog-publish-recovery`
-- Route classifications: `/platform/wordpress/blog-publish-recovery`=http_route:openapi
-- OpenAPI route gaps: `/platform/wordpress/blog-publish-recovery`
+- Route classifications: `/platform/wordpress/blog-publish-recovery`=registry_only_surface:exempt
+- OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
 ### `284_sprint68_wordpress_schema_import_completion_registry.sql`

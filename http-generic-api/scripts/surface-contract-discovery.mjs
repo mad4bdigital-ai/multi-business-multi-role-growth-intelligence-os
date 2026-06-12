@@ -102,6 +102,14 @@ function classifyRoute(route, source = "") {
       reason: "System-tool dispatch endpoints are documented by the fixed dispatcher contract and should not create per-tool OpenAPI gaps.",
     };
   }
+  if (/UPDATE\s+endpoints/i.test(source) && /schema_json\s*=\s*JSON_OBJECT/i.test(source) && /validated_synthetic_endpoint_native_contract|synthetic_endpoint_native_contract/i.test(source)) {
+    return {
+      route,
+      route_class: "registry_only_surface",
+      openapi_required: false,
+      reason: "Route literal belongs to endpoint schema_json registry completion, not a newly declared Express route; OpenAPI coverage is governed through the endpoint-native schema contract.",
+    };
+  }
   if (/registry_only|record_only|readback_only|view-only|view only/i.test(source) && !/http_method|http_path/i.test(source)) {
     return {
       route,

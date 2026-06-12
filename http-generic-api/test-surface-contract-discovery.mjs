@@ -66,6 +66,11 @@ assert.equal(migration955.coverage.route_coverage.missing_count, 0, "admin tool 
 assert.equal(migration955.coverage.route_coverage.exempted_route_count, 5, "migration 955 external delivery control routes must be OpenAPI-exempt registry routes");
 assert(migration955.coverage.route_coverage.route_classifications.every((entry) => entry.route_class === "admin_tool_registry_route"), "migration 955 route literals must be classified as admin_tool_registry_route");
 
+const migration286 = report.all_migrations.find((entry) => entry.migration_file === "286_sprint68_platform_schema_contract_completion_registry.sql");
+assert(migration286, "migration 286 must be discoverable for synthetic endpoint schema route classification");
+assert.equal(migration286.coverage.route_coverage.missing_count, 0, "synthetic endpoint-native schema routes in migration 286 must not be treated as OpenAPI gaps");
+assert(migration286.coverage.route_coverage.route_classifications.every((entry) => entry.route_class === "registry_only_surface"), "migration 286 route literals must be registry_only_surface classifications");
+
 const markdown = renderSurfaceContractMarkdown(report);
 assert(markdown.includes("Surface Contract Discovery Status"), "markdown must render status title");
 assert(markdown.includes("Coverage Summary"), "markdown must render deep coverage summary");
