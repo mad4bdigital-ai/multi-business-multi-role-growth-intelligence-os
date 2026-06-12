@@ -19,10 +19,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 394
+- Migrations with detected surfaces: 395
 - Migrations reported here: 80
-- OpenAPI operations detected: 422
-- OpenAPI paths detected: 369
+- OpenAPI operations detected: 424
+- OpenAPI paths detected: 371
 - Documentation targets checked:
 - `Updating Registry Patch Index.md`
 - `deployment_parity_checklist.md`
@@ -32,11 +32,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 15/394 (3.81%)
-- Documentation gap migrations: 379
-- Gap severity: high=215, medium=139, low=25
+- Documentation complete migrations: 15/395 (3.80%)
+- Documentation gap migrations: 380
+- Gap severity: high=216, medium=139, low=25
 - SQL route coverage in OpenAPI: 236/392 (60.20%)
-- SQL route-like literals exempted from OpenAPI scoring: 128/520
+- SQL route-like literals exempted from OpenAPI scoring: 130/522
 - SQL routes missing OpenAPI path coverage: 156
 - Migrations without explicit `secrets_included=false` marker: 275
 
@@ -48,17 +48,17 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | tools | 1829 | 339 |
 | views | 340 | 137 |
 | policies | 141 | 89 |
-| routes | 520 | 221 |
+| routes | 522 | 222 |
 
 ### Documentation Target Gaps
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 349 |
-| `deployment_parity_checklist.md` | 358 |
-| `docs/ai-docs-agent-governance.md` | 379 |
-| `docs/auto-docs-agent/README.md` | 379 |
-| `docs/change-documentation-governance.md` | 379 |
+| `Updating Registry Patch Index.md` | 350 |
+| `deployment_parity_checklist.md` | 359 |
+| `docs/ai-docs-agent-governance.md` | 380 |
+| `docs/auto-docs-agent/README.md` | 380 |
+| `docs/change-documentation-governance.md` | 380 |
 
 ### Safety Marker Coverage
 
@@ -69,14 +69,14 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | no_raw_secrets | 16 |
 | no_external_send | 13 |
 | no_external_write | 22 |
-| secrets_included_false | 119 |
+| secrets_included_false | 120 |
 
 ### Route Classification Coverage
 
 | Route class | SQL route-like literals |
 |---|---:|
 | http_route | 392 |
-| admin_tool_registry_route | 82 |
+| admin_tool_registry_route | 84 |
 | tenant_tool_registry_route | 35 |
 | system_tool_dispatch_route | 10 |
 | registry_only_surface | 1 |
@@ -87,8 +87,8 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 393
-- Critical review: 248
+- Total queue items: 394
+- Critical review: 249
 - High review: 116
 - Medium review: 27
 - Low review: 2
@@ -100,7 +100,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `047_sprint47b_gpt_tool_registry.sql` | critical_review | 4393 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `100_sprint63_onboarding_recovery_control_plane.sql` | critical_review | 2340 | high | 5 | 6 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `233_sprint68_ticket_lifecycle_authority_foundation.sql` | critical_review | 2303 | high | 5 | 8 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
-| `167_sprint65_ai_intelligence_runtime_governance_tools.sql` | critical_review | 2120 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `167_sprint65_ai_intelligence_runtime_governance_tools.sql` | critical_review | 2119 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `261_sprint68_orchestration_intelligence_foundation.sql` | critical_review | 2029 | high | 3 | 0 | 2 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, add_explicit_safety_markers |
 | `130_sprint65_browser_runtime_governance.sql` | critical_review | 2010 | high | 5 | 7 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `090_sprint62_local_gateway_tools.sql` | critical_review | 1818 | high | 5 | 1 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
@@ -108,7 +108,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `277_sprint68_session_insight_capability_envelope_dispatch_dry_run_review.sql` | critical_review | 1666 | high | 5 | 1 | 5 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
 | `059_sprint54_local_connector_capability_tools.sql` | critical_review | 1588 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `274_sprint68_session_insight_capability_envelope_request_review.sql` | critical_review | 1539 | high | 5 | 1 | 5 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
-| `279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql` | critical_review | 1507 | none | 0 | 2 | 5 | review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
+| `279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql` | critical_review | 1506 | none | 0 | 2 | 5 | review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
 | `195_sprint66_tenant_infrastructure_specific_paths.sql` | critical_review | 1477 | high | 5 | 4 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `146_sprint65_browser_runtime_adapter_request_tools.sql` | critical_review | 1459 | high | 5 | 4 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `270_sprint68_support_ticket_lifecycle_orchestration_readback.sql` | critical_review | 1442 | high | 5 | 0 | 1 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
@@ -144,6 +144,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `902_sprint68_dynamic_capability_apply_authorization_policy.sql` | needs docs | medium | 0 | 6 | 0 | 0 | 0 | 0 |
 | `901_sprint68_resource_manifest_create_gate_authority.sql` | needs docs | medium | 0 | 4 | 0 | 0 | 0 | 0 |
 | `900_sprint68_governed_repository_intelligence_engine.sql` | needs docs | medium | 0 | 7 | 0 | 1 | 0 | 0 |
+| `306_sprint69_operational_console_api.sql` | needs docs | high | 0 | 0 | 0 | 0 | 2 | 0 |
 | `305_sprint69_runtime_verification_control_plane_hardening.sql` | needs docs | high | 0 | 2 | 4 | 0 | 6 | 0 |
 | `291_sprint68_platform_health_scorecard_readback_alignment.sql` | needs docs | high | 0 | 10 | 3 | 0 | 2 | 0 |
 | `290_sprint68_platform_health_scorecard.sql` | needs docs | high | 0 | 9 | 4 | 0 | 3 | 0 |
@@ -200,7 +201,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `260_sprint68_platform_development_constitution_policies.sql` | needs docs | medium | 0 | 23 | 2 | 20 | 0 | 0 |
 | `259_sprint68_ticket_external_secret_intake_surface.sql` | needs docs | high | 0 | 1 | 1 | 0 | 3 | 3 |
 | `258_sprint68_ticket_external_delivery_credential_binding.sql` | needs docs | high | 0 | 3 | 0 | 0 | 3 | 3 |
-| `257_sprint68_ticket_external_send_execution_adapter.sql` | needs docs | high | 0 | 2 | 0 | 0 | 2 | 2 |
 
 ## High-Risk Documentation Gaps
 
@@ -244,7 +244,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - `125_sprint64_platform_plugin_contributions.sql`
 - `125_sprint64_summary_comparison_quality_scoring.sql`
 - `126_sprint64_platform_plugin_private_runtime.sql`
-- ...and 175 more
+- ...and 176 more
 
 ## SQL Route OpenAPI Gaps
 
@@ -634,6 +634,21 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Policies: `governed_repository_intelligence_engine_policy_v1`
 - Routes: none
 - Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `306_sprint69_operational_console_api.sql`
+
+- Documentation complete: no
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Surface count: 2
+- Plugins: none
+- Tools: none
+- Views: none
+- Policies: none
+- Routes: `/operational/console`, `/operational/console/evidence`
+- Route classifications: `/operational/console`=admin_tool_registry_route:exempt, `/operational/console/evidence`=admin_tool_registry_route:exempt
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -1476,21 +1491,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Route classifications: `/admin/support/tickets/external-delivery/credential-candidates`=http_route:openapi, `/admin/support/tickets/{ticket_id}/external-delivery/credential-binding/decision`=http_route:openapi, `/admin/support/tickets/{ticket_id}/external-delivery/credential-binding/request`=http_route:openapi
 - OpenAPI route gaps: `/admin/support/tickets/external-delivery/credential-candidates`, `/admin/support/tickets/{ticket_id}/external-delivery/credential-binding/decision`, `/admin/support/tickets/{ticket_id}/external-delivery/credential-binding/request`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=yes, no_external_send=no, no_external_write=no, secrets_included_false=no
-
-### `257_sprint68_ticket_external_send_execution_adapter.sql`
-
-- Documentation complete: no
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Surface count: 4
-- Plugins: none
-- Tools: `admin_platform_endpoint_tools`, `support_ticket_external_send_execution_record`
-- Views: none
-- Policies: none
-- Routes: `/admin/support/tickets/{ticket_id}/external-send/execution-plan`, `/admin/support/tickets/{ticket_id}/external-send/execution-record`
-- Route classifications: `/admin/support/tickets/{ticket_id}/external-send/execution-plan`=http_route:openapi, `/admin/support/tickets/{ticket_id}/external-send/execution-record`=http_route:openapi
-- OpenAPI route gaps: `/admin/support/tickets/{ticket_id}/external-send/execution-plan`, `/admin/support/tickets/{ticket_id}/external-send/execution-record`
-- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
 
 ## Automation Contract
