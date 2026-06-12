@@ -111,6 +111,21 @@ const SYSTEM_LAYER_TOOLS = [
     },
   },
   {
+    name: "response_chunk_read",
+    description: "Read the next chunk of a cached oversized governed tool response. Use this whenever a system/admin/device/tool response returns response_chunked=true or page.has_more=true before switching to any fallback surface. Supports dynamic TTL via response_options.chunk_ttl_ms or response_options.chunk_ttl_minutes and extends cache retention after each successful read.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        chunk_id: { type: "string" },
+        cursor: { type: "integer", minimum: 0, default: 0 },
+        max_chars: { type: "integer", minimum: 5000, maximum: 150000, default: 30000 },
+        chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+        chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+      },
+      required: ["chunk_id"],
+    },
+  },
+  {
     name: "google_drive_endpoint_catalog",
     description: "Admin-only read-only catalog for Google Drive endpoint registry rows. Supports filtering by operation, method, readiness, and search text so large Drive operation surfaces are discoverable without raw SQL.",
     requires_admin: true,
