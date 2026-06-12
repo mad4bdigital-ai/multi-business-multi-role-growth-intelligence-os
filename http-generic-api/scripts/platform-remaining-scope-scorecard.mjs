@@ -112,6 +112,8 @@ sections.push(summarize("agent_runtime_ledger", [
   check("agent_model_runs_referenced", listRecursive("http-generic-api", (file) => /\.(js|mjs|sql)$/.test(file)).some((file) => read(file).includes("agent_model_runs")), "agent_model_runs table/path is referenced.", "warn"),
   check("agent_tool_calls_referenced", listRecursive("http-generic-api", (file) => /\.(js|mjs|sql)$/.test(file)).some((file) => read(file).includes("agent_tool_calls")), "agent_tool_calls table/path is referenced.", "warn"),
   check("agent_ledger_runbook", exists("docs/agent-runtime-ledger-wiring-runbook.md"), "Agent runtime ledger runbook exists.", "warn"),
+  check("agent_live_trace_complete", exists("http-generic-api/scripts/agent-runtime-live-trace-smoke.mjs") && includes("http-generic-api/routes/adminCliRoutes.js", "agent_runtime_live_trace_smoke"), "Agent Runtime live trace smoke is implemented and exposed."),
+  check("agent_live_trace_v2_evidence", includes("http-generic-api/scripts/agent-runtime-live-trace-smoke.mjs", "brandEvidence") && includes("http-generic-api/scripts/agent-runtime-live-trace-smoke.mjs", "resourceAuthorityEvidence") && includes("http-generic-api/scripts/agent-runtime-live-trace-smoke.mjs", "budgetAuthorityEvidence"), "Agent Runtime live trace captures brand/resource/budget v2 evidence."),
 ]));
 
 sections.push(summarize("dr_and_n8n_readiness", [
