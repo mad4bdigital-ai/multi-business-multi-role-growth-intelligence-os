@@ -230,6 +230,29 @@ function isTenantBlockedToolPath(httpPath = "") {
   return TENANT_BLOCKED_TOOL_PATH_PREFIXES.some((prefix) => path === prefix.slice(0, -1) || path.startsWith(prefix));
 }
 
+const TENANT_MUTATION_TOOL_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const TENANT_HIGH_RISK_TOOL_NAME_PATTERNS = [
+  /^runtime_endpoint_call$/i,
+  /github.*(?:put|delete|create|update|contents|file)/i,
+  /^repo_patch_apply$/i,
+  /^local\.connector\.(?:shell|files)$/i,
+];
+
+function isTenantMutatingToolMethod(method = "") {
+  return TENANT_MUTATION_TOOL_METHODS.has(String(method || "").trim().toUpperCase());
+}
+
+function isTenantHighRiskToolName(toolKey = "") {
+  const name = String(toolKey || "").trim();
+  return TENANT_HIGH_RISK_TOOL_NAME_PATTERNS.some((pattern) => pattern.test(name));
+}
+
+function isTenantToolVisible(row = {}) {
+  return !isTenantBlockedToolPath(row.http_path)
+    && !isTenantMutatingToolMethod(row.http_method)
+    && !isTenantHighRiskToolName(row.tool_key);
+}
+
 const REPO_INSPECT_DENY_SEGMENTS = new Set([
   ".git",
   ".omx",
