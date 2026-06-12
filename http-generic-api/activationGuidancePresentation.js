@@ -208,7 +208,7 @@ export async function loadGuidanceInvocationRegistry({ profile = "tenant" } = {}
 }
 
 function buildInvocation(actionKey, profile, overrides = {}, invocationRegistry = null) {
-  const item = ACTION_INVOCATIONS[actionKey] || {
+  const item = invocationRegistry?.actions?.get(actionKey) || ACTION_INVOCATIONS[actionKey] || {
     tag: `@guidance/${String(actionKey || "path").replaceAll("_", "-")}`,
     slash: `/guidance-${String(actionKey || "path").replaceAll("_", "-")}`,
     intent: `guidance.${String(actionKey || "path")}`,
