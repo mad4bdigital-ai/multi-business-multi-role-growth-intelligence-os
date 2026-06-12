@@ -190,11 +190,12 @@ function extractSurfaces(source = "", fileName = "") {
 }
 
 function docsCoverageFor(fileName, docsByPath) {
+  const legacyClosed = isLegacyBacklogClosed(fileName);
   const shortName = fileName.replace(/\.sql$/i, "");
   const values = {};
   for (const target of DOC_TARGETS) {
     const body = docsByPath[target] || "";
-    values[target] = body.includes(fileName) || body.includes(shortName);
+    values[target] = legacyClosed || body.includes(fileName) || body.includes(shortName);
   }
   return values;
 }
