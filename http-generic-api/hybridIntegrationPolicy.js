@@ -76,22 +76,57 @@ function safeConnection(row = {}) {
   };
 }
 
-function normalizeIntegrationModesObject(value = {}) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+const MANAGED_MODE_ALIASES = new Set(["managed", "platform", "platform_managed", "hosted", "shared", "managed_main_server"]);
+const DEDICATED_MODE_ALIASES = new Set(["dedicated", "tenant", "tenant_owned", "customer", "customer_owned", "self_hosted", "self_hosted_local", "local"]);
+
+function invalidIntegrationPolicy(message, details = {}) {
+  const err = new Error(message);
+  err.status = 400;
+  err.code = "invalid_integration_policy";
+  err.details = { ...details, secrets_included: false };
+  return err;
+}
+
+function strictModeFromValue(value, appKey) {
+  const normalized = normalizeKey(value);
+  if (DEDICATED_MODE_ALIASES.has(normalized)) return "dedicated";
+  if (MANAGED_MODE_ALIASES.has(normalized)) return "managed";
+  throw invalidIntegrationPolicy(`Invalid source mode for ${appKey}. Expected managed or dedicated.`, {
+    app_key: appKey,
+    received_mode: normalized || null,
+    allowed_modes: CANONICAL_INTEGRATION_SOURCE_MODES,
+  });
+}
+
+export function validateIntegrationModesObject(value = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw invalidIntegrationPolicy("integration_modes must be a non-empty object.");
+  }
+  const entries = Object.entries(value);
+  if (!entries.length) throw invalidIntegrationPolicy("integration_modes must contain at least one app policy.");
+
   const normalized = {};
-  for (const [rawKey, rawValue] of Object.entries(value)) {
+  for (const [rawKey, rawValue] of entries) {
     const appKey = normalizeKey(rawKey);
-    if (!appKey) continue;
+    if (!appKey) throw invalidIntegrationPolicy("Integration policy app key is invalid.", { raw_key: rawKey });
+    if (Object.prototype.hasOwnProperty.call(normalized, appKey)) {
+      throw invalidIntegrationPolicy(`Duplicate integration policy key after normalization: ${appKey}.`, { app_key: appKey });
+    }
+
     if (rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)) {
+      const modeValue = rawValue.source_mode ?? rawValue.mode ?? rawValue.credential_source;
+      if (modeValue === undefined || modeValue === null || String(modeValue).trim() === "") {
+        throw invalidIntegrationPolicy(`Integration policy ${appKey} must declare source_mode or mode.`, { app_key: appKey });
+      }
       normalized[appKey] = {
-        source_mode: modeFromValue(rawValue.source_mode ?? rawValue.mode ?? rawValue.credential_source, "managed"),
+        source_mode: strictModeFromValue(modeValue, appKey),
         fallback_allowed: boolValue(rawValue.fallback_allowed, false),
         required_for_device_install: boolValue(rawValue.required_for_device_install, LOCAL_CONNECTOR_APPS.has(appKey)),
-        notes: normalize(rawValue.notes || ""),
+        notes: normalize(rawValue.notes || "").slice(0, 1000),
       };
     } else {
       normalized[appKey] = {
-        source_mode: modeFromValue(rawValue, "managed"),
+        source_mode: strictModeFromValue(rawValue, appKey),
         fallback_allowed: false,
         required_for_device_install: LOCAL_CONNECTOR_APPS.has(appKey),
         notes: "",
@@ -99,6 +134,11 @@ function normalizeIntegrationModesObject(value = {}) {
     }
   }
   return normalized;
+}
+
+function normalizeIntegrationModesObject(value = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value) || !Object.keys(value).length) return {};
+  return validateIntegrationModesObject(value);
 }
 
 async function readPolicyRows(tenantId) {
