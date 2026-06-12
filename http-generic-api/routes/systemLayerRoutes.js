@@ -1685,6 +1685,10 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   }
 
   assertAdminToolAccess(name, auth);
+
+  const descriptorSystemTool = await callDescriptorSystemToolIfAvailable(name, args, auth, deps);
+  if (descriptorSystemTool.handled) return descriptorSystemTool.result;
+
   switch (name) {
     case "runtime_endpoint_call": {
       const guarded = derivePrincipalExecutionContext({ ...(args || {}) }, auth);
