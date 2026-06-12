@@ -98,6 +98,7 @@ import { buildSessionInsightCapabilityEnvelopeDispatchReadbackRoutes } from "./s
 import { buildSessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes } from "./sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js";
 import { buildSessionInsightRemainingScopeCompletionRoutes } from "./sessionInsightRemainingScopeCompletionRoutes.js";
 import { buildSessionInsightBacklogTargetWriteRoutes } from "./sessionInsightBacklogTargetWriteRoutes.js";
+import { buildRuntimeVerificationRoutes } from "./runtimeVerificationRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -150,6 +151,7 @@ export function registerRoutes(app, deps) {
   app.use(buildOnboardingRoutes(deps));
   app.use(buildStatusRoutes(deps));
   app.use(buildActivationRoutes(deps));
+  app.use(buildRuntimeVerificationRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildHealthRoutes(deps));
   app.use(buildMcpRoutes(deps));
   app.use(buildGovernanceRoutes(deps));
