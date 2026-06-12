@@ -120,6 +120,32 @@ export function runAutomationIntelligenceGuard() {
       },
     },
     {
+      id: "P0-device-provisioning-requires-explicit-intent-and-no-raw-secrets",
+      check: () => {
+        assertIncludes(activeProvisionerBlock, "assertExplicitDeviceInstallIntent", "device install intent guard must run in the active provisioner");
+        assertIncludes(activeProvisionerBlock, "device_install_confirmation_required", "additional/reprovision installs must require typed confirmation");
+        assertIncludes(activeProvisionerBlock, 'status: "existing_device_reused"', "existing device calls must use the no-provider reuse path");
+        assertIncludes(activeProvisionerBlock, "provider_calls_made: false", "existing device reuse must prove no provider call");
+        assertIncludes(activeProvisionerBlock, "raw_material_returned: false", "provision responses must never return raw installer material");
+        assertIncludes(activeProvisionerBlock, "short_lived_signed_download_link", "installer delivery must use a signed download link");
+        assertNotIncludes(activeProvisionerBlock, "connector_secret: connectorSecret", "active provision responses must not expose connector_secret");
+        assertNotIncludes(activeProvisionerBlock, "install_bat: installScript", "active provision responses must not embed install scripts");
+        assertNotIncludes(activeProvisionerBlock, '".env": connectorEnv', "active provision responses must not embed env files");
+      },
+    },
+    {
+      id: "P0-integration-policy-error-response-no-mutation",
+      check: () => {
+        assertIncludes(hybridIntegrationPolicy, "validateIntegrationModesObject", "integration policies must validate all modes before writes");
+        assertIncludes(integrationPolicyWriteBlock, "beginTransaction", "integration policy writes must start a transaction");
+        assertIncludes(integrationPolicyWriteBlock, "rollback", "integration policy failures must roll back");
+        assertIncludes(integrationPolicyWriteBlock, "committed: false", "integration policy failures must report no commit");
+        assertIncludes(integrationPolicyWriteBlock, "integration_policy_transaction_failed", "integration policy failures must use a stable code");
+        assertIncludes(integrationPolicyRouteBlock, "tenant_backend_connections", "policy readiness must read the canonical connection table");
+        assertIncludes(integrationPolicyRouteBlock, "integration_policy_readiness_unavailable", "post-commit readback failure must not masquerade as mutation failure");
+      },
+    },
+    {
       id: "P1-guard-tests-track-runtime-contract",
       check: () => {
         assertIncludes(tenantToolSurfaceTest, "TENANT_MUTATION_TOOL_METHODS", "tenant guard test must cover mutating methods");
