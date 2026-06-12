@@ -99,6 +99,7 @@ import { buildSessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes } from 
 import { buildSessionInsightRemainingScopeCompletionRoutes } from "./sessionInsightRemainingScopeCompletionRoutes.js";
 import { buildSessionInsightBacklogTargetWriteRoutes } from "./sessionInsightBacklogTargetWriteRoutes.js";
 import { buildRuntimeVerificationRoutes } from "./runtimeVerificationRoutes.js";
+import { buildOperationalConsoleRoutes } from "./operationalConsoleRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
