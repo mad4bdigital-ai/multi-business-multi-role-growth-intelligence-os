@@ -38,7 +38,8 @@ function requireScope(scope = {}) {
 async function resolveGithubToken() {
   return await getGitHubAppInstallationToken({});
 }
-async function githubJson({ method = "GET", pathname, searchParams } = {}) {
+async function githubJson({ method = "GET", pathname, searchParams, body } = {}) {
+  const token = await resolveGithubToken();
   const url = new URL(`${GITHUB_API_BASE_URL}${pathname}`);
   for (const [key, value] of Object.entries(searchParams || {})) if (value !== undefined && value !== null && String(value).trim() !== "") url.searchParams.set(key, String(value));
   const response = await fetch(url, { method, headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${requireGithubToken()}`, "X-GitHub-Api-Version": "2022-11-28" } });
