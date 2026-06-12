@@ -6,33 +6,33 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 391,
+    "migrations_with_surfaces": 392,
     "docs_complete_count": 15,
-    "docs_gap_count": 376,
-    "docs_completion_percent": 3.84,
+    "docs_gap_count": 377,
+    "docs_completion_percent": 3.83,
     "surface_totals": {
       "plugins": 11,
-      "tools": 1815,
-      "views": 332,
+      "tools": 1817,
+      "views": 336,
       "policies": 141,
-      "routes": 512
+      "routes": 518
     },
     "migrations_by_surface_type": {
       "plugins": 8,
-      "tools": 336,
-      "views": 134,
+      "tools": 337,
+      "views": 135,
       "policies": 89,
-      "routes": 219
+      "routes": 220
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 346,
-      "deployment_parity_checklist.md": 355,
-      "docs/ai-docs-agent-governance.md": 376,
-      "docs/auto-docs-agent/README.md": 376,
-      "docs/change-documentation-governance.md": 376
+      "Updating Registry Patch Index.md": 347,
+      "deployment_parity_checklist.md": 356,
+      "docs/ai-docs-agent-governance.md": 377,
+      "docs/auto-docs-agent/README.md": 377,
+      "docs/change-documentation-governance.md": 377
     },
     "gap_severity_counts": {
-      "high": 213,
+      "high": 214,
       "medium": 138,
       "low": 25,
       "none": 15
@@ -249,6 +249,7 @@
       "274_sprint68_session_insight_capability_envelope_request_review.sql",
       "277_sprint68_session_insight_capability_envelope_dispatch_dry_run_review.sql",
       "290_sprint68_platform_health_scorecard.sql",
+      "305_sprint69_runtime_verification_control_plane_hardening.sql",
       "906_sprint68_ticket_external_delivery_completion_certification.sql",
       "999_sprint68_repository_intelligence_v3_v4_tenant_tool_wiring.sql"
     ],
@@ -398,16 +399,16 @@
       "no_raw_secrets": 15,
       "no_external_send": 13,
       "no_external_write": 22,
-      "secrets_included_false": 117
+      "secrets_included_false": 118
     },
     "safety_marker_gap_migrations": 274,
     "route_coverage": {
       "sql_route_count": 391,
-      "total_sql_route_like_count": 512,
-      "openapi_exempt_sql_route_count": 121,
+      "total_sql_route_like_count": 518,
+      "openapi_exempt_sql_route_count": 127,
       "route_class_counts": {
         "http_route": 391,
-        "admin_tool_registry_route": 76,
+        "admin_tool_registry_route": 82,
         "tenant_tool_registry_route": 35,
         "system_tool_dispatch_route": 9,
         "registry_only_surface": 1,
@@ -1007,9 +1008,9 @@
     }
   },
   "queue": {
-    "total_items": 390,
+    "total_items": 391,
     "class_counts": {
-      "critical_review": 246,
+      "critical_review": 247,
       "high_review": 115,
       "medium_review": 27,
       "low_review": 2
@@ -1206,7 +1207,7 @@
     },
     {
       "migration_file": "280_sprint68_session_insight_capability_envelope_approval_gate.sql",
-      "score": 1202,
+      "score": 1201,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
