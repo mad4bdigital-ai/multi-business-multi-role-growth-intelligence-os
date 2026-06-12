@@ -1,6 +1,7 @@
 import { getPool } from "./db.js";
 import {
   buildGuidancePresentation,
+  loadGuidanceInvocationRegistry,
   resolveGuidanceLanguagePreference,
 } from "./activationGuidancePresentation.js";
 
