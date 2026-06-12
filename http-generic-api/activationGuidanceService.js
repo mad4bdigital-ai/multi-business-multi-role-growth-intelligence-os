@@ -349,7 +349,7 @@ export async function buildActivationGuidance({
     guidance_paths: presentation.guidance_paths,
     command_palette: presentation.command_palette,
     presentation_summary: presentation.presentation_summary,
-    activation_brief: activationBrief,
+    activation_brief: presentation.localized_activation_brief,
     account_or_admin_capability_snapshot: {
       counts,
       permission_semantics: permissionSemantics,
