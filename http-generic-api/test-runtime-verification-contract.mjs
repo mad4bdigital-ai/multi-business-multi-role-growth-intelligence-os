@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { classifyCiCheckRun } from "./runtimeVerificationService.js";
+import { classifyCiCheckRun, classifyCommitParity } from "./runtimeVerificationService.js";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 async function read(relativePath) {
@@ -43,6 +43,22 @@ assert.deepEqual(classifyCiCheckRun({ status: "completed", conclusion: "cancelle
   classification: "cancelled_superseded_success",
   gate_status: "pass",
   blocks_production_parity: false,
+});
+assert.deepEqual(classifyCommitParity("abc123", "abc123"), {
+  matches: true,
+  classification: "deployed_commit_matches_expected",
+});
+assert.deepEqual(classifyCommitParity("abc123", "def456"), {
+  matches: false,
+  classification: "deployed_commit_mismatch",
+});
+assert.deepEqual(classifyCommitParity("unknown", "abc123"), {
+  matches: false,
+  classification: "deployment_commit_unknown",
+});
+assert.deepEqual(classifyCommitParity("abc123", "unknown"), {
+  matches: false,
+  classification: "deployment_commit_unknown",
 });
 
 console.log("runtime verification contract tests passed");

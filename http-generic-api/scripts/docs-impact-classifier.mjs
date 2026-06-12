@@ -259,7 +259,6 @@ export function renderImpactMarkdown(impact = {}, { title = "Automated Docs Agen
   } else {
     lines.push("Low-risk documentation or automation change. CI guard evidence is usually sufficient unless the diff affects generated canonical output.");
   }
-  lines.push("");
   return `${lines.join("\n")}\n`;
 }
 

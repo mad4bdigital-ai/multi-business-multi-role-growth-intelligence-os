@@ -98,6 +98,7 @@ import { buildSessionInsightCapabilityEnvelopeDispatchReadbackRoutes } from "./s
 import { buildSessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes } from "./sessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes.js";
 import { buildSessionInsightRemainingScopeCompletionRoutes } from "./sessionInsightRemainingScopeCompletionRoutes.js";
 import { buildSessionInsightBacklogTargetWriteRoutes } from "./sessionInsightBacklogTargetWriteRoutes.js";
+import { buildSessionInsightTargetWriteReadbackRoutes } from "./sessionInsightTargetWriteReadbackRoutes.js";
 import { buildRuntimeVerificationRoutes } from "./runtimeVerificationRoutes.js";
 import { buildOperationalConsoleRoutes } from "./operationalConsoleRoutes.js";
 
@@ -196,6 +197,7 @@ export function registerRoutes(app, deps) {
   app.use(buildSessionInsightCapabilityEnvelopeAdapterExecutionGateRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSessionInsightRemainingScopeCompletionRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSessionInsightBacklogTargetWriteRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildSessionInsightTargetWriteReadbackRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformPluginRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildBrowserRuntimeRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildGithubRoutes(deps));
