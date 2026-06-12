@@ -38,6 +38,9 @@ function runRules(rules) {
 export function runAutomationIntelligenceGuard() {
   const systemLayerRoutes = readRepoFile("routes/systemLayerRoutes.js");
   const gptToolsRoutes = readRepoFile("routes/gptToolsRoutes.js");
+  const localConnectorInstallRoutes = readRepoFile("routes/localConnectorInstallRoutes.js");
+  const connectApiRoutes = readRepoFile("routes/connectApiRoutes.js");
+  const hybridIntegrationPolicy = readRepoFile("hybridIntegrationPolicy.js");
   const tenantToolSurfaceTest = readRepoFile("test-tenant-tool-surface-guard.mjs");
 
   const runtimeEndpointCallBlock = sliceBetween(
