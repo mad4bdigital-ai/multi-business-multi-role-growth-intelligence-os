@@ -1910,16 +1910,13 @@ export function buildSystemLayerRoutes(deps) {
   const authenticated = [requireBackendApiKey];
 
   router.get("/system/tools", ...authenticated, async (req, res) => {
-    return res.status(200).json({
-      ok: true,
-      protocol: "openapi-mcp-facade",
-      principal: {
-        mode: req.auth?.mode || null,
-        is_admin: isAdminPrincipal(req.auth),
-        tenant_id: principalTenantId(req.auth),
-      },
-      tools: await toolsForPrincipalWithPlatformEndpoints(req.auth),
-    });
+    const body = await buildSystemToolsListResponse(req.auth, req.query || {});
+    body.principal = {
+      mode: req.auth?.mode || null,
+      is_admin: isAdminPrincipal(req.auth),
+      tenant_id: principalTenantId(req.auth),
+    };
+    return res.status(200).json(chunkSystemLayerResponse(body, req.query || {}));
   });
 
   router.post("/system/tools/call", ...authenticated, async (req, res) => {
