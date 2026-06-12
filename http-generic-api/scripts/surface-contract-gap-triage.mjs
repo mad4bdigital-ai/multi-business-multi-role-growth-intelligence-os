@@ -102,16 +102,19 @@ function buildBaseline(triage) {
 }
 function buildGate(triage, baseline) {
   const baselineSet = new Set(baseline.baseline_files || []);
-  const newItems = triage.items.filter((item) => !baselineSet.has(item.migration_file));
+  const unbaselinedItems = triage.items.filter((item) => !baselineSet.has(item.migration_file));
+  const newItems = unbaselinedItems.filter((item) => item.gate_scope === "new_gap_gate_candidate");
   const blocking = newItems.filter((item) => ["critical_review", "high_review"].includes(item.queue_class));
   return {
     ok: blocking.length === 0,
     schema_version: "surface-contract-new-gap-gate-v1",
     mode: "new_gaps_only",
     new_item_count: newItems.length,
+    unbaselined_legacy_item_count: unbaselinedItems.length - newItems.length,
     blocking_new_item_count: blocking.length,
     blocking_new_items: blocking,
     warning_new_items: newItems.filter((item) => !blocking.includes(item)),
+    legacy_warning_items: unbaselinedItems.filter((item) => item.gate_scope !== "new_gap_gate_candidate"),
     safety: triage.safety,
   };
 }
