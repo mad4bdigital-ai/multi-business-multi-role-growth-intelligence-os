@@ -1696,6 +1696,16 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   if (descriptorSystemTool.handled) return descriptorSystemTool.result;
 
   switch (name) {
+    case "system_layer_descriptor_readiness":
+      return {
+        ok: true,
+        tool: "system_layer_descriptor_readiness",
+        descriptor_source_count: SYSTEM_LAYER_DESCRIPTOR_SOURCES.length,
+        descriptor_tool_count: SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.size,
+        missing_handler_count: systemLayerDescriptorReadiness().filter((row) => !row.handler_present).length,
+        descriptors: systemLayerDescriptorReadiness(),
+        secrets_included: false,
+      };
     case "runtime_endpoint_call": {
       const guarded = derivePrincipalExecutionContext({ ...(args || {}) }, auth);
       return await callRuntimeEndpointViaFacade({
