@@ -4,16 +4,31 @@
 
 ## Summary
 
-- Total queue items: 1
+- Total queue items: 2
 - Critical review: 0
-- High review: 0
+- High review: 1
 - Medium review: 0
 - Low review: 1
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
 
-### 1. `962_sprint68_smoke_branch_cleanup_gate.sql`
+### 1. `1000_sprint68_dr_certification_and_tool_bus_gated_read_only.sql`
+
+- Queue class: high_review
+- Score: 585
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
+- Surface counts: plugins=0, tools=3, views=0, policies=2, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `allowlisted_tools`, `tenant_repository_intelligence_v3_v4_readiness_smoke`, `tool_bus_gated_read_only_dispatch_policy_v1`
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `dr_isolated_restore_certification_policy_v1`, `tool_bus_gated_read_only_dispatch_policy_v1`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
+
+### 2. `962_sprint68_smoke_branch_cleanup_gate.sql`
 
 - Queue class: low_review
 - Score: 169

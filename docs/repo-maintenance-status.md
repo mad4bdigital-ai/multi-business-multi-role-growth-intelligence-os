@@ -56,6 +56,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - `.github/workflows/ci.yml`
 - `.github/workflows/docs-agent.yml`
+- `.github/workflows/dr-certification-readiness.yml`
 - `.github/workflows/local-manager-windows.yml`
 - `.github/workflows/openapi-auto-sync.yml`
 - `.github/workflows/platform-completion-cleanup-readback.yml`
