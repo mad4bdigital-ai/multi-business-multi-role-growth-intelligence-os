@@ -305,7 +305,7 @@ function scoreGap(entry, index, total) {
   score += entry.missing_docs.length * 20;
   score += entry.coverage.route_coverage.missing_count * 80;
   score += entry.surfaces.plugins.length * 120;
-  score += entry.surfaces.routes.length * 100;
+  score += entry.coverage.route_coverage.openapi_required_route_count * 100;
   score += entry.surfaces.tools.length * 18;
   score += entry.surfaces.policies.length * 40;
   score += entry.surfaces.views.length * 10;
