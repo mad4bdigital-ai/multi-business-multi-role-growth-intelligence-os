@@ -170,7 +170,44 @@ export async function resolveGuidanceLanguagePreference({ userId = null, tenantI
   return { mode: "conversation_preference", resolved_locale: "conversation", source: "conversation_context", fallback_policy: "assistant_detects_user_language", machine_tags_localized: false };
 }
 
-function buildInvocation(actionKey, profile, overrides = {}) {
+export async function loadGuidanceInvocationRegistry({ profile = "tenant" } = {}) {
+  const normalizedProfile = profile === "admin" ? "admin" : "tenant";
+  if (!(await tableExists("activation_guidance_invocation_registry"))) {
+    return { source: "code_fallback", row_count: 0, stages: new Map(), actions: new Map() };
+  }
+  const rows = await query(
+    `SELECT invocation_key, profile_scope, path_type, path_key, invocation_tag, slash_alias,
+            intent_key, entity_scope_json, operation_mode, default_risk,
+            requires_confirmation, tool_candidates_json, priority_order
+       FROM activation_guidance_invocation_registry
+      WHERE status = 'active'
+        AND profile_scope IN ('all', ?)
+      ORDER BY priority_order ASC, invocation_key ASC`,
+    [normalizedProfile]
+  );
+  const stages = new Map();
+  const actions = new Map();
+  for (const row of rows) {
+    const descriptor = {
+      tag: row.invocation_tag,
+      slash: row.slash_alias,
+      intent: row.intent_key,
+      entities: parseJson(row.entity_scope_json, []),
+      mode: row.operation_mode,
+      default_risk: row.default_risk || "low",
+      requires_confirmation: Number(row.requires_confirmation || 0) === 1,
+      tool_candidates: parseJson(row.tool_candidates_json, []),
+      priority_order: Number(row.priority_order || 100),
+      profile_scope: row.profile_scope,
+      invocation_key: row.invocation_key,
+    };
+    if (row.path_type === "stage") stages.set(row.path_key, descriptor);
+    else actions.set(row.path_key, descriptor);
+  }
+  return { source: "db_registry", row_count: rows.length, stages, actions };
+}
+
+function buildInvocation(actionKey, profile, overrides = {}, invocationRegistry = null) {
   const item = ACTION_INVOCATIONS[actionKey] || {
     tag: `@guidance/${String(actionKey || "path").replaceAll("_", "-")}`,
     slash: `/guidance-${String(actionKey || "path").replaceAll("_", "-")}`,
