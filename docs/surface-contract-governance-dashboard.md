@@ -4,17 +4,14 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 6
-- Triaged items: 6
-- Gate candidates: 4
-- New-gap gate: fail
-- Blocking new items: 4
-- Docs completion: 98.51%
+- Queue items: 0
+- Triaged items: 0
+- Gate candidates: 0
+- New-gap gate: pass
+- Blocking new items: 0
+- Docs completion: 100%
 - SQL route OpenAPI coverage: 100%
 
 ## Top immediate items
 
-- `1001_sprint68_repository_advisory_comment_v5_tenant_tool_wiring.sql` — critical_review, add targeted patch-index, parity, and governance documentation
-- `1001_sprint68_tenant_ticket_admin_gpt_link_support.sql` — high_review, add targeted patch-index, parity, and governance documentation
-- `963_sprint68_hostinger_deploy_restart_tool_exports.sql` — high_review, add targeted patch-index, parity, and governance documentation
-- `964_sprint68_hostinger_stored_credential_apply_policy.sql` — high_review, add targeted patch-index, parity, and governance documentation
+- none

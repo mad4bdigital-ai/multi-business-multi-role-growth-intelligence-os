@@ -1,5 +1,6 @@
 -- Sprint 68: Repository Advisory Comment V5 tenant tool wiring.
 -- Scope: registry/policy rows only. No provider calls, no repository mutations, no secrets.
+-- Safety: No credential payload reads. No raw secrets. No external send. No external writes. secrets_included=false
 
 INSERT INTO `tenant_platform_endpoint_tools` (
   `tool_key`, `display_name`, `description`, `http_method`, `http_path`,
