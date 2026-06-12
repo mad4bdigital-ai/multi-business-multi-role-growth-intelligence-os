@@ -158,10 +158,14 @@ function classifyRoute(route, source = "") {
   };
 }
 
-function extractSurfaces(source = "") {
+function extractSurfaces(source = "", fileName = "") {
   const routeMatches = [...source.matchAll(/['"`]((?:\/[A-Za-z0-9_{}:.-]+){2,})['"`]/g)].map((m) => m[1]);
   const routes = unique(routeMatches);
-  const routeClassifications = routes.map((route) => classifyRoute(route, source));
+  const legacyClosed = isLegacyBacklogClosed(fileName);
+  const routeClassifications = routes.map((route) => {
+    const classified = classifyRoute(route, source);
+    return legacyClosed && classified.openapi_required ? legacyClosureRouteClassification(route, fileName) : classified;
+  });
   const views = [...source.matchAll(/`?(v_[A-Za-z0-9_]+)`?/g)].map((m) => m[1]);
   const policies = [...source.matchAll(/['"`]([A-Za-z0-9_]+_policy_v\d+)['"`]/g)].map((m) => m[1]);
   const plugins = [...source.matchAll(/['"`]([A-Za-z0-9_]+_orchestrator)['"`]/g)].map((m) => m[1]);
