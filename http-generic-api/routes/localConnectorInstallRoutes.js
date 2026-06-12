@@ -967,9 +967,21 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   const principal = await resolveRequestedLocalPrincipal(req, { user_id, tenant_id });
   const resolvedUserId = principal.userId;
   const resolvedTenantId = principal.tenantId;
-  const provisioningCredentials = await resolveProvisioningCredentials(req, principal, body || {});
-  const accountId = provisioningCredentials.cloudflareAccountId;
-  if (!accountId) throw httpError(500, "missing_config", "Cloudflare account id not configured.");
+
+  const [registeredDevices] = await pool.query(
+    `SELECT config_id, device_id, is_enabled, created_at, updated_at
+       FROM \`local_connector_user_configs\`
+      WHERE user_id = ? AND tenant_id = ? AND is_enabled = 1
+      ORDER BY COALESCE(updated_at, created_at) DESC`,
+    [resolvedUserId, resolvedTenantId]
+  );
+  const installIntent = assertExplicitDeviceInstallIntent({
+    registeredDevices,
+    deviceId: device_id,
+    reprovision,
+    installIntent: body.install_intent,
+    typedConfirmation: body.typed_confirmation,
+  });
 
   const [[tenant]] = await pool.query("SELECT tenant_id FROM `tenants` WHERE tenant_id = ? LIMIT 1", [resolvedTenantId]);
   if (!tenant) throw httpError(404, "tenant_not_found", "Tenant not found.");
