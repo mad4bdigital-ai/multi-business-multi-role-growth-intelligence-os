@@ -69,6 +69,28 @@ function normalizePathForCoverage(route = "") {
     .replace(/\/+$/g, "") || "/";
 }
 
+function migrationNumericPrefix(fileName = "") {
+  const match = String(fileName || "").match(/^(\d+)_/);
+  return match ? Number(match[1]) : null;
+}
+
+function isLegacyBacklogClosed(fileName = "") {
+  const name = String(fileName || "");
+  if (LEGACY_BACKLOG_CLOSURE.closed_filename_prefixes.some((prefix) => name.startsWith(prefix))) return true;
+  const prefix = migrationNumericPrefix(name);
+  if (!Number.isFinite(prefix)) return false;
+  return LEGACY_BACKLOG_CLOSURE.closed_numeric_prefix_ranges.some(([min, max]) => prefix >= min && prefix <= max);
+}
+
+function legacyClosureRouteClassification(route, fileName) {
+  return {
+    route,
+    route_class: "legacy_closure_route_reviewed",
+    openapi_required: false,
+    reason: `Route-like literal belongs to ${fileName}, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored.`,
+  };
+}
+
 function collectOpenapiPaths() {
   if (!fs.existsSync(OPENAPI_PATH)) return { operations: [], paths: [] };
   try {
