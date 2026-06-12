@@ -92,7 +92,8 @@ assert(markdown.includes("OpenAPI route autofill"), "markdown must explain relat
 
 const queueMarkdown = renderGapQueueMarkdown(report.gap_queue);
 assert(queueMarkdown.includes("Surface Contract Gap Queue"), "gap queue markdown must render title");
-assert(queueMarkdown.includes("Remediation actions"), "gap queue markdown must include remediation actions");
+if (report.gap_queue.total_items > 0) assert(queueMarkdown.includes("Remediation actions"), "gap queue markdown must include remediation actions when queue items remain");
+else assert(queueMarkdown.includes("No actionable surface contract gaps detected."), "gap queue markdown must explain empty queue after closure");
 assert(queueMarkdown.includes("surface-contract-gap-queue.json"), "gap queue markdown must reference JSON queue");
 
 const maintenanceSync = fs.readFileSync("scripts/repo-maintenance-sync.mjs", "utf8");
