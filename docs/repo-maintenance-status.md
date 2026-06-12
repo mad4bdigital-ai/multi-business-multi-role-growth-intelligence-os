@@ -10,8 +10,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 363
-- Operations: 416
+- Paths: 365
+- Operations: 418
 - Top-level tags: 30
 
 ## Top Operation Tags
@@ -19,8 +19,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `connected-systems`: 47
 - `platform-plugins`: 45
 - `platform-intelligence`: 35
+- `admin-control`: 25
 - `customers`: 24
-- `admin-control`: 23
 - `security`: 22
 - `connector-proxy`: 17
 - `identity`: 16
@@ -107,10 +107,6 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-tenant-database-schema-read.mjs`
 - `http-generic-api/test-tenant-platform-plugin-openapi.mjs`
 - `http-generic-api/test-tenant-platform-plugin-routes.mjs`
-
-## Session Insight Target Write Readback Note
-
-PR target-write-readback adds canonical OpenAPI coverage and runtime tests for the admin-only Session Insight target write readback routes introduced by migration `285_sprint68_session_insight_target_write_readback.sql`. This maintenance note intentionally records the contract without changing generated counts: the routes are read-only post-write validation, and the implementation must not create target writes, modify target items, execute rollback, call providers, read credentials, perform external writes, return raw transcripts, or include secrets.
 
 ## Maintenance Contract
 
