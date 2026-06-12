@@ -1,0 +1,33 @@
+name: DR Certification Readiness
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '47 3 * * *'
+  pull_request:
+    paths:
+      - 'http-generic-api/scripts/dr-certifiers/**'
+      - 'http-generic-api/scripts/dr-certification-evidence-readback.mjs'
+      - 'http-generic-api/releaseReadiness.js'
+      - '.github/workflows/dr-certification-readiness.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'http-generic-api/scripts/dr-certifiers/**'
+      - 'http-generic-api/scripts/dr-certification-evidence-readback.mjs'
+      - 'http-generic-api/releaseReadiness.js'
+      - '.github/workflows/dr-certification-readiness.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  static-dr-certification-readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static DR certification contract checks
+        run: node http-generic-api/test-dr-certification-and-toolbus-gated.mjs
