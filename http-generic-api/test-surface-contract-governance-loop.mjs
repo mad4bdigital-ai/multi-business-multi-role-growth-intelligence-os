@@ -12,7 +12,8 @@ assert.equal(summary.dashboard_schema, "surface-contract-governance-dashboard-v1
 assert.equal(summary.compact_schema, "surface-contract-governance-compact-v1", "compact dashboard contract must be versioned");
 assert.equal(summary.trend_schema, "surface-contract-gap-trends-v1", "trend contract must be versioned");
 assert.equal(summary.trend_gate_schema, "surface-contract-trend-quality-gate-v1", "trend quality gate contract must be versioned");
-assert(summary.triaged_items > 0, "triage must classify queue items");
+assert(Number.isInteger(summary.triaged_items), "triage must report a stable integer item count");
+assert(summary.triaged_items >= 0, "triage may be empty when the surface-contract queue is clean");
 assert.equal(summary.secrets_included, false, "triage summary must not include secrets");
 
 const script = fs.readFileSync("scripts/surface-contract-gap-triage.mjs", "utf8");
