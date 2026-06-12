@@ -200,6 +200,7 @@ export const testCommands = [
   "node test-ticket-external-credential-activation-binding.mjs",
   "node test-ticket-external-credential-orchestration.mjs",
   "node test-ticket-external-send-provider-gate.mjs",
+  "node test-platform-admin-email-default.mjs",
   "node test-ticket-external-delivery-completion-certification.mjs",
   "node test-gmail-user-oauth-consent-flow.mjs",
   "node test-external-delivery-admin-control-surface.mjs",
