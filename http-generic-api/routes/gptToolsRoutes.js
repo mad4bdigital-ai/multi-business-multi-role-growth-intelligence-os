@@ -985,15 +985,15 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   }
 
   const { http_method: method, http_path: pathTemplate } = rows[0];
-  if (callerType === "tenant" && isTenantBlockedToolPath(pathTemplate)) {
+  if (callerType === "tenant" && !isTenantToolVisible({ tool_key: toolKey, http_method: method, http_path: pathTemplate })) {
     return {
       status: 403,
       body: {
         ok: false,
         error: {
           code: "tenant_tool_route_not_allowed",
-          message: "Tenant GPT tools cannot dispatch to admin-only connector workaround routes. Use tenant-safe local gateway/connect status tools instead.",
-          details: { tool_key: toolKey, http_path: pathTemplate },
+          message: "Tenant GPT tools cannot dispatch admin, mutating, or high-risk direct endpoint tools. Use tenant-safe preview/status/support tools or a capability-envelope governed workflow instead.",
+          details: { tool_key: toolKey, method, path: pathTemplate, secrets_included: false },
         },
       },
     };
