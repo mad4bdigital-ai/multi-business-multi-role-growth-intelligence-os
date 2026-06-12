@@ -312,7 +312,7 @@ async function sendSmtpMail({ config, to, subject, text, html, idempotencyKey })
     await writeSmtp(socket, "DATA", [354], "data_start");
     socket.write(`${dotStuff(data)}\r\n.\r\n`);
     await readSmtpResponse(socket);
-    await writeSmtp(socket, "QUIT", [221, 250]);
+    await writeSmtp(socket, "QUIT", [221, 250], "quit");
     return { provider_message_id: messageId, provider_status: "sent", external_send_performed: true };
   } finally {
     socket.destroy();
