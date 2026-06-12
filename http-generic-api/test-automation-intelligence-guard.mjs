@@ -13,6 +13,8 @@ for (const requiredRule of [
   "P0-runtime-endpoint-call-hidden-from-tenant-discovery",
   "P0-platform-endpoint-exports-block-tenant-mutations",
   "P0-tenant-tool-discovery-blocks-mutating-and-high-risk-tools",
+  "P0-device-provisioning-requires-explicit-intent-and-no-raw-secrets",
+  "P0-integration-policy-error-response-no-mutation",
   "P1-guard-tests-track-runtime-contract",
   "P0-secret-boundary-in-new-automation-guard",
 ]) {
