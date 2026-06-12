@@ -1,10 +1,10 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 3.62,
+  "docs_completion_percent": 3.61,
   "docs_complete_count": 14,
-  "docs_gap_count": 373,
-  "queue_items": 386,
+  "docs_gap_count": 374,
+  "queue_items": 387,
   "blocking_new_item_count": 16,
   "gate_ok": false,
   "top_actionable": [
@@ -35,7 +35,7 @@
     {
       "migration_file": "280_sprint68_session_insight_capability_envelope_approval_gate.sql",
       "queue_class": "critical_review",
-      "score": 1203,
+      "score": 1202,
       "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
     },
     {
@@ -52,8 +52,8 @@
     }
   ],
   "openapi_missing_sql_route_count": 157,
-  "openapi_exempt_sql_route_count": 116,
-  "total_sql_route_like_count": 508,
+  "openapi_exempt_sql_route_count": 117,
+  "total_sql_route_like_count": 509,
   "safety_marker_gap_migrations": 274,
   "trend_quality_gate": {
     "ok": false,
