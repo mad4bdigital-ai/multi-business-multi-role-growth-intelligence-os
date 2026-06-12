@@ -93,7 +93,8 @@ function buildBaseline(triage) {
     ok: true,
     schema_version: "surface-contract-gap-baseline-v1",
     baseline_scope: "legacy_backlog_and_current_new_gap_baseline",
-    baseline_policy: "future gates fail only for critical/high queue items absent from this baseline",
+    baseline_policy: "future gates fail for any unbaselined new-gap candidate; low, medium, high, and critical new queue items must be remediated before promotion",
+    future_only_lock: true,
     baseline_item_count: triage.items.length,
     baseline_files: triage.items.map((item) => item.migration_file).sort(),
     baseline_class_counts: triage.class_counts,
@@ -104,16 +105,16 @@ function buildGate(triage, baseline) {
   const baselineSet = new Set(baseline.baseline_files || []);
   const unbaselinedItems = triage.items.filter((item) => !baselineSet.has(item.migration_file));
   const newItems = unbaselinedItems.filter((item) => item.gate_scope === "new_gap_gate_candidate");
-  const blocking = newItems.filter((item) => ["critical_review", "high_review"].includes(item.queue_class));
+  const blocking = newItems;
   return {
     ok: blocking.length === 0,
     schema_version: "surface-contract-new-gap-gate-v1",
-    mode: "new_gaps_only",
+    mode: "future_only_all_new_gaps",
     new_item_count: newItems.length,
     unbaselined_legacy_item_count: unbaselinedItems.length - newItems.length,
     blocking_new_item_count: blocking.length,
     blocking_new_items: blocking,
-    warning_new_items: newItems.filter((item) => !blocking.includes(item)),
+    warning_new_items: [],
     legacy_warning_items: unbaselinedItems.filter((item) => item.gate_scope !== "new_gap_gate_candidate"),
     safety: triage.safety,
   };
@@ -138,7 +139,7 @@ function buildTrends(dashboard, baseline) {
   const trendGate = {
     ok: dashboard.gate.blocking_new_item_count === 0,
     schema_version: "surface-contract-trend-quality-gate-v1",
-    rule: "blocking_new_item_count must not increase above zero; legacy baseline backlog remains visible but non-blocking",
+    rule: "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
     blocking_new_item_count: dashboard.gate.blocking_new_item_count,
     warning_new_item_count: dashboard.gate.new_item_count,
   };

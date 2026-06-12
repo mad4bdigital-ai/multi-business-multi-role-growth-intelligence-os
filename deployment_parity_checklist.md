@@ -1,6 +1,8 @@
 # Deployment Parity Checklist
 **Authority document - run before and after every deployment**
 
+> Strict future-only surface gate parity note: `surface-contract-gap-triage.mjs` now uses `future_only_all_new_gaps`. Any unbaselined future queue item blocks promotion, including low or medium docs/safety/tool/policy/OpenAPI gaps. Legacy baseline items remain visible but non-blocking; future remediation must reduce queue items to zero before release readiness promotion.
+
 > DR/Tool Bus future surface parity note: verify `1000_sprint68_dr_certification_and_tool_bus_gated_read_only.sql` remains metadata/config/policy only. DR certification rows must not include backup material, recovery-key payloads, raw secrets, external sends, external writes, provider calls, cutover, or deploy behavior. Tool Bus gated read-only dispatch policy must remain allowlisted, descriptor/policy validated, read-only, no repository mutation, no credential payload return, and secrets_included=false.
 
 > Future surface remediation parity note: verify `292_sprint68_platform_health_scorecard_operationalization.sql` and `962_sprint68_smoke_branch_cleanup_gate.sql` have no active docs/OpenAPI/safety gaps. Migration 292 must remain additive/readback-first and expose scorecard registry, remediation plan, snapshots, tenant rollout readiness, ledger hygiene, and admin scorecard tools without secrets. Migration 962 must expose `v_smoke_branch_cleanup_gate_readback` and retain exact typed-confirmation cleanup for `gpt/smoke-*` only; protected branch deletion, generic unmerged branch deletion, direct-main writes, merge, provider calls, credential payload reads, raw secrets, external sends, external writes, deploys, and secrets must remain blocked.
