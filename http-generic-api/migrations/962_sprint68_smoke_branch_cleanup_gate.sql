@@ -9,6 +9,8 @@
 --   no_external_send=true
 --   no_external_write=true
 --   secrets_included=false
+--   No provider calls. No credential payload reads. No raw secrets.
+--   No external send. No external writes. secrets_included=false
 
 UPDATE execution_policies
 SET policy_value = JSON_SET(
