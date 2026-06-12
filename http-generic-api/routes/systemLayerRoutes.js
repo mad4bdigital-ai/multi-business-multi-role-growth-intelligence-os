@@ -2010,7 +2010,7 @@ export function buildSystemLayerRoutes(deps) {
         callSystemLayerTool(name, args, req.auth, { executionFacade }),
         deadline
       ]);
-      return res.status(200).json({ ok: true, name, result });
+      return res.status(200).json(chunkSystemLayerResponse({ ok: true, name, result, secrets_included: false }, args || {}));
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");
     }
