@@ -2,7 +2,7 @@ export const CANONICALS = [
   {
     output: 'system_bootstrap.md',
     sourceDir: 'canonicals/system_bootstrap',
-    expectedFileCount: 21,
+    expectedFileCount: 22,
     index: [
       ['Header and purpose', '00_header_purpose.md', 'Canonical identity, status, and purpose.'],
       ['Logic pointers and knowledge profiles', '01_logic_pointer_knowledge.md', 'Logic pointer authority, knowledge profiles, brand onboarding, and asset-read governance.'],
