@@ -278,6 +278,7 @@ export function buildGuidancePresentation({ profile, activationBrief, counts, pe
     dataRef: dataRefs[id],
     profile,
     languageContext,
+    invocationRegistry,
     nextStageId: stageIds[index + 1] || null,
   }));
 
