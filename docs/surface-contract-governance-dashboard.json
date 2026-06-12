@@ -6,23 +6,23 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 398,
-    "docs_complete_count": 398,
+    "migrations_with_surfaces": 399,
+    "docs_complete_count": 399,
     "docs_gap_count": 0,
     "docs_completion_percent": 100,
     "surface_totals": {
       "plugins": 12,
-      "tools": 1843,
-      "views": 347,
-      "policies": 143,
-      "routes": 528
+      "tools": 1871,
+      "views": 349,
+      "policies": 144,
+      "routes": 530
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 341,
-      "views": 139,
-      "policies": 90,
-      "routes": 223
+      "tools": 342,
+      "views": 140,
+      "policies": 91,
+      "routes": 224
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 0,
@@ -35,23 +35,23 @@
       "high": 0,
       "medium": 0,
       "low": 0,
-      "none": 398
+      "none": 399
     },
     "high_risk_missing_docs": [],
     "medium_risk_missing_docs": [],
     "safety_marker_counts": {
-      "no_provider_call": 398,
-      "no_credential_payload_read": 398,
-      "no_raw_secrets": 398,
-      "no_external_send": 398,
-      "no_external_write": 398,
-      "secrets_included_false": 398
+      "no_provider_call": 399,
+      "no_credential_payload_read": 399,
+      "no_raw_secrets": 399,
+      "no_external_send": 399,
+      "no_external_write": 399,
+      "secrets_included_false": 399
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
       "sql_route_count": 0,
-      "total_sql_route_like_count": 528,
-      "openapi_exempt_sql_route_count": 528,
+      "total_sql_route_like_count": 530,
+      "openapi_exempt_sql_route_count": 530,
       "route_class_counts": {
         "http_route": 0,
         "admin_tool_registry_route": 90,
@@ -59,7 +59,7 @@
         "system_tool_dispatch_route": 10,
         "registry_only_surface": 1,
         "false_positive_route_like_string": 0,
-        "legacy_closure_route_reviewed": 392
+        "legacy_closure_route_reviewed": 394
       },
       "openapi_documented_sql_route_count": 0,
       "openapi_missing_sql_route_count": 0,
