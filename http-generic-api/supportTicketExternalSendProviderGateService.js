@@ -223,7 +223,35 @@ export async function recordSupportTicketExternalSendProviderGateAttempt({ tenan
         }
       }
       const dispatcher = createSupportTicketExternalProviderDispatcher({ adapter: provider_plan.provider_adapter || {} });
-      const dispatchResult = await dispatcher.send(provider_plan, { connection });
+      let dispatchResult;
+      try {
+        dispatchResult = await dispatcher.send(provider_plan, { connection });
+      } catch (dispatchError) {
+        const safeFailurePayload = {
+          provider_plan: { ...provider_plan, payload_json: { ...(provider_plan.payload_json || {}), body: undefined, body_text: undefined, body_html: undefined } },
+          delivery_status: "provider_dispatch_failed",
+          error_code: dispatchError.code || "external_provider_dispatch_failed",
+          smtp_code: dispatchError.smtp_code || null,
+          smtp_stage: dispatchError.smtp_stage || null,
+          provider_status: dispatchError.provider_status || null,
+          idempotency_key: idempotencyKey,
+          external_send_performed: Boolean(dispatchError.external_send_performed) && false,
+          secret_value_included: false,
+          secrets_included: false,
+        };
+        await connection.query(
+          `INSERT INTO ticket_lifecycle_events (event_id, ticket_id, tenant_id, event_type, from_state, to_state, actor_id, actor_type, visibility, summary, payload_json)
+           VALUES (UUID(), ?, ?, 'external_send_provider_dispatch_failed', ?, ?, ?, ?, 'internal_support', ?, ?)`,
+          [ticket_id, tenant_id, ticket.lifecycle_state || null, ticket.lifecycle_state || null, actor_id, actor_type, subject || "External provider dispatch failed.", JSON.stringify(safeFailurePayload)]
+        );
+        await connection.query(
+          `INSERT INTO audit_log (audit_id, tenant_id, actor_id, actor_type, action, resource_type, resource_id, after_json, service_mode)
+           VALUES (UUID(), ?, ?, ?, 'support_ticket_external_send_provider_dispatch_failed', 'ticket', ?, ?, 'managed')`,
+          [tenant_id, actor_id, actor_type, ticket_id, JSON.stringify(safeFailurePayload)]
+        );
+        dispatchError.safe_diagnostics = { error_code: safeFailurePayload.error_code, smtp_code: safeFailurePayload.smtp_code, smtp_stage: safeFailurePayload.smtp_stage, secrets_included: false };
+        throw dispatchError;
+      }
       const eventPayload = {
         provider_plan: { ...provider_plan, payload_json: { ...(provider_plan.payload_json || {}), body: undefined, body_text: undefined, body_html: undefined } },
         provider_result: dispatchResult,
