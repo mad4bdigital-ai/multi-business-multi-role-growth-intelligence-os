@@ -154,6 +154,14 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
     } catch (err) { return errorResponse(res, err, "platform_orchestration_readback_failed"); }
   });
 
+  router.post("/platform/health/scorecard", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await readPlatformHealthScorecard(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_health_scorecard_failed"); }
+  });
+
   router.post("/platform/orchestration/ads-provider/snapshot-propose", ...requireAdmin, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
