@@ -168,6 +168,38 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
     } catch (err) { return errorResponse(res, err, "platform_health_scorecard_failed"); }
   });
 
+  router.post("/platform/health/scorecard/snapshot-record", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await recordPlatformHealthScorecardSnapshot(input);
+      return res.status(201).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_health_scorecard_snapshot_record_failed"); }
+  });
+
+  router.post("/platform/health/scorecard/remediation-plan", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await readPlatformHealthScorecardRemediationPlan(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_health_scorecard_remediation_plan_failed"); }
+  });
+
+  router.post("/platform/health/scorecard/tenant-rollout", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await readPlatformHealthScorecardTenantRollout(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_health_scorecard_tenant_rollout_failed"); }
+  });
+
+  router.post("/platform/health/scorecard/ledger-hygiene", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await readPlatformHealthScorecardLedgerHygiene(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_health_scorecard_ledger_hygiene_failed"); }
+  });
+
   router.post("/platform/orchestration/ads-provider/snapshot-propose", ...requireAdmin, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
