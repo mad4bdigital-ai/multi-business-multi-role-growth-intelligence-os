@@ -26,7 +26,7 @@ import {
 import { requireAdminPrincipal } from "./adminCliRoutes.js";
 import { decodeGitHubAppPrivateKey, getGitHubAppInstallationToken, resolveGitHubAppConfig } from "../githubAppAuth.js";
 import { derivePrincipalExecutionContext } from "../executionControlResolvers.js";
-import { fetchToolsForCaller, dispatchToolForCaller } from "./gptToolsRoutes.js";
+import { fetchToolsForCaller, dispatchToolForCaller, maybeChunkToolResponseBody, readCachedToolResponseChunk, paginateItems } from "./gptToolsRoutes.js";
 import {
   PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
   catalogGovernedResources,
