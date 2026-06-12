@@ -110,7 +110,7 @@ export async function createRuntimeVerificationRun(input = {}, actor = {}) {
        (run_id, environment_key, expected_commit_sha, deployed_commit_sha, workflow_key, runtime_base_url,
         runtime_profile, run_status, production_parity, response_budget_json, started_at, created_by)
      VALUES (?, ?, ?, ?, ?, ?, ?, 'collecting', 'validating', ?, UTC_TIMESTAMP(), ?)`,
-    [runId, environmentKey, commitSha, commitSha, input.workflow_key || "runtime_verification_control_plane", input.runtime_base_url || "https://auth.mad4b.com", input.runtime_profile || "api_only", JSON.stringify(budget), createdBy]
+    [runId, environmentKey, expectedCommitSha, deployedCommitSha, input.workflow_key || "runtime_verification_control_plane", input.runtime_base_url || "https://auth.mad4b.com", input.runtime_profile || "api_only", JSON.stringify(budget), createdBy]
   );
 
   const missingRuntimeTables = [];
