@@ -184,6 +184,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "952_sprint68_resource_graph_projection_apply_gate.sql",
   "953_sprint68_resource_graph_projection_positive_smoke_certification.sql",
   "954_sprint68_compact_operational_views_and_github_resource_coverage.sql", "955_sprint68_external_delivery_admin_control_surface.sql", "956_sprint68_external_delivery_allowlist_readiness_view_updated_at.sql",
+  "957_sprint68_capability_baseline_branch_hygiene_github_file_inspect.sql",
   "262_sprint68_orchestration_readback_surface.sql",
   "263_sprint68_ads_governance_snapshot_proposal.sql",
   "264_sprint68_ads_governance_snapshot_record_gate.sql",

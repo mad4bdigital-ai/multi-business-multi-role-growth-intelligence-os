@@ -14,6 +14,7 @@ const manifestCertificationMigration = readFileSync("migrations/904_sprint68_res
 const graphProjectionApplyMigration = readFileSync("migrations/952_sprint68_resource_graph_projection_apply_gate.sql", "utf8");
 const graphProjectionPositiveCertificationMigration = readFileSync("migrations/953_sprint68_resource_graph_projection_positive_smoke_certification.sql", "utf8");
 const compactViewsGithubCoverageMigration = readFileSync("migrations/954_sprint68_compact_operational_views_and_github_resource_coverage.sql", "utf8");
+const capabilityBaselineGithubFileMigration = readFileSync("migrations/957_sprint68_capability_baseline_branch_hygiene_github_file_inspect.sql", "utf8");
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
 const runtimeModule = readFileSync("platformResourceRecipeCapability.js", "utf8");
@@ -154,6 +155,21 @@ includesAll(compactViewsGithubCoverageMigration, [
   "file_content_read_allowed',false",
   "secrets_included',false",
 ], "compact operational views and GitHub resource coverage migration");
+
+includesAll(capabilityBaselineGithubFileMigration, [
+  "957_sprint68_capability_baseline_branch_hygiene_github_file_inspect.sql",
+  "CREATE OR REPLACE VIEW v_platform_resource_capability_baseline",
+  "CREATE OR REPLACE VIEW v_repo_branch_hygiene_compact",
+  "platform_resource_capability_baseline.v1",
+  "snapshot_backed_branch_hygiene.v1",
+  "github.file.inspect_summary",
+  "github.file.inspect.adapter",
+  "metadata_only_no_content",
+  "file_content_read_allowed',false",
+  "file_content_returned',false",
+  "write_allowed',false",
+  "secrets_included',false",
+], "capability baseline branch hygiene and GitHub file inspect migration");
 
 assert(
   manifest.includes("node test-platform-resource-recipe-capability.mjs"),
