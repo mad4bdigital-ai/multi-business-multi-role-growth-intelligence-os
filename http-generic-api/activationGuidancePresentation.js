@@ -233,8 +233,8 @@ function buildInvocation(actionKey, profile, overrides = {}, invocationRegistry 
   };
 }
 
-function stage({ id, order, dataRef, profile, languageContext, status = "ready", nextStageId = null }) {
-  const invocation = STAGE_INVOCATIONS[id];
+function stage({ id, order, dataRef, profile, languageContext, invocationRegistry = null, status = "ready", nextStageId = null }) {
+  const invocation = invocationRegistry?.stages?.get(id) || STAGE_INVOCATIONS[id];
   return {
     stage_id: id,
     order,
