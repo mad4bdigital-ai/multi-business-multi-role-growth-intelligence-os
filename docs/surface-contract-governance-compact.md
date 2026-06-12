@@ -1,14 +1,14 @@
 # Surface Contract Governance Compact
 
-- Gate: fail
-- Blocking new items: 1
-- Docs completion: 404/405 (99.75%)
-- Queue items: 1
+- Gate: pass
+- Blocking new items: 0
+- Docs completion: 405/405 (100%)
+- Queue items: 0
 - OpenAPI missing SQL routes: 0
 - OpenAPI-exempt SQL route-like literals: 533/533
 - Safety marker gap migrations: 0
-- Trend quality gate: fail
+- Trend quality gate: pass
 
 ## Top actionable
 
-- `964_sprint68_hostinger_stored_credential_apply_policy.sql` — high_review, score 625; add targeted patch-index, parity, and governance documentation
+- none
