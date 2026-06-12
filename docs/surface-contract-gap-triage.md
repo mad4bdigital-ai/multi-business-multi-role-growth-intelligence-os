@@ -4,17 +4,18 @@
 
 ## Summary
 
-- Triaged items: 3
-- Gate candidates: 2
+- Triaged items: 4
+- Gate candidates: 3
 - New-gap gate: fail
-- Blocking new items: 2
+- Blocking new items: 3
 
 ## Class counts
 
 - safety_marker_review: 1
-- new_surface_immediate_review: 2
+- new_surface_immediate_review: 3
 
 ## Immediate review candidates
 
 - `1001_sprint68_repository_advisory_comment_v5_tenant_tool_wiring.sql` — critical_review, score 775; next: add targeted patch-index, parity, and governance documentation
 - `1001_sprint68_tenant_ticket_admin_gpt_link_support.sql` — high_review, score 676; next: add targeted patch-index, parity, and governance documentation
+- `963_sprint68_hostinger_deploy_restart_tool_exports.sql` — high_review, score 669; next: add targeted patch-index, parity, and governance documentation
