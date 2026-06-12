@@ -8,13 +8,14 @@ async function read(relativePath) {
   return fs.readFile(path.join(root, relativePath), "utf8");
 }
 
-const [service, presentation, routes, routeIndex, openapi, migration] = await Promise.all([
+const [service, presentation, routes, routeIndex, openapi, migration, invocationMigration] = await Promise.all([
   read("activationGuidanceService.js"),
   read("activationGuidancePresentation.js"),
   read("routes/activationGuidanceRoutes.js"),
   read("routes/index.js"),
   read("openapi.yaml"),
   read("migrations/308_sprint69_activation_guidance_intelligence.sql"),
+  read("migrations/309_sprint69_activation_guidance_invocation_registry.sql"),
 ]);
 
 assert.match(routeIndex, /buildActivationGuidanceRoutes/, "activation guidance routes must be mounted");
