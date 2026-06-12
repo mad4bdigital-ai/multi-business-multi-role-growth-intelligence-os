@@ -62,6 +62,12 @@ if (migration954.coverage.gap_severity !== "none") {
   assert.equal(migration954.documentation_complete, true, "documented migration 954 may leave actionable gap queue only after docs are complete");
 }
 
+const migration282 = report.all_migrations.find((entry) => entry.migration_file === "282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql");
+assert(migration282, "migration 282 must remain discoverable under legacy closure");
+assert.equal(migration282.legacy_backlog_closed, true, "migration 282 must be covered by the legacy backlog closure policy");
+assert.equal(migration282.coverage.route_coverage.missing_count, 0, "closed legacy route-like literals must not remain active OpenAPI gaps");
+assert(migration282.coverage.route_coverage.route_classifications.some((entry) => entry.route_class === "legacy_closure_route_reviewed"), "closed legacy routes must expose review classification evidence");
+
 const migration955 = report.all_migrations.find((entry) => entry.migration_file === "955_sprint68_external_delivery_admin_control_surface.sql");
 assert(migration955, "migration 955 must be discoverable for route classification regression coverage");
 assert.equal(migration955.coverage.route_coverage.missing_count, 0, "admin tool registry routes in migration 955 must not be treated as OpenAPI gaps");
