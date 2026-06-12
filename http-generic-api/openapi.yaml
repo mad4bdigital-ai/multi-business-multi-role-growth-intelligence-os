@@ -73,6 +73,8 @@ tags:
     description: Runtime verification control plane, production parity ledger, and paginated evidence surfaces.
   - name: operational-console
     description: Unified operational console readback across runtime parity, activation, tiles, gaps, freshness, and evidence manifests.
+  - name: activation-guidance
+    description: Proactive activation guidance intelligence for Tenant GPT and Admin GPT, including account counts, permissions, readiness semantics, and next-best actions.
   - name: local-manager
     description: Local Manager device-code linking, device controls, and Windows update metadata.
   - name: platform-graph
