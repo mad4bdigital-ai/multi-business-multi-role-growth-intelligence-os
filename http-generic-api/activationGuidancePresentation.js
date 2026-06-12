@@ -216,8 +216,8 @@ function buildInvocation(actionKey, profile, overrides = {}, invocationRegistry 
     mode: "advisory",
     tool_candidates: [],
   };
-  const risk = overrides.risk || (item.mode === "read_only" || item.mode === "advisory" ? "low" : "medium");
-  const requiresConfirmation = Boolean(overrides.requires_confirmation || item.mode === "setup");
+  const risk = overrides.risk || item.default_risk || (item.mode === "read_only" || item.mode === "advisory" ? "low" : "medium");
+  const requiresConfirmation = Boolean(overrides.requires_confirmation || item.requires_confirmation || item.mode === "setup");
   return {
     invocation_tag: item.tag,
     slash_alias: item.slash,
