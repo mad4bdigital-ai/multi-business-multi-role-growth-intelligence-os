@@ -21,6 +21,8 @@ assert.equal(typeof report.coverage_summary.docs_completion_percent, "number", "
 assert.equal(typeof report.coverage_summary.gap_severity_counts.high, "number", "coverage summary must count high-risk docs gaps");
 assert.equal(typeof report.coverage_summary.surface_totals.routes, "number", "coverage summary must count route surfaces");
 assert.equal(typeof report.coverage_summary.route_coverage.openapi_sql_route_coverage_percent, "number", "coverage summary must score SQL route/OpenAPI coverage");
+assert.equal(typeof report.coverage_summary.route_coverage.openapi_exempt_sql_route_count, "number", "coverage summary must count OpenAPI-exempt route-like surfaces");
+assert.equal(typeof report.coverage_summary.route_coverage.route_class_counts.admin_tool_registry_route, "number", "coverage summary must count admin tool registry route classifications");
 assert(Array.isArray(report.coverage_summary.route_coverage.route_openapi_gaps), "coverage summary must list route/OpenAPI gaps");
 assert(report.coverage_summary.missing_doc_target_counts["Updating Registry Patch Index.md"] >= 0, "coverage summary must count missing docs by target");
 assert(report.coverage_summary.safety_marker_counts.secrets_included_false >= 0, "coverage summary must count safety marker coverage");
