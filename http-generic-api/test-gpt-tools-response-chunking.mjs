@@ -38,6 +38,11 @@ async function main() {
   assert.equal(firstChunk.page.cursor, 0);
   assert.ok(firstChunk.page.next_cursor > 0);
   assert.ok(firstChunk.chunk.length <= 5000);
+  assert.ok(firstChunk.cache.ttl_ms >= 15 * 60 * 1000);
+  assert.ok(firstChunk.cache.expires_at);
+
+  const requestedTtl = resolveToolResponseChunkTtlMs({ response_options: { max_chars: 5000, chunk_ttl_minutes: 45 } }, JSON.stringify(largeBody).length);
+  assert.ok(requestedTtl >= 45 * 60 * 1000);
 
   const secondChunk = readCachedToolResponseChunk({
     chunk_id: firstChunk.chunk_id,
