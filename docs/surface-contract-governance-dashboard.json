@@ -7,9 +7,9 @@
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
     "migrations_with_surfaces": 387,
-    "docs_complete_count": 5,
-    "docs_gap_count": 382,
-    "docs_completion_percent": 1.29,
+    "docs_complete_count": 14,
+    "docs_gap_count": 373,
+    "docs_completion_percent": 3.62,
     "surface_totals": {
       "plugins": 11,
       "tools": 1779,
@@ -25,17 +25,17 @@
       "routes": 217
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 351,
-      "deployment_parity_checklist.md": 360,
-      "docs/ai-docs-agent-governance.md": 382,
-      "docs/auto-docs-agent/README.md": 382,
-      "docs/change-documentation-governance.md": 382
+      "Updating Registry Patch Index.md": 343,
+      "deployment_parity_checklist.md": 352,
+      "docs/ai-docs-agent-governance.md": 373,
+      "docs/auto-docs-agent/README.md": 373,
+      "docs/change-documentation-governance.md": 373
     },
     "gap_severity_counts": {
-      "high": 221,
+      "high": 212,
       "medium": 137,
       "low": 24,
-      "none": 5
+      "none": 14
     },
     "high_risk_missing_docs": [
       "047_sprint47b_gpt_tool_registry.sql",
@@ -243,20 +243,11 @@
       "271_sprint68_session_insight_adapter_apply_readiness_gate.sql",
       "272_sprint68_session_insight_capability_envelope_planner.sql",
       "272_sprint68_support_ticket_lifecycle_snapshot_proposal.sql",
-      "273_sprint68_session_insight_capability_envelope_request_gate.sql",
       "273_sprint68_support_ticket_lifecycle_snapshot_record_gate.sql",
       "274_sprint68_execution_policy_enforcement_closure.sql",
       "274_sprint68_schema_split_importer_v2_reference_preservation.sql",
       "274_sprint68_session_insight_capability_envelope_request_review.sql",
-      "275_sprint68_session_insight_capability_envelope_dispatch_dry_run.sql",
       "277_sprint68_session_insight_capability_envelope_dispatch_dry_run_review.sql",
-      "278_sprint68_session_insight_capability_envelope_actual_request_preflight.sql",
-      "279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql",
-      "280_sprint68_session_insight_capability_envelope_approval_gate.sql",
-      "281_sprint68_session_insight_capability_envelope_dispatch_readback.sql",
-      "282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql",
-      "283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql",
-      "284_sprint68_session_insight_backlog_target_write_executor.sql",
       "286_sprint68_platform_schema_contract_completion_registry.sql",
       "906_sprint68_ticket_external_delivery_completion_certification.sql"
     ],
@@ -409,10 +400,20 @@
     },
     "safety_marker_gap_migrations": 274,
     "route_coverage": {
-      "sql_route_count": 508,
-      "openapi_documented_sql_route_count": 311,
-      "openapi_missing_sql_route_count": 197,
-      "openapi_sql_route_coverage_percent": 61.22,
+      "sql_route_count": 392,
+      "total_sql_route_like_count": 508,
+      "openapi_exempt_sql_route_count": 116,
+      "route_class_counts": {
+        "http_route": 392,
+        "admin_tool_registry_route": 73,
+        "tenant_tool_registry_route": 35,
+        "system_tool_dispatch_route": 8,
+        "registry_only_surface": 0,
+        "false_positive_route_like_string": 0
+      },
+      "openapi_documented_sql_route_count": 235,
+      "openapi_missing_sql_route_count": 157,
+      "openapi_sql_route_coverage_percent": 59.95,
       "route_openapi_gaps": [
         {
           "migration_file": "068_sprint58_cloudflare_readonly_runtime.sql",
@@ -444,14 +445,6 @@
             "/admin/onboarding/{user_id}/escalate",
             "/admin/onboarding/{user_id}/link-session-archive",
             "/admin/onboarding/{user_id}/repair-membership"
-          ]
-        },
-        {
-          "migration_file": "108_hostinger_ssh_governed_connectors.sql",
-          "missing_routes": [
-            "/admin/hostinger/ssh/restart-app",
-            "/admin/hostinger/ssh/status",
-            "/admin/hostinger/ssh/tail-logs"
           ]
         },
         {
@@ -594,118 +587,12 @@
           ]
         },
         {
-          "migration_file": "158_sprint65_execution_plan_dispatch_tool.sql",
-          "missing_routes": [
-            "/execution-plans/{plan_id}/dispatch"
-          ]
-        },
-        {
-          "migration_file": "159_sprint65_wordpress_auth_context_diagnostic_tool.sql",
-          "missing_routes": [
-            "/wordpress/auth-context/diagnose"
-          ]
-        },
-        {
-          "migration_file": "177_sprint65_validator_result_log_foundation.sql",
-          "missing_routes": [
-            "/platform/engines/validator-results"
-          ]
-        },
-        {
-          "migration_file": "190_sprint66_workspace_lifecycle_foundation.sql",
-          "missing_routes": [
-            "/me/invitations/accept",
-            "/me/workspaces/{tenant_id}/access-requests",
-            "/me/workspaces/{tenant_id}/access-requests/{request_id}/approve",
-            "/me/workspaces/{tenant_id}/access-requests/{request_id}/reject",
-            "/me/workspaces/{tenant_id}/invitations",
-            "/me/workspaces/{tenant_id}/members"
-          ]
-        },
-        {
-          "migration_file": "193_sprint67_workspace_resource_authority_foundation.sql",
-          "missing_routes": [
-            "/me/workspaces/{tenant_id}/assets",
-            "/me/workspaces/{tenant_id}/resource-grants",
-            "/me/workspaces/{tenant_id}/vaults"
-          ]
-        },
-        {
-          "migration_file": "194_sprint66_tenant_infrastructure_readiness_tools.sql",
-          "missing_routes": [
-            "/me/infrastructure/connections/{connection_id}/preflight",
-            "/me/infrastructure/connections/{connection_id}/status"
-          ]
-        },
-        {
-          "migration_file": "194_sprint67_workspace_resource_grant_assignment_tools.sql",
-          "missing_routes": [
-            "/me/workspaces/{tenant_id}/resource-grants",
-            "/me/workspaces/{tenant_id}/resource-grants/{grant_id}/revoke"
-          ]
-        },
-        {
           "migration_file": "195_sprint66_tenant_infrastructure_specific_paths.sql",
           "missing_routes": [
             "/me/infrastructure/database/connections/{connection_id}/preflight",
             "/me/infrastructure/database/connections/{connection_id}/status",
             "/me/infrastructure/ssh/connections/{connection_id}/preflight",
             "/me/infrastructure/ssh/connections/{connection_id}/status"
-          ]
-        },
-        {
-          "migration_file": "196_sprint66_tenant_database_schema_read_tool.sql",
-          "missing_routes": [
-            "/me/infrastructure/database/connections/{connection_id}/schema"
-          ]
-        },
-        {
-          "migration_file": "199_sprint68_workspace_ownership_member_control_tools.sql",
-          "missing_routes": [
-            "/me/workspaces/{tenant_id}/members/{user_id}",
-            "/me/workspaces/{tenant_id}/members/{user_id}/remove",
-            "/me/workspaces/{tenant_id}/ownership/transfer"
-          ]
-        },
-        {
-          "migration_file": "200_sprint68_workspace_invitation_control_tools.sql",
-          "missing_routes": [
-            "/me/workspaces/{tenant_id}/invitations/expire-stale",
-            "/me/workspaces/{tenant_id}/invitations/{invitation_id}/resend",
-            "/me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke"
-          ]
-        },
-        {
-          "migration_file": "201_sprint68_workspace_access_request_control_tools.sql",
-          "missing_routes": [
-            "/me/access-requests",
-            "/me/workspaces/{tenant_id}/access-requests/{request_id}/cancel"
-          ]
-        },
-        {
-          "migration_file": "202_sprint68_admin_workspace_authority_tools.sql",
-          "missing_routes": [
-            "/admin/workspace-authority/reconciliation",
-            "/admin/workspace-authority/repair"
-          ]
-        },
-        {
-          "migration_file": "205_sprint67_openclaude_provider_bridge_routes.sql",
-          "missing_routes": [
-            "/dev-agent/openclaude/bridge/v1/chat/completions",
-            "/dev-agent/openclaude/bridge/v1/health"
-          ]
-        },
-        {
-          "migration_file": "206_sprint67_hostinger_ssh_deploy_executor.sql",
-          "missing_routes": [
-            "/platform/remote-runtime/hosting/deploy-release"
-          ]
-        },
-        {
-          "migration_file": "207_sprint67_hostinger_ssh_target_probe.sql",
-          "missing_routes": [
-            "/platform/remote-runtime/hosting/ssh-probe"
           ]
         },
         {
@@ -1046,12 +933,6 @@
           ]
         },
         {
-          "migration_file": "274_sprint68_schema_split_importer_v2_reference_preservation.sql",
-          "missing_routes": [
-            "/admin/schema-import/action-ref"
-          ]
-        },
-        {
           "migration_file": "274_sprint68_session_insight_capability_envelope_request_review.sql",
           "missing_routes": [
             "/platform/session-insight-promotions/capability-envelope-request-gates/review/decision"
@@ -1125,16 +1006,6 @@
           "missing_routes": [
             "/platform/wordpress/blog-publish-recovery"
           ]
-        },
-        {
-          "migration_file": "955_sprint68_external_delivery_admin_control_surface.sql",
-          "missing_routes": [
-            "/admin/support/tickets/external-delivery/control/adapter/dispatch",
-            "/admin/support/tickets/external-delivery/control/allowlist/disable",
-            "/admin/support/tickets/external-delivery/control/allowlist/upsert",
-            "/admin/support/tickets/external-delivery/control/gmail/revoke",
-            "/admin/support/tickets/external-delivery/control/overview"
-          ]
         }
       ]
     }
@@ -1142,42 +1013,36 @@
   "queue": {
     "total_items": 386,
     "class_counts": {
-      "critical_review": 245,
+      "critical_review": 244,
       "high_review": 115,
-      "medium_review": 25,
+      "medium_review": 26,
       "low_review": 1
     }
   },
   "triage": {
     "total_items": 100,
     "class_counts": {
-      "safety_marker_review": 33,
-      "openapi_contract_review": 60,
+      "safety_marker_review": 31,
+      "openapi_contract_review": 62,
       "new_surface_immediate_review": 7
     },
     "gate_candidate_count": 7
   },
   "gate": {
-    "ok": true,
+    "ok": false,
     "mode": "new_gaps_only",
-    "new_item_count": 0,
-    "blocking_new_item_count": 0
+    "new_item_count": 16,
+    "blocking_new_item_count": 16
   },
   "top_immediate_items": [
     {
       "migration_file": "282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql",
-      "score": 2019,
+      "score": 1419,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
+      "gap_severity": "none",
+      "missing_docs": [],
       "missing_openapi_routes": [
         "/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create",
         "/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list"
@@ -1190,7 +1055,6 @@
         "no_external_write"
       ],
       "remediation_action_keys": [
-        "document_surface_contract",
         "review_openapi_contract",
         "verify_tool_registry_binding",
         "verify_policy_seed_readiness",
@@ -1198,7 +1062,6 @@
         "add_explicit_safety_markers"
       ],
       "owner_hints": [
-        "docs-agent/human-review",
         "api-contract-review",
         "runtime-registry-review",
         "runtime-policy-review",
@@ -1218,18 +1081,12 @@
     },
     {
       "migration_file": "281_sprint68_session_insight_capability_envelope_dispatch_readback.sql",
-      "score": 1947,
+      "score": 1347,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
+      "gap_severity": "none",
+      "missing_docs": [],
       "missing_openapi_routes": [
         "/platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create",
         "/platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list"
@@ -1242,7 +1099,6 @@
         "no_external_write"
       ],
       "remediation_action_keys": [
-        "document_surface_contract",
         "review_openapi_contract",
         "verify_tool_registry_binding",
         "verify_policy_seed_readiness",
@@ -1250,159 +1106,6 @@
         "add_explicit_safety_markers"
       ],
       "owner_hints": [
-        "docs-agent/human-review",
-        "api-contract-review",
-        "runtime-registry-review",
-        "runtime-policy-review",
-        "db-readback-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql",
-      "score": 1821,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [
-        "/platform/session-insight-promotions/remaining-scope-completions/create",
-        "/platform/session-insight-promotions/remaining-scope-completions/list"
-      ],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "review_openapi_contract",
-        "verify_tool_registry_binding",
-        "verify_policy_seed_readiness",
-        "verify_readback_view",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "api-contract-review",
-        "runtime-registry-review",
-        "runtime-policy-review",
-        "db-readback-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "280_sprint68_session_insight_capability_envelope_approval_gate.sql",
-      "score": 1803,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [
-        "/platform/session-insight-promotions/capability-envelope-approvals/decision",
-        "/platform/session-insight-promotions/capability-envelope-approvals/list"
-      ],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "review_openapi_contract",
-        "verify_tool_registry_binding",
-        "verify_policy_seed_readiness",
-        "verify_readback_view",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "api-contract-review",
-        "runtime-registry-review",
-        "runtime-policy-review",
-        "db-readback-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "284_sprint68_session_insight_backlog_target_write_executor.sql",
-      "score": 1530,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [
-        "/platform/session-insight-promotions/backlog-target-writes/execute",
-        "/platform/session-insight-promotions/backlog-target-writes/list",
-        "/platform/session-insight-promotions/backlog-target-writes/rollback"
-      ],
-      "safety_marker_gaps": [
-        "no_raw_secrets",
-        "no_external_send"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "review_openapi_contract",
-        "verify_tool_registry_binding",
-        "verify_policy_seed_readiness",
-        "verify_readback_view",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
         "api-contract-review",
         "runtime-registry-review",
         "runtime-policy-review",
@@ -1462,23 +1165,22 @@
       }
     },
     {
-      "migration_file": "955_sprint68_external_delivery_admin_control_surface.sql",
-      "score": 1194,
+      "migration_file": "283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql",
+      "score": 1221,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
       "gap_severity": "none",
       "missing_docs": [],
       "missing_openapi_routes": [
-        "/admin/support/tickets/external-delivery/control/adapter/dispatch",
-        "/admin/support/tickets/external-delivery/control/allowlist/disable",
-        "/admin/support/tickets/external-delivery/control/allowlist/upsert",
-        "/admin/support/tickets/external-delivery/control/gmail/revoke",
-        "/admin/support/tickets/external-delivery/control/overview"
+        "/platform/session-insight-promotions/remaining-scope-completions/create",
+        "/platform/session-insight-promotions/remaining-scope-completions/list"
       ],
       "safety_marker_gaps": [
         "no_provider_call",
         "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
         "no_external_write"
       ],
       "remediation_action_keys": [
@@ -1493,6 +1195,139 @@
         "runtime-registry-review",
         "runtime-policy-review",
         "db-readback-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "280_sprint68_session_insight_capability_envelope_approval_gate.sql",
+      "score": 1203,
+      "queue_class": "critical_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "none",
+      "missing_docs": [],
+      "missing_openapi_routes": [
+        "/platform/session-insight-promotions/capability-envelope-approvals/decision",
+        "/platform/session-insight-promotions/capability-envelope-approvals/list"
+      ],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write"
+      ],
+      "remediation_action_keys": [
+        "review_openapi_contract",
+        "verify_tool_registry_binding",
+        "verify_policy_seed_readiness",
+        "verify_readback_view",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "api-contract-review",
+        "runtime-registry-review",
+        "runtime-policy-review",
+        "db-readback-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "284_sprint68_session_insight_backlog_target_write_executor.sql",
+      "score": 970,
+      "queue_class": "critical_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "none",
+      "missing_docs": [],
+      "missing_openapi_routes": [
+        "/platform/session-insight-promotions/backlog-target-writes/execute",
+        "/platform/session-insight-promotions/backlog-target-writes/list",
+        "/platform/session-insight-promotions/backlog-target-writes/rollback"
+      ],
+      "safety_marker_gaps": [
+        "no_raw_secrets",
+        "no_external_send"
+      ],
+      "remediation_action_keys": [
+        "review_openapi_contract",
+        "verify_tool_registry_binding",
+        "verify_policy_seed_readiness",
+        "verify_readback_view",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "api-contract-review",
+        "runtime-registry-review",
+        "runtime-policy-review",
+        "db-readback-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "286_sprint68_platform_schema_contract_completion_registry.sql",
+      "score": 952,
+      "queue_class": "critical_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "high",
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [
+        "/platform/wordpress/blog-publish-recovery"
+      ],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "review_openapi_contract",
+        "verify_tool_registry_binding",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "api-contract-review",
+        "runtime-registry-review",
         "safety-contract-review"
       ],
       "recommended_next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption",
