@@ -346,6 +346,7 @@ export async function buildActivationGuidance({
     safeActionMenu: classified.safeMenu,
     blockedOrLimitedCapabilities: classified.blockedOrLimited,
     languageContext,
+    invocationRegistry,
   });
   const payload = {
     ok: true,
