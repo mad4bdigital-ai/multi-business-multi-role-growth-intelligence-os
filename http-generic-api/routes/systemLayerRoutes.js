@@ -824,6 +824,14 @@ async function callPlatformEndpointToolIfAvailable(name, args = {}, auth = null,
     throw err;
   }
 
+  if (!isTenantPlatformEndpointExportAllowed(row, auth)) {
+    const err = new Error("Tenant principals cannot dispatch direct mutating platform endpoint exports. Use runtime_endpoint_preview or a capability-envelope governed tenant workflow.");
+    err.status = 403;
+    err.code = "tenant_platform_endpoint_mutation_not_allowed";
+    err.details = { tool_name: row.tool_name, method: row.method, parent_action_key: row.parent_action_key, endpoint_key: row.endpoint_key, secrets_included: false };
+    throw err;
+  }
+
   const payload = normalizePlatformEndpointCallArgs(row, args, auth);
   const result = await callRuntimeEndpointViaFacade(payload, deps);
   return { handled: true, result };
