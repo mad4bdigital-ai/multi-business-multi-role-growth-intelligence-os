@@ -15,6 +15,7 @@ const graphProjectionApplyMigration = readFileSync("migrations/952_sprint68_reso
 const graphProjectionPositiveCertificationMigration = readFileSync("migrations/953_sprint68_resource_graph_projection_positive_smoke_certification.sql", "utf8");
 const compactViewsGithubCoverageMigration = readFileSync("migrations/954_sprint68_compact_operational_views_and_github_resource_coverage.sql", "utf8");
 const capabilityBaselineGithubFileMigration = readFileSync("migrations/957_sprint68_capability_baseline_branch_hygiene_github_file_inspect.sql", "utf8");
+const githubFileContentGatePatchPlanMigration = readFileSync("migrations/958_sprint68_github_file_content_gate_and_patch_plan_registry.sql", "utf8");
 const manifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
 const runtimeModule = readFileSync("platformResourceRecipeCapability.js", "utf8");
