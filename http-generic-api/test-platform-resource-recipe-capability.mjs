@@ -156,6 +156,21 @@ includesAll(compactViewsGithubCoverageMigration, [
   "secrets_included',false",
 ], "compact operational views and GitHub resource coverage migration");
 
+includesAll(capabilityBaselineGithubFileMigration, [
+  "957_sprint68_capability_baseline_branch_hygiene_github_file_inspect.sql",
+  "CREATE OR REPLACE VIEW v_platform_resource_capability_baseline",
+  "CREATE OR REPLACE VIEW v_repo_branch_hygiene_compact",
+  "platform_resource_capability_baseline.v1",
+  "snapshot_backed_branch_hygiene.v1",
+  "github.file.inspect_summary",
+  "github.file.inspect.adapter",
+  "metadata_only_no_content",
+  "file_content_read_allowed',false",
+  "file_content_returned',false",
+  "write_allowed',false",
+  "secrets_included',false",
+], "capability baseline branch hygiene and GitHub file inspect migration");
+
 assert(
   manifest.includes("node test-platform-resource-recipe-capability.mjs"),
   "test manifest must include platform resource recipe capability test"
