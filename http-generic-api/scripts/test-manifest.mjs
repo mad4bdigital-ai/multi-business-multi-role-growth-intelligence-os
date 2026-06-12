@@ -191,6 +191,7 @@ export const testCommands = [
   "node test-ticket-external-delivery-completion-certification.mjs",
   "node test-gmail-user-oauth-consent-flow.mjs",
   "node test-external-delivery-admin-control-surface.mjs",
+  "node test-hostinger-smtp-platform-secret-fallback.mjs",
   "node test-execution-policy-enforcement-closure.mjs",
   "node test-ticket-external-provider-adapter-contracts.mjs",
   "node test-ticket-external-provider-enablement-proposal.mjs",
