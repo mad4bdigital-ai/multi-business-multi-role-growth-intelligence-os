@@ -308,8 +308,8 @@ async function sendSmtpMail({ config, to, subject, text, html, idempotencyKey })
     await authenticateSmtp(socket, config);
     const { data, messageId } = createMessage({ from: config.from, to, subject, text, html, idempotencyKey });
     await writeSmtp(socket, `MAIL FROM:<${config.from}>`, [250], "mail_from");
-    await writeSmtp(socket, `RCPT TO:<${to}>`, [250, 251]);
-    await writeSmtp(socket, "DATA", [354]);
+    await writeSmtp(socket, `RCPT TO:<${to}>`, [250, 251], "rcpt_to");
+    await writeSmtp(socket, "DATA", [354], "data_start");
     socket.write(`${dotStuff(data)}\r\n.\r\n`);
     await readSmtpResponse(socket);
     await writeSmtp(socket, "QUIT", [221, 250]);
