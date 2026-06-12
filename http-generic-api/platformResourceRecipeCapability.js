@@ -2257,6 +2257,47 @@ export async function runGovernedResource(args = {}, deps = {}) {
   const mode = asString(args.mode || "plan") || "plan";
   const applyRequested = mode === "apply" || args.apply === true;
   const recipe = plan.recipe || {};
+
+  if (recipe.recipe_key === GITHUB_FILE_PATCH_PLAN_RECIPE_KEY) {
+    if (applyRequested) {
+      return {
+        ok: false,
+        tool: "governed_resource_run",
+        recipe_key: GITHUB_FILE_PATCH_PLAN_RECIPE_KEY,
+        mode,
+        classification: "blocked_github_file_patch_plan_apply_v1",
+        reason_code: "github_file_patch_plan_is_diff_only",
+        message: "github.file.patch_plan is diff-only and never performs commits, pushes, or branch mutations.",
+        provider_calls_made: 0,
+        execution_allowed: false,
+        dispatch_allowed: false,
+        apply_allowed: false,
+        write_performed: false,
+        file_content_returned: false,
+        secrets_included: false,
+      };
+    }
+    if (!["plan", "diagnostic"].includes(mode)) {
+      return {
+        ok: false,
+        tool: "governed_resource_run",
+        recipe_key: GITHUB_FILE_PATCH_PLAN_RECIPE_KEY,
+        mode,
+        classification: "blocked_github_file_patch_plan_mode_v1",
+        reason_code: "github_file_patch_plan_mode_not_supported",
+        message: "github.file.patch_plan supports only plan or diagnostic mode.",
+        provider_calls_made: 0,
+        execution_allowed: false,
+        dispatch_allowed: false,
+        apply_allowed: false,
+        write_performed: false,
+        file_content_returned: false,
+        secrets_included: false,
+      };
+    }
+    return buildGithubFilePatchPlan(plan, args);
+  }
+
   const operationIntent = resourceGraphProjectionOperationIntent(args);
   const graphProjectionApplyRequested = applyRequested &&
     recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY &&
