@@ -26,7 +26,7 @@ import {
 import { requireAdminPrincipal } from "./adminCliRoutes.js";
 import { decodeGitHubAppPrivateKey, getGitHubAppInstallationToken, resolveGitHubAppConfig } from "../githubAppAuth.js";
 import { derivePrincipalExecutionContext } from "../executionControlResolvers.js";
-import { fetchToolsForCaller, dispatchToolForCaller } from "./gptToolsRoutes.js";
+import { fetchToolsForCaller, dispatchToolForCaller, maybeChunkToolResponseBody, readCachedToolResponseChunk, paginateItems } from "./gptToolsRoutes.js";
 import {
   PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
   catalogGovernedResources,
@@ -108,6 +108,21 @@ const SYSTEM_LAYER_TOOLS = [
         timeout_seconds: { type: "integer", minimum: 1, maximum: 120 },
       },
       required: ["parent_action_key", "endpoint_key"],
+    },
+  },
+  {
+    name: "response_chunk_read",
+    description: "Read the next chunk of a cached oversized governed tool response. Use this whenever a system/admin/device/tool response returns response_chunked=true or page.has_more=true before switching to any fallback surface. Supports dynamic TTL via response_options.chunk_ttl_ms or response_options.chunk_ttl_minutes and extends cache retention after each successful read.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        chunk_id: { type: "string" },
+        cursor: { type: "integer", minimum: 0, default: 0 },
+        max_chars: { type: "integer", minimum: 5000, maximum: 150000, default: 30000 },
+        chunk_ttl_ms: { type: "integer", minimum: 300000, maximum: 7200000 },
+        chunk_ttl_minutes: { type: "integer", minimum: 5, maximum: 120 },
+      },
+      required: ["chunk_id"],
     },
   },
   {
@@ -587,6 +602,42 @@ async function toolsForPrincipalWithPlatformEndpoints(auth) {
   for (const tool of tenantTools) existingNames.add(tool.name);
   const platformTools = await listPlatformEndpointToolsForPrincipal(auth, existingNames);
   return [...baseTools, ...tenantTools, ...platformTools];
+}
+
+async function buildSystemToolsListResponse(auth, query = {}) {
+  const allTools = await toolsForPrincipalWithPlatformEndpoints(auth);
+  const { items, page } = paginateItems(allTools, query || {});
+  return {
+    ok: true,
+    protocol: "openapi-mcp-facade",
+    list_mode: "bounded_paginated_chunkable",
+    tools: items,
+    page,
+    total_available_tools: page.total_count,
+    continuation_contract: {
+      response_chunked_when_large: true,
+      required_tool: "response_chunk_read",
+      use_when: "response_chunked=true or page.has_more=true",
+      fallback_allowed_only_after: "all_chunks_read_or_chunk_cache_expired_or_authorized_tool_unavailable",
+      dynamic_cache_ttl: true,
+      configurable_ttl_options: ["response_options.chunk_ttl_ms", "response_options.chunk_ttl_minutes"],
+      extends_cache_on_read: true,
+      secrets_included: false,
+    },
+    secrets_included: false,
+  };
+}
+
+function chunkSystemLayerResponse(body, source = {}) {
+  const responseOptions = source?.response_options && typeof source.response_options === "object" ? source.response_options : {};
+  return maybeChunkToolResponseBody(body, {
+    response_options: {
+      max_chars: Number(responseOptions.max_chars || source?.max_chars || 30000),
+      cursor: Number(responseOptions.cursor || source?.cursor || 0),
+      chunk_ttl_ms: Number(responseOptions.chunk_ttl_ms || source?.chunk_ttl_ms || 0) || undefined,
+      chunk_ttl_minutes: Number(responseOptions.chunk_ttl_minutes || source?.chunk_ttl_minutes || 0) || undefined,
+    },
+  });
 }
 
 async function callRuntimeEndpointViaFacade(payload, deps = {}) {
@@ -1696,6 +1747,8 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   if (descriptorSystemTool.handled) return descriptorSystemTool.result;
 
   switch (name) {
+    case "response_chunk_read":
+      return readCachedToolResponseChunk(args);
     case "system_layer_descriptor_readiness":
       return {
         ok: true,
@@ -1857,16 +1910,13 @@ export function buildSystemLayerRoutes(deps) {
   const authenticated = [requireBackendApiKey];
 
   router.get("/system/tools", ...authenticated, async (req, res) => {
-    return res.status(200).json({
-      ok: true,
-      protocol: "openapi-mcp-facade",
-      principal: {
-        mode: req.auth?.mode || null,
-        is_admin: isAdminPrincipal(req.auth),
-        tenant_id: principalTenantId(req.auth),
-      },
-      tools: await toolsForPrincipalWithPlatformEndpoints(req.auth),
-    });
+    const body = await buildSystemToolsListResponse(req.auth, req.query || {});
+    body.principal = {
+      mode: req.auth?.mode || null,
+      is_admin: isAdminPrincipal(req.auth),
+      tenant_id: principalTenantId(req.auth),
+    };
+    return res.status(200).json(chunkSystemLayerResponse(body, req.query || {}));
   });
 
   router.post("/system/tools/call", ...authenticated, async (req, res) => {
@@ -1891,7 +1941,7 @@ export function buildSystemLayerRoutes(deps) {
         callSystemLayerTool(name, args, req.auth, { executionFacade, req }),
         deadline
       ]);
-      return res.status(200).json({ ok: true, name, result });
+      return res.status(200).json(chunkSystemLayerResponse({ ok: true, name, result, secrets_included: false }, args || {}));
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");
     }
@@ -1934,11 +1984,8 @@ export function buildSystemLayerRoutes(deps) {
   });
 
   router.get("/admin/system/tools", ...adminOnly, async (req, res) => {
-    return res.status(200).json({
-      ok: true,
-      protocol: "openapi-mcp-facade",
-      tools: await toolsForPrincipalWithPlatformEndpoints(req.auth),
-    });
+    const body = await buildSystemToolsListResponse(req.auth, req.query || {});
+    return res.status(200).json(chunkSystemLayerResponse(body, req.query || {}));
   });
 
   router.post("/admin/system/tools/call", ...adminOnly, async (req, res) => {
@@ -1963,7 +2010,7 @@ export function buildSystemLayerRoutes(deps) {
         callSystemLayerTool(name, args, req.auth, { executionFacade }),
         deadline
       ]);
-      return res.status(200).json({ ok: true, name, result });
+      return res.status(200).json(chunkSystemLayerResponse({ ok: true, name, result, secrets_included: false }, args || {}));
     } catch (err) {
       return sendError(res, err, "system_tool_call_failed");
     }

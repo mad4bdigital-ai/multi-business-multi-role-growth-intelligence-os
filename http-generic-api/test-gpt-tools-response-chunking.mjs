@@ -6,6 +6,7 @@ import {
   maybeChunkToolResponseBody,
   paginateItems,
   readCachedToolResponseChunk,
+  resolveToolResponseChunkTtlMs,
 } from "./routes/gptToolsRoutes.js";
 
 async function main() {
@@ -37,6 +38,11 @@ async function main() {
   assert.equal(firstChunk.page.cursor, 0);
   assert.ok(firstChunk.page.next_cursor > 0);
   assert.ok(firstChunk.chunk.length <= 5000);
+  assert.ok(firstChunk.cache.ttl_ms >= 15 * 60 * 1000);
+  assert.ok(firstChunk.cache.expires_at);
+
+  const requestedTtl = resolveToolResponseChunkTtlMs({ response_options: { max_chars: 5000, chunk_ttl_minutes: 45 } }, JSON.stringify(largeBody).length);
+  assert.ok(requestedTtl >= 45 * 60 * 1000);
 
   const secondChunk = readCachedToolResponseChunk({
     chunk_id: firstChunk.chunk_id,
@@ -48,6 +54,8 @@ async function main() {
   assert.equal(secondChunk.chunk_id, firstChunk.chunk_id);
   assert.equal(secondChunk.page.cursor, firstChunk.page.next_cursor);
   assert.ok(secondChunk.chunk.length <= 5000);
+  assert.ok(secondChunk.cache.read_count >= 1);
+  assert.equal(secondChunk.cache.extended_on_read, true);
 
   const paged = paginateItems([
     { name: "alpha_tool", tags: ["repo"] },
@@ -73,6 +81,13 @@ async function main() {
   const diff = await inspectRepoReadOnly({ action: "git_diff_name_status", head_ref: "HEAD", max_chars: 10000 });
   assert.equal(diff.action, "git_diff_name_status");
   assert.ok(Array.isArray(diff.files));
+
+  const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
+  assert.ok(systemLayerRoutes.includes("response_chunk_read"), "system layer must expose response_chunk_read for admin and tenant callers");
+  assert.ok(systemLayerRoutes.includes("chunkSystemLayerResponse"), "system layer list/call routes must chunk oversized responses");
+  assert.ok(systemLayerRoutes.includes("buildSystemToolsListResponse"), "system layer tools list must be bounded and page-aware");
+  assert.ok(systemLayerRoutes.includes("bounded_paginated_chunkable"), "system layer tools list must advertise bounded chunkable mode");
+  assert.ok(systemLayerRoutes.includes("chunk_ttl_minutes"), "system layer must expose controllable chunk TTL options");
 
   const migrationName = "232_sprint68_chunked_tool_response_continuation_policy.sql";
   const migration = readFileSync(`migrations/${migrationName}`, "utf8");
