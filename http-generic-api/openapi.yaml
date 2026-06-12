@@ -120,7 +120,7 @@ components:
     ActivationGuidanceResponse:
       type: object
       additionalProperties: true
-      required: [ok, activation_layer, profile, activation_brief, account_or_admin_capability_snapshot, recommended_next_actions, assistant_instruction_pack, secrets_included]
+      required: [ok, activation_layer, profile, language_context, invocation_contract, guidance_flow, command_palette, activation_brief, account_or_admin_capability_snapshot, recommended_next_actions, assistant_instruction_pack, secrets_included]
       properties:
         ok: { type: boolean }
         activation_layer: { type: string, enum: [activation_guidance_intelligence] }
