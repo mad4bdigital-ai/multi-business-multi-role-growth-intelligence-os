@@ -258,16 +258,29 @@ export async function requestSupportTicketExternalDeliveryApproval({ tenant_id, 
     if (ownsConnection) await connection.beginTransaction();
     const readiness = await checkSupportTicketExternalDeliveryReadiness({ tenant_id, ticket_id, channel: externalChannel, audience, credential_ref }, { connection });
     const holdId = crypto.randomUUID();
+    const resolvedCredentialRef = credential_ref || readiness.credential?.credential_ref || null;
+    const repairPromptState = buildAdminGptRepairPromptState({
+      tenant_id,
+      ticket_id,
+      approval_hold_id: holdId,
+      channel: externalChannel,
+      audience,
+      credential_ref: resolvedCredentialRef,
+      action: "review_external_delivery",
+    });
+    const adminGptRepairLink = await buildAdminGptRepairLink(connection, repairPromptState);
     const payload = {
       approval_type: "external_notification_delivery",
       channel: externalChannel,
       audience,
-      credential_ref: credential_ref || readiness.credential?.credential_ref || null,
+      credential_ref: resolvedCredentialRef,
       credential_binding_present: readiness.credential_binding_present,
       preview_subject,
       preview_body,
       reason,
       evidence_json,
+      admin_gpt_repair_link: adminGptRepairLink,
+      admin_gpt_repair_prompt_state: repairPromptState,
       external_send_performed: false,
       secrets_included: false,
     };
