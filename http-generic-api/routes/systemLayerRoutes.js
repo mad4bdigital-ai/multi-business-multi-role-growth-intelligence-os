@@ -549,6 +549,7 @@ async function listPlatformEndpointToolsForPrincipal(auth, existingNames = new S
 
     return rows
       .filter((row) => row?.tool_name && !existingNames.has(row.tool_name))
+      .filter((row) => isTenantPlatformEndpointExportAllowed(row, auth))
       .map((row) => ({
         name: row.tool_name,
         description: `Registry endpoint tool ${row.parent_action_key}/${row.endpoint_key}.`,
