@@ -45,7 +45,16 @@ import {
   tenantRepositoryIntelligenceV3V4ReadinessSmoke,
   tenantRepositoryPrReconciliationSweep,
 } from "../repositoryTenantIntelligenceV2.js";
-import { TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS, tenantRepositoryAdvisoryCommentApply, tenantRepositoryAdvisoryCommentPreview, tenantRepositoryAdvisoryCommentReadback, tenantRepositoryAdvisoryCommentV5ReadinessSmoke, } from "../repositoryTenantAdvisoryCommentsV5.js"; import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
+import * as RepositoryTenantIntelligenceV2Runtime from "../repositoryTenantIntelligenceV2.js";
+import {
+  TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
+  tenantRepositoryAdvisoryCommentApply,
+  tenantRepositoryAdvisoryCommentPreview,
+  tenantRepositoryAdvisoryCommentReadback,
+  tenantRepositoryAdvisoryCommentV5ReadinessSmoke,
+} from "../repositoryTenantAdvisoryCommentsV5.js";
+import * as RepositoryTenantAdvisoryCommentV5Runtime from "../repositoryTenantAdvisoryCommentsV5.js";
+import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
   {
@@ -140,10 +149,16 @@ const SYSTEM_LAYER_TOOLS = [
     },
   },
   ...PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
-  // Release-readiness token evidence for spread-loaded Repository Intelligence tools:
-  // tenant_repository_intelligence_report, tenant_repository_action_planner_dry_run,
-  // tenant_repository_intelligence_v3_v4_readiness_smoke.
-  ...TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS, // Release-readiness token evidence for Repository Intelligence V5: // tenant_repository_advisory_comment_preview, tenant_repository_advisory_comment_apply, // tenant_repository_advisory_comment_readback, tenant_repository_advisory_comment_v5_readiness_smoke. ...TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
+  // Descriptor-loaded Repository Intelligence system tools. New descriptor sources should
+  // be added to SYSTEM_LAYER_DESCRIPTOR_SOURCES below; list + dispatch wiring remains automatic.
+  ...TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
+  ...TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
+  {
+    name: "system_layer_descriptor_readiness",
+    description: "Admin-only read-only diagnostic for descriptor-backed system-layer tool sources. Verifies every descriptor has a runtime handler and no secrets are included.",
+    requires_admin: true,
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
   {
     name: "connector_registry_list",
     description: "List connector systems from the connected_systems registry.",
@@ -352,6 +367,84 @@ const ADMIN_ONLY_SYSTEM_TOOLS = new Set(
 );
 const LOCAL_SYSTEM_TOOL_NAMES = new Set(SYSTEM_LAYER_TOOLS.map((tool) => tool.name));
 
+const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
+  {
+    source_key: "repository_tenant_intelligence_v2",
+    tools: TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
+    handlers: RepositoryTenantIntelligenceV2Runtime,
+  },
+  {
+    source_key: "repository_tenant_advisory_comment_v5",
+    tools: TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
+    handlers: RepositoryTenantAdvisoryCommentV5Runtime,
+  },
+];
+
+function snakeToolNameToCamelHandlerName(name = "") {
+  return String(name || "").replace(/_([a-z0-9])/g, (_, ch) => String(ch).toUpperCase());
+}
+
+function descriptorHandlerName(tool = {}) {
+  return String(
+    tool.handler
+    || tool.handler_name
+    || tool.runtime_handler
+    || tool.x_system_handler
+    || snakeToolNameToCamelHandlerName(tool.name)
+    || ""
+  ).trim();
+}
+
+function descriptorHandlerRegistry() {
+  const registry = new Map();
+  for (const source of SYSTEM_LAYER_DESCRIPTOR_SOURCES) {
+    const tools = Array.isArray(source.tools) ? source.tools : [];
+    for (const tool of tools) {
+      if (!tool?.name) continue;
+      const handlerName = descriptorHandlerName(tool);
+      const handler = source.handlers?.[handlerName];
+      registry.set(tool.name, {
+        source_key: source.source_key,
+        tool,
+        handler_name: handlerName,
+        handler: typeof handler === "function" ? handler : null,
+      });
+    }
+  }
+  return registry;
+}
+
+const SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY = descriptorHandlerRegistry();
+
+async function callDescriptorSystemToolIfAvailable(name, args = {}, auth = null, deps = {}) {
+  const entry = SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.get(name);
+  if (!entry) return { handled: false };
+  if (typeof entry.handler !== "function") {
+    const err = new Error(`System-layer descriptor tool ${name} does not have a runtime handler ${entry.handler_name}.`);
+    err.status = 500;
+    err.code = "system_layer_descriptor_handler_missing";
+    err.details = { tool_name: name, source_key: entry.source_key, handler_name: entry.handler_name };
+    throw err;
+  }
+  const result = await entry.handler(args, {
+    auth,
+    runGovernedResource,
+    req: deps.req,
+    executionFacade: deps.executionFacade,
+  });
+  return { handled: true, result };
+}
+
+function systemLayerDescriptorReadiness() {
+  return [...SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.entries()].map(([tool_name, entry]) => ({
+    tool_name,
+    source_key: entry.source_key,
+    handler_name: entry.handler_name,
+    handler_present: typeof entry.handler === "function",
+    requires_admin: entry.tool?.requires_admin === true,
+    secrets_included: false,
+  }));
+}
 
 function safeParseJsonObject(value, fallback = {}) {
   if (!value) return fallback;
@@ -1598,7 +1691,21 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   }
 
   assertAdminToolAccess(name, auth);
+
+  const descriptorSystemTool = await callDescriptorSystemToolIfAvailable(name, args, auth, deps);
+  if (descriptorSystemTool.handled) return descriptorSystemTool.result;
+
   switch (name) {
+    case "system_layer_descriptor_readiness":
+      return {
+        ok: true,
+        tool: "system_layer_descriptor_readiness",
+        descriptor_source_count: SYSTEM_LAYER_DESCRIPTOR_SOURCES.length,
+        descriptor_tool_count: SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.size,
+        missing_handler_count: systemLayerDescriptorReadiness().filter((row) => !row.handler_present).length,
+        descriptors: systemLayerDescriptorReadiness(),
+        secrets_included: false,
+      };
     case "runtime_endpoint_call": {
       const guarded = derivePrincipalExecutionContext({ ...(args || {}) }, auth);
       return await callRuntimeEndpointViaFacade({
