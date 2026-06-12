@@ -267,16 +267,32 @@ async function readSmtpResponse(socket) {
   });
 }
 
-async function writeSmtp(socket, command, expected = [250]) {
+async function writeSmtp(socket, command, expected = [250], stage = "smtp_command") {
   socket.write(`${command}\r\n`);
   const response = await readSmtpResponse(socket);
   if (!expected.includes(response.code)) {
     const err = new Error("SMTP command failed.");
     err.code = "support_ticket_live_smtp_command_failed";
     err.smtp_code = response.code;
+    err.smtp_stage = stage;
     throw err;
   }
   return response;
+}
+
+async function authenticateSmtp(socket, config) {
+  if (!config.username && !config.password) return { method: "none" };
+  const authPlain = Buffer.from(`\u0000${config.username}\u0000${config.password}`, "utf8").toString("base64");
+  try {
+    await writeSmtp(socket, `AUTH PLAIN ${authPlain}`, [235, 250], "auth_plain");
+    return { method: "plain" };
+  } catch (error) {
+    if (![504, 530, 534, 535].includes(Number(error.smtp_code || 0))) throw error;
+  }
+  await writeSmtp(socket, "AUTH LOGIN", [334], "auth_login_start");
+  await writeSmtp(socket, Buffer.from(config.username || "", "utf8").toString("base64"), [334], "auth_login_username");
+  await writeSmtp(socket, Buffer.from(config.password || "", "utf8").toString("base64"), [235, 250], "auth_login_password");
+  return { method: "login" };
 }
 
 async function sendSmtpMail({ config, to, subject, text, html, idempotencyKey }) {
@@ -289,10 +305,7 @@ async function sendSmtpMail({ config, to, subject, text, html, idempotencyKey })
       err.code = "support_ticket_live_smtp_starttls_not_enabled";
       throw err;
     }
-    if (config.username || config.password) {
-      const auth = Buffer.from(`\u0000${config.username}\u0000${config.password}`, "utf8").toString("base64");
-      await writeSmtp(socket, `AUTH PLAIN ${auth}`, [235, 250]);
-    }
+    await authenticateSmtp(socket, config);
     const { data, messageId } = createMessage({ from: config.from, to, subject, text, html, idempotencyKey });
     await writeSmtp(socket, `MAIL FROM:<${config.from}>`);
     await writeSmtp(socket, `RCPT TO:<${to}>`, [250, 251]);
