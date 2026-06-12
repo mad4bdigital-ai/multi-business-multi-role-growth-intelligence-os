@@ -356,7 +356,7 @@ export async function buildActivationGuidance({
       readiness_dimensions: readinessDimensions,
     },
     capability_groups: groups,
-    recommended_next_actions: recommendedNextActions,
+    recommended_next_actions: presentation.localized_recommended_actions,
     safe_action_menu: classified.safeMenu,
     blocked_or_limited_capabilities: classified.blockedOrLimited,
     assistant_instruction_pack: {
