@@ -3,7 +3,7 @@ import { getPool } from "./db.js";
 
 const DEFAULT_RESPONSE_BUDGET = Object.freeze({ max_response_bytes: 100000, max_items: 50, max_depth: 3, overflow_policy: "manifest_only" });
 const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|authorization|cookie|set-cookie)/i;
-const REQUIRED_TABLES = Object.freeze(["runtime_verification_workflow_registry", "runtime_verification_runs", "runtime_verification_steps", "runtime_verification_evidence_chunks", "runtime_verification_gaps", "runtime_deployment_parity_status", "runtime_ci_check_classification_registry"]);
+const REQUIRED_TABLES = Object.freeze(["runtime_verification_workflow_registry", "runtime_verification_runs", "runtime_verification_steps", "runtime_verification_evidence_chunks", "runtime_verification_gaps", "runtime_deployment_parity_status", "runtime_ci_check_classification_registry", "runtime_gap_remediation_registry"]);
 const ACTIVATION_REGISTRY_TABLES = Object.freeze(["activation_dynamic_tab_registry", "activation_dynamic_tab_section_registry", "activation_dynamic_tab_discovery_rule_registry", "activation_section_action_registry", "activation_attention_rule_registry", "activation_freshness_policy_registry", "activation_signal_subscription_registry", "activation_connector_pack_registry"]);
 
 function parseJson(value, fallback = null) {
