@@ -154,6 +154,7 @@ export function registerRoutes(app, deps) {
   app.use(buildOnboardingRoutes(deps));
   app.use(buildStatusRoutes(deps));
   app.use(buildActivationRoutes(deps));
+  app.use(buildActivationGuidanceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRuntimeVerificationRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildOperationalConsoleRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildHealthRoutes(deps));
