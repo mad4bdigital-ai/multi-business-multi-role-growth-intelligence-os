@@ -1,4 +1,4 @@
--- Sprint 68: Session Insight target write readback validator.
+-- Sprint 69: Session Insight target write readback validator.
 -- Read-only post-write validation. No target write creation, target item mutation,
 -- rollback execution, provider calls, credential payload reads, external writes,
 -- raw transcripts, or secrets.

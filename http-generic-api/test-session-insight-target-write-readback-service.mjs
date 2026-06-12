@@ -51,6 +51,9 @@ function makePool() {
           readback_id: params[0],
           target_write_id: params[1],
           target_item_id: params[2],
+          remaining_scope_completion_id: params[3],
+          actual_request_id: params[4],
+          actual_capability_envelope_id: params[5],
           promotion_id: params[6],
           insight_id: params[7],
           target_surface: params[8],
@@ -91,6 +94,9 @@ function makePool() {
   assert.equal(result.readback.target_item_exists, true);
   assert.equal(result.readback.target_link_matches, true);
   assert.equal(result.readback.source_payload_matches, true);
+  assert.equal(result.readback.remaining_scope_completion_id, "rc1");
+  assert.equal(result.readback.actual_request_id, "ar1");
+  assert.equal(result.readback.actual_capability_envelope_id, "env1");
   assert.equal(result.readback.provider_call_executed, false);
   assert.equal(result.readback.target_modified_by_readback, false);
   assert.equal(result.validation.valid_target_write_readback, true);
