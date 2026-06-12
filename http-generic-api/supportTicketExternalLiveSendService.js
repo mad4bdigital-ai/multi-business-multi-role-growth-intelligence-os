@@ -299,7 +299,7 @@ async function sendSmtpMail({ config, to, subject, text, html, idempotencyKey })
   const socket = await connectSocket(config, DEFAULT_SMTP_TIMEOUT_MS);
   try {
     await readSmtpResponse(socket);
-    await writeSmtp(socket, `EHLO ${process.env.SMTP_EHLO_DOMAIN || "mad4b.com"}`);
+    await writeSmtp(socket, `EHLO ${process.env.SMTP_EHLO_DOMAIN || "mad4b.com"}`, [250], "ehlo");
     if (!config.secure) {
       const err = new Error("Use smtps:// SMTP_URL for live dispatch; smtp:// STARTTLS upgrade is not enabled by this adapter yet.");
       err.code = "support_ticket_live_smtp_starttls_not_enabled";
