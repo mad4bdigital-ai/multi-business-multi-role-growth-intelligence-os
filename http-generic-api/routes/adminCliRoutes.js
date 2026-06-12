@@ -1219,6 +1219,8 @@ async function executeGitHubRestFallbackCore(args = []) {
       (method === "POST" && apiTarget === "/pulls")
       || /^\/pulls\/\d+\/update-branch$/.test(apiTarget)
       || /^\/pulls\/\d+\/merge$/.test(apiTarget)
+      || allowedPullStatePatch
+      || allowedIssueStatePatch
       || /^\/actions\/workflows\/[^/]+\/dispatches$/.test(apiTarget)
       || apiTarget === "/merges"
       || allowedContentsMutation
