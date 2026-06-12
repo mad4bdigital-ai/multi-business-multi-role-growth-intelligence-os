@@ -19,6 +19,7 @@ import { dispatchPlatformPluginRestAction } from "../platformPluginRestDispatch.
 import { resolveActionManifestDiagnostic } from "../actionManifestDiagnostic.js";
 import { resolveExecutionReadinessDryRun } from "../executionReadinessDryRun.js";
 import { readPlatformOrchestrationReadback } from "../platformOrchestrationReadback.js";
+import { readPlatformHealthScorecard } from "../platformHealthScorecard.js";
 import { proposeAdsProviderGovernanceSnapshot } from "../adsProviderGovernanceSnapshotProposal.js";
 import { recordAdsProviderGovernanceSnapshot } from "../adsProviderGovernanceSnapshotRecord.js";
 import { proposeSupportTicketLifecycleSnapshot } from "../supportTicketLifecycleSnapshotProposal.js";
