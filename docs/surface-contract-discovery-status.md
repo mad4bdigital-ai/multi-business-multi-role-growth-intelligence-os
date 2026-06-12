@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 405
+- Migrations with detected surfaces: 406
 - Migrations reported here: 80
 - OpenAPI operations detected: 430
 - OpenAPI paths detected: 377
@@ -32,9 +32,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 405/405 (100.00%)
-- Documentation gap migrations: 0
-- Gap severity: high=0, medium=0, low=0
+- Documentation complete migrations: 405/406 (99.75%)
+- Documentation gap migrations: 1
+- Gap severity: high=0, medium=1, low=0
 - SQL route coverage in OpenAPI: 0/0 (100.00%)
 - SQL route-like literals exempted from OpenAPI scoring: 533/533
 - SQL routes missing OpenAPI path coverage: 0
@@ -46,30 +46,30 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|---:|
 | plugins | 12 | 9 |
 | tools | 1902 | 346 |
-| views | 353 | 143 |
-| policies | 151 | 95 |
+| views | 354 | 144 |
+| policies | 153 | 96 |
 | routes | 533 | 227 |
 
 ### Documentation Target Gaps
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 0 |
-| `deployment_parity_checklist.md` | 0 |
-| `docs/ai-docs-agent-governance.md` | 0 |
-| `docs/auto-docs-agent/README.md` | 0 |
-| `docs/change-documentation-governance.md` | 0 |
+| `Updating Registry Patch Index.md` | 1 |
+| `deployment_parity_checklist.md` | 1 |
+| `docs/ai-docs-agent-governance.md` | 1 |
+| `docs/auto-docs-agent/README.md` | 1 |
+| `docs/change-documentation-governance.md` | 1 |
 
 ### Safety Marker Coverage
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 405 |
+| no_provider_call | 406 |
 | no_credential_payload_read | 405 |
-| no_raw_secrets | 405 |
-| no_external_send | 405 |
+| no_raw_secrets | 406 |
+| no_external_send | 406 |
 | no_external_write | 405 |
-| secrets_included_false | 405 |
+| secrets_included_false | 406 |
 
 ### Route Classification Coverage
 
@@ -88,15 +88,15 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 0
+- Total queue items: 1
 - Critical review: 0
-- High review: 0
+- High review: 1
 - Medium review: 0
 - Low review: 0
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
-| none | covered | 0 | none | 0 | 0 | 0 | none |
+| `965_sprint68_hostinger_apply_policy_safe_field_names.sql` | high_review | 613 | medium | 5 | 0 | 2 | document_surface_contract, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
 
 
 ## Latest Surface Coverage
@@ -106,6 +106,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `999_sprint68_repository_intelligence_v3_v4_tenant_tool_wiring.sql` | complete | none | 0 | 3 | 0 | 1 | 1 | 0 |
 | `998_sprint68_openrouter_provider_smoke_app_map_binding.sql` | complete | none | 0 | 3 | 1 | 1 | 0 | 0 |
 | `997_sprint68_openrouter_provider_smoke_capability_binding.sql` | complete | none | 0 | 0 | 0 | 1 | 0 | 0 |
+| `965_sprint68_hostinger_apply_policy_safe_field_names.sql` | needs docs | medium | 0 | 0 | 1 | 2 | 0 | 0 |
 | `964_sprint68_hostinger_stored_credential_apply_policy.sql` | complete | none | 0 | 0 | 1 | 2 | 0 | 0 |
 | `963_sprint68_hostinger_deploy_restart_tool_exports.sql` | complete | none | 0 | 5 | 2 | 0 | 0 | 0 |
 | `962_sprint68_smoke_branch_cleanup_gate.sql` | complete | none | 0 | 0 | 1 | 0 | 0 | 0 |
@@ -182,7 +183,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `264_sprint68_ads_governance_snapshot_record_gate.sql` | complete | none | 0 | 4 | 0 | 1 | 1 | 0 |
 | `263_sprint68_session_insight_promotion_review_tools.sql` | complete | none | 0 | 4 | 1 | 1 | 2 | 0 |
 | `263_sprint68_ads_governance_snapshot_proposal.sql` | complete | none | 0 | 2 | 0 | 1 | 1 | 0 |
-| `262_sprint68_ticket_external_send_provider_gate.sql` | complete | none | 0 | 3 | 0 | 0 | 2 | 0 |
 
 ## High-Risk Documentation Gaps
 
@@ -238,6 +238,21 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
+
+### `965_sprint68_hostinger_apply_policy_safe_field_names.sql`
+
+- Documentation complete: no
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Surface count: 3
+- Plugins: none
+- Tools: none
+- Views: `v_hostinger_apply_policy_safe_field_readiness`
+- Policies: `hostinger_deploy_release_apply_policy_v1`, `hostinger_restart_app_apply_policy_v1`
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=yes, no_credential_payload_read=no, no_raw_secrets=yes, no_external_send=yes, no_external_write=no, secrets_included_false=yes
 
 ### `964_sprint68_hostinger_stored_credential_apply_policy.sql`
 
@@ -1378,21 +1393,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Route classifications: `/platform/orchestration/ads-provider/snapshot-propose`=legacy_closure_route_reviewed:exempt
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
-
-### `262_sprint68_ticket_external_send_provider_gate.sql`
-
-- Documentation complete: yes
-- Gap severity: none
-- Missing docs: none
-- Surface count: 5
-- Plugins: none
-- Tools: `admin_platform_endpoint_tools`, `support_ticket_external_send_provider_gate_attempt`, `support_ticket_external_send_provider_gate_plan`
-- Views: none
-- Policies: none
-- Routes: `/admin/support/tickets/{ticket_id}/external-send/provider-gate-attempt`, `/admin/support/tickets/{ticket_id}/external-send/provider-gate-plan`
-- Route classifications: `/admin/support/tickets/{ticket_id}/external-send/provider-gate-attempt`=legacy_closure_route_reviewed:exempt, `/admin/support/tickets/{ticket_id}/external-send/provider-gate-plan`=legacy_closure_route_reviewed:exempt
-- OpenAPI route gaps: none
-- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
 
 ## Automation Contract
