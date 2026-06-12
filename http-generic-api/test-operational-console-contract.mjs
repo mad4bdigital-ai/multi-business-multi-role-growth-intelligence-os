@@ -25,6 +25,10 @@ assert.match(consoleService, /activation_operational_tile_registry/, "console mu
 assert.match(consoleService, /activation_callback_registry/, "console must read callbacks");
 assert.match(consoleService, /runtime_gap_remediation_registry/, "console must include remediation runbooks");
 assert.match(consoleService, /activation_freshness_policy_registry/, "console must include freshness policies");
+assert.match(consoleService, /source_table_like AS source_table/, "console attention-rule readback must match live activation_attention_rule_registry columns");
+assert.match(consoleService, /status AS rule_status/, "console attention-rule readback must alias live status as rule_status");
+assert.match(consoleService, /surface_key_like AS source_surface_key/, "console freshness-policy readback must match live activation_freshness_policy_registry columns");
+assert.match(consoleService, /NULL AS stale_after_seconds/, "console freshness-policy readback must preserve response contract for absent stale_after_seconds column");
 assert.match(consoleService, /SENSITIVE_KEY_PATTERN/, "console must strip sensitive keys");
 assert.match(consoleService, /secrets_included: false/, "console must declare secret-safe output");
 assert.match(openapi, /operationId: getOperationalConsole/, "OpenAPI must document console overview");
