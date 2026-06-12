@@ -24,7 +24,8 @@ assert(script.includes("surface-contract-governance-dashboard-v1"), "triage scri
 assert(script.includes("surface-contract-governance-compact-v1"), "triage script must define compact dashboard schema");
 assert(script.includes("surface-contract-gap-trends-v1"), "triage script must define trend schema");
 assert(script.includes("surface-contract-trend-quality-gate-v1"), "triage script must define trend quality gate schema");
-assert(script.includes("new_gaps_only"), "gate must be scoped to new gaps only");
+assert(script.includes("future_only_all_new_gaps"), "gate must strictly block all unbaselined future gaps");
+assert(script.includes("future_only_lock: true"), "baseline must declare the strict future-only lock");
 assert(script.includes("unbaselined_legacy_item_count"), "gate must report unbaselined legacy backlog without blocking it");
 assert(script.includes("legacy_warning_items"), "gate must keep legacy warnings visible but non-blocking");
 assert(script.includes("external_sends: false"), "triage safety must forbid external sends");
@@ -33,6 +34,6 @@ assert(script.includes("deploys: false"), "triage safety must forbid deploys");
 
 const maintenanceSync = fs.readFileSync("scripts/repo-maintenance-sync.mjs", "utf8");
 assert(maintenanceSync.includes("surface-contract-gap-triage.mjs"), "maintenance sync must run surface gap triage");
-assert(maintenanceSync.includes("--enforce-new-gaps"), "maintenance sync must enforce new high/critical gaps only through baseline");
+assert(maintenanceSync.includes("--enforce-new-gaps"), "maintenance sync must enforce every unbaselined future gap through the strict baseline gate");
 
 console.log("surface contract governance loop guard passed");
