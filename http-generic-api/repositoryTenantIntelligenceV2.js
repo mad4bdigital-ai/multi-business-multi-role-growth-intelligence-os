@@ -194,6 +194,136 @@ export function classifyRepositoryPullRequestV2(pr = {}) {
   };
 }
 function summarizeClassifications(prs = []) { const counts = {}; for (const pr of prs) { const key = pr.classification_v2 || pr.classification || "unknown"; counts[key] = (counts[key] || 0) + 1; } return counts; }
+function summarizeByField(items = [], field = "") { const counts = {}; for (const item of items) { const key = asString(item?.[field] || "unknown") || "unknown"; counts[key] = (counts[key] || 0) + 1; } return counts; }
+function recommendedManualActionsForSummary(summary = {}) {
+  const actions = [];
+  if (summary.stale_docs_agent_only) actions.push({ classification: "stale_docs_agent_only", recommendation: "Review or close docs-agent backlog manually after confirming no unique work is lost.", count: summary.stale_docs_agent_only });
+  if (summary.clean_but_ci_missing) actions.push({ classification: "clean_but_ci_missing", recommendation: "Run, wait for, or inspect CI before any merge decision.", count: summary.clean_but_ci_missing });
+  if (summary.duplicate_migration_conflict || summary.migration_number_conflict) actions.push({ classification: "migration_conflict", recommendation: "Run manual migration conflict review before merge or branch repair.", count: Number(summary.duplicate_migration_conflict || 0) + Number(summary.migration_number_conflict || 0) });
+  if (summary.unsafe_to_merge) actions.push({ classification: "unsafe_to_merge", recommendation: "Block merge until failed checks or unsafe signals are resolved.", count: summary.unsafe_to_merge });
+  if (summary.manual_review_required) actions.push({ classification: "manual_review_required", recommendation: "Assign human review because the read-only signal is insufficient for automation.", count: summary.manual_review_required });
+  if (!actions.length) actions.push({ classification: "all_read_only", recommendation: "No automatic mutation is recommended; keep manual review as the next action.", count: 0 });
+  return actions;
+}
+function topRisksForPullRequests(prs = [], limit = 10) {
+  const riskOrder = { unsafe_to_merge: 1, duplicate_migration_conflict: 2, migration_number_conflict: 3, manual_review_required: 4, behind_only: 5, clean_but_ci_missing: 6, stale_docs_agent_only: 7, merge_ready: 8 };
+  return [...prs]
+    .sort((a, b) => (riskOrder[a.classification_v2] || 99) - (riskOrder[b.classification_v2] || 99))
+    .slice(0, limit)
+    .map((pr) => ({ number: pr.number || null, title: pr.title || null, url: pr.url || null, classification: pr.classification_v2 || "unknown", reasons: pr.reasons_v2 || [], recommended_action: pr.recommended_action_v2 || null, secrets_included: false }));
+}
+function pullRequestDecisionEvidence(prs = []) {
+  return prs.map((pr) => ({
+    number: pr.number || null,
+    title: pr.title || null,
+    url: pr.url || null,
+    author: pr.author || null,
+    head: pr.head || null,
+    base: pr.base || null,
+    classification: pr.classification_v2 || pr.classification || "unknown",
+    classifications: pr.classifications_v2 || [],
+    reasons: pr.reasons_v2 || [],
+    recommended_action: pr.recommended_action_v2 || null,
+    branch_reconcile_signal: pr.deep_signals?.branch_reconcile_signal || null,
+    main_equivalence_signal: "not_evaluated_read_only_v3",
+    mutations_allowed: false,
+    secrets_included: false,
+  }));
+}
+function markdownRepositoryIntelligenceReport(report = {}) {
+  const lines = [
+    `# Repository Intelligence Decision Report`,
+    ``,
+    `Repository: ${report.resource_uri || "unknown"}`,
+    `Mode: read-only`,
+    `PRs inspected: ${report.summary?.pr_count ?? 0}`,
+    `Provider calls: ${report.summary?.provider_calls_made ?? 0}`,
+    `Mutations executed: false`,
+    ``,
+    `## Classification summary`,
+  ];
+  for (const [key, value] of Object.entries(report.summary?.classifications || {})) lines.push(`- ${key}: ${value}`);
+  lines.push(``, `## Recommended manual actions`);
+  for (const action of report.recommended_manual_actions || []) lines.push(`- ${action.classification}: ${action.recommendation} (${action.count})`);
+  lines.push(``, `## PR evidence`);
+  for (const pr of report.pull_request_evidence || []) lines.push(`- #${pr.number}: ${pr.classification} — ${pr.recommended_action || "manual_review_required"}`);
+  return lines.join("\n");
+}
+export function buildRepositoryIntelligenceReportV3({ sweepResult = {}, args = {}, scope = {}, repoRef = {} } = {}) {
+  const pullRequests = Array.isArray(sweepResult.pull_requests) ? sweepResult.pull_requests : [];
+  const classifications = summarizeClassifications(pullRequests);
+  const report = {
+    schema_version: "tenant_repository_intelligence_report.v3",
+    engine_version: "v3_read_only_decision_report",
+    mode: "read_only_decision_report",
+    resource_uri: repoRef.resource_uri || sweepResult.resource_uri || null,
+    tenant_scope: scope?.tenant_id || scope?.workspace_id || scope?.user_id ? scope : sweepResult.tenant_scope || null,
+    request: { state: args.state || args.options?.state || "open", limit: args.limit || args.options?.limit || null, include_changed_files: args.include_changed_files ?? args.options?.include_changed_files ?? true, include_check_runs: args.include_check_runs ?? args.options?.include_check_runs ?? true },
+    summary: { pr_count: pullRequests.length, classifications, provider_calls_made: Number(sweepResult.summary?.provider_calls_made || 0), apply_allowed: false, mutations_executed: false, secrets_included: false },
+    top_risks: topRisksForPullRequests(pullRequests),
+    recommended_manual_actions: recommendedManualActionsForSummary(classifications),
+    pull_request_evidence: pullRequestDecisionEvidence(pullRequests),
+    enrichment_status: { branch_reconcile: "github_merge_state_read_only_signal", main_equivalence: "not_evaluated_read_only_v3", mutation_planning: "available_in_v4_dry_run_only", secrets_included: false },
+    apply_allowed: false,
+    mutations_executed: false,
+    secrets_included: false,
+  };
+  if (boolOption(args.include_markdown ?? args.options?.include_markdown, true)) report.markdown = markdownRepositoryIntelligenceReport(report);
+  return report;
+}
+
+async function recordTenantRepositoryDecisionEvidence({ args = {}, scope = {}, repoRef = {}, action = "tenant_repository_intelligence_report", evidenceType = "tenant_repository_intelligence_report_v3", response = {}, metadata = {} } = {}) {
+  const evidenceId = randomUUID();
+  const request = { owner: repoRef.owner, repo: repoRef.repo, state: args.state || args.options?.state || "open", limit: args.limit || args.options?.limit || null, record_evidence: true, dry_run_only: true };
+  const responsePreview = { classification: response.classification || action, summary: response.summary || null, pr_count: response.pr_count ?? response.summary?.pr_count ?? null, planned_action_counts: response.planned_action_counts || null, secrets_included: false };
+  const metadataJson = { schema_version: evidenceType, engine: "governed_repository_intelligence_engine", resource_uri: repoRef.resource_uri, tenant_scope_present: Boolean(scope.tenant_id), workspace_scope_present: Boolean(scope.workspace_id), user_scope_present: Boolean(scope.user_id), tenant_id_hash: scope.tenant_id ? sha256Hex(scope.tenant_id).slice(0, 24) : null, apply_allowed: false, mutations_executed: false, secrets_included: false, ...metadata };
+  await getPool().query(
+    `INSERT INTO audit_payload_evidence (evidence_id, tenant_id, actor_id, actor_type, action, resource_type, resource_id, source_table, source_pk, evidence_type, request_preview, request_sha256, response_preview, response_sha256, metadata_json, redaction_status, secrets_included)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'not_required', 0)`,
+    [evidenceId, scope.tenant_id, scope.user_id, scope.user_id ? "user" : "tenant_or_workspace", action, GITHUB_REPO_RESOURCE_TYPE, repoRef.resource_uri, "platform_resource_authority_bindings", null, evidenceType, previewJson(request), sha256Hex(previewJson(request)), previewJson(responsePreview), sha256Hex(previewJson(responsePreview)), JSON.stringify(metadataJson)]
+  );
+  return { evidence_id: evidenceId, metadata: metadataJson, secrets_included: false };
+}
+
+export async function tenantRepositoryIntelligenceReport(args = {}, { auth, runGovernedResource } = {}) {
+  const repoRef = normalizeGithubRepoRef(args);
+  if (!repoRef) { const err = new Error("tenant_repository_intelligence_report requires owner/repo or github://owner/repo."); err.status = 400; err.code = "github_repo_ref_required"; throw err; }
+  const scope = principalScope(args, auth); requireScope(scope);
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  const sweep = await tenantRepositoryPrReconciliationSweep({ ...args, record_evidence: false, options: { ...options, record_evidence: false } }, { auth, runGovernedResource });
+  if (!sweep?.ok) return { ...sweep, tool: "tenant_repository_intelligence_report", classification: sweep?.classification || "tenant_repository_intelligence_report_blocked", report: null, apply_allowed: false, mutations_executed: false, secrets_included: false };
+  const report = buildRepositoryIntelligenceReportV3({ sweepResult: sweep, args: { ...args, options }, scope, repoRef });
+  const evidence = boolOption(args.record_evidence ?? options.record_evidence, false) ? await recordTenantRepositoryDecisionEvidence({ args: { ...args, options }, scope, repoRef, action: "tenant_repository_intelligence_report", evidenceType: "tenant_repository_intelligence_report_v3", response: { classification: "tenant_repository_intelligence_report_read_only", summary: report.summary, pr_count: report.summary.pr_count }, metadata: { engine_version: report.engine_version, pr_count: report.summary.pr_count, classifications: report.summary.classifications, provider_calls_made: report.summary.provider_calls_made } }) : null;
+  return { ok: true, tool: "tenant_repository_intelligence_report", classification: "tenant_repository_intelligence_report_read_only", engine_version: report.engine_version, recipe_key: REPOSITORY_PR_RECONCILE_RECIPE_KEY, resource_uri: repoRef.resource_uri, tenant_scope: scope, report, evidence, provider_calls_made: report.summary.provider_calls_made, apply_allowed: false, mutations_executed: false, secrets_included: false };
+}
+
+function dryRunPlanForPullRequest(pr = {}) {
+  const classification = pr.classification || pr.classification_v2 || "manual_review_required";
+  const base = { pr_number: pr.number || null, title: pr.title || null, url: pr.url || null, classification, required_approval: true, mutation_executed: false, dry_run_only: true, secrets_included: false };
+  if (classification === "stale_docs_agent_only") return { ...base, planned_action: "close_superseded_dry_run", confidence: 0.78, reason: "docs_agent_signal_without_mutation", required_readback: true };
+  if (classification === "clean_but_ci_missing") return { ...base, planned_action: "run_or_wait_for_ci_recommendation", confidence: 0.86, reason: "ci_missing_or_pending", required_readback: false };
+  if (classification === "duplicate_migration_conflict" || classification === "migration_number_conflict") return { ...base, planned_action: "migration_conflict_review_plan", confidence: 0.9, reason: "migration_collision_signal", required_readback: false };
+  if (classification === "behind_only") return { ...base, planned_action: "branch_reconcile_dry_run_review", confidence: 0.72, reason: "behind_only_signal", required_readback: true };
+  if (classification === "merge_ready") return { ...base, planned_action: "manual_merge_review_plan", confidence: 0.7, reason: "read_only_merge_ready_signal", required_readback: true };
+  if (classification === "unsafe_to_merge") return { ...base, planned_action: "block_merge_manual_fix_plan", confidence: 0.92, reason: "failed_or_unsafe_signal", required_readback: false };
+  return { ...base, planned_action: "manual_review_required_plan", confidence: 0.6, reason: "insufficient_deep_signal", required_readback: false };
+}
+export function buildRepositoryActionPlannerV4(report = {}) {
+  const pullRequests = Array.isArray(report.pull_request_evidence) ? report.pull_request_evidence : [];
+  const plans = pullRequests.map(dryRunPlanForPullRequest);
+  return { schema_version: "tenant_repository_action_planner.v4", engine_version: "v4_dry_run_action_planner", mode: "dry_run_only", resource_uri: report.resource_uri || null, summary: { pr_count: plans.length, planned_action_counts: summarizeByField(plans, "planned_action"), required_approvals: plans.filter((plan) => plan.required_approval).length, apply_allowed: false, mutations_executed: false, secrets_included: false }, plans, next_gate: "approval_gated_mutations_v5_not_enabled", apply_allowed: false, mutations_executed: false, secrets_included: false };
+}
+
+export async function tenantRepositoryActionPlannerDryRun(args = {}, { auth, runGovernedResource } = {}) {
+  const options = args.options && typeof args.options === "object" ? args.options : {};
+  const reportInput = args.report && typeof args.report === "object" ? { ok: true, report: args.report, resource_uri: args.report.resource_uri || null, tenant_scope: args.report.tenant_scope || null, provider_calls_made: 0 } : await tenantRepositoryIntelligenceReport({ ...args, record_evidence: false, include_markdown: false, options: { ...options, record_evidence: false, include_markdown: false } }, { auth, runGovernedResource });
+  if (!reportInput?.ok) return { ...reportInput, tool: "tenant_repository_action_planner_dry_run", classification: reportInput?.classification || "tenant_repository_action_planner_blocked", plan: null, apply_allowed: false, mutations_executed: false, secrets_included: false };
+  const repoRef = normalizeGithubRepoRef(args) || normalizeGithubRepoRef({ resource_uri: reportInput.report?.resource_uri || reportInput.resource_uri });
+  const scope = principalScope(args, auth);
+  const plan = buildRepositoryActionPlannerV4(reportInput.report || {});
+  const evidence = boolOption(args.record_evidence ?? options.record_evidence, false) && repoRef ? await recordTenantRepositoryDecisionEvidence({ args: { ...args, options }, scope, repoRef, action: "tenant_repository_action_planner_dry_run", evidenceType: "tenant_repository_action_planner_v4", response: { classification: "tenant_repository_action_planner_dry_run", summary: plan.summary, planned_action_counts: plan.summary.planned_action_counts }, metadata: { engine_version: plan.engine_version, planned_action_counts: plan.summary.planned_action_counts, pr_count: plan.summary.pr_count, provider_calls_made: Number(reportInput.provider_calls_made || 0) } }) : null;
+  return { ok: true, tool: "tenant_repository_action_planner_dry_run", classification: "tenant_repository_action_planner_dry_run", engine_version: plan.engine_version, resource_uri: plan.resource_uri || repoRef?.resource_uri || null, tenant_scope: reportInput.tenant_scope || scope, report_summary: reportInput.report?.summary || null, plan, evidence, provider_calls_made: Number(reportInput.provider_calls_made || 0), apply_allowed: false, mutations_executed: false, secrets_included: false };
+}
 
 async function recordTenantRepositoryEvidence({ args = {}, scope = {}, repoRef = {}, runResult = {}, enhancedPullRequests = [] } = {}) {
   const evidenceId = randomUUID();
