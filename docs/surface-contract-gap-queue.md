@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 2
-- Critical review: 1
+- Total queue items: 3
+- Critical review: 2
 - High review: 1
 - Medium review: 0
 - Low review: 0
@@ -29,7 +29,22 @@
 - `verify_readback_view` → db-readback-review; targets: `v_platform_exports_current`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 2. `1001_sprint68_tenant_ticket_admin_gpt_link_support.sql`
+### 2. `1001_sprint68_repository_advisory_comment_v5_tenant_tool_wiring.sql`
+
+- Queue class: critical_review
+- Score: 775
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=4, views=0, policies=1, routes=1
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_platform_endpoint_tools`, `tenant_repository_advisory_comment_readback`, `tenant_repository_advisory_comment_v5_readiness_smoke`, `tenant_repository_advisory_comment_v5_tool_wiring_policy_v1`
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `tenant_repository_advisory_comment_v5_tool_wiring_policy_v1`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 3. `1001_sprint68_tenant_ticket_admin_gpt_link_support.sql`
 
 - Queue class: high_review
 - Score: 676

@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 400
+- Migrations with detected surfaces: 401
 - Migrations reported here: 80
 - OpenAPI operations detected: 428
 - OpenAPI paths detected: 375
@@ -32,11 +32,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 398/400 (99.50%)
-- Documentation gap migrations: 2
-- Gap severity: high=1, medium=1, low=0
+- Documentation complete migrations: 398/401 (99.25%)
+- Documentation gap migrations: 3
+- Gap severity: high=2, medium=1, low=0
 - SQL route coverage in OpenAPI: 0/0 (100.00%)
-- SQL route-like literals exempted from OpenAPI scoring: 529/529
+- SQL route-like literals exempted from OpenAPI scoring: 530/530
 - SQL routes missing OpenAPI path coverage: 0
 - Migrations without explicit `secrets_included=false` marker: 0
 
@@ -45,31 +45,31 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 1858 | 342 |
+| tools | 1862 | 343 |
 | views | 348 | 140 |
-| policies | 145 | 91 |
-| routes | 529 | 224 |
+| policies | 146 | 92 |
+| routes | 530 | 225 |
 
 ### Documentation Target Gaps
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 2 |
-| `deployment_parity_checklist.md` | 2 |
-| `docs/ai-docs-agent-governance.md` | 2 |
-| `docs/auto-docs-agent/README.md` | 2 |
-| `docs/change-documentation-governance.md` | 2 |
+| `Updating Registry Patch Index.md` | 3 |
+| `deployment_parity_checklist.md` | 3 |
+| `docs/ai-docs-agent-governance.md` | 3 |
+| `docs/auto-docs-agent/README.md` | 3 |
+| `docs/change-documentation-governance.md` | 3 |
 
 ### Safety Marker Coverage
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 398 |
+| no_provider_call | 399 |
 | no_credential_payload_read | 398 |
 | no_raw_secrets | 398 |
 | no_external_send | 398 |
 | no_external_write | 398 |
-| secrets_included_false | 400 |
+| secrets_included_false | 401 |
 
 ### Route Classification Coverage
 
@@ -78,7 +78,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | http_route | 0 |
 | admin_tool_registry_route | 91 |
 | tenant_tool_registry_route | 35 |
-| system_tool_dispatch_route | 10 |
+| system_tool_dispatch_route | 11 |
 | registry_only_surface | 1 |
 | false_positive_route_like_string | 0 |
 | legacy_closure_route_reviewed | 392 |
@@ -88,8 +88,8 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 2
-- Critical review: 1
+- Total queue items: 3
+- Critical review: 2
 - High review: 1
 - Medium review: 0
 - Low review: 0
@@ -97,6 +97,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `307_sprint69_hostinger_deploy_restart_option_support.sql` | critical_review | 914 | medium | 5 | 0 | 5 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
+| `1001_sprint68_repository_advisory_comment_v5_tenant_tool_wiring.sql` | critical_review | 775 | high | 5 | 0 | 4 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, add_explicit_safety_markers |
 | `1001_sprint68_tenant_ticket_admin_gpt_link_support.sql` | high_review | 676 | high | 5 | 0 | 5 | document_surface_contract, add_explicit_safety_markers |
 
 
@@ -187,6 +188,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 
 ## High-Risk Documentation Gaps
 
+- `1001_sprint68_repository_advisory_comment_v5_tenant_tool_wiring.sql`
 - `1001_sprint68_tenant_ticket_admin_gpt_link_support.sql`
 
 ## SQL Route OpenAPI Gaps
