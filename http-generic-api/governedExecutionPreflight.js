@@ -110,7 +110,14 @@ export async function evaluateRepositoryMutationPreflight({ operation, args = []
     if (operation === "github_branch_delete") {
       const protectedNames = new Set(["main", "master", "production", "prod"]);
       if (protectedNames.has(String(branch || "").trim())) { errors.push("protected_branch_delete_blocked"); blockingPolicies.push(policy); continue; }
-      if (compare && Number(compare.ahead_by || 0) > 0 && parseBoolean(cfg.block_unmerged_branch_delete, true) && blockingAllowed) { errors.push("branch_has_unmerged_commits"); blockingPolicies.push(policy); continue; }
+      if (compare && Number(compare.ahead_by || 0) > 0 && parseBoolean(cfg.block_unmerged_branch_delete, true) && blockingAllowed) {
+        if (!unmergedSmokeBranchDeleteConfirmed({ args, branch, cfg })) {
+          errors.push("branch_has_unmerged_commits"); blockingPolicies.push(policy); continue;
+        }
+        warnings.push("unmerged_smoke_branch_delete_explicitly_confirmed");
+        evidence.unmerged_smoke_branch_delete_confirmed = true;
+        evidence.required_typed_confirmation = branchTypedConfirmation("DELETE_UNMERGED_SMOKE_BRANCH", branch);
+      }
       if (compare && Number(compare.behind_by || 0) > 0) warnings.push("branch_is_behind_base_before_delete");
     }
     if (operation === "github_pr_merge") {
