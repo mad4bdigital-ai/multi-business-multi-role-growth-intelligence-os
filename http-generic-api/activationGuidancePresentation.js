@@ -374,6 +374,8 @@ export function buildGuidancePresentation({ profile, activationBrief, counts, pe
     localized_recommended_actions: localizedRecommendedActions,
     invocation_contract: {
       version: "activation_guidance_invocation_v1",
+      registry_source: invocationRegistry?.source || "code_fallback",
+      registry_row_count: Number(invocationRegistry?.row_count || 0),
       supported_signals: ["invocation_tag", "slash_alias", "intent_key"],
       tag_format: "@domain/path",
       slash_format: "/command",
