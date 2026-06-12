@@ -1683,6 +1683,9 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     return report;
   }
 
+  report.runtime_production_parity_gate = await checkRuntimeProductionParityGate();
+  if (report.runtime_production_parity_gate.status === "fail") report.overall = "fail";
+
   // Platform table checks (parallel)
   const tableResults = await Promise.all(REQUIRED_TABLES.map((t) => checkTableExists(t)));
   for (let i = 0; i < REQUIRED_TABLES.length; i++) {
