@@ -3,6 +3,7 @@ import net from "node:net";
 import tls from "node:tls";
 import { getGoogleAccessToken } from "./googleAuthTokenResolver.js";
 import { getPool } from "./db.js";
+import { decryptCredentials } from "./tokenEncryption.js";
 
 const DEFAULT_SMTP_TIMEOUT_MS = 15000;
 const SMTP_MAX_BODY_CHARS = 20000;
