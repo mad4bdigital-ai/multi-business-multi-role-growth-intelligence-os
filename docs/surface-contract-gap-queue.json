@@ -11,7 +11,7 @@
   "top_items": [
     {
       "migration_file": "293_sprint68_system_layer_descriptor_auto_wiring.sql",
-      "score": 935,
+      "score": 934,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,

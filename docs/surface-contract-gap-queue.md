@@ -16,7 +16,7 @@
 ### 1. `293_sprint68_system_layer_descriptor_auto_wiring.sql`
 
 - Queue class: critical_review
-- Score: 935
+- Score: 934
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none

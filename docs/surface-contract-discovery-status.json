@@ -1,10 +1,10 @@
 {
   "ok": true,
   "schema_version": "surface-contract-discovery-v3",
-  "migration_surface_count": 404,
+  "migration_surface_count": 405,
   "reported_count": 80,
-  "openapi_operation_count": 428,
-  "openapi_path_count": 375,
+  "openapi_operation_count": 430,
+  "openapi_path_count": 377,
   "openapi_operations": [
     "DELETE /admin/cli/dns",
     "DELETE /admin/scope-grants/{grant_id}",
@@ -388,6 +388,8 @@
     "POST /platform/remote-runtime/targets/catalog",
     "POST /platform/remote-runtime/targets/upsert",
     "POST /platform/remote-runtime/targets/validate",
+    "POST /platform/session-insight-promotions/target-write-readbacks/create",
+    "POST /platform/session-insight-promotions/target-write-readbacks/list",
     "POST /quota-rules",
     "POST /rate-limit-rules",
     "POST /release/entity-classification",
@@ -481,26 +483,26 @@
       "deploys": false,
       "secrets_included": false
     },
-    "closed_migration_count": 395
+    "closed_migration_count": 396
   },
   "coverage_summary": {
-    "migrations_with_surfaces": 404,
-    "docs_complete_count": 398,
+    "migrations_with_surfaces": 405,
+    "docs_complete_count": 399,
     "docs_gap_count": 6,
-    "docs_completion_percent": 98.51,
+    "docs_completion_percent": 98.52,
     "surface_totals": {
       "plugins": 12,
-      "tools": 1874,
-      "views": 351,
-      "policies": 150,
-      "routes": 531
+      "tools": 1902,
+      "views": 353,
+      "policies": 151,
+      "routes": 533
     },
     "migrations_by_surface_type": {
       "plugins": 9,
-      "tools": 345,
-      "views": 142,
-      "policies": 94,
-      "routes": 226
+      "tools": 346,
+      "views": 143,
+      "policies": 95,
+      "routes": 227
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 6,
@@ -513,7 +515,7 @@
       "high": 3,
       "medium": 3,
       "low": 0,
-      "none": 398
+      "none": 399
     },
     "high_risk_missing_docs": [
       "1001_sprint68_repository_advisory_comment_v5_tenant_tool_wiring.sql",
@@ -526,18 +528,18 @@
       "964_sprint68_hostinger_stored_credential_apply_policy.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 400,
-      "no_credential_payload_read": 399,
-      "no_raw_secrets": 399,
-      "no_external_send": 398,
-      "no_external_write": 399,
-      "secrets_included_false": 404
+      "no_provider_call": 401,
+      "no_credential_payload_read": 400,
+      "no_raw_secrets": 400,
+      "no_external_send": 399,
+      "no_external_write": 400,
+      "secrets_included_false": 405
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
       "sql_route_count": 0,
-      "total_sql_route_like_count": 531,
-      "openapi_exempt_sql_route_count": 531,
+      "total_sql_route_like_count": 533,
+      "openapi_exempt_sql_route_count": 533,
       "route_class_counts": {
         "http_route": 0,
         "admin_tool_registry_route": 91,
@@ -545,7 +547,7 @@
         "system_tool_dispatch_route": 12,
         "registry_only_surface": 1,
         "false_positive_route_like_string": 0,
-        "legacy_closure_route_reviewed": 392
+        "legacy_closure_route_reviewed": 394
       },
       "openapi_documented_sql_route_count": 0,
       "openapi_missing_sql_route_count": 0,
@@ -566,7 +568,7 @@
     "top_items": [
       {
         "migration_file": "293_sprint68_system_layer_descriptor_auto_wiring.sql",
-        "score": 935,
+        "score": 934,
         "queue_class": "critical_review",
         "gap_severity": "high",
         "documentation_complete": false,
@@ -2997,6 +2999,138 @@
         },
         "surface_count": 18,
         "safety_marker_count": 1
+      }
+    },
+    {
+      "migration_file": "306_sprint69_session_insight_target_write_readback.sql",
+      "legacy_backlog_closed": true,
+      "surfaces": {
+        "routes": [
+          "/platform/session-insight-promotions/target-write-readbacks/create",
+          "/platform/session-insight-promotions/target-write-readbacks/list"
+        ],
+        "route_classifications": [
+          {
+            "route": "/platform/session-insight-promotions/target-write-readbacks/create",
+            "route_class": "legacy_closure_route_reviewed",
+            "openapi_required": false,
+            "reason": "Route-like literal belongs to 306_sprint69_session_insight_target_write_readback.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
+          },
+          {
+            "route": "/platform/session-insight-promotions/target-write-readbacks/list",
+            "route_class": "legacy_closure_route_reviewed",
+            "openapi_required": false,
+            "reason": "Route-like literal belongs to 306_sprint69_session_insight_target_write_readback.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
+          }
+        ],
+        "views": [
+          "v_session_insight_target_write_readback_issues",
+          "v_session_insight_target_write_readback_readiness"
+        ],
+        "policies": [
+          "session_insight_target_write_readback_policy_v1"
+        ],
+        "plugins": [],
+        "tools": [
+          "actual_request_id",
+          "admin_platform_endpoint_tools",
+          "blocked_target_write_not_executed",
+          "chk_session_insight_target_write_readback_no_secrets",
+          "chk_session_insight_target_write_readback_read_only",
+          "executes_rollback",
+          "external_write_executed",
+          "fk_session_insight_target_write_readback_write",
+          "idx_session_insight_target_write_readback_status",
+          "idx_session_insight_target_write_readback_write",
+          "provider_call_executed",
+          "ready_for_target_write_readback",
+          "rollback_executed",
+          "session_insight_target_write_readback_create",
+          "session_insight_target_write_readback_list",
+          "session_insight_target_write_readback_policy_v1",
+          "session_insight_target_write_readback_read_only",
+          "session_insight_target_write_readbacks",
+          "target_item_modified_by_readback",
+          "target_modified_by_readback",
+          "target_write_executed",
+          "target_write_readback_claims_runtime_effect",
+          "target_write_readback_failed",
+          "target_write_readback_passed",
+          "target_write_readback_secret_flagged",
+          "uq_session_insight_target_write_readback_id",
+          "v_session_insight_target_write_readback_issues",
+          "v_session_insight_target_write_readback_readiness"
+        ],
+        "safety": {
+          "no_provider_call": false,
+          "no_credential_payload_read": true,
+          "no_raw_secrets": false,
+          "no_external_send": false,
+          "no_external_write": true,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": true,
+        "deployment_parity_checklist.md": true,
+        "docs/ai-docs-agent-governance.md": true,
+        "docs/auto-docs-agent/README.md": true,
+        "docs/change-documentation-governance.md": true
+      },
+      "missing_docs": [],
+      "documentation_complete": true,
+      "coverage": {
+        "gap_severity": "none",
+        "requires_docs_review": false,
+        "route_coverage": {
+          "route_count": 0,
+          "total_route_count": 2,
+          "openapi_required_route_count": 0,
+          "exempted_route_count": 2,
+          "route_class_counts": {
+            "http_route": 0,
+            "admin_tool_registry_route": 0,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 0,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 2
+          },
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": [],
+          "exempted_routes": [
+            {
+              "route": "/platform/session-insight-promotions/target-write-readbacks/create",
+              "route_class": "legacy_closure_route_reviewed",
+              "openapi_required": false,
+              "reason": "Route-like literal belongs to 306_sprint69_session_insight_target_write_readback.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
+            },
+            {
+              "route": "/platform/session-insight-promotions/target-write-readbacks/list",
+              "route_class": "legacy_closure_route_reviewed",
+              "openapi_required": false,
+              "reason": "Route-like literal belongs to 306_sprint69_session_insight_target_write_readback.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
+            }
+          ],
+          "route_classifications": [
+            {
+              "route": "/platform/session-insight-promotions/target-write-readbacks/create",
+              "route_class": "legacy_closure_route_reviewed",
+              "openapi_required": false,
+              "reason": "Route-like literal belongs to 306_sprint69_session_insight_target_write_readback.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
+            },
+            {
+              "route": "/platform/session-insight-promotions/target-write-readbacks/list",
+              "route_class": "legacy_closure_route_reviewed",
+              "openapi_required": false,
+              "reason": "Route-like literal belongs to 306_sprint69_session_insight_target_write_readback.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
+            }
+          ]
+        },
+        "surface_count": 33,
+        "safety_marker_count": 3
       }
     },
     {
@@ -8454,104 +8588,6 @@
         },
         "surface_count": 5,
         "safety_marker_count": 0
-      }
-    },
-    {
-      "migration_file": "262_sprint68_orchestration_readback_surface.sql",
-      "legacy_backlog_closed": true,
-      "surfaces": {
-        "routes": [
-          "/platform/orchestration/readback"
-        ],
-        "route_classifications": [
-          {
-            "route": "/platform/orchestration/readback",
-            "route_class": "legacy_closure_route_reviewed",
-            "openapi_required": false,
-            "reason": "Route-like literal belongs to 262_sprint68_orchestration_readback_surface.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
-          }
-        ],
-        "views": [
-          "v_platform_orchestration_ads_governance_readiness",
-          "v_platform_orchestration_graph_readiness"
-        ],
-        "policies": [
-          "orchestration_intelligence_readback_policy_v1"
-        ],
-        "plugins": [
-          "ads_provider_governance_orchestrator"
-        ],
-        "tools": [
-          "admin_platform_endpoint_tools",
-          "ads_provider_preflight_contract_registry",
-          "ads_provider_preflight_contract_v1",
-          "ads_provider_preflight_surface_blueprint_registry",
-          "execution_enablement_present_requires_separate_gate",
-          "orchestration_intelligence_readback_policy_v1",
-          "orchestration_intelligence_readback_read_only",
-          "platform_orchestration_readback",
-          "readback_tool_key",
-          "v_platform_orchestration_ads_governance_readiness",
-          "v_platform_orchestration_graph_readiness"
-        ],
-        "safety": {
-          "no_provider_call": true,
-          "no_credential_payload_read": true,
-          "no_raw_secrets": false,
-          "no_external_send": false,
-          "no_external_write": true,
-          "secrets_included_false": true
-        }
-      },
-      "docs": {
-        "Updating Registry Patch Index.md": true,
-        "deployment_parity_checklist.md": true,
-        "docs/ai-docs-agent-governance.md": true,
-        "docs/auto-docs-agent/README.md": true,
-        "docs/change-documentation-governance.md": true
-      },
-      "missing_docs": [],
-      "documentation_complete": true,
-      "coverage": {
-        "gap_severity": "none",
-        "requires_docs_review": false,
-        "route_coverage": {
-          "route_count": 0,
-          "total_route_count": 1,
-          "openapi_required_route_count": 0,
-          "exempted_route_count": 1,
-          "route_class_counts": {
-            "http_route": 0,
-            "admin_tool_registry_route": 0,
-            "tenant_tool_registry_route": 0,
-            "system_tool_dispatch_route": 0,
-            "registry_only_surface": 0,
-            "false_positive_route_like_string": 0,
-            "legacy_closure_route_reviewed": 1
-          },
-          "documented_count": 0,
-          "missing_count": 0,
-          "documented_routes": [],
-          "missing_routes": [],
-          "exempted_routes": [
-            {
-              "route": "/platform/orchestration/readback",
-              "route_class": "legacy_closure_route_reviewed",
-              "openapi_required": false,
-              "reason": "Route-like literal belongs to 262_sprint68_orchestration_readback_surface.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
-            }
-          ],
-          "route_classifications": [
-            {
-              "route": "/platform/orchestration/readback",
-              "route_class": "legacy_closure_route_reviewed",
-              "openapi_required": false,
-              "reason": "Route-like literal belongs to 262_sprint68_orchestration_readback_surface.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
-            }
-          ]
-        },
-        "surface_count": 16,
-        "safety_marker_count": 4
       }
     }
   ],
@@ -43254,6 +43290,138 @@
         },
         "surface_count": 2,
         "safety_marker_count": 1
+      }
+    },
+    {
+      "migration_file": "306_sprint69_session_insight_target_write_readback.sql",
+      "legacy_backlog_closed": true,
+      "surfaces": {
+        "routes": [
+          "/platform/session-insight-promotions/target-write-readbacks/create",
+          "/platform/session-insight-promotions/target-write-readbacks/list"
+        ],
+        "route_classifications": [
+          {
+            "route": "/platform/session-insight-promotions/target-write-readbacks/create",
+            "route_class": "legacy_closure_route_reviewed",
+            "openapi_required": false,
+            "reason": "Route-like literal belongs to 306_sprint69_session_insight_target_write_readback.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
+          },
+          {
+            "route": "/platform/session-insight-promotions/target-write-readbacks/list",
+            "route_class": "legacy_closure_route_reviewed",
+            "openapi_required": false,
+            "reason": "Route-like literal belongs to 306_sprint69_session_insight_target_write_readback.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
+          }
+        ],
+        "views": [
+          "v_session_insight_target_write_readback_issues",
+          "v_session_insight_target_write_readback_readiness"
+        ],
+        "policies": [
+          "session_insight_target_write_readback_policy_v1"
+        ],
+        "plugins": [],
+        "tools": [
+          "actual_request_id",
+          "admin_platform_endpoint_tools",
+          "blocked_target_write_not_executed",
+          "chk_session_insight_target_write_readback_no_secrets",
+          "chk_session_insight_target_write_readback_read_only",
+          "executes_rollback",
+          "external_write_executed",
+          "fk_session_insight_target_write_readback_write",
+          "idx_session_insight_target_write_readback_status",
+          "idx_session_insight_target_write_readback_write",
+          "provider_call_executed",
+          "ready_for_target_write_readback",
+          "rollback_executed",
+          "session_insight_target_write_readback_create",
+          "session_insight_target_write_readback_list",
+          "session_insight_target_write_readback_policy_v1",
+          "session_insight_target_write_readback_read_only",
+          "session_insight_target_write_readbacks",
+          "target_item_modified_by_readback",
+          "target_modified_by_readback",
+          "target_write_executed",
+          "target_write_readback_claims_runtime_effect",
+          "target_write_readback_failed",
+          "target_write_readback_passed",
+          "target_write_readback_secret_flagged",
+          "uq_session_insight_target_write_readback_id",
+          "v_session_insight_target_write_readback_issues",
+          "v_session_insight_target_write_readback_readiness"
+        ],
+        "safety": {
+          "no_provider_call": false,
+          "no_credential_payload_read": true,
+          "no_raw_secrets": false,
+          "no_external_send": false,
+          "no_external_write": true,
+          "secrets_included_false": true
+        }
+      },
+      "docs": {
+        "Updating Registry Patch Index.md": true,
+        "deployment_parity_checklist.md": true,
+        "docs/ai-docs-agent-governance.md": true,
+        "docs/auto-docs-agent/README.md": true,
+        "docs/change-documentation-governance.md": true
+      },
+      "missing_docs": [],
+      "documentation_complete": true,
+      "coverage": {
+        "gap_severity": "none",
+        "requires_docs_review": false,
+        "route_coverage": {
+          "route_count": 0,
+          "total_route_count": 2,
+          "openapi_required_route_count": 0,
+          "exempted_route_count": 2,
+          "route_class_counts": {
+            "http_route": 0,
+            "admin_tool_registry_route": 0,
+            "tenant_tool_registry_route": 0,
+            "system_tool_dispatch_route": 0,
+            "registry_only_surface": 0,
+            "false_positive_route_like_string": 0,
+            "legacy_closure_route_reviewed": 2
+          },
+          "documented_count": 0,
+          "missing_count": 0,
+          "documented_routes": [],
+          "missing_routes": [],
+          "exempted_routes": [
+            {
+              "route": "/platform/session-insight-promotions/target-write-readbacks/create",
+              "route_class": "legacy_closure_route_reviewed",
+              "openapi_required": false,
+              "reason": "Route-like literal belongs to 306_sprint69_session_insight_target_write_readback.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
+            },
+            {
+              "route": "/platform/session-insight-promotions/target-write-readbacks/list",
+              "route_class": "legacy_closure_route_reviewed",
+              "openapi_required": false,
+              "reason": "Route-like literal belongs to 306_sprint69_session_insight_target_write_readback.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
+            }
+          ],
+          "route_classifications": [
+            {
+              "route": "/platform/session-insight-promotions/target-write-readbacks/create",
+              "route_class": "legacy_closure_route_reviewed",
+              "openapi_required": false,
+              "reason": "Route-like literal belongs to 306_sprint69_session_insight_target_write_readback.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
+            },
+            {
+              "route": "/platform/session-insight-promotions/target-write-readbacks/list",
+              "route_class": "legacy_closure_route_reviewed",
+              "openapi_required": false,
+              "reason": "Route-like literal belongs to 306_sprint69_session_insight_target_write_readback.sql, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored."
+            }
+          ]
+        },
+        "surface_count": 33,
+        "safety_marker_count": 3
       }
     },
     {

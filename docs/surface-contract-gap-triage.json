@@ -18,7 +18,7 @@
   "items": [
     {
       "migration_file": "293_sprint68_system_layer_descriptor_auto_wiring.sql",
-      "score": 935,
+      "score": 934,
       "queue_class": "critical_review",
       "triage_class": "safety_marker_review",
       "gate_scope": "legacy_baseline_candidate",

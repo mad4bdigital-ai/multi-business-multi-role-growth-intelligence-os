@@ -9,7 +9,7 @@
 - Gate candidates: 4
 - New-gap gate: fail
 - Blocking new items: 4
-- Docs completion: 98.51%
+- Docs completion: 98.52%
 - SQL route OpenAPI coverage: 100%
 
 ## Top immediate items
