@@ -1711,6 +1711,8 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
   if (descriptorSystemTool.handled) return descriptorSystemTool.result;
 
   switch (name) {
+    case "response_chunk_read":
+      return readCachedToolResponseChunk(args);
     case "system_layer_descriptor_readiness":
       return {
         ok: true,
