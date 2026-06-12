@@ -204,13 +204,15 @@ function main() {
   const writeMode = process.argv.includes("--write");
   const checkMode = process.argv.includes("--check");
   const enforce = process.argv.includes("--enforce-new-gaps");
-  const { triage, baseline, gate, dashboard, trends } = buildAll();
+  const { triage, baseline, gate, dashboard, compact, trends } = buildAll();
   const outputs = new Map([
     [TRIAGE_JSON, `${JSON.stringify(triage, null, 2)}\n`],
     [TRIAGE_MD, renderTriage(triage, gate)],
     [BASELINE_JSON, `${JSON.stringify(baseline, null, 2)}\n`],
     [DASHBOARD_JSON, `${JSON.stringify(dashboard, null, 2)}\n`],
     [DASHBOARD_MD, renderDashboard(dashboard)],
+    [COMPACT_DASHBOARD_JSON, `${JSON.stringify(compact, null, 2)}\n`],
+    [COMPACT_DASHBOARD_MD, renderCompactDashboard(compact)],
     [TREND_JSON, `${JSON.stringify(trends, null, 2)}\n`],
     [TREND_MD, renderTrends(trends)],
   ]);
