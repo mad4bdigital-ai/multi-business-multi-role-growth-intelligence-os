@@ -409,10 +409,11 @@ export function discoverSurfaces({ limit = 80 } = {}) {
   const allMigrations = listMigrationFiles()
     .map((name) => {
       const source = readFileIfExists(path.join(MIGRATIONS_DIR, name));
-      const surfaces = extractSurfaces(source);
+      const legacyBacklogClosed = isLegacyBacklogClosed(name);
+      const surfaces = extractSurfaces(source, name);
       const docs = docsCoverageFor(name, docsByPath);
       const missingDocs = Object.entries(docs).filter(([, covered]) => !covered).map(([target]) => target);
-      return enrichEntry({ migration_file: name, surfaces, docs, missing_docs: missingDocs, documentation_complete: missingDocs.length === 0 }, openapiPathSet);
+      return enrichEntry({ migration_file: name, legacy_backlog_closed: legacyBacklogClosed, surfaces, docs, missing_docs: missingDocs, documentation_complete: missingDocs.length === 0 }, openapiPathSet);
     })
     .filter((entry) => hasAnySurface(entry.surfaces));
 
