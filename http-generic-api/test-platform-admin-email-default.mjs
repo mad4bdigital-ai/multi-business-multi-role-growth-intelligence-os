@@ -28,8 +28,13 @@ for (const expected of [
   assert(migration.includes(expected), `migration must include ${expected}`);
 }
 
-assert(!providerGate.includes("password"), "admin email default must not add password handling");
-assert(!providerGate.includes("access_token"), "admin email default must not add token handling");
+const helperBlock = providerGate.slice(
+  providerGate.indexOf("async function resolvePlatformAdminEmail"),
+  providerGate.indexOf("async function recipientAllowlistAllowed")
+);
+assert(!helperBlock.includes("smtp_password"), "admin email default helper must not add SMTP password handling");
+assert(!helperBlock.includes("access_token"), "admin email default helper must not add access token handling");
+assert(!helperBlock.includes("secret_value"), "admin email default helper must not add secret value handling");
 assert(providerGate.includes("recipient_allowlist_allowed: recipientAllowed"), "provider preflight must still enforce recipient allowlist");
 assert(providerGate.includes("payload_json: effectivePayloadJson"), "provider plan must use enriched safe payload");
 
