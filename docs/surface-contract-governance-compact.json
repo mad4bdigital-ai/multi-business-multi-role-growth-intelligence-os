@@ -1,66 +1,23 @@
 {
-  "ok": false,
+  "ok": true,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 3.8,
-  "docs_complete_count": 15,
-  "docs_gap_count": 380,
-  "queue_items": 394,
-  "blocking_new_item_count": 1,
-  "gate_ok": false,
-  "top_actionable": [
-    {
-      "migration_file": "282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql",
-      "queue_class": "critical_review",
-      "score": 1417,
-      "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
-    },
-    {
-      "migration_file": "281_sprint68_session_insight_capability_envelope_dispatch_readback.sql",
-      "queue_class": "critical_review",
-      "score": 1345,
-      "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
-    },
-    {
-      "migration_file": "906_sprint68_ticket_external_delivery_completion_certification.sql",
-      "queue_class": "critical_review",
-      "score": 1265,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql",
-      "queue_class": "critical_review",
-      "score": 1219,
-      "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
-    },
-    {
-      "migration_file": "280_sprint68_session_insight_capability_envelope_approval_gate.sql",
-      "queue_class": "critical_review",
-      "score": 1201,
-      "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
-    },
-    {
-      "migration_file": "960_sprint68_remaining_resource_capability_completion_gates.sql",
-      "queue_class": "critical_review",
-      "score": 1001,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "284_sprint68_session_insight_backlog_target_write_executor.sql",
-      "queue_class": "critical_review",
-      "score": 968,
-      "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
-    }
-  ],
-  "openapi_missing_sql_route_count": 156,
-  "openapi_exempt_sql_route_count": 130,
+  "docs_completion_percent": 100,
+  "docs_complete_count": 395,
+  "docs_gap_count": 0,
+  "queue_items": 0,
+  "blocking_new_item_count": 0,
+  "gate_ok": true,
+  "top_actionable": [],
+  "openapi_missing_sql_route_count": 0,
+  "openapi_exempt_sql_route_count": 522,
   "total_sql_route_like_count": 522,
-  "safety_marker_gap_migrations": 275,
+  "safety_marker_gap_migrations": 0,
   "trend_quality_gate": {
-    "ok": false,
+    "ok": true,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "blocking_new_item_count must not increase above zero; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 1,
-    "warning_new_item_count": 1
+    "blocking_new_item_count": 0,
+    "warning_new_item_count": 0
   },
   "safety": {
     "executes_provider_calls": false,
