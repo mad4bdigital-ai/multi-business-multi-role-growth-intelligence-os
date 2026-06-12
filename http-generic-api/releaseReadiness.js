@@ -1673,6 +1673,7 @@ export async function runReleaseReadiness({ persist = false } = {}) {
     repository_intelligence_v2_readiness: null,
     platform_secret_promotion_monitoring: null,
     graph_memory_diagnostics: null,
+    runtime_production_parity_gate: null,
   };
 
   // DB connectivity
