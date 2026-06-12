@@ -1193,6 +1193,35 @@ async function checkDbConnectivity() {
   }
 }
 
+async function checkRuntimeProductionParityGate() {
+  try {
+    const parity = await getRuntimeParity("production");
+    const blockingGapCount = Number(parity.blocking_gap_count || 0);
+    const verified = parity.production_parity === "verified" && blockingGapCount === 0;
+    return {
+      status: verified ? "pass" : "fail",
+      production_parity: parity.production_parity || "unknown",
+      latest_run_id: parity.latest_run_id || null,
+      expected_commit_sha: parity.expected_commit_sha || null,
+      deployed_commit_sha: parity.deployed_commit_sha || null,
+      blocking_gap_count: blockingGapCount,
+      readiness_classification: parity.readiness_classification || (verified ? "ready" : "blocked"),
+      detail: verified
+        ? "Runtime production parity is verified with no blocking gaps."
+        : "Runtime production parity must be verified with zero blocking gaps before release readiness can pass.",
+      secrets_included: false,
+    };
+  } catch (err) {
+    return {
+      status: "fail",
+      production_parity: "unknown",
+      blocking_gap_count: 1,
+      detail: `Runtime production parity gate failed: ${err.message}`,
+      secrets_included: false,
+    };
+  }
+}
+
 async function checkTableExists(table) {
   try {
     const [[row]] = await getPool().query(
