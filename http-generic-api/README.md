@@ -2,6 +2,25 @@
 
 Policy-enforced HTTP executor with governed agent execution runtime.
 
+## Growth Intelligence pilot
+
+`POST /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot` runs the first
+value-producing Tenant/Brand workflow. It returns stable JSON and Markdown reports,
+prioritized opportunities, an approval-held dry-run backlog, readback, and audit evidence.
+The route is backend-authenticated and performs no provider writes or external sends.
+With explicit `persistence_mode=internal_registry`, it writes only the internal Growth
+Intelligence product registries, workflow evidence, and linked approval holds. Approval
+decisions never dispatch execution. Read APIs expose report detail and product/safety metrics.
+Insight decisions, deterministic supersession, derived quality rates, and immutable
+no-execution readiness assessments complete the governed review lifecycle.
+
+## Sequential plan orchestrator
+
+Planner plans may be compiled into `execution_plan_steps` and executed through
+bounded `tick` or `run` calls. Each step has dependencies, idempotency, retry and
+approval policies. `execution_plan_events` preserves the append-only timeline;
+approval decisions resume readiness without directly executing downstream work.
+
 ## Key behavior
 - Resolves `parent_action_key`, `endpoint_key`, and brand target from registry sheets
 - Resolves `action_key.openai_schema_file_id` and validates request against the schema before transport execution

@@ -34,6 +34,10 @@ This directory preserves the design evidence, clean-room overlays, and promotion
 | `local-development-review-2026-05-18.md` | historical review | Point-in-time review of local design documents and extracted platform concepts. |
 | `local-gateway-tools-design-2026-05-18.md` | historical design | Gateway registry and routing design snapshot. |
 | `local-connector-autoreconnect-and-desktop-manager-2026-05-18.md` | evolving implementation record | Local connector rollout history and remaining operational follow-ups. |
+| `../growth-intelligence-platform-architecture.md` | active architecture | Defines the first value-producing Tenant/Brand Growth Intelligence workflow and authority boundaries. |
+| `../sequential-plan-orchestration-architecture.md` | active architecture | Defines durable plan compilation, atomic sequential execution, approval stops, checkpoints, and resume behavior. |
+| `../growth-intelligence-operational-runbook.md` | active runbook | Defines baseline, warning/failure response, pilot checks, and recovery evidence. |
+| `../release-train-policy.md` | active release policy | Separates governance, runtime, product workflow, and provider-capable release lanes. |
 
 ## Promotion lifecycle
 

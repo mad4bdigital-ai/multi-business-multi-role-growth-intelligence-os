@@ -31,3 +31,19 @@ Route to execution only when:
 - resolveContext returns `validation_state: ready`
 - All required resolver outputs are non-null
 - paths.businessTypeFolderPath and paths.brandFolderPath (if brand-targeted) are set
+## Growth Intelligence Value Routing
+
+Requests for the first Growth Intelligence pilot route to
+`tenant_brand_growth_intelligence_pilot_v1` only after tenant, brand, and business
+activity resolution. The router must classify the route as read-only analysis plus
+dry-run planning and must keep all non-advisory actions approval-held.
+
+Provider-write, external-send, PDF export, and Drive export requests are outside
+this route and require a separately promoted workflow.
+
+## Sequential Plan Routing
+
+Requests containing an explicit multi-step plan route through plan compilation
+before workflow dispatch. The router must preserve step order, dependency keys,
+approval requirements, and stop conditions. It must not flatten a multi-step
+plan into one workflow dispatch.
