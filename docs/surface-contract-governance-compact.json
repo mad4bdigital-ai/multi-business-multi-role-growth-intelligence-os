@@ -1,10 +1,10 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 99.75,
+  "docs_completion_percent": 99.5,
   "docs_complete_count": 398,
-  "docs_gap_count": 1,
-  "queue_items": 1,
+  "docs_gap_count": 2,
+  "queue_items": 2,
   "blocking_new_item_count": 1,
   "gate_ok": false,
   "top_actionable": [
@@ -22,7 +22,7 @@
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
-    "rule": "blocking_new_item_count must not increase above zero; legacy baseline backlog remains visible but non-blocking",
+    "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
     "blocking_new_item_count": 1,
     "warning_new_item_count": 1
   },
