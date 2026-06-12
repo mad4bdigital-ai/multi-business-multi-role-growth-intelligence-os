@@ -1,11 +1,11 @@
 {
   "ok": true,
   "schema_version": "surface-contract-gap-queue-v1",
-  "total_items": 387,
+  "total_items": 388,
   "class_counts": {
     "critical_review": 244,
     "high_review": 115,
-    "medium_review": 26,
+    "medium_review": 27,
     "low_review": 2
   },
   "top_items": [
@@ -860,7 +860,7 @@
     },
     {
       "migration_file": "260_sprint68_platform_development_constitution_policies.sql",
-      "score": 1736,
+      "score": 1735,
       "queue_class": "critical_review",
       "gap_severity": "medium",
       "documentation_complete": false,
@@ -1110,7 +1110,7 @@
     },
     {
       "migration_file": "059_sprint54_local_connector_capability_tools.sql",
-      "score": 1589,
+      "score": 1588,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -1602,7 +1602,7 @@
     },
     {
       "migration_file": "270_sprint68_support_ticket_lifecycle_orchestration_readback.sql",
-      "score": 1444,
+      "score": 1443,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -2531,7 +2531,7 @@
     },
     {
       "migration_file": "281_sprint68_session_insight_capability_envelope_dispatch_readback.sql",
-      "score": 1347,
+      "score": 1346,
       "queue_class": "critical_review",
       "gap_severity": "none",
       "documentation_complete": true,
@@ -3233,7 +3233,7 @@
     },
     {
       "migration_file": "267_sprint68_ticket_external_adapter_readiness_checklist.sql",
-      "score": 1318,
+      "score": 1317,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -3341,7 +3341,7 @@
     },
     {
       "migration_file": "255_sprint68_ticket_notification_delivery_adapters.sql",
-      "score": 1316,
+      "score": 1315,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -4123,7 +4123,7 @@
     },
     {
       "migration_file": "263_sprint68_session_insight_promotion_review_tools.sql",
-      "score": 1226,
+      "score": 1225,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -4549,7 +4549,7 @@
     },
     {
       "migration_file": "269_sprint68_session_insight_contract_payload_preview.sql",
-      "score": 1183,
+      "score": 1182,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -4775,7 +4775,7 @@
     },
     {
       "migration_file": "265_sprint68_ticket_external_provider_adapter_contracts.sql",
-      "score": 1179,
+      "score": 1178,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -5652,7 +5652,7 @@
     },
     {
       "migration_file": "254_sprint67_ads_provider_preflight_surface_blueprint.sql",
-      "score": 1141,
+      "score": 1140,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -5833,7 +5833,7 @@
     },
     {
       "migration_file": "275_sprint68_session_insight_capability_envelope_dispatch_dry_run.sql",
-      "score": 1129,
+      "score": 1128,
       "queue_class": "critical_review",
       "gap_severity": "none",
       "documentation_complete": true,
@@ -5939,92 +5939,6 @@
       }
     },
     {
-      "migration_file": "252_sprint68_ticket_activation_inbox_feedback.sql",
-      "score": 1128,
-      "queue_class": "critical_review",
-      "gap_severity": "high",
-      "documentation_complete": false,
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [
-        "/admin/activation/ticket-inbox",
-        "/admin/support/tickets/{ticket_id}/admin-feedback"
-      ],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
-      ],
-      "surface_counts": {
-        "plugins": 0,
-        "tools": 1,
-        "views": 0,
-        "policies": 0,
-        "routes": 2
-      },
-      "remediation": [
-        {
-          "action_key": "document_surface_contract",
-          "owner_hint": "docs-agent/human-review",
-          "targets": [
-            "Updating Registry Patch Index.md",
-            "deployment_parity_checklist.md",
-            "docs/ai-docs-agent-governance.md",
-            "docs/auto-docs-agent/README.md",
-            "docs/change-documentation-governance.md"
-          ],
-          "reason": "Migration surfaces are not mentioned in all required documentation targets."
-        },
-        {
-          "action_key": "review_openapi_contract",
-          "owner_hint": "api-contract-review",
-          "targets": [
-            "/admin/activation/ticket-inbox",
-            "/admin/support/tickets/{ticket_id}/admin-feedback"
-          ],
-          "reason": "SQL-declared route-like surfaces are not covered by an OpenAPI path."
-        },
-        {
-          "action_key": "verify_tool_registry_binding",
-          "owner_hint": "runtime-registry-review",
-          "targets": [
-            "admin_platform_endpoint_tools"
-          ],
-          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
-        },
-        {
-          "action_key": "add_explicit_safety_markers",
-          "owner_hint": "safety-contract-review",
-          "targets": [
-            "no_provider_call",
-            "no_credential_payload_read",
-            "no_raw_secrets",
-            "no_external_send",
-            "no_external_write",
-            "secrets_included_false"
-          ],
-          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
-        }
-      ],
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
       "migration_file": "142_sprint64_codex_interactive_execution_request_tool.sql",
       "score": 1127,
       "queue_class": "critical_review",
@@ -6096,6 +6010,92 @@
             "v_agent_codex_interactive_execution_status"
           ],
           "reason": "Readback views should have parity/readiness documentation and smoke evidence."
+        },
+        {
+          "action_key": "add_explicit_safety_markers",
+          "owner_hint": "safety-contract-review",
+          "targets": [
+            "no_provider_call",
+            "no_credential_payload_read",
+            "no_raw_secrets",
+            "no_external_send",
+            "no_external_write",
+            "secrets_included_false"
+          ],
+          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+        }
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "252_sprint68_ticket_activation_inbox_feedback.sql",
+      "score": 1127,
+      "queue_class": "critical_review",
+      "gap_severity": "high",
+      "documentation_complete": false,
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [
+        "/admin/activation/ticket-inbox",
+        "/admin/support/tickets/{ticket_id}/admin-feedback"
+      ],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write",
+        "secrets_included_false"
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 1,
+        "views": 0,
+        "policies": 0,
+        "routes": 2
+      },
+      "remediation": [
+        {
+          "action_key": "document_surface_contract",
+          "owner_hint": "docs-agent/human-review",
+          "targets": [
+            "Updating Registry Patch Index.md",
+            "deployment_parity_checklist.md",
+            "docs/ai-docs-agent-governance.md",
+            "docs/auto-docs-agent/README.md",
+            "docs/change-documentation-governance.md"
+          ],
+          "reason": "Migration surfaces are not mentioned in all required documentation targets."
+        },
+        {
+          "action_key": "review_openapi_contract",
+          "owner_hint": "api-contract-review",
+          "targets": [
+            "/admin/activation/ticket-inbox",
+            "/admin/support/tickets/{ticket_id}/admin-feedback"
+          ],
+          "reason": "SQL-declared route-like surfaces are not covered by an OpenAPI path."
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "owner_hint": "runtime-registry-review",
+          "targets": [
+            "admin_platform_endpoint_tools"
+          ],
+          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
         },
         {
           "action_key": "add_explicit_safety_markers",
@@ -6232,7 +6232,7 @@
     },
     {
       "migration_file": "242_sprint68_ticket_lifecycle_approval_remediation.sql",
-      "score": 1121,
+      "score": 1120,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -6490,92 +6490,6 @@
       }
     },
     {
-      "migration_file": "238_sprint68_ticket_lifecycle_step_runs.sql",
-      "score": 1119,
-      "queue_class": "critical_review",
-      "gap_severity": "high",
-      "documentation_complete": false,
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [
-        "/admin/support/tickets/{ticket_id}/step-run",
-        "/admin/support/tickets/{ticket_id}/step-runs"
-      ],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write",
-        "secrets_included_false"
-      ],
-      "surface_counts": {
-        "plugins": 0,
-        "tools": 1,
-        "views": 0,
-        "policies": 0,
-        "routes": 2
-      },
-      "remediation": [
-        {
-          "action_key": "document_surface_contract",
-          "owner_hint": "docs-agent/human-review",
-          "targets": [
-            "Updating Registry Patch Index.md",
-            "deployment_parity_checklist.md",
-            "docs/ai-docs-agent-governance.md",
-            "docs/auto-docs-agent/README.md",
-            "docs/change-documentation-governance.md"
-          ],
-          "reason": "Migration surfaces are not mentioned in all required documentation targets."
-        },
-        {
-          "action_key": "review_openapi_contract",
-          "owner_hint": "api-contract-review",
-          "targets": [
-            "/admin/support/tickets/{ticket_id}/step-run",
-            "/admin/support/tickets/{ticket_id}/step-runs"
-          ],
-          "reason": "SQL-declared route-like surfaces are not covered by an OpenAPI path."
-        },
-        {
-          "action_key": "verify_tool_registry_binding",
-          "owner_hint": "runtime-registry-review",
-          "targets": [
-            "admin_platform_endpoint_tools"
-          ],
-          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
-        },
-        {
-          "action_key": "add_explicit_safety_markers",
-          "owner_hint": "safety-contract-review",
-          "targets": [
-            "no_provider_call",
-            "no_credential_payload_read",
-            "no_raw_secrets",
-            "no_external_send",
-            "no_external_write",
-            "secrets_included_false"
-          ],
-          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
-        }
-      ],
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
       "migration_file": "237_sprint68_ticket_lifecycle_workflow_runs.sql",
       "score": 1118,
       "queue_class": "critical_review",
@@ -6626,6 +6540,92 @@
           "targets": [
             "/admin/support/tickets/{ticket_id}/runtime-sync",
             "/admin/support/tickets/{ticket_id}/workflow-run"
+          ],
+          "reason": "SQL-declared route-like surfaces are not covered by an OpenAPI path."
+        },
+        {
+          "action_key": "verify_tool_registry_binding",
+          "owner_hint": "runtime-registry-review",
+          "targets": [
+            "admin_platform_endpoint_tools"
+          ],
+          "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+        },
+        {
+          "action_key": "add_explicit_safety_markers",
+          "owner_hint": "safety-contract-review",
+          "targets": [
+            "no_provider_call",
+            "no_credential_payload_read",
+            "no_raw_secrets",
+            "no_external_send",
+            "no_external_write",
+            "secrets_included_false"
+          ],
+          "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+        }
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "238_sprint68_ticket_lifecycle_step_runs.sql",
+      "score": 1118,
+      "queue_class": "critical_review",
+      "gap_severity": "high",
+      "documentation_complete": false,
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [
+        "/admin/support/tickets/{ticket_id}/step-run",
+        "/admin/support/tickets/{ticket_id}/step-runs"
+      ],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_raw_secrets",
+        "no_external_send",
+        "no_external_write",
+        "secrets_included_false"
+      ],
+      "surface_counts": {
+        "plugins": 0,
+        "tools": 1,
+        "views": 0,
+        "policies": 0,
+        "routes": 2
+      },
+      "remediation": [
+        {
+          "action_key": "document_surface_contract",
+          "owner_hint": "docs-agent/human-review",
+          "targets": [
+            "Updating Registry Patch Index.md",
+            "deployment_parity_checklist.md",
+            "docs/ai-docs-agent-governance.md",
+            "docs/auto-docs-agent/README.md",
+            "docs/change-documentation-governance.md"
+          ],
+          "reason": "Migration surfaces are not mentioned in all required documentation targets."
+        },
+        {
+          "action_key": "review_openapi_contract",
+          "owner_hint": "api-contract-review",
+          "targets": [
+            "/admin/support/tickets/{ticket_id}/step-run",
+            "/admin/support/tickets/{ticket_id}/step-runs"
           ],
           "reason": "SQL-declared route-like surfaces are not covered by an OpenAPI path."
         },
@@ -7789,7 +7789,7 @@
     },
     {
       "migration_file": "251_sprint67_ads_provider_capability_profile_registry.sql",
-      "score": 995,
+      "score": 994,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -8252,7 +8252,7 @@
     },
     {
       "migration_file": "284_sprint68_session_insight_backlog_target_write_executor.sql",
-      "score": 970,
+      "score": 969,
       "queue_class": "critical_review",
       "gap_severity": "none",
       "documentation_complete": true,
@@ -8686,7 +8686,7 @@
     },
     {
       "migration_file": "249_sprint68_ticket_lifecycle_verified_apply_rollback.sql",
-      "score": 956,
+      "score": 955,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -9125,7 +9125,7 @@
     },
     {
       "migration_file": "273_sprint68_support_ticket_lifecycle_snapshot_record_gate.sql",
-      "score": 950,
+      "score": 949,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
