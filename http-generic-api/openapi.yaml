@@ -71,6 +71,8 @@ tags:
     description: Release readiness checks, history, and entity classification inventory.
   - name: runtime-verification
     description: Runtime verification control plane, production parity ledger, and paginated evidence surfaces.
+  - name: operational-console
+    description: Unified operational console readback across runtime parity, activation, tiles, gaps, freshness, and evidence manifests.
   - name: local-manager
     description: Local Manager device-code linking, device controls, and Windows update metadata.
   - name: platform-graph
