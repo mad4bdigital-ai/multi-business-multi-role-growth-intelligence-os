@@ -34,4 +34,39 @@ Rank next-best actions by:
 - no mutation unless explicitly approved;
 - relevance to active devices, connectors, integrations, workspaces, and brands.
 
-The final line of a guidance brief should include a concrete suggestion such as: `أفضل بداية الآن: ...`.
+### Required presentation order
+
+Present guidance in this sequence:
+
+1. activation status;
+2. account or admin scope;
+3. workspace and brand management context for admins;
+4. counts;
+5. permissions and readiness;
+6. ready paths;
+7. limited or approval-gated paths;
+8. one best next action;
+9. invocation command palette.
+
+Do not flatten all sections into one undifferentiated response.
+
+### Language handling
+
+Render user-facing guidance in the user's explicit or stored language preference. When no preference is stored, use `Accept-Language`; otherwise follow the current conversation language. Do not force Arabic, English, or any other language.
+
+Keep `invocation_tag`, `slash_alias`, `intent_key`, tool keys, and machine status values unchanged across languages.
+
+### Invocation path contract
+
+Every stage and actionable path must expose a stable invocation descriptor such as:
+
+```text
+@workspace/overview
+/brands
+@connector/health
+@approval/options
+```
+
+Each descriptor must also include its intent, profile scope, entity scope, operation mode, risk, readiness, confirmation requirement, and candidate tools. Invocation signals are routing hints only. They must never bypass tenant scope, authorization, readiness checks, approvals, credential resolution, or runtime governance.
+
+End the guidance with one localized best-next-action prompt and include its `@tag` or `/command` so the user can invoke the path directly.
