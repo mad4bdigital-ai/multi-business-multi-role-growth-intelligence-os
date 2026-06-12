@@ -82,6 +82,13 @@ async function main() {
   assert.equal(diff.action, "git_diff_name_status");
   assert.ok(Array.isArray(diff.files));
 
+  const systemLayerRoutes = readFileSync("routes/systemLayerRoutes.js", "utf8");
+  assert.ok(systemLayerRoutes.includes("response_chunk_read"), "system layer must expose response_chunk_read for admin and tenant callers");
+  assert.ok(systemLayerRoutes.includes("chunkSystemLayerResponse"), "system layer list/call routes must chunk oversized responses");
+  assert.ok(systemLayerRoutes.includes("buildSystemToolsListResponse"), "system layer tools list must be bounded and page-aware");
+  assert.ok(systemLayerRoutes.includes("bounded_paginated_chunkable"), "system layer tools list must advertise bounded chunkable mode");
+  assert.ok(systemLayerRoutes.includes("chunk_ttl_minutes"), "system layer must expose controllable chunk TTL options");
+
   const migrationName = "232_sprint68_chunked_tool_response_continuation_policy.sql";
   const migration = readFileSync(`migrations/${migrationName}`, "utf8");
   const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
