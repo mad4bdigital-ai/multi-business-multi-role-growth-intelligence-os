@@ -72,7 +72,7 @@ INSERT INTO platform_resource_recipes (
   graph_write_policy, engine_key, status, notes
 )
 VALUES
-  ('github.file.read_content_after_review', 'github_file', 'read_content_after_review', 'github.file.content_read.adapter', 'sensitive_read', 'read',
+  ('github.file.read_content_after_review', 'github_file', 'read_content_after_review', 'github.file.content_read.adapter', 'read_only', 'inspect',
    1, 1, 1, 1, 1,
    JSON_OBJECT('type','object','required',JSON_ARRAY('path','typed_confirmation'),'properties',JSON_OBJECT('repo',JSON_OBJECT('type','string'),'branch',JSON_OBJECT('type','string'),'path',JSON_OBJECT('type','string'),'capability_envelope_id',JSON_OBJECT('type','string'),'typed_confirmation',JSON_OBJECT('type','string'))),
    JSON_OBJECT('type','object','properties',JSON_OBJECT('ok',JSON_OBJECT('type','boolean'),'classification',JSON_OBJECT('type','string'),'content_returned',JSON_OBJECT('type','boolean'),'redaction_status',JSON_OBJECT('type','string'))),

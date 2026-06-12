@@ -176,6 +176,7 @@ includesAll(githubFileContentGatePatchPlanMigration, [
   "958_sprint68_github_file_content_gate_and_patch_plan_registry.sql",
   "github_file_content_read_gate_policy_v1",
   "github.file.read_content_after_review",
+  "'read_only', 'inspect'",
   "github.file.patch_plan",
   "github_file_content_read_gated_v1",
   "github_file_patch_plan_v1",
