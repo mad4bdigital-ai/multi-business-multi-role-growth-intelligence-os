@@ -134,20 +134,22 @@ export function runAutomationIntelligenceGuard() {
   };
 }
 
-try {
-  const result = runAutomationIntelligenceGuard();
-  console.log(JSON.stringify(result, null, 2));
-} catch (err) {
-  console.error(JSON.stringify({
-    ok: false,
-    guard: "automation_intelligence_guard",
-    error: {
-      code: "automation_intelligence_guard_failed",
-      message: err?.message || String(err),
-    },
-    provider_calls_made: false,
-    mutations_executed: false,
-    secrets_included: false,
-  }, null, 2));
-  process.exitCode = 1;
+if (import.meta.url === `file://${process.argv[1]}`) {
+  try {
+    const result = runAutomationIntelligenceGuard();
+    console.log(JSON.stringify(result, null, 2));
+  } catch (err) {
+    console.error(JSON.stringify({
+      ok: false,
+      guard: "automation_intelligence_guard",
+      error: {
+        code: "automation_intelligence_guard_failed",
+        message: err?.message || String(err),
+      },
+      provider_calls_made: false,
+      mutations_executed: false,
+      secrets_included: false,
+    }, null, 2));
+    process.exitCode = 1;
+  }
 }
