@@ -200,6 +200,36 @@ async function requireTrustedBrandRefForRemediation({ tenant_id, ticket_id, body
   throw err;
 }
 
+async function resolveMembershipForAdminTenantTicketSimulation({ tenant_id, user_id } = {}) {
+  const requestedTenantId = String(tenant_id || "").trim();
+  const requestedUserId = String(user_id || "").trim();
+  if (!requestedTenantId || !requestedUserId) {
+    const err = new Error("tenant_id and user_id are required for admin tenant-ticket simulation.");
+    err.status = 400;
+    err.code = "support_ticket_tenant_user_simulation_identity_required";
+    throw err;
+  }
+  const [rows] = await getPool().query(
+    `SELECT m.user_id, m.tenant_id, m.role, t.display_name AS tenant_display_name
+       FROM memberships m
+       JOIN tenants t ON t.tenant_id = m.tenant_id
+      WHERE m.user_id = ?
+        AND m.tenant_id = ?
+        AND m.status = 'active'
+        AND t.status = 'active'
+      LIMIT 1`,
+    [requestedUserId, requestedTenantId]
+  );
+  const membership = rows[0] || null;
+  if (!membership) {
+    const err = new Error("Active tenant membership was not found for simulation identity.");
+    err.status = 403;
+    err.code = "support_ticket_tenant_user_simulation_membership_required";
+    throw err;
+  }
+  return membership;
+}
+
 function tenantTicketEnvelope(req, membership) {
   const body = req.body || {};
   return {
