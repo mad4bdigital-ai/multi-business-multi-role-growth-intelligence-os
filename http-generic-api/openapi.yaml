@@ -3609,6 +3609,105 @@ paths:
         "403": { description: Forbidden }
         "500": { description: Unexpected scorecard readback failure }
 
+  /platform/health/scorecard/snapshot-record:
+    post:
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: recordPlatformHealthScorecardSnapshot
+      summary: Record a Platform Health Scorecard snapshot
+      description: Records the current read-only Platform Health Scorecard into DB-backed snapshot history. Performs no provider calls, no external writes, and reads no credential payloads.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                recorded_by: { type: string }
+                trigger_source: { type: string }
+                metadata: { type: object, additionalProperties: true }
+      responses:
+        "201": { description: Snapshot recorded }
+        "401": { description: Unauthorized }
+        "403": { description: Forbidden }
+        "500": { description: Unexpected scorecard snapshot failure }
+
+  /platform/health/scorecard/remediation-plan:
+    post:
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: readPlatformHealthScorecardRemediationPlan
+      summary: Read Platform Health Scorecard remediation plan
+      description: Returns DB-backed remediation recommendations for Platform Health Scorecard components. The response is advisory/readback-only and performs no provider calls or external writes.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                include_passing: { type: boolean, default: false }
+      responses:
+        "200": { description: Remediation plan response }
+        "401": { description: Unauthorized }
+        "403": { description: Forbidden }
+        "500": { description: Unexpected remediation plan failure }
+
+  /platform/health/scorecard/tenant-rollout:
+    post:
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: readPlatformHealthScorecardTenantRollout
+      summary: Read tenant rollout readiness for the Platform Health Scorecard
+      description: Returns tenant rollout readiness derived from tenant, connector, and tenant-tool metadata. The route is readback-only and does not call providers or read credential payloads.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                status: { type: string }
+                limit: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        "200": { description: Tenant rollout readiness response }
+        "401": { description: Unauthorized }
+        "403": { description: Forbidden }
+        "500": { description: Unexpected tenant rollout readiness failure }
+
+  /platform/health/scorecard/ledger-hygiene:
+    post:
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: readPlatformHealthScorecardLedgerHygiene
+      summary: Read Platform Health Scorecard ledger hygiene report
+      description: Returns non-destructive governed migration ledger hygiene findings such as duplicate ledger entries or risky rows. It never deletes or mutates ledger history.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                limit: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        "200": { description: Ledger hygiene report response }
+        "401": { description: Unauthorized }
+        "403": { description: Forbidden }
+        "500": { description: Unexpected ledger hygiene readback failure }
+
   /platform/graph/project:
     post:
       tags: [platform-graph]
