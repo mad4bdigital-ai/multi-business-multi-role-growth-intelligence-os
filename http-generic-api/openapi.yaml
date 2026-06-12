@@ -3217,6 +3217,60 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
 
+  /platform/health/scorecard:
+    post:
+      tags: [platform-plugins]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: readPlatformHealthScorecard
+      summary: Read the DB-backed Platform Health Scorecard
+      description: >
+        Returns a read-only scorecard across schema contracts, Tool Bus readiness,
+        orchestration graphs, External Delivery no-send evidence, migration authorization,
+        release readiness, and provider credential readiness. This endpoint performs no
+        provider calls, no external writes, and does not read credential payloads.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                include_components:
+                  type: boolean
+                  default: true
+      responses:
+        "200":
+          description: Platform health scorecard response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, scorecard_key, overall_status, secrets_included]
+                properties:
+                  ok: { type: boolean }
+                  scorecard_key: { type: string, enum: [platform_health_scorecard] }
+                  overall_status: { type: string, enum: [pass, warn, fail] }
+                  component_count: { type: integer }
+                  pass_count: { type: integer }
+                  warn_count: { type: integer }
+                  fail_count: { type: integer }
+                  components:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  execution:
+                    type: object
+                    additionalProperties: true
+                  secrets_included: { type: boolean, enum: [false] }
+        "401": { description: Unauthorized }
+        "403": { description: Forbidden }
+        "500": { description: Unexpected scorecard readback failure }
+
   /platform/graph/project:
     post:
       tags: [platform-graph]
