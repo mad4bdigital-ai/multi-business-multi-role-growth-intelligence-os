@@ -66,5 +66,20 @@ export function buildRuntimeVerificationRoutes({ requireBackendApiKey, requireAd
     }
   });
 
+  router.get("/activation/hard-run/summary", ...guards, async (_req, res, next) => {
+    try {
+      const summary = await buildActivationHardRunSummary();
+      res.status(summary.status === "active" ? 200 : 424).json({
+        ok: summary.status === "active",
+        activation_layer: "hard_activation_summary",
+        detail_level: "summary",
+        evidence_manifest_available: true,
+        ...summary,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   return router;
 }
