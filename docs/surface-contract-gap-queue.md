@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 1
-- Critical review: 0
+- Total queue items: 2
+- Critical review: 1
 - High review: 1
 - Medium review: 0
 - Low review: 0
@@ -13,7 +13,23 @@
 
 ## Top Queue Items
 
-### 1. `1001_sprint68_tenant_ticket_admin_gpt_link_support.sql`
+### 1. `307_sprint69_hostinger_deploy_restart_option_support.sql`
+
+- Queue class: critical_review
+- Score: 914
+- Gap severity: medium
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=15, views=1, policies=2, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `admin_platform_tool`, `break_glass_execution_gated_supported`, `capability_envelope_ready_for_dispatch`, `execution_gated_supported`, `positive_dry_run_passed_break_glass_execution_gated_certified`, `positive_dry_run_passed_execution_gated_certified`, `post_deploy_readback`, `post_restart_readback`, `runtime_dispatch_certification`, `runtime_dispatch_certification_registry`, `same_cycle_dry_run_then_capability_envelope_then_post_deploy_readback`, ...and 3 more
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `hostinger_deploy_release_apply_policy_v1`, `hostinger_restart_app_apply_policy_v1`
+- `verify_readback_view` → db-readback-review; targets: `v_platform_exports_current`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 2. `1001_sprint68_tenant_ticket_admin_gpt_link_support.sql`
 
 - Queue class: high_review
 - Score: 676
