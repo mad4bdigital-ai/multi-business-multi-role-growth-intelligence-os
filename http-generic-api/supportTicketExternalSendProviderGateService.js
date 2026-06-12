@@ -131,6 +131,42 @@ function normalizeRecipientEmail(payload_json = {}) {
   return String(payload_json.to || payload_json.recipient_email || payload_json.email_to || "").trim().toLowerCase();
 }
 
+async function resolvePlatformAdminEmail(connection) {
+  const envEmail = String(process.env.PLATFORM_ADMIN_EMAIL || process.env.SUPPORT_TICKET_ADMIN_EMAIL || "").trim().toLowerCase();
+  if (envEmail) return envEmail;
+  try {
+    const [rows] = await connection.query(
+      `SELECT config_json
+         FROM platform_runtime_config
+        WHERE config_key IN ('external_delivery.platform_admin_email', 'support_ticket.platform_admin_email')
+          AND status = 'active'
+        ORDER BY FIELD(config_key, 'external_delivery.platform_admin_email', 'support_ticket.platform_admin_email'), updated_at DESC
+        LIMIT 1`
+    );
+    const config = rows?.[0]?.config_json && typeof rows[0].config_json === "object" ? rows[0].config_json : JSON.parse(rows?.[0]?.config_json || "{}");
+    return String(config?.email || "").trim().toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+async function enrichAdminRecipientPayload(connection, { audience, channel, payload_json = {} } = {}) {
+  const enriched = { ...(payload_json || {}) };
+  if (String(audience || "").toLowerCase() !== "admin" || String(channel || "").toLowerCase() !== "email") return enriched;
+  if (normalizeRecipientEmail(enriched)) return enriched;
+  const adminEmail = await resolvePlatformAdminEmail(connection);
+  if (!adminEmail) return enriched;
+  return {
+    ...enriched,
+    to: adminEmail,
+    recipient_email: adminEmail,
+    official_platform_admin_email: true,
+    recipient_source: "platform_runtime_config:external_delivery.platform_admin_email",
+    external_send_performed: false,
+    secrets_included: false,
+  };
+}
+
 async function recipientAllowlistAllowed(connection, { tenant_id, adapter_key, channel, payload_json = {} } = {}) {
   const recipient = normalizeRecipientEmail(payload_json);
   if (!recipient) return false;
@@ -170,12 +206,13 @@ export async function planSupportTicketExternalSendProviderGate({ tenant_id, tic
       err.code = "support_ticket_not_found";
       throw err;
     }
-    const executionPlan = await planSupportTicketExternalSendExecution({ tenant_id, ticket_id, channel: externalChannel, audience: normalizedAudience, approval_hold_id, credential_ref, subject, body, payload_json }, { connection });
+    const effectivePayloadJson = await enrichAdminRecipientPayload(connection, { audience: normalizedAudience, channel: externalChannel, payload_json });
+    const executionPlan = await planSupportTicketExternalSendExecution({ tenant_id, ticket_id, channel: externalChannel, audience: normalizedAudience, approval_hold_id, credential_ref, subject, body, payload_json: effectivePayloadJson }, { connection });
     const providerAdapter = await resolveProviderAdapter(connection, { channel: externalChannel, provider_key, send_mode });
-    const recipientAllowed = await recipientAllowlistAllowed(connection, { tenant_id, adapter_key: providerAdapter.adapter_key, channel: externalChannel, payload_json });
-    const providerPolicyPreflight = await evaluateSupportTicketExternalProviderGatePreflight({ channel: externalChannel, send_mode, provider_adapter: providerAdapter, approval_hold_id, credential_ref, idempotency_key: payload_json?.idempotency_key || payload_json?.idempotencyKey || null, recipient_allowlist_allowed: recipientAllowed }, { connection });
+    const recipientAllowed = await recipientAllowlistAllowed(connection, { tenant_id, adapter_key: providerAdapter.adapter_key, channel: externalChannel, payload_json: effectivePayloadJson });
+    const providerPolicyPreflight = await evaluateSupportTicketExternalProviderGatePreflight({ channel: externalChannel, send_mode, provider_adapter: providerAdapter, approval_hold_id, credential_ref, idempotency_key: effectivePayloadJson?.idempotency_key || effectivePayloadJson?.idempotencyKey || null, recipient_allowlist_allowed: recipientAllowed }, { connection });
     assertPreflightAllowed(providerPolicyPreflight);
-    const provider_plan = buildProviderPlan({ tenant_id, ticket_id, execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json });
+    const provider_plan = buildProviderPlan({ tenant_id, ticket_id, execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json: effectivePayloadJson });
     return { ok: true, mode: "dry_run", provider_plan: { ...provider_plan, policy_preflight: providerPolicyPreflight }, execution_plan: executionPlan, ticket, external_send_performed: false, secret_value_included: false, secrets_included: false };
   } finally { if (ownsConnection) connection.release(); }
 }
@@ -198,12 +235,13 @@ export async function recordSupportTicketExternalSendProviderGateAttempt({ tenan
       err.code = "support_ticket_not_found";
       throw err;
     }
-    const executionPlan = await planSupportTicketExternalSendExecution({ tenant_id, ticket_id, channel: externalChannel, audience: normalizedAudience, approval_hold_id, credential_ref, subject, body, payload_json }, { connection });
+    const effectivePayloadJson = await enrichAdminRecipientPayload(connection, { audience: normalizedAudience, channel: externalChannel, payload_json });
+    const executionPlan = await planSupportTicketExternalSendExecution({ tenant_id, ticket_id, channel: externalChannel, audience: normalizedAudience, approval_hold_id, credential_ref, subject, body, payload_json: effectivePayloadJson }, { connection });
     const providerAdapter = await resolveProviderAdapter(connection, { channel: externalChannel, provider_key, send_mode });
-    const recipientAllowed = await recipientAllowlistAllowed(connection, { tenant_id, adapter_key: providerAdapter.adapter_key, channel: externalChannel, payload_json });
-    const providerPolicyPreflight = await evaluateSupportTicketExternalProviderGatePreflight({ channel: externalChannel, send_mode, provider_adapter: providerAdapter, approval_hold_id, credential_ref, idempotency_key: payload_json?.idempotency_key || payload_json?.idempotencyKey || null, recipient_allowlist_allowed: recipientAllowed }, { connection });
+    const recipientAllowed = await recipientAllowlistAllowed(connection, { tenant_id, adapter_key: providerAdapter.adapter_key, channel: externalChannel, payload_json: effectivePayloadJson });
+    const providerPolicyPreflight = await evaluateSupportTicketExternalProviderGatePreflight({ channel: externalChannel, send_mode, provider_adapter: providerAdapter, approval_hold_id, credential_ref, idempotency_key: effectivePayloadJson?.idempotency_key || effectivePayloadJson?.idempotencyKey || null, recipient_allowlist_allowed: recipientAllowed }, { connection });
     assertPreflightAllowed(providerPolicyPreflight);
-    const provider_plan = { ...buildProviderPlan({ tenant_id, ticket_id, execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json }), policy_preflight: providerPolicyPreflight };
+    const provider_plan = { ...buildProviderPlan({ tenant_id, ticket_id, execution_plan: executionPlan, provider_adapter: providerAdapter, send_mode, payload_json: effectivePayloadJson }), policy_preflight: providerPolicyPreflight };
     if (runMode === "live_send") {
       const idempotencyKey = provider_plan.payload_json?.idempotency_key || payload_json?.idempotency_key || null;
       if (idempotencyKey) {
