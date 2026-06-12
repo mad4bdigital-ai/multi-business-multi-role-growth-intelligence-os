@@ -290,7 +290,7 @@ export function buildGuidancePresentation({ profile, activationBrief, counts, pe
       risk: action.risk,
       requires_confirmation: action.requires_confirmation,
       readiness: "recommended",
-    }),
+    }, invocationRegistry),
   }));
 
   const actionPaths = localizedRecommendedActions.map((action) => ({
