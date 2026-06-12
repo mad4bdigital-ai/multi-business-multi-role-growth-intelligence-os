@@ -2834,6 +2834,55 @@ x-tenant-gpt-auth:
         - https://auth.mad4b.com/scopes/tenant.system-tools
 
 paths:
+  /tenant/activation/guidance:
+    get:
+      tags: [activation-guidance]
+      operationId: getTenantActivationGuidance
+      summary: Read tenant activation guidance
+      description: >
+        Returns a tenant-safe proactive activation brief with account counts, permission semantics,
+        capability groups, safe actions, blocked or limited capabilities, and next-best actions.
+      security:
+        - backendBearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Tenant activation guidance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivationGuidanceResponse'
+  /admin/activation/guidance:
+    get:
+      tags: [activation-guidance]
+      operationId: getAdminActivationGuidance
+      summary: Read admin activation guidance
+      description: >
+        Returns proactive admin guidance for workspace, tenant, brand, platform tool, permission,
+        readiness, and next-best-action management. No secrets are returned.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: user_id
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Admin activation guidance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivationGuidanceResponse'
   /operational/console:
     get:
       tags: [operational-console]
