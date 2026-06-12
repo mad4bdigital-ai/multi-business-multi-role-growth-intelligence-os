@@ -88,8 +88,14 @@ async function readOperationalCallbacks(limit = DEFAULT_TILE_LIMIT) {
 async function readAttentionRules(limit = DEFAULT_TILE_LIMIT) {
   if (!(await tableExists("activation_attention_rule_registry"))) return [];
   return query(
-    `SELECT rule_key, display_name, description, source_table, severity, rule_status,
-            priority_order, status
+    `SELECT rule_key,
+            display_name,
+            NULL AS description,
+            source_table_like AS source_table,
+            severity,
+            status AS rule_status,
+            priority_order,
+            status
        FROM activation_attention_rule_registry
       WHERE status = 'active'
       ORDER BY priority_order ASC, rule_key ASC
@@ -115,8 +121,13 @@ async function readRemediationRunbooks(limit = DEFAULT_TILE_LIMIT) {
 async function readFreshnessPolicies(limit = DEFAULT_TILE_LIMIT) {
   if (!(await tableExists("activation_freshness_policy_registry"))) return [];
   return query(
-    `SELECT policy_key, provider_family, connector_family, source_surface_key,
-            freshness_sla_seconds, stale_after_seconds, critical_after_seconds,
+    `SELECT policy_key,
+            provider_family,
+            connector_family,
+            surface_key_like AS source_surface_key,
+            freshness_sla_seconds,
+            NULL AS stale_after_seconds,
+            NULL AS critical_after_seconds,
             status
        FROM activation_freshness_policy_registry
       WHERE status = 'active'
