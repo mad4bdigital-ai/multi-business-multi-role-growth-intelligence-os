@@ -29,6 +29,7 @@ Open the source file listed below for the relevant domain instead of loading thi
 | Local connector and dispatch governance | `canonicals/system_bootstrap/18_local_connector_dispatch.md` | Dispatch layer, task_routes authority, agent skill grants, local connector config, auto-provisioning, and DNS governance. |
 | Tenant GPT OAuth preset | `canonicals/system_bootstrap/19_tenant_gpt_oauth_preset.md` | Tenant Custom GPT OAuth preset, schema URL, client ID, redirect/auth URLs, scopes, and sign-in failure interpretation. |
 | SQL primary data source | `canonicals/system_bootstrap/20_sql_primary_data_source.md` | SQL runtime authority, sheet-to-table map, async mirror behavior, recovery helpers, and GPT-initiated migration repair flow. |
+| Activation guidance intelligence | `canonicals/system_bootstrap/21_activation_guidance_intelligence.md` | Proactive Tenant/Admin activation guidance, account counts, readiness semantics, and next-best actions. |
 
 ---
 
