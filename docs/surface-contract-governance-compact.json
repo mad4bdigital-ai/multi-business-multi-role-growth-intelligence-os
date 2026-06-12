@@ -1,17 +1,17 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 3.82,
+  "docs_completion_percent": 3.81,
   "docs_complete_count": 15,
-  "docs_gap_count": 378,
-  "queue_items": 392,
+  "docs_gap_count": 379,
+  "queue_items": 393,
   "blocking_new_item_count": 1,
   "gate_ok": false,
   "top_actionable": [
     {
       "migration_file": "282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql",
       "queue_class": "critical_review",
-      "score": 1418,
+      "score": 1417,
       "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
     },
     {
@@ -23,7 +23,7 @@
     {
       "migration_file": "906_sprint68_ticket_external_delivery_completion_certification.sql",
       "queue_class": "critical_review",
-      "score": 1266,
+      "score": 1265,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -54,7 +54,7 @@
   "openapi_missing_sql_route_count": 156,
   "openapi_exempt_sql_route_count": 128,
   "total_sql_route_like_count": 520,
-  "safety_marker_gap_migrations": 274,
+  "safety_marker_gap_migrations": 275,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
