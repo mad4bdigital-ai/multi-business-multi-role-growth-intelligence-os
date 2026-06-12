@@ -3,6 +3,7 @@ import net from "node:net";
 import tls from "node:tls";
 import { getGoogleAccessToken } from "./googleAuthTokenResolver.js";
 import { getPool } from "./db.js";
+import { decryptCredentials } from "./tokenEncryption.js";
 
 const DEFAULT_SMTP_TIMEOUT_MS = 15000;
 const SMTP_MAX_BODY_CHARS = 20000;
@@ -76,8 +77,8 @@ export async function isLiveSendRecipientAllowed(email, options = {}) {
   return result.allowed;
 }
 
-function parseSmtpUrl() {
-  const raw = String(process.env.SMTP_URL || process.env.HOSTINGER_SMTP_URL || "").trim();
+function parseSmtpUrlFromRaw(rawValue = "") {
+  const raw = String(rawValue || "").trim();
   if (!raw) return null;
   const parsed = new URL(raw);
   if (!["smtp:", "smtps:"].includes(parsed.protocol)) {
@@ -93,6 +94,41 @@ function parseSmtpUrl() {
     password: decodeURIComponent(parsed.password || ""),
     from: parsed.searchParams.get("from") || process.env.SMTP_FROM || process.env.HOSTINGER_SMTP_FROM || parsed.username || "",
   };
+}
+
+function parseSmtpUrl() {
+  return parseSmtpUrlFromRaw(process.env.SMTP_URL || process.env.HOSTINGER_SMTP_URL || "");
+}
+
+function firstSecretString(...values) {
+  for (const value of values) {
+    const str = String(value || "").trim();
+    if (str) return str;
+  }
+  return "";
+}
+
+async function readPlatformSecretValue(secretKey, connection = null) {
+  const pool = connection || getPool();
+  const [rows] = await pool.query(
+    `SELECT value_ciphertext
+       FROM platform_secrets
+      WHERE secret_key = ? AND status = 'active'
+      ORDER BY updated_at DESC
+      LIMIT 1`,
+    [secretKey]
+  );
+  if (!rows?.[0]?.value_ciphertext) return "";
+  const decrypted = decryptCredentials(rows[0].value_ciphertext);
+  return firstSecretString(decrypted?.smtp_url, decrypted?.url, decrypted?.raw, decrypted?.api_key, decrypted?.token);
+}
+
+async function resolveSmtpConfig(options = {}) {
+  const envRaw = String(process.env.SMTP_URL || process.env.HOSTINGER_SMTP_URL || "").trim();
+  if (envRaw) return { config: parseSmtpUrlFromRaw(envRaw), source: "env", present: true };
+  const platformRaw = await readPlatformSecretValue("HOSTINGER_SMTP_URL", options.connection || null);
+  if (platformRaw) return { config: parseSmtpUrlFromRaw(platformRaw), source: "platform_secrets:HOSTINGER_SMTP_URL", present: true };
+  return { config: null, source: "missing", present: false };
 }
 
 function smtpConfigured() {
@@ -111,11 +147,12 @@ function providerRuntimeKind(adapter = {}) {
   return "unsupported_email_provider";
 }
 
-function providerReadinessBase(kind) {
+function providerReadinessBase(kind, smtpState = {}) {
   return {
     runtime: kind,
-    smtp_url_present: Boolean(process.env.SMTP_URL || process.env.HOSTINGER_SMTP_URL),
-    smtp_configured: smtpConfigured(),
+    smtp_url_present: Boolean(smtpState.present || process.env.SMTP_URL || process.env.HOSTINGER_SMTP_URL),
+    smtp_secret_source: smtpState.source || (process.env.SMTP_URL || process.env.HOSTINGER_SMTP_URL ? "env" : "missing"),
+    smtp_configured: Boolean(smtpState.config) || smtpConfigured(),
     recipient_allowlist_source: "external_delivery_recipient_allowlist_registry",
     recipient_allowlist_present: false,
     allowlist_count: 0,
@@ -341,7 +378,15 @@ export async function checkSupportTicketLiveSendReadiness(providerPlan = {}, opt
     channel: "email",
     connection: options.connection || null,
   });
-  const readiness = { ...providerReadinessBase(runtime), recipient_allowlist_present: allowlist.allowlist_count > 0, allowlist_count: allowlist.allowlist_count, matched_allowlist_id: allowlist.matched_allowlist_id, recipient_allowlist_allowed: allowlist.allowed, recipient_allowlist_reason: allowlist.reason };
+  let smtpState = { config: null, source: "not_required", present: false };
+  if (runtime === "smtp" || runtime === "hostinger_smtp") {
+    try {
+      smtpState = await resolveSmtpConfig({ connection: options.connection || null });
+    } catch (error) {
+      smtpState = { config: null, source: error.code || "smtp_secret_invalid", present: true };
+    }
+  }
+  const readiness = { ...providerReadinessBase(runtime, smtpState), recipient_allowlist_present: allowlist.allowlist_count > 0, allowlist_count: allowlist.allowlist_count, matched_allowlist_id: allowlist.matched_allowlist_id, recipient_allowlist_allowed: allowlist.allowed, recipient_allowlist_reason: allowlist.reason };
   const blockers = [];
   if (providerPlan.send_mode !== "live_send") blockers.push("live_send_mode_required");
   if (!providerPlan.ready_for_provider_dispatch) blockers.push("provider_plan_not_ready");
@@ -384,6 +429,6 @@ export async function executeSupportTicketLiveSend(providerPlan = {}, options = 
   const runtime = providerRuntimeKind(adapter);
   const result = runtime === "gmail_user_oauth"
     ? await sendGmailMail(providerPlan, payload)
-    : await sendSmtpMail({ config: parseSmtpUrl(), ...payload, idempotencyKey: providerPlan.idempotency_key || providerPlan.payload_json?.idempotency_key });
+    : await sendSmtpMail({ config: (await resolveSmtpConfig(options)).config, ...payload, idempotencyKey: providerPlan.idempotency_key || providerPlan.payload_json?.idempotency_key });
   return { ok: true, mode: "live_send", runtime, adapter_key: adapter.adapter_key || null, provider_status: result.provider_status, provider_message_id: result.provider_message_id, external_send_performed: true, secret_value_included: false, secrets_included: false };
 }
