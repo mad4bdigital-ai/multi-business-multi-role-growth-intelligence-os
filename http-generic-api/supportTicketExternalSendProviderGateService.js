@@ -131,6 +131,42 @@ function normalizeRecipientEmail(payload_json = {}) {
   return String(payload_json.to || payload_json.recipient_email || payload_json.email_to || "").trim().toLowerCase();
 }
 
+async function resolvePlatformAdminEmail(connection) {
+  const envEmail = String(process.env.PLATFORM_ADMIN_EMAIL || process.env.SUPPORT_TICKET_ADMIN_EMAIL || "").trim().toLowerCase();
+  if (envEmail) return envEmail;
+  try {
+    const [rows] = await connection.query(
+      `SELECT config_json
+         FROM platform_runtime_config
+        WHERE config_key IN ('external_delivery.platform_admin_email', 'support_ticket.platform_admin_email')
+          AND status = 'active'
+        ORDER BY FIELD(config_key, 'external_delivery.platform_admin_email', 'support_ticket.platform_admin_email'), updated_at DESC
+        LIMIT 1`
+    );
+    const config = rows?.[0]?.config_json && typeof rows[0].config_json === "object" ? rows[0].config_json : JSON.parse(rows?.[0]?.config_json || "{}");
+    return String(config?.email || "").trim().toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+async function enrichAdminRecipientPayload(connection, { audience, channel, payload_json = {} } = {}) {
+  const enriched = { ...(payload_json || {}) };
+  if (String(audience || "").toLowerCase() !== "admin" || String(channel || "").toLowerCase() !== "email") return enriched;
+  if (normalizeRecipientEmail(enriched)) return enriched;
+  const adminEmail = await resolvePlatformAdminEmail(connection);
+  if (!adminEmail) return enriched;
+  return {
+    ...enriched,
+    to: adminEmail,
+    recipient_email: adminEmail,
+    official_platform_admin_email: true,
+    recipient_source: "platform_runtime_config:external_delivery.platform_admin_email",
+    external_send_performed: false,
+    secrets_included: false,
+  };
+}
+
 async function recipientAllowlistAllowed(connection, { tenant_id, adapter_key, channel, payload_json = {} } = {}) {
   const recipient = normalizeRecipientEmail(payload_json);
   if (!recipient) return false;
