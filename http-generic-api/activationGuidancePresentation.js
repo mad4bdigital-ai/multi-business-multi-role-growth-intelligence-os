@@ -244,12 +244,23 @@ export function buildGuidancePresentation({ profile, activationBrief, counts, pe
     nextStageId: stageIds[index + 1] || null,
   }));
 
-  const actionPaths = recommendedNextActions.map((action) => ({
+  const localizedRecommendedActions = recommendedNextActions.map((action) => ({
+    ...action,
+    label: localizedMessage(`action.${action.action_key}.label`, languageContext),
+    reason: localizedMessage(`action.${action.action_key}.reason`, languageContext),
+    invocation: buildInvocation(action.action_key, profile, {
+      risk: action.risk,
+      requires_confirmation: action.requires_confirmation,
+      readiness: "recommended",
+    }),
+  }));
+
+  const actionPaths = localizedRecommendedActions.map((action) => ({
     path_key: action.action_key,
     path_type: "recommended_action",
     label: action.label,
     reason: action.reason,
-    invocation: buildInvocation(action.action_key, profile, { risk: action.risk, requires_confirmation: action.requires_confirmation, readiness: "recommended" }),
+    invocation: action.invocation,
     source_ref: `recommended_next_actions[${Math.max(0, Number(action.rank || 1) - 1)}]`,
   }));
 
