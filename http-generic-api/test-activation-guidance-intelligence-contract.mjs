@@ -42,6 +42,10 @@ assert.match(service, /SENSITIVE_KEY_PATTERN/, "service must strip sensitive key
 assert.match(service, /secrets_included: false/, "service must explicitly declare no secrets");
 
 assert.match(presentation, /resolveGuidanceLanguagePreference/, "presentation must resolve stored, explicit, header, or conversation language preferences");
+assert.match(presentation, /loadGuidanceInvocationRegistry/, "presentation must load dynamic invocation descriptors from the DB registry");
+assert.match(presentation, /activation_guidance_invocation_registry/, "presentation must query the invocation registry");
+assert.match(presentation, /source: "code_fallback"/, "presentation must retain a safe code fallback when the registry is unavailable");
+assert.match(presentation, /registry_source/, "invocation contract must report whether DB registry or fallback was used");
 assert.match(presentation, /actor_profiles/, "presentation must read actor profile language preferences when present");
 assert.match(presentation, /activation_user_dashboard_preferences/, "presentation must read dashboard language preferences when present");
 assert.match(presentation, /assistant_detects_user_language/, "presentation must fall back to conversation language detection");
