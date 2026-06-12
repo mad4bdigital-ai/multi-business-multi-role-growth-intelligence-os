@@ -99,7 +99,9 @@ export async function buildActivationHardRunSummary() {
 export async function createRuntimeVerificationRun(input = {}, actor = {}) {
   const runId = randomUUID();
   const environmentKey = String(input.environment_key || input.environment || "production").trim() || "production";
-  const commitSha = resolveCommit(input);
+  const expectedCommitSha = resolveExpectedCommit(input);
+  const deployedCommitSha = resolveDeployedCommit(input, expectedCommitSha);
+  const commitSha = expectedCommitSha;
   const budget = { ...DEFAULT_RESPONSE_BUDGET, ...(input.response_budget || {}) };
   const createdBy = actor.user_id || actor.email || actor.mode || "runtime_verification_route";
 
