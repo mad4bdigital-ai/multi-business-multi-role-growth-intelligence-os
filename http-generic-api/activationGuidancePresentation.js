@@ -332,6 +332,8 @@ export function buildGuidancePresentation({ profile, activationBrief, counts, pe
       rendering_instruction: "Render all user-facing guidance in the resolved user language or current conversation language. Keep invocation tags, slash aliases, intent keys, and tool keys unchanged.",
       tags_are_language_neutral: true,
     },
+    localized_activation_brief: localizedActivationBrief,
+    localized_recommended_actions: localizedRecommendedActions,
     invocation_contract: {
       version: "activation_guidance_invocation_v1",
       supported_signals: ["invocation_tag", "slash_alias", "intent_key"],
