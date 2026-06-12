@@ -454,8 +454,8 @@
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 350,
       "deployment_parity_checklist.md": 359,
-      "docs/ai-docs-agent-governance.md": 382,
-      "docs/auto-docs-agent/README.md": 382,
+      "docs/ai-docs-agent-governance.md": 381,
+      "docs/auto-docs-agent/README.md": 381,
       "docs/change-documentation-governance.md": 382
     },
     "gap_severity_counts": {
@@ -4386,111 +4386,6 @@
         }
       },
       {
-        "migration_file": "285_sprint68_session_insight_target_write_readback.sql",
-        "score": 1454,
-        "queue_class": "critical_review",
-        "gap_severity": "high",
-        "documentation_complete": false,
-        "missing_docs": [
-          "docs/ai-docs-agent-governance.md",
-          "docs/auto-docs-agent/README.md",
-          "docs/change-documentation-governance.md"
-        ],
-        "missing_openapi_routes": [],
-        "safety_marker_gaps": [
-          "no_provider_call",
-          "no_raw_secrets",
-          "no_external_send"
-        ],
-        "surface_counts": {
-          "plugins": 0,
-          "tools": 28,
-          "views": 2,
-          "policies": 1,
-          "routes": 2
-        },
-        "remediation": [
-          {
-            "action_key": "document_surface_contract",
-            "owner_hint": "docs-agent/human-review",
-            "targets": [
-              "docs/ai-docs-agent-governance.md",
-              "docs/auto-docs-agent/README.md",
-              "docs/change-documentation-governance.md"
-            ],
-            "reason": "Migration surfaces are not mentioned in all required documentation targets."
-          },
-          {
-            "action_key": "verify_tool_registry_binding",
-            "owner_hint": "runtime-registry-review",
-            "targets": [
-              "actual_request_id",
-              "admin_platform_endpoint_tools",
-              "blocked_target_write_not_executed",
-              "chk_session_insight_target_write_readback_no_secrets",
-              "chk_session_insight_target_write_readback_read_only",
-              "executes_rollback",
-              "external_write_executed",
-              "fk_session_insight_target_write_readback_write",
-              "idx_session_insight_target_write_readback_status",
-              "idx_session_insight_target_write_readback_write",
-              "provider_call_executed",
-              "ready_for_target_write_readback",
-              "rollback_executed",
-              "session_insight_target_write_readback_create",
-              "session_insight_target_write_readback_list",
-              "session_insight_target_write_readback_policy_v1",
-              "session_insight_target_write_readback_read_only",
-              "session_insight_target_write_readbacks",
-              "target_item_modified_by_readback",
-              "target_modified_by_readback",
-              "target_write_executed",
-              "target_write_readback_claims_runtime_effect",
-              "target_write_readback_failed",
-              "target_write_readback_passed",
-              "target_write_readback_secret_flagged"
-            ],
-            "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
-          },
-          {
-            "action_key": "verify_policy_seed_readiness",
-            "owner_hint": "runtime-policy-review",
-            "targets": [
-              "session_insight_target_write_readback_policy_v1"
-            ],
-            "reason": "Policy surfaces need active/blocking/valid-JSON readiness evidence."
-          },
-          {
-            "action_key": "verify_readback_view",
-            "owner_hint": "db-readback-review",
-            "targets": [
-              "v_session_insight_target_write_readback_issues",
-              "v_session_insight_target_write_readback_readiness"
-            ],
-            "reason": "Readback views should have parity/readiness documentation and smoke evidence."
-          },
-          {
-            "action_key": "add_explicit_safety_markers",
-            "owner_hint": "safety-contract-review",
-            "targets": [
-              "no_provider_call",
-              "no_raw_secrets",
-              "no_external_send"
-            ],
-            "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
-          }
-        ],
-        "safety": {
-          "executes_provider_calls": false,
-          "reads_credentials": false,
-          "mutates_runtime": false,
-          "writes_database": false,
-          "external_sends": false,
-          "deploys": false,
-          "secrets_included": false
-        }
-      },
-      {
         "migration_file": "270_sprint68_support_ticket_lifecycle_orchestration_readback.sql",
         "score": 1444,
         "queue_class": "critical_review",
@@ -4873,6 +4768,107 @@
               "no_raw_secrets",
               "no_external_send",
               "no_external_write"
+            ],
+            "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
+          }
+        ],
+        "safety": {
+          "executes_provider_calls": false,
+          "reads_credentials": false,
+          "mutates_runtime": false,
+          "writes_database": false,
+          "external_sends": false,
+          "deploys": false,
+          "secrets_included": false
+        }
+      },
+      {
+        "migration_file": "285_sprint68_session_insight_target_write_readback.sql",
+        "score": 1414,
+        "queue_class": "critical_review",
+        "gap_severity": "high",
+        "documentation_complete": false,
+        "missing_docs": [
+          "docs/change-documentation-governance.md"
+        ],
+        "missing_openapi_routes": [],
+        "safety_marker_gaps": [
+          "no_provider_call",
+          "no_raw_secrets",
+          "no_external_send"
+        ],
+        "surface_counts": {
+          "plugins": 0,
+          "tools": 28,
+          "views": 2,
+          "policies": 1,
+          "routes": 2
+        },
+        "remediation": [
+          {
+            "action_key": "document_surface_contract",
+            "owner_hint": "docs-agent/human-review",
+            "targets": [
+              "docs/change-documentation-governance.md"
+            ],
+            "reason": "Migration surfaces are not mentioned in all required documentation targets."
+          },
+          {
+            "action_key": "verify_tool_registry_binding",
+            "owner_hint": "runtime-registry-review",
+            "targets": [
+              "actual_request_id",
+              "admin_platform_endpoint_tools",
+              "blocked_target_write_not_executed",
+              "chk_session_insight_target_write_readback_no_secrets",
+              "chk_session_insight_target_write_readback_read_only",
+              "executes_rollback",
+              "external_write_executed",
+              "fk_session_insight_target_write_readback_write",
+              "idx_session_insight_target_write_readback_status",
+              "idx_session_insight_target_write_readback_write",
+              "provider_call_executed",
+              "ready_for_target_write_readback",
+              "rollback_executed",
+              "session_insight_target_write_readback_create",
+              "session_insight_target_write_readback_list",
+              "session_insight_target_write_readback_policy_v1",
+              "session_insight_target_write_readback_read_only",
+              "session_insight_target_write_readbacks",
+              "target_item_modified_by_readback",
+              "target_modified_by_readback",
+              "target_write_executed",
+              "target_write_readback_claims_runtime_effect",
+              "target_write_readback_failed",
+              "target_write_readback_passed",
+              "target_write_readback_secret_flagged"
+            ],
+            "reason": "Tool-like surfaces need registry binding/readback evidence before promotion."
+          },
+          {
+            "action_key": "verify_policy_seed_readiness",
+            "owner_hint": "runtime-policy-review",
+            "targets": [
+              "session_insight_target_write_readback_policy_v1"
+            ],
+            "reason": "Policy surfaces need active/blocking/valid-JSON readiness evidence."
+          },
+          {
+            "action_key": "verify_readback_view",
+            "owner_hint": "db-readback-review",
+            "targets": [
+              "v_session_insight_target_write_readback_issues",
+              "v_session_insight_target_write_readback_readiness"
+            ],
+            "reason": "Readback views should have parity/readiness documentation and smoke evidence."
+          },
+          {
+            "action_key": "add_explicit_safety_markers",
+            "owner_hint": "safety-contract-review",
+            "targets": [
+              "no_provider_call",
+              "no_raw_secrets",
+              "no_external_send"
             ],
             "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
           }
@@ -12455,13 +12451,11 @@
       "docs": {
         "Updating Registry Patch Index.md": true,
         "deployment_parity_checklist.md": true,
-        "docs/ai-docs-agent-governance.md": false,
-        "docs/auto-docs-agent/README.md": false,
+        "docs/ai-docs-agent-governance.md": true,
+        "docs/auto-docs-agent/README.md": true,
         "docs/change-documentation-governance.md": false
       },
       "missing_docs": [
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
         "docs/change-documentation-governance.md"
       ],
       "documentation_complete": false,
@@ -37246,13 +37240,11 @@
       "docs": {
         "Updating Registry Patch Index.md": true,
         "deployment_parity_checklist.md": true,
-        "docs/ai-docs-agent-governance.md": false,
-        "docs/auto-docs-agent/README.md": false,
+        "docs/ai-docs-agent-governance.md": true,
+        "docs/auto-docs-agent/README.md": true,
         "docs/change-documentation-governance.md": false
       },
       "missing_docs": [
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
         "docs/change-documentation-governance.md"
       ],
       "documentation_complete": false,
