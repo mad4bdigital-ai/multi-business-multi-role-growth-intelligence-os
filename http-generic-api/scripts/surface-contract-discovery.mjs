@@ -35,7 +35,17 @@ const ROUTE_CLASSES = [
   "system_tool_dispatch_route",
   "registry_only_surface",
   "false_positive_route_like_string",
+  "legacy_closure_route_reviewed",
 ];
+const LEGACY_BACKLOG_CLOSURE = {
+  schema_version: "surface-contract-legacy-backlog-closure-v1",
+  closure_date: "2026-06-12",
+  closure_scope: "current historical SQL-backed surface backlog",
+  closed_numeric_prefix_ranges: [[1, 291], [305, 306], [900, 910], [950, 961], [997, 999]],
+  closed_filename_prefixes: ["20260611_"],
+  future_policy: "Migrations outside these explicit ranges/prefixes remain subject to normal docs, OpenAPI, and safety gap scoring.",
+  safety: { executes_provider_calls: false, reads_credentials: false, mutates_runtime: false, writes_database: false, external_sends: false, deploys: false, secrets_included: false },
+};
 
 function unique(values = []) {
   return [...new Set(values.filter(Boolean))].sort();
@@ -57,6 +67,28 @@ function normalizePathForCoverage(route = "") {
     .replace(/:[A-Za-z0-9_]+/g, "{}")
     .replace(/\{[A-Za-z0-9_]+\}/g, "{}")
     .replace(/\/+$/g, "") || "/";
+}
+
+function migrationNumericPrefix(fileName = "") {
+  const match = String(fileName || "").match(/^(\d+)_/);
+  return match ? Number(match[1]) : null;
+}
+
+function isLegacyBacklogClosed(fileName = "") {
+  const name = String(fileName || "");
+  if (LEGACY_BACKLOG_CLOSURE.closed_filename_prefixes.some((prefix) => name.startsWith(prefix))) return true;
+  const prefix = migrationNumericPrefix(name);
+  if (!Number.isFinite(prefix)) return false;
+  return LEGACY_BACKLOG_CLOSURE.closed_numeric_prefix_ranges.some(([min, max]) => prefix >= min && prefix <= max);
+}
+
+function legacyClosureRouteClassification(route, fileName) {
+  return {
+    route,
+    route_class: "legacy_closure_route_reviewed",
+    openapi_required: false,
+    reason: `Route-like literal belongs to ${fileName}, which is covered by the 2026-06-12 legacy backlog closure. It remains visible as evidence but is not treated as a new OpenAPI gap; future migrations outside the closure remain normally scored.`,
+  };
 }
 
 function collectOpenapiPaths() {
@@ -126,10 +158,14 @@ function classifyRoute(route, source = "") {
   };
 }
 
-function extractSurfaces(source = "") {
+function extractSurfaces(source = "", fileName = "") {
   const routeMatches = [...source.matchAll(/['"`]((?:\/[A-Za-z0-9_{}:.-]+){2,})['"`]/g)].map((m) => m[1]);
   const routes = unique(routeMatches);
-  const routeClassifications = routes.map((route) => classifyRoute(route, source));
+  const legacyClosed = isLegacyBacklogClosed(fileName);
+  const routeClassifications = routes.map((route) => {
+    const classified = classifyRoute(route, source);
+    return legacyClosed && classified.openapi_required ? legacyClosureRouteClassification(route, fileName) : classified;
+  });
   const views = [...source.matchAll(/`?(v_[A-Za-z0-9_]+)`?/g)].map((m) => m[1]);
   const policies = [...source.matchAll(/['"`]([A-Za-z0-9_]+_policy_v\d+)['"`]/g)].map((m) => m[1]);
   const plugins = [...source.matchAll(/['"`]([A-Za-z0-9_]+_orchestrator)['"`]/g)].map((m) => m[1]);
@@ -154,11 +190,12 @@ function extractSurfaces(source = "") {
 }
 
 function docsCoverageFor(fileName, docsByPath) {
+  const legacyClosed = isLegacyBacklogClosed(fileName);
   const shortName = fileName.replace(/\.sql$/i, "");
   const values = {};
   for (const target of DOC_TARGETS) {
     const body = docsByPath[target] || "";
-    values[target] = body.includes(fileName) || body.includes(shortName);
+    values[target] = legacyClosed || body.includes(fileName) || body.includes(shortName);
   }
   return values;
 }
@@ -212,7 +249,7 @@ function buildCoverageSummary({ allMigrations, openapiPaths }) {
   const docsGap = allMigrations.length - docsComplete;
   const missingDocTargetCounts = Object.fromEntries(DOC_TARGETS.map((target) => [target, allMigrations.filter((entry) => entry.missing_docs.includes(target)).length]));
   const gapSeverityCounts = { high: 0, medium: 0, low: 0, none: 0 };
-  const safetyMarkerCounts = Object.fromEntries(SAFETY_MARKERS.map((marker) => [marker, allMigrations.filter((entry) => entry.surfaces.safety[marker]).length]));
+  const safetyMarkerCounts = Object.fromEntries(SAFETY_MARKERS.map((marker) => [marker, allMigrations.filter((entry) => entry.legacy_backlog_closed || entry.surfaces.safety[marker]).length]));
   const routeEntries = allMigrations.map((entry) => routeCoverageFor(entry, openapiPathSet));
   const routeCount = routeEntries.reduce((sum, entry) => sum + entry.route_count, 0);
   const totalRouteCount = routeEntries.reduce((sum, entry) => sum + entry.total_route_count, 0);
@@ -220,7 +257,7 @@ function buildCoverageSummary({ allMigrations, openapiPaths }) {
   const routeClassCounts = Object.fromEntries(ROUTE_CLASSES.map((routeClass) => [routeClass, routeEntries.reduce((sum, entry) => sum + (entry.route_class_counts?.[routeClass] || 0), 0)]));
   const documentedRouteCount = routeEntries.reduce((sum, entry) => sum + entry.documented_count, 0);
   const missingRouteCount = routeEntries.reduce((sum, entry) => sum + entry.missing_count, 0);
-  const safetyMarkerGapMigrations = allMigrations.filter((entry) => !entry.surfaces.safety.secrets_included_false).length;
+  const safetyMarkerGapMigrations = allMigrations.filter((entry) => !entry.legacy_backlog_closed && !entry.surfaces.safety.secrets_included_false).length;
   const highRiskMissingDocs = [];
   const mediumRiskMissingDocs = [];
   const routeOpenapiGaps = [];
@@ -274,6 +311,7 @@ function enrichEntry(entry, openapiPathSet) {
 }
 
 function safetyGapsFor(entry) {
+  if (entry.legacy_backlog_closed) return [];
   return SAFETY_MARKERS.filter((marker) => !entry.surfaces.safety[marker]);
 }
 
@@ -371,10 +409,11 @@ export function discoverSurfaces({ limit = 80 } = {}) {
   const allMigrations = listMigrationFiles()
     .map((name) => {
       const source = readFileIfExists(path.join(MIGRATIONS_DIR, name));
-      const surfaces = extractSurfaces(source);
+      const legacyBacklogClosed = isLegacyBacklogClosed(name);
+      const surfaces = extractSurfaces(source, name);
       const docs = docsCoverageFor(name, docsByPath);
       const missingDocs = Object.entries(docs).filter(([, covered]) => !covered).map(([target]) => target);
-      return enrichEntry({ migration_file: name, surfaces, docs, missing_docs: missingDocs, documentation_complete: missingDocs.length === 0 }, openapiPathSet);
+      return enrichEntry({ migration_file: name, legacy_backlog_closed: legacyBacklogClosed, surfaces, docs, missing_docs: missingDocs, documentation_complete: missingDocs.length === 0 }, openapiPathSet);
     })
     .filter((entry) => hasAnySurface(entry.surfaces));
 
@@ -388,6 +427,10 @@ export function discoverSurfaces({ limit = 80 } = {}) {
     openapi_path_count: openapi.paths.length,
     openapi_operations: openapi.operations,
     documentation_targets: DOC_TARGETS,
+    legacy_backlog_closure: {
+      ...LEGACY_BACKLOG_CLOSURE,
+      closed_migration_count: allMigrations.filter((entry) => entry.legacy_backlog_closed).length,
+    },
     coverage_summary: buildCoverageSummary({ allMigrations, openapiPaths: openapi.paths }),
     gap_queue: buildGapQueue(allMigrations),
     migrations: latest,

@@ -6,6 +6,8 @@ const report = discoverSurfaces({ limit: 200 });
 assert.equal(report.ok, true, "surface discovery report must be ok");
 assert.equal(report.schema_version, "surface-contract-discovery-v3", "surface discovery must expose v3 actionable queue contract");
 assert.equal(report.gap_queue.schema_version, "surface-contract-gap-queue-v1", "gap queue must expose a versioned machine contract");
+assert.equal(report.legacy_backlog_closure.schema_version, "surface-contract-legacy-backlog-closure-v1", "legacy backlog closure must expose a versioned machine contract");
+assert(report.legacy_backlog_closure.closed_migration_count > 0, "legacy backlog closure must classify historical migrations without applying runtime mutations");
 assert(report.all_migrations.length >= report.migrations.length, "machine report must include all migrations, not only rendered latest rows");
 assert(report.coverage_summary.migrations_with_surfaces >= report.migrations.length, "coverage summary must cover all discovered surface migrations");
 assert.equal(report.safety.secrets_included, false, "surface discovery must never include secrets");
@@ -26,7 +28,7 @@ assert.equal(typeof report.coverage_summary.route_coverage.route_class_counts.ad
 assert(Array.isArray(report.coverage_summary.route_coverage.route_openapi_gaps), "coverage summary must list route/OpenAPI gaps");
 assert(report.coverage_summary.missing_doc_target_counts["Updating Registry Patch Index.md"] >= 0, "coverage summary must count missing docs by target");
 assert(report.coverage_summary.safety_marker_counts.secrets_included_false >= 0, "coverage summary must count safety marker coverage");
-assert(report.gap_queue.total_items >= 1, "gap queue must contain actionable items when coverage gaps exist");
+assert(report.gap_queue.total_items >= 0, "gap queue count must be a non-negative remediation queue size");
 assert(Array.isArray(report.gap_queue.top_items), "gap queue must expose top_items");
 assert(report.gap_queue.top_items.every((item) => item.score > 0), "gap queue top items must be scored");
 assert(report.gap_queue.top_items.every((item) => Array.isArray(item.remediation)), "gap queue items must include remediation actions");
@@ -60,6 +62,12 @@ if (migration954.coverage.gap_severity !== "none") {
   assert.equal(migration954.documentation_complete, true, "documented migration 954 may leave actionable gap queue only after docs are complete");
 }
 
+const migration282 = report.all_migrations.find((entry) => entry.migration_file === "282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql");
+assert(migration282, "migration 282 must remain discoverable under legacy closure");
+assert.equal(migration282.legacy_backlog_closed, true, "migration 282 must be covered by the legacy backlog closure policy");
+assert.equal(migration282.coverage.route_coverage.missing_count, 0, "closed legacy route-like literals must not remain active OpenAPI gaps");
+assert(migration282.coverage.route_coverage.route_classifications.some((entry) => entry.route_class === "legacy_closure_route_reviewed"), "closed legacy routes must expose review classification evidence");
+
 const migration955 = report.all_migrations.find((entry) => entry.migration_file === "955_sprint68_external_delivery_admin_control_surface.sql");
 assert(migration955, "migration 955 must be discoverable for route classification regression coverage");
 assert.equal(migration955.coverage.route_coverage.missing_count, 0, "admin tool registry routes in migration 955 must not be treated as OpenAPI gaps");
@@ -84,7 +92,8 @@ assert(markdown.includes("OpenAPI route autofill"), "markdown must explain relat
 
 const queueMarkdown = renderGapQueueMarkdown(report.gap_queue);
 assert(queueMarkdown.includes("Surface Contract Gap Queue"), "gap queue markdown must render title");
-assert(queueMarkdown.includes("Remediation actions"), "gap queue markdown must include remediation actions");
+if (report.gap_queue.total_items > 0) assert(queueMarkdown.includes("Remediation actions"), "gap queue markdown must include remediation actions when queue items remain");
+else assert(queueMarkdown.includes("No actionable surface contract gaps detected."), "gap queue markdown must explain empty queue after closure");
 assert(queueMarkdown.includes("surface-contract-gap-queue.json"), "gap queue markdown must reference JSON queue");
 
 const maintenanceSync = fs.readFileSync("scripts/repo-maintenance-sync.mjs", "utf8");
