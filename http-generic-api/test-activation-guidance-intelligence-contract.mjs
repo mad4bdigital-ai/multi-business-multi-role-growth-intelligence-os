@@ -8,8 +8,9 @@ async function read(relativePath) {
   return fs.readFile(path.join(root, relativePath), "utf8");
 }
 
-const [service, routes, routeIndex, openapi, migration] = await Promise.all([
+const [service, presentation, routes, routeIndex, openapi, migration] = await Promise.all([
   read("activationGuidanceService.js"),
+  read("activationGuidancePresentation.js"),
   read("routes/activationGuidanceRoutes.js"),
   read("routes/index.js"),
   read("openapi.yaml"),
@@ -21,14 +22,17 @@ assert.match(routes, /\/tenant\/activation\/guidance/, "tenant activation guidan
 assert.match(routes, /\/admin\/activation\/guidance/, "admin activation guidance endpoint must exist");
 assert.match(routes, /requireTenantUserJwt/, "tenant endpoint must be user-JWT scoped");
 assert.match(routes, /requireAdminPrincipal/, "admin endpoint must require admin principal");
+assert.match(routes, /requestedLocale: req\.query\.locale \|\| req\.query\.language/, "routes must accept explicit locale preference");
+assert.match(routes, /acceptLanguage: req\.headers\["accept-language"\]/, "routes must accept client language preference");
 
 assert.match(service, /activation_guidance_intelligence/, "service must declare activation guidance layer");
-assert.match(service, /recommended_next_actions/, "service must generate next-best actions");
-assert.match(service, /assistant_instruction_pack/, "service must return instruction pack");
-assert.match(service, /لا تكتفِ بإعلان أن التفعيل active أو healthy/, "instruction pack must force proactive guidance");
-assert.match(service, /workspace_brand_platform_management/, "admin guidance must include workspace and brand management mode");
-assert.match(service, /tenant_user_workspace_guidance/, "tenant guidance must include tenant workspace guidance mode");
-assert.match(service, /raw_binding_is_not_allowed_capability/, "service must prevent raw binding semantics from becoming user-facing capability semantics");
+assert.match(service, /guidance_flow: presentation\.guidance_flow/, "service must expose ordered guidance stages");
+assert.match(service, /guidance_paths: presentation\.guidance_paths/, "service must expose tagged guidance paths");
+assert.match(service, /command_palette: presentation\.command_palette/, "service must expose command palette");
+assert.match(service, /presentation\.localized_activation_brief/, "primary brief must use language-aware presentation");
+assert.match(service, /presentation\.localized_recommended_actions/, "primary actions must use language-aware presentation");
+assert.match(service, /activation\.guidance\.render_in_user_preferred_language/, "instruction pack must require user-language rendering");
+assert.match(service, /activation\.guidance\.keep_invocation_signals_language_neutral/, "instruction pack must preserve stable machine signals");
 assert.match(service, /connected/, "service must include readiness dimensions");
 assert.match(service, /skill_granted/, "service must include skill readiness semantics");
 assert.match(service, /smoke_certified/, "service must include smoke certification readiness semantics");
@@ -36,8 +40,27 @@ assert.match(service, /can_execute/, "service must include execution readiness s
 assert.match(service, /SENSITIVE_KEY_PATTERN/, "service must strip sensitive keys");
 assert.match(service, /secrets_included: false/, "service must explicitly declare no secrets");
 
+assert.match(presentation, /resolveGuidanceLanguagePreference/, "presentation must resolve stored, explicit, header, or conversation language preferences");
+assert.match(presentation, /actor_profiles/, "presentation must read actor profile language preferences when present");
+assert.match(presentation, /activation_user_dashboard_preferences/, "presentation must read dashboard language preferences when present");
+assert.match(presentation, /assistant_detects_user_language/, "presentation must fall back to conversation language detection");
+assert.match(presentation, /@activation\/status/, "activation stage must expose an invocation tag");
+assert.match(presentation, /@workspace\/overview/, "workspace path must expose an invocation tag");
+assert.match(presentation, /@brand\/readiness/, "brand path must expose an invocation tag");
+assert.match(presentation, /\/commands/, "command palette must expose slash aliases");
+assert.match(presentation, /Invocation signals select a guidance path; they do not bypass readiness, authorization, approval, or runtime validation/, "tags must not bypass governance");
+assert.match(presentation, /stable_machine_signal: true/, "invocation signals must be stable machine-readable values");
+assert.match(presentation, /tags_are_language_neutral: true/, "tags must remain language neutral");
+assert.match(presentation, /localized_recommended_actions/, "presentation must return localized actions");
+assert.match(presentation, /localized_activation_brief/, "presentation must return localized brief");
+
 assert.match(openapi, /operationId: getTenantActivationGuidance/, "OpenAPI must document tenant guidance endpoint");
 assert.match(openapi, /operationId: getAdminActivationGuidance/, "OpenAPI must document admin guidance endpoint");
+assert.match(openapi, /name: Accept-Language/, "OpenAPI must document Accept-Language support");
+assert.match(openapi, /language_context:/, "OpenAPI must document language context");
+assert.match(openapi, /invocation_contract:/, "OpenAPI must document invocation contract");
+assert.match(openapi, /guidance_flow:/, "OpenAPI must document ordered guidance flow");
+assert.match(openapi, /command_palette:/, "OpenAPI must document command palette");
 assert.match(openapi, /ActivationGuidanceResponse/, "OpenAPI must include activation guidance schema");
 
 assert.match(migration, /tenant_activation_guidance_read_api/, "migration must seed tenant guidance tool");
@@ -48,4 +71,4 @@ assert.match(migration, /proactive_guidance/, "registry seed must mark guidance 
 assert.doesNotMatch(migration, /POST \/tenant\/activation\/guidance/, "tenant guidance must not be mutating");
 assert.doesNotMatch(migration, /connector_secret|raw_token|private_key|password\s*=/i, "migration must not seed raw secret material");
 
-console.log("activation guidance intelligence contract tests passed");
+console.log("activation guidance intelligence flow contract tests passed");
