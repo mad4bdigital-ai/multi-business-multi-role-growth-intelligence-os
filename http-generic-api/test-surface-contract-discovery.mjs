@@ -71,6 +71,7 @@ assert(markdown.includes("Surface Contract Discovery Status"), "markdown must re
 assert(markdown.includes("Coverage Summary"), "markdown must render deep coverage summary");
 assert(markdown.includes("Actionable Gap Queue"), "markdown must render actionable gap queue summary");
 assert(markdown.includes("SQL Route OpenAPI Gaps"), "markdown must render route/OpenAPI gap section");
+assert(markdown.includes("Route Classification Coverage"), "markdown must render route classification coverage section");
 assert(markdown.includes("surface-contract-discovery-status.json"), "markdown must point to machine-readable JSON output");
 assert(markdown.includes("surface-contract-gap-queue.json"), "markdown must point to machine-readable gap queue output");
 assert(markdown.includes("support_ticket_external_delivery_orchestrator"), "markdown must include discovered plugin evidence");
