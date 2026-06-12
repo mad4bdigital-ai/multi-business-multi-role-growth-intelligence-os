@@ -2,6 +2,13 @@
 -- Purpose: allow deletion of unmerged governed smoke branches only when the
 -- repository mutation preflight receives an exact typed confirmation. This does
 -- not allow protected branch deletion or generic unmerged branch deletion.
+-- Safety:
+--   no_provider_call=true
+--   no_credential_payload_read=true
+--   no_raw_secrets=true
+--   no_external_send=true
+--   no_external_write=true
+--   secrets_included=false
 
 UPDATE execution_policies
 SET policy_value = JSON_SET(
