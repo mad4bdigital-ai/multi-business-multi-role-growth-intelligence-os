@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 98.76,
+  "docs_completion_percent": 98.51,
   "docs_complete_count": 398,
-  "docs_gap_count": 5,
-  "queue_items": 5,
-  "blocking_new_item_count": 3,
+  "docs_gap_count": 6,
+  "queue_items": 6,
+  "blocking_new_item_count": 4,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -25,6 +25,12 @@
       "queue_class": "high_review",
       "score": 669,
       "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "964_sprint68_hostinger_stored_credential_apply_policy.sql",
+      "queue_class": "high_review",
+      "score": 625,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
   "openapi_missing_sql_route_count": 0,
@@ -35,8 +41,8 @@
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 3,
-    "warning_new_item_count": 3
+    "blocking_new_item_count": 4,
+    "warning_new_item_count": 4
   },
   "safety": {
     "executes_provider_calls": false,
