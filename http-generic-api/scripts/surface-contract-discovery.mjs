@@ -311,6 +311,7 @@ function enrichEntry(entry, openapiPathSet) {
 }
 
 function safetyGapsFor(entry) {
+  if (entry.legacy_backlog_closed) return [];
   return SAFETY_MARKERS.filter((marker) => !entry.surfaces.safety[marker]);
 }
 
