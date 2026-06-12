@@ -5,19 +5,20 @@
 ## Summary
 
 - Triaged items: 100
-- Gate candidates: 6
-- New-gap gate: pass
-- Blocking new items: 0
+- Gate candidates: 7
+- New-gap gate: fail
+- Blocking new items: 1
 
 ## Class counts
 
-- safety_marker_review: 32
+- safety_marker_review: 31
 - openapi_contract_review: 62
-- new_surface_immediate_review: 6
+- new_surface_immediate_review: 7
 
 ## Immediate review candidates
 
-- `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql` — critical_review, score 1419; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `285_sprint68_session_insight_target_write_readback.sql` — critical_review, score 1494; next: add targeted patch-index, parity, and governance documentation
+- `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql` — critical_review, score 1418; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `281_sprint68_session_insight_capability_envelope_dispatch_readback.sql` — critical_review, score 1346; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `906_sprint68_ticket_external_delivery_completion_certification.sql` — critical_review, score 1266; next: add targeted patch-index, parity, and governance documentation
 - `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql` — critical_review, score 1221; next: classify route-like strings, then add OpenAPI contract or false-positive exemption

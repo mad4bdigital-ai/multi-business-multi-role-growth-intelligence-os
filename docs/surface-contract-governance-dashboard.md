@@ -4,16 +4,17 @@
 - Queue schema: surface-contract-gap-queue-v1
 - Triage schema: surface-contract-gap-triage-v1
 - Gate schema: surface-contract-new-gap-gate-v1
-- Queue items: 388
+- Queue items: 389
 - Triaged items: 100
-- Gate candidates: 6
-- New-gap gate: pass
-- Blocking new items: 0
-- Docs completion: 3.86%
-- SQL route OpenAPI coverage: 60.1%
+- Gate candidates: 7
+- New-gap gate: fail
+- Blocking new items: 1
+- Docs completion: 3.85%
+- SQL route OpenAPI coverage: 60.31%
 
 ## Top immediate items
 
+- `285_sprint68_session_insight_target_write_readback.sql` — critical_review, add targeted patch-index, parity, and governance documentation
 - `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql` — critical_review, classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `281_sprint68_session_insight_capability_envelope_dispatch_readback.sql` — critical_review, classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `906_sprint68_ticket_external_delivery_completion_certification.sql` — critical_review, add targeted patch-index, parity, and governance documentation
