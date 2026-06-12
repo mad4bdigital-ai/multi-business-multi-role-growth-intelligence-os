@@ -427,6 +427,10 @@ export function discoverSurfaces({ limit = 80 } = {}) {
     openapi_path_count: openapi.paths.length,
     openapi_operations: openapi.operations,
     documentation_targets: DOC_TARGETS,
+    legacy_backlog_closure: {
+      ...LEGACY_BACKLOG_CLOSURE,
+      closed_migration_count: allMigrations.filter((entry) => entry.legacy_backlog_closed).length,
+    },
     coverage_summary: buildCoverageSummary({ allMigrations, openapiPaths: openapi.paths }),
     gap_queue: buildGapQueue(allMigrations),
     migrations: latest,
