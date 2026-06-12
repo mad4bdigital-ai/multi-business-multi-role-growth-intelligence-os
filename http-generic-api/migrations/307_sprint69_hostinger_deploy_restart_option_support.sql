@@ -3,6 +3,7 @@
 -- B) Hostinger break-glass app restart.
 -- This migration enables discovery, dry-run certification, authority policy, and runbook support only.
 -- It does not execute deploy, restart, SSH, provider dispatch, or return secrets.
+-- Safety: No provider calls. No credential payload reads. No raw secrets. No external send. No external writes. secrets_included=false
 
 INSERT INTO platform_resource_authority_requirements
 (requirement_key, resource_family, operation_class, display_name, description, required_gates_json, authority_sources_json, credential_scope_required, active_grant_required, ownership_claim_required, audit_required, readback_required, break_glass_allowed, apply_allowed, secrets_may_be_returned, status, notes)
