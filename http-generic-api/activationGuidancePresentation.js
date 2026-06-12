@@ -255,7 +255,7 @@ function stage({ id, order, dataRef, profile, languageContext, invocationRegistr
   };
 }
 
-export function buildGuidancePresentation({ profile, activationBrief, counts, permissionSemantics, readinessDimensions, capabilityGroups, recommendedNextActions, safeActionMenu, blockedOrLimitedCapabilities, languageContext }) {
+export function buildGuidancePresentation({ profile, activationBrief, counts, permissionSemantics, readinessDimensions, capabilityGroups, recommendedNextActions, safeActionMenu, blockedOrLimitedCapabilities, languageContext, invocationRegistry = null }) {
   const stageIds = profile === "admin"
     ? ["activation", "scope", "admin_management", "counts", "permissions", "ready", "limited", "next", "commands"]
     : ["activation", "scope", "counts", "permissions", "ready", "limited", "next", "commands"];
