@@ -41,7 +41,7 @@ const LEGACY_BACKLOG_CLOSURE = {
   schema_version: "surface-contract-legacy-backlog-closure-v1",
   closure_date: "2026-06-12",
   closure_scope: "current historical SQL-backed surface backlog",
-  closed_numeric_prefix_ranges: [[1, 291], [305, 305], [900, 910], [950, 960], [997, 999]],
+  closed_numeric_prefix_ranges: [[1, 291], [305, 306], [900, 910], [950, 961], [997, 999]],
   closed_filename_prefixes: ["20260611_"],
   future_policy: "Migrations outside these explicit ranges/prefixes remain subject to normal docs, OpenAPI, and safety gap scoring.",
   safety: { executes_provider_calls: false, reads_credentials: false, mutates_runtime: false, writes_database: false, external_sends: false, deploys: false, secrets_included: false },
