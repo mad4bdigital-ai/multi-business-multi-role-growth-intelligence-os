@@ -2,6 +2,7 @@
 -- Purpose: support all production parity recovery options by binding Hostinger
 -- deploy/restart admin tools to the Hostinger app integration and endpoint export
 -- map. This does not execute deploy/restart and does not expose secrets.
+-- Safety: No provider calls. No credential payload reads. No raw secrets. No external send. No external writes. secrets_included=false
 
 INSERT INTO platform_endpoint_tool_exports (
   export_key, parent_action_key, endpoint_key, tool_name, scope_class, status,

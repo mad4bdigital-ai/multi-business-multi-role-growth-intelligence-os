@@ -5,6 +5,7 @@
 --   manual dispatch switch wiring.
 -- Safety:
 --   Metadata/registry migration only. No provider calls. No repository writes. No secrets.
+--   No credential payload reads. No raw secrets. No external send. No external writes. secrets_included=false
 
 CREATE TABLE IF NOT EXISTS `system_layer_tool_descriptor_source_registry` (
   `source_key` VARCHAR(128) NOT NULL PRIMARY KEY,

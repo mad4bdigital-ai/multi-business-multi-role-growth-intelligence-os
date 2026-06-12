@@ -1,6 +1,7 @@
 -- Sprint 68: additive tenant-ticket simulation support and Admin GPT repair-link state.
 -- This does not replace /me/support/tickets. It adds an admin-only route-equivalent simulation tool
 -- and stores the canonical Admin GPT URL used in external-delivery approval payloads.
+-- Safety: No provider calls. No credential payload reads. No raw secrets. No external send. No external writes. secrets_included=false
 
 INSERT INTO platform_runtime_config
   (config_key, config_json, status, note, created_at, updated_at)
