@@ -15,9 +15,9 @@
     "281_sprint68_session_insight_capability_envelope_dispatch_readback.sql",
     "283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql",
     "280_sprint68_session_insight_capability_envelope_approval_gate.sql",
-    "955_sprint68_external_delivery_admin_control_surface.sql",
     "284_sprint68_session_insight_backlog_target_write_executor.sql",
-    "906_sprint68_ticket_external_delivery_completion_certification.sql"
+    "906_sprint68_ticket_external_delivery_completion_certification.sql",
+    "955_sprint68_external_delivery_admin_control_surface.sql"
   ],
   "items": [
     {
@@ -882,57 +882,6 @@
         "no_credential_payload_read",
         "no_raw_secrets",
         "no_external_send",
-        "no_external_write"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "review_openapi_contract",
-        "verify_tool_registry_binding",
-        "verify_policy_seed_readiness",
-        "verify_readback_view",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "api-contract-review",
-        "runtime-registry-review",
-        "runtime-policy-review",
-        "db-readback-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "955_sprint68_external_delivery_admin_control_surface.sql",
-      "score": 1755,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md"
-      ],
-      "missing_openapi_routes": [
-        "/admin/support/tickets/external-delivery/control/adapter/dispatch",
-        "/admin/support/tickets/external-delivery/control/allowlist/disable",
-        "/admin/support/tickets/external-delivery/control/allowlist/upsert",
-        "/admin/support/tickets/external-delivery/control/gmail/revoke",
-        "/admin/support/tickets/external-delivery/control/overview"
-      ],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
         "no_external_write"
       ],
       "remediation_action_keys": [
@@ -2811,6 +2760,51 @@
       ],
       "owner_hints": [
         "docs-agent/human-review",
+        "api-contract-review",
+        "runtime-registry-review",
+        "runtime-policy-review",
+        "db-readback-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "955_sprint68_external_delivery_admin_control_surface.sql",
+      "score": 1195,
+      "queue_class": "critical_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "none",
+      "missing_docs": [],
+      "missing_openapi_routes": [
+        "/admin/support/tickets/external-delivery/control/adapter/dispatch",
+        "/admin/support/tickets/external-delivery/control/allowlist/disable",
+        "/admin/support/tickets/external-delivery/control/allowlist/upsert",
+        "/admin/support/tickets/external-delivery/control/gmail/revoke",
+        "/admin/support/tickets/external-delivery/control/overview"
+      ],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_credential_payload_read",
+        "no_external_write"
+      ],
+      "remediation_action_keys": [
+        "review_openapi_contract",
+        "verify_tool_registry_binding",
+        "verify_policy_seed_readiness",
+        "verify_readback_view",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
         "api-contract-review",
         "runtime-registry-review",
         "runtime-policy-review",

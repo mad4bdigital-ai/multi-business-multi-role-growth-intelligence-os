@@ -6,9 +6,9 @@
 
 - Total queue items: 384
 - Critical review: 244
-- High review: 116
-- Medium review: 24
-- Low review: 0
+- High review: 114
+- Medium review: 25
+- Low review: 1
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
@@ -294,24 +294,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_session_insight_capability_envelope_approval_decision_issues`, `v_session_insight_dispatch_readback_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 19. `955_sprint68_external_delivery_admin_control_surface.sql`
-
-- Queue class: critical_review
-- Score: 1755
-- Gap severity: high
-- Missing docs: `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`
-- Missing OpenAPI routes: `/admin/support/tickets/external-delivery/control/adapter/dispatch`, `/admin/support/tickets/external-delivery/control/allowlist/disable`, `/admin/support/tickets/external-delivery/control/allowlist/upsert`, `/admin/support/tickets/external-delivery/control/gmail/revoke`, `/admin/support/tickets/external-delivery/control/overview`
-- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_external_write`
-- Surface counts: plugins=0, tools=5, views=3, policies=1, routes=5
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`
-- `review_openapi_contract` → api-contract-review; targets: `/admin/support/tickets/external-delivery/control/adapter/dispatch`, `/admin/support/tickets/external-delivery/control/allowlist/disable`, `/admin/support/tickets/external-delivery/control/allowlist/upsert`, `/admin/support/tickets/external-delivery/control/gmail/revoke`, `/admin/support/tickets/external-delivery/control/overview`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `adapter_dispatch_set`, `external_delivery_adapter_dispatch_set`, `external_send_provider_dispatch_succeeded`, `live_send_requires_provider_gate_attempt`, `provider_dispatch_enabled`
-- `verify_policy_seed_readiness` → runtime-policy-review; targets: `support_ticket_external_delivery_admin_control_surface_policy_v1`
-- `verify_readback_view` → db-readback-review; targets: `v_external_delivery_admin_overview`, `v_external_delivery_gmail_connections`, `v_external_delivery_recent_send_events`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_external_write`
-
-### 20. `260_sprint68_platform_development_constitution_policies.sql`
+### 19. `260_sprint68_platform_development_constitution_policies.sql`
 
 - Queue class: critical_review
 - Score: 1736
@@ -327,7 +310,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_platform_capability_gaps`, `v_platform_relationship_integrity_score`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 21. `275_sprint68_session_insight_capability_envelope_dispatch_dry_run.sql`
+### 20. `275_sprint68_session_insight_capability_envelope_dispatch_dry_run.sql`
 
 - Queue class: critical_review
 - Score: 1729
@@ -344,7 +327,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_session_insight_capability_envelope_dispatch_dry_run_issues`, `v_session_insight_capability_envelope_dispatch_dry_run_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 22. `277_sprint68_session_insight_capability_envelope_dispatch_dry_run_review.sql`
+### 21. `277_sprint68_session_insight_capability_envelope_dispatch_dry_run_review.sql`
 
 - Queue class: critical_review
 - Score: 1668
@@ -361,7 +344,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_session_insight_actual_request_readiness`, `v_session_insight_dispatch_dry_run_review_issues`, `v_session_insight_dispatch_dry_run_review_queue`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 23. `059_sprint54_local_connector_capability_tools.sql`
+### 22. `059_sprint54_local_connector_capability_tools.sql`
 
 - Queue class: critical_review
 - Score: 1589
@@ -375,7 +358,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `dir_list`, `disk_list`, `process_list`, `service_list`, `tenant_platform_endpoint_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 24. `274_sprint68_session_insight_capability_envelope_request_review.sql`
+### 23. `274_sprint68_session_insight_capability_envelope_request_review.sql`
 
 - Queue class: critical_review
 - Score: 1541
@@ -392,7 +375,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_session_insight_capability_envelope_request_dispatch_readiness`, `v_session_insight_capability_envelope_request_review_issues`, `v_session_insight_capability_envelope_request_review_queue`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 25. `284_sprint68_session_insight_backlog_target_write_executor.sql`
+### 24. `284_sprint68_session_insight_backlog_target_write_executor.sql`
 
 - Queue class: critical_review
 - Score: 1530
@@ -409,7 +392,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_session_insight_backlog_target_write_issues`, `v_session_insight_backlog_target_write_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_raw_secrets`, `no_external_send`
 
-### 26. `195_sprint66_tenant_infrastructure_specific_paths.sql`
+### 25. `195_sprint66_tenant_infrastructure_specific_paths.sql`
 
 - Queue class: critical_review
 - Score: 1478
@@ -424,7 +407,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_database_preflight`, `tenant_ssh_preflight`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 27. `146_sprint65_browser_runtime_adapter_request_tools.sql`
+### 26. `146_sprint65_browser_runtime_adapter_request_tools.sql`
 
 - Queue class: critical_review
 - Score: 1460
@@ -439,7 +422,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `session_reuse_approved`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 28. `270_sprint68_support_ticket_lifecycle_orchestration_readback.sql`
+### 27. `270_sprint68_support_ticket_lifecycle_orchestration_readback.sql`
 
 - Queue class: critical_review
 - Score: 1444
@@ -455,7 +438,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_platform_orchestration_graph_readiness`, `v_platform_orchestration_support_ticket_lifecycle_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_raw_secrets`
 
-### 29. `091_sprint62b_local_gateway_credential_policy.sql`
+### 28. `091_sprint62b_local_gateway_credential_policy.sql`
 
 - Queue class: critical_review
 - Score: 1441
@@ -469,7 +452,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `device_tools`, `dispatch_tool_key`, `local_gateway_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 30. `068_sprint58_cloudflare_readonly_runtime.sql`
+### 29. `068_sprint58_cloudflare_readonly_runtime.sql`
 
 - Queue class: critical_review
 - Score: 1421
@@ -484,7 +467,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `cf_list_dns_records`, `cf_list_tunnels`, `cf_list_zones`, `cloudflare_api__cf_list_dns_records`, `cloudflare_api__cf_list_tunnels`, `cloudflare_api__cf_list_zones`, `ep_cloudflare_api_cf_list_dns_records`, `ep_cloudflare_api_cf_list_tunnels`, `ep_cloudflare_api_cf_list_zones`, `execution_readiness`, `platform_endpoint_tool_exports`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 31. `271_sprint68_session_insight_adapter_apply_readiness_gate.sql`
+### 30. `271_sprint68_session_insight_adapter_apply_readiness_gate.sql`
 
 - Queue class: critical_review
 - Score: 1421
@@ -501,7 +484,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_session_insight_adapter_apply_readiness_gate`, `v_session_insight_adapter_apply_readiness_gate_issues`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 32. `272_sprint68_session_insight_capability_envelope_planner.sql`
+### 31. `272_sprint68_session_insight_capability_envelope_planner.sql`
 
 - Queue class: critical_review
 - Score: 1395
@@ -518,7 +501,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_session_insight_adapter_apply_readiness_gate`, `v_session_insight_capability_envelope_plan_issues`, `v_session_insight_capability_envelope_plan_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 33. `269_sprint68_ticket_external_adapter_future_pr_scope.sql`
+### 32. `269_sprint68_ticket_external_adapter_future_pr_scope.sql`
 
 - Queue class: critical_review
 - Score: 1374
@@ -535,7 +518,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_external_delivery_provider_adapter_future_pr_scope_summary`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 34. `256_sprint68_ticket_external_delivery_approval_policy.sql`
+### 33. `256_sprint68_ticket_external_delivery_approval_policy.sql`
 
 - Queue class: critical_review
 - Score: 1365
@@ -550,7 +533,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `support_ticket_external_delivery_approval_decision`, `support_ticket_external_delivery_approval_request`, `support_ticket_external_delivery_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 35. `270_sprint68_session_insight_payload_preview_review.sql`
+### 34. `270_sprint68_session_insight_payload_preview_review.sql`
 
 - Queue class: critical_review
 - Score: 1348
@@ -567,7 +550,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_session_insight_payload_preview_review_issues`, `v_session_insight_payload_preview_review_queue`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 36. `193_sprint67_workspace_resource_authority_foundation.sql`
+### 35. `193_sprint67_workspace_resource_authority_foundation.sql`
 
 - Queue class: critical_review
 - Score: 1343
@@ -583,7 +566,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_workspace_resource_grant_effective`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 37. `268_sprint68_ticket_external_adapter_readiness_decision.sql`
+### 36. `268_sprint68_ticket_external_adapter_readiness_decision.sql`
 
 - Queue class: critical_review
 - Score: 1337
@@ -600,7 +583,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_external_delivery_provider_adapter_readiness_decision_summary`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 38. `258_sprint68_ticket_external_delivery_credential_binding.sql`
+### 37. `258_sprint68_ticket_external_delivery_credential_binding.sql`
 
 - Queue class: critical_review
 - Score: 1336
@@ -615,7 +598,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `support_ticket_external_credential_binding_decision`, `support_ticket_external_credential_binding_request`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 39. `266_sprint68_ticket_external_provider_enablement_proposal.sql`
+### 38. `266_sprint68_ticket_external_provider_enablement_proposal.sql`
 
 - Queue class: critical_review
 - Score: 1336
@@ -632,7 +615,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_external_delivery_provider_enablement_proposal_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 40. `266_sprint68_session_insight_promotion_apply_request_skeleton.sql`
+### 39. `266_sprint68_session_insight_promotion_apply_request_skeleton.sql`
 
 - Queue class: critical_review
 - Score: 1335
@@ -649,7 +632,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_session_insight_promotion_apply_request_issues`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 41. `254_sprint68_ticket_notification_delivery_cycle.sql`
+### 40. `254_sprint68_ticket_notification_delivery_cycle.sql`
 
 - Queue class: critical_review
 - Score: 1328
@@ -664,7 +647,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_feedback_requested`, `admin_platform_endpoint_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 42. `106_sprint62q_platform_graph_admin_tools.sql`
+### 41. `106_sprint62q_platform_graph_admin_tools.sql`
 
 - Queue class: critical_review
 - Score: 1325
@@ -678,7 +661,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `platform_graph_validate`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 43. `267_sprint68_ticket_external_adapter_readiness_checklist.sql`
+### 42. `267_sprint68_ticket_external_adapter_readiness_checklist.sql`
 
 - Queue class: critical_review
 - Score: 1318
@@ -695,7 +678,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_external_delivery_provider_adapter_readiness_checklist_summary`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 44. `255_sprint68_ticket_notification_delivery_adapters.sql`
+### 43. `255_sprint68_ticket_notification_delivery_adapters.sql`
 
 - Queue class: critical_review
 - Score: 1316
@@ -710,7 +693,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `support_ticket_notification_delivery_dispatch`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_write`, `secrets_included_false`
 
-### 45. `259_sprint68_ticket_external_secret_intake_surface.sql`
+### 44. `259_sprint68_ticket_external_secret_intake_surface.sql`
 
 - Queue class: critical_review
 - Score: 1310
@@ -726,7 +709,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_var_name`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 46. `108_hostinger_ssh_governed_connectors.sql`
+### 45. `108_hostinger_ssh_governed_connectors.sql`
 
 - Queue class: critical_review
 - Score: 1300
@@ -741,7 +724,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_deploy_log_restart_recovery`, `v_host`, `v_platform`, `v_port`, `v_private_key`, `v_user`, `v_var_name`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 47. `235_sprint68_ticket_lifecycle_runtime_links.sql`
+### 46. `235_sprint68_ticket_lifecycle_runtime_links.sql`
 
 - Queue class: critical_review
 - Score: 1298
@@ -756,7 +739,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 48. `131_sprint64_summary_development_automation_tools.sql`
+### 47. `131_sprint64_summary_development_automation_tools.sql`
 
 - Queue class: critical_review
 - Score: 1295
@@ -772,7 +755,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_agent`, `v_agent_summary_development_extract`, `v_agent_summary_development_runtimes`, `v_agent_summary_development_signals`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 49. `267_sprint68_session_insight_target_adapter_registry.sql`
+### 48. `267_sprint68_session_insight_target_adapter_registry.sql`
 
 - Queue class: critical_review
 - Score: 1280
@@ -789,7 +772,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_session_insight_apply_request_adapter_readiness`, `v_session_insight_target_adapter_issues`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
 
-### 50. `906_sprint68_ticket_external_delivery_completion_certification.sql`
+### 49. `906_sprint68_ticket_external_delivery_completion_certification.sql`
 
 - Queue class: critical_review
 - Score: 1267
@@ -804,7 +787,7 @@
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `external_provider_adapter_contract_policy_v1`, `external_provider_gate_registry_resolver_policy_v1`, `support_ticket_external_delivery_completion_certification_policy_v1`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_external_write`
 
-### 51. `200_sprint68_workspace_invitation_control_tools.sql`
+### 50. `200_sprint68_workspace_invitation_control_tools.sql`
 
 - Queue class: critical_review
 - Score: 1266
@@ -818,7 +801,7 @@
 - `review_openapi_contract` → api-contract-review; targets: `/me/workspaces/{tenant_id}/invitations/expire-stale`, `/me/workspaces/{tenant_id}/invitations/{invitation_id}/resend`, `/me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 52. `199_sprint68_workspace_ownership_member_control_tools.sql`
+### 51. `199_sprint68_workspace_ownership_member_control_tools.sql`
 
 - Queue class: critical_review
 - Score: 1265
@@ -832,7 +815,7 @@
 - `review_openapi_contract` → api-contract-review; targets: `/me/workspaces/{tenant_id}/members/{user_id}`, `/me/workspaces/{tenant_id}/members/{user_id}/remove`, `/me/workspaces/{tenant_id}/ownership/transfer`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 53. `175_sprint65_resource_authority_registry_foundation.sql`
+### 52. `175_sprint65_resource_authority_registry_foundation.sql`
 
 - Queue class: critical_review
 - Score: 1248
@@ -847,7 +830,7 @@
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `resource_authority_policy_v1`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `secrets_included_false`
 
-### 54. `205_sprint67_openclaude_provider_bridge_routes.sql`
+### 53. `205_sprint67_openclaude_provider_bridge_routes.sql`
 
 - Queue class: critical_review
 - Score: 1247
@@ -863,7 +846,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_agent`, `v_agent_openclaude_bridge_chat_dry_run`, `v_agent_openclaude_bridge_health`, `v_agent_provider_bridge`, `v_agent_provider_bridge_governance`, `v_agent_provider_registry`, `v_agent_runtime_provider_profiles`, `v_agent_runtime_registry`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 55. `254_sprint67_ads_provider_preflight_surface_blueprint.sql`
+### 54. `254_sprint67_ads_provider_preflight_surface_blueprint.sql`
 
 - Queue class: critical_review
 - Score: 1241
@@ -878,7 +861,7 @@
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `ads_provider_preflight_surface_blueprint_policy_v1`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 56. `263_sprint68_session_insight_promotion_review_tools.sql`
+### 55. `263_sprint68_session_insight_promotion_review_tools.sql`
 
 - Queue class: critical_review
 - Score: 1226
@@ -895,7 +878,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_session_insight_promotion_review_queue`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 57. `268_sprint68_session_insight_adapter_dry_run_contracts.sql`
+### 56. `268_sprint68_session_insight_adapter_dry_run_contracts.sql`
 
 - Queue class: critical_review
 - Score: 1200
@@ -911,6 +894,22 @@
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `session_insight_adapter_dry_run_contract_policy_v1`
 - `verify_readback_view` → db-readback-review; targets: `v_session_insight_adapter_contract_issues`, `v_session_insight_apply_request_adapter_readiness`, `v_session_insight_apply_request_contract_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
+
+### 57. `955_sprint68_external_delivery_admin_control_surface.sql`
+
+- Queue class: critical_review
+- Score: 1195
+- Gap severity: none
+- Missing docs: none
+- Missing OpenAPI routes: `/admin/support/tickets/external-delivery/control/adapter/dispatch`, `/admin/support/tickets/external-delivery/control/allowlist/disable`, `/admin/support/tickets/external-delivery/control/allowlist/upsert`, `/admin/support/tickets/external-delivery/control/gmail/revoke`, `/admin/support/tickets/external-delivery/control/overview`
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_external_write`
+- Surface counts: plugins=0, tools=5, views=3, policies=1, routes=5
+- Remediation actions:
+- `review_openapi_contract` → api-contract-review; targets: `/admin/support/tickets/external-delivery/control/adapter/dispatch`, `/admin/support/tickets/external-delivery/control/allowlist/disable`, `/admin/support/tickets/external-delivery/control/allowlist/upsert`, `/admin/support/tickets/external-delivery/control/gmail/revoke`, `/admin/support/tickets/external-delivery/control/overview`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `adapter_dispatch_set`, `external_delivery_adapter_dispatch_set`, `external_send_provider_dispatch_succeeded`, `live_send_requires_provider_gate_attempt`, `provider_dispatch_enabled`
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `support_ticket_external_delivery_admin_control_surface_policy_v1`
+- `verify_readback_view` → db-readback-review; targets: `v_external_delivery_admin_overview`, `v_external_delivery_gmail_connections`, `v_external_delivery_recent_send_events`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_external_write`
 
 ### 58. `269_sprint68_session_insight_contract_payload_preview.sql`
 
