@@ -42,11 +42,11 @@
       "1000_sprint68_dr_certification_and_tool_bus_gated_read_only.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 397,
-      "no_credential_payload_read": 396,
-      "no_raw_secrets": 396,
-      "no_external_send": 396,
-      "no_external_write": 397,
+      "no_provider_call": 398,
+      "no_credential_payload_read": 397,
+      "no_raw_secrets": 397,
+      "no_external_send": 397,
+      "no_external_write": 398,
       "secrets_included_false": 398
     },
     "safety_marker_gap_migrations": 0,
@@ -70,26 +70,25 @@
     }
   },
   "queue": {
-    "total_items": 2,
+    "total_items": 1,
     "class_counts": {
       "critical_review": 0,
       "high_review": 1,
       "medium_review": 0,
-      "low_review": 1
+      "low_review": 0
     }
   },
   "triage": {
-    "total_items": 2,
+    "total_items": 1,
     "class_counts": {
-      "new_surface_immediate_review": 1,
-      "safety_marker_review": 1
+      "new_surface_immediate_review": 1
     },
     "gate_candidate_count": 1
   },
   "gate": {
     "ok": false,
     "mode": "new_gaps_only",
-    "new_item_count": 2,
+    "new_item_count": 1,
     "blocking_new_item_count": 1
   },
   "top_immediate_items": [
