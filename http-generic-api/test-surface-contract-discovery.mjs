@@ -60,6 +60,12 @@ if (migration954.coverage.gap_severity !== "none") {
   assert.equal(migration954.documentation_complete, true, "documented migration 954 may leave actionable gap queue only after docs are complete");
 }
 
+const migration955 = report.all_migrations.find((entry) => entry.migration_file === "955_sprint68_external_delivery_admin_control_surface.sql");
+assert(migration955, "migration 955 must be discoverable for route classification regression coverage");
+assert.equal(migration955.coverage.route_coverage.missing_count, 0, "admin tool registry routes in migration 955 must not be treated as OpenAPI gaps");
+assert.equal(migration955.coverage.route_coverage.exempted_route_count, 5, "migration 955 external delivery control routes must be OpenAPI-exempt registry routes");
+assert(migration955.coverage.route_coverage.route_classifications.every((entry) => entry.route_class === "admin_tool_registry_route"), "migration 955 route literals must be classified as admin_tool_registry_route");
+
 const markdown = renderSurfaceContractMarkdown(report);
 assert(markdown.includes("Surface Contract Discovery Status"), "markdown must render status title");
 assert(markdown.includes("Coverage Summary"), "markdown must render deep coverage summary");
