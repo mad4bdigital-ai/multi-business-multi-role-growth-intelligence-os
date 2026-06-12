@@ -308,7 +308,7 @@ export function buildGuidancePresentation({ profile, activationBrief, counts, pe
     ready: Boolean(group.ready),
     count: Number(group.count || 0),
     reason: group.reason,
-    invocation: buildInvocation(group.best_next_action || group.group, profile, { readiness: group.ready ? "ready" : "not_ready" }),
+    invocation: buildInvocation(group.best_next_action || group.group, profile, { readiness: group.ready ? "ready" : "not_ready" }, invocationRegistry),
     source_ref: `capability_groups.${group.group}`,
   }));
 
