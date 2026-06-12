@@ -126,6 +126,44 @@ components:
         activation_layer: { type: string, enum: [activation_guidance_intelligence] }
         profile: { type: string, enum: [tenant, admin] }
         guidance_mode: { type: string }
+        language_context:
+          type: object
+          additionalProperties: true
+          properties:
+            mode: { type: string }
+            resolved_locale: { type: string }
+            source: { type: string }
+            tags_are_language_neutral: { type: boolean }
+        invocation_contract:
+          type: object
+          additionalProperties: true
+          properties:
+            version: { type: string }
+            supported_signals:
+              type: array
+              items: { type: string, enum: [invocation_tag, slash_alias, intent_key] }
+            tag_format: { type: string }
+            slash_format: { type: string }
+            routing_rule: { type: string }
+            execution_rule: { type: string }
+        guidance_flow:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        guidance_paths:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        command_palette:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        presentation_summary:
+          type: object
+          additionalProperties: true
         activation_brief:
           type: object
           additionalProperties: true
