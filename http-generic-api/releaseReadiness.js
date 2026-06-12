@@ -1584,14 +1584,14 @@ async function checkRepositoryIntelligenceV2Readiness() {
     "tenant_repository_intelligence_v2_readiness_smoke",
     "tenant_repository_intelligence_report",
     "tenant_repository_action_planner_dry_run",
-    "tenant_repository_intelligence_v3_v4_readiness_smoke",
+    "tenant_repository_intelligence_v3_v4_readiness_smoke", "tenant_repository_advisory_comment_preview", "tenant_repository_advisory_comment_apply", "tenant_repository_advisory_comment_readback", "tenant_repository_advisory_comment_v5_readiness_smoke",
   ];
   const requiredRuntimeTokens = [
     "tenantRepositoryIntelligenceV2ReadinessSmoke",
     "tenantRepositoryIntelligenceV3V4ReadinessSmoke",
     "tenantRepositoryPrReconciliationSweep",
     "tenantRepositoryIntelligenceReport",
-    "tenantRepositoryActionPlannerDryRun",
+    "tenantRepositoryActionPlannerDryRun", "tenantRepositoryAdvisoryCommentV5ReadinessSmoke", "tenantRepositoryAdvisoryCommentPreview", "tenantRepositoryAdvisoryCommentApply", "tenantRepositoryAdvisoryCommentReadback", "repository_advisory_comment_preview_v5", "repository_advisory_comment_apply_v5", "repository_advisory_comment_readback_v5",
     "tenant_repository_pr_reconciliation_summary_v2",
     "tenant_repository_intelligence_report_v3",
     "tenant_repository_action_planner_v4",

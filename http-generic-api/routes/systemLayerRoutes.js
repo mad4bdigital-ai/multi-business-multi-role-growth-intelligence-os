@@ -45,7 +45,7 @@ import {
   tenantRepositoryIntelligenceV3V4ReadinessSmoke,
   tenantRepositoryPrReconciliationSweep,
 } from "../repositoryTenantIntelligenceV2.js";
-import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
+import { TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS, tenantRepositoryAdvisoryCommentApply, tenantRepositoryAdvisoryCommentPreview, tenantRepositoryAdvisoryCommentReadback, tenantRepositoryAdvisoryCommentV5ReadinessSmoke, } from "../repositoryTenantAdvisoryCommentsV5.js"; import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
 
 const SYSTEM_LAYER_TOOLS = [
   {
@@ -143,7 +143,7 @@ const SYSTEM_LAYER_TOOLS = [
   // Release-readiness token evidence for spread-loaded Repository Intelligence tools:
   // tenant_repository_intelligence_report, tenant_repository_action_planner_dry_run,
   // tenant_repository_intelligence_v3_v4_readiness_smoke.
-  ...TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
+  ...TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS, // Release-readiness token evidence for Repository Intelligence V5: // tenant_repository_advisory_comment_preview, tenant_repository_advisory_comment_apply, // tenant_repository_advisory_comment_readback, tenant_repository_advisory_comment_v5_readiness_smoke. ...TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
   {
     name: "connector_registry_list",
     description: "List connector systems from the connected_systems registry.",
@@ -1636,7 +1636,7 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       return await tenantRepositoryActionPlannerDryRun(args, { auth, runGovernedResource });
     case "tenant_repository_intelligence_v3_v4_readiness_smoke":
       return await tenantRepositoryIntelligenceV3V4ReadinessSmoke(args, { auth, runGovernedResource });
-    case "governed_resource_resolve":
+    case "tenant_repository_advisory_comment_preview": return await tenantRepositoryAdvisoryCommentPreview(args, { auth, runGovernedResource }); case "tenant_repository_advisory_comment_apply": return await tenantRepositoryAdvisoryCommentApply(args, { auth, runGovernedResource }); case "tenant_repository_advisory_comment_readback": return await tenantRepositoryAdvisoryCommentReadback(args, { auth, runGovernedResource }); case "tenant_repository_advisory_comment_v5_readiness_smoke": return await tenantRepositoryAdvisoryCommentV5ReadinessSmoke(args, { auth, runGovernedResource }); case "governed_resource_resolve":
       return await resolveGovernedResource(args);
     case "governed_resource_catalog":
       return await catalogGovernedResources(args);
