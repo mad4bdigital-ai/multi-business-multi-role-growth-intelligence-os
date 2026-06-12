@@ -378,7 +378,15 @@ export async function checkSupportTicketLiveSendReadiness(providerPlan = {}, opt
     channel: "email",
     connection: options.connection || null,
   });
-  const readiness = { ...providerReadinessBase(runtime), recipient_allowlist_present: allowlist.allowlist_count > 0, allowlist_count: allowlist.allowlist_count, matched_allowlist_id: allowlist.matched_allowlist_id, recipient_allowlist_allowed: allowlist.allowed, recipient_allowlist_reason: allowlist.reason };
+  let smtpState = { config: null, source: "not_required", present: false };
+  if (runtime === "smtp" || runtime === "hostinger_smtp") {
+    try {
+      smtpState = await resolveSmtpConfig({ connection: options.connection || null });
+    } catch (error) {
+      smtpState = { config: null, source: error.code || "smtp_secret_invalid", present: true };
+    }
+  }
+  const readiness = { ...providerReadinessBase(runtime, smtpState), recipient_allowlist_present: allowlist.allowlist_count > 0, allowlist_count: allowlist.allowlist_count, matched_allowlist_id: allowlist.matched_allowlist_id, recipient_allowlist_allowed: allowlist.allowed, recipient_allowlist_reason: allowlist.reason };
   const blockers = [];
   if (providerPlan.send_mode !== "live_send") blockers.push("live_send_mode_required");
   if (!providerPlan.ready_for_provider_dispatch) blockers.push("provider_plan_not_ready");
