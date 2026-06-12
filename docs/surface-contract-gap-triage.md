@@ -17,7 +17,7 @@
 
 ## Immediate review candidates
 
-- `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql` — critical_review, score 2020; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql` — critical_review, score 2019; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `281_sprint68_session_insight_capability_envelope_dispatch_readback.sql` — critical_review, score 1947; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql` — critical_review, score 1822; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `280_sprint68_session_insight_capability_envelope_approval_gate.sql` — critical_review, score 1803; next: classify route-like strings, then add OpenAPI contract or false-positive exemption

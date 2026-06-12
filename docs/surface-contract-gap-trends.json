@@ -2,7 +2,7 @@
   "ok": true,
   "schema_version": "surface-contract-gap-trends-v1",
   "baseline_item_count": 100,
-  "current_queue_items": 384,
+  "current_queue_items": 385,
   "current_triaged_items": 100,
   "current_gate_candidates": 7,
   "blocking_new_item_count": 0,

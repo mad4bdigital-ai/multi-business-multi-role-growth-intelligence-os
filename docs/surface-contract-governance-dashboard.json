@@ -6,34 +6,34 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 385,
+    "migrations_with_surfaces": 386,
     "docs_complete_count": 5,
-    "docs_gap_count": 380,
+    "docs_gap_count": 381,
     "docs_completion_percent": 1.3,
     "surface_totals": {
       "plugins": 11,
-      "tools": 1769,
-      "views": 323,
+      "tools": 1770,
+      "views": 325,
       "policies": 139,
       "routes": 508
     },
     "migrations_by_surface_type": {
       "plugins": 8,
-      "tools": 331,
-      "views": 129,
+      "tools": 332,
+      "views": 130,
       "policies": 87,
       "routes": 217
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 349,
-      "deployment_parity_checklist.md": 358,
-      "docs/ai-docs-agent-governance.md": 380,
-      "docs/auto-docs-agent/README.md": 380,
-      "docs/change-documentation-governance.md": 380
+      "Updating Registry Patch Index.md": 350,
+      "deployment_parity_checklist.md": 359,
+      "docs/ai-docs-agent-governance.md": 381,
+      "docs/auto-docs-agent/README.md": 381,
+      "docs/change-documentation-governance.md": 381
     },
     "gap_severity_counts": {
       "high": 221,
-      "medium": 135,
+      "medium": 136,
       "low": 24,
       "none": 5
     },
@@ -394,16 +394,17 @@
       "909_sprint68_ticket_external_dynamic_recipient_allowlist.sql",
       "950_sprint68_platform_resource_authority_bindings.sql",
       "952_sprint68_resource_graph_projection_apply_gate.sql",
+      "957_sprint68_capability_baseline_branch_hygiene_github_file_inspect.sql",
       "997_sprint68_openrouter_provider_smoke_capability_binding.sql",
       "998_sprint68_openrouter_provider_smoke_app_map_binding.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 33,
+      "no_provider_call": 34,
       "no_credential_payload_read": 14,
       "no_raw_secrets": 14,
       "no_external_send": 13,
       "no_external_write": 21,
-      "secrets_included_false": 111
+      "secrets_included_false": 112
     },
     "safety_marker_gap_migrations": 274,
     "route_coverage": {
@@ -1138,10 +1139,10 @@
     }
   },
   "queue": {
-    "total_items": 384,
+    "total_items": 385,
     "class_counts": {
       "critical_review": 244,
-      "high_review": 114,
+      "high_review": 115,
       "medium_review": 25,
       "low_review": 1
     }
@@ -1164,7 +1165,7 @@
   "top_immediate_items": [
     {
       "migration_file": "282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql",
-      "score": 2020,
+      "score": 2019,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
