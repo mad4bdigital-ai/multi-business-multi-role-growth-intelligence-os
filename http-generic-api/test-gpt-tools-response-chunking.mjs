@@ -54,6 +54,8 @@ async function main() {
   assert.equal(secondChunk.chunk_id, firstChunk.chunk_id);
   assert.equal(secondChunk.page.cursor, firstChunk.page.next_cursor);
   assert.ok(secondChunk.chunk.length <= 5000);
+  assert.ok(secondChunk.cache.read_count >= 1);
+  assert.equal(secondChunk.cache.extended_on_read, true);
 
   const paged = paginateItems([
     { name: "alpha_tool", tags: ["repo"] },
