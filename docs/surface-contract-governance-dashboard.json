@@ -6,33 +6,33 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 394,
+    "migrations_with_surfaces": 395,
     "docs_complete_count": 15,
-    "docs_gap_count": 379,
-    "docs_completion_percent": 3.81,
+    "docs_gap_count": 380,
+    "docs_completion_percent": 3.8,
     "surface_totals": {
       "plugins": 11,
       "tools": 1829,
       "views": 340,
       "policies": 141,
-      "routes": 520
+      "routes": 522
     },
     "migrations_by_surface_type": {
       "plugins": 8,
       "tools": 339,
       "views": 137,
       "policies": 89,
-      "routes": 221
+      "routes": 222
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 349,
-      "deployment_parity_checklist.md": 358,
-      "docs/ai-docs-agent-governance.md": 379,
-      "docs/auto-docs-agent/README.md": 379,
-      "docs/change-documentation-governance.md": 379
+      "Updating Registry Patch Index.md": 350,
+      "deployment_parity_checklist.md": 359,
+      "docs/ai-docs-agent-governance.md": 380,
+      "docs/auto-docs-agent/README.md": 380,
+      "docs/change-documentation-governance.md": 380
     },
     "gap_severity_counts": {
-      "high": 215,
+      "high": 216,
       "medium": 139,
       "low": 25,
       "none": 15
@@ -251,6 +251,7 @@
       "290_sprint68_platform_health_scorecard.sql",
       "291_sprint68_platform_health_scorecard_readback_alignment.sql",
       "305_sprint69_runtime_verification_control_plane_hardening.sql",
+      "306_sprint69_operational_console_api.sql",
       "906_sprint68_ticket_external_delivery_completion_certification.sql",
       "999_sprint68_repository_intelligence_v3_v4_tenant_tool_wiring.sql"
     ],
@@ -401,16 +402,16 @@
       "no_raw_secrets": 16,
       "no_external_send": 13,
       "no_external_write": 22,
-      "secrets_included_false": 119
+      "secrets_included_false": 120
     },
     "safety_marker_gap_migrations": 275,
     "route_coverage": {
       "sql_route_count": 392,
-      "total_sql_route_like_count": 520,
-      "openapi_exempt_sql_route_count": 128,
+      "total_sql_route_like_count": 522,
+      "openapi_exempt_sql_route_count": 130,
       "route_class_counts": {
         "http_route": 392,
-        "admin_tool_registry_route": 82,
+        "admin_tool_registry_route": 84,
         "tenant_tool_registry_route": 35,
         "system_tool_dispatch_route": 10,
         "registry_only_surface": 1,
@@ -1010,9 +1011,9 @@
     }
   },
   "queue": {
-    "total_items": 393,
+    "total_items": 394,
     "class_counts": {
-      "critical_review": 248,
+      "critical_review": 249,
       "high_review": 116,
       "medium_review": 27,
       "low_review": 2
@@ -1165,7 +1166,7 @@
     },
     {
       "migration_file": "283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql",
-      "score": 1220,
+      "score": 1219,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
