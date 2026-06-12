@@ -110,9 +110,14 @@ export function runAutomationIntelligenceGuard() {
       id: "P0-secret-boundary-in-new-automation-guard",
       check: () => {
         const guardText = readRepoFile("scripts/automation-intelligence-guard.mjs");
-        assertNotIncludes(guardText, "process.env.GITHUB_TOKEN", "guard must not read GitHub tokens");
-        assertNotIncludes(guardText, "process.env.BACKEND_API_KEY", "guard must not read backend API key");
-        assertNotIncludes(guardText, "fetch(", "guard must not call network providers");
+        const forbiddenTokens = [
+          ["process", "env", "GITHUB_TOKEN"].join("."),
+          ["process", "env", "BACKEND_API_KEY"].join("."),
+          "fe" + "tch(",
+        ];
+        for (const token of forbiddenTokens) {
+          assertNotIncludes(guardText, token, "guard must not read secrets or call network providers");
+        }
       },
     },
   ];
