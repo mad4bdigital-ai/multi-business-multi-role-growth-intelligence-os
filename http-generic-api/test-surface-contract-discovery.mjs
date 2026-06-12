@@ -6,6 +6,8 @@ const report = discoverSurfaces({ limit: 200 });
 assert.equal(report.ok, true, "surface discovery report must be ok");
 assert.equal(report.schema_version, "surface-contract-discovery-v3", "surface discovery must expose v3 actionable queue contract");
 assert.equal(report.gap_queue.schema_version, "surface-contract-gap-queue-v1", "gap queue must expose a versioned machine contract");
+assert.equal(report.legacy_backlog_closure.schema_version, "surface-contract-legacy-backlog-closure-v1", "legacy backlog closure must expose a versioned machine contract");
+assert(report.legacy_backlog_closure.closed_migration_count > 0, "legacy backlog closure must classify historical migrations without applying runtime mutations");
 assert(report.all_migrations.length >= report.migrations.length, "machine report must include all migrations, not only rendered latest rows");
 assert(report.coverage_summary.migrations_with_surfaces >= report.migrations.length, "coverage summary must cover all discovered surface migrations");
 assert.equal(report.safety.secrets_included, false, "surface discovery must never include secrets");
