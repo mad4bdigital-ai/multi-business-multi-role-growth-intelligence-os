@@ -36,8 +36,7 @@ function requireScope(scope = {}) {
   }
 }
 async function resolveGithubToken() {
-  if (!GITHUB_TOKEN) { const err = new Error("Missing required environment variable: GITHUB_TOKEN"); err.status = 500; err.code = "missing_github_token"; throw err; }
-  return GITHUB_TOKEN;
+  return await getGitHubAppInstallationToken({});
 }
 async function githubJson({ method = "GET", pathname, searchParams } = {}) {
   const url = new URL(`${GITHUB_API_BASE_URL}${pathname}`);
