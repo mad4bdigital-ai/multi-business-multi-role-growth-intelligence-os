@@ -4,7 +4,7 @@
 - Current queue items: 387
 - Current triaged items: 100
 - Gate candidates: 7
-- Blocking new items: 16
+- Blocking new items: 1
 - Trend quality gate: fail
 - Docs completion: 3.61%
 - SQL route OpenAPI coverage: 59.95%
