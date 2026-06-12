@@ -241,6 +241,17 @@ function normalizeObjectResourceRef(resourceRef = {}, resourceType = "") {
     };
   }
 
+  if ((type === "github_file" || ref.path || ref.file_path) && ref.owner && ref.repo && (ref.path || ref.file_path)) {
+    const branch = asString(ref.branch || ref.ref || "main");
+    const path = asString(ref.path || ref.file_path);
+    return {
+      resource_type: "github_file",
+      resource_uri: `github://${ref.owner}/${ref.repo}/file/${branch}/${path}`,
+      resource_ref: { owner: ref.owner, repo: ref.repo, branch, path },
+      confidence: "high",
+    };
+  }
+
   if ((type === "github_branch" || ref.owner || ref.repo || ref.branch) && ref.owner && ref.repo && ref.branch) {
     return {
       resource_type: "github_branch",
