@@ -34,6 +34,6 @@ assert(script.includes("deploys: false"), "triage safety must forbid deploys");
 
 const maintenanceSync = fs.readFileSync("scripts/repo-maintenance-sync.mjs", "utf8");
 assert(maintenanceSync.includes("surface-contract-gap-triage.mjs"), "maintenance sync must run surface gap triage");
-assert(maintenanceSync.includes("--enforce-new-gaps"), "maintenance sync must enforce new high/critical gaps only through baseline");
+assert(maintenanceSync.includes("--enforce-new-gaps"), "maintenance sync must enforce every unbaselined future gap through the strict baseline gate");
 
 console.log("surface contract governance loop guard passed");
