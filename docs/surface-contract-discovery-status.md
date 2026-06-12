@@ -32,11 +32,12 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 5/387 (1.29%)
-- Documentation gap migrations: 382
-- Gap severity: high=221, medium=137, low=24
-- SQL route coverage in OpenAPI: 311/508 (61.22%)
-- SQL routes missing OpenAPI path coverage: 197
+- Documentation complete migrations: 14/387 (3.62%)
+- Documentation gap migrations: 373
+- Gap severity: high=212, medium=137, low=24
+- SQL route coverage in OpenAPI: 235/392 (59.95%)
+- SQL route-like literals exempted from OpenAPI scoring: 116/508
+- SQL routes missing OpenAPI path coverage: 157
 - Migrations without explicit `secrets_included=false` marker: 274
 
 ### Surface Totals
@@ -53,11 +54,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 351 |
-| `deployment_parity_checklist.md` | 360 |
-| `docs/ai-docs-agent-governance.md` | 382 |
-| `docs/auto-docs-agent/README.md` | 382 |
-| `docs/change-documentation-governance.md` | 382 |
+| `Updating Registry Patch Index.md` | 343 |
+| `deployment_parity_checklist.md` | 352 |
+| `docs/ai-docs-agent-governance.md` | 373 |
+| `docs/auto-docs-agent/README.md` | 373 |
+| `docs/change-documentation-governance.md` | 373 |
 
 ### Safety Marker Coverage
 
@@ -70,39 +71,50 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | no_external_write | 21 |
 | secrets_included_false | 113 |
 
+### Route Classification Coverage
+
+| Route class | SQL route-like literals |
+|---|---:|
+| http_route | 392 |
+| admin_tool_registry_route | 73 |
+| tenant_tool_registry_route | 35 |
+| system_tool_dispatch_route | 8 |
+| registry_only_surface | 0 |
+| false_positive_route_like_string | 0 |
+
 
 ## Actionable Gap Queue
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
 - Total queue items: 386
-- Critical review: 245
+- Critical review: 244
 - High review: 115
-- Medium review: 25
+- Medium review: 26
 - Low review: 1
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
-| `049_sprint47d_tool_registry_recovery.sql` | critical_review | 4702 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
-| `050_sprint47e_fix_schema_drift.sql` | critical_review | 4702 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
-| `047_sprint47b_gpt_tool_registry.sql` | critical_review | 4593 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `049_sprint47d_tool_registry_recovery.sql` | critical_review | 4502 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `050_sprint47e_fix_schema_drift.sql` | critical_review | 4502 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `047_sprint47b_gpt_tool_registry.sql` | critical_review | 4393 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `100_sprint63_onboarding_recovery_control_plane.sql` | critical_review | 2340 | high | 5 | 6 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `233_sprint68_ticket_lifecycle_authority_foundation.sql` | critical_review | 2304 | high | 5 | 8 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
-| `189_sprint66_platform_private_capability_vault.sql` | critical_review | 2179 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
 | `167_sprint65_ai_intelligence_runtime_governance_tools.sql` | critical_review | 2120 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
-| `279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql` | critical_review | 2108 | high | 5 | 2 | 5 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
 | `261_sprint68_orchestration_intelligence_foundation.sql` | critical_review | 2030 | high | 3 | 0 | 2 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, add_explicit_safety_markers |
-| `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql` | critical_review | 2019 | high | 5 | 2 | 5 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
 | `130_sprint65_browser_runtime_governance.sql` | critical_review | 2011 | high | 5 | 7 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
-| `281_sprint68_session_insight_capability_envelope_dispatch_readback.sql` | critical_review | 1947 | high | 5 | 2 | 5 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
-| `190_sprint66_workspace_lifecycle_foundation.sql` | critical_review | 1908 | high | 5 | 6 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
-| `278_sprint68_session_insight_capability_envelope_actual_request_preflight.sql` | critical_review | 1892 | high | 5 | 2 | 5 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
-| `273_sprint68_session_insight_capability_envelope_request_gate.sql` | critical_review | 1882 | high | 5 | 2 | 5 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
-| `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql` | critical_review | 1821 | high | 5 | 2 | 5 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
 | `090_sprint62_local_gateway_tools.sql` | critical_review | 1818 | high | 5 | 1 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
-| `280_sprint68_session_insight_capability_envelope_approval_gate.sql` | critical_review | 1803 | high | 5 | 2 | 5 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
 | `260_sprint68_platform_development_constitution_policies.sql` | critical_review | 1736 | medium | 3 | 0 | 5 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
-| `275_sprint68_session_insight_capability_envelope_dispatch_dry_run.sql` | critical_review | 1729 | high | 5 | 2 | 5 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
+| `277_sprint68_session_insight_capability_envelope_dispatch_dry_run_review.sql` | critical_review | 1668 | high | 5 | 1 | 5 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
+| `059_sprint54_local_connector_capability_tools.sql` | critical_review | 1589 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `274_sprint68_session_insight_capability_envelope_request_review.sql` | critical_review | 1541 | high | 5 | 1 | 5 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
+| `279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql` | critical_review | 1508 | none | 0 | 2 | 5 | review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
+| `195_sprint66_tenant_infrastructure_specific_paths.sql` | critical_review | 1478 | high | 5 | 4 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `146_sprint65_browser_runtime_adapter_request_tools.sql` | critical_review | 1460 | high | 5 | 4 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `270_sprint68_support_ticket_lifecycle_orchestration_readback.sql` | critical_review | 1444 | high | 5 | 0 | 1 | document_surface_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
+| `091_sprint62b_local_gateway_credential_policy.sql` | critical_review | 1440 | high | 5 | 0 | 6 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `068_sprint58_cloudflare_readonly_runtime.sql` | critical_review | 1421 | high | 5 | 3 | 6 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, add_explicit_safety_markers |
+| `271_sprint68_session_insight_adapter_apply_readiness_gate.sql` | critical_review | 1420 | high | 5 | 1 | 5 | document_surface_contract, review_openapi_contract, verify_tool_registry_binding, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
 
 
 ## Latest Surface Coverage
@@ -114,7 +126,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `958_sprint68_github_file_content_gate_and_patch_plan_registry.sql` | needs docs | medium | 0 | 9 | 1 | 1 | 0 | 0 |
 | `957_sprint68_capability_baseline_branch_hygiene_github_file_inspect.sql` | needs docs | medium | 0 | 1 | 2 | 0 | 0 | 0 |
 | `956_sprint68_external_delivery_allowlist_readiness_view_updated_at.sql` | complete | none | 0 | 1 | 1 | 0 | 0 | 0 |
-| `955_sprint68_external_delivery_admin_control_surface.sql` | complete | none | 0 | 5 | 3 | 1 | 5 | 5 |
+| `955_sprint68_external_delivery_admin_control_surface.sql` | complete | none | 0 | 5 | 3 | 1 | 5 | 0 |
 | `954_sprint68_compact_operational_views_and_github_resource_coverage.sql` | complete | none | 0 | 2 | 4 | 0 | 0 | 0 |
 | `952_sprint68_resource_graph_projection_apply_gate.sql` | needs docs | medium | 0 | 6 | 0 | 0 | 0 | 0 |
 | `950_sprint68_platform_resource_authority_bindings.sql` | needs docs | medium | 0 | 1 | 0 | 1 | 0 | 0 |
@@ -132,23 +144,23 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `287_sprint68_external_delivery_orchestration_graph_plugin.sql` | complete | none | 3 | 42 | 2 | 1 | 0 | 0 |
 | `286_sprint68_platform_schema_contract_completion_registry.sql` | needs docs | high | 0 | 1 | 0 | 0 | 1 | 1 |
 | `284_sprint68_wordpress_schema_import_completion_registry.sql` | needs docs | medium | 0 | 1 | 0 | 0 | 0 | 0 |
-| `284_sprint68_session_insight_backlog_target_write_executor.sql` | needs docs | high | 0 | 14 | 2 | 1 | 3 | 3 |
+| `284_sprint68_session_insight_backlog_target_write_executor.sql` | complete | none | 0 | 14 | 2 | 1 | 3 | 3 |
 | `284_sprint68_execution_log_full_context_evidence.sql` | needs docs | medium | 0 | 1 | 2 | 1 | 0 | 0 |
-| `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql` | needs docs | high | 0 | 36 | 2 | 1 | 2 | 2 |
-| `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql` | needs docs | high | 0 | 47 | 2 | 1 | 2 | 2 |
-| `281_sprint68_session_insight_capability_envelope_dispatch_readback.sql` | needs docs | high | 0 | 43 | 2 | 1 | 2 | 2 |
-| `280_sprint68_session_insight_capability_envelope_approval_gate.sql` | needs docs | high | 0 | 35 | 2 | 1 | 2 | 2 |
-| `279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql` | needs docs | high | 0 | 52 | 2 | 1 | 2 | 2 |
-| `278_sprint68_session_insight_capability_envelope_actual_request_preflight.sql` | needs docs | high | 0 | 40 | 2 | 1 | 2 | 2 |
+| `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql` | complete | none | 0 | 36 | 2 | 1 | 2 | 2 |
+| `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql` | complete | none | 0 | 47 | 2 | 1 | 2 | 2 |
+| `281_sprint68_session_insight_capability_envelope_dispatch_readback.sql` | complete | none | 0 | 43 | 2 | 1 | 2 | 2 |
+| `280_sprint68_session_insight_capability_envelope_approval_gate.sql` | complete | none | 0 | 35 | 2 | 1 | 2 | 2 |
+| `279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql` | complete | none | 0 | 52 | 2 | 1 | 2 | 2 |
+| `278_sprint68_session_insight_capability_envelope_actual_request_preflight.sql` | complete | none | 0 | 40 | 2 | 1 | 2 | 2 |
 | `277_sprint68_session_insight_capability_envelope_dispatch_dry_run_review.sql` | needs docs | high | 0 | 37 | 3 | 1 | 1 | 1 |
 | `277_sprint68_execution_log_runtime_evidence.sql` | needs docs | medium | 0 | 1 | 2 | 1 | 0 | 0 |
 | `276_sprint68_activation_positive_surface_fixtures.sql` | needs docs | medium | 0 | 1 | 1 | 0 | 0 | 0 |
-| `275_sprint68_session_insight_capability_envelope_dispatch_dry_run.sql` | needs docs | high | 0 | 31 | 2 | 1 | 2 | 2 |
+| `275_sprint68_session_insight_capability_envelope_dispatch_dry_run.sql` | complete | none | 0 | 31 | 2 | 1 | 2 | 2 |
 | `274_sprint68_session_insight_capability_envelope_request_review.sql` | needs docs | high | 0 | 30 | 3 | 1 | 1 | 1 |
-| `274_sprint68_schema_split_importer_v2_reference_preservation.sql` | needs docs | high | 0 | 0 | 0 | 0 | 1 | 1 |
+| `274_sprint68_schema_split_importer_v2_reference_preservation.sql` | needs docs | high | 0 | 0 | 0 | 0 | 1 | 0 |
 | `274_sprint68_execution_policy_enforcement_closure.sql` | needs docs | high | 1 | 13 | 0 | 1 | 0 | 0 |
 | `273_sprint68_support_ticket_lifecycle_snapshot_record_gate.sql` | needs docs | high | 0 | 6 | 0 | 1 | 1 | 0 |
-| `273_sprint68_session_insight_capability_envelope_request_gate.sql` | needs docs | high | 0 | 39 | 3 | 1 | 2 | 2 |
+| `273_sprint68_session_insight_capability_envelope_request_gate.sql` | complete | none | 0 | 39 | 3 | 1 | 2 | 2 |
 | `273_sprint68_activation_catalog_authorized_surfaces.sql` | needs docs | medium | 0 | 9 | 14 | 0 | 0 | 0 |
 | `272_sprint68_ticket_external_provider_gate_registry_resolver.sql` | needs docs | medium | 0 | 6 | 0 | 1 | 0 | 0 |
 | `272_sprint68_support_ticket_lifecycle_snapshot_proposal.sql` | needs docs | high | 0 | 4 | 0 | 1 | 1 | 0 |
@@ -232,7 +244,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - `125_sprint64_platform_plugin_contributions.sql`
 - `125_sprint64_summary_comparison_quality_scoring.sql`
 - `126_sprint64_platform_plugin_private_runtime.sql`
-- ...and 181 more
+- ...and 172 more
 
 ## SQL Route OpenAPI Gaps
 
@@ -240,7 +252,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - `090_sprint62_local_gateway_tools.sql`: `/local/tools/call`
 - `092_sprint62c_register_local_gateway_dispatcher_tools.sql`: `/local/tools`, `/local/tools/call`
 - `100_sprint63_onboarding_recovery_control_plane.sql`: `/admin/onboarding/escalations`, `/admin/onboarding/tenantless-users`, `/admin/onboarding/{user_id}/create-workspace`, `/admin/onboarding/{user_id}/escalate`, `/admin/onboarding/{user_id}/link-session-archive`, `/admin/onboarding/{user_id}/repair-membership`
-- `108_hostinger_ssh_governed_connectors.sql`: `/admin/hostinger/ssh/restart-app`, `/admin/hostinger/ssh/status`, `/admin/hostinger/ssh/tail-logs`
 - `112_sprint62w_register_session_summary_autosweep_tool.sql`: `/dev-agent/session-summaries/autosweep`
 - `114_sprint62y_register_model_readiness_tool.sql`: `/dev-agent/model-readiness`
 - `115_sprint62z_agent_model_runtime_settings.sql`: `/dev-agent/model-settings`
@@ -262,21 +273,22 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - `142_sprint64_codex_interactive_execution_request_tool.sql`: `/dev-agent/summary-development/codex-interactive-execution-request`, `/dev-agent/summary-development/codex-interactive-execution/{runId}`
 - `146_sprint65_browser_runtime_adapter_request_tools.sql`: `/browser-runtime/cloud-extract/run`, `/browser-runtime/persistent-session/run`, `/browser-runtime/stealth-extract/run`, `/browser-runtime/visual-takeover/run`
 - `147_sprint65_auto_browser_local_tool_candidate.sql`: `/connector/{device_id}/auto-browser`
-- `158_sprint65_execution_plan_dispatch_tool.sql`: `/execution-plans/{plan_id}/dispatch`
-- `159_sprint65_wordpress_auth_context_diagnostic_tool.sql`: `/wordpress/auth-context/diagnose`
-- `177_sprint65_validator_result_log_foundation.sql`: `/platform/engines/validator-results`
-- `190_sprint66_workspace_lifecycle_foundation.sql`: `/me/invitations/accept`, `/me/workspaces/{tenant_id}/access-requests`, `/me/workspaces/{tenant_id}/access-requests/{request_id}/approve`, `/me/workspaces/{tenant_id}/access-requests/{request_id}/reject`, `/me/workspaces/{tenant_id}/invitations`, `/me/workspaces/{tenant_id}/members`
-- `193_sprint67_workspace_resource_authority_foundation.sql`: `/me/workspaces/{tenant_id}/assets`, `/me/workspaces/{tenant_id}/resource-grants`, `/me/workspaces/{tenant_id}/vaults`
-- `194_sprint66_tenant_infrastructure_readiness_tools.sql`: `/me/infrastructure/connections/{connection_id}/preflight`, `/me/infrastructure/connections/{connection_id}/status`
-- `194_sprint67_workspace_resource_grant_assignment_tools.sql`: `/me/workspaces/{tenant_id}/resource-grants`, `/me/workspaces/{tenant_id}/resource-grants/{grant_id}/revoke`
 - `195_sprint66_tenant_infrastructure_specific_paths.sql`: `/me/infrastructure/database/connections/{connection_id}/preflight`, `/me/infrastructure/database/connections/{connection_id}/status`, `/me/infrastructure/ssh/connections/{connection_id}/preflight`, `/me/infrastructure/ssh/connections/{connection_id}/status`
-- `196_sprint66_tenant_database_schema_read_tool.sql`: `/me/infrastructure/database/connections/{connection_id}/schema`
-- `199_sprint68_workspace_ownership_member_control_tools.sql`: `/me/workspaces/{tenant_id}/members/{user_id}`, `/me/workspaces/{tenant_id}/members/{user_id}/remove`, `/me/workspaces/{tenant_id}/ownership/transfer`
-- `200_sprint68_workspace_invitation_control_tools.sql`: `/me/workspaces/{tenant_id}/invitations/expire-stale`, `/me/workspaces/{tenant_id}/invitations/{invitation_id}/resend`, `/me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke`
-- `201_sprint68_workspace_access_request_control_tools.sql`: `/me/access-requests`, `/me/workspaces/{tenant_id}/access-requests/{request_id}/cancel`
-- `202_sprint68_admin_workspace_authority_tools.sql`: `/admin/workspace-authority/reconciliation`, `/admin/workspace-authority/repair`
-- `205_sprint67_openclaude_provider_bridge_routes.sql`: `/dev-agent/openclaude/bridge/v1/chat/completions`, `/dev-agent/openclaude/bridge/v1/health`
-- ...and 65 more
+- `210_sprint67_openrouter_docs_agent_provider_contract.sql`: `/api/v1/chat/completions`
+- `218_sprint67_activate_openclaude_openrouter_provider.sql`: `/dev-agent/openclaude/bridge/v1/chat/completions`
+- `219_sprint67_gpt_session_turn_batch_write_tool.sql`: `/gpt/sessions/{id}/turns`
+- `220_sprint67_codex_dual_mode_policy.sql`: `/dev-agent/openclaude/bridge/v1/chat/completions`
+- `223_sprint67_gpt_session_conversation_refs.sql`: `/gpt/sessions/{id}/conversation-ref`
+- `225_sprint67_gpt_session_conversation_ref_primary.sql`: `/gpt/sessions/{id}/conversation-ref/mark-primary`
+- `230_sprint67_gpt_session_conversation_ref_capture_current.sql`: `/gpt/sessions/{id}/conversation-ref/capture-current`
+- `233_sprint68_ticket_lifecycle_authority_foundation.sql`: `/admin/support/tickets`, `/admin/support/tickets/{ticket_id}`, `/admin/support/tickets/{ticket_id}/assign`, `/admin/support/tickets/{ticket_id}/events`, `/admin/support/tickets/{ticket_id}/transition`, `/me/support/tickets`, `/me/support/tickets/{ticket_id}`, `/me/support/tickets/{ticket_id}/events`
+- `234_sprint68_ticket_lifecycle_reconciliation_tool.sql`: `/admin/support/tickets/reconcile`
+- `235_sprint68_ticket_lifecycle_runtime_links.sql`: `/admin/support/tickets/sla/reconcile`, `/admin/support/tickets/{ticket_id}/approval-hold`, `/admin/support/tickets/{ticket_id}/link-workflow`
+- `236_sprint68_ticket_lifecycle_execution_plans.sql`: `/admin/support/tickets/{ticket_id}/execution-plan`
+- `237_sprint68_ticket_lifecycle_workflow_runs.sql`: `/admin/support/tickets/{ticket_id}/runtime-sync`, `/admin/support/tickets/{ticket_id}/workflow-run`
+- `238_sprint68_ticket_lifecycle_step_runs.sql`: `/admin/support/tickets/{ticket_id}/step-run`, `/admin/support/tickets/{ticket_id}/step-runs`
+- `239_sprint68_ticket_lifecycle_diagnostic_steps.sql`: `/admin/support/tickets/{ticket_id}/step-run/execute`
+- ...and 47 more
 
 ## Details
 
@@ -291,6 +303,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_app_integration_capability_map`
 - Policies: `openrouter_provider_smoke_app_map_binding_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
 
@@ -305,6 +318,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `openrouter_provider_smoke_capability_binding_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
 
@@ -319,6 +333,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_github_file_operation_readiness_compact`
 - Policies: `github_file_content_read_gate_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=yes, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -333,6 +348,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_platform_resource_capability_baseline`, `v_repo_branch_hygiene_compact`
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -347,6 +363,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_external_delivery_recipient_allowlist_readiness`
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -361,7 +378,8 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_external_delivery_admin_overview`, `v_external_delivery_gmail_connections`, `v_external_delivery_recent_send_events`
 - Policies: `support_ticket_external_delivery_admin_control_surface_policy_v1`
 - Routes: `/admin/support/tickets/external-delivery/control/adapter/dispatch`, `/admin/support/tickets/external-delivery/control/allowlist/disable`, `/admin/support/tickets/external-delivery/control/allowlist/upsert`, `/admin/support/tickets/external-delivery/control/gmail/revoke`, `/admin/support/tickets/external-delivery/control/overview`
-- OpenAPI route gaps: `/admin/support/tickets/external-delivery/control/adapter/dispatch`, `/admin/support/tickets/external-delivery/control/allowlist/disable`, `/admin/support/tickets/external-delivery/control/allowlist/upsert`, `/admin/support/tickets/external-delivery/control/gmail/revoke`, `/admin/support/tickets/external-delivery/control/overview`
+- Route classifications: `/admin/support/tickets/external-delivery/control/adapter/dispatch`=admin_tool_registry_route:exempt, `/admin/support/tickets/external-delivery/control/allowlist/disable`=admin_tool_registry_route:exempt, `/admin/support/tickets/external-delivery/control/allowlist/upsert`=admin_tool_registry_route:exempt, `/admin/support/tickets/external-delivery/control/gmail/revoke`=admin_tool_registry_route:exempt, `/admin/support/tickets/external-delivery/control/overview`=admin_tool_registry_route:exempt
+- OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=yes, no_external_send=yes, no_external_write=no, secrets_included_false=yes
 
 ### `954_sprint68_compact_operational_views_and_github_resource_coverage.sql`
@@ -375,6 +393,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_migration_status_compact`, `v_release_readiness_compact`, `v_resource_recipe_certification_compact`, `v_resource_recipe_registry_compact`
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -389,6 +408,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -403,6 +423,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `platform_resource_authority_binding_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -417,6 +438,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `session_insight_capability_binding_hardening_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
 
@@ -431,6 +453,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_external_delivery_recipient_allowlist_readiness`
 - Policies: `support_ticket_external_delivery_dynamic_recipient_allowlist_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -445,6 +468,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `support_ticket_external_delivery_dual_provider_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -459,6 +483,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `support_ticket_external_delivery_live_smtp_runtime_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -473,6 +498,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `external_provider_adapter_contract_policy_v1`, `external_provider_gate_registry_resolver_policy_v1`, `support_ticket_external_delivery_completion_certification_policy_v1`
 - Routes: `/admin/support/tickets/{ticket_id}/external-delivery/completion-certification`
+- Route classifications: `/admin/support/tickets/{ticket_id}/external-delivery/completion-certification`=http_route:openapi
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=yes, no_external_send=yes, no_external_write=no, secrets_included_false=yes
 
@@ -487,6 +513,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `support_ticket_lifecycle_snapshot_apply_readback_alignment_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=yes, no_external_write=no, secrets_included_false=yes
 
@@ -501,6 +528,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `support_ticket_lifecycle_snapshot_apply_binding_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
 
@@ -515,6 +543,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -529,6 +558,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -543,6 +573,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `governed_repository_intelligence_engine_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -557,6 +588,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_platform_orchestration_external_delivery_readiness`
 - Policies: `support_ticket_external_delivery_orchestration_readback_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=yes, no_external_write=no, secrets_included_false=no
 
@@ -571,6 +603,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_platform_orchestration_external_delivery_readiness`, `v_platform_orchestration_graph_readiness`
 - Policies: `support_ticket_external_delivery_orchestration_readback_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=yes, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
 
@@ -585,6 +618,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: none
 - Routes: `/platform/wordpress/blog-publish-recovery`
+- Route classifications: `/platform/wordpress/blog-publish-recovery`=http_route:openapi
 - OpenAPI route gaps: `/platform/wordpress/blog-publish-recovery`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -599,20 +633,22 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
 ### `284_sprint68_session_insight_backlog_target_write_executor.sql`
 
-- Documentation complete: no
-- Gap severity: high
-- Missing docs: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
 - Surface count: 20
 - Plugins: none
 - Tools: `actual_request_id`, `adapter_execution_gate_id`, `admin_platform_endpoint_tools`, `all_remaining_stages_gated_no_execution`, `external_write_executed`, `provider_call_executed`, `remaining_scope_completed_as_gated_no_execution`, `session_insight_backlog_target_write_execute`, `session_insight_backlog_target_write_list`, `session_insight_backlog_target_write_rollback`, `session_insight_capability_envelope_adapter_execution_gates`, `target_write_already_executed`, `target_write_executed`, `v_session_insight_backlog_target_write_readiness`
 - Views: `v_session_insight_backlog_target_write_issues`, `v_session_insight_backlog_target_write_readiness`
 - Policies: `session_insight_backlog_target_write_executor_policy_v1`
 - Routes: `/platform/session-insight-promotions/backlog-target-writes/execute`, `/platform/session-insight-promotions/backlog-target-writes/list`, `/platform/session-insight-promotions/backlog-target-writes/rollback`
+- Route classifications: `/platform/session-insight-promotions/backlog-target-writes/execute`=http_route:openapi, `/platform/session-insight-promotions/backlog-target-writes/list`=http_route:openapi, `/platform/session-insight-promotions/backlog-target-writes/rollback`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/backlog-target-writes/execute`, `/platform/session-insight-promotions/backlog-target-writes/list`, `/platform/session-insight-promotions/backlog-target-writes/rollback`
 - Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
 
@@ -627,90 +663,97 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_execution_log_full_context_evidence_readiness`, `v_execution_log_full_context_evidence_recent`
 - Policies: `execution_log_full_context_evidence_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
 ### `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql`
 
-- Documentation complete: no
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
 - Surface count: 41
 - Plugins: none
 - Tools: `actual_request_id`, `adapter_apply_dispatch_gate`, `adapter_apply_dispatch_gate_status`, `adapter_apply_executed`, `adapter_apply_readback`, `adapter_apply_readback_status`, `adapter_apply_requested`, `adapter_execution_gate_id`, `adapter_execution_gate_ready`, `adapter_execution_gate_status`, `admin_platform_endpoint_tools`, `all_remaining_stages_gated_no_execution`, `approval_decision_id`, `blocked_until_adapter_apply_dispatch`, `blocked_until_adapter_apply_readback`, `current_gate_sha256`, `dispatch_readback_id`, `fk_session_insight_remaining_scope_completion_gate`, `ready_but_not_requested`, `ready_for_adapter_apply_dispatch`, ...and 16 more
 - Views: `v_session_insight_remaining_scope_completion_issues`, `v_session_insight_remaining_scope_completion_readiness`
 - Policies: `session_insight_capability_envelope_remaining_scope_completion_policy_v1`
 - Routes: `/platform/session-insight-promotions/remaining-scope-completions/create`, `/platform/session-insight-promotions/remaining-scope-completions/list`
+- Route classifications: `/platform/session-insight-promotions/remaining-scope-completions/create`=http_route:openapi, `/platform/session-insight-promotions/remaining-scope-completions/list`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/remaining-scope-completions/create`, `/platform/session-insight-promotions/remaining-scope-completions/list`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
 ### `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql`
 
-- Documentation complete: no
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
 - Surface count: 52
 - Plugins: none
 - Tools: `actual_request_id`, `actual_request_preflight_id`, `adapter_apply_dispatch`, `adapter_apply_dispatch_not_implemented`, `adapter_apply_executed`, `adapter_apply_requested`, `adapter_execution_gate_blocked`, `adapter_execution_gate_claims_apply_or_target_write`, `adapter_execution_gate_id`, `adapter_execution_gate_ready`, `adapter_execution_gate_secret_flagged`, `adapter_execution_gate_source_readback_changed`, `adapter_execution_gate_source_readback_not_ready`, `adapter_execution_gate_status`, `admin_platform_endpoint_tools`, `approval_decision_id`, `blocked_adapter_execution_gate_claims_apply_or_write`, `blocked_adapter_execution_gate_not_ready`, `chk_session_insight_adapter_execution_gate_no_execution`, `chk_session_insight_adapter_execution_gate_no_secrets`, ...and 27 more
 - Views: `v_session_insight_adapter_apply_readiness`, `v_session_insight_adapter_gate_issues`
 - Policies: `session_insight_capability_envelope_adapter_execution_gate_policy_v1`
 - Routes: `/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create`, `/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create`=http_route:openapi, `/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/create`, `/platform/session-insight-promotions/capability-envelope-adapter-execution-gates/list`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
 ### `281_sprint68_session_insight_capability_envelope_dispatch_readback.sql`
 
-- Documentation complete: no
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
 - Surface count: 48
 - Plugins: none
 - Tools: `actual_envelope_approved`, `actual_request_id`, `actual_request_preflight_id`, `adapter_apply_executed`, `adapter_execution_gate_not_implemented`, `admin_platform_endpoint_tools`, `approval_decision_id`, `blocked_dispatch_readback_claims_execution`, `blocked_dispatch_readback_not_passed`, `blocked_dispatch_readback_policy_not_ready`, `blocked_envelope_not_ready_for_adapter_execution_gate`, `chk_session_insight_capability_dispatch_readback_no_execution`, `chk_session_insight_capability_dispatch_readback_no_secrets`, `dispatch_readback_blocked`, `dispatch_readback_claims_execution_or_target_write`, `dispatch_readback_envelope_not_ready_for_dispatch`, `dispatch_readback_id`, `dispatch_readback_passed`, `dispatch_readback_policy_status`, `dispatch_readback_secret_flagged`, ...and 23 more
 - Views: `v_session_insight_adapter_execution_readiness`, `v_session_insight_capability_envelope_dispatch_readback_issues`
 - Policies: `session_insight_capability_envelope_dispatch_readback_policy_v1`
 - Routes: `/platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create`, `/platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create`=http_route:openapi, `/platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/capability-envelope-dispatch-readbacks/create`, `/platform/session-insight-promotions/capability-envelope-dispatch-readbacks/list`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
 ### `280_sprint68_session_insight_capability_envelope_approval_gate.sql`
 
-- Documentation complete: no
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
 - Surface count: 40
 - Plugins: none
 - Tools: `actual_envelope_approved`, `actual_envelope_requested`, `actual_request_id`, `actual_request_preflight_id`, `adapter_apply_executed`, `admin_platform_endpoint_tools`, `approval_decision_claims_execution_or_target_write`, `approval_decision_envelope_not_dispatch_ready_after_approval`, `approval_decision_id`, `approval_decision_secret_flagged`, `approval_decision_source_request_changed`, `approval_decision_status`, `approved_but_not_executed`, `blocked_approval_decision_claims_execution`, `blocked_envelope_not_ready_for_dispatch_readback`, `current_actual_request_sha256`, `dispatch_readback_only`, `envelope_decision_after_approval`, `fk_session_insight_capability_approval_actual_request`, `idx_session_insight_capability_approval_dispatch`, ...and 15 more
 - Views: `v_session_insight_capability_envelope_approval_decision_issues`, `v_session_insight_dispatch_readback_readiness`
 - Policies: `session_insight_capability_envelope_approval_gate_policy_v1`
 - Routes: `/platform/session-insight-promotions/capability-envelope-approvals/decision`, `/platform/session-insight-promotions/capability-envelope-approvals/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-approvals/decision`=http_route:openapi, `/platform/session-insight-promotions/capability-envelope-approvals/list`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/capability-envelope-approvals/decision`, `/platform/session-insight-promotions/capability-envelope-approvals/list`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
 ### `279_sprint68_session_insight_capability_envelope_actual_request_dispatch.sql`
 
-- Documentation complete: no
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
 - Surface count: 57
 - Plugins: none
 - Tools: `actual_capability_envelope_decision`, `actual_capability_envelope_dispatch_allowed`, `actual_capability_envelope_requested`, `actual_envelope_request_blocked`, `actual_envelope_requested`, `actual_envelope_requested_but_not_approved`, `actual_request_claims_execution_or_target_write`, `actual_request_envelope_not_found`, `actual_request_id`, `actual_request_missing_actual_envelope_id`, `actual_request_policy_status`, `actual_request_preflight_id`, `actual_request_preflight_passed`, `actual_request_secret_flagged`, `actual_request_source_preflight_changed`, `actual_request_source_preflight_not_ready`, `actual_request_status`, `adapter_apply_executed`, `admin_platform_endpoint_tools`, `apply_request_id`, ...and 32 more
 - Views: `v_session_insight_capability_envelope_actual_request_issues`, `v_session_insight_capability_envelope_approval_readiness`
 - Policies: `session_insight_capability_envelope_actual_request_dispatch_policy_v1`
 - Routes: `/platform/session-insight-promotions/capability-envelope-actual-requests/create`, `/platform/session-insight-promotions/capability-envelope-actual-requests/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-actual-requests/create`=http_route:openapi, `/platform/session-insight-promotions/capability-envelope-actual-requests/list`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/capability-envelope-actual-requests/create`, `/platform/session-insight-promotions/capability-envelope-actual-requests/list`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
 ### `278_sprint68_session_insight_capability_envelope_actual_request_preflight.sql`
 
-- Documentation complete: no
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
 - Surface count: 45
 - Plugins: none
 - Tools: `actual_capability_envelope_requested`, `actual_request_preflight_blocked`, `actual_request_preflight_claims_actual_envelope_or_execution`, `actual_request_preflight_duplicate_live_envelope_detected`, `actual_request_preflight_id`, `actual_request_preflight_passed`, `actual_request_preflight_passed_no_dispatch`, `actual_request_preflight_secret_flagged`, `actual_request_preflight_source_dispatch_not_approved`, `actual_request_preflight_source_payload_changed`, `adapter_apply_executed`, `admin_platform_endpoint_tools`, `apply_request_id`, `blocked_dispatch_dry_run_not_approved`, `blocked_dispatch_policy_not_ready`, `chk_session_insight_actual_request_preflight_no_execution`, `chk_session_insight_actual_request_preflight_no_secrets`, `current_dispatch_payload_sha256`, `dispatch_dry_run_approved`, `dispatch_dry_run_approved_but_not_dispatched`, ...and 20 more
 - Views: `v_session_insight_actual_preflight_issues`, `v_session_insight_actual_preflight_readiness`
 - Policies: `session_insight_capability_envelope_actual_request_preflight_policy_v1`
 - Routes: `/platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create`, `/platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create`=http_route:openapi, `/platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/capability-envelope-actual-requests/preflights/create`, `/platform/session-insight-promotions/capability-envelope-actual-requests/preflights/list`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -725,6 +768,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_session_insight_actual_request_readiness`, `v_session_insight_dispatch_dry_run_review_issues`, `v_session_insight_dispatch_dry_run_review_queue`
 - Policies: `session_insight_capability_envelope_dispatch_dry_run_review_policy_v1`
 - Routes: `/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/review/decision`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/review/decision`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/review/decision`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -739,6 +783,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_execution_log_runtime_evidence_readiness`, `v_execution_log_runtime_evidence_recent`
 - Policies: `execution_log_runtime_evidence_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -753,20 +798,22 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_var`
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
 ### `275_sprint68_session_insight_capability_envelope_dispatch_dry_run.sql`
 
-- Documentation complete: no
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
 - Surface count: 36
 - Plugins: none
 - Tools: `actual_capability_envelope_requested`, `adapter_apply_executed`, `admin_platform_endpoint_tools`, `apply_request_id`, `blocked_request_gate_not_approved_for_dispatch_dry_run`, `chk_session_insight_capability_dispatch_no_execution`, `chk_session_insight_capability_dispatch_no_secrets`, `dispatch_dry_run_claims_real_dispatch`, `dispatch_dry_run_generated_no_dispatch`, `dispatch_dry_run_source_gate_not_approved`, `dry_run_no_dispatch`, `fk_session_insight_capability_dispatch_request_gate`, `idx_session_insight_capability_dispatch_plan`, `idx_session_insight_capability_dispatch_request_gate`, `idx_session_insight_capability_dispatch_status`, `invalid_dispatch_dry_run_claims_execution`, `ready_for_dispatch_dry_run`, `request_approved`, `request_approved_but_not_dispatched`, `request_gate_id`, ...and 11 more
 - Views: `v_session_insight_capability_envelope_dispatch_dry_run_issues`, `v_session_insight_capability_envelope_dispatch_dry_run_readiness`
 - Policies: `session_insight_capability_envelope_dispatch_dry_run_policy_v1`
 - Routes: `/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create`, `/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create`=http_route:openapi, `/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/create`, `/platform/session-insight-promotions/capability-envelope-dispatch-dry-runs/list`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -781,6 +828,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_session_insight_capability_envelope_request_dispatch_readiness`, `v_session_insight_capability_envelope_request_review_issues`, `v_session_insight_capability_envelope_request_review_queue`
 - Policies: `session_insight_capability_envelope_request_review_policy_v1`
 - Routes: `/platform/session-insight-promotions/capability-envelope-request-gates/review/decision`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-request-gates/review/decision`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/capability-envelope-request-gates/review/decision`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -795,7 +843,8 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: none
 - Routes: `/admin/schema-import/action-ref`
-- OpenAPI route gaps: `/admin/schema-import/action-ref`
+- Route classifications: `/admin/schema-import/action-ref`=admin_tool_registry_route:exempt
+- OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
 ### `274_sprint68_execution_policy_enforcement_closure.sql`
@@ -809,6 +858,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `external_provider_gate_registry_resolver_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=yes, no_external_write=no, secrets_included_false=no
 
@@ -823,20 +873,22 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `support_ticket_lifecycle_snapshot_record_gate_policy_v1`
 - Routes: `/platform/orchestration/support-ticket/snapshot-record`
+- Route classifications: `/platform/orchestration/support-ticket/snapshot-record`=http_route:openapi
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
 
 ### `273_sprint68_session_insight_capability_envelope_request_gate.sql`
 
-- Documentation complete: no
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
 - Surface count: 45
 - Plugins: none
 - Tools: `actual_capability_envelope_requested`, `adapter_apply_executed`, `admin_platform_endpoint_tools`, `apply_request_id`, `blocked_plan_not_ready_for_request_gate`, `blocked_until_request_gate_approved`, `capability_envelope_plan_created_not_requested`, `capability_request_gate_created_requires_review`, `capability_request_gate_status_unknown`, `chk_session_insight_capability_request_gate_no_execution`, `chk_session_insight_capability_request_gate_no_secrets`, `fk_session_insight_capability_request_gate_plan`, `idx_session_insight_capability_request_gate_payload`, `idx_session_insight_capability_request_gate_plan`, `idx_session_insight_capability_request_gate_review`, `invalid_request_gate_claims_execution`, `planned_not_requested`, `ready_for_capability_envelope_request_gate`, `request_approved`, `request_approved_but_not_dispatched`, ...and 19 more
 - Views: `v_session_insight_capability_envelope_plan_readiness`, `v_session_insight_capability_envelope_request_gate_issues`, `v_session_insight_capability_envelope_request_gate_readiness`
 - Policies: `session_insight_capability_envelope_request_gate_policy_v1`
 - Routes: `/platform/session-insight-promotions/capability-envelope-request-gates/create`, `/platform/session-insight-promotions/capability-envelope-request-gates/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-request-gates/create`=http_route:openapi, `/platform/session-insight-promotions/capability-envelope-request-gates/list`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/capability-envelope-request-gates/create`, `/platform/session-insight-promotions/capability-envelope-request-gates/list`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -851,6 +903,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_activation_agent_bindings_catalog`, `v_activation_agent_catalog`, `v_activation_agent_skill_catalog`, `v_activation_agent_tool_catalog`, `v_activation_app_binding_catalog`, `v_activation_app_integration_catalog`, `v_activation_catalog_authorized_surface_readiness`, `v_activation_local_gateway_tool_catalog`, `v_activation_logic_pack_catalog`, `v_activation_platform_plugin_catalog`, `v_activation_skill_manifest_catalog`, `v_activation_skill_package_catalog`, `v_activation_task_route_catalog`, `v_activation_workflow_catalog`
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -865,6 +918,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `external_provider_gate_registry_resolver_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=yes, no_external_write=no, secrets_included_false=yes
 
@@ -879,6 +933,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `support_ticket_lifecycle_snapshot_proposal_policy_v1`
 - Routes: `/platform/orchestration/support-ticket/snapshot-propose`
+- Route classifications: `/platform/orchestration/support-ticket/snapshot-propose`=http_route:openapi
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
 
@@ -893,6 +948,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_session_insight_adapter_apply_readiness_gate`, `v_session_insight_capability_envelope_plan_issues`, `v_session_insight_capability_envelope_plan_readiness`
 - Policies: `session_insight_capability_envelope_planner_policy_v1`
 - Routes: `/platform/session-insight-promotions/capability-envelope-plans/create`, `/platform/session-insight-promotions/capability-envelope-plans/list`
+- Route classifications: `/platform/session-insight-promotions/capability-envelope-plans/create`=http_route:openapi, `/platform/session-insight-promotions/capability-envelope-plans/list`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/capability-envelope-plans/create`, `/platform/session-insight-promotions/capability-envelope-plans/list`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -907,6 +963,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_session_insight_adapter_apply_readiness_gate`, `v_session_insight_adapter_apply_readiness_gate_issues`
 - Policies: `session_insight_adapter_apply_readiness_gate_policy_v1`
 - Routes: `/platform/session-insight-promotions/adapter-apply-readiness/list`
+- Route classifications: `/platform/session-insight-promotions/adapter-apply-readiness/list`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/adapter-apply-readiness/list`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -921,6 +978,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_activation_agent_skill_grants`, `v_activation_app_action_grants`, `v_activation_connected_app_connections`, `v_activation_expanded_authorized_surface_readiness`, `v_activation_pending_tasks`, `v_activation_plugin_contributions`, `v_activation_tenant_integration_policies`, `v_activation_tenant_tools`, `v_activation_workflow_runtime_bindings`
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -935,6 +993,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_platform_orchestration_graph_readiness`, `v_platform_orchestration_support_ticket_lifecycle_readiness`
 - Policies: `no_hidden_execution_policy_v1`, `orchestration_intelligence_policy_v1`, `recommendation_before_execution_policy_v1`, `support_ticket_lifecycle_orchestration_readback_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=yes, no_external_write=yes, secrets_included_false=yes
 
@@ -949,6 +1008,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_session_insight_payload_preview_review_issues`, `v_session_insight_payload_preview_review_queue`
 - Policies: `session_insight_payload_preview_review_policy_v1`
 - Routes: `/platform/session-insight-promotions/payload-preview/review/decision`, `/platform/session-insight-promotions/payload-preview/review/list`
+- Route classifications: `/platform/session-insight-promotions/payload-preview/review/decision`=http_route:openapi, `/platform/session-insight-promotions/payload-preview/review/list`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/payload-preview/review/decision`, `/platform/session-insight-promotions/payload-preview/review/list`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -963,6 +1023,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_platform_exports_current_v2`
 - Policies: none
 - Routes: `/gpt/tools/call`, `/system/tools/call`
+- Route classifications: `/gpt/tools/call`=http_route:openapi, `/system/tools/call`=system_tool_dispatch_route:exempt
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -977,6 +1038,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_external_delivery_provider_adapter_future_pr_scope_summary`
 - Policies: `external_adapter_future_pr_scope_policy_v1`
 - Routes: `/admin/support/tickets/external-send/provider-adapter-future-pr-scope/plan`, `/admin/support/tickets/external-send/provider-adapter-future-pr-scope/record`
+- Route classifications: `/admin/support/tickets/external-send/provider-adapter-future-pr-scope/plan`=http_route:openapi, `/admin/support/tickets/external-send/provider-adapter-future-pr-scope/record`=http_route:openapi
 - OpenAPI route gaps: `/admin/support/tickets/external-send/provider-adapter-future-pr-scope/plan`, `/admin/support/tickets/external-send/provider-adapter-future-pr-scope/record`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -991,6 +1053,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_session_insight_apply_request_contract_readiness`, `v_session_insight_payload_preview_issues`, `v_session_insight_payload_preview_readiness`
 - Policies: `session_insight_contract_payload_preview_policy_v1`
 - Routes: `/platform/session-insight-promotions/payload-preview/generate`
+- Route classifications: `/platform/session-insight-promotions/payload-preview/generate`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/payload-preview/generate`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
 
@@ -1005,6 +1068,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_activation_authorized_surface_registry_readiness`
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -1019,6 +1083,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_external_delivery_provider_adapter_readiness_decision_summary`
 - Policies: `external_adapter_readiness_decision_policy_v1`
 - Routes: `/admin/support/tickets/external-send/provider-adapter-readiness/decision`
+- Route classifications: `/admin/support/tickets/external-send/provider-adapter-readiness/decision`=http_route:openapi
 - OpenAPI route gaps: `/admin/support/tickets/external-send/provider-adapter-readiness/decision`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -1033,6 +1098,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_session_insight_adapter_contract_issues`, `v_session_insight_apply_request_adapter_readiness`, `v_session_insight_apply_request_contract_readiness`
 - Policies: `session_insight_adapter_dry_run_contract_policy_v1`
 - Routes: `/platform/session-insight-promotions/adapter-contracts/list`
+- Route classifications: `/platform/session-insight-promotions/adapter-contracts/list`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/adapter-contracts/list`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
 
@@ -1047,6 +1113,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_external_delivery_provider_adapter_readiness_checklist_summary`
 - Policies: `external_adapter_readiness_checklist_policy_v1`
 - Routes: `/admin/support/tickets/external-send/provider-adapter-readiness/plan`, `/admin/support/tickets/external-send/provider-adapter-readiness/record`
+- Route classifications: `/admin/support/tickets/external-send/provider-adapter-readiness/plan`=http_route:openapi, `/admin/support/tickets/external-send/provider-adapter-readiness/record`=http_route:openapi
 - OpenAPI route gaps: `/admin/support/tickets/external-send/provider-adapter-readiness/plan`, `/admin/support/tickets/external-send/provider-adapter-readiness/record`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -1061,6 +1128,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_session_insight_apply_request_adapter_readiness`, `v_session_insight_target_adapter_issues`
 - Policies: `session_insight_target_adapter_registry_policy_v1`
 - Routes: `/platform/session-insight-promotions/target-adapters/list`
+- Route classifications: `/platform/session-insight-promotions/target-adapters/list`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/target-adapters/list`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
 
@@ -1075,6 +1143,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_external_delivery_provider_enablement_proposal_readiness`
 - Policies: `external_provider_adapter_enablement_proposal_policy_v1`
 - Routes: `/admin/support/tickets/external-send/provider-adapter-enablement/candidates`, `/admin/support/tickets/external-send/provider-adapter-enablement/propose`
+- Route classifications: `/admin/support/tickets/external-send/provider-adapter-enablement/candidates`=http_route:openapi, `/admin/support/tickets/external-send/provider-adapter-enablement/propose`=http_route:openapi
 - OpenAPI route gaps: `/admin/support/tickets/external-send/provider-adapter-enablement/candidates`, `/admin/support/tickets/external-send/provider-adapter-enablement/propose`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -1089,6 +1158,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_session_insight_promotion_apply_request_issues`
 - Policies: `session_insight_promotion_apply_request_skeleton_policy_v1`
 - Routes: `/platform/session-insight-promotions/apply/request`
+- Route classifications: `/platform/session-insight-promotions/apply/request`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/apply/request`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -1103,6 +1173,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_external_delivery_provider_contract_readiness`
 - Policies: `external_provider_adapter_contract_policy_v1`
 - Routes: `/admin/support/tickets/external-send/provider-contracts`
+- Route classifications: `/admin/support/tickets/external-send/provider-contracts`=http_route:openapi
 - OpenAPI route gaps: `/admin/support/tickets/external-send/provider-contracts`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=yes, no_external_write=no, secrets_included_false=yes
 
@@ -1117,6 +1188,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_session_insight_promotion_execution_preview_issues`
 - Policies: `session_insight_promotion_dry_run_executor_policy_v1`
 - Routes: `/platform/session-insight-promotions/executor/dry-run`
+- Route classifications: `/platform/session-insight-promotions/executor/dry-run`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/executor/dry-run`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
 
@@ -1131,6 +1203,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
 
@@ -1145,6 +1218,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `ads_provider_governance_snapshot_record_gate_policy_v1`
 - Routes: `/platform/orchestration/ads-provider/snapshot-record`
+- Route classifications: `/platform/orchestration/ads-provider/snapshot-record`=http_route:openapi
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
 
@@ -1159,6 +1233,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_session_insight_promotion_review_queue`
 - Policies: `session_insight_promotion_review_policy_v1`
 - Routes: `/platform/session-insight-promotions/review/decision`, `/platform/session-insight-promotions/review/list`
+- Route classifications: `/platform/session-insight-promotions/review/decision`=http_route:openapi, `/platform/session-insight-promotions/review/list`=http_route:openapi
 - OpenAPI route gaps: `/platform/session-insight-promotions/review/decision`, `/platform/session-insight-promotions/review/list`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -1173,6 +1248,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `ads_provider_governance_snapshot_proposal_policy_v1`
 - Routes: `/platform/orchestration/ads-provider/snapshot-propose`
+- Route classifications: `/platform/orchestration/ads-provider/snapshot-propose`=http_route:openapi
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
 
@@ -1187,6 +1263,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: none
 - Routes: `/admin/support/tickets/{ticket_id}/external-send/provider-gate-attempt`, `/admin/support/tickets/{ticket_id}/external-send/provider-gate-plan`
+- Route classifications: `/admin/support/tickets/{ticket_id}/external-send/provider-gate-attempt`=http_route:openapi, `/admin/support/tickets/{ticket_id}/external-send/provider-gate-plan`=http_route:openapi
 - OpenAPI route gaps: `/admin/support/tickets/{ticket_id}/external-send/provider-gate-attempt`, `/admin/support/tickets/{ticket_id}/external-send/provider-gate-plan`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -1201,6 +1278,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_platform_orchestration_ads_governance_readiness`, `v_platform_orchestration_graph_readiness`
 - Policies: `orchestration_intelligence_readback_policy_v1`
 - Routes: `/platform/orchestration/readback`
+- Route classifications: `/platform/orchestration/readback`=http_route:openapi
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
 
@@ -1215,6 +1293,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: none
 - Routes: `/admin/support/tickets/{ticket_id}/external-credential/approve-activate-bind-verify`, `/admin/support/tickets/{ticket_id}/external-credential/orchestration-plan`
+- Route classifications: `/admin/support/tickets/{ticket_id}/external-credential/approve-activate-bind-verify`=http_route:openapi, `/admin/support/tickets/{ticket_id}/external-credential/orchestration-plan`=http_route:openapi
 - OpenAPI route gaps: `/admin/support/tickets/{ticket_id}/external-credential/approve-activate-bind-verify`, `/admin/support/tickets/{ticket_id}/external-credential/orchestration-plan`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=yes, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -1229,6 +1308,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: `ads_provider_capability_profile_registry_policy_v1`, `ads_provider_preflight_contract_policy_v1`, `ads_provider_preflight_surface_blueprint_policy_v1`, `budget_quota_authority_registry_policy_v1`, `execution_enablement_approval_flow_policy_v1`, `execution_enablement_registry_policy_v1`, `google_ads_budget_execution_adapter_skeleton_policy_v1`, `google_ads_budget_preflight_ledger_policy_v1`, `google_ads_credential_readiness_gate_policy_v1`, `google_ads_credential_readiness_ledger_policy_v1`, `no_hidden_execution_policy_v1`, `orchestration_intelligence_foundation_policy_v1`, `orchestration_intelligence_policy_v1`, `recommendation_before_execution_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=yes, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
 
@@ -1243,6 +1323,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: none
 - Routes: `/admin/support/tickets/{ticket_id}/external-credential/activate-and-bind`, `/admin/support/tickets/{ticket_id}/external-credential/activation-plan`
+- Route classifications: `/admin/support/tickets/{ticket_id}/external-credential/activate-and-bind`=http_route:openapi, `/admin/support/tickets/{ticket_id}/external-credential/activation-plan`=http_route:openapi
 - OpenAPI route gaps: `/admin/support/tickets/{ticket_id}/external-credential/activate-and-bind`, `/admin/support/tickets/{ticket_id}/external-credential/activation-plan`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=yes, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -1257,6 +1338,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_platform_capability_gaps`, `v_platform_relationship_integrity_score`
 - Policies: `development_drift_detection_policy_v1`, `domain_generalization_before_provider_specific_policy_v1`, `final_pattern_enforcement_policy_v1`, `intelligence_policy_rules_required_policy_v1`, `intentional_safety_block_classification_policy_v1`, `legacy_surface_bridge_policy_v1`, `model_never_executes_tools_policy_v1`, `no_hidden_execution_policy_v1`, `orchestration_first_development_policy_v1`, `orchestration_stage_graph_completeness_policy_v1`, `orchestration_state_snapshot_required_policy_v1`, `platform_development_constitution_policy_v1`, `platform_schema_blocker_classification_policy_v1`, `platform_task_quality_gate_policy_v1`, `plugin_manifest_completeness_policy_v1`, `recommendation_before_execution_policy_v1`, `release_readiness_orchestration_gate_policy_v1`, `session_memory_reliability_policy_v1`, `tenant_proactive_guidance_policy_v1`, `validation_semantics_policy_v1`
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -1271,6 +1353,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_var_name`
 - Policies: none
 - Routes: `/admin/support/tickets/{ticket_id}/external-secret/intake-plan`, `/admin/support/tickets/{ticket_id}/external-secret/reference/activate`, `/admin/support/tickets/{ticket_id}/external-secret/reference/register`
+- Route classifications: `/admin/support/tickets/{ticket_id}/external-secret/intake-plan`=http_route:openapi, `/admin/support/tickets/{ticket_id}/external-secret/reference/activate`=http_route:openapi, `/admin/support/tickets/{ticket_id}/external-secret/reference/register`=http_route:openapi
 - OpenAPI route gaps: `/admin/support/tickets/{ticket_id}/external-secret/intake-plan`, `/admin/support/tickets/{ticket_id}/external-secret/reference/activate`, `/admin/support/tickets/{ticket_id}/external-secret/reference/register`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=yes, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -1285,6 +1368,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: none
 - Routes: `/admin/support/tickets/external-delivery/credential-candidates`, `/admin/support/tickets/{ticket_id}/external-delivery/credential-binding/decision`, `/admin/support/tickets/{ticket_id}/external-delivery/credential-binding/request`
+- Route classifications: `/admin/support/tickets/external-delivery/credential-candidates`=http_route:openapi, `/admin/support/tickets/{ticket_id}/external-delivery/credential-binding/decision`=http_route:openapi, `/admin/support/tickets/{ticket_id}/external-delivery/credential-binding/request`=http_route:openapi
 - OpenAPI route gaps: `/admin/support/tickets/external-delivery/credential-candidates`, `/admin/support/tickets/{ticket_id}/external-delivery/credential-binding/decision`, `/admin/support/tickets/{ticket_id}/external-delivery/credential-binding/request`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=yes, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -1299,6 +1383,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: none
 - Routes: `/admin/support/tickets/{ticket_id}/external-send/execution-plan`, `/admin/support/tickets/{ticket_id}/external-send/execution-record`
+- Route classifications: `/admin/support/tickets/{ticket_id}/external-send/execution-plan`=http_route:openapi, `/admin/support/tickets/{ticket_id}/external-send/execution-record`=http_route:openapi
 - OpenAPI route gaps: `/admin/support/tickets/{ticket_id}/external-send/execution-plan`, `/admin/support/tickets/{ticket_id}/external-send/execution-record`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -1313,6 +1398,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_agent_runtime_ledger_counts`, `v_agent_runtime_ledger_quality`, `v_agent_runtime_ledger_readiness`
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -1327,6 +1413,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: none
 - Routes: `/admin/support/tickets/{ticket_id}/external-delivery/approval/decision`, `/admin/support/tickets/{ticket_id}/external-delivery/approval/request`, `/admin/support/tickets/{ticket_id}/external-delivery/readiness`
+- Route classifications: `/admin/support/tickets/{ticket_id}/external-delivery/approval/decision`=http_route:openapi, `/admin/support/tickets/{ticket_id}/external-delivery/approval/request`=http_route:openapi, `/admin/support/tickets/{ticket_id}/external-delivery/readiness`=http_route:openapi
 - OpenAPI route gaps: `/admin/support/tickets/{ticket_id}/external-delivery/approval/decision`, `/admin/support/tickets/{ticket_id}/external-delivery/approval/request`, `/admin/support/tickets/{ticket_id}/external-delivery/readiness`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -1341,6 +1428,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_session_insight_promotion_issues`
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -1355,6 +1443,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_dynamic_audit_pipeline_counts`, `v_dynamic_audit_pipeline_quality`, `v_dynamic_audit_pipeline_readiness`
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
@@ -1369,6 +1458,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: none
 - Routes: `/admin/support/tickets/notifications/adapters`, `/admin/support/tickets/{ticket_id}/notification-delivery/dispatch`, `/admin/support/tickets/{ticket_id}/notification-delivery/preview`
+- Route classifications: `/admin/support/tickets/notifications/adapters`=http_route:openapi, `/admin/support/tickets/{ticket_id}/notification-delivery/dispatch`=http_route:openapi, `/admin/support/tickets/{ticket_id}/notification-delivery/preview`=http_route:openapi
 - OpenAPI route gaps: `/admin/support/tickets/notifications/adapters`, `/admin/support/tickets/{ticket_id}/notification-delivery/dispatch`, `/admin/support/tickets/{ticket_id}/notification-delivery/preview`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=yes, no_external_write=no, secrets_included_false=no
 
@@ -1383,6 +1473,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: `v_access`
 - Policies: none
 - Routes: none
+- Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
@@ -1397,6 +1488,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Views: none
 - Policies: none
 - Routes: `/admin/support/tickets/notifications/queue`, `/admin/support/tickets/{ticket_id}/notification-ack`, `/admin/support/tickets/{ticket_id}/notification-cycle`
+- Route classifications: `/admin/support/tickets/notifications/queue`=http_route:openapi, `/admin/support/tickets/{ticket_id}/notification-ack`=http_route:openapi, `/admin/support/tickets/{ticket_id}/notification-cycle`=http_route:openapi
 - OpenAPI route gaps: `/admin/support/tickets/notifications/queue`, `/admin/support/tickets/{ticket_id}/notification-ack`, `/admin/support/tickets/{ticket_id}/notification-cycle`
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=no
 
