@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 396
+- Migrations with detected surfaces: 397
 - Migrations reported here: 80
 - OpenAPI operations detected: 428
 - OpenAPI paths detected: 375
@@ -32,9 +32,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 395/396 (99.75%)
-- Documentation gap migrations: 1
-- Gap severity: high=1, medium=0, low=0
+- Documentation complete migrations: 395/397 (99.50%)
+- Documentation gap migrations: 2
+- Gap severity: high=1, medium=0, low=1
 - SQL route coverage in OpenAPI: 0/0 (100.00%)
 - SQL route-like literals exempted from OpenAPI scoring: 528/528
 - SQL routes missing OpenAPI path coverage: 0
@@ -46,7 +46,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|---:|
 | plugins | 12 | 9 |
 | tools | 1840 | 340 |
-| views | 346 | 138 |
+| views | 347 | 139 |
 | policies | 141 | 89 |
 | routes | 528 | 223 |
 
@@ -54,11 +54,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 1 |
-| `deployment_parity_checklist.md` | 1 |
-| `docs/ai-docs-agent-governance.md` | 1 |
-| `docs/auto-docs-agent/README.md` | 1 |
-| `docs/change-documentation-governance.md` | 1 |
+| `Updating Registry Patch Index.md` | 2 |
+| `deployment_parity_checklist.md` | 2 |
+| `docs/ai-docs-agent-governance.md` | 2 |
+| `docs/auto-docs-agent/README.md` | 2 |
+| `docs/change-documentation-governance.md` | 2 |
 
 ### Safety Marker Coverage
 
@@ -69,7 +69,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | no_raw_secrets | 396 |
 | no_external_send | 396 |
 | no_external_write | 396 |
-| secrets_included_false | 396 |
+| secrets_included_false | 397 |
 
 ### Route Classification Coverage
 
@@ -88,15 +88,16 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 1
+- Total queue items: 2
 - Critical review: 1
 - High review: 0
-- Medium review: 0
+- Medium review: 1
 - Low review: 0
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `292_sprint68_platform_health_scorecard_operationalization.sql` | critical_review | 1071 | high | 5 | 0 | 0 | document_surface_contract, verify_tool_registry_binding, verify_readback_view |
+| `962_sprint68_smoke_branch_cleanup_gate.sql` | medium_review | 419 | low | 5 | 0 | 5 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 
 
 ## Latest Surface Coverage
@@ -106,6 +107,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `999_sprint68_repository_intelligence_v3_v4_tenant_tool_wiring.sql` | complete | none | 0 | 3 | 0 | 1 | 1 | 0 |
 | `998_sprint68_openrouter_provider_smoke_app_map_binding.sql` | complete | none | 0 | 3 | 1 | 1 | 0 | 0 |
 | `997_sprint68_openrouter_provider_smoke_capability_binding.sql` | complete | none | 0 | 0 | 0 | 1 | 0 | 0 |
+| `962_sprint68_smoke_branch_cleanup_gate.sql` | needs docs | low | 0 | 0 | 1 | 0 | 0 | 0 |
 | `961_sprint68_f5_f6_positive_smoke_certification.sql` | complete | none | 0 | 2 | 1 | 0 | 0 | 0 |
 | `960_sprint68_remaining_resource_capability_completion_gates.sql` | complete | none | 0 | 24 | 1 | 0 | 0 | 0 |
 | `959_sprint68_github_file_patch_plan_diff_only_runtime.sql` | complete | none | 0 | 0 | 1 | 0 | 0 | 0 |
@@ -182,7 +184,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `261_sprint68_orchestration_intelligence_foundation.sql` | complete | none | 1 | 38 | 0 | 14 | 0 | 0 |
 | `260_sprint68_ticket_external_credential_activation_binding.sql` | complete | none | 0 | 1 | 0 | 0 | 2 | 0 |
 | `260_sprint68_platform_development_constitution_policies.sql` | complete | none | 0 | 23 | 2 | 20 | 0 | 0 |
-| `259_sprint68_ticket_external_secret_intake_surface.sql` | complete | none | 0 | 1 | 1 | 0 | 3 | 0 |
 
 ## High-Risk Documentation Gaps
 
@@ -238,6 +239,21 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
+
+### `962_sprint68_smoke_branch_cleanup_gate.sql`
+
+- Documentation complete: no
+- Gap severity: low
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Surface count: 1
+- Plugins: none
+- Tools: none
+- Views: `v_smoke_branch_cleanup_gate_readback`
+- Policies: none
+- Routes: none
+- Route classifications: none
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
 ### `961_sprint68_f5_f6_positive_smoke_certification.sql`
 
@@ -1378,21 +1394,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Route classifications: none
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
-
-### `259_sprint68_ticket_external_secret_intake_surface.sql`
-
-- Documentation complete: yes
-- Gap severity: none
-- Missing docs: none
-- Surface count: 5
-- Plugins: none
-- Tools: `admin_platform_endpoint_tools`
-- Views: `v_var_name`
-- Policies: none
-- Routes: `/admin/support/tickets/{ticket_id}/external-secret/intake-plan`, `/admin/support/tickets/{ticket_id}/external-secret/reference/activate`, `/admin/support/tickets/{ticket_id}/external-secret/reference/register`
-- Route classifications: `/admin/support/tickets/{ticket_id}/external-secret/intake-plan`=legacy_closure_route_reviewed:exempt, `/admin/support/tickets/{ticket_id}/external-secret/reference/activate`=legacy_closure_route_reviewed:exempt, `/admin/support/tickets/{ticket_id}/external-secret/reference/register`=legacy_closure_route_reviewed:exempt
-- OpenAPI route gaps: none
-- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=yes, no_external_send=no, no_external_write=no, secrets_included_false=no
 
 
 ## Automation Contract
