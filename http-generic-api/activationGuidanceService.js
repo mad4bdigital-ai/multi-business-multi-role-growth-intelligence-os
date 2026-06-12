@@ -1,4 +1,9 @@
 import { getPool } from "./db.js";
+import {
+  buildGuidancePresentation,
+  loadGuidanceInvocationRegistry,
+  resolveGuidanceLanguagePreference,
+} from "./activationGuidancePresentation.js";
 
 const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|authorization|cookie|set-cookie|installer|raw_token)/i;
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -236,27 +241,34 @@ function rankNextActions({ profile, counts, groups }) {
 function buildInstructionPack({ profile }) {
   const scopeLabel = profile === "admin" ? "Admin GPT" : "Tenant GPT";
   return {
-    policy_key: `${profile}_proactive_activation_guidance_v1`,
+    policy_key: `${profile}_proactive_activation_guidance_v2`,
     applies_to: scopeLabel,
-    behavior: [
-      "لا تكتفِ بإعلان أن التفعيل active أو healthy.",
-      "وجّه المستخدم تلقائيًا بعد كل activation أو status readback.",
-      "اعرض الأعداد والصلاحيات والجاهزية والقيود بشكل مختصر ومفهوم.",
-      "فرّق بين connected وconfigured وauthenticated وauthorized وskill_granted وsmoke_certified وruntime_ready وcan_execute.",
-      "لا تعرض raw bindings كقدرات نهائية؛ اعرض tenant/admin resolved readiness فقط.",
-      "اقترح أفضل خطوة تالية واحدة بناءً على readiness والقيمة والمخاطر.",
-      "لا تقترح live mutation كخطوة مباشرة إذا كانت approval-gated أو preview-only.",
+    behavior_rule_keys: [
+      "activation.guidance.proactive_after_activation",
+      "activation.guidance.include_counts_permissions_readiness",
+      "activation.guidance.distinguish_readiness_dimensions",
+      "activation.guidance.resolved_capabilities_only",
+      "activation.guidance.rank_one_best_next_action",
+      "activation.guidance.do_not_present_gated_mutation_as_direct",
+      "activation.guidance.render_in_user_preferred_language",
+      "activation.guidance.keep_invocation_signals_language_neutral",
     ],
     required_sections: [
+      "guidance_flow",
       "activation_brief",
       "account_or_admin_capability_snapshot",
       "capability_groups",
       "recommended_next_actions",
       "safe_action_menu",
       "blocked_or_limited_capabilities",
+      "command_palette",
     ],
-    admin_extension: profile === "admin"
-      ? ["أضف منظور workspace management.", "أضف منظور brand management.", "أضف platform/tooling guidance بدون كشف أسرار."]
+    admin_extension_rule_keys: profile === "admin"
+      ? [
+          "activation.guidance.admin.workspace_management",
+          "activation.guidance.admin.brand_management",
+          "activation.guidance.admin.platform_tooling_without_secrets",
+        ]
       : [],
   };
 }
@@ -282,7 +294,13 @@ function buildBrief({ profile, tenantContext, counts, recommendedNextActions }) 
   };
 }
 
-export async function buildActivationGuidance({ profile = "tenant", userId = null, tenantId = null } = {}) {
+export async function buildActivationGuidance({
+  profile = "tenant",
+  userId = null,
+  tenantId = null,
+  requestedLocale = null,
+  acceptLanguage = null,
+} = {}) {
   const normalizedProfile = profile === "admin" ? "admin" : "tenant";
   const tenantContext = normalizedProfile === "admin"
     ? await fetchAdminTenantContext({ tenantId })
@@ -293,36 +311,74 @@ export async function buildActivationGuidance({ profile = "tenant", userId = nul
   const recommendedNextActions = rankNextActions({ profile: normalizedProfile, counts, groups });
   const toolRows = await readToolRows(normalizedProfile === "admin" ? "admin_platform_endpoint_tools" : "tenant_platform_endpoint_tools", "is_enabled = 1", []);
   const classified = classifyTools(toolRows);
+  const languageContext = await resolveGuidanceLanguagePreference({
+    userId,
+    tenantId: effectiveTenantId,
+    requestedLocale,
+    acceptLanguage,
+  });
+  const invocationRegistry = await loadGuidanceInvocationRegistry({ profile: normalizedProfile });
+  const activationBrief = buildBrief({ profile: normalizedProfile, tenantContext, counts, recommendedNextActions });
+  const permissionSemantics = {
+    connected_is_not_authorized: true,
+    raw_binding_is_not_allowed_capability: true,
+    requires_resolved_readiness: true,
+    live_mutation_requires_approval: true,
+  };
+  const readinessDimensions = [
+    "connected",
+    "configured",
+    "authenticated",
+    "authorized",
+    "skill_granted",
+    "smoke_certified",
+    "runtime_ready",
+    "can_execute",
+  ];
+  const presentation = buildGuidancePresentation({
+    profile: normalizedProfile,
+    activationBrief,
+    counts,
+    permissionSemantics,
+    readinessDimensions,
+    capabilityGroups: groups,
+    recommendedNextActions,
+    safeActionMenu: classified.safeMenu,
+    blockedOrLimitedCapabilities: classified.blockedOrLimited,
+    languageContext,
+    invocationRegistry,
+  });
   const payload = {
     ok: true,
     activation_layer: "activation_guidance_intelligence",
     profile: normalizedProfile,
     guidance_mode: normalizedProfile === "admin" ? "workspace_brand_platform_management" : "tenant_user_workspace_guidance",
-    activation_brief: buildBrief({ profile: normalizedProfile, tenantContext, counts, recommendedNextActions }),
+    language_context: presentation.language_context,
+    invocation_contract: presentation.invocation_contract,
+    guidance_flow: presentation.guidance_flow,
+    guidance_paths: presentation.guidance_paths,
+    command_palette: presentation.command_palette,
+    presentation_summary: presentation.presentation_summary,
+    activation_brief: presentation.localized_activation_brief,
     account_or_admin_capability_snapshot: {
       counts,
-      permission_semantics: {
-        connected_is_not_authorized: true,
-        raw_binding_is_not_allowed_capability: true,
-        requires_resolved_readiness: true,
-        live_mutation_requires_approval: true,
-      },
-      readiness_dimensions: [
-        "connected",
-        "configured",
-        "authenticated",
-        "authorized",
-        "skill_granted",
-        "smoke_certified",
-        "runtime_ready",
-        "can_execute",
-      ],
+      permission_semantics: permissionSemantics,
+      readiness_dimensions: readinessDimensions,
     },
     capability_groups: groups,
-    recommended_next_actions: recommendedNextActions,
+    recommended_next_actions: presentation.localized_recommended_actions,
     safe_action_menu: classified.safeMenu,
     blocked_or_limited_capabilities: classified.blockedOrLimited,
-    assistant_instruction_pack: buildInstructionPack({ profile: normalizedProfile }),
+    assistant_instruction_pack: {
+      ...buildInstructionPack({ profile: normalizedProfile }),
+      presentation_contract: {
+        follow_guidance_flow_order: true,
+        render_user_facing_text_in_resolved_language: true,
+        keep_machine_signals_language_neutral: true,
+        accepted_invocation_signals: ["invocation_tag", "slash_alias", "intent_key"],
+        tags_do_not_bypass_authorization: true,
+      },
+    },
     generated_at: new Date().toISOString(),
     secrets_included: false,
   };

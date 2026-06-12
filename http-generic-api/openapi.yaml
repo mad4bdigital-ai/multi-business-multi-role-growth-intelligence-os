@@ -120,12 +120,50 @@ components:
     ActivationGuidanceResponse:
       type: object
       additionalProperties: true
-      required: [ok, activation_layer, profile, activation_brief, account_or_admin_capability_snapshot, recommended_next_actions, assistant_instruction_pack, secrets_included]
+      required: [ok, activation_layer, profile, language_context, invocation_contract, guidance_flow, command_palette, activation_brief, account_or_admin_capability_snapshot, recommended_next_actions, assistant_instruction_pack, secrets_included]
       properties:
         ok: { type: boolean }
         activation_layer: { type: string, enum: [activation_guidance_intelligence] }
         profile: { type: string, enum: [tenant, admin] }
         guidance_mode: { type: string }
+        language_context:
+          type: object
+          additionalProperties: true
+          properties:
+            mode: { type: string }
+            resolved_locale: { type: string }
+            source: { type: string }
+            tags_are_language_neutral: { type: boolean }
+        invocation_contract:
+          type: object
+          additionalProperties: true
+          properties:
+            version: { type: string }
+            supported_signals:
+              type: array
+              items: { type: string, enum: [invocation_tag, slash_alias, intent_key] }
+            tag_format: { type: string }
+            slash_format: { type: string }
+            routing_rule: { type: string }
+            execution_rule: { type: string }
+        guidance_flow:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        guidance_paths:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        command_palette:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        presentation_summary:
+          type: object
+          additionalProperties: true
         activation_brief:
           type: object
           additionalProperties: true
@@ -2881,6 +2919,21 @@ paths:
           in: query
           required: false
           schema: { type: string }
+        - name: locale
+          in: query
+          required: false
+          description: Explicit user-preferred locale. Invocation tags and intent keys remain language-neutral.
+          schema: { type: string, example: ar-EG }
+        - name: language
+          in: query
+          required: false
+          description: Alias for locale.
+          schema: { type: string }
+        - name: Accept-Language
+          in: header
+          required: false
+          description: Browser or client language preference used when no explicit locale is provided.
+          schema: { type: string }
       responses:
         '200':
           description: Tenant activation guidance.
@@ -2907,6 +2960,21 @@ paths:
         - name: user_id
           in: query
           required: false
+          schema: { type: string }
+        - name: locale
+          in: query
+          required: false
+          description: Explicit user-preferred locale. Invocation tags and intent keys remain language-neutral.
+          schema: { type: string, example: en-US }
+        - name: language
+          in: query
+          required: false
+          description: Alias for locale.
+          schema: { type: string }
+        - name: Accept-Language
+          in: header
+          required: false
+          description: Browser or client language preference used when no explicit locale is provided.
           schema: { type: string }
       responses:
         '200':
