@@ -73,6 +73,24 @@ export function runAutomationIntelligenceGuard() {
     "function fillPathTemplate"
   );
 
+  const activeProvisionerBlock = sliceBetween(
+    localConnectorInstallRoutes,
+    "export async function provisionLocalConnectorInstall",
+    "export function buildLocalConnectorInstallRoutes"
+  );
+
+  const integrationPolicyWriteBlock = sliceBetween(
+    hybridIntegrationPolicy,
+    "export async function upsertTenantIntegrationPolicies",
+    "export async function resolveHybridIntegrationPolicy"
+  );
+
+  const integrationPolicyRouteBlock = sliceBetween(
+    connectApiRoutes,
+    'router.post("/connect/api/integration-policy"',
+    'router.post("/connect/api/credential-intake/sessions"'
+  );
+
   const rules = [
     {
       id: "P0-runtime-endpoint-call-hidden-from-tenant-discovery",
