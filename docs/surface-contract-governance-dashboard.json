@@ -6,34 +6,34 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 403,
+    "migrations_with_surfaces": 404,
     "docs_complete_count": 398,
-    "docs_gap_count": 5,
-    "docs_completion_percent": 98.76,
+    "docs_gap_count": 6,
+    "docs_completion_percent": 98.51,
     "surface_totals": {
       "plugins": 12,
       "tools": 1874,
-      "views": 350,
-      "policies": 148,
+      "views": 351,
+      "policies": 150,
       "routes": 531
     },
     "migrations_by_surface_type": {
       "plugins": 9,
       "tools": 345,
-      "views": 141,
-      "policies": 93,
+      "views": 142,
+      "policies": 94,
       "routes": 226
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 5,
-      "deployment_parity_checklist.md": 5,
-      "docs/ai-docs-agent-governance.md": 5,
-      "docs/auto-docs-agent/README.md": 5,
-      "docs/change-documentation-governance.md": 5
+      "Updating Registry Patch Index.md": 6,
+      "deployment_parity_checklist.md": 6,
+      "docs/ai-docs-agent-governance.md": 6,
+      "docs/auto-docs-agent/README.md": 6,
+      "docs/change-documentation-governance.md": 6
     },
     "gap_severity_counts": {
       "high": 3,
-      "medium": 2,
+      "medium": 3,
       "low": 0,
       "none": 398
     },
@@ -44,15 +44,16 @@
     ],
     "medium_risk_missing_docs": [
       "307_sprint69_hostinger_deploy_restart_option_support.sql",
-      "963_sprint68_hostinger_deploy_restart_tool_exports.sql"
+      "963_sprint68_hostinger_deploy_restart_tool_exports.sql",
+      "964_sprint68_hostinger_stored_credential_apply_policy.sql"
     ],
     "safety_marker_counts": {
       "no_provider_call": 400,
-      "no_credential_payload_read": 398,
-      "no_raw_secrets": 398,
+      "no_credential_payload_read": 399,
+      "no_raw_secrets": 399,
       "no_external_send": 398,
       "no_external_write": 399,
-      "secrets_included_false": 403
+      "secrets_included_false": 404
     },
     "safety_marker_gap_migrations": 0,
     "route_coverage": {
@@ -75,27 +76,27 @@
     }
   },
   "queue": {
-    "total_items": 5,
+    "total_items": 6,
     "class_counts": {
       "critical_review": 3,
-      "high_review": 2,
+      "high_review": 3,
       "medium_review": 0,
       "low_review": 0
     }
   },
   "triage": {
-    "total_items": 5,
+    "total_items": 6,
     "class_counts": {
       "safety_marker_review": 2,
-      "new_surface_immediate_review": 3
+      "new_surface_immediate_review": 4
     },
-    "gate_candidate_count": 3
+    "gate_candidate_count": 4
   },
   "gate": {
     "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 3,
-    "blocking_new_item_count": 3
+    "new_item_count": 4,
+    "blocking_new_item_count": 4
   },
   "top_immediate_items": [
     {
@@ -214,6 +215,49 @@
       "owner_hints": [
         "docs-agent/human-review",
         "runtime-registry-review",
+        "db-readback-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "964_sprint68_hostinger_stored_credential_apply_policy.sql",
+      "score": 625,
+      "queue_class": "high_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "medium",
+      "missing_docs": [
+        "Updating Registry Patch Index.md",
+        "deployment_parity_checklist.md",
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_external_send",
+        "no_external_write"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "verify_policy_seed_readiness",
+        "verify_readback_view",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "runtime-policy-review",
         "db-readback-review",
         "safety-contract-review"
       ],
