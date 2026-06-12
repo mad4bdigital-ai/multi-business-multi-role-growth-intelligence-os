@@ -2,6 +2,7 @@
 -- Purpose: allow Hostinger deploy/restart apply authorization to use existing
 -- stored credential bindings while continuing to forbid inline secrets,
 -- credential payload reads, freeform shell, and raw secret responses.
+-- Safety: No provider calls. No credential payload reads. No raw secrets. No external send. No external writes. secrets_included=false
 
 UPDATE capability_apply_authorization_policy_registry
 SET allow_credential_binding = 1,
