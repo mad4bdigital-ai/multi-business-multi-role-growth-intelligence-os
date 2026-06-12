@@ -634,7 +634,17 @@ function normalizeResponseOptions(value = {}) {
   return {
     maxChars: clampNumber(options.max_chars ?? options.max_response_chars, DEFAULT_TOOL_RESPONSE_MAX_CHARS, 5000, MAX_TOOL_RESPONSE_MAX_CHARS),
     cursor: clampNumber(options.cursor ?? options.response_cursor, 0, 0, Number.MAX_SAFE_INTEGER),
+    chunkTtlMs: Number(options.chunk_ttl_ms ?? options.response_chunk_ttl_ms ?? 0) || null,
+    chunkTtlMinutes: Number(options.chunk_ttl_minutes ?? options.response_chunk_ttl_minutes ?? 0) || null,
   };
+}
+
+export function resolveToolResponseChunkTtlMs(options = {}, serializedLength = 0) {
+  const normalized = normalizeResponseOptions(options?.response_options || options?._response || options || {});
+  const requestedMs = normalized.chunkTtlMs || (normalized.chunkTtlMinutes ? normalized.chunkTtlMinutes * 60 * 1000 : 0);
+  const estimatedPageCount = Math.max(1, Math.ceil(Number(serializedLength || 0) / Math.max(1, normalized.maxChars || DEFAULT_TOOL_RESPONSE_MAX_CHARS)));
+  const dynamicMs = DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS + Math.min(estimatedPageCount - 1, 60) * 60 * 1000;
+  return clampNumber(requestedMs || dynamicMs, Math.max(DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS, dynamicMs), MIN_TOOL_RESPONSE_CHUNK_TTL_MS, MAX_TOOL_RESPONSE_CHUNK_TTL_MS);
 }
 
 function cleanupToolResponseChunkCache(now = Date.now()) {
