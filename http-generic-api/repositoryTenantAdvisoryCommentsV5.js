@@ -58,6 +58,11 @@ async function getIssueComment({ owner, repo, comment_id }) {
   return { id: c?.id || Number(comment_id), html_url: c?.html_url || "", user_login: c?.user?.login || null, body: c?.body || "" };
 }
 
+async function postPrComment({ owner, repo, pull_number, body }) {
+  const c = await githubJson({ method: "POST", pathname: `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${encodeURIComponent(String(pull_number))}/comments`, body: { body } });
+  return { ok: true, comment_id: c?.id || null, html_url: c?.html_url || "" };
+}
+
 export async function ensureRepositoryAdvisoryCommentPlansTable() {
   await getPool().query(`CREATE TABLE IF NOT EXISTS repository_advisory_comment_plans (
     plan_id varchar(36) NOT NULL,
