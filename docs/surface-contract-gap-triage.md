@@ -5,22 +5,23 @@
 ## Summary
 
 - Triaged items: 100
-- Gate candidates: 7
-- New-gap gate: pass
-- Blocking new items: 0
+- Gate candidates: 8
+- New-gap gate: fail
+- Blocking new items: 1
 
 ## Class counts
 
-- safety_marker_review: 33
+- safety_marker_review: 32
 - openapi_contract_review: 60
-- new_surface_immediate_review: 7
+- new_surface_immediate_review: 8
 
 ## Immediate review candidates
 
 - `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql` — critical_review, score 2019; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `281_sprint68_session_insight_capability_envelope_dispatch_readback.sql` — critical_review, score 1947; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql` — critical_review, score 1822; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql` — critical_review, score 1821; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `280_sprint68_session_insight_capability_envelope_approval_gate.sql` — critical_review, score 1803; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `285_sprint68_session_insight_target_write_readback.sql` — critical_review, score 1654; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `284_sprint68_session_insight_backlog_target_write_executor.sql` — critical_review, score 1530; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `906_sprint68_ticket_external_delivery_completion_certification.sql` — critical_review, score 1267; next: add targeted patch-index, parity, and governance documentation
 - `955_sprint68_external_delivery_admin_control_surface.sql` — critical_review, score 1195; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
