@@ -6,5 +6,5 @@
 - Gate candidates: 8
 - Blocking new items: 1
 - Docs completion: 1.29%
-- SQL route OpenAPI coverage: 60.98%
+- SQL route OpenAPI coverage: 61.37%
 - Safety marker gap migrations: 274
