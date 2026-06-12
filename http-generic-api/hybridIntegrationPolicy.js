@@ -212,14 +212,15 @@ export async function upsertTenantIntegrationPolicies({ tenantId, userId, integr
       secrets_included: false,
     };
   } catch (err) {
+    const originalCode = err?.code || null;
     if (transactionStarted && typeof connection.rollback === "function") {
       try { await connection.rollback(); } catch {}
     }
     err.status = Number(err?.status || 500);
-    err.code = err?.code === "invalid_integration_policy" ? err.code : "integration_policy_transaction_failed";
+    err.code = originalCode === "invalid_integration_policy" ? originalCode : "integration_policy_transaction_failed";
     err.details = {
       ...(err.details || {}),
-      original_code: err?.code === "integration_policy_transaction_failed" ? null : err?.code || null,
+      original_code: originalCode,
       attempted_rows: Object.keys(modes).length,
       rows_written_before_failure: updated,
       rollback_applied: transactionStarted,
