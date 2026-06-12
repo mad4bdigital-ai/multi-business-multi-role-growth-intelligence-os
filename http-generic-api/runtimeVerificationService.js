@@ -35,11 +35,23 @@ async function countRows(tableName) {
 }
 
 function resolveExpectedCommit(input = {}) {
-  return String(input.expected_commit_sha || process.env.GIT_COMMIT || process.env.GITHUB_SHA || process.env.COMMIT_SHA || process.env.RENDER_GIT_COMMIT || input.deployed_commit_sha || "unknown").trim();
+  return String(input.expected_commit_sha || process.env.EXPECTED_GIT_COMMIT || process.env.EXPECTED_COMMIT_SHA || "unknown").trim();
 }
 
-function resolveDeployedCommit(input = {}, expectedCommit = "unknown") {
-  return String(input.deployed_commit_sha || input.runtime_commit_sha || process.env.GIT_COMMIT || process.env.GITHUB_SHA || process.env.COMMIT_SHA || process.env.RENDER_GIT_COMMIT || expectedCommit || "unknown").trim();
+function resolveDeployedCommit(input = {}) {
+  return String(input.deployed_commit_sha || input.runtime_commit_sha || process.env.GIT_COMMIT || process.env.GITHUB_SHA || process.env.COMMIT_SHA || process.env.RENDER_GIT_COMMIT || "unknown").trim();
+}
+
+export function classifyCommitParity(expectedCommitSha, deployedCommitSha) {
+  const expected = String(expectedCommitSha || "unknown").trim() || "unknown";
+  const deployed = String(deployedCommitSha || "unknown").trim() || "unknown";
+  if (expected === "unknown" || deployed === "unknown") {
+    return { matches: false, classification: "deployment_commit_unknown" };
+  }
+  return {
+    matches: expected === deployed,
+    classification: expected === deployed ? "deployed_commit_matches_expected" : "deployed_commit_mismatch",
+  };
 }
 
 async function insertStep(runId, step) {
@@ -100,8 +112,7 @@ export async function createRuntimeVerificationRun(input = {}, actor = {}) {
   const runId = randomUUID();
   const environmentKey = String(input.environment_key || input.environment || "production").trim() || "production";
   const expectedCommitSha = resolveExpectedCommit(input);
-  const deployedCommitSha = resolveDeployedCommit(input, expectedCommitSha);
-  const commitSha = expectedCommitSha;
+  const deployedCommitSha = resolveDeployedCommit(input);
   const budget = { ...DEFAULT_RESPONSE_BUDGET, ...(input.response_budget || {}) };
   const createdBy = actor.user_id || actor.email || actor.mode || "runtime_verification_route";
 
@@ -124,9 +135,9 @@ export async function createRuntimeVerificationRun(input = {}, actor = {}) {
   await insertStep(runId, { step_key: "activation_summary_probe", step_status: activationStepPass ? "pass" : "fail", classification: activationStepPass ? "activation_summary_ok" : "activation_summary_degraded_or_too_large", response_bytes: activationBytes, max_allowed_bytes: budget.max_response_bytes, detail_json: activationSummary });
   if (!activationStepPass) await insertGap(runId, { gap_key: activationBytes > budget.max_response_bytes ? "activation_summary_too_large" : "activation_summary_degraded", severity: "high", classification: activationBytes > budget.max_response_bytes ? "response_budget_exceeded" : "activation_registry_tables_missing", remediation: "Use summary/evidence pagination and ensure activation registry tables exist.", evidence_ref: "runtime_verification_steps:activation_summary_probe" });
 
-  const commitMatch = expectedCommitSha === "unknown" || deployedCommitSha === "unknown" || expectedCommitSha === deployedCommitSha;
-  await insertStep(runId, { step_key: "deployment_commit_parity", step_status: commitMatch ? "pass" : "fail", classification: commitMatch ? "deployed_commit_matches_expected" : "deployed_commit_mismatch", detail_json: { expected_commit_sha: expectedCommitSha, deployed_commit_sha: deployedCommitSha } });
-  if (!commitMatch) await insertGap(runId, { gap_key: "deployed_commit_mismatch", severity: "critical", classification: "deployment_parity_mismatch", remediation: "Redeploy production or reconcile expected commit with runtime deployed commit, then rerun verification.", evidence_ref: "runtime_verification_steps:deployment_commit_parity" });
+  const commitParity = classifyCommitParity(expectedCommitSha, deployedCommitSha);
+  await insertStep(runId, { step_key: "deployment_commit_parity", step_status: commitParity.matches ? "pass" : "fail", classification: commitParity.classification, detail_json: { expected_commit_sha: expectedCommitSha, deployed_commit_sha: deployedCommitSha } });
+  if (!commitParity.matches) await insertGap(runId, { gap_key: commitParity.classification, severity: "critical", classification: "deployment_parity_mismatch", remediation: "Provide independent expected and deployed commit evidence, redeploy or reconcile when needed, then rerun verification.", evidence_ref: "runtime_verification_steps:deployment_commit_parity" });
 
   await insertStep(runId, { step_key: "runtime_code_routes_installed", step_status: "pass", classification: "runtime_verification_routes_installed", detail_json: { routes: ["POST /runtime/verification-runs", "GET /runtime/verification-runs/:runId", "GET /runtime/verification-runs/:runId/evidence", "GET /runtime/parity/:environmentKey"] } });
   await insertEvidenceChunk(runId, "activation_summary", activationSummary, { chunk_type: "summary" });
@@ -137,7 +148,7 @@ export async function createRuntimeVerificationRun(input = {}, actor = {}) {
   const blockingGapCount = Number(gapRows[0]?.count || 0);
   const productionParity = blockingGapCount === 0 ? "verified" : "degraded";
   const runStatus = blockingGapCount === 0 ? "verified" : "degraded";
-  const summary = { migration_tables: missingRuntimeTables.length ? "fail" : "pass", activation_summary: activationStepPass ? "pass" : "fail", deployment_commit_parity: commitMatch ? "pass" : "fail", runtime_code_routes: "pass", evidence_manifest: "pass", production_parity: productionParity, blocking_gap_count: blockingGapCount, expected_commit_sha: expectedCommitSha, deployed_commit_sha: deployedCommitSha, secrets_included: false };
+  const summary = { migration_tables: missingRuntimeTables.length ? "fail" : "pass", activation_summary: activationStepPass ? "pass" : "fail", deployment_commit_parity: commitParity.matches ? "pass" : "fail", runtime_code_routes: "pass", evidence_manifest: "pass", production_parity: productionParity, blocking_gap_count: blockingGapCount, expected_commit_sha: expectedCommitSha, deployed_commit_sha: deployedCommitSha, secrets_included: false };
 
   await execute("UPDATE runtime_verification_runs SET run_status = ?, production_parity = ?, summary_json = ?, completed_at = UTC_TIMESTAMP() WHERE run_id = ?", [runStatus, productionParity, JSON.stringify(summary), runId]);
   await execute(
