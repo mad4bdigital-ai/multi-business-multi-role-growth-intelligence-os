@@ -24,6 +24,7 @@ Open the source file listed below for the relevant domain instead of loading thi
 | Agent execution runtime | `canonicals/direct_instructions_registry_patch/13_agent_execution_runtime.md` | Agent runtime enforcement, model tier selection, verify pass, engine dispatch, and Drive knowledge layer. |
 | Dispatch and local connector governance | `canonicals/direct_instructions_registry_patch/14_dispatch_local_connector_governance.md` | task_routes mutation rules, MODULE_EXECUTORS registration, agent skills/grants/bindings, supervision policy, and DNS enforcement. |
 | Schema repair governance | `canonicals/direct_instructions_registry_patch/15_schema_repair_governance.md` | Safe additive schema repair, collation guard, and capability-vault draft runtime safety. |
+| Activation guidance intelligence | `canonicals/direct_instructions_registry_patch/16_activation_guidance_intelligence.md` | Proactive Tenant/Admin activation guidance, account counts, readiness semantics, and next-best actions. |
 
 ---
 
