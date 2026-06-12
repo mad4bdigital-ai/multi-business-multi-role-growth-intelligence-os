@@ -163,6 +163,26 @@ Not allowed in this phase:
 - archive execution
 - destructive cleanup
 
+### `governed_migration_reconciliation_engine`
+
+Current state: active for dynamic migration discovery, policy-driven
+classification, governed record-only reconciliation, and explicitly authorized
+apply.
+
+The engine uses the shared engine, policy, strategy, rule, skill, and execution
+run registries. It never executes SQL named or stored in DB policy rows. Exact
+active rules select only backend allowlisted strategies, and all mutation is
+delegated to `governed-migration-runner.mjs`.
+
+Hard gates:
+
+- DB authorization registry row is required;
+- migration preflight must pass;
+- record-only requires complete required-schema evidence;
+- apply is blocked when required schema is already complete;
+- missing exact rules remain diagnose-only;
+- every run writes bounded engine and dynamic-audit evidence.
+
 ### Growth and retention review engines
 
 The following engines are active for dry-run review only:

@@ -20,7 +20,7 @@ function parseArgs(argv = process.argv.slice(2)) {
 function eventClass(row) {
   const eventType = String(row.event_type || "");
   const resourceKind = String(row.resource_kind || "");
-  if (eventType === "admin_control.db") return "db_change";
+  if (eventType === "admin_control.db" || row.source_family === "governed_migration_reconciliation" || resourceKind === "database_migration") return "db_change";
   if (eventType === "repo_patch_apply" || resourceKind === "repo" || eventType === "admin_control.github" || resourceKind === "github_rest_fallback") return "asset_change";
   return "checkpoint_candidate";
 }
@@ -49,7 +49,7 @@ async function loadRows(pool, limit) {
   const [rows] = await pool.query(
     `SELECT event_id, event_key, source_family, event_type, resource_kind, resource_key, event_status, created_at
        FROM platform_audit_event_bus e
-      WHERE e.source_family = 'audit_log'
+      WHERE e.source_family IN ('audit_log','governed_migration_reconciliation')
         AND e.event_status IN ('observed','pending_rollup')
         AND NOT EXISTS (SELECT 1 FROM db_change_audit_events d WHERE d.source_event_key COLLATE utf8mb4_unicode_ci = e.event_key COLLATE utf8mb4_unicode_ci)
         AND NOT EXISTS (SELECT 1 FROM asset_audit_events a WHERE a.source_event_key COLLATE utf8mb4_unicode_ci = e.event_key COLLATE utf8mb4_unicode_ci)
@@ -82,9 +82,9 @@ async function insertRollups(pool, rows) {
       const [res] = await pool.query(
         `INSERT INTO db_change_audit_events
           (source_family, database_name, table_name, mutation_class, governed, source_event_key, evidence_json, created_at)
-         SELECT 'audit_log', DATABASE(), ?, ?, 1, ?, ?, UTC_TIMESTAMP()
+         SELECT ?, DATABASE(), ?, ?, 1, ?, ?, UTC_TIMESTAMP()
           WHERE NOT EXISTS (SELECT 1 FROM db_change_audit_events WHERE source_event_key COLLATE utf8mb4_unicode_ci = ? COLLATE utf8mb4_unicode_ci)`,
-        [String(row.resource_key || row.resource_kind || "unknown").slice(0, 191), mutationClass(row.event_type), row.event_key, safeJson(evidence), row.event_key]
+        [row.source_family, String(row.resource_key || row.resource_kind || "unknown").slice(0, 191), row.source_family === "governed_migration_reconciliation" ? "migration_reconciliation" : mutationClass(row.event_type), row.event_key, safeJson(evidence), row.event_key]
       );
       dbInserted += Number(res?.affectedRows || 0);
     } else if (cls === "asset_change") {

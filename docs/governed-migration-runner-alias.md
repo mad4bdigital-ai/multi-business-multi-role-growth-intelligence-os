@@ -10,9 +10,25 @@ The governed migration runner provides a narrow, auditable shell-alias path for 
 - `migration_apply_guarded_apply`
 - `migration_ledger_record_dry_run`
 - `migration_ledger_record_apply`
+- `migration_reconciliation_dry_run`
+- `migration_reconciliation_apply`
+- `governed_platform_automation_tick`
 - `workflow_execution_identity_readback`
 
 The migration apply and ledger aliases execute `http-generic-api/scripts/governed-migration-runner.mjs` through `admin_control` shell dispatch.
+
+Dynamic reconciliation executes `http-generic-api/scripts/governed-migration-reconciler.mjs`.
+It discovers repository migrations, resolves exact active rules from the shared
+`platform_engine_*` intelligence registries, checks DB authorization, preflight,
+matching-checksum ledger evidence, and required schema objects, then delegates
+approved mutations back to the governed runner. Missing rules or authorization
+remain diagnose-only or blocked.
+
+`governed_platform_automation_tick` is the continuous-ready external scheduler
+surface. One confirmation-gated tick runs migration reconciliation, mirrors
+new `audit_log` summaries into `platform_audit_event_bus`, then builds bounded
+DB/asset/checkpoint rollups. It does not create DB triggers or execute DB-stored
+code.
 
 `workflow_execution_identity_readback` is a separate read-only alias that executes the canonical workflow-identity readback on the deployed server. It accepts no caller-controlled arguments and uses the server DB environment without returning secrets.
 
