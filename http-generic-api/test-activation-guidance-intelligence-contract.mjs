@@ -73,6 +73,14 @@ assert.match(migration, /admin_activation_guidance_read_api/, "migration must se
 assert.match(migration, /tenant_activation_guidance/, "migration must seed tenant operational tile");
 assert.match(migration, /admin_activation_guidance/, "migration must seed admin operational tile");
 assert.match(migration, /proactive_guidance/, "registry seed must mark guidance as proactive");
+assert.match(invocationMigration, /activation_guidance_invocation_registry/, "invocation registry migration must create the dynamic path registry");
+assert.match(invocationMigration, /@activation\/status/, "invocation registry must seed activation tags");
+assert.match(invocationMigration, /@workspace\/overview/, "invocation registry must seed workspace tags");
+assert.match(invocationMigration, /@brand\/readiness/, "invocation registry must seed brand tags");
+assert.match(invocationMigration, /slash_alias/, "invocation registry must seed slash aliases");
+assert.match(invocationMigration, /intent_key/, "invocation registry must seed intent keys");
+assert.match(invocationMigration, /requires_confirmation/, "invocation registry must preserve confirmation semantics");
+assert.doesNotMatch(invocationMigration, /authorization\s*=|password\s*=|private_key|raw_token/i, "invocation registry must not include credentials or secret material");
 assert.doesNotMatch(migration, /POST \/tenant\/activation\/guidance/, "tenant guidance must not be mutating");
 assert.doesNotMatch(migration, /connector_secret|raw_token|private_key|password\s*=/i, "migration must not seed raw secret material");
 
