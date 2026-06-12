@@ -896,6 +896,9 @@ export function buildConnectRoutes(deps) {
         cloudflare_connection_id,
         hostinger_connection_id,
         local_apps,
+        install_intent,
+        typed_confirmation,
+        reprovision: reprovision === true,
         provisioning_credential_mode: useManagedProvisioning ? "managed" : "dedicated",
       });
       await getPool().query(
