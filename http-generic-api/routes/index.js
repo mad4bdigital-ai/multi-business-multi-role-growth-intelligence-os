@@ -101,6 +101,7 @@ import { buildSessionInsightBacklogTargetWriteRoutes } from "./sessionInsightBac
 import { buildSessionInsightTargetWriteReadbackRoutes } from "./sessionInsightTargetWriteReadbackRoutes.js";
 import { buildRuntimeVerificationRoutes } from "./runtimeVerificationRoutes.js";
 import { buildOperationalConsoleRoutes } from "./operationalConsoleRoutes.js";
+import { buildActivationGuidanceRoutes } from "./activationGuidanceRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
