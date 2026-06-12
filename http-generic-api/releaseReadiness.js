@@ -1591,7 +1591,7 @@ async function checkRepositoryIntelligenceV2Readiness() {
     "tenantRepositoryIntelligenceV3V4ReadinessSmoke",
     "tenantRepositoryPrReconciliationSweep",
     "tenantRepositoryIntelligenceReport",
-    "tenantRepositoryActionPlannerDryRun",
+    "tenantRepositoryActionPlannerDryRun", "tenantRepositoryAdvisoryCommentV5ReadinessSmoke", "tenantRepositoryAdvisoryCommentPreview", "tenantRepositoryAdvisoryCommentApply", "tenantRepositoryAdvisoryCommentReadback", "repository_advisory_comment_preview_v5", "repository_advisory_comment_apply_v5", "repository_advisory_comment_readback_v5",
     "tenant_repository_pr_reconciliation_summary_v2",
     "tenant_repository_intelligence_report_v3",
     "tenant_repository_action_planner_v4",
