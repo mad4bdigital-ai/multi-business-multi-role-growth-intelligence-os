@@ -35,6 +35,55 @@ const EXTERNAL_CHANNELS = new Set(["email", "webhook"]);
 const ALLOWED_AUDIENCES = new Set(["admin", "customer", "both"]);
 const VALID_EXTERNAL_SECRET_VALIDATION_STATUSES = new Set(["valid", "validated", "ready", "passed"]);
 const VALID_EXTERNAL_SECRET_CONSENT_STATUSES = new Set(["not_required", "granted"]);
+const DEFAULT_ADMIN_GPT_REPAIR_LINK_BASE_URL = "https://chatgpt.com/g/g-69c82c73bd6081918c52e38525b2d154-growth-intelligence-platform-admin-assistant/";
+
+async function resolveAdminGptRepairLinkBaseUrl(connection) {
+  const envValue = String(process.env.ADMIN_GPT_REPAIR_LINK_BASE_URL || process.env.ADMIN_GPT_URL || "").trim();
+  if (envValue) return envValue;
+  try {
+    const [rows] = await connection.query(
+      `SELECT config_json
+         FROM platform_runtime_config
+        WHERE config_key = 'support_ticket.admin_gpt_repair_link'
+          AND status = 'active'
+        ORDER BY updated_at DESC
+        LIMIT 1`
+    );
+    const config = parseJsonObject(rows?.[0]?.config_json, {});
+    const configured = String(config?.base_url || config?.admin_gpt_url || "").trim();
+    if (configured) return configured;
+  } catch {
+    // Keep approval creation resilient; the link is a support additive, not a gate.
+  }
+  return DEFAULT_ADMIN_GPT_REPAIR_LINK_BASE_URL;
+}
+
+function buildAdminGptRepairPromptState({ tenant_id, ticket_id, approval_hold_id, channel, audience, credential_ref, action = "review_external_delivery" } = {}) {
+  return {
+    action,
+    tenant_id,
+    ticket_id,
+    approval_hold_id,
+    channel,
+    audience,
+    credential_ref: credential_ref || null,
+    resume_hint: "ابدأ من هذه الحالة: اقرأ التذكرة، افحص readiness، راجع approval hold، ثم اقترح أو نفذ الإصلاح الآمن بدون كشف أسرار.",
+    required_checks: ["support_ticket_admin_get", "support_ticket_external_delivery_readiness", "support_ticket_external_send_provider_gate_plan"],
+    external_send_performed: false,
+    secrets_included: false,
+  };
+}
+
+async function buildAdminGptRepairLink(connection, state) {
+  const baseUrl = await resolveAdminGptRepairLinkBaseUrl(connection);
+  const prompt = [
+    "ابدأ إصلاح Support Ticket من prompt parameter.",
+    "استخدم state_json التالي كمصدر الحالة ولا تطلب من المستخدم إعادة شرح السياق.",
+    `state_json=${JSON.stringify(state)}`,
+  ].join("\n");
+  const separator = baseUrl.includes("?") ? "&" : "?";
+  return `${baseUrl}${separator}prompt=${encodeURIComponent(prompt)}`;
+}
 
 function normalizeExternalChannel(channel = "email") {
   const key = String(channel || "email").trim().toLowerCase();
@@ -209,16 +258,29 @@ export async function requestSupportTicketExternalDeliveryApproval({ tenant_id, 
     if (ownsConnection) await connection.beginTransaction();
     const readiness = await checkSupportTicketExternalDeliveryReadiness({ tenant_id, ticket_id, channel: externalChannel, audience, credential_ref }, { connection });
     const holdId = crypto.randomUUID();
+    const resolvedCredentialRef = credential_ref || readiness.credential?.credential_ref || null;
+    const repairPromptState = buildAdminGptRepairPromptState({
+      tenant_id,
+      ticket_id,
+      approval_hold_id: holdId,
+      channel: externalChannel,
+      audience,
+      credential_ref: resolvedCredentialRef,
+      action: "review_external_delivery",
+    });
+    const adminGptRepairLink = await buildAdminGptRepairLink(connection, repairPromptState);
     const payload = {
       approval_type: "external_notification_delivery",
       channel: externalChannel,
       audience,
-      credential_ref: credential_ref || readiness.credential?.credential_ref || null,
+      credential_ref: resolvedCredentialRef,
       credential_binding_present: readiness.credential_binding_present,
       preview_subject,
       preview_body,
       reason,
       evidence_json,
+      admin_gpt_repair_link: adminGptRepairLink,
+      admin_gpt_repair_prompt_state: repairPromptState,
       external_send_performed: false,
       secrets_included: false,
     };
