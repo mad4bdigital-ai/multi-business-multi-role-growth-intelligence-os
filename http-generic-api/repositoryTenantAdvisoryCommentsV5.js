@@ -35,7 +35,7 @@ function requireScope(scope = {}) {
     err.status = 400; err.code = "repository_advisory_comment_scope_required"; throw err;
   }
 }
-function requireGithubToken() {
+async function resolveGithubToken() {
   if (!GITHUB_TOKEN) { const err = new Error("Missing required environment variable: GITHUB_TOKEN"); err.status = 500; err.code = "missing_github_token"; throw err; }
   return GITHUB_TOKEN;
 }
