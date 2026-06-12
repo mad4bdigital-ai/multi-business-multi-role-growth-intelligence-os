@@ -1,22 +1,22 @@
 {
-  "ok": true,
+  "ok": false,
   "schema_version": "surface-contract-gap-trends-v1",
   "baseline_item_count": 100,
-  "current_queue_items": 1,
-  "current_triaged_items": 1,
-  "current_gate_candidates": 0,
-  "blocking_new_item_count": 0,
-  "docs_completion_percent": 100,
+  "current_queue_items": 2,
+  "current_triaged_items": 2,
+  "current_gate_candidates": 1,
+  "blocking_new_item_count": 1,
+  "docs_completion_percent": 99.75,
   "openapi_sql_route_coverage_percent": 100,
   "openapi_exempt_sql_route_count": 528,
   "total_sql_route_like_count": 528,
   "safety_marker_gap_migrations": 0,
   "trend_quality_gate": {
-    "ok": true,
+    "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "blocking_new_item_count must not increase above zero; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 0,
-    "warning_new_item_count": 1
+    "blocking_new_item_count": 1,
+    "warning_new_item_count": 2
   },
   "safety": {
     "executes_provider_calls": false,
