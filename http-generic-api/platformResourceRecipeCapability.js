@@ -526,6 +526,7 @@ export async function catalogGovernedResources(args = {}) {
 
 const ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY = "google_drive.session_folder.reconcile_artifacts_exports";
 const REPOSITORY_PR_RECONCILE_RECIPE_KEY = "repo.pr.reconciliation_sweep";
+const GITHUB_FILE_PATCH_PLAN_RECIPE_KEY = "github.file.patch_plan";
 
 const READ_ONLY_INSTALLED_TOOL_ALLOWLIST = new Set([
   "google_drive_folder_inspect",
