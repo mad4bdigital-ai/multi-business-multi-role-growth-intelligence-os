@@ -239,6 +239,9 @@ function buildCoverageSummary({ allMigrations, openapiPaths }) {
     safety_marker_gap_migrations: safetyMarkerGapMigrations,
     route_coverage: {
       sql_route_count: routeCount,
+      total_sql_route_like_count: totalRouteCount,
+      openapi_exempt_sql_route_count: exemptedRouteCount,
+      route_class_counts: routeClassCounts,
       openapi_documented_sql_route_count: documentedRouteCount,
       openapi_missing_sql_route_count: missingRouteCount,
       openapi_sql_route_coverage_percent: routeCount ? Number(((documentedRouteCount / routeCount) * 100).toFixed(2)) : 100,
