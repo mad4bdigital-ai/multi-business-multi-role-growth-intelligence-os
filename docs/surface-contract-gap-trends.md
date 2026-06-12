@@ -8,5 +8,5 @@
 - Trend quality gate: pass
 - Docs completion: 99.5%
 - SQL route OpenAPI coverage: 100%
-- OpenAPI-exempt SQL route-like literals: 528/528
+- OpenAPI-exempt SQL route-like literals: 530/530
 - Safety marker gap migrations: 0

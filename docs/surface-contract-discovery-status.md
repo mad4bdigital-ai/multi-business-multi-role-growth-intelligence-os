@@ -19,10 +19,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 397
+- Migrations with detected surfaces: 398
 - Migrations reported here: 80
-- OpenAPI operations detected: 428
-- OpenAPI paths detected: 375
+- OpenAPI operations detected: 430
+- OpenAPI paths detected: 377
 - Documentation targets checked:
 - `Updating Registry Patch Index.md`
 - `deployment_parity_checklist.md`
@@ -32,11 +32,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 395/397 (99.50%)
+- Documentation complete migrations: 396/398 (99.50%)
 - Documentation gap migrations: 2
 - Gap severity: high=1, medium=0, low=1
 - SQL route coverage in OpenAPI: 0/0 (100.00%)
-- SQL route-like literals exempted from OpenAPI scoring: 528/528
+- SQL route-like literals exempted from OpenAPI scoring: 530/530
 - SQL routes missing OpenAPI path coverage: 0
 - Migrations without explicit `secrets_included=false` marker: 0
 
@@ -45,10 +45,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 12 | 9 |
-| tools | 1840 | 340 |
-| views | 347 | 139 |
-| policies | 141 | 89 |
-| routes | 528 | 223 |
+| tools | 1868 | 341 |
+| views | 349 | 140 |
+| policies | 142 | 90 |
+| routes | 530 | 224 |
 
 ### Documentation Target Gaps
 
@@ -64,12 +64,12 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 396 |
-| no_credential_payload_read | 396 |
-| no_raw_secrets | 396 |
-| no_external_send | 396 |
-| no_external_write | 396 |
-| secrets_included_false | 397 |
+| no_provider_call | 397 |
+| no_credential_payload_read | 397 |
+| no_raw_secrets | 397 |
+| no_external_send | 397 |
+| no_external_write | 397 |
+| secrets_included_false | 398 |
 
 ### Route Classification Coverage
 
@@ -81,7 +81,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | system_tool_dispatch_route | 10 |
 | registry_only_surface | 1 |
 | false_positive_route_like_string | 0 |
-| legacy_closure_route_reviewed | 392 |
+| legacy_closure_route_reviewed | 394 |
 
 
 ## Actionable Gap Queue
@@ -136,6 +136,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `289_sprint68_external_delivery_policy_scope_alignment.sql` | complete | none | 0 | 1 | 1 | 1 | 0 | 0 |
 | `287_sprint68_external_delivery_orchestration_graph_plugin.sql` | complete | none | 3 | 42 | 2 | 1 | 0 | 0 |
 | `286_sprint68_platform_schema_contract_completion_registry.sql` | complete | none | 0 | 1 | 0 | 0 | 1 | 0 |
+| `285_sprint68_session_insight_target_write_readback.sql` | complete | none | 0 | 28 | 2 | 1 | 2 | 0 |
 | `284_sprint68_wordpress_schema_import_completion_registry.sql` | complete | none | 0 | 1 | 0 | 0 | 0 | 0 |
 | `284_sprint68_session_insight_backlog_target_write_executor.sql` | complete | none | 0 | 14 | 2 | 1 | 3 | 0 |
 | `284_sprint68_execution_log_full_context_evidence.sql` | complete | none | 0 | 1 | 2 | 1 | 0 | 0 |
@@ -183,7 +184,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `261_sprint68_ticket_external_credential_orchestration.sql` | complete | none | 0 | 2 | 0 | 0 | 2 | 0 |
 | `261_sprint68_orchestration_intelligence_foundation.sql` | complete | none | 1 | 38 | 0 | 14 | 0 | 0 |
 | `260_sprint68_ticket_external_credential_activation_binding.sql` | complete | none | 0 | 1 | 0 | 0 | 2 | 0 |
-| `260_sprint68_platform_development_constitution_policies.sql` | complete | none | 0 | 23 | 2 | 20 | 0 | 0 |
 
 ## High-Risk Documentation Gaps
 
@@ -674,6 +674,21 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Route classifications: `/platform/wordpress/blog-publish-recovery`=registry_only_surface:exempt
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
+
+### `285_sprint68_session_insight_target_write_readback.sql`
+
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
+- Surface count: 33
+- Plugins: none
+- Tools: `actual_request_id`, `admin_platform_endpoint_tools`, `blocked_target_write_not_executed`, `chk_session_insight_target_write_readback_no_secrets`, `chk_session_insight_target_write_readback_read_only`, `executes_rollback`, `external_write_executed`, `fk_session_insight_target_write_readback_write`, `idx_session_insight_target_write_readback_status`, `idx_session_insight_target_write_readback_write`, `provider_call_executed`, `ready_for_target_write_readback`, `rollback_executed`, `session_insight_target_write_readback_create`, `session_insight_target_write_readback_list`, `session_insight_target_write_readback_policy_v1`, `session_insight_target_write_readback_read_only`, `session_insight_target_write_readbacks`, `target_item_modified_by_readback`, `target_modified_by_readback`, ...and 8 more
+- Views: `v_session_insight_target_write_readback_issues`, `v_session_insight_target_write_readback_readiness`
+- Policies: `session_insight_target_write_readback_policy_v1`
+- Routes: `/platform/session-insight-promotions/target-write-readbacks/create`, `/platform/session-insight-promotions/target-write-readbacks/list`
+- Route classifications: `/platform/session-insight-promotions/target-write-readbacks/create`=legacy_closure_route_reviewed:exempt, `/platform/session-insight-promotions/target-write-readbacks/list`=legacy_closure_route_reviewed:exempt
+- OpenAPI route gaps: none
+- Safety markers: no_provider_call=no, no_credential_payload_read=yes, no_raw_secrets=no, no_external_send=no, no_external_write=yes, secrets_included_false=yes
 
 ### `284_sprint68_wordpress_schema_import_completion_registry.sql`
 
@@ -1379,21 +1394,6 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 - Route classifications: `/admin/support/tickets/{ticket_id}/external-credential/activate-and-bind`=legacy_closure_route_reviewed:exempt, `/admin/support/tickets/{ticket_id}/external-credential/activation-plan`=legacy_closure_route_reviewed:exempt
 - OpenAPI route gaps: none
 - Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=yes, no_external_send=no, no_external_write=no, secrets_included_false=no
-
-### `260_sprint68_platform_development_constitution_policies.sql`
-
-- Documentation complete: yes
-- Gap severity: none
-- Missing docs: none
-- Surface count: 45
-- Plugins: none
-- Tools: `blocked_or_gated_tools`, `do_not_require_user_to_name_internal_tool`, `execute_tool`, `forbid_claiming_fully_validated_from_status_active`, `forbidden_without_gate`, `fully_validated_requires`, `generic_blueprint`, `model_never_executes_tools`, `model_never_executes_tools_policy_v1`, `new_recommendations_have_readback`, `new_tools_have_registry`, `orphan_tools`, `platform_task_quality_gate`, `platform_task_quality_gate_policy_v1`, `readback_tool`, `recommendation_id_or_decision_run`, `recommendation_or_decision_ref`, `recommendations_without_decision_run`, `release_readiness_orchestration_gate`, `release_readiness_orchestration_gate_policy_v1`, ...and 3 more
-- Views: `v_platform_capability_gaps`, `v_platform_relationship_integrity_score`
-- Policies: `development_drift_detection_policy_v1`, `domain_generalization_before_provider_specific_policy_v1`, `final_pattern_enforcement_policy_v1`, `intelligence_policy_rules_required_policy_v1`, `intentional_safety_block_classification_policy_v1`, `legacy_surface_bridge_policy_v1`, `model_never_executes_tools_policy_v1`, `no_hidden_execution_policy_v1`, `orchestration_first_development_policy_v1`, `orchestration_stage_graph_completeness_policy_v1`, `orchestration_state_snapshot_required_policy_v1`, `platform_development_constitution_policy_v1`, `platform_schema_blocker_classification_policy_v1`, `platform_task_quality_gate_policy_v1`, `plugin_manifest_completeness_policy_v1`, `recommendation_before_execution_policy_v1`, `release_readiness_orchestration_gate_policy_v1`, `session_memory_reliability_policy_v1`, `tenant_proactive_guidance_policy_v1`, `validation_semantics_policy_v1`
-- Routes: none
-- Route classifications: none
-- OpenAPI route gaps: none
-- Safety markers: no_provider_call=no, no_credential_payload_read=no, no_raw_secrets=no, no_external_send=no, no_external_write=no, secrets_included_false=yes
 
 
 ## Automation Contract
