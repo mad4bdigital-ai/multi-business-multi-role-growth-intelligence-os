@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 2
-- Critical review: 0
+- Total queue items: 3
+- Critical review: 1
 - High review: 2
 - Medium review: 0
 - Low review: 0
@@ -13,7 +13,20 @@
 
 ## Top Queue Items
 
-### 1. `308_sprint69_dynamic_governed_migration_reconciliation.sql`
+### 1. `308_sprint69_activation_guidance_intelligence.sql`
+
+- Queue class: critical_review
+- Score: 741
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=0, views=0, policies=0, routes=2
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 2. `308_sprint69_dynamic_governed_migration_reconciliation.sql`
 
 - Queue class: high_review
 - Score: 631
@@ -27,7 +40,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `governed_migration_record_only`, `migration_preflight_pass`, `migration_reconcile_305_record_only`, `post_apply_schema_readback`, `schema_evidence_readback`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 2. `965_sprint68_hostinger_apply_policy_safe_field_names.sql`
+### 3. `965_sprint68_hostinger_apply_policy_safe_field_names.sql`
 
 - Queue class: high_review
 - Score: 613
