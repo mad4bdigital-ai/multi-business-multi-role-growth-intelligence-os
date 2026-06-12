@@ -24,6 +24,8 @@ assert(script.includes("surface-contract-governance-compact-v1"), "triage script
 assert(script.includes("surface-contract-gap-trends-v1"), "triage script must define trend schema");
 assert(script.includes("surface-contract-trend-quality-gate-v1"), "triage script must define trend quality gate schema");
 assert(script.includes("new_gaps_only"), "gate must be scoped to new gaps only");
+assert(script.includes("unbaselined_legacy_item_count"), "gate must report unbaselined legacy backlog without blocking it");
+assert(script.includes("legacy_warning_items"), "gate must keep legacy warnings visible but non-blocking");
 assert(script.includes("external_sends: false"), "triage safety must forbid external sends");
 assert(script.includes("writes_database: false"), "triage safety must forbid DB writes");
 assert(script.includes("deploys: false"), "triage safety must forbid deploys");
