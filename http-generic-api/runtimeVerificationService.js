@@ -147,7 +147,7 @@ export async function createRuntimeVerificationRun(input = {}, actor = {}) {
         migration_status, blocking_gap_count, verified_at, status_json)
      VALUES (?, ?, ?, ?, ?, 'unknown', 'unknown', 'pass', ?, ?, ?, IF(? = 'verified', UTC_TIMESTAMP(), NULL), ?)
      ON DUPLICATE KEY UPDATE expected_commit_sha = VALUES(expected_commit_sha), deployed_commit_sha = VALUES(deployed_commit_sha), production_parity = VALUES(production_parity), latest_run_id = VALUES(latest_run_id), runtime_health_status = VALUES(runtime_health_status), activation_summary_status = VALUES(activation_summary_status), migration_status = VALUES(migration_status), blocking_gap_count = VALUES(blocking_gap_count), verified_at = VALUES(verified_at), status_json = VALUES(status_json)`,
-    [environmentKey, commitSha, commitSha, productionParity, runId, activationStepPass ? "pass" : "fail", missingRuntimeTables.length ? "fail" : "pass", blockingGapCount, productionParity, JSON.stringify(summary)]
+    [environmentKey, expectedCommitSha, deployedCommitSha, productionParity, runId, activationStepPass ? "pass" : "fail", missingRuntimeTables.length ? "fail" : "pass", blockingGapCount, productionParity, JSON.stringify(summary)]
   );
   return getRuntimeVerificationRun(runId);
 }
