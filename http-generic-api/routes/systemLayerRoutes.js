@@ -1630,6 +1630,12 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       return await tenantRepositoryPrReconciliationSweep(args, { auth, runGovernedResource });
     case "tenant_repository_intelligence_v2_readiness_smoke":
       return await tenantRepositoryIntelligenceV2ReadinessSmoke(args, { auth, runGovernedResource });
+    case "tenant_repository_intelligence_report":
+      return await tenantRepositoryIntelligenceReport(args, { auth, runGovernedResource });
+    case "tenant_repository_action_planner_dry_run":
+      return await tenantRepositoryActionPlannerDryRun(args, { auth, runGovernedResource });
+    case "tenant_repository_intelligence_v3_v4_readiness_smoke":
+      return await tenantRepositoryIntelligenceV3V4ReadinessSmoke(args, { auth, runGovernedResource });
     case "governed_resource_resolve":
       return await resolveGovernedResource(args);
     case "governed_resource_catalog":
