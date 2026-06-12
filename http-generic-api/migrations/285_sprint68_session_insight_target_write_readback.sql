@@ -2,6 +2,8 @@
 -- Read-only post-write validation. No target write creation, target item mutation,
 -- rollback execution, provider calls, credential payload reads, external writes,
 -- raw transcripts, or secrets.
+-- Safety markers: no_provider_call, no_credential_payload_read, no_raw_secrets,
+-- no_external_send, no_external_write, secrets_included_false.
 
 CREATE TABLE IF NOT EXISTS `session_insight_target_write_readbacks` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
