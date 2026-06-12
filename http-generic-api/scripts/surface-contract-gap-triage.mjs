@@ -197,7 +197,8 @@ function buildAll() {
   const gate = buildGate(triage, baseline);
   const dashboard = buildDashboard(queue, discovery, triage, gate);
   const trends = buildTrends(dashboard, baseline);
-  return { triage, baseline, gate, dashboard, trends };
+  const compact = buildCompactDashboard(dashboard, trends);
+  return { triage, baseline, gate, dashboard, compact, trends };
 }
 function main() {
   const writeMode = process.argv.includes("--write");
