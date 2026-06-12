@@ -25,8 +25,8 @@
       "routes": 218
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 351,
-      "deployment_parity_checklist.md": 360,
+      "Updating Registry Patch Index.md": 350,
+      "deployment_parity_checklist.md": 359,
       "docs/ai-docs-agent-governance.md": 382,
       "docs/auto-docs-agent/README.md": 382,
       "docs/change-documentation-governance.md": 382
@@ -410,9 +410,9 @@
     "safety_marker_gap_migrations": 274,
     "route_coverage": {
       "sql_route_count": 510,
-      "openapi_documented_sql_route_count": 311,
-      "openapi_missing_sql_route_count": 199,
-      "openapi_sql_route_coverage_percent": 60.98,
+      "openapi_documented_sql_route_count": 313,
+      "openapi_missing_sql_route_count": 197,
+      "openapi_sql_route_coverage_percent": 61.37,
       "route_openapi_gaps": [
         {
           "migration_file": "068_sprint58_cloudflare_readonly_runtime.sql",
@@ -1121,13 +1121,6 @@
           ]
         },
         {
-          "migration_file": "285_sprint68_session_insight_target_write_readback.sql",
-          "missing_routes": [
-            "/platform/session-insight-promotions/target-write-readbacks/create",
-            "/platform/session-insight-promotions/target-write-readbacks/list"
-          ]
-        },
-        {
           "migration_file": "286_sprint68_platform_schema_contract_completion_registry.sql",
           "missing_routes": [
             "/platform/wordpress/blog-publish-recovery"
@@ -1380,56 +1373,6 @@
       }
     },
     {
-      "migration_file": "285_sprint68_session_insight_target_write_readback.sql",
-      "score": 1654,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [
-        "/platform/session-insight-promotions/target-write-readbacks/create",
-        "/platform/session-insight-promotions/target-write-readbacks/list"
-      ],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_raw_secrets",
-        "no_external_send"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "review_openapi_contract",
-        "verify_tool_registry_binding",
-        "verify_policy_seed_readiness",
-        "verify_readback_view",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "api-contract-review",
-        "runtime-registry-review",
-        "runtime-policy-review",
-        "db-readback-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
       "migration_file": "284_sprint68_session_insight_backlog_target_write_executor.sql",
       "score": 1530,
       "queue_class": "critical_review",
@@ -1467,6 +1410,49 @@
         "safety-contract-review"
       ],
       "recommended_next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption",
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "285_sprint68_session_insight_target_write_readback.sql",
+      "score": 1454,
+      "queue_class": "critical_review",
+      "triage_class": "new_surface_immediate_review",
+      "gate_scope": "new_gap_gate_candidate",
+      "gap_severity": "high",
+      "missing_docs": [
+        "docs/ai-docs-agent-governance.md",
+        "docs/auto-docs-agent/README.md",
+        "docs/change-documentation-governance.md"
+      ],
+      "missing_openapi_routes": [],
+      "safety_marker_gaps": [
+        "no_provider_call",
+        "no_raw_secrets",
+        "no_external_send"
+      ],
+      "remediation_action_keys": [
+        "document_surface_contract",
+        "verify_tool_registry_binding",
+        "verify_policy_seed_readiness",
+        "verify_readback_view",
+        "add_explicit_safety_markers"
+      ],
+      "owner_hints": [
+        "docs-agent/human-review",
+        "runtime-registry-review",
+        "runtime-policy-review",
+        "db-readback-review",
+        "safety-contract-review"
+      ],
+      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
       "safety": {
         "executes_provider_calls": false,
         "reads_credentials": false,
