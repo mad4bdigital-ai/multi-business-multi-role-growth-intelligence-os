@@ -685,17 +685,21 @@ function buildToolResponseChunk({ serialized, chunkId, cursor, maxChars, source 
   };
 }
 
-function storeToolResponseForChunks(body) {
+function storeToolResponseForChunks(body, optionsSource = {}) {
   cleanupToolResponseChunkCache();
   const serialized = JSON.stringify(body ?? {});
   const now = Date.now();
+  const ttlMs = resolveToolResponseChunkTtlMs(optionsSource, serialized.length);
   const chunkId = crypto.randomUUID();
   TOOL_RESPONSE_CHUNK_CACHE.set(chunkId, {
     serialized,
     createdAt: now,
-    expiresAt: now + TOOL_RESPONSE_CHUNK_TTL_MS,
+    lastReadAt: now,
+    ttlMs,
+    expiresAt: now + ttlMs,
+    readCount: 0,
   });
-  return { chunkId, serialized };
+  return { chunkId, serialized, ttlMs, expiresAt: now + ttlMs };
 }
 
 export function maybeChunkToolResponseBody(body, optionsSource = {}) {
