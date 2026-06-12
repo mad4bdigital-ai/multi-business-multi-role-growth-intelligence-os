@@ -1,9 +1,9 @@
 {
   "ok": true,
   "schema_version": "surface-contract-gap-queue-v1",
-  "total_items": 386,
+  "total_items": 387,
   "class_counts": {
-    "critical_review": 244,
+    "critical_review": 245,
     "high_review": 115,
     "medium_review": 26,
     "low_review": 1
@@ -665,7 +665,7 @@
     },
     {
       "migration_file": "130_sprint65_browser_runtime_governance.sql",
-      "score": 2011,
+      "score": 2010,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -986,7 +986,7 @@
     },
     {
       "migration_file": "277_sprint68_session_insight_capability_envelope_dispatch_dry_run_review.sql",
-      "score": 1668,
+      "score": 1667,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -1189,7 +1189,7 @@
     },
     {
       "migration_file": "274_sprint68_session_insight_capability_envelope_request_review.sql",
-      "score": 1541,
+      "score": 1540,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -1511,7 +1511,7 @@
     },
     {
       "migration_file": "146_sprint65_browser_runtime_adapter_request_tools.sql",
-      "score": 1460,
+      "score": 1459,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -2106,7 +2106,7 @@
     },
     {
       "migration_file": "272_sprint68_session_insight_capability_envelope_planner.sql",
-      "score": 1395,
+      "score": 1394,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -2330,7 +2330,7 @@
     },
     {
       "migration_file": "256_sprint68_ticket_external_delivery_approval_policy.sql",
-      "score": 1365,
+      "score": 1364,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -2421,7 +2421,7 @@
     },
     {
       "migration_file": "270_sprint68_session_insight_payload_preview_review.sql",
-      "score": 1348,
+      "score": 1347,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -3428,7 +3428,7 @@
     },
     {
       "migration_file": "259_sprint68_ticket_external_secret_intake_surface.sql",
-      "score": 1310,
+      "score": 1309,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -3816,7 +3816,7 @@
     },
     {
       "migration_file": "273_sprint68_session_insight_capability_envelope_request_gate.sql",
-      "score": 1282,
+      "score": 1281,
       "queue_class": "critical_review",
       "gap_severity": "none",
       "documentation_complete": true,
@@ -3924,7 +3924,7 @@
     },
     {
       "migration_file": "267_sprint68_session_insight_target_adapter_registry.sql",
-      "score": 1280,
+      "score": 1279,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -4333,7 +4333,7 @@
     },
     {
       "migration_file": "280_sprint68_session_insight_capability_envelope_approval_gate.sql",
-      "score": 1203,
+      "score": 1202,
       "queue_class": "critical_review",
       "gap_severity": "none",
       "documentation_complete": true,
@@ -5233,7 +5233,7 @@
     },
     {
       "migration_file": "253_sprint68_ticket_auto_resolve_policy_engine.sql",
-      "score": 1147,
+      "score": 1146,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -5748,7 +5748,7 @@
     },
     {
       "migration_file": "261_sprint68_ticket_external_credential_orchestration.sql",
-      "score": 1139,
+      "score": 1138,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -7984,7 +7984,7 @@
     },
     {
       "migration_file": "246_sprint68_gpt_session_archive_backfill_tool.sql",
-      "score": 982,
+      "score": 981,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -8778,7 +8778,7 @@
     },
     {
       "migration_file": "230_sprint67_gpt_session_conversation_ref_capture_current.sql",
-      "score": 953,
+      "score": 952,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
