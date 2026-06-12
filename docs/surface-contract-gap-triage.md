@@ -20,7 +20,7 @@
 - `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql` — critical_review, score 1417; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `281_sprint68_session_insight_capability_envelope_dispatch_readback.sql` — critical_review, score 1345; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `906_sprint68_ticket_external_delivery_completion_certification.sql` — critical_review, score 1265; next: add targeted patch-index, parity, and governance documentation
-- `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql` — critical_review, score 1220; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql` — critical_review, score 1219; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `280_sprint68_session_insight_capability_envelope_approval_gate.sql` — critical_review, score 1201; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `960_sprint68_remaining_resource_capability_completion_gates.sql` — critical_review, score 1001; next: add targeted patch-index, parity, and governance documentation
 - `284_sprint68_session_insight_backlog_target_write_executor.sql` — critical_review, score 968; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
