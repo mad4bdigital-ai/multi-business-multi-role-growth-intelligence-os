@@ -6,6 +6,7 @@ Generated notes are reviewable evidence. They do not replace targeted human docu
 
 Rules:
 
+- Session Insight target write readback impact notes for migration `285_sprint68_session_insight_target_write_readback.sql` are resolved by patch index, deployment parity, agent guide, OpenAPI route coverage, Docs Agent governance, this README, and change documentation governance. Required evidence includes `session_insight_target_write_readbacks`, `v_session_insight_target_write_readback_issues`, `v_session_insight_target_write_readback_readiness`, `session_insight_target_write_readback_policy_v1`, `session_insight_target_write_readback_create`, `session_insight_target_write_readback_list`, `/platform/session-insight-promotions/target-write-readbacks/create`, `/platform/session-insight-promotions/target-write-readbacks/list`, and no_provider_call/no_raw_secrets/no_external_send markers. This remains read-only post-write validation with no target write creation, no target item mutation, no rollback execution, no provider calls, no credential payload reads, no external writes, no raw transcripts, and no secrets.
 - No secrets or credential values.
 - No generated canonical root edits without canonical source edits.
 - High-risk notes must name required docs and validation evidence.
