@@ -61,6 +61,38 @@ function statusBlocksMerge(status = "") {
   return ["error", "failure", "timed_out", "cancelled"].includes(String(status || "").toLowerCase());
 }
 
+function parseArgValue(args = [], names = []) {
+  const nameSet = new Set(Array.isArray(names) ? names : [names]);
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = String(args[i] || "");
+    if (nameSet.has(arg)) return String(args[i + 1] || "");
+    for (const name of nameSet) {
+      if (arg.startsWith(`${name}=`)) return arg.slice(String(name).length + 1);
+    }
+    if ((arg === "-f" || arg === "--field") && String(args[i + 1] || "").startsWith("confirm=")) {
+      return String(args[i + 1] || "").slice("confirm=".length);
+    }
+  }
+  return "";
+}
+
+function branchTypedConfirmation(prefix = "", branch = "") {
+  const slug = String(branch || "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase();
+  return `${prefix}_${slug}`;
+}
+
+function unmergedSmokeBranchDeleteConfirmed({ args = [], branch = "", cfg = {} } = {}) {
+  if (!parseBoolean(cfg.allow_unmerged_smoke_branch_delete, false)) return false;
+  const prefixes = Array.isArray(cfg.unmerged_smoke_branch_delete_prefixes)
+    ? cfg.unmerged_smoke_branch_delete_prefixes.map((prefix) => String(prefix || "")).filter(Boolean)
+    : ["gpt/smoke-"];
+  const matchesPrefix = prefixes.some((prefix) => String(branch || "").startsWith(prefix));
+  if (!matchesPrefix) return false;
+  const expected = branchTypedConfirmation("DELETE_UNMERGED_SMOKE_BRANCH", branch);
+  const supplied = parseArgValue(args, ["--confirm", "--typed-confirmation"]);
+  return supplied === expected;
+}
+
 async function loadRepositoryMutationPolicies(operation, affectsLayer, deps = {}) {
   return resolvePolicies({ execution_scope: ["repo_mutation", "github_pr_merge", "branch_delete", "repo_patch_apply", operation].filter(Boolean), affects_layer: ["adminCliRoutes", "github_rest_fallback", "gptToolsRoutes", "repo_patch_apply", affectsLayer].filter(Boolean), policy_group: "Repository Mutation Governance", policy_key: "Stale Duplicate Branch Merge Guard" }, deps);
 }
@@ -78,7 +110,14 @@ export async function evaluateRepositoryMutationPreflight({ operation, args = []
     if (operation === "github_branch_delete") {
       const protectedNames = new Set(["main", "master", "production", "prod"]);
       if (protectedNames.has(String(branch || "").trim())) { errors.push("protected_branch_delete_blocked"); blockingPolicies.push(policy); continue; }
-      if (compare && Number(compare.ahead_by || 0) > 0 && parseBoolean(cfg.block_unmerged_branch_delete, true) && blockingAllowed) { errors.push("branch_has_unmerged_commits"); blockingPolicies.push(policy); continue; }
+      if (compare && Number(compare.ahead_by || 0) > 0 && parseBoolean(cfg.block_unmerged_branch_delete, true) && blockingAllowed) {
+        if (!unmergedSmokeBranchDeleteConfirmed({ args, branch, cfg })) {
+          errors.push("branch_has_unmerged_commits"); blockingPolicies.push(policy); continue;
+        }
+        warnings.push("unmerged_smoke_branch_delete_explicitly_confirmed");
+        evidence.unmerged_smoke_branch_delete_confirmed = true;
+        evidence.required_typed_confirmation = branchTypedConfirmation("DELETE_UNMERGED_SMOKE_BRANCH", branch);
+      }
       if (compare && Number(compare.behind_by || 0) > 0) warnings.push("branch_is_behind_base_before_delete");
     }
     if (operation === "github_pr_merge") {
