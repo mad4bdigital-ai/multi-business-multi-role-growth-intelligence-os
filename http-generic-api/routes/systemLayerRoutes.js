@@ -367,6 +367,16 @@ const ADMIN_ONLY_SYSTEM_TOOLS = new Set(
   SYSTEM_LAYER_TOOLS.filter((tool) => tool.requires_admin === true).map((tool) => tool.name)
 );
 const LOCAL_SYSTEM_TOOL_NAMES = new Set(SYSTEM_LAYER_TOOLS.map((tool) => tool.name));
+const TENANT_MUTATION_ENDPOINT_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function isTenantMutationEndpointMethod(method = "") {
+  return TENANT_MUTATION_ENDPOINT_METHODS.has(String(method || "").trim().toUpperCase());
+}
+
+function isTenantPlatformEndpointExportAllowed(row = {}, auth = null) {
+  if (isAdminPrincipal(auth)) return true;
+  return !isTenantMutationEndpointMethod(row.method);
+}
 
 const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
   {
