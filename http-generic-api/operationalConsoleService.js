@@ -121,8 +121,13 @@ async function readRemediationRunbooks(limit = DEFAULT_TILE_LIMIT) {
 async function readFreshnessPolicies(limit = DEFAULT_TILE_LIMIT) {
   if (!(await tableExists("activation_freshness_policy_registry"))) return [];
   return query(
-    `SELECT policy_key, provider_family, connector_family, source_surface_key,
-            freshness_sla_seconds, stale_after_seconds, critical_after_seconds,
+    `SELECT policy_key,
+            provider_family,
+            connector_family,
+            surface_key_like AS source_surface_key,
+            freshness_sla_seconds,
+            NULL AS stale_after_seconds,
+            NULL AS critical_after_seconds,
             status
        FROM activation_freshness_policy_registry
       WHERE status = 'active'
