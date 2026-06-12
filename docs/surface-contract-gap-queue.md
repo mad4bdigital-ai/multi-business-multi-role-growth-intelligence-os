@@ -422,23 +422,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `session_reuse_approved`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 27. `285_sprint68_session_insight_target_write_readback.sql`
-
-- Queue class: critical_review
-- Score: 1454
-- Gap severity: high
-- Missing docs: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: `no_provider_call`, `no_raw_secrets`, `no_external_send`
-- Surface counts: plugins=0, tools=28, views=2, policies=1, routes=2
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `actual_request_id`, `admin_platform_endpoint_tools`, `blocked_target_write_not_executed`, `chk_session_insight_target_write_readback_no_secrets`, `chk_session_insight_target_write_readback_read_only`, `executes_rollback`, `external_write_executed`, `fk_session_insight_target_write_readback_write`, `idx_session_insight_target_write_readback_status`, `idx_session_insight_target_write_readback_write`, `provider_call_executed`, `ready_for_target_write_readback`, ...and 13 more
-- `verify_policy_seed_readiness` → runtime-policy-review; targets: `session_insight_target_write_readback_policy_v1`
-- `verify_readback_view` → db-readback-review; targets: `v_session_insight_target_write_readback_issues`, `v_session_insight_target_write_readback_readiness`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_raw_secrets`, `no_external_send`
-
-### 28. `270_sprint68_support_ticket_lifecycle_orchestration_readback.sql`
+### 27. `270_sprint68_support_ticket_lifecycle_orchestration_readback.sql`
 
 - Queue class: critical_review
 - Score: 1444
@@ -454,7 +438,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_platform_orchestration_graph_readiness`, `v_platform_orchestration_support_ticket_lifecycle_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_raw_secrets`
 
-### 29. `091_sprint62b_local_gateway_credential_policy.sql`
+### 28. `091_sprint62b_local_gateway_credential_policy.sql`
 
 - Queue class: critical_review
 - Score: 1440
@@ -468,7 +452,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `device_tools`, `dispatch_tool_key`, `local_gateway_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 30. `068_sprint58_cloudflare_readonly_runtime.sql`
+### 29. `068_sprint58_cloudflare_readonly_runtime.sql`
 
 - Queue class: critical_review
 - Score: 1421
@@ -483,7 +467,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `cf_list_dns_records`, `cf_list_tunnels`, `cf_list_zones`, `cloudflare_api__cf_list_dns_records`, `cloudflare_api__cf_list_tunnels`, `cloudflare_api__cf_list_zones`, `ep_cloudflare_api_cf_list_dns_records`, `ep_cloudflare_api_cf_list_tunnels`, `ep_cloudflare_api_cf_list_zones`, `execution_readiness`, `platform_endpoint_tool_exports`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 31. `271_sprint68_session_insight_adapter_apply_readiness_gate.sql`
+### 30. `271_sprint68_session_insight_adapter_apply_readiness_gate.sql`
 
 - Queue class: critical_review
 - Score: 1420
@@ -499,6 +483,22 @@
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `session_insight_adapter_apply_readiness_gate_policy_v1`
 - `verify_readback_view` → db-readback-review; targets: `v_session_insight_adapter_apply_readiness_gate`, `v_session_insight_adapter_apply_readiness_gate_issues`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 31. `285_sprint68_session_insight_target_write_readback.sql`
+
+- Queue class: critical_review
+- Score: 1414
+- Gap severity: high
+- Missing docs: `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_raw_secrets`, `no_external_send`
+- Surface counts: plugins=0, tools=28, views=2, policies=1, routes=2
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `actual_request_id`, `admin_platform_endpoint_tools`, `blocked_target_write_not_executed`, `chk_session_insight_target_write_readback_no_secrets`, `chk_session_insight_target_write_readback_read_only`, `executes_rollback`, `external_write_executed`, `fk_session_insight_target_write_readback_write`, `idx_session_insight_target_write_readback_status`, `idx_session_insight_target_write_readback_write`, `provider_call_executed`, `ready_for_target_write_readback`, ...and 13 more
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `session_insight_target_write_readback_policy_v1`
+- `verify_readback_view` → db-readback-review; targets: `v_session_insight_target_write_readback_issues`, `v_session_insight_target_write_readback_readiness`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_raw_secrets`, `no_external_send`
 
 ### 32. `272_sprint68_session_insight_capability_envelope_planner.sql`
 

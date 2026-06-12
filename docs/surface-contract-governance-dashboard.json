@@ -27,8 +27,8 @@
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 350,
       "deployment_parity_checklist.md": 359,
-      "docs/ai-docs-agent-governance.md": 382,
-      "docs/auto-docs-agent/README.md": 382,
+      "docs/ai-docs-agent-governance.md": 381,
+      "docs/auto-docs-agent/README.md": 381,
       "docs/change-documentation-governance.md": 382
     },
     "gap_severity_counts": {
@@ -1422,14 +1422,12 @@
     },
     {
       "migration_file": "285_sprint68_session_insight_target_write_readback.sql",
-      "score": 1454,
+      "score": 1414,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
       "gap_severity": "high",
       "missing_docs": [
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
         "docs/change-documentation-governance.md"
       ],
       "missing_openapi_routes": [],

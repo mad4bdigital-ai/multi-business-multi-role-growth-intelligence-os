@@ -55,8 +55,8 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|
 | `Updating Registry Patch Index.md` | 350 |
 | `deployment_parity_checklist.md` | 359 |
-| `docs/ai-docs-agent-governance.md` | 382 |
-| `docs/auto-docs-agent/README.md` | 382 |
+| `docs/ai-docs-agent-governance.md` | 381 |
+| `docs/auto-docs-agent/README.md` | 381 |
 | `docs/change-documentation-governance.md` | 382 |
 
 ### Safety Marker Coverage
@@ -578,7 +578,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 
 - Documentation complete: no
 - Gap severity: high
-- Missing docs: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing docs: `docs/change-documentation-governance.md`
 - Surface count: 33
 - Plugins: none
 - Tools: `actual_request_id`, `admin_platform_endpoint_tools`, `blocked_target_write_not_executed`, `chk_session_insight_target_write_readback_no_secrets`, `chk_session_insight_target_write_readback_read_only`, `executes_rollback`, `external_write_executed`, `fk_session_insight_target_write_readback_write`, `idx_session_insight_target_write_readback_status`, `idx_session_insight_target_write_readback_write`, `provider_call_executed`, `ready_for_target_write_readback`, `rollback_executed`, `session_insight_target_write_readback_create`, `session_insight_target_write_readback_list`, `session_insight_target_write_readback_policy_v1`, `session_insight_target_write_readback_read_only`, `session_insight_target_write_readbacks`, `target_item_modified_by_readback`, `target_modified_by_readback`, ...and 8 more
