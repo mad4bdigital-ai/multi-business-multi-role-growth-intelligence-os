@@ -317,6 +317,7 @@ export async function buildActivationGuidance({
     requestedLocale,
     acceptLanguage,
   });
+  const invocationRegistry = await loadGuidanceInvocationRegistry({ profile: normalizedProfile });
   const activationBrief = buildBrief({ profile: normalizedProfile, tenantContext, counts, recommendedNextActions });
   const permissionSemantics = {
     connected_is_not_authorized: true,
