@@ -991,6 +991,44 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
     [resolvedUserId, resolvedTenantId, device_id]
   );
 
+  if (existing && !reprovision) {
+    const ttlMinutes = 30;
+    const downloadToken = signInstallerDownloadToken({
+      user_id: resolvedUserId,
+      tenant_id: resolvedTenantId,
+      device_id,
+      format: "bat",
+      capabilities: requestedCapabilities,
+      permission_grants: requestedPermissionGrants,
+      exp: Math.floor(Date.now() / 1000) + ttlMinutes * 60,
+    });
+    return {
+      ok: true,
+      status: "existing_device_reused",
+      config_id: existing.config_id,
+      device_id,
+      tunnel_url: existing.tunnel_url || null,
+      public_gateway_url: existing.public_gateway_url || LOCAL_GATEWAY_URL,
+      device_runtime_url: existing.device_runtime_url || existing.tunnel_url || null,
+      admin_recovery_url: existing.admin_recovery_url || ADMIN_RECOVERY_URL,
+      install_intent: installIntent,
+      provider_calls_made: false,
+      provisioning_performed: false,
+      installer: {
+        format: "bat",
+        ttl_minutes: ttlMinutes,
+        download_url: `${publicBaseUrl(req)}/local-connector/install/download?token=${encodeURIComponent(downloadToken)}`,
+        raw_material_returned: false,
+      },
+      app_routes: await loadLocalAppRoutes(pool, existing.config_id),
+      secrets_included: false,
+    };
+  }
+
+  const provisioningCredentials = await resolveProvisioningCredentials(req, principal, body || {});
+  const accountId = provisioningCredentials.cloudflareAccountId;
+  if (!accountId) throw httpError(500, "missing_config", "Cloudflare account id not configured.");
+
   let configId = existing?.config_id || randomUUID();
   let tunnelId = existing?.cf_tunnel_id || null;
   let tunnelToken = existing?.cf_token || null;
