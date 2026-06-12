@@ -115,6 +115,55 @@ components:
 
   schemas:
 
+    OperationalConsoleResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, activation_layer, environment_key, summary, secrets_included]
+      properties:
+        ok: { type: boolean }
+        activation_layer: { type: string, enum: [operational_console] }
+        environment_key: { type: string }
+        summary:
+          type: object
+          additionalProperties: true
+          properties:
+            production_parity: { type: string }
+            readiness_classification: { type: string }
+            activation_status: { type: string }
+            latest_run_id: { type: string, nullable: true }
+            blocking_gap_count: { type: integer }
+            operational_tile_count: { type: integer }
+            callback_count: { type: integer }
+            attention_rule_count: { type: integer }
+            remediation_runbook_count: { type: integer }
+            freshness_policy_count: { type: integer }
+            secrets_included: { type: boolean }
+        runtime_parity: { $ref: '#/components/schemas/RuntimeParityResponse' }
+        activation_summary:
+          type: object
+          additionalProperties: true
+        latest_verification_run:
+          oneOf:
+            - $ref: '#/components/schemas/RuntimeVerificationRunResponse'
+            - type: 'null'
+        operational_tiles:
+          type: array
+          items: { type: object, additionalProperties: true }
+        callbacks:
+          type: array
+          items: { type: object, additionalProperties: true }
+        attention_rules:
+          type: array
+          items: { type: object, additionalProperties: true }
+        remediation_runbooks:
+          type: array
+          items: { type: object, additionalProperties: true }
+        freshness_policies:
+          type: array
+          items: { type: object, additionalProperties: true }
+        evidence_manifest: { $ref: '#/components/schemas/RuntimeVerificationEvidenceResponse' }
+        secrets_included: { type: boolean }
+
     RuntimeVerificationCreateRequest:
       type: object
       additionalProperties: false
