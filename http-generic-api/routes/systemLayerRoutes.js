@@ -361,6 +361,84 @@ const ADMIN_ONLY_SYSTEM_TOOLS = new Set(
 );
 const LOCAL_SYSTEM_TOOL_NAMES = new Set(SYSTEM_LAYER_TOOLS.map((tool) => tool.name));
 
+const SYSTEM_LAYER_DESCRIPTOR_SOURCES = [
+  {
+    source_key: "repository_tenant_intelligence_v2",
+    tools: TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
+    handlers: RepositoryTenantIntelligenceV2Runtime,
+  },
+  {
+    source_key: "repository_tenant_advisory_comment_v5",
+    tools: TENANT_REPOSITORY_ADVISORY_COMMENT_V5_SYSTEM_TOOLS,
+    handlers: RepositoryTenantAdvisoryCommentV5Runtime,
+  },
+];
+
+function snakeToolNameToCamelHandlerName(name = "") {
+  return String(name || "").replace(/_([a-z0-9])/g, (_, ch) => String(ch).toUpperCase());
+}
+
+function descriptorHandlerName(tool = {}) {
+  return String(
+    tool.handler
+    || tool.handler_name
+    || tool.runtime_handler
+    || tool.x_system_handler
+    || snakeToolNameToCamelHandlerName(tool.name)
+    || ""
+  ).trim();
+}
+
+function descriptorHandlerRegistry() {
+  const registry = new Map();
+  for (const source of SYSTEM_LAYER_DESCRIPTOR_SOURCES) {
+    const tools = Array.isArray(source.tools) ? source.tools : [];
+    for (const tool of tools) {
+      if (!tool?.name) continue;
+      const handlerName = descriptorHandlerName(tool);
+      const handler = source.handlers?.[handlerName];
+      registry.set(tool.name, {
+        source_key: source.source_key,
+        tool,
+        handler_name: handlerName,
+        handler: typeof handler === "function" ? handler : null,
+      });
+    }
+  }
+  return registry;
+}
+
+const SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY = descriptorHandlerRegistry();
+
+async function callDescriptorSystemToolIfAvailable(name, args = {}, auth = null, deps = {}) {
+  const entry = SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.get(name);
+  if (!entry) return { handled: false };
+  if (typeof entry.handler !== "function") {
+    const err = new Error(`System-layer descriptor tool ${name} does not have a runtime handler ${entry.handler_name}.`);
+    err.status = 500;
+    err.code = "system_layer_descriptor_handler_missing";
+    err.details = { tool_name: name, source_key: entry.source_key, handler_name: entry.handler_name };
+    throw err;
+  }
+  const result = await entry.handler(args, {
+    auth,
+    runGovernedResource,
+    req: deps.req,
+    executionFacade: deps.executionFacade,
+  });
+  return { handled: true, result };
+}
+
+function systemLayerDescriptorReadiness() {
+  return [...SYSTEM_LAYER_DESCRIPTOR_HANDLER_REGISTRY.entries()].map(([tool_name, entry]) => ({
+    tool_name,
+    source_key: entry.source_key,
+    handler_name: entry.handler_name,
+    handler_present: typeof entry.handler === "function",
+    requires_admin: entry.tool?.requires_admin === true,
+    secrets_included: false,
+  }));
+}
 
 function safeParseJsonObject(value, fallback = {}) {
   if (!value) return fallback;
