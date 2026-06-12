@@ -189,6 +189,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "958_sprint68_github_file_content_gate_and_patch_plan_registry.sql",
   "959_sprint68_github_file_patch_plan_diff_only_runtime.sql",
   "960_sprint68_remaining_resource_capability_completion_gates.sql",
+  "961_sprint68_f5_f6_positive_smoke_certification.sql",
   "262_sprint68_orchestration_readback_surface.sql",
   "263_sprint68_ads_governance_snapshot_proposal.sql",
   "264_sprint68_ads_governance_snapshot_record_gate.sql",
