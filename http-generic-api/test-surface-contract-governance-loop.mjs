@@ -20,7 +20,9 @@ assert(script.includes("surface-contract-gap-triage-v1"), "triage script must de
 assert(script.includes("surface-contract-gap-baseline-v1"), "triage script must define baseline schema");
 assert(script.includes("surface-contract-new-gap-gate-v1"), "triage script must define new gap gate schema");
 assert(script.includes("surface-contract-governance-dashboard-v1"), "triage script must define dashboard schema");
+assert(script.includes("surface-contract-governance-compact-v1"), "triage script must define compact dashboard schema");
 assert(script.includes("surface-contract-gap-trends-v1"), "triage script must define trend schema");
+assert(script.includes("surface-contract-trend-quality-gate-v1"), "triage script must define trend quality gate schema");
 assert(script.includes("new_gaps_only"), "gate must be scoped to new gaps only");
 assert(script.includes("external_sends: false"), "triage safety must forbid external sends");
 assert(script.includes("writes_database: false"), "triage safety must forbid DB writes");
