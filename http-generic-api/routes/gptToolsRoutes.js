@@ -804,7 +804,7 @@ async function fetchTools(callerType) {
     }
   );
   const visibleRows = callerType === "tenant"
-    ? rows.filter((r) => !isTenantBlockedToolPath(r.http_path))
+    ? rows.filter((r) => isTenantToolVisible(r))
     : rows;
   const dbTools = visibleRows.map((r) => ({
     name: r.tool_key,
