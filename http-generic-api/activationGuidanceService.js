@@ -303,6 +303,41 @@ export async function buildActivationGuidance({
   const recommendedNextActions = rankNextActions({ profile: normalizedProfile, counts, groups });
   const toolRows = await readToolRows(normalizedProfile === "admin" ? "admin_platform_endpoint_tools" : "tenant_platform_endpoint_tools", "is_enabled = 1", []);
   const classified = classifyTools(toolRows);
+  const languageContext = await resolveGuidanceLanguagePreference({
+    userId,
+    tenantId: effectiveTenantId,
+    requestedLocale,
+    acceptLanguage,
+  });
+  const activationBrief = buildBrief({ profile: normalizedProfile, tenantContext, counts, recommendedNextActions });
+  const permissionSemantics = {
+    connected_is_not_authorized: true,
+    raw_binding_is_not_allowed_capability: true,
+    requires_resolved_readiness: true,
+    live_mutation_requires_approval: true,
+  };
+  const readinessDimensions = [
+    "connected",
+    "configured",
+    "authenticated",
+    "authorized",
+    "skill_granted",
+    "smoke_certified",
+    "runtime_ready",
+    "can_execute",
+  ];
+  const presentation = buildGuidancePresentation({
+    profile: normalizedProfile,
+    activationBrief,
+    counts,
+    permissionSemantics,
+    readinessDimensions,
+    capabilityGroups: groups,
+    recommendedNextActions,
+    safeActionMenu: classified.safeMenu,
+    blockedOrLimitedCapabilities: classified.blockedOrLimited,
+    languageContext,
+  });
   const payload = {
     ok: true,
     activation_layer: "activation_guidance_intelligence",
