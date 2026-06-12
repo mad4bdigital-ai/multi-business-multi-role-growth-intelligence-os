@@ -739,7 +739,14 @@ export function readCachedToolResponseChunk(args = {}) {
     err.code = "response_chunk_not_found";
     throw err;
   }
+  const now = Date.now();
   const options = normalizeResponseOptions(args);
+  const ttlMs = resolveToolResponseChunkTtlMs(args, entry.serialized.length);
+  entry.ttlMs = Math.max(Number(entry.ttlMs || 0), ttlMs);
+  entry.lastReadAt = now;
+  entry.readCount = Number(entry.readCount || 0) + 1;
+  entry.expiresAt = now + entry.ttlMs;
+  TOOL_RESPONSE_CHUNK_CACHE.set(chunkId, entry);
   return buildToolResponseChunk({
     serialized: entry.serialized,
     chunkId,
