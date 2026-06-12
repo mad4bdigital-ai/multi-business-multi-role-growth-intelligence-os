@@ -295,6 +295,37 @@ export function buildGuidancePresentation({ profile, activationBrief, counts, pe
     }
   }
 
+  const briefTitle = localizedMessage(`brief.${profile}.title`, languageContext);
+  const briefSummary = localizedMessage(`brief.${profile}.summary`, languageContext);
+  const bestAction = localizedRecommendedActions[0] || null;
+  const baseLocale = localeBase(languageContext.resolved_locale);
+  const promptText = bestAction?.label?.text && bestAction?.reason?.text
+    ? baseLocale === "ar"
+      ? `أفضل بداية الآن: ${bestAction.label.text} — ${bestAction.reason.text}.`
+      : baseLocale === "en"
+        ? `Best starting point: ${bestAction.label.text} — ${bestAction.reason.text}.`
+        : null
+    : null;
+  const localizedActivationBrief = {
+    title: briefTitle,
+    status: activationBrief?.status || "ready_to_guide_user",
+    summary: briefSummary,
+    workspace_or_tenant: activationBrief?.workspace_or_tenant || null,
+    best_next_action: bestAction,
+    user_prompt_to_offer: {
+      message_key: "brief.best_next_action.prompt",
+      locale: languageContext.resolved_locale,
+      text: promptText,
+      template_data: bestAction ? {
+        action_label: bestAction.label,
+        action_reason: bestAction.reason,
+        invocation_tag: bestAction.invocation.invocation_tag,
+        slash_alias: bestAction.invocation.slash_alias,
+      } : null,
+      render_mode: promptText ? "server_localized" : "assistant_localized_from_template",
+    },
+  };
+
   return {
     language_context: {
       ...languageContext,
