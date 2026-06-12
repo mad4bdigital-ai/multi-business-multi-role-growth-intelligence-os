@@ -190,6 +190,7 @@ export const testCommands = [
   "node test-ticket-notification-delivery-cycle.mjs",
   "node test-ticket-notification-delivery-adapters.mjs",
   "node test-ticket-external-delivery-approval-policy.mjs",
+  "node test-tenant-ticket-admin-gpt-link-support.mjs",
   "node test-ticket-external-send-execution-adapter.mjs",
   "node test-ticket-external-credential-binding.mjs",
   "node test-ticket-external-secret-intake-surface.mjs",
