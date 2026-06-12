@@ -139,7 +139,7 @@ function buildTrends(dashboard, baseline) {
   const trendGate = {
     ok: dashboard.gate.blocking_new_item_count === 0,
     schema_version: "surface-contract-trend-quality-gate-v1",
-    rule: "blocking_new_item_count must not increase above zero; legacy baseline backlog remains visible but non-blocking",
+    rule: "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
     blocking_new_item_count: dashboard.gate.blocking_new_item_count,
     warning_new_item_count: dashboard.gate.new_item_count,
   };
