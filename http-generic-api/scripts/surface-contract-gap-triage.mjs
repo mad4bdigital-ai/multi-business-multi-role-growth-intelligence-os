@@ -132,8 +132,15 @@ function buildDashboard(queue, discovery, triage, gate) {
   };
 }
 function buildTrends(dashboard, baseline) {
+  const trendGate = {
+    ok: dashboard.gate.blocking_new_item_count === 0,
+    schema_version: "surface-contract-trend-quality-gate-v1",
+    rule: "blocking_new_item_count must not increase above zero; legacy baseline backlog remains visible but non-blocking",
+    blocking_new_item_count: dashboard.gate.blocking_new_item_count,
+    warning_new_item_count: dashboard.gate.new_item_count,
+  };
   return {
-    ok: true,
+    ok: trendGate.ok,
     schema_version: "surface-contract-gap-trends-v1",
     baseline_item_count: baseline.baseline_item_count,
     current_queue_items: dashboard.queue.total_items,
@@ -142,7 +149,29 @@ function buildTrends(dashboard, baseline) {
     blocking_new_item_count: dashboard.gate.blocking_new_item_count,
     docs_completion_percent: dashboard.coverage.docs_completion_percent,
     openapi_sql_route_coverage_percent: dashboard.coverage.route_coverage?.openapi_sql_route_coverage_percent,
+    openapi_exempt_sql_route_count: dashboard.coverage.route_coverage?.openapi_exempt_sql_route_count,
+    total_sql_route_like_count: dashboard.coverage.route_coverage?.total_sql_route_like_count,
     safety_marker_gap_migrations: dashboard.coverage.safety_marker_gap_migrations,
+    trend_quality_gate: trendGate,
+    safety: dashboard.safety,
+  };
+}
+function buildCompactDashboard(dashboard, trends) {
+  return {
+    ok: dashboard.ok && trends.ok,
+    schema_version: "surface-contract-governance-compact-v1",
+    docs_completion_percent: dashboard.coverage.docs_completion_percent,
+    docs_complete_count: dashboard.coverage.docs_complete_count,
+    docs_gap_count: dashboard.coverage.docs_gap_count,
+    queue_items: dashboard.queue.total_items,
+    blocking_new_item_count: dashboard.gate.blocking_new_item_count,
+    gate_ok: dashboard.gate.ok,
+    top_actionable: dashboard.top_immediate_items.slice(0, 10).map((item) => ({ migration_file: item.migration_file, queue_class: item.queue_class, score: item.score, next_step: item.recommended_next_step })),
+    openapi_missing_sql_route_count: dashboard.coverage.route_coverage?.openapi_missing_sql_route_count,
+    openapi_exempt_sql_route_count: dashboard.coverage.route_coverage?.openapi_exempt_sql_route_count,
+    total_sql_route_like_count: dashboard.coverage.route_coverage?.total_sql_route_like_count,
+    safety_marker_gap_migrations: dashboard.coverage.safety_marker_gap_migrations,
+    trend_quality_gate: trends.trend_quality_gate,
     safety: dashboard.safety,
   };
 }
