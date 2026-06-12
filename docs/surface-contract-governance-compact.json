@@ -1,30 +1,23 @@
 {
-  "ok": false,
+  "ok": true,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 99.75,
-  "docs_complete_count": 397,
-  "docs_gap_count": 1,
-  "queue_items": 1,
-  "blocking_new_item_count": 1,
-  "gate_ok": false,
-  "top_actionable": [
-    {
-      "migration_file": "1000_sprint68_dr_certification_and_tool_bus_gated_read_only.sql",
-      "queue_class": "high_review",
-      "score": 585,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    }
-  ],
+  "docs_completion_percent": 100,
+  "docs_complete_count": 398,
+  "docs_gap_count": 0,
+  "queue_items": 0,
+  "blocking_new_item_count": 0,
+  "gate_ok": true,
+  "top_actionable": [],
   "openapi_missing_sql_route_count": 0,
   "openapi_exempt_sql_route_count": 528,
   "total_sql_route_like_count": 528,
   "safety_marker_gap_migrations": 0,
   "trend_quality_gate": {
-    "ok": false,
+    "ok": true,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "blocking_new_item_count must not increase above zero; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 1,
-    "warning_new_item_count": 1
+    "blocking_new_item_count": 0,
+    "warning_new_item_count": 0
   },
   "safety": {
     "executes_provider_calls": false,

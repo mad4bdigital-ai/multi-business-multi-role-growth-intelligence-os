@@ -4,15 +4,15 @@
 
 ## Summary
 
-- Triaged items: 1
-- Gate candidates: 1
-- New-gap gate: fail
-- Blocking new items: 1
+- Triaged items: 0
+- Gate candidates: 0
+- New-gap gate: pass
+- Blocking new items: 0
 
 ## Class counts
 
-- new_surface_immediate_review: 1
+- none
 
 ## Immediate review candidates
 
-- `1000_sprint68_dr_certification_and_tool_bus_gated_read_only.sql` — high_review, score 585; next: add targeted patch-index, parity, and governance documentation
+- none
