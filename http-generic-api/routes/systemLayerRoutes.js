@@ -39,7 +39,10 @@ import {
   createRepositoryAuthorityBinding,
   listRepositoryAuthorityBindings,
   revokeRepositoryAuthorityBinding,
+  tenantRepositoryActionPlannerDryRun,
+  tenantRepositoryIntelligenceReport,
   tenantRepositoryIntelligenceV2ReadinessSmoke,
+  tenantRepositoryIntelligenceV3V4ReadinessSmoke,
   tenantRepositoryPrReconciliationSweep,
 } from "../repositoryTenantIntelligenceV2.js";
 import { writeResourceRecipeApplyEvidence } from "../resourceRecipeApplyEvidence.js";
