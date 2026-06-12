@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 0
-- Critical review: 0
+- Total queue items: 1
+- Critical review: 1
 - High review: 0
 - Medium review: 0
 - Low review: 0
@@ -13,4 +13,17 @@
 
 ## Top Queue Items
 
-No actionable surface contract gaps detected.
+### 1. `292_sprint68_platform_health_scorecard_operationalization.sql`
+
+- Queue class: critical_review
+- Score: 1071
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: none
+- Surface counts: plugins=1, tools=11, views=6, policies=0, routes=6
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `enabled_tenant_tool_count`, `manual_readback`, `platform_health_scorecard_snapshot_record`, `platform_health_scorecard_tenant_rollout_readiness`, `platform_orchestration_readback`, `release_readiness`, `release_readiness_health`, `remediate_release_readiness_health`, `remediate_tool_bus_health`, `system_layer_tool_count`, `total_preflight_risk_count`
+- `verify_readback_view` → db-readback-review; targets: `v_platform_health_scorecard_component_registry_readback`, `v_platform_health_scorecard_components`, `v_platform_health_scorecard_history`, `v_platform_health_scorecard_ledger_hygiene`, `v_platform_health_scorecard_remediation_plan`, `v_platform_health_scorecard_tenant_rollout_readiness`
+
