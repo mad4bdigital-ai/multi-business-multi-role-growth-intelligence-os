@@ -66,4 +66,35 @@ const readyPr = classifyRepositoryPullRequestV2({
 assert.equal(readyPr.classification_v2, "merge_ready");
 assert.equal(readyPr.recommended_action_v2, "review_and_merge_manually_if_policy_allows");
 
-console.log("repository tenant intelligence v2 tests passed");
+const report = buildRepositoryIntelligenceReportV3({
+  sweepResult: {
+    resource_uri: repoRef.resource_uri,
+    summary: { provider_calls_made: 3 },
+    pull_requests: [
+      { number: 10, title: "Docs agent: stale note", url: "https://example.test/pull/10", author: "docs-agent", ...docsPr },
+      { number: 11, title: "Needs CI", url: "https://example.test/pull/11", author: "dev", ...ciMissingPr },
+    ],
+  },
+  args: { state: "open", limit: 2, include_markdown: true },
+  scope: { tenant_id: "tenant_test" },
+  repoRef,
+});
+assert.equal(report.schema_version, "tenant_repository_intelligence_report.v3");
+assert.equal(report.engine_version, "v3_read_only_decision_report");
+assert.equal(report.summary.pr_count, 2);
+assert.equal(report.summary.classifications.stale_docs_agent_only, 1);
+assert.equal(report.summary.classifications.clean_but_ci_missing, 1);
+assert.equal(report.summary.mutations_executed, false);
+assert.match(report.markdown, /Repository Intelligence Decision Report/);
+assert.equal(report.pull_request_evidence[0].mutations_allowed, false);
+
+const planner = buildRepositoryActionPlannerV4(report);
+assert.equal(planner.schema_version, "tenant_repository_action_planner.v4");
+assert.equal(planner.mode, "dry_run_only");
+assert.equal(planner.summary.planned_action_counts.close_superseded_dry_run, 1);
+assert.equal(planner.summary.planned_action_counts.run_or_wait_for_ci_recommendation, 1);
+assert.equal(planner.summary.mutations_executed, false);
+assert.equal(planner.apply_allowed, false);
+assert.equal(planner.next_gate, "approval_gated_mutations_v5_not_enabled");
+
+console.log("repository tenant intelligence v2/v3/v4 tests passed");
