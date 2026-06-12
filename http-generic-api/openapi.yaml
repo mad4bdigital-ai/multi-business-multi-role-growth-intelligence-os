@@ -3022,6 +3022,136 @@ paths:
               schema:
                 $ref: '#/components/schemas/RuntimeParityResponse'
 
+  /platform/session-insight-promotions/target-write-readbacks/create:
+    post:
+      tags: [admin-control]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: sessionInsightTargetWriteReadbackCreate
+      summary: Create a read-only Session Insight target write readback
+      description: >
+        Validates an already executed internal SQL backlog target write against its target item,
+        source payload hash, link metadata, duplicate counts, and no-provider/no-external/no-secret
+        safety flags. This operation records readback evidence only; it does not create target writes,
+        modify target items, execute rollback, call providers, read credentials, perform external writes,
+        or return raw transcripts or secrets.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [target_write_id]
+              properties:
+                target_write_id:
+                  type: string
+                created_by:
+                  type: string
+      responses:
+        '200':
+          description: Readback evidence recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, readback, validation, safety_contract, secrets_included]
+                properties:
+                  ok:
+                    type: boolean
+                    enum: [true]
+                  readback:
+                    $ref: '#/components/schemas/JsonValue'
+                  validation:
+                    $ref: '#/components/schemas/JsonValue'
+                  safety_contract:
+                    $ref: '#/components/schemas/JsonValue'
+                  secrets_included:
+                    type: boolean
+                    enum: [false]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /platform/session-insight-promotions/target-write-readbacks/list:
+    post:
+      tags: [admin-control]
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      operationId: sessionInsightTargetWriteReadbackList
+      summary: List Session Insight target write readbacks
+      description: >
+        Lists read-only target write readback evidence and diagnostics. It does not create target writes,
+        modify target items, execute rollback, call providers, read credentials, perform external writes,
+        or return raw transcripts or secrets.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                readback_id:
+                  type: string
+                target_write_id:
+                  type: string
+                target_item_id:
+                  type: string
+                promotion_id:
+                  type: string
+                target_surface:
+                  type: string
+                readback_status:
+                  type: string
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 25
+      responses:
+        '200':
+          description: Readback evidence list.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [ok, count, readbacks, issues, policy, secrets_included]
+                properties:
+                  ok:
+                    type: boolean
+                    enum: [true]
+                  count:
+                    type: integer
+                  readbacks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/JsonValue'
+                  issues:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/JsonValue'
+                  policy:
+                    $ref: '#/components/schemas/JsonValue'
+                  secrets_included:
+                    type: boolean
+                    enum: [false]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /me/infrastructure/ssh/connections/{connection_id}/cli/execute:
     post:
       tags: [tenant-infrastructure]
