@@ -343,6 +343,40 @@ export function buildSupportTicketRoutes(deps = {}) {
     }
   });
 
+  router.post("/admin/support/tickets/tenant-user/create-simulation", ...adminGuards, async (req, res) => {
+    try {
+      const membership = await resolveMembershipForAdminTenantTicketSimulation({
+        tenant_id: req.body?.tenant_id,
+        user_id: req.body?.user_id,
+      });
+      const simulatedReq = {
+        body: {
+          ...req.body,
+          source_layer: req.body?.source_layer || "tenant_gpt",
+          source_tool: req.body?.source_tool || "support_ticket_create",
+          metadata_json: {
+            ...(req.body?.metadata_json && typeof req.body.metadata_json === "object" ? req.body.metadata_json : {}),
+            admin_simulation: true,
+            route_equivalent: "/me/support/tickets",
+            support_additive_only: true,
+            secrets_included: false,
+          },
+        },
+        auth: { user_id: membership.user_id },
+      };
+      const result = await createOrAppendSupportTicket(tenantTicketEnvelope(simulatedReq, membership));
+      return res.status(result.created ? 201 : 200).json({
+        ...result,
+        mode: "tenant_user_route_equivalent_simulation",
+        route_equivalent: "/me/support/tickets",
+        support_additive_only: true,
+        secrets_included: false,
+      });
+    } catch (err) {
+      return sendError(res, err, "support_ticket_tenant_user_create_simulation_failed");
+    }
+  });
+
   router.post("/me/support/tickets", requireUserJwt, async (req, res) => {
     try {
       const membership = await resolveTenantForUser(req, res);
