@@ -429,6 +429,6 @@ export async function executeSupportTicketLiveSend(providerPlan = {}, options = 
   const runtime = providerRuntimeKind(adapter);
   const result = runtime === "gmail_user_oauth"
     ? await sendGmailMail(providerPlan, payload)
-    : await sendSmtpMail({ config: parseSmtpUrl(), ...payload, idempotencyKey: providerPlan.idempotency_key || providerPlan.payload_json?.idempotency_key });
+    : await sendSmtpMail({ config: (await resolveSmtpConfig(options)).config, ...payload, idempotencyKey: providerPlan.idempotency_key || providerPlan.payload_json?.idempotency_key });
   return { ok: true, mode: "live_send", runtime, adapter_key: adapter.adapter_key || null, provider_status: result.provider_status, provider_message_id: result.provider_message_id, external_send_performed: true, secret_value_included: false, secrets_included: false };
 }
