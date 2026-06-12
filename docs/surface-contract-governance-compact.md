@@ -2,10 +2,10 @@
 
 - Gate: fail
 - Blocking new items: 1
-- Docs completion: 15/394 (3.81%)
-- Queue items: 393
+- Docs completion: 15/395 (3.8%)
+- Queue items: 394
 - OpenAPI missing SQL routes: 156
-- OpenAPI-exempt SQL route-like literals: 128/520
+- OpenAPI-exempt SQL route-like literals: 130/522
 - Safety marker gap migrations: 275
 - Trend quality gate: fail
 
@@ -14,7 +14,7 @@
 - `282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql` — critical_review, score 1417; classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `281_sprint68_session_insight_capability_envelope_dispatch_readback.sql` — critical_review, score 1345; classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `906_sprint68_ticket_external_delivery_completion_certification.sql` — critical_review, score 1265; add targeted patch-index, parity, and governance documentation
-- `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql` — critical_review, score 1220; classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql` — critical_review, score 1219; classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `280_sprint68_session_insight_capability_envelope_approval_gate.sql` — critical_review, score 1201; classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `960_sprint68_remaining_resource_capability_completion_gates.sql` — critical_review, score 1001; add targeted patch-index, parity, and governance documentation
 - `284_sprint68_session_insight_backlog_target_write_executor.sql` — critical_review, score 968; classify route-like strings, then add OpenAPI contract or false-positive exemption

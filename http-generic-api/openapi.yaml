@@ -71,6 +71,8 @@ tags:
     description: Release readiness checks, history, and entity classification inventory.
   - name: runtime-verification
     description: Runtime verification control plane, production parity ledger, and paginated evidence surfaces.
+  - name: operational-console
+    description: Unified operational console readback across runtime parity, activation, tiles, gaps, freshness, and evidence manifests.
   - name: local-manager
     description: Local Manager device-code linking, device controls, and Windows update metadata.
   - name: platform-graph
@@ -112,6 +114,55 @@ components:
         Bearer token minted by /auth/login, /auth/register, or approved device-link polling.
 
   schemas:
+
+    OperationalConsoleResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, activation_layer, environment_key, summary, secrets_included]
+      properties:
+        ok: { type: boolean }
+        activation_layer: { type: string, enum: [operational_console] }
+        environment_key: { type: string }
+        summary:
+          type: object
+          additionalProperties: true
+          properties:
+            production_parity: { type: string }
+            readiness_classification: { type: string }
+            activation_status: { type: string }
+            latest_run_id: { type: string, nullable: true }
+            blocking_gap_count: { type: integer }
+            operational_tile_count: { type: integer }
+            callback_count: { type: integer }
+            attention_rule_count: { type: integer }
+            remediation_runbook_count: { type: integer }
+            freshness_policy_count: { type: integer }
+            secrets_included: { type: boolean }
+        runtime_parity: { $ref: '#/components/schemas/RuntimeParityResponse' }
+        activation_summary:
+          type: object
+          additionalProperties: true
+        latest_verification_run:
+          oneOf:
+            - $ref: '#/components/schemas/RuntimeVerificationRunResponse'
+            - type: 'null'
+        operational_tiles:
+          type: array
+          items: { type: object, additionalProperties: true }
+        callbacks:
+          type: array
+          items: { type: object, additionalProperties: true }
+        attention_rules:
+          type: array
+          items: { type: object, additionalProperties: true }
+        remediation_runbooks:
+          type: array
+          items: { type: object, additionalProperties: true }
+        freshness_policies:
+          type: array
+          items: { type: object, additionalProperties: true }
+        evidence_manifest: { $ref: '#/components/schemas/RuntimeVerificationEvidenceResponse' }
+        secrets_included: { type: boolean }
 
     RuntimeVerificationCreateRequest:
       type: object
@@ -2781,6 +2832,75 @@ x-tenant-gpt-auth:
         - https://auth.mad4b.com/scopes/tenant.system-tools
 
 paths:
+  /operational/console:
+    get:
+      tags: [operational-console]
+      operationId: getOperationalConsole
+      summary: Read operational console overview
+      description: >
+        Returns one compact, secret-safe operational console surface combining runtime parity,
+        activation summary, operational tiles, callbacks, attention rules, freshness policies,
+        latest runtime verification run, remediation runbooks, and evidence manifest.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: environment_key
+          in: query
+          required: false
+          schema: { type: string, default: production }
+        - name: tile_limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: evidence_limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+        - name: surface
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Operational console overview.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalConsoleResponse'
+  /operational/console/evidence:
+    get:
+      tags: [operational-console]
+      operationId: getOperationalConsoleEvidence
+      summary: Read operational console evidence
+      description: Returns paginated evidence for the latest runtime verification run referenced by the console.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: environment_key
+          in: query
+          required: false
+          schema: { type: string, default: production }
+        - name: surface
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated operational console evidence.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeVerificationEvidenceResponse'
   /activation/hard-run/summary:
     get:
       tags: [activation, runtime-verification]
