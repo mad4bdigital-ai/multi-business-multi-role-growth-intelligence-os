@@ -34,8 +34,12 @@ async function countRows(tableName) {
   return { exists: true, count: Number(rows[0]?.count || 0) };
 }
 
-function resolveCommit(input = {}) {
-  return String(input.expected_commit_sha || input.deployed_commit_sha || process.env.GIT_COMMIT || process.env.GITHUB_SHA || process.env.COMMIT_SHA || process.env.RENDER_GIT_COMMIT || "unknown").trim();
+function resolveExpectedCommit(input = {}) {
+  return String(input.expected_commit_sha || process.env.GIT_COMMIT || process.env.GITHUB_SHA || process.env.COMMIT_SHA || process.env.RENDER_GIT_COMMIT || input.deployed_commit_sha || "unknown").trim();
+}
+
+function resolveDeployedCommit(input = {}, expectedCommit = "unknown") {
+  return String(input.deployed_commit_sha || input.runtime_commit_sha || process.env.GIT_COMMIT || process.env.GITHUB_SHA || process.env.COMMIT_SHA || process.env.RENDER_GIT_COMMIT || expectedCommit || "unknown").trim();
 }
 
 async function insertStep(runId, step) {
