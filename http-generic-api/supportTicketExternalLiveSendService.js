@@ -305,10 +305,7 @@ async function sendSmtpMail({ config, to, subject, text, html, idempotencyKey })
       err.code = "support_ticket_live_smtp_starttls_not_enabled";
       throw err;
     }
-    if (config.username || config.password) {
-      const auth = Buffer.from(`\u0000${config.username}\u0000${config.password}`, "utf8").toString("base64");
-      await writeSmtp(socket, `AUTH PLAIN ${auth}`, [235, 250]);
-    }
+    await authenticateSmtp(socket, config);
     const { data, messageId } = createMessage({ from: config.from, to, subject, text, html, idempotencyKey });
     await writeSmtp(socket, `MAIL FROM:<${config.from}>`);
     await writeSmtp(socket, `RCPT TO:<${to}>`, [250, 251]);
