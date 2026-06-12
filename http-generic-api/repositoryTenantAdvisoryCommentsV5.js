@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { GITHUB_API_BASE_URL, GITHUB_TOKEN } from "./config.js";
+import { GITHUB_API_BASE_URL } from "./config.js";
 import { getPool } from "./db.js";
-import { githubCommentOnPR } from "./github.js";
+import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import {
   createRepositoryAuthorityBinding,
   normalizeGithubRepoRef,
@@ -35,14 +35,14 @@ function requireScope(scope = {}) {
     err.status = 400; err.code = "repository_advisory_comment_scope_required"; throw err;
   }
 }
-function requireGithubToken() {
-  if (!GITHUB_TOKEN) { const err = new Error("Missing required environment variable: GITHUB_TOKEN"); err.status = 500; err.code = "missing_github_token"; throw err; }
-  return GITHUB_TOKEN;
+async function resolveGithubToken() {
+  return await getGitHubAppInstallationToken({});
 }
-async function githubJson({ method = "GET", pathname, searchParams } = {}) {
+async function githubJson({ method = "GET", pathname, searchParams, body } = {}) {
+  const token = await resolveGithubToken();
   const url = new URL(`${GITHUB_API_BASE_URL}${pathname}`);
   for (const [key, value] of Object.entries(searchParams || {})) if (value !== undefined && value !== null && String(value).trim() !== "") url.searchParams.set(key, String(value));
-  const response = await fetch(url, { method, headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${requireGithubToken()}`, "X-GitHub-Api-Version": "2022-11-28" } });
+  const response = await fetch(url, { method, headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}`, "X-GitHub-Api-Version": "2022-11-28", ...(body === undefined ? {} : { "Content-Type": "application/json" }) }, body: body === undefined ? undefined : JSON.stringify(body) });
   const raw = await response.text();
   let payload = null;
   try { payload = raw ? JSON.parse(raw) : null; } catch { payload = { message: raw }; }
@@ -56,6 +56,11 @@ async function listPrComments({ owner, repo, pull_number }) {
 async function getIssueComment({ owner, repo, comment_id }) {
   const c = await githubJson({ pathname: `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/comments/${encodeURIComponent(String(comment_id))}` });
   return { id: c?.id || Number(comment_id), html_url: c?.html_url || "", user_login: c?.user?.login || null, body: c?.body || "" };
+}
+
+async function postPrComment({ owner, repo, pull_number, body }) {
+  const c = await githubJson({ method: "POST", pathname: `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${encodeURIComponent(String(pull_number))}/comments`, body: { body } });
+  return { ok: true, comment_id: c?.id || null, html_url: c?.html_url || "" };
 }
 
 export async function ensureRepositoryAdvisoryCommentPlansTable() {
@@ -200,7 +205,7 @@ export async function tenantRepositoryAdvisoryCommentApply(args = {}, { auth } =
   const duplicate = comments.find((c) => String(c.body || "").includes(`repository-intelligence-advisory:v5 plan_id=${planId}`) || String(c.body || "").includes(`preview_sha256=${plan.comment_preview_sha256}`));
   if (duplicate) return { ok: false, tool: "tenant_repository_advisory_comment_apply", classification: "repository_advisory_comment_duplicate_blocked", plan_id: planId, existing_comment_id: duplicate.id || null, apply_allowed: false, mutations_executed: false, secrets_included: false };
   if (yes(args.dry_run, false)) return { ok: true, tool: "tenant_repository_advisory_comment_apply", classification: "repository_advisory_comment_apply_dry_run_ready", plan_id: planId, would_post_comment: true, apply_allowed: false, mutations_executed: false, secrets_included: false };
-  const posted = await githubCommentOnPR({ input: { owner: plan.owner, repo: plan.repo, pull_number: plan.pr_number, body: plan.comment_preview_markdown } });
+  const posted = await postPrComment({ owner: plan.owner, repo: plan.repo, pull_number: plan.pr_number, body: plan.comment_preview_markdown });
   await getPool().query("UPDATE repository_advisory_comment_plans SET status = 'posted', approval_hold_id = ?, posted_comment_id = ?, posted_comment_url = ?, updated_at = CURRENT_TIMESTAMP WHERE plan_id = ?", [approval.approval_hold_id, String(posted.comment_id || ""), posted.html_url || "", planId]);
   await recordEvidence({ action: "tenant_repository_advisory_comment_apply", evidenceType: "repository_advisory_comment_apply_v5", scope, repoRef, preview: plan, response: { classification: "repository_advisory_comment_posted", comment_id: posted.comment_id, mutations_executed: true, apply_allowed: true } });
   const readback = await tenantRepositoryAdvisoryCommentReadback({ plan_id: planId }, { auth });
