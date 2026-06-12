@@ -2783,6 +2783,75 @@ x-tenant-gpt-auth:
         - https://auth.mad4b.com/scopes/tenant.system-tools
 
 paths:
+  /operational/console:
+    get:
+      tags: [operational-console]
+      operationId: getOperationalConsole
+      summary: Read operational console overview
+      description: >
+        Returns one compact, secret-safe operational console surface combining runtime parity,
+        activation summary, operational tiles, callbacks, attention rules, freshness policies,
+        latest runtime verification run, remediation runbooks, and evidence manifest.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: environment_key
+          in: query
+          required: false
+          schema: { type: string, default: production }
+        - name: tile_limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: evidence_limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+        - name: surface
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Operational console overview.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationalConsoleResponse'
+  /operational/console/evidence:
+    get:
+      tags: [operational-console]
+      operationId: getOperationalConsoleEvidence
+      summary: Read operational console evidence
+      description: Returns paginated evidence for the latest runtime verification run referenced by the console.
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: environment_key
+          in: query
+          required: false
+          schema: { type: string, default: production }
+        - name: surface
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated operational console evidence.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeVerificationEvidenceResponse'
   /activation/hard-run/summary:
     get:
       tags: [activation, runtime-verification]
