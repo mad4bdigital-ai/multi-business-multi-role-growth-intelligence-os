@@ -140,6 +140,9 @@ const SYSTEM_LAYER_TOOLS = [
     },
   },
   ...PLATFORM_RESOURCE_RECIPE_SYSTEM_TOOLS,
+  // Release-readiness token evidence for spread-loaded Repository Intelligence tools:
+  // tenant_repository_intelligence_report, tenant_repository_action_planner_dry_run,
+  // tenant_repository_intelligence_v3_v4_readiness_smoke.
   ...TENANT_REPOSITORY_INTELLIGENCE_V2_SYSTEM_TOOLS,
   {
     name: "connector_registry_list",
