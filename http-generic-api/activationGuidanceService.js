@@ -286,7 +286,13 @@ function buildBrief({ profile, tenantContext, counts, recommendedNextActions }) 
   };
 }
 
-export async function buildActivationGuidance({ profile = "tenant", userId = null, tenantId = null } = {}) {
+export async function buildActivationGuidance({
+  profile = "tenant",
+  userId = null,
+  tenantId = null,
+  requestedLocale = null,
+  acceptLanguage = null,
+} = {}) {
   const normalizedProfile = profile === "admin" ? "admin" : "tenant";
   const tenantContext = normalizedProfile === "admin"
     ? await fetchAdminTenantContext({ tenantId })
