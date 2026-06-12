@@ -7,9 +7,9 @@
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
     "migrations_with_surfaces": 388,
-    "docs_complete_count": 14,
-    "docs_gap_count": 374,
-    "docs_completion_percent": 3.61,
+    "docs_complete_count": 15,
+    "docs_gap_count": 373,
+    "docs_completion_percent": 3.87,
     "surface_totals": {
       "plugins": 11,
       "tools": 1782,
@@ -25,17 +25,17 @@
       "routes": 218
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 344,
-      "deployment_parity_checklist.md": 353,
-      "docs/ai-docs-agent-governance.md": 374,
-      "docs/auto-docs-agent/README.md": 374,
-      "docs/change-documentation-governance.md": 374
+      "Updating Registry Patch Index.md": 343,
+      "deployment_parity_checklist.md": 352,
+      "docs/ai-docs-agent-governance.md": 373,
+      "docs/auto-docs-agent/README.md": 373,
+      "docs/change-documentation-governance.md": 373
     },
     "gap_severity_counts": {
-      "high": 213,
+      "high": 212,
       "medium": 137,
       "low": 24,
-      "none": 14
+      "none": 15
     },
     "high_risk_missing_docs": [
       "047_sprint47b_gpt_tool_registry.sql",
@@ -248,7 +248,6 @@
       "274_sprint68_schema_split_importer_v2_reference_preservation.sql",
       "274_sprint68_session_insight_capability_envelope_request_review.sql",
       "277_sprint68_session_insight_capability_envelope_dispatch_dry_run_review.sql",
-      "286_sprint68_platform_schema_contract_completion_registry.sql",
       "906_sprint68_ticket_external_delivery_completion_certification.sql",
       "999_sprint68_repository_intelligence_v3_v4_tenant_tool_wiring.sql"
     ],
@@ -401,20 +400,20 @@
     },
     "safety_marker_gap_migrations": 274,
     "route_coverage": {
-      "sql_route_count": 392,
+      "sql_route_count": 391,
       "total_sql_route_like_count": 509,
-      "openapi_exempt_sql_route_count": 117,
+      "openapi_exempt_sql_route_count": 118,
       "route_class_counts": {
-        "http_route": 392,
+        "http_route": 391,
         "admin_tool_registry_route": 73,
         "tenant_tool_registry_route": 35,
         "system_tool_dispatch_route": 9,
-        "registry_only_surface": 0,
+        "registry_only_surface": 1,
         "false_positive_route_like_string": 0
       },
       "openapi_documented_sql_route_count": 235,
-      "openapi_missing_sql_route_count": 157,
-      "openapi_sql_route_coverage_percent": 59.95,
+      "openapi_missing_sql_route_count": 156,
+      "openapi_sql_route_coverage_percent": 60.1,
       "route_openapi_gaps": [
         {
           "migration_file": "068_sprint58_cloudflare_readonly_runtime.sql",
@@ -1001,12 +1000,6 @@
             "/platform/session-insight-promotions/backlog-target-writes/list",
             "/platform/session-insight-promotions/backlog-target-writes/rollback"
           ]
-        },
-        {
-          "migration_file": "286_sprint68_platform_schema_contract_completion_registry.sql",
-          "missing_routes": [
-            "/platform/wordpress/blog-publish-recovery"
-          ]
         }
       ]
     }
@@ -1014,26 +1007,26 @@
   "queue": {
     "total_items": 387,
     "class_counts": {
-      "critical_review": 245,
+      "critical_review": 244,
       "high_review": 115,
       "medium_review": 26,
-      "low_review": 1
+      "low_review": 2
     }
   },
   "triage": {
     "total_items": 100,
     "class_counts": {
-      "safety_marker_review": 31,
+      "safety_marker_review": 32,
       "openapi_contract_review": 62,
-      "new_surface_immediate_review": 7
+      "new_surface_immediate_review": 6
     },
-    "gate_candidate_count": 7
+    "gate_candidate_count": 6
   },
   "gate": {
-    "ok": false,
+    "ok": true,
     "mode": "new_gaps_only",
-    "new_item_count": 1,
-    "blocking_new_item_count": 1
+    "new_item_count": 0,
+    "blocking_new_item_count": 0
   },
   "top_immediate_items": [
     {
@@ -1282,53 +1275,6 @@
         "runtime-registry-review",
         "runtime-policy-review",
         "db-readback-review",
-        "safety-contract-review"
-      ],
-      "recommended_next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
-      "migration_file": "286_sprint68_platform_schema_contract_completion_registry.sql",
-      "score": 952,
-      "queue_class": "critical_review",
-      "triage_class": "new_surface_immediate_review",
-      "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [
-        "/platform/wordpress/blog-publish-recovery"
-      ],
-      "safety_marker_gaps": [
-        "no_provider_call",
-        "no_credential_payload_read",
-        "no_raw_secrets",
-        "no_external_send",
-        "no_external_write"
-      ],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "review_openapi_contract",
-        "verify_tool_registry_binding",
-        "add_explicit_safety_markers"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "api-contract-review",
-        "runtime-registry-review",
         "safety-contract-review"
       ],
       "recommended_next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption",

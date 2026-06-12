@@ -1,13 +1,13 @@
 # Surface Contract Governance Compact
 
-- Gate: fail
-- Blocking new items: 1
-- Docs completion: 14/388 (3.61%)
+- Gate: pass
+- Blocking new items: 0
+- Docs completion: 15/388 (3.87%)
 - Queue items: 387
-- OpenAPI missing SQL routes: 157
-- OpenAPI-exempt SQL route-like literals: 117/509
+- OpenAPI missing SQL routes: 156
+- OpenAPI-exempt SQL route-like literals: 118/509
 - Safety marker gap migrations: 274
-- Trend quality gate: fail
+- Trend quality gate: pass
 
 ## Top actionable
 
@@ -17,4 +17,3 @@
 - `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql` — critical_review, score 1221; classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `280_sprint68_session_insight_capability_envelope_approval_gate.sql` — critical_review, score 1202; classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `284_sprint68_session_insight_backlog_target_write_executor.sql` — critical_review, score 970; classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `286_sprint68_platform_schema_contract_completion_registry.sql` — critical_review, score 952; classify route-like strings, then add OpenAPI contract or false-positive exemption
