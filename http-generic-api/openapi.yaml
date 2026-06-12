@@ -2881,6 +2881,21 @@ paths:
           in: query
           required: false
           schema: { type: string }
+        - name: locale
+          in: query
+          required: false
+          description: Explicit user-preferred locale. Invocation tags and intent keys remain language-neutral.
+          schema: { type: string, example: ar-EG }
+        - name: language
+          in: query
+          required: false
+          description: Alias for locale.
+          schema: { type: string }
+        - name: Accept-Language
+          in: header
+          required: false
+          description: Browser or client language preference used when no explicit locale is provided.
+          schema: { type: string }
       responses:
         '200':
           description: Tenant activation guidance.
