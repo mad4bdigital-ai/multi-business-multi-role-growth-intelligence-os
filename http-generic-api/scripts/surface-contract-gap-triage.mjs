@@ -11,6 +11,8 @@ const TRIAGE_MD = path.join(REPO_ROOT, "docs", "surface-contract-gap-triage.md")
 const BASELINE_JSON = path.join(REPO_ROOT, "docs", "surface-contract-gap-baseline.json");
 const DASHBOARD_JSON = path.join(REPO_ROOT, "docs", "surface-contract-governance-dashboard.json");
 const DASHBOARD_MD = path.join(REPO_ROOT, "docs", "surface-contract-governance-dashboard.md");
+const COMPACT_DASHBOARD_JSON = path.join(REPO_ROOT, "docs", "surface-contract-governance-compact.json");
+const COMPACT_DASHBOARD_MD = path.join(REPO_ROOT, "docs", "surface-contract-governance-compact.md");
 const TREND_JSON = path.join(REPO_ROOT, "docs", "surface-contract-gap-trends.json");
 const TREND_MD = path.join(REPO_ROOT, "docs", "surface-contract-gap-trends.md");
 
