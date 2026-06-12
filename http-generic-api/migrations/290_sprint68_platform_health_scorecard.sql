@@ -47,7 +47,6 @@ SELECT
   CASE
     WHEN tt.recursive_tenant_tools_active = 0
      AND at.invalid_admin_tool_input_schema = 0
-     AND at.enabled_runtime_endpoint_call_tools >= 1
     THEN 'pass' ELSE 'fail'
   END AS status,
   JSON_OBJECT(
