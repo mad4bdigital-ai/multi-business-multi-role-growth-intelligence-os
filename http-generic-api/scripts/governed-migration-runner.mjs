@@ -196,6 +196,7 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "962_sprint68_smoke_branch_cleanup_gate.sql",
   "963_sprint68_hostinger_deploy_restart_tool_exports.sql",
   "964_sprint68_hostinger_stored_credential_apply_policy.sql",
+  "965_sprint68_hostinger_apply_policy_safe_field_names.sql",
   "262_sprint68_orchestration_readback_surface.sql",
   "263_sprint68_ads_governance_snapshot_proposal.sql",
   "264_sprint68_ads_governance_snapshot_record_gate.sql",
