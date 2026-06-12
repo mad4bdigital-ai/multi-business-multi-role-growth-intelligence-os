@@ -207,6 +207,9 @@ function buildCoverageSummary({ allMigrations, openapiPaths }) {
   const safetyMarkerCounts = Object.fromEntries(SAFETY_MARKERS.map((marker) => [marker, allMigrations.filter((entry) => entry.surfaces.safety[marker]).length]));
   const routeEntries = allMigrations.map((entry) => routeCoverageFor(entry, openapiPathSet));
   const routeCount = routeEntries.reduce((sum, entry) => sum + entry.route_count, 0);
+  const totalRouteCount = routeEntries.reduce((sum, entry) => sum + entry.total_route_count, 0);
+  const exemptedRouteCount = routeEntries.reduce((sum, entry) => sum + entry.exempted_route_count, 0);
+  const routeClassCounts = Object.fromEntries(ROUTE_CLASSES.map((routeClass) => [routeClass, routeEntries.reduce((sum, entry) => sum + (entry.route_class_counts?.[routeClass] || 0), 0)]));
   const documentedRouteCount = routeEntries.reduce((sum, entry) => sum + entry.documented_count, 0);
   const missingRouteCount = routeEntries.reduce((sum, entry) => sum + entry.missing_count, 0);
   const safetyMarkerGapMigrations = allMigrations.filter((entry) => !entry.surfaces.safety.secrets_included_false).length;
