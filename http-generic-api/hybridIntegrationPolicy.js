@@ -158,13 +158,24 @@ async function readPolicyRows(tenantId) {
   }
 }
 
-export async function upsertTenantIntegrationPolicies({ tenantId, userId, integrationModes = {}, source = "connect" } = {}) {
+export async function upsertTenantIntegrationPolicies({ tenantId, userId, integrationModes = {}, source = "connect", pool = null } = {}) {
   const modes = normalizeIntegrationModesObject(integrationModes);
-  if (!tenantId || !Object.keys(modes).length) return { updated: 0, skipped: true };
+  if (!tenantId || !Object.keys(modes).length) return { updated: 0, skipped: true, committed: false, secrets_included: false };
+
+  const db = pool || getPool();
+  const connection = typeof db.getConnection === "function" ? await db.getConnection() : db;
+  const ownsConnection = connection !== db;
+  let transactionStarted = false;
   let updated = 0;
-  for (const [appKey, policy] of Object.entries(modes)) {
-    try {
-      await getPool().query(
+
+  try {
+    if (typeof connection.beginTransaction === "function") {
+      await connection.beginTransaction();
+      transactionStarted = true;
+    }
+
+    for (const [appKey, policy] of Object.entries(modes)) {
+      await connection.query(
         `INSERT INTO \`tenant_integration_policies\`
            (tenant_id, app_key, source_mode, fallback_allowed, required_for_device_install, notes, status, created_by, updated_by, source)
          VALUES (?,?,?,?,?,?,'active',?,?,?)
@@ -190,12 +201,35 @@ export async function upsertTenantIntegrationPolicies({ tenantId, userId, integr
         ]
       );
       updated += 1;
-    } catch (err) {
-      if (["ER_NO_SUCH_TABLE", "ER_BAD_FIELD_ERROR"].includes(err?.code)) return { updated, skipped: true, reason: err.code };
-      throw err;
     }
+
+    if (transactionStarted && typeof connection.commit === "function") await connection.commit();
+    return {
+      updated,
+      skipped: false,
+      committed: true,
+      transaction_applied: transactionStarted,
+      secrets_included: false,
+    };
+  } catch (err) {
+    if (transactionStarted && typeof connection.rollback === "function") {
+      try { await connection.rollback(); } catch {}
+    }
+    err.status = Number(err?.status || 500);
+    err.code = err?.code === "invalid_integration_policy" ? err.code : "integration_policy_transaction_failed";
+    err.details = {
+      ...(err.details || {}),
+      original_code: err?.code === "integration_policy_transaction_failed" ? null : err?.code || null,
+      attempted_rows: Object.keys(modes).length,
+      rows_written_before_failure: updated,
+      rollback_applied: transactionStarted,
+      committed: false,
+      secrets_included: false,
+    };
+    throw err;
+  } finally {
+    if (ownsConnection && typeof connection.release === "function") connection.release();
   }
-  return { updated, skipped: false };
 }
 
 export async function resolveHybridIntegrationPolicy({ tenantId, connection = null, requestedApps = [] } = {}) {
