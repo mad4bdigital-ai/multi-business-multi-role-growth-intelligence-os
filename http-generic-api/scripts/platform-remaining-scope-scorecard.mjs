@@ -127,9 +127,18 @@ sections.push(summarize("external_delivery_graph", [
   check("external_completion_migration", exists("http-generic-api/migrations/906_sprint68_ticket_external_delivery_completion_certification.sql"), "External Delivery no-send completion certification migration exists."),
   check("external_graph_plugin_migration", exists("http-generic-api/migrations/287_sprint68_external_delivery_orchestration_graph_plugin.sql"), "External Delivery orchestration graph plugin migration exists."),
   check("external_no_send_tag_completion", exists("http-generic-api/migrations/288_sprint68_external_delivery_no_send_tool_tag_completion.sql"), "External Delivery no-send required-tool tag completion migration exists."),
+  check("external_policy_scope_alignment", exists("http-generic-api/migrations/289_sprint68_external_delivery_policy_scope_alignment.sql"), "External Delivery policy scope alignment migration exists."),
   check("external_readback_service_first_class", includes("http-generic-api/platformOrchestrationReadback.js", "v_platform_orchestration_external_delivery_readiness") && includes("http-generic-api/platformOrchestrationReadback.js", "external_delivery_readiness"), "External Delivery readiness view is first-class in platform orchestration readback."),
   check("external_graph_expected_shape", includes("http-generic-api/platformOrchestrationReadback.js", "support_ticket_external_delivery_orchestrator") && includes("http-generic-api/migrations/287_sprint68_external_delivery_orchestration_graph_plugin.sql", "expected_stage_count"), "External Delivery graph has explicit seven-stage/six-edge readiness expectations."),
   check("no_live_send_guard", includes("http-generic-api/migrations/287_sprint68_external_delivery_orchestration_graph_plugin.sql", "no_external_send") && includes("http-generic-api/migrations/287_sprint68_external_delivery_orchestration_graph_plugin.sql", "live_external_send_enabled',false"), "External Delivery graph remains no-send/live-send-disabled guarded."),
+]));
+
+sections.push(summarize("platform_health_scorecard", [
+  check("platform_health_scorecard_migration", exists("http-generic-api/migrations/290_sprint68_platform_health_scorecard.sql"), "Platform Health Scorecard migration exists."),
+  check("platform_health_scorecard_service", exists("http-generic-api/platformHealthScorecard.js") && includes("http-generic-api/platformHealthScorecard.js", "v_platform_health_scorecard"), "Platform Health Scorecard service reads DB-backed scorecard views."),
+  check("platform_health_scorecard_route", includes("http-generic-api/routes/platformPluginRoutes.js", "/platform/health/scorecard") && includes("http-generic-api/routes/platformPluginRoutes.js", "readPlatformHealthScorecard"), "Platform Health Scorecard route is exposed through platform routes."),
+  check("platform_health_scorecard_admin_tool", includes("http-generic-api/migrations/290_sprint68_platform_health_scorecard.sql", "platform_health_scorecard") && includes("http-generic-api/migrations/290_sprint68_platform_health_scorecard.sql", "/platform/health/scorecard"), "Platform Health Scorecard admin tool registry seed is present."),
+  check("platform_health_scorecard_no_provider_call", includes("http-generic-api/platformHealthScorecard.js", "will_execute_provider_call: false") && includes("http-generic-api/migrations/290_sprint68_platform_health_scorecard.sql", "no_provider_call"), "Platform Health Scorecard is readback-only and no-provider-call."),
 ]));
 
 const forbiddenChecks = scanForbidden("http-generic-api", [
