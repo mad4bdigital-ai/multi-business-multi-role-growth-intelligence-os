@@ -19,6 +19,7 @@ import { dispatchPlatformPluginRestAction } from "../platformPluginRestDispatch.
 import { resolveActionManifestDiagnostic } from "../actionManifestDiagnostic.js";
 import { resolveExecutionReadinessDryRun } from "../executionReadinessDryRun.js";
 import { readPlatformOrchestrationReadback } from "../platformOrchestrationReadback.js";
+import { readPlatformHealthScorecard } from "../platformHealthScorecard.js";
 import { proposeAdsProviderGovernanceSnapshot } from "../adsProviderGovernanceSnapshotProposal.js";
 import { recordAdsProviderGovernanceSnapshot } from "../adsProviderGovernanceSnapshotRecord.js";
 import { proposeSupportTicketLifecycleSnapshot } from "../supportTicketLifecycleSnapshotProposal.js";
@@ -151,6 +152,14 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
       const result = await readPlatformOrchestrationReadback(input);
       return res.status(200).json(result);
     } catch (err) { return errorResponse(res, err, "platform_orchestration_readback_failed"); }
+  });
+
+  router.post("/platform/health/scorecard", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await readPlatformHealthScorecard(input);
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "platform_health_scorecard_failed"); }
   });
 
   router.post("/platform/orchestration/ads-provider/snapshot-propose", ...requireAdmin, async (req, res) => {
