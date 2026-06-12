@@ -5,10 +5,10 @@
 ## Summary
 
 - Total queue items: 387
-- Critical review: 245
+- Critical review: 244
 - High review: 115
 - Medium review: 26
-- Low review: 1
+- Low review: 2
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
@@ -1448,22 +1448,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `tenant_platform_endpoint_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 94. `286_sprint68_platform_schema_contract_completion_registry.sql`
-
-- Queue class: critical_review
-- Score: 952
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Missing OpenAPI routes: `/platform/wordpress/blog-publish-recovery`
-- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- `review_openapi_contract` → api-contract-review; targets: `/platform/wordpress/blog-publish-recovery`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `inactive_endpoint_execution_readiness_cleared`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-
-### 95. `225_sprint67_gpt_session_conversation_ref_primary.sql`
+### 94. `225_sprint67_gpt_session_conversation_ref_primary.sql`
 
 - Queue class: critical_review
 - Score: 951
@@ -1478,7 +1463,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `tenant_platform_endpoint_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 96. `223_sprint67_gpt_session_conversation_refs.sql`
+### 95. `223_sprint67_gpt_session_conversation_refs.sql`
 
 - Queue class: critical_review
 - Score: 950
@@ -1493,7 +1478,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `tenant_platform_endpoint_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 97. `241_sprint68_ticket_lifecycle_brand_mapping_remediation.sql`
+### 96. `241_sprint68_ticket_lifecycle_brand_mapping_remediation.sql`
 
 - Queue class: critical_review
 - Score: 950
@@ -1509,7 +1494,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_workspace_resource_grant_effective`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 98. `273_sprint68_support_ticket_lifecycle_snapshot_record_gate.sql`
+### 97. `273_sprint68_support_ticket_lifecycle_snapshot_record_gate.sql`
 
 - Queue class: critical_review
 - Score: 950
@@ -1524,7 +1509,7 @@
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `support_ticket_lifecycle_snapshot_record_gate_policy_v1`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_raw_secrets`
 
-### 99. `250_sprint68_ticket_lifecycle_finalize_brand_mapping_remediation.sql`
+### 98. `250_sprint68_ticket_lifecycle_finalize_brand_mapping_remediation.sql`
 
 - Queue class: critical_review
 - Score: 946
@@ -1539,7 +1524,7 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 100. `157_sprint65_evolution_user_switch_tools.sql`
+### 99. `157_sprint65_evolution_user_switch_tools.sql`
 
 - Queue class: critical_review
 - Score: 944
@@ -1552,4 +1537,19 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `admin_platform_endpoint_tools`, `tenant_platform_endpoint_tools`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
+
+### 100. `248_sprint67_execution_enablement_registry.sql`
+
+- Queue class: critical_review
+- Score: 942
+- Gap severity: high
+- Missing docs: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=10, views=0, policies=2, routes=1
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_tool_registry_binding` → runtime-registry-review; targets: `credential_readiness_gate_required`, `default_decision_without_row`, `does_not_execute_target_capability`, `execution_enablement_gate`, `execution_enablement_gate_required`, `execution_enablement_tool_key`, `preflight_execution_gate_helper_required`, `requires_credential_readiness`, `requires_live_readback`, `requires_preflight_gate`
+- `verify_policy_seed_readiness` → runtime-policy-review; targets: `execution_enablement_registry_policy_v1`, `google_ads_budget_execution_adapter_skeleton_policy_v1`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 

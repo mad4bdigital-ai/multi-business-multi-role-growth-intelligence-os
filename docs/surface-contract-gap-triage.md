@@ -5,15 +5,15 @@
 ## Summary
 
 - Triaged items: 100
-- Gate candidates: 7
-- New-gap gate: fail
-- Blocking new items: 1
+- Gate candidates: 6
+- New-gap gate: pass
+- Blocking new items: 0
 
 ## Class counts
 
-- safety_marker_review: 31
+- safety_marker_review: 32
 - openapi_contract_review: 62
-- new_surface_immediate_review: 7
+- new_surface_immediate_review: 6
 
 ## Immediate review candidates
 
@@ -23,4 +23,3 @@
 - `283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql` — critical_review, score 1221; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `280_sprint68_session_insight_capability_envelope_approval_gate.sql` — critical_review, score 1202; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `284_sprint68_session_insight_backlog_target_write_executor.sql` — critical_review, score 970; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `286_sprint68_platform_schema_contract_completion_registry.sql` — critical_review, score 952; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
