@@ -88,8 +88,14 @@ async function readOperationalCallbacks(limit = DEFAULT_TILE_LIMIT) {
 async function readAttentionRules(limit = DEFAULT_TILE_LIMIT) {
   if (!(await tableExists("activation_attention_rule_registry"))) return [];
   return query(
-    `SELECT rule_key, display_name, description, source_table, severity, rule_status,
-            priority_order, status
+    `SELECT rule_key,
+            display_name,
+            NULL AS description,
+            source_table_like AS source_table,
+            severity,
+            status AS rule_status,
+            priority_order,
+            status
        FROM activation_attention_rule_registry
       WHERE status = 'active'
       ORDER BY priority_order ASC, rule_key ASC
