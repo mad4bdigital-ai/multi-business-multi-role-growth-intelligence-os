@@ -77,8 +77,8 @@ export async function isLiveSendRecipientAllowed(email, options = {}) {
   return result.allowed;
 }
 
-function parseSmtpUrl() {
-  const raw = String(process.env.SMTP_URL || process.env.HOSTINGER_SMTP_URL || "").trim();
+function parseSmtpUrlFromRaw(rawValue = "") {
+  const raw = String(rawValue || "").trim();
   if (!raw) return null;
   const parsed = new URL(raw);
   if (!["smtp:", "smtps:"].includes(parsed.protocol)) {
@@ -94,6 +94,41 @@ function parseSmtpUrl() {
     password: decodeURIComponent(parsed.password || ""),
     from: parsed.searchParams.get("from") || process.env.SMTP_FROM || process.env.HOSTINGER_SMTP_FROM || parsed.username || "",
   };
+}
+
+function parseSmtpUrl() {
+  return parseSmtpUrlFromRaw(process.env.SMTP_URL || process.env.HOSTINGER_SMTP_URL || "");
+}
+
+function firstSecretString(...values) {
+  for (const value of values) {
+    const str = String(value || "").trim();
+    if (str) return str;
+  }
+  return "";
+}
+
+async function readPlatformSecretValue(secretKey, connection = null) {
+  const pool = connection || getPool();
+  const [rows] = await pool.query(
+    `SELECT value_ciphertext
+       FROM platform_secrets
+      WHERE secret_key = ? AND status = 'active'
+      ORDER BY updated_at DESC
+      LIMIT 1`,
+    [secretKey]
+  );
+  if (!rows?.[0]?.value_ciphertext) return "";
+  const decrypted = decryptCredentials(rows[0].value_ciphertext);
+  return firstSecretString(decrypted?.smtp_url, decrypted?.url, decrypted?.raw, decrypted?.api_key, decrypted?.token);
+}
+
+async function resolveSmtpConfig(options = {}) {
+  const envRaw = String(process.env.SMTP_URL || process.env.HOSTINGER_SMTP_URL || "").trim();
+  if (envRaw) return { config: parseSmtpUrlFromRaw(envRaw), source: "env", present: true };
+  const platformRaw = await readPlatformSecretValue("HOSTINGER_SMTP_URL", options.connection || null);
+  if (platformRaw) return { config: parseSmtpUrlFromRaw(platformRaw), source: "platform_secrets:HOSTINGER_SMTP_URL", present: true };
+  return { config: null, source: "missing", present: false };
 }
 
 function smtpConfigured() {
