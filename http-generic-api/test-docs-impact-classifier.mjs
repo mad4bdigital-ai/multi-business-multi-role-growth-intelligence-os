@@ -45,5 +45,7 @@ assert(markdown.includes("# Test Impact"));
 assert(markdown.includes("Updating Registry Patch Index.md"));
 assert(markdown.includes("Secrets included: `false`"));
 assert(!/api[_-]?key\s*=|password\s*=|secret\s*=/i.test(markdown));
+assert(markdown.endsWith("\n"));
+assert(!markdown.endsWith("\n\n"));
 
 console.log("Docs impact classifier tests passed.");
