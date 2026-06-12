@@ -135,7 +135,8 @@ function extractSurfaces(source = "") {
     secrets_included_false: /secrets_included['"`]?\s*,?\s*false|secrets_included\s*=\s*0|secrets_included=false/i.test(source),
   };
   return {
-    routes: unique(routeMatches),
+    routes,
+    route_classifications: routeClassifications,
     views: unique(views),
     policies: unique(policies),
     plugins: unique(plugins),
