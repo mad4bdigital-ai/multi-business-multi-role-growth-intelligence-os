@@ -31,7 +31,7 @@ export const CANONICALS = [
   {
     output: 'direct_instructions_registry_patch.md',
     sourceDir: 'canonicals/direct_instructions_registry_patch',
-    expectedFileCount: 16,
+    expectedFileCount: 17,
     index: [
       ['Header and purpose', '00_header_purpose.md', 'Canonical identity, status, and direct patch purpose.'],
       ['Governance foundation', '01_governance_foundation.md', 'Canonical presentation, pointer authority, brand core, activation, and early logging governance.'],
