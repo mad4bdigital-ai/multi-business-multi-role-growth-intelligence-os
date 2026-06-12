@@ -4,11 +4,11 @@
 
 ## Summary
 
-- Total queue items: 2
+- Total queue items: 1
 - Critical review: 0
 - High review: 1
 - Medium review: 0
-- Low review: 1
+- Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
@@ -27,17 +27,4 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `allowlisted_tools`, `tenant_repository_intelligence_v3_v4_readiness_smoke`, `tool_bus_gated_read_only_dispatch_policy_v1`
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `dr_isolated_restore_certification_policy_v1`, `tool_bus_gated_read_only_dispatch_policy_v1`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
-
-### 2. `962_sprint68_smoke_branch_cleanup_gate.sql`
-
-- Queue class: low_review
-- Score: 169
-- Gap severity: none
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-- Surface counts: plugins=0, tools=0, views=1, policies=0, routes=0
-- Remediation actions:
-- `verify_readback_view` → db-readback-review; targets: `v_smoke_branch_cleanup_gate_readback`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 

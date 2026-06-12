@@ -520,11 +520,11 @@
       "1000_sprint68_dr_certification_and_tool_bus_gated_read_only.sql"
     ],
     "safety_marker_counts": {
-      "no_provider_call": 397,
-      "no_credential_payload_read": 396,
-      "no_raw_secrets": 396,
-      "no_external_send": 396,
-      "no_external_write": 397,
+      "no_provider_call": 398,
+      "no_credential_payload_read": 397,
+      "no_raw_secrets": 397,
+      "no_external_send": 397,
+      "no_external_write": 398,
       "secrets_included_false": 398
     },
     "safety_marker_gap_migrations": 0,
@@ -550,12 +550,12 @@
   "gap_queue": {
     "ok": true,
     "schema_version": "surface-contract-gap-queue-v1",
-    "total_items": 2,
+    "total_items": 1,
     "class_counts": {
       "critical_review": 0,
       "high_review": 1,
       "medium_review": 0,
-      "low_review": 1
+      "low_review": 0
     },
     "top_items": [
       {
@@ -623,60 +623,6 @@
               "no_credential_payload_read",
               "no_raw_secrets",
               "no_external_send"
-            ],
-            "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
-          }
-        ],
-        "safety": {
-          "executes_provider_calls": false,
-          "reads_credentials": false,
-          "mutates_runtime": false,
-          "writes_database": false,
-          "external_sends": false,
-          "deploys": false,
-          "secrets_included": false
-        }
-      },
-      {
-        "migration_file": "962_sprint68_smoke_branch_cleanup_gate.sql",
-        "score": 169,
-        "queue_class": "low_review",
-        "gap_severity": "none",
-        "documentation_complete": true,
-        "missing_docs": [],
-        "missing_openapi_routes": [],
-        "safety_marker_gaps": [
-          "no_provider_call",
-          "no_credential_payload_read",
-          "no_raw_secrets",
-          "no_external_send",
-          "no_external_write"
-        ],
-        "surface_counts": {
-          "plugins": 0,
-          "tools": 0,
-          "views": 1,
-          "policies": 0,
-          "routes": 0
-        },
-        "remediation": [
-          {
-            "action_key": "verify_readback_view",
-            "owner_hint": "db-readback-review",
-            "targets": [
-              "v_smoke_branch_cleanup_gate_readback"
-            ],
-            "reason": "Readback views should have parity/readiness documentation and smoke evidence."
-          },
-          {
-            "action_key": "add_explicit_safety_markers",
-            "owner_hint": "safety-contract-review",
-            "targets": [
-              "no_provider_call",
-              "no_credential_payload_read",
-              "no_raw_secrets",
-              "no_external_send",
-              "no_external_write"
             ],
             "reason": "Migration text is missing one or more explicit no-execution/no-secret safety markers."
           }
@@ -923,11 +869,11 @@
         "plugins": [],
         "tools": [],
         "safety": {
-          "no_provider_call": false,
-          "no_credential_payload_read": false,
-          "no_raw_secrets": false,
-          "no_external_send": false,
-          "no_external_write": false,
+          "no_provider_call": true,
+          "no_credential_payload_read": true,
+          "no_raw_secrets": true,
+          "no_external_send": true,
+          "no_external_write": true,
           "secrets_included_false": true
         }
       },
@@ -965,7 +911,7 @@
           "route_classifications": []
         },
         "surface_count": 1,
-        "safety_marker_count": 1
+        "safety_marker_count": 6
       }
     },
     {
@@ -44180,11 +44126,11 @@
         "plugins": [],
         "tools": [],
         "safety": {
-          "no_provider_call": false,
-          "no_credential_payload_read": false,
-          "no_raw_secrets": false,
-          "no_external_send": false,
-          "no_external_write": false,
+          "no_provider_call": true,
+          "no_credential_payload_read": true,
+          "no_raw_secrets": true,
+          "no_external_send": true,
+          "no_external_write": true,
           "secrets_included_false": true
         }
       },
@@ -44222,7 +44168,7 @@
           "route_classifications": []
         },
         "surface_count": 1,
-        "safety_marker_count": 1
+        "safety_marker_count": 6
       }
     },
     {
