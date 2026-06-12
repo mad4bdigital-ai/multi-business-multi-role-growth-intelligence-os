@@ -147,11 +147,12 @@ function providerRuntimeKind(adapter = {}) {
   return "unsupported_email_provider";
 }
 
-function providerReadinessBase(kind) {
+function providerReadinessBase(kind, smtpState = {}) {
   return {
     runtime: kind,
-    smtp_url_present: Boolean(process.env.SMTP_URL || process.env.HOSTINGER_SMTP_URL),
-    smtp_configured: smtpConfigured(),
+    smtp_url_present: Boolean(smtpState.present || process.env.SMTP_URL || process.env.HOSTINGER_SMTP_URL),
+    smtp_secret_source: smtpState.source || (process.env.SMTP_URL || process.env.HOSTINGER_SMTP_URL ? "env" : "missing"),
+    smtp_configured: Boolean(smtpState.config) || smtpConfigured(),
     recipient_allowlist_source: "external_delivery_recipient_allowlist_registry",
     recipient_allowlist_present: false,
     allowlist_count: 0,
