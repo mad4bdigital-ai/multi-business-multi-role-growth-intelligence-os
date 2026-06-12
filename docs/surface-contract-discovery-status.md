@@ -32,9 +32,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 395/397 (99.50%)
-- Documentation gap migrations: 2
-- Gap severity: high=1, medium=0, low=1
+- Documentation complete migrations: 397/397 (100.00%)
+- Documentation gap migrations: 0
+- Gap severity: high=0, medium=0, low=0
 - SQL route coverage in OpenAPI: 0/0 (100.00%)
 - SQL route-like literals exempted from OpenAPI scoring: 528/528
 - SQL routes missing OpenAPI path coverage: 0
@@ -54,11 +54,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 2 |
-| `deployment_parity_checklist.md` | 2 |
-| `docs/ai-docs-agent-governance.md` | 2 |
-| `docs/auto-docs-agent/README.md` | 2 |
-| `docs/change-documentation-governance.md` | 2 |
+| `Updating Registry Patch Index.md` | 0 |
+| `deployment_parity_checklist.md` | 0 |
+| `docs/ai-docs-agent-governance.md` | 0 |
+| `docs/auto-docs-agent/README.md` | 0 |
+| `docs/change-documentation-governance.md` | 0 |
 
 ### Safety Marker Coverage
 
@@ -88,16 +88,15 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 2
-- Critical review: 1
+- Total queue items: 1
+- Critical review: 0
 - High review: 0
-- Medium review: 1
-- Low review: 0
+- Medium review: 0
+- Low review: 1
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
-| `292_sprint68_platform_health_scorecard_operationalization.sql` | critical_review | 1071 | high | 5 | 0 | 0 | document_surface_contract, verify_tool_registry_binding, verify_readback_view |
-| `962_sprint68_smoke_branch_cleanup_gate.sql` | medium_review | 419 | low | 5 | 0 | 5 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
+| `962_sprint68_smoke_branch_cleanup_gate.sql` | low_review | 169 | none | 0 | 0 | 5 | verify_readback_view, add_explicit_safety_markers |
 
 
 ## Latest Surface Coverage
@@ -107,7 +106,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `999_sprint68_repository_intelligence_v3_v4_tenant_tool_wiring.sql` | complete | none | 0 | 3 | 0 | 1 | 1 | 0 |
 | `998_sprint68_openrouter_provider_smoke_app_map_binding.sql` | complete | none | 0 | 3 | 1 | 1 | 0 | 0 |
 | `997_sprint68_openrouter_provider_smoke_capability_binding.sql` | complete | none | 0 | 0 | 0 | 1 | 0 | 0 |
-| `962_sprint68_smoke_branch_cleanup_gate.sql` | needs docs | low | 0 | 0 | 1 | 0 | 0 | 0 |
+| `962_sprint68_smoke_branch_cleanup_gate.sql` | complete | none | 0 | 0 | 1 | 0 | 0 | 0 |
 | `961_sprint68_f5_f6_positive_smoke_certification.sql` | complete | none | 0 | 2 | 1 | 0 | 0 | 0 |
 | `960_sprint68_remaining_resource_capability_completion_gates.sql` | complete | none | 0 | 24 | 1 | 0 | 0 | 0 |
 | `959_sprint68_github_file_patch_plan_diff_only_runtime.sql` | complete | none | 0 | 0 | 1 | 0 | 0 | 0 |
@@ -130,7 +129,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `900_sprint68_governed_repository_intelligence_engine.sql` | complete | none | 0 | 7 | 0 | 1 | 0 | 0 |
 | `306_sprint69_operational_console_api.sql` | complete | none | 0 | 0 | 0 | 0 | 2 | 0 |
 | `305_sprint69_runtime_verification_control_plane_hardening.sql` | complete | none | 0 | 2 | 4 | 0 | 6 | 0 |
-| `292_sprint68_platform_health_scorecard_operationalization.sql` | needs docs | high | 1 | 11 | 6 | 0 | 6 | 0 |
+| `292_sprint68_platform_health_scorecard_operationalization.sql` | complete | none | 1 | 11 | 6 | 0 | 6 | 0 |
 | `291_sprint68_platform_health_scorecard_readback_alignment.sql` | complete | none | 0 | 10 | 3 | 0 | 2 | 0 |
 | `290_sprint68_platform_health_scorecard.sql` | complete | none | 0 | 9 | 4 | 0 | 3 | 0 |
 | `289_sprint68_external_delivery_policy_scope_alignment.sql` | complete | none | 0 | 1 | 1 | 1 | 0 | 0 |
@@ -187,7 +186,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 
 ## High-Risk Documentation Gaps
 
-- `292_sprint68_platform_health_scorecard_operationalization.sql`
+- none
 
 ## SQL Route OpenAPI Gaps
 
@@ -242,9 +241,9 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 
 ### `962_sprint68_smoke_branch_cleanup_gate.sql`
 
-- Documentation complete: no
-- Gap severity: low
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
 - Surface count: 1
 - Plugins: none
 - Tools: none
@@ -587,9 +586,9 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 
 ### `292_sprint68_platform_health_scorecard_operationalization.sql`
 
-- Documentation complete: no
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Documentation complete: yes
+- Gap severity: none
+- Missing docs: none
 - Surface count: 24
 - Plugins: `support_ticket_external_delivery_orchestrator`
 - Tools: `enabled_tenant_tool_count`, `manual_readback`, `platform_health_scorecard_snapshot_record`, `platform_health_scorecard_tenant_rollout_readiness`, `platform_orchestration_readback`, `release_readiness`, `release_readiness_health`, `remediate_release_readiness_health`, `remediate_tool_bus_health`, `system_layer_tool_count`, `total_preflight_risk_count`

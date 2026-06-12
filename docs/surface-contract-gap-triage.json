@@ -3,65 +3,21 @@
   "schema_version": "surface-contract-gap-triage-v1",
   "source_queue_schema": "surface-contract-gap-queue-v1",
   "source_discovery_schema": "surface-contract-discovery-v3",
-  "total_triaged_items": 2,
+  "total_triaged_items": 1,
   "class_counts": {
-    "standard_backlog_review": 1,
     "safety_marker_review": 1
   },
   "gate_candidate_count": 0,
   "gate_candidate_files": [],
   "items": [
     {
-      "migration_file": "292_sprint68_platform_health_scorecard_operationalization.sql",
-      "score": 1071,
-      "queue_class": "critical_review",
-      "triage_class": "standard_backlog_review",
-      "gate_scope": "legacy_baseline_candidate",
-      "gap_severity": "high",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
-      "missing_openapi_routes": [],
-      "safety_marker_gaps": [],
-      "remediation_action_keys": [
-        "document_surface_contract",
-        "verify_tool_registry_binding",
-        "verify_readback_view"
-      ],
-      "owner_hints": [
-        "docs-agent/human-review",
-        "runtime-registry-review",
-        "db-readback-review"
-      ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
-      "safety": {
-        "executes_provider_calls": false,
-        "reads_credentials": false,
-        "mutates_runtime": false,
-        "writes_database": false,
-        "external_sends": false,
-        "deploys": false,
-        "secrets_included": false
-      }
-    },
-    {
       "migration_file": "962_sprint68_smoke_branch_cleanup_gate.sql",
-      "score": 419,
-      "queue_class": "medium_review",
+      "score": 169,
+      "queue_class": "low_review",
       "triage_class": "safety_marker_review",
       "gate_scope": "new_gap_gate_candidate",
-      "gap_severity": "low",
-      "missing_docs": [
-        "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md",
-        "docs/ai-docs-agent-governance.md",
-        "docs/auto-docs-agent/README.md",
-        "docs/change-documentation-governance.md"
-      ],
+      "gap_severity": "none",
+      "missing_docs": [],
       "missing_openapi_routes": [],
       "safety_marker_gaps": [
         "no_provider_call",
@@ -71,16 +27,14 @@
         "no_external_write"
       ],
       "remediation_action_keys": [
-        "document_surface_contract",
         "verify_readback_view",
         "add_explicit_safety_markers"
       ],
       "owner_hints": [
-        "docs-agent/human-review",
         "db-readback-review",
         "safety-contract-review"
       ],
-      "recommended_next_step": "add targeted patch-index, parity, and governance documentation",
+      "recommended_next_step": "confirm readback view parity and smoke evidence",
       "safety": {
         "executes_provider_calls": false,
         "reads_credentials": false,
