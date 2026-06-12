@@ -86,6 +86,9 @@ sections.push(summarize("tool_bus_kernel", [
   check("self_recursive_guard", includes("http-generic-api/routes/systemLayerRoutes.js", "self_recursive_dispatch_blocked") || includes("http-generic-api/routes/systemLayerRoutes.js", "isTenantRegistryToolAllowedInSystemFacade"), "Self-recursive tenant wrapper guard is present."),
   check("descriptor_resolver_missing_tracked", !includes("http-generic-api", "resolveToolDescriptor") || exists("docs/dynamic-capability-tool-bus-v2.md"), "Tool Bus descriptor resolver gap is documented/tracked.", "warn"),
   check("tool_bus_doc", exists("docs/dynamic-capability-tool-bus-v2.md"), "Tool Bus v2 document exists.", "warn"),
+  check("tool_bus_descriptor_dry_run_complete", exists("http-generic-api/scripts/tool-bus-descriptor-dry-run.mjs") && includes("http-generic-api/routes/adminCliRoutes.js", "tool_bus_descriptor_dry_run"), "Tool Bus descriptor dry-run is implemented and exposed."),
+  check("tool_bus_collision_audit_complete", exists("http-generic-api/scripts/tool-bus-collision-audit.mjs") && includes("http-generic-api/scripts/tool-bus-collision-audit.mjs", "actual_collision_requires_review"), "Tool Bus collision audit classifies intentional and blocking collisions."),
+  check("tool_bus_preview_complete", exists("http-generic-api/scripts/tool-bus-preview.mjs") && includes("http-generic-api/scripts/tool-bus-preview.mjs", "tool_bus_preview_only"), "Tool Bus preview mode is implemented without dispatch."),
 ]));
 
 sections.push(summarize("platform_scorecard_automation", [
