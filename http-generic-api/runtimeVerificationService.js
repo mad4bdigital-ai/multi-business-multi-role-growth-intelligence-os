@@ -158,7 +158,15 @@ export async function getRuntimeVerificationRun(runId) {
   const run = rows[0];
   const [steps, gaps] = await Promise.all([
     query("SELECT step_id, step_key, step_status, classification, duration_ms, http_status, response_bytes, max_allowed_bytes, started_at, completed_at FROM runtime_verification_steps WHERE run_id = ? ORDER BY created_at ASC", [runId]),
-    query("SELECT gap_id, gap_key, severity, classification, blocks_production_parity, remediation, evidence_ref, created_at FROM runtime_verification_gaps WHERE run_id = ? ORDER BY FIELD(severity,'critical','high','medium','low','info'), created_at ASC", [runId]),
+    query(`SELECT g.gap_id, g.gap_key, g.severity, g.classification, g.blocks_production_parity,
+                  g.remediation, g.evidence_ref, g.created_at,
+                  r.owner_key AS remediation_owner, r.remediation_type, r.auto_fix_allowed,
+                  r.approval_required, r.recommended_action, r.runbook_json
+             FROM runtime_verification_gaps g
+             LEFT JOIN runtime_gap_remediation_registry r
+               ON r.gap_key = g.gap_key AND r.status = 'active'
+            WHERE g.run_id = ?
+            ORDER BY FIELD(g.severity,'critical','high','medium','low','info'), g.created_at ASC`, [runId]),
   ]);
   return stripSensitive({ run_id: run.run_id, environment_key: run.environment_key, expected_commit_sha: run.expected_commit_sha, deployed_commit_sha: run.deployed_commit_sha, workflow_key: run.workflow_key, runtime_base_url: run.runtime_base_url, runtime_profile: run.runtime_profile, run_status: run.run_status, production_parity: run.production_parity, summary: parseJson(run.summary_json, {}), response_budget: parseJson(run.response_budget_json, DEFAULT_RESPONSE_BUDGET), steps, gaps, started_at: run.started_at, completed_at: run.completed_at, secrets_included: false });
 }
