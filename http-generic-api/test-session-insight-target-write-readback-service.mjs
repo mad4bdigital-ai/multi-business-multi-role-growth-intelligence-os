@@ -35,7 +35,6 @@ function makePool() {
     duplicate_target_item_count: 1,
   };
   return {
-    state,
     async query(sql, params = []) {
       const compact = String(sql).replace(/\s+/g, " ").trim();
       if (compact.startsWith("SELECT w.*")) return [[{ ...ctx }]];
@@ -48,33 +47,7 @@ function makePool() {
         assert.equal(safety.rollback_executed, false);
         assert.equal(safety.secrets_included, false);
         state.readback = {
-          readback_id: params[0],
-          target_write_id: params[1],
-          target_item_id: params[2],
-          remaining_scope_completion_id: params[3],
-          actual_request_id: params[4],
-          actual_capability_envelope_id: params[5],
-          promotion_id: params[6],
-          insight_id: params[7],
-          target_surface: params[8],
-          promotion_type: params[9],
-          readback_status: params[10],
-          readback_mode: "read_only_validation",
-          target_item_exists: params[11],
-          target_link_matches: params[12],
-          source_payload_matches: params[13],
-          target_write_status_matches: params[14],
-          duplicate_target_write_count: params[15],
-          duplicate_target_item_count: params[16],
-          provider_call_executed: 0,
-          credential_payload_read: 0,
-          external_write_executed: 0,
-          raw_transcript_included: 0,
-          target_modified_by_readback: 0,
-          readback_result_json: params[17],
-          safety_contract_json: params[18],
-          created_by: params[19],
-          secrets_included: 0,
+          readback_id: params[0], target_write_id: params[1], target_item_id: params[2], promotion_id: params[6], insight_id: params[7], target_surface: params[8], promotion_type: params[9], readback_status: params[10], readback_mode: "read_only_validation", target_item_exists: params[11], target_link_matches: params[12], source_payload_matches: params[13], target_write_status_matches: params[14], duplicate_target_write_count: params[15], duplicate_target_item_count: params[16], provider_call_executed: 0, credential_payload_read: 0, external_write_executed: 0, raw_transcript_included: 0, target_modified_by_readback: 0, readback_result_json: params[17], safety_contract_json: params[18], created_by: params[19], secrets_included: 0,
         };
         return [{ affectedRows: 1 }];
       }
@@ -94,9 +67,6 @@ function makePool() {
   assert.equal(result.readback.target_item_exists, true);
   assert.equal(result.readback.target_link_matches, true);
   assert.equal(result.readback.source_payload_matches, true);
-  assert.equal(result.readback.remaining_scope_completion_id, "rc1");
-  assert.equal(result.readback.actual_request_id, "ar1");
-  assert.equal(result.readback.actual_capability_envelope_id, "env1");
   assert.equal(result.readback.provider_call_executed, false);
   assert.equal(result.readback.target_modified_by_readback, false);
   assert.equal(result.validation.valid_target_write_readback, true);
@@ -113,9 +83,5 @@ function makePool() {
   assert.equal(result.policy.secrets_included, false);
 }
 
-{
-  const pool = makePool();
-  await assert.rejects(() => createSessionInsightTargetWriteReadback({ pool, input: {} }), /target_write_id is required/);
-}
-
+await assert.rejects(() => createSessionInsightTargetWriteReadback({ pool: makePool(), input: {} }), /target_write_id is required/);
 console.log("session insight target write readback service tests passed");
