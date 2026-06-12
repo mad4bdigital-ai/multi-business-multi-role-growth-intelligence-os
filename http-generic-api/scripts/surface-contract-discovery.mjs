@@ -77,6 +77,47 @@ function collectOpenapiPaths() {
   }
 }
 
+function classifyRoute(route, source = "") {
+  if (/INSERT\s+INTO\s+admin_platform_endpoint_tools/i.test(source)) {
+    return {
+      route,
+      route_class: "admin_tool_registry_route",
+      openapi_required: false,
+      reason: "Route literal belongs to an admin_platform_endpoint_tools registry row; dispatch is governed through the admin tool registry rather than inferred as a standalone Express route.",
+    };
+  }
+  if (/INSERT\s+INTO\s+tenant_platform_endpoint_tools/i.test(source)) {
+    return {
+      route,
+      route_class: "tenant_tool_registry_route",
+      openapi_required: false,
+      reason: "Route literal belongs to a tenant tool registry row and is governed through tenant tool dispatch rather than inferred as a standalone Express route.",
+    };
+  }
+  if (/\/admin\/system\/tools\/call|\/system\/tools\/call/.test(route)) {
+    return {
+      route,
+      route_class: "system_tool_dispatch_route",
+      openapi_required: false,
+      reason: "System-tool dispatch endpoints are documented by the fixed dispatcher contract and should not create per-tool OpenAPI gaps.",
+    };
+  }
+  if (/registry_only|record_only|readback_only|view-only|view only/i.test(source) && !/http_method|http_path/i.test(source)) {
+    return {
+      route,
+      route_class: "registry_only_surface",
+      openapi_required: false,
+      reason: "Route-like text appears in a registry/readback-only migration without HTTP method/path registration evidence.",
+    };
+  }
+  return {
+    route,
+    route_class: "http_route",
+    openapi_required: true,
+    reason: "Route literal has no registry-only exemption and should be checked against OpenAPI path coverage.",
+  };
+}
+
 function extractSurfaces(source = "") {
   const routeMatches = [...source.matchAll(/['"`]((?:\/[A-Za-z0-9_{}:.-]+){2,})['"`]/g)].map((m) => m[1]);
   const views = [...source.matchAll(/`?(v_[A-Za-z0-9_]+)`?/g)].map((m) => m[1]);
