@@ -117,6 +117,38 @@ components:
 
   schemas:
 
+    ActivationGuidanceResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, activation_layer, profile, activation_brief, account_or_admin_capability_snapshot, recommended_next_actions, assistant_instruction_pack, secrets_included]
+      properties:
+        ok: { type: boolean }
+        activation_layer: { type: string, enum: [activation_guidance_intelligence] }
+        profile: { type: string, enum: [tenant, admin] }
+        guidance_mode: { type: string }
+        activation_brief:
+          type: object
+          additionalProperties: true
+        account_or_admin_capability_snapshot:
+          type: object
+          additionalProperties: true
+        capability_groups:
+          type: array
+          items: { type: object, additionalProperties: true }
+        recommended_next_actions:
+          type: array
+          items: { type: object, additionalProperties: true }
+        safe_action_menu:
+          type: array
+          items: { type: object, additionalProperties: true }
+        blocked_or_limited_capabilities:
+          type: array
+          items: { type: object, additionalProperties: true }
+        assistant_instruction_pack:
+          type: object
+          additionalProperties: true
+        secrets_included: { type: boolean }
+
     OperationalConsoleResponse:
       type: object
       additionalProperties: true
