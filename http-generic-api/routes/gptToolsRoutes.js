@@ -37,7 +37,9 @@ const DEFAULT_TOOL_LIST_LIMIT = 50;
 const MAX_TOOL_LIST_LIMIT = 200;
 const DEFAULT_TOOL_RESPONSE_MAX_CHARS = 45000;
 const MAX_TOOL_RESPONSE_MAX_CHARS = 150000;
-const TOOL_RESPONSE_CHUNK_TTL_MS = 15 * 60 * 1000;
+const DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS = 15 * 60 * 1000;
+const MAX_TOOL_RESPONSE_CHUNK_TTL_MS = 2 * 60 * 60 * 1000;
+const MIN_TOOL_RESPONSE_CHUNK_TTL_MS = 5 * 60 * 1000;
 const TOOL_RESPONSE_CHUNK_CACHE = new Map();
 
 export const CHUNKED_TOOL_RESPONSE_CONTINUATION_CONTRACT = Object.freeze({
@@ -632,7 +634,17 @@ function normalizeResponseOptions(value = {}) {
   return {
     maxChars: clampNumber(options.max_chars ?? options.max_response_chars, DEFAULT_TOOL_RESPONSE_MAX_CHARS, 5000, MAX_TOOL_RESPONSE_MAX_CHARS),
     cursor: clampNumber(options.cursor ?? options.response_cursor, 0, 0, Number.MAX_SAFE_INTEGER),
+    chunkTtlMs: Number(options.chunk_ttl_ms ?? options.response_chunk_ttl_ms ?? 0) || null,
+    chunkTtlMinutes: Number(options.chunk_ttl_minutes ?? options.response_chunk_ttl_minutes ?? 0) || null,
   };
+}
+
+export function resolveToolResponseChunkTtlMs(options = {}, serializedLength = 0) {
+  const normalized = normalizeResponseOptions(options?.response_options || options?._response || options || {});
+  const requestedMs = normalized.chunkTtlMs || (normalized.chunkTtlMinutes ? normalized.chunkTtlMinutes * 60 * 1000 : 0);
+  const estimatedPageCount = Math.max(1, Math.ceil(Number(serializedLength || 0) / Math.max(1, normalized.maxChars || DEFAULT_TOOL_RESPONSE_MAX_CHARS)));
+  const dynamicMs = DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS + Math.min(estimatedPageCount - 1, 60) * 60 * 1000;
+  return clampNumber(requestedMs || dynamicMs, Math.max(DEFAULT_TOOL_RESPONSE_CHUNK_TTL_MS, dynamicMs), MIN_TOOL_RESPONSE_CHUNK_TTL_MS, MAX_TOOL_RESPONSE_CHUNK_TTL_MS);
 }
 
 function cleanupToolResponseChunkCache(now = Date.now()) {
@@ -669,28 +681,39 @@ function buildToolResponseChunk({ serialized, chunkId, cursor, maxChars, source 
       returned_chars: end - safeCursor,
       total_chars: serialized.length,
     },
+    cache: TOOL_RESPONSE_CHUNK_CACHE.has(chunkId) ? {
+      ttl_ms: TOOL_RESPONSE_CHUNK_CACHE.get(chunkId)?.ttlMs || null,
+      expires_at: TOOL_RESPONSE_CHUNK_CACHE.get(chunkId)?.expiresAt ? new Date(TOOL_RESPONSE_CHUNK_CACHE.get(chunkId).expiresAt).toISOString() : null,
+      extended_on_read: true,
+      read_count: TOOL_RESPONSE_CHUNK_CACHE.get(chunkId)?.readCount || 0,
+      secrets_included: false,
+    } : null,
     chunk: serialized.slice(safeCursor, end),
   };
 }
 
-function storeToolResponseForChunks(body) {
+function storeToolResponseForChunks(body, optionsSource = {}) {
   cleanupToolResponseChunkCache();
   const serialized = JSON.stringify(body ?? {});
   const now = Date.now();
+  const ttlMs = resolveToolResponseChunkTtlMs(optionsSource, serialized.length);
   const chunkId = crypto.randomUUID();
   TOOL_RESPONSE_CHUNK_CACHE.set(chunkId, {
     serialized,
     createdAt: now,
-    expiresAt: now + TOOL_RESPONSE_CHUNK_TTL_MS,
+    lastReadAt: now,
+    ttlMs,
+    expiresAt: now + ttlMs,
+    readCount: 0,
   });
-  return { chunkId, serialized };
+  return { chunkId, serialized, ttlMs, expiresAt: now + ttlMs };
 }
 
 export function maybeChunkToolResponseBody(body, optionsSource = {}) {
   const options = normalizeResponseOptions(optionsSource?.response_options || optionsSource?._response || {});
   const serialized = JSON.stringify(body ?? {});
   if (serialized.length <= options.maxChars) return body;
-  const { chunkId } = storeToolResponseForChunks(body);
+  const { chunkId } = storeToolResponseForChunks(body, optionsSource);
   return buildToolResponseChunk({
     serialized,
     chunkId,
@@ -716,7 +739,14 @@ export function readCachedToolResponseChunk(args = {}) {
     err.code = "response_chunk_not_found";
     throw err;
   }
+  const now = Date.now();
   const options = normalizeResponseOptions(args);
+  const ttlMs = resolveToolResponseChunkTtlMs(args, entry.serialized.length);
+  entry.ttlMs = Math.max(Number(entry.ttlMs || 0), ttlMs);
+  entry.lastReadAt = now;
+  entry.readCount = Number(entry.readCount || 0) + 1;
+  entry.expiresAt = now + entry.ttlMs;
+  TOOL_RESPONSE_CHUNK_CACHE.set(chunkId, entry);
   return buildToolResponseChunk({
     serialized: entry.serialized,
     chunkId,
