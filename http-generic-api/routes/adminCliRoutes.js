@@ -1214,7 +1214,8 @@ async function executeGitHubRestFallbackCore(args = []) {
     if (allowedContentsMutation) assertGithubContentsWritePathAllowed(apiTarget);
     const branchRefUpdate = allowedBranchRefUpdate ? assertGithubBranchRefUpdateAllowed(apiTarget, fieldValues) : null;
     const allowedMutation = (["POST", "PUT", "PATCH"].includes(method) || allowedContentsMutation) && (
-      /^\/pulls\/\d+\/update-branch$/.test(apiTarget)
+      (method === "POST" && apiTarget === "/pulls")
+      || /^\/pulls\/\d+\/update-branch$/.test(apiTarget)
       || /^\/pulls\/\d+\/merge$/.test(apiTarget)
       || /^\/actions\/workflows\/[^/]+\/dispatches$/.test(apiTarget)
       || apiTarget === "/merges"
