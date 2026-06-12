@@ -1552,12 +1552,21 @@ async function checkRepositoryIntelligenceV2Readiness() {
     "platform_resource_authority_binding_revoke",
     "tenant_repo_pr_reconciliation_sweep",
     "tenant_repository_intelligence_v2_readiness_smoke",
+    "tenant_repository_intelligence_report",
+    "tenant_repository_action_planner_dry_run",
+    "tenant_repository_intelligence_v3_v4_readiness_smoke",
   ];
   const requiredRuntimeTokens = [
     "tenantRepositoryIntelligenceV2ReadinessSmoke",
+    "tenantRepositoryIntelligenceV3V4ReadinessSmoke",
     "tenantRepositoryPrReconciliationSweep",
+    "tenantRepositoryIntelligenceReport",
+    "tenantRepositoryActionPlannerDryRun",
     "tenant_repository_pr_reconciliation_summary_v2",
+    "tenant_repository_intelligence_report_v3",
+    "tenant_repository_action_planner_v4",
     "blocked_missing_platform_resource_authority_binding",
+    "approval_gated_mutations_v5_not_enabled",
     "mutations_executed: false",
   ];
   try {
