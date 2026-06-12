@@ -681,6 +681,13 @@ function buildToolResponseChunk({ serialized, chunkId, cursor, maxChars, source 
       returned_chars: end - safeCursor,
       total_chars: serialized.length,
     },
+    cache: TOOL_RESPONSE_CHUNK_CACHE.has(chunkId) ? {
+      ttl_ms: TOOL_RESPONSE_CHUNK_CACHE.get(chunkId)?.ttlMs || null,
+      expires_at: TOOL_RESPONSE_CHUNK_CACHE.get(chunkId)?.expiresAt ? new Date(TOOL_RESPONSE_CHUNK_CACHE.get(chunkId).expiresAt).toISOString() : null,
+      extended_on_read: true,
+      read_count: TOOL_RESPONSE_CHUNK_CACHE.get(chunkId)?.readCount || 0,
+      secrets_included: false,
+    } : null,
     chunk: serialized.slice(safeCursor, end),
   };
 }
