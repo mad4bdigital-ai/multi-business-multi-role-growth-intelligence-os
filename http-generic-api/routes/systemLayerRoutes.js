@@ -1636,7 +1636,7 @@ async function callSystemLayerTool(name, args = {}, auth = null, deps = {}) {
       return await tenantRepositoryActionPlannerDryRun(args, { auth, runGovernedResource });
     case "tenant_repository_intelligence_v3_v4_readiness_smoke":
       return await tenantRepositoryIntelligenceV3V4ReadinessSmoke(args, { auth, runGovernedResource });
-    case "governed_resource_resolve":
+    case "tenant_repository_advisory_comment_preview": return await tenantRepositoryAdvisoryCommentPreview(args, { auth, runGovernedResource }); case "tenant_repository_advisory_comment_apply": return await tenantRepositoryAdvisoryCommentApply(args, { auth, runGovernedResource }); case "tenant_repository_advisory_comment_readback": return await tenantRepositoryAdvisoryCommentReadback(args, { auth, runGovernedResource }); case "tenant_repository_advisory_comment_v5_readiness_smoke": return await tenantRepositoryAdvisoryCommentV5ReadinessSmoke(args, { auth, runGovernedResource }); case "governed_resource_resolve":
       return await resolveGovernedResource(args);
     case "governed_resource_catalog":
       return await catalogGovernedResources(args);
