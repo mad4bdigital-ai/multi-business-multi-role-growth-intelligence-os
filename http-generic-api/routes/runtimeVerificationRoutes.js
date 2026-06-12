@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  buildActivationHardRunSummary,
   createRuntimeVerificationRun,
   getRuntimeParity,
   getRuntimeVerificationRun,
@@ -60,6 +61,21 @@ export function buildRuntimeVerificationRoutes({ requireBackendApiKey, requireAd
     try {
       const parity = await getRuntimeParity(req.params.environmentKey || req.query.environment_key || "production");
       res.status(200).json({ ok: true, ...parity });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/activation/hard-run/summary", ...guards, async (_req, res, next) => {
+    try {
+      const summary = await buildActivationHardRunSummary();
+      res.status(summary.status === "active" ? 200 : 424).json({
+        ok: summary.status === "active",
+        activation_layer: "hard_activation_summary",
+        detail_level: "summary",
+        evidence_manifest_available: true,
+        ...summary,
+      });
     } catch (error) {
       next(error);
     }
