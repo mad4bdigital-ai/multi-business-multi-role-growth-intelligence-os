@@ -83,6 +83,8 @@ export function buildActivationGuidanceRoutes({ requireBackendApiKey, requireAdm
         profile: "admin",
         userId: req.query.user_id || req.auth?.user_id || null,
         tenantId: req.query.tenant_id || null,
+        requestedLocale: req.query.locale || req.query.language || null,
+        acceptLanguage: req.headers["accept-language"] || null,
       });
       res.status(200).json({ ...guidance, admin_facing: true, secrets_included: false });
     } catch (error) {
