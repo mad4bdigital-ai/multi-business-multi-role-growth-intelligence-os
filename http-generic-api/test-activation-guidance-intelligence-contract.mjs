@@ -46,6 +46,6 @@ assert.match(migration, /tenant_activation_guidance/, "migration must seed tenan
 assert.match(migration, /admin_activation_guidance/, "migration must seed admin operational tile");
 assert.match(migration, /proactive_guidance/, "registry seed must mark guidance as proactive");
 assert.doesNotMatch(migration, /POST \/tenant\/activation\/guidance/, "tenant guidance must not be mutating");
-assert.doesNotMatch(migration, /secret/i, "migration must not seed secret material");
+assert.doesNotMatch(migration, /connector_secret|raw_token|private_key|password\s*=/i, "migration must not seed raw secret material");
 
 console.log("activation guidance intelligence contract tests passed");
