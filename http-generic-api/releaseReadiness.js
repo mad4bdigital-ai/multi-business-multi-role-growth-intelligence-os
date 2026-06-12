@@ -1193,6 +1193,65 @@ async function checkDbConnectivity() {
   }
 }
 
+async function checkDrCertificationEvidenceReadiness() {
+  const required = [
+    { key: "dr_certification.db_isolated_restore.latest", label: "db_isolated_restore", mode: "isolated_db_restore_mariadb" },
+    { key: "dr_certification.n8n_isolated_restore_boot.latest", label: "n8n_isolated_restore_boot", mode: "isolated_n8n_restore_boot" },
+  ];
+  try {
+    const [rows] = await getPool().query(
+      "SELECT config_key, config_json, status, updated_at FROM platform_runtime_config WHERE config_key IN (?)",
+      [required.map((item) => item.key)]
+    );
+    const byKey = new Map((rows || []).map((row) => [row.config_key, row]));
+    const reports = required.map((item) => {
+      const row = byKey.get(item.key);
+      let config = null;
+      try { config = row ? JSON.parse(row.config_json || "{}") : null; } catch { config = null; }
+      const checks = [
+        { key: "row_present", ok: Boolean(row) },
+        { key: "status_active", ok: row?.status === "active" },
+        { key: "config_json_valid", ok: Boolean(config) },
+        { key: "ok_true", ok: config?.ok === true },
+        { key: "mode_matches", ok: config?.mode === item.mode },
+        { key: "production_untouched", ok: config?.production_touched === false },
+        { key: "secrets_not_included", ok: config?.secrets_included === false },
+      ];
+      if (item.label === "db_isolated_restore") {
+        checks.push(
+          { key: "full_import_attempted", ok: config?.full_import_attempted === true },
+          { key: "table_count_matches", ok: Number(config?.readback?.table_count || 0) >= Number(config?.readback?.expected_table_count || 1) },
+          { key: "container_removed", ok: config?.cleanup?.container_removed === true },
+          { key: "plaintext_sql_removed", ok: config?.cleanup?.plaintext_sql_removed === true },
+        );
+      }
+      if (item.label === "n8n_isolated_restore_boot") {
+        checks.push(
+          { key: "isolated_boot_attempted", ok: config?.isolated_boot_attempted === true },
+          { key: "health_ok", ok: config?.health?.ok === true && Number(config?.health?.status || 0) === 200 },
+          { key: "structural_markers_present", ok: config?.structural_restore?.markers?.has_database_sqlite === true && config?.structural_restore?.markers?.has_config === true && config?.structural_restore?.markers?.has_nodes_dir === true },
+          { key: "isolated_process_stopped", ok: config?.cleanup?.isolated_process_stopped === true },
+          { key: "plaintext_zip_removed", ok: config?.cleanup?.plaintext_zip_removed === true },
+          { key: "extracted_restore_removed", ok: config?.cleanup?.extracted_restore_removed === true },
+        );
+      }
+      return {
+        key: item.key,
+        label: item.label,
+        status: checks.every((check) => check.ok) ? "pass" : "fail",
+        updated_at: row?.updated_at || null,
+        evidence_path_present: Boolean(config?.evidence_path),
+        checks,
+        secrets_included: false,
+      };
+    });
+    const status = reports.every((report) => report.status === "pass") ? "pass" : "fail";
+    return { status, reports, secrets_included: false };
+  } catch (err) {
+    return { status: "warn", detail: `DR certification evidence readiness check failed: ${err.message}`, reports: [], secrets_included: false };
+  }
+}
+
 async function checkRuntimeProductionParityGate() {
   try {
     const parity = await getRuntimeParity("production");
