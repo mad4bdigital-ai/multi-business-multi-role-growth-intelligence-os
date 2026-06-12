@@ -172,6 +172,23 @@ includesAll(capabilityBaselineGithubFileMigration, [
   "secrets_included',false",
 ], "capability baseline branch hygiene and GitHub file inspect migration");
 
+includesAll(githubFileContentGatePatchPlanMigration, [
+  "958_sprint68_github_file_content_gate_and_patch_plan_registry.sql",
+  "github_file_content_read_gate_policy_v1",
+  "github.file.read_content_after_review",
+  "github.file.patch_plan",
+  "github_file_content_read_gated_v1",
+  "github_file_patch_plan_v1",
+  "planned_runtime_not_dispatch_enabled",
+  "runtime_dispatch_enabled_now',false",
+  "content_read_default_allowed',false",
+  "requires_secret_scan_before_return',true",
+  "blocked_path_globs",
+  "write_allowed',false",
+  "CREATE OR REPLACE VIEW v_github_file_operation_readiness_compact",
+  "secrets_included',false",
+], "GitHub file content gate and patch plan registry migration");
+
 assert(
   manifest.includes("node test-platform-resource-recipe-capability.mjs"),
   "test manifest must include platform resource recipe capability test"
