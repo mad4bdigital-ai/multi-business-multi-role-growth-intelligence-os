@@ -196,12 +196,23 @@ const lifecycleSource = readFileSync("databaseTableLifecycle.js", "utf8");
 const schema = JSON.parse(readFileSync("schemas/http-generic-api/growth-intelligence-report-v1.schema.json", "utf8"));
 const openapi = readFileSync("openapi.yaml", "utf8");
 const tenantGpt = readFileSync("openapi.tenant-gpt.auth.yaml", "utf8");
+const growthRoutes = readFileSync("routes/growthIntelligenceRoutes.js", "utf8");
 const workflowRoutes = readFileSync("routes/workflowOrchestrationRoutes.js", "utf8");
 assert.doesNotMatch(migration, /\b(?:DROP|TRUNCATE|DELETE)\b/i);
 assert.equal((migration.match(/CREATE TABLE IF NOT EXISTS/g) || []).length, 4);
 assert.match(migration, /ON DUPLICATE KEY UPDATE/);
 assert.match(migration, /database_table_lifecycle_registry/);
 assert.match(runner, /243_sprint68_growth_intelligence_product_registry\.sql/);
+const growthOpenApiSection = openapi.slice(
+  openapi.indexOf("  /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot:"),
+  openapi.indexOf("  /planner/")
+);
+assert.equal(/\b(requested_by|decision_by|assessed_by):/.test(growthOpenApiSection), false, "Growth Intelligence OpenAPI must derive audit identity from authentication");
+assert.match(growthRoutes, /function principalActor\(req\)/);
+assert.match(growthRoutes, /const guards = \[requireBackendApiKey, adminGuard\]/);
+assert.equal(growthRoutes.includes("req.body?.decision_by"), false, "decision actor must come from authenticated principal");
+assert.equal(growthRoutes.includes("req.body?.requested_by"), false, "request actor must come from authenticated principal");
+assert.equal(growthRoutes.includes("req.body?.assessed_by"), false, "assessment actor must come from authenticated principal");
 assert.match(lifecycleSource, /growth_intelligence_product_family/);
 assert.match(lifecycleSource, /tableName === "growth_intelligence_actions" \? "approval_audit"/);
 assert.equal(schema.properties.schema_version.const, "1.0.0");
