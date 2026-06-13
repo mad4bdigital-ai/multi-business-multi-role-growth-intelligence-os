@@ -1761,7 +1761,7 @@ export function buildActivationRoutes(deps) {
     }
   });
 
-  router.post("/activation/hard-run", requireBackendApiKey, async (req, res) => {
+  router.post("/activation/hard-run/legacy-full", requireBackendApiKey, async (req, res) => {
     let sessionContext = null;
     let providerBootstrap = null;
     try {
