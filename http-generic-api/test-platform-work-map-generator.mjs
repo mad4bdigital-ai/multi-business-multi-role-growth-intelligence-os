@@ -108,6 +108,41 @@ CREATE TABLE IF NOT EXISTS \`release_readiness_runs\` (
 CREATE OR REPLACE VIEW \`v_release_readiness_latest\` AS SELECT 1;
 `);
 
+write("http-generic-api/migrations/004_deep_domains.sql", `
+CREATE TABLE IF NOT EXISTS \`activation_signal_inbox\` (
+  \`signal_id\` VARCHAR(36) PRIMARY KEY,
+  \`tenant_id\` VARCHAR(36) NULL
+);
+CREATE TABLE IF NOT EXISTS \`asset_equivalence_groups\` (
+  \`group_id\` VARCHAR(36) PRIMARY KEY,
+  \`tenant_id\` VARCHAR(36) NULL
+);
+CREATE TABLE IF NOT EXISTS \`commercial_profiles\` (
+  \`profile_id\` VARCHAR(36) PRIMARY KEY,
+  \`tenant_id\` VARCHAR(36) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS \`repo_source_registry\` (
+  \`source_id\` VARCHAR(36) PRIMARY KEY,
+  \`status\` VARCHAR(32) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS \`platform_graph_nodes\` (
+  \`node_id\` VARCHAR(36) PRIMARY KEY,
+  \`resource_type_id\` VARCHAR(36) NULL
+);
+CREATE TABLE IF NOT EXISTS \`output_artifacts\` (
+  \`artifact_id\` VARCHAR(36) PRIMARY KEY,
+  \`tenant_id\` VARCHAR(36) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS \`tickets\` (
+  \`ticket_id\` VARCHAR(36) PRIMARY KEY,
+  \`tenant_id\` VARCHAR(36) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS \`data_migration_inventory\` (
+  \`migration_id\` VARCHAR(36) PRIMARY KEY,
+  \`status\` VARCHAR(32) NOT NULL
+);
+`);
+
 write("http-generic-api/activation-surfaces/agent_skill_grants.json", JSON.stringify({
   surface_key: "agent_skill_grants",
   source_table: "v_activation_agent_skill_grants",
