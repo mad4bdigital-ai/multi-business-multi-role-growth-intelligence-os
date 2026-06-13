@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const installRoutes = readFileSync(new URL("./routes/localConnectorInstallRoutes.js", import.meta.url), "utf8");
 const connectRoutes = readFileSync(new URL("./routes/connectRoutes.js", import.meta.url), "utf8");
+const migration = readFileSync(new URL("./migrations/1003_sprint69_tenant_device_install_intent_contract.sql", import.meta.url), "utf8");
 
 const activeProvisioner = installRoutes.slice(
   installRoutes.indexOf("export async function provisionLocalConnectorInstall"),
