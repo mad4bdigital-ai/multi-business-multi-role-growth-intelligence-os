@@ -1332,12 +1332,24 @@ export async function buildActivationSessionContext(req) {
 
   // Parallel conversations are the default; explicit close_previous_sessions preserves the old single-session behavior when needed.
   // Read-only callers can inspect context without minting a fresh session id, which prevents accidental ChatGPT URL ref relinking during diagnostics.
-  const sessionOpen = shouldOpenActivationSession(req.query)
-    ? await autoOpenGptSession(pool, subject, {
-        close_previous_sessions: asBoolean(req.query.close_previous_sessions) || asBoolean(req.query.close_previous),
-      })
-    : await readOnlyGptSessionContext(pool, subject);
-  const { session_id: newSessionId, closed_sessions } = sessionOpen;
+  const lifecycleOptions = {
+    read_only: !shouldOpenActivationSession(req.query),
+    session_policy: queryStringValue(req.query.session_policy) || (shouldOpenActivationSession(req.query) ? "reuse_or_create" : "read_only"),
+    idempotency_key: queryStringValue(req.query.idempotency_key) || null,
+    conversation_ref: queryStringValue(req.query.conversation_ref) || null,
+    response_profile: normalizeActivationResponseProfile(req.query.response_profile),
+    close_previous_sessions: asBoolean(req.query.close_previous_sessions) || asBoolean(req.query.close_previous),
+    reuse_window_hours: req.query.reuse_window_hours,
+  };
+  const sessionOpen = await resolveActivationSessionLifecycle({
+    pool,
+    subject,
+    options: lifecycleOptions,
+    openSession: () => autoOpenGptSession(pool, subject, {
+      close_previous_sessions: lifecycleOptions.close_previous_sessions,
+    }),
+  });
+  const { session_id: newSessionId, run_id: activationRunId, closed_sessions } = sessionOpen;
 
   const limit = capLimit(req.query.limit, SESSION_CONTEXT_DEFAULT_LIMIT, SESSION_CONTEXT_MAX_LIMIT);
   const offset = normalizeOffset(req.query.offset);
