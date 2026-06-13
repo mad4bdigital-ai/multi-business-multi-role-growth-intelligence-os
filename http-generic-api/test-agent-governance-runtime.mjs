@@ -550,6 +550,19 @@ assert(migration.includes("policy_snapshot_json"));
 assert(migration.includes("policy_snapshot_hash"));
 assert(migration.includes("plan_contract_hash"));
 assert(migration.includes("uq_research_execution_plan_step"));
+assert(
+  migration.includes("m.skill_key COLLATE utf8mb4_unicode_ci = s.skill_key COLLATE utf8mb4_unicode_ci"),
+  "skill manifest join must remain collation-safe"
+);
+assert(
+  migration.includes("p.skill_key COLLATE utf8mb4_unicode_ci = s.skill_key COLLATE utf8mb4_unicode_ci"),
+  "skill prompt registry join must remain collation-safe"
+);
+assert.equal(
+  /INSERT\s+INTO\s+memory_scope_type_registry/i.test(migration),
+  false,
+  "migration 245 must not reseed legacy memory scope columns"
+);
 for (const invariant of [
   "chk_research_source_execution_no_secrets",
   "chk_agent_handoff_state_no_secrets",
