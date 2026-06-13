@@ -82,6 +82,90 @@ const SPECIALIZED_MAPS = [
       "Generated documentation contains no raw runtime rows.",
     ],
   },
+  {
+    file: "activation-onboarding-map.md",
+    title: "Activation, Bootstrap, and Onboarding Map",
+    pattern: /activation|onboarding|bootstrap|guidance|attention_rule|operational_tile|signal_inbox/i,
+    flow: ["Session start", "Bootstrap authority", "Authorization envelope", "Surface discovery", "Onboarding state", "Attention / guidance", "Activation evidence"],
+    invariants: [
+      "Activation state is evidence-based and scoped to the authenticated principal.",
+      "Bootstrap configuration and provider validation remain distinct evidence surfaces.",
+      "Dynamic tabs, tiles, and guidance are registry-driven.",
+      "Onboarding gaps remain visible until same-cycle validation closes them.",
+    ],
+  },
+  {
+    file: "asset-package-map.md",
+    title: "Asset, Package, and Variant Map",
+    pattern: /asset|package|pack_attachment|copy_location|variant|equivalence/i,
+    flow: ["Source asset", "Subject / ownership link", "Package version", "Variant", "Patch / merge", "Private distribution", "Runtime consumption"],
+    invariants: [
+      "Assets retain explicit ownership, subject, and version relationships.",
+      "Package variants and patches are auditable rather than implicit file copies.",
+      "Private package distribution remains separate from public repository state.",
+      "Generated maps expose identifiers and schema relationships only.",
+    ],
+  },
+  {
+    file: "commercial-usage-map.md",
+    title: "Commercial, Credit, Entitlement, and Usage Map",
+    pattern: /commercial|credit|usage|billing|pricing|meter|subscription|entitlement/i,
+    flow: ["Commercial profile", "Plan / entitlement", "Credit balance", "Usage meter", "Limit / quota", "Eligibility decision", "Execution evidence"],
+    invariants: [
+      "Commercial eligibility resolves before paid, limited, or managed execution.",
+      "Credit balances and usage ledgers are distinct accounting surfaces.",
+      "Quota and budget authority remain visible in execution evidence.",
+      "Generated documentation never includes customer billing rows.",
+    ],
+  },
+  {
+    file: "repository-development-map.md",
+    title: "Repository, Development, and Deployment Map",
+    pattern: /repo_|git|branch|source_registry|proposal|summary_development|runtime_ci|deployment_parity|install_diff/i,
+    flow: ["Repository source", "Candidate / proposal", "Install diff", "Patch branch", "CI classification", "Merge gate", "Deployment parity", "Readback"],
+    invariants: [
+      "Repository mutations require governed capability envelopes.",
+      "Branch freshness, CI, and release readiness precede merge or deployment claims.",
+      "Install and capability candidates remain reviewable before activation.",
+      "Deployment parity is verified separately from repository merge state.",
+    ],
+  },
+  {
+    file: "platform-resource-graph-map.md",
+    title: "Platform Resource, Capability, and Graph Map",
+    pattern: /platform_graph|platform_resource|resource_recipe|resource_type|resource_adapter|contract_surface|registry_surfaces|capability|decision|intent|adaptation/i,
+    flow: ["Intent / decision", "Capability source resolution", "Contract surface", "Resource type", "Adapter / recipe", "Graph projection", "Validation / runtime evidence"],
+    invariants: [
+      "Capabilities resolve through registered sources and contract surfaces.",
+      "Resource types, adapters, and recipes form explicit governed bindings.",
+      "Graph projections are derived views, not replacement runtime authority.",
+      "Validation results and gaps remain queryable as separate surfaces.",
+    ],
+  },
+  {
+    file: "delivery-support-map.md",
+    title: "Output Delivery, Support, and Communication Map",
+    pattern: /ticket|thread|timeline|email_outbox|recipient_allowlist|external_delivery|sink_dispatch|output_artifact|reporting|tracked_event/i,
+    flow: ["Output artifact", "Recipient allowlist", "Sink routing", "Delivery event", "Ticket / thread", "Timeline / tracking", "Readback"],
+    invariants: [
+      "External delivery requires an allowlisted recipient and governed sink.",
+      "Output artifacts and dispatch events remain separately auditable.",
+      "Support tickets, threads, and timeline events retain linked resource context.",
+      "Generated documentation contains no recipient addresses or message bodies.",
+    ],
+  },
+  {
+    file: "migration-lifecycle-map.md",
+    title: "Migration, Data Lifecycle, and Recovery Map",
+    pattern: /migration|database_table_lifecycle|checkpoint|validation_repair|recovery|repair_run/i,
+    flow: ["Migration candidate", "Preflight", "Authorization", "Apply / record", "Lifecycle registry", "Checkpoint", "Repair / recovery", "Readiness"],
+    invariants: [
+      "Migration apply requires preflight, confirmation, and ledger evidence.",
+      "Record-only entries are used only when same-cycle evidence proves the schema state already exists.",
+      "Lifecycle ownership and recovery paths remain explicit.",
+      "No destructive migration is inferred from documentation generation.",
+    ],
+  },
 ];
 
 function readText(file) {
