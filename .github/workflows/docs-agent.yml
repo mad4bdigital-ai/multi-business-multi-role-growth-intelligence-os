@@ -43,18 +43,17 @@ jobs:
       - name: Generate dynamic text work maps
         run: node http-generic-api/scripts/platform-work-map-generator.mjs --write
 
-      - name: Commit docs impact note to PR branch
-        if: steps.agent.outputs.should_write == 'true'
+      - name: Commit generated documentation to PR branch
         run: |
           set -e
-          if [ -z "$(git status --porcelain -- docs/auto-docs-agent)" ]; then
-            echo "Docs Agent: no generated docs changes to commit."
+          if [ -z "$(git status --porcelain -- docs/auto-docs-agent docs/work-maps)" ]; then
+            echo "Docs Agent: no generated docs or work-map changes to commit."
             exit 0
           fi
           git config user.name "docs-agent[bot]"
           git config user.email "docs-agent[bot]@users.noreply.github.com"
-          git add docs/auto-docs-agent
-          git commit -m "Docs agent: update PR impact note"
+          git add docs/auto-docs-agent docs/work-maps
+          git commit -m "Docs agent: update generated documentation"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
           gh workflow run ci.yml --ref ${{ github.event.pull_request.head.ref }} || true
 
