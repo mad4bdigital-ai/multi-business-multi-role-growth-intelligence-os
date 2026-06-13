@@ -7130,7 +7130,7 @@ paths:
       operationId: callAdminSystemTool
       x-openai-isConsequential: false
       summary: Call an MCP-style system layer tool
-      description: Calls a fixed, governed system-layer tool. Tools expose the connected_systems registry and admin-only provider-bootstrap probes for Drive, Sheets, and GitHub activation evidence.
+      description: Calls a fixed, governed system-layer tool. Tools expose the connected_systems registry and admin-only provider-bootstrap probes for Drive, Sheets, and GitHub activation evidence. Oversized results return a chunk continuation envelope with response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and response_chunk_read. Callers may request max_chars, chunk_ttl_ms, or chunk_ttl_minutes through response_options; successful reads extend cache retention.
       requestBody:
         required: true
         content:
