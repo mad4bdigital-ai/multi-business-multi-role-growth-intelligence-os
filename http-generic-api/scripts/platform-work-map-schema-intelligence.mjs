@@ -435,7 +435,12 @@ function renderCoverageMatrix(repoRoot, catalog, mapNames) {
     const mapped = SPECIALIZED_MAPS.filter((spec) => objects.some((object) => spec.pattern.test(object.name))).map((spec) => spec.file);
     if (domain === "Sessions & memory") mapped.push("session-memory-map.md");
     mapped.push("data-model-domain-map.md");
-    return `| ${esc(domain)} | ${objects.filter((object) => object.type === "table").length} | ${objects.filter((object) => object.type === "view").length} | ${uniq(mapped).map((name) => `\`${name}\``).join(", ")} | ${objects.length ? "covered" : "empty"} |`;
+    const status = domain === "Other / uncategorized"
+      ? "taxonomy gap"
+      : objects.length
+        ? "covered"
+        : "empty";
+    return `| ${esc(domain)} | ${objects.filter((object) => object.type === "table").length} | ${objects.filter((object) => object.type === "view").length} | ${uniq(mapped).map((name) => `\`${name}\``).join(", ")} | ${status} |`;
   }).join("\n");
   const uncategorized = all.filter((object) => object.domain === "Other / uncategorized");
   return `# Work Map Coverage Matrix\n\n${header(repoRoot, catalog.files)}\n## Domain coverage\n\n| Domain | Tables | Views | Generated maps | Status |\n|---|---:|---:|---|---|\n${rows}\n\n## Generated map inventory\n\n${mapNames.sort().map((name) => `- \`${name}\``).join("\n")}\n\n## Uncategorized schema objects\n\n${uncategorized.length ? uncategorized.map((object) => `- \`${object.name}\` (${object.type})`).join("\n") : "- None."}\n\n## Coverage policy\n\n- Every discovered table and view appears in the data-model map.\n- Specialized maps are generated from deterministic name-based domain filters.\n- Uncategorized objects remain visible here instead of being silently omitted.\n- Any source change modifies a source hash and creates a reviewable Markdown diff.\n- No raw database rows, credentials, provider payloads, or image files are generated.\n`;
