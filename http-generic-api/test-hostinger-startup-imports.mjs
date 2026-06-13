@@ -89,6 +89,7 @@ await importModule("agentModelRuntimeSettings.js");
 await importModule("routes/activationRoutes.js");
 await importModule("routes/gptSessionRoutes.js");
 await importModule("routes/devAgentRoutes.js");
+await importModule("routes/index.js");
 await importModule("devAgentRunner.js");
 
 console.log("✓ Hostinger startup import guard passed");
