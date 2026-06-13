@@ -40,6 +40,9 @@ jobs:
         id: agent
         run: node http-generic-api/scripts/docs-agent-runner.mjs --write --mode pull_request
 
+      - name: Generate dynamic text work maps
+        run: node http-generic-api/scripts/platform-work-map-generator.mjs --write
+
       - name: Commit docs impact note to PR branch
         if: steps.agent.outputs.should_write == 'true'
         run: |
