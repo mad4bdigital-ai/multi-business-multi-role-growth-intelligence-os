@@ -58,6 +58,8 @@ assert.match(presentation, /stable_machine_signal: true/, "invocation signals mu
 assert.match(presentation, /tags_are_language_neutral: true/, "tags must remain language neutral");
 assert.match(presentation, /localized_recommended_actions/, "presentation must return localized actions");
 assert.match(presentation, /localized_activation_brief/, "presentation must return localized brief");
+assert.match(presentation, /best_next_action: bestAction/, "presentation summary must use the localized best next action");
+assert.doesNotMatch(presentation, /best_next_action: activationBrief\?\.best_next_action/, "presentation summary must not return the raw unlocalized action");
 
 assert.match(openapi, /operationId: getTenantActivationGuidance/, "OpenAPI must document tenant guidance endpoint");
 assert.match(openapi, /operationId: getAdminActivationGuidance/, "OpenAPI must document admin guidance endpoint");
