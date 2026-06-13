@@ -69,7 +69,7 @@ post-test stale-evidence rejection gate. See
 ## Runtime startup and deployment provenance
 
 The API start lifecycle generates a deployment manifest before loading `server.js`.
-CI also spawns the real server and requires `/health` to respond, preventing
+CI also spawns the real server and requires `/version` plus commit evidence, preventing
 top-level route import failures from reaching auto-deploy. Hostinger environments
 must set `DEPLOYMENT_BRANCH` explicitly because detached checkouts and hostname
 fallback are not authoritative branch evidence. See `docs/hostinger-node-deploy.md`

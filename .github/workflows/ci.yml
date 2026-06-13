@@ -81,7 +81,7 @@ jobs:
         working-directory: http-generic-api
         run: npm test
 
-      - name: Prove runtime startup and health
+      - name: Prove runtime startup and deployment evidence
         working-directory: http-generic-api
         env:
           FORCE_ROUTE_RUNTIME_TESTS: "true"
@@ -90,7 +90,7 @@ jobs:
         run: |
           node test-deployment-manifest-generator.mjs
           npm run manifest:deployment
-          node test-routes.mjs
+          node test-server-startup-smoke.mjs
 
       - name: Run explicit governance contract checks
         working-directory: http-generic-api
