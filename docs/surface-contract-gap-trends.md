@@ -6,7 +6,7 @@
 - Gate candidates: 1
 - Blocking new items: 1
 - Trend quality gate: fail
-- Docs completion: 99.02%
+- Docs completion: 99.03%
 - SQL route OpenAPI coverage: 100%
 - OpenAPI-exempt SQL route-like literals: 535/535
 - Safety marker gap migrations: 1
