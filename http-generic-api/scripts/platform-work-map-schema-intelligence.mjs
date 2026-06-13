@@ -73,7 +73,7 @@ const SPECIALIZED_MAPS = [
   {
     file: "observability-release-map.md",
     title: "Observability, Audit, and Release Map",
-    pattern: /execution_log|audit|telemetry|incident|readiness|monitor|release|backup|restore|snapshot|health|certification|diagnostic|evidence|dr_/i,
+    pattern: /execution_log|audit|telemetry|incident|readiness|monitor|release|backup|restore|snapshot|health|certification|diagnostic|evidence|dr_|runtime_gap|runtime_verification|runtime_production_parity|runtime_context_dimension|summary_comparison/i,
     flow: ["Runtime event", "Execution evidence", "Audit / telemetry", "Readiness views", "Incident / repair", "Release gate", "DR certification"],
     invariants: [
       "Operational claims require readback evidence, not narrative status.",
