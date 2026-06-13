@@ -41,4 +41,12 @@ assert.match(connectRoutes, /typed_confirmation = ""/);
 assert.match(connectRoutes, /reprovision = false/);
 assert.match(connectRoutes, /reprovision: reprovision === true/);
 
+assert.match(migration, /connect_device_install/);
+assert.match(migration, /install_intent/);
+assert.match(migration, /typed_confirmation/);
+assert.match(migration, /INSTALL_DEVICE_/);
+assert.match(migration, /no_raw_secrets/);
+assert.match(migration, /signed_download_link/);
+assert.doesNotMatch(migration, /DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM/i);
+
 console.log("local connector provisioning safety guard passed");
