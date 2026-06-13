@@ -1,6 +1,8 @@
 import { buildHealthRoutes } from "./healthRoutes.js";
 import { buildStatusRoutes } from "./statusRoutes.js";
 import { buildActivationRoutes } from "./activationRoutes.js";
+import { buildActivationHardRunRoutes } from "./activationHardRunRoutes.js";
+import { buildActivationAwarenessRoutes } from "./activationAwarenessRoutes.js";
 import { buildMcpRoutes } from "./mcpRoutes.js";
 import { buildGovernanceRoutes } from "./governanceRoutes.js";
 import { buildJobRoutes } from "./jobRoutes.js";
