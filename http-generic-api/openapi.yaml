@@ -6954,7 +6954,7 @@ paths:
       operationId: listSystemTools
       x-tenant-gpt-operationId: listTools
       summary: List MCP-style system tools visible to the current principal
-      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context.
+      description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read before fallback. Optional max_chars, chunk_ttl_ms, and chunk_ttl_minutes controls are backward compatible.
       responses:
         "200":
           description: System layer tools
@@ -6983,7 +6983,7 @@ paths:
       x-tenant-gpt-operationId: callTool
       x-openai-isConsequential: false
       summary: Call a governed MCP-style system tool
-      description: Calls a fixed system-layer tool through principal-aware runtime validation. Tenant principals are scoped to their tenant; admin principals can inspect all connector registry records and run provider-bootstrap probes. Repository Intelligence V2 adds tenant-safe read-only repository PR reconciliation via tenant_repo_pr_reconciliation_sweep, plus admin-only read-only GitHub repository authority binding lifecycle tools platform_resource_authority_binding_create, platform_resource_authority_binding_list, platform_resource_authority_binding_revoke, and tenant_repository_intelligence_v2_readiness_smoke. Repository Intelligence V3 adds tenant_repository_intelligence_report for read-only decision reports with classification summaries, top risks, manual recommendations, PR evidence, Markdown/JSON output, and bounded audit evidence. Repository Intelligence V4 adds tenant_repository_action_planner_dry_run for non-executed action planning and tenant_repository_intelligence_v3_v4_readiness_smoke for no-secret readiness validation; V3/V4 never comment, label, close, merge, patch, force-push, or apply migrations. Repository Intelligence V5 adds tenant_repository_advisory_comment_preview, tenant_repository_advisory_comment_apply, tenant_repository_advisory_comment_readback, and tenant_repository_advisory_comment_v5_readiness_smoke for approval-gated advisory PR comments. V5 apply is comment-only after approval and never labels, closes, merges, patches files, force-pushes, or applies migrations. These tools use platform_resource_authority_bindings, delegate PR reads to repo.pr.reconciliation_sweep, may write bounded audit_payload_evidence when requested, and do not comment, label, close, merge, patch, force-push, or apply migrations.
+      description: Calls a fixed system-layer tool through principal-aware runtime validation. Tenant principals are scoped to their tenant; admin principals can inspect all connector registry records and run provider-bootstrap probes. Oversized results return a chunk continuation envelope with response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and response_chunk_read. Callers may request max_chars, chunk_ttl_ms, or chunk_ttl_minutes through response_options; successful reads extend cache retention. Repository Intelligence V2 adds tenant-safe read-only repository PR reconciliation via tenant_repo_pr_reconciliation_sweep, plus admin-only read-only GitHub repository authority binding lifecycle tools platform_resource_authority_binding_create, platform_resource_authority_binding_list, platform_resource_authority_binding_revoke, and tenant_repository_intelligence_v2_readiness_smoke. Repository Intelligence V3 adds tenant_repository_intelligence_report for read-only decision reports with classification summaries, top risks, manual recommendations, PR evidence, Markdown/JSON output, and bounded audit evidence. Repository Intelligence V4 adds tenant_repository_action_planner_dry_run for non-executed action planning and tenant_repository_intelligence_v3_v4_readiness_smoke for no-secret readiness validation; V3/V4 never comment, label, close, merge, patch, force-push, or apply migrations. Repository Intelligence V5 adds tenant_repository_advisory_comment_preview, tenant_repository_advisory_comment_apply, tenant_repository_advisory_comment_readback, and tenant_repository_advisory_comment_v5_readiness_smoke for approval-gated advisory PR comments. V5 apply is comment-only after approval and never labels, closes, merges, patches files, force-pushes, or applies migrations. These tools use platform_resource_authority_bindings, delegate PR reads to repo.pr.reconciliation_sweep, may write bounded audit_payload_evidence when requested, and do not comment, label, close, merge, patch, force-push, or apply migrations.
       requestBody:
         required: true
         content:
@@ -7105,7 +7105,7 @@ paths:
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listAdminSystemTools
       summary: List MCP-style system layer tools
-      description: Lists fixed OpenAPI-compatible tools available through the admin system layer. This behaves like a small MCP tools/list facade over governed platform registries.
+      description: Lists fixed OpenAPI-compatible tools available through the admin system layer. This behaves like a small MCP tools/list facade over governed platform registries. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read before fallback. Optional max_chars, chunk_ttl_ms, and chunk_ttl_minutes controls are backward compatible.
       responses:
         "200":
           description: System layer tools
@@ -7130,7 +7130,7 @@ paths:
       operationId: callAdminSystemTool
       x-openai-isConsequential: false
       summary: Call an MCP-style system layer tool
-      description: Calls a fixed, governed system-layer tool. Tools expose the connected_systems registry and admin-only provider-bootstrap probes for Drive, Sheets, and GitHub activation evidence.
+      description: Calls a fixed, governed system-layer tool. Tools expose the connected_systems registry and admin-only provider-bootstrap probes for Drive, Sheets, and GitHub activation evidence. Oversized results return a chunk continuation envelope with response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and response_chunk_read. Callers may request max_chars, chunk_ttl_ms, or chunk_ttl_minutes through response_options; successful reads extend cache retention.
       requestBody:
         required: true
         content:
