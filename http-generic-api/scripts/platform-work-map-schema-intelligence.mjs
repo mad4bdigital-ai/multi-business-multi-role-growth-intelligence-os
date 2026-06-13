@@ -157,7 +157,7 @@ const SPECIALIZED_MAPS = [
   {
     file: "migration-lifecycle-map.md",
     title: "Migration, Data Lifecycle, and Recovery Map",
-    pattern: /migration|database_table_lifecycle|checkpoint|validation_repair|recovery|repair_run/i,
+    pattern: /migration|database_table_lifecycle|database_lifecycle|checkpoint|validation_repair|recovery|repair_run/i,
     flow: ["Migration candidate", "Preflight", "Authorization", "Apply / record", "Lifecycle registry", "Checkpoint", "Repair / recovery", "Readiness"],
     invariants: [
       "Migration apply requires preflight, confirmation, and ledger evidence.",
