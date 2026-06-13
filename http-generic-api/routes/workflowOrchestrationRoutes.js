@@ -206,6 +206,54 @@ export function buildWorkflowOrchestrationRoutes(deps) {
       if (holdRows[0].status !== "open") {
         return res.status(409).json({ ok: false, error: { code: "hold_already_decided", message: `Hold is already '${holdRows[0].status}'.` } });
       }
+      let holdContext = {};
+      try { holdContext = JSON.parse(holdRows[0].execution_context_json || "{}"); } catch {}
+      if (holdContext.source === "growth_intelligence_registry") {
+        return res.status(409).json({
+          ok: false,
+          error: {
+            code: "growth_intelligence_specialized_decision_required",
+            message: "Use the Growth Intelligence action decision route so hold, action, report, and workflow state remain synchronized.",
+          },
+        });
+      }
+      if (holdContext.source === "sequential_plan_orchestrator") {
+        const nextStepStatus = decision === "approved" ? "ready" : decision === "escalated" ? "awaiting_approval" : "failed";
+        const nextPlanStatus = decision === "approved" ? "validated" : decision === "escalated" ? "awaiting_approval" : "blocked";
+        await getPool().query(
+          "UPDATE `approval_holds` SET status = ?, decision_by = ?, decision_note = ?, decided_at = NOW() WHERE hold_id = ?",
+          [decision, decision_by || null, decision_note || null, req.params.id]
+        );
+        await getPool().query(
+          `UPDATE execution_plan_steps
+              SET status = CASE WHEN ? = 'approved' AND step_type = 'approval' THEN 'completed' ELSE ? END,
+                  approval_policy_json = JSON_SET(COALESCE(approval_policy_json, JSON_OBJECT()), '$.approved', ?)
+            WHERE plan_step_id = ? AND status = 'awaiting_approval'`,
+          [decision, nextStepStatus, decision === "approved", holdContext.plan_step_id]
+        );
+        await getPool().query("UPDATE execution_plans SET plan_status = ? WHERE plan_id = ?", [nextPlanStatus, holdContext.plan_id]);
+        await getPool().query(
+          `INSERT INTO execution_plan_events
+            (plan_event_id, plan_id, plan_step_id, tenant_id, event_type, from_status, to_status, actor_id, evidence_json)
+           VALUES (?, ?, ?, ?, 'approval_decided', 'awaiting_approval', ?, ?, ?)`,
+          [
+            randomUUID(), holdContext.plan_id, holdContext.plan_step_id, holdRows[0].tenant_id,
+            nextStepStatus, decision_by || null,
+            JSON.stringify({ hold_id: req.params.id, decision, secrets_included: false }),
+          ]
+        );
+        return res.status(200).json({
+          ok: true,
+          hold_id: req.params.id,
+          decision,
+          plan_id: holdContext.plan_id,
+          plan_step_id: holdContext.plan_step_id,
+          plan_status: nextPlanStatus,
+          step_status: decision === "approved" ? "ready_or_completed" : nextStepStatus,
+          execution_dispatched: false,
+          secrets_included: false,
+        });
+      }
 
       await getPool().query(
         "UPDATE `approval_holds` SET status = ?, decision_by = ?, decision_note = ?, decided_at = NOW() WHERE hold_id = ?",

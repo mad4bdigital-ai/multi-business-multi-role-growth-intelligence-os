@@ -35,6 +35,11 @@ import {
   HOSTINGER_SSH_TARGET_PROBE_JOB_TYPE,
   runHostingerSshTargetProbeJob,
 } from "./hostingerSshDeployExecutor.js";
+import {
+  runSequentialPlan,
+  SEQUENTIAL_PLAN_RUN_JOB_TYPE,
+} from "./sequentialPlanOrchestrator.js";
+import { getPool } from "./db.js";
 
 function createExecutionTraceId() {
   return `trace_${crypto.randomUUID().replace(/-/g, "")}`;
@@ -449,6 +454,27 @@ export function configureJobRunner(
           success: false,
           statusCode: err?.status || 500,
           payload: { ok: false, error: { code: err?.code || "connected_execution_resume_action_job_failed", message: err?.message || String(err) }, secrets_included: false },
+        };
+      }
+    }
+    if (jobType === SEQUENTIAL_PLAN_RUN_JOB_TYPE) {
+      try {
+        const payload = await (deps.runSequentialPlan || runSequentialPlan)({
+          pool: getPool(),
+          planId: String(job.request_payload?.plan_id || "").trim(),
+          actorId: String(job.request_payload?.actor_id || job.requested_by || "").trim() || null,
+          maxTicks: Number(job.request_payload?.max_ticks || 25),
+        });
+        return {
+          success: payload?.ok === true,
+          statusCode: payload?.ok === true ? 200 : 409,
+          payload,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          statusCode: err?.status || 500,
+          payload: { ok: false, error: { code: err?.code || "sequential_plan_run_job_failed", message: err?.message || String(err) }, secrets_included: false },
         };
       }
     }

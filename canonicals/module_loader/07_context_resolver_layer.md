@@ -32,3 +32,21 @@ If Brand Registry cannot be loaded:
 ## Completion Gate
 The loader may call resolveContext only after all required row collections are loaded.
 An empty row collection is valid input only when the corresponding key (business_type_key or brand_key) is absent from the request.
+## Growth Intelligence Pilot Dependencies
+
+Before loading `tenant_brand_growth_intelligence_pilot_v1`, the module loader must
+resolve tenant scope, Brand Core, Business Activity Type, compatible engines, and
+available evidence. Missing brand or activity authority blocks the workflow.
+
+The loader must preserve read-only/dry-run mode through all downstream modules and
+must not load provider-write or external-send capability for this workflow.
+
+## Sequential Plan Loader Dependencies
+
+Before a compiled step is marked ready, the loader must resolve the step workflow
+identity, dependency completion state, required execution context, approval
+policy, and compatible executor. Missing dependencies or ambiguous workflow
+identity block the step instead of skipping it.
+# Governed Agent Context
+
+Resolve response profile and memory scope after tenant/brand/role context, but treat both as non-authoritative context. Resolve research source policy before creating sequential research steps. Resolve handoff state by opaque ID with expiry and tenant checks.

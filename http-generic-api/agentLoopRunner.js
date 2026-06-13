@@ -4,6 +4,7 @@ import { loadWorkspaceAppContext } from "./appConnectionResolver.js";
 import { evaluateAgentLoopPreflight, assertPreflightAllowed } from "./governedExecutionPreflight.js";
 import { resolveSurfaceAuthority, SURFACE_KEYS } from "./surfaceAuthorityResolver.js";
 import { resolveRuntimeWorkflow } from "./runtimeWorkflowResolver.js";
+import { writeAuthorityBridgeDriftEvidence } from "./authorityBridgeEvidence.js";
 
 function isTruthy(val) {
   return val === true || val === 1 || val === "1" || val === "TRUE";
@@ -246,6 +247,22 @@ export async function runAgentLoop(plan, deps = {}) {
     : { plan_id: plan.plan_id, brand_key: plan.brand_key, workflow_key: plan.workflow_key };
   context.run_id = run_id;
   context.decision_run_id = plan.decision_run_id || plan.plan_id || run_id;
+  if (context.authority_bridge?.blocker_count > 0) {
+    context.authority_bridge.drift_evidence = await writeAuthorityBridgeDriftEvidence(
+      { ...plan, run_id },
+      context.authority_bridge,
+      { pool: deps.pool, writeExecutionEvidence: deps.writeExecutionEvidence }
+    );
+  }
+  if (context.authority_bridge?.allowed === false) {
+    return {
+      ok: false,
+      error: "governed_agent_execution_authority_denied",
+      plan_id: plan.plan_id || null,
+      authority_bridge: context.authority_bridge,
+      secrets_included: false,
+    };
+  }
 
   const pathRows = deps.loadPathResolverRows
     ? await deps.loadPathResolverRows(plan).catch(() => null)

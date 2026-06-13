@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { getPool } from "./db.js";
+
+async function pool() {
+  const { getPool } = await import("./db.js");
+  return getPool();
+}
 
 function safeJson(value, fallback = {}) {
   try { return JSON.stringify(value ?? fallback); } catch { return JSON.stringify(fallback); }
@@ -77,7 +81,7 @@ function summarizeError(error = {}) {
 export async function recordAgentModelRunStarted({ context = {}, messages = [], tools = [], providerKey = "unknown", modelKey = "unknown", traceId = null } = {}) {
   const modelRunId = randomUUID();
   try {
-    await getPool().query(
+    await (await pool()).query(
       `INSERT INTO \`agent_model_runs\`
          (model_run_id, decision_run_id, model_key, provider_key, status,
           input_message_summary_json, content_block_counts_json, no_raw_thinking_stored, trace_id, created_at)
@@ -100,7 +104,7 @@ export async function recordAgentModelRunCompleted({ modelRunId, response = {}, 
   if (!modelRunId) return;
   const normalizedStatus = ["completed", "failed", "cancelled", "streaming", "started"].includes(status) ? status : "completed";
   try {
-    await getPool().query(
+    await (await pool()).query(
       `UPDATE \`agent_model_runs\`
           SET status = ?, output_message_summary_json = ?, cost_ledger_json = ?, completed_at = UTC_TIMESTAMP()
         WHERE model_run_id = ?`,
@@ -117,7 +121,7 @@ export async function recordAgentModelRunCompleted({ modelRunId, response = {}, 
 export async function recordAgentModelRunFailed({ modelRunId, error } = {}) {
   if (!modelRunId) return;
   try {
-    await getPool().query(
+    await (await pool()).query(
       `UPDATE \`agent_model_runs\`
           SET status = 'failed', output_message_summary_json = ?, completed_at = UTC_TIMESTAMP()
         WHERE model_run_id = ?`,
@@ -129,7 +133,7 @@ export async function recordAgentModelRunFailed({ modelRunId, error } = {}) {
 export async function recordAgentToolCallStarted({ context = {}, modelRunId = null, toolKey, args = {} } = {}) {
   const toolCallId = randomUUID();
   try {
-    await getPool().query(
+    await (await pool()).query(
       `INSERT INTO \`agent_tool_calls\`
          (tool_call_id, decision_run_id, model_run_id, tool_key, authorization_status,
           pre_tool_gate_json, input_summary_json, secrets_returned_to_model, side_effect_confirmed_by_readback, trace_id, created_at)
@@ -152,7 +156,7 @@ export async function recordAgentToolCallCompleted({ toolCallId, result = {}, st
   if (!toolCallId) return;
   const authStatus = ["authorized", "failed", "denied", "pending"].includes(status) ? status : "authorized";
   try {
-    await getPool().query(
+    await (await pool()).query(
       `UPDATE \`agent_tool_calls\`
           SET authorization_status = ?, post_tool_readback_json = ?, output_summary_json = ?, completed_at = UTC_TIMESTAMP()
         WHERE tool_call_id = ?`,
@@ -169,7 +173,7 @@ export async function recordAgentToolCallCompleted({ toolCallId, result = {}, st
 export async function recordAgentToolCallFailed({ toolCallId, error } = {}) {
   if (!toolCallId) return;
   try {
-    await getPool().query(
+    await (await pool()).query(
       `UPDATE \`agent_tool_calls\`
           SET authorization_status = 'failed', error_json = ?, completed_at = UTC_TIMESTAMP()
         WHERE tool_call_id = ?`,

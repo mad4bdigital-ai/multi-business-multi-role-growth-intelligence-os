@@ -5394,6 +5394,175 @@ paths:
               schema: { $ref: "#/components/schemas/PlatformListResponse" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /tenants/{tenant_id}/brands/{brand_key}/growth-intelligence/pilot:
+    post:
+      tags: [tenants]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: runGrowthIntelligencePilot
+      summary: Run the read-only tenant and brand Growth Intelligence pilot
+      description: >
+        Resolves tenant, brand core, and business activity context, then produces
+        JSON and Markdown reports, prioritized opportunities, a dry-run action
+        backlog, approval holds, readback, and audit evidence. This operation
+        performs no provider writes or external sends and returns no secrets.
+      parameters:
+        - { name: tenant_id, in: path, required: true, schema: { type: string } }
+        - { name: brand_key, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [brand_registry_rows, activity_type_registry_rows]
+              properties:
+                business_activity_type_key: { type: string }
+                persistence_mode:
+                  type: string
+                  enum: [none, internal_registry]
+                  default: none
+                  description: Internal registry persistence is explicit and never dispatches provider execution.
+                requested_by: { type: string }
+                brand_registry_rows: { type: array, items: { type: object, additionalProperties: true } }
+                brand_core_registry_rows: { type: array, items: { type: object, additionalProperties: true } }
+                activity_type_registry_rows: { type: array, items: { type: object, additionalProperties: true } }
+                evidence: { type: array, items: { type: object, additionalProperties: true } }
+      responses:
+        "200":
+          description: Growth Intelligence pilot report and governed readback
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Brand context was not found }
+
+  /tenants/{tenant_id}/growth-intelligence/reports:
+    get:
+      tags: [tenants]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: listGrowthIntelligenceReports
+      summary: List persisted Growth Intelligence reports
+      parameters:
+        - { name: tenant_id, in: path, required: true, schema: { type: string } }
+        - { name: brand_key, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+      responses:
+        "200": { description: Tenant-scoped Growth Intelligence report list }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /tenants/{tenant_id}/growth-intelligence/metrics:
+    get:
+      tags: [tenants]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: getGrowthIntelligenceMetrics
+      summary: Read tenant-scoped Growth Intelligence product and safety metrics
+      parameters:
+        - { name: tenant_id, in: path, required: true, schema: { type: string } }
+        - { name: brand_key, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Report, insight, action, readiness, quality, approval, and safety metrics }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /tenants/{tenant_id}/growth-intelligence/reports/{report_id}:
+    get:
+      tags: [tenants]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: getGrowthIntelligenceReport
+      summary: Read one persisted Growth Intelligence report with insights and actions
+      parameters:
+        - { name: tenant_id, in: path, required: true, schema: { type: string } }
+        - { name: report_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Growth Intelligence report, insight/action rows, and immutable readiness assessments }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Growth Intelligence report not found }
+
+  /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/actions/{action_id}/decision:
+    post:
+      tags: [tenants]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: decideGrowthIntelligenceAction
+      summary: Approve or reject a Growth Intelligence action without executing it
+      description: >
+        Updates the linked approval hold, action, report, and workflow status in one
+        transaction. Approval moves a fully approved report to awaiting_review and
+        never dispatches provider execution.
+      parameters:
+        - { name: tenant_id, in: path, required: true, schema: { type: string } }
+        - { name: report_id, in: path, required: true, schema: { type: string } }
+        - { name: action_id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [approved, rejected] }
+                decision_by: { type: string }
+                decision_note: { type: string }
+      responses:
+        "200": { description: Decision recorded; no execution dispatched }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Growth Intelligence action not found }
+        "409": { description: Linked approval hold is not open }
+
+  /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/insights/{insight_id}/decision:
+    post:
+      tags: [tenants]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: decideGrowthIntelligenceInsight
+      summary: Accept, reject, or mark a Growth Intelligence insight stale
+      description: Records a tenant-scoped insight lifecycle decision without dispatching execution.
+      parameters:
+        - { name: tenant_id, in: path, required: true, schema: { type: string } }
+        - { name: report_id, in: path, required: true, schema: { type: string } }
+        - { name: insight_id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [accepted, rejected, stale] }
+                decision_by: { type: string }
+                decision_note: { type: string }
+      responses:
+        "200": { description: Insight decision recorded; no execution dispatched }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Growth Intelligence insight not found or superseded }
+
+  /tenants/{tenant_id}/growth-intelligence/reports/{report_id}/readiness-assessments:
+    post:
+      tags: [tenants]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: createGrowthIntelligenceReadinessAssessment
+      summary: Record an immutable no-execution readiness assessment
+      description: >
+        Evaluates report approval, insight acceptance and evidence, action approval,
+        scoring, readback coverage, and safety flags. A review_ready result still
+        has execution_allowed=false and grants no provider-write or external-send authority.
+      parameters:
+        - { name: tenant_id, in: path, required: true, schema: { type: string } }
+        - { name: report_id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assessed_by: { type: string }
+      responses:
+        "201": { description: Immutable readiness assessment recorded; execution remains forbidden }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Growth Intelligence report not found }
+
   /tenants/{tenant_id}/relationships:
     post:
       tags: [tenants]
@@ -8819,6 +8988,129 @@ paths:
       responses:
         "200": { description: Execution dispatched, content: { application/json: { schema: { $ref: "#/components/schemas/OkResponse" } } } }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /planner/plans/{plan_id}/compile:
+    post:
+      tags: [planner]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: compileSequentialPlan
+      summary: Compile ordered plan steps with dependencies and execution policies
+      parameters:
+        - { name: plan_id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, steps]
+              properties:
+                tenant_id: { type: string }
+                actor_id: { type: string }
+                steps:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: object
+                    required: [step_key, step_type]
+                    properties:
+                      step_key: { type: string }
+                      step_type: { type: string, enum: [workflow, analysis, checkpoint, approval, stop] }
+                      workflow_id: { type: string }
+                      workflow_key: { type: string }
+                      depends_on: { type: array, items: { type: string } }
+                      input: { type: object, additionalProperties: true }
+                      success_criteria: { type: object, additionalProperties: true }
+                      retry_policy: { type: object, additionalProperties: true }
+                      approval_policy: { type: object, additionalProperties: true }
+                      idempotency_key: { type: string }
+      responses:
+        "201": { description: Sequential plan compiled and validated }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /planner/plans/{plan_id}/tick:
+    post:
+      tags: [planner]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: tickSequentialPlan
+      summary: Atomically claim and execute the next ready plan step
+      parameters:
+        - { name: plan_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: One sequential plan tick completed or stopped at a gate }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /planner/plans/{plan_id}/run:
+    post:
+      tags: [planner]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: runSequentialPlan
+      summary: Execute ready plan steps sequentially until a stop condition
+      parameters:
+        - { name: plan_id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actor_id: { type: string }
+                max_ticks: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        "200": { description: Sequential execution timeline for this invocation }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /planner/plans/{plan_id}/resume:
+    post:
+      tags: [planner]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: resumeSequentialPlan
+      summary: Resume a paused, blocked, or retryable sequential plan
+      parameters:
+        - { name: plan_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Plan returned to validated state without executing a step }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /planner/plans/{plan_id}/enqueue:
+    post:
+      tags: [planner]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: enqueueSequentialPlan
+      summary: Enqueue bounded sequential execution in the background worker
+      description: The worker continues until approval, blocked, paused, failed, cancelled, completed, or max_ticks.
+      parameters:
+        - { name: plan_id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actor_id: { type: string }
+                idempotency_key: { type: string }
+                execution_trace_id: { type: string }
+                max_ticks: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        "200": { description: Existing idempotent job returned }
+        "202": { description: Sequential plan job queued }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { description: Background queue unavailable }
+
+  /planner/plans/{plan_id}/timeline:
+    get:
+      tags: [planner]
+      security: [backendBearerAuth: [], backendApiKeyAuth: []]
+      operationId: getSequentialPlanTimeline
+      summary: Read the compiled steps and append-only event timeline
+      parameters:
+        - { name: plan_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Plan, compiled steps, and transition events }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
@@ -15737,3 +16029,104 @@ paths:
       responses:
         "200": { description: Rejection result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/agent-governance/response-profile/resolve:
+    post:
+      tags: [platform-agent-governance]
+      operationId: resolveAgentGovernanceResponseProfile
+      summary: Resolve a presentation-only agent response profile
+      responses:
+        "200": { description: Resolved response profile }
+  /platform/agent-governance/research-policy/resolve:
+    post:
+      tags: [platform-agent-governance]
+      operationId: resolveAgentGovernanceResearchPolicy
+      summary: Resolve internal-first research policy and sequential plan steps
+      responses:
+        "200": { description: Resolved source policy }
+  /platform/agent-governance/research-executions:
+    post:
+      tags: [platform-agent-governance]
+      operationId: recordAgentGovernanceResearchExecution
+      summary: Record research source evidence
+      responses:
+        "201": { description: Research evidence recorded }
+  /platform/agent-governance/research-plans:
+    post:
+      tags: [platform-agent-governance]
+      operationId: createGovernedResearchPlan
+      summary: Create and compile an internal-first sequential research plan
+      responses:
+        "201": { description: Research plan compiled with source evidence gates }
+  /platform/agent-governance/research-plans/{plan_id}/run:
+    post:
+      tags: [platform-agent-governance]
+      operationId: runGovernedResearchPlan
+      summary: Run a governed research plan through injected source and citation adapters
+      parameters:
+        - { name: plan_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Governed research plan run result }
+        "503": { description: Source or citation adapter unavailable }
+  /platform/agent-governance/handoffs:
+    post:
+      tags: [platform-agent-governance]
+      operationId: createAgentGovernanceHandoff
+      summary: Create opaque expiring agent handoff state
+      responses:
+        "201": { description: Handoff state created }
+  /platform/agent-governance/handoffs/{state_id}:
+    get:
+      tags: [platform-agent-governance]
+      operationId: readAgentGovernanceHandoff
+      summary: Read governed handoff state
+      parameters:
+        - { name: state_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Governed handoff state }
+  /platform/agent-governance/handoffs/{state_id}/consume:
+    post:
+      tags: [platform-agent-governance]
+      operationId: consumeAgentGovernanceHandoff
+      summary: Consume one-time handoff state
+      parameters:
+        - { name: state_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Handoff consumed }
+  /platform/agent-governance/handoffs/{state_id}/revoke:
+    post:
+      tags: [platform-agent-governance]
+      operationId: revokeAgentGovernanceHandoff
+      summary: Revoke handoff state
+      parameters:
+        - { name: state_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Handoff revoked }
+  /platform/agent-governance/external-prompts/classify:
+    post:
+      tags: [platform-agent-governance]
+      operationId: classifyExternalPromptArtifact
+      summary: Quarantine and classify an external prompt-like artifact
+      responses:
+        "201": { description: Artifact quarantined without authority }
+  /platform/agent-governance/skill-coverage:
+    get:
+      tags: [platform-agent-governance]
+      operationId: getAgentGovernanceSkillCoverage
+      summary: Read skill runtime coverage gaps
+      responses:
+        "200": { description: Skill runtime coverage }
+  /platform/agent-governance/readiness:
+    get:
+      tags: [platform-agent-governance]
+      operationId: getAgentGovernanceReadiness
+      summary: Read governance schema, policy, skill coverage, and source adapter readiness
+      responses:
+        "200": { description: Agent governance runtime readiness }
+  /platform/agent-governance/memory-scope/resolve:
+    post:
+      tags: [platform-agent-governance]
+      operationId: resolveAgentGovernanceMemoryScope
+      summary: Resolve tenant-bound memory scopes and explicit cross-scope links
+      responses:
+        "200": { description: Deny-by-default memory scope resolution }

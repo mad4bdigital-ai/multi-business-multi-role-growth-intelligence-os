@@ -119,6 +119,28 @@ export function classifyDatabaseTableLifecycle(row = {}) {
     cleanupStrategy = "archive_completed_execution_records";
     riskLevel = sizeMb > 8 ? "high" : "medium";
     reasons.push("connected_execution_family");
+  } else if (includesAny(tableName, ["execution_plan_steps", "execution_plan_events"])) {
+    tableFamily = "sequential_plan_orchestration";
+    ownerEngineKey = "workflow_runtime_engine";
+    usageStatus = rows > 0 ? "runtime_canonical" : "planned_placeholder";
+    retentionClass = tableName === "execution_plan_events" ? "audit" : "business_record";
+    retentionDays = tableName === "execution_plan_events" ? 365 : null;
+    archiveStrategy = "archive_terminal_plan_records";
+    cleanupStrategy = "retain_plan_lineage";
+    riskLevel = tableName === "execution_plan_steps" ? "high" : "medium";
+    reasons.push("sequential_plan_orchestration_family");
+  } else if (includesAny(tableName, ["growth_intelligence_"])) {
+    tableFamily = "growth_intelligence_product";
+    ownerEngineKey = "workflow_runtime_engine";
+    usageStatus = rows > 0 ? "runtime_canonical" : "planned_placeholder";
+    retentionClass = tableName === "growth_intelligence_actions" ? "approval_audit" : "business_record";
+    retentionDays = tableName === "growth_intelligence_actions" ? 365 : null;
+    archiveStrategy = tableName === "growth_intelligence_insights"
+      ? "compact_superseded_insights"
+      : "archive_superseded_reports_or_terminal_actions";
+    cleanupStrategy = "retain_approval_and_evidence_links";
+    riskLevel = tableName === "growth_intelligence_actions" ? "high" : "medium";
+    reasons.push("growth_intelligence_product_family");
   } else if (includesAny(tableName, ["database_lifecycle_", "database_collation_"])) {
     tableFamily = includesAny(tableName, ["database_collation_"]) ? "schema_collation_governance" : "database_lifecycle";
     ownerEngineKey = includesAny(tableName, ["database_collation_"])

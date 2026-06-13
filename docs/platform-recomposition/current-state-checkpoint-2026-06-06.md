@@ -20,6 +20,9 @@ Platform recomposition is no longer an unpromoted clean-room exercise. The SQL-p
 | Governed migration reconciliation | Implementation is prepared for dynamic exact-rule resolution through the shared AI intelligence registries, governed-runner delegation, bounded engine/audit evidence, and a continuous-ready external scheduler tick. Live activation remains pending migration 308 authorization/apply and readback. | Migration 308; `scripts/governed-migration-reconciler.mjs`; `scripts/governed-platform-automation-tick.mjs`; reconciler contract test. |
 | Runtime workflow selection | Runtime loaders resolve explicit `workflow_id` first, accept only unique active `workflow_key` matches, and block ambiguous keys. Migrations 206 and 209 were applied live on 2026-06-06. Governed post-apply readback confirmed 10 of 13 plans now carry explicit `workflow_id`, zero uniquely resolvable fallback plans remain, zero executable plans lack `workflow_id`, and the remaining 2 unresolved drafts plus 1 identityless plan are isolated for manual review. | `runtimeWorkflowResolver.js`; migrations 206/209; governed `workflow_execution_identity_readback`; `scripts/workflow-execution-identity-readback.mjs`; `test-runtime-workflow-resolver.mjs`; PRs #705 and #720 evidence. |
 | Tenant GPT OAuth secret handling | The live `tenant_gpt.oauth.client` row now stores only `client_secret_ref=platform_secret:TENANT_GPT_OAUTH_CLIENT_SECRET`; the preserved secret resolves from encrypted `platform_secrets`, no inline secret remains, and the safe status reports no migration required. | PR #735; governed `tenant_gpt_oauth_client_upsert`; secret-free `tenant_gpt_oauth_client_status` pre/post readback on 2026-06-07. |
+| First Growth Intelligence value path | `tenant_brand_growth_intelligence_pilot_v1` resolves brand and business activity context and produces JSON/Markdown reports, SEO opportunity map, prioritized backlog, approval queue, readback, and audit evidence. The promoted scope is read-only/dry-run and records zero provider writes, external sends, and secrets. | `growthIntelligencePilot.js`; `routes/growthIntelligenceRoutes.js`; canonical OpenAPI; `test-growth-intelligence-pilot.mjs`; Growth Intelligence architecture/runbook/release policy. |
+| Growth Intelligence product registry foundation | Explicit internal persistence stores reports, insights, actions, workflow evidence, linked approval holds, and immutable readiness assessments transactionally. Deterministic fingerprints supersede duplicate insights; insight/action decisions update lifecycle only and never dispatch execution. Tenant/brand metrics expose derived quality, approval, supersession, staleness, and safety counters. | Migration 243; `growthIntelligenceRegistry.js`; Growth Intelligence report JSON schema; `test-growth-intelligence-product-registry.mjs`; canonical OpenAPI. |
+| Sequential plan orchestration foundation | Multi-step plans compile into durable dependency-aware steps. Transactional claims execute one ready step per tick, stop at approvals, retain idempotency/retry policy, and record an append-only timeline. Approval resumes readiness without implicit dispatch. | Migration 244; `sequentialPlanOrchestrator.js`; planner and approval routes; `test-sequential-plan-orchestrator.mjs`; canonical OpenAPI. |
 
 ## Reference overlays
 
@@ -41,6 +44,8 @@ When an overlay statement conflicts with current code or an active canonical:
 | Medium | Manually classify or retire the remaining 2 unresolved `wordpress_connector_readiness` draft plans and the 1 identityless plan. | Governed post-backfill readback confirms they are not executable and cannot be safely assigned an identity by deterministic backfill. |
 | Medium | Review the remaining unique remote branches before deletion or promotion. | Unique patches may contain architecture-aligned work not yet integrated. |
 | Low | Re-read historical Drive workbook inventory only when a recovery, parity, or archive decision requires it. | Workbook inventory is not runtime authority. |
+| Medium | Apply and read back migration 243 through the governed migration runner after deployment authorization. | The persistent product registry is implemented and tested locally but has not been applied live in this change. |
+| High | Keep provider writes, external sends, PDF export, and Drive export closed until a separate provider-capable release passes approval, security, readback, and rollback review. | The first value path proves value production without widening execution authority. |
 
 ## Validation contract
 
@@ -61,3 +66,10 @@ The platform-recomposition docs test must verify:
 - S1-S5 remain marked completed;
 - the staged memory schema remains semantically equal to the promoted root schema after `$ref` path normalization;
 - resolved stale follow-ups do not return as active claims.
+## Agent Governance Runtime Addendum
+
+Migration `245_sprint68_agent_governance_runtime.sql` adds governed response profiles, internal-first source policies and evidence logs, opaque audited handoffs, external prompt quarantine, and `v_skill_runtime_coverage`. The runtime exposes admin-only APIs and research plans compatible with the sequential plan orchestrator.
+
+Governed research creation atomically persists the plan, compiled steps, resolved policy snapshot, canonical snapshot hash, and compiled-step contract hash. Execution verifies both hashes before claiming work, then records idempotent source and citation evidence. The targeted runtime test proves a complete built-in internal registry research run through terminal plan completion and fail-closed rejection of tampered policy or step contracts.
+
+Governed research execution now also writes a readback-verified summary row to authoritative SQL `execution_log`, correlated by plan ID and linked in its secret-free summary to `research_source_execution_log` and `execution_plan_events`. Missing canonical log readback fails the run response.
