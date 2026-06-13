@@ -30,11 +30,18 @@
 
 ## Generated map inventory
 
+- `activation-onboarding-map.md`
 - `agent-skill-plugin-map.md`
+- `asset-package-map.md`
+- `commercial-usage-map.md`
 - `connector-provider-map.md`
 - `data-model-domain-map.md`
+- `delivery-support-map.md`
+- `migration-lifecycle-map.md`
 - `observability-release-map.md`
+- `platform-resource-graph-map.md`
 - `policy-authority-map.md`
+- `repository-development-map.md`
 - `session-memory-map.md`
 - `workflow-task-orchestration-map.md`
 
