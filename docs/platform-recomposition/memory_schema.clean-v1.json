@@ -30,6 +30,8 @@
     "output_artifacts_state",
     "sink_dispatch_state",
     "agent_chain_state",
+    "memory_scope_state",
+    "agent_governance_state",
     "local_connector_governance_state"
   ],
   "properties": {
@@ -212,6 +214,31 @@
           "default": ["pending", "dispatched", "failed", "skipped"]
         },
         "dispatch_policy": { "type": "string", "enum": ["manual_or_scheduled", "disabled", "auto"], "default": "manual_or_scheduled" }
+      }
+    },
+    "memory_scope_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "resolution_order", "cross_scope_default"],
+      "properties": {
+        "authority": { "const": "explicit_scope_resolution" },
+        "resolution_order": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["workflow", "agent", "role", "brand", "tenant", "global"]
+        },
+        "cross_scope_default": { "const": "deny" }
+      }
+    },
+    "agent_governance_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["research_policy", "handoff_policy", "external_prompt_policy", "response_profile_authority"],
+      "properties": {
+        "research_policy": { "const": "internal_first_then_policy_allowed_external" },
+        "handoff_policy": { "const": "opaque_expiring_audited_state" },
+        "external_prompt_policy": { "const": "quarantine_without_execution_authority" },
+        "response_profile_authority": { "const": "presentation_only" }
       }
     },
     "local_connector_governance_state": {

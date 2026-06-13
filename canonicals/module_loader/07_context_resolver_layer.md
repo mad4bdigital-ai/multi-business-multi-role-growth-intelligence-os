@@ -47,3 +47,6 @@ Before a compiled step is marked ready, the loader must resolve the step workflo
 identity, dependency completion state, required execution context, approval
 policy, and compatible executor. Missing dependencies or ambiguous workflow
 identity block the step instead of skipping it.
+# Governed Agent Context
+
+Resolve response profile and memory scope after tenant/brand/role context, but treat both as non-authoritative context. Resolve research source policy before creating sequential research steps. Resolve handoff state by opaque ID with expiry and tenant checks.

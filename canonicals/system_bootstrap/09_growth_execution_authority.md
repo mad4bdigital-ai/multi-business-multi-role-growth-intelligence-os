@@ -453,3 +453,14 @@ Framework-health reasoning must cover:
 - scoring writeback verification
 - promotion confidence support
 - verification-loop coupling completeness
+# Agent Governance Authority
+
+- Research resolution is internal-first. External sources are eligible only when the resolved source policy explicitly permits them.
+- A governed research plan is bound to an immutable resolved-policy snapshot hash at compile time. Snapshot integrity must pass before any step is claimed.
+- The compiled research-step contract is independently hashed. Changes to source selection, ordering, dependencies, inputs, or success criteria invalidate execution.
+- Governed research completion requires readback-verified authoritative `execution_log` evidence correlated by plan ID. Source evidence and transition evidence remain in their specialized append-only ledgers.
+- The agent loop must receive the governed agent execution context before model invocation. Observe-only mode exposes route/workflow authority drift and writes bounded readback-verified `execution_log` evidence; enforce mode denies explicit disallowed route/workflow selections.
+- User requests remain user messages. They must not be copied into system prompts as implicit authority.
+- Response profiles govern presentation only and never grant execution, tool, policy, resource, or approval authority.
+- Cross-agent continuation uses opaque, expiring, audited handoff state; raw credentials and secret-bearing payloads are forbidden.
+- External prompt-like artifacts are quarantined with zero execution, tool, and policy authority until a separate governed promotion decision.

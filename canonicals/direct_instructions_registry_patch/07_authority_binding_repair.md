@@ -1221,3 +1221,6 @@ one atomically claimed ready step per tick, enforce dependencies and success
 criteria, checkpoint every transition, and stop at approval, blocked, paused,
 failed, cancelled, or completed states. Approval changes readiness only and must
 not silently execute the next step.
+# Agent Governance Binding Repair
+
+Bind research source order, response presentation, handoff continuation, and external prompt trust to their SQL registries. No prompt text, response profile, or handoff payload may self-assert execution authority.

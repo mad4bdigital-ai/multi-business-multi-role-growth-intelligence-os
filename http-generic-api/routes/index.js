@@ -79,6 +79,7 @@ import { buildConnectedExecutionRoutes } from "./connectedExecutionRoutes.js";
 import { buildPlatformPrivateCapabilityVaultRoutes } from "./platformPrivateCapabilityVaultRoutes.js";
 import { buildSupportTicketRoutes } from "./supportTicketRoutes.js";
 import { buildGrowthIntelligenceRoutes } from "./growthIntelligenceRoutes.js";
+import { buildAgentGovernanceRoutes } from "./agentGovernanceRoutes.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -148,6 +149,7 @@ export function registerRoutes(app, deps) {
   app.use(buildPlatformSmokeRoutes());
   app.use(buildPlatformEvolutionRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformEngineRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildAgentGovernanceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformPrivateCapabilityVaultRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildConnectedExecutionRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildPlatformPluginRoutes({ ...deps, requireAdminPrincipal }));

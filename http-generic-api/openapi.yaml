@@ -14826,3 +14826,104 @@ paths:
       responses:
         "200": { description: Rejection result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /platform/agent-governance/response-profile/resolve:
+    post:
+      tags: [platform-agent-governance]
+      operationId: resolveAgentGovernanceResponseProfile
+      summary: Resolve a presentation-only agent response profile
+      responses:
+        "200": { description: Resolved response profile }
+  /platform/agent-governance/research-policy/resolve:
+    post:
+      tags: [platform-agent-governance]
+      operationId: resolveAgentGovernanceResearchPolicy
+      summary: Resolve internal-first research policy and sequential plan steps
+      responses:
+        "200": { description: Resolved source policy }
+  /platform/agent-governance/research-executions:
+    post:
+      tags: [platform-agent-governance]
+      operationId: recordAgentGovernanceResearchExecution
+      summary: Record research source evidence
+      responses:
+        "201": { description: Research evidence recorded }
+  /platform/agent-governance/research-plans:
+    post:
+      tags: [platform-agent-governance]
+      operationId: createGovernedResearchPlan
+      summary: Create and compile an internal-first sequential research plan
+      responses:
+        "201": { description: Research plan compiled with source evidence gates }
+  /platform/agent-governance/research-plans/{plan_id}/run:
+    post:
+      tags: [platform-agent-governance]
+      operationId: runGovernedResearchPlan
+      summary: Run a governed research plan through injected source and citation adapters
+      parameters:
+        - { name: plan_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Governed research plan run result }
+        "503": { description: Source or citation adapter unavailable }
+  /platform/agent-governance/handoffs:
+    post:
+      tags: [platform-agent-governance]
+      operationId: createAgentGovernanceHandoff
+      summary: Create opaque expiring agent handoff state
+      responses:
+        "201": { description: Handoff state created }
+  /platform/agent-governance/handoffs/{state_id}:
+    get:
+      tags: [platform-agent-governance]
+      operationId: readAgentGovernanceHandoff
+      summary: Read governed handoff state
+      parameters:
+        - { name: state_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Governed handoff state }
+  /platform/agent-governance/handoffs/{state_id}/consume:
+    post:
+      tags: [platform-agent-governance]
+      operationId: consumeAgentGovernanceHandoff
+      summary: Consume one-time handoff state
+      parameters:
+        - { name: state_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Handoff consumed }
+  /platform/agent-governance/handoffs/{state_id}/revoke:
+    post:
+      tags: [platform-agent-governance]
+      operationId: revokeAgentGovernanceHandoff
+      summary: Revoke handoff state
+      parameters:
+        - { name: state_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Handoff revoked }
+  /platform/agent-governance/external-prompts/classify:
+    post:
+      tags: [platform-agent-governance]
+      operationId: classifyExternalPromptArtifact
+      summary: Quarantine and classify an external prompt-like artifact
+      responses:
+        "201": { description: Artifact quarantined without authority }
+  /platform/agent-governance/skill-coverage:
+    get:
+      tags: [platform-agent-governance]
+      operationId: getAgentGovernanceSkillCoverage
+      summary: Read skill runtime coverage gaps
+      responses:
+        "200": { description: Skill runtime coverage }
+  /platform/agent-governance/readiness:
+    get:
+      tags: [platform-agent-governance]
+      operationId: getAgentGovernanceReadiness
+      summary: Read governance schema, policy, skill coverage, and source adapter readiness
+      responses:
+        "200": { description: Agent governance runtime readiness }
+  /platform/agent-governance/memory-scope/resolve:
+    post:
+      tags: [platform-agent-governance]
+      operationId: resolveAgentGovernanceMemoryScope
+      summary: Resolve tenant-bound memory scopes and explicit cross-scope links
+      responses:
+        "200": { description: Deny-by-default memory scope resolution }

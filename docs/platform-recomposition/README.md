@@ -53,3 +53,4 @@ For every promoted design point, update the full implementation stack:
 8. This directory's checkpoint and document register.
 
 Do not promote a reference overlay by copying it over an active canonical. Promote individual decisions through the lifecycle above.
+Agent governance runtime: `../agent-governance-runtime-architecture.md` defines internal-first research, presentation-only response profiles, opaque handoffs, prompt quarantine, and skill coverage.

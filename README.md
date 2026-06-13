@@ -442,3 +442,4 @@ For ongoing operations:
 - CI runs automatically on every push/PR (canonical checks -> memory schema refs -> syntax -> tests -> architecture drift -> export floor)
 
 This repository should be approached as a governed operating model with executable runtime modules, not as a conventional app-first project.
+Agent behavior governance, internal-first research routing, opaque handoffs, prompt quarantine, and skill runtime coverage are documented in [docs/agent-governance-runtime-architecture.md](docs/agent-governance-runtime-architecture.md).

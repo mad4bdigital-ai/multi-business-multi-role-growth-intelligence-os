@@ -65,3 +65,10 @@ The platform-recomposition docs test must verify:
 - S1-S5 remain marked completed;
 - the staged memory schema remains semantically equal to the promoted root schema after `$ref` path normalization;
 - resolved stale follow-ups do not return as active claims.
+## Agent Governance Runtime Addendum
+
+Migration `245_sprint68_agent_governance_runtime.sql` adds governed response profiles, internal-first source policies and evidence logs, opaque audited handoffs, external prompt quarantine, and `v_skill_runtime_coverage`. The runtime exposes admin-only APIs and research plans compatible with the sequential plan orchestrator.
+
+Governed research creation atomically persists the plan, compiled steps, resolved policy snapshot, canonical snapshot hash, and compiled-step contract hash. Execution verifies both hashes before claiming work, then records idempotent source and citation evidence. The targeted runtime test proves a complete built-in internal registry research run through terminal plan completion and fail-closed rejection of tampered policy or step contracts.
+
+Governed research execution now also writes a readback-verified summary row to authoritative SQL `execution_log`, correlated by plan ID and linked in its secret-free summary to `research_source_execution_log` and `execution_plan_events`. Missing canonical log readback fails the run response.

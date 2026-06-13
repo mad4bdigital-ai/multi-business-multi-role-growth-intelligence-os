@@ -120,6 +120,7 @@ const ALLOWED_MIGRATIONS = new Set([
   "235_sprint68_local_manager_chatgpt_url_capture_action.sql",
   "243_sprint68_growth_intelligence_product_registry.sql",
   "244_sprint68_sequential_plan_orchestrator.sql",
+  "245_sprint68_agent_governance_runtime.sql",
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v2";
