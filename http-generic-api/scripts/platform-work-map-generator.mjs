@@ -184,21 +184,24 @@ export function buildWorkMaps({ repoRoot = DEFAULT_REPO_ROOT } = {}) {
   const execution = parseExecutionEvidence(repoRoot);
   const activation = parseActivationSurfaces(repoRoot);
   const workflows = parseWorkflows(repoRoot);
+  const schemaIntelligence = buildSchemaIntelligenceMaps({ repoRoot });
   const maps = {
     "execution-log-evidence-map.md": renderExecutionMap(repoRoot, execution),
     "activation-access-map.md": renderActivationMap(repoRoot, activation),
     "repository-automation-map.md": renderAutomationMap(repoRoot, workflows),
     "platform-runtime-map.md": renderRuntimeMap(repoRoot),
+    ...schemaIntelligence.maps,
   };
   const allSources = uniq([
     execution.loggerFile,
     ...execution.migrationFiles,
     ...activation.files,
     ...workflows.files,
+    ...schemaIntelligence.sourceFiles,
     ...["prompt_router.md", "module_loader.md", "system_bootstrap.md"].map((p) => path.join(repoRoot, p)).filter(fs.existsSync),
   ]);
   maps["README.md"] = renderIndex(repoRoot, maps, allSources);
-  return { maps, sourceFiles: allSources };
+  return { maps, sourceFiles: allSources, metrics: schemaIntelligence.metrics };
 }
 
 export function syncWorkMaps({ repoRoot = DEFAULT_REPO_ROOT, outDir = DEFAULT_OUT_DIR, mode = "write" } = {}) {
