@@ -395,6 +395,132 @@ async function loadSectionRows(section, container, subject) {
   };
 }
 
+function rowMatchesContainer(row, section, container, subject) {
+  if (section.tenant_column) {
+    const expected = container.tenant_id || subject.tenant_id;
+    if (!expected || String(row[section.tenant_column] || "") !== String(expected)) return false;
+  }
+  if (section.user_column) {
+    if (!subject.user_id || String(row[section.user_column] || "") !== String(subject.user_id)) return false;
+  }
+  if (section.workspace_column) {
+    if (!container.workspace_id || String(row[section.workspace_column] || "") !== String(container.workspace_id)) return false;
+  }
+  if (section.brand_key_column) {
+    if (!container.linked_brand_key || String(row[section.brand_key_column] || "") !== String(container.linked_brand_key)) return false;
+  }
+  if (section.system_id_column) {
+    if (!container.linked_system_ids.length || !container.linked_system_ids.map(String).includes(String(row[section.system_id_column] || ""))) return false;
+  }
+  return true;
+}
+
+async function loadSectionRowsBatch(section, containers, subject) {
+  const columns = safeColumns(section.result_columns_json);
+  const resultByContainer = new Map();
+  if (!columns.length) {
+    const error = { code: "no_safe_dynamic_tab_columns", message: "No safe result columns registered for dynamic tab section." };
+    for (const container of containers) {
+      resultByContainer.set(container.container_key, {
+        ok: false,
+        section_key: section.section_key,
+        rows: [],
+        row_count: 0,
+        error,
+      });
+    }
+    return { section_key: section.section_key, result_by_container: resultByContainer, query_count: 0 };
+  }
+
+  const scopeColumns = [
+    section.tenant_column,
+    section.user_column,
+    section.workspace_column,
+    section.brand_key_column,
+    section.system_id_column,
+  ].filter(Boolean);
+  const selectColumns = [...new Set([...columns, ...scopeColumns])];
+  const where = [];
+  const params = [];
+
+  const tenantValues = [...new Set(containers.map((container) => container.tenant_id || subject.tenant_id).filter(Boolean))];
+  const workspaceValues = [...new Set(containers.map((container) => container.workspace_id).filter(Boolean))];
+  const brandValues = [...new Set(containers.map((container) => container.linked_brand_key).filter(Boolean))];
+  const systemValues = [...new Set(containers.flatMap((container) => container.linked_system_ids || []).filter(Boolean))];
+
+  if (section.tenant_column) {
+    if (tenantValues.length) addInFilter({ where, params, column: section.tenant_column, values: tenantValues });
+    else if (!subject.is_admin) where.push("1 = 0");
+  }
+  if (section.user_column) {
+    if (subject.user_id) addScopedFilter({ where, params, column: section.user_column, value: subject.user_id, adminOptional: subject.is_admin });
+    else where.push("1 = 0");
+  }
+  if (section.workspace_column) {
+    if (workspaceValues.length) addInFilter({ where, params, column: section.workspace_column, values: workspaceValues });
+    else where.push("1 = 0");
+  }
+  if (section.brand_key_column) {
+    if (brandValues.length) addInFilter({ where, params, column: section.brand_key_column, values: brandValues });
+    else where.push("1 = 0");
+  }
+  if (section.system_id_column) {
+    if (systemValues.length) addInFilter({ where, params, column: section.system_id_column, values: systemValues });
+    else where.push("1 = 0");
+  }
+  if (section.status_column) {
+    const activeValues = parseJsonValue(section.active_status_values_json, []);
+    if (Array.isArray(activeValues) && activeValues.length) {
+      addInFilter({ where, params, column: section.status_column, values: activeValues.map(String) });
+    }
+  }
+
+  const rowLimit = Math.min(Math.max(safeNumber(section.row_limit) || 25, 1), 100);
+  const batchLimit = Math.min(Math.max(rowLimit * Math.max(containers.length, 1), rowLimit), 5000);
+  const result = await safeRows(
+    `SELECT ${selectColumns.map(quoteIdentifier).join(", ")}
+       FROM ${quoteIdentifier(section.source_table)}
+      WHERE ${where.length ? where.join(" AND ") : "1 = 1"}
+      LIMIT ${batchLimit}`,
+    params
+  );
+
+  for (const container of containers) {
+    const matchedRows = result.ok
+      ? result.rows.filter((row) => rowMatchesContainer(row, section, container, subject)).slice(0, rowLimit)
+      : [];
+    const safeRowsForContainer = matchedRows.map((row) => {
+      const clean = stripSensitiveFields(row);
+      for (const scopeColumn of scopeColumns) {
+        if (!columns.includes(scopeColumn)) delete clean[scopeColumn];
+      }
+      return clean;
+    });
+    resultByContainer.set(container.container_key, {
+      ok: result.ok,
+      section_key: section.section_key,
+      display_name: section.display_name,
+      source_table: section.source_table,
+      aggregation_mode: section.aggregation_mode,
+      auto_discovered: section.auto_discovered === true,
+      discovery_rule_key: section.discovery_rule_key || null,
+      row_count: safeRowsForContainer.length,
+      rows: safeRowsForContainer,
+      error: result.error || null,
+      secrets_included: false,
+    });
+  }
+
+  return {
+    section_key: section.section_key,
+    result_by_container: resultByContainer,
+    query_count: 1,
+    source_table: section.source_table,
+    batch_limit: batchLimit,
+    returned_row_count: result.rows.length,
+  };
+}
+
 function tabStatus(sections = []) {
   if (sections.some((section) => section.ok === false)) return "degraded";
   if (sections.some((section) => section.row_count > 0)) return "active";
