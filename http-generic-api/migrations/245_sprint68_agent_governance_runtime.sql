@@ -110,8 +110,8 @@ SELECT s.skill_key, s.display_name, s.skill_type, s.scope, s.status AS agent_ski
        CASE WHEN m.skill_key IS NOT NULL AND p.skill_key IS NOT NULL THEN 'covered' ELSE 'gap' END AS coverage_status
 FROM agent_skills s
 LEFT JOIN agent_skill_grants g ON g.skill_id = s.skill_id
-LEFT JOIN skill_manifests m ON m.skill_key = s.skill_key
-LEFT JOIN platform_engine_skill_prompt_registry p ON p.skill_key = s.skill_key
+LEFT JOIN skill_manifests m ON m.skill_key COLLATE utf8mb4_unicode_ci = s.skill_key COLLATE utf8mb4_unicode_ci
+LEFT JOIN platform_engine_skill_prompt_registry p ON p.skill_key COLLATE utf8mb4_unicode_ci = s.skill_key COLLATE utf8mb4_unicode_ci
 GROUP BY s.skill_key, s.display_name, s.skill_type, s.scope, s.status, m.status, p.status, m.skill_key, p.skill_key;
 
 INSERT INTO agent_response_profile_registry
@@ -124,15 +124,8 @@ INSERT INTO research_source_policy_registry
 VALUES ('internal_first_default', 'global', JSON_ARRAY('internal_registry','workspace_knowledge','external_search'), 0, 1, 0, 5, 0, 'active')
 ON DUPLICATE KEY UPDATE source_order_json = VALUES(source_order_json), status = VALUES(status), updated_at = CURRENT_TIMESTAMP;
 
-INSERT INTO memory_scope_type_registry (scope_type, priority, cross_scope_default, status, notes)
-VALUES
-  ('global',0,'deny','active','Platform-wide context; explicit promotion required.'),
-  ('tenant',10,'deny','active','Tenant-bound context.'),
-  ('brand',20,'deny','active','Brand-bound context.'),
-  ('role',30,'deny','active','Role-bound context.'),
-  ('agent',40,'deny','active','Agent-bound context.'),
-  ('workflow',50,'deny','active','Workflow-bound context.')
-ON DUPLICATE KEY UPDATE priority = VALUES(priority), cross_scope_default = VALUES(cross_scope_default), status = VALUES(status), notes = VALUES(notes);
+-- memory_scope_type_registry is governed by the dynamic scope registry migration.
+-- Do not reseed legacy priority/cross_scope_default columns here.
 
 INSERT INTO platform_engine_policy_registry
   (policy_key, engine_key, scope_type, mode, risk_default, approval_required_min_risk,
