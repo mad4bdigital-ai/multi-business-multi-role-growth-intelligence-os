@@ -23,11 +23,13 @@ function principalActor(req) {
   return String(req.auth?.user_id || req.auth?.admin_id || req.auth?.email || req.auth?.sub || req.auth?.mode || "admin").trim();
 }
 
+  const actorId = principalActor(req);
+  const { actor_id: _ignoredActorId, principal_actor_id: _ignoredPrincipalActorId, ...safeInput } = input || {};
 function auditedInput(req, input = {}) {
   return {
-    ...input,
-    actor_id: input.actor_id || principalActor(req),
-    principal_actor_id: principalActor(req),
+    ...safeInput,
+    actor_id: actorId,
+    principal_actor_id: actorId,
   };
 }
 
