@@ -602,11 +602,55 @@ components:
     HardActivationRunResponse:
       type: object
       additionalProperties: true
-      required: [ok, activation_layer, activation_complete, runtime_classification, evidence_matrix, report_policy, secrets_included]
+      required: [ok, activation_layer, activation_complete, response_profile, runtime_classification, evidence_matrix, completeness, report_policy, secrets_included]
       properties:
         ok: { type: boolean }
         activation_layer: { type: string, enum: [hard_activation_orchestrator] }
         activation_complete: { type: boolean }
+        run_id: { type: string, nullable: true }
+        session_id: { type: string, nullable: true }
+        response_profile: { type: string, enum: [evidence, summary, dashboard, diagnostic, full] }
+        snapshot:
+          type: object
+          additionalProperties: true
+          properties:
+            snapshot_id: { type: string }
+            generated_at: { type: string, format: date-time }
+            registry_version: { type: string, nullable: true }
+            data_watermark: { type: string, format: date-time }
+            profile: { type: string }
+            subject_scope: { type: string, enum: [platform_admin, tenant_user] }
+        state_model:
+          type: object
+          additionalProperties: false
+          properties:
+            validation_state: { type: string }
+            evidence_state: { type: string }
+            session_state: { type: string }
+            dashboard_state: { type: string }
+            delivery_state: { type: string }
+            consumer_ack_state: { type: string }
+        dynamic_tabs_manifest: { type: object, additionalProperties: true }
+        operational_summary: { type: object, additionalProperties: true }
+        operational_dashboard_manifest: { type: object, additionalProperties: true }
+        completeness:
+          type: object
+          additionalProperties: true
+          properties:
+            known_surfaces: { type: integer }
+            visible_surfaces: { type: integer }
+            summarized_surfaces: { type: integer }
+            fully_hydrated_surfaces: { type: integer }
+            deferred_surfaces: { type: integer }
+            blocked_surfaces: { type: integer }
+            stale_surfaces: { type: integer }
+            coverage_status: { type: string }
+            details_omitted_silently: { type: boolean, enum: [false] }
+        awareness_index: { type: object, additionalProperties: true }
+        surface_refs:
+          type: array
+          items: { type: object, additionalProperties: true }
+        response_projection: { type: object, additionalProperties: true }
         runtime_classification:
           type: object
           additionalProperties: true
