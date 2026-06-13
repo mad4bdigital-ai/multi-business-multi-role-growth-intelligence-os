@@ -37,7 +37,7 @@ const SPECIALIZED_MAPS = [
   {
     file: "workflow-task-orchestration-map.md",
     title: "Workflow, Task, and Orchestration Map",
-    pattern: /workflow|task|route|step|approval|job|orchestrat|execution_plan|snapshot/i,
+    pattern: /workflow|task|route|step|approval|job|orchestrat|execution_plan|execution_enablement|(^|_)actions?$|app_action|resume_action|snapshot/i,
     flow: ["Intent / event", "Task route", "Execution plan", "Workflow binding", "Step runs", "Approval / hold", "Snapshot / readback"],
     invariants: [
       "Task routing precedes workflow execution.",
