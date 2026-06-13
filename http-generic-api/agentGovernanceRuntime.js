@@ -628,7 +628,7 @@ export async function consumeAgentHandoffState(stateId, input = {}, deps = {}) {
   const state = await readAgentHandoffState(stateId, input, deps);
   if (!state.ok) return state;
   const [result] = await (await poolFrom(deps)).query(
-    "UPDATE agent_handoff_state_registry SET consumed_at = CURRENT_TIMESTAMP, consumed_by = ? WHERE state_id = ? AND consumed_at IS NULL AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)",
+    "UPDATE agent_handoff_state_registry SET consumed_at = CURRENT_TIMESTAMP, consumed_by = ? WHERE state_id = ? AND (one_time_use = 0 OR consumed_at IS NULL) AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)",
     [input.actor_id || null, stateId]
   );
   if (Number(result?.affectedRows || 0) !== 1) {

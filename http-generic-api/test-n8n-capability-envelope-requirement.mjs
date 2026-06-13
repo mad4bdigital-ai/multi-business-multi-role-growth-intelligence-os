@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const proxy = readFileSync(new URL("./routes/connectorProxyRoutes.js", import.meta.url), "utf8");
-const migration = readFileSync(new URL("./migrations/228_sprint67_n8n_capability_envelope_requirement.sql", import.meta.url), "utf8");
+const migration = readFileSync(new URL("./migrations/228_sprint67_n8n_capability_envelope_requirement.sql", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const runner = readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
 
 assert.match(proxy, /N8N_ENVELOPE_REQUIRED_ACTIONS/);

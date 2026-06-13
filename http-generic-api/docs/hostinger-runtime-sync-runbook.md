@@ -30,6 +30,8 @@ Before issuing any secure intake link or declaring a runtime target ready:
    - `DB_PASSWORD`
    - `maybeAutoPromotePlatformSecrets`
 5. Confirm `/health` reports the expected runtime surface after sync.
+6. Confirm `/version` reports a present deployment manifest with the expected commit.
+7. Confirm `/deployment-info` does not rely on hostname fallback for branch authority.
 
 ## One-time Hostinger sync path
 
@@ -85,6 +87,8 @@ When resolving a runtime sync gap, record:
 - deploy executor `reload_verification`, including `restart_signal_ok`, `reload_signal_emitted`, and `runtime_health_readback_required`.
 - deploy executor `continuation.checkpoint` when runtime health readback remains pending; this checkpoint must use `deploy_reload_pending` and `secrets_included=false`.
 - `/health` result before and after sync, including `version` and expected runtime profile.
+- `/version` deployment status, deployed commit, manifest source, branch, and branch source.
+- `/deployment-info` commit source and branch source; hostname fallback is evidence of an incomplete deployment configuration.
 - live `repo_inspect` readback showing expected symbols.
 - credential-intake session ID only after sync.
 

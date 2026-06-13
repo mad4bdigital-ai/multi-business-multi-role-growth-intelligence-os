@@ -24,10 +24,12 @@ function principalActor(req) {
 }
 
 function auditedInput(req, input = {}) {
+  const actorId = principalActor(req);
+  const { actor_id: _ignoredActorId, principal_actor_id: _ignoredPrincipalActorId, ...safeInput } = input || {};
   return {
-    ...input,
-    actor_id: input.actor_id || principalActor(req),
-    principal_actor_id: principalActor(req),
+    ...safeInput,
+    actor_id: actorId,
+    principal_actor_id: actorId,
   };
 }
 

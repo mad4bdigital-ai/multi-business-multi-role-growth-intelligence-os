@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
-import path from "node:path";
 
 const surfaceDir = new URL("./activation-surfaces/", import.meta.url);
 const files = readdirSync(surfaceDir).filter((file) => file.endsWith(".json")).sort();
@@ -19,7 +18,7 @@ assert(files.includes("permission_grants.json"));
 
 const surfaceKeys = new Set();
 for (const file of files) {
-  const manifest = JSON.parse(readFileSync(path.join(surfaceDir.pathname, file), "utf8"));
+  const manifest = JSON.parse(readFileSync(new URL(file, surfaceDir), "utf8"));
   for (const key of ["surface_key", "display_name", "source_table", "result_columns", "include_for_admin", "include_for_tenant"]) {
     assert(key in manifest, `${file} missing ${key}`);
   }

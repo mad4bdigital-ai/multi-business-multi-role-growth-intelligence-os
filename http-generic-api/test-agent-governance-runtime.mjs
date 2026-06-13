@@ -9,6 +9,7 @@ import {
   buildAgentGovernanceReadiness,
   classifyExternalPromptArtifact,
   createGovernedResearchPlan,
+  consumeAgentHandoffState,
   createAgentHandoffState,
   executeBuiltInResearchSource,
   mergeResponseProfiles,
@@ -100,6 +101,39 @@ const handoff = await createAgentHandoffState(
 );
 assert(handoff.resume_state_id);
 assert.equal("state_hash" in handoff, false);
+let multiUseConsumeSql = "";
+const multiUsePool = {
+  async query(sql) {
+    const text = String(sql).replace(/\s+/g, " ").trim();
+    if (text.startsWith("SELECT * FROM agent_handoff_state_registry")) {
+      return [[{
+        state_id: "multi-use",
+        tenant_id: "t1",
+        target_agent_id: "agent-2",
+        source_agent_id: "agent-1",
+        allowed_actions_json: ["review"],
+        current_state_json: {},
+        required_checks_json: [],
+        one_time_use: 0,
+        consumed_at: "2026-06-13T00:00:00.000Z",
+      }]];
+    }
+    if (text.startsWith("INSERT INTO agent_handoff_state_access_log")) return [{ affectedRows: 1 }];
+    if (text.startsWith("UPDATE agent_handoff_state_registry SET consumed_at")) {
+      multiUseConsumeSql = text;
+      return [{ affectedRows: 1 }];
+    }
+    throw new Error(`Unexpected multi-use handoff SQL: ${text}`);
+  },
+};
+const multiUseConsumed = await consumeAgentHandoffState(
+  "multi-use",
+  { tenant_id: "t1", actor_id: "agent-2", requested_action: "review" },
+  { pool: multiUsePool }
+);
+assert.equal(multiUseConsumed.ok, true);
+assert.equal(multiUseConsumed.consumed, true);
+assert(multiUseConsumeSql.includes("one_time_use = 0 OR consumed_at IS NULL"));
 assert(handoffInsertParams[11] instanceof Date, "handoff must receive a default expiry");
 await assert.rejects(
   createAgentHandoffState({ current_state: { api_key: "forbidden" } }, { pool: { query: async () => [{ affectedRows: 1 }] } }),
@@ -339,7 +373,7 @@ class GovernedResearchMemoryPool {
     }
     if (text.startsWith("SELECT plan_id, policy_key, query_hash, policy_snapshot_json, policy_snapshot_hash, plan_contract_hash FROM governed_research_plan_registry")) return [[]];
     if (text.startsWith("INSERT INTO execution_plans")) {
-      this.plan = { plan_id: params[0], tenant_id: params[1], intent_key: "governed_research", plan_status: "draft" };
+      this.plan = { plan_id: params[0], tenant_id: params[1], intent_key: "governed_research", plan_status: "draft", runtime_status: "draft" };
       return [{ affectedRows: 1 }];
     }
     if (text.startsWith("INSERT INTO governed_research_plan_registry")) {
@@ -349,7 +383,7 @@ class GovernedResearchMemoryPool {
       };
       return [{ affectedRows: 1 }];
     }
-    if (text.startsWith("SELECT plan_id, tenant_id, plan_status FROM execution_plans")) return [[this.plan]];
+    if (text.startsWith("SELECT plan_id, tenant_id, plan_status, runtime_status FROM execution_plans")) return [[this.plan]];
     if (text.startsWith("DELETE FROM execution_plan_steps")) {
       this.steps = [];
       return [{ affectedRows: 0 }];
@@ -363,7 +397,8 @@ class GovernedResearchMemoryPool {
       });
       return [{ affectedRows: 1 }];
     }
-    if (text.startsWith("UPDATE execution_plans SET plan_status = 'validated'")) {
+    if (text.startsWith("UPDATE execution_plans SET plan_status = 'validated', runtime_status = 'validated'")) {
+      this.plan.runtime_status = "validated";
       this.plan.plan_status = "validated";
       this.plan.steps_json = params[0];
       return [{ affectedRows: 1 }];
@@ -372,8 +407,9 @@ class GovernedResearchMemoryPool {
       this.governedPlan.plan_contract_hash = params[0];
       return [{ affectedRows: 1 }];
     }
-    if (text.startsWith("UPDATE execution_plans SET plan_status = 'executing'")) {
-      this.plan.plan_status = "executing";
+    if (text.startsWith("UPDATE execution_plans SET plan_status = ?, runtime_status = ?")) {
+      this.plan.plan_status = params[0];
+      this.plan.runtime_status = params[1];
       return [{ affectedRows: 1 }];
     }
     if (text.startsWith("INSERT INTO execution_plan_events")) return [{ affectedRows: 1 }];
@@ -396,10 +432,7 @@ class GovernedResearchMemoryPool {
       step.attempt_count += 1;
       return [{ affectedRows: 1 }];
     }
-    if (text.startsWith("UPDATE execution_plans SET plan_status = ?")) {
-      this.plan.plan_status = params[0];
-      return [{ affectedRows: 1 }];
-    }
+
     if (text.startsWith("SELECT route_id, intent_key")) {
       return [[{ route_id: "route-growth", intent_key: "growth", workflow_key: "growth_workflow", execution_layer: "analysis" }]];
     }
@@ -550,6 +583,8 @@ assert(routes.includes("/platform/agent-governance/readiness"));
 assert(routes.includes("/platform/agent-governance/memory-scope/resolve"));
 assert(routes.includes("principal_actor_id"));
 assert(routes.includes('req.header("Idempotency-Key")'));
+assert(routes.includes("const { actor_id: _ignoredActorId"));
+assert.equal(routes.includes("actor_id: input.actor_id || principalActor(req)"), false, "request body actor_id must never override authenticated principal");
 assert(routes.includes("requireAdminPrincipal"));
 
 const governanceRuntime = readFileSync("agentGovernanceRuntime.js", "utf8");
@@ -560,6 +595,10 @@ assert(governanceRuntime.includes('transition_ledger: "execution_plan_events"'))
 assert(governanceRuntime.includes("governed_research_execution_log_readback_failed"));
 
 const openapi = readFileSync("openapi.yaml", "utf8");
+const agentOpenApiSection = openapi.slice(openapi.indexOf("  /platform/agent-governance/response-profile/resolve:"));
+assert.equal((agentOpenApiSection.match(/tags: \[platform-agent-governance\]/g) || []).length, 13);
+assert.equal((agentOpenApiSection.match(/security: \[backendBearerAuth: \[\], backendApiKeyAuth: \[\]\]/g) || []).length, 13);
+assert.equal(agentOpenApiSection.includes("actor_id:"), false, "Agent Governance OpenAPI must not expose caller-controlled audit actor fields");
 for (const path of [
   "/platform/agent-governance/response-profile/resolve",
   "/platform/agent-governance/research-policy/resolve",

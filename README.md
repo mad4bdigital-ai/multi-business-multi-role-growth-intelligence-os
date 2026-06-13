@@ -47,6 +47,34 @@ Execution is expected to be:
 
 Execution without validation evidence is not considered complete.
 
+## Interruption readiness gate
+
+Before long tests, branch integration, or runtime-sensitive delivery, run:
+
+```bash
+cd http-generic-api
+npm run readiness:interruptions
+```
+
+The gate dynamically checks Node compatibility, direct dependency resolution,
+mergeability with `origin/main`, sensitive runtime overlap, and worktree/EOL drift.
+It recommends targeted tests for changed sensitive surfaces and writes a JSON report
+when invoked with `--report-file`. The allowlisted sequential plan executor verifies
+evidence freshness before every generated test, writes atomic checkpoints, resumes
+only matching plans, and uses an exclusive execution lease.
+CI runs the merge guard before tests, the dependency guard after `npm ci`, and a
+post-test stale-evidence rejection gate. See
+`docs/interruption-readiness-automation.md`.
+
+## Runtime startup and deployment provenance
+
+The API start lifecycle generates a deployment manifest before loading `server.js`.
+CI also spawns the real server and requires `/version` plus commit evidence, preventing
+top-level route import failures from reaching auto-deploy. Hostinger environments
+must set `DEPLOYMENT_BRANCH` explicitly because detached checkouts and hostname
+fallback are not authoritative branch evidence. See `docs/hostinger-node-deploy.md`
+and `docs/execution-log-hostinger-503-recovery-2026-06-14.md`.
+
 ## First value-producing workflow
 
 The first promoted Growth Intelligence path is `tenant_brand_growth_intelligence_pilot_v1`.

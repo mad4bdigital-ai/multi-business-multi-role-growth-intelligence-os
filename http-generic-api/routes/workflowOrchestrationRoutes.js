@@ -1,7 +1,37 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
+
 import { resolveAccess } from "../accessDecisionEngine.js";
+function principalActor(req) {
+  return String(
+    req.auth?.user_id || req.auth?.admin_id || req.auth?.email ||
+    req.auth?.sub || req.auth?.mode || "backend_api_key"
+  ).trim();
+}
+
+function routeError(status, code, message) {
+  const error = new Error(message);
+  error.status = status;
+  error.code = code;
+  return error;
+}
+
+async function withTransaction(pool, operation) {
+  if (typeof pool.getConnection !== "function") return operation(pool);
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await operation(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
 
 export function buildWorkflowOrchestrationRoutes(deps) {
   const { requireBackendApiKey } = deps;
@@ -196,84 +226,90 @@ export function buildWorkflowOrchestrationRoutes(deps) {
   // Approve or reject an approval hold. On approval, resume the parent run.
   router.post("/approval-holds/:id/decide", requireBackendApiKey, async (req, res) => {
     try {
-      const { decision, decision_by, decision_note } = req.body || {};
-      if (!["approved","rejected","escalated"].includes(decision)) {
+      const { decision, decision_note } = req.body || {};
+      if (!["approved", "rejected", "escalated"].includes(decision)) {
         return res.status(400).json({ ok: false, error: { code: "invalid_decision", message: "decision must be 'approved', 'rejected', or 'escalated'." } });
       }
 
-      const [holdRows] = await getPool().query("SELECT * FROM `approval_holds` WHERE hold_id = ? LIMIT 1", [req.params.id]);
-      if (!holdRows.length) return res.status(404).json({ ok: false, error: { code: "hold_not_found", message: "Approval hold not found." } });
-      if (holdRows[0].status !== "open") {
-        return res.status(409).json({ ok: false, error: { code: "hold_already_decided", message: `Hold is already '${holdRows[0].status}'.` } });
-      }
-      let holdContext = {};
-      try { holdContext = JSON.parse(holdRows[0].execution_context_json || "{}"); } catch {}
-      if (holdContext.source === "growth_intelligence_registry") {
-        return res.status(409).json({
-          ok: false,
-          error: {
-            code: "growth_intelligence_specialized_decision_required",
-            message: "Use the Growth Intelligence action decision route so hold, action, report, and workflow state remain synchronized.",
-          },
-        });
-      }
-      if (holdContext.source === "sequential_plan_orchestrator") {
-        const nextStepStatus = decision === "approved" ? "ready" : decision === "escalated" ? "awaiting_approval" : "failed";
-        const nextPlanStatus = decision === "approved" ? "validated" : decision === "escalated" ? "awaiting_approval" : "blocked";
-        await getPool().query(
-          "UPDATE `approval_holds` SET status = ?, decision_by = ?, decision_note = ?, decided_at = NOW() WHERE hold_id = ?",
-          [decision, decision_by || null, decision_note || null, req.params.id]
+      const decisionBy = principalActor(req).slice(0, 36);
+      const response = await withTransaction(getPool(), async (connection) => {
+        const [holdRows] = await connection.query(
+          "SELECT * FROM `approval_holds` WHERE hold_id = ? LIMIT 1 FOR UPDATE",
+          [req.params.id]
         );
-        await getPool().query(
-          `UPDATE execution_plan_steps
-              SET status = CASE WHEN ? = 'approved' AND step_type = 'approval' THEN 'completed' ELSE ? END,
-                  approval_policy_json = JSON_SET(COALESCE(approval_policy_json, JSON_OBJECT()), '$.approved', ?)
-            WHERE plan_step_id = ? AND status = 'awaiting_approval'`,
-          [decision, nextStepStatus, decision === "approved", holdContext.plan_step_id]
+        const hold = holdRows[0];
+        if (!hold) throw routeError(404, "hold_not_found", "Approval hold not found.");
+        if (hold.status !== "open") throw routeError(409, "hold_already_decided", `Hold is already '${hold.status}'.`);
+
+        let holdContext = {};
+        try { holdContext = JSON.parse(hold.execution_context_json || "{}"); } catch {}
+        if (holdContext.source === "growth_intelligence_registry") {
+          throw routeError(409, "growth_intelligence_specialized_decision_required", "Use the Growth Intelligence action decision route so hold, action, report, and workflow state remain synchronized.");
+        }
+
+        if (holdContext.source === "sequential_plan_orchestrator") {
+          const planId = String(holdContext.plan_id || "").trim();
+          const planStepId = String(holdContext.plan_step_id || "").trim();
+          if (!planId || !planStepId) throw routeError(409, "sequential_plan_hold_context_invalid", "Sequential plan approval context is incomplete.");
+
+          const [stepRows] = await connection.query(
+            `SELECT plan_step_id, plan_id, tenant_id, step_type, status
+               FROM execution_plan_steps
+              WHERE plan_step_id = ? AND plan_id = ? LIMIT 1 FOR UPDATE`,
+            [planStepId, planId]
+          );
+          const step = stepRows[0];
+          if (!step) throw routeError(409, "sequential_plan_step_not_found", "Sequential plan step was not found.");
+          if (step.status !== "awaiting_approval") throw routeError(409, "sequential_plan_step_not_awaiting_approval", `Step is already '${step.status}'.`);
+
+          const approvedStepStatus = step.step_type === "approval" ? "completed" : "ready";
+          const nextStepStatus = decision === "approved" ? approvedStepStatus : decision === "escalated" ? "awaiting_approval" : "failed";
+          const nextPlanStatus = decision === "approved" ? "validated" : decision === "escalated" ? "awaiting_approval" : "blocked";
+
+          const [holdUpdate] = await connection.query(
+            "UPDATE `approval_holds` SET status = ?, decision_by = ?, decision_note = ?, decided_at = NOW() WHERE hold_id = ? AND status = 'open'",
+            [decision, decisionBy, decision_note || null, req.params.id]
+          );
+          if (Number(holdUpdate?.affectedRows || 0) !== 1) throw routeError(409, "hold_decision_race", "Approval hold changed before the decision could be recorded.");
+
+          const [stepUpdate] = await connection.query(
+            `UPDATE execution_plan_steps
+                SET status = ?, approval_policy_json = JSON_SET(COALESCE(approval_policy_json, JSON_OBJECT()), '$.approved', ?)
+              WHERE plan_step_id = ? AND plan_id = ? AND status = 'awaiting_approval'`,
+            [nextStepStatus, decision === "approved", planStepId, planId]
+          );
+          if (Number(stepUpdate?.affectedRows || 0) !== 1) throw routeError(409, "sequential_plan_step_decision_race", "Sequential plan step changed before the decision could be recorded.");
+
+          await connection.query("UPDATE execution_plans SET plan_status = ?, runtime_status = ? WHERE plan_id = ? AND tenant_id = ?", [nextPlanStatus === "blocked" ? "failed" : nextPlanStatus === "awaiting_approval" ? "validated" : nextPlanStatus, nextPlanStatus, planId, step.tenant_id]);
+          await connection.query(
+            `INSERT INTO execution_plan_events
+              (plan_event_id, plan_id, plan_step_id, tenant_id, event_type, from_status, to_status, actor_id, evidence_json)
+             VALUES (?, ?, ?, ?, 'approval_decided', 'awaiting_approval', ?, ?, ?)`,
+            [randomUUID(), planId, planStepId, step.tenant_id, nextStepStatus, decisionBy, JSON.stringify({ hold_id: req.params.id, decision, secrets_included: false })]
+          );
+          return { ok: true, hold_id: req.params.id, decision, plan_id: planId, plan_step_id: planStepId, plan_status: nextPlanStatus, step_status: nextStepStatus, execution_dispatched: false, secrets_included: false };
+        }
+
+        const [holdUpdate] = await connection.query(
+          "UPDATE `approval_holds` SET status = ?, decision_by = ?, decision_note = ?, decided_at = NOW() WHERE hold_id = ? AND status = 'open'",
+          [decision, decisionBy, decision_note || null, req.params.id]
         );
-        await getPool().query("UPDATE execution_plans SET plan_status = ? WHERE plan_id = ?", [nextPlanStatus, holdContext.plan_id]);
-        await getPool().query(
-          `INSERT INTO execution_plan_events
-            (plan_event_id, plan_id, plan_step_id, tenant_id, event_type, from_status, to_status, actor_id, evidence_json)
-           VALUES (?, ?, ?, ?, 'approval_decided', 'awaiting_approval', ?, ?, ?)`,
-          [
-            randomUUID(), holdContext.plan_id, holdContext.plan_step_id, holdRows[0].tenant_id,
-            nextStepStatus, decision_by || null,
-            JSON.stringify({ hold_id: req.params.id, decision, secrets_included: false }),
-          ]
-        );
-        return res.status(200).json({
-          ok: true,
-          hold_id: req.params.id,
-          decision,
-          plan_id: holdContext.plan_id,
-          plan_step_id: holdContext.plan_step_id,
-          plan_status: nextPlanStatus,
-          step_status: decision === "approved" ? "ready_or_completed" : nextStepStatus,
-          execution_dispatched: false,
-          secrets_included: false,
-        });
-      }
+        if (Number(holdUpdate?.affectedRows || 0) !== 1) throw routeError(409, "hold_decision_race", "Approval hold changed before the decision could be recorded.");
 
-      await getPool().query(
-        "UPDATE `approval_holds` SET status = ?, decision_by = ?, decision_note = ?, decided_at = NOW() WHERE hold_id = ?",
-        [decision, decision_by || null, decision_note || null, req.params.id]
-      );
+        const runId = hold.run_id;
+        const newRunStatus = decision === "approved" ? "running" : decision === "escalated" ? "awaiting_approval" : "failed";
+        const runSets = ["status = ?"];
+        const runValues = [newRunStatus];
+        if (newRunStatus === "running") runSets.push("started_at = COALESCE(started_at, NOW())");
+        if (newRunStatus === "failed") runSets.push("completed_at = NOW()");
+        runValues.push(runId);
+        await connection.query(`UPDATE \`workflow_runs\` SET ${runSets.join(", ")} WHERE run_id = ?`, runValues);
+        return { ok: true, hold_id: req.params.id, decision, run_id: runId, run_status: newRunStatus };
+      });
 
-      // Resume or fail the parent run
-      const run_id = holdRows[0].run_id;
-      const new_run_status = decision === "approved" ? "running" :
-                             decision === "escalated" ? "awaiting_approval" : "failed";
-      const run_sets = ["status = ?"];
-      const run_vals = [new_run_status];
-      if (new_run_status === "running") { run_sets.push("started_at = COALESCE(started_at, NOW())"); }
-      if (new_run_status === "failed") { run_sets.push("completed_at = NOW()"); }
-      run_vals.push(run_id);
-      await getPool().query(`UPDATE \`workflow_runs\` SET ${run_sets.join(", ")} WHERE run_id = ?`, run_vals);
-
-      return res.status(200).json({ ok: true, hold_id: req.params.id, decision, run_id, run_status: new_run_status });
+      return res.status(200).json(response);
     } catch (err) {
-      return res.status(500).json({ ok: false, error: { code: "hold_decide_failed", message: err.message } });
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "hold_decide_failed", message: err.message } });
     }
   });
 

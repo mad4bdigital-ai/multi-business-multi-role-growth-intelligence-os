@@ -214,7 +214,7 @@ export function registerRoutes(app, deps) {
   app.use(buildAgentIntelligenceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAiResolverRoutes(deps));
   app.use(buildTenantsRoutes(deps));
-  app.use(buildGrowthIntelligenceRoutes(deps));
+  app.use(buildGrowthIntelligenceRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildIdentityRoutes(deps));
   app.use(buildAccessRoutes(deps));
   app.use(buildCustomerRoutes(deps));

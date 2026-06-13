@@ -1,4 +1,6 @@
 export const testCommands = [
+  "node test-interruption-readiness.mjs",
+  "node test-interruption-verification-recovery.mjs",
   "node test-hostinger-startup-imports.mjs",
   "node test-docs-impact-classifier.mjs",
   "node test-openrouter-docs-agent-provider-contract.mjs",
@@ -295,6 +297,7 @@ export const testCommands = [
   "node test-github-tooling-schema-contracts.mjs",
   "node test-routes.mjs",
   "node test-deployment-manifest.mjs",
+  "node test-deployment-manifest-generator.mjs",
   "node test-verify-runtime-profile.mjs",
   "node test-activation-bootstrap-cache.mjs",
   "node test-activation-bootstrap-config.mjs",

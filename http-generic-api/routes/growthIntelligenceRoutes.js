@@ -10,6 +10,13 @@ import {
   persistGrowthIntelligencePilot,
   persistGrowthIntelligenceReadinessAssessment,
 } from "../growthIntelligenceRegistry.js";
+function principalActor(req) {
+  return String(
+    req.auth?.user_id || req.auth?.admin_id || req.auth?.email ||
+    req.auth?.sub || req.auth?.mode || "backend_api_key"
+  ).trim();
+}
+
 
 function errorResponse(res, error) {
   return res.status(error.status || 500).json({
@@ -22,12 +29,14 @@ function errorResponse(res, error) {
   });
 }
 
-export function buildGrowthIntelligenceRoutes({ requireBackendApiKey }) {
+export function buildGrowthIntelligenceRoutes({ requireBackendApiKey, requireAdminPrincipal }) {
+  const adminGuard = requireAdminPrincipal || ((_req, _res, next) => next());
+  const guards = [requireBackendApiKey, adminGuard];
   const router = Router();
 
   router.post(
     "/tenants/:tenant_id/brands/:brand_key/growth-intelligence/pilot",
-    requireBackendApiKey,
+    ...guards,
     async (req, res) => {
       try {
         const persistenceMode = String(req.body?.persistence_mode || "none").trim();
@@ -45,7 +54,7 @@ export function buildGrowthIntelligenceRoutes({ requireBackendApiKey }) {
         if (persistenceMode === "internal_registry") {
           result.registry = await persistGrowthIntelligencePilot(result, {
             pool: getPool(),
-            requestedBy: req.body?.requested_by || null,
+            requestedBy: principalActor(req),
           });
         } else {
           result.registry = {
@@ -63,7 +72,7 @@ export function buildGrowthIntelligenceRoutes({ requireBackendApiKey }) {
     }
   );
 
-  router.get("/tenants/:tenant_id/growth-intelligence/reports", requireBackendApiKey, async (req, res) => {
+  router.get("/tenants/:tenant_id/growth-intelligence/reports", ...guards, async (req, res) => {
     try {
       const reports = await listGrowthIntelligenceReports({
         pool: getPool(),
@@ -77,7 +86,7 @@ export function buildGrowthIntelligenceRoutes({ requireBackendApiKey }) {
     }
   });
 
-  router.get("/tenants/:tenant_id/growth-intelligence/metrics", requireBackendApiKey, async (req, res) => {
+  router.get("/tenants/:tenant_id/growth-intelligence/metrics", ...guards, async (req, res) => {
     try {
       const metrics = await getGrowthIntelligenceMetrics({
         pool: getPool(),
@@ -90,7 +99,7 @@ export function buildGrowthIntelligenceRoutes({ requireBackendApiKey }) {
     }
   });
 
-  router.get("/tenants/:tenant_id/growth-intelligence/reports/:report_id", requireBackendApiKey, async (req, res) => {
+  router.get("/tenants/:tenant_id/growth-intelligence/reports/:report_id", ...guards, async (req, res) => {
     try {
       const record = await getGrowthIntelligenceReport({
         pool: getPool(),
@@ -112,7 +121,7 @@ export function buildGrowthIntelligenceRoutes({ requireBackendApiKey }) {
 
   router.post(
     "/tenants/:tenant_id/growth-intelligence/reports/:report_id/actions/:action_id/decision",
-    requireBackendApiKey,
+    ...guards,
     async (req, res) => {
       try {
         const decision = await decideGrowthIntelligenceAction({
@@ -121,7 +130,7 @@ export function buildGrowthIntelligenceRoutes({ requireBackendApiKey }) {
           reportId: req.params.report_id,
           actionId: req.params.action_id,
           decision: req.body?.decision,
-          decisionBy: req.body?.decision_by || null,
+          decisionBy: principalActor(req),
           decisionNote: req.body?.decision_note || null,
         });
         return res.json({ ok: true, decision, secrets_included: false });
@@ -133,7 +142,7 @@ export function buildGrowthIntelligenceRoutes({ requireBackendApiKey }) {
 
   router.post(
     "/tenants/:tenant_id/growth-intelligence/reports/:report_id/insights/:insight_id/decision",
-    requireBackendApiKey,
+    ...guards,
     async (req, res) => {
       try {
         const decision = await decideGrowthIntelligenceInsight({
@@ -142,7 +151,7 @@ export function buildGrowthIntelligenceRoutes({ requireBackendApiKey }) {
           reportId: req.params.report_id,
           insightId: req.params.insight_id,
           decision: req.body?.decision,
-          decisionBy: req.body?.decision_by || null,
+          decisionBy: principalActor(req),
           decisionNote: req.body?.decision_note || null,
         });
         return res.json({ ok: true, decision, secrets_included: false });
@@ -154,14 +163,14 @@ export function buildGrowthIntelligenceRoutes({ requireBackendApiKey }) {
 
   router.post(
     "/tenants/:tenant_id/growth-intelligence/reports/:report_id/readiness-assessments",
-    requireBackendApiKey,
+    ...guards,
     async (req, res) => {
       try {
         const assessment = await persistGrowthIntelligenceReadinessAssessment({
           pool: getPool(),
           tenantId: req.params.tenant_id,
           reportId: req.params.report_id,
-          assessedBy: req.body?.assessed_by || null,
+          assessedBy: principalActor(req),
         });
         return res.status(201).json({ ok: true, assessment, secrets_included: false });
       } catch (error) {

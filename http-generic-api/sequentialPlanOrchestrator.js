@@ -22,6 +22,27 @@ function isTruthy(value) {
 function sha256(value) {
   return createHash("sha256").update(String(value)).digest("hex");
 }
+function effectivePlanStatus(plan = {}) {
+  return String(plan.runtime_status || plan.plan_status || "draft");
+}
+
+function persistedPlanStatus(runtimeStatus = "draft") {
+  if (runtimeStatus === "blocked") return "failed";
+  if (["awaiting_approval", "paused"].includes(runtimeStatus)) return "validated";
+  return runtimeStatus;
+}
+
+async function updatePlanRuntimeStatus(connection, planId, runtimeStatus, tenantId = null) {
+  const persistedStatus = persistedPlanStatus(runtimeStatus);
+  const sql = tenantId
+    ? "UPDATE execution_plans SET plan_status = ?, runtime_status = ? WHERE plan_id = ? AND tenant_id = ?"
+    : "UPDATE execution_plans SET plan_status = ?, runtime_status = ? WHERE plan_id = ?";
+  const params = tenantId
+    ? [persistedStatus, runtimeStatus, planId, tenantId]
+    : [persistedStatus, runtimeStatus, planId];
+  await connection.query(sql, params);
+}
+
 
 function validationError(message, code = "sequential_plan_validation_failed") {
   const error = new Error(message);
@@ -98,10 +119,10 @@ export function compileSequentialPlanSteps(steps = [], { planId, tenantId } = {}
 export async function persistCompiledSequentialPlan({ pool, planId, tenantId, steps, actorId = null }) {
   const compiled = compileSequentialPlanSteps(steps, { planId, tenantId });
   return withTransaction(pool, async (connection) => {
-    const [planRows] = await connection.query("SELECT plan_id, tenant_id, plan_status FROM execution_plans WHERE plan_id = ? LIMIT 1 FOR UPDATE", [planId]);
+    const [planRows] = await connection.query("SELECT plan_id, tenant_id, plan_status, runtime_status FROM execution_plans WHERE plan_id = ? LIMIT 1 FOR UPDATE", [planId]);
     const plan = planRows[0];
     if (!plan || plan.tenant_id !== tenantId) throw validationError("Execution plan not found for tenant.", "sequential_plan_not_found");
-    if (!["draft", "validated"].includes(plan.plan_status)) throw validationError("Only draft or validated plans may be recompiled.", "sequential_plan_recompile_forbidden");
+    if (!["draft", "validated"].includes(effectivePlanStatus(plan))) throw validationError("Only draft or validated plans may be recompiled.", "sequential_plan_recompile_forbidden");
     await connection.query("DELETE FROM execution_plan_steps WHERE plan_id = ?", [planId]);
     for (const step of compiled) {
       await connection.query(
@@ -118,8 +139,8 @@ export async function persistCompiledSequentialPlan({ pool, planId, tenantId, st
         ]
       );
     }
-    await connection.query("UPDATE execution_plans SET plan_status = 'validated', steps_json = ?, validation_errors = NULL WHERE plan_id = ?", [json(compiled), planId]);
-    await appendEvent(connection, { planId, tenantId, eventType: "plan_compiled", fromStatus: plan.plan_status, toStatus: "validated", actorId, evidence: { step_count: compiled.length } });
+    await connection.query("UPDATE execution_plans SET plan_status = 'validated', runtime_status = 'validated', steps_json = ?, validation_errors = NULL WHERE plan_id = ?", [json(compiled), planId]);
+    await appendEvent(connection, { planId, tenantId, eventType: "plan_compiled", fromStatus: effectivePlanStatus(plan), toStatus: "validated", actorId, evidence: { step_count: compiled.length } });
     return { plan_id: planId, plan_status: "validated", step_count: compiled.length, steps: compiled, secrets_included: false };
   });
 }
@@ -168,7 +189,7 @@ async function claimNextStep(pool, planId, actorId) {
     const [planRows] = await connection.query("SELECT * FROM execution_plans WHERE plan_id = ? LIMIT 1 FOR UPDATE", [planId]);
     const plan = planRows[0];
     if (!plan) throw validationError("Execution plan not found.", "sequential_plan_not_found");
-    if (TERMINAL_PLAN_STATUSES.has(plan.plan_status)) return { stop: true, reason: "plan_terminal", plan_status: plan.plan_status };
+    if (TERMINAL_PLAN_STATUSES.has(effectivePlanStatus(plan))) return { stop: true, reason: "plan_terminal", plan_status: effectivePlanStatus(plan) };
     const [steps] = await connection.query("SELECT * FROM execution_plan_steps WHERE plan_id = ? ORDER BY step_order FOR UPDATE", [planId]);
     if (!steps.length) throw validationError("Plan has no compiled steps.", "sequential_plan_not_compiled");
     const byKey = new Map(steps.map((step) => [step.step_key, step]));
@@ -185,14 +206,14 @@ async function claimNextStep(pool, planId, actorId) {
       const awaitingApproval = steps.some((step) => step.status === "awaiting_approval");
       const active = steps.some((step) => ["claimed", "running", "verifying"].includes(step.status));
       const status = failed ? "blocked" : completed ? "completed" : awaitingApproval ? "awaiting_approval" : active ? "executing" : "paused";
-      await connection.query("UPDATE execution_plans SET plan_status = ? WHERE plan_id = ?", [status, planId]);
-      await appendEvent(connection, { planId, tenantId: plan.tenant_id, eventType: "plan_checkpoint", fromStatus: plan.plan_status, toStatus: status, actorId, evidence: { reason: completed ? "all_steps_terminal" : "no_ready_step" } });
+      await updatePlanRuntimeStatus(connection, planId, status, plan.tenant_id);
+      await appendEvent(connection, { planId, tenantId: plan.tenant_id, eventType: "plan_checkpoint", fromStatus: effectivePlanStatus(plan), toStatus: status, actorId, evidence: { reason: completed ? "all_steps_terminal" : "no_ready_step" } });
       return { stop: true, reason: completed ? "completed" : awaitingApproval ? "awaiting_approval" : "no_ready_step", plan_status: status };
     }
     if (approvalRequired(next)) {
       const holdId = await createApprovalHold(connection, plan, next, actorId);
       await connection.query("UPDATE execution_plan_steps SET status = 'awaiting_approval' WHERE plan_step_id = ?", [next.plan_step_id]);
-      await connection.query("UPDATE execution_plans SET plan_status = 'awaiting_approval' WHERE plan_id = ?", [planId]);
+      await updatePlanRuntimeStatus(connection, planId, "awaiting_approval", plan.tenant_id);
       await appendEvent(connection, { planId, planStepId: next.plan_step_id, tenantId: plan.tenant_id, eventType: "approval_requested", fromStatus: "ready", toStatus: "awaiting_approval", actorId, evidence: { hold_id: holdId } });
       return { stop: true, reason: "awaiting_approval", plan_status: "awaiting_approval", hold_id: holdId, step: next };
     }
@@ -203,8 +224,8 @@ async function claimNextStep(pool, planId, actorId) {
         WHERE plan_step_id = ? AND status = 'ready'`,
       [claimToken, next.plan_step_id]
     );
-    await connection.query("UPDATE execution_plans SET plan_status = 'executing' WHERE plan_id = ?", [planId]);
-    await appendEvent(connection, { planId, planStepId: next.plan_step_id, tenantId: plan.tenant_id, eventType: "step_claimed", fromStatus: "ready", toStatus: "claimed", actorId, evidence: { claim_token: claimToken } });
+    await updatePlanRuntimeStatus(connection, planId, "executing", plan.tenant_id);
+    await appendEvent(connection, { planId, planStepId: next.plan_step_id, tenantId: plan.tenant_id, eventType: "step_claimed", fromStatus: "ready", toStatus: "claimed", actorId, evidence: { claim_token_hash: sha256(claimToken) } });
     return { stop: false, plan, step: { ...next, claim_token: claimToken }, claim_token: claimToken };
   });
 }
@@ -221,8 +242,8 @@ async function defaultStepExecutor(step, { pool }) {
   await pool.query(
     `INSERT INTO execution_plans
       (plan_id, tenant_id, user_id, intent_key, brand_key, target_key, workflow_key, workflow_id,
-       route_key, agent_id, service_mode, access_decision, plan_status, steps_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'validated', ?)`,
+       route_key, agent_id, service_mode, access_decision, plan_status, runtime_status, steps_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'validated', 'validated', ?)`,
     [
       childPlanId, parent.tenant_id, parent.user_id, parent.intent_key, parent.brand_key, parent.target_key,
       step.workflow_key || parent.workflow_key, step.workflow_id || parent.workflow_id, parent.route_key,
@@ -254,7 +275,7 @@ async function finalizeClaim(pool, claim, result, error, actorId) {
     );
     if (retryable) await connection.query("UPDATE execution_plan_steps SET status = 'ready' WHERE plan_step_id = ? AND status = 'retrying'", [step.plan_step_id]);
     const planStatus = succeeded ? "executing" : retryable ? "executing" : "blocked";
-    await connection.query("UPDATE execution_plans SET plan_status = ? WHERE plan_id = ?", [planStatus, step.plan_id]);
+    await updatePlanRuntimeStatus(connection, step.plan_id, planStatus, step.tenant_id);
     await appendEvent(connection, { planId: step.plan_id, planStepId: step.plan_step_id, tenantId: step.tenant_id, eventType: succeeded ? "step_completed" : retryable ? "step_retry_scheduled" : "step_failed", fromStatus: "claimed", toStatus: status, actorId, evidence: succeeded ? { result_ok: true } : { error_code: error?.code || "step_execution_failed" } });
     return { step_status: retryable ? "ready" : status, plan_status: planStatus };
   });
@@ -316,7 +337,7 @@ export async function resumeSequentialPlan({ pool, planId, actorId = null }) {
     if (!steps.length) throw validationError("Compiled plan not found.", "sequential_plan_not_compiled");
     const resumable = steps.find((step) => step.status === "paused" || step.status === "blocked" || step.status === "retrying");
     if (resumable) await connection.query("UPDATE execution_plan_steps SET status = 'ready' WHERE plan_step_id = ?", [resumable.plan_step_id]);
-    await connection.query("UPDATE execution_plans SET plan_status = 'validated' WHERE plan_id = ?", [planId]);
+    await updatePlanRuntimeStatus(connection, planId, "validated", steps[0].tenant_id);
     await appendEvent(connection, { planId, tenantId: steps[0].tenant_id, eventType: "plan_resumed", toStatus: "validated", actorId, evidence: { resumed_step_id: resumable?.plan_step_id || null } });
     return { ok: true, plan_id: planId, plan_status: "validated", resumed_step_id: resumable?.plan_step_id || null, secrets_included: false };
   });
